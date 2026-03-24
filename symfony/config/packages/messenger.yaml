@@ -1,0 +1,22 @@
+framework:
+    messenger:
+        failure_transport: failed
+        transports:
+            sync: 'sync://'
+            failed: 'doctrine://default?queue_name=failed&auto_setup=true'
+            durable_workflows: '%env(MESSENGER_DURABLE_WORKFLOW_DSN)%'
+            durable_activities: '%env(MESSENGER_DURABLE_ACTIVITY_DSN)%'
+
+        routing:
+            Gplanchat\Durable\Transport\WorkflowRunMessage: durable_workflows
+            Gplanchat\Durable\Transport\FireWorkflowTimersMessage: sync
+            Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage: sync
+            Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage: sync
+
+when@test:
+    framework:
+        messenger:
+            transports:
+                durable_workflows: 'in-memory://'
+                durable_activities: 'in-memory://'
+                failed: 'in-memory://'

@@ -1,0 +1,5 @@
+vendor/
+var/
+.php-cs-fixer.cache
+.phpunit.cache/
+symfony/var/

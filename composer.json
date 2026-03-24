@@ -1,0 +1,72 @@
+{
+    "name": "gplanchat/durable",
+    "description": "Bibliothèque PHP et bundle Symfony pour exécutions durables : workflows déterministes, activités asynchrones, journal d'événements et transports (in-memory, DBAL, Messenger).",
+    "license": "proprietary",
+    "version": "0.1.0",
+    "require": {
+        "php": ">=8.2",
+        "psr/clock": "^1.0",
+        "psr/log": "^3.0",
+        "symfony/uid": "^7.4",
+        "doctrine/dbal": "^4.4",
+        "symfony/messenger": "^7.4",
+        "symfony/contracts": "^3.6",
+        "symfony/framework-bundle": "^7.4",
+        "symfony/dependency-injection": "^7.4",
+        "symfony/config": "^7.4",
+        "symfony/routing": "^7.4",
+        "symfony/console": "^7.4"
+    },
+    "suggest": {
+        "react/promise": "^3.3 Pour le bridge ReactPHP optionnel (Bridge\\ReactPromise)",
+        "ext-pcov": "Pour composer test:coverage en local (sinon le job CI utilise PCOV)",
+        "gplanchat/durable-phpstan": "Extension PHPStan optionnelle : typage de activityStub() / ActivityStub<T> et Awaitable<R> (Packagist, require-dev à part)",
+        "gplanchat/durable-psalm-plugin": "Plugin Psalm optionnel : même objectif d’analyse statique (Packagist, require-dev à part)"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.64",
+        "phpunit/phpunit": "^11.5",
+        "react/promise": "^3.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gplanchat\\Durable\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Gplanchat\\Durable\\Tests\\": "tests/",
+            "unit\\Gplanchat\\Durable\\Bridge\\": "tests/unit/Bridge",
+            "functional\\Gplanchat\\Durable\\Bridge\\": "tests/functional/Bridge",
+            "integration\\Gplanchat\\Durable\\Bridge\\": "tests/integration/Bridge"
+        }
+    },
+    "scripts": {
+        "cs": "php-cs-fixer fix --diff",
+        "cs:check": "php-cs-fixer fix --diff --dry-run",
+        "test": "phpunit --strict-coverage",
+        "test:coverage": "phpunit --strict-coverage --coverage-text --coverage-filter=src"
+    },
+    "authors": [
+        {
+            "name": "Grégory Planchat",
+            "email": "gregory@gyroscops.com"
+        }
+    ],
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    },
+    "archive": {
+        "exclude": [
+            "/.cursor",
+            "/var",
+            "/vendor",
+            "/symfony",
+            "/tests",
+            "/phpunit.xml.dist",
+            "/.php-cs-fixer.dist.php"
+        ]
+    }
+}

@@ -1,0 +1,32 @@
+---
+description: Documentation des phases de conception Cursor (ADR, WA, OST, PRD)
+alwaysApply: true
+---
+
+# Documentation des phases de conception
+
+Toutes les phases de conception qui utilisent un plan Cursor doivent être documentées.
+
+## Emplacement
+
+Tout se trouve dans `./documentation/` :
+- **Méta-documentation** : `INDEX.md`, `LIFECYCLE.md`
+- **Documents par type** : sous-dossiers `adr/`, `wa/`, `ost/`, `prd/`
+
+## Types de documents
+
+| Type | Dossier | Usage |
+|------|---------|-------|
+| **ADR** | `documentation/adr/` | Décisions techniques |
+| **WA** | `documentation/wa/` | Accords de travail, gestion de projet |
+| **OST** | `documentation/ost/` | Réflexion sur fonctionnalités futures |
+| **PRD** | `documentation/prd/` | Fonctionnalités déjà développées |
+
+## Convention de nommage
+
+- `ADR{numero}-{description-courte}.md` (ex. `ADR001-choix-babylonjs.md`)
+- `WA{numero}-{description-courte}.md` (ex. `WA001-revue-code.md`)
+- `OST{numero}-{description-courte}.md` (ex. `OST001-systeme-multijoueur.md`)
+- `PRD{numero}-{description-courte}.md` (ex. `PRD001-mouvement-personnage.md`)
+
+Numérotation séquentielle par type. Mettre à jour `documentation/INDEX.md` à chaque nouveau document.

@@ -1,0 +1,33 @@
+durable:
+    distributed: true
+    event_store:
+        type: dbal
+        table_name: durable_events
+    workflow_metadata:
+        type: dbal
+        table_name: durable_workflow_metadata
+    activity_transport:
+        type: messenger
+        transport_name: durable_activities
+    child_workflow:
+        async_messenger: true
+        parent_link_store:
+            type: dbal
+            table_name: durable_child_workflow_parent_link
+    activity_contracts:
+        cache: cache.app
+        contracts:
+            - App\Durable\Activity\GreetingActivity
+            - App\Durable\Activity\EchoActivity
+            - App\Durable\Activity\TickActivity
+
+when@test:
+    durable:
+        event_store:
+            type: in_memory
+        workflow_metadata:
+            type: in_memory
+        child_workflow:
+            async_messenger: false
+            parent_link_store:
+                type: in_memory

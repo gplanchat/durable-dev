@@ -1,0 +1,79 @@
+# Voir ADR003 (PHPUnit), ADR002 (CS), OST002 (PHPUnit 12).
+name: CI
+
+on:
+    push:
+        branches: [main, master]
+    pull_request:
+
+jobs:
+    qa:
+        name: QA (CS + tests)
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                php-version: ['8.2', '8.3']
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php-version }}
+                  extensions: mbstring, sqlite3
+                  coverage: none
+
+            - name: Install Composer dependencies
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: PHP-CS-Fixer (dry-run)
+              run: composer cs:check
+
+            - name: PHPUnit
+              run: composer test
+
+    symfony-sample:
+        name: App exemple Symfony (composer + PHPUnit)
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                php-version: ['8.2', '8.3']
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php-version }}
+                  extensions: mbstring, sqlite3
+                  coverage: none
+
+            - name: Composer install (symfony/)
+              working-directory: symfony
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: PHPUnit (symfony/)
+              working-directory: symfony
+              run: composer test
+
+    coverage:
+        name: Couverture (PCOV)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP with PCOV
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.2'
+                  extensions: mbstring, sqlite3
+                  coverage: pcov
+                  ini-values: pcov.directory=.
+
+            - name: Install Composer dependencies
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: Rapport texte (src/)
+              run: composer test:coverage

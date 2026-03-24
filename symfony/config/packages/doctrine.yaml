@@ -1,0 +1,16 @@
+# DBAL uniquement : Messenger (doctrine://) + option durable (event_store / activity dbal).
+parameters:
+    env(DATABASE_URL): 'sqlite:///%kernel.project_dir%/var/durable.db'
+    env(MESSENGER_DURABLE_WORKFLOW_DSN): 'doctrine://default?queue_name=durable_workflows&auto_setup=true'
+    env(MESSENGER_DURABLE_ACTIVITY_DSN): 'doctrine://default?queue_name=durable_activities&auto_setup=true'
+
+doctrine:
+    dbal:
+        url: '%env(resolve:DATABASE_URL)%'
+        profiling_collect_backtrace: '%kernel.debug%'
+        use_savepoints: true
+
+when@test:
+    doctrine:
+        dbal:
+            dbname_suffix: '_test%env(default::TEST_TOKEN)%'

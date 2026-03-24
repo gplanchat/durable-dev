@@ -1,0 +1,81 @@
+---
+description: Métadonnées de couverture PHPUnit (CoversClass / CoversNothing) – attributs PHP 8
+globs: **/tests/**/*Test.php,**/tests/**/*Spec.php
+---
+
+# PHPUnit – Couverture : @covers et attributs (HIVE003)
+
+Référence : `architecture/hive/HIVE003-phpunit-testing-standards.md`, [PHPUnit Code Coverage](https://docs.phpunit.de/en/10.5/code-coverage.html)
+
+## Règle
+
+Chaque classe de test **doit** déclarer explicitement ce qu’elle couvre :
+
+- **Tests unitaires** qui ciblent **une seule classe** du code de production : utiliser l’attribut **`#[CoversClass(ClassName::class)]`** sur la classe de test.
+- **Tests fonctionnels, d’intégration, ou qui exercent plusieurs composants** : utiliser **`#[CoversNothing]`**.
+
+On privilégie les **attributs PHP 8** plutôt que les annotations `@covers` / `@coversNothing`.
+
+## Attributs (PHP 8)
+
+Espace de noms : `PHPUnit\Framework\Attributes`.
+
+| Annotation      | Attribut équivalent                          |
+|-----------------|----------------------------------------------|
+| `@coversNothing`| `#[CoversNothing]`                          |
+| `@covers \X\Y\Z`| `#[CoversClass(\X\Y\Z::class)]`              |
+| (méthode)       | `#[CoversMethod(ClassName::class, 'method')]` |
+
+## Exemples conformes
+
+### Test unitaire – une classe ciblée
+
+```php
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\TestCase;
+
+#[CoversClass(MyService::class)]
+final class MyServiceTest extends TestCase
+{
+    // ...
+}
+```
+
+### Test fonctionnel / intégration
+
+```php
+use PHPUnit\Framework\Attributes\CoversNothing;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * @internal
+ */
+#[CoversNothing]
+final class ApiIntegrationTest extends TestCase
+{
+    // ...
+}
+```
+
+### Plusieurs classes couvertes (répétable)
+
+```php
+#[CoversClass(Foo::class)]
+#[CoversClass(Bar::class)]
+final class FooAndBarTest extends TestCase
+{
+    // ...
+}
+```
+
+## Effets
+
+- **Documentation** : on voit immédiatement quelle classe est testée.
+- **Couverture** : avec `requireCoverageMetadata="true"` (optionnel), PHPUnit n’attribue la couverture qu’aux classes déclarées.
+- **Infection** : les métadonnées aident à associer tests et code muté.
+
+## Migration
+
+- Remplacer `@coversNothing` par `#[CoversNothing]` (équivalent strict).
+- Remplacer `@covers \Namespace\Class` par `#[CoversClass(\Namespace\Class::class)]`.
+- Pour les tests unitaires actuellement en `@coversNothing` qui ne testent qu’**une** classe, préférer `#[CoversClass(CetteClasse::class)]`.

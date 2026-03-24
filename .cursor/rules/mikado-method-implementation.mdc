@@ -1,0 +1,53 @@
+---
+description: Utiliser le MCP Mikado pour guider l'implémentation selon la méthode Mikado
+alwaysApply: true
+---
+
+# Méthode Mikado pour l'implémentation
+
+Lors de l'implémentation du plan de stabilisation et refonte du dépôt, utiliser le **MCP Mikado** pour structurer le travail selon la [méthode Mikado](https://coach-agile.com/2022/01/la-methode-mikado/).
+
+## Principe fondamental
+
+**Les tâches supérieures doivent être résolues avant les tâches inférieures.**
+
+- **Supérieures** (haut du graphe) = prérequis, fondations — à faire en premier
+- **Inférieures** (bas du graphe) = dépendantes, objectif final — à faire après
+
+Ordre d'exécution : du haut vers le bas du graphe.
+
+## Workflow à chaque session
+
+1. **Début** : Appeler `mk_list_goals` puis `mk_list_available_steps` pour l'objectif actif
+2. **Exécution** : Travailler sur la prochaine étape disponible (sans dépendances non satisfaites)
+3. **Validation** : Si succès → `mk_mark_completed` ; si échec → `mk_mark_failed` puis `mk_add_prerequisite` pour décomposer
+4. **Fin** : Toujours afficher le **schéma Mermaid** via `mk_get_graph` ou `fetch_mcp_resource` (mikado://graph/{goalId}/mermaid)
+
+## Objectif actif (migration samples-php → bundle Kiboko)
+
+- **ID** : `0cb9e1bb-d41b-4048-98e6-cab5246c284d` ← **utiliser pour `mk_get_graph` / ressource Mermaid**
+- **Titre** : Migration samples-php → kiboko/temporal-bundle + tests PHPUnit par workflow
+
+## Objectif complété / archive (PoC Temporal)
+
+- **ID** : `66922c0e-b80c-4e54-89a3-fbacb7346770`
+- **Titre** : PoC Temporal — tests intégration/E2E réels (Messenger + gRPC, sans SDK / RoadRunner)
+
+## Objectif parent (dépôt global)
+
+Objectif « Stabilisation Compiler / Cloud Runtime » : ID historique documenté dans `documentation/docs/design-and-decisions/MIKADO-PREREQUISITES-ANALYSIS.md` (`429ddeb8-f1d9-4c33-842f-1164cc0fe15a`) — **peut être absent du MCP**. Recréer dans Mikado si besoin. En attendant, s’appuyer sur l’objectif session PoC ci-dessus pour `mk_get_graph`.
+
+## Outils MCP disponibles
+
+| Outil | Usage |
+|-------|-------|
+| `mk_list_available_steps` | Prochaines étapes à tenter |
+| `mk_add_experiment` | Ajouter une expérimentation (prérequis optionnels) |
+| `mk_add_prerequisite` | Décomposer un blocage en prérequis |
+| `mk_mark_completed` | Valider une étape réussie |
+| `mk_mark_failed` | Marquer échec et revert |
+| `mk_get_graph` | Graphe JSON + Mermaid |
+
+## Règle impérative
+
+**À chaque fin de travail** : afficher le schéma Mermaid du graphe Mikado.

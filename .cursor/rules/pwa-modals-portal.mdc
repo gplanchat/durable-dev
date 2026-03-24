@@ -1,0 +1,60 @@
+---
+description: Règle PWA — Modales et Dialog doivent être rendus dans un Portal avec z-index explicite
+globs: pwa/**/*.tsx,pwa/**/*.ts
+alwaysApply: false
+---
+
+# Modales / Dialog (Chakra UI) — Portal obligatoire
+
+## Règle
+
+Toute **modale** ou **dialog** (Chakra UI `Dialog.Root` / `Dialog`) doit :
+
+1. **Être rendu dans un `<Portal>`**  
+   Le contenu du dialog (Backdrop + Positioner + Content) doit être **à l’intérieur** d’un composant `Portal` de Chakra UI. Sans Portal, le rendu peut être coupé par un parent avec `overflow: hidden`, `transform` ou un stacking context qui dégrade l’affichage.
+
+2. **Utiliser un z-index explicite**  
+   Pour passer au-dessus du reste de l’UI (header, sidebars, autres overlays) :
+   - `DialogBackdrop` : `zIndex={1400}` (et optionnellement `bg="blackAlpha.600"`, `backdropFilter="blur(4px)"`).
+   - `DialogPositioner` : `zIndex={1400}`.
+
+3. **Être placé au niveau racine du rendu de la page**  
+   Éviter de mettre le `Dialog.Root` (et son `Portal`) **à l’intérieur** d’un conteneur qui a `overflow`, `position: relative` ou un z-index. Préférer le rendre **sibling** du contenu principal (ex. à côté de `PurityPageWrapper`), pour que le Portal monte bien au-dessus de toute la page.
+
+## Structure recommandée
+
+```tsx
+import { Dialog, Portal, DialogBackdrop, DialogPositioner } from '@chakra-ui/react';
+
+// Dans le return : Dialog en sibling du contenu principal, pas à l’intérieur d’un Box scrollable
+<>
+  <PurityPageWrapper content={...} />
+  <Dialog.Root open={open} onOpenChange={(e) => setOpen(e.open)} placement="center">
+    <Portal>
+      <DialogBackdrop bg="blackAlpha.600" backdropFilter="blur(4px)" zIndex={1400} />
+      <DialogPositioner zIndex={1400}>
+        <Dialog.Content maxW="md">
+          {/* Header, Body, Footer, CloseTrigger */}
+        </Dialog.Content>
+      </DialogPositioner>
+    </Portal>
+  </Dialog.Root>
+</>
+```
+
+## À éviter
+
+- Dialog **sans** `Portal` : risque d’affichage incorrect (clipping, mauvais empilement).
+- Dialog imbriqué **dans** un `Box` avec `overflow: auto` / `overflow: hidden` ou `position: relative` sans Portal, ou avec Portal mais sans z-index : la modale peut passer derrière d’autres éléments.
+
+## Référence (implémentation à calquer)
+
+**Référence principale** : `pwa/components/platform/ui/components/billing/PaymentMethodModal.tsx`
+
+- `Dialog.Root` avec `open`, `onOpenChange`, `placement="center"`
+- `Portal` > `DialogBackdrop` (bg, backdropFilter ; zIndex si layout complexe) > `DialogPositioner` (zIndex si besoin) > `Dialog.Content`
+- `Dialog.Content` : styles explicites **obligatoires** pour un rendu correct — `bg` (useColorModeValue), `border`, `borderRadius`, `boxShadow`, `maxW` / `minW` / `width`, `maxH="90vh"`, `overflowY="auto"`
+- `DialogHeader` : contenu custom (titre en `Text` + `CloseButton` avec `onClick={onClose}`), **pas** `Dialog.Title` / `Dialog.Description` seuls
+- `DialogBody` / `DialogFooter` pour le contenu et les actions
+
+Autres exemples : `JoinChannelModal.tsx`, `PurityModal.tsx`, dialog création workflow dans `pwa/pages/data-engineering/workflows/index.tsx` et `workflows/[workflowId].tsx`.

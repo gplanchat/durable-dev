@@ -1,0 +1,21 @@
+#!/usr/bin/env php
+<?php
+
+$projectDir = dirname(__DIR__);
+$vendorCandidates = [
+    $projectDir.'/vendor',
+    $projectDir.'/../../durable-symfony-vendor',
+];
+$phpunit = null;
+foreach ($vendorCandidates as $vendorDir) {
+    $candidate = $vendorDir.'/phpunit/phpunit/phpunit';
+    if (is_file($candidate)) {
+        $phpunit = $candidate;
+        break;
+    }
+}
+if (null === $phpunit) {
+    fwrite(STDERR, "PHPUnit introuvable. Exécutez : cd symfony && composer install\n");
+    exit(1);
+}
+require $phpunit;

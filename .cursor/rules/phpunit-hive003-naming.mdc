@@ -1,0 +1,52 @@
+---
+description: Nomenclature des méthodes de test PHPUnit selon HIVE003
+globs: **/tests/**/*Test.php,**/tests/**/*Spec.php
+---
+
+# PHPUnit – Nomenclature des tests (HIVE003)
+
+Référence : `architecture/hive/HIVE003-phpunit-testing-standards.md`
+
+Pour les métadonnées de couverture (`@covers` / attributs), voir la règle **phpunit-coverage-metadata**.
+
+## Méthodes de test
+
+- **Pattern obligatoire** : `itShouldDoSomething` (camelCase), **pas** de préfixe `test`.
+- Chaque méthode de test doit avoir :
+  - l’annotation `@test` ;
+  - l’annotation `@testdox` avec une phrase en « It should … » décrivant le comportement attendu.
+
+## Exemples conformes
+
+```php
+/**
+ * @test
+ * @testdox It should create a user when provided with valid data and return the user instance
+ */
+public function itShouldCreateUserWithValidDataReturnsUser(): void
+
+/**
+ * @test
+ * @testdox It should throw a validation exception when creating a user with invalid email
+ */
+public function itShouldCreateUserWithInvalidEmailThrowsValidationException(): void
+```
+
+## À éviter
+
+- `public function testCreateUser(): void`
+- `public function run(): void` (sans forme « itShould… »)
+- Méthodes sans `@testdox`
+
+## Data providers
+
+Les tests avec `@dataProvider` gardent le même pattern pour le nom de la méthode de test, par ex. :
+
+```php
+/**
+ * @test
+ * @testdox It should run pipeline with source, callback and return expected output
+ */
+#[\PHPUnit\Framework\Attributes\DataProvider('providerRun')]
+public function itShouldRunPipelineWithSourceCallbackAndReturnExpectedOutput(\Iterator $source, callable $callback, array $expected): void
+```
