@@ -1,0 +1,4 @@
+# Artefacts Composer locaux (zip, etc.) : ne pas versionner.
+# Préférer le dépôt path parent — voir `composer.json` (repositories → url "..").
+*
+!.gitignore

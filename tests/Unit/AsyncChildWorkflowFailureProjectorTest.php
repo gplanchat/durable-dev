@@ -8,14 +8,14 @@ use Gplanchat\Durable\Bundle\Support\AsyncChildWorkflowFailureProjector;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Store\InMemoryEventStore;
+use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 /**
  * @internal
- *
- * @coversNothing
  */
+#[CoversNothing]
 final class AsyncChildWorkflowFailureProjectorTest extends TestCase
 {
     #[Test]

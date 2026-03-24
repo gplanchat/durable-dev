@@ -6,6 +6,7 @@ Illustre `gplanchat/durable` avec **Messenger**, **Doctrine DBAL** (SQLite par d
 
 - PHP 8.2+
 - Composer — dépendances dans **`symfony/vendor/`** (défaut Composer). Exécuter **`composer install`** depuis ce dossier `symfony/`.
+- Le package **`gplanchat/durable`** est pris sur le **dépôt parent** (`composer.json` : repository `path` → `..`, lien symbolique). Pas d’artefact zip dans le dépôt ; pour un clone « app seule », utiliser une dépendance Packagist ou un `path` / `VCS` pointant vers votre copie du composant.
 
 Après un changement de répertoire `vendor` (ex. passage d’un ancien `durable-symfony-vendor` externe), vider le cache : **`rm -rf var/cache/*`** puis **`php bin/console cache:clear`**.
 

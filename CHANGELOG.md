@@ -2,6 +2,11 @@
 
 ## [Unreleased] — Ruptures API (parité Temporal)
 
+### Changé (outillage)
+
+- **PHPUnit** — `@coversNothing` en docblock remplacé par `#[CoversNothing]` sur les tests E2E / helpers concernés (fin des *PHPUnit test runner deprecations* avec `composer test`).
+- **App `symfony/`** — suppression du zip `local-packages/gplanchat-durable-*.zip` : la dépendance **`gplanchat/durable`** reste le repository **`path` → `..`** ; `symfony/local-packages/.gitignore` ignore tout artefact local.
+
 ### Supprimé
 
 - **`src/functions.php`** — Fichier supprimé. L'autoload `files` pointant vers ce fichier a été retiré du `composer.json`.

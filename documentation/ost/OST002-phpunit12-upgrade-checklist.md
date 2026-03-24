@@ -4,6 +4,10 @@
 
 Le dépôt est sur **PHPUnit 11.5** avec métadonnées en **attributs** (`#[Test]`, `#[CoversClass]`, etc.), conformément à ADR003. PHPUnit 12 supprimera les annotations docblock pour les tests.
 
+## PHPUnit 11 — hygiène (CI sans avertissements)
+
+- Remplacer toute métadonnée PHPUnit en **docblock** (`@coversNothing`, `@covers`, etc.) par les **attributs** correspondants (`#[CoversNothing]`, `#[CoversClass]`, …). Sinon la sortie affiche *PHPUnit test runner deprecations* et *OK, but there were issues!*.
+
 ## Avant de passer à PHPUnit 12
 
 1. **Lire le changelog / upgrade guide** officiel PHPUnit 12 (breaking changes, extensions).

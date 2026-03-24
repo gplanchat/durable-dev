@@ -14,6 +14,7 @@ use Gplanchat\Durable\Tests\Integration\Bundle\Support\ActFlowWorkflow;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Transport\WorkflowRunMessage;
+use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -23,9 +24,8 @@ use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
  * @internal
- *
- * @coversNothing
  */
+#[CoversNothing]
 final class DurableDistributedActivityE2ETest extends KernelTestCase
 {
     protected static function getKernelClass(): string
