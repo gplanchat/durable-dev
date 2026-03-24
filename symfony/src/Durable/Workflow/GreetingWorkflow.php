@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Durable\Workflow;
 
-use App\Durable\Activity\GreetingActivity;
+use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Attribute\Workflow;
@@ -21,7 +21,7 @@ final class GreetingWorkflow
     ) {
         // Stubs initialisés au constructeur ; options retry/gestion d'erreur configurables ici
         $this->greeting = $environment->activityStub(
-            GreetingActivity::class,
+            GreetingActivityInterface::class,
             ActivityOptions::default()->withMaxAttempts(3),
         );
     }

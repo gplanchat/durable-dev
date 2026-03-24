@@ -1,29 +1,68 @@
 # Durable
 
-Bibliothèque PHP et bundle Symfony pour exécutions durables : workflows déterministes, activités asynchrones, journal d'événements et transports (in-memory, DBAL, Messenger). API inspirée du [SDK Temporal PHP](https://docs.temporal.io/develop/php).
+Bibliothèque PHP et bundle Symfony pour exécutions durables : workflows déterministes, activités asynchrones, journal d’événements et transports (in-memory, DBAL, Messenger). API inspirée du [SDK Temporal PHP](https://docs.temporal.io/develop/php).
 
 ## Prérequis
 
 - PHP 8.2+
 - Symfony 7.4+ (pour le bundle)
 
-## Installation
+## Installation dans un projet Symfony
 
 ```bash
 composer require gplanchat/durable
 ```
 
+Puis enregistrez le bundle et la configuration (voir *Bundle Symfony* plus bas). Pour **essayer tout de suite sans rien configurer**, utilisez le démarrage rapide ci-dessous.
+
+## Démarrage rapide (environ 3 minutes)
+
+Objectif : avoir **un workflow qui s’exécute** et une sortie lisible dans le terminal.
+
+1. **Cloner ce dépôt** et ouvrir l’application exemple :
+
+   ```bash
+   cd symfony
+   ```
+
+   (dossier `symfony/` à la racine du dépôt `durable`.)
+
+2. **Installer** les dépendances :
+
+   ```bash
+   composer install
+   ```
+
+3. **Préparer la base** (SQLite par défaut, commande idempotente) :
+
+   ```bash
+   php bin/console durable:schema:init
+   ```
+
+4. **Exécuter un workflow d’exemple** :
+
+   ```bash
+   php bin/console durable:sample GreetingWorkflow --name=Alice
+   ```
+
+Vous devez obtenir un message de succès et une salutation du type **Hello, Alice!** dans la sortie.
+
+Ensuite, pour un mode proche de la production (workers qui consomment une file), voir **`symfony/README.md`** (`messenger:consume`, etc.).
+
+> **Vous n’utilisez pas le monorepo ?** Dans votre propre application Symfony : `composer require gplanchat/durable`, copiez une configuration proche de `symfony/config/packages/durable.yaml`, taguez vos classes de workflow avec `durable.workflow`, créez les tables (`durable:schema:init` si vous exposez cette commande ou équivalent), puis déclenchez un workflow depuis votre code ou une commande.
+
 ## Concepts
 
-- **Workflow** : orchestration déterministe qui se rejoue depuis un journal d'événements. Toute opération asynchrone (activité, timer, child workflow, signal, etc.) passe par `WorkflowEnvironment`.
-- **Activité** : tâche unitaire, éventuellement asynchrone, exécutée hors du workflow. Idempotente et potentiellement retentée.
-- **Event store** : journal des événements qui permet replay et reprise.
+- **Workflow** : orchestration déterministe rejouée depuis un journal d’événements. Les appels asynchrones (activité, timer, enfant, signal, etc.) passent par `WorkflowEnvironment`.
+- **Activité** : unité de travail exécutée hors workflow, souvent asynchrone. À concevoir **idempotente** et résiliente (retries).
+- **Event store** : journal des événements pour reprise et replay.
 
 ## Workflow en classe
 
-Déclaration d'un workflow avec les attributs `#[Workflow]` et `#[WorkflowMethod]` :
+Le workflow utilise un **stub** typé vers l’**interface** de l’activité, pas vers l’implémentation :
 
 ```php
+use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
 use Gplanchat\Durable\Activity\ActivityStub;
@@ -37,7 +76,7 @@ final class GreetingWorkflow
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
-        $this->greeting = $environment->activityStub(GreetingActivity::class);
+        $this->greeting = $environment->activityStub(GreetingActivityInterface::class);
     }
 
     #[WorkflowMethod]
@@ -48,40 +87,49 @@ final class GreetingWorkflow
 }
 ```
 
+(`GreetingActivityInterface` est votre interface métier, définie dans la section suivante.)
+
 ## Activités
 
-Contrat d'activité avec `#[ActivityMethod]` :
+**Étape 1 — le contrat** : une interface PHP et une méthode marquée avec le nom d’activité utilisé par le runtime.
+
+**Étape 2 — le code métier** : une classe qui implémente cette interface, comme n’importe quel service dans votre application.
 
 ```php
+namespace App\Durable\Activity;
+
 use Gplanchat\Durable\Attribute\ActivityMethod;
 
-interface GreetingActivity
+interface GreetingActivityInterface
 {
     #[ActivityMethod('composeGreeting')]
     public function composeGreeting(string $name = 'World'): string;
 }
+
+final class GreetingActivityHandler implements GreetingActivityInterface
+{
+    public function composeGreeting(string $name = 'World'): string
+    {
+        return sprintf('Hello, %s!', $name);
+    }
+}
 ```
 
-Enregistrement côté worker (Symfony, CLI, etc.) :
+Le workflow ne référence que **`GreetingActivityInterface`**. L’implémentation **`GreetingActivityHandler`** est invoquée par le **worker** lorsque l’activité est exécutée (souvent via Symfony Messenger dans l’app exemple). Pour un fichier complet qui relie contrats, handlers et transports, ouvrez le dossier **`symfony/src/Durable/`** dans ce dépôt.
+
+## Options retry et gestion d’erreur
+
+Les stubs d’activité se configurent en général dans le constructeur du workflow :
 
 ```php
-$activityExecutor->register('composeGreeting', static fn (array $p): string =>
-    sprintf('Hello, %s!', $p['name'] ?? 'World')
-);
-```
-
-## Options retry et gestion d'erreur
-
-Les activity stubs s'initialisent dans le constructeur du workflow, où l'on peut configurer retry et exclusions :
-
-```php
+use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 
 public function __construct(
     private readonly WorkflowEnvironment $environment,
 ) {
     $this->greeting = $environment->activityStub(
-        GreetingActivity::class,
+        GreetingActivityInterface::class,
         ActivityOptions::default()
             ->withMaxAttempts(3)
             ->withInitialInterval(2.0)
@@ -92,7 +140,7 @@ public function __construct(
 
 ## Bundle Symfony
 
-Configuration typique (voir l’app `symfony/config/packages/durable.yaml` pour un exemple complet) :
+Extrait de configuration (exemple complet : **`symfony/config/packages/durable.yaml`** dans ce dépôt) :
 
 ```yaml
 # config/packages/durable.yaml
@@ -115,7 +163,7 @@ durable:
     activity_contracts:
         cache: cache.app
         contracts:
-            - App\Durable\Activity\GreetingActivity
+            - App\Durable\Activity\GreetingActivityInterface
 ```
 
 Enregistrement des workflows (classes `#[Workflow]`) :
@@ -128,13 +176,13 @@ services:
         tags: [durable.workflow]
 ```
 
-**Schéma DBAL** (journal, métadonnées, lien parent-enfant) : les implémentations exposent `createSchema()`. L’app exemple fournit :
+**Schéma DBAL** (journal, métadonnées, lien parent-enfant) : les implémentations exposent `createSchema()`. Dans l’app exemple :
 
 ```bash
 cd symfony && php bin/console durable:schema:init
 ```
 
-Lancement des workers (noms de transports alignés sur votre `messenger.yaml`) :
+**Workers** (noms de transports alignés sur votre `messenger.yaml`) :
 
 ```bash
 php bin/console messenger:consume durable_workflows durable_activities -vv
@@ -143,23 +191,23 @@ php bin/console durable:activity:consume
 
 ## Exemple Symfony
 
-Le dossier `symfony/` contient une application exemple (workflows en classe, `activity_contracts`, Messenger + SQLite). Voir **`symfony/README.md`**. **Première fois** : `php bin/console durable:schema:init`, puis par exemple :
+Le dossier **`symfony/`** est l’application de référence (workflows, activités, Messenger, SQLite). Après le *démarrage rapide*, vous pouvez lancer d’autres scénarios :
 
 ```bash
-cd symfony && php bin/console durable:sample GreetingWorkflow --name=Alice
+cd symfony && php bin/console durable:sample ParallelGreetingWorkflow --first=Ada --second=Grace
 ```
 
-Tests PHPUnit de l’app exemple (commande `durable:schema:init`, SQLite mémoire) :
+Tests PHPUnit de l’app exemple :
 
 ```bash
 cd symfony && composer test
 ```
 
-## Tests
+## Tests (composant)
 
 ```bash
 composer test
-composer cs:check   # contrôle style
+composer cs:check   # contrôle de style
 ```
 
 ## Structure du projet
@@ -168,9 +216,9 @@ composer cs:check   # contrôle style
 src/                   # Composant (lib)
 ├── Activity/          # ActivityStub, ActivityOptions, attributs
 ├── Awaitable/         # Awaitable, Deferred, composites
-├── Bundle/             # Intégration Symfony
-├── Event/              # Événements du journal
-├── Workflow/           # ChildWorkflowStub, loader
+├── Bundle/            # Intégration Symfony
+├── Event/             # Événements du journal
+├── Workflow/          # ChildWorkflowStub, loader
 ├── ExecutionContext.php
 ├── ExecutionEngine.php
 ├── WorkflowEnvironment.php

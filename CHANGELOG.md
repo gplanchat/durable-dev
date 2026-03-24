@@ -4,6 +4,8 @@
 
 ### Changé (outillage)
 
+- **README** — Démarrage rapide (~3 min) sur l’app `symfony/` ; activités documentées avec **`GreetingActivityInterface`** + **`GreetingActivityHandler`** (sans exemple `ActivityExecutor::register`).
+- **App `symfony/`** — contrat d’exemple renommé **`GreetingActivityInterface`** ; `DurableSamplesConfigurator` délègue aux handlers (`GreetingActivityHandler`, `EchoActivityHandler`, `TickActivityHandler`) ; ajout de **`TickActivityHandler`**.
 - **PHPUnit** — `@coversNothing` en docblock remplacé par `#[CoversNothing]` sur les tests E2E / helpers concernés (fin des *PHPUnit test runner deprecations* avec `composer test`).
 - **App `symfony/`** — suppression du zip `local-packages/gplanchat-durable-*.zip` : la dépendance **`gplanchat/durable`** reste le repository **`path` → `..`** ; `symfony/local-packages/.gitignore` ignore tout artefact local.
 

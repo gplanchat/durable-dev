@@ -17,7 +17,7 @@ durable:
     activity_contracts:
         cache: cache.app
         contracts:
-            - App\Durable\Activity\GreetingActivity
+            - App\Durable\Activity\GreetingActivityInterface
             - App\Durable\Activity\EchoActivity
             - App\Durable\Activity\TickActivity
 

@@ -6,7 +6,7 @@ namespace App\Durable\Activity;
 
 use Gplanchat\Durable\Attribute\ActivityMethod;
 
-interface GreetingActivity
+interface GreetingActivityInterface
 {
     #[ActivityMethod('composeGreeting')]
     public function composeGreeting(string $name = 'World'): string;

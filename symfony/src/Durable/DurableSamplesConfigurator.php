@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Durable;
 
+use App\Durable\Activity\EchoActivityHandler;
+use App\Durable\Activity\GreetingActivityHandler;
+use App\Durable\Activity\TickActivityHandler;
 use Gplanchat\Durable\ActivityExecutor;
 
 /**
- * Enregistre activités et workflows inspirés des samples Temporal PHP (SimpleActivity,
- * AsyncActivity / promesses parallèles, Child, timers, side-effect).
+ * Relie les noms d'activité (attribut ActivityMethod sur l'interface) aux classes métier qui les implémentent.
+ * Les workflows ne voient que les interfaces ; le worker exécute ces handlers.
  *
  * Les workflows sont enregistrés via le tag durable.workflow (voir services.yaml).
  *
@@ -30,6 +33,9 @@ final class DurableSamplesConfigurator
 
     public function __construct(
         private readonly ActivityExecutor $activityExecutor,
+        private readonly GreetingActivityHandler $greetingActivityHandler,
+        private readonly EchoActivityHandler $echoActivityHandler,
+        private readonly TickActivityHandler $tickActivityHandler,
     ) {
     }
 
@@ -40,16 +46,17 @@ final class DurableSamplesConfigurator
 
     private function registerActivities(): void
     {
-        $this->activityExecutor->register('composeGreeting', static function (array $payload): string {
-            $name = (string) ($payload['name'] ?? 'World');
-
-            return \sprintf('Hello, %s!', $name);
-        });
-
-        $this->activityExecutor->register('echoUpper', static function (array $payload): string {
-            return strtoupper((string) ($payload['text'] ?? ''));
-        });
-
-        $this->activityExecutor->register('tick', static fn (): string => 'tick');
+        $this->activityExecutor->register(
+            'composeGreeting',
+            $this->greetingActivityHandler->composeGreetingFromPayload(...),
+        );
+        $this->activityExecutor->register(
+            'echoUpper',
+            $this->echoActivityHandler->echoUpperFromPayload(...),
+        );
+        $this->activityExecutor->register(
+            'tick',
+            $this->tickActivityHandler->tickFromPayload(...),
+        );
     }
 }
