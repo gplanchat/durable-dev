@@ -5,6 +5,7 @@
 ### Fixed
 
 - **Splitsh (CI)** — remplacement de `${{ runner.home }}` (contexte inexistant → `/.local/bin`, échec `mkdir`) par **`$HOME`** / **`~`** pour les chemins et le cache **actions/cache**.
+- **Splitsh (CI)** — compilation de **libgit2 v1.5.2** dans `$HOME` (git2go v34 incompatible avec `libgit2-dev` du runner) ; cache combiné `splitsh-lite` + `libgit2-install`, **`LD_LIBRARY_PATH`** pour l’exécution.
 
 ### Added
 

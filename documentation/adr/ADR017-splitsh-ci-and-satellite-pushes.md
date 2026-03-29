@@ -15,7 +15,7 @@ The monorepo publishes several **read-only mirrors** (Packagist, downstream clon
 
 ## Decision
 
-1. **Workflow** — `.github/workflows/splitsh.yml` runs on `push` to `main` / `master` and `workflow_dispatch`, with `fetch-depth: 0` and `libgit2` installed for splitsh/lite v2.
+1. **Workflow** — `.github/workflows/splitsh.yml` runs on `push` to `main` / `master` and `workflow_dispatch`, with `fetch-depth: 0`. **splitsh/lite v2.0.0** depends on **git2go v34**, which requires **libgit2 1.5.x**; the system `libgit2-dev` on `ubuntu-latest` is usually too new, so CI **builds libgit2 v1.5.2** into `$HOME/libgit2-install`, caches it together with `splitsh-lite`, and sets **`LD_LIBRARY_PATH`** for execution.
 2. **Default behaviour** — The job **always** runs `splitsh-lite` per prefix and prints the resulting SHAs (same as local `bin/splitsh-publish.sh`).
 3. **Optional push** — If the repository secret **`SPLITSH_PUSH_TOKEN`** is set to a **Personal Access Token** (classic) or fine-grained token with **`contents: write`** on each satellite repository, the same script run **also** executes `git push` for each prefix (`SPLITSH_PUSH_TOKEN` is read by `bin/splitsh-publish.sh`). If the secret is absent or empty, pushes are skipped; no failure.
 4. **Target branch** — Configurable via **`SPLITSH_TARGET_BRANCH`** (default `main`). Rare force updates: **`SPLITSH_PUSH_FORCE=1`** (use with care).

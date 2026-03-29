@@ -2,7 +2,9 @@
 # Historique Git complet requis ; voir bin/splitsh-publish.sh, ADR017, README (split / Packagist).
 # Secret optionnel SPLITSH_PUSH_TOKEN (PAT) pour git push HTTPS vers chaque dépôt satellite.
 #
-# Note : ne pas utiliser ${{ runner.home }} — ce contexte n’existe pas ; utiliser $HOME / ~.
+# splitsh/lite v2.0.0 utilise git2go v34 → libgit2 **1.5.x** uniquement. Le paquet `libgit2-dev`
+# du runner (souvent 1.7+) est incompatible → compilation de libgit2 v1.5.2 dans $HOME.
+# Ne pas utiliser ${{ runner.home }} — utiliser $HOME / ~.
 name: Splitsh
 
 on:
@@ -29,33 +31,55 @@ jobs:
             - name: Répertoire binaire local
               run: mkdir -p "$HOME/.local/bin"
 
-            - name: Restaurer le cache splitsh-lite
-              id: cache-splitsh-restore
+            - name: Restaurer le cache (splitsh-lite + libgit2 1.5)
+              id: cache-toolchain
               uses: actions/cache/restore@v4
               with:
-                  path: ~/.local/bin/splitsh-lite
-                  key: splitsh-lite-v2.0.0-${{ runner.os }}-amd64
+                  path: |
+                      ~/.local/bin/splitsh-lite
+                      ~/libgit2-install
+                  key: splitsh-toolchain-v2-libgit2-1.5.2-${{ runner.os }}-amd64
 
-            - name: Paquets système (libgit2 pour git2go / splitsh-lite)
-              if: steps.cache-splitsh-restore.outputs.cache-hit != 'true'
+            - name: Paquets système (build libgit2, pas libgit2-dev)
+              if: steps.cache-toolchain.outputs.cache-hit != 'true'
               run: |
                   sudo apt-get update
-                  sudo apt-get install -y libgit2-dev pkg-config
+                  sudo apt-get install -y cmake libssl-dev pkg-config zlib1g-dev
 
             - uses: actions/setup-go@v5
-              if: steps.cache-splitsh-restore.outputs.cache-hit != 'true'
+              if: steps.cache-toolchain.outputs.cache-hit != 'true'
               with:
                   go-version: '1.22'
 
-            - name: Compiler splitsh-lite (splitsh/lite)
-              if: steps.cache-splitsh-restore.outputs.cache-hit != 'true'
+            - name: Compiler libgit2 1.5.2 puis splitsh-lite (splitsh/lite v2.0.0)
+              if: steps.cache-toolchain.outputs.cache-hit != 'true'
               env:
                   SPLITSH_LITE_REF: v2.0.0
               run: |
                   set -euo pipefail
+                  PREFIX="$HOME/libgit2-install"
+                  mkdir -p "$PREFIX"
+                  curl -sL https://github.com/libgit2/libgit2/archive/refs/tags/v1.5.2.tar.gz | tar xz -C /tmp
+                  cd /tmp/libgit2-1.5.2
+                  cmake -S . -B build \
+                    -DCMAKE_BUILD_TYPE=Release \
+                    -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+                    -DBUILD_CLAR=OFF \
+                    -DBUILD_TESTS=OFF \
+                    -DUSE_SSH=OFF
+                  cmake --build build --parallel
+                  cmake --install build
+                  export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig"
+                  export LD_LIBRARY_PATH="$PREFIX/lib:${LD_LIBRARY_PATH:-}"
                   git clone --depth 1 --branch "${SPLITSH_LITE_REF}" https://github.com/splitsh/lite.git /tmp/splitsh-lite-src
                   (cd /tmp/splitsh-lite-src && go build -o splitsh-lite .)
                   install -m 0755 /tmp/splitsh-lite-src/splitsh-lite "$HOME/.local/bin/splitsh-lite"
+
+            - name: LD_LIBRARY_PATH (binaire lié à libgit2 du préfixe)
+              run: |
+                  if [ -d "$HOME/libgit2-install/lib" ]; then
+                    echo "LD_LIBRARY_PATH=$HOME/libgit2-install/lib" >> "$GITHUB_ENV"
+                  fi
 
             - name: PATH
               run: echo "$HOME/.local/bin" >> "${GITHUB_PATH}"
@@ -68,9 +92,11 @@ jobs:
                   SPLITSH_PUSH_TOKEN: ${{ secrets.SPLITSH_PUSH_TOKEN }}
               run: ./bin/splitsh-publish.sh
 
-            - name: Sauvegarder splitsh-lite dans le cache
-              if: success() && steps.cache-splitsh-restore.outputs.cache-hit != 'true'
+            - name: Sauvegarder le cache (splitsh-lite + libgit2)
+              if: success() && steps.cache-toolchain.outputs.cache-hit != 'true'
               uses: actions/cache/save@v4
               with:
-                  path: ~/.local/bin/splitsh-lite
-                  key: splitsh-lite-v2.0.0-${{ runner.os }}-amd64
+                  path: |
+                      ~/.local/bin/splitsh-lite
+                      ~/libgit2-install
+                  key: splitsh-toolchain-v2-libgit2-1.5.2-${{ runner.os }}-amd64
