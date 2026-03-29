@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Worker;
 
 use Gplanchat\Durable\Event\ActivityCompleted;
+use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreInterface;
@@ -27,18 +28,25 @@ final class ActivityMessageProcessorTest extends TestCase
     {
         $events = [];
         $eventStore = new class($events) implements EventStoreInterface {
+            /**
+             * @param array<int, Event> $events
+             */
             public function __construct(private array &$events)
             {
             }
 
-            public function append(\Gplanchat\Durable\Event\Event $event): void
+            public function append(Event $event): void
             {
                 $this->events[] = $event;
             }
 
             public function readStream(string $executionId): iterable
             {
-                return [];
+                foreach ($this->events as $event) {
+                    if ($event->executionId() === $executionId) {
+                        yield $event;
+                    }
+                }
             }
         };
 
@@ -48,13 +56,16 @@ final class ActivityMessageProcessorTest extends TestCase
 
         $resumed = [];
         $resume = new class($resumed) implements WorkflowResumeDispatcher {
+            /**
+             * @param array<int, string> $resumed
+             */
             public function __construct(private array &$resumed)
             {
             }
 
             public function dispatchResume(string $executionId): void
             {
-                $this->resumed[] = $executionId;
+                $this->resumed = array_merge($this->resumed, [$executionId]);
             }
 
             public function dispatchNewWorkflowRun(string $executionId, string $workflowType, array $payload): void
