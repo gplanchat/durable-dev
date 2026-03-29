@@ -21,7 +21,7 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   php-version: ${{ matrix.php-version }}
-                  extensions: mbstring, sqlite3
+                  extensions: mbstring, sqlite3, pdo_sqlite
                   coverage: none
 
             - name: Install Composer dependencies
@@ -43,7 +43,7 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   php-version: '8.2'
-                  extensions: mbstring, sqlite3
+                  extensions: mbstring, sqlite3, pdo_sqlite
                   coverage: none
 
             - name: Install Composer dependencies
@@ -76,7 +76,7 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   php-version: ${{ matrix.php-version }}
-                  extensions: mbstring, sqlite3
+                  extensions: mbstring, sqlite3, pdo_sqlite
                   coverage: none
 
             - name: Composer install (symfony/)
@@ -97,7 +97,7 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   php-version: '8.2'
-                  extensions: mbstring, sqlite3, grpc
+                  extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
 
             - name: Install Composer dependencies
@@ -116,7 +116,7 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   php-version: '8.2'
-                  extensions: mbstring, sqlite3
+                  extensions: mbstring, sqlite3, pdo_sqlite
                   coverage: pcov
                   ini-values: pcov.directory=.
 
