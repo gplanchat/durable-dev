@@ -1,0 +1,42 @@
+{
+    "name": "gplanchat/durable-bridge-temporal",
+    "description": "Temporal journal EventStore + worker (gRPC only, no Temporal PHP SDK) for gplanchat/durable",
+    "license": "proprietary",
+    "type": "library",
+    "version": "0.1.0",
+    "require": {
+        "php": ">=8.2",
+        "gplanchat/durable": "^0.1",
+        "google/common-protos": "^4.9",
+        "google/protobuf": "^4.31",
+        "grpc/grpc": "^1.57",
+        "roadrunner-php/roadrunner-api-dto": "^1.14",
+        "symfony/messenger": "^7.0",
+        "symfony/console": "^7.0",
+        "symfony/http-kernel": "^7.0",
+        "symfony/dependency-injection": "^7.0",
+        "symfony/config": "^7.0"
+    },
+    "suggest": {
+        "ext-grpc": "Required for Temporal gRPC client and worker poll"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gplanchat\\Bridge\\Temporal\\": "./"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "authors": [
+        {
+            "name": "Grégory Planchat",
+            "email": "gregory@gyroscops.com"
+        }
+    ]
+}
