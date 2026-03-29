@@ -12,6 +12,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Sur GitHub Actions, actions/checkout ajoute http.https://github.com/.extraheader (Bearer GITHUB_TOKEN).
+# Ce jeton ne vaut que pour le dépôt courant : il est préféré au PAT dans l’URL et le push vers les
+# miroirs échoue en 403 en tant que github-actions[bot]. Le retirer avant les push HTTPS avec SPLITSH_PUSH_TOKEN.
+if [ -n "${SPLITSH_PUSH_TOKEN:-}" ] && [ -n "${GITHUB_ACTIONS:-}" ]; then
+  git config --local --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+  git config --global --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+fi
+
 if ! command -v splitsh-lite >/dev/null 2>&1; then
   echo "splitsh-lite introuvable. Installez-le : https://github.com/splitsh/lite" >&2
   exit 1
