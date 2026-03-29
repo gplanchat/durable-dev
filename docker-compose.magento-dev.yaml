@@ -1,0 +1,29 @@
+# Stack locale optionnelle : MySQL + OpenSearch pour Magento (voir magento/README.md).
+# Temporal + UI + PHP : utiliser le fichier racine **`compose.yaml`** (`docker compose up -d`).
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: magento
+      MYSQL_USER: magento
+      MYSQL_PASSWORD: magento
+    ports:
+      - "3307:3306"
+    volumes:
+      - magento_mysql_data:/var/lib/mysql
+
+  opensearch:
+    image: opensearchproject/opensearch:2.11.1
+    environment:
+      discovery.type: single-node
+      plugins.security.disabled: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "9201:9200"
+    volumes:
+      - magento_os_data:/usr/share/opensearch/data
+
+volumes:
+  magento_mysql_data: {}
+  magento_os_data: {}

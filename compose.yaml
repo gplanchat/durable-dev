@@ -1,0 +1,79 @@
+# Stack de développement : Temporal + UI + PostgreSQL, et image PHP (grpc, pcov).
+#
+# Temporal + UI (sans PHP) :
+#   docker compose up -d
+#
+# Commandes PHP dans le conteneur (profil « php ») :
+#   docker compose --profile php run --rm php composer install
+#   docker compose --profile php run --rm php composer test
+#   docker compose --profile php run --rm php bash
+#
+# UI Temporal : http://localhost:8088  ·  Frontend gRPC : localhost:7233
+
+services:
+  postgresql:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_USER: temporal
+    volumes:
+      - temporal_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+
+  temporal:
+    image: temporalio/auto-setup:1.25.2
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal
+      POSTGRES_SEEDS: postgresql
+    ports:
+      - "7233:7233"
+    healthcheck:
+      # Le frontal n’écoute pas sur 127.0.0.1 dans auto-setup (bind sur l’IP du conteneur).
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "temporal:7233"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 60s
+
+  temporal-ui:
+    image: temporalio/ui:2.34.0
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:8088
+    ports:
+      - "8088:8080"
+
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    profiles:
+      - php
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      TEMPORAL_HOST: temporal
+      TEMPORAL_PORT: "7233"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      temporal:
+        condition: service_healthy
+
+volumes:
+  temporal_pg_data: {}

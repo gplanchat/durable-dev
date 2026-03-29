@@ -1,0 +1,16 @@
+# Exemple de surcharge locale : copier ce fichier en `compose.override.yaml`
+# (ignoré par Git — voir `.gitignore`). Docker Compose fusionne automatiquement
+# `compose.yaml` + `compose.override.yaml`.
+#
+# Exemples :
+#
+# services:
+#   temporal-ui:
+#     ports:
+#       - "9088:8080"   # si 8088 est déjà pris sur ta machine
+#
+#   php:
+#     environment:
+#       XDEBUG_MODE: debug
+
+services: {}
