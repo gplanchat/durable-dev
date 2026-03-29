@@ -1,34 +1,34 @@
 ---
-description: Métadonnées de couverture PHPUnit (CoversClass / CoversNothing) – attributs PHP 8
+description: PHPUnit coverage metadata (CoversClass / CoversNothing) — PHP 8 attributes
 globs: **/tests/**/*Test.php,**/tests/**/*Spec.php
 ---
 
-# PHPUnit – Couverture : @covers et attributs (HIVE003)
+# PHPUnit — coverage: @covers and attributes (HIVE003)
 
-Référence : `architecture/hive/HIVE003-phpunit-testing-standards.md`, [PHPUnit Code Coverage](https://docs.phpunit.de/en/10.5/code-coverage.html)
+Reference: `architecture/hive/HIVE003-phpunit-testing-standards.md`, [PHPUnit Code Coverage](https://docs.phpunit.de/en/10.5/code-coverage.html)
 
-## Règle
+## Rule
 
-Chaque classe de test **doit** déclarer explicitement ce qu’elle couvre :
+Each test class **must** explicitly declare what it covers:
 
-- **Tests unitaires** qui ciblent **une seule classe** du code de production : utiliser l’attribut **`#[CoversClass(ClassName::class)]`** sur la classe de test.
-- **Tests fonctionnels, d’intégration, ou qui exercent plusieurs composants** : utiliser **`#[CoversNothing]`**.
+- **Unit tests** targeting **a single** production class: use **`#[CoversClass(ClassName::class)]`** on the test class.
+- **Functional, integration, or multi-component tests**: use **`#[CoversNothing]`**.
 
-On privilégie les **attributs PHP 8** plutôt que les annotations `@covers` / `@coversNothing`.
+Prefer **PHP 8 attributes** over `@covers` / `@coversNothing` annotations.
 
-## Attributs (PHP 8)
+## Attributes (PHP 8)
 
-Espace de noms : `PHPUnit\Framework\Attributes`.
+Namespace: `PHPUnit\Framework\Attributes`.
 
-| Annotation      | Attribut équivalent                          |
-|-----------------|----------------------------------------------|
-| `@coversNothing`| `#[CoversNothing]`                          |
+| Annotation       | Equivalent attribute                         |
+|------------------|----------------------------------------------|
+| `@coversNothing` | `#[CoversNothing]`                           |
 | `@covers \X\Y\Z`| `#[CoversClass(\X\Y\Z::class)]`              |
-| (méthode)       | `#[CoversMethod(ClassName::class, 'method')]` |
+| (method)         | `#[CoversMethod(ClassName::class, 'method')]`|
 
-## Exemples conformes
+## Compliant examples
 
-### Test unitaire – une classe ciblée
+### Unit test — single target class
 
 ```php
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -41,7 +41,7 @@ final class MyServiceTest extends TestCase
 }
 ```
 
-### Test fonctionnel / intégration
+### Functional / integration test
 
 ```php
 use PHPUnit\Framework\Attributes\CoversNothing;
@@ -57,7 +57,7 @@ final class ApiIntegrationTest extends TestCase
 }
 ```
 
-### Plusieurs classes couvertes (répétable)
+### Multiple covered classes (repeatable)
 
 ```php
 #[CoversClass(Foo::class)]
@@ -68,14 +68,14 @@ final class FooAndBarTest extends TestCase
 }
 ```
 
-## Effets
+## Effects
 
-- **Documentation** : on voit immédiatement quelle classe est testée.
-- **Couverture** : avec `requireCoverageMetadata="true"` (optionnel), PHPUnit n’attribue la couverture qu’aux classes déclarées.
-- **Infection** : les métadonnées aident à associer tests et code muté.
+- **Documentation**: immediately shows which class is under test.
+- **Coverage**: with `requireCoverageMetadata="true"` (optional), PHPUnit only attributes coverage to declared classes.
+- **Infection**: metadata helps map tests to mutated code.
 
 ## Migration
 
-- Remplacer `@coversNothing` par `#[CoversNothing]` (équivalent strict).
-- Remplacer `@covers \Namespace\Class` par `#[CoversClass(\Namespace\Class::class)]`.
-- Pour les tests unitaires actuellement en `@coversNothing` qui ne testent qu’**une** classe, préférer `#[CoversClass(CetteClasse::class)]`.
+- Replace `@coversNothing` with `#[CoversNothing]` (strict equivalent).
+- Replace `@covers \Namespace\Class` with `#[CoversClass(\Namespace\Class::class)]`.
+- For unit tests currently on `@coversNothing` that only exercise **one** class, prefer `#[CoversClass(ThatClass::class)]`.

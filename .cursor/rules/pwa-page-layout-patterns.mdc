@@ -1,28 +1,28 @@
 ---
-description: Patterns de layout pour les pages PWA (titre unique, bouton Create, Datagrid)
+description: PWA page layout patterns (single title, Create button, datagrid)
 globs: pwa/**/*.tsx
 alwaysApply: false
 ---
 
-# PWA Page Layout Patterns (HIVE073)
+# PWA page layout patterns (HIVE073)
 
-## Titre unique
+## Single title
 
-- Une seule source de vérité pour le titre de la page
-- Si `listTitle` === `title`, utiliser `hideListHeaderWhenRedundant` sur PurityListPage
-- Éviter listTitle/listDescription redondants avec le header de page
+- One source of truth for the page title
+- If `listTitle` === `title`, use `hideListHeaderWhenRedundant` on PurityListPage
+- Avoid redundant listTitle/listDescription with the page header
 
-## Bouton Create unique
+## Single Create button
 
-- Un seul emplacement pour "Créer / Nouveau" : header de page (`actions` de PurityPageWrapper)
-- Ne pas dupliquer le bouton dans la card et dans le header
+- One place for “Create / New”: page header (`actions` on PurityPageWrapper)
+- Do not duplicate the button in the card and in the header
 
-## Datagrid pour listes
+## Datagrid for lists
 
-- Utiliser Datagrid + ListWithController pour les listes tabulaires (filtres, tri, pagination)
-- Référence : PaymentsList, SecretsList, WorkspacesList
+- Use Datagrid + ListWithController for tabular lists (filters, sort, pagination)
+- Reference: PaymentsList, SecretsList, WorkspacesList
 
 ## Breadcrumbs
 
-- Utiliser PurityPageWrapper ou PurityPageHeader pour breadcrumbs cohérents
-- Ne pas utiliser Breadcrumb.Root Chakra directement
+- Use PurityPageWrapper or PurityPageHeader for consistent breadcrumbs
+- Do not use Chakra `Breadcrumb.Root` directly

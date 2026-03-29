@@ -1,32 +1,32 @@
 ---
-description: Documentation des phases de conception Cursor (ADR, WA, OST, PRD)
+description: Cursor design-phase documentation (ADR, WA, OST, PRD)
 alwaysApply: true
 ---
 
-# Documentation des phases de conception
+# Design-phase documentation
 
-Toutes les phases de conception qui utilisent un plan Cursor doivent être documentées.
+All design phases that use a Cursor plan must be documented.
 
-## Emplacement
+## Location
 
-Tout se trouve dans `./documentation/` :
-- **Méta-documentation** : `INDEX.md`, `LIFECYCLE.md`
-- **Documents par type** : sous-dossiers `adr/`, `wa/`, `ost/`, `prd/`
+Everything lives under `./documentation/`:
+- **Meta-docs**: `INDEX.md`, `LIFECYCLE.md`
+- **By type**: subfolders `adr/`, `wa/`, `ost/`, `prd/`
 
-## Types de documents
+## Document types
 
-| Type | Dossier | Usage |
-|------|---------|-------|
-| **ADR** | `documentation/adr/` | Décisions techniques |
-| **WA** | `documentation/wa/` | Accords de travail, gestion de projet |
-| **OST** | `documentation/ost/` | Réflexion sur fonctionnalités futures |
-| **PRD** | `documentation/prd/` | Fonctionnalités déjà développées |
+| Type | Folder | Purpose |
+|------|--------|---------|
+| **ADR** | `documentation/adr/` | Technical decisions |
+| **WA** | `documentation/wa/` | Working agreements, project management |
+| **OST** | `documentation/ost/` | Exploration of future features |
+| **PRD** | `documentation/prd/` | Already shipped features |
 
-## Convention de nommage
+## Naming convention
 
-- `ADR{numero}-{description-courte}.md` (ex. `ADR001-choix-babylonjs.md`)
-- `WA{numero}-{description-courte}.md` (ex. `WA001-revue-code.md`)
-- `OST{numero}-{description-courte}.md` (ex. `OST001-systeme-multijoueur.md`)
-- `PRD{numero}-{description-courte}.md` (ex. `PRD001-mouvement-personnage.md`)
+- `ADR{number}-{short-description}.md` (e.g. `ADR001-babylonjs-choice.md`)
+- `WA{number}-{short-description}.md` (e.g. `WA001-code-review.md`)
+- `OST{number}-{short-description}.md` (e.g. `OST001-multiplayer-system.md`)
+- `PRD{number}-{short-description}.md` (e.g. `PRD001-character-movement.md`)
 
-Numérotation séquentielle par type. Mettre à jour `documentation/INDEX.md` à chaque nouveau document.
+Sequential numbering per type. Update `documentation/INDEX.md` for each new document.

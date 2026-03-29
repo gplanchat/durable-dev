@@ -1,22 +1,22 @@
 ---
-description: Nomenclature des méthodes de test PHPUnit selon HIVE003
+description: PHPUnit test method naming per HIVE003
 globs: **/tests/**/*Test.php,**/tests/**/*Spec.php
 ---
 
-# PHPUnit – Nomenclature des tests (HIVE003)
+# PHPUnit — test naming (HIVE003)
 
-Référence : `architecture/hive/HIVE003-phpunit-testing-standards.md`
+Reference: `architecture/hive/HIVE003-phpunit-testing-standards.md`
 
-Pour les métadonnées de couverture (`@covers` / attributs), voir la règle **phpunit-coverage-metadata**.
+For coverage metadata (`@covers` / attributes), see the **phpunit-coverage-metadata** rule.
 
-## Méthodes de test
+## Test methods
 
-- **Pattern obligatoire** : `itShouldDoSomething` (camelCase), **pas** de préfixe `test`.
-- Chaque méthode de test doit avoir :
-  - l’annotation `@test` ;
-  - l’annotation `@testdox` avec une phrase en « It should … » décrivant le comportement attendu.
+- **Required pattern**: `itShouldDoSomething` (camelCase), **no** `test` prefix.
+- Each test method must have:
+  - the `@test` annotation;
+  - the `@testdox` annotation with an “It should …” sentence describing expected behavior.
 
-## Exemples conformes
+## Compliant examples
 
 ```php
 /**
@@ -32,15 +32,15 @@ public function itShouldCreateUserWithValidDataReturnsUser(): void
 public function itShouldCreateUserWithInvalidEmailThrowsValidationException(): void
 ```
 
-## À éviter
+## Avoid
 
 - `public function testCreateUser(): void`
-- `public function run(): void` (sans forme « itShould… »)
-- Méthodes sans `@testdox`
+- `public function run(): void` (without an `itShould…` shape)
+- Methods without `@testdox`
 
 ## Data providers
 
-Les tests avec `@dataProvider` gardent le même pattern pour le nom de la méthode de test, par ex. :
+Tests with `@dataProvider` keep the same pattern for the test method name, e.g.:
 
 ```php
 /**
