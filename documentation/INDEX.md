@@ -1,67 +1,82 @@
-# Index de la documentation — Durable
+# Documentation index — Durable
 
-Composant et Bundle Symfony pour exécutions durables (workflows et activités).
+Symfony component and bundle for durable execution (workflows and activities).
 
 ---
 
 ## ADR — Architecture Decision Records
 
-| ADR | Titre | Description |
+| ADR | Title | Description |
 |-----|-------|-------------|
-| [ADR001](adr/ADR001-adr-management-process.md) | Processus de gestion des ADR | Fondations pour la gestion des décisions d'architecture du projet Durable |
-| [ADR002](adr/ADR002-coding-standards.md) | Standards de code | PHP-CS-Fixer, PSR1, PSR12 |
-| [ADR003](adr/ADR003-phpunit-testing-standards.md) | Standards PHPUnit | Tests sans mocks excessifs, test doubles dédiés |
-| [ADR004](adr/ADR004-ports-and-adapters.md) | Architecture hexagonale | Ports et Adapters (composant vs drivers) |
-| [ADR005](adr/ADR005-messenger-integration.md) | Intégration Messenger | Transport des activités via Symfony Messenger |
-| [ADR006](adr/ADR006-activity-patterns.md) | Patterns activités | Interface-first, idempotence, gestion des erreurs |
-| [ADR007](adr/ADR007-workflow-recovery.md) | Reprise et recovery | Event sourcing, replay, re-dispatch |
-| [ADR008](adr/ADR008-error-handling-retries.md) | Erreurs et retries | Classification métier/système, FailureEnvelope |
-| [ADR009](adr/ADR009-distributed-workflow-dispatch.md) | Modèle distribué | Re-dispatch workflow, WorkflowRunMessage, WorkflowRegistry |
-| [ADR010](adr/ADR010-temporal-parity-events-and-replay.md) | Parité Temporal — événements | Side effects, timers, child, CAN, messages ; replay |
-| [ADR011](adr/ADR011-child-workflow-continue-as-new.md) | Child workflows et continue-as-new | childWorkflowStub, écart corrélation run, ParentClosePolicy |
+| [ADR001](adr/ADR001-adr-management-process.md) | ADR management process | Foundations for managing architecture decisions in the Durable project |
+| [ADR002](adr/ADR002-coding-standards.md) | Coding standards | PHP-CS-Fixer, PSR-1, PSR-12 |
+| [ADR003](adr/ADR003-phpunit-testing-standards.md) | PHPUnit standards | Tests without excessive mocks, dedicated test doubles |
+| [ADR004](adr/ADR004-ports-and-adapters.md) | Hexagonal architecture | Ports and adapters (component vs drivers) |
+| [ADR005](adr/ADR005-messenger-integration.md) | Messenger integration | Activity transport via Symfony Messenger |
+| [ADR006](adr/ADR006-activity-patterns.md) | Activity patterns | Interface-first, idempotence, error handling |
+| [ADR007](adr/ADR007-workflow-recovery.md) | Recovery and replay | Event sourcing, replay, re-dispatch |
+| [ADR008](adr/ADR008-error-handling-retries.md) | Errors and retries | Business vs system classification, FailureEnvelope |
+| [ADR009](adr/ADR009-distributed-workflow-dispatch.md) | Distributed model | Workflow re-dispatch, WorkflowRunMessage, WorkflowRegistry |
+| [ADR010](adr/ADR010-temporal-parity-events-and-replay.md) | Temporal parity — events | Side effects, timers, child, CAN, messages; replay |
+| [ADR011](adr/ADR011-child-workflow-continue-as-new.md) | Child workflows and continue-as-new | childWorkflowStub, run correlation gap, ParentClosePolicy |
+| [ADR012](adr/ADR012-activity-stub-metadata-and-static-analysis.md) | Activity stub, PSR-6 cache, warmup, static analysis | activityStub, ActivityContractResolver, PHPStan extension |
+| [ADR013](adr/ADR013-activity-contract-cache-production-policy.md) | Cache PSR-6 des contrats d’activité en production | Miss, absence de pool, recommandations charge |
+| [ADR014](adr/ADR014-temporal-journal-eventstore-bridge.md) | Temporal journal EventStore (gRPC sans SDK) | `TemporalJournalEventStore`, transport Messenger, worker console |
+| [ADR015](adr/ADR015-magento-durable-module.md) | Module Magento Durable | `src/DurableModule/`, backends DBAL / Temporal, sans Messenger ni RoadRunner |
+| [ADR016](adr/ADR016-dedicated-dbal-connection-and-unbuffered-reads.md) | Connexion DBAL dédiée et lectures unbuffered | `durable.dbal_connection`, alias `durable.dbal.connection`, options PDO MySQL |
+| [ADR017](adr/ADR017-splitsh-ci-and-satellite-pushes.md) | Splitsh CI et push vers dépôts satellites | Vérif vs push PAT, cache binaire, `SPLITSH_PUSH_TOKEN` |
 
 ---
 
 ## WA — Working Agreements
 
-| WA | Titre | Description |
+| WA | Title | Description |
 |----|-------|-------------|
-| [WA001](wa/WA001-conventions-and-reviews.md) | Conventions et revues | Nommage, revue de code, gestion des plans Cursor |
+| [WA001](wa/WA001-conventions-and-reviews.md) | Conventions and reviews | Naming, code review, Cursor plan management |
 
 ---
 
 ## OST — Opportunity Solution Trees
 
-| OST | Titre | Description |
+| OST | Title | Description |
 |-----|-------|-------------|
-| [OST001](ost/OST001-future-opportunities.md) | Opportunités futures | Temporal driver, multi-transport, timers avancés |
-| [OST002](ost/OST002-phpunit12-upgrade-checklist.md) | Montée PHPUnit 12 | Checklist avant upgrade, extensions, couverture |
-| [OST003](ost/OST003-activity-api-ergonomics.md) | Ergonomie appels d’activités | `#[Activity]` / `#[Workflow]`, `activityStub()`, PSR-6, PHPStan/Psalm |
-| [OST004](ost/OST004-workflow-temporal-feature-parity.md) | Parité Temporal (workflows) | Side effects, timers, child, continue-as-new, signals/queries/updates |
+| [OST001](ost/OST001-future-opportunities.md) | Future opportunities | Temporal driver, multi-transport, advanced timers |
+| [OST002](ost/OST002-phpunit12-upgrade-checklist.md) | PHPUnit 12 upgrade | Pre-upgrade checklist, extensions, coverage |
+| [OST003](ost/OST003-activity-api-ergonomics.md) | Activity call ergonomics | `#[Activity]` / `#[Workflow]`, `activityStub()`, PSR-6, PHPStan/Psalm |
+| [OST004](ost/OST004-workflow-temporal-feature-parity.md) | Temporal parity (workflows) | Side effects, timers, child, continue-as-new, signals/queries/updates |
 
 ---
 
 ## PRD — Product Requirements Documents
 
-| PRD | Titre | Description |
+| PRD | Title | Description |
 |-----|-------|-------------|
-| [PRD001](prd/PRD001-current-component-state.md) | État actuel du composant | Workflows, activités, event store, transports |
-| [PRD002](prd/PRD002-scenarios-workflow-pas-a-pas.md) | Tests pas à pas (distribué) | File d’activités, reprise, journal intermédiaire |
-| [PRD003](prd/PRD003-durable-test-case-base.md) | Base `DurableTestCase` | Stack in-memory, assertions, fin du trait dédié |
-| [PRD004](prd/PRD004-ci-github-actions.md) | CI GitHub Actions | CS, PHPUnit strict-coverage, rapport PCOV |
+| [PRD001](prd/PRD001-current-component-state.md) | Current component state | Workflows, activities, event store, transports |
+| [PRD002](prd/PRD002-in-flight-workflow-scenarios.md) | In-flight workflow scenarios (distributed) | Activity queue, resume, intermediate log |
+| [PRD003](prd/PRD003-durable-test-case-base.md) | `DurableTestCase` base | In-memory stack, assertions, dedicated worker teardown |
+| [PRD004](prd/PRD004-ci-github-actions.md) | GitHub Actions CI | CS, PHPUnit strict coverage, PCOV report |
+| [PRD005](prd/PRD005-symfony-empty-project-recipe.md) | Empty Symfony project recipe (~3 min) | Monorepo quick start, bundle integration, auto-registered handlers |
+
+---
+
+## Plans (implémentation)
+
+| Plan | Title | Description |
+|------|-------|-------------|
+| [PLAN001](plans/PLAN001-lib-decouple-messenger.md) | Découpler Messenger de la lib | **Fait** : `MessengerActivityTransport` dans le bundle ; `symfony/messenger` retiré de `gplanchat/durable` — débloque intégrations sans Messenger (ex. Magento) |
 
 ---
 
 ## Audit
 
-| Audit | Titre | Description |
-|-------|-------|--------------|
-| [AUDIT001](audit/AUDIT001-phase2-code-review.md) | Revue code Phase 2 | Cohérence, séparation responsabilités, conformité ADR |
+| Audit | Title | Description |
+|-------|-------|-------------|
+| [AUDIT001](audit/AUDIT001-phase2-code-review.md) | Phase 2 code review | Consistency, separation of concerns, ADR compliance |
 
 ---
 
-## Références
+## References
 
-- [LIFECYCLE.md](LIFECYCLE.md) — Cycle de vie des documents
-- [Architecture Hive](../architecture/hive/) — ADRs du projet Hive (référence)
-- [Architecture Runtime](../architecture/runtime/) — RFCs Runtime
+- [LIFECYCLE.md](LIFECYCLE.md) — Document lifecycle
+- [Hive architecture](../architecture/hive/) — Hive project ADRs (reference)
+- [Runtime architecture](../architecture/runtime/) — Runtime RFCs

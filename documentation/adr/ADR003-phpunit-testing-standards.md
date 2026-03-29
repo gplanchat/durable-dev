@@ -1,4 +1,4 @@
-# Standards PHPUnit
+# PHPUnit standards
 
 ADR003-phpunit-testing-standards
 ===
@@ -6,52 +6,52 @@ ADR003-phpunit-testing-standards
 Introduction
 ---
 
-Ce **Architecture Decision Record** définit les standards obligatoires pour l'écriture des tests PHPUnit dans le projet Durable. Ces standards favorisent des tests maintenables, fiables et isolés, avec un usage minimal des mocks PHPUnit.
+This **Architecture Decision Record** defines the mandatory standards for writing PHPUnit tests in the Durable project. These standards favor maintainable, reliable, isolated tests with minimal use of PHPUnit mocks.
 
-Philosophie de tests
+Testing philosophy
 ---
 
-Les tests _DOIVENT_ privilégier les implémentations réelles plutôt que les mocks. Cela conduit à :
+Tests **MUST** prefer real implementations over mocks. This leads to:
 
-- Des scénarios de test plus réalistes
-- Une meilleure couverture d'intégration
-- Des tests moins fragiles
-- Un refactoring plus facile
+- More realistic test scenarios
+- Better integration coverage
+- Less brittle tests
+- Easier refactoring
 
-Règle : Minimiser les mocks PHPUnit
+Rule: minimize PHPUnit mocks
 ---
 
-Les tests _DOIVENT_ réduire au strict minimum l'utilisation des mocks fournis par PHPUnit (`createMock`, `createStub`, `getMockBuilder`, etc.).
+Tests **MUST** reduce to a minimum the use of PHPUnit-provided mocks (`createMock`, `createStub`, `getMockBuilder`, etc.).
 
-### Alternatives recommandées
+### Recommended alternatives
 
-1. **Implémentations réelles** : utiliser les services réels lorsque possible
-2. **Implémentations in-memory** : ex. `InMemoryEventStore`, `InMemoryActivityTransport`
-3. **Test doubles dédiés** : classes qui implémentent les interfaces, dans des fichiers séparés
-4. **Composants Symfony** : `MockHttpClient`, `MockResponse` pour les tests HTTP
+1. **Real implementations**: use real services when possible
+2. **In-memory implementations**: e.g. `InMemoryEventStore`, `InMemoryActivityTransport`
+3. **Dedicated test doubles**: classes implementing interfaces, in separate files
+4. **Symfony components**: `MockHttpClient`, `MockResponse` for HTTP tests
 
 ### Exceptions
 
-Les mocks PHPUnit _PEUVENT_ être utilisés uniquement pour :
+PHPUnit mocks **MAY** be used only for:
 
-- Tester des conditions d'erreur difficiles à reproduire
-- Mocker des services externes indisponibles en test
-- Vérifier des appels spécifiques lorsque strictement nécessaire
+- Error conditions that are hard to reproduce
+- External services unavailable in tests
+- Verifying specific interactions when strictly necessary
 
-Activités et workflows
+Activities and workflows
 ---
 
-Pour les tests d'activités :
+For activity tests:
 
-- Enregistrer des handlers réels via `RegistryActivityExecutor`
-- Utiliser `InMemoryEventStore` et `InMemoryActivityTransport` pour les tests unitaires
-- Pour les tests d'intégration avec Messenger, utiliser les transports de test Symfony
+- Register real handlers via `RegistryActivityExecutor`
+- Use `InMemoryEventStore` and `InMemoryActivityTransport` for unit tests
+- For Messenger integration tests, use Symfony test transports
 
-### `DurableTestCase` (stack in-memory)
+### `DurableTestCase` (in-memory stack)
 
-Toute la stack de test in-memory (event store, transport, `ExecutionRuntime`, helpers `stack()` / `executionId()`, assertions sur le journal distribué et sur la file d’activités) est regroupée dans **`Gplanchat\Durable\Tests\Support\DurableTestCase`**. Les tests de workflows / durable **étendent** cette classe de base ; il n’y a plus de trait dédié.
+The full in-memory test stack (event store, transport, `ExecutionRuntime`, `stack()` / `executionId()` helpers, assertions on the distributed log and activity queue) lives in **`integration\Gplanchat\Durable\Support\DurableTestCase`**. Workflow / durable tests **extend** this base class; there is no dedicated trait.
 
-Exemple
+Example
 ---
 
 ```php
@@ -75,37 +75,37 @@ final class WorkflowTest extends TestCase
 }
 ```
 
-Métadonnées PHPUnit (PHPUnit 11 → 12)
+PHPUnit metadata (PHPUnit 11 → 12)
 ---
 
-Les annotations dans les docblocks (`@test`, `@covers`, `@group`, etc.) sont **dépréciées** dans PHPUnit 11 et seront retirées dans PHPUnit 12. Le projet utilise les **attributs PHP 8** du namespace `PHPUnit\Framework\Attributes` (ex. `#[Test]`, `#[Group('…')]`).
+Docblock annotations (`@test`, `@covers`, `@group`, etc.) are **deprecated** in PHPUnit 11 and will be removed in PHPUnit 12. The project uses **PHP 8 attributes** from the `PHPUnit\Framework\Attributes` namespace (e.g. `#[Test]`, `#[Group('…')]`).
 
-### Couverture de code (métadonnées)
+### Code coverage (metadata)
 
-- Préférer **`#[CoversClass(ClassName::class)]`** (répétable) pour le code sous test principal.
-- L'API workflow publique est **`WorkflowEnvironment`** ; les workflows reçoivent `$env` et appellent `$env->await()`, `$env->activityStub()`, etc.
-- Éviter **`#[CoversNothing]`** sauf cas exceptionnel (tests purement infra sans SUT dans `src/`).
+- Prefer **`#[CoversClass(ClassName::class)]`** (repeatable) for the main code under test.
+- The public workflow API is **`WorkflowEnvironment`**; workflows receive `$env` and call `$env->await()`, `$env->activityStub()`, etc.
+- Avoid **`#[CoversNothing]`** except in exceptional cases (purely infra tests with no SUT in `src/`).
 
-### Style de code des tests
+### Test code style
 
-- Scripts Composer : `composer cs` (fix), `composer cs:check` (dry-run), `composer test`, `composer test:coverage`. Voir ADR002.
+- Composer scripts: `composer cs` (fix), `composer cs:check` (dry-run), `composer test`, `composer test:coverage`. See ADR002.
 
-### Montée vers PHPUnit 12
+### Upgrade to PHPUnit 12
 
-- Checklist projet : [OST002 — PHPUnit 12](../ost/OST002-phpunit12-upgrade-checklist.md).
+- Project checklist: [OST002 — PHPUnit 12](../ost/OST002-phpunit12-upgrade-checklist.md).
 
 CI (GitHub Actions)
 ---
 
-- Workflow : `.github/workflows/ci.yml`.
-- **PHP** : matrice **8.2** et **8.3** ; job `qa` exécute `composer cs:check` puis `composer test` (`phpunit --strict-coverage`).
-- **Couverture** : job séparé sous **PHP 8.2** avec **PCOV** (`pcov.directory=.`), puis `composer test:coverage` (rapport texte, filtre `src/`).
-- **Locale** : `composer test:coverage` nécessite **PCOV** ou **Xdebug** ; sinon PHPUnit émet un avertissement (suggestion Composer : `ext-pcov`). Voir [PRD004](../prd/PRD004-ci-github-actions.md).
-- **Seuil minimal de lignes** : non imposé pour l’instant (rapport consultable dans les logs CI) ; à ajouter ultérieurement si un outil ou une option PHPUnit stable est retenu.
+- Workflow: `.github/workflows/ci.yml`.
+- **PHP**: matrix **8.2** and **8.3**; `qa` job runs `composer cs:check` then `composer test` (`phpunit --strict-coverage`).
+- **Coverage**: separate job on **PHP 8.2** with **PCOV** (`pcov.directory=.`), then `composer test:coverage` (text report, filter `src/`).
+- **Local**: `composer test:coverage` requires **PCOV** or **Xdebug**; otherwise PHPUnit emits a warning (Composer suggests `ext-pcov`). See [PRD004](../prd/PRD004-ci-github-actions.md).
+- **Minimum line threshold**: not enforced for now (report visible in CI logs); may add later if a stable PHPUnit option or tool is chosen.
 
-Références
+References
 ---
 
 - [PHPUnit Test Doubles](https://docs.phpunit.de/en/10.5/test-doubles.html)
 - [Symfony HTTP Client Testing](https://symfony.com/doc/current/http_client.html#testing-request-data)
-- [ADR001 - Processus ADR](ADR001-adr-management-process.md)
+- [ADR001 - ADR process](ADR001-adr-management-process.md)

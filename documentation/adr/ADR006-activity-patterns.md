@@ -1,4 +1,4 @@
-# Patterns d'activités
+# Activity patterns
 
 ADR006-activity-patterns
 ===
@@ -6,14 +6,14 @@ ADR006-activity-patterns
 Introduction
 ---
 
-Ce **Architecture Decision Record** définit les patterns obligatoires pour l'implémentation des activités dans le projet Durable. Les activités sont les unités de travail exécutées de manière durable, potentiellement avec retries et reprise.
+This **Architecture Decision Record** defines the mandatory patterns for implementing activities in the Durable project. Activities are units of work executed durably, potentially with retries and resume.
 
-Principes
+Principles
 ---
 
 ### Interface-first
 
-Chaque activité _DOIT_ être définie via une interface avant l'implémentation. Les paramètres _DOIVENT_ être des types domaine individuels, pas des DTOs composites.
+Each activity **MUST** be defined via an interface before implementation. Parameters **MUST** be individual domain types, not composite DTOs.
 
 ```php
 interface CreateNamespaceActivityInterface
@@ -24,27 +24,27 @@ interface CreateNamespaceActivityInterface
 
 ### Idempotence
 
-Les activités _DOIVENT_ être idempotentes : une nouvelle exécution avec les mêmes entrées ne doit pas produire d'effets de bord supplémentaires.
+Activities **MUST** be idempotent: re-execution with the same inputs must not produce additional side effects.
 
-### Gestion des erreurs
+### Error handling
 
-- **Exceptions métier (non-retryable)** : `NotFoundException`, `ValidationException`, etc.
-- **Exceptions système (retryable)** : timeouts, erreurs réseau, indisponibilité temporaire
+- **Business exceptions (non-retryable)**: `NotFoundException`, `ValidationException`, etc.
+- **System exceptions (retryable)**: timeouts, network errors, temporary unavailability
 
-Les activités _DOIVENT_ distinguer clairement ces deux catégories. Les exceptions métier peuvent être configurées comme non-retryable dans les options de retry.
+Activities **MUST** clearly separate these two categories. Business exceptions may be configured as non-retryable in retry options.
 
-### Injection de dépendances
+### Dependency injection
 
-Les activités _DOIVENT_ recevoir leurs dépendances via le constructeur (injection de dépendances).
+Activities **MUST** receive dependencies via the constructor (dependency injection).
 
-### Appel depuis un workflow
+### Calling from a workflow
 
-Le workflow _NE DOIT PAS_ appeler directement l’implémentation concrète de l’activité : il obtient un **`ActivityStub`** typé via **`WorkflowEnvironment::activityStub(InterfaceActivité::class)`** puis invoque la méthode annotée `#[ActivityMethod]` (voir [ADR005](ADR005-messenger-integration.md), [OST003](../ost/OST003-activity-api-ergonomics.md)). Les règles **interface-first** et **idempotence** ci-dessus s’appliquent aux implémentations enregistrées dans `RegistryActivityExecutor` / transports.
+The workflow **MUST NOT** call the concrete activity implementation directly: it obtains a typed **`ActivityStub`** via **`WorkflowEnvironment::activityStub(ActivityInterface::class)`** then invokes the method annotated `#[ActivityMethod]` (see [ADR005](ADR005-messenger-integration.md), [OST003](../ost/OST003-activity-api-ergonomics.md), [ADR012](ADR012-activity-stub-metadata-and-static-analysis.md) for cache / warmup / PHPStan). The **interface-first** and **idempotence** rules above apply to implementations registered in `RegistryActivityExecutor` / transports.
 
-Enregistrement
+Registration
 ---
 
-Les activités sont enregistrées via `RegistryActivityExecutor` :
+Activities are registered via `RegistryActivityExecutor`:
 
 ```php
 $executor->register('create_namespace', function (array $payload) {
@@ -57,11 +57,11 @@ $executor->register('create_namespace', function (array $payload) {
 Retries
 ---
 
-La stratégie de retry est configurable au niveau du worker (`max_retries`). Les activités échouées sont ré-enqueueées jusqu'à épuisement des tentatives, puis un événement `ActivityFailed` est persisté dans l'EventStore.
+Retry strategy is configurable at worker level (`max_retries`). Failed activities are re-enqueued until attempts are exhausted, then an `ActivityFailed` event is persisted in the EventStore.
 
-Références
+References
 ---
 
 - [Temporal Activities](https://docs.temporal.io/activities)
 - [HIVE042-META01 - Activity Implementation Guide](../../architecture/hive/HIVE042-temporal-workflows-implementation/HIVE042-META01-activity-implementation-guide.md)
-- [ADR005 - Intégration Messenger](ADR005-messenger-integration.md)
+- [ADR005 - Messenger integration](ADR005-messenger-integration.md)

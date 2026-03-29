@@ -1,4 +1,4 @@
-# Architecture Ports et Adapters (Hexagonale)
+# Ports and Adapters (hexagonal architecture)
 
 ADR004-ports-and-adapters
 ===
@@ -6,16 +6,16 @@ ADR004-ports-and-adapters
 Introduction
 ---
 
-Ce **Architecture Decision Record** décrit l'application du pattern Ports and Adapters (architecture hexagonale) au projet Durable. L'objectif est d'isoler la logique de workflows et d'activités des détails d'infrastructure (persistence, transport, runtime).
+This **Architecture Decision Record** describes applying the Ports and Adapters pattern (hexagonal architecture) to the Durable project. The goal is to isolate workflow and activity logic from infrastructure details (persistence, transport, runtime).
 
-Principe
+Principle
 ---
 
-L'architecture hexagonale organise le code en trois couches :
+Hexagonal architecture organizes code into three layers:
 
-- **Domaine (centre)** : logique métier des workflows (orchestration, replay, slots)
-- **Ports (interfaces)** : contrats définis par le domaine pour communiquer avec l'extérieur
-- **Adapters (infrastructure)** : implémentations concrètes des ports
+- **Domain (center)**: workflow business logic (orchestration, replay, slots)
+- **Ports (interfaces)**: contracts defined by the domain to talk to the outside world
+- **Adapters (infrastructure)**: concrete implementations of ports
 
 Structure
 ---
@@ -25,7 +25,8 @@ Structure
 │              Adapters                   │
 │  ┌─────────────┐  ┌─────────────────┐   │
 │  │ DbalEvent   │  │ Messenger       │   │
-│  │ Store       │  │ ActivityTransport│   │
+│  │ Store       │  │ transport       │   │
+│  │             │  │ (bundle)        │   │
 │  └─────────────┘  └─────────────────┘   │
 │  ┌─────────────┐  ┌─────────────────┐   │
 │  │ InMemory    │  │ DbalActivity    │   │
@@ -47,14 +48,14 @@ Structure
             └───────────────┘
 ```
 
-### API d’orchestration côté workflow (`WorkflowEnvironment`)
+### Workflow orchestration API (`WorkflowEnvironment`)
 
-Les **handlers** de workflow (classes annotées `#[Workflow]` ou callables enregistrés) reçoivent une façade **`WorkflowEnvironment`** : timers, `await`, `activityStub()`, `childWorkflowStub()`, `sideEffect()`, dispatch distribué, etc. (voir [ADR005](ADR005-messenger-integration.md), [ADR009](ADR009-distributed-workflow-dispatch.md)). En interne, le moteur s’appuie sur **`ExecutionEngine`** / **`ExecutionContext`** ; `WorkflowEnvironment` est le **port d’usage** exposé au code métier d’orchestration, pas un adapter d’infrastructure.
+**Handlers** for workflows (classes annotated `#[Workflow]` or registered callables) receive a **`WorkflowEnvironment`** façade: timers, `await`, `activityStub()`, `childWorkflowStub()`, `sideEffect()`, distributed dispatch, etc. (see [ADR005](ADR005-messenger-integration.md), [ADR009](ADR009-distributed-workflow-dispatch.md)). Internally the engine relies on **`ExecutionEngine`** / **`ExecutionContext`**; `WorkflowEnvironment` is the **usage port** exposed to orchestration code, not an infrastructure adapter.
 
-Ports du projet Durable
+Durable project ports
 ---
 
-### EventStoreInterface (port sortant)
+### EventStoreInterface (outbound port)
 
 ```php
 interface EventStoreInterface
@@ -64,9 +65,9 @@ interface EventStoreInterface
 }
 ```
 
-Port `EventStoreInterface`. Adapters : `DbalEventStore`, `InMemoryEventStore`
+Port `EventStoreInterface`. Adapters: `DbalEventStore`, `InMemoryEventStore`
 
-### ActivityTransportInterface (port sortant)
+### ActivityTransportInterface (outbound port)
 
 ```php
 interface ActivityTransportInterface
@@ -77,9 +78,9 @@ interface ActivityTransportInterface
 }
 ```
 
-Port `ActivityTransportInterface`. Adapters : `MessengerActivityTransport`, `DbalActivityTransport`, `InMemoryActivityTransport`
+Port `ActivityTransportInterface`. Adapters in the **library**: `DbalActivityTransport`, `InMemoryActivityTransport`. **Symfony Messenger** adapter: `Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport` (package **`gplanchat/durable-bundle`**, depends on `symfony/messenger`).
 
-### ActivityExecutor (port sortant)
+### ActivityExecutor (outbound port)
 
 ```php
 interface ActivityExecutor
@@ -88,9 +89,9 @@ interface ActivityExecutor
 }
 ```
 
-Adapter : `RegistryActivityExecutor` (Bundle)
+Adapter: `RegistryActivityExecutor` (Bundle)
 
-### WorkflowBackendInterface (port entrant)
+### WorkflowBackendInterface (inbound port)
 
 ```php
 interface WorkflowBackendInterface
@@ -99,11 +100,11 @@ interface WorkflowBackendInterface
 }
 ```
 
-Adapter : `LocalWorkflowBackend` (implémentation actuelle). Un adapter `TemporalWorkflowBackend` pourra être ajouté à l'avenir (OST001).
+Adapter: `LocalWorkflowBackend` (current implementation). A `TemporalWorkflowBackend` adapter may be added later (OST001).
 
-Références
+References
 ---
 
 - [Ports and Adapters (Alistair Cockburn)](https://alistair.cockburn.us/hexagonal-architecture/)
-- [ADR005 - Intégration Messenger](ADR005-messenger-integration.md)
-- [ADR006 - Patterns activité](ADR006-activity-patterns.md)
+- [ADR005 - Messenger integration](ADR005-messenger-integration.md)
+- [ADR006 - Activity patterns](ADR006-activity-patterns.md)

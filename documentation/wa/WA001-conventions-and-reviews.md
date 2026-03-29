@@ -1,4 +1,4 @@
-# Conventions et revues
+# Conventions and reviews
 
 WA001-conventions-and-reviews
 ===
@@ -6,54 +6,54 @@ WA001-conventions-and-reviews
 Introduction
 ---
 
-Ce **Working Agreement** définit les conventions de travail et les accords pour la gestion du projet Durable. Il s'applique à l'équipe de développement et aux contributeurs.
+This **Working Agreement** defines working conventions and agreements for managing the Durable project. It applies to the development team and contributors.
 
-Conventions de nommage
+Naming conventions
 ---
 
-### Branches Git
+### Git branches
 
-- `main` : branche principale
-- `feature/{ticket-id}-{description}` : fonctionnalités
-- `fix/{ticket-id}-{description}` : corrections
-- `docs/{description}` : documentation
+- `main`: primary branch
+- `feature/{ticket-id}-{description}`: features
+- `fix/{ticket-id}-{description}`: fixes
+- `docs/{description}`: documentation
 
 ### Commits
 
-- Messages en français ou anglais
-- Format : `type(scope): description`
-- Types : `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
+- Messages in French or English
+- Format: `type(scope): description`
+- Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 
-### Fichiers
+### Files
 
-- PHP : PascalCase pour les classes
-- Tests : `*Test.php` ou `*TestCase.php`
-- Configuration : kebab-case pour les fichiers YAML
+- PHP: PascalCase for classes
+- Tests: `*Test.php` or `*TestCase.php`
+- Configuration: kebab-case for YAML files
 
-Revue de code
+Code review
 ---
 
-- Les changements significatifs _DOIVENT_ faire l'objet d'une revue
-- Les ADR et modifications de documentation _DOIVENT_ être relus avant merge
-- Critères : conformité aux ADR, tests, clarté du code
+- Significant changes **MUST** be reviewed
+- ADRs and documentation changes **MUST** be read before merge
+- Criteria: ADR compliance, tests, code clarity
 
-Gestion des plans Cursor
+Cursor plan management
 ---
 
-- Les phases de conception documentées (ADR, WA, OST, PRD) suivent le [LIFECYCLE.md](../LIFECYCLE.md)
-- Chaque nouveau document est indexé dans [INDEX.md](../INDEX.md)
-- Les plans Cursor attachés sont documentés dans `documentation/`
+- Documented design phases (ADR, WA, OST, PRD) follow [LIFECYCLE.md](../LIFECYCLE.md)
+- Each new document is indexed in [INDEX.md](../INDEX.md)
+- Attached Cursor plans are documented under `documentation/`
 
-Responsabilités
+Responsibilities
 ---
 
-- **Mainteneurs** : validation finale des ADR, release
-- **Contributeurs** : respect des conventions, mise à jour de la documentation
-- **Revue** : au moins une approbation pour les PR impactant l'architecture
+- **Maintainers**: final ADR validation, releases
+- **Contributors**: follow conventions, keep documentation up to date
+- **Review**: at least one approval for PRs impacting architecture
 
-Références
+References
 ---
 
 - [INDEX.md](../INDEX.md)
 - [LIFECYCLE.md](../LIFECYCLE.md)
-- [ADR001 - Processus ADR](../adr/ADR001-adr-management-process.md)
+- [ADR001 - ADR process](../adr/ADR001-adr-management-process.md)

@@ -1,4 +1,4 @@
-# Intégration Symfony Messenger
+# Symfony Messenger integration
 
 ADR005-messenger-integration
 ===
@@ -6,32 +6,32 @@ ADR005-messenger-integration
 Introduction
 ---
 
-Ce **Architecture Decision Record** décide d'utiliser **Symfony Messenger** comme transport pour les activités du projet Durable, et comme file pour les **reprises de workflow** en mode distribué. Cette décision permet une exécution distribuée sans dépendance à RoadRunner, en s'appuyant sur l'écosystème Symfony existant.
+This **Architecture Decision Record** chooses **Symfony Messenger** as the transport for Durable project activities, and as the queue for **workflow resume** in distributed mode. This enables distributed execution without RoadRunner, using the existing Symfony ecosystem.
 
-Contexte
+Context
 ---
 
-Le projet Durable doit permettre l'exécution d'activités de manière asynchrone et distribuée. Les alternatives considérées incluaient :
+The Durable project must run activities asynchronously and in a distributed way. Alternatives considered:
 
-- **RoadRunner + Temporal** : impose RoadRunner, complexité élevée
-- **Laravel Queues** : non applicable (projet Symfony)
-- **Symfony Messenger** : natif Symfony, support Redis, Dbal, SQS, etc.
-- **Doctrine DBAL** : simple, sans dépendance externe (transport Dbal)
+- **RoadRunner + Temporal**: requires RoadRunner, high complexity
+- **Laravel Queues**: not applicable (Symfony project)
+- **Symfony Messenger**: native Symfony, Redis, Dbal, SQS, etc.
+- **Doctrine DBAL**: simple, no external dependency (Dbal transport)
 
-Décision
+Decision
 ---
 
-Symfony Messenger est utilisé comme **transport principal** pour les messages d'activité (`ActivityMessage`) et, lorsque `durable.distributed` est activé, pour les messages **`WorkflowRunMessage`** (démarrage / reprise de run). Un transport Dbal et un transport InMemory sont également fournis pour les tests et les déploiements légers.
+Symfony Messenger is the **primary transport** for activity messages (`ActivityMessage`) and, when `durable.distributed` is enabled, for **`WorkflowRunMessage`** (start / resume run). The **library** `gplanchat/durable` exposes only the port `ActivityTransportInterface` and transport DTOs (`ActivityMessage`, etc.) **without** requiring `symfony/messenger`. The **bundle** `gplanchat/durable-bundle` provides the Messenger adapter, handlers, and DI wiring. A Dbal transport and an InMemory transport remain in the library for tests and lightweight deployments.
 
-Implémentation
+Implementation
 ---
 
-### MessengerActivityTransport
+### MessengerActivityTransport (bundle)
 
-Adapte l'interface `ActivityTransportInterface` aux primitives Messenger :
+Class: `Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport`. Adapts `ActivityTransportInterface` to Messenger primitives:
 
 - `enqueue()` → `SenderInterface::send()`
-- `dequeue()` → `ReceiverInterface::get()` puis `ack()`
+- `dequeue()` → `ReceiverInterface::get()` then `ack()`
 
 ### Configuration (bundle)
 
@@ -44,26 +44,26 @@ durable:
         transport_name: durable_activities
 ```
 
-Le routage des messages (`WorkflowRunMessage`, `ActivityMessage`, etc.) vers les bons transports se fait dans **`config/packages/messenger.yaml`** (noms typiques : `durable_workflows`, `durable_activities`).
+Routing (`WorkflowRunMessage`, `ActivityMessage`, etc.) to the correct transports is configured in **`config/packages/messenger.yaml`** (typical names: `durable_workflows`, `durable_activities`).
 
-### Worker activités
+### Activity worker
 
-La commande **`durable:activity:consume`** consomme les messages depuis le transport configuré, exécute les activités via **`ActivityExecutor`**, et persiste les résultats dans l’**EventStore**.
+The **`durable:activity:consume`** command consumes messages from the configured transport, runs activities via **`ActivityExecutor`**, and persists results to the **EventStore**.
 
-### Côté workflow (rappel)
+### Workflow side (reminder)
 
-Les handlers enregistrés sont des **classes** `#[Workflow]` dont la méthode **`#[WorkflowMethod]`** reçoit **`WorkflowEnvironment`** : les appels d’activité passent par des **stubs typés** (`activityStub()`), qui sous-tendent toujours l’enqueue via Messenger lorsque le transport d’activités est Messenger ([ADR004](ADR004-ports-and-adapters.md), [OST003](../ost/OST003-activity-api-ergonomics.md)).
+Registered handlers are **`#[Workflow]`** classes whose **`#[WorkflowMethod]`** receives **`WorkflowEnvironment`**: activity calls go through **typed stubs** (`activityStub()`), which still enqueue via Messenger when the activity transport is Messenger ([ADR004](ADR004-ports-and-adapters.md), [OST003](../ost/OST003-activity-api-ergonomics.md)).
 
-Modèle distribué
+Distributed model
 ---
 
-- **Mode inline** : workflow et activités dans le même process (`InMemoryWorkflowRunner`, **`drainActivityQueueOnce`**)
-- **Mode distribué** : activités consommées par des workers ; workflows consommés par **`WorkflowRunHandler`** sur un transport dédié ; **EventStore** et éventuellement **métadonnées de reprise** partagés (Dbal) — voir [ADR007](ADR007-workflow-recovery.md) et [ADR009](ADR009-distributed-workflow-dispatch.md)
+- **Inline mode**: workflow and activities in the same process (`InMemoryWorkflowRunner`, **`drainActivityQueueOnce`**)
+- **Distributed mode**: activities consumed by workers; workflows consumed by **`WorkflowRunHandler`** on a dedicated transport; shared **EventStore** and optionally **resume metadata** (Dbal) — see [ADR007](ADR007-workflow-recovery.md) and [ADR009](ADR009-distributed-workflow-dispatch.md)
 
-Références
+References
 ---
 
 - [Symfony Messenger](https://symfony.com/doc/current/messenger.html)
-- [ADR004 - Ports et Adapters](ADR004-ports-and-adapters.md)
-- [ADR007 - Reprise et recovery](ADR007-workflow-recovery.md)
-- [ADR009 - Re-dispatch workflow](ADR009-distributed-workflow-dispatch.md)
+- [ADR004 - Ports and Adapters](ADR004-ports-and-adapters.md)
+- [ADR007 - Recovery and replay](ADR007-workflow-recovery.md)
+- [ADR009 - Workflow re-dispatch](ADR009-distributed-workflow-dispatch.md)

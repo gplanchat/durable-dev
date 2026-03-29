@@ -1,120 +1,120 @@
-# OST004 — Parité fonctionnelle workflow / Temporal (PHP)
+# OST004 — Workflow / Temporal feature parity (PHP)
 
-## Contexte
+## Context
 
-Le composant **Durable** s’inspire de l’esprit **Temporal** (voir [OST003](OST003-activity-api-ergonomics.md) pour l’ergonomie des activités). Pour guider le **moteur**, le **journal d’événements** et les **API publiques**, les capacités ci-dessous — documentées pour le **SDK PHP officiel Temporal** — doivent être **prises en charge** ou **cartographiées** explicitement (plein support, sous-ensemble, ou hors périmètre documenté).
+The **Durable** component follows the **Temporal** spirit (see [OST003](OST003-activity-api-ergonomics.md) for activity ergonomics). To guide the **engine**, **event log**, and **public APIs**, the capabilities below — as documented for the **official Temporal PHP SDK** — must be **supported** or **mapped** explicitly (full support, subset, or documented out-of-scope).
 
-Les liens pointent vers la documentation Temporal Platform.
+Links point to Temporal Platform documentation.
 
 ---
 
 ## 1. Side effects
 
-**Référence** : [Side Effects — PHP SDK | Temporal](https://docs.temporal.io/develop/php/side-effects)
+**Reference**: [Side Effects — PHP SDK | Temporal](https://docs.temporal.io/develop/php/side-effects)
 
-**Comportement Temporal** : exécuter du code **non déterministe** (UUID, `random_int`, horodatage « maintenant » réel, etc.) **sans** casser le déterminisme du workflow : le résultat est **persisté dans l’historique** d’exécution ; au **replay**, la closure **n’est pas ré-exécutée** — la valeur enregistrée est réutilisée. Une exception dans le side effect fait échouer la tâche workflow. Ne pas muter l’état workflow **dans** le side effect (seulement retourner une valeur).
+**Temporal behavior**: run **non-deterministic** code (UUID, `random_int`, real “now” timestamps, etc.) **without** breaking workflow determinism: the result is **persisted in execution history**; on **replay**, the closure is **not re-run** — the stored value is reused. An exception in the side effect fails the workflow task. Do not mutate workflow state **inside** the side effect (only return a value).
 
-**Implications Durable** :
+**Durable implications**:
 
-- Événement(s) dédié(s) dans le journal (équivalent « résultat de side effect ») + relecture au replay.
-- API cible de type **`sideEffect(Closure): Awaitable<T>`** (ou méthode sur `ExecutionContext` / façade workflow), alignée sur **`Workflow::sideEffect()`** côté Temporal.
-- Cohérence avec les règles de **déterminisme** et de **replay** ([ADR007](../adr/ADR007-workflow-recovery.md)).
-
----
-
-## 2. Timers durables
-
-**Référence** : [Durable Timers — PHP SDK | Temporal](https://docs.temporal.io/develop/php/timers)
-
-**Comportement Temporal** : **`Workflow::timer($seconds)`** — sommeil durable ; les timers sont **persistés** ; après indisponibilité worker/service, la reprise continue au bon moment. Contrainte documentée Temporal : ne pas imbriquer un timer dans certains chemins `await` / `awaitWithTimeout` (selon version SDK).
-
-**Implications Durable** :
-
-- **Réalisé** : `TimerScheduled` / `TimerCompleted`, API **`WorkflowEnvironment::timer` / `delay`** ; en mode distribué, **`FireWorkflowTimersMessage`** + handler pour compléter les timers et re-dispatcher la reprise (horloge injectable sur **`ExecutionRuntime`** pour les tests).
-- Documenter les **limitations** d’imbrication avec l’`await` interne si elles diffèrent encore du SDK Temporal.
+- Dedicated event(s) in the log (equivalent “side effect result”) + read-back on replay.
+- Target API such as **`sideEffect(Closure): Awaitable<T>`** (or method on `ExecutionContext` / workflow façade), aligned with **`Workflow::sideEffect()`** on the Temporal side.
+- Consistency with **determinism** and **replay** rules ([ADR007](../adr/ADR007-workflow-recovery.md)).
 
 ---
 
-## 3. Workflows enfants (child workflows)
+## 2. Durable timers
 
-**Référence** : [Child Workflows — PHP SDK | Temporal](https://docs.temporal.io/develop/php/child-workflows)
+**Reference**: [Durable Timers — PHP SDK | Temporal](https://docs.temporal.io/develop/php/timers)
 
-**Comportement Temporal** : planification d’une exécution workflow **depuis** un workflow parent ; événements d’historique dédiés (`StartChildWorkflowExecution*`, etc.) ; **stub** par enfant (`newChildWorkflowStub`, options, `yield` sur la promesse) ; politique **Parent Close Policy** (terminate / abandon / request cancel). Possibilité d’**untyped** stub avec nom de workflow en chaîne.
+**Temporal behavior**: **`Workflow::timer($seconds)`** — durable sleep; timers are **persisted**; after worker/service downtime, resume continues at the right time. Temporal docs: do not nest a timer in certain `await` / `awaitWithTimeout` paths (SDK version dependent).
 
-**Implications Durable** :
+**Durable implications**:
 
-- **Réalisé (noyau)** : événements parent `ChildWorkflowScheduled` / `Completed` / `Failed` ; résultat via **`WorkflowEnvironment`** (`executeChildWorkflow`, **`childWorkflowStub`**) ; **`ChildWorkflowOptions`** (`workflowId`, **parent close policy**) ; enfant **inline** ou **async Messenger** ; persistance du lien parent↔enfant (**DBAL**) ; échec enfant projeté sur le journal parent (**kind / class / contexte**) et relu au replay via **`DurableChildWorkflowFailedException`**.
-- **Reste / partiel** : timeouts fins à la Temporal, toutes les variantes de policy, ergonomie client « stub » à 100 % du SDK, corrélation run id / même id logique que Temporal.
-- L’attribut **`#[Workflow]`** sur les types enfant (voir [OST003](OST003-activity-api-ergonomics.md)) sert de **nom logique** stable ; voir [ADR011](../adr/ADR011-child-workflow-continue-as-new.md).
+- **Done**: `TimerScheduled` / `TimerCompleted`, **`WorkflowEnvironment::timer` / `delay`** API; in distributed mode, **`FireWorkflowTimersMessage`** + handler to complete timers and re-dispatch resume (injectable clock on **`ExecutionRuntime`** for tests).
+- Document **nesting** limitations with internal `await` if they still differ from the Temporal SDK.
+
+---
+
+## 3. Child workflows
+
+**Reference**: [Child Workflows — PHP SDK | Temporal](https://docs.temporal.io/develop/php/child-workflows)
+
+**Temporal behavior**: schedule a workflow execution **from** a parent workflow; dedicated history events (`StartChildWorkflowExecution*`, etc.); **stub** per child (`newChildWorkflowStub`, options, `yield` on promise); **Parent Close Policy** (terminate / abandon / request cancel). **Untyped** stub with workflow name string possible.
+
+**Durable implications**:
+
+- **Done (core)**: parent events `ChildWorkflowScheduled` / `Completed` / `Failed`; result via **`WorkflowEnvironment`** (`executeChildWorkflow`, **`childWorkflowStub`**); **`ChildWorkflowOptions`** (`workflowId`, **parent close policy**); **inline** or **async Messenger** child; parent↔child link persistence (**DBAL**); child failure projected on parent log (**kind / class / context**) and read on replay via **`DurableChildWorkflowFailedException`**.
+- **Remaining / partial**: Temporal-fine timeouts, all policy variants, 100% SDK “stub” client ergonomics, run id correlation / same logical id as Temporal.
+- The **`#[Workflow]`** attribute on child types (see [OST003](OST003-activity-api-ergonomics.md)) provides a stable **logical name**; see [ADR011](../adr/ADR011-child-workflow-continue-as-new.md).
 
 ---
 
 ## 4. Continue-as-new
 
-**Référence** : [Continue-As-New — PHP SDK | Temporal](https://docs.temporal.io/develop/php/continue-as-new)
+**Reference**: [Continue-As-New — PHP SDK | Temporal](https://docs.temporal.io/develop/php/continue-as-new)
 
-**Comportement Temporal** : clôturer l’exécution courante **avec succès** et en démarrer une **nouvelle** (même **Workflow Id**, nouveau **Run Id**, historique **neuf**), en repassant typiquement un **état** en paramètres. **`Workflow::getInfo()->shouldContinueAsNew`** pour les limites d’historique. **Attention** : avec **Updates** / **Signals**, ne pas appeler continue-as-new **depuis** les handlers — attendre la fin des handlers dans le chemin principal (documentation Temporal).
+**Temporal behavior**: close the current execution **successfully** and start a **new** one (same **Workflow Id**, new **Run Id**, **fresh** history), typically passing **state** as parameters. **`Workflow::getInfo()->shouldContinueAsNew`** for history limits. **Note**: with **Updates** / **Signals**, do not call continue-as-new **from** handlers — wait for handlers to finish on the main path (Temporal documentation).
 
-**Implications Durable** :
+**Durable implications**:
 
-- Opération moteur explicite (**`continueAsNew(...)`**) + coupure du journal / chaînage des runs.
-- Règles de **sécurité** avec handlers asynchrones (signaux / updates / requêtes) : même principe que Temporal.
-- Tests dédiés (éventuellement « test hook » pour forcer le seuil d’historique en CI, comme dans les exemples Temporal).
+- Explicit engine operation (**`continueAsNew(...)`**) + log cut / run chaining.
+- **Safety** rules with async handlers (signals / updates / queries): same principle as Temporal.
+- Dedicated tests (optional “test hook” to force history threshold in CI, as in Temporal samples).
 
 ---
 
-## 5. Signaux, requêtes (queries), mises à jour (updates)
+## 5. Signals, queries, updates
 
-**Référence** : [Workflow message passing — PHP SDK | Temporal](https://docs.temporal.io/develop/php/message-passing)
+**Reference**: [Workflow message passing — PHP SDK | Temporal](https://docs.temporal.io/develop/php/message-passing)
 
-**Comportement Temporal (résumé)** :
+**Temporal behavior (summary)**:
 
-| Mécanisme | Rôle | Contraintes notables |
+| Mechanism | Role | Notable constraints |
 |-----------|------|----------------------|
-| **Signal** | Message asynchrone vers une exécution en cours | `#[SignalMethod]`, retour **`void`** ; peut mettre à jour l’état ; patterns avec **`Workflow::await()`**. |
-| **Query** | Lecture **synchrone** de l’état | `#[QueryMethod]`, retour **non void** ; **pas** de logique générant des commandes (pas d’activité / timer dans le handler). |
-| **Update** | Mutation **durable** avec réponse | `#[UpdateMethod]` ; validateur optionnel **`#[UpdateValidatorMethod]`** ; peut utiliser activités, timers, enfants ; **`startUpdate`** / **Update-with-Start** côté client ; politiques **unfinished handler** ; **`Workflow::allHandlersFinished()`** avant fin du workflow ; **`Mutex`** / **`Workflow::runLocked`** pour concurrence ; **`#[WorkflowInit]`** pour initialiser avant handlers. |
+| **Signal** | Async message to a running execution | `#[SignalMethod]`, **`void`** return; may update state; patterns with **`Workflow::await()`**. |
+| **Query** | **Synchronous** state read | `#[QueryMethod]`, **non-void** return; **no** logic that schedules commands (no activity / timer in handler). |
+| **Update** | **Durable** mutation with response | `#[UpdateMethod]`; optional **`#[UpdateValidatorMethod]`** validator; may use activities, timers, children; **`startUpdate`** / **Update-with-Start** on client; **unfinished handler** policies; **`Workflow::allHandlersFinished()`** before workflow end; **`Mutex`** / **`Workflow::runLocked`** for concurrency; **`#[WorkflowInit]`** to initialize before handlers. |
 
-**Implications Durable** :
+**Durable implications**:
 
-- **Attributs PHP** en miroir du modèle Temporal : au minimum **`WorkflowMethod`** (entrée), **`SignalMethod`**, **`QueryMethod`**, **`UpdateMethod`** (+ validateur si besoin) — en cohérence avec **`#[Workflow]`** au niveau classe/interface ([OST003](OST003-activity-api-ergonomics.md)).
-- Événements journal : signal reçu, query servie, update acceptée / rejetée / complétée.
-- **Plugins PHPStan / Psalm** (prévus dans OST003) : extension aux méthodes de message sur l’interface workflow.
-- Composants **dynamiques** (handlers dynamiques) : option avancée, à traiter après le chemin statique.
-
----
-
-## Synthèse — pistes de priorisation
-
-| Fonctionnalité | Dépend du journal / moteur | Lien OST003 / ADR |
-|----------------|----------------------------|-------------------|
-| Side effects | Oui (nouveau type d’événement + replay) | ADR007, API `ExecutionContext` |
-| Timers durables | Oui (affiner `delay` / timer existant) | PRD001 état actuel |
-| Child workflows | Oui (graphe d’exécutions + événements) | `#[Workflow]`, ADR009 |
-| Continue-as-new | Oui (chaînage de runs) | ADR007 |
-| Signals / Queries / Updates | Oui (handlers + client) | OST003 `#[Workflow]`, futurs attributs méthode |
-
-## Prochaines étapes suggérées
-
-1. ~~**ADR**~~ : **[ADR010](../adr/ADR010-temporal-parity-events-and-replay.md)** — inventaire des **types d’événements** et replay par capacité.
-2. ~~**PRD**~~ : **[PRD001](../prd/PRD001-current-component-state.md)** — matrice **Temporal ↔ Durable** et liste d’événements à jour.
-3. **Roadmap** : child workflows → continue-as-new → messages (signals / queries / updates) ; side effects et timers couverts par ADR010 et implémentation actuelle.
-
-## Matrice d’état Durable (synthèse)
-
-Document de référence détaillé : **[PRD001](../prd/PRD001-current-component-state.md)**. Table courte pour la roadmap :
-
-| Zone Temporal (PHP SDK) | Support Durable | Commentaire |
-|-------------------------|-----------------|-------------|
-| Side effects | **Oui** | `SideEffectRecorded`, `WorkflowEnvironment::sideEffect` |
-| Durable timers | **Oui** | `FireWorkflowTimersMessage` en distribué |
-| Child workflows | **Partiel** | Journal + inline / async + lien DBAL + échec enrichi parent |
-| Continue-as-new | **Partiel** | Nouvel `executionId` |
-| Signals / Queries / Updates | **Partiel** | Journal + Messenger ; queries = lecture journal |
+- **PHP attributes** mirroring the Temporal model: at minimum **`WorkflowMethod`** (entry), **`SignalMethod`**, **`QueryMethod`**, **`UpdateMethod`** (+ validator if needed) — consistent with **`#[Workflow]`** at class/interface level ([OST003](OST003-activity-api-ergonomics.md)).
+- Log events: signal received, query served, update accepted / rejected / completed.
+- **PHPStan / Psalm plugins** (planned in OST003): extend to message methods on the workflow interface.
+- **Dynamic** components (dynamic handlers): advanced option, after the static path.
 
 ---
 
-## Références externes
+## Summary — prioritization hints
+
+| Feature | Depends on log / engine | OST003 / ADR link |
+|---------|-------------------------|-------------------|
+| Side effects | Yes (new event type + replay) | ADR007, `ExecutionContext` API |
+| Durable timers | Yes (refine existing `delay` / timer) | PRD001 current state |
+| Child workflows | Yes (execution graph + events) | `#[Workflow]`, ADR009 |
+| Continue-as-new | Yes (run chaining) | ADR007 |
+| Signals / Queries / Updates | Yes (handlers + client) | OST003 `#[Workflow]`, future method attributes |
+
+## Suggested next steps
+
+1. ~~**ADR**~~: **[ADR010](../adr/ADR010-temporal-parity-events-and-replay.md)** — inventory of **event types** and replay per capability.
+2. ~~**PRD**~~: **[PRD001](../prd/PRD001-current-component-state.md)** — **Temporal ↔ Durable** matrix and up-to-date event list.
+3. **Roadmap**: child workflows → continue-as-new → messages (signals / queries / updates); side effects and timers covered by ADR010 and current implementation.
+
+## Durable status matrix (summary)
+
+Detailed reference: **[PRD001](../prd/PRD001-current-component-state.md)**. Short table for the roadmap:
+
+| Temporal area (PHP SDK) | Durable support | Comment |
+|-------------------------|-----------------|---------|
+| Side effects | **Yes** | `SideEffectRecorded`, `WorkflowEnvironment::sideEffect` |
+| Durable timers | **Yes** | `FireWorkflowTimersMessage` in distributed |
+| Child workflows | **Partial** | Log + inline / async + DBAL link + enriched parent failure |
+| Continue-as-new | **Partial** | New `executionId` |
+| Signals / Queries / Updates | **Partial** | Log + Messenger; queries = log read |
+
+---
+
+## External references
 
 - [Side effects (PHP)](https://docs.temporal.io/develop/php/side-effects)
 - [Durable timers (PHP)](https://docs.temporal.io/develop/php/timers)
@@ -122,10 +122,10 @@ Document de référence détaillé : **[PRD001](../prd/PRD001-current-component-
 - [Continue-as-new (PHP)](https://docs.temporal.io/develop/php/continue-as-new)
 - [Message passing — Signals, Queries, Updates (PHP)](https://docs.temporal.io/develop/php/message-passing)
 
-## Références internes
+## Internal references
 
-- [OST003 — Ergonomie activités / `#[Workflow]` / `#[Activity]`](OST003-activity-api-ergonomics.md)
-- [PRD001 — État actuel](../prd/PRD001-current-component-state.md)
+- [OST003 — Activity ergonomics / `#[Workflow]` / `#[Activity]`](OST003-activity-api-ergonomics.md)
+- [PRD001 — Current state](../prd/PRD001-current-component-state.md)
 - [ADR007 — Workflow recovery](../adr/ADR007-workflow-recovery.md)
 - [ADR009 — Distributed workflow dispatch](../adr/ADR009-distributed-workflow-dispatch.md)
-- [ADR010 — Événements et replay (parité Temporal)](../adr/ADR010-temporal-parity-events-and-replay.md)
+- [ADR010 — Events and replay (Temporal parity)](../adr/ADR010-temporal-parity-events-and-replay.md)

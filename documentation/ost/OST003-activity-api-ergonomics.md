@@ -1,52 +1,56 @@
-# OST003 — Ergonomie des appels d’activités (style classes / attributs)
+# OST003 — Activity call ergonomics (class / attribute style)
 
-## Contexte
+**Canonical document**: This English OST003 is the full reference for activity / workflow DX in this repository. Shorter summaries or any legacy non-English draft are **superseded** by this file; extend here if new tracks or decisions are needed.
 
-L’API actuelle :
+**Architecture lock-in**: runtime metadata cache, warmup, `activityStub` PHPDoc alignment, and static-analysis packaging are recorded in **[ADR012](../adr/ADR012-activity-stub-metadata-and-static-analysis.md)**.
+
+## Context
+
+The current API:
 
 ```php
 $ctx->activity('greet', ['name' => 'Durable']);
 ```
 
-est correcte pour le moteur (nom + tableau JSON-sérialisable dans l’event store), mais peu lisible côté workflow : pas de typage du contrat, pas d’auto-complétion, noms en chaînes « magiques ».
+is correct for the engine (name + JSON-serializable array in the event store) but weak for workflow authors: no contract typing, no IDE completion, “magic” string names.
 
-L’objectif est de s’inspirer de l’esprit **Temporal** (contrats explicites, classes dédiées, métadonnées déclaratives) tout en restant compatibles avec **PHP 8.2+**, le **journal d’événements** et les **transports** existants.
+The goal is to follow the **Temporal** spirit (explicit contracts, dedicated classes, declarative metadata) while staying compatible with **PHP 8.2+**, the existing **event log**, and **transports**.
 
-### Décision : `activity()` vit dans le **moteur**
+### Decision: `activity()` lives in the **engine**
 
-La **planification** d’une activité (construction de l’`Awaitable`, émission vers le journal / event store, nom + payload sérialisable) doit être implémentée **une seule fois**, dans la **couche moteur** (service dédié, `ExecutionEngine`, adaptateur interne — le nom exact est à figer en ADR), et non répétée dans le code utilisateur des workflows.
+**Scheduling** an activity (building the `Awaitable`, writing to the log / event store, serializable name + payload) must be implemented **once** in the **engine layer** (dedicated service, `ExecutionEngine`, internal adapter — exact name to fix in an ADR), not duplicated in user workflow code.
 
-- **`ExecutionContext::activity(string, array)`** (tel qu’exposé aujourd’hui) devient au minimum une **façade** vers ce cœur, ou est **réduit** à un point d’entrée bas niveau / interne selon le plan de migration.
-- Les ergonomies **stub** (`activityStub` / `ActivityStub<T>`), **DTO** (`invoke`), etc. **délèguent toutes** vers la **même** implémentation moteur — pas de second chemin parallèle.
+- **`ExecutionContext::activity(string, array)`** (as exposed today) becomes at least a **façade** to that core, or is **reduced** to a low-level / internal entry point per migration plan.
+- All **stub** ergonomics (`activityStub` / `ActivityStub<T>`), **DTO** (`invoke`), etc. **delegate** to the **same** engine implementation — no parallel path.
 
-## Contraintes à préserver
+## Constraints to preserve
 
-- Le **payload persisté** reste un **tableau JSON** (ou structure dérivée strictement sérialisable) dans `ActivityScheduled` / `ActivityMessage`.
-- Le **nom logique** d’activité reste une **chaîne** stable dans le temps (versioning = autre nom ou champ `schemaVersion` dans le DTO).
-- **Rétrocompatibilité** : les workflows existants peuvent continuer à appeler `$ctx->activity(...)` tant que cette méthode **redirige** vers le moteur ; la **DX cible** est **`activityStub(Contrat::class)`** (une ligne) puis des appels de méthodes typés — **pas** de classe wrapper écrite à la main par l’utilisateur.
+- **Persisted payload** stays a **JSON array** (or strictly serializable structure) in `ActivityScheduled` / `ActivityMessage`.
+- **Logical activity name** stays a **stable string** over time (versioning = another name or `schemaVersion` field in a DTO).
+- **Backward compatibility**: existing workflows may keep calling `$ctx->activity(...)` as long as it **redirects** to the engine; the **target DX** is **`activityStub(Contract::class)`** (one line) then typed method calls — **no** hand-written wrapper class.
 
-### Attributs **`#[Workflow]`** et **`#[Activity]`** (classe) — **noms stables si la classe PHP est renommée**
+### **`#[Workflow]`** and **`#[Activity]`** (class) — **stable names if the PHP class is renamed**
 
-Le **nom logique** enregistré dans le journal / auprès du worker ne doit **pas** dépendre uniquement du **nom de classe PHP** : un refactor (`OrderWorkflow` → `ProcessOrderWorkflow`, `OrderActivitiesInterface` → `CommerceActivitiesInterface`) ne doit pas **casser** l’identité du workflow ou du contrat d’activités dans l’historique.
+The **logical name** stored in the log / used by the worker must **not** depend only on the **PHP class name**: a refactor (`OrderWorkflow` → `ProcessOrderWorkflow`, `OrderActivitiesInterface` → `CommerceActivitiesInterface`) must not **break** workflow or activity contract identity in history.
 
-**À prévoir** (à figer en ADR : cible `Attribute::TARGET_CLASS`, éventuellement `TARGET_INTERFACE`) :
+**To specify** (ADR: target `Attribute::TARGET_CLASS`, possibly `TARGET_INTERFACE`):
 
-| Attribut | Portée | Rôle |
-|----------|--------|------|
-| **`#[Workflow('nom_logique')]`** | Classe (ou interface) du **handler workflow** | Identifiant **stable** du type de workflow côté moteur / event store, **indépendant** du FQCN PHP après renommage. |
-| **`#[Activity('nom_logique')]`** | **Contrat** d’activités (interface ou classe d’impl worker), **ou** DTO d’appel (piste A) | Identifiant **stable** du **regroupement** ou du **type** d’activité selon le modèle retenu ; complète **`#[ActivityMethod]`** sur les méthodes (piste C). |
+| Attribute | Scope | Role |
+|-----------|-------|------|
+| **`#[Workflow('logical_name')]`** | Class (or interface) of the **workflow handler** | **Stable** workflow type id for engine / event store, **independent** of FQCN after rename. |
+| **`#[Activity('logical_name')]`** | Activity **contract** (interface or worker impl class), **or** call DTO (track A) | **Stable** id for **grouping** or **activity type** per chosen model; complements **`#[ActivityMethod]`** on methods (track C). |
 
-**Piste C** : placer **`#[Activity('…')]`** sur **`OrderActivitiesInterface`** (et idéalement répéter la même valeur sur la classe concrète worker pour cohérence) ; les **`#[ActivityMethod('reserve_stock')]`** restent les noms **d’activité élémentaires**. L’ADR définit comment le moteur **compose** ou **sépare** `Activity` + `ActivityMethod` (préfixe `nom_logique.` + méthode, clés de cache PSR-6, clé de registry, etc.).
+**Track C**: put **`#[Activity('…')]`** on **`OrderActivitiesInterface`** (and ideally the same value on the concrete worker class); **`#[ActivityMethod('reserve_stock')]`** remain **elementary** activity names. The ADR defines how the engine **composes** `Activity` + `ActivityMethod` (prefix `logical.`, method, PSR-6 cache keys, registry keys, etc.).
 
-**Piste A** : le **`#[Activity('greet')]`** sur le **DTO readonly** fixe déjà le **nom d’activité** de l’appel ; renommer la classe `GreetInput` sans changer la chaîne **`'greet'`** préserve la compatibilité historique.
+**Track A**: **`#[Activity('greet')]`** on a **readonly DTO** already fixes the **activity name** for the call; renaming class `GreetInput` without changing **`'greet'`** preserves history compatibility.
 
-**Outils** : warmers, plugins **PHPStan / Psalm** et contrôles de cohérence doivent lire ces attributs **au niveau classe** en plus des méthodes.
+**Tooling**: warmers, **PHPStan / Psalm** plugins, and consistency checks must read these attributes at **class** level as well as methods.
 
 ---
 
-## Piste A — Attribut `#[Activity]` + DTO d’entrée (recommandée)
+## Track A — `#[Activity]` attribute + input DTO (recommended alternative)
 
-Une **classe readonly** représente l’appel ; un attribut PHP 8 porte le **nom d’activité** enregistré côté worker (voir aussi *noms stables* ci-dessus).
+A **readonly class** represents the call; a PHP 8 attribute carries the **activity name** for the worker (see *stable names* above).
 
 ```php
 #[Activity('greet')]
@@ -56,35 +60,31 @@ final readonly class GreetInput
 }
 ```
 
-Même attribut **`Activity`** que sur le **contrat** d’activités (piste C), ici sur une **classe** DTO : la chaîne **`'greet'`** est l’identifiant **stable** dans le journal ; renommer `GreetInput` ne casse pas l’historique tant que **`'greet'`** est inchangé.
+Same **`Activity`** attribute as on the activity **contract** (track C), here on a **DTO** class: the **`'greet'`** string is the **stable** log id; renaming `GreetInput` does not break history as long as **`'greet'`** is unchanged.
 
-API workflow cible :
+Target workflow API:
 
 ```php
 await($ctx->invoke(new GreetInput('Durable')), $ctx, $rt);
-// ou alias lisible :
+// or readable alias:
 await($ctx->runActivity(new GreetInput('Durable')), $ctx, $rt);
 ```
 
-Mise en œuvre (conceptuelle) :
+Conceptual implementation:
 
-1. Interface `ActivityInvocation` (ou trait) : `activityName(): string`, `toActivityPayload(): array`.
-2. **`#[Activity('greet')]`** : métadonnées résolues **hors chemin chaud** — même principe que la piste C : **cache PSR-6** alimenté à la **chauffe** (voir section *Cache métadonnées : PSR-6 et chauffe uniquement*) ; en dev, un **miss** peut déclencher une résolution ponctuelle puis écriture dans le pool.
-3. `ExecutionContext::invoke(object $input): Awaitable` :
-   - résout le nom depuis l’attribut sur la classe de `$input` ;
-   - appelle `toActivityPayload()` ( défaut : `get_object_vars` / normaliseur dédié ) ;
-   - **délègue au moteur** (même primitive que `activityStub` / `activity()` interne).
+1. `ActivityInvocation` interface (or trait): `activityName(): string`, `toActivityPayload(): array`.
+2. **`#[Activity('greet')]`**: metadata resolved **off hot path** — same as track C: **PSR-6 cache** filled at **warmup**; in dev a **miss** may trigger one-off resolution then pool write.
+3. `ExecutionContext::invoke(object $input): Awaitable`: resolve name from attribute on `$input`’s class; call `toActivityPayload()` (default: `get_object_vars` / dedicated normalizer); **delegate to engine** (same primitive as internal `activityStub` / `activity()`).
 
-**Variante nom implicite** : si l’attribut omet le nom, dériver `greet` depuis `GreetInput` → `greet` (camelCase / snake_case documenté).
+**Implicit name variant**: if attribute omits name, derive `greet` from `GreetInput` → `greet` (camelCase / snake_case documented).
 
-**Avantages** : proche de Temporal, typage fort, une classe = un contrat.  
-**Inconvénients** : besoin de **chauffe / cache** pour éviter la réflexion en runtime ; convention de sérialisation à figer (voir ADR006).
+**Pros**: Temporal-like, strong typing, one class = one contract. **Cons**: need **warmup / cache** to avoid reflection at runtime; serialization convention to fix (see ADR006).
 
 ---
 
-## Piste B — Enum typé pour le nom + payload séparé
+## Track B — Typed enum for name + separate payload
 
-Pour limiter la réflexion au strict minimum :
+To minimize reflection:
 
 ```php
 enum ActivityName: string
@@ -96,90 +96,77 @@ enum ActivityName: string
 await($ctx->activityNamed(ActivityName::Greet, new GreetPayload('Durable')), ...);
 ```
 
-`GreetPayload` reste un readonly DTO avec `toArray()` explicite.
+`GreetPayload` stays a readonly DTO with explicit `toArray()`.
 
-**Avantages** : noms d’activités **exhaustifs** pour les `switch` / PHPStan.  
-**Inconvénients** : deux artefacts (enum + DTO) par activité si le payload n’est pas vide.
+**Pros**: exhaustive activity names for `switch` / PHPStan. **Cons**: two artifacts (enum + DTO) per activity when payload is non-empty.
 
 ---
 
-## Piste C — Contrat d’activité + **`activityStub()` moteur** — **retenue**
+## Track C — Activity contract + engine **`activityStub()`** — **CHOSEN**
 
-### Syntaxe workflow cible (simple, sans code utilisateur de proxy)
+### Target workflow syntax (simple, no user-written proxy)
 
-L’utilisateur **ne crée pas** de classe « Activities » ni de méthodes qui enrobent `activity()`. Il déclare **uniquement** le **contrat** (interface + implémentation worker) avec **`#[Activity('…')]`** sur le type (nom stable) et **`#[ActivityMethod]`** sur les méthodes métier ; le moteur fournit le proxy en **une** expression.
+The user **does not** create an “Activities” class or methods wrapping `activity()`. They declare only the **contract** (interface + worker implementation) with **`#[Activity('…')]`** on the type (stable name) and **`#[ActivityMethod]`** on business methods; the engine provides the proxy in **one** expression.
 
 ```php
-// Une fois par workflow (ou par bloc logique) : le moteur construit le proxy.
 /** @var ActivityStub<OrderActivitiesInterface> $orders */
 $orders = $env->activityStub(OrderActivitiesInterface::class);
 
-// Appels naturels : typage + auto-complétion ; le moteur planifie (Awaitable<string>, etc.).
 $reserved = $env->await($orders->reserveStock('SKU-1', 3));
 ```
 
+**User writes**: activity interface, concrete worker class, then **`activityStub`** + method calls. **User does not write**: intermediate classes duplicating activity names or calling `$env->activity(string)` by hand.
 
-**Ce que l’utilisateur écrit** : interface d’activité, classe concrète worker, puis **`activityStub`** + appels de méthodes. **Ce qu’il n’écrit pas** : aucune classe intermédiaire qui duplique les noms d’activité ou appelle `$env->activity(string)` à la main.
+### Single concrete class + interface (contract only)
 
-### Une classe concrète + interface (contrat uniquement)
+There are **not** two concrete implementations of the same activity: **one class** holds business code and runs on the worker.
 
-Il n’y a **pas** deux implémentations concrètes de la même activité : **une seule classe** porte le code métier et est **exécutée sur le worker**.
+| Piece | Role |
+|-------|------|
+| **Interface** (e.g. `OrderActivitiesInterface`) | **Aligned** with worker class: shared signatures; concrete class **`implements`** interface. **`#[Activity('stable_name')]`** on type (interface + impl): **stable** id if PHP symbol is renamed. Only **`#[ActivityMethod]`** methods are schedulable via stub; other methods: not exposed to workflow. |
+| **Engine proxy** (`ActivityStub<…>`) | From **`$env->activityStub(...)`**: only place workflow sees **`Awaitable<R>`**. Only **`#[ActivityMethod]`** methods are exposed: same names / parameters as contract, returns become suspended `Awaitable<R>`. |
 
-| Élément | Rôle |
-|---------|------|
-| **Interface** (ex. `OrderActivitiesInterface`) | **Alignée** sur la classe d’activité : signatures communes avec l’impl worker ; la classe concrète **`implements`** cette interface. **`#[Activity('nom_stable')]`** sur le type (interface + impl) : identifiant **stable** si le symbole PHP est renommé. Seules les méthodes **`#[ActivityMethod]`** sont planifiables via le stub ; autres méthodes sans `ActivityMethod` : pas d’exposition workflow. |
-| **Proxy moteur** (`ActivityStub<…>`) | Fourni par **`$env->activityStub(...)`** : seul endroit où le workflow voit des **`Awaitable<R>`**. **Uniquement les méthodes annotées `#[ActivityMethod]`** sont exposées : mêmes noms / paramètres que sur le contrat pour ces seules méthodes, avec retours suspendus `Awaitable<R>` (analyse statique / doc). |
+On the **workflow** side (replay), the proxy **emits** `Awaitable` to the log — no business body execution. On the **worker**, **concrete class** methods run.
 
-Côté **workflow** (replay), le proxy **émet** des `Awaitable` vers le journal — pas d’exécution du corps métier. Côté **worker**, ce sont les méthodes de la **classe concrète** qui s’exécutent.
+### Role of `#[Activity]` (class) and `#[ActivityMethod]` (method)
 
-### Rôle des attributs `#[Activity]` (classe) et `#[ActivityMethod]` (méthode)
+In **Temporal** (Java, .NET, official PHP SDK), workflows call **generated or annotated stubs**; server-side activity name is **contract data**, not scattered strings.
 
-En **Temporal** (Java, .NET, PHP SDK officiel), les workflows appellent des **stubs** générés ou annotés : le nom d’activité côté serveur est une donnée de **contrat**, pas une chaîne éparpillée dans le corps de la méthode.
+**`#[Activity('…')]`** on the **contract**: **stable** anchor for engine, PSR-6 cache, and registry when **class or interface name** changes. Must be **consistent** between interface and worker impl (check at warmup or test).
 
-**`#[Activity('…')]`** sur le **contrat** : ancrage **stable** pour le moteur, le cache PSR-6 et le registry quand le **nom de classe ou d’interface PHP** évolue (refactor). Doit être **cohérent** entre interface et implémentation worker (vérification au warmup ou en test).
+**`#[ActivityMethod]`** on each contract method that is an activity:
 
-**`#[ActivityMethod]`** sur **chaque méthode** du contrat qui doit être une activité (interface ou classe partagée avec le worker) sert à :
+1. **Bound stub surface**: proxy from `activityStub()` exposes **only** these methods.
+2. **Elementary logical activity name** in worker registry — **source of truth** for static analysis.
+3. **Verification**: tooling walks **annotated** methods and checks each `#[ActivityMethod('…')]` has a registered handler.
+4. **Drift control**: renaming PHP method `greetCustomer()` does not change history id; only attribute parameter stays stable.
+5. **Evolution**: optional attribute fields for future metadata (task queue, retry policy, timeouts).
 
-1. **Délimiter la surface du stub** : le proxy retourné par `activityStub()` **n’expose que** les méthodes ainsi annotées. Toute autre méthode du type `TActivity` (sans `#[ActivityMethod]`) **n’est pas** invocable sur le stub — évite d’étendre par erreur le contrat workflow à des helpers ou de l’API purement worker.
-2. **Fixer le nom logique d’activité** **élémentaire** enregistré dans le worker (`RegistryActivityExecutor::register('reserve_stock', …)`, etc.) — **source de vérité** lisible à la compilation / analyse statique ; la composition éventuelle avec **`#[Activity]`** (classe) est définie en ADR (nom complet, préfixe, clé de cache).
-3. **Permettre la vérification** : outil ou test qui parcourt les méthodes **annotées** et vérifie que chaque `#[ActivityMethod('…')]` a bien un handler enregistré sous le même nom.
-4. **Éviter la dérive** : renommer la méthode PHP `greetCustomer()` ne change pas le nom d’activité côté historique ; seul le paramètre de l’attribut (ou un nom explicite dedans) reste stable pour le journal.
-5. **Évolution** : champs optionnels sur l’attribut pourront porter plus tard des **métadonnées** (ex. `taskQueue`, politique de retry côté activité, *timeouts* — quand le moteur les exposera), sans changer la signature vue par le workflow.
-
-**Forme envisagée** (à figer en ADR — **noms de classes PHP** à caler dans un namespace dédié, ex. `…\Attribute\`, pour éviter les collisions avec le domaine métier) :
+**Envisaged shape** (ADR — attribute classes in dedicated namespace e.g. `…\Attribute\`):
 
 ```php
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_INTERFACE)]
 final class Activity
 {
-    public function __construct(
-        public string $name,
-        // futur : métadonnées communes au contrat
-    ) {}
+    public function __construct(public string $name) {}
 }
 
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_INTERFACE)]
 final class Workflow
 {
-    public function __construct(
-        public string $name,
-    ) {}
+    public function __construct(public string $name) {}
 }
 
 #[\Attribute(\Attribute::TARGET_METHOD)]
 final class ActivityMethod
 {
-    public function __construct(
-        public string $name,
-        // futur : ?string $taskQueue = null, ...
-    ) {}
+    public function __construct(public string $name) {}
 }
 ```
 
-**Exemple** — **interface alignée** sur l’activité ; **`Awaitable` uniquement via `activityStub()`** (pas dans l’interface) ; **noms stables** si renommage PHP :
+**Example** — interface **aligned** with activity; **`Awaitable` only via `activityStub()`** (not in interface); **stable names** on PHP rename:
 
 ```php
-/** Contrat d’activité : identique à ce que la classe concrète expose côté worker. */
 #[Activity('order_activities')]
 interface OrderActivitiesInterface
 {
@@ -187,19 +174,16 @@ interface OrderActivitiesInterface
     public function reserveStock(string $sku, int $quantity): string;
 }
 
-/** Une seule classe d’activité — enregistrée sur le worker, corps métier ici. */
 #[Activity('order_activities')]
 final class AcmeOrderActivities implements OrderActivitiesInterface
 {
     #[ActivityMethod('reserve_stock')]
     public function reserveStock(string $sku, int $quantity): string
     {
-        // code métier réel, exécuté uniquement sur le worker
+        // business code, worker only
     }
 }
 ```
-
-**Exemple workflow** (handler — nom de type stable même si la classe PHP est renommée) :
 
 ```php
 #[Workflow('process_order')]
@@ -209,85 +193,64 @@ final class ProcessOrderWorkflow
 }
 ```
 
-*Une méthode sur le même contrat **sans** `#[ActivityMethod]` peut exister pour l’impl worker (ou pour d’autres usages) : elle **n’apparaît pas** sur `ActivityStub<…>` et ne doit **pas** être appelée depuis le code workflow via le proxy.*
+*A method on the same contract **without** `#[ActivityMethod]` may exist for the worker: it **does not** appear on `ActivityStub<…>`.*
 
-Côté **workflow**, on n’utilise pas l’interface telle quelle pour les retours : on obtient un **`ActivityStub<OrderActivitiesInterface>`** (voir ci-dessous) qui **ne projette que les méthodes `#[ActivityMethod]`** : pour celles-ci, **mêmes paramètres** que sur le contrat mais retours **conceptuellement** `Awaitable<string>`, `Awaitable<Product>`, etc.
+### Mental model: `ActivityStub<TActivity>` and `Awaitable<R>`
 
-### Modèle mental : `ActivityStub<TActivity>` et `Awaitable<R>`
+The **stub** is parameterized by activity class or interface (`TActivity`). Its **static surface** covers **only** `TActivity` methods with **`#[ActivityMethod]`**; for each, **same parameters** as contract, return type **`R`** becomes **`Awaitable<R>`**.
 
-Le **stub** est paramétré par la classe ou l’interface d’activité (`TActivity`). Sa **signature statique** ne couvre **que** les méthodes de `TActivity` portant **`#[ActivityMethod]`** ; pour chacune, **mêmes paramètres** que sur le contrat, **types de retour** remplacés par `R` → **`Awaitable<R>`** (ex. `string` → `Awaitable<string>`, `Product` → `Awaitable<Product>`). Les méthodes sans attribut sont **absentes** du stub (comportement à l’appel : erreur explicite ou méthode inexistante selon implémentation — à figer en ADR).
-
-En PHP, cela ne peut pas être exprimé entièrement par le langage seul. **À prévoir** : des **plugins dédiés PHPStan et Psalm** (voir section suivante) ; en complément ou alternative, **code généré** ou annotations `@var` manuelles.
+PHP cannot express this fully in the type system. **Plan**: dedicated **PHPStan and Psalm** plugins (below); optional **codegen** or manual `@var`.
 
 ```php
 /**
- * Proxy de planification côté workflow.
- * Modèle mental : sous-ensemble de TActivity — uniquement les méthodes #[ActivityMethod],
- * retours remplacés par Awaitable<ReturnType>.
- *
+ * Scheduling proxy on workflow side.
  * @template TActivity of object
  */
 final class ActivityStub
 {
-    /**
-     * @param class-string<TActivity> $activityClass
-     */
     public function __construct(
         private readonly string $activityClass,
         private readonly ExecutionContext $context,
     ) {
     }
-
-    // À l’exécution : __call lit les métadonnées depuis le cache PSR-6 (pas de réflexion).
+    // Runtime: __call reads metadata from PSR-6 cache (no reflection).
 }
 ```
 
-### Cache métadonnées : **PSR-6** et **chauffe** uniquement
+### Metadata cache: **PSR-6** and **warmup** only
 
-**Décision** : la **réflexion** (`ReflectionClass` / `ReflectionMethod`, lecture des attributs) ne doit servir qu’à **alimenter un cache**, et **idéalement uniquement pendant une phase de chauffe** (build, `cache:warmup`, compile Symfony), **pas** sur le chemin chaud d’un workflow en production.
+**Decision**: **reflection** (`ReflectionClass` / `ReflectionMethod`, reading attributes) must **feed a cache**, **ideally only during warmup** (build, `cache:warmup`, Symfony compile), **not** on the workflow hot path in production.
 
-- **Stockage** : **`Psr\Cache\CacheItemPoolInterface`** (PSR-6). Symfony expose des **pools** configurables (`framework.cache`) : même abstraction côté bundle Durable / Kiboko, intégration naturelle avec `cache:warmup` et les **cache warmers** (`Symfony\Component\HttpKernel\CacheWarmer\CacheWarmerInterface`).
-- **Contenu typique d’une entrée** (par `class-string` de contrat d’activité, voire par couple `(classe, nom de méthode)`) : **`#[Activity]`** résolu sur le type (nom stable du contrat), liste des méthodes **`#[ActivityMethod]`**, **nom d’activité** logique par méthode, **noms des paramètres** (→ clés payload), éventuellement type de retour documenté pour l’analyse statique.
-- **Runtime** (`ActivityStub`, `invoke(DTO)`, etc.) : **lecture seule** dans le pool PSR-6 ; si **miss** en prod → politique à figer en ADR (échec explicite vs chauffe obligatoire au déploiement).
+- **Storage**: **`Psr\Cache\CacheItemPoolInterface`**. Symfony pools (`framework.cache`): natural fit with `cache:warmup` and **`CacheWarmerInterface`**.
+- **Typical entry** (per activity contract `class-string`, or `(class, method)`): resolved **`#[Activity]`**, list of **`#[ActivityMethod]`** methods, logical name per method, **parameter names** (→ payload keys), optional return type for static analysis.
+- **Runtime** (`ActivityStub`, `invoke(DTO)`, etc.): **read-only** from pool; **miss** in prod → policy in ADR (hard fail vs mandatory deploy warmup).
 
-**Réalisations possibles** (souvent combinées) :
+**Implementations**: codegen (optional), **PHPStan + Psalm** plugins (planned product deliverables), dev fallback (one-off reflection + `save()` — not production target).
 
-1. **Génération de code** (alternative ou complément) : produire une classe intermédiaire avec des `@method` / signatures explicites **pour les seules méthodes `#[ActivityMethod]`** — peut éviter tout pool à l’exécution si tout est figé en codegen.
-2. **Plugins PHPStan + Psalm** (voir *Analyse statique* ci-dessous) — **livrabilité prévue** du produit.
-3. **Dégradé dev** : miss PSR-6 → une passe réflexion **ponctuelle** + `save()` dans le pool (jamais la cible prod sans chauffe explicite).
+### Static analysis: **PHPStan and Psalm plugins** — **planned**
 
-### Analyse statique : **plugins PHPStan et Psalm** — **à prévoir**
+Because **`ActivityStub`** uses **`__call`**, analyzers need extensions.
 
-Le proxy **`ActivityStub`** s’appuie sur **`__call`** (ou équivalent) : sans extension, l’analyse statique ne peut pas inférer **`Awaitable<R>`** par méthode. Il faut donc prévoir **deux** extensions maintenues dans l’écosystème du package (ou du monorepo).
+#### **Packagist**: **independent** packages and **`suggest`**
 
-#### Distribution **Packagist** : composants **indépendants** et **`suggest`**
+- **Two Composer packages** on **Packagist**, **not** in core **`require`**: users who do not need analyzers do not install them.
+- **Opt-in**: `composer require --dev gplanchat/durable-phpstan` and/or `composer require --dev gplanchat/durable-psalm-plugin`.
+- Core **`composer.json`** lists both under **`"suggest"`** with a short description.
+- Each plugin **`require`**s a **minimum** compatible **`gplanchat/durable`** version; core does not depend on plugins.
 
-- **Deux packages Composer distincts** publiés sur **Packagist**, **sans** les déclarer en **`require`** de la bibliothèque principale (`gplanchat/durable` ou équivalent) : l’utilisateur n’embarque **ni PHPStan ni Psalm** s’il n’en a pas besoin.
-- **Installation à la carte** : `composer require --dev gplanchat/durable-phpstan` et/ou `composer require --dev gplanchat/durable-psalm-plugin` (noms indicatifs — à figer à la publication).
-- Le **`composer.json`** du package **durable** (cœur) doit déclarer ces deux noms dans **`"suggest"`** avec une courte description : à chaque `composer install` / `update`, Composer **affiche** la suggestion sans l’installer — incitation claire et conforme aux usages ecosystem.
-- **Dépendances** : chaque plugin liste en **`require`** (ou `require-dev` selon choix) la **version minimale** de **`gplanchat/durable`** avec laquelle il est compatible ; le cœur ne dépend pas des plugins.
+**Target behaviors** (ADR / plugin specs):
 
-| Livrable Packagist | Rôle côté projet utilisateur |
-|--------------------|------------------------------|
-| **`gplanchat/durable-phpstan`** (nom indicatif) | `composer require --dev` ; **`includes`** dans `phpstan.neon` / `phpstan.dist.neon`. |
-| **`gplanchat/durable-psalm-plugin`** (nom indicatif) | `composer require --dev` ; **`psalm.xml`** (`<plugins><plugin class="…"/></plugins>`). |
+1. **`activityStub(Class::class)`** → **`ActivityStub<TContract>`**; verify **`#[Activity]`** on contract; only **`#[ActivityMethod]`** methods exist on stub.
+2. **`$stub->foo(...args)`** → return **`Awaitable<R>`** with **`R`** = business return type of **`TContract::foo`** (generics via `@template` / Psalm).
+3. Method **without** `#[ActivityMethod]` → error (or strict level) if called on stub.
+4. Track A (`invoke`): **`#[Activity]`** on DTO; complementary rule for `Awaitable`.
+5. **`#[Workflow]`** on handler class for stable workflow type analysis.
 
-**Comportements cibles** (à figer en ADR / specs des plugins) :
+**Truth source**: native **PHP attributes** via `Reflection*` during analysis — not workflow hot path; optional **warmup dump** shared with PSR-6 schema.
 
-1. **`activityStub(Class::class)`** : inférer un type **`ActivityStub<TContract>`** avec **`TContract`** = classe ou interface passée ; vérifier la présence de **`#[Activity]`** sur le contrat ; seules les méthodes portant **`#[ActivityMethod]`** sont considérées comme existantes sur le stub.
-2. **Appel `$stub->foo(...args)`** : type de retour **`Awaitable<R>`** où **`R`** est le type de retour **métier** déclaré sur **`TContract::foo`** (support **génériques** sur `Awaitable` via docblocks `@template` / équivalent Psalm).
-3. **Méthode sans `#[ActivityMethod]`** : **erreur** (ou niveau strict configurable) si le workflow tente de l’appeler sur le stub — aligné sur le runtime.
-4. **Piste A (`invoke`)** : même attribut **`#[Activity]`** sur **DTO** (nom d’activité stable pour l’appel) ; règle complémentaire pour inférer `Awaitable`.
-5. **`#[Workflow]`** : sur la classe handler, pour cohérence d’analyse avec le **type de workflow** stable (enregistrement / journal).
-
-**Source de vérité pour l’analyse** : lecture des **attributs natifs PHP** sur le contrat (`Reflection*`) **pendant l’analyse** — ce n’est **pas** le chemin chaud du workflow ; alternative ou complément : lecture d’un **dump** généré au **warmup** (même schéma que les entrées **PSR-6**) pour accélérer CI ou partager un seul artefact entre warmer et analyseurs.
-
-**Documentation utilisateur** : sections README + exemples `phpstan.neon` / `psalm.xml` pour les projets Symfony / standalone.
-
-La fabrique du moteur (ex. sur `ExecutionContext`) peut être documentée ainsi :
+**User docs**: README sections + sample `phpstan.neon` / `psalm.xml` for Symfony / standalone.
 
 ```php
-// Exemple de signature documentée (le nom exact de la méthode est à figer en ADR)
 /**
  * @template TActivity of object
  * @param class-string<TActivity> $activityClass
@@ -296,23 +259,19 @@ La fabrique du moteur (ex. sur `ExecutionContext`) peut être documentée ainsi 
 public function activityStub(string $activityClass): ActivityStub { /* … */ }
 ```
 
-*Si l’on préfère une seule **classe concrète** sans interface dédiée, `TActivity` peut être cette classe (les méthodes `#[ActivityMethod]` sont alors sur la classe elle-même) ; une **`…Interface`** reste recommandée pour tests doubles et séparation contrat / impl.*
+**Out of scope for DX**: hand-written wrapper classes, `invokeFromCurrentMethod` in app code, or re-implementing scheduling. The **only** ergonomic path is **`activityStub()`** (plus optional **`invoke(DTO)`** track A).
 
-**Hors périmètre DX** : classes wrapper écrites à la main, `invokeFromCurrentMethod` dans le code applicatif, ou toute forme où l’utilisateur ré-implémente la planification. Le **seul** chemin ergonomique est **`activityStub()`** (éventuellement complété par **`invoke(DTO)`** piste A pour des appels ponctuels sans contrat multi-méthodes).
+### `activity()` in the engine — **retained**
 
-### `activity()` dans le moteur — **retenu**
+**Primitive** `scheduleActivity(name, payload)` (or equivalent) lives in the **engine**; `ExecutionContext` **routes** to it. Workflow syntax is **`activityStub(TActivity::class)`** then methods (or **`invoke(DTO)`**) — **no** home-grown wrappers around `$ctx->activity(...)`.
 
-**Direction validée** : la primitive **`scheduleActivity(name, payload)`** (ou équivalent) est **implémentée dans le moteur** ; `ExecutionContext` **route** vers elle. Côté workflow, la syntaxe **simple** est **`activityStub(TActivity::class)`** puis appels de méthodes (ou **`invoke(DTO)`** piste A) — **pas** de wrappers maison autour de `$ctx->activity(...)`.
+**Operational flow**: factory `ExecutionContext::activityStub(string $activityClass): ActivityStub` returns **`ActivityStub<TActivity>`**. Each method call:
 
-**Principe opérationnel** : exposer une fabrique du type `ExecutionContext::activityStub(string $activityClass): ActivityStub` (voir génériques ci-dessus) qui retourne un **proxy** `ActivityStub<TActivity>`. Chaque appel de méthode sur ce proxy :
-
-1. **résout les métadonnées depuis le cache PSR-6** pour `(TActivity, nomDeMéthode)` ; absence d’entrée ou méthode non enregistrée → **refus** (pas d’activité implicite pour les méthodes « ordinaires » du contrat) ;
-2. obtient le **nom d’activité** et les **noms de paramètres** depuis cette entrée (remplis à la **chauffe**, via réflexion à ce moment-là uniquement) ;
-3. construit le **payload** à partir des arguments (convention : **noms des paramètres** → clés du tableau associatif) ;
-4. retourne un **`Awaitable`** dont le **type métier** correspond au type de retour attendu pour cette méthode (documenté / inféré hors chemin chaud) ;
-5. appelle **la primitive moteur** (unique) — *pas* une copie de la logique dans le code utilisateur.
-
-Exemple d’usage côté workflow (**sans** `activity()` dans le code applicatif — **uniquement** le proxy / moteur) :
+1. resolves metadata from **PSR-6** for `(TActivity, methodName)`; missing or unregistered → **reject**;
+2. gets **activity name** and **parameter names** from cache (filled at **warmup**);
+3. builds **payload** from arguments (convention: parameter names → associative keys);
+4. returns **`Awaitable`** with business return type;
+5. calls **single engine primitive**.
 
 ```php
 /** @var ActivityStub<OrderActivitiesInterface> $orders */
@@ -320,21 +279,15 @@ $orders = $ctx->activityStub(OrderActivitiesInterface::class);
 await($orders->reserveStock('SKU-1', 3), $ctx, $rt);
 ```
 
-`OrderActivitiesInterface` est le **contrat** : retours **métier** (`string`, etc.) sur les méthodes annotées. Le **stub** est le seul niveau où le workflow voit des **`Awaitable<…>`**, et **seulement** pour ces méthodes-là. La classe concrète enregistrée sur le worker **implémente** l’interface ; le moteur résout par nom d’activité / registry.
+### Hiding `$ctx` and `$rt` on the stub
 
-### Masquer `$ctx` et `$rt` dans le stub
+Today `await($awaitable, $ctx, $rt)` repeats context and runtime. **Options** (ADR):
 
-Aujourd’hui `await($awaitable, $ctx, $rt)` impose de **répéter** le contexte et le runtime à chaque suspension. Côté workflow, on peut **lier** une fois `$ctx` + `$rt` et n’exposer qu’une API de type « exécuter cet awaitable ».
+1. **Bound stub**: `activityStub(..., $ctx, $rt)` or `->bindRuntime($rt)`; stub exposes `await(Awaitable $a): mixed`.
+2. **Workflow façade**: `WorkflowAwait::for($ctx, $rt)`; `->await($orders->reserveStock(...))`.
+3. **Bound awaitable** (optional): retain ctx+rt — must stay consistent with current `ExecutionContext` for replay.
 
-**Pistes de conception** (à figer en ADR / API) :
-
-1. **Stub « lié »** : `activityStub(..., $ctx, $rt)` ou `->bindRuntime($rt)` après construction ; le stub expose `await(Awaitable $a): mixed` (ou `run`) qui appelle en interne `$runtime->await($a, $context)` — même sémantique que `Gplanchat\Durable\await()`, sans répéter les deux premiers arguments.
-2. **Facade workflow** : petit objet `WorkflowHandle` / `WorkflowAwait` créé une fois en tête de handler (`WorkflowAwait::for($ctx, $rt)`) ; `->await($orders->reserveStock('SKU-1', 3))` encapsule le trio (exemple aligné sur `OrderActivitiesInterface`).
-3. **Awaitable enrichi** (optionnel) : type `BoundAwaitable` produit par le stub qui retient ctx+rt — attention aux **replays** et à l’identité du contexte : le binding doit rester cohérent avec l’`ExecutionContext` courant du workflow (généralement le même que celui passé au handler).
-
-**Contrainte** : les helpers `parallel` / `any` / `delay` du module `functions.php` prennent aussi `($ctx, $rt)` ; une façade unifiée peut les réexposer en méthodes pour éviter le mélange « parfois global await, parfois méthode ».
-
-Même flux qu’en *Syntaxe workflow cible* (ci-dessus), avec liaison unique de `$ctx` / `$rt` :
+Same flow as *Target syntax*, binding `$ctx` / `$rt` once:
 
 ```php
 $w = $ctx->workflowAwait($rt);
@@ -342,73 +295,65 @@ $orders = $ctx->activityStub(OrderActivitiesInterface::class);
 $sku = $w->await($orders->reserveStock('SKU-1', 3));
 ```
 
-**À prévoir** : **pool PSR-6** injecté dans le moteur / contexte ; **warmer** Symfony (ou équivalent) qui parcourt les contrats d’activité connus et écrit les entrées incluant **`#[Activity]`** résolu + `(classe, méthode) → { activityMethodName, paramNames }` **pour les méthodes `#[ActivityMethod]`** ; vérification **interface / impl** : même chaîne **`#[Activity]`** ; **extensions PHPStan + plugin Psalm** (voir *Analyse statique*) ; évolutions futures (clés payload ≠ noms de paramètres) via attribut optionnel sur paramètres ou DTO unique ; **refactor** de `ExecutionContext::activity()` pour qu’il ne soit qu’un **adaptateur** vers le composant moteur qui porte la vraie logique.
+**Plan**: **PSR-6 pool** in engine / context; **Symfony warmer** walking known contracts; **interface / impl** check for same **`#[Activity]`** string; **PHPStan + Psalm**; future payload keys ≠ param names via per-param attribute or single DTO; refactor `ExecutionContext::activity()` to **adapter-only** to engine core.
 
-**Inconvénient** : dépendance au cycle de **chauffe** / déploiement pour un cache à jour ; **avantage** : **zéro réflexion** sur le chemin chaud du workflow, **alignement Symfony** (`cache.pool`, warmers), **un seul endroit** pour la planification (journal, IDs, sérialisation).
+**Tradeoff**: depends on **warmup** / deploy for fresh cache; **benefit**: **zero reflection** on workflow hot path, **Symfony-aligned** pools and warmers, **single scheduling location**.
 
-### Discipline de code
+### Code discipline
 
-- **Interface d’activité** (ex. `OrderActivitiesInterface`) : **alignée** sur la classe concrète (`implements`) ; retours **métier** — pas de `Awaitable` dans l’interface.
-- **`#[Activity('…')]`** (classe / interface) : **nom stable** du contrat (ou du DTO piste A) — refactor PHP **sans** changer l’identité côté journal / registry si la chaîne est conservée.
-- **`#[Workflow('…')]`** (classe / interface handler) : **nom stable** du type de workflow, indépendant du renommage de la classe PHP.
-- **`#[ActivityMethod]`** : marque **explicitement** qu’une méthode est une activité planifiable **et** qu’elle apparaît sur le **stub** ; une méthode sans attribut n’est **pas** exposée au workflow via `activityStub()`.
-- **Stub** (`ActivityStub<TActivity>` / proxy) : seul niveau où le workflow manipule des **`Awaitable<R>`**, et **uniquement** pour les méthodes annotées (`R` = type de retour déclaré sur le contrat pour chacune).
-- **Classe concrète** : code exécuté sur le worker ; mêmes méthodes annotées + enregistrement aligné sur les noms d’activité.
-- **Nom de méthode PHP** = vocabulaire métier pour l’IDE ; **nom dans `#[ActivityMethod]`** = identifiant stable dans l’event store.
-- **Cache** : métadonnées des activités dans un **pool PSR-6** ; **réflexion** réservée au **warmup** (ou fallback dev), pas au replay / exécution workflow.
-- **Analyse statique** : packages **Packagist indépendants** (PHPStan + Psalm) ; le cœur les **suggère** via Composer sans les imposer — l’utilisateur installe **à la carte** en `require-dev`.
-
-**Avantages** : syntaxe **courte** côté workflow (`activityStub` + méthodes) ; excellente DX dans l’IDE (avec plugins) ; contrat centralisé ; extensible via l’attribut ; **planification uniquement dans le moteur**.  
-**Inconvénients** : le moteur doit fournir un proxy fiable + **PSR-6 / warmers** + **maintenance de deux extensions d’analyse** (ou codegen à la place) — coût d’implémentation interne, pas de coût « classes stub » pour l’utilisateur.
+- Activity **interface** aligned with concrete class (`implements`); business returns — **no** `Awaitable` in interface.
+- **`#[Activity('…')]`**: stable contract name.
+- **`#[Workflow('…')]`**: stable workflow type, independent of PHP class rename.
+- **`#[ActivityMethod]`**: explicitly marks schedulable methods on stub.
+- **Stub**: only level where workflow sees **`Awaitable<R>`** for annotated methods.
+- **Concrete class**: worker execution; annotated methods + registry-aligned names.
+- **PHP method name** = IDE vocabulary; **`#[ActivityMethod]`** string = stable store id.
+- **Cache**: PSR-6; **reflection** at **warmup** (or dev fallback), not workflow replay.
+- **Static analysis**: independent **Packagist** packages; core **suggests** them.
 
 ---
 
-## Piste D — Builder / named constructors
+## Track D — Builder / named constructors
 
-Sans attributs, lisibilité immédiate :
+Without attributes, immediate readability:
 
 ```php
 await($ctx->activity(Greet::withName('Durable')), ...);
 ```
 
-où `Greet::withName` retourne un petit objet `ActivityCall` `(name: 'greet', payload: [...])` et `activity()` accepte `ActivityCall|string`.
+where `Greet::withName` returns a small `ActivityCall` `(name: 'greet', payload: [...])` and `activity()` accepts `ActivityCall|string`.
 
-**Avantages** : zéro réflexion, simple.  
-**Inconvénients** : moins « standard Temporal » ; le lien classe ↔ nom d’activité est dans la fabrique, pas sur le type payload seul.
-
----
-
-## Piste E — Symfony Serializer / Normalizer (stack Symfony)
-
-Pour des payloads riches (objets imbriqués, dates) :
-
-- Attribut `#[Activity]` sur la classe d’entrée.
-- Sérialisation via **`symfony/serializer`** (déjà dans l’écosystème) vers `array` pour le journal.
-
-À documenter dans une évolution d’**ADR006** si cette piste est retenue.
+**Pros**: zero reflection, simple. **Cons**: less “standard Temporal”; class ↔ name link lives in factory, not only on payload type.
 
 ---
 
-## Synthèse
+## Track E — Symfony Serializer / Normalizer
 
-| Piste | Lisibilité | Typage | Effort moteur | Alignement Temporal |
-|-------|------------|--------|---------------|---------------------|
-| A — `#[Activity]` + DTO | ★★★★ | ★★★★ | Moyen | ★★★★★ |
-| B — Enum + DTO | ★★★ | ★★★★★ | Faible | ★★★ |
-| C — Contrat + `activityStub` | ★★★★★ | ★★★★ | Moyen à élevé | ★★★★ |
-| D — Builder / `ActivityCall` | ★★★★ | ★★★ | Faible | ★★ |
-| E — + Serializer | ★★★★ | ★★★★★ | Élevé | ★★★★ |
+For rich payloads (nested objects, dates): `#[Activity]` on input class; serialize via **`symfony/serializer`** to `array` for the log. Document in an **ADR006** evolution if chosen.
 
-**Choix actuel** : **piste C** — contrat d’activité + **`#[Activity]`** / **`#[Workflow]`** (noms stables) + **`#[ActivityMethod]`** + **`activityStub()`** fourni par le moteur (syntaxe workflow simple, **sans** stub manuel utilisateur) ; **`activity()`** implémentée dans le moteur (primitive unique).
+---
 
-**Prochaine étape** : ADR dédié — définition des attributs **`Activity`**, **`Workflow`**, **`ActivityMethod`** (cibles, composition nom contrat + nom méthode), **extraire / concentrer** la logique actuelle de `ExecutionContext::activity()` dans le moteur, implémentation **`activityStub()`** + **`ActivityStub<TActivity>`** (lecture métadonnées via **PSR-6**, réflexion **réservée au cache warmer**), projection **uniquement** des méthodes `#[ActivityMethod]`, **publication Packagist** de **`gplanchat/durable-phpstan`** et **`gplanchat/durable-psalm-plugin`**, specs plugins : `activityStub`, **`#[Activity]`**, **`#[Workflow]`**, `Awaitable<R>`, **interface** (ex. `OrderActivitiesInterface`) **alignée** sur la classe concrète, API **`workflowAwait` / stub lié**, warmers Symfony + tests de cohérence proxy ↔ `RegistryActivityExecutor`.
+## Summary
 
-## Références
+| Track | Readability | Typing | Engine effort | Temporal alignment |
+|-------|-------------|--------|---------------|-------------------|
+| A — `#[Activity]` + DTO | ★★★★ | ★★★★ | Medium | ★★★★★ |
+| B — Enum + DTO | ★★★ | ★★★★★ | Low | ★★★ |
+| C — Contract + `activityStub` | ★★★★★ | ★★★★ | Medium–high | ★★★★ |
+| D — Builder / `ActivityCall` | ★★★★ | ★★★ | Low | ★★ |
+| E — + Serializer | ★★★★ | ★★★★★ | High | ★★★★ |
 
-- [OST004 — Parité Temporal (side effects, timers, child, CAN, messages)](OST004-workflow-temporal-feature-parity.md)
-- [ADR006 — Patterns activité](../adr/ADR006-activity-patterns.md)
-- [PRD001 — État actuel](../prd/PRD001-current-component-state.md)
-- [ExecutionContext](../../src/ExecutionContext.php) — façade `activity()` (cible : délégation moteur)
-- [PSR-6 — Caching Interface](https://www.php-fig.org/psr/psr-6/) — pool injectable, aligné `symfony/cache`
-- [PHPStan — Developing extensions](https://phpstan.org/developing-extensions/extension-types) — règles / services d’inférence de types
-- [Psalm — Plugins](https://psalm.dev/docs/running_psalm/plugins/) — enregistrement `PluginEntryPointInterface`
+**Current choice**: **track C** — activity contract + **`#[Activity]`** / **`#[Workflow]`** (stable names) + **`#[ActivityMethod]`** + engine-provided **`activityStub()``** (simple workflow syntax, **no** user stub); **`activity()`** implemented in the engine (single primitive).
+
+**Next step**: dedicated ADR — attribute definitions, extract `ExecutionContext::activity()` logic into engine, implement **`activityStub()`** + **`ActivityStub<TActivity>`** (PSR-6 metadata, reflection **only in warmer**), project **only** `#[ActivityMethod]` methods, publish **`gplanchat/durable-phpstan`** and **`gplanchat/durable-psalm-plugin`**, plugin specs: `activityStub`, **`#[Activity]`**, **`#[Workflow]`**, `Awaitable<R>`, **interface** aligned with concrete class, **`workflowAwait` / bound stub**, Symfony warmers + consistency tests proxy ↔ `RegistryActivityExecutor`.
+
+## References
+
+- [ADR012 — Activity stub, PSR-6, warmup, static analysis](../adr/ADR012-activity-stub-metadata-and-static-analysis.md)
+- [OST004 — Temporal parity](OST004-workflow-temporal-feature-parity.md)
+- [ADR006 — Activity patterns](../adr/ADR006-activity-patterns.md)
+- [PRD001 — Current state](../prd/PRD001-current-component-state.md)
+- [ExecutionContext](../../src/Durable/ExecutionContext.php) — `activity()` façade (target: engine delegation)
+- [PSR-6 — Caching](https://www.php-fig.org/psr/psr-6/)
+- [PHPStan — Extensions](https://phpstan.org/developing-extensions/extension-types)
+- [Psalm — Plugins](https://psalm.dev/docs/running_psalm/plugins/)

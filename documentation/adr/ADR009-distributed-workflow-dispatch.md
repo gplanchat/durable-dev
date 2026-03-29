@@ -1,4 +1,4 @@
-# Modèle distribué et re-dispatch des workflows
+# Distributed model and workflow re-dispatch
 
 ADR009-distributed-workflow-dispatch
 ===
@@ -6,46 +6,46 @@ ADR009-distributed-workflow-dispatch
 Introduction
 ---
 
-Ce **Architecture Decision Record** définit le modèle d'exécution distribué pour les workflows du projet Durable, où le workflow et les activités s'exécutent dans des process séparés. Il complète [ADR007 - Reprise et recovery](ADR007-workflow-recovery.md) en détaillant l'implémentation du re-dispatch.
+This **Architecture Decision Record** defines the distributed execution model for Durable workflows, where workflows and activities run in separate processes. It complements [ADR007 - Recovery and replay](ADR007-workflow-recovery.md) by detailing re-dispatch implementation.
 
-Contexte
+Context
 ---
 
-En mode **inline**, le workflow et les activités s'exécutent dans le même process via **`drainActivityQueueOnce`**. Pour la scalabilité horizontale, le mode **distribué** (`durable.distributed: true`) permet que :
+In **inline** mode, workflows and activities run in the same process via **`drainActivityQueueOnce`**. For horizontal scalability, **distributed** mode (`durable.distributed: true`) allows:
 
-- Les activités soient exécutées par des workers dédiés (`durable:activity:consume`)
-- Le workflow « sorte » après avoir planifié une activité ou un timer (suspension)
-- Le workflow soit **re-dispatché** lorsque l’activité se termine, qu’un timer est réveillé, ou qu’un signal/update est livré
+- Activities to run on dedicated workers (`durable:activity:consume`)
+- The workflow to “exit” after scheduling an activity or timer (suspension)
+- The workflow to be **re-dispatched** when an activity completes, a timer fires, or a signal/update is delivered
 
-Les workflows applicatifs sont des **classes** `#[Workflow]` : le handler invoqué par le moteur est **`callable(WorkflowEnvironment $env): mixed`** (obtenu via **`WorkflowRegistry::getHandler($type, $payload)`** après **`registerClass`** ou tag Symfony `durable.workflow`).
+Application workflows are **`#[Workflow]`** classes: the handler invoked by the engine is **`callable(WorkflowEnvironment $env): mixed`** (from **`WorkflowRegistry::getHandler($type, $payload)`** after **`registerClass`** or Symfony `durable.workflow` tag).
 
-Principe du re-dispatch
+Re-dispatch principle
 ---
 
-1. **Démarrage** : Un message **`WorkflowRunMessage`** est dispatché avec `executionId`, `workflowType`, `payload`
-2. **Exécution** : **`WorkflowRunHandler`** charge les métadonnées, obtient le handler depuis le registry, appelle **`ExecutionEngine::start`** ou **`resume`**. Au premier **`await`** sur une activité ou un timer non encore résolu en mode distribué, le runtime lève **`WorkflowSuspendedException`** et le handler **retourne** après avoir demandé une reprise (selon le type d’attente).
-3. **Activité** : Un worker consomme le message d’activité, l'exécute, append **`ActivityCompleted`** à l'EventStore, puis **`dispatchResume($executionId)`**
-4. **Timers** : un process (cron, handler synchrone, etc.) dispatche **`FireWorkflowTimersMessage`** ; le handler appelle **`checkTimers`** et **`dispatchResume`** si des timers sont passés complétés
-5. **Reprise** : Un nouveau **`WorkflowRunMessage`** (reprise) est traité ; le moteur **rejoue** depuis l'EventStore via les slots du **`ExecutionContext`** exposés au **`WorkflowEnvironment`**
+1. **Start**: A **`WorkflowRunMessage`** is dispatched with `executionId`, `workflowType`, `payload`
+2. **Run**: **`WorkflowRunHandler`** loads metadata, gets the handler from the registry, calls **`ExecutionEngine::start`** or **`resume`**. On the first **`await`** for an activity or timer not yet resolved in distributed mode, the runtime throws **`WorkflowSuspendedException`** and the handler **returns** after requesting resume (depending on wait type).
+3. **Activity**: A worker consumes the activity message, runs it, appends **`ActivityCompleted`** to the EventStore, then **`dispatchResume($executionId)`**
+4. **Timers**: a process (cron, sync handler, etc.) dispatches **`FireWorkflowTimersMessage`**; the handler calls **`checkTimers`** and **`dispatchResume`** if timers have become due
+5. **Resume**: A new **`WorkflowRunMessage`** (resume) is processed; the engine **replays** from the EventStore via **`ExecutionContext`** slots exposed to **`WorkflowEnvironment`**
 
 ### Continue-as-new
 
-Si le workflow appelle **`WorkflowEnvironment::continueAsNew($workflowType, $payload)`** (qui délègue au contexte), le moteur append **`WorkflowContinuedAsNew`** sur le run courant (sans **`ExecutionCompleted`**) et lève **`ContinueAsNewRequested`**. Le **`WorkflowRunHandler`** supprime les métadonnées de l’ancien `executionId`, en enregistre pour un **nouvel** identifiant, et dispatche un **`WorkflowRunMessage`** de démarrage (`dispatchNewWorkflowRun`) avec le type et le payload du run suivant.
+If the workflow calls **`WorkflowEnvironment::continueAsNew($workflowType, $payload)`** (delegating to context), the engine appends **`WorkflowContinuedAsNew`** on the current run (without **`ExecutionCompleted`**) and throws **`ContinueAsNewRequested`**. **`WorkflowRunHandler`** removes metadata for the old `executionId`, registers it for a **new** id, and dispatches a **`WorkflowRunMessage`** start (`dispatchNewWorkflowRun`) with the next run’s type and payload.
 
-Prérequis
+Prerequisites
 ---
 
-- **`WorkflowRegistry`** : enregistrement par classe **`#[Workflow]`** (`registerClass`) ou compilation Symfony
-- **`WorkflowMetadataStore`** : persiste `(executionId, workflowType, payload)` au démarrage pour la reprise entre messages
-- **`WorkflowResumeDispatcher`** : injectée dans le worker d’activités et les handlers de contrôle (timers, signaux, updates)
+- **`WorkflowRegistry`**: registration by **`#[Workflow]`** class (`registerClass`) or Symfony compilation
+- **`WorkflowMetadataStore`**: persists `(executionId, workflowType, payload)` at start for resume across messages
+- **`WorkflowResumeDispatcher`**: injected into the activity worker and control handlers (timers, signals, updates)
 
 Transports
 ---
 
-- **Activités** : transport configuré (ex. `durable_activities`) — messages **`ActivityMessage`**
-- **Workflows** : transport dédié (ex. `durable_workflows`) — messages **`WorkflowRunMessage`**
-- **Timers (réveil)** : message **`FireWorkflowTimersMessage`** — à router (ex. sync / cron) vers **`FireWorkflowTimersHandler`** ; append **`TimerCompleted`** + `dispatchResume` si au moins un timer est devenu dû
-- **Reprises** : **`MessengerWorkflowResumeDispatcher`** utilise **`DispatchAfterCurrentBusStamp`** pour ne pas empiler des **`WorkflowRunMessage`** en récursion synchrone pendant le handler courant
+- **Activities**: configured transport (e.g. `durable_activities`) — **`ActivityMessage`**
+- **Workflows**: dedicated transport (e.g. `durable_workflows`) — **`WorkflowRunMessage`**
+- **Timers (wake)**: **`FireWorkflowTimersMessage`** — route (e.g. sync / cron) to **`FireWorkflowTimersHandler`**; append **`TimerCompleted`** + `dispatchResume` if at least one timer is due
+- **Resume**: **`MessengerWorkflowResumeDispatcher`** uses **`DispatchAfterCurrentBusStamp`** to avoid stacking **`WorkflowRunMessage`** in synchronous recursion during the current handler
 
 Configuration
 ---
@@ -55,33 +55,33 @@ durable:
     distributed: true
 ```
 
-Le nom du transport Messenger pour les workflows est défini dans **`framework.messenger.routing`** (voir application exemple `symfony/config/packages/messenger.yaml`). La clé **`workflow_transport`** du bundle, si présente, documente la convention de nommage ; le câblage effectif reste côté **`framework`**.
+The Messenger transport name for workflows is defined in **`framework.messenger.routing`** (see sample app `symfony/config/packages/messenger.yaml`). The bundle’s **`workflow_transport`** key, if present, documents the naming convention; actual wiring stays under **`framework`**.
 
-Lorsque **`distributed: false`** (défaut), le comportement reste le mode inline (pas de **`WorkflowRunHandler`** sur Messenger pour le corps du run).
+When **`distributed: false`** (default), behavior remains inline (no **`WorkflowRunHandler`** on Messenger for the run body).
 
-Concurrence `any()` / `race()`
+`any()` / `race()` concurrency
 ---
 
-Lorsqu’une compétition d’activités se termine (premier **`Awaitable`** réussi ou rejeté), les activités **encore en file** et **non consommées** sont **retirées du transport** (best effort) : **`ActivityTransportInterface::removePendingFor()`**. Un événement **`ActivityCancelled`** est append avec la raison `race_superseded`, et le slot correspondant rejoue une **`ActivitySupersededException`**.
+When a race of activities ends (first **`Awaitable`** resolved or rejected), activities **still queued** and **not consumed** are **removed from the transport** (best effort): **`ActivityTransportInterface::removePendingFor()`**. An **`ActivityCancelled`** event is appended with reason `race_superseded`, and the matching slot replays an **`ActivitySupersededException`**.
 
-- **In-memory / DBAL** : retrait effectif du message en attente.
-- **Messenger** : pas de retrait fiable sans API dédiée — retour `false`, l’activité peut encore s’exécuter (comportement acceptable).
-- Si le worker a **déjà vidé toute la file** avant la reprise du workflow, les activités perdantes peuvent déjà être **`ActivityCompleted`** : aucune annulation n’est alors possible, l’historique reste cohérent.
+- **In-memory / DBAL**: message actually removed from pending.
+- **Messenger**: no reliable removal without a dedicated API — returns `false`, activity may still run (acceptable).
+- If the worker has **already drained the queue** before workflow resume, stray activities may already be **`ActivityCompleted`**: no cancellation then; history stays consistent.
 
-Suspension signal / update vs activité / timer
+Signal / update suspension vs activity / timer
 ---
 
-**`WorkflowSuspendedException`** porte **`shouldDispatchResume()`** : en mode distribué, une attente **activité** ou **timer** (`ActivityAwaitable`, `TimerAwaitable`, y compris dans `any()` / `CancellingAnyAwaitable`) provoque un **`dispatchResume`** depuis **`WorkflowRunHandler`** (le worker activité ou le réveil timer peut faire progresser le run). Une attente **signal** ou **update** ne déclenche **pas** ce re-dispatch automatique : sinon, avec un transport Messenger **sync**, la reprise récursive bouclerait sans fin. La reprise est alors assurée par **`DeliverWorkflowSignalMessage`** / **`DeliverWorkflowUpdateMessage`** (append journal + **`dispatchResume`**).
+**`WorkflowSuspendedException`** carries **`shouldDispatchResume()`**: in distributed mode, an **activity** or **timer** wait (`ActivityAwaitable`, `TimerAwaitable`, including inside `any()` / `CancellingAnyAwaitable`) triggers **`dispatchResume`** from **`WorkflowRunHandler`** (activity worker or timer wake can progress the run). A **signal** or **update** wait does **not** trigger that automatic re-dispatch: otherwise, with a **sync** Messenger transport, recursive resume would loop forever. Resume is then handled by **`DeliverWorkflowSignalMessage`** / **`DeliverWorkflowUpdateMessage`** (append log + **`dispatchResume`**).
 
-Limitations connues
+Known limitations
 ---
 
-- Les **timers** en mode distribué nécessitent qu’un process dispatche **`FireWorkflowTimersMessage`** (ou équivalent) pour que **`checkTimers`** puisse append **`TimerCompleted`** avant la reprise utile du run
-- Le **type** de workflow et le **payload** doivent être reproductibles : le registry résout le handler à partir du type string et du payload stockés en métadonnées
+- **Timers** in distributed mode require a process to dispatch **`FireWorkflowTimersMessage`** (or equivalent) so **`checkTimers`** can append **`TimerCompleted`** before a useful run resume
+- **Workflow type** and **payload** must be reproducible: the registry resolves the handler from the string type and payload stored in metadata
 
-Références
+References
 ---
 
-- [ADR007 - Reprise et recovery](ADR007-workflow-recovery.md)
-- [ADR005 - Intégration Messenger](ADR005-messenger-integration.md)
-- [PRD001 - État actuel](../prd/PRD001-current-component-state.md)
+- [ADR007 - Recovery and replay](ADR007-workflow-recovery.md)
+- [ADR005 - Messenger integration](ADR005-messenger-integration.md)
+- [PRD001 - Current state](../prd/PRD001-current-component-state.md)

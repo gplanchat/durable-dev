@@ -1,4 +1,4 @@
-# Gestion des erreurs et retries
+# Error handling and retries
 
 ADR008-error-handling-retries
 ===
@@ -6,85 +6,85 @@ ADR008-error-handling-retries
 Introduction
 ---
 
-Ce **Architecture Decision Record** définit la stratégie de gestion des erreurs et des retries pour les activités et workflows du projet Durable. Elle couvre la persistance des échecs, la restauration au `await()`, les échecs non sérialisables (catastrophiques) et le contrat « workflow doit gérer les erreurs d’activité ».
+This **Architecture Decision Record** defines error handling and retry strategy for activities and workflows in the Durable project. It covers persisting failures, restoration at `await()`, non-serializable (catastrophic) failures, and the contract that “workflows must handle activity errors”.
 
-Trois cas à l’émission d’une exception dans une activité (après épuisement des retries)
+Three cases when an activity throws after retries are exhausted
 ---
 
-1. **Récupération dans le workflow** : un bloc `try / catch` autour de `await()` absorbe l’exception ; le journal contient `ActivityFailed` (ou `ActivityCatastrophicFailure` si non sérialisable) mais **pas** `WorkflowExecutionFailed`.
-2. **Échec sérialisable non attrapé** : l’exception est représentée dans l’event store (`ActivityFailed` + `FailureEnvelope`). Au `await()` / replay, une exception est relancée :
-   - si elle implémente `DeclaredActivityFailureInterface`, **restauration** via `restoreFromActivityFailureContext()` ;
-   - sinon **`DurableActivityFailedException`** avec `activityId`, `activityName`, `attempt`, trace, contexte et **chaîne `previous`** reconstituée (`ActivityFailureCauseException`).
-3. **Échec non sérialisable** : payload JSON impossible (ex. contexte déclaré invalide) → **`ActivityCatastrophicFailure`** dans le journal et **`DurableCatastrophicActivityFailureException`** au `await()`. Traiter comme **défaillance grave** du code / des données.
+1. **Recovered in workflow**: a `try / catch` around `await()` absorbs the exception; the log contains `ActivityFailed` (or `ActivityCatastrophicFailure` if non-serializable) but **not** `WorkflowExecutionFailed`.
+2. **Serializable failure not caught**: the exception is represented in the event store (`ActivityFailed` + `FailureEnvelope`). On `await()` / replay, an exception is thrown again:
+   - if it implements `DeclaredActivityFailureInterface`, **restore** via `restoreFromActivityFailureContext()`;
+   - otherwise **`DurableActivityFailedException`** with `activityId`, `activityName`, `attempt`, trace, context, and reconstructed **`previous`** chain (`ActivityFailureCauseException`).
+3. **Non-serializable failure**: JSON payload impossible (e.g. invalid declared context) → **`ActivityCatastrophicFailure`** in the log and **`DurableCatastrophicActivityFailureException`** at `await()`. Treat as a **severe** code / data failure.
 
-Workflow et intégration : échec non géré
+Workflow and integration: unhandled failure
 ---
 
-Si une erreur d’activité (`DurableActivityFailedException`, `DeclaredActivityFailureInterface`, `DurableCatastrophicActivityFailureException`) **remonte hors du handler** sans `try / catch`, `ExecutionEngine` :
+If an activity error (`DurableActivityFailedException`, `DeclaredActivityFailureInterface`, `DurableCatastrophicActivityFailureException`) **escapes the handler** without `try / catch`, `ExecutionEngine`:
 
-- append **`WorkflowExecutionFailed`** (kind adapté) ;
-- relance **`DurableWorkflowAlgorithmFailureException`** avec `getPrevious()` = l’exception d’activité.
+- appends **`WorkflowExecutionFailed`** (appropriate kind);
+- throws **`DurableWorkflowAlgorithmFailureException`** with `getPrevious()` = the activity exception.
 
-Cela matérialise une **défaillance d’algorithme / d’intégration** : le workflow devait anticiper l’échec.
+This represents an **algorithm / integration failure**: the workflow should have anticipated the failure.
 
-**Suspension** : `WorkflowSuspendedException` n’est **pas** un échec : elle est propagée sans `WorkflowExecutionFailed`.
+**Suspension**: `WorkflowSuspendedException` is **not** a failure: it propagates without `WorkflowExecutionFailed`.
 
-Identification de la source
+Identifying the source
 ---
 
-- Chaque **`ActivityScheduled`** lie un `activityId` stable ; **`ActivityFailed`** / **`ActivityCatastrophicFailure`** répètent `activityId`, `activityName`, `failureAttempt` (tentative au moment de l’échec).
-- **`FailureEnvelope`** inclut la **trace** de l’exception racine et une **`previousChain`** sérialisée `{ class, message, code }[]` pour les causes `getPrevious()`.
-- **`DurableActivityFailedException`** expose `envelope()` pour logs / traces sans relire le store.
+- Each **`ActivityScheduled`** ties a stable `activityId`; **`ActivityFailed`** / **`ActivityCatastrophicFailure`** repeat `activityId`, `activityName`, `failureAttempt` (attempt at failure time).
+- **`FailureEnvelope`** includes the **trace** of the root exception and a serialized **`previousChain`** `{ class, message, code }[]` for `getPrevious()` causes.
+- **`DurableActivityFailedException`** exposes `envelope()` for logs / traces without re-reading the store.
 
-Classification des erreurs (rappel)
+Error classification (reminder)
 ---
 
-### Erreurs métier (non-retryable)
+### Business errors (non-retryable)
 
-- **NotFoundException** : ressource absente
-- **ValidationException** : données invalides
-- **BusinessLogicException** : règle métier violée
-- **DuplicateResourceException** : conflit (ex. déjà créé)
+- **NotFoundException**: missing resource
+- **ValidationException**: invalid data
+- **BusinessLogicException**: rule violation
+- **DuplicateResourceException**: conflict (e.g. already created)
 
-Ces erreurs ne doivent **pas** être retentées : une nouvelle tentative produirait le même échec. Pour les faire voyager de façon déterministe, préférer **`DeclaredActivityFailureInterface`**.
+These **must not** be retried: another attempt would fail the same way. For deterministic propagation, prefer **`DeclaredActivityFailureInterface`**.
 
-### Erreurs système (retryable)
+### System errors (retryable)
 
-- Timeouts réseau
-- Indisponibilité temporaire (503, connexion refusée)
+- Network timeouts
+- Temporary unavailability (503, connection refused)
 - Deadlocks
-- OutOfMemory (avec restart du worker)
+- OutOfMemory (with worker restart)
 
 Retries
 ---
 
-- **Configuration** : `max_retries` au niveau du worker (`ActivityWorkerCommand`, `ExecutionRuntime`)
-- **Comportement** : si `message->attempt() <= maxRetries`, le message est ré-enqueueé avec `withAttempt(attempt + 1)`
-- **Épuisement** : `ActivityFailureEventFactory::fromActivityThrowable()` produit `ActivityFailed` ou `ActivityCatastrophicFailure`
+- **Configuration**: `max_retries` at worker level (`ActivityWorkerCommand`, `ExecutionRuntime`)
+- **Behavior**: if `message->attempt() <= maxRetries`, the message is re-enqueued with `withAttempt(attempt + 1)`
+- **Exhaustion**: `ActivityFailureEventFactory::fromActivityThrowable()` produces `ActivityFailed` or `ActivityCatastrophicFailure`
 
-Exponential backoff (évolution possible)
+Exponential backoff (possible extension)
 ---
 
-Une évolution future pourrait introduire un délai entre les retries (exponential backoff) :
-- Délai = `initialDelay * (multiplier ^ attempt)`
-- Configurable par activité ou globalement
+A future change could add delay between retries (exponential backoff):
+- Delay = `initialDelay * (multiplier ^ attempt)`
+- Configurable per activity or globally
 
 Logging
 ---
 
-- Logger avec : `executionId`, `activityId`, `activityName`, `attempt`, `failureClass`, extrait de message (sans données sensibles)
-- Les exceptions métier ne doivent pas exposer de données sensibles dans les messages ni dans `toActivityFailureContext()`
+- Log with: `executionId`, `activityId`, `activityName`, `attempt`, `failureClass`, message excerpt (no sensitive data)
+- Business exceptions must not expose sensitive data in messages or in `toActivityFailureContext()`
 
-Références
+References
 ---
 
 - [RUNTIME-RFC004 - Error Handling](../../architecture/runtime/rfcs/RUNTIME-RFC004-error-handling-logging.md)
-- [ADR006 - Patterns activité](ADR006-activity-patterns.md)
-- [src/Port/DeclaredActivityFailureInterface.php](../../src/Port/DeclaredActivityFailureInterface.php)
-- [src/Failure/FailureEnvelope.php](../../src/Failure/FailureEnvelope.php)
-- [src/Failure/ActivityFailureEventFactory.php](../../src/Failure/ActivityFailureEventFactory.php)
-- [src/Event/ActivityFailed.php](../../src/Event/ActivityFailed.php)
-- [src/Event/ActivityCatastrophicFailure.php](../../src/Event/ActivityCatastrophicFailure.php)
-- [src/Event/WorkflowExecutionFailed.php](../../src/Event/WorkflowExecutionFailed.php)
-- [src/Exception/DurableActivityFailedException.php](../../src/Exception/DurableActivityFailedException.php)
-- [src/Exception/DurableWorkflowAlgorithmFailureException.php](../../src/Exception/DurableWorkflowAlgorithmFailureException.php)
+- [ADR006 - Activity patterns](ADR006-activity-patterns.md)
+- [src/Durable/Port/DeclaredActivityFailureInterface.php](../../src/Durable/Port/DeclaredActivityFailureInterface.php)
+- [src/Durable/Failure/FailureEnvelope.php](../../src/Durable/Failure/FailureEnvelope.php)
+- [src/Durable/Failure/ActivityFailureEventFactory.php](../../src/Durable/Failure/ActivityFailureEventFactory.php)
+- [src/Durable/Event/ActivityFailed.php](../../src/Durable/Event/ActivityFailed.php)
+- [src/Durable/Event/ActivityCatastrophicFailure.php](../../src/Durable/Event/ActivityCatastrophicFailure.php)
+- [src/Durable/Event/WorkflowExecutionFailed.php](../../src/Durable/Event/WorkflowExecutionFailed.php)
+- [src/Durable/Exception/DurableActivityFailedException.php](../../src/Durable/Exception/DurableActivityFailedException.php)
+- [src/Durable/Exception/DurableWorkflowAlgorithmFailureException.php](../../src/Durable/Exception/DurableWorkflowAlgorithmFailureException.php)

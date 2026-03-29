@@ -1,124 +1,124 @@
-# Cycle de vie et organisation des documents
+# Document lifecycle and organization
 
-Ce document décrit comment les documents d'architecture sont créés, organisés et reliés entre eux.
+This document describes how architecture documents are created, organized, and linked.
 
 ---
 
-## Vue d'ensemble
+## Overview
 
 ```
-Plan Cursor (phase de conception)
+Cursor plan (design phase)
          │
          ▼
     ┌────────────┐
-    │ Quel type? │
+    │ Which type?│
     └─────┬──────┘
           │
     ┌─────┼─────┬─────────────┐
     ▼     ▼     ▼             ▼
   ADR   WA    OST           PRD
-  (tech) (org) (futur)    (déjà fait)
+ (tech) (org) (future)   (shipped)
 ```
 
 ---
 
-## Types de documents et leur usage
+## Document types and usage
 
 ### ADR — Architecture Decision Record
 
-**Quand** : Une décision technique impacte l'architecture (choix de librairie, pattern, stack).
+**When** : A technical decision affects architecture (library choice, pattern, stack).
 
-**Contenu typique** :
-- Contexte et problème
-- Options envisagées
-- Décision prise
-- Conséquences
+**Typical content** :
+- Context and problem
+- Options considered
+- Decision taken
+- Consequences
 
-**Exemple** : Choix de Symfony Messenger pour le transport des activités.
+**Example** : Choosing Symfony Messenger for activity transport.
 
 ---
 
 ### WA — Working Agreement
 
-**Quand** : Un accord sur la manière de travailler ou de gérer le projet.
+**When** : Agreement on how we work or manage the project.
 
-**Contenu typique** :
-- Accord ou convention
-- Rôles et responsabilités
-- Processus ou workflow
+**Typical content** :
+- Agreement or convention
+- Roles and responsibilities
+- Process or workflow
 
-**Exemple** : Convention de nommage des branches, fréquence des revues, gestion des plans Cursor.
+**Example** : Branch naming, review cadence, Cursor plan management.
 
 ---
 
 ### OST — Opportunity Solution Tree
 
-**Quand** : Exploration d'une fonctionnalité future, avant développement.
+**When** : Exploring a future feature before development.
 
-**Contenu typique** :
-- Opportunité ou objectif utilisateur
-- Solutions envisagées
-- Hypothèses à valider
-- Arbre de décision
+**Typical content** :
+- Opportunity or user goal
+- Candidate solutions
+- Hypotheses to validate
+- Decision tree
 
-**Exemple** : Réflexion sur Temporal comme driver optionnel, multi-transport.
+**Example** : Temporal as an optional driver, multi-transport.
 
 ---
 
 ### PRD — Product Requirements Document
 
-**Quand** : Une fonctionnalité est déjà développée et doit être documentée.
+**When** : A feature is already built and needs documentation.
 
-**Contenu typique** :
-- Objectifs et périmètre
-- Spécifications fonctionnelles
-- Critères d'acceptation
-- État d'implémentation
+**Typical content** :
+- Goals and scope
+- Functional specifications
+- Acceptance criteria
+- Implementation status
 
-**Exemple** : Documentation du système de workflows durables après implémentation.
+**Example** : Documenting the durable workflow system after implementation.
 
 ---
 
-## Cycle de vie typique
+## Typical lifecycle
 
-### Pour une nouvelle fonctionnalité
+### For a new feature
 
 ```
 1. OST (exploration)
-   → Réflexion sur l'opportunité, solutions possibles
+   → Opportunity reflection, possible solutions
 
-2. ADR (si décisions techniques)
-   → Choix techniques liés à la fonctionnalité
+2. ADR (if technical decisions)
+   → Technical choices tied to the feature
 
-3. Développement
-   → Implémentation
+3. Development
+   → Implementation
 
-4. PRD (documentation a posteriori)
-   → Spécifications et état de la fonctionnalité livrée
+4. PRD (after the fact)
+   → Specifications and status of the delivered feature
 ```
 
-### Pour une décision technique isolée
+### For an isolated technical decision
 
 ```
-ADR uniquement
-→ Pas de lien obligatoire avec OST ou PRD
+ADR only
+→ No mandatory link to OST or PRD
 ```
 
-### Pour un accord de travail
+### For a working agreement
 
 ```
-WA uniquement
-→ Indépendant du cycle des fonctionnalités
+WA only
+→ Independent of the feature lifecycle
 ```
 
 ---
 
-## Organisation des dossiers
+## Folder layout
 
 ```
 documentation/
-├── INDEX.md          ← Index de tous les documents (à maintenir)
-├── LIFECYCLE.md      ← Ce document
+├── INDEX.md          ← Index of all documents (keep updated)
+├── LIFECYCLE.md      ← This document
 ├── adr/              ← ADR001-xxx.md, ADR002-xxx.md, ...
 ├── wa/               ← WA001-xxx.md, WA002-xxx.md, ...
 ├── ost/              ← OST001-xxx.md, OST002-xxx.md, ...
@@ -127,26 +127,26 @@ documentation/
 
 ---
 
-## Numérotation
+## Numbering
 
-- **Séquentielle par type** : ADR001, ADR002, ADR003...
-- **Sans trou** : Ne pas réutiliser un numéro supprimé
-- **Description courte** : En minuscules, tirets, descriptif (ex. `choix-babylonjs`)
+- **Sequential per type** : ADR001, ADR002, ADR003…
+- **No gaps** : Do not reuse a removed number
+- **Short slug** : Lowercase, hyphens, descriptive (e.g. `babylonjs-choice`)
 
 ---
 
-## Liens entre documents
+## Cross-references
 
-Les documents peuvent se référencer :
+Documents may reference each other:
 
-- **OST → ADR** : Un ADR peut documenter une décision technique issue d'un OST
-- **OST → PRD** : Un PRD documente la fonctionnalité explorée dans un OST
-- **ADR → ADR** : Un ADR peut remplacer ou compléter un autre (statut "Superseded by ADR002")
+- **OST → ADR** : An ADR may record a technical decision stemming from an OST
+- **OST → PRD** : A PRD documents the feature explored in an OST
+- **ADR → ADR** : An ADR may supersede or complement another (status “Superseded by ADR002”)
 
 ---
 
 ## Maintenance
 
-1. **À chaque nouveau document** : Mettre à jour `documentation/INDEX.md`
-2. **Lors d'une décision obsolète** : Mettre à jour l'ADR avec le statut "Superseded"
-3. **Lorsqu'une fonctionnalité OST est livrée** : Créer le PRD correspondant et mettre à jour l'OST si besoin
+1. **For each new document** : Update `documentation/INDEX.md`
+2. **When a decision is obsolete** : Update the ADR with status “Superseded”
+3. **When an OST feature ships** : Create the matching PRD and update the OST if needed

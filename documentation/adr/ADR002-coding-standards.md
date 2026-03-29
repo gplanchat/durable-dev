@@ -1,4 +1,4 @@
-# Standards de code
+# Coding standards
 
 ADR002-coding-standards
 ===
@@ -6,12 +6,12 @@ ADR002-coding-standards
 Introduction
 ---
 
-Ce **Architecture Decision Record** définit les standards de code à appliquer à l'ensemble du dépôt du projet Durable. Ces standards assurent la cohérence, la maintenabilité et la compatibilité avec l'écosystème PHP/Symfony.
+This **Architecture Decision Record** defines the coding standards applied across the Durable project repository. These standards ensure consistency, maintainability, and compatibility with the PHP/Symfony ecosystem.
 
 PHP-CS-Fixer
 ---
 
-Les règles suivantes _DOIVENT_ être appliquées :
+The following rules **MUST** be applied:
 
 - `@PHPUnit84Migration:risky`
 - `@PSR1`
@@ -22,7 +22,7 @@ Les règles suivantes _DOIVENT_ être appliquées :
 - `set_type_to_cast`
 - `self_accessor`
 - `psr_autoloading`
-- `php_unit_test_annotation`, avec option `['style' => 'annotation']`
+- `php_unit_test_annotation`, with option `['style' => 'annotation']`
 - `php_unit_set_up_tear_down_visibility`
 - `php_unit_construct`
 - `no_useless_sprintf`
@@ -41,21 +41,21 @@ Les règles suivantes _DOIVENT_ être appliquées :
 PHP
 ---
 
-- **Version minimale** : PHP 8.2+
-- **Strict types** : `declare(strict_types=1)` en tête de chaque fichier PHP
-- **Typage** : paramètres et retours typés lorsque possible
+- **Minimum version**: PHP 8.2+
+- **Strict types**: `declare(strict_types=1)` at the top of each PHP file
+- **Typing**: typed parameters and return types when possible
 
-Symfony et PSR
+Symfony and PSR
 ---
 
-- Respecter PSR-4 pour l'autoloading
-- Respecter PSR-12 pour le style de code
-- Suivre les conventions Symfony pour les services et la configuration
+- Follow PSR-4 for autoloading
+- Follow PSR-12 for code style
+- Follow Symfony conventions for services and configuration
 
-Références
+References
 ---
 
 - [PHP-CS-Fixer](https://github.com/FriendsOfPHP/PHP-CS-Fixer)
 - [PSR-1](https://www.php-fig.org/psr/psr-1/)
 - [PSR-12](https://www.php-fig.org/psr/psr-12/)
-- [ADR001 - Processus ADR](ADR001-adr-management-process.md)
+- [ADR001 - ADR process](ADR001-adr-management-process.md)

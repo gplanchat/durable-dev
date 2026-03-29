@@ -1,24 +1,24 @@
-# PRD003 — Base de tests `DurableTestCase`
+# PRD003 — `DurableTestCase` test base
 
-## Objectif
+## Objective
 
-Centraliser les utilitaires de test pour les exécutions durables (workflows, activités, runtime in-memory et scénarios distribués simulés).
+Centralize test utilities for durable execution (workflows, activities, in-memory runtime, and simulated distributed scenarios).
 
-## Comportement livré
+## Delivered behavior
 
-- **`DurableTestCase`** fournit :
-  - initialisation paresseuse : `stack()`, `eventStore()`, `runtime()`, `activityExecutor()`, `executionId()`
-  - assertions sur l’ordre des types d’événements : `assertEventTypesOrder`, `assertEventTypesOrderOn`
-  - drainage : `drainActivityQueueOnce`, `runUntilIdle`
-  - journal distribué : `assertDistributedWorkflowJournalEquivalent`
-  - file d’activités : `assertActivityTransportPendingEquals`
+- **`DurableTestCase`** provides:
+  - lazy setup: `stack()`, `eventStore()`, `runtime()`, `activityExecutor()`, `executionId()`
+  - event type order assertions: `assertEventTypesOrder`, `assertEventTypesOrderOn`
+  - draining: `drainActivityQueueOnce`, `runUntilIdle`
+  - distributed log: `assertDistributedWorkflowJournalEquivalent`
+  - activity queue: `assertActivityTransportPendingEquals`
 
-- **Ancien trait** `UsesInMemoryDurableStack` : supprimé ; tout est fusionné dans `DurableTestCase` (voir ADR003).
+- **Former trait** `UsesInMemoryDurableStack`: removed; everything merged into `DurableTestCase` (see ADR003).
 
-Les classes de test déclarent en général **`#[CoversClass(…)]`** (et le cas échéant **`#[CoversFunction(…)]`**) pour la couverture, plutôt que `#[CoversNothing]`.
+Test classes generally declare **`#[CoversClass(…)]`** (and **`#[CoversFunction(…)]`** when relevant) for coverage, rather than `#[CoversNothing]`.
 
-## Références
+## References
 
 - `tests/Support/DurableTestCase.php`
-- [ADR003 — Standards PHPUnit](../adr/ADR003-phpunit-testing-standards.md)
-- [PRD002 — Scénarios pas à pas](PRD002-scenarios-workflow-pas-a-pas.md)
+- [ADR003 — PHPUnit standards](../adr/ADR003-phpunit-testing-standards.md)
+- [PRD002 — In-flight workflow scenarios](PRD002-in-flight-workflow-scenarios.md)

@@ -1,26 +1,26 @@
-# OST002 — Checklist montée de version PHPUnit 12
+# OST002 — PHPUnit 12 upgrade checklist
 
-## Contexte
+## Context
 
-Le dépôt est sur **PHPUnit 11.5** avec métadonnées en **attributs** (`#[Test]`, `#[CoversClass]`, etc.), conformément à ADR003. PHPUnit 12 supprimera les annotations docblock pour les tests.
+The repository uses **PHPUnit 11.5** with **attribute** metadata (`#[Test]`, `#[CoversClass]`, etc.), per ADR003. PHPUnit 12 will remove docblock annotations for tests.
 
-## PHPUnit 11 — hygiène (CI sans avertissements)
+## PHPUnit 11 — hygiene (CI without warnings)
 
-- Remplacer toute métadonnée PHPUnit en **docblock** (`@coversNothing`, `@covers`, etc.) par les **attributs** correspondants (`#[CoversNothing]`, `#[CoversClass]`, …). Sinon la sortie affiche *PHPUnit test runner deprecations* et *OK, but there were issues!*.
+- Replace any PHPUnit metadata in **docblocks** (`@coversNothing`, `@covers`, etc.) with the matching **attributes** (`#[CoversNothing]`, `#[CoversClass]`, …). Otherwise the output shows *PHPUnit test runner deprecations* and *OK, but there were issues!*.
 
-## Avant de passer à PHPUnit 12
+## Before upgrading to PHPUnit 12
 
-1. **Lire le changelog / upgrade guide** officiel PHPUnit 12 (breaking changes, extensions).
-2. **Mettre à jour** `phpunit/phpunit` en `composer.json` / lock après sortie stable.
-3. **Exécuter** `composer cs:check` et `composer test` (ou `./vendor/bin/phpunit --strict-coverage`) ; ajuster la config `phpunit.xml` si le schéma XSD change. Vérifier le workflow `.github/workflows/ci.yml`.
-4. **Vérifier** les extensions ou bridges tiers (Symfony, paratest, etc.) pour compatibilité 12.
-5. **Couverture** : si `beStrictAboutCoverageMetadata` est activé, valider que chaque test a des cibles `#[CoversClass]` / `#[CoversMethod]` / `#[CoversFunction]` cohérentes avec le code exécuté.
+1. **Read** the official PHPUnit 12 changelog / upgrade guide (breaking changes, extensions).
+2. **Bump** `phpunit/phpunit` in `composer.json` / lock after a stable release.
+3. **Run** `composer cs:check` and `composer test` (or `./vendor/bin/phpunit --strict-coverage`); adjust `phpunit.xml` if the XSD schema changes. Check `.github/workflows/ci.yml`.
+4. **Verify** third-party extensions or bridges (Symfony, paratest, etc.) for PHP 12 compatibility.
+5. **Coverage**: if `beStrictAboutCoverageMetadata` is enabled, ensure each test has coherent `#[CoversClass]` / `#[CoversMethod]` / `#[CoversFunction]` targets for executed code.
 
-## Suivi
+## Tracking
 
-- Réviser ce document à chaque RC / beta de PHPUnit 12.
-- Mettre à jour ADR003 si de nouvelles règles de tests s’imposent.
+- Revise this document on each PHPUnit 12 RC / beta.
+- Update ADR003 if new testing rules apply.
 
-## Références
+## References
 
-- [ADR003 — Standards PHPUnit](../adr/ADR003-phpunit-testing-standards.md)
+- [ADR003 — PHPUnit standards](../adr/ADR003-phpunit-testing-standards.md)

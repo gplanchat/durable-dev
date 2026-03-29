@@ -1,4 +1,4 @@
-# Processus de gestion des ADR
+# ADR management process
 
 ADR001-adr-management-process
 ===
@@ -6,29 +6,29 @@ ADR001-adr-management-process
 Introduction
 ---
 
-Ce **Architecture Decision Record** établit les fondations pour la gestion des Architecture Decision Records (ADR) au sein du projet Durable. Le projet Durable fournit un composant et un Bundle Symfony pour les exécutions durables (workflows et activités), sans dépendance RoadRunner. Ce processus garantit la cohérence, la traçabilité et une communication claire des décisions architecturales.
+This **Architecture Decision Record** establishes the foundations for managing Architecture Decision Records (ADRs) within the Durable project. The Durable project provides a component and Symfony bundle for durable execution (workflows and activities), without a RoadRunner dependency. This process ensures consistency, traceability, and clear communication of architectural decisions.
 
-Ce document est le méta-ADR qui régit tous les autres ADR du projet Durable.
+This document is the meta-ADR that governs all other ADRs in the Durable project.
 
-Structure et organisation des ADR
+ADR structure and organization
 ---
 
-### Emplacement et nommage
+### Location and naming
 
-Tous les ADR _DOIVENT_ être stockés dans le répertoire `documentation/adr/` à la racine du projet.
+All ADRs **MUST** be stored in the `documentation/adr/` directory at the project root.
 
-**Convention de nommage** : `ADR{number}-{short-title}.md`
-- Numéros sur 3 chiffres (ex. `ADR001`, `ADR002`, `ADR042`)
-- Titres courts en kebab-case (minuscules, tirets)
-- Exemples : `ADR001-adr-management-process.md`, `ADR002-coding-standards.md`
+**Naming convention**: `ADR{number}-{short-title}.md`
+- Three-digit numbers (e.g. `ADR001`, `ADR002`, `ADR042`)
+- Short titles in kebab-case (lowercase, hyphens)
+- Examples: `ADR001-adr-management-process.md`, `ADR002-coding-standards.md`
 
-### Numérotation
+### Numbering
 
-- **ADR001** : Réservé à ce document (processus ADR)
-- **ADR002+** : Assignés séquentiellement pour chaque nouvelle décision
-- **Numéros retirés** : Ne jamais réutiliser un numéro, même si l'ADR est superseded ou déprécié
+- **ADR001**: Reserved for this document (ADR process)
+- **ADR002+**: Assigned sequentially for each new decision
+- **Retired numbers**: Never reuse a number, even if an ADR is superseded or deprecated
 
-### Structure des dossiers
+### Folder structure
 
 ```
 documentation/
@@ -45,53 +45,53 @@ documentation/
 
 ### Meta-documents
 
-Lorsqu'un ADR nécessite une documentation complémentaire, des méta-documents _PEUVENT_ être créés dans un sous-dossier `ADR{number}-{short-title}/` avec le pattern `ADR{number}-META{nn}-{title}.md`.
+When an ADR needs supplementary documentation, meta-documents **MAY** be created in a subfolder `ADR{number}-{short-title}/` using the pattern `ADR{number}-META{nn}-{title}.md`.
 
-Format et template des ADR
+ADR format and template
 ---
 
-### Sections requises
+### Required sections
 
-Chaque ADR _DOIT_ inclure :
-1. **Titre** suivi de `===`
-2. **Introduction** : contexte et problème
-3. **Sections de contenu** : décision et justification
-4. **Références** : liens externes et documents connexes
+Each ADR **MUST** include:
+1. **Title** followed by `===`
+2. **Introduction**: context and problem
+3. **Body sections**: decision and rationale
+4. **References**: external links and related documents
 
-### Standards rédactionnels
+### Editorial standards
 
-- Langage clair, concis et professionnel (français ou anglais)
-- Public : développeurs travaillant sur le projet Durable
-- Perspective : présent pour les décisions actuelles
-- Objectivité : faits et justification
+- Clear, concise, professional language (French or English)
+- Audience: developers working on the Durable project
+- Perspective: present tense for current decisions
+- Objectivity: facts and rationale
 
-Cycle de vie des ADR
+ADR lifecycle
 ---
 
-### Processus de création
+### Creation process
 
-1. Identifier le besoin d'une décision architecturale
-2. Rédiger l'ADR selon le format établi
-3. Assigner le prochain numéro séquentiel
-4. Revue par l'équipe
-5. Validation par les mainteneurs
-6. Mise à jour de `documentation/INDEX.md`
+1. Identify the need for an architectural decision
+2. Draft the ADR using the established format
+3. Assign the next sequential number
+4. Team review
+5. Maintainer approval
+6. Update `documentation/INDEX.md`
 
-### Processus de superseding
+### Superseding process
 
-1. Créer un nouvel ADR avec la nouvelle décision
-2. Indiquer dans l'ancien ADR qu'il est superseded
-3. Référencer l'ADR qui le remplace
-4. Conserver les deux documents pour la traçabilité
+1. Create a new ADR with the new decision
+2. Mark the old ADR as superseded
+3. Reference the ADR that replaces it
+4. Keep both documents for traceability
 
 Maintenance
 ---
 
-- **INDEX.md** : maintenir l'index de tous les documents
-- **Statuts** : indiquer Active, Superseded ou Deprecated dans les ADR
-- **Cohérence** : vérifier la conformité au processus lors des revues
+- **INDEX.md**: maintain the index of all documents
+- **Status**: indicate Active, Superseded, or Deprecated in ADRs
+- **Consistency**: verify process compliance during reviews
 
-Références
+References
 ---
 
 - [Architecture Decision Records](https://adr.github.io/)
