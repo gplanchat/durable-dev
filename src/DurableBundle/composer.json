@@ -1,0 +1,33 @@
+{
+    "name": "gplanchat/durable-bundle",
+    "description": "Bundle Symfony pour gplanchat/durable : extension, autoconfiguration des workflows et des activités.",
+    "license": "proprietary",
+    "type": "symfony-bundle",
+    "version": "0.1.0",
+    "require": {
+        "php": ">=8.2",
+        "gplanchat/durable": "^0.1",
+        "symfony/framework-bundle": "^6.4 || ^7.4",
+        "symfony/http-kernel": "^6.4 || ^7.4",
+        "symfony/console": "^6.4 || ^7.4",
+        "symfony/dependency-injection": "^6.4 || ^7.4",
+        "symfony/config": "^6.4 || ^7.4",
+        "symfony/messenger": "^6.4 || ^7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gplanchat\\Durable\\Bundle\\": "./"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    },
+    "authors": [
+        {
+            "name": "Grégory Planchat",
+            "email": "gregory@gyroscops.com"
+        }
+    ]
+}
