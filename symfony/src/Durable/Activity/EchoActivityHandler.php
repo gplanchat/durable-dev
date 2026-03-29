@@ -4,18 +4,13 @@ declare(strict_types=1);
 
 namespace App\Durable\Activity;
 
-final class EchoActivityHandler implements EchoActivity
+use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
+
+#[AsDurableActivity(contract: EchoActivityInterface::class)]
+final class EchoActivityHandler implements EchoActivityInterface
 {
     public function echoUpper(string $text = ''): string
     {
         return strtoupper($text);
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    public function echoUpperFromPayload(array $payload): string
-    {
-        return $this->echoUpper((string) ($payload['text'] ?? ''));
     }
 }

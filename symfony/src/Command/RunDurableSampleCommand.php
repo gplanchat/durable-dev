@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Durable\DurableSamplesConfigurator;
+use App\Durable\DurableSampleWorkflows;
 use Gplanchat\Durable\Port\WorkflowBackendInterface;
 use Gplanchat\Durable\Query\WorkflowQueryEvaluator;
 use Gplanchat\Durable\Store\EventStoreInterface;
@@ -35,7 +35,6 @@ final class RunDurableSampleCommand extends Command
     private const DRAIN_TRANSPORTS = ['durable_workflows', 'durable_activities'];
 
     public function __construct(
-        private readonly DurableSamplesConfigurator $samplesConfigurator,
         private readonly WorkflowRegistry $workflowRegistry,
         private readonly WorkflowBackendInterface $workflowBackend,
         private readonly MessageBusInterface $messageBus,
@@ -56,7 +55,7 @@ final class RunDurableSampleCommand extends Command
                 'workflow',
                 InputArgument::OPTIONAL,
                 'Type enregistré dans WorkflowRegistry',
-                DurableSamplesConfigurator::WORKFLOW_GREETING,
+                DurableSampleWorkflows::GREETING,
             )
             ->addOption('name', null, InputOption::VALUE_REQUIRED, 'Prénom (GreetingWorkflow)', 'World')
             ->addOption('first', null, InputOption::VALUE_REQUIRED, 'Premier prénom (ParallelGreetingWorkflow)', 'Alice')
@@ -80,7 +79,7 @@ Avant la première exécution en <info>dev</info>, initialiser les tables du jou
 
   <info>php bin/console durable:schema:init</info>
 
-Workflows disponibles (voir <info>App\Durable\DurableSamplesConfigurator</info>) :
+Workflows disponibles (voir <info>App\Durable\DurableSampleWorkflows</info>) :
 
   <info>GreetingWorkflow</info>              — comme <comment>SimpleActivity</comment>
   <info>ParallelGreetingWorkflow</info>     — comme <comment>AsyncActivity</comment> (deux activités, <comment>all</comment>)
@@ -101,18 +100,17 @@ HELP
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $this->samplesConfigurator->register();
 
         $workflowType = (string) $input->getArgument('workflow');
         if (!$this->workflowRegistry->has($workflowType)) {
             $io->error(\sprintf('Type inconnu : %s', $workflowType));
             $io->listing([
-                DurableSamplesConfigurator::WORKFLOW_GREETING,
-                DurableSamplesConfigurator::WORKFLOW_PARALLEL_GREETING,
-                DurableSamplesConfigurator::WORKFLOW_ECHO_CHILD,
-                DurableSamplesConfigurator::WORKFLOW_PARENT_CALLS_CHILD,
-                DurableSamplesConfigurator::WORKFLOW_TIMER_THEN_TICK,
-                DurableSamplesConfigurator::WORKFLOW_SIDE_EFFECT_ID,
+                DurableSampleWorkflows::GREETING,
+                DurableSampleWorkflows::PARALLEL_GREETING,
+                DurableSampleWorkflows::ECHO_CHILD,
+                DurableSampleWorkflows::PARENT_CALLS_CHILD,
+                DurableSampleWorkflows::TIMER_THEN_TICK,
+                DurableSampleWorkflows::SIDE_EFFECT_ID,
             ]);
 
             return Command::FAILURE;
@@ -195,18 +193,20 @@ HELP
     private function buildPayload(string $workflowType, InputInterface $input): array
     {
         return match ($workflowType) {
-            DurableSamplesConfigurator::WORKFLOW_GREETING => [
+            DurableSampleWorkflows::GREETING => [
                 'name' => $input->getOption('name'),
             ],
-            DurableSamplesConfigurator::WORKFLOW_PARALLEL_GREETING => [
+            DurableSampleWorkflows::PARALLEL_GREETING => [
                 'first' => $input->getOption('first'),
                 'second' => $input->getOption('second'),
             ],
-            DurableSamplesConfigurator::WORKFLOW_ECHO_CHILD,
-            DurableSamplesConfigurator::WORKFLOW_PARENT_CALLS_CHILD => [
+            DurableSampleWorkflows::ECHO_CHILD => [
                 'text' => $input->getOption('text'),
             ],
-            DurableSamplesConfigurator::WORKFLOW_TIMER_THEN_TICK => [
+            DurableSampleWorkflows::PARENT_CALLS_CHILD => [
+                'text' => $input->getOption('text'),
+            ],
+            DurableSampleWorkflows::TIMER_THEN_TICK => [
                 'seconds' => (float) $input->getOption('seconds'),
             ],
             default => [],

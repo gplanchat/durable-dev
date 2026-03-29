@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Durable\Workflow;
 
-use App\Durable\Activity\EchoActivity;
+use App\Durable\Activity\EchoActivityInterface;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
@@ -18,7 +18,7 @@ final class EchoChildWorkflow
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
-        $this->echo = $environment->activityStub(EchoActivity::class);
+        $this->echo = $environment->activityStub(EchoActivityInterface::class);
     }
 
     #[WorkflowMethod]

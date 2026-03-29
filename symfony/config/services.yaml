@@ -19,7 +19,7 @@ services:
     App\:
         resource: '../src/'
 
-    # Tag workflows for auto-registration (alternative to DurableSamplesConfigurator)
+    # Tag workflows for auto-registration (voir aussi #[AsDurableActivity] sur les handlers)
     App\Durable\Workflow\:
         resource: '../src/Durable/Workflow/'
         tags: [durable.workflow]

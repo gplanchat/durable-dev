@@ -1,14 +1,24 @@
 # DBAL uniquement : Messenger (doctrine://) + option durable (event_store / activity dbal).
+# Connexion `durable` : même fichier SQLite par défaut que `default`, mais instance PDO séparée
+# (curseurs unbuffered, transactions, etc. sans mélanger avec le reste de l’app).
 parameters:
     env(DATABASE_URL): 'sqlite:///%kernel.project_dir%/var/durable.db'
+    env(DURABLE_DATABASE_URL): 'sqlite:///%kernel.project_dir%/var/durable.db'
     env(MESSENGER_DURABLE_WORKFLOW_DSN): 'doctrine://default?queue_name=durable_workflows&auto_setup=true'
     env(MESSENGER_DURABLE_ACTIVITY_DSN): 'doctrine://default?queue_name=durable_activities&auto_setup=true'
 
 doctrine:
     dbal:
-        url: '%env(resolve:DATABASE_URL)%'
-        profiling_collect_backtrace: '%kernel.debug%'
-        use_savepoints: true
+        default_connection: default
+        connections:
+            default:
+                url: '%env(resolve:DATABASE_URL)%'
+                profiling_collect_backtrace: '%kernel.debug%'
+                use_savepoints: true
+            durable:
+                url: '%env(resolve:DURABLE_DATABASE_URL)%'
+                profiling_collect_backtrace: '%kernel.debug%'
+                use_savepoints: true
 
 when@test:
     doctrine:

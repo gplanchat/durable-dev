@@ -9,6 +9,7 @@ use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use Gplanchat\Durable\Store\DbalChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\DbalEventStore;
 use Gplanchat\Durable\Store\DbalWorkflowMetadataStore;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -30,6 +31,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 final class DurableSchemaInitCommand extends Command
 {
     public function __construct(
+        #[Autowire(service: 'durable.dbal.connection')]
         private readonly Connection $connection,
     ) {
         parent::__construct();

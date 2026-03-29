@@ -4,18 +4,13 @@ declare(strict_types=1);
 
 namespace App\Durable\Activity;
 
-final class TickActivityHandler implements TickActivity
+use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
+
+#[AsDurableActivity(contract: TickActivityInterface::class)]
+final class TickActivityHandler implements TickActivityInterface
 {
     public function tick(): string
     {
         return 'tick';
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    public function tickFromPayload(array $payload): string
-    {
-        return $this->tick();
     }
 }

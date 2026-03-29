@@ -6,7 +6,7 @@ namespace App\Durable\Activity;
 
 use Gplanchat\Durable\Attribute\ActivityMethod;
 
-interface EchoActivity
+interface EchoActivityInterface
 {
     #[ActivityMethod('echoUpper')]
     public function echoUpper(string $text = ''): string;

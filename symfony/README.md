@@ -1,14 +1,14 @@
-# Application exemple Durable + Symfony
+# Durable + Symfony sample application
 
-Illustre `gplanchat/durable` avec **Messenger**, **Doctrine DBAL** (SQLite par défaut) et des workflows en classe (`App\Durable\Workflow\`).
+Demonstrates `gplanchat/durable` with **Messenger**, **Doctrine DBAL** (SQLite by default), and class-based workflows (`App\Durable\Workflow\`).
 
-## Prérequis
+## Requirements
 
 - PHP 8.2+
-- Composer — dépendances dans **`symfony/vendor/`** (défaut Composer). Exécuter **`composer install`** depuis ce dossier `symfony/`.
-- Le package **`gplanchat/durable`** est pris sur le **dépôt parent** (`composer.json` : repository `path` → `..`, lien symbolique). Pas d’artefact zip dans le dépôt ; pour un clone « app seule », utiliser une dépendance Packagist ou un `path` / `VCS` pointant vers votre copie du composant.
+- Composer — dependencies live under **`symfony/vendor/`** (Composer default). Run **`composer install`** from this `symfony/` directory.
+- Packages **`gplanchat/durable`** and **`gplanchat/durable-bundle`** are resolved via **path** from **`../src/Durable`** and **`../src/DurableBundle`** at the monorepo root. For an app outside the monorepo: `composer require gplanchat/durable-bundle` from Packagist.
 
-Après un changement de répertoire `vendor` (ex. passage d’un ancien `durable-symfony-vendor` externe), vider le cache : **`rm -rf var/cache/*`** puis **`php bin/console cache:clear`**.
+After changing the `vendor` layout (e.g. moving away from an external `durable-symfony-vendor`), clear cache: **`rm -rf var/cache/*`** then **`php bin/console cache:clear`**.
 
 ## Installation
 
@@ -17,24 +17,24 @@ cd symfony
 composer install
 ```
 
-## Base de données (tables journal / métadonnées / lien parent-enfant)
+## Database (log / metadata / parent–child link tables)
 
-En environnement **dev** (`config/packages/durable.yaml`), le journal Durable et le lien parent↔enfant async utilisent le **DBAL** (même connexion que Messenger Doctrine).
+In **dev** (`config/packages/durable.yaml`), the Durable log and async parent–child link use **DBAL** (same connection as Doctrine Messenger).
 
-Initialisation **idempotente** :
+**Idempotent** initialization:
 
 ```bash
 php bin/console durable:schema:init
 ```
 
-Puis lancer les workers et les samples (voir README racine du composant).
+Then start workers and samples (see the component root README).
 
-## Tests PHPUnit (cette app)
+## PHPUnit (this app)
 
 ```bash
 cd symfony
 composer test
-# ou : php bin/phpunit
+# or: php bin/phpunit
 ```
 
-Les tests utilisent `sqlite:///:memory:` (voir `phpunit.xml.dist`). Ils couvrent **`durable:schema:init`** (idempotence) et **`durable:sample`** (GreetingWorkflow, ParallelGreetingWorkflow, ParentCallsEchoChildWorkflow, TimerThenTickWorkflow, SideEffectRandomIdWorkflow).
+Tests use `sqlite:///:memory:` (see `phpunit.xml.dist`). They cover **`durable:schema:init`** (idempotence) and **`durable:sample`** (GreetingWorkflow, ParallelGreetingWorkflow, ParentCallsEchoChildWorkflow, TimerThenTickWorkflow, SideEffectRandomIdWorkflow).

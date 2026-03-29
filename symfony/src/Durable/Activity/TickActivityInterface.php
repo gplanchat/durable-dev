@@ -6,7 +6,7 @@ namespace App\Durable\Activity;
 
 use Gplanchat\Durable\Attribute\ActivityMethod;
 
-interface TickActivity
+interface TickActivityInterface
 {
     #[ActivityMethod('tick')]
     public function tick(): string;

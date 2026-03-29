@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0c2d001d3aea87287739bdd1e0a27435",
+    "content-hash": "4db546f786735f9961e06fa1666d69b8",
     "packages": [
         {
             "name": "doctrine/dbal",
@@ -525,8 +525,8 @@
             "version": "0.1.0",
             "dist": {
                 "type": "path",
-                "url": "..",
-                "reference": "7d3298c4b49aeab082e14f4ddde7ad955642794f"
+                "url": "../src/Durable",
+                "reference": "67295c0e8eaf395feea8471af4a29b5a6a2647cd"
             },
             "require": {
                 "doctrine/dbal": "^4.4",
@@ -537,21 +537,13 @@
                 "symfony/console": "^7.4",
                 "symfony/contracts": "^3.6",
                 "symfony/dependency-injection": "^7.4",
-                "symfony/framework-bundle": "^7.4",
                 "symfony/messenger": "^7.4",
                 "symfony/routing": "^7.4",
                 "symfony/uid": "^7.4"
             },
-            "require-dev": {
-                "friendsofphp/php-cs-fixer": "^3.64",
-                "phpunit/phpunit": "^11.5",
-                "react/promise": "^3.3"
-            },
             "suggest": {
-                "ext-pcov": "Pour composer test:coverage en local (sinon le job CI utilise PCOV)",
-                "gplanchat/durable-phpstan": "Extension PHPStan optionnelle : typage de activityStub() / ActivityStub<T> et Awaitable<R> (Packagist, require-dev à part)",
-                "gplanchat/durable-psalm-plugin": "Plugin Psalm optionnel : même objectif d’analyse statique (Packagist, require-dev à part)",
-                "react/promise": "^3.3 Pour le bridge ReactPHP optionnel (Bridge\\ReactPromise)"
+                "gplanchat/durable-phpstan": "Optional PHPStan extension (ActivityStub + Awaitable; see ADR012)",
+                "gplanchat/durable-psalm-plugin": "Optional Psalm plugin entry point; prefer durable-phpstan for stubs (ADR012)"
             },
             "type": "library",
             "extra": {
@@ -561,41 +553,8 @@
             },
             "autoload": {
                 "psr-4": {
-                    "Gplanchat\\Durable\\": "src/"
+                    "Gplanchat\\Durable\\": "./"
                 }
-            },
-            "autoload-dev": {
-                "psr-4": {
-                    "Gplanchat\\Durable\\Tests\\": "tests/",
-                    "unit\\Gplanchat\\Durable\\Bridge\\": "tests/unit/Bridge",
-                    "functional\\Gplanchat\\Durable\\Bridge\\": "tests/functional/Bridge",
-                    "integration\\Gplanchat\\Durable\\Bridge\\": "tests/integration/Bridge"
-                }
-            },
-            "archive": {
-                "exclude": [
-                    "/.cursor",
-                    "/var",
-                    "/vendor",
-                    "/symfony",
-                    "/tests",
-                    "/phpunit.xml.dist",
-                    "/.php-cs-fixer.dist.php"
-                ]
-            },
-            "scripts": {
-                "cs": [
-                    "php-cs-fixer fix --diff"
-                ],
-                "cs:check": [
-                    "php-cs-fixer fix --diff --dry-run"
-                ],
-                "test": [
-                    "phpunit --strict-coverage"
-                ],
-                "test:coverage": [
-                    "phpunit --strict-coverage --coverage-text --coverage-filter=src"
-                ]
             },
             "license": [
                 "proprietary"
@@ -606,7 +565,51 @@
                     "email": "gregory@gyroscops.com"
                 }
             ],
-            "description": "Bibliothèque PHP et bundle Symfony pour exécutions durables : workflows déterministes, activités asynchrones, journal d'événements et transports (in-memory, DBAL, Messenger).",
+            "description": "PHP library for durable execution: workflows, activities, event journal, and transports (HttpKernel integration lives in the bundle).",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "gplanchat/durable-bundle",
+            "version": "0.1.0",
+            "dist": {
+                "type": "path",
+                "url": "../src/DurableBundle",
+                "reference": "3dff508fac1411409ca28870407db054b6670e9b"
+            },
+            "require": {
+                "gplanchat/durable": "^0.1",
+                "php": ">=8.2",
+                "symfony/config": "^7.4",
+                "symfony/console": "^7.4",
+                "symfony/dependency-injection": "^7.4",
+                "symfony/framework-bundle": "^7.4",
+                "symfony/http-kernel": "^7.4",
+                "symfony/messenger": "^7.4"
+            },
+            "type": "symfony-bundle",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\Durable\\Bundle\\": "./"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "Bundle Symfony pour gplanchat/durable : extension, autoconfiguration des workflows et des activités.",
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -5365,7 +5368,7 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "gplanchat/durable": 20
+        "gplanchat/durable-bundle": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

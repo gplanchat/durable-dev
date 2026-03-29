@@ -1,5 +1,6 @@
 durable:
     distributed: true
+    dbal_connection: durable
     event_store:
         type: dbal
         table_name: durable_events
@@ -18,8 +19,8 @@ durable:
         cache: cache.app
         contracts:
             - App\Durable\Activity\GreetingActivityInterface
-            - App\Durable\Activity\EchoActivity
-            - App\Durable\Activity\TickActivity
+            - App\Durable\Activity\EchoActivityInterface
+            - App\Durable\Activity\TickActivityInterface
 
 when@test:
     durable:
