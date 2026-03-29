@@ -44,7 +44,7 @@ jobs:
               if: steps.cache-toolchain.outputs.cache-hit != 'true'
               run: |
                   sudo apt-get update
-                  sudo apt-get install -y cmake libssl-dev pkg-config zlib1g-dev
+                  sudo apt-get install -y build-essential cmake curl libssl-dev pkg-config zlib1g-dev
 
             - uses: actions/setup-go@v5
               if: steps.cache-toolchain.outputs.cache-hit != 'true'
@@ -71,8 +71,10 @@ jobs:
                   cmake --install build
                   export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig"
                   export LD_LIBRARY_PATH="$PREFIX/lib:${LD_LIBRARY_PATH:-}"
+                  pkg-config --print-errors --exists libgit2
+                  pkg-config --modversion libgit2
                   git clone --depth 1 --branch "${SPLITSH_LITE_REF}" https://github.com/splitsh/lite.git /tmp/splitsh-lite-src
-                  (cd /tmp/splitsh-lite-src && go build -o splitsh-lite .)
+                  (cd /tmp/splitsh-lite-src && CGO_ENABLED=1 go build -o splitsh-lite .)
                   install -m 0755 /tmp/splitsh-lite-src/splitsh-lite "$HOME/.local/bin/splitsh-lite"
 
             - name: LD_LIBRARY_PATH (binaire lié à libgit2 du préfixe)
