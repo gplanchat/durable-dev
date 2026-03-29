@@ -1,0 +1,74 @@
+# Exécute splitsh-lite sur chaque préfixe (monorepo → commits mirroirs pour les sous-dépôts).
+# Historique Git complet requis ; voir bin/splitsh-publish.sh, ADR017, README (split / Packagist).
+# Secret optionnel SPLITSH_PUSH_TOKEN (PAT) pour git push HTTPS vers chaque dépôt satellite.
+name: Splitsh
+
+on:
+    push:
+        branches: [main, master]
+    workflow_dispatch:
+
+concurrency:
+    group: splitsh-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    splitsh:
+        name: splitsh-lite (sous-arborescences)
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - name: Checkout (historique complet — requis par splitsh)
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Répertoire binaire local
+              run: mkdir -p "${{ runner.home }}/.local/bin"
+
+            - name: Restaurer le cache splitsh-lite
+              id: cache-splitsh-restore
+              uses: actions/cache/restore@v4
+              with:
+                  path: ${{ runner.home }}/.local/bin/splitsh-lite
+                  key: splitsh-lite-v2.0.0-${{ runner.os }}-amd64
+
+            - name: Paquets système (libgit2 pour git2go / splitsh-lite)
+              if: steps.cache-splitsh-restore.outputs.cache-hit != 'true'
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y libgit2-dev pkg-config
+
+            - uses: actions/setup-go@v5
+              if: steps.cache-splitsh-restore.outputs.cache-hit != 'true'
+              with:
+                  go-version: '1.22'
+
+            - name: Compiler splitsh-lite (splitsh/lite)
+              if: steps.cache-splitsh-restore.outputs.cache-hit != 'true'
+              env:
+                  SPLITSH_LITE_REF: v2.0.0
+              run: |
+                  set -euo pipefail
+                  git clone --depth 1 --branch "${SPLITSH_LITE_REF}" https://github.com/splitsh/lite.git /tmp/splitsh-lite-src
+                  (cd /tmp/splitsh-lite-src && go build -o splitsh-lite .)
+                  install -m 0755 /tmp/splitsh-lite-src/splitsh-lite "${{ runner.home }}/.local/bin/splitsh-lite"
+
+            - name: PATH
+              run: echo "${{ runner.home }}/.local/bin" >> "${GITHUB_PATH}"
+
+            - name: Vérifier splitsh-lite
+              run: command -v splitsh-lite && test -x "${{ runner.home }}/.local/bin/splitsh-lite"
+
+            - name: Extraire les sous-arbres (et pousser si SPLITSH_PUSH_TOKEN)
+              env:
+                  SPLITSH_PUSH_TOKEN: ${{ secrets.SPLITSH_PUSH_TOKEN }}
+              run: ./bin/splitsh-publish.sh
+
+            - name: Sauvegarder splitsh-lite dans le cache
+              if: success() && steps.cache-splitsh-restore.outputs.cache-hit != 'true'
+              uses: actions/cache/save@v4
+              with:
+                  path: ${{ runner.home }}/.local/bin/splitsh-lite
+                  key: splitsh-lite-v2.0.0-${{ runner.os }}-amd64

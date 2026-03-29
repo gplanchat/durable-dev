@@ -33,6 +33,28 @@ jobs:
             - name: PHPUnit
               run: composer test
 
+    static-analysis:
+        name: Analyse statique (PHPStan + Psalm)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.2'
+                  extensions: mbstring, sqlite3
+                  coverage: none
+
+            - name: Install Composer dependencies
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: PHPStan (src/, tests/)
+              run: composer phpstan
+
+            - name: Psalm (src/, tests/)
+              run: composer psalm
+
     symfony-sample:
         name: App exemple Symfony (composer + PHPUnit)
         runs-on: ubuntu-latest
@@ -58,6 +80,25 @@ jobs:
               working-directory: symfony
               run: composer test
 
+    temporal-bridge:
+        name: Bridge Temporal (ext-grpc + test resolver)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.2'
+                  extensions: mbstring, sqlite3, grpc
+                  coverage: none
+
+            - name: Install Composer dependencies
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: PHPUnit (journal history replay)
+              run: vendor/bin/phpunit tests/unit/Bridge/Temporal/JournalStateResolverTest.php
+
     coverage:
         name: Couverture (PCOV)
         runs-on: ubuntu-latest
@@ -77,3 +118,32 @@ jobs:
 
             - name: Rapport texte (src/)
               run: composer test:coverage
+
+    docker-compose-stack:
+        name: Stack Docker (Temporal + UI)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Valider compose.yaml
+              run: docker compose -f compose.yaml config --quiet
+
+            - name: Démarrer PostgreSQL + Temporal + UI
+              run: docker compose -f compose.yaml up -d --wait --wait-timeout 180 postgresql temporal temporal-ui
+
+            - name: Vérifier Temporal UI (8088)
+              run: |
+                  set -e
+                  for i in $(seq 1 45); do
+                    if curl -sfL -o /dev/null http://127.0.0.1:8088/; then
+                      echo "Temporal UI OK (tentative $i)"
+                      exit 0
+                    fi
+                    sleep 2
+                  done
+                  docker compose -f compose.yaml logs temporal-ui --tail 40
+                  exit 1
+
+            - name: Arrêt des conteneurs
+              if: always()
+              run: docker compose -f compose.yaml down -v
