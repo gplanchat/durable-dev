@@ -1,0 +1,31 @@
+{
+    "name": "gplanchat/durable-psalm-plugin",
+    "description": "Psalm plugin for gplanchat/durable (ActivityStub activity calls → Awaitable).",
+    "license": "proprietary",
+    "type": "psalm-plugin",
+    "version": "0.1.0",
+    "require": {
+        "php": ">=8.2",
+        "gplanchat/durable": "^0.1 || dev-main",
+        "vimeo/psalm": "^6.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gplanchat\\Durable\\Psalm\\": "src/"
+        }
+    },
+    "extra": {
+        "psalm": {
+            "pluginClass": "Gplanchat\\Durable\\Psalm\\Plugin"
+        },
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    },
+    "authors": [
+        {
+            "name": "Grégory Planchat",
+            "email": "gregory@gyroscops.com"
+        }
+    ]
+}
