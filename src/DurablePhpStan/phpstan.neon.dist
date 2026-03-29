@@ -1,0 +1,7 @@
+parameters:
+    level: 8
+    paths:
+        - tests/phpstan-fixtures
+
+includes:
+    - extension.neon

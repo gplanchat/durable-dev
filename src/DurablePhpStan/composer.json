@@ -1,0 +1,33 @@
+{
+    "name": "gplanchat/durable-phpstan",
+    "description": "PHPStan extension for gplanchat/durable (activityStub generics, ActivityStub::__call → Awaitable).",
+    "license": "proprietary",
+    "type": "phpstan-extension",
+    "version": "0.1.0",
+    "require": {
+        "php": ">=8.2",
+        "phpstan/phpstan": "^2.0",
+        "gplanchat/durable": "^0.1 || dev-main"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gplanchat\\Durable\\PHPStan\\": "src/"
+        }
+    },
+    "extra": {
+        "phpstan": {
+            "includes": [
+                "extension.neon"
+            ]
+        },
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    },
+    "authors": [
+        {
+            "name": "Grégory Planchat",
+            "email": "gregory@gyroscops.com"
+        }
+    ]
+}
