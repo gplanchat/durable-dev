@@ -1,0 +1,19 @@
+{
+    "source": {
+        "directories": [
+            "src/Durable",
+            "src/DurableBundle",
+            "src/Bridge/Temporal"
+        ]
+    },
+    "timeout": 15,
+    "logs": {
+        "html": "var/infection/html",
+        "text": "var/infection/infection.log",
+        "summary": "var/infection/summary.log"
+    },
+    "tmpDir": "var/infection/tmp",
+    "phpUnit": {
+        "configDir": "."
+    }
+}

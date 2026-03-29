@@ -1,5 +1,13 @@
 vendor/
 var/
+magento/vendor/
+magento/generated/
+magento/pub/static/
+magento/var/
 .php-cs-fixer.cache
 .phpunit.cache/
 symfony/var
+
+# Surcharges Docker Compose locales (voir compose.override.example.yaml)
+compose.override.yaml
+compose.override.yml

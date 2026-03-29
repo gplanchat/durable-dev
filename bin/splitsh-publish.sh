@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# Publie les sous-arborescences du monorepo vers les dépôts distants (splitsh-lite).
+# Prérequis : https://github.com/splitsh/lite installé et dans le PATH sous le nom splitsh-lite.
+# CI : .github/workflows/splitsh.yml (build v2.0.0 + libgit2, checkout fetch-depth: 0).
+#
+# Push automatique (optionnel) :
+#   SPLITSH_PUSH_TOKEN   — PAT GitHub avec contents:write sur chaque dépôt satellite (HTTPS).
+#   SPLITSH_TARGET_BRANCH — branche cible (défaut : main → refs/heads/main).
+#   SPLITSH_PUSH_FORCE=1 — git push --force (danger).
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+if ! command -v splitsh-lite >/dev/null 2>&1; then
+  echo "splitsh-lite introuvable. Installez-le : https://github.com/splitsh/lite" >&2
+  exit 1
+fi
+
+remote_for_prefix() {
+  case "$1" in
+    src/Durable) echo "git@github.com:gplanchat/durable.git" ;;
+    src/DurableBundle) echo "git@github.com:gplanchat/durable-bundle.git" ;;
+    src/Bridge/Temporal) echo "git@github.com:gplanchat/durable-bridge-temporal.git" ;;
+    src/DurableModule) echo "git@github.com:gplanchat/durable-magento.git" ;;
+    src/DurablePhpStan) echo "git@github.com:gplanchat/durable-phpstan.git" ;;
+    src/DurablePsalmPlugin) echo "git@github.com:gplanchat/durable-psalm-plugin.git" ;;
+    *) echo "" ;;
+  esac
+}
+
+target_ref() {
+  local b="${SPLITSH_TARGET_BRANCH:-main}"
+  if [ -z "$b" ]; then
+    b=main
+  fi
+  if [[ "$b" == refs/* ]]; then
+    echo "$b"
+  else
+    echo "refs/heads/${b}"
+  fi
+}
+
+push_split_to_github() {
+  local remote_ssh="$1"
+  local sha="$2"
+  local ref
+  ref="$(target_ref)"
+  # git@github.com:org/repo.git → https://github.com/org/repo.git
+  local path="${remote_ssh#git@github.com:}"
+  local url="https://x-access-token:${SPLITSH_PUSH_TOKEN}@github.com/${path}"
+  if [ -n "${SPLITSH_PUSH_FORCE:-}" ]; then
+    git push --force "$url" "${sha}:${ref}"
+  else
+    git push "$url" "${sha}:${ref}"
+  fi
+}
+
+for prefix in src/Durable src/DurableBundle src/Bridge/Temporal src/DurableModule src/DurablePhpStan src/DurablePsalmPlugin; do
+  if [ ! -d "$prefix" ]; then
+    echo "!! splitsh : dossier absent, ignoré — $prefix (créez l’arborescence ou retirez ce préfixe du script)" >&2
+    continue
+  fi
+  remote="$(remote_for_prefix "$prefix")"
+  echo "==> splitsh-lite --prefix=$prefix"
+  sha="$(splitsh-lite --prefix="$prefix")"
+  echo "    commit $sha -> ${remote}"
+  if [ -n "${SPLITSH_PUSH_TOKEN:-}" ]; then
+    echo "    (push HTTPS) -> ${remote} $(target_ref)"
+    push_split_to_github "$remote" "$sha"
+  else
+    echo "    (exemple) git push ${remote} ${sha}:$(target_ref)"
+  fi
+done
+
+echo
+if [ -n "${SPLITSH_PUSH_TOKEN:-}" ]; then
+  echo "Résumé : push HTTPS effectué vers chaque dépôt (secret SPLITSH_PUSH_TOKEN défini)."
+else
+  echo "Résumé : exécutez manuellement git push pour chaque SHA vers la branche voulue ($(target_ref), etc.)."
+  echo "En CI : ajoutez le secret SPLITSH_PUSH_TOKEN (PAT) pour pousser automatiquement."
+  echo "Ajoutez SPLITSH_PUSH_FORCE=1 si vous réécrivez l’historique du dépôt cible."
+fi
