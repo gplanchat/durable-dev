@@ -19,7 +19,7 @@ The monorepo publishes several **read-only mirrors** (Packagist, downstream clon
 2. **Default behaviour** — The job **always** runs `splitsh-lite` per prefix and prints the resulting SHAs (same as local `bin/splitsh-publish.sh`).
 3. **Optional push** — If the repository secret **`SPLITSH_PUSH_TOKEN`** is set to a **Personal Access Token** (classic) or fine-grained token with **`contents: write`** on each satellite repository, the same script run **also** executes `git push` for each prefix (`SPLITSH_PUSH_TOKEN` is read by `bin/splitsh-publish.sh`). If the secret is absent or empty, pushes are skipped; no failure.
 4. **Target branch** — Configurable via **`SPLITSH_TARGET_BRANCH`** (default `main`). Rare force updates: **`SPLITSH_PUSH_FORCE=1`** (use with care).
-5. **Cache** — The compiled `splitsh-lite` binary is stored under **`~/.local/bin/splitsh-lite`** and restored via **`actions/cache`** (restore / conditional build / save) so repeated runs skip the Go build when the cache key hits.
+5. **Cache** — The compiled `splitsh-lite` binary is stored under **`~/.local/bin/splitsh-lite`** and restored via **`actions/cache`** (restore / conditional build / save) so repeated runs skip the Go build when the cache key hits. Do **not** use `${{ runner.home }}` in workflows (not a GitHub Actions context — use **`$HOME`** in `run` steps and **`~`** in `path` for cache actions).
 
 ## Consequences
 

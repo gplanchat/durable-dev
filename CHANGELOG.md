@@ -2,6 +2,10 @@
 
 ## [Unreleased] — API breaks (Temporal parity)
 
+### Fixed
+
+- **Splitsh (CI)** — remplacement de `${{ runner.home }}` (contexte inexistant → `/.local/bin`, échec `mkdir`) par **`$HOME`** / **`~`** pour les chemins et le cache **actions/cache**.
+
 ### Added
 
 - **GitHub Actions — Splitsh** — workflow `.github/workflows/splitsh.yml` : **restore/save** cache du binaire **splitsh/lite** v2.0.0 (Go + libgit2), exécute `bin/splitsh-publish.sh` ; push HTTPS optionnel via secret **`SPLITSH_PUSH_TOKEN`** ; **[ADR017](documentation/adr/ADR017-splitsh-ci-and-satellite-pushes.md)**.
