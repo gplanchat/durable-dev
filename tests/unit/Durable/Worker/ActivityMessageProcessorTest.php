@@ -13,6 +13,7 @@ use Gplanchat\Durable\Transport\ActivityMessage;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -21,9 +22,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(ActivityMessageProcessor::class)]
 final class ActivityMessageProcessorTest extends TestCase
 {
-    /**
-     * @test
-     */
+    #[Test]
     public function processAppendsCompletedAndDispatchesResume(): void
     {
         $events = [];
