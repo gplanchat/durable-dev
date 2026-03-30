@@ -32,7 +32,7 @@ docker compose --profile php run --rm php composer test
 docker compose --profile php run --rm php bash
 ```
 
-Fichiers : **`compose.yaml`**, **`docker/php/Dockerfile`**, **`.dockerignore`**. DSN type journal : `temporal-journal://temporal:7233?namespace=default&task_queue=durable-journal&tls=0` **depuis un service dans le même Compose** ; depuis l’hôte, garde `127.0.0.1:7233`.
+Fichiers : **`compose.yaml`**, **`docker/php/Dockerfile`**, **`.dockerignore`**. DSN type journal : `temporal://temporal:7233?namespace=default&task_queue=durable-journal&tls=0` **depuis un service dans le même Compose** ; depuis l’hôte, garde `127.0.0.1:7233`.
 
 **Magento** (MySQL + OpenSearch) : toujours **`docker-compose.magento-dev.yaml`** (`docker compose -f docker-compose.magento-dev.yaml up -d`).
 

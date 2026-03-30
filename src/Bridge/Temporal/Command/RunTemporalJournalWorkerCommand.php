@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Command;
 
 use Gplanchat\Bridge\Temporal\Messenger\TemporalJournalTransport;
-use Gplanchat\Bridge\Temporal\Messenger\TemporalJournalTransportFactory;
+use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -29,7 +29,7 @@ final class RunTemporalJournalWorkerCommand extends Command
             'dsn',
             null,
             InputOption::VALUE_REQUIRED,
-            'DSN temporal-journal://host:port?namespace=default&task_queue=durable-journal',
+            'DSN temporal://host:port?namespace=default&task_queue=durable-journal (ou schéma obsolète temporal-journal://)',
         );
         $this->addOption(
             'max-ticks',
@@ -43,14 +43,14 @@ final class RunTemporalJournalWorkerCommand extends Command
     {
         $dsn = $input->getOption('dsn');
         if (!\is_string($dsn) || '' === $dsn) {
-            throw new \InvalidArgumentException('Option --dsn is required (temporal-journal://...).');
+            throw new \InvalidArgumentException('Option --dsn is required (temporal://...).');
         }
 
         $io = new SymfonyStyle($input, $output);
-        $settings = TemporalJournalTransportFactory::parseSettings($dsn);
-        $transport = TemporalJournalTransport::fromSettings($settings);
+        $connection = TemporalConnection::fromDsn($dsn);
+        $transport = TemporalJournalTransport::fromConnection($connection);
 
-        $io->info(\sprintf('Polling journal queue "%s" on %s (namespace %s)', $settings->taskQueue, $settings->target, $settings->namespace));
+        $io->info(\sprintf('Polling journal queue "%s" on %s (namespace %s)', $connection->journalTaskQueue, $connection->target, $connection->namespace));
 
         $maxTicksRaw = $input->getOption('max-ticks');
         if (null === $maxTicksRaw || '' === $maxTicksRaw) {

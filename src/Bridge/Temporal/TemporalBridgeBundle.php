@@ -9,7 +9,7 @@ use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
 /**
- * Registers Messenger transport factory "temporal-journal://" and the FrankenPHP-friendly console loop command.
+ * Enregistre la fabrique Messenger unique {@code temporal://} (journal + applicatif) et la commande console journal (FrankenPHP).
  */
 final class TemporalBridgeBundle extends Bundle
 {

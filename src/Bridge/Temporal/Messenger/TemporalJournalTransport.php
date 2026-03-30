@@ -6,8 +6,8 @@ namespace Gplanchat\Bridge\Temporal\Messenger;
 
 use Gplanchat\Bridge\Temporal\Journal\HistoryPageMerger;
 use Gplanchat\Bridge\Temporal\Journal\JournalWorkflowTaskProcessor;
+use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\TemporalJournalGrpcPoller;
-use Gplanchat\Bridge\Temporal\TemporalJournalSettings;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\LogicException;
@@ -45,15 +45,15 @@ final class TemporalJournalTransport implements TransportInterface
 
     public function send(Envelope $envelope): Envelope
     {
-        throw new LogicException('temporal-journal transport is receive-only.');
+        throw new LogicException('temporal transport (purpose=journal) is receive-only.');
     }
 
-    public static function fromSettings(TemporalJournalSettings $settings): self
+    public static function fromConnection(TemporalConnection $connection): self
     {
-        $client = WorkflowServiceClientFactory::create($settings);
-        $merger = new HistoryPageMerger($client, $settings->namespace);
-        $processor = new JournalWorkflowTaskProcessor($client, $settings, $merger);
-        $poller = new TemporalJournalGrpcPoller($client, $settings);
+        $client = WorkflowServiceClientFactory::create($connection);
+        $merger = new HistoryPageMerger($client, $connection->namespace);
+        $processor = new JournalWorkflowTaskProcessor($client, $connection, $merger);
+        $poller = new TemporalJournalGrpcPoller($client, $connection);
 
         return new self($poller, $processor);
     }

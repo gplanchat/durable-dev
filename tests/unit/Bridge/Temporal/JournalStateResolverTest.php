@@ -6,7 +6,7 @@ namespace unit\Gplanchat\Bridge\Temporal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Journal\JournalStateResolver;
-use Gplanchat\Bridge\Temporal\TemporalJournalSettings;
+use Gplanchat\Bridge\Temporal\TemporalConnection;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -26,7 +26,7 @@ final class JournalStateResolverTest extends TestCase
     #[TestDox('It should replay append signals in order')]
     public function itShouldReplayAppendSignalsInOrder(): void
     {
-        $signal = TemporalJournalSettings::DEFAULT_SIGNAL_APPEND;
+        $signal = TemporalConnection::DEFAULT_SIGNAL_APPEND;
 
         $payload1 = JsonPlainPayload::encode(['execution_id' => 'e1', 'event_type' => 't1', 'payload' => ['a' => 1]]);
         $payload2 = JsonPlainPayload::encode(['execution_id' => 'e1', 'event_type' => 't2', 'payload' => ['b' => 2]]);

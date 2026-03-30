@@ -17,7 +17,7 @@ final class TemporalJournalGrpcPoller
 {
     public function __construct(
         private readonly WorkflowServiceClient $client,
-        private readonly TemporalJournalSettings $settings,
+        private readonly TemporalConnection $settings,
     ) {
     }
 
@@ -25,7 +25,7 @@ final class TemporalJournalGrpcPoller
     {
         $req = new PollWorkflowTaskQueueRequest();
         $req->setNamespace($this->settings->namespace);
-        $req->setTaskQueue(new TaskQueue(['name' => $this->settings->taskQueue]));
+        $req->setTaskQueue(new TaskQueue(['name' => $this->settings->journalTaskQueue]));
         $req->setIdentity($this->settings->identity);
         $call = $this->client->PollWorkflowTaskQueue($req);
         $resp = GrpcUnary::wait($call);

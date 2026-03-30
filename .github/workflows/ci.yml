@@ -106,6 +106,9 @@ jobs:
             - name: PHPUnit (journal history replay)
               run: vendor/bin/phpunit tests/unit/Bridge/Temporal/JournalStateResolverTest.php
 
+            - name: PHPUnit (Temporal transport factory, ext-grpc)
+              run: vendor/bin/phpunit tests/unit/Bridge/Temporal/Messenger/TemporalTransportFactoryTest.php
+
     coverage:
         name: Couverture (PCOV)
         runs-on: ubuntu-latest

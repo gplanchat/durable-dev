@@ -27,7 +27,7 @@ final class TemporalJournalEventStore implements EventStoreInterface
 {
     public function __construct(
         private readonly WorkflowServiceClient $client,
-        private readonly TemporalJournalSettings $settings,
+        private readonly TemporalConnection $settings,
     ) {
     }
 
@@ -43,7 +43,7 @@ final class TemporalJournalEventStore implements EventStoreInterface
         $req->setNamespace($this->settings->namespace);
         $req->setWorkflowId($wfId);
         $req->setWorkflowType(new WorkflowType(['name' => $this->settings->workflowType]));
-        $req->setTaskQueue(new TaskQueue(['name' => $this->settings->taskQueue]));
+        $req->setTaskQueue(new TaskQueue(['name' => $this->settings->journalTaskQueue]));
         $req->setSignalName($this->settings->signalAppend);
         $req->setSignalInput($payloads);
         $req->setIdentity($this->settings->identity);
