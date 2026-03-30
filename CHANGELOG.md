@@ -15,6 +15,7 @@
 - **Infection** — `infection/infection` en `require-dev`, `infection.json.dist`, scripts Composer `infection`, `infection:unit`, `infection:functional`, `infection:unit-fast` ; PHPUnit découpé en suites **unit** / **functional** / **integration** / **e2e** (exécution `composer test` sans doublon entre suites).
 - **ADR012** — `activityStub`, PSR-6 activity contract cache, Symfony **`ActivityContractCacheWarmer`**, and **`gplanchat/durable-phpstan`** (`ActivityStubMethodsClassReflectionExtension`).
 - **`Awaitable` @template `TValue`** — enables **`Awaitable<R>`** in PHPStan for stubbed activity calls.
+- **Bundle** — **`ActivityRunHandler`** (`ActivityMessageProcessor` via Messenger `from_transport`).
 
 ### Changed (tooling)
 
@@ -37,6 +38,7 @@
 - **Global helpers** `await()`, `parallel()`, `all()`, `any()`, `race()`, `delay()`, `timer()`, `sideEffect()`, `execute_child_workflow()`, `wait_signal()`, `wait_update()`, `async()` — These helpers no longer exist. Use **`WorkflowEnvironment`** methods instead.
 - **Workflow handler signature** — Callables no longer receive `(ExecutionContext $ctx, ExecutionRuntime $rt)` but **`(WorkflowEnvironment $env)`**.
 - **Workflow registration** — `WorkflowRegistry::register(string, callable)` removed. Use `WorkflowRegistry::registerClass(WorkflowClass::class)` or the Symfony `durable.workflow` tag.
+- **Bundle** — Console command **`durable:activity:consume`** removed; distributed mode with **`activity_transport.type: messenger`** uses **`ActivityRunHandler`** and **`messenger:consume`** on the activity transport only (breaking change, no deprecation period).
 
 ### Changed
 

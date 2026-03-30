@@ -24,9 +24,5 @@ services:
         resource: '../src/Durable/Workflow/'
         tags: [durable.workflow]
 
-    App\Messenger\DurableActivityMessageHandler:
-        arguments:
-            $maxActivityRetries: '%durable.max_activity_retries%'
-
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

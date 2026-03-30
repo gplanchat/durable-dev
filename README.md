@@ -211,8 +211,9 @@ cd symfony && php bin/console durable:schema:init
 
 ```bash
 php bin/console messenger:consume durable_workflows durable_activities -vv
-php bin/console durable:activity:consume
 ```
+
+Distributed mode with **`activity_transport.type: messenger`** runs activities through **`ActivityRunHandler`** on the activity transport (no separate console command).
 
 ## Symfony sample
 

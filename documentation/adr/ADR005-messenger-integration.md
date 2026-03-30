@@ -31,7 +31,7 @@ Implementation
 Class: `Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport`. Adapts `ActivityTransportInterface` to Messenger primitives:
 
 - `enqueue()` → `SenderInterface::send()`
-- `dequeue()` → `ReceiverInterface::get()` then `ack()`
+- `dequeue()` → `ReceiverInterface::get()` then `ack()` (used for inline / non-handler consumption paths; distributed workers use `messenger:consume` instead)
 
 ### Configuration (bundle)
 
@@ -48,7 +48,7 @@ Routing (`WorkflowRunMessage`, `ActivityMessage`, etc.) to the correct transport
 
 ### Activity worker
 
-The **`durable:activity:consume`** command consumes messages from the configured transport, runs activities via **`ActivityExecutor`**, and persists results to the **EventStore**.
+When **`durable.distributed`** is **`true`** and **`activity_transport.type`** is **`messenger`**, **`ActivityRunHandler`** is registered as a **`messenger.message_handler`** restricted to the configured transport (`from_transport`). Activities are executed via **`ActivityMessageProcessor`** (same logic as before) and **`messenger:consume`** on the activity transport (e.g. `durable_activities`). There is **no** separate console command for activity consumption.
 
 ### Workflow side (reminder)
 
@@ -58,7 +58,7 @@ Distributed model
 ---
 
 - **Inline mode**: workflow and activities in the same process (`InMemoryWorkflowRunner`, **`drainActivityQueueOnce`**)
-- **Distributed mode**: activities consumed by workers; workflows consumed by **`WorkflowRunHandler`** on a dedicated transport; shared **EventStore** and optionally **resume metadata** (Dbal) — see [ADR007](ADR007-workflow-recovery.md) and [ADR009](ADR009-distributed-workflow-dispatch.md)
+- **Distributed mode**: activities consumed by **`ActivityRunHandler`** via **`messenger:consume`** on the activity transport; workflows consumed by **`WorkflowRunHandler`** on a dedicated transport; shared **EventStore** and optionally **resume metadata** (Dbal) — see [ADR007](ADR007-workflow-recovery.md) and [ADR009](ADR009-distributed-workflow-dispatch.md)
 
 References
 ---

@@ -50,7 +50,9 @@ final class WorkflowRunHandler
 
         $handler = $this->workflowRegistry->getHandler($workflowType, $payload);
 
-        $run = $message->isResume() ? fn () => $this->engine->resume($executionId, $handler) : fn () => $this->engine->start($executionId, $handler);
+        $run = $message->isResume()
+            ? fn () => $this->engine->resume($executionId, $handler, $workflowType)
+            : fn () => $this->engine->start($executionId, $handler, $workflowType);
 
         try {
             $result = $run();

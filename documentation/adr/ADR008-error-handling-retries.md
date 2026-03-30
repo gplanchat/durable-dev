@@ -58,7 +58,7 @@ These **must not** be retried: another attempt would fail the same way. For dete
 Retries
 ---
 
-- **Configuration**: `max_retries` at worker level (`ActivityWorkerCommand`, `ExecutionRuntime`)
+- **Configuration**: `max_retries` at worker level (`ActivityMessageProcessor` / `ActivityRunHandler`, `ExecutionRuntime`)
 - **Behavior**: if `message->attempt() <= maxRetries`, the message is re-enqueued with `withAttempt(attempt + 1)`
 - **Exhaustion**: `ActivityFailureEventFactory::fromActivityThrowable()` produces `ActivityFailed` or `ActivityCatastrophicFailure`
 

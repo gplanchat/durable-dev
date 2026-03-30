@@ -249,12 +249,6 @@
       <code><![CDATA[public function warmUp(string $cacheDir, ?string $buildDir = null): array]]></code>
     </MissingOverrideAttribute>
   </file>
-  <file src="src/DurableBundle/Command/ActivityWorkerCommand.php">
-    <MissingOverrideAttribute>
-      <code><![CDATA[protected function configure(): void]]></code>
-      <code><![CDATA[protected function execute(InputInterface $input, OutputInterface $output): int]]></code>
-    </MissingOverrideAttribute>
-  </file>
   <file src="src/DurableBundle/DependencyInjection/Compiler/ActivityHandlerPass.php">
     <MissingOverrideAttribute>
       <code><![CDATA[public function process(ContainerBuilder $container): void]]></code>

@@ -9,6 +9,7 @@ framework:
 
         routing:
             Gplanchat\Durable\Transport\WorkflowRunMessage: durable_workflows
+            Gplanchat\Durable\Transport\ActivityMessage: durable_activities
             Gplanchat\Durable\Transport\FireWorkflowTimersMessage: sync
             Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage: sync
             Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage: sync

@@ -1,0 +1,119 @@
+{% extends '@WebProfiler/Profiler/layout.html.twig' %}
+
+{% block toolbar %}
+    {% set icon %}
+        {{ include('@WebProfiler/Icon/dot.svg') }}
+    {% endset %}
+
+    {% set text %}
+        <div class="sf-toolbar-info-piece">
+            <b>Workflows (runs)</b>
+            <span>{{ collector.workflowCount }}</span>
+        </div>
+        <div class="sf-toolbar-info-piece">
+            <b>Activités (exécutions)</b>
+            <span>{{ collector.activityCount }}</span>
+        </div>
+    {% endset %}
+
+    {{ include('@WebProfiler/Profiler/toolbar_item.html.twig', { link: 'durable', status: collector.workflowCount or collector.activityCount ? 'normal' : 'gray', icon: icon }) }}
+{% endblock %}
+
+{% block menu %}
+    <span class="label">
+        <span class="icon">{{ include('@WebProfiler/Icon/dot.svg') }}</span>
+        <strong>Durable</strong>
+    </span>
+    <span class="count">
+        <span>{{ collector.workflowCount }}</span> / <span>{{ collector.activityCount }}</span>
+    </span>
+{% endblock %}
+
+{% block panel %}
+    <h2>Durable — workflows & activités</h2>
+
+    <p>
+        Chronologie des <strong>démarrages / reprises</strong> de workflow et des <strong>tentatives d’exécution d’activités</strong>
+        observées pendant cette requête (même processus PHP).
+    </p>
+    <p class="help">
+        En mode <strong>distribué</strong>, les activités peuvent s’exécuter dans un autre worker : ouvrez le token profiler correspondant au traitement Messenger pour la suite de la trace.
+    </p>
+
+    {% for executionId, entries in collector.executions %}
+        <h3>Exécution <code>{{ executionId }}</code></h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Type</th>
+                    <th>Détail</th>
+                    <th>Durée</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in entries %}
+                    <tr>
+                        <td>{{ e.seq }}</td>
+                        <td>
+                            {% if e.kind == 'workflow' %}
+                                Workflow {% if e.isResume %}<em>reprise</em>{% else %}<em>démarrage</em>{% endif %}
+                            {% else %}
+                                Activité
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if e.kind == 'workflow' %}
+                                {{ e.workflowType }}
+                            {% else %}
+                                <strong>{{ e.activityName }}</strong>
+                                <span class="text-muted">({{ e.activityId }})</span>
+                                {% if not e.success %}
+                                    <br><span class="status-error">{{ e.errorClass|default('') }}</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if e.kind == 'activity' %}
+                                {{ (e.durationSeconds * 1000)|number_format(2) }} ms
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="help">Aucun événement Durable sur cette requête.</p>
+    {% endfor %}
+
+    {% if collector.timeline|length > 0 %}
+        <h3>Ordre global (tous executionId)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>executionId</th>
+                    <th>Événement</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in collector.timeline %}
+                    <tr>
+                        <td>{{ e.seq }}</td>
+                        <td><code>{{ e.executionId|default('') }}</code></td>
+                        <td>
+                            {% if e.kind == 'workflow' %}
+                                workflow {{ e.workflowType }} {% if e.isResume %}(reprise){% else %}(démarrage){% endif %}
+                            {% else %}
+                                {{ e.activityName }} — {{ (e.durationSeconds * 1000)|number_format(2) }} ms
+                                {% if not e.success %} ({{ e.errorClass }}){% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+{% endblock %}
