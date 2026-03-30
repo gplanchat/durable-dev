@@ -164,11 +164,6 @@
       <code><![CDATA[public function onParentClosed(string $parentExecutionId, ParentClosureReason $reason): void]]></code>
     </MissingOverrideAttribute>
   </file>
-  <file src="src/Durable/Port/LocalWorkflowBackend.php">
-    <MissingOverrideAttribute>
-      <code><![CDATA[public function start(string $executionId, callable $handler): mixed]]></code>
-    </MissingOverrideAttribute>
-  </file>
   <file src="src/Durable/Port/NullWorkflowResumeDispatcher.php">
     <MissingOverrideAttribute>
       <code><![CDATA[public function dispatchNewWorkflowRun(string $executionId, string $workflowType, array $payload): void]]></code>
