@@ -40,31 +40,11 @@ use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 
-final class DurableExtension extends Extension implements PrependExtensionInterface
+final class DurableExtension extends Extension
 {
-    public function prepend(ContainerBuilder $container): void
-    {
-        if (!class_exists(\Twig\Environment::class)) {
-            return;
-        }
-
-        $viewsPath = \dirname(__DIR__).'/Resources/views';
-        if (!is_dir($viewsPath)) {
-            return;
-        }
-
-        // Namespace @DurableBundle/ explicite (évite l’erreur profiler si Twig n’a pas mappé le bundle seul).
-        $container->prependExtensionConfig('twig', [
-            'paths' => [
-                $viewsPath => 'DurableBundle',
-            ],
-        ]);
-    }
-
     /**
      * @param array<int, array<string, mixed>> $configs
      */
@@ -442,7 +422,7 @@ final class DurableExtension extends Extension implements PrependExtensionInterf
             ->setArguments([new Reference('durable.execution_trace')])
             ->setPublic(true)
             ->addTag('data_collector', [
-                'template' => '@DurableBundle/Collector/durable.html.twig',
+                'template' => '@Durable/Collector/durable.html.twig',
                 'id' => 'durable',
             ])
         ;
