@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- **Splitsh (push)** — **`actions/checkout`** injectait `GITHUB_TOKEN` pour tout `github.com`, ce qui masquait le **PAT** dans l’URL (`403` en **github-actions[bot]**). `bin/splitsh-publish.sh` retire **`http.https://github.com/.extraheader`** avant les `git push` lorsque **`SPLITSH_PUSH_TOKEN`** est défini en CI.
 - **Splitsh (CI)** — remplacement de `${{ runner.home }}` (contexte inexistant → `/.local/bin`, échec `mkdir`) par **`$HOME`** / **`~`** pour les chemins et le cache **actions/cache**.
 - **Splitsh (CI)** — compilation de **libgit2 v1.5.2** dans `$HOME` (git2go v34 incompatible avec `libgit2-dev` du runner) ; cache combiné `splitsh-lite` + `libgit2-install`, **`LD_LIBRARY_PATH`** pour l’exécution.
 
@@ -16,6 +17,7 @@
 - **ADR012** — `activityStub`, PSR-6 activity contract cache, Symfony **`ActivityContractCacheWarmer`**, and **`gplanchat/durable-phpstan`** (`ActivityStubMethodsClassReflectionExtension`).
 - **`Awaitable` @template `TValue`** — enables **`Awaitable<R>`** in PHPStan for stubbed activity calls.
 - **Bundle** — **`ActivityRunHandler`** (`ActivityMessageProcessor` via Messenger `from_transport`).
+- **Documentation Hugo** — site statique sous **`hugo-docs/`** (thème **hugo-book** en sous-module) et workflow **GitHub Pages** (`.github/workflows/hugo-pages.yml`).
 
 ### Changed (tooling)
 

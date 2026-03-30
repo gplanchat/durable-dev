@@ -38,7 +38,7 @@ Consistency and separation of concerns
 |---------------|----------------|------------|
 | `DurableBundle` | Bundle registration | OK |
 | `DependencyInjection/` | DI configuration, parameters | OK |
-| `Command/ActivityWorkerCommand` | Activity consumption | OK |
+| `Handler/ActivityRunHandler` | Activity consumption (Messenger `from_transport`) | OK |
 | `Handler/WorkflowRunHandler` | Workflow execution (Messenger) | OK |
 | `Messenger/MessengerWorkflowResumeDispatcher` | Workflow re-dispatch | OK |
 

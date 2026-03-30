@@ -1,0 +1,85 @@
+// Accueil : bandeau d’introduction (page d’accueil uniquement)
+body.book-kind-home .doc-hero {
+  --doc-hero-bg: linear-gradient(135deg, #0c1222 0%, #1a365d 48%, #0f172a 100%);
+  --doc-hero-accent: #7dd3fc;
+  background: var(--doc-hero-bg);
+  color: #e2e8f0;
+  padding: 2rem 1.75rem;
+  border-radius: 14px;
+  margin: 0 0 2rem;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(125, 211, 252, 0.12);
+}
+
+body.book-kind-home .doc-hero__eyebrow {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin: 0 0 0.5rem;
+}
+
+body.book-kind-home .doc-hero__title {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  line-height: 1.15;
+  margin: 0 0 0.75rem;
+  color: #f8fafc;
+}
+
+body.book-kind-home .doc-hero__lead {
+  font-size: 1.05rem;
+  line-height: 1.55;
+  margin: 0 0 1rem;
+  color: #cbd5e1;
+  max-width: 42rem;
+}
+
+body.book-kind-home .doc-hero__welcome {
+  margin: 0;
+  font-size: 0.98rem;
+  color: #e2e8f0;
+}
+
+body.book-kind-home .doc-hero a {
+  color: var(--doc-hero-accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+body.book-kind-home .doc-hero a:hover {
+  color: #bae6fd;
+}
+
+// Boutons sous le bandeau
+body.book-kind-home .markdown .book-btn {
+  margin: 0 0.75rem 1.75rem 0;
+  display: inline-block;
+}
+
+// Tableau d’accueil : un peu d’air
+body.book-kind-home .markdown table {
+  font-size: 0.95rem;
+}
+
+// Logo barre latérale / en-tête
+.book-brand img {
+  max-height: 2rem;
+  width: auto;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+
+// Cartes (intro docs, etc.) : relief léger
+.markdown .book-columns .book-card,
+.markdown > .book-card {
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+}
+
+.markdown .book-columns .book-card .markdown-inner h3 {
+  margin-top: 0;
+}

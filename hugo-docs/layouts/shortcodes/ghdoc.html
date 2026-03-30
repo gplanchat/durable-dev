@@ -1,0 +1,8 @@
+{{- $path := .Get 0 -}}
+{{- $text := .Get 1 | default "" -}}
+{{- $base := site.Params.githubBlobBase | default "https://github.com/gplanchat/durable-dev/blob/main/documentation/" -}}
+{{- $url := printf "%s%s" $base $path -}}
+{{- if not $text -}}
+  {{- $text = path.Base $path | strings.TrimSuffix ".md" -}}
+{{- end -}}
+<a href="{{ $url | safeURL }}" rel="noopener noreferrer">{{ $text }}</a>

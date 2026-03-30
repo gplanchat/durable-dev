@@ -1,0 +1,27 @@
+# Site de documentation — déploiement GitHub Pages (dépôt : gplanchat/durable-dev)
+# URL publique : https://gplanchat.github.io/durable-dev/
+baseURL = 'https://gplanchat.github.io/durable-dev/'
+defaultContentLanguage = 'fr'
+languageCode = 'fr-fr'
+title = 'Durable'
+theme = 'hugo-book'
+
+[params]
+  BookSection = 'docs'
+  BookRepo = 'https://github.com/gplanchat/durable-dev'
+  BookEditPath = 'edit/main/hugo-docs'
+  BookSearch = true
+  BookToC = true
+  BookLogo = 'logo.svg'
+  BookFavicon = 'favicon.svg'
+  # Liens vers les Markdown sources du dépôt (documentation/…)
+  githubBlobBase = 'https://github.com/gplanchat/durable-dev/blob/main/documentation/'
+  githubTreeBase = 'https://github.com/gplanchat/durable-dev/tree/main/documentation'
+
+[markup]
+  [markup.goldmark.renderer]
+    unsafe = true
+
+[markup.tableOfContents]
+  startLevel = 2
+  endLevel = 4

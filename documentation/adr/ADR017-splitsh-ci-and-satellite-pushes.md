@@ -25,6 +25,7 @@ The monorepo publishes several **read-only mirrors** (Packagist, downstream clon
 
 - **Security**: The PAT must not be logged; the script uses HTTPS URLs with `x-access-token` and must never `echo` the token. Repository **Settings → Secrets** only.
 - **`GITHUB_TOKEN`** is insufficient: it only applies to the **current** repository, not to `gplanchat/durable` and siblings. A dedicated PAT (or six deploy keys) is required for cross-repo pushes.
+- **`actions/checkout`** sets `http.https://github.com/.extraheader` to send `GITHUB_TOKEN` to **all** `github.com` requests; that header overrides the PAT embedded in the push URL and Git authenticates as **github-actions[bot]** → 403 on satellite repos. `bin/splitsh-publish.sh` runs `git config --local --unset-all http.https://github.com/.extraheader` when `SPLITSH_PUSH_TOKEN` is set in CI before pushing.
 - **History rewrites** on satellites (force push) are operational risk; keep `SPLITSH_PUSH_FORCE` off unless you intend to repair split history.
 
 ## References

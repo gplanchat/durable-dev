@@ -48,7 +48,7 @@ Functional specifications
 
 ### Symfony bundle
 
-- **`DurableBundle`**: engine, runtime, **`WorkflowRegistry`** + **`WorkflowDefinitionLoader`** (`durable.workflow` tag), activity contract resolution, parent/child coordinator, Messenger handlers (signals, updates, timers, **`WorkflowRunHandler`**), **`ChildWorkflowParentLinkStoreInterface`**, **`WorkflowQueryRunner`**, **`durable:activity:consume`** command
+- **`DurableBundle`**: engine, runtime, **`WorkflowRegistry`** + **`WorkflowDefinitionLoader`** (`durable.workflow` tag), activity contract resolution, parent/child coordinator, Messenger handlers (signals, updates, timers, **`WorkflowRunHandler`**, **`ActivityRunHandler`** when distributed + Messenger activity transport), **`ChildWorkflowParentLinkStoreInterface`**, **`WorkflowQueryRunner`**
 - Key parameters: `distributed`, `event_store`, `workflow_metadata`, `activity_transport`, `max_activity_retries`, **`child_workflow.async_messenger`**, **`child_workflow.parent_link_store`** (`type`: `in_memory` | `dbal`, `table_name`)
 - Resume: **`MessengerWorkflowResumeDispatcher`** + **`DispatchAfterCurrentBusStamp`**
 

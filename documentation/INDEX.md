@@ -2,6 +2,14 @@
 
 Symfony component and bundle for durable execution (workflows and activities).
 
+## Site de documentation (Hugo)
+
+Une version **navigable** (guides pratiques, section *Architecture* avec liens vers les ADR / WA / OST / PRD sur GitHub, page *Contribuer*) est publiée sur **GitHub Pages** :
+
+**[https://gplanchat.github.io/durable-dev/](https://gplanchat.github.io/durable-dev/)**
+
+Les sources du site vivent dans le dépôt sous [`hugo-docs/`](../hugo-docs/). Les fichiers listés ci-dessous restent la référence Markdown dans ce dossier `documentation/`.
+
 ---
 
 ## ADR — Architecture Decision Records
