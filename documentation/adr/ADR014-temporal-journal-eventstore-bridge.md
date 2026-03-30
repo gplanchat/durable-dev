@@ -18,18 +18,28 @@ Décision
    - **Worker** : rejeu de l’historique pour reconstruire le journal à partir des signaux `durableAppend` ; réponses aux queries dans `RespondWorkflowTaskCompletedRequest::query_results`.
    - **Encodage** : payloads `json/plain` (voir `JsonPlainPayload`).
 
-2. **Identifiant de workflow journal** : `durable-journal-{executionId}` avec sanitization des caractères (voir `TemporalJournalSettings::journalWorkflowId`).
+2. **Identifiant de workflow journal** : `durable-journal-{executionId}` avec sanitization des caractères (voir `TemporalConnection::journalWorkflowId`).
 
 3. **Hébergement du poll (spike plan)** :
-   - **Symfony Messenger** : transport **receive-only** `temporal-journal://HOST:PORT?namespace=…&task_queue=…` ; chaque `get()` exécute un long poll puis complète la tâche workflow (pas de message applicatif sérialisé).
+   - **Symfony Messenger** : DSN unique **`temporal://HOST:PORT?namespace=…&task_queue=…`** (ou `journal_task_queue=…`) ; transport **receive-only** lorsque l’accès est **journal** (pas de `inner` / `purpose=application`). Chaque `get()` exécute un long poll puis complète la tâche workflow (pas de message applicatif sérialisé). Les schémas **`temporal-journal://`** / **`temporal-application://`** sont **obsolètes** et normalisés en **`temporal://`**.
    - **FrankenPHP / process long** : commande `durable:temporal:journal-worker:run --dsn=…` ; boucle illimitée ou `--max-ticks=N` pour tests.
 
 4. **Dépendances** : `grpc/grpc`, `google/protobuf`, `google/common-protos`, `roadrunner-php/roadrunner-api-dto` — **pas** de `temporal/sdk`.
 
-5. **Phase 2 (hors périmètre immédiat)** — documenté ici pour clore les todos plan :
-   - **Worker d’activités** gRPC pour remplacer `ActivityMessage` / Messenger : non implémenté ; v1 hybride = **Messenger** pour `WorkflowRunMessage` et `ActivityMessage` ([ADR009](ADR009-distributed-workflow-dispatch.md)).
-   - **`WorkflowResumeDispatcher` Temporal** : non implémenté ; v1 = `MessengerWorkflowResumeDispatcher`.
-   - **Refactor `ActivityTransportInterface`** (producteur / consommateur) : reporté tant que les activités restent sur Messenger.
+5. **Files applicatives Durable via Temporal (Messenger)** — complément au journal :
+   - **`TemporalTransportFactory`** + **`TemporalApplicationTransport`** : même DSN **`temporal://…`** ; l’accès **applicatif** est choisi via **`inner=`** (query ou `options.inner`) ou **`options.purpose=application`**. Enveloppe un transport Symfony Messenger réel (ex. `inner=in-memory://`, `inner=redis://…`). Les DTOs applicatifs (`WorkflowRunMessage`, `ActivityMessage`, signaux, updates, timers) restent les mêmes ; les **`MessageHandler`** bundle ne sont pas dupliqués.
+   - **Évolution** : substituer la délégation vers `inner` par envoi / poll gRPC Temporal tout en conservant l’API **`TransportInterface`** et **`messenger:consume`**.
+   - **Une connexion, deux usages** : la **connexion** Temporal est **atomique** (`TemporalConnection` / `temporal://`) ; le **choix** journal vs applicatif est un **mode d’accès** (fabrique Messenger + `purpose` / présence de `inner`), pas deux backends produit — voir l’invariant ci-dessous.
+
+**Invariant déploiement Temporal**
+
+- Il **n’existe pas** de cas d’usage cible où le **journal** (`EventStore`) et les **files applicatives** reposeraient sur des **transports / infrastructures distincts** (ex. journal Temporal + files Redis).
+- Si Temporal est adopté pour Durable, on assume **un même** déploiement Temporal (cluster, namespace, politique opérationnelle) pour **à la fois** la persistance du journal **et** le chemin des messages applicatifs une fois le bridge gRPC complet ; pas de scénario supporté « moitié Temporal, moitié Messenger classique » côté prod pour ces deux axes.
+- Tant que l’accès **applicatif** délègue à **`inner=`**, la transition reste **techniquement** hybride ; l’objectif de conception reste la **convergence** vers Temporal pour les deux, sans maintenir deux stratégies d’infra en parallèle.
+
+6. **Encore hors périmètre (cible)** :
+   - **`WorkflowResumeDispatcher`** entièrement backed Temporal sans Messenger : non implémenté ; v1 = `MessengerWorkflowResumeDispatcher` + transports ci-dessus.
+   - **Refactor `ActivityTransportInterface`** (producteur / consommateur découplés) : reporté si besoin après stabilisation des transports.
 
 Conséquences
 ---

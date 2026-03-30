@@ -16,7 +16,7 @@ final class WorkflowServiceClientFactory
         }
     }
 
-    public static function create(TemporalJournalSettings $settings): WorkflowServiceClient
+    public static function create(TemporalConnection $settings): WorkflowServiceClient
     {
         self::assertGrpcExtension();
 

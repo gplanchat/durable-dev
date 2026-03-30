@@ -6,7 +6,7 @@ namespace Gplanchat\Bridge\Temporal\Journal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
-use Gplanchat\Bridge\Temporal\TemporalJournalSettings;
+use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Temporal\Api\Enums\V1\QueryResultType;
 use Temporal\Api\Query\V1\WorkflowQueryResult;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
@@ -21,7 +21,7 @@ final class JournalWorkflowTaskProcessor
 {
     public function __construct(
         private readonly WorkflowServiceClient $client,
-        private readonly TemporalJournalSettings $settings,
+        private readonly TemporalConnection $settings,
         private readonly HistoryPageMerger $historyMerger,
     ) {
     }
