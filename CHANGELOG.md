@@ -9,6 +9,8 @@
 
 ### Added
 
+- **Event store** — `EventStoreInterface::countEventsInStream()` ; implémentations **DBAL** (`COUNT(*)`) et **in-memory** ; **TemporalJournalEventStore** (itération du flux).
+- **Bundle (profiler)** — trace des dispatches **`WorkflowRunMessage`** (`WorkflowRunDispatchProfilerMiddleware` + **RegisterWorkflowDispatchProfilerMiddlewarePass**), snapshots métadonnées / nombre d’événements dans le collecteur, template Twig avec branches explicites par `kind`.
 - **GitHub Actions — Splitsh** — workflow `.github/workflows/splitsh.yml` : **restore/save** cache du binaire **splitsh/lite** v2.0.0 (Go + libgit2), exécute `bin/splitsh-publish.sh` ; push HTTPS optionnel via secret **`SPLITSH_PUSH_TOKEN`** ; **[ADR017](documentation/adr/ADR017-splitsh-ci-and-satellite-pushes.md)**.
 - **ADR016** — [Dedicated DBAL connection and unbuffered reads](documentation/adr/ADR016-dedicated-dbal-connection-and-unbuffered-reads.md): `durable.dbal_connection`, alias `durable.dbal.connection`, options PDO MySQL pour flux non bufferisés.
 - **Docker** — `compose.yaml` (Temporal `auto-setup`, UI, PostgreSQL) ; image **`docker/php/Dockerfile`** (PHP 8.2, grpc 1.57, pcov) avec profil Compose **`php`** ; `.dockerignore` ; **`compose.override.example.yaml`** ; job CI **`docker-compose-stack`** (démarrage + attente 7233 / UI 8088).
