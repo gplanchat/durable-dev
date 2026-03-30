@@ -25,6 +25,7 @@ Symfony component and bundle for durable execution (workflows and activities).
 | [ADR015](adr/ADR015-magento-durable-module.md) | Module Magento Durable | `src/DurableModule/`, backends DBAL / Temporal, sans Messenger ni RoadRunner |
 | [ADR016](adr/ADR016-dedicated-dbal-connection-and-unbuffered-reads.md) | Connexion DBAL dédiée et lectures unbuffered | `durable.dbal_connection`, alias `durable.dbal.connection`, options PDO MySQL |
 | [ADR017](adr/ADR017-splitsh-ci-and-satellite-pushes.md) | Splitsh CI et push vers dépôts satellites | Vérif vs push PAT, cache binaire, `SPLITSH_PUSH_TOKEN` |
+| [ADR018](adr/ADR018-no-silent-catch-blocks.md) | Pas de `catch` muets | Interdiction explicite, journalisation / rethrow / contrat métier, revue |
 
 ---
 
