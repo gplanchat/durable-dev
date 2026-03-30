@@ -50,6 +50,8 @@ final class DbalEventStoreTest extends TestCase
         self::assertInstanceOf(ActivityScheduled::class, $events[1]);
         self::assertInstanceOf(ActivityCompleted::class, $events[2]);
         self::assertSame('echoed', $events[2]->result());
+        self::assertSame(3, $this->store->countEventsInStream($executionId));
+        self::assertSame(0, $this->store->countEventsInStream('unknown-exec'));
     }
 
     #[Test]

@@ -101,4 +101,14 @@ final class TemporalJournalEventStore implements EventStoreInterface
             yield EventSerializer::deserialize($row);
         }
     }
+
+    public function countEventsInStream(string $executionId): int
+    {
+        $n = 0;
+        foreach ($this->readStream($executionId) as $_) {
+            ++$n;
+        }
+
+        return $n;
+    }
 }

@@ -47,6 +47,18 @@ final class ActivityMessageProcessorTest extends TestCase
                     }
                 }
             }
+
+            public function countEventsInStream(string $executionId): int
+            {
+                $n = 0;
+                foreach ($this->events as $event) {
+                    if ($event->executionId() === $executionId) {
+                        ++$n;
+                    }
+                }
+
+                return $n;
+            }
         };
 
         $transport = new InMemoryActivityTransport();
