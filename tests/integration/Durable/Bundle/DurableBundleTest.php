@@ -47,6 +47,9 @@ final class DurableBundleTest extends KernelTestCase
         self::assertTrue($container->has(\Gplanchat\Durable\Port\WorkflowBackendInterface::class), 'WorkflowBackendInterface');
         self::assertTrue($container->has(\Gplanchat\Durable\Port\ParentChildWorkflowCoordinatorInterface::class), 'ParentChildWorkflowCoordinatorInterface');
         self::assertTrue($container->has(\Gplanchat\Durable\Query\WorkflowQueryRunner::class), 'WorkflowQueryRunner');
+        self::assertTrue($container->has('durable.execution_trace'), 'durable.execution_trace');
+        self::assertTrue($container->has(\Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface::class), 'WorkflowExecutionObserverInterface');
+        self::assertTrue($container->has(\Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector::class), 'DurableDataCollector');
         self::assertTrue($container->has(\Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler::class), 'DeliverWorkflowSignalHandler');
         self::assertTrue($container->has(\Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler::class), 'DeliverWorkflowUpdateHandler');
         self::assertTrue($container->has(\Gplanchat\Durable\Bundle\Handler\FireWorkflowTimersHandler::class), 'FireWorkflowTimersHandler');

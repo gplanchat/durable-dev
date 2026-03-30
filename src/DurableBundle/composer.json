@@ -14,6 +14,9 @@
         "symfony/config": "^6.4 || ^7.4",
         "symfony/messenger": "^6.4 || ^7.4"
     },
+    "suggest": {
+        "symfony/web-profiler-bundle": "Web Debug Toolbar et profiler : panneau « Durable » (workflows / activités)"
+    },
     "autoload": {
         "psr-4": {
             "Gplanchat\\Durable\\Bundle\\": "./"

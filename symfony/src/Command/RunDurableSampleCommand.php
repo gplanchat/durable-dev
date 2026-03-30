@@ -124,7 +124,7 @@ HELP
 
             if ($input->getOption('no-drain')) {
                 $io->note('Message WorkflowRunMessage dispatché. Lancez par exemple :');
-                $io->text('  php bin/console messenger:consume durable_workflows durable_activities sync -vv');
+                $io->text('  php bin/console messenger:consume durable_workflows durable_activities -vv');
 
                 return Command::SUCCESS;
             }
@@ -138,7 +138,7 @@ HELP
             }
         } else {
             $handler = $this->workflowRegistry->getHandler($workflowType, $payload);
-            $result = $this->workflowBackend->start($executionId, $handler);
+            $result = $this->workflowBackend->start($executionId, $handler, $workflowType);
         }
 
         $io->success(\sprintf('Exécution %s terminée.', $executionId));
@@ -216,13 +216,13 @@ HELP
     private function formatResult(mixed $result): string
     {
         if (\is_array($result)) {
-            return json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            return json_encode($result, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE);
         }
 
         if (\is_string($result) || is_numeric($result)) {
             return (string) $result;
         }
 
-        return json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        return json_encode($result, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE);
     }
 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Durable\Workflow;
 
-use App\Durable\Workflow\EchoChildWorkflow;
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;

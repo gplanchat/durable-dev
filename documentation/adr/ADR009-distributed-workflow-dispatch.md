@@ -13,7 +13,7 @@ Context
 
 In **inline** mode, workflows and activities run in the same process via **`drainActivityQueueOnce`**. For horizontal scalability, **distributed** mode (`durable.distributed: true`) allows:
 
-- Activities to run on dedicated workers (`durable:activity:consume`)
+- Activities to run on dedicated workers (`messenger:consume` on the activity transport, handled by **`ActivityRunHandler`**)
 - The workflow to “exit” after scheduling an activity or timer (suspension)
 - The workflow to be **re-dispatched** when an activity completes, a timer fires, or a signal/update is delivered
 
@@ -24,7 +24,7 @@ Re-dispatch principle
 
 1. **Start**: A **`WorkflowRunMessage`** is dispatched with `executionId`, `workflowType`, `payload`
 2. **Run**: **`WorkflowRunHandler`** loads metadata, gets the handler from the registry, calls **`ExecutionEngine::start`** or **`resume`**. On the first **`await`** for an activity or timer not yet resolved in distributed mode, the runtime throws **`WorkflowSuspendedException`** and the handler **returns** after requesting resume (depending on wait type).
-3. **Activity**: A worker consumes the activity message, runs it, appends **`ActivityCompleted`** to the EventStore, then **`dispatchResume($executionId)`**
+3. **Activity**: **`messenger:consume`** on the activity transport processes **`ActivityMessage`** via **`ActivityRunHandler`** → **`ActivityMessageProcessor`**, appends **`ActivityCompleted`** to the EventStore, then **`dispatchResume($executionId)`**
 4. **Timers**: a process (cron, sync handler, etc.) dispatches **`FireWorkflowTimersMessage`**; the handler calls **`checkTimers`** and **`dispatchResume`** if timers have become due
 5. **Resume**: A new **`WorkflowRunMessage`** (resume) is processed; the engine **replays** from the EventStore via **`ExecutionContext`** slots exposed to **`WorkflowEnvironment`**
 
@@ -37,7 +37,7 @@ Prerequisites
 
 - **`WorkflowRegistry`**: registration by **`#[Workflow]`** class (`registerClass`) or Symfony compilation
 - **`WorkflowMetadataStore`**: persists `(executionId, workflowType, payload)` at start for resume across messages
-- **`WorkflowResumeDispatcher`**: injected into the activity worker and control handlers (timers, signals, updates)
+- **`WorkflowResumeDispatcher`**: injected into **`ActivityMessageProcessor`** and control handlers (timers, signals, updates)
 
 Transports
 ---
@@ -71,7 +71,7 @@ When a race of activities ends (first **`Awaitable`** resolved or rejected), act
 Signal / update suspension vs activity / timer
 ---
 
-**`WorkflowSuspendedException`** carries **`shouldDispatchResume()`**: in distributed mode, an **activity** or **timer** wait (`ActivityAwaitable`, `TimerAwaitable`, including inside `any()` / `CancellingAnyAwaitable`) triggers **`dispatchResume`** from **`WorkflowRunHandler`** (activity worker or timer wake can progress the run). A **signal** or **update** wait does **not** trigger that automatic re-dispatch: otherwise, with a **sync** Messenger transport, recursive resume would loop forever. Resume is then handled by **`DeliverWorkflowSignalMessage`** / **`DeliverWorkflowUpdateMessage`** (append log + **`dispatchResume`**).
+**`WorkflowSuspendedException`** carries **`shouldDispatchResume()`**: in distributed mode, an **activity** or **timer** wait (`ActivityAwaitable`, `TimerAwaitable`, including inside `any()` / `CancellingAnyAwaitable`) triggers **`dispatchResume`** from **`WorkflowRunHandler`** (activity **`messenger:consume`** worker or timer wake can progress the run). A **signal** or **update** wait does **not** trigger that automatic re-dispatch: otherwise, with a **sync** Messenger transport, recursive resume would loop forever. Resume is then handled by **`DeliverWorkflowSignalMessage`** / **`DeliverWorkflowUpdateMessage`** (append log + **`dispatchResume`**).
 
 Known limitations
 ---
