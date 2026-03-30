@@ -16,6 +16,7 @@
 - **ADR012** — `activityStub`, PSR-6 activity contract cache, Symfony **`ActivityContractCacheWarmer`**, and **`gplanchat/durable-phpstan`** (`ActivityStubMethodsClassReflectionExtension`).
 - **`Awaitable` @template `TValue`** — enables **`Awaitable<R>`** in PHPStan for stubbed activity calls.
 - **Bridge Temporal** — DSN unique **`temporal://`** via **`TemporalTransportFactory`** ; journal (`TemporalJournalTransport`) vs applicatif (`TemporalApplicationTransport` + **`inner`**) selon `purpose` / `inner` (schémas `temporal-journal://` / `temporal-application://` encore acceptés, normalisés).
+- **Bundle** — **`ActivityRunHandler`** (`ActivityMessageProcessor` via Messenger `from_transport`).
 
 ### Changed (tooling)
 
@@ -39,6 +40,7 @@
 - **Workflow handler signature** — Callables no longer receive `(ExecutionContext $ctx, ExecutionRuntime $rt)` but **`(WorkflowEnvironment $env)`**.
 - **Workflow registration** — `WorkflowRegistry::register(string, callable)` removed. Use `WorkflowRegistry::registerClass(WorkflowClass::class)` or the Symfony `durable.workflow` tag.
 - **Bridge Temporal** — `TemporalJournalSettings`, `TemporalApplicationSettings`, `TemporalJournalTransportFactory`, `TemporalApplicationTransportFactory` removed; use **`TemporalConnection`** + **`TemporalTransportFactory`** (single **`temporal://`** DSN, `purpose` / `inner` for journal vs application).
+- **Bundle** — Console command **`durable:activity:consume`** removed; distributed mode with **`activity_transport.type: messenger`** uses **`ActivityRunHandler`** and **`messenger:consume`** on the activity transport only (breaking change, no deprecation period).
 
 ### Changed
 
