@@ -691,6 +691,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  * }
  * @psalm-type DurableConfig = array{
+ *     dbal_connection?: scalar|Param|null, // Nom de la connexion Doctrine DBAL à utiliser pour les stores Durable en mode dbal (event_store, workflow_metadata, activity_transport dbal, parent_link_store). Connexion distincte de celle du reste de l’app si vous déclarez p.ex. une connexion `durable` dans doctrine.dbal.connections. // Default: "default"
  *     event_store?: array{
  *         type?: "in_memory"|"dbal"|Param, // Default: "in_memory"
  *         table_name?: scalar|Param|null, // Default: "durable_events"
