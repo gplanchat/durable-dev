@@ -6,6 +6,7 @@ namespace Gplanchat\Durable\Bundle;
 
 use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\ActivityHandlerPass;
+use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterWorkflowDispatchProfilerMiddlewarePass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\WorkflowPass;
 use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
@@ -22,6 +23,9 @@ final class DurableBundle extends Bundle
                 $definition->addTag('durable.activity_handler', ['contract' => $attribute->contract]);
             }
         );
+
+        // Avant MessengerPass du FrameworkBundle : enrichit messenger.bus.*.middleware.
+        $container->addCompilerPass(new RegisterWorkflowDispatchProfilerMiddlewarePass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 10);
 
         $container->addCompilerPass(new WorkflowPass());
         // Priorité 50 : après AttributeAutoconfigurationPass (100), avant les passes à 0 (WorkflowPass, etc.).

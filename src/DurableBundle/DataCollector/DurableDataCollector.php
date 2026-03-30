@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Bundle\DataCollector;
 
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
+use Gplanchat\Durable\Store\EventStoreInterface;
+use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\DataCollector\DataCollector;
@@ -17,6 +19,8 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
 {
     public function __construct(
         private readonly DurableExecutionTrace $trace,
+        private readonly WorkflowMetadataStore $metadataStore,
+        private readonly EventStoreInterface $eventStore,
     ) {
     }
 
@@ -24,10 +28,27 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     public function collect(Request $request, Response $response, ?\Throwable $exception = null): void
     {
         $timeline = $this->trace->getTimeline();
+        $runSnapshots = [];
+        foreach ($timeline as $entry) {
+            if (($entry['kind'] ?? '') !== 'dispatch') {
+                continue;
+            }
+            $eid = (string) ($entry['executionId'] ?? '');
+            if ('' === $eid) {
+                continue;
+            }
+            $runSnapshots[$eid] = [
+                'metadata' => $this->metadataStore->get($eid),
+                'eventCount' => $this->eventStore->countEventsInStream($eid),
+            ];
+        }
+
         $this->data = [
             'timeline' => $timeline,
             'workflow_count' => $this->trace->countWorkflowEvents(),
             'activity_count' => $this->trace->countActivityEvents(),
+            'dispatch_count' => $this->trace->countDispatchEvents(),
+            'run_snapshots' => $runSnapshots,
             'executions' => $this->groupTimelineByExecution($timeline),
         ];
     }
@@ -67,6 +88,14 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         return $this->data['executions'] ?? [];
     }
 
+    /**
+     * @return array<string, array{metadata: array{workflowType: string, payload: array<string, mixed>}|null, eventCount: int}>
+     */
+    public function getRunSnapshots(): array
+    {
+        return $this->data['run_snapshots'] ?? [];
+    }
+
     public function getWorkflowCount(): int
     {
         return (int) ($this->data['workflow_count'] ?? 0);
@@ -75,6 +104,11 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     public function getActivityCount(): int
     {
         return (int) ($this->data['activity_count'] ?? 0);
+    }
+
+    public function getDispatchCount(): int
+    {
+        return (int) ($this->data['dispatch_count'] ?? 0);
     }
 
     #[\Override]

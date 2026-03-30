@@ -7,6 +7,10 @@
 
     {% set text %}
         <div class="sf-toolbar-info-piece">
+            <b>Dispatch Messenger</b>
+            <span>{{ collector.dispatchCount }}</span>
+        </div>
+        <div class="sf-toolbar-info-piece">
             <b>Workflows (runs)</b>
             <span>{{ collector.workflowCount }}</span>
         </div>
@@ -16,7 +20,7 @@
         </div>
     {% endset %}
 
-    {{ include('@WebProfiler/Profiler/toolbar_item.html.twig', { link: 'durable', status: collector.workflowCount or collector.activityCount ? 'normal' : 'gray', icon: icon }) }}
+    {{ include('@WebProfiler/Profiler/toolbar_item.html.twig', { link: 'durable', status: collector.dispatchCount or collector.workflowCount or collector.activityCount ? 'normal' : 'gray', icon: icon }) }}
 {% endblock %}
 
 {% block menu %}
@@ -25,20 +29,50 @@
         <strong>Durable</strong>
     </span>
     <span class="count">
-        <span>{{ collector.workflowCount }}</span> / <span>{{ collector.activityCount }}</span>
+        <span>{{ collector.dispatchCount }}</span> / <span>{{ collector.workflowCount }}</span> / <span>{{ collector.activityCount }}</span>
     </span>
 {% endblock %}
 
 {% block panel %}
-    <h2>Durable — workflows & activités</h2>
+    <h2>Durable — dispatch, workflows & activités</h2>
 
     <p>
-        Chronologie des <strong>démarrages / reprises</strong> de workflow et des <strong>tentatives d’exécution d’activités</strong>
-        observées pendant cette requête (même processus PHP).
+        Chronologie des <strong>envois Messenger</strong> de <code>WorkflowRunMessage</code>, des <strong>démarrages / reprises</strong> de workflow
+        et des <strong>tentatives d’exécution d’activités</strong> observées pendant cette requête (même processus PHP).
     </p>
     <p class="help">
-        En mode <strong>distribué</strong>, les activités peuvent s’exécuter dans un autre worker : ouvrez le token profiler correspondant au traitement Messenger pour la suite de la trace.
+        En mode <strong>distribué</strong>, les activités et le handler workflow peuvent s’exécuter dans un autre worker : ouvrez le token profiler correspondant au traitement Messenger pour la suite de la trace.
     </p>
+
+    {% if collector.runSnapshots|length > 0 %}
+        <h3>État au moment du dispatch (snapshots)</h3>
+        <p class="help">Métadonnées workflow et nombre d’événements dans le journal pour chaque <code>executionId</code> vu dans un dispatch.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>executionId</th>
+                    <th>Métadonnées</th>
+                    <th>Événements (journal)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for eid, snap in collector.runSnapshots %}
+                    <tr>
+                        <td><code>{{ eid }}</code></td>
+                        <td>
+                            {% if snap.metadata is not null %}
+                                <strong>{{ snap.metadata.workflowType }}</strong>
+                                <pre class="text-muted" style="max-height:120px;overflow:auto">{{ snap.metadata.payload|json_encode(128) }}</pre>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ snap.eventCount }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
 
     {% for executionId, entries in collector.executions %}
         <h3>Exécution <code>{{ executionId }}</code></h3>
@@ -56,21 +90,34 @@
                     <tr>
                         <td>{{ e.seq }}</td>
                         <td>
-                            {% if e.kind == 'workflow' %}
+                            {% if e.kind == 'dispatch' %}
+                                Dispatch Messenger
+                            {% elseif e.kind == 'workflow' %}
                                 Workflow {% if e.isResume %}<em>reprise</em>{% else %}<em>démarrage</em>{% endif %}
-                            {% else %}
+                            {% elseif e.kind == 'activity' %}
                                 Activité
+                            {% else %}
+                                {{ e.kind|default('?') }}
                             {% endif %}
                         </td>
                         <td>
-                            {% if e.kind == 'workflow' %}
+                            {% if e.kind == 'dispatch' %}
+                                <strong>{{ e.workflowType|default('') }}</strong>
+                                {% if e.isResume %}<span class="text-muted">(reprise)</span>{% endif %}
+                                {% if e.transportNames is defined and e.transportNames %}
+                                    <br><span class="text-muted">transports : {{ e.transportNames }}</span>
+                                {% endif %}
+                                <pre class="text-muted" style="max-height:100px;overflow:auto">{{ e.payload|default({})|json_encode(128) }}</pre>
+                            {% elseif e.kind == 'workflow' %}
                                 {{ e.workflowType }}
-                            {% else %}
+                            {% elseif e.kind == 'activity' %}
                                 <strong>{{ e.activityName }}</strong>
                                 <span class="text-muted">({{ e.activityId }})</span>
                                 {% if not e.success %}
                                     <br><span class="status-error">{{ e.errorClass|default('') }}</span>
                                 {% endif %}
+                            {% else %}
+                                —
                             {% endif %}
                         </td>
                         <td>
@@ -85,7 +132,9 @@
             </tbody>
         </table>
     {% else %}
-        <p class="help">Aucun événement Durable sur cette requête.</p>
+        {% if collector.timeline|length == 0 %}
+            <p class="help">Aucun événement Durable sur cette requête.</p>
+        {% endif %}
     {% endfor %}
 
     {% if collector.timeline|length > 0 %}
@@ -104,11 +153,16 @@
                         <td>{{ e.seq }}</td>
                         <td><code>{{ e.executionId|default('') }}</code></td>
                         <td>
-                            {% if e.kind == 'workflow' %}
+                            {% if e.kind == 'dispatch' %}
+                                dispatch {{ e.workflowType|default('') }}
+                                {% if e.transportNames %} [{{ e.transportNames }}]{% endif %}
+                            {% elseif e.kind == 'workflow' %}
                                 workflow {{ e.workflowType }} {% if e.isResume %}(reprise){% else %}(démarrage){% endif %}
-                            {% else %}
+                            {% elseif e.kind == 'activity' %}
                                 {{ e.activityName }} — {{ (e.durationSeconds * 1000)|number_format(2) }} ms
                                 {% if not e.success %} ({{ e.errorClass }}){% endif %}
+                            {% else %}
+                                {{ e.kind|default('') }}
                             {% endif %}
                         </td>
                     </tr>

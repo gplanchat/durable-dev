@@ -14,6 +14,7 @@ use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler;
 use Gplanchat\Durable\Bundle\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\Bundle\Handler\WorkflowRunHandler;
 use Gplanchat\Durable\Bundle\Messenger\MessengerWorkflowResumeDispatcher;
+use Gplanchat\Durable\Bundle\Messenger\WorkflowRunDispatchProfilerMiddleware;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
 use Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
@@ -418,8 +419,16 @@ final class DurableExtension extends Extension
             ->addTag('kernel.event_subscriber')
         ;
 
-        $container->register(DurableDataCollector::class)
+        $container->register('durable.messenger.middleware.workflow_run_dispatch_profiler', WorkflowRunDispatchProfilerMiddleware::class)
             ->setArguments([new Reference('durable.execution_trace')])
+        ;
+
+        $container->register(DurableDataCollector::class)
+            ->setArguments([
+                new Reference('durable.execution_trace'),
+                new Reference(WorkflowMetadataStore::class),
+                new Reference(EventStoreInterface::class),
+            ])
             ->setPublic(true)
             ->addTag('data_collector', [
                 'template' => '@Durable/Collector/durable.html.twig',
