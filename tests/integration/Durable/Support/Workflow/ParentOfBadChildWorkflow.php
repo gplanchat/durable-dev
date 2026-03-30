@@ -23,6 +23,7 @@ final class ParentOfBadChildWorkflow
         try {
             return $this->environment->executeChildWorkflow('BadChild', []);
         } catch (DurableChildWorkflowFailedException) {
+            // ADR018: erreur attendue du scénario — résultat métier explicite pour le test.
             return 'caught';
         }
     }

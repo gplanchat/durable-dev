@@ -175,7 +175,7 @@ final class DurableAsyncChildWorkflowBundleTest extends KernelTestCase
                 try {
                     $bus->dispatch($envelope->with(new ReceivedStamp('workflow_jobs')));
                 } catch (\Throwable) {
-                    // ex. DurableChildWorkflowFailedException à la reprise du parent
+                    // ADR018: harness async — certains dispatches lèvent (ex. reprise parent) ; on acquitte l’enveloppe et on itère ; échec = assertion finale.
                 }
                 $workflowTransport->ack($envelope);
             }

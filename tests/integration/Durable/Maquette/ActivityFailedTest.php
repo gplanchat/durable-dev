@@ -72,7 +72,8 @@ final class ActivityFailedTest extends DurableTestCase
             $engine->start($executionId, function (WorkflowEnvironment $env) {
                 return $env->await($env->activity('fail', []));
             });
-        } catch (\Throwable) {
+        } catch (DurableWorkflowAlgorithmFailureException) {
+            // ADR018: échec d’algorithme attendu — les assertions portent sur le journal ci-dessous.
         }
 
         $this->assertEventTypesOrder(
@@ -101,7 +102,8 @@ final class ActivityFailedTest extends DurableTestCase
             $engine->start($executionId, function (WorkflowEnvironment $env) {
                 return $env->await($env->activity('fail', []));
             });
-        } catch (\Throwable) {
+        } catch (DurableWorkflowAlgorithmFailureException) {
+            // ADR018: attendu avant replay — le journal contient ActivityFailed pour rejouer await().
         }
 
         $newContext = new ExecutionContext($executionId, $eventStore, $runtime->getActivityTransport(), null);

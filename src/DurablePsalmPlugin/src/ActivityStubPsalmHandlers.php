@@ -98,6 +98,7 @@ final class ActivityStubPsalmHandlers implements MethodReturnTypeProviderInterfa
         try {
             $rm = new \ReflectionMethod($contractClass, $methodLc);
         } catch (\ReflectionException) {
+            // ADR018: méthode absente ou inaccessible — sentinelle null (analyse statique), pas une erreur runtime à journaliser.
             return null;
         }
 
@@ -187,6 +188,7 @@ final class ActivityStubPsalmHandlers implements MethodReturnTypeProviderInterfa
         try {
             $rm = new \ReflectionMethod($contractClass, $methodNameLc);
         } catch (\ReflectionException) {
+            // ADR018: contrat ou méthode non reflétable — faux pour isValidActivityMethod.
             return false;
         }
 
@@ -206,6 +208,7 @@ final class ActivityStubPsalmHandlers implements MethodReturnTypeProviderInterfa
         try {
             $rm = new \ReflectionMethod($contractClass, $methodNameLc);
         } catch (\ReflectionException) {
+            // ADR018: pas de type de retour inférable — mixed pour l’analyse Psalm.
             return Type::getMixed();
         }
 

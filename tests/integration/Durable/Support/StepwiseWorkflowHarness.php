@@ -71,6 +71,7 @@ final class StepwiseWorkflowHarness
 
             return false;
         } catch (WorkflowSuspendedException) {
+            // ADR018: suspension = valeur de retour true (pas de log : contrat du harness).
             return true;
         }
     }
@@ -85,6 +86,7 @@ final class StepwiseWorkflowHarness
 
             return false;
         } catch (WorkflowSuspendedException) {
+            // ADR018: idem start().
             return true;
         }
     }
