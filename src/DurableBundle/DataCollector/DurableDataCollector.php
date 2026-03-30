@@ -85,7 +85,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
 
     public static function getTemplate(): string
     {
-        return '@DurableBundle/Collector/durable.html.twig';
+        return '@Durable/Collector/durable.html.twig';
     }
 
     #[\Override]

@@ -422,7 +422,7 @@ final class DurableExtension extends Extension
             ->setArguments([new Reference('durable.execution_trace')])
             ->setPublic(true)
             ->addTag('data_collector', [
-                'template' => '@DurableBundle/Collector/durable.html.twig',
+                'template' => '@Durable/Collector/durable.html.twig',
                 'id' => 'durable',
             ])
         ;
