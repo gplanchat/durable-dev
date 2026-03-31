@@ -6,9 +6,6 @@ parameters:
     level: 6
     ignoreErrors:
         -
-            identifier: while.alwaysTrue
-            path: src/Bridge/Temporal/Command/RunTemporalJournalWorkerCommand.php
-        -
             identifier: missingType.generics
             path: src/Bridge/Temporal/Grpc/GrpcUnary.php
     paths:
