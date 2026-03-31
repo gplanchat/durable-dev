@@ -59,7 +59,7 @@ Points of attention
 ---
 
 1. **Timers in distributed mode**: `delay()` with `distributed=true` raises `WorkflowSuspendedException` — wake mechanism (timer table, cron) was not yet implemented (OST001).
-2. **WorkflowRunHandler**: requires `messenger.default_bus` when `distributed=true` — the app must configure Messenger.
+2. **WorkflowRunHandler**: requires `messenger.default_bus` — the app must configure Messenger when using the bundle.
 3. **Interfaces**: `EventStoreInterface` and `ActivityTransportInterface` are the main service identifiers.
 
 Conclusion

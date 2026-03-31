@@ -52,9 +52,9 @@ When workflows and activities run in separate processes, resume relies on **re-d
 4. **Timers**: **`FireWorkflowTimersMessage`** + handler calling **`ExecutionRuntime::checkTimers`** and re-dispatching if needed.
 5. On **replay** for the same `executionId`, the log supplies already recorded results.
 
-### Inline mode (non-distributed Messenger)
+### Library / tests: same-process execution (not the bundle default)
 
-Workflow and activities in the same process (**`InMemoryWorkflowRunner`**, **`drainActivityQueueOnce`**). No re-dispatch; after a crash, restarting the run replays from the log.
+Workflow and activities in the same process (**`InMemoryWorkflowRunner`**, **`drainActivityQueueOnce`**, **`ExecutionRuntime`** with **`$distributed === false`** where tests need synchronous drain). No Messenger re-dispatch on suspension; after a crash, restarting the run replays from the log. The Symfony bundle does not expose a flag for this; it always wires Messenger workflow resume ([ADR005](ADR005-messenger-integration.md)).
 
 ### Possible extensions
 

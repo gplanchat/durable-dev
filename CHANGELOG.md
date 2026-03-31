@@ -20,6 +20,10 @@
 - **Bridge Temporal** — DSN unique **`temporal://`** via **`TemporalTransportFactory`** ; journal (`TemporalJournalTransport`) vs applicatif (`TemporalApplicationTransport` + **`inner`**) selon `purpose` / `inner` (schémas `temporal-journal://` / `temporal-application://` encore acceptés, normalisés).
 - **Bundle** — **`ActivityRunHandler`** (`ActivityMessageProcessor` via Messenger `from_transport`).
 
+### Changed (breaking)
+
+- **Bundle** — suppression du paramètre de configuration **`durable.distributed`** : le bundle suppose toujours des workflows / activités via Messenger (reprise, métadonnées DBAL selon `workflow_metadata`, etc.). Retirer la clé YAML et toute injection **`%durable.distributed%`**.
+
 ### Changed (tooling)
 
 - **README** — Quick start (~3 min), more approachable tone; activities with **`#[AsDurableActivity]`** (formerly `AsDurableActivityHandler`); install **`gplanchat/durable-bundle`**.

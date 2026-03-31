@@ -163,7 +163,6 @@ Configuration excerpt (full sample: **`symfony/config/packages/durable.yaml`** i
 ```yaml
 # config/packages/durable.yaml
 durable:
-    distributed: true
     dbal_connection: default  # or durable — see documentation/adr/ADR016-dedicated-dbal-connection-and-unbuffered-reads.md
     event_store:
         type: dbal              # or in_memory
@@ -175,7 +174,7 @@ durable:
         type: messenger         # or in_memory, dbal
         transport_name: durable_activities
     child_workflow:
-        async_messenger: true   # child = separate WorkflowRunMessage (with distributed)
+        async_messenger: true   # child = separate WorkflowRunMessage via Messenger
         parent_link_store:
             type: dbal           # or in_memory — persist parent↔child link for multi-worker
             table_name: durable_child_workflow_parent_link
@@ -221,6 +220,7 @@ The **`symfony/`** directory is the reference application (workflows, activities
 
 ```bash
 cd symfony && php bin/console durable:sample ParallelGreetingWorkflow --first=Ada --second=Grace
+cd symfony && php bin/console durable:sample ParallelChildEchoWorkflow --first=foo --second=bar
 ```
 
 PHPUnit for the sample app:

@@ -24,7 +24,7 @@ Functional specifications
 - **Timers**: `WorkflowEnvironment` / context — `delay()` / `timer()`; log `TimerScheduled` / `TimerCompleted`; in distributed mode, **`FireWorkflowTimersMessage`** + handler to advance timers and re-dispatch resume.
 - **Side effects**: result in `SideEffectRecorded`, not re-executed on replay ([ADR010](../adr/ADR010-temporal-parity-events-and-replay.md)).
 - **Child workflows**: `executeChildWorkflow` or **`childWorkflowStub()`**; `ChildWorkflowOptions` (`workflowId`, `parentClosePolicy`); parent log `ChildWorkflowScheduled` / `ChildWorkflowCompleted` / **`ChildWorkflowFailed`** (enriched fields: kind / class / child workflow failure context when projected from the child log); parent/child coordinator; `WorkflowCancellationRequested` on *request cancel* ([ADR010](../adr/ADR010-temporal-parity-events-and-replay.md), [ADR009](../adr/ADR009-distributed-workflow-dispatch.md)).
-- **Async child via Messenger**: with `distributed: true` and `child_workflow.async_messenger: true`, **`ChildWorkflowRunner`** dispatches a **`WorkflowRunMessage`**; **`WorkflowRunHandler`** finalizes the parent (`ChildWorkflowCompleted` / `ChildWorkflowFailed`) and uses **`ChildWorkflowParentLinkStoreInterface`** (**in_memory** or **DBAL** multi-instance).
+- **Async child via Messenger**: with `child_workflow.async_messenger: true`, **`ChildWorkflowRunner`** dispatches a **`WorkflowRunMessage`**; **`WorkflowRunHandler`** finalizes the parent (`ChildWorkflowCompleted` / `ChildWorkflowFailed`) and uses **`ChildWorkflowParentLinkStoreInterface`** (**in_memory** or **DBAL** multi-instance).
 - **Continue-as-new**: `WorkflowContinuedAsNew` + `ContinueAsNewRequested`; Messenger handler chains a new `executionId` ([ADR009](../adr/ADR009-distributed-workflow-dispatch.md)).
 - **Signals / updates**: `waitSignal` / `waitUpdate`; delivery via Messenger + handlers; `WorkflowSuspendedException::shouldDispatchResume()` handled to avoid sync loops; **queries**: `WorkflowQueryEvaluator` / `WorkflowQueryRunner`.
 - **Parallelism**: `parallel()`, `all()`, `any()`, `race()` (functions or equivalents via the environment).
@@ -49,7 +49,7 @@ Functional specifications
 ### Symfony bundle
 
 - **`DurableBundle`**: engine, runtime, **`WorkflowRegistry`** + **`WorkflowDefinitionLoader`** (`durable.workflow` tag), activity contract resolution, parent/child coordinator, Messenger handlers (signals, updates, timers, **`WorkflowRunHandler`**), **`ChildWorkflowParentLinkStoreInterface`**, **`WorkflowQueryRunner`**, **`durable:activity:consume`** command
-- Key parameters: `distributed`, `event_store`, `workflow_metadata`, `activity_transport`, `max_activity_retries`, **`child_workflow.async_messenger`**, **`child_workflow.parent_link_store`** (`type`: `in_memory` | `dbal`, `table_name`)
+- Key parameters: `event_store`, `workflow_metadata`, `activity_transport`, `max_activity_retries`, **`child_workflow.async_messenger`**, **`child_workflow.parent_link_store`** (`type`: `in_memory` | `dbal`, `table_name`)
 - Resume: **`MessengerWorkflowResumeDispatcher`** + **`DispatchAfterCurrentBusStamp`**
 
 ### Sample application `symfony/`

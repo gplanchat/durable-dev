@@ -17,7 +17,7 @@ Let an integrator start from a **standard Symfony project** (or nearly empty), a
 ## Target project prerequisites
 
 - PHP **8.2+**, Symfony **7.4+** (bundle).
-- Messenger transports configured if `activity_transport.type: messenger` and distributed mode.
+- Messenger transports configured if `activity_transport.type: messenger` (workflow + activity workers as in the sample `messenger.yaml`).
 
 ## Possible extensions
 
