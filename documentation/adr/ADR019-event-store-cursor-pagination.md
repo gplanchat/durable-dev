@@ -48,7 +48,7 @@ La fusion des pages en une structure `History` complète pour le rejeu peut **ac
 
 ## Consequences
 
-- Le code de `DbalEventStore` implémente la boucle keyset ; les tests d’intégration valident l’ordre et le comptage pour des flux multi-lignes.
+- Le code de `DbalEventStore` implémente la boucle keyset avec une taille de page par défaut (500) ; un **troisième argument constructeur** permet de baisser la taille en **tests d’intégration** pour forcer plusieurs pages SQL sans insérer des centaines d’événements. Les tests couvrent l’ordre, le comptage et l’absence de mélange entre `execution_id`.
 - Le code Temporal (`HistoryPageMerger` ou équivalent) suit `next_page_token` pour l’historique complet nécessaire au rejeu.
 - Les opérateurs peuvent **réduire** la dépendance aux réglages PDO unbuffered pour la seule lecture du journal.
 

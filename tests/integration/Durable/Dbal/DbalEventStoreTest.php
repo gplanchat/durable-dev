@@ -13,6 +13,7 @@ use Gplanchat\Durable\Event\WorkflowCancellationRequested;
 use Gplanchat\Durable\ParentClosePolicy;
 use Gplanchat\Durable\Store\DbalEventStore;
 use Gplanchat\Durable\Store\EventSerializer;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -167,5 +168,105 @@ final class DbalEventStoreTest extends TestCase
         $rows = iterator_to_array($store->readStreamWithRecordedAt($exec));
         self::assertCount(1, $rows);
         self::assertInstanceOf(\DateTimeImmutable::class, $rows[0]['recordedAt']);
+    }
+
+    #[Test]
+    public function readStreamSpansMultipleKeysetPagesWhenPageSizeIsSmallerThanRowCount(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        $store = new DbalEventStore($connection, 'durable_events', 2);
+        $store->createSchema();
+
+        $executionId = 'exec-keyset-multi';
+        $n = 5;
+        for ($i = 0; $i < $n; ++$i) {
+            $store->append(new ActivityCompleted($executionId, 'act-'.$i, 'result-'.$i));
+        }
+
+        $events = iterator_to_array($store->readStream($executionId));
+        self::assertCount($n, $events);
+        for ($i = 0; $i < $n; ++$i) {
+            self::assertInstanceOf(ActivityCompleted::class, $events[$i]);
+            self::assertSame('result-'.$i, $events[$i]->result());
+        }
+        self::assertSame($n, $store->countEventsInStream($executionId));
+    }
+
+    #[Test]
+    public function readStreamWithRecordedAtSpansMultipleKeysetPagesWhenPageSizeIsSmallerThanRowCount(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        $store = new DbalEventStore($connection, 'durable_events', 3);
+        $store->createSchema();
+
+        $executionId = 'exec-keyset-recorded-at';
+        for ($i = 0; $i < 7; ++$i) {
+            $store->append(new ActivityCompleted($executionId, 'a'.$i, 'v'.$i));
+        }
+
+        $rows = iterator_to_array($store->readStreamWithRecordedAt($executionId));
+        self::assertCount(7, $rows);
+        for ($i = 0; $i < 7; ++$i) {
+            $event = $rows[$i]['event'];
+            self::assertInstanceOf(ActivityCompleted::class, $event);
+            self::assertSame('v'.$i, $event->result());
+            self::assertInstanceOf(\DateTimeImmutable::class, $rows[$i]['recordedAt']);
+        }
+    }
+
+    #[Test]
+    public function readStreamKeysetDoesNotMixOtherExecutionsWhenPaging(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        $store = new DbalEventStore($connection, 'durable_events', 2);
+        $store->createSchema();
+
+        $store->append(new ExecutionStarted('exec-a'));
+        $store->append(new ActivityCompleted('exec-b', 'x', 'only-b'));
+        for ($i = 0; $i < 4; ++$i) {
+            $store->append(new ActivityCompleted('exec-a', 'a'.$i, 'ra'.$i));
+        }
+
+        $forA = iterator_to_array($store->readStream('exec-a'));
+        self::assertCount(5, $forA);
+        self::assertInstanceOf(ExecutionStarted::class, $forA[0]);
+        for ($i = 0; $i < 4; ++$i) {
+            $ev = $forA[$i + 1];
+            self::assertInstanceOf(ActivityCompleted::class, $ev);
+            self::assertSame('ra'.$i, $ev->result());
+        }
+    }
+
+    #[Test]
+    #[DataProvider('invalidReadStreamPageSizeProvider')]
+    public function constructorRejectsNonPositiveReadStreamPageSize(int $bad): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('readStreamPageSize');
+
+        new DbalEventStore($connection, 'durable_events', $bad);
+    }
+
+    /**
+     * @return iterable<string, array{int}>
+     */
+    public static function invalidReadStreamPageSizeProvider(): iterable
+    {
+        yield 'zero' => [0];
+        yield 'negative' => [-1];
     }
 }
