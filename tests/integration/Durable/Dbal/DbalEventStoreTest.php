@@ -52,6 +52,14 @@ final class DbalEventStoreTest extends TestCase
         self::assertSame('echoed', $events[2]->result());
         self::assertSame(3, $this->store->countEventsInStream($executionId));
         self::assertSame(0, $this->store->countEventsInStream('unknown-exec'));
+
+        $withTime = iterator_to_array($this->store->readStreamWithRecordedAt($executionId));
+        self::assertCount(3, $withTime);
+        foreach ($withTime as $entry) {
+            self::assertArrayHasKey('event', $entry);
+            self::assertArrayHasKey('recordedAt', $entry);
+            self::assertInstanceOf(\DateTimeImmutable::class, $entry['recordedAt']);
+        }
     }
 
     #[Test]
@@ -116,5 +124,48 @@ final class DbalEventStoreTest extends TestCase
 
         $roundTrip = EventSerializer::deserialize(EventSerializer::serialize($read));
         self::assertEquals($read->payload(), $roundTrip->payload());
+    }
+
+    #[Test]
+    public function ensureRecordedAtColumnAddsColumnWhenTableWasCreatedWithoutIt(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        $connection->executeStatement(
+            'CREATE TABLE durable_events (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, '
+            .'execution_id VARCHAR(36) NOT NULL, event_type VARCHAR(255) NOT NULL, payload CLOB NOT NULL)'
+        );
+
+        $store = new DbalEventStore($connection);
+        $store->ensureRecordedAtColumn();
+
+        $exec = 'exec-migrate';
+        $store->append(new ExecutionStarted($exec));
+        $rows = iterator_to_array($store->readStreamWithRecordedAt($exec));
+        self::assertCount(1, $rows);
+        self::assertInstanceOf(\DateTimeImmutable::class, $rows[0]['recordedAt']);
+    }
+
+    #[Test]
+    public function appendMigratesLegacyTableLazilyWithoutExplicitEnsureCall(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        $connection->executeStatement(
+            'CREATE TABLE durable_events (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, '
+            .'execution_id VARCHAR(36) NOT NULL, event_type VARCHAR(255) NOT NULL, payload CLOB NOT NULL)'
+        );
+
+        $store = new DbalEventStore($connection);
+        $exec = 'exec-lazy';
+        $store->append(new ExecutionStarted($exec));
+
+        $rows = iterator_to_array($store->readStreamWithRecordedAt($exec));
+        self::assertCount(1, $rows);
+        self::assertInstanceOf(\DateTimeImmutable::class, $rows[0]['recordedAt']);
     }
 }
