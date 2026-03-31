@@ -56,4 +56,5 @@ Références
 - [ADR004 — Ports et adapters](ADR004-ports-and-adapters.md)
 - [ADR009 — Modèle distribué](ADR009-distributed-workflow-dispatch.md)
 - [ADR010 — Parité Temporal / événements](ADR010-temporal-parity-events-and-replay.md)
+- [ADR019 — Pagination curseur EventStore](ADR019-event-store-cursor-pagination.md) — `GetWorkflowExecutionHistory` et `next_page_token` pour le rejeu du journal
 - [OST001 — Opportunités futures](../ost/OST001-future-opportunities.md)
