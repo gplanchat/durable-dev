@@ -14,8 +14,8 @@ use Symfony\Component\Messenger\Exception\LogicException;
 use Symfony\Component\Messenger\Transport\TransportInterface;
 
 /**
- * Receive-only transport: each consumer tick long-polls Temporal and completes journal workflow tasks.
- * No messages are dispatched to handlers; processing is synchronous inside {@see get()}.
+ * Receive-only transport: each {@see get()} long-polls Temporal and completes journal workflow tasks.
+ * Consommé avec {@code messenger:consume <nom_du_transport>} (pas de message applicatif sérialisé ; pas de handler).
  */
 final class TemporalJournalTransport implements TransportInterface
 {

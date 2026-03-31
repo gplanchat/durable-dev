@@ -17,10 +17,46 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  */
 final class HistoryPageMerger
 {
+    private const GRPC_NOT_FOUND = 5;
+
     public function __construct(
         private readonly WorkflowServiceClient $client,
         private readonly string $namespace,
     ) {
+    }
+
+    /**
+     * Historique complet via API serveur (aucun worker requis pour la lecture).
+     */
+    public function fullHistoryForExecution(WorkflowExecution $execution): History
+    {
+        $req = new GetWorkflowExecutionHistoryRequest();
+        $req->setNamespace($this->namespace);
+        $req->setExecution($execution);
+        $call = $this->client->GetWorkflowExecutionHistory($req);
+        /** @var array{0: GetWorkflowExecutionHistoryResponse|null, 1: \stdClass} $pair */
+        $pair = $call->wait();
+        [$response, $status] = $pair;
+        $code = $status->code ?? -1;
+        if (self::GRPC_NOT_FOUND === $code) {
+            return new History();
+        }
+        if (0 !== $code) {
+            throw new \RuntimeException(\sprintf('Temporal gRPC error [%s]: %s', (string) $code, (string) ($status->details ?? '')));
+        }
+        if (null === $response) {
+            throw new \RuntimeException('Temporal gRPC returned empty response.');
+        }
+        $base = $response->getHistory();
+        if (null === $base) {
+            return new History();
+        }
+        $token = $response->getNextPageToken();
+        if ('' === $token) {
+            return $base;
+        }
+
+        return $this->appendPages($base, $execution, $token);
     }
 
     /**
