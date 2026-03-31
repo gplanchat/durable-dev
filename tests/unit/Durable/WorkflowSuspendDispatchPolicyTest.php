@@ -48,6 +48,7 @@ final class WorkflowSuspendDispatchPolicyTest extends TestCase
             self::fail('WorkflowSuspendedException attendue');
         } catch (WorkflowSuspendedException $e) {
             self::assertTrue($e->shouldDispatchResume(), 'worker activité / reprise file');
+            self::assertFalse($e->waitingOnTimer(), 'pas de minuteur durable seul');
         }
     }
 
@@ -78,6 +79,7 @@ final class WorkflowSuspendDispatchPolicyTest extends TestCase
             self::fail('WorkflowSuspendedException attendue');
         } catch (WorkflowSuspendedException $e) {
             self::assertTrue($e->shouldDispatchResume());
+            self::assertTrue($e->waitingOnTimer(), 'réveil via FireWorkflowTimersMessage planifié par le handler');
         }
     }
 
@@ -98,6 +100,7 @@ final class WorkflowSuspendDispatchPolicyTest extends TestCase
             self::fail('WorkflowSuspendedException attendue');
         } catch (WorkflowSuspendedException $e) {
             self::assertTrue($e->shouldDispatchResume());
+            self::assertFalse($e->waitingOnTimer(), 'composite d’activités, pas d’attente minuteur seule');
         }
     }
 }

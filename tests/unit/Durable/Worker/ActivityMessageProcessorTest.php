@@ -41,9 +41,16 @@ final class ActivityMessageProcessorTest extends TestCase
 
             public function readStream(string $executionId): iterable
             {
+                foreach ($this->readStreamWithRecordedAt($executionId) as $entry) {
+                    yield $entry['event'];
+                }
+            }
+
+            public function readStreamWithRecordedAt(string $executionId): iterable
+            {
                 foreach ($this->events as $event) {
                     if ($event->executionId() === $executionId) {
-                        yield $event;
+                        yield ['event' => $event, 'recordedAt' => null];
                     }
                 }
             }
@@ -90,5 +97,83 @@ final class ActivityMessageProcessorTest extends TestCase
         self::assertCount(1, $events);
         self::assertInstanceOf(ActivityCompleted::class, $events[0]);
         self::assertSame(['exec-1'], $resumed);
+    }
+
+    #[Test]
+    public function processIsIdempotentWhenMessengerRedeliversAfterSuccess(): void
+    {
+        $events = [];
+        $eventStore = new class($events) implements EventStoreInterface {
+            /**
+             * @param array<int, Event> $events
+             */
+            public function __construct(private array &$events)
+            {
+            }
+
+            public function append(Event $event): void
+            {
+                $this->events[] = $event;
+            }
+
+            public function readStream(string $executionId): iterable
+            {
+                foreach ($this->readStreamWithRecordedAt($executionId) as $entry) {
+                    yield $entry['event'];
+                }
+            }
+
+            public function readStreamWithRecordedAt(string $executionId): iterable
+            {
+                foreach ($this->events as $event) {
+                    if ($event->executionId() === $executionId) {
+                        yield ['event' => $event, 'recordedAt' => null];
+                    }
+                }
+            }
+
+            public function countEventsInStream(string $executionId): int
+            {
+                $n = 0;
+                foreach ($this->events as $event) {
+                    if ($event->executionId() === $executionId) {
+                        ++$n;
+                    }
+                }
+
+                return $n;
+            }
+        };
+
+        $transport = new InMemoryActivityTransport();
+        $executor = new RegistryActivityExecutor();
+        $executor->register('demo', static fn () => 'ok');
+
+        $resumed = [];
+        $resume = new class($resumed) implements WorkflowResumeDispatcher {
+            /**
+             * @param array<int, string> $resumed
+             */
+            public function __construct(private array &$resumed)
+            {
+            }
+
+            public function dispatchResume(string $executionId): void
+            {
+                $this->resumed = array_merge($this->resumed, [$executionId]);
+            }
+
+            public function dispatchNewWorkflowRun(string $executionId, string $workflowType, array $payload): void
+            {
+            }
+        };
+
+        $msg = new ActivityMessage('exec-1', 'act-1', 'demo', ['x' => 1]);
+        $processor = new ActivityMessageProcessor($eventStore, $transport, $executor, $resume, 0);
+        $processor->process($msg);
+        $processor->process($msg);
+
+        self::assertCount(1, $events, 'redélivrance : un seul ActivityCompleted');
+        self::assertSame(['exec-1'], $resumed, 'une seule reprise workflow');
     }
 }
