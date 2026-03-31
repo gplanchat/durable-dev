@@ -21,10 +21,11 @@
         </ignoreFiles>
     </projectFiles>
     <issueHandlers>
-        <!-- PHP 8.2 : pas d’attribut #[\Override] ; doubles / classes anonymes dans les tests. -->
+        <!-- PHP 8.2 : pas d’attribut #[\Override] (PHP 8.3+) ; doubles / classes anonymes dans les tests. -->
         <MissingOverrideAttribute>
             <errorLevel type="suppress">
                 <directory name="tests"/>
+                <directory name="src"/>
             </errorLevel>
         </MissingOverrideAttribute>
     </issueHandlers>

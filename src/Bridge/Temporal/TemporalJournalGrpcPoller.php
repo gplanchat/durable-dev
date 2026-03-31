@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal;
 
-use Gplanchat\Bridge\Temporal\Grpc\GrpcCallOptions;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;

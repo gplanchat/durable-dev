@@ -7,9 +7,17 @@ namespace Gplanchat\Durable\Tests\Unit\Durable\Bundle;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @internal
+ *
+ * @coversNothing
+ */
 final class DurableExecutionTraceTest extends TestCase
 {
-    public function testRecordsDispatchWorkflowAndActivityInOrder(): void
+    /**
+     * @test
+     */
+    public function recordsDispatchWorkflowAndActivityInOrder(): void
     {
         $t = new DurableExecutionTrace();
         $t->onWorkflowDispatchRequested('e1', 'MyWorkflow', ['x' => 1], false, 'sync');
@@ -24,7 +32,10 @@ final class DurableExecutionTraceTest extends TestCase
         self::assertSame(1, $t->countDispatchEvents());
     }
 
-    public function testCollectsExecutionIdFromActivityOnlyPath(): void
+    /**
+     * @test
+     */
+    public function collectsExecutionIdFromActivityOnlyPath(): void
     {
         $t = new DurableExecutionTrace();
         $t->onActivityExecuted('e-worker', 'a1', 'Task', 0.05, true, null);

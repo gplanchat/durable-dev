@@ -85,7 +85,7 @@ final class DiagnoseExecutionCommand extends Command
         ];
 
         if ($asJson) {
-            $output->writeln(json_encode($payload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            $output->writeln(json_encode($payload, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE));
 
             return Command::SUCCESS;
         }
@@ -114,7 +114,7 @@ final class DiagnoseExecutionCommand extends Command
         ]);
 
         $io->section('Journal d’événements');
-        $io->text(sprintf('Nombre total d’événements : %d', $totalEvents));
+        $io->text(\sprintf('Nombre total d’événements : %d', $totalEvents));
         if ([] !== $histogram) {
             ksort($histogram);
             $histRows = [];
@@ -124,9 +124,9 @@ final class DiagnoseExecutionCommand extends Command
             $io->table(['Type', 'Nombre'], $histRows);
         }
         if ($limit > 0 && [] !== $sample) {
-            $io->text(sprintf('Premiers événements (max %d) :', $limit));
+            $io->text(\sprintf('Premiers événements (max %d) :', $limit));
             foreach ($sample as $i => $row) {
-                $io->writeln(sprintf(
+                $io->writeln(\sprintf(
                     '  %d. [%s] %s — %s',
                     $i + 1,
                     $row['recordedAt'] ?? '?',
@@ -146,7 +146,7 @@ final class DiagnoseExecutionCommand extends Command
      */
     private function truncateJson(array $payload): string
     {
-        $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $json = json_encode($payload, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE);
         if (\strlen($json) > 200) {
             return substr($json, 0, 197).'…';
         }

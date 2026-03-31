@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Journal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcCallOptions;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Temporal\Api\Enums\V1\QueryResultType;

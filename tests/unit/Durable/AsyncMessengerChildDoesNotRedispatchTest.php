@@ -14,8 +14,8 @@ use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
-use Gplanchat\Durable\WorkflowRegistry;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
+use Gplanchat\Durable\WorkflowRegistry;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -24,6 +24,8 @@ use PHPUnit\Framework\TestCase;
  * (sinon explosion de messages Messenger).
  *
  * @internal
+ *
+ * @coversNothing
  */
 final class AsyncMessengerChildDoesNotRedispatchTest extends TestCase
 {
@@ -60,6 +62,8 @@ final class AsyncMessengerChildDoesNotRedispatchTest extends TestCase
 
         $transport = new InMemoryActivityTransport();
         $runtime = new ExecutionRuntime($store, $transport, new RegistryActivityExecutor(), 0, null, false);
+        /** @psalm-suppress InternalClass implémentation en mémoire pour le test unitaire */
+        $childLinkStore = new InMemoryChildWorkflowParentLinkStore();
         $childRunner = new ChildWorkflowRunner(
             $store,
             $runtime,
@@ -68,7 +72,7 @@ final class AsyncMessengerChildDoesNotRedispatchTest extends TestCase
             0,
             true,
             $dispatcher,
-            new InMemoryChildWorkflowParentLinkStore(),
+            $childLinkStore,
         );
 
         $context = new ExecutionContext($parentId, $store, $transport, $childRunner);

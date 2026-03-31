@@ -48,7 +48,8 @@ final class HistoryPageMergerTest extends TestCase
                 $call = $test->getMockBuilder(UnaryCall::class)
                     ->disableOriginalConstructor()
                     ->onlyMethods(['wait'])
-                    ->getMock();
+                    ->getMock()
+                ;
                 $call->method('wait')->willReturnCallback(function () use ($callNum, $ev1, $ev2) {
                     $status = new \stdClass();
                     $status->code = 0;
@@ -67,7 +68,8 @@ final class HistoryPageMergerTest extends TestCase
                 });
 
                 return $call;
-            });
+            })
+        ;
 
         $merger = new HistoryPageMerger($client, 'default');
         $merged = $merger->fullHistoryForExecution($execution);
@@ -94,7 +96,8 @@ final class HistoryPageMergerTest extends TestCase
                 $call = $test->getMockBuilder(UnaryCall::class)
                     ->disableOriginalConstructor()
                     ->onlyMethods(['wait'])
-                    ->getMock();
+                    ->getMock()
+                ;
                 $call->method('wait')->willReturnCallback(function () use ($ev1) {
                     $status = new \stdClass();
                     $status->code = 0;
@@ -107,7 +110,8 @@ final class HistoryPageMergerTest extends TestCase
                 });
 
                 return $call;
-            });
+            })
+        ;
 
         $merger = new HistoryPageMerger($client, 'ns');
         $history = $merger->fullHistoryForExecution($execution);
@@ -127,7 +131,8 @@ final class HistoryPageMergerTest extends TestCase
                 $call = $test->getMockBuilder(UnaryCall::class)
                     ->disableOriginalConstructor()
                     ->onlyMethods(['wait'])
-                    ->getMock();
+                    ->getMock()
+                ;
                 $call->method('wait')->willReturnCallback(static function () {
                     $status = new \stdClass();
                     $status->code = 5;
@@ -137,7 +142,8 @@ final class HistoryPageMergerTest extends TestCase
                 });
 
                 return $call;
-            });
+            })
+        ;
 
         $merger = new HistoryPageMerger($client, 'ns');
         $history = $merger->fullHistoryForExecution($execution);
@@ -163,7 +169,8 @@ final class HistoryPageMergerTest extends TestCase
                 $call = $test->getMockBuilder(UnaryCall::class)
                     ->disableOriginalConstructor()
                     ->onlyMethods(['wait'])
-                    ->getMock();
+                    ->getMock()
+                ;
                 $call->method('wait')->willReturnCallback(function () use ($callNum, $ev1, $ev2) {
                     $status = new \stdClass();
                     $status->code = 0;
@@ -181,7 +188,8 @@ final class HistoryPageMergerTest extends TestCase
                 });
 
                 return $call;
-            });
+            })
+        ;
 
         $poll = new PollWorkflowTaskQueueResponse();
         $poll->setWorkflowExecution($exec);

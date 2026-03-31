@@ -14,8 +14,6 @@ use Gplanchat\Durable\Store\EventStoreInterface;
 final class TimerWakeDelayCalculator
 {
     /**
-     * @param float $nowSecondes même référence temporelle que {@see ExecutionRuntime::checkTimers()} (ex. horloge injectée en test)
-     *
      * @return int millisecondes jusqu’à {@see TimerScheduled::scheduledAt()} du prochain timer en attente, ou null si aucun
      */
     public static function millisecondsUntilNextTimerDue(EventStoreInterface $store, string $executionId, float $nowSeconds): ?int

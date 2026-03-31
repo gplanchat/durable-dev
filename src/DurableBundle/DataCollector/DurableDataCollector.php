@@ -19,9 +19,9 @@ use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\SideEffectRecorded;
 use Gplanchat\Durable\Event\TimerCompleted;
 use Gplanchat\Durable\Event\TimerScheduled;
+use Gplanchat\Durable\Event\WorkflowCancellationRequested;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
-use Gplanchat\Durable\Event\WorkflowCancellationRequested;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
 use Gplanchat\Durable\Store\EventStoreInterface;
@@ -113,11 +113,11 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     }
 
     /**
-     * @param list<string> $executionIdsList
-     * @param list<array<string, mixed>> $storeTimelines
-     * @param list<array<string, mixed>> $storeEventRows
+     * @param list<string>                                                                                              $executionIdsList
+     * @param list<array<string, mixed>>                                                                                $storeTimelines
+     * @param list<array<string, mixed>>                                                                                $storeEventRows
      * @param array{bounds: array{tMin: float, tMax: float, spanSec: float}|null, segments: list<array<string, mixed>>} $timeFrameProcess
-     * @param array<string, list<array<string, mixed>>> $groupedTimeline
+     * @param array<string, list<array<string, mixed>>>                                                                 $groupedTimeline
      *
      * @return list<array<string, mixed>>
      */
@@ -133,13 +133,11 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             $wf = null;
             $payload = [];
             $meta = $this->metadataStore->get($eid);
-            if (\is_array($meta)) {
-                if (isset($meta['workflowType']) && '' !== (string) $meta['workflowType']) {
-                    $wf = (string) $meta['workflowType'];
+            if (null !== $meta) {
+                if ('' !== $meta['workflowType']) {
+                    $wf = $meta['workflowType'];
                 }
-                if (isset($meta['payload']) && \is_array($meta['payload'])) {
-                    $payload = $meta['payload'];
-                }
+                $payload = $meta['payload'];
             }
 
             $timelineForExec = $groupedTimeline[$eid] ?? [];
@@ -176,7 +174,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                 'executionStatusLabel' => $this->executionStatusLabelFr($statusCode),
                 'storeEventCount' => max($storeCountFromIndex, $storeCountLive),
                 'storeTruncated' => $storeTl['truncated'] ?? false,
-                'processTraceCount' => \count($processTf['segments'] ?? []),
+                'processTraceCount' => \count($processTf['segments']),
                 'processTimeframe' => $processTf,
                 'storeTimeline' => $storeTl,
                 'storeRows' => $rows,
@@ -192,7 +190,8 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
      * Statut : journal ({@see collectStoreEventRows}), puis métadonnées, puis relecture du store
      * (même fichier SQLite / autre processus worker que la requête HTTP).
      *
-     * @param list<array<string, mixed>> $rows lignes {@see collectStoreEventRows} pour cet executionId
+     * @param list<array<string, mixed>>                                                        $rows     lignes {@see collectStoreEventRows} pour cet executionId
+     * @param array{workflowType: string, payload: array<string, mixed>, completed?: bool}|null $metadata
      */
     private function resolveExecutionStatus(
         string $executionId,
@@ -204,7 +203,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             return $this->inferExecutionStatusFromLastStoreRow($rows);
         }
 
-        if (\is_array($metadata) && ($metadata['completed'] ?? false) === true) {
+        if (null !== $metadata && ($metadata['completed'] ?? false) === true) {
             return 'completed';
         }
 
@@ -219,7 +218,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             }
         }
 
-        if (\is_array($metadata) && ($metadata['completed'] ?? false) === false && $this->metadataStore->hasActiveWorkflowMetadata($executionId)) {
+        if (null !== $metadata && ($metadata['completed'] ?? false) === false && $this->metadataStore->hasActiveWorkflowMetadata($executionId)) {
             return 'running';
         }
 
@@ -267,7 +266,11 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
      */
     private function inferExecutionStatusFromLastStoreRow(array $rows): string
     {
-        $last = $rows[\count($rows) - 1];
+        $lastKey = array_key_last($rows);
+        if (null === $lastKey) {
+            return 'running';
+        }
+        $last = $rows[$lastKey];
 
         return $this->mapEventShortNameToStatus((string) ($last['type'] ?? ''));
     }
@@ -320,7 +323,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
      */
     private function filterProcessTimeframeForExecution(array $fullProcess, string $eid): array
     {
-        $segments = $fullProcess['segments'] ?? [];
+        $segments = $fullProcess['segments'];
         if ([] === $segments) {
             return ['bounds' => null, 'segments' => []];
         }
@@ -773,7 +776,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
      * @return array{
      *     process: array{bounds: array{tMin: float, tMax: float, spanSec: float}|null, segments: list<array<string, mixed>>},
      *     store_timelines: list<array<string, mixed>>
-     * }|array{bounds: array{tMin: float, tMax: float, spanSec: float}|null, segments: list<array<string, mixed>>}
+     * }
      */
     public function getTimeFrame(): array
     {
@@ -788,7 +791,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             return [
                 'process' => [
                     'bounds' => $tf['bounds'],
-                    'segments' => \is_array($tf['segments'] ?? null) ? $tf['segments'] : [],
+                    'segments' => \is_array($tf['segments']) ? $tf['segments'] : [],
                 ],
                 'store_timelines' => [],
             ];

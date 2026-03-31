@@ -13,8 +13,8 @@ use Gplanchat\Durable\Event\WorkflowCancellationRequested;
 use Gplanchat\Durable\ParentClosePolicy;
 use Gplanchat\Durable\Store\DbalEventStore;
 use Gplanchat\Durable\Store\EventSerializer;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

@@ -99,7 +99,7 @@ final class DurableProfilerEventPresentation
                 'category' => 'activity',
             ],
             default => [
-                'title' => $kind !== '' ? $kind : 'Événement',
+                'title' => '' !== $kind ? $kind : 'Événement',
                 'subtitle' => '',
                 'category' => 'default',
             ],
@@ -175,7 +175,7 @@ final class DurableProfilerEventPresentation
 
             return [
                 'title' => 'Activité en échec',
-                'subtitle' => ($event->activityName() !== '' ? $event->activityName().' · ' : '').$msg,
+                'subtitle' => ('' !== $event->activityName() ? $event->activityName().' · ' : '').$msg,
                 'category' => 'activity',
                 'technical' => $technical,
             ];
@@ -193,7 +193,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof TimerScheduled) {
             return [
                 'title' => 'Minuteur programmé',
-                'subtitle' => 'id '.$event->timerId().($event->summary() !== '' ? ' · '.$event->summary() : ''),
+                'subtitle' => 'id '.$event->timerId().('' !== $event->summary() ? ' · '.$event->summary() : ''),
                 'category' => 'timer',
                 'technical' => $technical,
             ];
