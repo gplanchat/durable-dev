@@ -12,6 +12,7 @@ use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler;
 use Gplanchat\Durable\Bundle\Handler\FireWorkflowTimersHandler;
+use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Bundle\Handler\WorkflowRunHandler;
 use Gplanchat\Durable\Bundle\Messenger\MessengerWorkflowResumeDispatcher;
 use Gplanchat\Durable\Bundle\Messenger\WorkflowRunDispatchProfilerMiddleware;
@@ -20,7 +21,6 @@ use Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\ParentChildWorkflowCoordinator;
 use Gplanchat\Durable\Port\LocalWorkflowBackend;
-use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\ParentChildWorkflowCoordinatorInterface;
 use Gplanchat\Durable\Port\WorkflowBackendInterface;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
@@ -56,8 +56,7 @@ final class DurableExtension extends Extension
 
         $container->setParameter('durable.max_activity_retries', $config['max_activity_retries'] ?? 0);
 
-        $distributed = $config['distributed'] ?? false;
-        $asyncChildMessenger = $distributed && ($config['child_workflow']['async_messenger'] ?? false);
+        $asyncChildMessenger = (bool) ($config['child_workflow']['async_messenger'] ?? false);
         $container->setParameter('durable.child_workflow_async_messenger', $asyncChildMessenger);
 
         $this->registerProfiler($container);
@@ -66,7 +65,7 @@ final class DurableExtension extends Extension
         $this->registerActivityTransport($container, $config);
         $this->registerActivityExecutor($container);
         $this->registerRuntime($container, $config);
-        $this->registerDistributedMode($container, $config);
+        $this->registerWorkflowMessengerServices($container, $config);
         $this->registerParentChildCoordinator($container);
         $this->registerActivityContractResolver($container, $config);
         $this->registerEngine($container, $config);
@@ -171,9 +170,6 @@ final class DurableExtension extends Extension
      */
     private function registerRuntime(ContainerBuilder $container, array $config): void
     {
-        $distributed = $config['distributed'] ?? false;
-        $container->setParameter('durable.distributed', $distributed);
-
         $container->register(\Gplanchat\Durable\ExecutionRuntime::class, \Gplanchat\Durable\ExecutionRuntime::class)
             ->setArguments([
                 new Reference(EventStoreInterface::class),
@@ -181,7 +177,7 @@ final class DurableExtension extends Extension
                 new Reference(\Gplanchat\Durable\ActivityExecutor::class),
                 '%durable.max_activity_retries%',
                 null,
-                '%durable.distributed%',
+                true,
                 new Reference(WorkflowExecutionObserverInterface::class),
             ])
             ->setPublic(true)
@@ -307,14 +303,15 @@ final class DurableExtension extends Extension
     }
 
     /**
+     * Registre métadonnées workflow, {@see WorkflowRunHandler}, {@see WorkflowResumeDispatcher}, {@see ChildWorkflowRunner}, etc.
+     * Le bundle suppose toujours l’exécution distribuée (Messenger) ; il n’existe pas de mode « non distribué » côté configuration.
+     *
      * @param array<string, mixed> $config
      */
-    private function registerDistributedMode(ContainerBuilder $container, array $config): void
+    private function registerWorkflowMessengerServices(ContainerBuilder $container, array $config): void
     {
-        $distributed = $config['distributed'] ?? false;
-
         $metaConfig = $config['workflow_metadata'] ?? [];
-        if (('dbal' === ($metaConfig['type'] ?? 'in_memory')) && $distributed) {
+        if ('dbal' === ($metaConfig['type'] ?? 'in_memory')) {
             $container->register(WorkflowMetadataStore::class, DbalWorkflowMetadataStore::class)
                 ->setArguments([
                     $this->durableDbalConnectionReference($config),
@@ -351,28 +348,23 @@ final class DurableExtension extends Extension
             ->setPublic(true)
         ;
 
-        if ($distributed) {
-            $container->register(WorkflowResumeDispatcher::class, MessengerWorkflowResumeDispatcher::class)
-                ->setArguments([new Reference('messenger.default_bus')])
-                ->setPublic(true)
-            ;
+        $container->register(WorkflowResumeDispatcher::class, MessengerWorkflowResumeDispatcher::class)
+            ->setArguments([new Reference('messenger.default_bus')])
+            ->setPublic(true)
+        ;
 
-            $container->register(WorkflowRunHandler::class)
-                ->setArguments([
-                    new Reference(\Gplanchat\Durable\ExecutionEngine::class),
-                    new Reference(\Gplanchat\Durable\WorkflowRegistry::class),
-                    new Reference(WorkflowMetadataStore::class),
-                    new Reference(WorkflowResumeDispatcher::class),
-                    new Reference(EventStoreInterface::class),
-                    new Reference(ChildWorkflowParentLinkStoreInterface::class),
-                ])
-                ->addTag('messenger.message_handler')
-            ;
-        } else {
-            $container->register(WorkflowResumeDispatcher::class, NullWorkflowResumeDispatcher::class)
-                ->setPublic(true)
-            ;
-        }
+        $container->register(WorkflowRunHandler::class)
+            ->setArguments([
+                new Reference(\Gplanchat\Durable\ExecutionEngine::class),
+                new Reference(\Gplanchat\Durable\WorkflowRegistry::class),
+                new Reference(WorkflowMetadataStore::class),
+                new Reference(WorkflowResumeDispatcher::class),
+                new Reference(EventStoreInterface::class),
+                new Reference(ChildWorkflowParentLinkStoreInterface::class),
+                new Reference('messenger.default_bus'),
+            ])
+            ->addTag('messenger.message_handler')
+        ;
     }
 
     /**
@@ -392,9 +384,8 @@ final class DurableExtension extends Extension
             ->setPublic(true)
         ;
 
-        $distributed = $config['distributed'] ?? false;
         $activityTransportConfig = $config['activity_transport'] ?? [];
-        if ($distributed && 'messenger' === ($activityTransportConfig['type'] ?? '')) {
+        if ('messenger' === ($activityTransportConfig['type'] ?? '')) {
             $activityTransportName = $activityTransportConfig['transport_name'] ?? 'durable_activities';
             $container->register(ActivityRunHandler::class)
                 ->setArguments([new Reference(ActivityMessageProcessor::class)])
@@ -402,6 +393,15 @@ final class DurableExtension extends Extension
                 ->setPublic(true)
             ;
         }
+
+        $container->register(DiagnoseExecutionCommand::class)
+            ->setArguments([
+                new Reference(WorkflowMetadataStore::class),
+                new Reference(EventStoreInterface::class),
+                new Reference(ChildWorkflowParentLinkStoreInterface::class),
+            ])
+            ->addTag('console.command')
+        ;
     }
 
     private function registerProfiler(ContainerBuilder $container): void

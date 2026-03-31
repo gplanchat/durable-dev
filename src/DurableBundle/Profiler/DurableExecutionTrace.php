@@ -7,8 +7,11 @@ namespace Gplanchat\Durable\Bundle\Profiler;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 
 /**
- * Journal chronologique des dispatches Messenger ({@see onWorkflowDispatchRequested}), des runs workflow
- * ({@see onWorkflowRun}) et des exécutions d’activités ({@see onActivityExecuted}) — même requête HTTP / processus.
+ * Trace processus pour une requête HTTP : envois {@see \Gplanchat\Durable\Transport\WorkflowRunMessage}
+ * (middleware Messenger), puis {@see WorkflowExecutionObserverInterface} (runs moteur, activités exécutées).
+ *
+ * L’historique persistant reste dans l’event store ; cette trace sert au bandeau temporel « cette requête »
+ * (worker d’activité inclus) et complète le journal quand tout s’exécute dans le même processus.
  */
 final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
 {
@@ -98,22 +101,6 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
         return array_values(array_filter(
             $this->timeline,
             static fn (array $e): bool => ($e['executionId'] ?? '') === $executionId,
-        ));
-    }
-
-    public function countWorkflowEvents(): int
-    {
-        return \count(array_filter(
-            $this->timeline,
-            static fn (array $e): bool => ($e['kind'] ?? '') === 'workflow',
-        ));
-    }
-
-    public function countActivityEvents(): int
-    {
-        return \count(array_filter(
-            $this->timeline,
-            static fn (array $e): bool => ($e['kind'] ?? '') === 'activity',
         ));
     }
 

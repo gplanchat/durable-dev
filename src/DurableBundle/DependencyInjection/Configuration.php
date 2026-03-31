@@ -46,8 +46,6 @@ final class Configuration implements ConfigurationInterface
             ->end()
             ->end()
             ->end()
-            ->booleanNode('distributed')->defaultFalse()->end()
-            ->scalarNode('workflow_transport')->defaultValue('durable_workflows')->end()
             ->arrayNode('child_workflow')
             ->addDefaultsIfNotSet()
             ->children()
