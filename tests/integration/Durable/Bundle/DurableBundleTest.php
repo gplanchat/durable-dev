@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace integration\Gplanchat\Durable\Bundle;
 
+use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Bundle\DurableBundle;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Console\Tester\CommandTester;
 
 /**
  * @internal
@@ -53,11 +56,30 @@ final class DurableBundleTest extends KernelTestCase
         self::assertTrue($container->has(\Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler::class), 'DeliverWorkflowSignalHandler');
         self::assertTrue($container->has(\Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler::class), 'DeliverWorkflowUpdateHandler');
         self::assertTrue($container->has(\Gplanchat\Durable\Bundle\Handler\FireWorkflowTimersHandler::class), 'FireWorkflowTimersHandler');
+        self::assertTrue($container->has(\Gplanchat\Durable\Bundle\Handler\WorkflowRunHandler::class), 'WorkflowRunHandler');
         self::assertTrue($container->has('durable.child_workflow_parent_link_store'), 'durable.child_workflow_parent_link_store');
         self::assertInstanceOf(
             \Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface::class,
             $container->get('durable.child_workflow_parent_link_store'),
         );
+    }
+
+    #[Test]
+    public function diagnoseExecutionCommandIsRegistered(): void
+    {
+        self::bootKernel();
+        $container = self::getContainer();
+
+        self::assertTrue($container->has(DiagnoseExecutionCommand::class));
+        $application = new Application(self::$kernel);
+        $command = $application->find('durable:execution:diagnose');
+        $tester = new CommandTester($command);
+        $tester->execute(['executionId' => 'unknown-exec-123', '--limit' => '0']);
+
+        $display = $tester->getDisplay();
+        self::assertStringContainsString('unknown-exec-123', $display);
+        self::assertStringContainsString('Métadonnées workflow', $display);
+        self::assertSame(0, $tester->getStatusCode());
     }
 }
 

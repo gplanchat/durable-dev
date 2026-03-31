@@ -25,6 +25,5 @@ return static function (ContainerConfigurator $container): void {
         ],
     ]);
     $container->extension('durable', [
-        'distributed' => true,
     ]);
 };

@@ -23,12 +23,11 @@ return static function (ContainerConfigurator $container): void {
                 WorkflowRunMessage::class => 'workflow_jobs',
                 DeliverWorkflowSignalMessage::class => 'sync',
                 DeliverWorkflowUpdateMessage::class => 'sync',
-                FireWorkflowTimersMessage::class => 'sync',
+                FireWorkflowTimersMessage::class => 'workflow_jobs',
             ],
         ],
     ]);
     $container->extension('durable', [
-        'distributed' => true,
         'child_workflow' => [
             'async_messenger' => true,
         ],

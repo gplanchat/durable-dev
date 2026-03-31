@@ -26,12 +26,11 @@ return static function (ContainerConfigurator $container): void {
                 ActivityMessage::class => 'durable_activities',
                 DeliverWorkflowSignalMessage::class => 'sync',
                 DeliverWorkflowUpdateMessage::class => 'sync',
-                FireWorkflowTimersMessage::class => 'sync',
+                FireWorkflowTimersMessage::class => 'durable_workflows',
             ],
         ],
     ]);
     $container->extension('durable', [
-        'distributed' => true,
         'activity_transport' => [
             'type' => 'messenger',
             'transport_name' => 'durable_activities',

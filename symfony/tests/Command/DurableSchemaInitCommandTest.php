@@ -23,7 +23,7 @@ final class DurableSchemaInitCommandTest extends KernelTestCase
         $tester = new CommandTester($command);
 
         self::assertSame(0, $tester->execute([]), $tester->getDisplay());
-        self::assertStringContainsString('créée', $tester->getDisplay());
+        self::assertStringContainsString('Schéma durable : tables prêtes', $tester->getDisplay());
 
         self::assertSame(0, $tester->execute([]), $tester->getDisplay());
         self::assertStringContainsString('déjà présente', $tester->getDisplay());

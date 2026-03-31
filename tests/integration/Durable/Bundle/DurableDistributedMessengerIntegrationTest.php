@@ -67,7 +67,9 @@ final class DurableDistributedMessengerIntegrationTest extends KernelTestCase
 
         $bus->dispatch(new DeliverWorkflowSignalMessage($executionId, 'approved', ['ref' => 'PO-9']));
 
-        self::assertNull($meta->get($executionId), 'workflow terminé : métadonnées supprimées');
+        $after = $meta->get($executionId);
+        self::assertNotNull($after, 'workflow terminé : métadonnées conservées pour le type');
+        self::assertTrue($after['completed'] ?? false, 'workflow terminé : ligne marquée completed');
         self::assertSame(['ref' => 'PO-9'], $this->lastExecutionCompletedResult($store, $executionId));
     }
 
@@ -90,7 +92,9 @@ final class DurableDistributedMessengerIntegrationTest extends KernelTestCase
 
         $bus->dispatch(new DeliverWorkflowUpdateMessage($executionId, 'confirmQty', ['qty' => 4], ['ok' => true]));
 
-        self::assertNull($meta->get($executionId));
+        $after = $meta->get($executionId);
+        self::assertNotNull($after);
+        self::assertTrue($after['completed'] ?? false);
         self::assertSame(['ok' => true], $this->lastExecutionCompletedResult($store, $executionId));
     }
 

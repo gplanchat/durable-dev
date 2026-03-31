@@ -13,7 +13,6 @@ use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
-use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Transport\WorkflowRunMessage;
 use integration\Gplanchat\Durable\Bundle\Support\TimerFlowWorkflow;
@@ -50,7 +49,7 @@ final class DurableDistributedTimerE2ETest extends KernelTestCase
     }
 
     #[Test]
-    public function timerCompletesAfterFireWorkflowTimersThenResumeUntilExecutionCompleted(): void
+    public function timerCompletesAfterHandlerScheduledFireWorkflowTimersThenResumeUntilExecutionCompleted(): void
     {
         self::bootKernel();
         $container = self::getContainer();
@@ -79,8 +78,6 @@ final class DurableDistributedTimerE2ETest extends KernelTestCase
         }
         self::assertSame(1, $scheduled, 'un timer doit être planifié avant la reprise');
         self::assertSame(0, $completed, 'le timer ne doit pas être complété avant FireWorkflowTimers');
-
-        $bus->dispatch(new FireWorkflowTimersMessage($executionId));
 
         $this->flushWorkflowQueueUntilIdle(
             $bus,
