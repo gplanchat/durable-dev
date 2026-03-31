@@ -46,4 +46,18 @@ final class DbalChildWorkflowParentLinkStoreTest extends TestCase
         $this->store->link('child-x', 'parent-new');
         self::assertSame('parent-new', $this->store->getParentExecutionId('child-x'));
     }
+
+    #[Test]
+    public function getChildExecutionIdsForParentListsChildren(): void
+    {
+        $this->store->link('c1', 'p1');
+        $this->store->link('c2', 'p1');
+        $this->store->link('c3', 'p2');
+
+        $children = $this->store->getChildExecutionIdsForParent('p1');
+        sort($children);
+        self::assertSame(['c1', 'c2'], $children);
+        self::assertSame(['c3'], $this->store->getChildExecutionIdsForParent('p2'));
+        self::assertSame([], $this->store->getChildExecutionIdsForParent('none'));
+    }
 }
