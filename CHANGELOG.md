@@ -10,6 +10,7 @@
 ### Added
 
 - **ADR019** — [Pagination curseur EventStore](documentation/adr/ADR019-event-store-cursor-pagination.md) : keyset DBAL, `next_page_token` Temporal ; complète [ADR016](documentation/adr/ADR016-dedicated-dbal-connection-and-unbuffered-reads.md).
+- **Tests** — intégration multi-pages **DBAL** (`DbalEventStore`, `readStreamPageSize`) ; unitaires **`HistoryPageMerger`** (mocks `Grpc\UnaryCall`, enchaînement `next_page_token`).
 - **Event store** — `EventStoreInterface::countEventsInStream()` ; implémentations **DBAL** (`COUNT(*)`) et **in-memory** ; **TemporalJournalEventStore** (itération du flux).
 - **Bundle (profiler)** — trace des dispatches **`WorkflowRunMessage`** (`WorkflowRunDispatchProfilerMiddleware` + **RegisterWorkflowDispatchProfilerMiddlewarePass**), snapshots métadonnées / nombre d’événements dans le collecteur, template Twig avec branches explicites par `kind`.
 - **GitHub Actions — Splitsh** — workflow `.github/workflows/splitsh.yml` : **restore/save** cache du binaire **splitsh/lite** v2.0.0 (Go + libgit2), exécute `bin/splitsh-publish.sh` ; push HTTPS optionnel via secret **`SPLITSH_PUSH_TOKEN`** ; **[ADR017](documentation/adr/ADR017-splitsh-ci-and-satellite-pushes.md)**.
