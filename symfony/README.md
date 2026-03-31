@@ -37,4 +37,4 @@ composer test
 # or: php bin/phpunit
 ```
 
-Tests use `sqlite:///:memory:` (see `phpunit.xml.dist`). They cover **`durable:schema:init`** (idempotence) and **`durable:sample`** (GreetingWorkflow, ParallelGreetingWorkflow, ParentCallsEchoChildWorkflow, TimerThenTickWorkflow, SideEffectRandomIdWorkflow).
+Tests use `sqlite:///:memory:` (see `phpunit.xml.dist`). They cover **`durable:schema:init`** (idempotence) and **`durable:sample`** (GreetingWorkflow, ParallelGreetingWorkflow, ParentCallsEchoChildWorkflow, ParallelChildEchoWorkflow, TimerThenTickWorkflow, SideEffectRandomIdWorkflow).

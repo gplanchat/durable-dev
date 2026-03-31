@@ -1,5 +1,5 @@
+# En APP_ENV=dev, EventStoreInterface est remplacé par TemporalJournalEventStore (config/services.yaml when@dev).
 durable:
-    distributed: true
     dbal_connection: durable
     event_store:
         type: dbal

@@ -62,7 +62,9 @@ HELP
         $parentLinkTable = (string) $input->getOption('parent-link-table');
 
         $this->ensureTable($io, $sm, $eventTable, fn () => (new DbalEventStore($this->connection, $eventTable))->createSchema());
+        (new DbalEventStore($this->connection, $eventTable))->ensureRecordedAtColumn();
         $this->ensureTable($io, $sm, $metadataTable, fn () => (new DbalWorkflowMetadataStore($this->connection, $metadataTable))->createSchema());
+        (new DbalWorkflowMetadataStore($this->connection, $metadataTable))->ensureCompletedColumn();
         $this->ensureTable($io, $sm, $parentLinkTable, fn () => (new DbalChildWorkflowParentLinkStore($this->connection, $parentLinkTable))->createSchema());
 
         $io->success('Schéma durable : tables prêtes (ou déjà existantes).');
