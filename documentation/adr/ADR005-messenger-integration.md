@@ -68,3 +68,4 @@ References
 - [ADR004 - Ports and Adapters](ADR004-ports-and-adapters.md)
 - [ADR007 - Recovery and replay](ADR007-workflow-recovery.md)
 - [ADR009 - Workflow re-dispatch](ADR009-distributed-workflow-dispatch.md)
+- [WA002 - Messenger transports vs EventStore engine](../wa/WA002-messenger-transports-and-event-store-engine.md) — DSN des files (`durable_workflows`, etc.) indépendante du backend journal Durable (DBAL vs Temporal)

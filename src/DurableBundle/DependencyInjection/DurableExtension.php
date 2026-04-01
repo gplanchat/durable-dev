@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\DependencyInjection;
 
+use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
@@ -43,6 +46,7 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\DependencyInjection\Extension;
+use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 final class DurableExtension extends Extension
 {
@@ -122,7 +126,9 @@ final class DurableExtension extends Extension
     private function registerEventStore(ContainerBuilder $container, array $config): void
     {
         $storeConfig = $config['event_store'] ?? [];
-        if (($storeConfig['type'] ?? 'in_memory') === 'dbal') {
+        $type = $storeConfig['type'] ?? 'in_memory';
+
+        if ('dbal' === $type) {
             $container->register(EventStoreInterface::class, DbalEventStore::class)
                 ->setArguments([
                     $this->durableDbalConnectionReference($config),
@@ -130,9 +136,39 @@ final class DurableExtension extends Extension
                 ])
                 ->setPublic(true)
             ;
-        } else {
-            $container->register(EventStoreInterface::class, InMemoryEventStore::class)->setPublic(true);
+
+            return;
         }
+
+        if ('temporal' === $type) {
+            $temporalConfig = $storeConfig['temporal'] ?? [];
+            $dsn = $temporalConfig['dsn'] ?? null;
+            if (!\is_string($dsn) || '' === $dsn) {
+                throw new \LogicException('Configuration "durable.event_store.temporal.dsn" is required and must be non-empty when durable.event_store.type is "temporal".');
+            }
+
+            $container->register('durable.temporal.connection', TemporalConnection::class)
+                ->setFactory([TemporalConnection::class, 'fromDsn'])
+                ->setArguments([$dsn])
+            ;
+
+            $container->register('durable.temporal.workflow_service_client', WorkflowServiceClient::class)
+                ->setFactory([WorkflowServiceClientFactory::class, 'create'])
+                ->setArguments([new Reference('durable.temporal.connection')])
+            ;
+
+            $container->register(EventStoreInterface::class, TemporalJournalEventStore::class)
+                ->setArguments([
+                    new Reference('durable.temporal.workflow_service_client'),
+                    new Reference('durable.temporal.connection'),
+                ])
+                ->setPublic(true)
+            ;
+
+            return;
+        }
+
+        $container->register(EventStoreInterface::class, InMemoryEventStore::class)->setPublic(true);
     }
 
     /**

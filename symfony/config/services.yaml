@@ -27,24 +27,5 @@ services:
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
-# Journal Durable sur Temporal (workflows « DurableJournal » visibles dans Temporal UI).
-# Prérequis : ext-grpc, stack `docker compose` dans ./symfony/, worker messenger:consume durable_temporal_journal.
-# Les files Messenger applicatives (inner doctrine) restent en base SQLite/Doctrine — pas d’activités Temporal natives tant que le transport gRPC applicatif n’est pas implémenté.
-when@dev:
-    services:
-        temporal.connection:
-            class: Gplanchat\Bridge\Temporal\TemporalConnection
-            factory: ['Gplanchat\Bridge\Temporal\TemporalConnection', 'fromDsn']
-            arguments: ['%env(DURABLE_TEMPORAL_DSN)%']
-
-        temporal.workflow_service_client:
-            class: Temporal\Api\Workflowservice\V1\WorkflowServiceClient
-            factory: ['Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory', 'create']
-            arguments: ['@temporal.connection']
-
-        Gplanchat\Durable\Store\EventStoreInterface:
-            class: Gplanchat\Bridge\Temporal\TemporalJournalEventStore
-            public: true
-            arguments:
-                $client: '@temporal.workflow_service_client'
-                $settings: '@temporal.connection'
+# Journal Temporal en dev : config/packages/durable.yaml when@dev → durable.event_store.type temporal + DURABLE_TEMPORAL_DSN.
+# Prérequis : ext-grpc, stack docker compose, worker messenger:consume durable_temporal_journal.

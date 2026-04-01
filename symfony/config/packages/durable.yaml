@@ -1,4 +1,4 @@
-# En APP_ENV=dev, EventStoreInterface est remplacé par TemporalJournalEventStore (config/services.yaml when@dev).
+# En APP_ENV=dev, le journal utilise le bundle (event_store.type: temporal) — plus besoin d’override manuel dans services.yaml.
 durable:
     dbal_connection: durable
     event_store:
@@ -21,6 +21,13 @@ durable:
             - App\Durable\Activity\GreetingActivityInterface
             - App\Durable\Activity\EchoActivityInterface
             - App\Durable\Activity\TickActivityInterface
+
+when@dev:
+    durable:
+        event_store:
+            type: temporal
+            temporal:
+                dsn: '%env(DURABLE_TEMPORAL_DSN)%'
 
 when@test:
     durable:

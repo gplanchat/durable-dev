@@ -57,4 +57,5 @@ Références
 - [ADR009 — Modèle distribué](ADR009-distributed-workflow-dispatch.md)
 - [ADR010 — Parité Temporal / événements](ADR010-temporal-parity-events-and-replay.md)
 - [ADR019 — Pagination curseur EventStore](ADR019-event-store-cursor-pagination.md) — `GetWorkflowExecutionHistory` et `next_page_token` pour le rejeu du journal
+- [ADR020 — Temporal UI : type métier (Option B)](ADR020-temporal-ui-workflow-type-option-b.md) — cible d’alignement `WorkflowType` / `WorkflowRegistry`
 - [OST001 — Opportunités futures](../ost/OST001-future-opportunities.md)

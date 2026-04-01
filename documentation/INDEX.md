@@ -27,6 +27,7 @@ Symfony component and bundle for durable execution (workflows and activities).
 | [ADR017](adr/ADR017-splitsh-ci-and-satellite-pushes.md) | Splitsh CI et push vers dépôts satellites | Vérif vs push PAT, cache binaire, `SPLITSH_PUSH_TOKEN` |
 | [ADR018](adr/ADR018-no-silent-catch-blocks.md) | Pas de `catch` muets | Interdiction explicite, journalisation / rethrow / contrat métier, revue |
 | [ADR019](adr/ADR019-event-store-cursor-pagination.md) | Pagination curseur EventStore | Keyset DBAL (`id`), `next_page_token` Temporal ; mémoire client vs ADR016 |
+| [ADR020](adr/ADR020-temporal-ui-workflow-type-option-b.md) | Temporal UI — WorkflowType = type métier (Option B) | Cible produit : nom d’exécution Temporal aligné sur `WorkflowRegistry` ; pas de SDK / RR |
 
 ---
 
@@ -35,6 +36,9 @@ Symfony component and bundle for durable execution (workflows and activities).
 | WA | Title | Description |
 |----|-------|-------------|
 | [WA001](wa/WA001-conventions-and-reviews.md) | Conventions and reviews | Naming, code review, Cursor plan management |
+| [WA002](wa/WA002-messenger-transports-and-event-store-engine.md) | Messenger transports vs EventStore engine | DSN workflows/activities (RabbitMQ, Doctrine, …) orthogonal to journal backend (DBAL vs Temporal bridge) |
+| [WA003](wa/WA003-dbal-bridge-extraction-map.md) | Cartographie extraction durable-bridge-dbal | Classes DBAL à extraire (EventStore, métadonnées, outbox) |
+| [WA004](wa/WA004-testing-coverage-by-testsuite.md) | Couverture par testsuite | Objectif ≥ 80 % PCOV par unit / functional / integration |
 
 ---
 
@@ -46,6 +50,7 @@ Symfony component and bundle for durable execution (workflows and activities).
 | [OST002](ost/OST002-phpunit12-upgrade-checklist.md) | PHPUnit 12 upgrade | Pre-upgrade checklist, extensions, coverage |
 | [OST003](ost/OST003-activity-api-ergonomics.md) | Activity call ergonomics | `#[Activity]` / `#[Workflow]`, `activityStub()`, PSR-6, PHPStan/Psalm |
 | [OST004](ost/OST004-workflow-temporal-feature-parity.md) | Temporal parity (workflows) | Side effects, timers, child, continue-as-new, signals/queries/updates |
+| [OST005](ost/OST005-journal-poll-vs-messenger-unified-worker.md) | Poll journal Temporal vs worker unifié | Fusion poll + Messenger, spikes, risques serveur Temporal |
 
 ---
 
