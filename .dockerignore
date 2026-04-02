@@ -4,10 +4,6 @@
 .php-cs-fixer.cache
 var
 vendor
-magento/var
-magento/generated
-magento/pub/static
-magento/vendor
 symfony/var
 node_modules
 *.md

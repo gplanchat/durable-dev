@@ -1,9 +1,0 @@
-/vendor/
-/generated/
-/pub/static/
-/var/
-/app/etc/env.php
-/app/etc/config.php
-/auth.json
-/.idea
-/node_modules/

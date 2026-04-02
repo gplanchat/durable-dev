@@ -34,8 +34,6 @@ docker compose --profile php run --rm php bash
 
 Fichiers : **`compose.yaml`**, **`docker/php/Dockerfile`**, **`.dockerignore`**. DSN type journal : `temporal://temporal:7233?namespace=default&task_queue=durable-journal&tls=0` **depuis un service dans le même Compose** ; depuis l’hôte, garde `127.0.0.1:7233`.
 
-**Magento** (MySQL + OpenSearch) : toujours **`docker-compose.magento-dev.yaml`** (`docker compose -f docker-compose.magento-dev.yaml up -d`).
-
 Surcharge locale (ports, variables) : copier **`compose.override.example.yaml`** → **`compose.override.yaml`** (fichier ignoré par Git, fusionné automatiquement avec `compose.yaml`).
 
 ## Installing in a Symfony project
@@ -46,7 +44,7 @@ composer require gplanchat/durable-bundle
 
 The bundle pulls in the **`gplanchat/durable`** component. **`symfony/messenger`** is required for Messenger-based activity transport and distributed workflow resume; the **library alone** does not declare that dependency (use **DBAL** or **in-memory** transports without the bundle if you avoid Messenger). Enable `Gplanchat\Durable\Bundle\DurableBundle` and copy configuration similar to `config/packages/durable.yaml` (see below and the sample app under `symfony/`).
 
-> **This repository (monorepo)** : une seule arborescence de code sous **`src/`** et **`tests/`**. L’app exemple Symfony résout **`gplanchat/durable`** et **`gplanchat/durable-bundle`** via des dépôts *path* vers **`../src/Durable`** et **`../src/DurableBundle`**. Le bridge Temporal vit sous **`src/Bridge/Temporal`** (`Gplanchat\Bridge\Temporal`). La publication vers Packagist se fait avec **splitsh-lite** : voir **`bin/splitsh-publish.sh`**, le workflow **`.github/workflows/splitsh.yml`** (exécution sur chaque push vers `main` / `master`, plus déclenchement manuel), et les remotes `git@github.com:gplanchat/durable.git`, `durable-bundle.git`, **`durable-bridge-temporal.git`**, **`durable-magento.git`**, `durable-phpstan.git`, `durable-psalm-plugin.git`.
+> **This repository (monorepo)** : une seule arborescence de code sous **`src/`** et **`tests/`**. L’app exemple Symfony résout **`gplanchat/durable`** et **`gplanchat/durable-bundle`** via des dépôts *path* vers **`../src/Durable`** et **`../src/DurableBundle`**. Le bridge Temporal vit sous **`src/Bridge/Temporal`** (`Gplanchat\Bridge\Temporal`). La publication vers Packagist se fait avec **splitsh-lite** : voir **`bin/splitsh-publish.sh`**, le workflow **`.github/workflows/splitsh.yml`** (exécution sur chaque push vers `main` / `master`, plus déclenchement manuel), et les remotes `git@github.com:gplanchat/durable.git`, `durable-bundle.git`, **`durable-bridge-temporal.git`**, `durable-phpstan.git`, `durable-psalm-plugin.git`.
 
 ## Quick start (about 3 minutes)
 
@@ -60,10 +58,6 @@ To run a workflow **without setting up your own project** yet:
 You should see a greeting such as **Hello, Alice!**. For production-style workers (Messenger queues), see **`symfony/README.md`**.
 
 > **Symfony project elsewhere** : install the bundle as above, reuse the sample `durable.yaml`, create tables (`durable:schema:init`), register your workflow and activity classes as in the *Symfony bundle* section, then start a workflow from a command or your code.
-
-## Magento 2.4
-
-The Composer package **`gplanchat/durable-magento`** lives under **`src/DurableModule/`** (module `Gplanchat_DurableModule`). It targets DBAL and (placeholder) Temporal backends without Messenger or RoadRunner. See **`magento/README.md`** and [ADR015](documentation/adr/ADR015-magento-durable-module.md).
 
 ## Concepts
 
@@ -250,7 +244,7 @@ composer infection:unit-fast     # idem unit + --only-covered (moins de mutants,
 composer infection               # toutes les suites PHPUnit (unit + functional + integration + e2e)
 ```
 
-Configuration : **`infection.json.dist`** (rapports HTML/texte sous **`var/infection/`**, déjà ignoré via `var/`). Le module Magento (`src/DurableModule`) et les paquets d’analyse statique ne sont **pas** dans le périmètre de mutation.
+Configuration : **`infection.json.dist`** (rapports HTML/texte sous **`var/infection/`**, déjà ignoré via `var/`). Les paquets d’analyse statique (`DurablePhpStan`, `DurablePsalmPlugin`) ne sont **pas** dans le périmètre de mutation.
 
 ## Repository layout
 
@@ -260,7 +254,6 @@ src/
 ├── DurableBundle/        # Paquet gplanchat/durable-bundle
 ├── Bridge/
 │   └── Temporal/         # Paquet gplanchat/durable-bridge-temporal (journal gRPC, sans SDK Temporal)
-├── DurableModule/        # Module Magento 2 (split → gplanchat/durable-magento ou équivalent)
 ├── DurablePhpStan/       # Extension PHPStan (paquet gplanchat/durable-phpstan)
 └── DurablePsalmPlugin/   # Plugin Psalm (paquet gplanchat/durable-psalm-plugin)
 tests/
@@ -275,7 +268,7 @@ bin/splitsh-publish.sh    # Aide pour splitsh-lite → dépôts GitHub
 
 ## Documentation
 
-- **Split / Packagist** : `bin/splitsh-publish.sh` ; CI **Splitsh** (`.github/workflows/splitsh.yml`) — préfixes `src/Durable`, `src/DurableBundle`, `src/Bridge/Temporal`, `src/DurableModule`, `src/DurablePhpStan`, `src/DurablePsalmPlugin` ; cache du binaire **splitsh-lite** (restore / build / save) ; secret optionnel **`SPLITSH_PUSH_TOKEN`** (PAT avec droit `contents` sur chaque dépôt satellite) pour **pousser** automatiquement les SHA — voir **[ADR017](documentation/adr/ADR017-splitsh-ci-and-satellite-pushes.md)**
+- **Split / Packagist** : `bin/splitsh-publish.sh` ; CI **Splitsh** (`.github/workflows/splitsh.yml`) — préfixes `src/Durable`, `src/DurableBundle`, `src/Bridge/Temporal`, `src/DurablePhpStan`, `src/DurablePsalmPlugin` ; cache du binaire **splitsh-lite** (restore / build / save) ; secret optionnel **`SPLITSH_PUSH_TOKEN`** (PAT avec droit `contents` sur chaque dépôt satellite) pour **pousser** automatiquement les SHA — voir **[ADR017](documentation/adr/ADR017-splitsh-ci-and-satellite-pushes.md)**
 - [Documentation index](documentation/INDEX.md) — ADR, conventions, OST
 - [ADR016](documentation/adr/ADR016-dedicated-dbal-connection-and-unbuffered-reads.md) — Dedicated DBAL connection and MySQL unbuffered reads
 - [CHANGELOG.md](CHANGELOG.md) — API breaks and changes

@@ -1,9 +1,5 @@
 vendor/
 var/
-magento/vendor/
-magento/generated/
-magento/pub/static/
-magento/var/
 .php-cs-fixer.cache
 .phpunit.cache/
 symfony/var

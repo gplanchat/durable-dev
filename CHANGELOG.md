@@ -2,6 +2,10 @@
 
 ## [Unreleased] — API breaks (Temporal parity)
 
+### Removed
+
+- **Magento** — suppression de `src/DurableModule/` (package `gplanchat/durable-magento`), du répertoire sandbox `magento/`, de `docker-compose.magento-dev.yaml` ; **ADR015** déplacé vers [`documentation/archive/ADR015-magento-durable-module.md`](documentation/archive/ADR015-magento-durable-module.md) ; retrait du splitsh (`bin/splitsh-publish.sh`) et des références documentation / README.
+
 ### Fixed
 
 - **Splitsh (CI)** — remplacement de `${{ runner.home }}` (contexte inexistant → `/.local/bin`, échec `mkdir`) par **`$HOME`** / **`~`** pour les chemins et le cache **actions/cache**.

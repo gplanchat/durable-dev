@@ -30,7 +30,6 @@ remote_for_prefix() {
     src/Durable) echo "git@github.com:gplanchat/durable.git" ;;
     src/DurableBundle) echo "git@github.com:gplanchat/durable-bundle.git" ;;
     src/Bridge/Temporal) echo "git@github.com:gplanchat/durable-bridge-temporal.git" ;;
-    src/DurableModule) echo "git@github.com:gplanchat/durable-magento.git" ;;
     src/DurablePhpStan) echo "git@github.com:gplanchat/durable-phpstan.git" ;;
     src/DurablePsalmPlugin) echo "git@github.com:gplanchat/durable-psalm-plugin.git" ;;
     *) echo "" ;;
@@ -64,7 +63,7 @@ push_split_to_github() {
   fi
 }
 
-for prefix in src/Durable src/DurableBundle src/Bridge/Temporal src/DurableModule src/DurablePhpStan src/DurablePsalmPlugin; do
+for prefix in src/Durable src/DurableBundle src/Bridge/Temporal src/DurablePhpStan src/DurablePsalmPlugin; do
   if [ ! -d "$prefix" ]; then
     echo "!! splitsh : dossier absent, ignoré — $prefix (créez l’arborescence ou retirez ce préfixe du script)" >&2
     continue

@@ -1,8 +1,10 @@
 # ADR015 — Module Magento `Gplanchat_DurableModule` (DBAL / Temporal)
 
+> **Retiré du dépôt** : le module `src/DurableModule/`, la sandbox `magento/` et `docker-compose.magento-dev.yaml` ont été supprimés (branche `cleanup/remove-magento`, 2026). Ce document est conservé pour l’historique.
+
 ## Statut
 
-Accepté (implémentation initiale dans le monorepo).
+Archivé — implémentation Magento supprimée du monorepo.
 
 ## Contexte
 

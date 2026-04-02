@@ -12,10 +12,9 @@
         <directory name="src"/>
         <directory name="tests"/>
         <ignoreFiles>
+            <directory name="src/TemporalGenerated"/>
             <directory name="vendor"/>
             <directory name="src/Bridge/Temporal"/>
-            <!-- Module Magento : classes Magento absentes du monorepo (analyse côté projet Magento / ADR015). -->
-            <directory name="src/DurableModule"/>
             <!-- Tests du bridge : src ignoré ; les tests appellent des API @internal (codec, resolver). -->
             <directory name="tests/unit/Bridge/Temporal"/>
         </ignoreFiles>

@@ -3,7 +3,7 @@
 **Statut** : implémenté (découplage lib / bundle effectué).  
 **Prérequis produit** : la **library** `gplanchat/durable` ne doit pas dépendre de `symfony/messenger` ; **Messenger** reste confiné au **`gplanchat/durable-bundle`**.
 
-**Référence** : aligné avec le plan Cursor « Durable × Magento 2.4 » (todo `lib-decouple-messenger`).
+**Référence** : plan Cursor `lib-decouple-messenger` (todo associé).
 
 ---
 
@@ -62,4 +62,4 @@
 
 ## Suite
 
-Plan **exécuté** (autre session / agent). La suite est le plan **Magento** : sandbox `./magento/`, module tout-DBAL, sans Messenger — voir le plan Cursor « Durable × Magento 2.4 » (todo `lib-decouple-messenger` → **completed**).
+Plan **exécuté** (autre session / agent). Le découplage lib / bundle est terminé ; toute intégration tierce (hors Symfony) repose sur les ports (`ActivityTransportInterface`, `EventStoreInterface`, etc.) documentés dans les ADR.

@@ -22,7 +22,6 @@ Symfony component and bundle for durable execution (workflows and activities).
 | [ADR012](adr/ADR012-activity-stub-metadata-and-static-analysis.md) | Activity stub, PSR-6 cache, warmup, static analysis | activityStub, ActivityContractResolver, PHPStan extension |
 | [ADR013](adr/ADR013-activity-contract-cache-production-policy.md) | Cache PSR-6 des contrats d’activité en production | Miss, absence de pool, recommandations charge |
 | [ADR014](adr/ADR014-temporal-journal-eventstore-bridge.md) | Temporal journal EventStore (gRPC sans SDK) | `TemporalJournalEventStore`, transport Messenger, `messenger:consume` journal |
-| [ADR015](adr/ADR015-magento-durable-module.md) | Module Magento Durable | `src/DurableModule/`, backends DBAL / Temporal, sans Messenger ni RoadRunner |
 | [ADR016](adr/ADR016-dedicated-dbal-connection-and-unbuffered-reads.md) | Connexion DBAL dédiée et lectures unbuffered | `durable.dbal_connection`, alias `durable.dbal.connection`, options PDO MySQL |
 | [ADR017](adr/ADR017-splitsh-ci-and-satellite-pushes.md) | Splitsh CI et push vers dépôts satellites | Vérif vs push PAT, cache binaire, `SPLITSH_PUSH_TOKEN` |
 | [ADR018](adr/ADR018-no-silent-catch-blocks.md) | Pas de `catch` muets | Interdiction explicite, journalisation / rethrow / contrat métier, revue |
@@ -39,6 +38,7 @@ Symfony component and bundle for durable execution (workflows and activities).
 | [WA002](wa/WA002-messenger-transports-and-event-store-engine.md) | Messenger transports vs EventStore engine | DSN workflows/activities (RabbitMQ, Doctrine, …) orthogonal to journal backend (DBAL vs Temporal bridge) |
 | [WA003](wa/WA003-dbal-bridge-extraction-map.md) | Cartographie extraction durable-bridge-dbal | Classes DBAL à extraire (EventStore, métadonnées, outbox) |
 | [WA004](wa/WA004-testing-coverage-by-testsuite.md) | Couverture par testsuite | Objectif ≥ 80 % PCOV par unit / functional / integration |
+| [WA005](wa/WA005-pr-review-checklist-adr.md) | Checklist revue PR (ADR) | Cases à cocher par ADR001–020 + synthèse ; complète WA001 |
 
 ---
 
@@ -70,7 +70,7 @@ Symfony component and bundle for durable execution (workflows and activities).
 
 | Plan | Title | Description |
 |------|-------|-------------|
-| [PLAN001](plans/PLAN001-lib-decouple-messenger.md) | Découpler Messenger de la lib | **Fait** : `MessengerActivityTransport` dans le bundle ; `symfony/messenger` retiré de `gplanchat/durable` — débloque intégrations sans Messenger (ex. Magento) |
+| [PLAN001](plans/PLAN001-lib-decouple-messenger.md) | Découpler Messenger de la lib | **Fait** : `MessengerActivityTransport` dans le bundle ; `symfony/messenger` retiré de `gplanchat/durable` |
 
 ---
 
@@ -79,6 +79,14 @@ Symfony component and bundle for durable execution (workflows and activities).
 | Audit | Title | Description |
 |-------|-------|-------------|
 | [AUDIT001](audit/AUDIT001-phase2-code-review.md) | Phase 2 code review | Consistency, separation of concerns, ADR compliance |
+
+---
+
+## Archives (références retirées du dépôt)
+
+| Document | Description |
+|----------|-------------|
+| [ADR015 (archivé)](archive/ADR015-magento-durable-module.md) | Ancien module Magento `Gplanchat_DurableModule` — code supprimé du monorepo |
 
 ---
 
