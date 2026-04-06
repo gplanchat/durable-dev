@@ -541,6 +541,7 @@ final class TemporalEventsDashboardDataProvider
      *   startTime: string,
      *   endTime: string,
      *   zoom: string,
+     *   windowDurationLabel: string,
      *   lanes: list<array{
      *      label: string,
      *      kind: string,
@@ -562,6 +563,7 @@ final class TemporalEventsDashboardDataProvider
                 'startTime' => $this->formatFromFloatSeconds($now),
                 'endTime' => $this->formatFromFloatSeconds($now),
                 'zoom' => $zoom,
+                'windowDurationLabel' => '0s',
                 'lanes' => [],
             ];
         }
@@ -621,6 +623,7 @@ final class TemporalEventsDashboardDataProvider
             'startTime' => $this->formatFromFloatSeconds($viewMin),
             'endTime' => $this->formatFromFloatSeconds($viewMax),
             'zoom' => $zoom,
+            'windowDurationLabel' => $this->formatWindowDurationLabel($viewMax - $viewMin),
             'lanes' => $lanes,
         ];
     }
@@ -735,6 +738,23 @@ final class TemporalEventsDashboardDataProvider
         }
 
         return $date->setTimezone(new \DateTimeZone(\date_default_timezone_get()))->format('H:i:s');
+    }
+
+    private function formatWindowDurationLabel(float $seconds): string
+    {
+        $total = (int) \max(0, \round($seconds));
+        $hours = (int) \floor($total / 3600);
+        $minutes = (int) \floor(($total % 3600) / 60);
+        $remaining = $total % 60;
+
+        if ($hours > 0) {
+            return \sprintf('%dh %02dm %02ds', $hours, $minutes, $remaining);
+        }
+        if ($minutes > 0) {
+            return \sprintf('%dm %02ds', $minutes, $remaining);
+        }
+
+        return \sprintf('%ds', $remaining);
     }
 
     private function encodeCursor(string $token): string

@@ -6,7 +6,7 @@
 <div class="container ds-page">
     <div class="page-intro">
         <h1>Workflow Dashboard</h1>
-        <p>Vue de suivi simplifiee inspiree de Temporal UI, avec filtres et details d'execution.</p>
+        <p>Suivez l'etat des executions en cours, identifiez rapidement les echecs et inspectez une execution en detail sans quitter la page.</p>
     </div>
 
     <section class="ds-kpi-grid" aria-label="Indicateurs workflows">
@@ -61,8 +61,8 @@
     <section class="ds-dashboard-split">
         <aside class="ds-dashboard-list" aria-label="Liste des workflows">
             <div class="ds-pagination">
-                <span class="ds-pagination__label">Pagination par curseur ({{ pagination.pageSize }} par page)</span>
-                <span class="ds-pagination__cursor">Curseur courant: <code>{{ pagination.cursorHint }}</code>{% if pagination.nextCursorHint %} · suivant: <code>{{ pagination.nextCursorHint }}</code>{% endif %}</span>
+                <span class="ds-pagination__label">Navigation des executions</span>
+                <span class="ds-pagination__cursor">Affichage de {{ runs|length }} execution{{ runs|length > 1 ? 's' : '' }} (max {{ pagination.pageSize }} par page)</span>
                 <div class="hstack">
                     {% if pagination.hasPrevious %}
                         <a class="btn btn-ghost btn-sm" href="{{ path('app_dashboard', {
@@ -195,13 +195,17 @@
                                             <span>{{ selectedRun.timeline.startTime }}</span>
                                             <span>{{ selectedRun.timeline.endTime }}</span>
                                         </div>
+                                <div class="ds-gantt__window-info">
+                                    Fenetre active: <code>{{ selectedRun.timeline.startTime }} → {{ selectedRun.timeline.endTime }}</code>
+                                    · Duree visible: <code>{{ selectedRun.timeline.windowDurationLabel }}</code>
+                                </div>
                                         {% for lane in selectedRun.timeline.lanes %}
                                             <div class="ds-gantt__lane">
                                                 <div class="ds-gantt__lane-label">{{ lane.label }}</div>
                                                 <div class="ds-gantt__track">
                                                     <span class="ds-gantt__bar ds-gantt__bar--{{ lane.kind }}"
                                                           style="left: {{ lane.startPercent }}%; width: {{ lane.widthPercent }}%;"
-                                                          title="{{ lane.startTime }} → {{ lane.endTime }}"></span>
+                                                  title="Workflow: {{ selectedRun.workflowName }}&#10;Run ID: {{ selectedRun.runId }}&#10;Statut: {{ selectedRun.status|upper }}&#10;Ligne: {{ lane.label }}&#10;Type: {{ lane.kind|upper }}&#10;Debut: {{ lane.startTime }}&#10;Fin: {{ lane.endTime }}"></span>
                                                 </div>
                                                 <div class="ds-gantt__lane-time">{{ lane.startTime }} → {{ lane.endTime }}</div>
                                             </div>

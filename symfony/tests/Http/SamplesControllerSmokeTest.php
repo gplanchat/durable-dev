@@ -109,10 +109,27 @@ final class SamplesControllerSmokeTest extends WebTestCase
         $content = (string) $client->getResponse()->getContent();
         $this->assertStringContainsString('Workflow Dashboard', $content);
         $this->assertStringContainsString('Running', $content);
-        $this->assertStringContainsString('Pagination par curseur', $content);
-        $this->assertStringContainsString('Curseur courant', $content);
+        $this->assertStringContainsString('Navigation des executions', $content);
+        $this->assertStringContainsString('Affichage de', $content);
         $this->assertStringContainsString('Frise temporelle', $content);
         $this->assertStringContainsString('Historique des evenements', $content);
+    }
+
+    public function testDashboardShowsTimelineControlsAndLegend(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/dashboard');
+
+        $this->assertResponseIsSuccessful();
+        $content = (string) $client->getResponse()->getContent();
+        $normalized = strtoupper($content);
+        $this->assertStringContainsString('ZOOM', $normalized);
+        $this->assertStringContainsString('LIGNES', $normalized);
+        $this->assertStringContainsString('EXECUTION', $normalized);
+        $this->assertStringContainsString('ACTIVITY', $normalized);
+        $this->assertStringContainsString('SIGNAL', $normalized);
+        $this->assertStringContainsString('QUERY', $normalized);
+        $this->assertStringContainsString('UPDATE', $normalized);
     }
 
     public function testDashboardFiltersByStatus(): void
