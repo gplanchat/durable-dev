@@ -31,5 +31,7 @@
         <PossiblyInvalidMethodCall errorLevel="suppress" />
         <!-- Traits consumed by downstream tests, not library code -->
         <UnusedClass errorLevel="suppress" />
+        <!-- #[\Override] requires PHP 8.3+; the project targets PHP 8.2+ -->
+        <MissingOverrideAttribute errorLevel="suppress" />
     </issueHandlers>
 </psalm>
