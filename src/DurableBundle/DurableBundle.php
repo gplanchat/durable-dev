@@ -6,6 +6,7 @@ namespace Gplanchat\Durable\Bundle;
 
 use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\ActivityHandlerPass;
+use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\DurableTemporalTransportFactoryPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterWorkflowDispatchProfilerMiddlewarePass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\WorkflowPass;
 use Symfony\Component\DependencyInjection\ChildDefinition;
@@ -30,5 +31,7 @@ final class DurableBundle extends Bundle
         $container->addCompilerPass(new WorkflowPass());
         // Priorité 50 : après AttributeAutoconfigurationPass (100), avant les passes à 0 (WorkflowPass, etc.).
         $container->addCompilerPass(new ActivityHandlerPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 50);
+        // Après tous les passes d'autowiring : injecte TemporalActivityWorker dans TemporalTransportFactory.
+        $container->addCompilerPass(new DurableTemporalTransportFactoryPass(), PassConfig::TYPE_BEFORE_REMOVING);
     }
 }
