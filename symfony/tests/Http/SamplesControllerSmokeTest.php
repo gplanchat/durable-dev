@@ -57,8 +57,18 @@ final class SamplesControllerSmokeTest extends WebTestCase
 
         $this->assertResponseIsSuccessful();
         $content = (string) $client->getResponse()->getContent();
-        $this->assertStringContainsString('Synchrone', $content);
+        $this->assertStringContainsString('Lire la documentation', $content);
         $this->assertStringContainsString('SimpleActivity', $content);
+    }
+
+    public function testDocumentationPageReturns200(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/documentation');
+
+        $this->assertResponseIsSuccessful();
+        $content = (string) $client->getResponse()->getContent();
+        $this->assertStringContainsString('Documentation Durable', $content);
     }
 
     public function testSamplesRunSyncReturns200ForSimpleActivity(): void

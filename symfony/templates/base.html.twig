@@ -413,6 +413,46 @@
             padding: 0.6rem 0.2rem;
         }
 
+        .hero {
+            background: linear-gradient(140deg, rgba(36, 26, 61, 0.95), rgba(21, 15, 35, 0.95));
+            border: 1px solid var(--ds-border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+            box-shadow: rgba(22, 15, 36, 0.9) 0 4px 4px 9px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+        .hero__label {
+            display: inline-flex;
+            align-self: flex-start;
+            background: rgba(194, 239, 78, 0.15);
+            color: var(--ds-accent);
+            border: 1px solid rgba(194, 239, 78, 0.45);
+            border-radius: 999px;
+            padding: 0.2rem 0.55rem;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .hero p {
+            color: var(--ds-text-muted);
+            max-width: 68ch;
+        }
+        .hero__points {
+            margin: 0;
+            padding-left: 1.05rem;
+            display: grid;
+            gap: 0.4rem;
+        }
+        .hero__points li {
+            color: var(--ds-text-muted);
+            line-height: 1.45;
+            font-size: 0.9rem;
+        }
+
         @media (max-width: 940px) {
             .ds-filters {
                 grid-template-columns: 1fr;
