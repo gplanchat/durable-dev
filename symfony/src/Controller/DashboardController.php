@@ -23,7 +23,7 @@ final class DashboardController extends AbstractController
         $stackEncoded = \trim((string) $request->query->get('stack', ''));
         $cursorStack = $this->decodeCursorStack($stackEncoded);
 
-        $page = $dataProvider->provideRunsPage($cursor, self::DASHBOARD_PAGE_SIZE);
+        $page = $dataProvider->provideRunsPage($cursor, self::DASHBOARD_PAGE_SIZE, $status);
         $runs = $page['runs'];
         $filteredRuns = \array_values(\array_filter($runs, static function (array $run) use ($query, $status): bool {
             $matchesStatus = 'all' === $status || $run['status'] === $status;
@@ -82,6 +82,8 @@ final class DashboardController extends AbstractController
                 'nextStack' => $nextStackEncoded,
                 'cursor' => $cursor,
                 'stack' => $stackEncoded,
+                'cursorHint' => '' === $cursor ? 'START' : $this->cursorHint($cursor),
+                'nextCursorHint' => null !== $nextCursor ? $this->cursorHint($nextCursor) : null,
                 'pageSize' => self::DASHBOARD_PAGE_SIZE,
             ],
         ]);
@@ -127,6 +129,11 @@ final class DashboardController extends AbstractController
         $json = \json_encode($stack, \JSON_THROW_ON_ERROR);
 
         return \rtrim(\strtr(\base64_encode($json), '+/', '-_'), '=');
+    }
+
+    private function cursorHint(string $cursor): string
+    {
+        return \substr(\sha1($cursor), 0, 8);
     }
 
     /**

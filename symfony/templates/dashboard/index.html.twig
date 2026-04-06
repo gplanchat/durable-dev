@@ -52,6 +52,7 @@
         <aside class="ds-dashboard-list" aria-label="Liste des workflows">
             <div class="ds-pagination">
                 <span class="ds-pagination__label">Pagination par curseur ({{ pagination.pageSize }} par page)</span>
+                <span class="ds-pagination__cursor">Curseur courant: <code>{{ pagination.cursorHint }}</code>{% if pagination.nextCursorHint %} · suivant: <code>{{ pagination.nextCursorHint }}</code>{% endif %}</span>
                 <div class="hstack">
                     {% if pagination.hasPrevious %}
                         <a class="btn btn-ghost btn-sm" href="{{ path('app_dashboard', {
@@ -136,6 +137,7 @@
                                         <div class="ds-timeline__meta">
                                             <span class="ds-event__time">{{ event.time }}</span>
                                             <span class="ds-event__id">#{{ event.eventId }}</span>
+                                            <span class="ds-event-kind ds-event-kind--{{ event.category }}">{{ event.category|upper }}</span>
                                         </div>
                                         <code class="ds-mono">{{ event.type }}</code>
                                     </div>

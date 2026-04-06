@@ -110,6 +110,7 @@ final class SamplesControllerSmokeTest extends WebTestCase
         $this->assertStringContainsString('Workflow Dashboard', $content);
         $this->assertStringContainsString('Running', $content);
         $this->assertStringContainsString('Pagination par curseur', $content);
+        $this->assertStringContainsString('Curseur courant', $content);
     }
 
     public function testDashboardFiltersByStatus(): void

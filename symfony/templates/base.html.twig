@@ -357,6 +357,10 @@
             letter-spacing: 0.06em;
             font-weight: 700;
         }
+        .ds-pagination__cursor {
+            color: var(--ds-text-muted);
+            font-size: 0.76rem;
+        }
         .ds-run-row {
             text-decoration: none !important;
             display: flex;
@@ -495,6 +499,48 @@
         .ds-event__id {
             font-family: var(--font-mono);
             color: rgba(194, 239, 78, 0.85);
+        }
+        .ds-event-kind {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            border: 1px solid var(--ds-border);
+            padding: 0.12rem 0.42rem;
+            font-size: 0.62rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .ds-event-kind--workflow {
+            background: rgba(106, 95, 193, 0.2);
+            border-color: rgba(106, 95, 193, 0.6);
+            color: #e9e5ff;
+        }
+        .ds-event-kind--activity {
+            background: rgba(194, 239, 78, 0.22);
+            border-color: rgba(194, 239, 78, 0.65);
+            color: #101c00;
+        }
+        .ds-event-kind--timer {
+            background: rgba(255, 178, 135, 0.2);
+            border-color: rgba(255, 178, 135, 0.65);
+            color: #fff0e7;
+        }
+        .ds-event-kind--signal {
+            background: rgba(250, 127, 170, 0.2);
+            border-color: rgba(250, 127, 170, 0.65);
+            color: #ffeaf2;
+        }
+        .ds-event-kind--child {
+            background: rgba(149, 203, 255, 0.2);
+            border-color: rgba(149, 203, 255, 0.65);
+            color: #e8f5ff;
+        }
+        .ds-event-kind--marker,
+        .ds-event-kind--other {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.35);
+            color: var(--ds-text-muted);
         }
 
         .hero {

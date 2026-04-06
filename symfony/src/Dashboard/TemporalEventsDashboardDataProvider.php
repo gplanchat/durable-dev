@@ -37,13 +37,13 @@ final class TemporalEventsDashboardDataProvider
      *      taskQueue: string,
      *      startedAt: string,
      *      duration: string,
-     *      events: list<array{eventId: int, time: string, type: string}>,
+     *      events: list<array{eventId: int, time: string, type: string, category: string}>,
      *      workflowId?: string
      *   }>,
      *   nextCursor: string|null
      * }
      */
-    public function provideRunsPage(string $cursor = '', int $pageSize = self::DEFAULT_PAGE_SIZE): array
+    public function provideRunsPage(string $cursor = '', int $pageSize = self::DEFAULT_PAGE_SIZE, string $status = 'all'): array
     {
         if (null === $this->workflowServiceClient || null === $this->connection) {
             return [
@@ -56,7 +56,7 @@ final class TemporalEventsDashboardDataProvider
             $request = new ListWorkflowExecutionsRequest();
             $request->setNamespace($this->connection->namespace);
             $request->setPageSize($pageSize);
-            $request->setQuery('WorkflowId STARTS_WITH "durable-"');
+            $request->setQuery($this->buildVisibilityQuery($status));
             if ('' !== $cursor) {
                 $request->setNextPageToken($this->decodeCursor($cursor));
             }
@@ -135,7 +135,7 @@ final class TemporalEventsDashboardDataProvider
      *   taskQueue: string,
      *   startedAt: string,
      *   duration: string,
-     *   events: list<array{eventId: int, time: string, type: string}>,
+     *   events: list<array{eventId: int, time: string, type: string, category: string}>,
      *   workflowId?: string
      * } $run
      *
@@ -146,7 +146,7 @@ final class TemporalEventsDashboardDataProvider
      *   taskQueue: string,
      *   startedAt: string,
      *   duration: string,
-     *   events: list<array{eventId: int, time: string, type: string}>,
+     *   events: list<array{eventId: int, time: string, type: string, category: string}>,
      *   workflowId?: string
      * }
      */
@@ -181,10 +181,12 @@ final class TemporalEventsDashboardDataProvider
             $events = [];
             /** @var HistoryEvent $event */
             foreach ($tail as $event) {
+                $rawEventType = EventType::name($event->getEventType());
                 $events[] = [
                     'eventId' => (int) $event->getEventId(),
                     'time' => $this->formatProtoTimestamp($event->getEventTime()),
-                    'type' => $this->normalizeEventType(EventType::name($event->getEventType())),
+                    'type' => $this->normalizeEventType($rawEventType),
+                    'category' => $this->categoryForEventType($rawEventType),
                 ];
             }
             $run['events'] = $events;
@@ -203,7 +205,7 @@ final class TemporalEventsDashboardDataProvider
      *   taskQueue: string,
      *   startedAt: string,
      *   duration: string,
-     *   events: list<array{eventId: int, time: string, type: string}>,
+     *   events: list<array{eventId: int, time: string, type: string, category: string}>,
      *   workflowId?: string,
      * }|null
      */
@@ -291,6 +293,42 @@ final class TemporalEventsDashboardDataProvider
         return \str_replace('_', ' ', $normalized);
     }
 
+    private function buildVisibilityQuery(string $status): string
+    {
+        $baseQuery = 'WorkflowId STARTS_WITH "durable-"';
+
+        return match ($status) {
+            'running' => $baseQuery.' AND ExecutionStatus = "Running"',
+            'completed' => $baseQuery.' AND ExecutionStatus = "Completed"',
+            'failed' => $baseQuery.' AND (ExecutionStatus = "Failed" OR ExecutionStatus = "TimedOut" OR ExecutionStatus = "Canceled" OR ExecutionStatus = "Terminated")',
+            default => $baseQuery,
+        };
+    }
+
+    private function categoryForEventType(string $eventType): string
+    {
+        if (\str_contains($eventType, 'WORKFLOW_')) {
+            return 'workflow';
+        }
+        if (\str_contains($eventType, 'ACTIVITY_')) {
+            return 'activity';
+        }
+        if (\str_contains($eventType, 'TIMER_')) {
+            return 'timer';
+        }
+        if (\str_contains($eventType, 'SIGNAL')) {
+            return 'signal';
+        }
+        if (\str_contains($eventType, 'CHILD_WORKFLOW')) {
+            return 'child';
+        }
+        if (\str_contains($eventType, 'MARKER')) {
+            return 'marker';
+        }
+
+        return 'other';
+    }
+
     private function encodeCursor(string $token): string
     {
         return \rtrim(\strtr(\base64_encode($token), '+/', '-_'), '=');
@@ -317,7 +355,7 @@ final class TemporalEventsDashboardDataProvider
      *   taskQueue: string,
      *   startedAt: string,
      *   duration: string,
-     *   events: list<array{eventId: int, time: string, type: string}>,
+     *   events: list<array{eventId: int, time: string, type: string, category: string}>,
      *   workflowId?: string,
      * }>
      */
@@ -332,9 +370,9 @@ final class TemporalEventsDashboardDataProvider
                 'startedAt' => '2026-04-06 13:25:32',
                 'duration' => '00:04:12',
                 'events' => [
-                    ['eventId' => 1, 'time' => '13:25:32', 'type' => 'WORKFLOW EXECUTION STARTED'],
-                    ['eventId' => 2, 'time' => '13:25:35', 'type' => 'ACTIVITY TASK SCHEDULED'],
-                    ['eventId' => 3, 'time' => '13:29:44', 'type' => 'WORKFLOW TASK STARTED'],
+                    ['eventId' => 1, 'time' => '13:25:32', 'type' => 'WORKFLOW EXECUTION STARTED', 'category' => 'workflow'],
+                    ['eventId' => 2, 'time' => '13:25:35', 'type' => 'ACTIVITY TASK SCHEDULED', 'category' => 'activity'],
+                    ['eventId' => 3, 'time' => '13:29:44', 'type' => 'WORKFLOW TASK STARTED', 'category' => 'workflow'],
                 ],
                 'workflowId' => 'durable-demo-run-001',
             ],
@@ -346,9 +384,9 @@ final class TemporalEventsDashboardDataProvider
                 'startedAt' => '2026-04-06 12:58:03',
                 'duration' => '00:01:47',
                 'events' => [
-                    ['eventId' => 1, 'time' => '12:58:03', 'type' => 'WORKFLOW EXECUTION STARTED'],
-                    ['eventId' => 2, 'time' => '12:58:10', 'type' => 'ACTIVITY TASK COMPLETED'],
-                    ['eventId' => 3, 'time' => '12:59:50', 'type' => 'WORKFLOW EXECUTION COMPLETED'],
+                    ['eventId' => 1, 'time' => '12:58:03', 'type' => 'WORKFLOW EXECUTION STARTED', 'category' => 'workflow'],
+                    ['eventId' => 2, 'time' => '12:58:10', 'type' => 'ACTIVITY TASK COMPLETED', 'category' => 'activity'],
+                    ['eventId' => 3, 'time' => '12:59:50', 'type' => 'WORKFLOW EXECUTION COMPLETED', 'category' => 'workflow'],
                 ],
                 'workflowId' => 'durable-demo-run-002',
             ],
@@ -360,9 +398,9 @@ final class TemporalEventsDashboardDataProvider
                 'startedAt' => '2026-04-06 12:40:11',
                 'duration' => '00:00:53',
                 'events' => [
-                    ['eventId' => 1, 'time' => '12:40:11', 'type' => 'WORKFLOW EXECUTION STARTED'],
-                    ['eventId' => 2, 'time' => '12:40:32', 'type' => 'ACTIVITY TASK FAILED'],
-                    ['eventId' => 3, 'time' => '12:41:04', 'type' => 'WORKFLOW EXECUTION FAILED'],
+                    ['eventId' => 1, 'time' => '12:40:11', 'type' => 'WORKFLOW EXECUTION STARTED', 'category' => 'workflow'],
+                    ['eventId' => 2, 'time' => '12:40:32', 'type' => 'ACTIVITY TASK FAILED', 'category' => 'activity'],
+                    ['eventId' => 3, 'time' => '12:41:04', 'type' => 'WORKFLOW EXECUTION FAILED', 'category' => 'workflow'],
                 ],
                 'workflowId' => 'durable-demo-run-003',
             ],
