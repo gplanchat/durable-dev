@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Erreur — Durable{% endblock %}
+
+{% block body %}
+<div class="container-sm">
+    <div style="margin-bottom: 1.5rem;">
+        <a href="{{ path('durable_samples_index') }}" class="back-link">← Retour aux samples</a>
+    </div>
+    <h1 style="margin-bottom: 1rem;">Erreur</h1>
+    <div class="alert alert-danger">{{ message }}</div>
+</div>
+{% endblock %}

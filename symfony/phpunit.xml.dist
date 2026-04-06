@@ -8,8 +8,7 @@
     <php>
         <env name="KERNEL_CLASS" value="App\Kernel"/>
         <env name="APP_ENV" value="test"/>
-        <env name="APP_DEBUG" value="0"/>
-        <env name="DATABASE_URL" value="sqlite:///:memory:"/>
+        <env name="APP_DEBUG" value="1"/>
     </php>
     <testsuites>
         <testsuite name="symfony-sample">

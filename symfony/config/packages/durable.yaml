@@ -1,20 +1,19 @@
-# En APP_ENV=dev, le journal utilise le bundle (event_store.type: temporal) — plus besoin d’override manuel dans services.yaml.
+# Journal : EventStore in-memory + bridge Temporal (WorkflowTaskRunner/WorkflowTaskProcessor) si durable.temporal.dsn est défini.
+# Pas de persistance SQL pour le journal.
 durable:
-    dbal_connection: durable
     event_store:
-        type: dbal
-        table_name: durable_events
+        type: in_memory
+    temporal:
+        dsn: null
     workflow_metadata:
-        type: dbal
-        table_name: durable_workflow_metadata
+        type: in_memory
     activity_transport:
         type: messenger
         transport_name: durable_activities
     child_workflow:
         async_messenger: true
         parent_link_store:
-            type: dbal
-            table_name: durable_child_workflow_parent_link
+            type: in_memory
     activity_contracts:
         cache: cache.app
         contracts:
@@ -25,14 +24,35 @@ durable:
 when@dev:
     durable:
         event_store:
-            type: temporal
-            temporal:
-                dsn: '%env(DURABLE_TEMPORAL_DSN)%'
+            type: in_memory
+        temporal:
+            dsn: '%env(DURABLE_DSN)%'
+        workflow_metadata:
+            type: in_memory
+        child_workflow:
+            async_messenger: true
+            parent_link_store:
+                type: in_memory
+
+when@prod:
+    durable:
+        event_store:
+            type: in_memory
+        temporal:
+            dsn: '%env(DURABLE_DSN)%'
+        workflow_metadata:
+            type: in_memory
+        child_workflow:
+            async_messenger: true
+            parent_link_store:
+                type: in_memory
 
 when@test:
     durable:
         event_store:
             type: in_memory
+        temporal:
+            dsn: null
         workflow_metadata:
             type: in_memory
         child_workflow:

@@ -1,40 +1,93 @@
-# DUR002 — Repositories CQRS vers l’API Temporal
+# DUR002 — WorkflowClient, WorkflowHistorySourceInterface, WorkflowCommandBufferInterface
 
-## Statut
+## Status
 
-Accepté
+Accepted
 
-## Contexte
+## Context
 
-Au sens **CQRS**, les opérations sur un workflow durable se séparent naturellement en :
+The Durable component interacts with Temporal through three distinct concerns:
 
-- **écritures** : démarrer un workflow, signaler, annuler, terminer, ou toute autre mutation exposée par l’orchestrateur ;
-- **lectures** : interroger l’état, l’historique métier visible, les métadonnées nécessaires à l’UI ou aux intégrations.
+1. **Client-side control** — starting, signalling, querying, and updating workflows from application code
+2. **Reading history for replay** — a worker must read Temporal history events to replay the workflow fiber
+3. **Writing commands** — a worker must collect orchestration commands and deliver them to Temporal
 
-Le composant doit offrir des points d’entrée stables côté application, indépendants des détails du client HTTP/gRPC utilisé pour parler à Temporal.
+These three concerns are separated as explicit ports (hexagonal architecture: DUR004, DUR012) with distinct Temporal backend adapters and in-memory backend adapters (DUR005).
 
-## Décision
+## Decision
 
-Le composant Durable définit deux familles de **repositories** (interfaces ou abstractions équivalentes) :
+### WorkflowClient — the client-side port
 
-### Repositories « Command »
+`WorkflowClient` is the application-facing API for driving workflow executions from outside the worker:
 
-- Envoi de **messages d’écriture** vers l’**API Temporal** (démarrage, signaux, requêtes de type commande côté orchestrateur, annulation, etc.).
-- Contrat orienté **intention** (commandes du domaine d’orchestration), pas exposition brute d’un client SDK officiel (voir DUR006).
+| Method | Temporal RPC | Description |
+|---|---|---|
+| `startAsync(string $workflowType, array $payload, string $executionId): string` | `StartWorkflowExecution` | Fire and forget; returns the run ID |
+| `startSync(string $workflowType, array $payload, string $executionId): mixed` | `StartWorkflowExecution` + long-poll `GetWorkflowExecutionHistory` | Blocks until `WorkflowExecutionCompleted` |
+| `signal(string $executionId, string $signalName, array $args): void` | `SignalWorkflowExecution` | Delivers an external signal |
+| `query(string $executionId, string $queryType, array $args): mixed` | `QueryWorkflow` | Read-only query via `WorkflowServiceExecutionRpc` |
+| `update(string $executionId, string $updateName, array $args): mixed` | `UpdateWorkflowExecution` + `PollWorkflowExecutionUpdate` | Transactional update via `WorkflowServiceExecutionRpc` |
 
-### Repositories « Query »
+The concrete Temporal implementation is `TemporalWorkflowClient`. For the in-memory backend, an `InMemoryWorkflowClient` implementation drives `ExecutionEngine` directly.
 
-- Envoi de **messages de lecture** vers l’**API Temporal** (état, résultats, descripteurs nécessaires aux vues).
-- Même séparation : le repository encapsule le transport et le mapping vers les modèles du composant.
+### WorkflowHistorySourceInterface — the replay read port
 
-### Principes
+`WorkflowHistorySourceInterface` is injected into `ExecutionContext` to provide read-only access to the recorded history for slot-based replay:
 
-- **Ports** : les repositories sont des ports ; les adaptateurs **Temporal** et **In-Memory** (DUR005) implémentent ces ports différemment.
-- **Séparation client / adaptateur** : le transport vers le serveur Temporal et le mapping vers les types du composant suivent **DUR012** ; la classification des erreurs et les retries suivent **DUR011**.
-- **Pas de fuite de détails** : les types retournés vers le code applicatif restent ceux du composant Durable, pas des types propriétaires d’un SDK tiers interdit.
-- **Testabilité** : le backend In-Memory permet de valider la logique sans cluster Temporal ; les tests d’adaptateurs sont cadrés par **DUR015**.
+```php
+interface WorkflowHistorySourceInterface {
+    public function findActivitySlotResult(int $slot): ?array;
+    public function isActivitySlotFailed(int $slot): bool;
+    public function findTimerSlotCompleted(int $slot): bool;
+    public function findSignalForSlot(string $signalName, int $slot): ?array;
+    public function findSideEffectForSlot(int $slot): mixed;
+    public function findChildWorkflowForSlot(int $slot): ?array;
+}
+```
 
-## Conséquences
+| Backend | Implementation |
+|---|---|
+| Temporal | `TemporalExecutionHistory` built from `TemporalHistoryCursor` events |
+| In-memory | `EventStoreHistorySource` wrapping `EventStoreInterface` |
 
-- La surface d’API des repositories doit être versionnée ou stabilisée avec prudence : elle fixe le contrat pour les applications hôtes.
-- Toute nouvelle capacité Temporal requise par le produit transite par l’extension de ces ports plutôt que par l’usage direct d’un client non conforme à DUR006.
+### WorkflowCommandBufferInterface — the write port
+
+`WorkflowCommandBufferInterface` is injected into `ExecutionContext` as the target for new orchestration commands discovered during replay:
+
+```php
+interface WorkflowCommandBufferInterface {
+    public function scheduleActivity(string $activityId, string $activityName, array $payload, array $metadata): void;
+    public function startTimer(string $timerId, float $scheduledAt, string $summary): void;
+    public function completeWorkflow(mixed $result): void;
+    public function failWorkflow(\Throwable $reason): void;
+    public function cancelActivity(string $activityId): void;
+    /** @return list<Command> */
+    public function getCommands(): array;
+}
+```
+
+| Backend | Implementation |
+|---|---|
+| Temporal | `TemporalWorkflowCommandBuffer` — builds `Command` protobuf objects for `RespondWorkflowTaskCompleted` |
+| In-memory | `EventStoreCommandBuffer` — appends domain events to `EventStoreInterface` |
+
+### Principles
+
+- All three are **ports**: Temporal and in-memory adapters implement them differently (DUR005)
+- Types returned to application code are Durable's own — no proprietary types from a forbidden SDK (DUR006)
+- Error classification and retries follow DUR011; transport and mapping follow DUR012
+- Testability: the in-memory backend validates logic without a Temporal cluster (DUR015)
+
+## Consequences
+
+- `WorkflowClient` replaces `TemporalWorkflowStarter`; the method `startWorkflowForExecution` is replaced by `startAsync`
+- `WorkflowHistorySourceInterface` replaces `EventStoreInterface` as the replay read source in `ExecutionContext`; `EventStoreInterface` remains valid only for domain event persistence in the in-memory backend
+- `WorkflowCommandBufferInterface` replaces the dual role of `EventStoreInterface` for writes in the Temporal execution path
+- The former `TemporalStartingEventStore` decorator (which started Temporal workflows when `ExecutionStarted` was appended to the event store) is removed; workflow start is the responsibility of user application code calling `WorkflowClient.startAsync()`
+
+## Relationship to other ADRs
+
+- **DUR003** — fiber-based replay; `WorkflowHistorySourceInterface` is the read input for the replay loop
+- **DUR005** — Temporal and in-memory backends; each provides its own implementations of the three ports
+- **DUR012** — API client and repository adapter layers; these ports follow the hexagonal adapter pattern
+- **DUR027** — `WorkflowTaskRunner` defines the concrete algorithm that consumes these ports

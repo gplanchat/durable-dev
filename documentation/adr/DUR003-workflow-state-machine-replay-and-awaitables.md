@@ -1,46 +1,95 @@
-# DUR003 — Machine à états, rejeu, fibres et awaitables
+# DUR003 — Fiber-based replay, ExecutionEngine, and awaitables
 
-## Statut
+## Status
 
-Accepté
+Accepted
 
-## Contexte
+## Context
 
-Un **workflow** dans le composant Durable n’est pas une simple fonction : il doit pouvoir **s’interrompre** aux points d’attente (activités, timers, etc.), **persister** sa progression via l’historique Temporal, et **rejouer** de façon déterministe le même code jusqu’au dernier point exécuté. Les langages PHP modernes offrent des **Fibers** pour suspendre et reprendre l’exécution ; le composant s’appuie sur ce mécanisme pour modéliser l’exécution interruptible.
+A Durable workflow must **suspend** at wait points (activities, timers, signals), **persist** progress in Temporal history (DUR001), and **replay** the same code deterministically from scratch on each `PollWorkflowTaskQueue` response (DUR027). PHP `\Fiber` is the interruptible execution primitive used by the component.
 
-Par ailleurs, le workflow ne doit pas effectuer d’**I/O** direct : seules les **activités** (DUR004) portent les effets de bord.
+Workflow authoring rules, `WorkflowEnvironment`, and activity invokers are defined in **DUR022** and **DUR023**. The concrete `WorkflowTaskRunner` algorithm is defined in **DUR027**. This ADR defines the fiber-based execution model, the replay invariants, and the awaitable primitives.
 
-## Décision
+## Decision
 
-### StateMachine et EventStore
+### Primary authoring rule — no I/O
 
-- Une **StateMachine** (ou équivalent nommé dans l’implémentation) **consomme les événements** fournis par l’EventStore (DUR001) dans l’ordre.
-- Elle **rejoue** le workflow jusqu’au dernier événement connu, de manière à recréer la même séquence de décisions qu’à l’exécution initiale.
+> Workflow code must perform **no I/O** (network, database, filesystem) and no non-deterministic operations (raw system clock, unlogged randomness). All I/O belongs in activities.
 
-### Fibers et interruption
+This is the **primary rule**. All other restrictions are technical consequences:
 
-- L’exécution du code utilisateur du workflow s’effectue dans un modèle **interruptible** basé sur des **Fibers** : aux points où le workflow attend un résultat externe, la fiber peut être suspendue et reprise lors du rejeu ou de la livraison du résultat.
+- Calling `\Fiber::suspend()` directly, creating `\Fiber` instances, or calling `\Fiber::getCurrent()` in workflow code is **forbidden** — not as a standalone rule, but because any code doing so would interfere with the Durable fiber scheduler or perform I/O.
+- Using async components that internally use fibers or coroutines (e.g. Symfony HTTP Client in async Revolt mode) is **forbidden** for the same reason: those components perform I/O.
 
-### Contexte workflow et awaitables
+### ExecutionEngine — the fiber manager
 
-Le **constructeur** du workflow reçoit un **contexte** fourni par le runtime du composant. Ce contexte expose des méthodes pour composer les attentes **sans** bloquer le thread global de façon incompatible avec le modèle durable :
+`ExecutionEngine` manages the `\Fiber` lifecycle for a single workflow execution cycle:
 
-- `await` — attendre un awaitable du composant ;
-- `parallel` — lancer plusieurs branches en parallèle logique ;
-- `all` — attendre la complétion de toutes les branches ;
-- `race` — compétition entre branches (première complétion pertinente selon la sémantique définie) ;
-- `any` — sélection / première réponse utile parmi des alternatives (sémantique précisée par l’implémentation) ;
-- `resolve` / `reject` — clôture d’une promesse ou équivalent interne au modèle awaitable du composant.
+- Creates a `\Fiber` wrapping the `#[WorkflowMethod]` call
+- Starts the fiber; on each suspension receives the `Awaitable` that caused it
+- Passes each awaitable back to `WorkflowTaskRunner`, which decides whether to resolve it (replay) or record a new command (new slot)
+- On fiber completion: emits a `CompleteWorkflow` event on `WorkflowCommandBufferInterface`
+- On unhandled `\Throwable`: emits a `FailWorkflow` event on `WorkflowCommandBufferInterface`
+- Is **shared** between Temporal and in-memory backends; only the injected ports differ
 
-*(Les noms exacts et la granularité des API peuvent être ajustés à l’implémentation, mais la séparation « contexte injecté » / « pas d’I/O dans le workflow » reste obligatoire.)*
+### Fiber lifecycle invariants
 
-Les **awaitables** sont des primitives **spécifiques au composant** : elles matérialisent les points de synchronisation avec l’historique (activités, timers, etc.) de façon compatible avec le rejeu.
+- **Fibers are non-persistent**: a `\Fiber` is created and destroyed within a single `PollWorkflowTaskQueue → RespondWorkflowTaskCompleted` cycle. The workflow code is replayed from scratch on every poll.
+- **PHP-CLI standard runtime only**: Swoole, OpenSwoole, and FrankenPHP coroutine mode are not supported as workflow worker runtimes. These runtimes implement their own coroutine/fiber systems that conflict with the Durable fiber scheduler.
+- **`pcntl_fork()` is forbidden** in the component and bundle (see DUR027 §5).
 
-### Idempotence
+### Awaitables
 
-- Un workflow **doit être idempotent** au sens **déterministe** : pour un même flux d’événements, le code du workflow produit les mêmes enchaînements de décisions et les mêmes nouvelles commandes vers l’orchestrateur. Aucune dépendance au temps réel, à l’aléatoire non enregistré, ni aux I/O dans le corps du workflow.
+Awaitables are the synchronization primitives between workflow code and the fiber scheduler:
 
-## Conséquences
+- `ActivityAwaitable` — represents a pending activity; resolved when `ACTIVITY_TASK_COMPLETED` is found in history for the corresponding slot, or a new `ScheduleActivityTask` command is emitted for a new slot
+- `TimerAwaitable` — represents a timer; resolved when `TIMER_FIRED` is found in history, or a new `StartTimer` command is emitted
+- `SignalAwaitable` — resolved when `WORKFLOW_EXECUTION_SIGNALED` with the matching name is found in history
+- `UpdateAwaitable` — resolved when `WORKFLOW_EXECUTION_UPDATE_ACCEPTED` / `WORKFLOW_EXECUTION_UPDATE_COMPLETED` events are found
 
-- La documentation des awaitables et du contexte est centrale pour les auteurs de workflows ; toute évolution doit préserver la compatibilité de rejeu.
-- Les tests peuvent s’appuyer sur le backend In-Memory (DUR005) pour valider le déterminisme sans infrastructure lourde.
+### Determinism
+
+A workflow must be **deterministic**: for the same event stream (history), the workflow code must produce the same sequence of awaitables and the same commands. No dependence on wall-clock time, unlogged randomness, or I/O.
+
+`WorkflowTaskRunner` enforces determinism by:
+1. Consuming history events strictly in chronological order (slot N must be resolved before slot N+1 is encountered)
+2. Comparing the awaitable type and identity at each suspension point against the history record for that slot
+3. Raising a non-determinism error if a mismatch is detected
+
+### Replay loop (summary)
+
+The full algorithm is specified in **DUR027**. In brief:
+
+```
+for each fiber suspension:
+    slot = next slot in WorkflowHistorySource
+    if slot has a recorded result:
+        resolve the awaitable → resume fiber
+    else:
+        record a new command in WorkflowCommandBuffer → stop
+```
+
+### WorkflowEnvironment (named workflow-side API)
+
+`WorkflowEnvironment` (DUR022) is the only API surface exposed to workflow code. It provides:
+
+- `await(Awaitable $a): mixed` — suspend until the awaitable completes (replay-safe)
+- `async(callable $fn): Awaitable` — schedule async work compatible with the fiber model
+- `all(Awaitable ...$awaitables): array` — wait for all branches; parallel activities use this
+- `race(Awaitable ...$awaitables): mixed` — first completion wins
+- `any(Awaitable ...$awaitables): mixed` — first useful result
+- Activity invokers from `WorkflowEnvironment::activity(ActivityInterface::class): ActivityInvoker` (DUR023)
+
+## Consequences
+
+- Any workflow pattern expressible in PHP — conditionals, loops, parallel activities, timers, signals, child workflows — is correctly supported because the actual user code runs inside the fiber
+- The former exception-based suspension model (`WorkflowSuspendedException`) is replaced; suspension is `\Fiber::suspend()`
+- Integration tests assert Temporal history events produced by real workflow code execution (DUR010)
+
+## Relationship to other ADRs
+
+- **DUR001** — event store; `WorkflowHistorySourceInterface` wraps event data for fiber replay
+- **DUR002** — `WorkflowHistorySourceInterface` (read) and `WorkflowCommandBufferInterface` (write) are the ports injected into `ExecutionContext`
+- **DUR022** — workflow authoring; `WorkflowEnvironment` is the sole API surface for workflow code
+- **DUR023** — activity authoring; workflow code reaches activities only through `WorkflowEnvironment`
+- **DUR027** — `WorkflowTaskRunner` is the concrete implementation of the replay loop described here
