@@ -37,6 +37,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR026 | Commands-only orchestration path | [adr/DUR026-spike-first-temporal-orchestration.md](adr/DUR026-spike-first-temporal-orchestration.md) |
 | DUR027 | WorkflowTaskRunner: fiber-based replay from Temporal history | [adr/DUR027-workflow-task-runner-fiber-replay.md](adr/DUR027-workflow-task-runner-fiber-replay.md) |
 | DUR028 | Synchronous completion polling for multi-process Temporal setups | [adr/DUR028-synchronous-completion-polling-multi-process.md](adr/DUR028-synchronous-completion-polling-multi-process.md) |
+| DUR029 | Temporal read-through event store and profiler event conversion | [adr/DUR029-temporal-profiler-read-through-event-store.md](adr/DUR029-temporal-profiler-read-through-event-store.md) |
 
 ## Working agreements (WA)
 
