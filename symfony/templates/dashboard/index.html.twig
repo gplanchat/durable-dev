@@ -1,0 +1,119 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Dashboard Workflows — Durable{% endblock %}
+
+{% block body %}
+<div class="container ds-page">
+    <div class="page-intro">
+        <h1>Workflow Dashboard</h1>
+        <p>Vue de suivi simplifiee inspiree de Temporal UI, avec filtres et details d'execution.</p>
+    </div>
+
+    <section class="ds-kpi-grid" aria-label="Indicateurs workflows">
+        <article class="ds-kpi">
+            <span class="ds-kpi__label">Total</span>
+            <strong class="ds-kpi__value">{{ kpis.total }}</strong>
+        </article>
+        <article class="ds-kpi">
+            <span class="ds-kpi__label">Running</span>
+            <strong class="ds-kpi__value">{{ kpis.running }}</strong>
+        </article>
+        <article class="ds-kpi">
+            <span class="ds-kpi__label">Completed</span>
+            <strong class="ds-kpi__value">{{ kpis.completed }}</strong>
+        </article>
+        <article class="ds-kpi">
+            <span class="ds-kpi__label">Failed</span>
+            <strong class="ds-kpi__value">{{ kpis.failed }}</strong>
+        </article>
+    </section>
+
+    <form class="ds-filters" method="get" action="{{ path('app_dashboard') }}">
+        <div>
+            <label for="filter-q">Recherche</label>
+            <input id="filter-q" class="ds-input" type="search" name="q" value="{{ query }}" placeholder="run id, workflow, queue">
+        </div>
+        <div>
+            <label for="filter-status">Statut</label>
+            <select id="filter-status" class="ds-select" name="status">
+                <option value="all" {% if status == 'all' %}selected{% endif %}>Tous</option>
+                <option value="running" {% if status == 'running' %}selected{% endif %}>Running</option>
+                <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
+                <option value="failed" {% if status == 'failed' %}selected{% endif %}>Failed</option>
+            </select>
+        </div>
+        {% if selectedRunId %}
+            <input type="hidden" name="run" value="{{ selectedRunId }}">
+        {% endif %}
+        <button type="submit" class="ds-btn ds-btn--primary">Filtrer</button>
+    </form>
+
+    <section class="ds-dashboard-split">
+        <aside class="ds-dashboard-list" aria-label="Liste des workflows">
+            {% if runs is empty %}
+                <p class="ds-empty-state">Aucun workflow ne correspond aux filtres.</p>
+            {% else %}
+                {% for run in runs %}
+                    <a class="ds-run-row{% if selectedRunId == run.runId %} is-active{% endif %}"
+                       href="{{ path('app_dashboard', { q: query, status: status, run: run.runId }) }}">
+                        <div class="ds-run-row__title">
+                            <span>{{ run.workflowName }}</span>
+                            <span class="ds-status-badge ds-status-badge--{{ run.status }}">{{ run.status|upper }}</span>
+                        </div>
+                        <div class="ds-run-row__meta">
+                            <code class="ds-mono">{{ run.runId }}</code>
+                            <span>{{ run.startedAt }}</span>
+                            <span>Queue: {{ run.taskQueue }}</span>
+                            <span>Duree: {{ run.duration }}</span>
+                        </div>
+                    </a>
+                {% endfor %}
+            {% endif %}
+        </aside>
+
+        <main class="ds-dashboard-detail" aria-label="Detail execution">
+            {% if selectedRun %}
+                <div class="result-card">
+                    <div class="result-card-header">Execution Selectionnee</div>
+                    <div class="result-card-body">
+                        <dl class="meta-list">
+                            <dt>Workflow</dt>
+                            <dd>{{ selectedRun.workflowName }}</dd>
+                            <dt>Run ID</dt>
+                            <dd><code class="ds-mono">{{ selectedRun.runId }}</code></dd>
+                            <dt>Status</dt>
+                            <dd><span class="ds-status-badge ds-status-badge--{{ selectedRun.status }}">{{ selectedRun.status|upper }}</span></dd>
+                            <dt>Started At</dt>
+                            <dd>{{ selectedRun.startedAt }}</dd>
+                            <dt>Task Queue</dt>
+                            <dd>{{ selectedRun.taskQueue }}</dd>
+                            <dt>Duration</dt>
+                            <dd>{{ selectedRun.duration }}</dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <div class="result-card">
+                    <div class="result-card-header">Evenements Recents</div>
+                    <div class="result-card-body">
+                        <ul class="ds-event-list">
+                            {% for event in selectedRun.events %}
+                                <li class="ds-event">
+                                    <span class="ds-event__time">{{ event.time }}</span>
+                                    <code class="ds-mono">{{ event.type }}</code>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            {% else %}
+                <div class="result-card">
+                    <div class="result-card-body">
+                        <p class="ds-empty-state">Selectionnez une execution dans la liste pour voir le detail.</p>
+                    </div>
+                </div>
+            {% endif %}
+        </main>
+    </section>
+</div>
+{% endblock %}
