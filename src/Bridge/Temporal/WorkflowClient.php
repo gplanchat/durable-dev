@@ -30,7 +30,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  *
  * @see \Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc for query/update RPCs
  */
-final class WorkflowClient
+final class WorkflowClient implements WorkflowClientInterface
 {
     public function __construct(
         private readonly WorkflowServiceClient $client,
