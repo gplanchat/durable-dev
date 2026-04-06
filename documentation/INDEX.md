@@ -53,3 +53,4 @@ This repository documents the **Durable** component (durable execution orchestra
 - [Document lifecycle](LIFECYCLE.md)
 - [Hugo user guide](HUGO.md) (built from `documentation/user/` only; ADRs/WAs are not mirrored)
 - [User documentation source (Markdown)](user/) — content published by Hugo as the end-user site
+  - [Testing workflows](user/testing/) — `DurableTestCase`, `ActivitySpy`, `WorkflowTestEnvironment`, `DurableBundleTestTrait`
