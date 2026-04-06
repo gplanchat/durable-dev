@@ -340,6 +340,7 @@ final class DurableExtension extends Extension
                 new Reference(EventStoreInterface::class),
                 new Reference(\Gplanchat\Durable\ExecutionRuntime::class),
                 new Reference(WorkflowResumeDispatcher::class),
+                new Reference('messenger.routable_message_bus'),
             ])
             ->addTag('messenger.message_handler')
         ;
