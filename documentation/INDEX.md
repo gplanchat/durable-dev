@@ -53,4 +53,10 @@ This repository documents the **Durable** component (durable execution orchestra
 - [Document lifecycle](LIFECYCLE.md)
 - [Hugo user guide](HUGO.md) (built from `documentation/user/` only; ADRs/WAs are not mirrored)
 - [User documentation source (Markdown)](user/) — content published by Hugo as the end-user site
+  - [Getting started](user/getting-started/) — installation, Symfony bundle config, first workflow
+  - [Backends](user/backends/) — In-Memory vs Temporal: Docker Compose setup, DSN format
+  - [Concepts](user/concepts/) — workflows, activities, replay, backends
+  - [Creating a workflow](user/workflows/) — `WorkflowEnvironment`, attributes, signals, queries, updates
+  - [Creating activities](user/activities/) — `ActivityMethod`, `ActivityOptions`, DI, serialization
   - [Testing workflows](user/testing/) — `DurableTestCase`, `ActivitySpy`, `WorkflowTestEnvironment`, `DurableBundleTestTrait`
+  - [Configuration reference](user/configuration/) — every `durable.yaml` key explained
