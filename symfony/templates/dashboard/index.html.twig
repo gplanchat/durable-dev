@@ -203,9 +203,9 @@
                                             <div class="ds-gantt__lane">
                                                 <div class="ds-gantt__lane-label">{{ lane.label }}</div>
                                                 <div class="ds-gantt__track">
-                                                    <span class="ds-gantt__bar ds-gantt__bar--{{ lane.kind }}"
+                                                    <span class="ds-gantt__bar ds-gantt__bar--{{ lane.kind }}{% if lane.isRunning %} ds-gantt__bar--running{% endif %}"
                                                           style="left: {{ lane.startPercent }}%; width: {{ lane.widthPercent }}%;"
-                                                  title="Workflow: {{ selectedRun.workflowName }}&#10;Run ID: {{ selectedRun.runId }}&#10;Statut: {{ selectedRun.status|upper }}&#10;Ligne: {{ lane.label }}&#10;Type: {{ lane.kind|upper }}&#10;Debut: {{ lane.startTime }}&#10;Fin: {{ lane.endTime }}"></span>
+                                                          title="Workflow: {{ selectedRun.workflowName }}&#10;Run ID: {{ selectedRun.runId }}&#10;Statut: {{ selectedRun.status|upper }}&#10;Ligne: {{ lane.label }}&#10;Type: {{ lane.kind|upper }}{% if lane.isRunning %} (RUNNING){% endif %}&#10;Debut: {{ lane.startTime }}&#10;Fin: {{ lane.endTime }}"></span>
                                                 </div>
                                                 <div class="ds-gantt__lane-time">{{ lane.startTime }} → {{ lane.endTime }}</div>
                                             </div>

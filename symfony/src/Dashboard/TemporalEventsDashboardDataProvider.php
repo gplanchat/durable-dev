@@ -206,7 +206,7 @@ final class TemporalEventsDashboardDataProvider
                 ];
             }
             $run['events'] = $events;
-            $run['timeline'] = $this->finalizeTimeline($timelineRaw, $zoom, $visibleKinds);
+            $run['timeline'] = $this->finalizeTimeline($timelineRaw, $zoom, $visibleKinds, 'running' === ($run['status'] ?? ''));
         } catch (\Throwable) {
             // Keep run without history preview when Temporal cannot return history.
         }
@@ -356,10 +356,10 @@ final class TemporalEventsDashboardDataProvider
      * @return array{
      *   min: float|null,
      *   max: float|null,
-     *   activities: array<string, array{label: string, start: float, end: float}>,
+     *   activities: array<string, array{label: string, start: float, end: float, running: bool}>,
      *   signals: list<array{label: string, time: float}>,
      *   queries: list<array{label: string, time: float}>,
-     *   updates: array<string, array{label: string, start: float, end: float}>,
+     *   updates: array<string, array{label: string, start: float, end: float, running: bool}>,
      *   updateAcceptedByEventId: array<int, string>
      * }
      */
@@ -380,10 +380,10 @@ final class TemporalEventsDashboardDataProvider
      * @param array{
      *   min: float|null,
      *   max: float|null,
-     *   activities: array<string, array{label: string, start: float, end: float}>,
+     *   activities: array<string, array{label: string, start: float, end: float, running: bool}>,
      *   signals: list<array{label: string, time: float}>,
      *   queries: list<array{label: string, time: float}>,
-     *   updates: array<string, array{label: string, start: float, end: float}>,
+     *   updates: array<string, array{label: string, start: float, end: float, running: bool}>,
      *   updateAcceptedByEventId: array<int, string>
      * } $timelineRaw
      */
@@ -432,10 +432,23 @@ final class TemporalEventsDashboardDataProvider
                     'label' => $label,
                     'start' => $eventTimestamp,
                     'end' => $eventTimestamp,
+                    'running' => true,
                 ];
             } else {
                 $timelineRaw['activities'][$key]['start'] = \min($timelineRaw['activities'][$key]['start'], $eventTimestamp);
                 $timelineRaw['activities'][$key]['end'] = \max($timelineRaw['activities'][$key]['end'], $eventTimestamp);
+            }
+            if (\in_array($event->getEventType(), [
+                EventType::EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
+                EventType::EVENT_TYPE_ACTIVITY_TASK_FAILED,
+                EventType::EVENT_TYPE_ACTIVITY_TASK_CANCELED,
+            ], true)) {
+                $timelineRaw['activities'][$key]['running'] = false;
+            } elseif (\in_array($event->getEventType(), [
+                EventType::EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+                EventType::EVENT_TYPE_ACTIVITY_TASK_STARTED,
+            ], true)) {
+                $timelineRaw['activities'][$key]['running'] = true;
             }
 
             return;
@@ -514,12 +527,16 @@ final class TemporalEventsDashboardDataProvider
                     'label' => $updateLabel,
                     'start' => $eventTimestamp,
                     'end' => $eventTimestamp,
+                    'running' => EventType::EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED === $event->getEventType(),
                 ];
             } else {
                 $timelineRaw['updates'][$updateKey]['start'] = \min($timelineRaw['updates'][$updateKey]['start'], $eventTimestamp);
                 $timelineRaw['updates'][$updateKey]['end'] = \max($timelineRaw['updates'][$updateKey]['end'], $eventTimestamp);
                 if (str_starts_with($timelineRaw['updates'][$updateKey]['label'], 'update-') && !str_starts_with($updateLabel, 'update-')) {
                     $timelineRaw['updates'][$updateKey]['label'] = $updateLabel;
+                }
+                if (EventType::EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED === $event->getEventType()) {
+                    $timelineRaw['updates'][$updateKey]['running'] = false;
                 }
             }
         }
@@ -547,12 +564,13 @@ final class TemporalEventsDashboardDataProvider
      *      kind: string,
      *      startPercent: float,
      *      widthPercent: float,
+     *      isRunning: bool,
      *      startTime: string,
      *      endTime: string
      *   }>
      * }
      */
-    private function finalizeTimeline(array $timelineRaw, string $zoom, array $visibleKinds): array
+    private function finalizeTimeline(array $timelineRaw, string $zoom, array $visibleKinds, bool $executionRunning = false): array
     {
         $min = $timelineRaw['min'];
         $max = $timelineRaw['max'];
@@ -577,7 +595,7 @@ final class TemporalEventsDashboardDataProvider
 
         $lanes = [];
         if (isset($visible['execution'])) {
-            $executionLane = $this->buildLaneWithinViewport('execution', 'Execution', $min, $max, $viewMin, $viewMax);
+            $executionLane = $this->buildLaneWithinViewport('execution', 'Execution', $min, $max, $viewMin, $viewMax, $executionRunning);
             if (null !== $executionLane) {
                 $lanes[] = $executionLane;
             }
@@ -585,7 +603,7 @@ final class TemporalEventsDashboardDataProvider
 
         if (isset($visible['activity'])) {
             foreach ($timelineRaw['activities'] as $activity) {
-                $lane = $this->buildLaneWithinViewport('activity', 'Activity: '.$activity['label'], $activity['start'], $activity['end'], $viewMin, $viewMax);
+                $lane = $this->buildLaneWithinViewport('activity', 'Activity: '.$activity['label'], $activity['start'], $activity['end'], $viewMin, $viewMax, (bool) ($activity['running'] ?? false));
                 if (null !== $lane) {
                     $lanes[] = $lane;
                 }
@@ -594,7 +612,7 @@ final class TemporalEventsDashboardDataProvider
 
         if (isset($visible['signal'])) {
             foreach ($timelineRaw['signals'] as $signal) {
-                $lane = $this->buildPointLaneWithinViewport('signal', 'Signal: '.$signal['label'], $signal['time'], $viewMin, $viewMax);
+                $lane = $this->buildPointLaneWithinViewport('signal', 'Signal: '.$signal['label'], $signal['time'], $viewMin, $viewMax, false);
                 if (null !== $lane) {
                     $lanes[] = $lane;
                 }
@@ -603,7 +621,7 @@ final class TemporalEventsDashboardDataProvider
 
         if (isset($visible['query'])) {
             foreach ($timelineRaw['queries'] as $query) {
-                $lane = $this->buildPointLaneWithinViewport('query', 'Query: '.$query['label'], $query['time'], $viewMin, $viewMax);
+                $lane = $this->buildPointLaneWithinViewport('query', 'Query: '.$query['label'], $query['time'], $viewMin, $viewMax, false);
                 if (null !== $lane) {
                     $lanes[] = $lane;
                 }
@@ -612,7 +630,7 @@ final class TemporalEventsDashboardDataProvider
 
         if (isset($visible['update'])) {
             foreach ($timelineRaw['updates'] as $update) {
-                $lane = $this->buildLaneWithinViewport('update', 'Update: '.$update['label'], $update['start'], $update['end'], $viewMin, $viewMax);
+                $lane = $this->buildLaneWithinViewport('update', 'Update: '.$update['label'], $update['start'], $update['end'], $viewMin, $viewMax, (bool) ($update['running'] ?? false));
                 if (null !== $lane) {
                     $lanes[] = $lane;
                 }
@@ -657,11 +675,12 @@ final class TemporalEventsDashboardDataProvider
      *   kind: string,
      *   startPercent: float,
      *   widthPercent: float,
+     *   isRunning: bool,
      *   startTime: string,
      *   endTime: string
      * }
      */
-    private function buildLane(string $kind, string $label, float $start, float $end, float $globalMin, float $globalMax): array
+    private function buildLane(string $kind, string $label, float $start, float $end, float $globalMin, float $globalMax, bool $isRunning): array
     {
         $range = \max(1.0, $globalMax - $globalMin);
         $startPercent = (($start - $globalMin) / $range) * 100.0;
@@ -675,6 +694,7 @@ final class TemporalEventsDashboardDataProvider
             'kind' => $kind,
             'startPercent' => \round($startPercent, 3),
             'widthPercent' => \round($widthPercent, 3),
+            'isRunning' => $isRunning,
             'startTime' => $this->formatFromFloatSeconds($start),
             'endTime' => $this->formatFromFloatSeconds($end),
         ];
@@ -686,11 +706,12 @@ final class TemporalEventsDashboardDataProvider
      *   kind: string,
      *   startPercent: float,
      *   widthPercent: float,
+     *   isRunning: bool,
      *   startTime: string,
      *   endTime: string
      * }|null
      */
-    private function buildLaneWithinViewport(string $kind, string $label, float $start, float $end, float $viewMin, float $viewMax): ?array
+    private function buildLaneWithinViewport(string $kind, string $label, float $start, float $end, float $viewMin, float $viewMax, bool $isRunning): ?array
     {
         if ($end < $viewMin || $start > $viewMax) {
             return null;
@@ -699,7 +720,7 @@ final class TemporalEventsDashboardDataProvider
         $clippedStart = \max($start, $viewMin);
         $clippedEnd = \min($end, $viewMax);
 
-        return $this->buildLane($kind, $label, $clippedStart, $clippedEnd, $viewMin, $viewMax);
+        return $this->buildLane($kind, $label, $clippedStart, $clippedEnd, $viewMin, $viewMax, $isRunning);
     }
 
     /**
@@ -708,13 +729,14 @@ final class TemporalEventsDashboardDataProvider
      *   kind: string,
      *   startPercent: float,
      *   widthPercent: float,
+     *   isRunning: bool,
      *   startTime: string,
      *   endTime: string
      * }|null
      */
-    private function buildPointLaneWithinViewport(string $kind, string $label, float $time, float $globalMin, float $globalMax): ?array
+    private function buildPointLaneWithinViewport(string $kind, string $label, float $time, float $globalMin, float $globalMax, bool $isRunning): ?array
     {
-        return $this->buildLaneWithinViewport($kind, $label, $time, $time, $globalMin, $globalMax);
+        return $this->buildLaneWithinViewport($kind, $label, $time, $time, $globalMin, $globalMax, $isRunning);
     }
 
     private function timestampToFloat(?\Google\Protobuf\Timestamp $timestamp): ?float

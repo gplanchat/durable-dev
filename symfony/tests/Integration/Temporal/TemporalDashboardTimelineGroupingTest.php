@@ -56,7 +56,7 @@ final class TemporalDashboardTimelineGroupingTest extends TestCase
         $finalize = new \ReflectionMethod(TemporalEventsDashboardDataProvider::class, 'finalizeTimeline');
         $finalize->setAccessible(true);
         /** @var array{lanes:list<array{kind:string,label:string}>} $timeline */
-        $timeline = $finalize->invoke($provider, $timelineRaw, 'all', ['update']);
+        $timeline = $finalize->invoke($provider, $timelineRaw, 'all', ['update'], false);
 
         self::assertCount(2, $timeline['lanes'], 'Expected one lane per protocol_instance_id.');
         self::assertSame('update', $timeline['lanes'][0]['kind']);
