@@ -5,7 +5,7 @@ weight: 30
 
 # Creating activities
 
-This page summarizes how you **author** activities in Durable. Normative detail is in [**DUR023**](https://github.com/gplanchat/durable/blob/main/documentation/adr/DUR023-activity-authoring-and-asynchronous-activity-proxy.md) and [**DUR004**](https://github.com/gplanchat/durable/blob/main/documentation/adr/DUR004-activity-stub-and-activities.md); this guide stays practical.
+This page summarizes how you **author** activities in Durable. Normative detail is in [**DUR023**](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR023-activity-authoring-and-asynchronous-activity-proxy.md) and [**DUR004**](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR004-activity-stub-and-activities.md); this guide stays practical.
 
 ## Two pieces
 
