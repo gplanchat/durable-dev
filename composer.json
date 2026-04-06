@@ -14,7 +14,6 @@
         "gplanchat/durable": "@dev",
         "gplanchat/durable-bundle": "@dev",
         "gplanchat/durable-bridge-temporal": "@dev",
-        "doctrine/dbal": "^4.4",
         "psr/clock": "^1.0",
         "psr/log": "^3.0",
         "symfony/uid": "^7.0",
