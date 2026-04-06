@@ -160,7 +160,8 @@ jobs:
                   DURABLE_DSN: 'temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0'
               run: |
                   php bin/phpunit \
-                    --group temporal-integration,temporal-native-spike \
+                    --group temporal-integration \
+                    --group temporal-native-spike \
                     --testdox \
                     tests/Integration/Temporal/
 
