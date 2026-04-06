@@ -1,5 +1,6 @@
 # Symfony CLI : lance des workers en parallèle avec `symfony serve` (depuis ce dossier).
 # - durable_temporal_journal : poll gRPC du journal Temporal (receive-only, DURABLE_TEMPORAL_DSN).
+# - durable_temporal_activity : poll activités Temporal (TemporalActivityWorker → ActivityMessageProcessor).
 # - durable_workflows / durable_activities : files applicatives (inner Doctrine).
 #
 # Prérequis : APP_ENV=dev, ext-grpc, `docker compose up -d`, DURABLE_TEMPORAL_DSN + MESSENGER_DURABLE_* dans .env.dev.
@@ -10,6 +11,12 @@ workers:
         watch: ['config', 'src', 'templates', 'vendor/composer/installed.json']
     durable_temporal_journal_2:
         cmd: ['symfony', 'console', 'messenger:consume', 'durable_temporal_journal', '-vv']
+        watch: ['config', 'src', 'templates', 'vendor/composer/installed.json']
+    durable_temporal_activity_1:
+        cmd: ['symfony', 'console', 'messenger:consume', 'durable_temporal_activity', '-vv']
+        watch: ['config', 'src', 'templates', 'vendor/composer/installed.json']
+    durable_temporal_activity_2:
+        cmd: ['symfony', 'console', 'messenger:consume', 'durable_temporal_activity', '-vv']
         watch: ['config', 'src', 'templates', 'vendor/composer/installed.json']
     durable_workflows_1:
         cmd: ['symfony', 'console', 'messenger:consume', 'durable_workflows', '-vv']
