@@ -41,6 +41,9 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * - Use a real WorkflowTaskRunner (final, can't mock) backed by the real TemporalHistoryCursor
  *   reading from the inline history (no gRPC pagination since next_page_token = '').
  */
+/**
+ * @requires extension grpc
+ */
 final class WorkflowTaskProcessorTest extends TestCase
 {
     private WorkflowServiceClient $grpcClient;

@@ -35,6 +35,8 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * The gRPC client is mocked but NEVER called in these tests because the full history is
  * provided inline in PollWorkflowTaskQueueResponse (next_page_token = '' → no pagination).
  * This makes tests fast and deterministic without a running Temporal server.
+ *
+ * @requires extension grpc
  */
 final class WorkflowTaskRunnerTest extends TestCase
 {
