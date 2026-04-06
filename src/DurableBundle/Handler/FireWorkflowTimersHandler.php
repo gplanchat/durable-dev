@@ -8,6 +8,8 @@ use Gplanchat\Durable\Event\TimerCompleted;
 use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
+use Gplanchat\Durable\Store\EventStoreCommandBuffer;
+use Gplanchat\Durable\Store\EventStoreHistorySource;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
 
@@ -27,8 +29,8 @@ final class FireWorkflowTimersHandler
     {
         $context = new ExecutionContext(
             $message->executionId,
-            $this->eventStore,
-            $this->runtime->getActivityTransport(),
+            new EventStoreHistorySource($this->eventStore, $message->executionId),
+            new EventStoreCommandBuffer($this->eventStore, $this->runtime->getActivityTransport(), $message->executionId),
             null,
         );
 
