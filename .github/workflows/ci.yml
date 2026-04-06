@@ -154,21 +154,6 @@ jobs:
               working-directory: symfony
               run: docker compose up -d --wait --wait-timeout 300 database temporal
 
-            - name: Vérifier que Temporal est sain (exec interne)
-              working-directory: symfony
-              run: |
-                  set -e
-                  for i in $(seq 1 20); do
-                    if docker compose exec -T temporal temporal operator cluster health --address localhost:7233 2>/dev/null; then
-                      echo "Temporal sain (tentative $i)"
-                      exit 0
-                    fi
-                    sleep 5
-                  done
-                  echo "Temporal non sain après 100s"
-                  docker compose logs temporal --tail 40
-                  exit 1
-
             - name: PHPUnit — tests d'intégration Temporal (temporal-integration + temporal-native-spike)
               working-directory: symfony
               env:
