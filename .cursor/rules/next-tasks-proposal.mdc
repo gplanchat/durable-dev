@@ -1,33 +1,33 @@
 ---
-description: After finishing a task, propose the next 3 tasks if any remain
+description: À la fin d'une tâche, proposer les 3 prochaines tâches à réaliser s'il en reste
 alwaysApply: true
 ---
 
-# Proposing next tasks
+# Proposition des prochaines tâches
 
-## Trigger
+## Déclenchement
 
-When a task (or related set of tasks, e.g. #188 and #189) is **done**, the agent should propose **the next 3 tasks** to the user, **if any remain** in the plan or backlog context.
+Quand une tâche (ou un ensemble de tâches liées, ex. #188 et #189) est **terminée**, l'agent doit proposer à l'utilisateur **les 3 prochaines tâches** à réaliser, **s'il en reste** dans le contexte du plan ou du backlog.
 
-## Expected behavior
+## Comportement attendu
 
-1. **Check** that identified tasks remain (attached plan, todo list, Epic, or referenced tickets).
-2. **Propose exactly 3 tasks** (or fewer if fewer exist), ordered by priority or dependencies.
-3. **Present** each task concisely:
-   - Number / id (e.g. #190, “PlanTask ADR documentation”)
-   - Title or goal
-   - Why it is the logical next step (optional).
+1. **Vérifier** qu'il reste des tâches identifiées (plan attaché, todo list, Epic, ou tickets référencés).
+2. **Proposer exactement 3 tâches** (ou moins s'il n'y en a pas autant), ordonnées par priorité ou dépendances.
+3. **Présenter** chaque tâche de façon concise :
+   - Numéro / identifiant (ex. #190, « Documentation ADR PlanTask »)
+   - Titre ou objectif
+   - Pourquoi c'est la prochaine étape logique (optionnel).
 
-## Proposal format
+## Format de proposition
 
-At the end of the response, after summarizing what was done, add a section like:
+En fin de réponse, après avoir résumé ce qui a été fait, ajouter une section du type :
 
 ```
-## Proposed next tasks
+## Prochaines tâches proposées
 
-1. **[#XXX]** Title — short reason
-2. **[#YYY]** Title — short reason
-3. **[#ZZZ]** Title — short reason
+1. **[#XXX]** Titre — raison courte
+2. **[#YYY]** Titre — raison courte
+3. **[#ZZZ]** Titre — raison courte
 ```
 
-If no identified tasks remain, do not invent tasks; state that no next task is identified in the current context.
+S'il ne reste aucune tâche identifiée, ne pas inventer de tâches ; indiquer simplement qu'aucune prochaine tâche n'est identifiée dans le contexte actuel.

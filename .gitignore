@@ -1,9 +1,4 @@
-vendor/
-var/
-.php-cs-fixer.cache
-.phpunit.cache/
-symfony/var
-
-# Surcharges Docker Compose locales (voir compose.override.example.yaml)
-compose.override.yaml
-compose.override.yml
+# Fichiers locaux / caches éventuels
+.DS_Store
+*.swp
+*~

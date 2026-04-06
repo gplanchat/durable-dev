@@ -54,6 +54,10 @@
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "VOTRE_TOKEN_GITHUB_ICI"
       }
+    },
+    "symfony-ai-mate": {
+      "command": "./scripts/mate-serve.sh",
+      "args": []
     }
   }
 }
