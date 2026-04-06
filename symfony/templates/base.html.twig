@@ -463,6 +463,30 @@
             flex-direction: column;
             gap: 0.6rem;
         }
+        .ds-gantt__legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem 0.75rem;
+            color: var(--ds-text-muted);
+            font-size: 0.74rem;
+        }
+        .ds-gantt__legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.32rem;
+        }
+        .ds-gantt__legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+        }
+        .ds-gantt__legend-dot--execution { background: rgba(194, 239, 78, 0.9); }
+        .ds-gantt__legend-dot--activity { background: rgba(106, 95, 193, 0.9); }
+        .ds-gantt__legend-dot--signal { background: rgba(250, 127, 170, 0.9); }
+        .ds-gantt__legend-dot--query { background: rgba(149, 203, 255, 0.9); }
+        .ds-gantt__legend-dot--update { background: rgba(255, 178, 135, 0.9); }
+
         .ds-gantt-controls {
             display: flex;
             flex-direction: column;
@@ -508,10 +532,21 @@
             color: var(--ds-text-muted);
             font-size: 0.76rem;
             font-family: var(--font-mono);
+            min-width: 980px;
+        }
+        .ds-gantt__viewport {
+            overflow-x: auto;
+            padding-bottom: 0.2rem;
+        }
+        .ds-gantt__canvas {
+            min-width: 980px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
         }
         .ds-gantt__lane {
             display: grid;
-            grid-template-columns: minmax(120px, 200px) 1fr auto;
+            grid-template-columns: 230px minmax(560px, 1fr) 140px;
             align-items: center;
             gap: 0.6rem;
         }
@@ -521,6 +556,11 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background: var(--ds-surface);
+            padding-right: 0.35rem;
         }
         .ds-gantt__track {
             position: relative;
@@ -698,10 +738,8 @@
             .ds-dashboard-split {
                 grid-template-columns: 1fr;
             }
-            .ds-gantt__lane {
-                grid-template-columns: 1fr;
-                gap: 0.35rem;
-            }
+            .ds-gantt__canvas { min-width: 860px; }
+            .ds-gantt__header { min-width: 860px; }
         }
     </style>
     {% block stylesheets %}{% endblock %}

@@ -181,21 +181,33 @@
 
                         {% if selectedRun.timeline is defined and selectedRun.timeline.lanes is not empty %}
                             <div class="ds-gantt">
-                                <div class="ds-gantt__header">
-                                    <span>{{ selectedRun.timeline.startTime }}</span>
-                                    <span>{{ selectedRun.timeline.endTime }}</span>
+                                <div class="ds-gantt__legend" aria-label="Legende de la frise">
+                                    <span class="ds-gantt__legend-item"><span class="ds-gantt__legend-dot ds-gantt__legend-dot--execution"></span>Execution</span>
+                                    <span class="ds-gantt__legend-item"><span class="ds-gantt__legend-dot ds-gantt__legend-dot--activity"></span>Activity</span>
+                                    <span class="ds-gantt__legend-item"><span class="ds-gantt__legend-dot ds-gantt__legend-dot--signal"></span>Signal</span>
+                                    <span class="ds-gantt__legend-item"><span class="ds-gantt__legend-dot ds-gantt__legend-dot--query"></span>Query</span>
+                                    <span class="ds-gantt__legend-item"><span class="ds-gantt__legend-dot ds-gantt__legend-dot--update"></span>Update</span>
                                 </div>
-                                {% for lane in selectedRun.timeline.lanes %}
-                                    <div class="ds-gantt__lane">
-                                        <div class="ds-gantt__lane-label">{{ lane.label }}</div>
-                                        <div class="ds-gantt__track">
-                                            <span class="ds-gantt__bar ds-gantt__bar--{{ lane.kind }}"
-                                                  style="left: {{ lane.startPercent }}%; width: {{ lane.widthPercent }}%;"
-                                                  title="{{ lane.startTime }} → {{ lane.endTime }}"></span>
+
+                                <div class="ds-gantt__viewport">
+                                    <div class="ds-gantt__canvas">
+                                        <div class="ds-gantt__header">
+                                            <span>{{ selectedRun.timeline.startTime }}</span>
+                                            <span>{{ selectedRun.timeline.endTime }}</span>
                                         </div>
-                                        <div class="ds-gantt__lane-time">{{ lane.startTime }} → {{ lane.endTime }}</div>
+                                        {% for lane in selectedRun.timeline.lanes %}
+                                            <div class="ds-gantt__lane">
+                                                <div class="ds-gantt__lane-label">{{ lane.label }}</div>
+                                                <div class="ds-gantt__track">
+                                                    <span class="ds-gantt__bar ds-gantt__bar--{{ lane.kind }}"
+                                                          style="left: {{ lane.startPercent }}%; width: {{ lane.widthPercent }}%;"
+                                                          title="{{ lane.startTime }} → {{ lane.endTime }}"></span>
+                                                </div>
+                                                <div class="ds-gantt__lane-time">{{ lane.startTime }} → {{ lane.endTime }}</div>
+                                            </div>
+                                        {% endfor %}
                                     </div>
-                                {% endfor %}
+                                </div>
                             </div>
                         {% else %}
                             <p class="ds-empty-state">Aucune donnee temporelle disponible pour cette execution.</p>
