@@ -191,6 +191,11 @@
             box-shadow: rgba(0, 0, 0, 0.08) 0 2px 8px;
         }
         .btn-sm { padding: 0.35rem 0.65rem; font-size: 0.74rem; }
+        .btn.is-active {
+            background: rgba(194, 239, 78, 0.2);
+            border-color: rgba(194, 239, 78, 0.65);
+            color: var(--ds-text) !important;
+        }
 
         .alert {
             padding: 0.9rem 1.1rem;
@@ -458,6 +463,45 @@
             flex-direction: column;
             gap: 0.6rem;
         }
+        .ds-gantt-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            margin-bottom: 0.7rem;
+            padding: 0.6rem 0.65rem;
+            border: 1px solid var(--ds-border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .ds-gantt-controls__zoom,
+        .ds-gantt-controls__kinds {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.45rem;
+        }
+        .ds-gantt-controls__label {
+            color: var(--ds-text-muted);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-right: 0.2rem;
+        }
+        .ds-kind-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            border: 1px solid var(--ds-border);
+            border-radius: 999px;
+            padding: 0.15rem 0.42rem;
+            font-size: 0.68rem;
+            color: var(--ds-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .ds-kind-toggle input {
+            accent-color: var(--ds-primary-hover);
+        }
         .ds-gantt__header {
             display: flex;
             justify-content: space-between;
@@ -507,6 +551,9 @@
         }
         .ds-gantt__bar--update {
             background: rgba(255, 178, 135, 0.9);
+        }
+        .ds-gantt__bar--query {
+            background: rgba(149, 203, 255, 0.9);
         }
         .ds-gantt__lane-time {
             color: var(--ds-text-muted);

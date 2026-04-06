@@ -45,6 +45,16 @@
         {% if selectedRunId %}
             <input type="hidden" name="run" value="{{ selectedRunId }}">
         {% endif %}
+        {% if pagination.cursor %}
+            <input type="hidden" name="cursor" value="{{ pagination.cursor }}">
+        {% endif %}
+        {% if pagination.stack %}
+            <input type="hidden" name="stack" value="{{ pagination.stack }}">
+        {% endif %}
+        <input type="hidden" name="zoom" value="{{ timelineControls.zoom }}">
+        {% for kind in timelineControls.visibleKinds %}
+            <input type="hidden" name="kinds[]" value="{{ kind }}">
+        {% endfor %}
         <button type="submit" class="ds-btn ds-btn--primary">Filtrer</button>
     </form>
 
@@ -59,7 +69,9 @@
                             q: query,
                             status: status,
                             cursor: pagination.previousCursor,
-                            stack: pagination.previousStack
+                            stack: pagination.previousStack,
+                            zoom: timelineControls.zoom,
+                            kinds: timelineControls.visibleKinds
                         }) }}">← Page precedente</a>
                     {% else %}
                         <span class="ds-pagination__disabled">← Page precedente</span>
@@ -69,7 +81,9 @@
                             q: query,
                             status: status,
                             cursor: pagination.nextCursor,
-                            stack: pagination.nextStack
+                            stack: pagination.nextStack,
+                            zoom: timelineControls.zoom,
+                            kinds: timelineControls.visibleKinds
                         }) }}">Page suivante →</a>
                     {% else %}
                         <span class="ds-pagination__disabled">Page suivante →</span>
@@ -87,7 +101,9 @@
                            status: status,
                            run: run.runId,
                            cursor: pagination.cursor,
-                           stack: pagination.stack
+                           stack: pagination.stack,
+                           zoom: timelineControls.zoom,
+                           kinds: timelineControls.visibleKinds
                        }) }}">
                         <div class="ds-run-row__title">
                             <span>{{ run.workflowName }}</span>
@@ -129,6 +145,40 @@
                 <div class="result-card">
                     <div class="result-card-header">Frise temporelle</div>
                     <div class="result-card-body">
+                        <div class="ds-gantt-controls">
+                            <div class="ds-gantt-controls__zoom">
+                                <span class="ds-gantt-controls__label">Zoom</span>
+                                {% for zoomLevel in timelineControls.availableZooms %}
+                                    <a class="btn btn-ghost btn-sm{% if timelineControls.zoom == zoomLevel %} is-active{% endif %}"
+                                       href="{{ path('app_dashboard', {
+                                           q: query,
+                                           status: status,
+                                           run: selectedRun.runId,
+                                           cursor: pagination.cursor,
+                                           stack: pagination.stack,
+                                           zoom: zoomLevel,
+                                           kinds: timelineControls.visibleKinds
+                                       }) }}">{{ zoomLevel|upper }}</a>
+                                {% endfor %}
+                            </div>
+                            <form method="get" action="{{ path('app_dashboard') }}" class="ds-gantt-controls__kinds">
+                                <input type="hidden" name="q" value="{{ query }}">
+                                <input type="hidden" name="status" value="{{ status }}">
+                                <input type="hidden" name="run" value="{{ selectedRun.runId }}">
+                                <input type="hidden" name="cursor" value="{{ pagination.cursor }}">
+                                <input type="hidden" name="stack" value="{{ pagination.stack }}">
+                                <input type="hidden" name="zoom" value="{{ timelineControls.zoom }}">
+                                <span class="ds-gantt-controls__label">Lignes</span>
+                                {% for kind in timelineControls.availableKinds %}
+                                    <label class="ds-kind-toggle">
+                                        <input type="checkbox" name="kinds[]" value="{{ kind }}" {% if kind in timelineControls.visibleKinds %}checked{% endif %}>
+                                        <span>{{ kind|upper }}</span>
+                                    </label>
+                                {% endfor %}
+                                <button type="submit" class="btn btn-ghost btn-sm">Appliquer</button>
+                            </form>
+                        </div>
+
                         {% if selectedRun.timeline is defined and selectedRun.timeline.lanes is not empty %}
                             <div class="ds-gantt">
                                 <div class="ds-gantt__header">

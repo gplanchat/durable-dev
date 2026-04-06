@@ -13,12 +13,32 @@ use Symfony\Component\Routing\Attribute\Route;
 final class DashboardController extends AbstractController
 {
     private const DASHBOARD_PAGE_SIZE = 20;
+    /** @var list<string> */
+    private const TIMELINE_ZOOM_LEVELS = ['all', '1m', '5m', '15m'];
+    /** @var list<string> */
+    private const TIMELINE_KINDS = ['execution', 'activity', 'signal', 'query', 'update'];
 
     #[Route('/dashboard', name: 'app_dashboard', methods: ['GET'])]
     public function index(Request $request, TemporalEventsDashboardDataProvider $dataProvider): Response
     {
         $query = \trim((string) $request->query->get('q', ''));
         $status = \trim((string) $request->query->get('status', 'all'));
+        $zoom = \trim((string) $request->query->get('zoom', 'all'));
+        if (!\in_array($zoom, self::TIMELINE_ZOOM_LEVELS, true)) {
+            $zoom = 'all';
+        }
+        $kinds = $request->query->all('kinds');
+        if (!\is_array($kinds) || [] === $kinds) {
+            $visibleKinds = self::TIMELINE_KINDS;
+        } else {
+            $visibleKinds = \array_values(\array_filter(
+                self::TIMELINE_KINDS,
+                static fn (string $kind): bool => \in_array($kind, $kinds, true),
+            ));
+            if ([] === $visibleKinds) {
+                $visibleKinds = self::TIMELINE_KINDS;
+            }
+        }
         $cursor = \trim((string) $request->query->get('cursor', ''));
         $stackEncoded = \trim((string) $request->query->get('stack', ''));
         $cursorStack = $this->decodeCursorStack($stackEncoded);
@@ -50,7 +70,7 @@ final class DashboardController extends AbstractController
         }
 
         if (null !== $selectedRun) {
-            $selectedRun = $dataProvider->enrichWithHistory($selectedRun);
+            $selectedRun = $dataProvider->enrichWithHistory($selectedRun, $zoom, $visibleKinds);
         }
 
         $previousCursor = null;
@@ -73,6 +93,12 @@ final class DashboardController extends AbstractController
             'query' => $query,
             'status' => $status,
             'kpis' => $this->buildKpis($filteredRuns),
+            'timelineControls' => [
+                'zoom' => $zoom,
+                'visibleKinds' => $visibleKinds,
+                'availableZooms' => self::TIMELINE_ZOOM_LEVELS,
+                'availableKinds' => self::TIMELINE_KINDS,
+            ],
             'pagination' => [
                 'hasPrevious' => null !== $previousCursor,
                 'previousCursor' => $previousCursor,
