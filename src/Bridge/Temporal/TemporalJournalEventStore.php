@@ -9,7 +9,7 @@ use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Journal\HistoryPageMerger;
 use Gplanchat\Bridge\Temporal\Journal\JournalStateResolver;
 use Gplanchat\Durable\Event\Event;
-use Gplanchat\Durable\Store\EventSerializer;
+use Gplanchat\Durable\Mapping\EventDataMapper;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
@@ -45,7 +45,7 @@ final class TemporalJournalEventStore implements EventStoreInterface
 
     public function append(Event $event): void
     {
-        $row = EventSerializer::serialize($event);
+        $row = EventDataMapper::fromDomainEvent($event);
         $payload = JsonPlainPayload::encode($row);
         $payloads = JsonPlainPayload::singlePayloads($payload);
 
@@ -106,7 +106,7 @@ final class TemporalJournalEventStore implements EventStoreInterface
         foreach ($rows as $row) {
             /* @var array<string, mixed> $row */
             yield [
-                'event' => EventSerializer::deserialize($row),
+                'event' => EventDataMapper::toDomainEvent($row),
                 'recordedAt' => null,
             ];
         }

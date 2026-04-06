@@ -57,8 +57,18 @@ final class SamplesControllerSmokeTest extends WebTestCase
 
         $this->assertResponseIsSuccessful();
         $content = (string) $client->getResponse()->getContent();
-        $this->assertStringContainsString('Synchrone', $content);
+        $this->assertStringContainsString('Lire la documentation', $content);
         $this->assertStringContainsString('SimpleActivity', $content);
+    }
+
+    public function testDocumentationPageReturns200(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/documentation');
+
+        $this->assertResponseIsSuccessful();
+        $content = (string) $client->getResponse()->getContent();
+        $this->assertStringContainsString('Documentation Durable', $content);
     }
 
     public function testSamplesRunSyncReturns200ForSimpleActivity(): void
@@ -88,5 +98,55 @@ final class SamplesControllerSmokeTest extends WebTestCase
         $client->request('GET', '/durable/samples/run/nonexistent-scenario');
 
         $this->assertResponseStatusCodeSame(404);
+    }
+
+    public function testDashboardReturns200WithWorkflowHeading(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/dashboard');
+
+        $this->assertResponseIsSuccessful();
+        $content = (string) $client->getResponse()->getContent();
+        $this->assertStringContainsString('Workflow Dashboard', $content);
+        $this->assertStringContainsString('Running', $content);
+        $this->assertStringContainsString('Navigation des executions', $content);
+        $this->assertStringContainsString('Affichage de', $content);
+        $this->assertStringContainsString('Frise temporelle', $content);
+        $this->assertStringContainsString('Historique des evenements', $content);
+    }
+
+    public function testDashboardShowsTimelineControlsAndLegend(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/dashboard');
+
+        $this->assertResponseIsSuccessful();
+        $content = (string) $client->getResponse()->getContent();
+        $normalized = strtoupper($content);
+        $this->assertStringContainsString('LIGNES', $normalized);
+        $this->assertStringContainsString('EXECUTION', $normalized);
+        $this->assertStringContainsString('ACTIVITY', $normalized);
+        $this->assertStringContainsString('SIGNAL', $normalized);
+        $this->assertStringContainsString('QUERY', $normalized);
+        $this->assertStringContainsString('UPDATE', $normalized);
+        $this->assertStringContainsString('ANIMATION', $normalized);
+    }
+
+    public function testDashboardFiltersByStatus(): void
+    {
+        $client = static::createClient();
+        $allCrawler = $client->request('GET', '/dashboard');
+        $allCount = $allCrawler->filterXpath("//*[contains(concat(' ', normalize-space(@class), ' '), ' ds-run-row ')]")->count();
+
+        $filteredCrawler = $client->request('GET', '/dashboard?status=failed');
+        $this->assertResponseIsSuccessful();
+        $filteredCount = $filteredCrawler->filterXpath("//*[contains(concat(' ', normalize-space(@class), ' '), ' ds-run-row ')]")->count();
+        self::assertLessThanOrEqual($allCount, $filteredCount);
+
+        if ($filteredCount > 0) {
+            $filteredCrawler->filterXpath("//*[contains(concat(' ', normalize-space(@class), ' '), ' ds-status-badge ')]")->each(static function ($badge): void {
+                self::assertSame('FAILED', \trim($badge->text()));
+            });
+        }
     }
 }

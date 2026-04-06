@@ -13,3 +13,7 @@
 /phpunit.xml
 /.phpunit.cache/
 ###< phpunit/phpunit ###
+
+###> temporal (historiques téléchargés depuis l'UI) ###
+/*_events.json
+###< temporal ###

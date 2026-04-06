@@ -1,0 +1,34 @@
+parameters:
+    level: 5
+    paths:
+        - src/Durable
+        - src/DurableBundle
+        - src/Bridge/Temporal
+    excludePaths:
+        - src/Bridge/Temporal/Api
+        - src/Bridge/Temporal/Generated
+        - src/Bridge/Temporal/Spike
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        # google/protobuf stubs type MapField incorrectly — constructor expects "long" but GPBType constants are int
+        - identifier: argument.type
+          path: src/Bridge/Temporal/Worker/TemporalWorkflowCommandBuffer.php
+        # MapField is typed as non-nullable by google/protobuf stubs, but defensive null checks are intentional
+        - identifier: notIdentical.alwaysTrue
+          path: src/Bridge/Temporal/Profiler/TemporalEventConverter.php
+        - identifier: notIdentical.alwaysTrue
+          path: src/Bridge/Temporal/Worker/TemporalExecutionHistory.php
+        # Property written and used only via Temporal gRPC mapping (dynamic dispatch)
+        - identifier: property.onlyWritten
+          path: src/Bridge/Temporal/Worker/TemporalExecutionHistory.php
+        # PHPStan cannot track Awaitable settlement across Fiber boundary
+        - identifier: booleanNot.alwaysTrue
+          path: src/Durable/ExecutionRuntime.php
+        - identifier: deadCode.unreachable
+          path: src/Durable/ExecutionRuntime.php
+        # PHPStan resolves the concrete NullActivityHeartbeatSender stub to always-false
+        - identifier: identical.alwaysFalse
+          path: src/Durable/Worker/ActivityMessageProcessor.php
+        # DurableBundleTestTrait is consumed by application tests, not by library code
+        - identifier: trait.unused
+          path: src/DurableBundle/Testing/DurableBundleTestTrait.php

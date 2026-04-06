@@ -195,7 +195,9 @@ final class WorkflowClient
         if ($args !== []) {
             $input->setArgs(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($args)));
         }
-        $request->setInput($input);
+        $updateRequest = new \Temporal\Api\Update\V1\Request();
+        $updateRequest->setInput($input);
+        $request->setRequest($updateRequest);
         $request->setWaitPolicy(new \Temporal\Api\Update\V1\WaitPolicy([
             'lifecycle_stage' => \Temporal\Api\Enums\V1\UpdateWorkflowExecutionLifecycleStage::UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
         ]));

@@ -1,0 +1,29 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Documentation — Durable pour Symfony{% endblock %}
+
+{% block body %}
+<div class="container-sm">
+    <div class="page-intro">
+        <h1>Documentation Durable</h1>
+        <p>Point d'entree pour comprendre rapidement la demo Symfony et le moteur Durable.</p>
+    </div>
+
+    <div class="result-card">
+        <div class="result-card-header">Demarrage Rapide</div>
+        <div class="result-card-body steps">
+            <ol>
+                <li><strong>Lancer l'application Symfony</strong> avec <code>symfony serve</code>.</li>
+                <li><strong>Explorer les samples</strong> puis demarrer un run en mode synchrone ou async.</li>
+                <li><strong>Suivre les executions</strong> depuis le dashboard <code>/dashboard</code>.</li>
+                <li><strong>Consulter le profiler Durable</strong> pour le journal d'evenements.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="hstack" style="margin-top: 1rem;">
+        <a href="{{ path('durable_home') }}" class="btn btn-primary">Voir les samples</a>
+        <a href="{{ path('app_dashboard') }}" class="btn btn-ghost">Ouvrir le dashboard</a>
+    </div>
+</div>
+{% endblock %}

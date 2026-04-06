@@ -16,7 +16,7 @@ use Temporal\Api\History\V1\History;
 final class JournalStateResolver
 {
     /**
-     * @return list<array<string, mixed>> rows compatible with {@see \Gplanchat\Durable\Store\EventSerializer::deserialize}
+     * @return list<array<string, mixed>> rows compatible with {@see \Gplanchat\Durable\Mapping\EventDataMapper::toDomainEvent}
      */
     public static function journalRowsFromHistory(History $history, string $signalAppend): array
     {

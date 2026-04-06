@@ -4,8 +4,26 @@
 
 {% block body %}
 <div class="container">
+    <section class="hero">
+        <div class="hero__label">Durable pour Symfony</div>
+        <h1>Workflows durables, execution fiable, supervision unifiee</h1>
+        <p>
+            Durable orchestre vos workflows sans SDK Temporal PHP officiel ni RoadRunner,
+            avec une execution orientee event sourcing et un suivi explicite des etats.
+        </p>
+        <ul class="hero__points">
+            <li>Execution synchrone pour valider rapidement un scenario de bout en bout.</li>
+            <li>Execution asynchrone pour deleguer le run a des workers dedies.</li>
+            <li>Journal d'evenements consultable dans le profiler et le dashboard.</li>
+        </ul>
+        <div class="hstack">
+            <a href="{{ path('durable_documentation') }}" class="btn btn-primary">Lire la documentation</a>
+            <a href="{{ path('app_dashboard') }}" class="btn btn-ghost">Ouvrir le dashboard</a>
+        </div>
+    </section>
+
     <div class="page-intro">
-        <h1>Samples workflows</h1>
+        <h2>Samples workflows</h2>
         <p>
             Scénarios portés depuis
             <a href="https://github.com/temporalio/samples-php/tree/master/app/src">temporalio/samples-php</a>,

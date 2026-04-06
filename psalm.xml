@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<psalm
+    errorLevel="4"
+    resolveFromConfigFile="true"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://getpsalm.org/schema/config"
+    xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
+    findUnusedBaselineEntry="false"
+    findUnusedCode="false"
+    errorBaseline="psalm-baseline.xml"
+>
+    <projectFiles>
+        <directory name="src/Durable" />
+        <directory name="src/DurableBundle" />
+        <directory name="src/Bridge/Temporal" />
+        <ignoreFiles>
+            <directory name="src/Bridge/Temporal/Api" />
+            <directory name="src/Bridge/Temporal/Generated" />
+            <directory name="src/Bridge/Temporal/Spike" />
+            <directory name="vendor" />
+        </ignoreFiles>
+    </projectFiles>
+
+    <issueHandlers>
+        <!-- Temporal protobuf generated classes use dynamic method calls — suppress globally -->
+        <UndefinedMethod errorLevel="suppress" />
+        <!-- MapField from google/protobuf is incorrectly typed as non-nullable -->
+        <DocblockTypeContradiction errorLevel="suppress" />
+        <RedundantConditionGivenDocblockType errorLevel="suppress" />
+        <!-- PHPStan/Psalm cannot track Fiber/Awaitable settlement cross-step -->
+        <PossiblyInvalidMethodCall errorLevel="suppress" />
+        <!-- Traits consumed by downstream tests, not library code -->
+        <UnusedClass errorLevel="suppress" />
+    </issueHandlers>
+</psalm>

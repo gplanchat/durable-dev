@@ -298,6 +298,10 @@ final class DurableExtension extends Extension
      */
     private function registerEngine(ContainerBuilder $container, array $config): void
     {
+        $container->register(\Gplanchat\Durable\Uuid\NativeUuidV7Generator::class, \Gplanchat\Durable\Uuid\NativeUuidV7Generator::class)
+            ->setPublic(false);
+        $container->setAlias(\Gplanchat\Durable\Uuid\UuidGeneratorInterface::class, \Gplanchat\Durable\Uuid\NativeUuidV7Generator::class);
+
         $container->register(\Gplanchat\Durable\ExecutionEngine::class, \Gplanchat\Durable\ExecutionEngine::class)
             ->setArguments([
                 new Reference(EventStoreInterface::class),
@@ -307,6 +311,7 @@ final class DurableExtension extends Extension
                 new Reference(ActivityContractResolver::class),
                 new Reference(WorkflowDefinitionLoader::class),
                 new Reference(WorkflowExecutionObserverInterface::class),
+                new Reference(\Gplanchat\Durable\Uuid\UuidGeneratorInterface::class),
             ])
             ->setPublic(true)
         ;
@@ -335,6 +340,7 @@ final class DurableExtension extends Extension
                 new Reference(EventStoreInterface::class),
                 new Reference(\Gplanchat\Durable\ExecutionRuntime::class),
                 new Reference(WorkflowResumeDispatcher::class),
+                new Reference('messenger.routable_message_bus'),
             ])
             ->addTag('messenger.message_handler')
         ;

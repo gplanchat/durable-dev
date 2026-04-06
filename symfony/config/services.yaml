@@ -35,5 +35,11 @@ services:
         arguments:
             $workflowClient: '@?Gplanchat\Bridge\Temporal\WorkflowClient'
 
+    App\Dashboard\TemporalEventsDashboardDataProvider:
+        arguments:
+            $workflowServiceClient: '@?durable.temporal.workflow_service_client'
+            $connection: '@?durable.temporal.connection'
+            $historyCursor: '@?Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor'
+
 # Journal Temporal en dev/prod : durable.yaml when@dev / when@prod + DURABLE_DSN (temporal://…).
 # Prérequis : ext-grpc, stack docker compose, workers messenger durable_temporal_journal + durable_temporal_activity.
