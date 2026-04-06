@@ -1,10 +1,10 @@
-# Journal de travail
+# Work journal
 
-Ce dossier sert à **tracer** les échanges et décisions utiles aux **posts de blog** sur la création du composant.
+This folder **traces** exchanges and decisions useful for **blog posts** about building the component.
 
-| Dossier | Rôle |
+| Folder | Role |
 |--------|------|
-| `inbox/` | Entrées du jour et matériel brut encore actif (voir règle Cursor « blog-journal »). |
-| `archive/` | Extraits ou fichiers déjà exploités pour un article publié. |
+| `inbox/` | Same-day entries and raw active material (see Cursor rule “blog-journal”). |
+| `archive/` | Excerpts or files already used for a published article. |
 
-Convention de fichier inbox : `YYYY-MM-DD.md` (une ou plusieurs entrées par jour).
+Inbox file convention: `YYYY-MM-DD.md` (one or more entries per day).
