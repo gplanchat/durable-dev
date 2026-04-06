@@ -154,18 +154,19 @@ jobs:
               working-directory: symfony
               run: docker compose up -d --wait --wait-timeout 300 database temporal
 
-            - name: Vérifier que Temporal répond sur :7233
+            - name: Vérifier que Temporal est sain (exec interne)
+              working-directory: symfony
               run: |
                   set -e
                   for i in $(seq 1 20); do
-                    if timeout 2 bash -c "</dev/tcp/127.0.0.1/7233" 2>/dev/null; then
-                      echo "Temporal joignable sur :7233 (tentative $i)"
+                    if docker compose exec -T temporal temporal operator cluster health --address localhost:7233 2>/dev/null; then
+                      echo "Temporal sain (tentative $i)"
                       exit 0
                     fi
-                    sleep 3
+                    sleep 5
                   done
-                  echo "Temporal non joignable après 60s (port 7233)"
-                  docker compose -f symfony/compose.yaml logs temporal --tail 40
+                  echo "Temporal non sain après 100s"
+                  docker compose logs temporal --tail 40
                   exit 1
 
             - name: PHPUnit — tests d'intégration Temporal (temporal-integration + temporal-native-spike)
@@ -195,15 +196,15 @@ jobs:
             - name: Démarrer PostgreSQL + Temporal + UI
               run: docker compose -f symfony/compose.yaml up -d --wait --wait-timeout 180 database temporal temporal-ui
 
-            - name: Vérifier Temporal UI (8088)
+            - name: Vérifier Temporal UI (exec interne)
               run: |
                   set -e
-                  for i in $(seq 1 45); do
-                    if curl -sfL -o /dev/null http://127.0.0.1:8088/; then
+                  for i in $(seq 1 20); do
+                    if docker compose -f symfony/compose.yaml exec -T temporal-ui wget -qO- http://localhost:8080/ > /dev/null 2>&1; then
                       echo "Temporal UI OK (tentative $i)"
                       exit 0
                     fi
-                    sleep 2
+                    sleep 5
                   done
                   docker compose -f symfony/compose.yaml logs temporal-ui --tail 40
                   exit 1
