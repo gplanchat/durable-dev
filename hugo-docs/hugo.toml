@@ -1,0 +1,43 @@
+baseURL = 'https://gplanchat.github.io/durable-dev/'
+languageCode = 'en-us'
+title = 'Durable'
+defaultContentLanguage = 'en'
+enableGitInfo = true
+
+# User-facing documentation only: ../documentation/user (not ADRs/WAs — see documentation/HUGO.md).
+
+[module]
+[[module.imports]]
+path = 'github.com/alex-shpak/hugo-book'
+
+[[module.mounts]]
+source = '../documentation/user'
+target = 'content/docs'
+
+[params]
+BookRepo = 'https://github.com/gplanchat/durable-dev'
+BookEditPath = 'edit/main/documentation/user'
+BookSection = 'docs'
+BookSearch = true
+BookToC = true
+BookCollapsedLevel = 1
+
+[params.menu]
+[[params.menu.after]]
+name = 'Repository'
+url = 'https://github.com/gplanchat/durable-dev'
+weight = 10
+
+[[params.menu.after]]
+name = 'Contributor docs (ADRs)'
+url = 'https://github.com/gplanchat/durable-dev/tree/main/documentation/adr'
+weight = 20
+
+[markup]
+[markup.goldmark.renderer]
+unsafe = true
+
+[markup.tableOfContents]
+endLevel = 3
+ordered = false
+startLevel = 2

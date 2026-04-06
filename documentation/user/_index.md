@@ -16,11 +16,13 @@ This site is the **user guide**: how to think about the component and how to use
 
 ## Sections
 
-- [Getting started](getting-started/) — environment, first steps, where to look next.
+- [Getting started](getting-started/) — installation, Symfony bundle config, first workflow, worker commands.
+- [Backends](backends/) — In-Memory vs Temporal: Docker Compose setup, DSN format, when to use each.
 - [Concepts](concepts/) — workflows, activities, replay, and backends in plain language.
 - [Creating a workflow](workflows/) — interface, `WorkflowEnvironment`, `WorkflowMethod`, signals, queries, updates.
 - [Creating activities](activities/) — activity interfaces, `ActivityMethod`, dependency injection, `ActivityInvoker`.
 - [Testing workflows](testing/) — `DurableTestCase`, `ActivitySpy`, `WorkflowTestEnvironment`, and `DurableBundleTestTrait`.
+- [Configuration reference](configuration/) — every `durable.yaml` key explained.
 
 ## Source and feedback
 
