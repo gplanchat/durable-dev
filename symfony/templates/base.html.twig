@@ -109,6 +109,8 @@
             max-width: 1152px;
             margin: 0 auto;
             padding: 2rem 1.5rem 2.5rem;
+            width: 100%;
+            overflow-x: clip;
         }
         .container-sm {
             max-width: 760px;
@@ -326,12 +328,14 @@
             grid-template-columns: minmax(260px, 36%) 1fr;
             gap: 1rem;
             align-items: start;
+            min-width: 0;
         }
         .ds-dashboard-list,
         .ds-dashboard-detail {
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
+            min-width: 0;
         }
         .ds-pagination {
             display: flex;
@@ -365,6 +369,7 @@
         .ds-pagination__cursor {
             color: var(--ds-text-muted);
             font-size: 0.76rem;
+            overflow-wrap: anywhere;
         }
         .ds-run-row {
             text-decoration: none !important;
@@ -389,6 +394,8 @@
             gap: 0.6rem;
             font-size: 0.95rem;
             font-weight: 600;
+            min-width: 0;
+            flex-wrap: wrap;
         }
         .ds-run-row__meta {
             display: flex;
@@ -397,7 +404,7 @@
             font-size: 0.78rem;
             color: var(--ds-text-muted);
         }
-        .ds-mono { font-family: var(--font-mono); }
+        .ds-mono { font-family: var(--font-mono); overflow-wrap: anywhere; word-break: break-word; }
 
         .ds-status-badge {
             font-size: 0.68rem;
@@ -532,29 +539,32 @@
             color: var(--ds-text-muted);
             font-size: 0.76rem;
             font-family: var(--font-mono);
-            min-width: 980px;
+            min-width: 0;
         }
         .ds-gantt__window-info {
             color: var(--ds-text-muted);
             font-size: 0.75rem;
-            min-width: 980px;
+            min-width: 0;
             margin-top: -0.15rem;
+            overflow-wrap: anywhere;
         }
         .ds-gantt__viewport {
             overflow-x: auto;
             padding-bottom: 0.2rem;
+            -webkit-overflow-scrolling: touch;
         }
         .ds-gantt__canvas {
-            min-width: 980px;
+            min-width: min(100%, 760px);
             display: flex;
             flex-direction: column;
             gap: 0.6rem;
         }
         .ds-gantt__lane {
             display: grid;
-            grid-template-columns: 230px minmax(560px, 1fr) 140px;
+            grid-template-columns: clamp(120px, 22vw, 220px) minmax(280px, 1fr) clamp(96px, 12vw, 140px);
             align-items: center;
             gap: 0.6rem;
+            min-width: 0;
         }
         .ds-gantt__lane-label {
             color: var(--ds-text-muted);
@@ -606,6 +616,8 @@
             font-size: 0.72rem;
             font-family: var(--font-mono);
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .ds-timeline__item {
             display: grid;
@@ -744,8 +756,32 @@
             .ds-dashboard-split {
                 grid-template-columns: 1fr;
             }
-            .ds-gantt__canvas { min-width: 860px; }
-            .ds-gantt__header { min-width: 860px; }
+            .container {
+                padding: 1.1rem 0.9rem 1.5rem;
+            }
+            .ds-pagination {
+                align-items: flex-start;
+            }
+            .ds-gantt__canvas {
+                min-width: 680px;
+            }
+            .ds-gantt__lane {
+                grid-template-columns: 170px minmax(300px, 1fr) 110px;
+            }
+        }
+
+        @media (max-width: 680px) {
+            .meta-list {
+                grid-template-columns: 1fr;
+                gap: 0.2rem;
+            }
+            .ds-gantt__canvas {
+                min-width: 560px;
+            }
+            .ds-gantt__lane {
+                grid-template-columns: 140px minmax(240px, 1fr) 96px;
+                gap: 0.45rem;
+            }
         }
     </style>
     {% block stylesheets %}{% endblock %}
