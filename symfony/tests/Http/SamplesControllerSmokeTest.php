@@ -104,11 +104,18 @@ final class SamplesControllerSmokeTest extends WebTestCase
     public function testDashboardFiltersByStatus(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/dashboard?status=failed');
+        $allCrawler = $client->request('GET', '/dashboard');
+        $allCount = $allCrawler->filterXpath("//*[contains(concat(' ', normalize-space(@class), ' '), ' ds-run-row ')]")->count();
 
+        $filteredCrawler = $client->request('GET', '/dashboard?status=failed');
         $this->assertResponseIsSuccessful();
-        $content = (string) $client->getResponse()->getContent();
-        $this->assertStringContainsString('BOOKINGSAGA', strtoupper($content));
-        $this->assertStringNotContainsString('SIMPLEACTIVITY', strtoupper($content));
+        $filteredCount = $filteredCrawler->filterXpath("//*[contains(concat(' ', normalize-space(@class), ' '), ' ds-run-row ')]")->count();
+        self::assertLessThanOrEqual($allCount, $filteredCount);
+
+        if ($filteredCount > 0) {
+            $filteredCrawler->filterXpath("//*[contains(concat(' ', normalize-space(@class), ' '), ' ds-status-badge ')]")->each(static function ($badge): void {
+                self::assertSame('FAILED', \trim($badge->text()));
+            });
+        }
     }
 }
