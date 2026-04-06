@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\Handler;
 
+use Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator;
 use Gplanchat\Durable\Bundle\Support\AsyncChildWorkflowFailureProjector;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
@@ -13,9 +14,14 @@ use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
+use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
 use Gplanchat\Durable\Transport\WorkflowRunMessage;
 use Gplanchat\Durable\WorkflowRegistry;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
+use Symfony\Component\Messenger\Stamp\DispatchAfterCurrentBusStamp;
 use Symfony\Component\Uid\Uuid;
 
 #[AsMessageHandler]
@@ -28,6 +34,7 @@ final class WorkflowRunHandler
         private readonly WorkflowResumeDispatcher $resumeDispatcher,
         private readonly EventStoreInterface $eventStore,
         private readonly ChildWorkflowParentLinkStoreInterface $childWorkflowParentLinkStore,
+        private readonly MessageBusInterface $messageBus,
     ) {
     }
 
@@ -38,6 +45,9 @@ final class WorkflowRunHandler
         if ($message->isResume()) {
             $metadata = $this->metadataStore->get($executionId);
             if (null === $metadata) {
+                return;
+            }
+            if (($metadata['completed'] ?? false) === true) {
                 return;
             }
             $workflowType = $metadata['workflowType'];
@@ -58,7 +68,23 @@ final class WorkflowRunHandler
             $result = $run();
         } catch (WorkflowSuspendedException $e) {
             if ($e->shouldDispatchResume()) {
-                $this->resumeDispatcher->dispatchResume($executionId);
+                if (!$e->waitingOnTimer()) {
+                    $this->resumeDispatcher->dispatchResume($executionId);
+                } else {
+                    $ms = TimerWakeDelayCalculator::millisecondsUntilNextTimerDue(
+                        $this->eventStore,
+                        $executionId,
+                        $this->engine->getRuntime()->nowSeconds(),
+                    );
+                    if (null === $ms) {
+                        $ms = 0;
+                    }
+                    $stamps = [new DispatchAfterCurrentBusStamp()];
+                    if ($ms > 0) {
+                        $stamps[] = new DelayStamp($ms);
+                    }
+                    $this->messageBus->dispatch(new Envelope(new FireWorkflowTimersMessage($executionId), $stamps));
+                }
             }
 
             return;
@@ -77,7 +103,7 @@ final class WorkflowRunHandler
         }
 
         $this->finalizeAsyncChildOnParentIfLinked($executionId, $result, null);
-        $this->metadataStore->delete($executionId);
+        $this->metadataStore->markCompleted($executionId);
     }
 
     private function finalizeAsyncChildOnParentIfLinked(string $childExecutionId, mixed $result, ?\Throwable $failure): void

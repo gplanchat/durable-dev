@@ -1,0 +1,37 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ waitedForCompletion|default(false) ? 'Workflow terminé' : 'Workflow mis en file' }} — Durable{% endblock %}
+
+{% block body %}
+    <main style="max-width: 42rem; margin: 2rem auto; font-family: system-ui, sans-serif; line-height: 1.5;">
+        {% if waitedForCompletion|default(false) %}
+            <h1>Workflow terminé</h1>
+        {% else %}
+            <h1>Workflow mis en file</h1>
+            <p>Le run a été <strong>dispatché</strong> sur Messenger sans drain dans cette requête (<code>?wait=0</code>).
+                Les workers (<code>messenger:consume</code> / <code>symfony serve</code>) traitent la suite.</p>
+        {% endif %}
+        <p><strong>Type :</strong> <code>{{ workflowType }}</code></p>
+        <p><strong>executionId :</strong> <code>{{ executionId }}</code></p>
+        <p><strong>Payload :</strong> <code>{{ payload|json_encode(constant('JSON_UNESCAPED_UNICODE')) }}</code></p>
+        {% if waitedForCompletion|default(false) %}
+            <p><strong>Résultat :</strong></p>
+            <pre style="background:#f4f4f5;padding:1rem;border-radius:6px;overflow:auto;">{{ result is iterable ? result|json_encode(128) : result }}</pre>
+        {% else %}
+            <p>Pour <strong>attendre la fin</strong> et remplir le journal dans le profiler (drain Messenger dans le même processus) :
+                <a href="{{ path('durable_profiler_demo_run') }}">relancer sans <code>?wait=0</code></a> (comportement par défaut).</p>
+            <p>En code : <code>DurableSampleWorkflowRunner::waitForWorkflowCompletion($executionId)</code> après un
+                <code>dispatchWorkflowRun()</code>.</p>
+        {% endif %}
+        <p style="margin-top:2rem;">
+            {% if waitedForCompletion|default(false) %}
+                Ouvre la <strong>Web Debug Toolbar</strong> en bas → panneau <strong>Durable</strong> pour la
+                chronologie (runs parent / enfants, activités <code>echoUpper</code>).
+            {% else %}
+                La trace Durable de <em>cette</em> requête ne contient que le dispatch ; ouvre le profiler d’une
+                requête qui consomme les messages ou utilise <code>?wait=1</code> pour tout voir dans la même requête.
+            {% endif %}
+        </p>
+        <p><a href="{{ path('durable_profiler_demo_home') }}">Retour</a></p>
+    </main>
+{% endblock %}

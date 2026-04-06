@@ -1,82 +1,54 @@
-# Documentation index — Durable
+# Index — Durable documentation
 
-Symfony component and bundle for durable execution (workflows and activities).
+This repository documents the **Durable** component (durable execution orchestrated with Temporal, without the official PHP SDK or RoadRunner — see [DUR006](adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md)). Symfony Messenger integration is covered in **DUR021**. **Commands-only** orchestration is **DUR026**; the **gRPC bridge** is **DUR019**; the **fiber-based interpreter** (`WorkflowTaskRunner`) is **DUR027**; the **fiber and replay model** is **DUR003**. **[DUR025](adr/DUR025-temporal-grpc-workflowservice-messages-and-implementation-map.md)** maps **WorkflowService** gRPC RPCs to this codebase.
 
----
+**Language:** All normative documents in `documentation/adr/`, `documentation/wa/`, tracking, and Cursor rules are **English** — see [WA001](wa/WA001-english-language-documentation.md). **Development** follows **TDD** (Red → Green → Refactor) — see [WA002](wa/WA002-test-driven-development.md). **GitHub** epics, tasks, stories, and project usage follow **[WA003](wa/WA003-github-epics-tasks-and-project-tracking.md)**.
 
-## ADR — Architecture Decision Records
+## Architecture Decision Records (ADR)
 
-| ADR | Title | Description |
-|-----|-------|-------------|
-| [ADR001](adr/ADR001-adr-management-process.md) | ADR management process | Foundations for managing architecture decisions in the Durable project |
-| [ADR002](adr/ADR002-coding-standards.md) | Coding standards | PHP-CS-Fixer, PSR-1, PSR-12 |
-| [ADR003](adr/ADR003-phpunit-testing-standards.md) | PHPUnit standards | Tests without excessive mocks, dedicated test doubles |
-| [ADR004](adr/ADR004-ports-and-adapters.md) | Hexagonal architecture | Ports and adapters (component vs drivers) |
-| [ADR005](adr/ADR005-messenger-integration.md) | Messenger integration | Activity transport via Symfony Messenger |
-| [ADR006](adr/ADR006-activity-patterns.md) | Activity patterns | Interface-first, idempotence, error handling |
-| [ADR007](adr/ADR007-workflow-recovery.md) | Recovery and replay | Event sourcing, replay, re-dispatch |
-| [ADR008](adr/ADR008-error-handling-retries.md) | Errors and retries | Business vs system classification, FailureEnvelope |
-| [ADR009](adr/ADR009-distributed-workflow-dispatch.md) | Distributed model | Workflow re-dispatch, WorkflowRunMessage, WorkflowRegistry |
-| [ADR010](adr/ADR010-temporal-parity-events-and-replay.md) | Temporal parity — events | Side effects, timers, child, CAN, messages; replay |
-| [ADR011](adr/ADR011-child-workflow-continue-as-new.md) | Child workflows and continue-as-new | childWorkflowStub, run correlation gap, ParentClosePolicy |
-| [ADR012](adr/ADR012-activity-stub-metadata-and-static-analysis.md) | Activity stub, PSR-6 cache, warmup, static analysis | activityStub, ActivityContractResolver, PHPStan extension |
-| [ADR013](adr/ADR013-activity-contract-cache-production-policy.md) | Cache PSR-6 des contrats d’activité en production | Miss, absence de pool, recommandations charge |
-| [ADR014](adr/ADR014-temporal-journal-eventstore-bridge.md) | Temporal journal EventStore (gRPC sans SDK) | `TemporalJournalEventStore`, transport Messenger, worker console |
-| [ADR015](adr/ADR015-magento-durable-module.md) | Module Magento Durable | `src/DurableModule/`, backends DBAL / Temporal, sans Messenger ni RoadRunner |
-| [ADR016](adr/ADR016-dedicated-dbal-connection-and-unbuffered-reads.md) | Connexion DBAL dédiée et lectures unbuffered | `durable.dbal_connection`, alias `durable.dbal.connection`, options PDO MySQL |
-| [ADR017](adr/ADR017-splitsh-ci-and-satellite-pushes.md) | Splitsh CI et push vers dépôts satellites | Vérif vs push PAT, cache binaire, `SPLITSH_PUSH_TOKEN` |
+| ID | Title | File |
+|----|--------|------|
+| DUR000 | ADR management process | [adr/DUR000-adr-management-process.md](adr/DUR000-adr-management-process.md) |
+| DUR001 | Event store and cursor traversal | [adr/DUR001-event-store-and-cursor.md](adr/DUR001-event-store-and-cursor.md) |
+| DUR002 | WorkflowClient, WorkflowHistorySourceInterface, WorkflowCommandBufferInterface | [adr/DUR002-cqrs-temporal-repositories.md](adr/DUR002-cqrs-temporal-repositories.md) |
+| DUR003 | Fiber-based replay, ExecutionEngine, and awaitables | [adr/DUR003-workflow-state-machine-replay-and-awaitables.md](adr/DUR003-workflow-state-machine-replay-and-awaitables.md) |
+| DUR004 | ActivityInvoker, activities, and activity methods | [adr/DUR004-activity-stub-and-activities.md](adr/DUR004-activity-stub-and-activities.md) |
+| DUR005 | Temporal and In-Memory backends | [adr/DUR005-implementation-backends-temporal-and-in-memory.md](adr/DUR005-implementation-backends-temporal-and-in-memory.md) |
+| DUR006 | No official Temporal PHP SDK or RoadRunner | [adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md](adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md) |
+| DUR007 | Serialization and Symfony Serializer | [adr/DUR007-serialization-and-symfony-serializer.md](adr/DUR007-serialization-and-symfony-serializer.md) |
+| DUR008 | PER (PHP-FIG) style and naming | [adr/DUR008-per-php-fig-naming-and-style.md](adr/DUR008-per-php-fig-naming-and-style.md) |
+| DUR009 | Testing standards | [adr/DUR009-testing-standards.md](adr/DUR009-testing-standards.md) |
+| DUR010 | Test pyramid | [adr/DUR010-test-pyramid.md](adr/DUR010-test-pyramid.md) |
+| DUR011 | Errors, classification, and retries | [adr/DUR011-errors-retries-and-classification.md](adr/DUR011-errors-retries-and-classification.md) |
+| DUR012 | API client layer and repository adapters | [adr/DUR012-api-client-and-repository-adapter-layers.md](adr/DUR012-api-client-and-repository-adapter-layers.md) |
+| DUR013 | Workflow modeling and Query / Signal / Update surface | [adr/DUR013-workflow-modeling-and-temporal-surface.md](adr/DUR013-workflow-modeling-and-temporal-surface.md) |
+| DUR014 | Temporal edge cases and external integrations | [adr/DUR014-temporal-edge-cases-and-integrations.md](adr/DUR014-temporal-edge-cases-and-integrations.md) |
+| DUR015 | Repository and adapter testing | [adr/DUR015-repository-and-adapter-testing.md](adr/DUR015-repository-and-adapter-testing.md) |
+| DUR016 | In-Memory backend: rules and exceptions | [adr/DUR016-in-memory-backend-exception-rules.md](adr/DUR016-in-memory-backend-exception-rules.md) |
+| DUR017 | Observability and operations | [adr/DUR017-observability-and-operations.md](adr/DUR017-observability-and-operations.md) |
+| DUR018 | Event parity, slots, and replay (Temporal alignment) | [adr/DUR018-temporal-event-parity-replay-and-slots.md](adr/DUR018-temporal-event-parity-replay-and-slots.md) |
+| DUR019 | Temporal gRPC bridge | [adr/DUR019-temporal-grpc-bridge-and-journal.md](adr/DUR019-temporal-grpc-bridge-and-journal.md) |
+| DUR020 | Monorepo, splitsh, and satellite repositories | [adr/DUR020-monorepo-splitsh-and-satellite-repositories.md](adr/DUR020-monorepo-splitsh-and-satellite-repositories.md) |
+| DUR021 | Symfony Messenger integration | [adr/DUR021-symfony-messenger-integration.md](adr/DUR021-symfony-messenger-integration.md) |
+| DUR022 | Workflow class, interface, and WorkflowEnvironment | [adr/DUR022-workflow-class-interface-and-workflow-environment.md](adr/DUR022-workflow-class-interface-and-workflow-environment.md) |
+| DUR023 | Activity authoring and asynchronous activity invoker | [adr/DUR023-activity-authoring-and-asynchronous-activity-proxy.md](adr/DUR023-activity-authoring-and-asynchronous-activity-proxy.md) |
+| DUR024 | Temporal native execution: WorkflowTaskRunner and fiber-based interpreter | [adr/DUR024-temporal-native-execution-and-interpreter.md](adr/DUR024-temporal-native-execution-and-interpreter.md) |
+| DUR025 | Temporal WorkflowService gRPC RPCs: implementation map | [adr/DUR025-temporal-grpc-workflowservice-messages-and-implementation-map.md](adr/DUR025-temporal-grpc-workflowservice-messages-and-implementation-map.md) |
+| DUR026 | Commands-only orchestration path | [adr/DUR026-spike-first-temporal-orchestration.md](adr/DUR026-spike-first-temporal-orchestration.md) |
+| DUR027 | WorkflowTaskRunner: fiber-based replay from Temporal history | [adr/DUR027-workflow-task-runner-fiber-replay.md](adr/DUR027-workflow-task-runner-fiber-replay.md) |
+| DUR028 | Synchronous completion polling for multi-process Temporal setups | [adr/DUR028-synchronous-completion-polling-multi-process.md](adr/DUR028-synchronous-completion-polling-multi-process.md) |
 
----
+## Working agreements (WA)
 
-## WA — Working Agreements
+| ID | Title | File |
+|----|--------|------|
+| WA001 | English language for project documentation | [wa/WA001-english-language-documentation.md](wa/WA001-english-language-documentation.md) |
+| WA002 | Test-driven development (TDD) | [wa/WA002-test-driven-development.md](wa/WA002-test-driven-development.md) |
+| WA003 | GitHub epics, tasks, and project tracking | [wa/WA003-github-epics-tasks-and-project-tracking.md](wa/WA003-github-epics-tasks-and-project-tracking.md) |
 
-| WA | Title | Description |
-|----|-------|-------------|
-| [WA001](wa/WA001-conventions-and-reviews.md) | Conventions and reviews | Naming, code review, Cursor plan management |
+## Other
 
----
-
-## OST — Opportunity Solution Trees
-
-| OST | Title | Description |
-|-----|-------|-------------|
-| [OST001](ost/OST001-future-opportunities.md) | Future opportunities | Temporal driver, multi-transport, advanced timers |
-| [OST002](ost/OST002-phpunit12-upgrade-checklist.md) | PHPUnit 12 upgrade | Pre-upgrade checklist, extensions, coverage |
-| [OST003](ost/OST003-activity-api-ergonomics.md) | Activity call ergonomics | `#[Activity]` / `#[Workflow]`, `activityStub()`, PSR-6, PHPStan/Psalm |
-| [OST004](ost/OST004-workflow-temporal-feature-parity.md) | Temporal parity (workflows) | Side effects, timers, child, continue-as-new, signals/queries/updates |
-
----
-
-## PRD — Product Requirements Documents
-
-| PRD | Title | Description |
-|-----|-------|-------------|
-| [PRD001](prd/PRD001-current-component-state.md) | Current component state | Workflows, activities, event store, transports |
-| [PRD002](prd/PRD002-in-flight-workflow-scenarios.md) | In-flight workflow scenarios (distributed) | Activity queue, resume, intermediate log |
-| [PRD003](prd/PRD003-durable-test-case-base.md) | `DurableTestCase` base | In-memory stack, assertions, dedicated worker teardown |
-| [PRD004](prd/PRD004-ci-github-actions.md) | GitHub Actions CI | CS, PHPUnit strict coverage, PCOV report |
-| [PRD005](prd/PRD005-symfony-empty-project-recipe.md) | Empty Symfony project recipe (~3 min) | Monorepo quick start, bundle integration, auto-registered handlers |
-
----
-
-## Plans (implémentation)
-
-| Plan | Title | Description |
-|------|-------|-------------|
-| [PLAN001](plans/PLAN001-lib-decouple-messenger.md) | Découpler Messenger de la lib | **Fait** : `MessengerActivityTransport` dans le bundle ; `symfony/messenger` retiré de `gplanchat/durable` — débloque intégrations sans Messenger (ex. Magento) |
-
----
-
-## Audit
-
-| Audit | Title | Description |
-|-------|-------|-------------|
-| [AUDIT001](audit/AUDIT001-phase2-code-review.md) | Phase 2 code review | Consistency, separation of concerns, ADR compliance |
-
----
-
-## References
-
-- [LIFECYCLE.md](LIFECYCLE.md) — Document lifecycle
-- [Hive architecture](../architecture/hive/) — Hive project ADRs (reference)
-- [Runtime architecture](../architecture/runtime/) — Runtime RFCs
+- [Work journal](journal/README.md)
+- [Document lifecycle](LIFECYCLE.md)
+- [Hugo user guide](HUGO.md) (built from `documentation/user/` only; ADRs/WAs are not mirrored)
+- [User documentation source (Markdown)](user/) — content published by Hugo as the end-user site

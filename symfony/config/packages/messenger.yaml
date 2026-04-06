@@ -14,6 +14,18 @@ framework:
             Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage: sync
             Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage: sync
 
+# En dev : MESSENGER_DURABLE_* dans .env.dev → temporal://…?inner=doctrine://… (durable-bridge-temporal).
+# Poll du journal Temporal (receive-only, sans inner) : messenger:consume durable_temporal_journal (DURABLE_TEMPORAL_DSN).
+# Sinon défaut doctrine:// dans parameters (doctrine.yaml). Tests : in-memory (when@test).
+when@dev:
+    framework:
+        messenger:
+            transports:
+                durable_temporal_journal: '%env(DURABLE_TEMPORAL_DSN)%'
+            routing:
+                # DelayStamp pris en charge par Doctrine ; évite le spam sync lors des pauses timer longues.
+                Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows
+
 when@test:
     framework:
         messenger:

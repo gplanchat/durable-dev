@@ -1,6 +1,0 @@
-# gplanchat/durable — PHPStan extension (ADR012, OST003).
-services:
-    -
-        class: Gplanchat\Durable\PHPStan\ActivityStubMethodsClassReflectionExtension
-        tags:
-            - phpstan.broker.methodsClassReflectionExtension

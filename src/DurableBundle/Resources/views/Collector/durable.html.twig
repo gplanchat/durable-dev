@@ -1,119 +1,527 @@
 {% extends '@WebProfiler/Profiler/layout.html.twig' %}
 
+{# Macros réutilisables pour les bandeaux time frame #}
+{% macro timeframe_segment_row(seg) %}
+    <div class="durable-timeframe-row">
+        <div class="durable-timeframe-label">
+            <span class="seq">#{{ seg.seq }}</span>
+            {% if seg.category is defined and seg.category %}
+                <span class="durable-cat durable-cat--{{ seg.category }}">{{ seg.category }}</span>
+            {% endif %}
+            <strong>{{ seg.display_title|default(seg.label) }}</strong>
+            {% if seg.display_subtitle is defined and seg.display_subtitle %}
+                <br><span class="text-muted">{{ seg.display_subtitle }}</span>
+            {% endif %}
+            <br>
+            {% if seg.executionId %}
+                <code>{{ seg.executionId|slice(0, 8) }}…</code>
+            {% else %}
+                <span class="text-muted">—</span>
+            {% endif %}
+            · {{ seg.durationMs|number_format(3) }}&nbsp;ms
+        </div>
+        <div class="durable-timeframe-track" title="{{ seg.display_title|default(seg.label) }}">
+            {% set barClass = 'durable-timeframe-bar--' ~ (seg.kind in ['dispatch','workflow','activity'] ? seg.kind : 'default') %}
+            <div class="durable-timeframe-bar {{ barClass }}"
+                 style="left: {{ seg.leftPercent|number_format(4) }}%; width: {{ seg.widthPercent|number_format(4) }}%;"></div>
+        </div>
+    </div>
+{% endmacro %}
+
+{% block head %}
+    {{ parent() }}
+    <style>
+        .durable-timeframe-wrap {
+            margin: 1.25em 0;
+            padding: 12px;
+            background: var(--table-background, #f5f5f5);
+            border-radius: 4px;
+            border: 1px solid var(--table-border-color, #ddd);
+        }
+        .durable-timeframe-wrap .durable-timeframe-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1em;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+        .durable-timeframe-wrap .durable-timeframe-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35em;
+        }
+        .durable-timeframe-wrap .durable-timeframe-swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            display: inline-block;
+        }
+        .durable-timeframe-wrap .durable-timeframe-axis {
+            font-size: 11px;
+            color: var(--color-muted, #666);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .durable-timeframe-row {
+            display: grid;
+            grid-template-columns: minmax(14em, 28%) 1fr;
+            gap: 8px;
+            align-items: center;
+            min-height: 28px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--table-border-color, #e0e0e0);
+            padding: 4px 0;
+        }
+        .durable-timeframe-row:last-child { border-bottom: none; }
+        .durable-timeframe-label {
+            word-break: break-word;
+        }
+        .durable-timeframe-label .seq { color: var(--color-muted, #888); margin-right: 0.35em; }
+        .durable-timeframe-label code { font-size: 11px; }
+        .durable-timeframe-track {
+            position: relative;
+            height: 12px;
+            background: var(--metric-value-background, #e8e8e8);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .durable-timeframe-bar {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            border-radius: 2px;
+            min-width: 2px;
+            box-sizing: border-box;
+        }
+        .durable-timeframe-bar--dispatch { background: #4a90d9; border: 1px solid var(--table-border-color, #ccc); }
+        .durable-timeframe-bar--workflow { background: #9b59b6; border: 1px solid var(--table-border-color, #ccc); }
+        .durable-timeframe-bar--activity { background: #27ae60; border: 1px solid var(--table-border-color, #ccc); }
+        .durable-timeframe-bar--default { background: #95a5a6; }
+        .durable-cat {
+            display: inline-block;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-right: 6px;
+            vertical-align: middle;
+            background: var(--metric-value-background, #e8e8e8);
+            color: var(--color-text, #333);
+        }
+        .durable-cat--workflow { background: #ede7f6; color: #5e35b1; }
+        .durable-cat--activity { background: #e8f5e9; color: #2e7d32; }
+        .durable-cat--scheduling { background: #e3f2fd; color: #1565c0; }
+        .durable-cat--messenger { background: #e1f5fe; color: #0277bd; }
+        .durable-cat--lifecycle { background: #fce4ec; color: #c2185b; }
+        .durable-cat--timer { background: #fff3e0; color: #ef6c00; }
+        .durable-cat--child { background: #f3e5f5; color: #7b1fa2; }
+        .durable-cat--signal { background: #e0f2f1; color: #00695c; }
+        .durable-cat--effect { background: #eceff1; color: #455a64; }
+        .durable-cat--default { background: #eceff1; color: #546e7a; }
+        .durable-summary-table code { font-size: 11px; }
+        /* Inspiration : vue « Workflow » / historique d’événements (Temporal UI OSS) */
+        .durable-exec-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 16px;
+            margin: 1em 0 1.25em;
+            padding: 14px 16px;
+            background: var(--table-background, #f0f4f8);
+            border: 1px solid var(--table-border-color, #c5d0dc);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .durable-exec-header dt {
+            margin: 0;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--color-muted, #5c6b7a);
+        }
+        .durable-exec-header dd {
+            margin: 0.2em 0 0;
+            word-break: break-all;
+        }
+        .durable-status-badge {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 999px;
+        }
+        .durable-status-badge--completed { background: #ccfbf1; color: #0f766e; }
+        .durable-status-badge--failed { background: #fee2e2; color: #b91c1c; }
+        .durable-status-badge--running { background: #dbeafe; color: #1d4ed8; }
+        .durable-status-badge--continued_as_new { background: #ede9fe; color: #5b21b6; }
+        .durable-status-badge--cancel_requested { background: #ffedd5; color: #c2410c; }
+        .durable-status-badge--unknown { background: #e5e7eb; color: #4b5563; }
+        .durable-status-badge--pending { background: #fef3c7; color: #92400e; }
+        .durable-status-badge--queued { background: #fef9c3; color: #854d0e; }
+        h4.durable-section-title { margin-top: 1.5em; margin-bottom: 0.35em; font-size: 14px; }
+    </style>
+{% endblock %}
+
 {% block toolbar %}
     {% set icon %}
-        {{ include('@WebProfiler/Icon/dot.svg') }}
+        {{ include('@WebProfiler/Icon/workflow.svg') }}
     {% endset %}
 
     {% set text %}
         <div class="sf-toolbar-info-piece">
-            <b>Workflows (runs)</b>
-            <span>{{ collector.workflowCount }}</span>
+            <b>Dispatch Messenger</b>
+            <span>{{ collector.dispatchCount }}</span>
         </div>
         <div class="sf-toolbar-info-piece">
-            <b>Activités (exécutions)</b>
-            <span>{{ collector.activityCount }}</span>
+            <b>Événements (journal)</b>
+            <span>{{ collector.journalEventCount }}</span>
         </div>
     {% endset %}
 
-    {{ include('@WebProfiler/Profiler/toolbar_item.html.twig', { link: 'durable', status: collector.workflowCount or collector.activityCount ? 'normal' : 'gray', icon: icon }) }}
+    {{ include('@WebProfiler/Profiler/toolbar_item.html.twig', { link: 'durable', status: collector.dispatchCount or collector.journalEventCount ? 'normal' : 'gray', icon: icon }) }}
 {% endblock %}
 
 {% block menu %}
     <span class="label">
-        <span class="icon">{{ include('@WebProfiler/Icon/dot.svg') }}</span>
+        <span class="icon">{{ include('@WebProfiler/Icon/workflow.svg') }}</span>
         <strong>Durable</strong>
     </span>
     <span class="count">
-        <span>{{ collector.workflowCount }}</span> / <span>{{ collector.activityCount }}</span>
+        <span>{{ collector.dispatchCount }}</span> / <span>{{ collector.journalEventCount }}</span>
     </span>
 {% endblock %}
 
 {% block panel %}
-    <h2>Durable — workflows & activités</h2>
+    <h2>Durable — exécutions &amp; historique</h2>
+
+    <p class="help">
+        Pour charger le journal d’une exécution absente de la trace (worker, autre requête, etc.), il faut que
+        <strong>la requête HTTP profilée</strong> (celle qui ouvre la barre de debug), et non l’URL du panneau profiler après coup,
+        contienne <code>durable_execution</code> avec l’UUID (virgules si plusieurs). Rechargez donc la page applicative concernée
+        avec ce paramètre pour générer un nouveau profil incluant le journal persisté.
+    </p>
 
     <p>
-        Chronologie des <strong>démarrages / reprises</strong> de workflow et des <strong>tentatives d’exécution d’activités</strong>
-        observées pendant cette requête (même processus PHP).
+        Vue proche de l’<a href="https://github.com/temporalio/ui" rel="noopener noreferrer" target="_blank">Temporal Web UI</a> (OSS) :
+        les <strong>executionId</strong> collectés viennent des dispatches Messenger sur cette requête ; l’<strong>historique</strong> (runs, activités, timers…)
+        est lu dans l’<strong>event store</strong>, même si le workflow s’est exécuté dans un worker ou une autre requête.
     </p>
     <p class="help">
-        En mode <strong>distribué</strong>, les activités peuvent s’exécuter dans un autre worker : ouvrez le token profiler correspondant au traitement Messenger pour la suite de la trace.
+        Libellés « métier » via <code>DurableProfilerEventPresentation</code> ; la colonne « Type d’événement » reprend le nom de classe PHP
+        (comme l’Event Type dans Temporal). Pas d’horodatage mural : l’index du journal correspond à l’ordre d’append (équivalent partiel de l’Event ID).
     </p>
-
-    {% for executionId, entries in collector.executions %}
-        <h3>Exécution <code>{{ executionId }}</code></h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Type</th>
-                    <th>Détail</th>
-                    <th>Durée</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for e in entries %}
-                    <tr>
-                        <td>{{ e.seq }}</td>
-                        <td>
-                            {% if e.kind == 'workflow' %}
-                                Workflow {% if e.isResume %}<em>reprise</em>{% else %}<em>démarrage</em>{% endif %}
-                            {% else %}
-                                Activité
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if e.kind == 'workflow' %}
-                                {{ e.workflowType }}
-                            {% else %}
-                                <strong>{{ e.activityName }}</strong>
-                                <span class="text-muted">({{ e.activityId }})</span>
-                                {% if not e.success %}
-                                    <br><span class="status-error">{{ e.errorClass|default('') }}</span>
-                                {% endif %}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if e.kind == 'activity' %}
-                                {{ (e.durationSeconds * 1000)|number_format(2) }} ms
-                            {% else %}
-                                —
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p class="help">Aucun événement Durable sur cette requête.</p>
-    {% endfor %}
-
-    {% if collector.timeline|length > 0 %}
-        <h3>Ordre global (tous executionId)</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>executionId</th>
-                    <th>Événement</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for e in collector.timeline %}
-                    <tr>
-                        <td>{{ e.seq }}</td>
-                        <td><code>{{ e.executionId|default('') }}</code></td>
-                        <td>
-                            {% if e.kind == 'workflow' %}
-                                workflow {{ e.workflowType }} {% if e.isResume %}(reprise){% else %}(démarrage){% endif %}
-                            {% else %}
-                                {{ e.activityName }} — {{ (e.durationSeconds * 1000)|number_format(2) }} ms
-                                {% if not e.success %} ({{ e.errorClass }}){% endif %}
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    {% if collector.dispatchCount > 0 and collector.journalEventCount == 0 %}
+        <p class="help" style="background:#fffbeb;border:1px solid #fcd34d">
+            <strong>Journal encore vide</strong> pour les executionId collectés : le message est peut‑être encore en file ou aucun événement
+            n’a été persisté (autre base, autre environnement). Si des workers consomment la file ailleurs, le journal apparaîtra ici dès que la même
+            base <code>durable_events</code> contiendra des lignes pour ces identifiants.
+        </p>
     {% endif %}
+
+    {% set tf = collector.timeFrame %}
+    {% set processTf = tf.process|default({}) %}
+    {% set executionsDetail = collector.executionsDetail|default([]) %}
+
+    <div class="sf-tabs">
+        <div class="tab">
+            <h3 class="tab-title">Résumé <span class="badge">{{ executionsDetail|length }}</span></h3>
+            <div class="tab-content">
+                {% if executionsDetail is empty %}
+                    <p class="help">Aucune exécution identifiée sur cette requête (trace vide et aucun <code>executionId</code> collecté).</p>
+                {% else %}
+                    <table class="durable-summary-table">
+                        <thead>
+                            <tr>
+                                <th>Workflow ID</th>
+                                <th>Type</th>
+                                <th>Statut</th>
+                                <th>Entrée (input)</th>
+                                <th>Trace processus (segments)</th>
+                                <th>Événements</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ex in executionsDetail %}
+                                <tr>
+                                    <td><code>{{ ex.executionId }}</code></td>
+                                    <td><strong>{{ ex.workflowType|default('—') }}</strong></td>
+                                    <td>
+                                        <span class="durable-status-badge durable-status-badge--{{ ex.executionStatus|default('unknown') }}">{{ ex.executionStatusLabel|default('—') }}</span>
+                                    </td>
+                                    <td><span class="text-muted">{{ ex.payloadSummary|default('—') }}</span></td>
+                                    <td>{{ ex.processTraceCount }} segment(s)</td>
+                                    <td>
+                                        {{ ex.storeEventCount }} évén.
+                                        {% if ex.storeTruncated %}<span class="text-muted">(tronqué)</span>{% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+
+                {% if collector.runSnapshots|length > 0 %}
+                    <h4>Instantanés au dispatch</h4>
+                    <p class="help">État des métadonnées au moment où un <code>WorkflowRunMessage</code> a été observé.</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>executionId</th>
+                                <th>Métadonnées</th>
+                                <th>Événements (compte)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for eid, snap in collector.runSnapshots %}
+                                <tr>
+                                    <td><code>{{ eid }}</code></td>
+                                    <td>
+                                        {% if snap.metadata is not null %}
+                                            <strong>{{ snap.metadata.workflowType }}</strong>
+                                            <pre class="text-muted" style="max-height:120px;overflow:auto">{{ snap.metadata.payload|json_encode(128) }}</pre>
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ snap.eventCount }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="tab">
+            <h3 class="tab-title">Exécutions</h3>
+            <div class="tab-content">
+                {% if executionsDetail is empty %}
+                    <p class="help">Aucune exécution à afficher.</p>
+                {% else %}
+                    <div class="sf-tabs">
+                        {% for ex in executionsDetail %}
+                            <div class="tab">
+                                <h3 class="tab-title">
+                                    {% set _wf = ex.workflowType|default('') %}
+                                    {% if _wf %}{{ _wf }}{% else %}<span class="text-muted">(sans type)</span>{% endif %}
+                                    <small><code>{{ ex.executionId|slice(0, 8) }}…</code></small>
+                                </h3>
+                                <div class="tab-content">
+                                    <dl class="durable-exec-header">
+                                        <div>
+                                            <dt>Workflow ID</dt>
+                                            <dd><code>{{ ex.executionId }}</code></dd>
+                                        </div>
+                                        <div>
+                                            <dt>Type de workflow</dt>
+                                            <dd>{{ _wf|default('—') }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Statut</dt>
+                                            <dd>
+                                                <span class="durable-status-badge durable-status-badge--{{ ex.executionStatus|default('unknown') }}">{{ ex.executionStatusLabel|default('—') }}</span>
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt>Événements (historique)</dt>
+                                            <dd>
+                                                {{ ex.storeEventCount }} dans le journal
+                                                {% if ex.storeTruncated %}<span class="text-muted"> — affichage tronqué</span>{% endif %}
+                                            </dd>
+                                        </div>
+                                        <div style="grid-column: 1 / -1;">
+                                            <dt>Input (payload initial)</dt>
+                                            <dd class="text-muted">{{ ex.payloadSummary|default('—') }}</dd>
+                                        </div>
+                                    </dl>
+
+                                    {% if ex.journalHint is defined and ex.journalHint %}
+                                        <p class="help" style="background:#fffbeb;border:1px solid #fcd34d;padding:10px 12px;border-radius:6px;">
+                                            {{ ex.journalHint }}
+                                        </p>
+                                    {% endif %}
+
+                                    {% if ex.storeRows|length > 0 %}
+                                        <h4 class="durable-section-title">Historique des événements</h4>
+                                        <p class="help">Équivalent à l’onglet <em>Event history</em> de Temporal : ordre chronologique du journal, type d’événement, payload.</p>
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Heure (journal)</th>
+                                                    <th>Type d’événement</th>
+                                                    <th>Catégorie</th>
+                                                    <th>Résumé</th>
+                                                    <th>Détail</th>
+                                                    <th>Payload</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for row in ex.storeRows %}
+                                                    <tr>
+                                                        <td>{{ row.index }}</td>
+                                                        <td class="text-muted">{% if row.recordedAt %}{{ row.recordedAt }}{% else %}—{% endif %}</td>
+                                                        <td><code>{{ row.type }}</code></td>
+                                                        <td>{% if row.category %}<span class="durable-cat durable-cat--{{ row.category }}">{{ row.category }}</span>{% else %}—{% endif %}</td>
+                                                        <td><strong>{{ row.title|default(row.label) }}</strong></td>
+                                                        <td class="text-muted">{{ row.subtitle|default('') }}</td>
+                                                        <td><pre class="text-muted" style="max-height:100px;overflow:auto">{{ row.payload|json_encode(128) }}</pre></td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    {% endif %}
+
+                                    {% set st = ex.storeTimeline %}
+                                    {% if st is not null and st.bounds is not null and st.segments is not empty %}
+                                        <h4 class="durable-section-title">Timeline du journal (séquentielle)</h4>
+                                        <p class="help">Représentation visuelle de l’ordre des événements (sans horodatage mural).
+                                            {% if st.truncated %}<strong>Tronqué</strong> à 500 événements.{% endif %}
+                                        </p>
+                                        <div class="durable-timeframe-wrap">
+                                            <div class="durable-timeframe-legend">
+                                                <span><span class="durable-timeframe-swatch" style="background:#4a90d9"></span> Planification</span>
+                                                <span><span class="durable-timeframe-swatch" style="background:#9b59b6"></span> Cycle de vie workflow</span>
+                                                <span><span class="durable-timeframe-swatch" style="background:#27ae60"></span> Effets / complétions</span>
+                                            </div>
+                                            <div class="durable-timeframe-axis">
+                                                <span>{{ st.eventCount }} événement(s)</span>
+                                                <span>ordre du journal</span>
+                                            </div>
+                                            {% for seg in st.segments %}
+                                                {{ _self.timeframe_segment_row(seg) }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+
+                                    {% set ptf = ex.processTimeframe|default({}) %}
+                                    {% if ptf.bounds is not null and ptf.segments is not empty %}
+                                        <h4 class="durable-section-title">Avancement sur cette requête (timing processus)</h4>
+                                        <p class="help">Enchaînement observé dans ce processus : envoi Messenger, tours du moteur (start / reprise), activités exécutées ici (dont worker d’activité). L’historique détaillé reste le journal ci‑dessus.</p>
+                                        <div class="durable-timeframe-wrap">
+                                            <div class="durable-timeframe-legend">
+                                                <span><span class="durable-timeframe-swatch" style="background:#4a90d9"></span> Messenger (WorkflowRunMessage)</span>
+                                                <span><span class="durable-timeframe-swatch" style="background:#9b59b6"></span> Run workflow (moteur)</span>
+                                                <span><span class="durable-timeframe-swatch" style="background:#27ae60"></span> Activité</span>
+                                            </div>
+                                            <div class="durable-timeframe-axis">
+                                                <span>0&nbsp;ms</span>
+                                                <span>{{ (ptf.bounds.spanSec * 1000)|number_format(3) }}&nbsp;ms</span>
+                                            </div>
+                                            {% for seg in ptf.segments %}
+                                                {{ _self.timeframe_segment_row(seg) }}
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <p class="help">Aucune trace processus pour cet executionId sur cette requête (workflow / activités ailleurs, ou id ajouté seulement via <code>durable_execution</code> sans activité dans ce processus).</p>
+                                    {% endif %}
+
+                                    {% if ex.timelineEntries|length > 0 %}
+                                        <h4 class="durable-section-title">Trace processus (détail)</h4>
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Type</th>
+                                                    <th>Détail</th>
+                                                    <th>Durée</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for e in ex.timelineEntries %}
+                                                    <tr>
+                                                        <td>{{ e.seq }}</td>
+                                                        <td>
+                                                            {% if e.kind == 'dispatch' %}Messenger{% elseif e.kind == 'workflow' %}Workflow{% elseif e.kind == 'activity' %}Activité{% else %}{{ e.kind|default('?') }}{% endif %}
+                                                        </td>
+                                                        <td>
+                                                            {% if e.kind == 'dispatch' %}
+                                                                <strong>{{ e.dispatchSummary|default(e.workflowType|default('—')) }}</strong>
+                                                                <pre class="text-muted" style="max-height:80px;overflow:auto">{{ e.payload|default({})|json_encode(128) }}</pre>
+                                                            {% elseif e.kind == 'workflow' %}
+                                                                {{ e.workflowType }}
+                                                            {% elseif e.kind == 'activity' %}
+                                                                {{ e.activityName }} <span class="text-muted">({{ e.activityId }})</span>
+                                                            {% else %}—{% endif %}
+                                                        </td>
+                                                        <td>{% if e.kind == 'activity' %}{{ (e.durationSeconds * 1000)|number_format(2) }} ms{% else %}—{% endif %}</td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="tab">
+            <h3 class="tab-title">Vue globale</h3>
+            <div class="tab-content">
+                {% if processTf.bounds is not null and processTf.segments is not empty %}
+                    <h4>Time frame — tous processus confondus</h4>
+                    <div class="durable-timeframe-wrap">
+                        <div class="durable-timeframe-axis">
+                            <span>0&nbsp;ms</span>
+                            <span>{{ (processTf.bounds.spanSec * 1000)|number_format(3) }}&nbsp;ms</span>
+                        </div>
+                        {% for seg in processTf.segments %}
+                            {{ _self.timeframe_segment_row(seg) }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% for st in tf.store_timelines|default([]) %}
+                    {% if st.bounds is not null and st.segments is not empty %}
+                        <h4>Journal — <code>{{ st.executionId }}</code></h4>
+                        <div class="durable-timeframe-wrap">
+                            {% for seg in st.segments %}
+                                {{ _self.timeframe_segment_row(seg) }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+
+                {% if collector.timeline|length > 0 %}
+                    <h4>Dispatches Messenger (cette requête)</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>executionId</th>
+                                <th>Événement</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for e in collector.timeline %}
+                                <tr>
+                                    <td>{{ e.seq }}</td>
+                                    <td><code>{{ e.executionId|default('') }}</code></td>
+                                    <td>
+                                        {% if e.kind == 'dispatch' %}
+                                            {{ e.dispatchSummary|default('dispatch ' ~ e.workflowType|default('')) }}
+                                        {% elseif e.kind == 'workflow' %}
+                                            workflow {{ e.workflowType }} {% if e.isResume %}(reprise){% else %}(démarrage){% endif %}
+                                        {% elseif e.kind == 'activity' %}
+                                            {{ e.activityName }} — {{ (e.durationSeconds * 1000)|number_format(2) }} ms
+                                        {% else %}
+                                            {{ e.kind|default('') }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+
+                {% if collector.timeline|length == 0 and executionsDetail is empty %}
+                    <p class="help">Aucune donnée pour cette requête.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 {% endblock %}

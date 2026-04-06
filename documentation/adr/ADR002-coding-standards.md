@@ -55,6 +55,7 @@ Symfony and PSR
 References
 ---
 
+- [ADR018 - No silent catch blocks](ADR018-no-silent-catch-blocks.md) — interdiction des `catch` qui masquent une exception sans log ni traitement observable
 - [PHP-CS-Fixer](https://github.com/FriendsOfPHP/PHP-CS-Fixer)
 - [PSR-1](https://www.php-fig.org/psr/psr-1/)
 - [PSR-12](https://www.php-fig.org/psr/psr-12/)

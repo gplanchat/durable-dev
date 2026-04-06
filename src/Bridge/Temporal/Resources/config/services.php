@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Gplanchat\Bridge\Temporal\Command\RunTemporalJournalWorkerCommand;
 use Gplanchat\Bridge\Temporal\Messenger\TemporalTransportFactory;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
@@ -18,9 +17,5 @@ return static function (ContainerConfigurator $container): void {
     $services->set(TemporalTransportFactory::class)
         ->args([tagged_iterator('messenger.transport_factory')])
         ->tag('messenger.transport_factory', ['priority' => -100])
-    ;
-
-    $services->set(RunTemporalJournalWorkerCommand::class)
-        ->tag('console.command')
     ;
 };

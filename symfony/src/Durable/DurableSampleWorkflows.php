@@ -17,6 +17,9 @@ final class DurableSampleWorkflows
 
     public const PARENT_CALLS_CHILD = 'ParentCallsEchoChildWorkflow';
 
+    /** Deux {@link EchoChildWorkflow} planifiés en parallèle via {@see WorkflowEnvironment::all}. */
+    public const PARALLEL_CHILD_ECHO = 'ParallelChildEchoWorkflow';
+
     public const TIMER_THEN_TICK = 'TimerThenTickWorkflow';
 
     public const SIDE_EFFECT_ID = 'SideEffectRandomIdWorkflow';

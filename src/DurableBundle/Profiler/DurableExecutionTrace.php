@@ -7,7 +7,11 @@ namespace Gplanchat\Durable\Bundle\Profiler;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 
 /**
- * Journal chronologique des runs workflow et des exécutions d’activités (même requête HTTP / processus).
+ * Trace processus pour une requête HTTP : envois {@see \Gplanchat\Durable\Transport\WorkflowRunMessage}
+ * (middleware Messenger), puis {@see WorkflowExecutionObserverInterface} (runs moteur, activités exécutées).
+ *
+ * L’historique persistant reste dans l’event store ; cette trace sert au bandeau temporel « cette requête »
+ * (worker d’activité inclus) et complète le journal quand tout s’exécute dans le même processus.
  */
 final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
 {
@@ -20,6 +24,30 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
     {
         $this->seq = 0;
         $this->timeline = [];
+    }
+
+    /**
+     * Enregistre un envoi de {@see \Gplanchat\Durable\Transport\WorkflowRunMessage} sur le bus (sans exécuter le workflow dans ce processus si le handler tourne ailleurs).
+     *
+     * @param array<string, mixed> $payload
+     */
+    public function onWorkflowDispatchRequested(
+        string $executionId,
+        string $workflowType,
+        array $payload,
+        bool $isResume,
+        ?string $transportNames,
+    ): void {
+        $this->timeline[] = [
+            'seq' => ++$this->seq,
+            'at' => microtime(true),
+            'kind' => 'dispatch',
+            'executionId' => $executionId,
+            'workflowType' => $workflowType,
+            'payload' => $payload,
+            'isResume' => $isResume,
+            'transportNames' => $transportNames,
+        ];
     }
 
     #[\Override]
@@ -76,19 +104,11 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
         ));
     }
 
-    public function countWorkflowEvents(): int
+    public function countDispatchEvents(): int
     {
         return \count(array_filter(
             $this->timeline,
-            static fn (array $e): bool => ($e['kind'] ?? '') === 'workflow',
-        ));
-    }
-
-    public function countActivityEvents(): int
-    {
-        return \count(array_filter(
-            $this->timeline,
-            static fn (array $e): bool => ($e['kind'] ?? '') === 'activity',
+            static fn (array $e): bool => ($e['kind'] ?? '') === 'dispatch',
         ));
     }
 }

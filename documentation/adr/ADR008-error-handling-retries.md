@@ -78,6 +78,7 @@ Logging
 References
 ---
 
+- [ADR018 - No silent catch blocks](ADR018-no-silent-catch-blocks.md) — règles PHP applicables à tout `catch` (pas de mise sous silence sans log / traitement)
 - [RUNTIME-RFC004 - Error Handling](../../architecture/runtime/rfcs/RUNTIME-RFC004-error-handling-logging.md)
 - [ADR006 - Activity patterns](ADR006-activity-patterns.md)
 - [src/Durable/Port/DeclaredActivityFailureInterface.php](../../src/Durable/Port/DeclaredActivityFailureInterface.php)

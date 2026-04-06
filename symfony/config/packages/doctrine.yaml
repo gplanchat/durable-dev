@@ -4,6 +4,7 @@
 parameters:
     env(DATABASE_URL): 'sqlite:///%kernel.project_dir%/var/durable.db'
     env(DURABLE_DATABASE_URL): 'sqlite:///%kernel.project_dir%/var/durable.db'
+    # Hors dev : files Messenger Durable en Doctrine. En dev, .env.dev surcharge avec temporal://…&inner=…
     env(MESSENGER_DURABLE_WORKFLOW_DSN): 'doctrine://default?queue_name=durable_workflows&auto_setup=true'
     env(MESSENGER_DURABLE_ACTIVITY_DSN): 'doctrine://default?queue_name=durable_activities&auto_setup=true'
 

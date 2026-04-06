@@ -14,15 +14,15 @@ Décision
 1. **Bridge Temporal** : code monorepo sous **`src/Bridge/Temporal`**, namespace **`Gplanchat\Bridge\Temporal`** ; publication Packagist **`gplanchat/durable-bridge-temporal`** (splitsh sur le préfixe **`src/Bridge/Temporal`**) :
    - **`TemporalJournalEventStore`** implémente `EventStoreInterface` :
      - `append` : `SignalWithStartWorkflowExecution` avec signal `durableAppend` et politique `WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING` pour enchaîner sur un workflow déjà démarré.
-     - `readStream` : `QueryWorkflow` avec type de requête `readStream` ; réponse = JSON tableau de lignes compatibles `EventSerializer::deserialize`.
-   - **Worker** : rejeu de l’historique pour reconstruire le journal à partir des signaux `durableAppend` ; réponses aux queries dans `RespondWorkflowTaskCompletedRequest::query_results`.
+     - `readStream` : `GetWorkflowExecutionHistory` + rejeu des signaux `durableAppend` (même reconstruction que le worker) ; pas de `QueryWorkflow` côté app (évite le blocage tant que le poll journal n’a pas répondu).
+   - **Worker** : poll + `RespondWorkflowTaskCompleted` pour **compléter** les tâches workflow Temporal (historique côté serveur) ; indépendant du **readStream** PHP.
    - **Encodage** : payloads `json/plain` (voir `JsonPlainPayload`).
 
 2. **Identifiant de workflow journal** : `durable-journal-{executionId}` avec sanitization des caractères (voir `TemporalConnection::journalWorkflowId`).
 
 3. **Hébergement du poll (spike plan)** :
    - **Symfony Messenger** : DSN unique **`temporal://HOST:PORT?namespace=…&task_queue=…`** (ou `journal_task_queue=…`) ; transport **receive-only** lorsque l’accès est **journal** (pas de `inner` / `purpose=application`). Chaque `get()` exécute un long poll puis complète la tâche workflow (pas de message applicatif sérialisé). Les schémas **`temporal-journal://`** / **`temporal-application://`** sont **obsolètes** et normalisés en **`temporal://`**.
-   - **FrankenPHP / process long** : commande `durable:temporal:journal-worker:run --dsn=…` ; boucle illimitée ou `--max-ticks=N` pour tests.
+   - **FrankenPHP / process long** : même worker que Symfony Messenger (`messenger:consume <transport>` avec DSN `temporal://…` sans `inner`).
 
 4. **Dépendances** : `grpc/grpc`, `google/protobuf`, `google/common-protos`, `roadrunner-php/roadrunner-api-dto` — **pas** de `temporal/sdk`.
 
@@ -45,7 +45,7 @@ Conséquences
 ---
 
 - **ext-grpc** requis en runtime pour client + worker.
-- **Cohérence append / read** : append par signal est **asynchrone** jusqu’à traitement par le worker ; pas d’Update synchrone dans cette v1 (comportement à documenter côté ops).
+- **Cohérence append / read** : le journal applicatif lit l’historique via **GetWorkflowExecutionHistory** (pas une query dépendante du worker), ce qui évite de bloquer le démarrage / replay tant que le poll journal n’a pas répondu. Le worker journal sert à **compléter** les tâches workflow côté Temporal, pas à servir le **readStream** PHP.
 - **Limite d’historique Temporal** : journal long → risque de taille d’historique ; **continue-as-new** côté workflow journal = phase 2 (alignement avec [OST001](../ost/OST001-future-opportunities.md)).
 - **CI** : job `temporal-bridge` avec **ext-grpc** et test unitaire `JournalStateResolverTest` ; pas encore de test E2E contre un serveur Temporal dans la CI.
 - **Psalm** : le répertoire `src/Bridge/Temporal` est **exclu** de `psalm.xml` du monorepo (stubs gRPC / `Override` à traiter ultérieurement) ; **PHPStan** couvre ce code.
@@ -56,4 +56,6 @@ Références
 - [ADR004 — Ports et adapters](ADR004-ports-and-adapters.md)
 - [ADR009 — Modèle distribué](ADR009-distributed-workflow-dispatch.md)
 - [ADR010 — Parité Temporal / événements](ADR010-temporal-parity-events-and-replay.md)
+- [ADR019 — Pagination curseur EventStore](ADR019-event-store-cursor-pagination.md) — `GetWorkflowExecutionHistory` et `next_page_token` pour le rejeu du journal
+- [ADR020 — Temporal UI : type métier (Option B)](ADR020-temporal-ui-workflow-type-option-b.md) — cible d’alignement `WorkflowType` / `WorkflowRegistry`
 - [OST001 — Opportunités futures](../ost/OST001-future-opportunities.md)

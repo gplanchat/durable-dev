@@ -14,7 +14,9 @@ Two operational needs often arise:
 1. **Isolation** — Use a **separate `Connection` instance** from the rest of the application so long-lived or cursor-style reads on the event stream do not share PDO state with unrelated queries (transactions, buffered result sets, locks).
 2. **Memory** — For **very large** histories on **MySQL**, the default PHP MySQL driver may **buffer the full result set** on the client even when application code iterates row-by-row. Disabling buffered queries (**unbuffered** mode) avoids loading the entire history into client memory at once.
 
-`DbalEventStore::readStream()` already iterates via `Result::iterateAssociative()` (one row at a time in PHP). Unbuffered mode addresses **driver-level** buffering for MySQL.
+**Primary mitigation for large streams** — `DbalEventStore` reads the event stream using **keyset pagination** (`WHERE execution_id = ? AND id > ? … LIMIT ?`) so each SQL result set is **bounded**; see [ADR019](ADR019-event-store-cursor-pagination.md). Unbuffered mode remains an **optional** extra for driver-specific edge cases, not the default answer to client-side buffering.
+
+`DbalEventStore::readStream()` yields via `Result::iterateAssociative()` **per page**. Unbuffered mode addresses **driver-level** buffering when a single result set is still too large for the client.
 
 ## Decision
 

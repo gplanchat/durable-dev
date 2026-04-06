@@ -59,6 +59,23 @@ final class RunDurableSampleCommandTest extends KernelTestCase
         self::assertStringContainsString('tick', $tester->getDisplay());
     }
 
+    public function testParallelChildEchoWorkflowReturnsTwoUppercasedStrings(): void
+    {
+        self::bootKernel();
+        $application = new Application(self::$kernel);
+        $tester = new CommandTester($application->find('durable:sample'));
+
+        self::assertSame(0, $tester->execute([
+            'workflow' => 'ParallelChildEchoWorkflow',
+            '--first' => 'Aa',
+            '--second' => 'Bb',
+        ]), $tester->getDisplay());
+
+        $display = $tester->getDisplay();
+        self::assertStringContainsString('AA', $display);
+        self::assertStringContainsString('BB', $display);
+    }
+
     public function testParallelGreetingWorkflowReturnsBothGreetings(): void
     {
         self::bootKernel();

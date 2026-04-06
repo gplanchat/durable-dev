@@ -1,3 +1,19 @@
+# Stack Docker pour la démo Symfony (`./symfony/`).
+#
+# Un seul PostgreSQL (`database`) : base applicative Doctrine + bases Temporal.
+#
+#   cd symfony && docker compose up -d
+#
+# Puis sur l’hôte : `symfony serve` ou `php -S` — Temporal est joignable sur localhost:7233, UI sur http://localhost:8088
+# Si le port 7233 est déjà pris (ex. `compose.yaml` à la racine du dépôt) : TEMPORAL_FRONTEND_PORT=17233 TEMPORAL_UI_PORT=18088 docker compose up -d
+# et adaptez les DSN dans `.env.local` (127.0.0.1:17233).
+#
+# Basculer Messenger vers Temporal : voir `.env.temporal.example` et `bin/console cache:clear`.
+#
+# Mise à jour depuis une stack à deux Postgres : arrêter les conteneurs, supprimer le volume
+# `temporal_pg_data` obsolète (`docker volume rm …`), puis recréer la base Temporal dans Postgres
+# (voir `docker/postgres/docker-entrypoint-initdb.d/99-temporal.sql`) ou exécuter ce SQL une fois
+# si le volume `database_data` existait déjà sans ces objets.
 
 services:
 ###> doctrine/doctrine-bundle ###
@@ -5,19 +21,54 @@ services:
     image: postgres:${POSTGRES_VERSION:-16}-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
-      # You should definitely change the password in production
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
       POSTGRES_USER: ${POSTGRES_USER:-app}
+    entrypoint: ["/bin/sh", "/usr/local/bin/entrypoint-temporal.sh"]
     healthcheck:
-      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
+      test: ["CMD-SHELL", "/usr/local/bin/healthcheck-temporal.sh"]
       timeout: 5s
       retries: 5
       start_period: 60s
     volumes:
       - database_data:/var/lib/postgresql/data:rw
-      # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
-      # - ./docker/db/data:/var/lib/postgresql/data:rw
+      - ./docker/postgres/docker-entrypoint-initdb.d/99-temporal.sql:/docker-entrypoint-initdb.d/99-temporal.sql:ro
+      - ./docker/postgres/temporal-bootstrap.sh:/usr/local/bin/temporal-bootstrap.sh:ro
+      - ./docker/postgres/entrypoint-temporal.sh:/usr/local/bin/entrypoint-temporal.sh:ro
+      - ./docker/postgres/healthcheck-temporal.sh:/usr/local/bin/healthcheck-temporal.sh:ro
 ###< doctrine/doctrine-bundle ###
+
+###> temporal (démo / durable-bridge-temporal) ###
+  temporal:
+    image: temporalio/auto-setup:1.25.2
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal
+      POSTGRES_SEEDS: database
+    ports:
+      - "${TEMPORAL_FRONTEND_PORT:-7233}:7233"
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "temporal:7233"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 60s
+
+  temporal-ui:
+    image: temporalio/ui:2.34.0
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:${TEMPORAL_UI_PORT:-8088}
+    ports:
+      - "${TEMPORAL_UI_PORT:-8088}:8080"
+###< temporal ###
 
 volumes:
 ###> doctrine/doctrine-bundle ###

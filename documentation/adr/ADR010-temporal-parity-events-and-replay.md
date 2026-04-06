@@ -43,7 +43,7 @@ Decision — inventory by capability
 |------|----------|
 | **Events** | `ChildWorkflowScheduled` (incl. `parentClosePolicy`, `requestedWorkflowId`), `ChildWorkflowCompleted`, `ChildWorkflowFailed` (message/code + optional fields aligned with child `WorkflowExecutionFailed` when projected from async Messenger). |
 | **Replay** | Slot on `ChildWorkflowScheduled` sub-sequence; resolution by `ChildWorkflowCompleted` or `ChildWorkflowFailed` for the same `childExecutionId`. Parent **`DurableChildWorkflowFailedException`** replays enriched fields from the log. |
-| **Execution** | **Inline**: `ChildWorkflowRunner` + `InMemoryWorkflowRunner` on child log. **Async Messenger** (`distributed` + `child_workflow.async_messenger`): dispatch `WorkflowRunMessage`, parent finalization in `WorkflowRunHandler`, parent↔child link via **`ChildWorkflowParentLinkStoreInterface`** (in_memory or DBAL). |
+| **Execution** | **Inline**: `ChildWorkflowRunner` + `InMemoryWorkflowRunner` on child log. **Async Messenger** (`child_workflow.async_messenger`): dispatch `WorkflowRunMessage`, parent finalization in `WorkflowRunHandler`, parent↔child link via **`ChildWorkflowParentLinkStoreInterface`** (in_memory or DBAL). |
 | **API** | `WorkflowEnvironment::executeChildWorkflow` / **`childWorkflowStub(ChildClass::class)`**; `ChildWorkflowOptions`. See [ADR011](ADR011-child-workflow-continue-as-new.md). |
 
 **Reference**: [Temporal — Child Workflows (PHP)](https://docs.temporal.io/develop/php/child-workflows).

@@ -24,5 +24,16 @@ services:
         resource: '../src/Durable/Workflow/'
         tags: [durable.workflow]
 
+    App\Samples\Workflow\:
+        resource: '../src/Samples/Workflow/'
+        tags: [durable.workflow]
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+    App\Durable\DurableSampleWorkflowRunner:
+        arguments:
+            $workflowClient: '@?Gplanchat\Bridge\Temporal\WorkflowClient'
+
+# Journal Temporal en dev/prod : durable.yaml when@dev / when@prod + DURABLE_DSN (temporal://…).
+# Prérequis : ext-grpc, stack docker compose, workers messenger durable_temporal_journal + durable_temporal_activity.

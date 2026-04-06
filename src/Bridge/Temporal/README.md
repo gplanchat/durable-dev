@@ -17,10 +17,9 @@ Namespace PHP : **`Gplanchat\Bridge\Temporal`**.
 |--------|------|
 | `TemporalJournalEventStore` | Implémente `Gplanchat\Durable\Store\EventStoreInterface` |
 | `TemporalTransportFactory` | Fabrique unique **`temporal://`** : journal (`TemporalJournalTransport`, receive-only) ou applicatif (`TemporalApplicationTransport` + `inner`) selon `purpose` / `inner` |
-| `TemporalJournalTransport` | Transport Symfony Messenger **receive-only** (même DSN `temporal://…`, sans `inner` par défaut) |
+| `TemporalJournalTransport` | Transport Symfony Messenger **receive-only** (même DSN `temporal://…`, sans `inner` par défaut) ; consommé via `messenger:consume <nom_du_transport>` |
 | `TemporalApplicationTransport` | Enveloppe un transport Messenger réel (`temporal://…?inner=…` ou `options.inner`) pour les messages applicatifs Durable ; évolution vers gRPC Temporal |
-| `RunTemporalJournalWorkerCommand` | Boucle de poll (`durable:temporal:journal-worker:run`) pour FrankenPHP Worker ou systemd |
-| `TemporalBridgeBundle` | Enregistre les factories Messenger + la commande journal |
+| `TemporalBridgeBundle` | Enregistre la fabrique Messenger `temporal://` |
 
 ## DSN transport (unique)
 
@@ -49,13 +48,13 @@ Ou bien `temporal://…` **sans** `inner` dans l’URL et **`options: { purpose:
 
 1. Dans le monorepo, le code est déjà présent sous `src/Bridge/Temporal` ; pour un dépôt publié à part, `composer require gplanchat/durable-bridge-temporal`.
 2. Enregistrer `Gplanchat\Bridge\Temporal\TemporalBridgeBundle` dans le kernel.
-3. `framework.messenger.transports.temporal_journal: 'temporal://…'` (ou `purpose: journal` si tu partages le même DSN de base)
-4. `messenger:consume temporal_journal` (nom du transport selon ta config).
+3. `framework.messenger.transports.<nom>: 'temporal://…'` (sans `inner`, DSN journal — ex. `journal_task_queue=durable-journal`).
+4. `messenger:consume <nom>` (worker Symfony Messenger standard ; le poll et le traitement des tâches journal sont dans `TemporalJournalTransport::get()`).
 5. Remplacer `EventStoreInterface` par `TemporalJournalEventStore` (DI explicite).
 
 ## FrankenPHP Worker
 
-Même logique que la commande console : exécuter le binaire PHP qui lance `durable:temporal:journal-worker:run --dsn='temporal://…'` (sans `--max-ticks`) sous le mode Worker FrankenPHP, ou équivalent process long.
+Même logique que `messenger:consume` : exécuter le worker Messenger sous le mode Worker FrankenPHP (ou systemd) avec `messenger:consume <transport_journal>` pointant vers le DSN `temporal://…` sans `inner`.
 
 ## Documentation
 
