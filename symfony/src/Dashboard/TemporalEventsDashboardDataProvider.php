@@ -20,6 +20,8 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final class TemporalEventsDashboardDataProvider
 {
     private const DEFAULT_PAGE_SIZE = 20;
+    private const TIMELAPSE_MIN_SECONDS = 0.001; // 1 ms
+    private const TIMELAPSE_MIN_BAR_PERCENT = 0.25;
 
     public function __construct(
         private readonly ?WorkflowServiceClient $workflowServiceClient = null,
@@ -587,7 +589,7 @@ final class TemporalEventsDashboardDataProvider
         }
 
         if ($max <= $min) {
-            $max = $min + 1.0;
+            $max = $min + self::TIMELAPSE_MIN_SECONDS;
         }
 
         [$viewMin, $viewMax] = $this->resolveZoomWindow($min, $max, $zoom);
@@ -664,7 +666,7 @@ final class TemporalEventsDashboardDataProvider
         }
 
         $zoomMin = \max($min, $maxTime - $windowSeconds);
-        $zoomMax = \max($zoomMin + 1.0, $maxTime);
+        $zoomMax = \max($zoomMin + self::TIMELAPSE_MIN_SECONDS, $maxTime);
 
         return [$zoomMin, $zoomMax];
     }
@@ -682,11 +684,11 @@ final class TemporalEventsDashboardDataProvider
      */
     private function buildLane(string $kind, string $label, float $start, float $end, float $globalMin, float $globalMax, bool $isRunning): array
     {
-        $range = \max(1.0, $globalMax - $globalMin);
+        $range = \max(self::TIMELAPSE_MIN_SECONDS, $globalMax - $globalMin);
         $startPercent = (($start - $globalMin) / $range) * 100.0;
-        $widthPercent = \max(1.2, (($end - $start) / $range) * 100.0);
+        $widthPercent = \max(self::TIMELAPSE_MIN_BAR_PERCENT, (($end - $start) / $range) * 100.0);
         if ($startPercent + $widthPercent > 100.0) {
-            $widthPercent = \max(1.2, 100.0 - $startPercent);
+            $widthPercent = \max(self::TIMELAPSE_MIN_BAR_PERCENT, 100.0 - $startPercent);
         }
 
         return [
@@ -759,12 +761,17 @@ final class TemporalEventsDashboardDataProvider
             return '--:--:--';
         }
 
-        return $date->setTimezone(new \DateTimeZone(\date_default_timezone_get()))->format('H:i:s');
+        return $date->setTimezone(new \DateTimeZone(\date_default_timezone_get()))->format('H:i:s.v');
     }
 
     private function formatWindowDurationLabel(float $seconds): string
     {
-        $total = (int) \max(0, \round($seconds));
+        $seconds = \max(0.0, $seconds);
+        if ($seconds < 1.0) {
+            return \sprintf('%dms', (int) \round($seconds * 1000));
+        }
+
+        $total = (int) \round($seconds);
         $hours = (int) \floor($total / 3600);
         $minutes = (int) \floor(($total % 3600) / 60);
         $remaining = $total % 60;
