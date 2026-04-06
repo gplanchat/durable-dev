@@ -4,9 +4,17 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\DependencyInjection;
 
+use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
+use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
+use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
+use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowResumeDispatcher;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
-use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
+use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
+use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
+use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
@@ -16,7 +24,7 @@ use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler;
 use Gplanchat\Durable\Bundle\Handler\FireWorkflowTimersHandler;
-use Gplanchat\Durable\Bundle\Handler\WorkflowRunHandler;
+use Gplanchat\Durable\Bundle\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Bundle\Messenger\MessengerWorkflowResumeDispatcher;
 use Gplanchat\Durable\Bundle\Messenger\WorkflowRunDispatchProfilerMiddleware;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
@@ -30,17 +38,16 @@ use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Query\WorkflowQueryRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
-use Gplanchat\Durable\Store\DbalChildWorkflowParentLinkStore;
-use Gplanchat\Durable\Store\DbalEventStore;
-use Gplanchat\Durable\Store\DbalWorkflowMetadataStore;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
-use Gplanchat\Durable\Transport\DbalActivityTransport;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
+use Gplanchat\Durable\Transport\NoopActivityTransport;
+use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
+use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -64,7 +71,8 @@ final class DurableExtension extends Extension
         $container->setParameter('durable.child_workflow_async_messenger', $asyncChildMessenger);
 
         $this->registerProfiler($container);
-        $this->registerChildWorkflowParentLinkStore($container, $config);
+        $this->registerChildWorkflowParentLinkStore($container);
+        $this->registerWorkflowDefinitionLoader($container);
         $this->registerEventStore($container, $config);
         $this->registerActivityTransport($container, $config);
         $this->registerActivityExecutor($container);
@@ -78,42 +86,25 @@ final class DurableExtension extends Extension
         $this->registerWorkflowQueryRunner($container);
         $this->registerWorkflowBackend($container);
         $this->registerCommands($container, $config);
-
-        $connectionName = (string) ($config['dbal_connection'] ?? 'default');
-        $container->setAlias('durable.dbal.connection', 'doctrine.dbal.'.$connectionName.'_connection');
+        $this->registerTemporalMirrorInfrastructure($container, $config);
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function durableDbalConnectionReference(array $config): Reference
+    private function registerWorkflowDefinitionLoader(ContainerBuilder $container): void
     {
-        $name = $config['dbal_connection'] ?? 'default';
-
-        return new Reference('doctrine.dbal.'.$name.'_connection');
-    }
-
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function registerChildWorkflowParentLinkStore(ContainerBuilder $container, array $config): void
-    {
-        $linkConfig = $config['child_workflow']['parent_link_store'] ?? [];
-        $type = $linkConfig['type'] ?? 'in_memory';
-
-        if ('dbal' === $type) {
-            $container->register('durable.child_workflow_parent_link_store', DbalChildWorkflowParentLinkStore::class)
-                ->setArguments([
-                    $this->durableDbalConnectionReference($config),
-                    $linkConfig['table_name'] ?? 'durable_child_workflow_parent_link',
-                ])
-                ->setPublic(true)
-            ;
-        } else {
-            $container->register('durable.child_workflow_parent_link_store', InMemoryChildWorkflowParentLinkStore::class)
-                ->setPublic(true)
-            ;
+        if ($container->hasDefinition(WorkflowDefinitionLoader::class)) {
+            return;
         }
+
+        $container->register(WorkflowDefinitionLoader::class, WorkflowDefinitionLoader::class)
+            ->setPublic(false)
+        ;
+    }
+
+    private function registerChildWorkflowParentLinkStore(ContainerBuilder $container): void
+    {
+        $container->register('durable.child_workflow_parent_link_store', InMemoryChildWorkflowParentLinkStore::class)
+            ->setPublic(true)
+        ;
 
         $container->setAlias(ChildWorkflowParentLinkStoreInterface::class, 'durable.child_workflow_parent_link_store')
             ->setPublic(true)
@@ -125,28 +116,11 @@ final class DurableExtension extends Extension
      */
     private function registerEventStore(ContainerBuilder $container, array $config): void
     {
-        $storeConfig = $config['event_store'] ?? [];
-        $type = $storeConfig['type'] ?? 'in_memory';
+        $container->register('durable.event_store.inner', InMemoryEventStore::class)->setPublic(true);
 
-        if ('dbal' === $type) {
-            $container->register(EventStoreInterface::class, DbalEventStore::class)
-                ->setArguments([
-                    $this->durableDbalConnectionReference($config),
-                    $storeConfig['table_name'] ?? 'durable_events',
-                ])
-                ->setPublic(true)
-            ;
-
-            return;
-        }
-
-        if ('temporal' === $type) {
-            $temporalConfig = $storeConfig['temporal'] ?? [];
-            $dsn = $temporalConfig['dsn'] ?? null;
-            if (!\is_string($dsn) || '' === $dsn) {
-                throw new \LogicException('Configuration "durable.event_store.temporal.dsn" is required and must be non-empty when durable.event_store.type is "temporal".');
-            }
-
+        $temporalConfig = $config['temporal'] ?? [];
+        $dsn = $temporalConfig['dsn'] ?? null;
+        if (\is_string($dsn) && '' !== $dsn) {
             $container->register('durable.temporal.connection', TemporalConnection::class)
                 ->setFactory([TemporalConnection::class, 'fromDsn'])
                 ->setArguments([$dsn])
@@ -157,18 +131,57 @@ final class DurableExtension extends Extension
                 ->setArguments([new Reference('durable.temporal.connection')])
             ;
 
-            $container->register(EventStoreInterface::class, TemporalJournalEventStore::class)
+            $container->register(WorkflowServiceActivityRpc::class)
+                ->setArguments([new Reference('durable.temporal.workflow_service_client')])
+            ;
+
+            $container->register(WorkflowServiceExecutionRpc::class)
+                ->setArguments([new Reference('durable.temporal.workflow_service_client')])
+            ;
+
+            $container->register(WorkflowClient::class)
+                ->setArguments([
+                    new Reference('durable.temporal.workflow_service_client'),
+                    new Reference('durable.temporal.connection'),
+                    new Reference(TemporalHistoryCursor::class),
+                    new Reference(WorkflowServiceExecutionRpc::class),
+                    new Reference(WorkflowDefinitionLoader::class),
+                ])
+            ;
+
+            $container->register(\Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor::class)
                 ->setArguments([
                     new Reference('durable.temporal.workflow_service_client'),
                     new Reference('durable.temporal.connection'),
                 ])
+                ->setPublic(false)
+            ;
+
+            $container->register(WorkflowTaskRunner::class)
+                ->setArguments([
+                    new Reference(TemporalHistoryCursor::class),
+                    new Reference(\Gplanchat\Durable\WorkflowRegistry::class),
+                    new Reference('durable.temporal.connection'),
+                    new Reference(WorkflowDefinitionLoader::class),
+                ])
                 ->setPublic(true)
             ;
+
+            $container->register(WorkflowTaskProcessor::class)
+                ->setArguments([
+                    new Reference('durable.temporal.workflow_service_client'),
+                    new Reference('durable.temporal.connection'),
+                    new Reference(WorkflowTaskRunner::class),
+                ])
+                ->setPublic(true)
+            ;
+
+            $container->setAlias(EventStoreInterface::class, 'durable.event_store.inner')->setPublic(true);
 
             return;
         }
 
-        $container->register(EventStoreInterface::class, InMemoryEventStore::class)->setPublic(true);
+        $container->setAlias(EventStoreInterface::class, 'durable.event_store.inner')->setPublic(true);
     }
 
     /**
@@ -178,16 +191,16 @@ final class DurableExtension extends Extension
     {
         $transportConfig = $config['activity_transport'] ?? [];
         $type = $transportConfig['type'] ?? 'in_memory';
+        $temporalDsn = $config['temporal']['dsn'] ?? null;
+        $isTemporalNative = \is_string($temporalDsn) && '' !== $temporalDsn;
 
-        if ('dbal' === $type) {
-            $container->register(ActivityTransportInterface::class, DbalActivityTransport::class)
-                ->setArguments([
-                    $this->durableDbalConnectionReference($config),
-                    $transportConfig['table_name'] ?? 'durable_activity_outbox',
-                ])
-                ->setPublic(true)
-            ;
-        } elseif ('messenger' === $type) {
+        if ($isTemporalNative) {
+            $container->register(ActivityTransportInterface::class, NoopActivityTransport::class)->setPublic(true);
+
+            return;
+        }
+
+        if ('messenger' === $type) {
             $transportName = $transportConfig['transport_name'] ?? 'durable_activities';
             $container->register(ActivityTransportInterface::class, MessengerActivityTransport::class)
                 ->setArguments([
@@ -196,9 +209,11 @@ final class DurableExtension extends Extension
                 ])
                 ->setPublic(true)
             ;
-        } else {
-            $container->register(ActivityTransportInterface::class, InMemoryActivityTransport::class)->setPublic(true);
+
+            return;
         }
+
+        $container->register(ActivityTransportInterface::class, InMemoryActivityTransport::class)->setPublic(true);
     }
 
     /**
@@ -339,30 +354,25 @@ final class DurableExtension extends Extension
     }
 
     /**
-     * Registre métadonnées workflow, {@see WorkflowRunHandler}, {@see WorkflowResumeDispatcher}, {@see ChildWorkflowRunner}, etc.
-     * Le bundle suppose toujours l’exécution distribuée (Messenger) ; il n’existe pas de mode « non distribué » côté configuration.
+     * Registre métadonnées workflow, {@see ResumeWorkflowHandler}, {@see WorkflowResumeDispatcher}, {@see ChildWorkflowRunner}, etc.
+     *
+     * En mode Temporal natif (`durable.temporal.dsn` non vide), le {@see WorkflowResumeDispatcher} est
+     * {@see TemporalWorkflowResumeDispatcher} : il appelle `WorkflowClient::startAsync()` (gRPC
+     * `StartWorkflowExecution`) au lieu de dispatcher un message Messenger, et son `dispatchResume()`
+     * est un no-op (Temporal re-programme lui-même le prochain workflow task).
+     *
+     * En mode in-memory, {@see MessengerWorkflowResumeDispatcher} est enregistré et
+     * {@see ResumeWorkflowHandler} traite les messages.
      *
      * @param array<string, mixed> $config
      */
     private function registerWorkflowMessengerServices(ContainerBuilder $container, array $config): void
     {
-        $metaConfig = $config['workflow_metadata'] ?? [];
-        if ('dbal' === ($metaConfig['type'] ?? 'in_memory')) {
-            $container->register(WorkflowMetadataStore::class, DbalWorkflowMetadataStore::class)
-                ->setArguments([
-                    $this->durableDbalConnectionReference($config),
-                    $metaConfig['table_name'] ?? 'durable_workflow_metadata',
-                ])
-                ->setPublic(true)
-            ;
-        } else {
-            $container->register(WorkflowMetadataStore::class, InMemoryWorkflowMetadataStore::class)
-                ->setPublic(true)
-            ;
-        }
+        $temporalDsn = $config['temporal']['dsn'] ?? null;
+        $isTemporalNative = \is_string($temporalDsn) && '' !== $temporalDsn;
 
-        $container->register(WorkflowDefinitionLoader::class, WorkflowDefinitionLoader::class)
-            ->setPublic(false)
+        $container->register(WorkflowMetadataStore::class, InMemoryWorkflowMetadataStore::class)
+            ->setPublic(true)
         ;
 
         $container->register(\Gplanchat\Durable\WorkflowRegistry::class, \Gplanchat\Durable\WorkflowRegistry::class)
@@ -384,23 +394,38 @@ final class DurableExtension extends Extension
             ->setPublic(true)
         ;
 
-        $container->register(WorkflowResumeDispatcher::class, MessengerWorkflowResumeDispatcher::class)
-            ->setArguments([new Reference('messenger.default_bus')])
-            ->setPublic(true)
-        ;
+        if ($isTemporalNative) {
+            $container->register(WorkflowResumeDispatcher::class, TemporalWorkflowResumeDispatcher::class)
+                ->setArguments([
+                    new Reference(WorkflowClient::class),
+                    new Reference(WorkflowMetadataStore::class),
+                    new Reference(WorkflowDefinitionLoader::class),
+                ])
+                ->setPublic(true)
+            ;
+        } else {
+            $container->register(WorkflowResumeDispatcher::class, MessengerWorkflowResumeDispatcher::class)
+                ->setArguments([
+                    new Reference('messenger.default_bus'),
+                    new Reference(WorkflowMetadataStore::class),
+                ])
+                ->setPublic(true)
+            ;
 
-        $container->register(WorkflowRunHandler::class)
-            ->setArguments([
-                new Reference(\Gplanchat\Durable\ExecutionEngine::class),
-                new Reference(\Gplanchat\Durable\WorkflowRegistry::class),
-                new Reference(WorkflowMetadataStore::class),
-                new Reference(WorkflowResumeDispatcher::class),
-                new Reference(EventStoreInterface::class),
-                new Reference(ChildWorkflowParentLinkStoreInterface::class),
-                new Reference('messenger.default_bus'),
-            ])
-            ->addTag('messenger.message_handler')
-        ;
+            $container->register(ResumeWorkflowHandler::class)
+                ->setArguments([
+                    new Reference(\Gplanchat\Durable\ExecutionEngine::class),
+                    new Reference(\Gplanchat\Durable\WorkflowRegistry::class),
+                    new Reference(WorkflowMetadataStore::class),
+                    new Reference(WorkflowResumeDispatcher::class),
+                    new Reference(EventStoreInterface::class),
+                    new Reference(ChildWorkflowParentLinkStoreInterface::class),
+                    new Reference('messenger.default_bus'),
+                    new Reference(WorkflowDefinitionLoader::class),
+                ])
+                ->addTag('messenger.message_handler')
+            ;
+        }
     }
 
     /**
@@ -408,12 +433,29 @@ final class DurableExtension extends Extension
      */
     private function registerCommands(ContainerBuilder $container, array $config): void
     {
+        $temporalDsn = $config['temporal']['dsn'] ?? null;
+        $isTemporalNative = \is_string($temporalDsn) && '' !== $temporalDsn;
+
+        if ($isTemporalNative) {
+            $container->register(TemporalActivityHeartbeatSender::class)
+                ->setArguments([
+                    new Reference(WorkflowServiceActivityRpc::class),
+                    new Reference('durable.temporal.connection'),
+                ])
+                ->setPublic(false);
+            $container->setAlias(ActivityHeartbeatSenderInterface::class, TemporalActivityHeartbeatSender::class)->setPublic(false);
+        } else {
+            $container->register(NullActivityHeartbeatSender::class)->setPublic(false);
+            $container->setAlias(ActivityHeartbeatSenderInterface::class, NullActivityHeartbeatSender::class)->setPublic(false);
+        }
+
         $container->register(ActivityMessageProcessor::class)
             ->setArguments([
                 new Reference(EventStoreInterface::class),
                 new Reference(ActivityTransportInterface::class),
                 new Reference(\Gplanchat\Durable\ActivityExecutor::class),
                 new Reference(WorkflowResumeDispatcher::class),
+                new Reference(ActivityHeartbeatSenderInterface::class),
                 '%durable.max_activity_retries%',
                 new Reference(WorkflowExecutionObserverInterface::class),
             ])
@@ -421,7 +463,8 @@ final class DurableExtension extends Extension
         ;
 
         $activityTransportConfig = $config['activity_transport'] ?? [];
-        if ('messenger' === ($activityTransportConfig['type'] ?? '')) {
+        if ('messenger' === ($activityTransportConfig['type'] ?? '')
+            && !$isTemporalNative) {
             $activityTransportName = $activityTransportConfig['transport_name'] ?? 'durable_activities';
             $container->register(ActivityRunHandler::class)
                 ->setArguments([new Reference(ActivityMessageProcessor::class)])
@@ -470,6 +513,31 @@ final class DurableExtension extends Extension
                 'template' => '@Durable/Collector/durable.html.twig',
                 'id' => 'durable',
             ])
+        ;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function registerTemporalMirrorInfrastructure(ContainerBuilder $container, array $config): void
+    {
+        $dsn = $config['temporal']['dsn'] ?? null;
+        if (!\is_string($dsn) || '' === $dsn) {
+            return;
+        }
+        if (!$container->hasDefinition('durable.temporal.workflow_service_client')) {
+            return;
+        }
+
+        $container->register('durable.temporal.activity_worker', TemporalActivityWorker::class)
+            ->setArguments([
+                new Reference(WorkflowServiceActivityRpc::class),
+                new Reference('durable.temporal.connection'),
+                new Reference(ActivityMessageProcessor::class),
+                new Reference(EventStoreInterface::class),
+                new Reference(ActivityHeartbeatSenderInterface::class),
+            ])
+            ->setPublic(true)
         ;
     }
 }
