@@ -1,4 +1,4 @@
-# Voir ADR003 (PHPUnit), ADR002 (CS), OST002 (PHPUnit 12).
+# Voir DUR009 (pyramide de tests), DUR008 (normes de code PHP-FIG).
 name: CI
 
 on:
@@ -21,7 +21,7 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   php-version: ${{ matrix.php-version }}
-                  # ext-grpc : tests unitaires Bridge/Temporal (HistoryPageMerger, UnaryCall, client gRPC).
+                  # ext-grpc : requis pour WorkflowTaskRunner, WorkflowTaskProcessor et TemporalHistoryCursor (DUR027).
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
 
@@ -109,6 +109,9 @@ jobs:
 
             - name: PHPUnit (Temporal transport factory, ext-grpc)
               run: vendor/bin/phpunit tests/unit/Bridge/Temporal/Messenger/TemporalTransportFactoryTest.php
+
+            - name: PHPUnit (WorkflowTaskRunner + WorkflowTaskProcessor — fiber replay, DUR027)
+              run: vendor/bin/phpunit tests/unit/Bridge/Temporal/Worker/
 
     coverage:
         name: Couverture (PCOV)
