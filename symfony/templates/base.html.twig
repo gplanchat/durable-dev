@@ -465,36 +465,36 @@
             flex-direction: column;
             gap: 0.75rem;
         }
-        .ds-gantt {
+        .ds-timelapse {
             display: flex;
             flex-direction: column;
             gap: 0.6rem;
         }
-        .ds-gantt__legend {
+        .ds-timelapse__legend {
             display: flex;
             flex-wrap: wrap;
             gap: 0.45rem 0.75rem;
             color: var(--ds-text-muted);
             font-size: 0.74rem;
         }
-        .ds-gantt__legend-item {
+        .ds-timelapse__legend-item {
             display: inline-flex;
             align-items: center;
             gap: 0.32rem;
         }
-        .ds-gantt__legend-dot {
+        .ds-timelapse__legend-dot {
             width: 10px;
             height: 10px;
             border-radius: 999px;
             border: 1px solid rgba(255, 255, 255, 0.35);
         }
-        .ds-gantt__legend-dot--execution { background: rgba(194, 239, 78, 0.9); }
-        .ds-gantt__legend-dot--activity { background: rgba(106, 95, 193, 0.9); }
-        .ds-gantt__legend-dot--signal { background: rgba(250, 127, 170, 0.9); }
-        .ds-gantt__legend-dot--query { background: rgba(149, 203, 255, 0.9); }
-        .ds-gantt__legend-dot--update { background: rgba(255, 178, 135, 0.9); }
+        .ds-timelapse__legend-dot--execution { background: rgba(194, 239, 78, 0.9); }
+        .ds-timelapse__legend-dot--activity { background: rgba(106, 95, 193, 0.9); }
+        .ds-timelapse__legend-dot--signal { background: rgba(250, 127, 170, 0.9); }
+        .ds-timelapse__legend-dot--query { background: rgba(149, 203, 255, 0.9); }
+        .ds-timelapse__legend-dot--update { background: rgba(255, 178, 135, 0.9); }
 
-        .ds-gantt-controls {
+        .ds-timelapse-controls {
             display: flex;
             flex-direction: column;
             gap: 0.6rem;
@@ -504,14 +504,14 @@
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.03);
         }
-        .ds-gantt-controls__zoom,
-        .ds-gantt-controls__kinds {
+        .ds-timelapse-controls__zoom,
+        .ds-timelapse-controls__kinds {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
             gap: 0.45rem;
         }
-        .ds-gantt-controls__label {
+        .ds-timelapse-controls__label {
             color: var(--ds-text-muted);
             font-size: 0.72rem;
             text-transform: uppercase;
@@ -533,7 +533,7 @@
         .ds-kind-toggle input {
             accent-color: var(--ds-primary-hover);
         }
-        .ds-gantt__header {
+        .ds-timelapse__header {
             display: flex;
             justify-content: space-between;
             color: var(--ds-text-muted);
@@ -541,32 +541,32 @@
             font-family: var(--font-mono);
             min-width: 0;
         }
-        .ds-gantt__window-info {
+        .ds-timelapse__window-info {
             color: var(--ds-text-muted);
             font-size: 0.75rem;
             min-width: 0;
             margin-top: -0.15rem;
             overflow-wrap: anywhere;
         }
-        .ds-gantt__viewport {
+        .ds-timelapse__viewport {
             overflow-x: auto;
             padding-bottom: 0.2rem;
             -webkit-overflow-scrolling: touch;
         }
-        .ds-gantt__canvas {
+        .ds-timelapse__canvas {
             min-width: min(100%, 760px);
             display: flex;
             flex-direction: column;
             gap: 0.6rem;
         }
-        .ds-gantt__lane {
+        .ds-timelapse__lane {
             display: grid;
             grid-template-columns: clamp(120px, 22vw, 220px) minmax(280px, 1fr) clamp(96px, 12vw, 140px);
             align-items: center;
             gap: 0.6rem;
             min-width: 0;
         }
-        .ds-gantt__lane-label {
+        .ds-timelapse__lane-label {
             color: var(--ds-text-muted);
             font-size: 0.8rem;
             white-space: nowrap;
@@ -578,7 +578,7 @@
             background: var(--ds-surface);
             padding-right: 0.35rem;
         }
-        .ds-gantt__track {
+        .ds-timelapse__track {
             position: relative;
             height: 14px;
             border-radius: 999px;
@@ -586,14 +586,14 @@
             background: rgba(255, 255, 255, 0.05);
             overflow: hidden;
         }
-        .ds-gantt__bar {
+        .ds-timelapse__bar {
             position: absolute;
             top: 1px;
             height: 10px;
             border-radius: 999px;
             min-width: 4px;
         }
-        .ds-gantt__bar--running {
+        .ds-timelapse__bar--running {
             background-image:
                 repeating-linear-gradient(
                     135deg,
@@ -603,31 +603,31 @@
                     rgba(255, 255, 255, 0) 12px
                 );
             background-size: 24px 24px;
-            animation: ds-gantt-running-stripes 1.1s linear infinite;
+            animation: ds-timelapse-running-stripes 1.1s linear infinite;
         }
-        .ds-gantt__bar--execution {
+        .ds-timelapse__bar--execution {
             background: rgba(194, 239, 78, 0.9);
         }
-        .ds-gantt__bar--activity {
+        .ds-timelapse__bar--activity {
             background: rgba(106, 95, 193, 0.9);
         }
-        .ds-gantt__bar--signal {
+        .ds-timelapse__bar--signal {
             background: rgba(250, 127, 170, 0.9);
         }
-        .ds-gantt__bar--query {
+        .ds-timelapse__bar--query {
             background: rgba(149, 203, 255, 0.9);
         }
-        @keyframes ds-gantt-running-stripes {
+        @keyframes ds-timelapse-running-stripes {
             from { background-position: 0 0; }
             to { background-position: 24px 0; }
         }
-        .ds-gantt__bar--update {
+        .ds-timelapse__bar--update {
             background: rgba(255, 178, 135, 0.9);
         }
-        .ds-gantt__bar--query {
+        .ds-timelapse__bar--query {
             background: rgba(149, 203, 255, 0.9);
         }
-        .ds-gantt__lane-time {
+        .ds-timelapse__lane-time {
             color: var(--ds-text-muted);
             font-size: 0.72rem;
             font-family: var(--font-mono);
@@ -778,10 +778,10 @@
             .ds-pagination {
                 align-items: flex-start;
             }
-            .ds-gantt__canvas {
+            .ds-timelapse__canvas {
                 min-width: 680px;
             }
-            .ds-gantt__lane {
+            .ds-timelapse__lane {
                 grid-template-columns: 170px minmax(300px, 1fr) 110px;
             }
         }
@@ -791,10 +791,10 @@
                 grid-template-columns: 1fr;
                 gap: 0.2rem;
             }
-            .ds-gantt__canvas {
+            .ds-timelapse__canvas {
                 min-width: 560px;
             }
-            .ds-gantt__lane {
+            .ds-timelapse__lane {
                 grid-template-columns: 140px minmax(240px, 1fr) 96px;
                 gap: 0.45rem;
             }
