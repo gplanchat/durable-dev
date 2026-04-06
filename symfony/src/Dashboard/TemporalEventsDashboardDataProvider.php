@@ -136,7 +136,8 @@ final class TemporalEventsDashboardDataProvider
      *   startedAt: string,
      *   duration: string,
      *   events: list<array{eventId: int, time: string, type: string, category: string}>,
-     *   workflowId?: string
+     *   workflowId?: string,
+     *   timeline?: array<string, mixed>
      * } $run
      *
      * @return array{
@@ -147,7 +148,8 @@ final class TemporalEventsDashboardDataProvider
      *   startedAt: string,
      *   duration: string,
      *   events: list<array{eventId: int, time: string, type: string, category: string}>,
-     *   workflowId?: string
+     *   workflowId?: string,
+     *   timeline?: array<string, mixed>
      * }
      */
     public function enrichWithHistory(array $run): array
@@ -168,11 +170,22 @@ final class TemporalEventsDashboardDataProvider
             $execution->setRunId($runId);
 
             $tail = [];
+            $timelineRaw = $this->initTimelineRaw();
             foreach ($this->historyCursor->events($execution) as $historyEvent) {
                 $tail[] = $historyEvent;
                 if (\count($tail) > 30) {
                     \array_shift($tail);
                 }
+
+                $eventTypeName = EventType::name($historyEvent->getEventType());
+                $eventTime = $historyEvent->getEventTime();
+                $eventTimestamp = $this->timestampToFloat($eventTime);
+                if (null !== $eventTimestamp) {
+                    $timelineRaw['min'] = null === $timelineRaw['min'] ? $eventTimestamp : \min($timelineRaw['min'], $eventTimestamp);
+                    $timelineRaw['max'] = null === $timelineRaw['max'] ? $eventTimestamp : \max($timelineRaw['max'], $eventTimestamp);
+                }
+
+                $this->collectTimelineEvent($timelineRaw, $historyEvent, $eventTypeName, $eventTimestamp);
             }
             if ([] === $tail) {
                 return $run;
@@ -190,6 +203,7 @@ final class TemporalEventsDashboardDataProvider
                 ];
             }
             $run['events'] = $events;
+            $run['timeline'] = $this->finalizeTimeline($timelineRaw);
         } catch (\Throwable) {
             // Keep run without history preview when Temporal cannot return history.
         }
@@ -307,6 +321,12 @@ final class TemporalEventsDashboardDataProvider
 
     private function categoryForEventType(string $eventType): string
     {
+        if (\str_contains($eventType, 'UPDATE_')) {
+            return 'update';
+        }
+        if (\str_contains($eventType, 'QUERY_')) {
+            return 'query';
+        }
         if (\str_contains($eventType, 'WORKFLOW_')) {
             return 'workflow';
         }
@@ -327,6 +347,248 @@ final class TemporalEventsDashboardDataProvider
         }
 
         return 'other';
+    }
+
+    /**
+     * @return array{
+     *   min: float|null,
+     *   max: float|null,
+     *   activities: array<string, array{label: string, start: float, end: float}>,
+     *   signals: list<array{label: string, time: float}>,
+     *   queries: list<array{label: string, time: float}>,
+     *   updates: list<array{label: string, time: float}>
+     * }
+     */
+    private function initTimelineRaw(): array
+    {
+        return [
+            'min' => null,
+            'max' => null,
+            'activities' => [],
+            'signals' => [],
+            'queries' => [],
+            'updates' => [],
+        ];
+    }
+
+    /**
+     * @param array{
+     *   min: float|null,
+     *   max: float|null,
+     *   activities: array<string, array{label: string, start: float, end: float}>,
+     *   signals: list<array{label: string, time: float}>,
+     *   queries: list<array{label: string, time: float}>,
+     *   updates: list<array{label: string, time: float}>
+     * } $timelineRaw
+     */
+    private function collectTimelineEvent(array &$timelineRaw, HistoryEvent $event, string $eventTypeName, ?float $eventTimestamp): void
+    {
+        if (null === $eventTimestamp) {
+            return;
+        }
+
+        if (\str_contains($eventTypeName, 'ACTIVITY_TASK_')) {
+            $scheduledId = null;
+            $activityId = null;
+
+            if (EventType::EVENT_TYPE_ACTIVITY_TASK_SCHEDULED === $event->getEventType()) {
+                $attributes = $event->getActivityTaskScheduledEventAttributes();
+                if (null !== $attributes) {
+                    $activityId = (string) $attributes->getActivityId();
+                }
+                $scheduledId = (int) $event->getEventId();
+            } elseif (EventType::EVENT_TYPE_ACTIVITY_TASK_STARTED === $event->getEventType()) {
+                $attributes = $event->getActivityTaskStartedEventAttributes();
+                if (null !== $attributes) {
+                    $scheduledId = (int) $attributes->getScheduledEventId();
+                }
+            } elseif (EventType::EVENT_TYPE_ACTIVITY_TASK_COMPLETED === $event->getEventType()) {
+                $attributes = $event->getActivityTaskCompletedEventAttributes();
+                if (null !== $attributes) {
+                    $scheduledId = (int) $attributes->getScheduledEventId();
+                }
+            } elseif (EventType::EVENT_TYPE_ACTIVITY_TASK_FAILED === $event->getEventType()) {
+                $attributes = $event->getActivityTaskFailedEventAttributes();
+                if (null !== $attributes) {
+                    $scheduledId = (int) $attributes->getScheduledEventId();
+                }
+            } elseif (EventType::EVENT_TYPE_ACTIVITY_TASK_CANCELED === $event->getEventType()) {
+                $attributes = $event->getActivityTaskCanceledEventAttributes();
+                if (null !== $attributes) {
+                    $scheduledId = (int) $attributes->getScheduledEventId();
+                }
+            }
+
+            $key = null !== $scheduledId ? (string) $scheduledId : 'activity-'.$event->getEventId();
+            if (!isset($timelineRaw['activities'][$key])) {
+                $label = null !== $activityId && '' !== $activityId ? $activityId : 'activity-'.$key;
+                $timelineRaw['activities'][$key] = [
+                    'label' => $label,
+                    'start' => $eventTimestamp,
+                    'end' => $eventTimestamp,
+                ];
+            } else {
+                $timelineRaw['activities'][$key]['start'] = \min($timelineRaw['activities'][$key]['start'], $eventTimestamp);
+                $timelineRaw['activities'][$key]['end'] = \max($timelineRaw['activities'][$key]['end'], $eventTimestamp);
+            }
+
+            return;
+        }
+
+        if (EventType::EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED === $event->getEventType()) {
+            $attributes = $event->getWorkflowExecutionSignaledEventAttributes();
+            $name = null !== $attributes ? (string) $attributes->getSignalName() : 'signal-'.$event->getEventId();
+            $timelineRaw['signals'][] = ['label' => $name, 'time' => $eventTimestamp];
+
+            return;
+        }
+
+        if (\str_contains($eventTypeName, 'QUERY_')) {
+            $timelineRaw['queries'][] = [
+                'label' => 'query-'.$event->getEventId(),
+                'time' => $eventTimestamp,
+            ];
+
+            return;
+        }
+
+        if (\str_contains($eventTypeName, 'UPDATE_')) {
+            $timelineRaw['updates'][] = [
+                'label' => 'update-'.$event->getEventId(),
+                'time' => $eventTimestamp,
+            ];
+        }
+    }
+
+    /**
+     * @param array{
+     *   min: float|null,
+     *   max: float|null,
+     *   activities: array<string, array{label: string, start: float, end: float}>,
+     *   signals: list<array{label: string, time: float}>,
+     *   queries: list<array{label: string, time: float}>,
+     *   updates: list<array{label: string, time: float}>
+     * } $timelineRaw
+     *
+     * @return array{
+     *   startTime: string,
+     *   endTime: string,
+     *   lanes: list<array{
+     *      label: string,
+     *      kind: string,
+     *      startPercent: float,
+     *      widthPercent: float,
+     *      startTime: string,
+     *      endTime: string
+     *   }>
+     * }
+     */
+    private function finalizeTimeline(array $timelineRaw): array
+    {
+        $min = $timelineRaw['min'];
+        $max = $timelineRaw['max'];
+        if (null === $min || null === $max) {
+            $now = (float) \time();
+
+            return [
+                'startTime' => $this->formatFromFloatSeconds($now),
+                'endTime' => $this->formatFromFloatSeconds($now),
+                'lanes' => [],
+            ];
+        }
+
+        if ($max <= $min) {
+            $max = $min + 1.0;
+        }
+
+        $lanes = [];
+        $lanes[] = $this->buildLane('execution', 'Execution', $min, $max, $min, $max);
+
+        foreach ($timelineRaw['activities'] as $activity) {
+            $lanes[] = $this->buildLane('activity', 'Activity: '.$activity['label'], $activity['start'], $activity['end'], $min, $max);
+        }
+        foreach ($timelineRaw['signals'] as $signal) {
+            $lanes[] = $this->buildPointLane('signal', 'Signal: '.$signal['label'], $signal['time'], $min, $max);
+        }
+        foreach ($timelineRaw['queries'] as $query) {
+            $lanes[] = $this->buildPointLane('query', 'Query: '.$query['label'], $query['time'], $min, $max);
+        }
+        foreach ($timelineRaw['updates'] as $update) {
+            $lanes[] = $this->buildPointLane('update', 'Update: '.$update['label'], $update['time'], $min, $max);
+        }
+
+        return [
+            'startTime' => $this->formatFromFloatSeconds($min),
+            'endTime' => $this->formatFromFloatSeconds($max),
+            'lanes' => $lanes,
+        ];
+    }
+
+    /**
+     * @return array{
+     *   label: string,
+     *   kind: string,
+     *   startPercent: float,
+     *   widthPercent: float,
+     *   startTime: string,
+     *   endTime: string
+     * }
+     */
+    private function buildLane(string $kind, string $label, float $start, float $end, float $globalMin, float $globalMax): array
+    {
+        $range = \max(1.0, $globalMax - $globalMin);
+        $startPercent = (($start - $globalMin) / $range) * 100.0;
+        $widthPercent = \max(1.2, (($end - $start) / $range) * 100.0);
+        if ($startPercent + $widthPercent > 100.0) {
+            $widthPercent = \max(1.2, 100.0 - $startPercent);
+        }
+
+        return [
+            'label' => $label,
+            'kind' => $kind,
+            'startPercent' => \round($startPercent, 3),
+            'widthPercent' => \round($widthPercent, 3),
+            'startTime' => $this->formatFromFloatSeconds($start),
+            'endTime' => $this->formatFromFloatSeconds($end),
+        ];
+    }
+
+    /**
+     * @return array{
+     *   label: string,
+     *   kind: string,
+     *   startPercent: float,
+     *   widthPercent: float,
+     *   startTime: string,
+     *   endTime: string
+     * }
+     */
+    private function buildPointLane(string $kind, string $label, float $time, float $globalMin, float $globalMax): array
+    {
+        return $this->buildLane($kind, $label, $time, $time, $globalMin, $globalMax);
+    }
+
+    private function timestampToFloat(?\Google\Protobuf\Timestamp $timestamp): ?float
+    {
+        if (null === $timestamp) {
+            return null;
+        }
+
+        return (float) $timestamp->getSeconds() + ((float) $timestamp->getNanos() / 1_000_000_000.0);
+    }
+
+    private function formatFromFloatSeconds(float $seconds): string
+    {
+        $wholeSeconds = (int) \floor($seconds);
+        $microseconds = (int) \round(($seconds - $wholeSeconds) * 1_000_000);
+        $value = \sprintf('%d.%06d', $wholeSeconds, \max(0, \min(999999, $microseconds)));
+        $date = \DateTimeImmutable::createFromFormat('U.u', $value, new \DateTimeZone('UTC'));
+
+        if (false === $date) {
+            return '--:--:--';
+        }
+
+        return $date->setTimezone(new \DateTimeZone(\date_default_timezone_get()))->format('H:i:s');
     }
 
     private function encodeCursor(string $token): string

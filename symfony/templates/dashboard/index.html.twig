@@ -127,7 +127,34 @@
                 </div>
 
                 <div class="result-card">
-                    <div class="result-card-header">Frise temporelle des evenements</div>
+                    <div class="result-card-header">Frise temporelle</div>
+                    <div class="result-card-body">
+                        {% if selectedRun.timeline is defined and selectedRun.timeline.lanes is not empty %}
+                            <div class="ds-gantt">
+                                <div class="ds-gantt__header">
+                                    <span>{{ selectedRun.timeline.startTime }}</span>
+                                    <span>{{ selectedRun.timeline.endTime }}</span>
+                                </div>
+                                {% for lane in selectedRun.timeline.lanes %}
+                                    <div class="ds-gantt__lane">
+                                        <div class="ds-gantt__lane-label">{{ lane.label }}</div>
+                                        <div class="ds-gantt__track">
+                                            <span class="ds-gantt__bar ds-gantt__bar--{{ lane.kind }}"
+                                                  style="left: {{ lane.startPercent }}%; width: {{ lane.widthPercent }}%;"
+                                                  title="{{ lane.startTime }} → {{ lane.endTime }}"></span>
+                                        </div>
+                                        <div class="ds-gantt__lane-time">{{ lane.startTime }} → {{ lane.endTime }}</div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="ds-empty-state">Aucune donnee temporelle disponible pour cette execution.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="result-card">
+                    <div class="result-card-header">Historique des evenements</div>
                     <div class="result-card-body">
                         <ol class="ds-timeline">
                             {% for event in selectedRun.events %}

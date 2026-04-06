@@ -453,6 +453,67 @@
             flex-direction: column;
             gap: 0.75rem;
         }
+        .ds-gantt {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        .ds-gantt__header {
+            display: flex;
+            justify-content: space-between;
+            color: var(--ds-text-muted);
+            font-size: 0.76rem;
+            font-family: var(--font-mono);
+        }
+        .ds-gantt__lane {
+            display: grid;
+            grid-template-columns: minmax(120px, 200px) 1fr auto;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .ds-gantt__lane-label {
+            color: var(--ds-text-muted);
+            font-size: 0.8rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ds-gantt__track {
+            position: relative;
+            height: 14px;
+            border-radius: 999px;
+            border: 1px solid var(--ds-border);
+            background: rgba(255, 255, 255, 0.05);
+            overflow: hidden;
+        }
+        .ds-gantt__bar {
+            position: absolute;
+            top: 1px;
+            height: 10px;
+            border-radius: 999px;
+            min-width: 4px;
+        }
+        .ds-gantt__bar--execution {
+            background: rgba(194, 239, 78, 0.9);
+        }
+        .ds-gantt__bar--activity {
+            background: rgba(106, 95, 193, 0.9);
+        }
+        .ds-gantt__bar--signal {
+            background: rgba(250, 127, 170, 0.9);
+        }
+        .ds-gantt__bar--query {
+            background: rgba(149, 203, 255, 0.9);
+        }
+        .ds-gantt__bar--update {
+            background: rgba(255, 178, 135, 0.9);
+        }
+        .ds-gantt__lane-time {
+            color: var(--ds-text-muted);
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+            white-space: nowrap;
+        }
         .ds-timeline__item {
             display: grid;
             grid-template-columns: 14px 1fr;
@@ -589,6 +650,10 @@
             }
             .ds-dashboard-split {
                 grid-template-columns: 1fr;
+            }
+            .ds-gantt__lane {
+                grid-template-columns: 1fr;
+                gap: 0.35rem;
             }
         }
     </style>

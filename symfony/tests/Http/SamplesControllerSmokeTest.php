@@ -111,6 +111,8 @@ final class SamplesControllerSmokeTest extends WebTestCase
         $this->assertStringContainsString('Running', $content);
         $this->assertStringContainsString('Pagination par curseur', $content);
         $this->assertStringContainsString('Curseur courant', $content);
+        $this->assertStringContainsString('Frise temporelle', $content);
+        $this->assertStringContainsString('Historique des evenements', $content);
     }
 
     public function testDashboardFiltersByStatus(): void
