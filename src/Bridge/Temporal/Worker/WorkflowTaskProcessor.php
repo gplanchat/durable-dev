@@ -144,7 +144,7 @@ final class WorkflowTaskProcessor
         }
 
         $call = $this->client->RespondWorkflowTaskCompleted($req, [], ['timeout' => TemporalGrpcTimeouts::RESPOND_WORKFLOW_TASK_US]);
-        /** @var array{0: RespondWorkflowTaskCompletedResponse|null, 1: \stdClass} $pair */
+        /** @var array{0: \Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedResponse|null, 1: \stdClass} $pair */
         $pair = $call->wait();
         [$done, $status] = $pair;
         $code = (int) ($status->code ?? -1);

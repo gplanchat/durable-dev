@@ -133,6 +133,56 @@ jobs:
             - name: Rapport texte (src/)
               run: composer test:coverage
 
+    temporal-integration:
+        name: Tests d'intégration Temporal (gRPC + Temporal auto-setup)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP (ext-grpc requis)
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.2'
+                  extensions: mbstring, sqlite3, pdo_sqlite, grpc
+                  coverage: none
+
+            - name: Installer les dépendances Composer (symfony/)
+              working-directory: symfony
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: Démarrer PostgreSQL + Temporal (symfony/compose.yaml)
+              working-directory: symfony
+              run: docker compose up -d --wait --wait-timeout 300 database temporal
+
+            - name: Attendre que Temporal soit joignable sur :7233
+              run: |
+                  set -e
+                  for i in $(seq 1 60); do
+                    if nc -z 127.0.0.1 7233 2>/dev/null; then
+                      echo "Temporal joignable sur :7233 (tentative $i)"
+                      exit 0
+                    fi
+                    sleep 3
+                  done
+                  echo "Temporal non joignable après 180s"
+                  docker compose -f symfony/compose.yaml logs temporal --tail 60
+                  exit 1
+
+            - name: PHPUnit — tests d'intégration Temporal (temporal-integration + temporal-native-spike)
+              working-directory: symfony
+              env:
+                  DURABLE_DSN: 'temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0'
+              run: |
+                  php bin/phpunit \
+                    --group temporal-integration,temporal-native-spike \
+                    --testdox \
+                    tests/Integration/Temporal/
+
+            - name: Arrêt des conteneurs
+              if: always()
+              working-directory: symfony
+              run: docker compose down -v
+
     docker-compose-stack:
         name: Stack Docker (Temporal + UI)
         runs-on: ubuntu-latest
@@ -140,10 +190,10 @@ jobs:
             - uses: actions/checkout@v4
 
             - name: Valider compose.yaml
-              run: docker compose -f compose.yaml config --quiet
+              run: docker compose -f symfony/compose.yaml config --quiet
 
             - name: Démarrer PostgreSQL + Temporal + UI
-              run: docker compose -f compose.yaml up -d --wait --wait-timeout 180 postgresql temporal temporal-ui
+              run: docker compose -f symfony/compose.yaml up -d --wait --wait-timeout 180 postgresql temporal temporal-ui
 
             - name: Vérifier Temporal UI (8088)
               run: |
@@ -155,9 +205,9 @@ jobs:
                     fi
                     sleep 2
                   done
-                  docker compose -f compose.yaml logs temporal-ui --tail 40
+                  docker compose -f symfony/compose.yaml logs temporal-ui --tail 40
                   exit 1
 
             - name: Arrêt des conteneurs
               if: always()
-              run: docker compose -f compose.yaml down -v
+              run: docker compose -f symfony/compose.yaml down -v

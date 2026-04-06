@@ -21,7 +21,9 @@
     },
     "autoload": {
         "psr-4": {
-            "Gplanchat\\Bridge\\Temporal\\": "./"
+            "Gplanchat\\Bridge\\Temporal\\": "./",
+            "Temporal\\Api\\": "Api/",
+            "GPBMetadata\\Temporal\\": "Generated/GPBMetadata/Temporal/"
         }
     },
     "extra": {

@@ -18,7 +18,7 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
  *
  * Schémas obsolètes acceptés et normalisés : {@code temporal-journal://}, {@code temporal-application://}.
  *
- * @implements TransportFactoryInterface<TemporalJournalTransport|TemporalApplicationTransport>
+ * @implements TransportFactoryInterface<TemporalJournalTransport|TemporalApplicationTransport|TemporalActivityWorkerTransport>
  */
 final class TemporalTransportFactory implements TransportFactoryInterface
 {

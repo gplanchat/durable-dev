@@ -37,7 +37,9 @@
         "psr-4": {
             "Gplanchat\\Durable\\": "src/Durable/",
             "Gplanchat\\Durable\\Bundle\\": "src/DurableBundle/",
-            "Gplanchat\\Bridge\\Temporal\\": "src/Bridge/Temporal/"
+            "Gplanchat\\Bridge\\Temporal\\": "src/Bridge/Temporal/",
+            "Temporal\\Api\\": "src/Bridge/Temporal/Api/",
+            "GPBMetadata\\Temporal\\": "src/Bridge/Temporal/Generated/GPBMetadata/Temporal/"
         }
     },
     "autoload-dev": {
