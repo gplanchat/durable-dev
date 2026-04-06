@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Dashboard\TemporalEventsDashboardDataProvider;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -13,8 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class DashboardController extends AbstractController
 {
     private const DASHBOARD_PAGE_SIZE = 20;
-    /** @var list<string> */
-    private const TIMELINE_ZOOM_LEVELS = ['all', '1m', '5m', '15m'];
+    private const ANIMATION_COOKIE_NAME = 'durable_dashboard_timelapse_animate';
     /** @var list<string> */
     private const TIMELINE_KINDS = ['execution', 'activity', 'signal', 'query', 'update'];
 
@@ -23,10 +23,7 @@ final class DashboardController extends AbstractController
     {
         $query = \trim((string) $request->query->get('q', ''));
         $status = \trim((string) $request->query->get('status', 'all'));
-        $zoom = \trim((string) $request->query->get('zoom', 'all'));
-        if (!\in_array($zoom, self::TIMELINE_ZOOM_LEVELS, true)) {
-            $zoom = 'all';
-        }
+        $animateTimelapse = $this->resolveAnimateTimelapsePreference($request);
         $kinds = $request->query->all('kinds');
         if (!\is_array($kinds) || [] === $kinds) {
             $visibleKinds = self::TIMELINE_KINDS;
@@ -70,7 +67,7 @@ final class DashboardController extends AbstractController
         }
 
         if (null !== $selectedRun) {
-            $selectedRun = $dataProvider->enrichWithHistory($selectedRun, $zoom, $visibleKinds);
+            $selectedRun = $dataProvider->enrichWithHistory($selectedRun, 'all', $visibleKinds);
         }
 
         $previousCursor = null;
@@ -86,17 +83,16 @@ final class DashboardController extends AbstractController
         $nextStack[] = $cursor;
         $nextStackEncoded = $this->encodeCursorStack($nextStack);
 
-        return $this->render('dashboard/index.html.twig', [
+        $response = $this->render('dashboard/index.html.twig', [
             'runs' => $filteredRuns,
             'selectedRun' => $selectedRun,
             'selectedRunId' => $selectedRunId,
             'query' => $query,
             'status' => $status,
+            'animateTimelapse' => $animateTimelapse,
             'kpis' => $this->buildKpis($filteredRuns),
             'timelineControls' => [
-                'zoom' => $zoom,
                 'visibleKinds' => $visibleKinds,
-                'availableZooms' => self::TIMELINE_ZOOM_LEVELS,
                 'availableKinds' => self::TIMELINE_KINDS,
             ],
             'pagination' => [
@@ -113,6 +109,17 @@ final class DashboardController extends AbstractController
                 'pageSize' => self::DASHBOARD_PAGE_SIZE,
             ],
         ]);
+
+        if (null !== $request->query->get('animate')) {
+            $response->headers->setCookie(
+                Cookie::create(self::ANIMATION_COOKIE_NAME)
+                    ->withValue($animateTimelapse ? '1' : '0')
+                    ->withExpires(new \DateTimeImmutable('+6 months'))
+                    ->withPath('/dashboard')
+            );
+        }
+
+        return $response;
     }
 
     /**
@@ -196,5 +203,24 @@ final class DashboardController extends AbstractController
             'completed' => $completed,
             'failed' => $failed,
         ];
+    }
+
+    private function resolveAnimateTimelapsePreference(Request $request): bool
+    {
+        $animateQuery = $request->query->get('animate');
+        if (\is_string($animateQuery)) {
+            $normalized = \strtolower(\trim($animateQuery));
+
+            return !\in_array($normalized, ['0', 'false', 'off', 'no'], true);
+        }
+
+        $animateCookie = $request->cookies->get(self::ANIMATION_COOKIE_NAME);
+        if (\is_string($animateCookie)) {
+            $normalized = \strtolower(\trim($animateCookie));
+
+            return !\in_array($normalized, ['0', 'false', 'off', 'no'], true);
+        }
+
+        return true;
     }
 }

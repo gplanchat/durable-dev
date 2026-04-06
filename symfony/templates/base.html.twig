@@ -493,6 +493,22 @@
         .ds-timelapse__legend-dot--signal { background: rgba(250, 127, 170, 0.9); }
         .ds-timelapse__legend-dot--query { background: rgba(149, 203, 255, 0.9); }
         .ds-timelapse__legend-dot--update { background: rgba(255, 178, 135, 0.9); }
+        .ds-timelapse__legend-hatch {
+            width: 14px;
+            height: 10px;
+            border-radius: 3px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            background:
+                linear-gradient(rgba(106, 95, 193, 0.75), rgba(106, 95, 193, 0.75)),
+                repeating-linear-gradient(
+                    135deg,
+                    rgba(255, 255, 255, 0.45) 0px,
+                    rgba(255, 255, 255, 0.45) 3px,
+                    rgba(255, 255, 255, 0) 3px,
+                    rgba(255, 255, 255, 0) 6px
+                );
+            background-blend-mode: normal;
+        }
 
         .ds-timelapse-controls {
             display: flex;
@@ -604,6 +620,9 @@
                 );
             background-size: 24px 24px;
             animation: ds-timelapse-running-stripes 1.1s linear infinite;
+        }
+        .ds-timelapse--static .ds-timelapse__bar--running {
+            animation: none;
         }
         .ds-timelapse__bar--execution {
             background: rgba(194, 239, 78, 0.9);

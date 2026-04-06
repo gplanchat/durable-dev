@@ -51,7 +51,7 @@
         {% if pagination.stack %}
             <input type="hidden" name="stack" value="{{ pagination.stack }}">
         {% endif %}
-        <input type="hidden" name="zoom" value="{{ timelineControls.zoom }}">
+        <input type="hidden" name="animate" value="{{ animateTimelapse ? '1' : '0' }}">
         {% for kind in timelineControls.visibleKinds %}
             <input type="hidden" name="kinds[]" value="{{ kind }}">
         {% endfor %}
@@ -68,9 +68,9 @@
                         <a class="btn btn-ghost btn-sm" href="{{ path('app_dashboard', {
                             q: query,
                             status: status,
+                            animate: animateTimelapse ? '1' : '0',
                             cursor: pagination.previousCursor,
                             stack: pagination.previousStack,
-                            zoom: timelineControls.zoom,
                             kinds: timelineControls.visibleKinds
                         }) }}">← Page precedente</a>
                     {% else %}
@@ -80,9 +80,9 @@
                         <a class="btn btn-ghost btn-sm" href="{{ path('app_dashboard', {
                             q: query,
                             status: status,
+                            animate: animateTimelapse ? '1' : '0',
                             cursor: pagination.nextCursor,
                             stack: pagination.nextStack,
-                            zoom: timelineControls.zoom,
                             kinds: timelineControls.visibleKinds
                         }) }}">Page suivante →</a>
                     {% else %}
@@ -99,10 +99,10 @@
                        href="{{ path('app_dashboard', {
                            q: query,
                            status: status,
+                           animate: animateTimelapse ? '1' : '0',
                            run: run.runId,
                            cursor: pagination.cursor,
                            stack: pagination.stack,
-                           zoom: timelineControls.zoom,
                            kinds: timelineControls.visibleKinds
                        }) }}">
                         <div class="ds-run-row__title">
@@ -146,28 +146,13 @@
                     <div class="result-card-header">Frise temporelle</div>
                     <div class="result-card-body">
                         <div class="ds-timelapse-controls">
-                            <div class="ds-timelapse-controls__zoom">
-                                <span class="ds-timelapse-controls__label">Zoom</span>
-                                {% for zoomLevel in timelineControls.availableZooms %}
-                                    <a class="btn btn-ghost btn-sm{% if timelineControls.zoom == zoomLevel %} is-active{% endif %}"
-                                       href="{{ path('app_dashboard', {
-                                           q: query,
-                                           status: status,
-                                           run: selectedRun.runId,
-                                           cursor: pagination.cursor,
-                                           stack: pagination.stack,
-                                           zoom: zoomLevel,
-                                           kinds: timelineControls.visibleKinds
-                                       }) }}">{{ zoomLevel|upper }}</a>
-                                {% endfor %}
-                            </div>
                             <form method="get" action="{{ path('app_dashboard') }}" class="ds-timelapse-controls__kinds">
                                 <input type="hidden" name="q" value="{{ query }}">
                                 <input type="hidden" name="status" value="{{ status }}">
                                 <input type="hidden" name="run" value="{{ selectedRun.runId }}">
                                 <input type="hidden" name="cursor" value="{{ pagination.cursor }}">
                                 <input type="hidden" name="stack" value="{{ pagination.stack }}">
-                                <input type="hidden" name="zoom" value="{{ timelineControls.zoom }}">
+                                <input type="hidden" name="animate" value="{{ animateTimelapse ? '1' : '0' }}">
                                 <span class="ds-timelapse-controls__label">Lignes</span>
                                 {% for kind in timelineControls.availableKinds %}
                                     <label class="ds-kind-toggle">
@@ -177,16 +162,37 @@
                                 {% endfor %}
                                 <button type="submit" class="btn btn-ghost btn-sm">Appliquer</button>
                             </form>
+                            <form method="get" action="{{ path('app_dashboard') }}" class="ds-timelapse-controls__kinds">
+                                <input type="hidden" name="q" value="{{ query }}">
+                                <input type="hidden" name="status" value="{{ status }}">
+                                <input type="hidden" name="run" value="{{ selectedRun.runId }}">
+                                <input type="hidden" name="cursor" value="{{ pagination.cursor }}">
+                                <input type="hidden" name="stack" value="{{ pagination.stack }}">
+                                {% for kind in timelineControls.visibleKinds %}
+                                    <input type="hidden" name="kinds[]" value="{{ kind }}">
+                                {% endfor %}
+                                <span class="ds-timelapse-controls__label">Animation</span>
+                                <label class="ds-kind-toggle">
+                                    <input type="radio" name="animate" value="1" {% if animateTimelapse %}checked{% endif %}>
+                                    <span>Animee</span>
+                                </label>
+                                <label class="ds-kind-toggle">
+                                    <input type="radio" name="animate" value="0" {% if not animateTimelapse %}checked{% endif %}>
+                                    <span>Desactivee</span>
+                                </label>
+                                <button type="submit" class="btn btn-ghost btn-sm">Enregistrer</button>
+                            </form>
                         </div>
 
                         {% if selectedRun.timeline is defined and selectedRun.timeline.lanes is not empty %}
-                            <div class="ds-timelapse">
+                            <div class="ds-timelapse{% if not animateTimelapse %} ds-timelapse--static{% endif %}">
                                 <div class="ds-timelapse__legend" aria-label="Legende de la frise">
                                     <span class="ds-timelapse__legend-item"><span class="ds-timelapse__legend-dot ds-timelapse__legend-dot--execution"></span>Execution</span>
                                     <span class="ds-timelapse__legend-item"><span class="ds-timelapse__legend-dot ds-timelapse__legend-dot--activity"></span>Activity</span>
                                     <span class="ds-timelapse__legend-item"><span class="ds-timelapse__legend-dot ds-timelapse__legend-dot--signal"></span>Signal</span>
                                     <span class="ds-timelapse__legend-item"><span class="ds-timelapse__legend-dot ds-timelapse__legend-dot--query"></span>Query</span>
                                     <span class="ds-timelapse__legend-item"><span class="ds-timelapse__legend-dot ds-timelapse__legend-dot--update"></span>Update</span>
+                                    <span class="ds-timelapse__legend-item"><span class="ds-timelapse__legend-hatch"></span>Hachure = en cours</span>
                                 </div>
 
                                 <div class="ds-timelapse__viewport">

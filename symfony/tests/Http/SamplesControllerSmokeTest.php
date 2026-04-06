@@ -123,13 +123,13 @@ final class SamplesControllerSmokeTest extends WebTestCase
         $this->assertResponseIsSuccessful();
         $content = (string) $client->getResponse()->getContent();
         $normalized = strtoupper($content);
-        $this->assertStringContainsString('ZOOM', $normalized);
         $this->assertStringContainsString('LIGNES', $normalized);
         $this->assertStringContainsString('EXECUTION', $normalized);
         $this->assertStringContainsString('ACTIVITY', $normalized);
         $this->assertStringContainsString('SIGNAL', $normalized);
         $this->assertStringContainsString('QUERY', $normalized);
         $this->assertStringContainsString('UPDATE', $normalized);
+        $this->assertStringContainsString('ANIMATION', $normalized);
     }
 
     public function testDashboardFiltersByStatus(): void
