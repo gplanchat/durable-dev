@@ -19,6 +19,8 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 final class TemporalEventsDashboardDataProvider
 {
+    private const DEFAULT_PAGE_SIZE = 20;
+
     public function __construct(
         private readonly ?WorkflowServiceClient $workflowServiceClient = null,
         private readonly ?TemporalConnection $connection = null,
@@ -27,27 +29,37 @@ final class TemporalEventsDashboardDataProvider
     }
 
     /**
-     * @return list<array{
-     *   runId: string,
-     *   workflowName: string,
-     *   status: 'running'|'completed'|'failed',
-     *   taskQueue: string,
-     *   startedAt: string,
-     *   duration: string,
-     *   events: list<array{time: string, type: string}>
-     * }>
+     * @return array{
+     *   runs: list<array{
+     *      runId: string,
+     *      workflowName: string,
+     *      status: 'running'|'completed'|'failed',
+     *      taskQueue: string,
+     *      startedAt: string,
+     *      duration: string,
+     *      events: list<array{eventId: int, time: string, type: string}>,
+     *      workflowId?: string
+     *   }>,
+     *   nextCursor: string|null
+     * }
      */
-    public function provideRuns(): array
+    public function provideRunsPage(string $cursor = '', int $pageSize = self::DEFAULT_PAGE_SIZE): array
     {
         if (null === $this->workflowServiceClient || null === $this->connection) {
-            return $this->fallbackRuns();
+            return [
+                'runs' => $this->fallbackRuns(),
+                'nextCursor' => null,
+            ];
         }
 
         try {
             $request = new ListWorkflowExecutionsRequest();
             $request->setNamespace($this->connection->namespace);
-            $request->setPageSize(100);
+            $request->setPageSize($pageSize);
             $request->setQuery('WorkflowId STARTS_WITH "durable-"');
+            if ('' !== $cursor) {
+                $request->setNextPageToken($this->decodeCursor($cursor));
+            }
 
             $response = GrpcUnary::wait(
                 $this->workflowServiceClient->ListWorkflowExecutions(
@@ -61,7 +73,10 @@ final class TemporalEventsDashboardDataProvider
                 // Some Temporal deployments do not support custom visibility query syntax.
                 $request = new ListWorkflowExecutionsRequest();
                 $request->setNamespace($this->connection->namespace);
-                $request->setPageSize(100);
+                $request->setPageSize($pageSize);
+                if ('' !== $cursor) {
+                    $request->setNextPageToken($this->decodeCursor($cursor));
+                }
 
                 $response = GrpcUnary::wait(
                     $this->workflowServiceClient->ListWorkflowExecutions(
@@ -71,12 +86,18 @@ final class TemporalEventsDashboardDataProvider
                     ),
                 );
             } catch (\Throwable) {
-                return $this->fallbackRuns();
+                return [
+                    'runs' => $this->fallbackRuns(),
+                    'nextCursor' => null,
+                ];
             }
         }
 
         if (!$response instanceof ListWorkflowExecutionsResponse) {
-            return $this->fallbackRuns();
+            return [
+                'runs' => $this->fallbackRuns(),
+                'nextCursor' => null,
+            ];
         }
 
         $runs = [];
@@ -92,10 +113,18 @@ final class TemporalEventsDashboardDataProvider
         });
 
         if ([] === $runs) {
-            return $this->fallbackRuns();
+            return [
+                'runs' => $this->fallbackRuns(),
+                'nextCursor' => null,
+            ];
         }
 
-        return $runs;
+        $nextToken = $response->getNextPageToken();
+
+        return [
+            'runs' => $runs,
+            'nextCursor' => '' !== $nextToken ? $this->encodeCursor($nextToken) : null,
+        ];
     }
 
     /**
@@ -106,7 +135,7 @@ final class TemporalEventsDashboardDataProvider
      *   taskQueue: string,
      *   startedAt: string,
      *   duration: string,
-     *   events: list<array{time: string, type: string}>,
+     *   events: list<array{eventId: int, time: string, type: string}>,
      *   workflowId?: string
      * } $run
      *
@@ -117,7 +146,7 @@ final class TemporalEventsDashboardDataProvider
      *   taskQueue: string,
      *   startedAt: string,
      *   duration: string,
-     *   events: list<array{time: string, type: string}>,
+     *   events: list<array{eventId: int, time: string, type: string}>,
      *   workflowId?: string
      * }
      */
@@ -141,7 +170,7 @@ final class TemporalEventsDashboardDataProvider
             $tail = [];
             foreach ($this->historyCursor->events($execution) as $historyEvent) {
                 $tail[] = $historyEvent;
-                if (\count($tail) > 8) {
+                if (\count($tail) > 30) {
                     \array_shift($tail);
                 }
             }
@@ -150,8 +179,10 @@ final class TemporalEventsDashboardDataProvider
             }
 
             $events = [];
+            /** @var HistoryEvent $event */
             foreach ($tail as $event) {
                 $events[] = [
+                    'eventId' => (int) $event->getEventId(),
                     'time' => $this->formatProtoTimestamp($event->getEventTime()),
                     'type' => $this->normalizeEventType(EventType::name($event->getEventType())),
                 ];
@@ -172,8 +203,8 @@ final class TemporalEventsDashboardDataProvider
      *   taskQueue: string,
      *   startedAt: string,
      *   duration: string,
-     *   events: list<array{time: string, type: string}>
-     *   workflowId?: string
+     *   events: list<array{eventId: int, time: string, type: string}>,
+     *   workflowId?: string,
      * }|null
      */
     private function fromExecutionInfo(WorkflowExecutionInfo $info): ?array
@@ -260,6 +291,24 @@ final class TemporalEventsDashboardDataProvider
         return \str_replace('_', ' ', $normalized);
     }
 
+    private function encodeCursor(string $token): string
+    {
+        return \rtrim(\strtr(\base64_encode($token), '+/', '-_'), '=');
+    }
+
+    private function decodeCursor(string $encodedCursor): string
+    {
+        $normalized = \strtr($encodedCursor, '-_', '+/');
+        $pad = \strlen($normalized) % 4;
+        if (0 !== $pad) {
+            $normalized .= \str_repeat('=', 4 - $pad);
+        }
+
+        $decoded = \base64_decode($normalized, true);
+
+        return false === $decoded ? '' : $decoded;
+    }
+
     /**
      * @return list<array{
      *   runId: string,
@@ -268,8 +317,8 @@ final class TemporalEventsDashboardDataProvider
      *   taskQueue: string,
      *   startedAt: string,
      *   duration: string,
-     *   events: list<array{time: string, type: string}>
-     *   workflowId?: string
+     *   events: list<array{eventId: int, time: string, type: string}>,
+     *   workflowId?: string,
      * }>
      */
     private function fallbackRuns(): array
@@ -283,9 +332,9 @@ final class TemporalEventsDashboardDataProvider
                 'startedAt' => '2026-04-06 13:25:32',
                 'duration' => '00:04:12',
                 'events' => [
-                    ['time' => '13:25:32', 'type' => 'WORKFLOW EXECUTION STARTED'],
-                    ['time' => '13:25:35', 'type' => 'ACTIVITY TASK SCHEDULED'],
-                    ['time' => '13:29:44', 'type' => 'WORKFLOW TASK STARTED'],
+                    ['eventId' => 1, 'time' => '13:25:32', 'type' => 'WORKFLOW EXECUTION STARTED'],
+                    ['eventId' => 2, 'time' => '13:25:35', 'type' => 'ACTIVITY TASK SCHEDULED'],
+                    ['eventId' => 3, 'time' => '13:29:44', 'type' => 'WORKFLOW TASK STARTED'],
                 ],
                 'workflowId' => 'durable-demo-run-001',
             ],
@@ -297,9 +346,9 @@ final class TemporalEventsDashboardDataProvider
                 'startedAt' => '2026-04-06 12:58:03',
                 'duration' => '00:01:47',
                 'events' => [
-                    ['time' => '12:58:03', 'type' => 'WORKFLOW EXECUTION STARTED'],
-                    ['time' => '12:58:10', 'type' => 'ACTIVITY TASK COMPLETED'],
-                    ['time' => '12:59:50', 'type' => 'WORKFLOW EXECUTION COMPLETED'],
+                    ['eventId' => 1, 'time' => '12:58:03', 'type' => 'WORKFLOW EXECUTION STARTED'],
+                    ['eventId' => 2, 'time' => '12:58:10', 'type' => 'ACTIVITY TASK COMPLETED'],
+                    ['eventId' => 3, 'time' => '12:59:50', 'type' => 'WORKFLOW EXECUTION COMPLETED'],
                 ],
                 'workflowId' => 'durable-demo-run-002',
             ],
@@ -311,9 +360,9 @@ final class TemporalEventsDashboardDataProvider
                 'startedAt' => '2026-04-06 12:40:11',
                 'duration' => '00:00:53',
                 'events' => [
-                    ['time' => '12:40:11', 'type' => 'WORKFLOW EXECUTION STARTED'],
-                    ['time' => '12:40:32', 'type' => 'ACTIVITY TASK FAILED'],
-                    ['time' => '12:41:04', 'type' => 'WORKFLOW EXECUTION FAILED'],
+                    ['eventId' => 1, 'time' => '12:40:11', 'type' => 'WORKFLOW EXECUTION STARTED'],
+                    ['eventId' => 2, 'time' => '12:40:32', 'type' => 'ACTIVITY TASK FAILED'],
+                    ['eventId' => 3, 'time' => '12:41:04', 'type' => 'WORKFLOW EXECUTION FAILED'],
                 ],
                 'workflowId' => 'durable-demo-run-003',
             ],

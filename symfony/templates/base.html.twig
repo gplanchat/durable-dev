@@ -328,6 +328,35 @@
             flex-direction: column;
             gap: 0.75rem;
         }
+        .ds-pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 0.75rem;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--ds-border);
+            border-radius: 10px;
+            flex-wrap: wrap;
+        }
+        .ds-pagination__label {
+            color: var(--ds-text-muted);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .ds-pagination__disabled {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.35rem 0.65rem;
+            border-radius: 13px;
+            border: 1px solid var(--ds-border);
+            color: rgba(210, 202, 227, 0.55);
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 700;
+        }
         .ds-run-row {
             text-decoration: none !important;
             display: flex;
@@ -411,6 +440,61 @@
             color: var(--ds-text-muted);
             font-size: 0.9rem;
             padding: 0.6rem 0.2rem;
+        }
+        .ds-timeline {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .ds-timeline__item {
+            display: grid;
+            grid-template-columns: 14px 1fr;
+            gap: 0.6rem;
+            align-items: start;
+            position: relative;
+        }
+        .ds-timeline__item::before {
+            content: "";
+            position: absolute;
+            left: 6px;
+            top: 14px;
+            bottom: -12px;
+            width: 2px;
+            background: rgba(121, 98, 140, 0.6);
+        }
+        .ds-timeline__item:last-child::before {
+            display: none;
+        }
+        .ds-timeline__dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            border: 2px solid var(--ds-primary-hover);
+            background: var(--ds-bg);
+            margin-top: 3px;
+        }
+        .ds-timeline__content {
+            border: 1px solid var(--ds-border);
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 0.5rem 0.6rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .ds-timeline__meta {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            color: var(--ds-text-muted);
+            font-size: 0.77rem;
+        }
+        .ds-event__id {
+            font-family: var(--font-mono);
+            color: rgba(194, 239, 78, 0.85);
         }
 
         .hero {

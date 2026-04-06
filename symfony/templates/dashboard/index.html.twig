@@ -50,12 +50,44 @@
 
     <section class="ds-dashboard-split">
         <aside class="ds-dashboard-list" aria-label="Liste des workflows">
+            <div class="ds-pagination">
+                <span class="ds-pagination__label">Pagination par curseur ({{ pagination.pageSize }} par page)</span>
+                <div class="hstack">
+                    {% if pagination.hasPrevious %}
+                        <a class="btn btn-ghost btn-sm" href="{{ path('app_dashboard', {
+                            q: query,
+                            status: status,
+                            cursor: pagination.previousCursor,
+                            stack: pagination.previousStack
+                        }) }}">← Page precedente</a>
+                    {% else %}
+                        <span class="ds-pagination__disabled">← Page precedente</span>
+                    {% endif %}
+                    {% if pagination.hasNext %}
+                        <a class="btn btn-ghost btn-sm" href="{{ path('app_dashboard', {
+                            q: query,
+                            status: status,
+                            cursor: pagination.nextCursor,
+                            stack: pagination.nextStack
+                        }) }}">Page suivante →</a>
+                    {% else %}
+                        <span class="ds-pagination__disabled">Page suivante →</span>
+                    {% endif %}
+                </div>
+            </div>
+
             {% if runs is empty %}
                 <p class="ds-empty-state">Aucun workflow ne correspond aux filtres.</p>
             {% else %}
                 {% for run in runs %}
                     <a class="ds-run-row{% if selectedRunId == run.runId %} is-active{% endif %}"
-                       href="{{ path('app_dashboard', { q: query, status: status, run: run.runId }) }}">
+                       href="{{ path('app_dashboard', {
+                           q: query,
+                           status: status,
+                           run: run.runId,
+                           cursor: pagination.cursor,
+                           stack: pagination.stack
+                       }) }}">
                         <div class="ds-run-row__title">
                             <span>{{ run.workflowName }}</span>
                             <span class="ds-status-badge ds-status-badge--{{ run.status }}">{{ run.status|upper }}</span>
@@ -94,16 +126,22 @@
                 </div>
 
                 <div class="result-card">
-                    <div class="result-card-header">Evenements Recents</div>
+                    <div class="result-card-header">Frise temporelle des evenements</div>
                     <div class="result-card-body">
-                        <ul class="ds-event-list">
+                        <ol class="ds-timeline">
                             {% for event in selectedRun.events %}
-                                <li class="ds-event">
-                                    <span class="ds-event__time">{{ event.time }}</span>
-                                    <code class="ds-mono">{{ event.type }}</code>
+                                <li class="ds-timeline__item">
+                                    <span class="ds-timeline__dot"></span>
+                                    <div class="ds-timeline__content">
+                                        <div class="ds-timeline__meta">
+                                            <span class="ds-event__time">{{ event.time }}</span>
+                                            <span class="ds-event__id">#{{ event.eventId }}</span>
+                                        </div>
+                                        <code class="ds-mono">{{ event.type }}</code>
+                                    </div>
                                 </li>
                             {% endfor %}
-                        </ul>
+                        </ol>
                     </div>
                 </div>
             {% else %}

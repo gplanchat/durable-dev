@@ -12,13 +12,19 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class DashboardController extends AbstractController
 {
+    private const DASHBOARD_PAGE_SIZE = 20;
+
     #[Route('/dashboard', name: 'app_dashboard', methods: ['GET'])]
     public function index(Request $request, TemporalEventsDashboardDataProvider $dataProvider): Response
     {
         $query = \trim((string) $request->query->get('q', ''));
         $status = \trim((string) $request->query->get('status', 'all'));
+        $cursor = \trim((string) $request->query->get('cursor', ''));
+        $stackEncoded = \trim((string) $request->query->get('stack', ''));
+        $cursorStack = $this->decodeCursorStack($stackEncoded);
 
-        $runs = $dataProvider->provideRuns();
+        $page = $dataProvider->provideRunsPage($cursor, self::DASHBOARD_PAGE_SIZE);
+        $runs = $page['runs'];
         $filteredRuns = \array_values(\array_filter($runs, static function (array $run) use ($query, $status): bool {
             $matchesStatus = 'all' === $status || $run['status'] === $status;
             $matchesQuery = '' === $query
@@ -47,6 +53,19 @@ final class DashboardController extends AbstractController
             $selectedRun = $dataProvider->enrichWithHistory($selectedRun);
         }
 
+        $previousCursor = null;
+        $previousStackEncoded = '';
+        if ([] !== $cursorStack) {
+            $previousStack = $cursorStack;
+            $previousCursor = (string) \array_pop($previousStack);
+            $previousStackEncoded = $this->encodeCursorStack($previousStack);
+        }
+
+        $nextCursor = $page['nextCursor'];
+        $nextStack = $cursorStack;
+        $nextStack[] = $cursor;
+        $nextStackEncoded = $this->encodeCursorStack($nextStack);
+
         return $this->render('dashboard/index.html.twig', [
             'runs' => $filteredRuns,
             'selectedRun' => $selectedRun,
@@ -54,7 +73,60 @@ final class DashboardController extends AbstractController
             'query' => $query,
             'status' => $status,
             'kpis' => $this->buildKpis($filteredRuns),
+            'pagination' => [
+                'hasPrevious' => null !== $previousCursor,
+                'previousCursor' => $previousCursor,
+                'previousStack' => $previousStackEncoded,
+                'hasNext' => null !== $nextCursor,
+                'nextCursor' => $nextCursor,
+                'nextStack' => $nextStackEncoded,
+                'cursor' => $cursor,
+                'stack' => $stackEncoded,
+                'pageSize' => self::DASHBOARD_PAGE_SIZE,
+            ],
         ]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function decodeCursorStack(string $encoded): array
+    {
+        if ('' === $encoded) {
+            return [];
+        }
+
+        $normalized = \strtr($encoded, '-_', '+/');
+        $pad = \strlen($normalized) % 4;
+        if (0 !== $pad) {
+            $normalized .= \str_repeat('=', 4 - $pad);
+        }
+
+        $decoded = \base64_decode($normalized, true);
+        if (false === $decoded) {
+            return [];
+        }
+
+        $data = \json_decode($decoded, true);
+        if (!\is_array($data)) {
+            return [];
+        }
+
+        return \array_values(\array_filter($data, static fn (mixed $v): bool => \is_string($v)));
+    }
+
+    /**
+     * @param list<string> $stack
+     */
+    private function encodeCursorStack(array $stack): string
+    {
+        if ([] === $stack) {
+            return '';
+        }
+
+        $json = \json_encode($stack, \JSON_THROW_ON_ERROR);
+
+        return \rtrim(\strtr(\base64_encode($json), '+/', '-_'), '=');
     }
 
     /**
