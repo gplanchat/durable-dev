@@ -5,11 +5,11 @@ weight: 25
 
 # Creating a workflow
 
-This page summarizes how you **author** a workflow in Durable. The normative rules live in contributor ADRs [**DUR022**](https://github.com/gplanchat/durable/blob/main/documentation/adr/DUR022-workflow-class-interface-and-workflow-environment.md) and related decisions (**DUR003**, **DUR013**); this guide stays practical.
+This page summarizes how you **author** a workflow in Durable. The normative rules live in contributor ADRs [**DUR022**](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR022-workflow-class-interface-and-workflow-environment.md) and related decisions (**DUR003**, **DUR013**); this guide stays practical.
 
 ## Example: minimal workflow
 
-Define a **contract interface** (optional but recommended for tests and typing) and a **concrete class** registered with the runtime. The **`#[Workflow]`** attribute is placed on the **class** in today’s loader (see [DUR022](https://github.com/gplanchat/durable/blob/main/documentation/adr/DUR022-workflow-class-interface-and-workflow-environment.md) for the long-term interface-first model).
+Define a **contract interface** (optional but recommended for tests and typing) and a **concrete class** registered with the runtime. The **`#[Workflow]`** attribute is placed on the **class** in today’s loader (see [DUR022](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR022-workflow-class-interface-and-workflow-environment.md) for the long-term interface-first model).
 
 ```php
 <?php
