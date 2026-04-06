@@ -89,4 +89,26 @@ final class SamplesControllerSmokeTest extends WebTestCase
 
         $this->assertResponseStatusCodeSame(404);
     }
+
+    public function testDashboardReturns200WithWorkflowHeading(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/dashboard');
+
+        $this->assertResponseIsSuccessful();
+        $content = (string) $client->getResponse()->getContent();
+        $this->assertStringContainsString('Workflow Dashboard', $content);
+        $this->assertStringContainsString('Running', $content);
+    }
+
+    public function testDashboardFiltersByStatus(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/dashboard?status=failed');
+
+        $this->assertResponseIsSuccessful();
+        $content = (string) $client->getResponse()->getContent();
+        $this->assertStringContainsString('BOOKINGSAGA', strtoupper($content));
+        $this->assertStringNotContainsString('SIMPLEACTIVITY', strtoupper($content));
+    }
 }
