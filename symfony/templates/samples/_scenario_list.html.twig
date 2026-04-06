@@ -1,0 +1,21 @@
+<div class="card-grid">
+    {% for s in scenarios %}
+        <article class="card">
+            <div class="card-header">
+                <h3 class="card-title">{{ s.label }}</h3>
+                <span class="card-badge">{{ s.sourceFolder }}/</span>
+            </div>
+            <p class="card-description">{{ s.description }}</p>
+            <div class="card-actions">
+                <a href="{{ path('durable_samples_run', { id: s.id }) }}" class="btn btn-primary">
+                    ▶ Synchrone
+                </a>
+                <a href="{{ path('durable_samples_run', { id: s.id, wait: '0' }) }}" class="btn btn-ghost">
+                    ⚡ Async
+                </a>
+            </div>
+        </article>
+    {% else %}
+        <p style="color: var(--c-muted);">Aucun scénario enregistré.</p>
+    {% endfor %}
+</div>

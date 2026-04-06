@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Samples — Durable pour Symfony{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="page-intro">
+        <h1>Samples workflows</h1>
+        <p>
+            Scénarios portés depuis
+            <a href="https://github.com/temporalio/samples-php/tree/master/app/src">temporalio/samples-php</a>,
+            réécrits pour le moteur Durable (sans SDK Temporal PHP officiel ni RoadRunner).
+        </p>
+        <p>
+            <strong>▶ Synchrone</strong> — la page attend la fin du run (drain des transports dans la même requête) ;
+            résultat et journal disponibles immédiatement dans le profiler.
+            <strong>⚡ Async</strong> — envoi seul (fire &amp; forget) ; le workflow s'exécute dans des workers séparés.
+        </p>
+    </div>
+
+    {% include 'samples/_scenario_list.html.twig' %}
+</div>
+{% endblock %}

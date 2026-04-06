@@ -1,29 +1,52 @@
+parameters:
+    # Test (APP_ENV=test) : in-memory forcé via when@test. Dev/prod : DURABLE_DSN + transports ci-dessous (même DSN, purpose différent).
+    env(MESSENGER_DURABLE_WORKFLOW_DSN): 'in-memory://'
+    env(MESSENGER_DURABLE_ACTIVITY_DSN): 'in-memory://'
+    # Défaut aligné sur symfony/.env (TEMPORAL_FRONTEND_PORT=7234 dans compose) — éviter 7233 si le port hôte diffère.
+    env(DURABLE_DSN): 'temporal://127.0.0.1:7234?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0'
+
 framework:
     messenger:
         failure_transport: failed
         transports:
             sync: 'sync://'
-            failed: 'doctrine://default?queue_name=failed&auto_setup=true'
+            failed: 'in-memory://'
             durable_workflows: '%env(MESSENGER_DURABLE_WORKFLOW_DSN)%'
             durable_activities: '%env(MESSENGER_DURABLE_ACTIVITY_DSN)%'
 
         routing:
-            Gplanchat\Durable\Transport\WorkflowRunMessage: durable_workflows
+            Gplanchat\Durable\Transport\ResumeWorkflowMessage: durable_workflows
             Gplanchat\Durable\Transport\ActivityMessage: durable_activities
             Gplanchat\Durable\Transport\FireWorkflowTimersMessage: sync
             Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage: sync
             Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage: sync
 
-# En dev : MESSENGER_DURABLE_* dans .env.dev → temporal://…?inner=doctrine://… (durable-bridge-temporal).
-# Poll du journal Temporal (receive-only, sans inner) : messenger:consume durable_temporal_journal (DURABLE_TEMPORAL_DSN).
-# Sinon défaut doctrine:// dans parameters (doctrine.yaml). Tests : in-memory (when@test).
 when@dev:
     framework:
         messenger:
             transports:
-                durable_temporal_journal: '%env(DURABLE_TEMPORAL_DSN)%'
+                # DSN peut omettre interpreter_mirror=1 : le bundle injecte durable.temporal.connection (identique à l’EventStore).
+                durable_temporal_journal:
+                    dsn: '%env(DURABLE_DSN)%'
+                durable_temporal_activity:
+                    dsn: '%env(DURABLE_DSN)%'
+                    options:
+                        purpose: activity_worker
             routing:
-                # DelayStamp pris en charge par Doctrine ; évite le spam sync lors des pauses timer longues.
+                Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows
+
+when@prod:
+    framework:
+        messenger:
+            transports:
+                # Même remarque que dev : connexion effective via durable.temporal.connection (bundle).
+                durable_temporal_journal:
+                    dsn: '%env(DURABLE_DSN)%'
+                durable_temporal_activity:
+                    dsn: '%env(DURABLE_DSN)%'
+                    options:
+                        purpose: activity_worker
+            routing:
                 Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows
 
 when@test:
@@ -33,3 +56,7 @@ when@test:
                 durable_workflows: 'in-memory://'
                 durable_activities: 'in-memory://'
                 failed: 'in-memory://'
+            routing:
+                # Comme dev/prod : les réveils timer portent DelayStamp ; sync:// les exécute tout de suite
+                # et ignore le délai — les workflows sample (Query 2s, Periodic 0.2s) ne terminent jamais.
+                Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows

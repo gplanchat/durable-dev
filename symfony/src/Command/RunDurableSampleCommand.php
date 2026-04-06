@@ -9,7 +9,7 @@ use App\Durable\DurableSampleWorkflows;
 use Gplanchat\Durable\Query\WorkflowQueryEvaluator;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
-use Gplanchat\Durable\Transport\WorkflowRunMessage;
+use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\WorkflowRegistry;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -31,6 +31,7 @@ final class RunDurableSampleCommand extends Command
 {
     public function __construct(
         private readonly WorkflowRegistry $workflowRegistry,
+        private readonly WorkflowResumeDispatcher $workflowResumeDispatcher,
         private readonly MessageBusInterface $messageBus,
         private readonly EventStoreInterface $eventStore,
         private readonly WorkflowMetadataStore $workflowMetadataStore,
@@ -72,11 +73,8 @@ final class RunDurableSampleCommand extends Command
                 <<<'HELP'
 Ce projet illustre <info>gplanchat/durable</info> avec <comment>Symfony Messenger</comment> : les reprises de
 workflow et les activités passent par les transports <info>durable_workflows</info> et
-<info>durable_activities</info> (Doctrine DBAL / SQLite par défaut, voir <comment>config/packages/doctrine.yaml</comment>).
-
-Avant la première exécution en <info>dev</info>, initialiser les tables du journal / métadonnées / lien parent-enfant :
-
-  <info>php bin/console durable:schema:init</info>
+<info>durable_activities</info> (Messenger, voir <comment>config/packages/messenger.yaml</comment>).
+En dev, le journal d’événements peut utiliser <comment>Temporal</comment> (voir <comment>.env.dev</comment>) sans base SQL pour Durable.
 
 Workflows disponibles (voir <info>App\Durable\DurableSampleWorkflows</info>) :
 
@@ -122,10 +120,10 @@ HELP
         $payload = $this->buildPayload($workflowType, $input);
         $executionId = (string) ($input->getOption('execution-id') ?: Uuid::v4());
 
-        $this->messageBus->dispatch(new WorkflowRunMessage($executionId, $workflowType, $payload));
+        $this->workflowResumeDispatcher->dispatchNewWorkflowRun($executionId, $workflowType, $payload);
 
         if ($input->getOption('no-drain')) {
-            $io->note('Message WorkflowRunMessage dispatché. Lancez par exemple :');
+            $io->note('ResumeWorkflowMessage dispatché. Lancez par exemple :');
             $io->text('  php bin/console messenger:consume durable_workflows durable_activities -vv');
 
             return Command::SUCCESS;
