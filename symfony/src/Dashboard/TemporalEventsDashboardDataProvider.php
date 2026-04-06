@@ -4,12 +4,25 @@ declare(strict_types=1);
 
 namespace App\Dashboard;
 
-use Symfony\Component\HttpKernel\KernelInterface;
+use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
+use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
+use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
+use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Temporal\Api\Common\V1\WorkflowExecution;
+use Temporal\Api\Enums\V1\EventType;
+use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
+use Temporal\Api\History\V1\HistoryEvent;
+use Temporal\Api\Workflow\V1\WorkflowExecutionInfo;
+use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsRequest;
+use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsResponse;
+use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 final class TemporalEventsDashboardDataProvider
 {
     public function __construct(
-        private readonly KernelInterface $kernel,
+        private readonly ?WorkflowServiceClient $workflowServiceClient = null,
+        private readonly ?TemporalConnection $connection = null,
+        private readonly ?TemporalHistoryCursor $historyCursor = null,
     ) {
     }
 
@@ -26,26 +39,129 @@ final class TemporalEventsDashboardDataProvider
      */
     public function provideRuns(): array
     {
-        $runs = [];
-        $files = \glob($this->kernel->getProjectDir().'/*_events.json');
-        if (false !== $files) {
-            foreach ($files as $file) {
-                $run = $this->parseRunFile($file);
-                if (null !== $run) {
-                    $runs[] = $run;
-                }
+        if (null === $this->workflowServiceClient || null === $this->connection) {
+            return $this->fallbackRuns();
+        }
+
+        try {
+            $request = new ListWorkflowExecutionsRequest();
+            $request->setNamespace($this->connection->namespace);
+            $request->setPageSize(100);
+            $request->setQuery('WorkflowId STARTS_WITH "durable-"');
+
+            $response = GrpcUnary::wait(
+                $this->workflowServiceClient->ListWorkflowExecutions(
+                    $request,
+                    [],
+                    ['timeout' => TemporalGrpcTimeouts::SHORT_US],
+                ),
+            );
+        } catch (\Throwable) {
+            try {
+                // Some Temporal deployments do not support custom visibility query syntax.
+                $request = new ListWorkflowExecutionsRequest();
+                $request->setNamespace($this->connection->namespace);
+                $request->setPageSize(100);
+
+                $response = GrpcUnary::wait(
+                    $this->workflowServiceClient->ListWorkflowExecutions(
+                        $request,
+                        [],
+                        ['timeout' => TemporalGrpcTimeouts::SHORT_US],
+                    ),
+                );
+            } catch (\Throwable) {
+                return $this->fallbackRuns();
             }
         }
 
-        if ([] === $runs) {
+        if (!$response instanceof ListWorkflowExecutionsResponse) {
             return $this->fallbackRuns();
+        }
+
+        $runs = [];
+        foreach ($response->getExecutions() as $info) {
+            $run = $this->fromExecutionInfo($info);
+            if (null !== $run) {
+                $runs[] = $run;
+            }
         }
 
         \usort($runs, static function (array $left, array $right): int {
             return \strcmp($right['startedAt'], $left['startedAt']);
         });
 
+        if ([] === $runs) {
+            return $this->fallbackRuns();
+        }
+
         return $runs;
+    }
+
+    /**
+     * @param array{
+     *   runId: string,
+     *   workflowName: string,
+     *   status: 'running'|'completed'|'failed',
+     *   taskQueue: string,
+     *   startedAt: string,
+     *   duration: string,
+     *   events: list<array{time: string, type: string}>,
+     *   workflowId?: string
+     * } $run
+     *
+     * @return array{
+     *   runId: string,
+     *   workflowName: string,
+     *   status: 'running'|'completed'|'failed',
+     *   taskQueue: string,
+     *   startedAt: string,
+     *   duration: string,
+     *   events: list<array{time: string, type: string}>,
+     *   workflowId?: string
+     * }
+     */
+    public function enrichWithHistory(array $run): array
+    {
+        if (null === $this->historyCursor) {
+            return $run;
+        }
+
+        $workflowId = (string) ($run['workflowId'] ?? '');
+        $runId = $run['runId'];
+        if ('' === $workflowId || '' === $runId) {
+            return $run;
+        }
+
+        try {
+            $execution = new WorkflowExecution();
+            $execution->setWorkflowId($workflowId);
+            $execution->setRunId($runId);
+
+            $tail = [];
+            foreach ($this->historyCursor->events($execution) as $historyEvent) {
+                $tail[] = $historyEvent;
+                if (\count($tail) > 8) {
+                    \array_shift($tail);
+                }
+            }
+            if ([] === $tail) {
+                return $run;
+            }
+
+            $events = [];
+            foreach ($tail as $event) {
+                $events[] = [
+                    'time' => $this->formatProtoTimestamp($event->getEventTime()),
+                    'type' => $this->normalizeEventType(EventType::name($event->getEventType())),
+                ];
+            }
+            $run['events'] = $events;
+        } catch (\Throwable) {
+            // Keep run without history preview when Temporal cannot return history.
+        }
+
+        return $run;
     }
 
     /**
@@ -57,107 +173,85 @@ final class TemporalEventsDashboardDataProvider
      *   startedAt: string,
      *   duration: string,
      *   events: list<array{time: string, type: string}>
+     *   workflowId?: string
      * }|null
      */
-    private function parseRunFile(string $file): ?array
+    private function fromExecutionInfo(WorkflowExecutionInfo $info): ?array
     {
-        $raw = \file_get_contents($file);
-        if (false === $raw) {
+        $execution = $info->getExecution();
+        if (null === $execution) {
+            return null;
+        }
+        $workflowType = $info->getType();
+
+        $workflowId = (string) $execution->getWorkflowId();
+        $runId = (string) $execution->getRunId();
+        if ('' === $runId) {
             return null;
         }
 
-        try {
-            /** @var array{events?: list<array<string, mixed>>} $decoded */
-            $decoded = \json_decode($raw, true, 512, \JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return null;
-        }
-
-        $events = $decoded['events'] ?? [];
-        if ([] === $events) {
-            return null;
-        }
-
-        $first = $events[0];
-        $last = $events[\count($events) - 1];
-
-        $status = 'running';
-        $lastType = (string) ($last['eventType'] ?? '');
-        if (\str_contains($lastType, 'WORKFLOW_EXECUTION_COMPLETED')) {
-            $status = 'completed';
-        } elseif (\str_contains($lastType, 'WORKFLOW_EXECUTION_FAILED')
-            || \str_contains($lastType, 'WORKFLOW_EXECUTION_TERMINATED')
-            || \str_contains($lastType, 'WORKFLOW_EXECUTION_TIMED_OUT')
-            || \str_contains($lastType, 'WORKFLOW_EXECUTION_CANCELED')) {
-            $status = 'failed';
-        }
-
-        $startedAtIso = (string) ($first['eventTime'] ?? '');
-        $endedAtIso = (string) ($last['eventTime'] ?? $startedAtIso);
-        $startedAt = $this->formatTimestamp($startedAtIso);
-        $duration = $this->formatDuration($startedAtIso, $endedAtIso);
-
-        /** @var array<string, mixed> $startedAttributes */
-        $startedAttributes = (array) ($first['workflowExecutionStartedEventAttributes'] ?? []);
-        /** @var array<string, mixed> $workflowType */
-        $workflowType = (array) ($startedAttributes['workflowType'] ?? []);
-        /** @var array<string, mixed> $taskQueue */
-        $taskQueue = (array) ($startedAttributes['taskQueue'] ?? []);
-
-        $eventsPreview = [];
-        $tail = \array_slice($events, -6);
-        foreach ($tail as $event) {
-            $eventIsoTime = (string) ($event['eventTime'] ?? '');
-            $eventType = (string) ($event['eventType'] ?? 'EVENT_TYPE_UNKNOWN');
-            $eventsPreview[] = [
-                'time' => '' !== $eventIsoTime ? (string) (new \DateTimeImmutable($eventIsoTime))->format('H:i:s') : '--:--:--',
-                'type' => $this->normalizeEventType($eventType),
-            ];
-        }
-
-        $baseName = \basename($file);
-        $runId = \str_ends_with($baseName, '_events.json')
-            ? \substr($baseName, 0, -11)
-            : $baseName;
-
+        $status = $this->mapStatus($info->getStatus());
         return [
             'runId' => $runId,
-            'workflowName' => (string) ($workflowType['name'] ?? 'UnknownWorkflow'),
+            'workflowName' => null !== $workflowType ? (string) $workflowType->getName() : 'UnknownWorkflow',
             'status' => $status,
-            'taskQueue' => (string) ($taskQueue['name'] ?? 'default'),
-            'startedAt' => $startedAt,
-            'duration' => $duration,
-            'events' => $eventsPreview,
+            'taskQueue' => (string) $info->getTaskQueue(),
+            'startedAt' => $this->formatProtoTimestamp($info->getStartTime(), 'Y-m-d H:i:s'),
+            'duration' => $this->formatProtoDuration($info->getExecutionDuration(), $info->getStartTime(), $info->getCloseTime()),
+            'events' => [],
+            'workflowId' => $workflowId,
         ];
     }
 
-    private function formatTimestamp(string $iso): string
+    private function mapStatus(int $status): string
     {
-        if ('' === $iso) {
-            return 'n/a';
-        }
-
-        try {
-            return (new \DateTimeImmutable($iso))->format('Y-m-d H:i:s');
-        } catch (\Exception) {
-            return 'n/a';
-        }
+        return match ($status) {
+            WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING => 'running',
+            WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_COMPLETED => 'completed',
+            default => 'failed',
+        };
     }
 
-    private function formatDuration(string $startedIso, string $endedIso): string
+    private function formatProtoTimestamp(?\Google\Protobuf\Timestamp $timestamp, string $format = 'H:i:s'): string
     {
-        try {
-            $startedAt = new \DateTimeImmutable($startedIso);
-            $endedAt = new \DateTimeImmutable($endedIso);
-            $seconds = \max(0, $endedAt->getTimestamp() - $startedAt->getTimestamp());
-            $hours = (int) \floor($seconds / 3600);
-            $minutes = (int) \floor(($seconds % 3600) / 60);
-            $remaining = $seconds % 60;
+        if (null === $timestamp) {
+            return '--:--:--';
+        }
 
-            return \sprintf('%02d:%02d:%02d', $hours, $minutes, $remaining);
-        } catch (\Exception) {
+        $seconds = (int) $timestamp->getSeconds();
+        $micros = (int) \floor(((int) $timestamp->getNanos()) / 1000);
+        $value = \sprintf('%d.%06d', $seconds, $micros);
+        $date = \DateTimeImmutable::createFromFormat('U.u', $value, new \DateTimeZone('UTC'));
+
+        return false === $date ? '--:--:--' : $date->setTimezone(new \DateTimeZone(\date_default_timezone_get()))->format($format);
+    }
+
+    private function formatProtoDuration(
+        ?\Google\Protobuf\Duration $duration,
+        ?\Google\Protobuf\Timestamp $startedAt,
+        ?\Google\Protobuf\Timestamp $closedAt,
+    ): string {
+        if (null !== $duration) {
+            $seconds = \max(0, (int) $duration->getSeconds());
+            return $this->formatSeconds($seconds);
+        }
+
+        if (null === $startedAt) {
             return '00:00:00';
         }
+
+        $startSeconds = (int) $startedAt->getSeconds();
+        $endSeconds = null !== $closedAt ? (int) $closedAt->getSeconds() : \time();
+        return $this->formatSeconds(\max(0, $endSeconds - $startSeconds));
+    }
+
+    private function formatSeconds(int $seconds): string
+    {
+        $hours = (int) \floor($seconds / 3600);
+        $minutes = (int) \floor(($seconds % 3600) / 60);
+        $remaining = $seconds % 60;
+
+        return \sprintf('%02d:%02d:%02d', $hours, $minutes, $remaining);
     }
 
     private function normalizeEventType(string $eventType): string
@@ -175,13 +269,14 @@ final class TemporalEventsDashboardDataProvider
      *   startedAt: string,
      *   duration: string,
      *   events: list<array{time: string, type: string}>
+     *   workflowId?: string
      * }>
      */
     private function fallbackRuns(): array
     {
         return [
             [
-                'runId' => 'demo-run-001',
+                'runId' => 'demo-run-001', // Fallback shown only when Temporal is unavailable.
                 'workflowName' => 'OrderFulfillment',
                 'status' => 'running',
                 'taskQueue' => 'default',
@@ -192,6 +287,7 @@ final class TemporalEventsDashboardDataProvider
                     ['time' => '13:25:35', 'type' => 'ACTIVITY TASK SCHEDULED'],
                     ['time' => '13:29:44', 'type' => 'WORKFLOW TASK STARTED'],
                 ],
+                'workflowId' => 'durable-demo-run-001',
             ],
             [
                 'runId' => 'demo-run-002',
@@ -205,6 +301,7 @@ final class TemporalEventsDashboardDataProvider
                     ['time' => '12:58:10', 'type' => 'ACTIVITY TASK COMPLETED'],
                     ['time' => '12:59:50', 'type' => 'WORKFLOW EXECUTION COMPLETED'],
                 ],
+                'workflowId' => 'durable-demo-run-002',
             ],
             [
                 'runId' => 'demo-run-003',
@@ -218,6 +315,7 @@ final class TemporalEventsDashboardDataProvider
                     ['time' => '12:40:32', 'type' => 'ACTIVITY TASK FAILED'],
                     ['time' => '12:41:04', 'type' => 'WORKFLOW EXECUTION FAILED'],
                 ],
+                'workflowId' => 'durable-demo-run-003',
             ],
         ];
     }

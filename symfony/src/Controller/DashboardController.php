@@ -43,6 +43,10 @@ final class DashboardController extends AbstractController
             $selectedRunId = $selectedRun['runId'];
         }
 
+        if (null !== $selectedRun) {
+            $selectedRun = $dataProvider->enrichWithHistory($selectedRun);
+        }
+
         return $this->render('dashboard/index.html.twig', [
             'runs' => $filteredRuns,
             'selectedRun' => $selectedRun,
