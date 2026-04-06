@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Durable;
 
-use Gplanchat\Bridge\Temporal\WorkflowClient;
+use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Query\WorkflowQueryEvaluator;
 use Gplanchat\Durable\Store\EventStoreInterface;
@@ -32,7 +32,7 @@ final class DurableSampleWorkflowRunner
         private readonly WorkflowMetadataStore $workflowMetadataStore,
         #[Autowire(service: 'messenger.receiver_locator')]
         private readonly ContainerInterface $receiverLocator,
-        private readonly ?WorkflowClient $workflowClient = null,
+        private readonly ?WorkflowClientInterface $workflowClient = null,
     ) {
     }
 

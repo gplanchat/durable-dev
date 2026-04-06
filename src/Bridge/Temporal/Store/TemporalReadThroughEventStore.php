@@ -6,7 +6,7 @@ namespace Gplanchat\Bridge\Temporal\Store;
 
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter;
-use Gplanchat\Bridge\Temporal\WorkflowClient;
+use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Temporal\Api\Common\V1\WorkflowExecution;
@@ -30,7 +30,7 @@ final class TemporalReadThroughEventStore implements EventStoreInterface
     public function __construct(
         private readonly EventStoreInterface $localStore,
         private readonly TemporalHistoryCursor $cursor,
-        private readonly WorkflowClient $workflowClient,
+        private readonly WorkflowClientInterface $workflowClient,
     ) {
     }
 
