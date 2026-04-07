@@ -1,10 +1,10 @@
-# Exécute splitsh-lite sur chaque préfixe (monorepo → commits mirroirs pour les sous-dépôts).
-# Historique Git complet requis ; voir bin/splitsh-publish.sh, ADR017, README (split / Packagist).
-# Secret optionnel SPLITSH_PUSH_TOKEN (PAT) pour git push HTTPS vers chaque dépôt satellite.
+# Runs splitsh-lite per prefix (monorepo → mirror commits for satellite repos).
+# Full Git history required; see bin/splitsh-publish.sh, DUR020, README (split / Packagist).
+# Optional secret SPLITSH_PUSH_TOKEN (PAT) for HTTPS git push to each satellite repo.
 #
-# splitsh/lite v2.0.0 utilise git2go v34 → libgit2 **1.5.x** uniquement. Le paquet `libgit2-dev`
-# du runner (souvent 1.7+) est incompatible → compilation de libgit2 v1.5.2 dans $HOME.
-# Ne pas utiliser ${{ runner.home }} — utiliser $HOME / ~.
+# splitsh/lite v2.0.0 uses git2go v34 → libgit2 **1.5.x** only. The runner's `libgit2-dev`
+# package (often 1.7+) is incompatible → build libgit2 v1.5.2 under $HOME.
+# Do not use ${{ runner.home }} — use $HOME / ~.
 name: Splitsh
 
 on:
