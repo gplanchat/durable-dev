@@ -1,6 +1,6 @@
 {
     "name": "gplanchat/durable-bundle",
-    "description": "Bundle Symfony pour gplanchat/durable : extension, autoconfiguration des workflows et des activités.",
+    "description": "Symfony bundle for gplanchat/durable: extension, autoconfiguration of workflows and activities.",
     "license": "proprietary",
     "type": "symfony-bundle",
     "version": "0.1.0",
@@ -15,7 +15,7 @@
         "symfony/messenger": "^6.4 || ^7.4"
     },
     "suggest": {
-        "symfony/web-profiler-bundle": "Web Debug Toolbar et profiler : panneau « Durable » (workflows / activités)"
+        "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)"
     },
     "autoload": {
         "psr-4": {
