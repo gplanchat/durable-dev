@@ -119,7 +119,7 @@ WA only
 documentation/
 ├── INDEX.md          ← Index of all documents (keep updated)
 ├── LIFECYCLE.md      ← This document
-├── adr/              ← ADR001-xxx.md, ADR002-xxx.md, ...
+├── adr/              ← DUR000-xxx.md, DUR001-xxx.md, … (Architecture Decision Records for this component)
 ├── wa/               ← WA001-xxx.md, WA002-xxx.md, ...
 ├── ost/              ← OST001-xxx.md, OST002-xxx.md, ...
 └── prd/              ← PRD001-xxx.md, PRD002-xxx.md, ...
@@ -129,9 +129,9 @@ documentation/
 
 ## Numbering
 
-- **Sequential per type** : ADR001, ADR002, ADR003…
+- **Sequential per type** : For this repository, ADR filenames use the **`DUR`** prefix (`DUR000`, `DUR001`, …) per project convention — see [DUR000](adr/DUR000-adr-management-process.md) and [documentation/INDEX.md](INDEX.md).
 - **No gaps** : Do not reuse a removed number
-- **Short slug** : Lowercase, hyphens, descriptive (e.g. `babylonjs-choice`)
+- **Short slug** : Lowercase, hyphens, descriptive (e.g. `temporal-grpc-bridge`)
 
 ---
 
@@ -141,7 +141,7 @@ Documents may reference each other:
 
 - **OST → ADR** : An ADR may record a technical decision stemming from an OST
 - **OST → PRD** : A PRD documents the feature explored in an OST
-- **ADR → ADR** : An ADR may supersede or complement another (status “Superseded by ADR002”)
+- **DUR → DUR** : An ADR may supersede or complement another (status “Superseded by DUR00x”)
 
 ---
 

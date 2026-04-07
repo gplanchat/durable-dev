@@ -1,14 +1,14 @@
 # Durable + Symfony sample application
 
-Demonstrates `gplanchat/durable` with **Messenger**, **Temporal** (gRPC workers), and class-based workflows (`App\Durable\Workflow\`). Persistance Durable **sans DBAL** : journal Temporal ou in-memory selon l'environnement.
+Demonstrates `gplanchat/durable` with **Messenger**, **Temporal** (gRPC workers), and class-based workflows (`App\Durable\Workflow\`). Durable persistence **without DBAL** in this sample: Temporal journal or in-memory depending on environment.
 
 ## Requirements
 
 - PHP 8.2+
-- Composer — dependencies live under **`symfony/vendor/`** (Composer default). Run **`composer install`** from this `symfony/` directory.
-- Packages **`gplanchat/durable`** and **`gplanchat/durable-bundle`** are resolved via **path** from **`../src/Durable`** and **`../src/DurableBundle`** at the monorepo root. For an app outside the monorepo: `composer require gplanchat/durable-bundle` from Packagist.
+- Composer — dependencies live under **`symfony/vendor/`**. Run **`composer install`** from this `symfony/` directory.
+- Packages **`gplanchat/durable`** and **`gplanchat/durable-bundle`** resolve via **path** from **`../src/Durable`** and **`../src/DurableBundle`** at the monorepo root. For an app outside the monorepo: `composer require gplanchat/durable-bundle` from Packagist.
 
-After changing the `vendor` layout, clear cache: **`rm -rf var/cache/*`** then **`php bin/console cache:clear`**.
+After changing the vendor layout, clear cache: **`rm -rf var/cache/*`** then **`php bin/console cache:clear`**.
 
 ## Installation
 
@@ -21,63 +21,63 @@ composer install
 
 ### WorkflowClient
 
-`WorkflowClient` est le point d'entrée pour interagir avec les workflows depuis le code applicatif (contrôleurs, commandes, services) :
+`WorkflowClient` is the entry point for workflows from application code (controllers, commands, services):
 
 ```php
-// Démarrer un workflow en mode fire-and-forget
+// Start a workflow (fire-and-forget)
 $executionId = $client->start('MyWorkflow', ['key' => 'value']);
 
-// Démarrer et attendre la fin (mode synchrone)
+// Start and wait until completion (synchronous)
 $result = $client->startSync('MyWorkflow', ['key' => 'value']);
 
-// Envoyer un signal
+// Send a signal
 $client->signal($executionId, 'approve', ['approved' => true]);
 
-// Interroger l'état d'un workflow
+// Query workflow state
 $status = $client->query($executionId, 'getStatus');
 
-// Envoyer un update (signal avec retour)
+// Send an update (signal with a return value)
 $result = $client->update($executionId, 'increment', ['amount' => 1]);
 ```
 
 ### ResumeWorkflowMessage
 
-Le `WorkflowClient` (et `WorkflowResumeDispatcher`) dispatche un `ResumeWorkflowMessage` contenant uniquement l'`executionId`. Les métadonnées (type de workflow, payload initial) sont persistées dans `WorkflowMetadataStore` avant le dispatch. Le `ResumeWorkflowHandler` récupère ces métadonnées pour reprendre ou démarrer l'exécution.
+`WorkflowClient` (and `WorkflowResumeDispatcher`) dispatches a `ResumeWorkflowMessage` containing only the `executionId`. Metadata (workflow type, initial payload) is stored in `WorkflowMetadataStore` before dispatch. `ResumeWorkflowHandler` loads that metadata to resume or start execution.
 
-### WorkflowTaskRunner (backend Temporal natif)
+### WorkflowTaskRunner (native Temporal backend)
 
-Pour le backend Temporal natif, `WorkflowTaskRunner` :
+For the native Temporal backend, `WorkflowTaskRunner`:
 
-1. Reçoit un `PollWorkflowTaskQueueResponse` contenant l'historique Temporal
-2. Construit un `TemporalExecutionHistory` en indexant les événements pour des lookups O(1)
-3. Lance le handler workflow dans une **`\Fiber`** PHP standard
-4. Rejoue l'historique : awaitables déjà résolus → reprise immédiate
-5. S'arrête sur le premier awaitable non résolu (nouvelle commande) → retourne les commandes Temporal
+1. Receives a `PollWorkflowTaskQueueResponse` with Temporal history
+2. Builds a `TemporalExecutionHistory` with O(1) event lookups
+3. Runs the workflow handler in a standard PHP **`Fiber`**
+4. Replays history: resolved awaitables resume immediately
+5. Stops on the first unresolved awaitable (new command) and returns Temporal commands
 
-Aucun `pcntl_fork()`, aucun Swoole, aucun RoadRunner — **PHP-CLI standard uniquement**.
+No `pcntl_fork()`, no Swoole, no RoadRunner — **plain PHP CLI**.
 
 ### Temporal History Cursor
 
-`TemporalHistoryCursor` pagine l'historique Temporal de manière **lazy** via `next_page_token`, sans charger tout l'historique en mémoire d'un coup.
+`TemporalHistoryCursor` lazily pages Temporal history via `next_page_token` without loading the full history into memory at once.
 
-## Dev : Temporal + workers Messenger
+## Dev: Temporal + Messenger workers
 
-Voir **`.env.dev`** : **`DURABLE_DSN`** (`temporal://…`), **`durable.temporal.dsn`** active le bridge Temporal.
+See **`.env.dev`**: **`DURABLE_DSN`** (`temporal://…`), **`durable.temporal.dsn`** enables the Temporal bridge.
 
-Workers typiques (à lancer via `symfony serve` ou manuellement) :
+Typical workers (via `symfony serve` or manual runs):
 
 ```bash
-# Worker journal (poll Temporal pour les workflow tasks)
+# Journal worker (polls Temporal for workflow tasks)
 php bin/console messenger:consume durable_temporal_journal
 
-# Worker activités (poll Temporal pour les activity tasks)
+# Activity worker (polls Temporal for activity tasks)
 php bin/console messenger:consume durable_temporal_activity
 
-# Worker workflows in-memory (backend Messenger)
+# In-memory workflow worker (Messenger backend)
 php bin/console messenger:consume durable_workflows
 ```
 
-Voir **`.symfony.local.yaml`** pour la configuration complète des workers avec `symfony serve`.
+See **`.symfony.local.yaml`** for full worker configuration when using `symfony serve`.
 
 ## PHPUnit (this app)
 
@@ -87,26 +87,26 @@ composer test
 # or: php bin/phpunit
 ```
 
-Les tests couvrent notamment **`durable:sample`** (workflows d'exemple) et, si configuré, l'intégration Temporal.
+Tests cover **`durable:sample`** example workflows and, when configured, real Temporal integration.
 
-### Temporal (intégration réelle, optionnel)
+### Temporal (real integration, optional)
 
-Contre un frontend Temporal joignable depuis la machine qui exécute PHPUnit (souvent `docker compose up -d`). Le port hôte peut différer de `7233` si `TEMPORAL_FRONTEND_PORT` est défini — vérifiez avec `docker compose port temporal 7233`.
+Requires a Temporal frontend reachable from the machine running PHPUnit (often `docker compose up -d`). The host port may differ from `7233` if `TEMPORAL_FRONTEND_PORT` is set — check with `docker compose port temporal 7233`.
 
-- Prérequis : **ext-grpc**.
-- Variable : **`DURABLE_DSN`**, par ex. `temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0` (adaptez le port).
-- Commande : `composer test:temporal-integration` ou `php bin/phpunit --group temporal-integration`.
+- Prerequisite: **ext-grpc**
+- Variable: **`DURABLE_DSN`**, e.g. `temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0` (adjust the port)
+- Command: `composer test:temporal-integration` or `php bin/phpunit --group temporal-integration`
 
-Sans DSN ou sans serveur joignable, les tests du groupe **`temporal-integration`** sont **ignorés** (la suite `composer test` reste verte).
+Without a DSN or a reachable server, tests in group **`temporal-integration`** are **skipped** (the default `composer test` suite stays green).
 
-## Configuration bundle (durable.yaml)
+## Bundle configuration (`durable.yaml`)
 
 ```yaml
 durable:
     temporal:
         dsn: '%env(DURABLE_DSN)%'
-        # Plus d'option interpreter_mirror_activities — supprimée dans la refactorisation
-        # WorkflowTaskRunner gère maintenant le replay natif via Fiber
+        # Option interpreter_mirror_activities was removed in the refactor.
+        # WorkflowTaskRunner handles native replay via Fiber (DUR027).
 ```
 
-La clé `interpreter_mirror_activities` a été supprimée. Le bridge Temporal utilise désormais `WorkflowTaskRunner` + `TemporalHistoryCursor` pour le replay natif (voir **DUR027**).
+The `interpreter_mirror_activities` key was removed. The Temporal bridge now uses `WorkflowTaskRunner` + `TemporalHistoryCursor` for native replay (see **DUR027**).
