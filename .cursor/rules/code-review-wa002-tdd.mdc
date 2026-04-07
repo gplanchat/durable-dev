@@ -1,0 +1,16 @@
+---
+description: Code review and self-review must verify TDD (WA002) alongside ADR/WA compliance
+alwaysApply: true
+---
+
+# Code review and WA002 (TDD)
+
+When **reviewing** a change (human review, agent self-review before PR, or `revue-de-code`-style pass), **apply** [WA002](../../documentation/wa/WA002-test-driven-development.md) in addition to applicable **DUR** ADRs.
+
+## Mandatory checks
+
+1. **Behaviour ↔ tests**: Any new or changed **production behaviour** must have **automated tests** that specify it (fail without that behaviour), unless the change is explicitly **out of scope** in WA002.
+2. **Review checklist**: Use the **Code review** section in WA002 for severity (blocking vs non-blocking) and **Conventional Comments** labels.
+3. **Self-review**: Before marking work ready for human review, **run the same WA002 checks** you would expect from a reviewer.
+
+Do not treat TDD as optional documentation: **WA002** has the same force as other working agreements under `documentation/wa/` (see [documentation-lifecycle](documentation-lifecycle.mdc)).

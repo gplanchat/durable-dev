@@ -1,0 +1,41 @@
+# SVG diagram uniformity
+
+Use these conventions for all SVG diagrams in this repository.
+
+## Mandatory grouping
+
+- Every pictogram must be wrapped in its own `<g>` group.
+- Every arrow must be wrapped in its own `<g>` group.
+- Every block must be wrapped in its own `<g>` group containing:
+  - block rectangle,
+  - pictogram group,
+  - text label.
+
+## Block normalization
+
+- Use a normalized block size across one diagram (same width and height for all standard blocks).
+- Keep a consistent corner radius and stroke style for standard blocks.
+- Reserve upper **2/3** of the block for the pictogram area.
+- Reserve lower **1/3** of the block for the text label.
+- Place the text inside the rectangle, centered in the lower third.
+
+## Arrow normalization
+
+- Use shared markers (arrow heads) from `<defs>`.
+- Keep consistent stroke width and color semantics per diagram:
+  - forward/main flow,
+  - success/ack,
+  - compensation/error.
+- Do not leave free-floating arrow paths outside `<g>` wrappers.
+
+## Icon consistency
+
+- Use one icon stroke style per diagram family (line cap, line join, stroke width).
+- Keep icon visual weight similar between blocks.
+- Prefer simple geometric pictograms over detailed illustrations.
+
+## Text and layout
+
+- Use one typography system per diagram (`title`, `label`, optional `step` classes).
+- Keep labels short and domain-driven.
+- Do not place block labels outside block bounds.
