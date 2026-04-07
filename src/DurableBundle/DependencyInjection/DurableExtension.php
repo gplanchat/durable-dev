@@ -11,6 +11,7 @@ use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowResumeDispatcher;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
+use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
@@ -150,6 +151,10 @@ final class DurableExtension extends Extension
                 ])
             ;
 
+            $container->setAlias(WorkflowClientInterface::class, WorkflowClient::class)
+                ->setPublic(false)
+            ;
+
             $container->register(\Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor::class)
                 ->setArguments([
                     new Reference('durable.temporal.workflow_service_client'),
@@ -181,7 +186,7 @@ final class DurableExtension extends Extension
                 ->setArguments([
                     new Reference('durable.event_store.inner'),
                     new Reference(TemporalHistoryCursor::class),
-                    new Reference(WorkflowClient::class),
+                    new Reference(WorkflowClientInterface::class),
                 ])
                 ->setPublic(true)
             ;
@@ -413,7 +418,7 @@ final class DurableExtension extends Extension
         if ($isTemporalNative) {
             $container->register(WorkflowResumeDispatcher::class, TemporalWorkflowResumeDispatcher::class)
                 ->setArguments([
-                    new Reference(WorkflowClient::class),
+                    new Reference(WorkflowClientInterface::class),
                     new Reference(WorkflowMetadataStore::class),
                     new Reference(WorkflowDefinitionLoader::class),
                     new Reference('durable.execution_trace'),

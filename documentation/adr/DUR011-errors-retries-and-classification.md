@@ -1,37 +1,37 @@
-# DUR011 — Erreurs, classification et politiques de retry
+# DUR011 — Errors, classification, and retries
 
-## Statut
+## Status
 
-Accepté
+Accepted
 
-## Contexte
+## Context
 
-Les **activités** (DUR004) interagissent avec l’extérieur ; les **adaptateurs** vers Temporal (DUR002) subissent réseau, timeouts et erreurs métier. L’**orchestrateur** applique des **retries** sur certaines défaillances seulement. Le **workflow** (DUR003) doit rester déterministe : il ne gère pas l’I/O brut, mais il doit pouvoir **réagir** aux échecs modélisés dans l’historique (activités en erreur, compensations).
+**Activities** (DUR004) talk to the outside world; **adapters** to Temporal (DUR002) face network issues, timeouts, and business errors. The **orchestrator** applies **retries** only for some failures. The **workflow** (DUR003) must stay deterministic: it does not handle raw I/O, but it must **react** to failures modelled in history (failed activities, compensations).
 
-## Décision
+## Decision
 
-### Classification des erreurs
+### Error classification
 
-1. **Erreurs métier / non retentables** (ex. validation impossible, ressource définitivement absente, règle métier violée) : en principe **pas** de retry automatique côté Temporal pour l’activité concernée ; le workflow peut enchaîner une **compensation** ou terminer en échec contrôlé.
-2. **Erreurs système / transitoires** (timeouts réseau, indisponibilité temporaire, surcharge) : **candidats** aux retries avec backoff, selon la politique configurée sur l’activité ou le client.
+1. **Business / non-retryable errors** (e.g. validation impossible, resource permanently missing, business rule violated): in principle **no** automatic Temporal retry for that activity; the workflow may run a **compensation** or end in a controlled failure.
+2. **System / transient errors** (network timeouts, temporary unavailability, overload): **candidates** for retries with backoff, per policy on the activity or client.
 
-Les **exceptions** levées dans les activités ou les adaptateurs **ne doivent pas** traverser les couches sans **traduction** : les ports exposés au domaine applicatif utilisent des **types d’erreur** du composant ou du domaine hôte, pas des erreurs brutes du client HTTP/gRPC.
+**Exceptions** raised in activities or adapters **must not** cross layers without **translation**: ports exposed to the application domain use component or host domain **error types**, not raw HTTP/gRPC client errors.
 
-### Chaînage et contexte
+### Chaining and context
 
-- Conserver la **cause** (`previous`) lorsque pertinent pour le diagnostic.
-- Enrichir avec un **contexte structuré** (identifiants de workflow, d’activité, opération) côté **activités** et **workers** — jamais de secrets en clair dans les logs (voir besoins de confidentialité globaux du projet).
+- Keep **cause** (`previous`) when useful for diagnosis.
+- Enrich with **structured context** (workflow ID, activity ID, operation) on **activities** and **workers** — never log secrets in clear text (see project-wide confidentiality rules).
 
 ### Retries
 
-- **Paramètres** (nombre max, intervalle, exceptions non retentables) sont portés par la **configuration** des activités dans le composant (stubs, options d’exécution), alignée sur les capacités Temporal.
-- Les **workflows** ne « retentent » pas eux-mêmes par effets de bord : ils **rejouent** l’historique ; les retries sont une propriété des **tâches d’activité** et du **moteur**.
+- **Parameters** (max attempts, interval, non-retryable exceptions) live in **activity configuration** in the component (stubs, execution options), aligned with Temporal capabilities.
+- **Workflows** do not “retry” via side effects: they **replay** history; retries are a property of **activity tasks** and the **engine**.
 
-### Résilience hors orchestrateur
+### Resilience outside the orchestrator
 
-Pour appels HTTP ou services externes **dans** une activité, des patterns de **résilience** (timeouts, limitation de débit, disjoncteur) restent **côté activité** ou **côté client dédié**, pas dans le corps du workflow.
+For HTTP or external service calls **inside** an activity, **resilience** patterns (timeouts, rate limiting, circuit breaker) stay **in the activity** or **in a dedicated client**, not in workflow code.
 
-## Conséquences
+## Consequences
 
-- Les tests (DUR009, DUR015) doivent couvrir les chemins « métier vs transitoire » de façon **déterministe** (doubles ou backends contrôlés).
-- La documentation d’exploitation (DUR017) s’appuie sur cette classification pour l’alerting et le diagnostic.
+- Tests (DUR009, DUR015) must cover “business vs transient” paths **deterministically** (doubles or controlled backends).
+- Operations documentation (DUR017) uses this classification for alerting and diagnosis.

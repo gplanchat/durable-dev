@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit;
 
 use App\Durable\DurableSampleWorkflowRunner;
+use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
@@ -20,17 +21,89 @@ use Symfony\Component\Messenger\MessageBusInterface;
 /**
  * Verifies the routing logic inside {@see DurableSampleWorkflowRunner::waitForWorkflowCompletion()}:
  *
- * - When WorkflowClient is absent (null): the in-memory Messenger drain is used,
+ * - When WorkflowClientInterface is absent (null): the in-memory Messenger drain is used,
  *   the result is read from the event store.
- * - The Temporal path (pollForCompletion) is exercised by temporal-integration tests;
- *   WorkflowClient is a final gRPC class and cannot be subclassed for unit tests.
- *   Extracting a WorkflowClientInterface would unlock a dedicated unit test here (future task).
+ * - When WorkflowClientInterface is present: pollForCompletion() is called (Temporal path).
  *
  * @internal
  */
 #[CoversClass(DurableSampleWorkflowRunner::class)]
 final class DurableSampleWorkflowRunnerRoutingTest extends TestCase
 {
+    /**
+     * Temporal path: workflowClient is present → pollForCompletion() is called and its return
+     * value is forwarded directly to the caller.
+     */
+    public function testTemporalPathDelegatesToPollForCompletion(): void
+    {
+        $polledExecutionId = null;
+        $fakeClient = new class ($polledExecutionId) implements WorkflowClientInterface {
+            public function __construct(private ?string &$polledExecutionId) {}
+
+            public function startAsync(string $workflowType, array $payload, string $executionId): string
+            {
+                return 'durable-'.$executionId;
+            }
+
+            public function startSync(string $workflowType, array $payload, string $executionId): mixed
+            {
+                return null;
+            }
+
+            public function pollForCompletion(string $executionId, int $refreshIntervalMs = 500, int $maxRefreshes = 120): mixed
+            {
+                $this->polledExecutionId = $executionId;
+
+                return 'temporal-result';
+            }
+
+            public function signal(string $workflowId, string $signalName, array $args = []): void {}
+
+            public function query(string $workflowId, string $queryType, array $args = []): mixed
+            {
+                return null;
+            }
+
+            public function update(string $workflowId, string $updateName, array $args = []): mixed
+            {
+                return null;
+            }
+
+            public function workflowId(string $executionId): string
+            {
+                return 'durable-'.$executionId;
+            }
+        };
+
+        $resume = new class implements WorkflowResumeDispatcher {
+            public function dispatchResume(string $executionId): void {}
+            public function dispatchNewWorkflowRun(string $executionId, string $workflowType, array $payload): void {}
+        };
+
+        $runner = new DurableSampleWorkflowRunner(
+            new WorkflowRegistry(),
+            $resume,
+            new class implements MessageBusInterface {
+                public function dispatch(object $message, array $stamps = []): Envelope
+                {
+                    return new Envelope($message, $stamps);
+                }
+            },
+            new InMemoryEventStore(),
+            new InMemoryWorkflowMetadataStore(),
+            new class implements ContainerInterface {
+                public function get(string $id): mixed { return null; }
+                public function has(string $id): bool { return false; }
+            },
+            $fakeClient,
+        );
+
+        $result = $runner->waitForWorkflowCompletion('temporal-exec-001');
+
+        self::assertSame('temporal-result', $result, 'Temporal path must return pollForCompletion() value.');
+        self::assertSame('temporal-exec-001', $polledExecutionId, 'pollForCompletion() must receive the execution ID.');
+    }
+
     /**
      * In-memory path: workflowClient = null → drain is used, result comes from the event store.
      */

@@ -33,7 +33,7 @@ services:
 
     App\Durable\DurableSampleWorkflowRunner:
         arguments:
-            $workflowClient: '@?Gplanchat\Bridge\Temporal\WorkflowClient'
+            $workflowClient: '@?Gplanchat\Bridge\Temporal\WorkflowClientInterface'
 
     App\Dashboard\TemporalEventsDashboardDataProvider:
         arguments:

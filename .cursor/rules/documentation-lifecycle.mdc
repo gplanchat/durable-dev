@@ -1,0 +1,42 @@
+---
+description: Documentation lifecycle (LIFECYCLE) — mandatory
+alwaysApply: true
+---
+
+# Documentation — mandatory lifecycle
+
+## Normative reference
+
+Behaviour described in **`documentation/LIFECYCLE.md`** is **mandatory** for creating, classifying, or updating architecture or product documents in this repository. When in doubt, **re-read and apply** that file before adding or renaming documents.
+
+**Language:** Normative documentation in `documentation/adr/`, `documentation/wa/`, tracking, journals, and `.cursor/rules/` must be **English** — see [WA001](../../documentation/wa/WA001-english-language-documentation.md).
+
+**Hugo site:** The **user guide** is built only from `documentation/user/` via `hugo-docs/` — see [documentation/HUGO.md](../../documentation/HUGO.md). ADRs and WAs are not mirrored there. New user-facing sections go under `documentation/user/` (subfolders with `_index.md`).
+
+## Compliance with `adr/` and `wa/` documents
+
+Decisions and agreements written under **`documentation/adr/`** and **`documentation/wa/`** must be **respected**:
+
+- **Implementation**: code, configuration, and tests must **not** contradict a published ADR or WA; any necessary deviation requires **updating** the relevant document (or proposing a new one) **before** or **together with** the technical change, with explicit status and consequences.
+- **Evolution**: new features or refactors that touch architecture must **align** with applicable ADRs; **working agreements** in `wa/` have the same force for team and repository practices they cover.
+- **Code review**: **[WA002](../../documentation/wa/WA002-test-driven-development.md)** (TDD) must be **verified** on behaviour-changing changes; see `.cursor/rules/code-review-wa002-tdd.mdc` and the **Code review** section in WA002.
+- **GitHub planning**: when creating or organising **epics**, **tasks**, and **stories** on GitHub (Issues / Projects), follow **[WA003](../../documentation/wa/WA003-github-epics-tasks-and-project-tracking.md)**.
+
+If a folder is empty, the rule applies as soon as it contains versioned documents; the agent must **not** ignore these paths when they exist.
+
+## Agent behaviour
+
+1. **Before** creating a new ADR, WA, OST, or PRD: check **which type** fits (LIFECYCLE “When” criteria) and **which lifecycle** applies (new feature vs isolated decision vs working agreement).
+2. **Location**: follow the `documentation/` tree — `adr/`, `wa/`, `ost/`, `prd/` (create the folder if missing for the type).
+3. **Numbering**: **sequential per type**, do not reuse a retired number; short lowercase kebab-case slug.
+4. **Index**: every new entry must be reflected in **`documentation/INDEX.md`** (kept up to date).
+5. **Obsolete decisions**: update status (e.g. “Superseded by …”) and cross-references per LIFECYCLE.
+6. **After shipping** a feature explored in an OST: plan / require the summary **PRD** when LIFECYCLE requires it.
+
+## Durable-specific convention
+
+- **Architecture Decision Records** for the component use the **`DUR`** prefix and **`DUR000`** process under `documentation/adr/` (not a generic `ADR001` in the LIFECYCLE examples). Document type remains **ADR** in LIFECYCLE terms; **`DUR`** is the project filename prefix.
+
+## Journal
+
+For a work session that creates or restructures documents: update the day file under `documentation/journal/inbox/` when project journal rules apply.

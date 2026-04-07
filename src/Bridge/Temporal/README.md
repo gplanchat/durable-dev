@@ -1,61 +1,61 @@
-# durable-bridge-temporal (`src/Bridge/Temporal`)
+# `gplanchat/durable-bridge-temporal` (`src/Bridge/Temporal`)
 
-Bridge **gRPC** (sans SDK Temporal PHP) pour persister le journal Durable dans un **workflow Temporal** minimal.
+**gRPC** bridge (without the official Temporal PHP SDK) to persist the Durable journal in a **minimal Temporal workflow**.
 
-Namespace PHP : **`Gplanchat\Bridge\Temporal`**.
+PHP namespace: **`Gplanchat\Bridge\Temporal`**.
 
-**Invariant déploiement** : si vous activez Temporal pour Durable, le **journal** (`EventStore`) et les **files applicatives** partagent la **même** connexion Temporal (`temporal://…`). Le **type d’accès** (worker journal receive-only vs enveloppe applicative) est choisi via **`options.purpose`** (`journal` \| `application`) ou déduit (présence de **`inner`** ⇒ applicatif). Les schémas **`temporal-journal://`** et **`temporal-application://`** restent acceptés et sont normalisés en **`temporal://`**.
+**Deployment invariant**: when Temporal is enabled for Durable, the **journal** (`EventStore`) and **application queues** share the **same** Temporal connection (`temporal://…`). **Access mode** (journal receive-only vs application envelope) is selected via **`options.purpose`** (`journal` \| `application`) or inferred (presence of **`inner`** ⇒ application). Schemes **`temporal-journal://`** and **`temporal-application://`** are still accepted and normalized to **`temporal://`**.
 
-## Prérequis
+## Requirements
 
 - PHP **ext-grpc**
-- Serveur Temporal joignable (`target` type `host:7233`)
+- A reachable Temporal frontend (e.g. `host:7233`)
 
-## Composants
+## Components
 
-| Classe | Rôle |
+| Class | Role |
 |--------|------|
-| `TemporalJournalEventStore` | Implémente `Gplanchat\Durable\Store\EventStoreInterface` |
-| `TemporalTransportFactory` | Fabrique unique **`temporal://`** : journal (`TemporalJournalTransport`, receive-only) ou applicatif (`TemporalApplicationTransport` + `inner`) selon `purpose` / `inner` |
-| `TemporalJournalTransport` | Transport Symfony Messenger **receive-only** (même DSN `temporal://…`, sans `inner` par défaut) ; consommé via `messenger:consume <nom_du_transport>` |
-| `TemporalApplicationTransport` | Enveloppe un transport Messenger réel (`temporal://…?inner=…` ou `options.inner`) pour les messages applicatifs Durable ; évolution vers gRPC Temporal |
-| `TemporalBridgeBundle` | Enregistre la fabrique Messenger `temporal://` |
+| `TemporalJournalEventStore` | Implements `Gplanchat\Durable\Store\EventStoreInterface` |
+| `TemporalTransportFactory` | Single **`temporal://`** factory: journal (`TemporalJournalTransport`, receive-only) or application (`TemporalApplicationTransport` + `inner`) from `purpose` / `inner` |
+| `TemporalJournalTransport` | Symfony Messenger **receive-only** transport (same `temporal://…` DSN, no `inner` by default); consumed with `messenger:consume <transport_name>` |
+| `TemporalApplicationTransport` | Wraps a real Messenger transport (`temporal://…?inner=…` or `options.inner`) for Durable application messages |
+| `TemporalBridgeBundle` | Registers the `temporal://` Messenger factory |
 
-## DSN transport (unique)
+## Transport DSN (single scheme)
 
 ```
 temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&tls=0
 ```
 
-Paramètres query : `namespace`, `task_queue` ou `journal_task_queue`, `workflow_type`, `workflow_task_queue`, `activity_task_queue`, `identity`, `tls` (bool).
+Query parameters: `namespace`, `task_queue` or `journal_task_queue`, `workflow_type`, `workflow_task_queue`, `activity_task_queue`, `identity`, `tls` (bool).
 
 ### Journal (receive-only)
 
-Sans **`inner`** et sans `options.purpose=application` : le transport instancié est **`TemporalJournalTransport`**.
+Without **`inner`** and without `options.purpose=application`, the transport is **`TemporalJournalTransport`**.
 
-### Files applicatives (`inner`)
+### Application queues (`inner`)
 
 ```
 temporal://127.0.0.1:7233?namespace=default&inner=in-memory://&workflow_task_queue=durable-workflows&activity_task_queue=durable-activities&tls=0
 ```
 
-Ou bien `temporal://…` **sans** `inner` dans l’URL et **`options: { purpose: application, inner: 'in-memory://' }`** dans la config Messenger.
+Or `temporal://…` without `inner` in the URL and **`options: { purpose: application, inner: 'in-memory://' }`** in Messenger config.
 
-- **`inner`** (requis pour l’accès applicatif) : DSN du transport Symfony Messenger réel (redis, doctrine, in-memory, etc.).
-- **`workflow_task_queue`** / **`activity_task_queue`** : réservés à l’évolution gRPC ; tant que l’enveloppe délègue à **`inner`**, le trafic applicatif transite par ce transport.
+- **`inner`** (required for application mode): DSN of the real Symfony Messenger transport (Redis, Doctrine, in-memory, etc.).
+- **`workflow_task_queue`** / **`activity_task_queue`**: used for gRPC evolution; while the envelope delegates to **`inner`**, application traffic uses that inner transport.
 
 ## Symfony
 
-1. Dans le monorepo, le code est déjà présent sous `src/Bridge/Temporal` ; pour un dépôt publié à part, `composer require gplanchat/durable-bridge-temporal`.
-2. Enregistrer `Gplanchat\Bridge\Temporal\TemporalBridgeBundle` dans le kernel.
-3. `framework.messenger.transports.<nom>: 'temporal://…'` (sans `inner`, DSN journal — ex. `journal_task_queue=durable-journal`).
-4. `messenger:consume <nom>` (worker Symfony Messenger standard ; le poll et le traitement des tâches journal sont dans `TemporalJournalTransport::get()`).
-5. Remplacer `EventStoreInterface` par `TemporalJournalEventStore` (DI explicite).
+1. In the monorepo the code lives under `src/Bridge/Temporal`; in a split repo: `composer require gplanchat/durable-bridge-temporal`.
+2. Register `Gplanchat\Bridge\Temporal\TemporalBridgeBundle` in the kernel.
+3. `framework.messenger.transports.<name>: 'temporal://…'` (without `inner`, journal DSN — e.g. `journal_task_queue=durable-journal`).
+4. `messenger:consume <name>` (standard Symfony worker; poll and journal task handling are inside `TemporalJournalTransport::get()`).
+5. Wire `EventStoreInterface` to `TemporalJournalEventStore` where appropriate (explicit DI).
 
-## FrankenPHP Worker
+## FrankenPHP worker
 
-Même logique que `messenger:consume` : exécuter le worker Messenger sous le mode Worker FrankenPHP (ou systemd) avec `messenger:consume <transport_journal>` pointant vers le DSN `temporal://…` sans `inner`.
+Same idea as `messenger:consume`: run the Messenger worker under FrankenPHP worker mode (or systemd) with `messenger:consume <journal_transport>` pointing at `temporal://…` without `inner`.
 
-## Documentation
+## Further reading
 
-[Voir ADR014](../../../documentation/adr/ADR014-temporal-journal-eventstore-bridge.md).
+- **DUR019** — Temporal gRPC bridge and journal: [`documentation/adr/DUR019-temporal-grpc-bridge-and-journal.md`](../../../documentation/adr/DUR019-temporal-grpc-bridge-and-journal.md)

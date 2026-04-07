@@ -1,32 +1,32 @@
-# DUR007 — Sérialisation et composant Serializer de Symfony
+# DUR007 — Serialization and Symfony Serializer
 
-## Statut
+## Status
 
-Accepté
+Accepted
 
-## Contexte
+## Context
 
-Les **payloads** échangés entre workflows, activités et l’orchestrateur (entrées/sorties d’activités, événements pertinents pour le composant, etc.) doivent être **sérialisés** de façon **stable** et **interopérable**. Le composant ne doit pas réinventer une pile ad hoc si un standard de l’écosystème Symfony est adapté.
+**Payloads** exchanged between workflows, activities, and the orchestrator (activity inputs/outputs, events relevant to the component, etc.) must be **serialized** in a **stable**, **interoperable** way. The component should not reinvent an ad hoc stack when a Symfony ecosystem standard fits.
 
-## Décision
+## Decision
 
-La couche de **sérialisation** du composant Durable **s’appuie sur le composant Serializer de Symfony** (`symfony/serializer`) pour :
+The Durable component’s **serialization** layer **uses Symfony’s Serializer component** (`symfony/serializer`) to:
 
-- sérialiser et désérialiser les arguments et valeurs de retour des **activités** (DUR004) ;
-- tout autre besoin de transformation structurée ↔ représentation transportable (JSON ou autre format retenu par le backend) dans le périmètre du composant.
+- serialize and deserialize **activity** arguments and return values (DUR004);
+- any other need for structured ↔ transportable representation (JSON or another format chosen by the backend) within the component scope.
 
-### Principes
+### Principles
 
-- **Normalizers** et **encoders** Symfony : conventions du Serializer (contexte, groupes, types) pour contrôler les formats et l’évolution des schémas.
-- **Types** : les types utilisés dans les signatures d’activités et les modèles exposés à la sérialisation doivent être **compatibles** avec le pipeline (objets sans ressources, DTO / value objects, collections typées, etc.) — détails précisés dans l’implémentation et les tests.
-- **Déterminisme** : le workflow reste déterministe (DUR003) ; la sérialisation **ne** sert **pas** à contourner l’interdiction d’I/O dans le workflow — elle s’applique aux frontières activités / orchestrateur et aux couches d’adaptation.
+- Symfony **normalizers** and **encoders**: Serializer conventions (context, groups, types) to control formats and schema evolution.
+- **Types**: types used in activity signatures and models exposed to serialization must be **compatible** with the pipeline (no resources, DTOs / value objects, typed collections, etc.) — specifics in implementation and tests.
+- **Determinism**: the workflow stays deterministic (DUR003); serialization **does not** bypass the no-I/O rule in the workflow — it applies at activity / orchestrator boundaries and adapter layers.
 
-### Couplage
+### Coupling
 
-- Le composant Durable peut exposer des **factories** ou une **configuration** recommandée du Serializer (normalizers, encoders) pour les usages hôtes Symfony.
-- Les **ports** du domaine Durable ne dépendent pas de types internes du Serializer comme **contrat public** : les interfaces restent exprimées en types PHP du composant ; Symfony Serializer est un **mécanisme d’implémentation** choisi.
+- The Durable component may expose **factories** or **recommended** Serializer configuration (normalizers, encoders) for Symfony hosts.
+- **Domain ports** do not depend on Serializer internals as the **public contract**: interfaces stay in the component’s PHP types; Symfony Serializer is a chosen **implementation mechanism**.
 
-## Conséquences
+## Consequences
 
-- La dépendance `symfony/serializer` est attendue dans le graphe Composer du composant (ou du bundle intégrateur), dans une version compatible avec la branche PHP supportée.
-- Les évolutions de format (nouveaux champs, versions) sont gérées via les capacités du Serializer (groupes, `@SerializedName`, etc.) et la politique de compatibilité documentée avec les releases.
+- The `symfony/serializer` dependency is expected in the component (or integrator bundle) Composer graph, in a version compatible with the supported PHP branch.
+- Format evolution (new fields, versions) is handled via Serializer capabilities (groups, `@SerializedName`, etc.) and a documented compatibility policy with releases.

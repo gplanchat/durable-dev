@@ -1,42 +1,42 @@
-# DUR016 — Backend In-Memory : règles et exceptions de stockage
+# DUR016 — In-Memory backend: storage rules and exceptions
 
-## Statut
+## Status
 
-Accepté
+Accepted
 
-## Contexte
+## Context
 
-Le backend **In-Memory** (DUR005) doit offrir une implémentation **fidèle** aux ports pour les tests, tout en restant **simple**. Une **implémentation de référence** peut s’appuyer sur des structures riches (index, invalidation par tags, collections) pour coller au comportement des systèmes persistants. Dans certains cas, un **stockage minimal** (tableaux, structures associatives) suffit et réduit la complexité.
+The **In-Memory** backend (DUR005) must provide a **faithful** port implementation for tests while staying **simple**. A **reference** implementation may use rich structures (indexes, tag invalidation, collections) to match persistent systems. In some cases **minimal** storage (arrays, maps) is enough and reduces complexity.
 
-## Décision
+## Decision
 
-### Règle par défaut
+### Default rule
 
-- L’implémentation In-Memory **de référence** du composant utilise un mécanisme de stockage **cohérent** avec les besoins des tests (recherche, invalidation, parcours) — détail laissé à l’implémentation, documenté dans le code.
+- The component’s **reference** In-Memory implementation uses storage **consistent** with test needs (search, invalidation, traversal) — details in code and comments.
 
-### Exceptions autorisées : stockage simplifié
+### Allowed exceptions: simplified storage
 
-Un module In-Memory **peut** utiliser un stockage **minimaliste** (ex. `array` en mémoire) **si et seulement si** une majorité des critères suivants s’applique :
+An In-Memory module **may** use **minimal** storage (e.g. in-memory `array`) **if and only if** a majority of the following holds:
 
-1. **Rôle limité** : données surtout **lecture**, peu d’écritures ou écritures au démarrage du test uniquement.
-2. **Données statiques ou de configuration** : jeu fixe ou chargé une fois, pas une simulation complète d’une base relationnelle.
-3. **Pas besoin** des capacités avancées (invalidation fine, requêtes complexes) pour le scénario couvert.
-4. **Clarté** : le code reste plus lisible qu’avec la couche générique pour ce cas précis.
+1. **Limited role**: data is mostly **read**, few writes or writes only at test startup.
+2. **Static or configuration data**: fixed set or loaded once, not a full relational simulation.
+3. **No need** for advanced features (fine invalidation, complex queries) for the covered scenario.
+4. **Clarity**: code is more readable than the generic layer for that specific case.
 
-### Quand revenir à l’implémentation riche
+### When to use the rich implementation again
 
-- Entités **souvent écrites**, **partagées** entre plusieurs tests ou scénarios nécessitant **nettoyage** sélectif.
-- Besoin de **cohérence** avec des comportements proches du **cache** ou du **stockage** réel simulé.
+- Entities **written often**, **shared** across tests, or scenarios needing **selective** cleanup.
+- Need for **consistency** with behaviours close to **cache** or simulated **storage**.
 
 ### Documentation
 
-- Toute classe In-Memory « exception » **doit** indiquer en docblock ou documentation courte **pourquoi** le stockage simplifié est justifié (référence implicite à cette ADR par nom « DUR016 »).
+- Any “exception” In-Memory class **must** state in a docblock or short note **why** simplified storage is justified (implicit reference to this ADR as “DUR016”).
 
 ### Migration
 
-- Si un stockage minimal devient insuffisant (écritures fréquentes, besoin d’invalidation), **refactor** vers l’implémentation de référence sans changer les **ports**.
+- If minimal storage becomes insufficient (frequent writes, invalidation needs), **refactor** to the reference implementation without changing **ports**.
 
-## Conséquences
+## Consequences
 
-- Les revues de code vérifient que les exceptions ne se **multiplient** pas sans besoin réel.
-- Les tests (DUR015) restent **isolés** : prévoir reset ou instances fraîches par test lorsque l’état est mutable.
+- Code reviews check that exceptions do not **multiply** without real need.
+- Tests (DUR015) stay **isolated**: reset or fresh instances per test when state is mutable.

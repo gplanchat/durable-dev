@@ -1,44 +1,44 @@
-# DUR004 — ActivityStub, activités et méthodes d’activité
+# DUR004 — ActivityStub, activities, and activity methods
 
-## Statut
+## Status
 
-Accepté
+Accepted
 
-## Contexte
+## Context
 
-Les **workflows** (DUR003) sont déterministes et sans I/O. Les **effets de bord** (bases de données, HTTP, fichiers, etc.) vivent dans des **activités** : classes fournies par l’utilisateur du composant, exécutées dans un environnement où I/O et non-déterminisme sont permis, sous les politiques de retry de l’orchestrateur.
+**Workflows** (DUR003) are deterministic and perform no direct I/O. **Side effects** (databases, HTTP, files, etc.) live in **activities**: user-provided classes executed in an environment where I/O and non-determinism are allowed, under the orchestrator’s retry policies.
 
-Le workflow doit pouvoir **appeler** ces activités via une abstraction stable : l’**ActivityStub**, qui redirige les appels vers l’infrastructure Temporal (ou sa simulation In-Memory) tout en conservant des types PHP côté auteur de workflow.
+The workflow must **invoke** these activities through a stable abstraction: the **ActivityStub**, which routes calls to Temporal infrastructure (or its In-Memory simulation) while keeping PHP types on the workflow author side.
 
-## Décision
+## Decision
 
-### Activités
+### Activities
 
-- Les activités sont des **classes** écrites par l’utilisateur du composant.
-- Elles **peuvent** accéder aux **I/O** et aux services injectés (DI), dans les limites fixées par l’hôte.
-- Les **méthodes** exposées comme points d’entrée d’activité sont marquées avec un attribut du composant, par exemple **`#[ActivityMethod]`** (nom final aligné sur l’implémentation).
-- Les **types des arguments** et des **valeurs de retour** doivent être **sérialisables** par le pipeline du composant vers Temporal (pas de ressources, closures non supportées, etc.). Le mécanisme retenu est décrit dans **DUR007** (composant **Serializer** de Symfony).
+- Activities are **classes** written by the component user.
+- They **may** perform **I/O** and use injected services (DI), within limits set by the host.
+- **Methods** exposed as activity entry points are marked with a component attribute, e.g. **`#[ActivityMethod]`** (final name aligned with the implementation).
+- **Argument** and **return** types must be **serializable** through the component pipeline to Temporal (no resources, unsupported closures, etc.). The mechanism is described in **DUR007** (Symfony **Serializer**).
 
 ### ActivityStub
 
-- Au sein du **workflow**, l’auteur n’instancie pas directement l’activité pour les effets durables : il utilise un **ActivityStub** (ou fabrique équivalente) qui :
-  - **route** les appels de méthode vers l’**activité** correspondante côté worker / orchestration ;
-  - garantit que l’appel est modélisé comme une étape durable (enregistrée dans l’historique, rejouable).
+- Inside the **workflow**, the author does not instantiate the activity directly for durable effects: they use an **ActivityStub** (or equivalent factory) that:
+  - **routes** method calls to the corresponding **activity** on the worker / orchestration side;
+  - ensures the call is modelled as a durable step (recorded in history, replayable).
 
-### Séparation workflow / activité
+### Workflow vs activity separation
 
-| Workflow | Activité |
+| Workflow | Activity |
 |----------|----------|
-| Déterministe, sans I/O direct | I/O et logique non déterministe possible |
-| Contexte awaitables + fibers (DUR003) | Exécution « normale » côté worker |
-| Idempotence logique du graphe d’orchestration | Idempotence opérationnelle recommandée pour les retries |
+| Deterministic, no direct I/O | I/O and non-deterministic logic allowed |
+| Awaitable context + fibers (DUR003) | “Normal” execution on the worker |
+| Logical idempotence of the orchestration graph | Operational idempotence recommended for retries |
 
-### Relation avec les stubs
+### Relationship to stubs
 
-- Un **stub** est lié à un **type d’activité** (interface ou classe) et permet d’invoquer les méthodes marquées comme des **commandes durables** depuis le workflow.
-- La résolution du binding (nom d’activité Temporal, timeouts, retry) relève de la configuration du composant et des adaptateurs.
+- A **stub** is bound to an **activity type** (interface or class) and lets the author invoke methods marked as **durable commands** from the workflow.
+- Binding resolution (Temporal activity name, timeouts, retries) is handled by component configuration and adapters.
 
-## Conséquences
+## Consequences
 
-- La sérialisation des payloads d’activité est un contrat public (voir **DUR007**) : toute évolution doit gérer la compatibilité ascendante ou des stratégies de migration.
-- Les META documents peuvent détailler les patterns d’attributs, de noms et de registration sans diluer cette ADR.
+- Activity payload serialization is a public contract (see **DUR007**): any evolution must preserve backward compatibility or define migration strategies.
+- META documents can detail attribute patterns, naming, and registration without diluting this ADR.

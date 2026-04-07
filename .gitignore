@@ -1,4 +1,8 @@
-# Fichiers locaux / caches éventuels
+# Local / editor noise
 .DS_Store
 *.swp
 *~
+
+# Work journal day files (kept locally; see documentation/journal/README.md)
+documentation/journal/inbox/*.md
+documentation/journal/archive/*.md

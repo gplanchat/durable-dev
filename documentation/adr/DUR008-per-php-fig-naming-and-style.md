@@ -1,35 +1,35 @@
-# DUR008 — Style PER (PHP-FIG) et nommage des classes
+# DUR008 — PER (PHP-FIG) style and naming
 
-## Statut
+## Status
 
-Accepté
+Accepted
 
-## Contexte
+## Context
 
-Le code du composant Durable doit rester **lisible**, **homogène** et **aligné** sur les pratiques reconnues de la communauté PHP. Le **PER Coding Style** publié par PHP-FIG est le référentiel de style qui succède et étend PSR-12 pour le PHP moderne (attributs, enums, types composés, etc.).
+Durable component code must stay **readable**, **consistent**, and **aligned** with widely accepted PHP community practice. The **PER Coding Style** published by PHP-FIG is the style reference that succeeds and extends PSR-12 for modern PHP (attributes, enums, compound types, etc.).
 
-## Décision
+## Decision
 
-**Tout le code PHP du composant Durable** (y compris tests, sauf mention contraire dans une ADR spécifique) **doit** respecter le **PER Coding Style** de PHP-FIG **dans sa dernière version stable** publiée sur le site officiel PHP-FIG au moment de la branche de développement.
+**All Durable component PHP code** (including tests, unless a specific ADR says otherwise) **must** comply with PHP-FIG’s **PER Coding Style** **in the latest stable version** published on the official PHP-FIG site at the time of the development branch.
 
-**Référence** : [PER Coding Style](https://www.php-fig.org/per/coding-style/) (PHP-FIG).
+**Reference**: [PER Coding Style](https://www.php-fig.org/per/coding-style/) (PHP-FIG).
 
-### Nommage des classes et des identifiants
+### Class and identifier naming
 
-- **Classes** : noms en `StudlyCaps` / `PascalCase` conformément au PER (y compris règles pour acronymes et mots composés telles que définies par le document).
-- **Interfaces, traits, enums** : conventions du PER pour les identifiants de type.
-- **Méthodes et propriétés** : `camelCase` sauf exceptions explicitement couvertes par le PER.
-- **Constantes de classe** : selon le PER (convention en majuscules avec séparateurs).
+- **Classes**: `StudlyCaps` / `PascalCase` per PER (including rules for acronyms and compound words as defined in the document).
+- **Interfaces, traits, enums**: PER conventions for type identifiers.
+- **Methods and properties**: `camelCase` unless PER explicitly covers an exception.
+- **Class constants**: per PER (uppercase with separators).
 
-### Outils
+### Tooling
 
-- Le projet **devrait** appliquer le formatage et les vérifications via un outil de style (PHP-CS-Fixer, PHP_CodeSniffer avec règle PER, ou équivalent) configuré pour la **révision PER** suivie par le dépôt.
+- The project **should** apply formatting and checks via a style tool (PHP-CS-Fixer, PHP_CodeSniffer with PER rules, or equivalent) configured for the **PER revision** tracked by the repository.
 
-### Évolution
+### Evolution
 
-- Lorsqu’une nouvelle version majeure du PER est publiée, **une mise à jour** des règles de CI et du code est planifiée ; les écarts documentés dans les ADR ou les notes de version.
+- When a new major PER version is published, **plan an update** of CI rules and code; document gaps in ADRs or release notes.
 
-## Conséquences
+## Consequences
 
-- Les revues de code peuvent se référer explicitement au PER plutôt qu’à des conventions locales implicites.
-- Les contributions externes s’appuient sur une norme publique et versionnée.
+- Code reviews can cite PER explicitly instead of implicit local conventions.
+- External contributors rely on a public, versioned standard.

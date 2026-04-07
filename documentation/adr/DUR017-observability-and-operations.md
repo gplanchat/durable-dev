@@ -1,40 +1,40 @@
-# DUR017 — Observabilité et opérations
+# DUR017 — Observability and operations
 
-## Statut
+## Status
 
-Accepté
+Accepted
 
-## Contexte
+## Context
 
-Les workflows durables sont **longs**, **distribués** et **retentés**. Sans **logs** structurés, **métriques** et **traces**, le diagnostic des incidents et le suivi métier sont impraticables. L’**UI Temporal** et l’API du serveur fournissent une visibilité native ; le composant et les **activités** doivent compléter cette visibilité côté application.
+Durable workflows are **long-running**, **distributed**, and **retried**. Without **structured logs**, **metrics**, and **traces**, incident diagnosis and business monitoring are impractical. **Temporal Web UI** and the server API provide native visibility; the component and **activities** must add application-side visibility.
 
-## Décision
+## Decision
 
-### Trois piliers
+### Three pillars
 
-1. **Journaux** : événements discrets avec contexte (identifiant de workflow, run, type d’activité, durée) — conformité **PSR-3** pour les loggers injectés dans le code applicatif et les activités.
-2. **Métriques** : compteurs, histogrammes de latence, taux d’erreur par type d’opération ; corrélation possible avec l’**identifiant de workflow** en libellé lorsque le cardinal le permet.
-3. **Traces** : lorsque l’hôte active la **distributed tracing** (OpenTelemetry ou équivalent), propager les identifiants sur les appels **activités → services externes** (DUR012).
+1. **Logging**: discrete events with context (workflow ID, run, activity type, duration) — **PSR-3** compliance for loggers injected into application and activity code.
+2. **Metrics**: counters, latency histograms, error rates by operation type; correlation with **workflow ID** as a label when cardinality allows.
+3. **Tracing**: when the host enables **distributed tracing** (OpenTelemetry or equivalent), propagate identifiers on **activity → external service** calls (DUR012).
 
-### Règles côté activités
+### Activity rules
 
-- **Structured logging** : champs stables (clés de contexte), pas de données sensibles en clair (tokens, secrets).
-- Journaliser les **échecs** avec code ou type d’erreur **métier** vs **système** (DUR011).
+- **Structured logging**: stable fields (context keys), no sensitive data in clear text (tokens, secrets).
+- Log **failures** with business vs system error code or type (DUR011).
 
-### Règles côté workflow
+### Workflow rules
 
-- Pas de logique d’I/O ; les **logs** dans le chemin du workflow doivent rester **déterministes** ou absents du code utilisateur — le runtime peut journaliser des **jalons** sans briser le rejeu (DUR003).
+- No I/O logic; **logs** on the workflow path must stay **deterministic** or absent from user code — the runtime may log **milestones** without breaking replay (DUR003).
 
-### Exploitation
+### Operations
 
-- **Temporal Web UI** : inspection des historiques, recherche par identifiants ; s’appuyer sur les **search attributes** ou métadonnées lorsque le produit les définit (hors périmètre strict du noyau si optionnel).
-- **Runbooks** : procédures pour annulation, signal manuel, réparation — documentées au niveau produit ; ce ADR fixe le **principe** de traçabilité.
+- **Temporal Web UI**: inspect histories, search by identifiers; use **search attributes** or metadata when the product defines them (optional, outside strict core scope).
+- **Runbooks**: procedures for cancellation, manual signal, repair — documented at product level; this ADR sets the **traceability** principle.
 
-### Alignement tests / prod
+### Test vs production alignment
 
-- Les niveaux de log en CI peuvent être réduits ; les **mêmes** points de corrélation (IDs) doivent rester testables en intégration (DUR017 + DUR015).
+- Log levels in CI may be reduced; the **same** correlation points (IDs) must remain testable in integration tests (DUR015).
 
-## Conséquences
+## Consequences
 
-- Les dépendances **logger** sont injectées ; pas de singleton global caché.
-- L’**observabilité** ne remplace pas les **tests** mais accélère le diagnostic quand un test manque.
+- **Logger** dependencies are injected; no hidden global singleton.
+- **Observability** does not replace **tests** but speeds diagnosis when a test is missing.

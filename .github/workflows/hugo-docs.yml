@@ -1,0 +1,96 @@
+name: Hugo documentation site
+
+on:
+  push:
+    branches: [main, master, refactor/core-architecture-cleanup]
+    paths:
+      - 'hugo-docs/**'
+      - 'documentation/user/**'
+      - '.github/workflows/hugo-docs.yml'
+  pull_request:
+    paths:
+      - 'hugo-docs/**'
+      - 'documentation/user/**'
+  workflow_dispatch:
+
+# Allow one concurrent deployment; do not cancel in-progress runs so a deploy
+# triggered just before a new push can finish.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+# Permissions required to deploy to GitHub Pages via OIDC.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.159.2'
+          extended: true
+
+      # configure-pages resolves the real baseURL and must only run when we deploy.
+      # On PRs and non-main pushes, Hugo uses the baseURL from hugo.toml.
+      - name: Setup Pages
+        id: pages
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'push' &&
+           (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+        uses: actions/configure-pages@v5
+
+      - name: Build (with Pages baseURL)
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'push' &&
+           (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+        working-directory: hugo-docs
+        env:
+          HUGO_ENVIRONMENT: production
+        run: hugo --minify --gc --baseURL "${{ steps.pages.outputs.base_url }}/"
+
+      - name: Build (without Pages baseURL — CI validation only)
+        if: >-
+          github.event_name != 'workflow_dispatch' &&
+          !(github.event_name == 'push' &&
+            (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+        working-directory: hugo-docs
+        run: hugo --minify --gc
+
+      # Upload the Pages artifact only when deploying.
+      - name: Upload Pages artifact
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'push' &&
+           (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: hugo-docs/public
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    # Only deploy on push to main/master or manual workflow_dispatch.
+    # Pushes to feature branches and pull requests only run the build job above.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

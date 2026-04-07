@@ -1,0 +1,23 @@
+---
+description: No official Temporal SDK or RoadRunner — third-party stacks to eliminate
+alwaysApply: true
+---
+
+# No official Temporal SDK or RoadRunner
+
+## Principle
+
+The component aims to **remove dependency** on stacks commonly bundled with durable PHP workflows. It is **forbidden** to introduce or keep:
+
+- the **official Temporal SDK** (PHP client, worker, helpers shipped by Temporal for PHP, etc.);
+- **RoadRunner** and any component **based on or required by** RoadRunner (server `rr`, Spiral integrations tied to the RR runtime, etc.).
+
+## Agent behaviour
+
+- Do not propose Composer adds, code, or config that pull these dependencies.
+- If an existing solution in the repo or external doc references them, **propose alternatives** aligned with project architecture (clean abstractions, in-house protocol, other runtime accepted by the repo) instead of integrating those SDKs.
+- On review or refactor: flag and remove any residual traces of these dependencies.
+
+## Exceptions
+
+No default exception. If the repo later defines an **ADR** or project rule explicitly allowing a limited scope, follow that document; otherwise apply this ban strictly.

@@ -1,0 +1,47 @@
+---
+description: Work journal and blog posts — traceability and archiving
+alwaysApply: true
+---
+
+# Work journal and blog
+
+## Goal
+
+Document the journey of building the component: choices, constraints, difficulties, pivots. This material feeds **blog posts**; the user will ask for help drafting each article from the journal.
+
+## Location
+
+- **Active journal (inbox)**: `documentation/journal/inbox/`
+- **Material already used for a published post**: `documentation/journal/archive/`
+
+Day files (`*.md`) under `inbox/` and `archive/` are **not committed** (root `.gitignore`); see `documentation/journal/README.md`. Create and edit them locally only.
+
+## Tracing exchanges
+
+For each **relevant** work session (task, technical decision, blocker, resolution):
+
+1. Create or update the day file: `documentation/journal/inbox/YYYY-MM-DD.md` (date in repo-local timezone or UTC, consistent in the project).
+2. Add **chronological** entries with:
+   - a title or context line (task, topic);
+   - what was requested / decided;
+   - difficulties, alternatives, short conclusion if applicable.
+3. Do not copy secrets (tokens, passwords, keys).
+
+If the session spans several days, use the file for the entry’s date.
+
+## Drafting posts
+
+When the user asks for help drafting a post from the journal:
+
+1. Use `documentation/journal/inbox/` (and `archive/` history if consistency is needed).
+2. Propose an article structure (intro, context, choices, difficulties, summary) suited to the desired tone.
+
+## Archiving after publication
+
+When a **post is published** and the user confirms (or explicitly asks to archive the covered material):
+
+1. Move or copy to `documentation/journal/archive/` the **excerpts or files** used for that post (or a dated summary + link to the post if the user provides it).
+2. Clean the inbox: remove or mark processed passages (avoid two sources of truth).
+3. Name archived files explicitly, e.g. `archive/2026-04-02-post-slug-or-short-title.md` or `archive/YYYY-MM-post-title/`.
+
+Without explicit instruction, do not archive automatically: archiving follows **publication** or a clear request.

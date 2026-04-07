@@ -1,47 +1,47 @@
-# DUR000 — Processus de gestion des ADR
+# DUR000 — ADR management process
 
-## Statut
+## Status
 
-Accepté
+Accepted
 
-## Contexte
+## Context
 
-Le composant **Durable** nécessite un cadre clair pour documenter les décisions d’architecture, assurer la traçabilité et aligner les évolutions du code sur des choix explicites.
+The **Durable** component needs a clear framework to document architecture decisions, ensure traceability, and align code changes with explicit choices.
 
-## Décision
+## Decision
 
-Les **Architecture Decision Records (ADR)** du projet Durable sont numérotées avec le préfixe **`DUR`**, suivies d’un identifiant numérique sur trois chiffres et d’un titre court en kebab-case.
+**Architecture Decision Records (ADRs)** for the Durable project are numbered with the **`DUR`** prefix, followed by a three-digit identifier and a short kebab-case title.
 
-### Emplacement
+### Location
 
-- Répertoire : `documentation/adr/`
-- Fichiers : `DUR{NNN}-{titre-court}.md` (ex. `DUR001-event-store-cursor.md`)
+- Directory: `documentation/adr/`
+- Files: `DUR{NNN}-{short-title}.md` (e.g. `DUR001-event-store-and-cursor.md`)
 
-### Numérotation
+### Numbering
 
-- **DUR000** : ce document (méta-processus)
-- **DUR001 et suivants** : numérotation séquentielle, sans réutilisation d’un numéro retiré ou obsolète
+- **DUR000**: this document (meta-process)
+- **DUR001 onward**: sequential numbering; do not reuse a withdrawn or obsolete number
 
-### Documents META
+### META documents
 
-Lorsqu’une décision exige des détails trop longs pour un seul fichier, des documents complémentaires peuvent être placés dans un sous-dossier :
+When a decision needs more detail than fits in one file, supplementary documents may live in a subfolder:
 
-- `documentation/adr/DUR{NNN}-{titre-court}/`
-- Fichiers : `DUR{NNN}-META{MM}-{sujet}.md` (META numérotés sur deux chiffres)
+- `documentation/adr/DUR{NNN}-{short-title}/`
+- Files: `DUR{NNN}-META{MM}-{topic}.md` (META numbered with two digits)
 
-### Structure recommandée d’un ADR
+### Recommended ADR structure
 
-1. Titre et identifiant
-2. Statut (brouillon, proposé, accepté, déprécié, remplacé)
-3. Contexte
-4. Décision
-5. Conséquences (positives, négatives, suivi éventuel)
+1. Title and identifier
+2. Status (draft, proposed, accepted, deprecated, superseded)
+3. Context
+4. Decision
+5. Consequences (positive, negative, follow-up as needed)
 
 ### Index
 
-La liste à jour des ADR est maintenue dans `documentation/INDEX.md`.
+The up-to-date ADR list is maintained in `documentation/INDEX.md`.
 
-## Conséquences
+## Consequences
 
-- Toute nouvelle décision architecturale majeure du périmètre Durable devrait être reflétée par un ADR ou la mise à jour d’un ADR existant.
-- Les implémentations futures pourront s’y référer sans dépendre de documents externes au dépôt.
+- Any major architectural decision in the Durable scope should be reflected by a new ADR or an update to an existing ADR.
+- Future implementations can refer to these records without relying on documents outside the repository.
