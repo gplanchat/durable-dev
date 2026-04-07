@@ -1,37 +1,37 @@
-# DUR012 — Couche client API et adaptateurs repository
+# DUR012 — API client layer and repository adapters
 
-## Statut
+## Status
 
-Accepté
+Accepted
 
-## Contexte
+## Context
 
-Les **repositories** Command et Query (DUR002) parlent à l’**API Temporal** via un transport (gRPC/HTTP selon l’implémentation). Mélanger **appels réseau**, **sérialisation**, **mapping** vers les modèles du composant et **règles métier** dans une seule classe rend les tests difficiles et les erreurs opaques.
+Command and Query **repositories** (DUR002) talk to the **Temporal API** via a transport (gRPC/HTTP per implementation). Mixing **network calls**, **serialization**, **mapping** to component models, and **business rules** in one class makes tests hard and errors opaque.
 
-## Décision
+## Decision
 
-On distingue **deux responsabilités** complémentaires :
+Two complementary responsibilities are separated:
 
-### 1. Client de protocole (couche « API » / transport)
+### 1. Protocol client (“API” / transport layer)
 
-- Gère la **conversation** avec le serveur Temporal : authentification si besoin, **requêtes/réponses** brutes ou quasi brutes, codes de statut, deadlines.
-- Ne contient **pas** la logique métier du domaine hôte ; peut encapsuler retries de bas niveau **uniquement** s’ils ne contredisent pas DUR011.
-- Reste **substituable** dans les tests par un fake ou un mock de bas niveau.
+- Handles **conversation** with the Temporal server: authentication if needed, **requests/responses** raw or near-raw, status codes, deadlines.
+- Contains **no** host domain business logic; may encapsulate low-level retries **only** if they do not contradict DUR011.
+- Remains **replaceable** in tests with a low-level fake or mock.
 
-### 2. Adaptateur repository
+### 2. Repository adapter
 
-- **Implémente** les ports Command/Query du composant Durable.
-- **Orchestre** les appels au client : une opération repository peut enchaîner plusieurs appels si nécessaire.
-- **Mappe** les structures transportées vers les **types du composant** (identifiants, DTO internes, erreurs traduites).
-- **Traduit** les échecs réseau ou protocolaires en erreurs du modèle Durable / domaine (DUR011).
+- **Implements** the Durable component’s Command/Query ports.
+- **Orchestrates** calls to the client: one repository operation may chain several calls when needed.
+- **Maps** transported structures to **component types** (identifiers, internal DTOs, translated errors).
+- **Translates** network or protocol failures into Durable / domain model errors (DUR011).
 
-### Principes
+### Principles
 
-- **Une seule direction de dépendance** : adaptateur → client → réseau ; le domaine applicatif dépend des **interfaces** de repository, pas du client.
-- **Pas de fuite** des types du client HTTP/gRPC dans les signatures **publiques** des ports stables du composant.
-- La **sérialisation** des payloads applicatifs suit DUR007 ; le client peut avoir sa propre enveloppe (headers, enveloppes gRPC).
+- **Single dependency direction**: adapter → client → network; application domain depends on **repository interfaces**, not the client.
+- **No leakage** of HTTP/gRPC client types into **public** signatures of stable component ports.
+- **Serialization** of application payloads follows DUR007; the client may have its own envelope (headers, gRPC envelopes).
 
-## Conséquences
+## Consequences
 
-- Les tests d’intégration peuvent cibler l’adaptateur avec un **client factice** ; les tests du client avec un **serveur de test** ou des réponses enregistrées.
-- Les évolutions du protocole Temporal sont **localisées** dans le client et les mappers, pas dans toute la codebase.
+- Integration tests can target the adapter with a **fake client**; client tests with a **test server** or recorded responses.
+- Temporal protocol evolution is **localized** to the client and mappers, not scattered across the codebase.

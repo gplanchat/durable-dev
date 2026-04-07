@@ -1,45 +1,45 @@
-# DUR010 — Pyramide des tests
+# DUR010 — Test pyramid
 
-## Statut
+## Status
 
-Accepté
+Accepted
 
-## Contexte
+## Context
 
-Un **surtout** de tests lents ou fragiles (UI, réseau, infrastructure lourde) ralentit le feedback et masque les régressions. Une **pyramide des tests** équilibrée place la majorité de la confiance dans **beaucoup** de tests **rapides** et **fiables** en base, et **peu** de tests **coûteux** au sommet.
+A **surplus** of slow or brittle tests (UI, network, heavy infrastructure) slows feedback and hides regressions. A balanced **test pyramid** puts most confidence in **many** **fast**, **reliable** tests at the base, and **few** **expensive** tests at the top.
 
-## Décision
+## Decision
 
-Le projet Durable adopte une **pyramide des tests** alignée sur les couches du composant :
+The Durable project adopts a **test pyramid** aligned with component layers:
 
-### Base — tests unitaires (majorité)
+### Base — unit tests (majority)
 
-- **Cible** : logique pure, value objects, state machine, règles de sérialisation, transformations sans I/O.
-- **Caractère** : rapides, isolés, sans base ni Temporal.
-- **Objectif** : couvrir les **chemins** et **invariants** (déterminisme, rejeu simulé) à faible coût.
+- **Target**: pure logic, value objects, state machine, serialization rules, I/O-free transforms.
+- **Nature**: fast, isolated, no database or Temporal.
+- **Goal**: cover **paths** and **invariants** (determinism, simulated replay) at low cost.
 
-### Milieu — tests d’intégration
+### Middle — integration tests
 
-- **Cible** : **ports** avec le backend **In-Memory** (DUR005), enchaînements repository + EventStore + stubs d’activité selon le périmètre du composant.
-- **Caractère** : plus lents que l’unitaire, mais **sans** infrastructure externe obligatoire.
-- **Objectif** : valider le **câblage** et les **contrats** entre modules internes.
+- **Target**: **ports** with the **In-Memory** backend (DUR005), repository + EventStore + activity stubs chains per component scope.
+- **Nature**: slower than unit, but **without** mandatory external infrastructure.
+- **Goal**: validate **wiring** and **contracts** between internal modules.
 
-### Sommet — tests end-to-end ou système (minorité)
+### Top — end-to-end or system tests (minority)
 
-- **Cible** : scénarios complets avec **Temporal** réel (ou environnement de test dédié) lorsque nécessaire pour valider la **compatibilité réseau/protocole** et les **chemins critiques** non couverts par In-Memory.
-- **Caractère** : les plus lents et les plus sensibles à l’environnement ; **nombre limité**.
-- **Objectif** : confiance sur l’intégration **réelle**, pas duplication de toute la couverture unitaire.
+- **Target**: full scenarios with **real Temporal** (or a dedicated test environment) when needed to validate **network/protocol compatibility** and **critical paths** not covered by In-Memory.
+- **Nature**: slowest and most environment-sensitive; **limited** in number.
+- **Goal**: confidence in **real** integration, not duplication of all unit coverage.
 
-### Principes
+### Principles
 
-- **Ne pas** inverser la pyramide : éviter une majorité de tests E2E lents pour le détail métier.
-- Les **régressions** détectées en E2E devraient **idéalement** faire l’objet d’un test **plus bas** dans la pyramide, pour éviter la répétition.
+- **Do not** invert the pyramid: avoid a majority of slow E2E tests for business detail.
+- Regressions found in E2E should **ideally** gain a test **lower** in the pyramid to avoid repetition.
 
-### Relation avec DUR009
+### Relationship to DUR009
 
-- Les **règles d’écriture** (déterminisme, doubles, PHPUnit) s’appliquent à chaque niveau ; la pyramide fixe **où** placer l’effort **relatif**.
+- **Writing rules** (determinism, doubles, PHPUnit) apply at every level; the pyramid sets **where** to place **relative** effort.
 
-## Conséquences
+## Consequences
 
-- Les pipelines CI peuvent **séparer** les jobs (unitaires rapides, intégration, E2E optionnel ou planifié).
-- L’évolution du composant doit **préserver** la possibilité de tester massivement via **In-Memory** pour ne pas dépendre du sommet pour chaque changement.
+- CI pipelines may **split** jobs (fast unit, integration, optional or scheduled E2E).
+- Component evolution must **preserve** the ability to test heavily via **In-Memory** so every change does not depend on the top layer.

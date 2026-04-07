@@ -1,59 +1,59 @@
-# DUR009 — Règles d'écriture des tests
+# DUR009 — Testing standards
 
-## Statut
+## Status
 
-Amendé (DUR009-v2) — ajout des conventions `FakeWorkflowServiceClient`, `ActivitySpy`, `WorkflowTestEnvironment`, `DurableBundleTestTrait` (2026-04-04)
+Amended (DUR009-v2) — added conventions for `FakeWorkflowServiceClient`, `ActivitySpy`, `WorkflowTestEnvironment`, `DurableBundleTestTrait` (2026-04-04)
 
-## Contexte
+## Context
 
-Le composant Durable repose sur des **comportements déterministes** (rejeu, idempotence des workflows) et des **adaptateurs** (Temporal, In-Memory). Les tests doivent **protéger** ces contrats sans fragilité, sans dépendre de l'aléa ou du temps réel, et sans accumuler des doubles de test opaques.
+The Durable component relies on **deterministic behaviour** (replay, workflow idempotence) and **adapters** (Temporal, In-Memory). Tests must **protect** these contracts without fragility, without depending on randomness or real time, and without opaque test doubles.
 
-## Décision
+## Decision
 
-### Cadre et outillage
+### Framework and tooling
 
-- **PHPUnit** est le framework de test par défaut pour le code PHP du projet.
-- Les tests **doivent** être **déterministes** : pas de dépendance à l'heure réelle, aux identifiants aléatoires non contrôlés, ni aux réseaux externes non simulés.
+- **PHPUnit** is the default test framework for project PHP code.
+- Tests **must** be **deterministic**: no reliance on real time, uncontrolled random IDs, or unsimulated external networks.
 
 ### Organisation
 
-- **Un cas de test** (méthode) **une intention** : nom de test lisible décrivant le comportement attendu.
-- **Données** : préférer des **fixtures** ou **builders** explicites plutôt que des littéraux magiques répétés ; facteurs communs dans des méthodes ou classes de données de test dédiées lorsque cela clarifie la lisibilité.
+- **One test case** (method) **one intent**: readable test name describing expected behaviour.
+- **Data**: prefer explicit **fixtures** or **builders** over repeated magic literals; shared factors in dedicated test data methods or classes when it improves clarity.
 
-### Doubles et isolation
+### Doubles and isolation
 
-- **Test doubles** (fakes, stubs, spies) **préférés** aux mocks généralistes lorsque la lisibilité et le contrôle du comportement sont meilleurs.
-- Les **mocks** ne sont **pas** interdits, mais leur usage doit rester **limité** aux frontières où l'injection d'un comportement est le plus simple.
-- Les tests du **domaine** et des **ports** ne doivent **pas** dépendre d'un cluster Temporal réel : utiliser le backend **In-Memory** (DUR005) ou des doubles dédiés.
+- **Test doubles** (fakes, stubs, spies) are **preferred** over generic mocks when readability and behaviour control are better.
+- **Mocks** are **not** forbidden, but use should stay **limited** to boundaries where injecting behaviour is simplest.
+- **Domain** and **port** tests must **not** depend on a real Temporal cluster: use the **In-Memory** backend (DUR005) or dedicated doubles.
 
-#### Doubles fournis par le composant
+#### Doubles shipped with the component
 
-| Classe | Package | Usage |
+| Class | Package | Usage |
 |---|---|---|
-| `Gplanchat\Durable\Testing\ActivitySpy` | `gplanchat/durable` | Fake contrôlable pour une activité. Permet de piloter la valeur de retour, de forcer une exception et de vérifier les appels. |
-| `Gplanchat\Durable\Testing\WorkflowTestEnvironment` | `gplanchat/durable` | Façade agrégeant les briques in-memory (`InMemoryEventStore`, `InMemoryWorkflowMetadataStore`, `ExecutionEngine`…) pour les tests unitaires de workflows. |
-| `Gplanchat\Durable\Testing\DurableTestCase` | `gplanchat/durable` | Classe de base PHPUnit préconfigurée. Instancie un `WorkflowTestEnvironment` et expose des méthodes utilitaires (`runWorkflow()`, `assertWorkflowResult()`…). |
-| `Gplanchat\Bridge\Temporal\Testing\FakeWorkflowServiceClient` | `gplanchat/durable-bridge-temporal` | Implémentation in-process du service gRPC Temporal. Utilisée pour tester le bridge Temporal sans cluster réel. |
-| `Gplanchat\Durable\Bundle\Testing\DurableBundleTestTrait` | `gplanchat/durable-bundle` | Trait PHPUnit pour `KernelTestCase`. Expose `dispatchWorkflow()`, `drainMessengerUntilSettled()`, `assertWorkflowResultEquals()`, `getEventStoreService()`. |
+| `Gplanchat\Durable\Testing\ActivitySpy` | `gplanchat/durable` | Controllable fake for an activity. Drive return values, force exceptions, assert calls. |
+| `Gplanchat\Durable\Testing\WorkflowTestEnvironment` | `gplanchat/durable` | Facade wiring in-memory pieces (`InMemoryEventStore`, `InMemoryWorkflowMetadataStore`, `ExecutionEngine`, …) for workflow unit tests. |
+| `Gplanchat\Durable\Testing\DurableTestCase` | `gplanchat/durable` | Preconfigured PHPUnit base. Instantiates `WorkflowTestEnvironment` and exposes helpers (`runWorkflow()`, `assertWorkflowResult()`, …). |
+| `Gplanchat\Bridge\Temporal\Testing\FakeWorkflowServiceClient` | `gplanchat/durable-bridge-temporal` | In-process Temporal gRPC service implementation. Used to test the Temporal bridge without a real cluster. |
+| `Gplanchat\Durable\Bundle\Testing\DurableBundleTestTrait` | `gplanchat/durable-bundle` | PHPUnit trait for `KernelTestCase`. Exposes `dispatchWorkflow()`, `drainMessengerUntilSettled()`, `assertWorkflowResultEquals()`, `getEventStoreService()`. |
 
-### Temporal et workflows
+### Temporal and workflows
 
-- **Pas de SDK Temporal officiel** dans les tests non plus (DUR006) : les tests valident les **abstractions** du composant, pas un client tiers interdit.
-- Les scénarios de **rejeu** et d'**idempotence** (DUR003) sont couverts par des tests **répétables** (même entrée → même historique / même décision simulée).
-- **`FakeWorkflowServiceClient`** est le double de référence pour les tests du bridge Temporal : il simule l'API gRPC en mémoire sans dépendre d'un cluster. Les tests PHPUnit du bridge **doivent** l'utiliser à la place d'un client gRPC réel.
-- Toute méthode publique de `FakeWorkflowServiceClient` non encore implémentée lève `\BadMethodCallException` pour signaler clairement un usage non couvert.
+- **No official Temporal SDK** in tests either (DUR006): tests validate the component’s **abstractions**, not a forbidden third-party client.
+- **Replay** and **idempotence** scenarios (DUR003) are covered by **repeatable** tests (same input → same history / same simulated decision).
+- **`FakeWorkflowServiceClient`** is the reference double for Temporal bridge tests: it simulates the gRPC API in memory without a cluster. PHPUnit bridge tests **must** use it instead of a real gRPC client.
+- Any public `FakeWorkflowServiceClient` method not yet implemented throws `\BadMethodCallException` to signal unsupported usage clearly.
 
-### Style et conventions
+### Style and conventions
 
-- Le code des tests suit le **PER** (DUR008) : nommage des classes de test, méthodes, et structure des fichiers conformes au projet.
+- Test code follows **PER** (DUR008): test class names, methods, and file layout match project conventions.
 
-### Non-objectifs de cette ADR
+### Out of scope for this ADR
 
-- La **proportion** des types de tests (unitaires, intégration, bout-en-bout) est définie dans **DUR010** (pyramide des tests).
+- The **proportion** of unit vs integration vs end-to-end tests is defined in **DUR010** (test pyramid).
 
-## Conséquences
+## Consequences
 
-- La CI **devrait** exécuter la suite PHPUnit sur les changements pertinents et exiger une couverture minimale ou des critères de qualité fixés par les mainteneurs.
-- Les META documents peuvent détailler des patterns (fixtures, builders) sans dupliquer les principes ci-dessus.
-- `DurableTestCase`, `ActivitySpy` et `WorkflowTestEnvironment` sont livrés dans `src/Durable/Testing/` et disponibles **sans** le bundle Symfony — ils conviennent aussi à une intégration sans framework.
-- `DurableBundleTestTrait` est livré dans `src/DurableBundle/Testing/` et requiert `symfony/framework-bundle` et `symfony/messenger`.
+- CI **should** run the PHPUnit suite on relevant changes and enforce minimum coverage or quality bars set by maintainers.
+- META documents may detail patterns (fixtures, builders) without duplicating the principles above.
+- `DurableTestCase`, `ActivitySpy`, and `WorkflowTestEnvironment` ship under `src/Durable/Testing/` and are available **without** the Symfony bundle — suitable for framework-free integration too.
+- `DurableBundleTestTrait` ships under `src/DurableBundle/Testing/` and requires `symfony/framework-bundle` and `symfony/messenger`.

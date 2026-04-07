@@ -1,32 +1,32 @@
-# DUR001 — EventStore et parcours par curseur
+# DUR001 — Event store and cursor traversal
 
-## Statut
+## Status
 
-Accepté
+Accepted
 
-## Contexte
+## Context
 
-Pour rejouer et inspecter l’historique d’exécution d’un workflow durable, il faut exposer les **événements** persistés côté orchestrateur (Temporal) sous une forme exploitable par le composant, sans charger l’historique entier en mémoire lorsque celui-ci est volumineux.
+To replay and inspect durable workflow execution history, the component must expose **events** persisted by the orchestrator (Temporal) in a consumable form, without loading the entire history into memory when it is large.
 
-## Décision
+## Decision
 
-Le composant Durable expose un **EventStore** qui :
+The Durable component exposes an **EventStore** that:
 
-1. **Lit** l’historique d’événements associé à un workflow Temporal (identifié de façon stable par les primitives du modèle du composant : ex. identifiant de workflow, run, namespace selon les conventions fixées par l’implémentation).
-2. **Fournit** les événements sous forme de **liste itérable** avec **pagination par curseur** : le consommateur obtient un lot d’événements et un curseur (opaque pour l’appelant) permettant de demander le lot suivant jusqu’à épuisement.
+1. **Reads** the event history associated with a Temporal workflow (identified in a stable way by the component’s model primitives, e.g. workflow ID, run, namespace per implementation conventions).
+2. **Delivers** events as an **iterable list** with **cursor-based pagination**: the consumer receives a batch of events and an opaque cursor to request the next batch until exhausted.
 
-### Principes
+### Principles
 
-- **Ordre total** : les événements sont parcourus dans l’ordre chronologique (ou l’ordre défini par l’orchestrateur) de façon déterministe pour le rejeu.
-- **Curseur opaque** : le client ne décode pas la structure interne du curseur ; il le repasse tel quel pour la page suivante.
-- **Performance** : éviter le parcours par offset sur de grands historiques ; le modèle curseur vise une complexité stable par requête.
-- **Cohérence** : lors d’une lecture paginée, la sémantique doit éviter les doublons et les trous liés aux lectures concurrentes autant que le permet l’API sous-jacente (comportement documenté en cas de limite).
+- **Total order**: events are traversed in chronological order (or the order defined by the orchestrator) deterministically for replay.
+- **Opaque cursor**: the client does not decode the cursor’s internal structure; it passes it back unchanged for the next page.
+- **Performance**: avoid offset-based traversal on large histories; the cursor model aims for stable per-request cost.
+- **Consistency**: for paginated reads, semantics must avoid duplicates and gaps from concurrent reads as far as the underlying API allows (document behaviour at limits).
 
-### Rôle dans l’architecture
+### Role in architecture
 
-L’EventStore est la **source de vérité** pour la reconstruction du comportement du workflow via la machine à états (voir DUR003) : le rejeu consiste à réappliquer les événements jusqu’au dernier point exécuté.
+The EventStore is the **source of truth** for reconstructing workflow behaviour via the state machine (see DUR003): replay reapplies events up to the last executed point.
 
-## Conséquences
+## Consequences
 
-- Les adaptateurs Temporal et In-Memory (DUR005) doivent chacun fournir une implémentation cohérente de ce contrat.
-- Les types d’événements exposés doivent être suffisamment riches pour alimenter la StateMachine sans ambiguïté.
+- Temporal and In-Memory adapters (DUR005) must each provide a consistent implementation of this contract.
+- Exposed event types must be rich enough to feed the state machine unambiguously.

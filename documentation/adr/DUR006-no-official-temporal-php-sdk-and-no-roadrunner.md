@@ -1,28 +1,28 @@
-# DUR006 — Absence de SDK Temporal officiel PHP et de RoadRunner
+# DUR006 — No official Temporal PHP SDK and no RoadRunner
 
-## Statut
+## Status
 
-Accepté
+Accepted
 
-## Contexte
+## Context
 
-L’écosystème Temporal pour PHP propose couramment un **SDK officiel** et l’usage de **RoadRunner** comme worker. Le projet Durable vise une **maîtrise des dépendances** et une **couche d’intégration** alignée sur des abstractions propres (ports/adapters), sans enfermer l’architecture dans ces stacks.
+The Temporal ecosystem for PHP commonly ships an **official SDK** and uses **RoadRunner** as a worker. The Durable project aims for **controlled dependencies** and a **clean integration layer** (ports/adapters), without locking the architecture into those stacks.
 
-## Décision
+## Decision
 
-Il est **interdit** d’introduire ou de conserver dans le périmètre du composant Durable :
+It is **forbidden** to introduce or keep, within the Durable component scope:
 
-- le **SDK Temporal officiel** pour PHP (client, worker, helpers livrés par Temporal pour PHP, etc.) ;
-- **RoadRunner** et tout composant **dépendant de RoadRunner** ou requis par celui-ci.
+- the **official Temporal SDK for PHP** (client, worker, helpers shipped by Temporal for PHP, etc.);
+- **RoadRunner** and any component **depending on** or **required by** RoadRunner.
 
-Les intégrations avec Temporal passent par des **moyens acceptés par le projet** : appels vers l’API du serveur Temporal (gRPC/HTTP selon les choix d’implémentation), clients maintenus dans le dépôt, ou autres adaptateurs conformes aux ADR DUR001–DUR005.
+Integrations with Temporal use **project-approved means**: calls to the Temporal server API (gRPC/HTTP per implementation choices), in-repo clients, or other adapters consistent with DUR001–DUR005.
 
-### Rapport avec les autres ADR
+### Relationship to other ADRs
 
-- Les **repositories** (DUR002) et l’**EventStore** (DUR001) ne s’appuient pas sur des types du SDK officiel comme contrat public.
-- Les **workflows** et **activités** (DUR003, DUR004) sont modélisés par le composant ; le worker d’exécution n’est pas RoadRunner.
+- **Repositories** (DUR002) and **EventStore** (DUR001) do not use official SDK types as the public contract.
+- **Workflows** and **activities** (DUR003, DUR004) are modelled by the component; the execution worker is not RoadRunner.
 
-## Conséquences
+## Consequences
 
-- Toute dépendance Composer ou tout module qui tire ces technologies doit être rejeté ou remplacé.
-- Les guides d’installation et d’exploitation doivent documenter le runtime retenu (hors RoadRunner) lorsque l’implémentation sera réalisée.
+- Any Composer dependency or module that pulls these technologies must be rejected or replaced.
+- Installation and operations guides must document the chosen runtime (not RoadRunner) when the implementation ships.
