@@ -45,6 +45,7 @@ See [`symfony/README.md`](symfony/README.md) for Messenger consumers, `DURABLE_D
 - **Document lifecycle**: [`documentation/LIFECYCLE.md`](documentation/LIFECYCLE.md)
 - **User guide (Markdown source)** for Hugo: [`documentation/user/`](documentation/user/) — build instructions in [`documentation/HUGO.md`](documentation/HUGO.md)
 - **Per-package READMEs**: [`src/Durable/README.md`](src/Durable/README.md), [`src/DurableBundle/README.md`](src/DurableBundle/README.md), [`src/Bridge/Temporal/README.md`](src/Bridge/Temporal/README.md)
+- **Monorepo → satellite repositories (splitsh)**: [`bin/splitsh-publish.sh`](bin/splitsh-publish.sh), [DUR020](documentation/adr/DUR020-monorepo-splitsh-and-satellite-repositories.md), [`.github/workflows/splitsh.yml`](.github/workflows/splitsh.yml) — pushes to `main`/`master` and tags `v*` propagate to satellites when `SPLITSH_PUSH_TOKEN` is configured.
 
 Architecture decisions for this component use the **`DUR`** prefix under `documentation/adr/` (see **DUR000**).
 
