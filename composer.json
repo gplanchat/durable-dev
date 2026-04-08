@@ -1,7 +1,11 @@
 {
     "name": "gplanchat/durable-monorepo",
     "description": "Monorepo root: gplanchat/durable + bridge + bundle (dev tooling only).",
-    "license": "proprietary",
+    "license": "MIT",
+    "support": {
+        "issues": "https://github.com/gplanchat/durable-dev/issues",
+        "source": "https://github.com/gplanchat/durable-dev"
+    },
     "type": "project",
     "version": "0.1.0",
     "repositories": [

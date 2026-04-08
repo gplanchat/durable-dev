@@ -110,3 +110,7 @@ durable:
 ```
 
 The `interpreter_mirror_activities` key was removed. The Temporal bridge now uses `WorkflowTaskRunner` + `TemporalHistoryCursor` for native replay (see **DUR027**).
+
+## License
+
+**MIT** — see [`LICENSE`](LICENSE) in this directory and [WA004](../documentation/wa/WA004-mit-license-distribution.md).

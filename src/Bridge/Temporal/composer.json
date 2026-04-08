@@ -1,7 +1,7 @@
 {
     "name": "gplanchat/durable-bridge-temporal",
     "description": "Temporal journal EventStore + worker (gRPC only, no Temporal PHP SDK) for gplanchat/durable",
-    "license": "proprietary",
+    "license": "MIT",
     "type": "library",
     "version": "0.1.0",
     "require": {

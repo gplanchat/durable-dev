@@ -1,7 +1,7 @@
 {
     "name": "gplanchat/durable-bundle",
     "description": "Symfony bundle for gplanchat/durable: extension, autoconfiguration of workflows and activities.",
-    "license": "proprietary",
+    "license": "MIT",
     "type": "symfony-bundle",
     "version": "0.1.0",
     "require": {

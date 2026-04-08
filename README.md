@@ -1,5 +1,7 @@
 # Durable (PHP)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 **Durable** is a PHP library for **durable execution**: long-running workflows coordinated with **Temporal**, with a **cursor-based event journal**, **activities** for side effects, and **replay** so workflow code stays deterministic.
 
 This monorepo contains:
@@ -48,4 +50,4 @@ Architecture decisions for this component use the **`DUR`** prefix under `docume
 
 ## License
 
-Proprietary (see `composer.json`).
+This project is released under the [MIT License](https://opensource.org/licenses/MIT) (SPDX identifier: `MIT`). The full text is in [`LICENSE`](LICENSE); distribution policy is described in [WA004](documentation/wa/WA004-mit-license-distribution.md).

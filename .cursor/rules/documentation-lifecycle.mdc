@@ -11,6 +11,8 @@ Behaviour described in **`documentation/LIFECYCLE.md`** is **mandatory** for cre
 
 **Language:** Normative documentation in `documentation/adr/`, `documentation/wa/`, tracking, journals, and `.cursor/rules/` must be **English** — see [WA001](../../documentation/wa/WA001-english-language-documentation.md).
 
+**Licensing:** The repository and first-party Composer packages use the **MIT License** — see [WA004](../../documentation/wa/WA004-mit-license-distribution.md) and the root **`LICENSE`** file.
+
 **Hugo site:** The **user guide** is built only from `documentation/user/` via `hugo-docs/` — see [documentation/HUGO.md](../../documentation/HUGO.md). ADRs and WAs are not mirrored there. New user-facing sections go under `documentation/user/` (subfolders with `_index.md`).
 
 ## Compliance with `adr/` and `wa/` documents
@@ -21,6 +23,7 @@ Decisions and agreements written under **`documentation/adr/`** and **`documenta
 - **Evolution**: new features or refactors that touch architecture must **align** with applicable ADRs; **working agreements** in `wa/` have the same force for team and repository practices they cover.
 - **Code review**: **[WA002](../../documentation/wa/WA002-test-driven-development.md)** (TDD) must be **verified** on behaviour-changing changes; see `.cursor/rules/code-review-wa002-tdd.mdc` and the **Code review** section in WA002.
 - **GitHub planning**: when creating or organising **epics**, **tasks**, and **stories** on GitHub (Issues / Projects), follow **[WA003](../../documentation/wa/WA003-github-epics-tasks-and-project-tracking.md)**.
+- **Distribution license**: `composer.json` `"license"` fields and satellite repos follow **[WA004](../../documentation/wa/WA004-mit-license-distribution.md)** unless an explicit exception is documented.
 
 If a folder is empty, the rule applies as soon as it contains versioned documents; the agent must **not** ignore these paths when they exist.
 
