@@ -31,6 +31,16 @@ Durable component code and related packages may live in a **monorepo**, with **r
 
 - Configurable (e.g. default `main`); any **force** option explicitly named and off by default.
 
+### Version tags on satellites
+
+Pushing a version tag on the monorepo (e.g. `v0.1.0`) does **not** automatically create that tag on satellite mirrors unless automation runs **splitsh at the tagged commit** and **`git push <split-sha>:refs/tags/<tag>`** to each satellite.
+
+- **CI** (`.github/workflows/splitsh.yml`): on **`push` of tags matching `v*`**, the workflow runs `bin/splitsh-publish.sh tag <tag>` so each configured prefix gets the same tag name pointing at the **split commit** that corresponds to the monorepo tag.
+- **Branch pushes** to `main` / `master` run `bin/splitsh-publish.sh` without arguments (split current `HEAD`, push to `refs/heads/<target>`).
+- **Manual backfill**: with `splitsh-lite` locally and `SPLITSH_PUSH_TOKEN` set, from a **clean** tree: `./bin/splitsh-publish.sh tag v0.1.0`.
+
+Prefixes and GitHub repository names live in **`bin/splitsh-publish.sh`** (`SPLITSH_GITHUB_ORG` defaults to `gplanchat`).
+
 ## Consequences
 
 - The repository must document **prefixes**, publish script, and satellite repo names in the README or contributor docs.
