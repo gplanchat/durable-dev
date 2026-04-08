@@ -28,13 +28,21 @@ SPLITS=(
     "src/Bridge/Temporal/|durable-bridge-temporal"
 )
 
-remote_url() {
+# Push using Authorization: Basic so the credential helper from CI (GITHUB_TOKEN) cannot override
+# pushes to other repositories — embed-only URLs are sometimes ignored when a global helper matches github.com.
+git_push_satellite() {
     local repo="$1"
-    if [[ -n "$TOKEN" ]]; then
-        printf 'https://x-access-token:%s@github.com/%s/%s.git' "$TOKEN" "$ORG" "$repo"
-    else
-        printf ''
+    local refspec="$2"
+    shift 2
+    local url="https://github.com/${ORG}/${repo}.git"
+    local basic
+    if [[ -z "$TOKEN" ]]; then
+        return 0
     fi
+    basic="$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0 2>/dev/null || printf 'x-access-token:%s' "$TOKEN" | base64 | tr -d '\n')"
+    GIT_TERMINAL_PROMPT=0 git \
+        -c "http.extraHeader=Authorization: Basic ${basic}" \
+        push "$@" "$url" "$refspec"
 }
 
 split_sha() {
@@ -68,7 +76,7 @@ require_clean_tree() {
 }
 
 push_branch_mode() {
-    local url sha force_flag=()
+    local sha force_flag=()
     if [[ "${SPLITSH_FORCE:-0}" == "1" ]]; then
         force_flag=(--force)
     fi
@@ -76,19 +84,18 @@ push_branch_mode() {
     for entry in "${SPLITS[@]}"; do
         IFS='|' read -r prefix repo <<<"$entry"
         sha="$(split_sha "$prefix")"
-        url="$(remote_url "$repo")"
-        if [[ -z "$url" ]]; then
+        if [[ -z "$TOKEN" ]]; then
             echo "[branch] $repo split SHA=$sha (dry-run, set SPLITSH_PUSH_TOKEN to push)"
             continue
         fi
         echo "[branch] Pushing $ORG/$repo $sha -> refs/heads/$BRANCH"
-        git push "${force_flag[@]}" "$url" "$sha:refs/heads/$BRANCH"
+        git_push_satellite "$repo" "$sha:refs/heads/$BRANCH" "${force_flag[@]}"
     done
 }
 
 push_tag_mode() {
     local tag="$1"
-    local url sha
+    local sha
 
     if [[ -z "$tag" ]]; then
         echo "usage: $0 tag <tag>" >&2
@@ -103,14 +110,12 @@ push_tag_mode() {
     for entry in "${SPLITS[@]}"; do
         IFS='|' read -r prefix repo <<<"$entry"
         sha="$(split_sha "$prefix")"
-        url="$(remote_url "$repo")"
-        if [[ -z "$url" ]]; then
+        if [[ -z "$TOKEN" ]]; then
             echo "[tag] $repo split SHA=$sha for $tag (dry-run, set SPLITSH_PUSH_TOKEN to push)"
             continue
         fi
         echo "[tag] Pushing $ORG/$repo $sha -> refs/tags/$tag"
-        # Create / update the tag on the satellite to point at the split commit for this release.
-        git push "$url" "$sha:refs/tags/$tag"
+        git_push_satellite "$repo" "$sha:refs/tags/$tag"
     done
 }
 
