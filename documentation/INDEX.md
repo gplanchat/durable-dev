@@ -2,7 +2,7 @@
 
 This repository documents the **Durable** component (durable execution orchestrated with Temporal, without the official PHP SDK or RoadRunner — see [DUR006](adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md)). Symfony Messenger integration is covered in **DUR021**. **Commands-only** orchestration is **DUR026**; the **gRPC bridge** is **DUR019**; the **fiber-based interpreter** (`WorkflowTaskRunner`) is **DUR027**; the **fiber and replay model** is **DUR003**. **[DUR025](adr/DUR025-temporal-grpc-workflowservice-messages-and-implementation-map.md)** maps **WorkflowService** gRPC RPCs to this codebase.
 
-**Language:** All normative documents in `documentation/adr/`, `documentation/wa/`, tracking, and Cursor rules are **English** — see [WA001](wa/WA001-english-language-documentation.md). **Development** follows **TDD** (Red → Green → Refactor) — see [WA002](wa/WA002-test-driven-development.md). **GitHub** epics, tasks, stories, and project usage follow **[WA003](wa/WA003-github-epics-tasks-and-project-tracking.md)**.
+**Language:** All normative documents in `documentation/adr/`, `documentation/wa/`, tracking, and Cursor rules are **English** — see [WA001](wa/WA001-english-language-documentation.md). **Development** follows **TDD** (Red → Green → Refactor) — see [WA002](wa/WA002-test-driven-development.md). **GitHub** epics, tasks, stories, and project usage follow **[WA003](wa/WA003-github-epics-tasks-and-project-tracking.md)**. **Licensing:** the repository and first-party Composer packages are **MIT** — see [WA004](wa/WA004-mit-license-distribution.md) and the root [`LICENSE`](../LICENSE) file.
 
 ## Architecture Decision Records (ADR)
 
@@ -46,6 +46,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | WA001 | English language for project documentation | [wa/WA001-english-language-documentation.md](wa/WA001-english-language-documentation.md) |
 | WA002 | Test-driven development (TDD) | [wa/WA002-test-driven-development.md](wa/WA002-test-driven-development.md) |
 | WA003 | GitHub epics, tasks, and project tracking | [wa/WA003-github-epics-tasks-and-project-tracking.md](wa/WA003-github-epics-tasks-and-project-tracking.md) |
+| WA004 | MIT license for the repository and Composer packages | [wa/WA004-mit-license-distribution.md](wa/WA004-mit-license-distribution.md) |
 
 ## Other
 

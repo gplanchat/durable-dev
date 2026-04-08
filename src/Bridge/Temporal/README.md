@@ -56,6 +56,10 @@ Or `temporal://…` without `inner` in the URL and **`options: { purpose: applic
 
 Same idea as `messenger:consume`: run the Messenger worker under FrankenPHP worker mode (or systemd) with `messenger:consume <journal_transport>` pointing at `temporal://…` without `inner`.
 
+## License
+
+**MIT** — see [`LICENSE`](LICENSE) in this directory and [WA004](../../../documentation/wa/WA004-mit-license-distribution.md).
+
 ## Further reading
 
 - **DUR019** — Temporal gRPC bridge and journal: [`documentation/adr/DUR019-temporal-grpc-bridge-and-journal.md`](../../../documentation/adr/DUR019-temporal-grpc-bridge-and-journal.md)

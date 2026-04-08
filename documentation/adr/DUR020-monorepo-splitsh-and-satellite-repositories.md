@@ -35,6 +35,7 @@ Durable component code and related packages may live in a **monorepo**, with **r
 
 - The repository must document **prefixes**, publish script, and satellite repo names in the README or contributor docs.
 - Maintainers configure **secrets** at the CI repository level.
+- Each split **prefix** must ship a root **`LICENSE`** file (MIT) per **[WA004](../wa/WA004-mit-license-distribution.md)** so satellite mirrors match Packagist and GitHub expectations.
 
 ## Relationship to workflow and activity authoring (DUR022, DUR023)
 

@@ -23,3 +23,7 @@ Register the bundle in your kernel and add `config/packages/durable.yaml` (see t
 ## Suggested dev dependency
 
 - `symfony/web-profiler-bundle` — Durable toolbar / profiler panel (see `composer.json` `suggest`)
+
+## License
+
+**MIT** — see [`LICENSE`](LICENSE) in this directory and [WA004](../../documentation/wa/WA004-mit-license-distribution.md).
