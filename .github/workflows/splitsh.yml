@@ -27,10 +27,14 @@ jobs:
         permissions:
             contents: read
         steps:
+            # Do not persist GITHUB_TOKEN as a git credential helper: it would be used for
+            # *all* github.com HTTPS operations and breaks pushes to *other* repos with SPLITSH_PUSH_TOKEN
+            # (symptom: git exits 128 / permission denied on satellite remotes).
             - name: Checkout (full history — required by splitsh)
               uses: actions/checkout@v4
               with:
                   fetch-depth: 0
+                  persist-credentials: false
 
             - name: Local bin directory
               run: mkdir -p "$HOME/.local/bin"
@@ -54,6 +58,7 @@ jobs:
               if: steps.cache-toolchain.outputs.cache-hit != 'true'
               with:
                   go-version: '1.22'
+                  cache: false
 
             - name: Build libgit2 1.5.2 then splitsh-lite (splitsh/lite v2.0.0)
               if: steps.cache-toolchain.outputs.cache-hit != 'true'
@@ -92,6 +97,21 @@ jobs:
 
             - name: Verify splitsh-lite
               run: command -v splitsh-lite && test -x "$HOME/.local/bin/splitsh-lite"
+
+            - name: Validate SPLITSH_PUSH_TOKEN (does not print the secret)
+              env:
+                  SPLITSH_PUSH_TOKEN: ${{ secrets.SPLITSH_PUSH_TOKEN }}
+              run: |
+                  set -euo pipefail
+                  if [ -z "${SPLITSH_PUSH_TOKEN:-}" ]; then
+                    echo "::notice::SPLITSH_PUSH_TOKEN is not set — splitsh will dry-run (no push to satellites)."
+                    exit 0
+                  fi
+                  code="$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${SPLITSH_PUSH_TOKEN}" https://api.github.com/user)"
+                  if [ "$code" != "200" ]; then
+                    echo "::error::SPLITSH_PUSH_TOKEN is rejected by GitHub API (HTTP ${code}). Renew the PAT, ensure **repo** scope (classic) or Contents: Write on each satellite (fine-grained), and authorize SSO for the org if applicable."
+                    exit 1
+                  fi
 
             - name: Publish splits to satellite repositories
               env:

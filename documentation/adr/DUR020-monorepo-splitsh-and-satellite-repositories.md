@@ -41,6 +41,12 @@ Pushing a version tag on the monorepo (e.g. `v0.1.0`) does **not** automatically
 
 Prefixes and GitHub repository names live in **`bin/splitsh-publish.sh`** (`SPLITSH_GITHUB_ORG` defaults to `gplanchat`).
 
+### Troubleshooting (CI exit 128 on `git push`)
+
+- **`actions/checkout` + satellite remotes**: keep **`persist-credentials: false`** on checkout so the default **`GITHUB_TOKEN`** credential helper does not override pushes to **other** repositories (symptom: `git` exit **128** despite a PAT in the URL).
+- **PAT**: Use a **classic** PAT with **`repo`** scope, or a **fine-grained** PAT with **Contents: Read and write** on each satellite repo. For organizations with **SAML SSO**, authorize the PAT for the org.
+- The workflow validates **`SPLITSH_PUSH_TOKEN`** against `GET /user` before pushing; HTTP **401** / **403** usually means expired token, wrong scope, or missing SSO authorization.
+
 ## Consequences
 
 - The repository must document **prefixes**, publish script, and satellite repo names in the README or contributor docs.
