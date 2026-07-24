@@ -60,6 +60,7 @@ final class TemporalActivityWorker
         }
 
         $message = TemporalActivityScheduleInput::toActivityMessage($resp);
+        $options = ActivityOptions::fromMetadata($message->metadata);
 
         if (ActivityEventJournal::hasTerminalOutcomeForActivity(
             $this->eventStore,
@@ -73,7 +74,7 @@ final class TemporalActivityWorker
                 return;
             }
             if ($terminal instanceof ActivityFailed) {
-                $this->respondFailed($resp, $terminal);
+                $this->respondFailed($resp, $terminal, self::isNonRetryable($terminal, $options));
 
                 return;
             }
@@ -84,7 +85,6 @@ final class TemporalActivityWorker
             }
         }
 
-        $options = ActivityOptions::fromMetadata($message->metadata);
         if (null !== $options && null !== $options->heartbeatTimeoutSeconds && $options->heartbeatTimeoutSeconds > 0) {
             if ($this->heartbeatSender instanceof TemporalActivityHeartbeatSender) {
                 $this->heartbeatSender->bindTaskToken((string) $resp->getTaskToken());
@@ -103,7 +103,7 @@ final class TemporalActivityWorker
             return;
         }
         if ($terminal instanceof ActivityFailed) {
-            $this->respondFailed($resp, $terminal);
+            $this->respondFailed($resp, $terminal, self::isNonRetryable($terminal, $options));
 
             return;
         }
@@ -137,6 +137,23 @@ final class TemporalActivityWorker
         return $last instanceof ActivityCompleted || $last instanceof ActivityFailed || $last instanceof ActivityCancelled ? $last : null;
     }
 
+    /** True when the failed activity's exception type is declared non-retryable by its options. */
+    private static function isNonRetryable(ActivityFailed $failed, ?ActivityOptions $options): bool
+    {
+        if (null === $options) {
+            return false;
+        }
+
+        $failureClass = $failed->failureClass();
+        foreach ($options->nonRetryableExceptions as $type) {
+            if ($failureClass === $type || is_a($failureClass, $type, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function respondCompleted(PollActivityTaskQueueResponse $poll, mixed $result): void
     {
         $req = new RespondActivityTaskCompletedRequest();
@@ -148,7 +165,7 @@ final class TemporalActivityWorker
         $this->activityRpc->respondActivityTaskCompleted($req);
     }
 
-    private function respondFailed(PollActivityTaskQueueResponse $poll, ActivityFailed $failed): void
+    private function respondFailed(PollActivityTaskQueueResponse $poll, ActivityFailed $failed, bool $nonRetryable = false): void
     {
         $failure = new Failure();
         $failure->setMessage($failed->failureMessage());
@@ -156,7 +173,9 @@ final class TemporalActivityWorker
         $failure->setStackTrace($failed->failureTrace());
         $app = new ApplicationFailureInfo();
         $app->setType($failed->failureClass());
-        $app->setNonRetryable(false);
+        // A failure whose exception type is listed in the activity's
+        // nonRetryableExceptions must not be retried by the server.
+        $app->setNonRetryable($nonRetryable);
         $failure->setApplicationFailureInfo($app);
 
         $req = new RespondActivityTaskFailedRequest();

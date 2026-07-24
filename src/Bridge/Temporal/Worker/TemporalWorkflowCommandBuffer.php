@@ -18,6 +18,7 @@ use Temporal\Api\Command\V1\RequestCancelActivityTaskCommandAttributes;
 use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
 use Temporal\Api\Command\V1\StartTimerCommandAttributes;
 use Temporal\Api\Common\V1\ActivityType;
+use Temporal\Api\Common\V1\RetryPolicy;
 use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Failure\V1\Failure;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
@@ -75,6 +76,26 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
             if (null !== $options->heartbeatTimeoutSeconds && $options->heartbeatTimeoutSeconds > 0) {
                 $attrs->setHeartbeatTimeout($this->durationSeconds($options->heartbeatTimeoutSeconds));
             }
+
+            // Retry is governed by the Temporal server via this policy. Without it the
+            // server applies its default (unbounded retries), so a bounded maxAttempts
+            // or a non-retryable business exception only takes effect once it is set here.
+            // The server treats a failure as non-retryable when its ApplicationFailureInfo
+            // type matches nonRetryableErrorTypes (the exception FQCNs).
+            $retryPolicy = new RetryPolicy();
+            $retryPolicy->setInitialInterval($this->durationSeconds($options->initialIntervalSeconds));
+            $retryPolicy->setBackoffCoefficient($options->backoffCoefficient);
+            if (null !== $options->maximumIntervalSeconds && $options->maximumIntervalSeconds > 0) {
+                $retryPolicy->setMaximumInterval($this->durationSeconds($options->maximumIntervalSeconds));
+            }
+            if ($options->maxAttempts > 0) {
+                $retryPolicy->setMaximumAttempts($options->maxAttempts);
+            }
+            if ([] !== $options->nonRetryableExceptions) {
+                // Already a list<class-string> (per ActivityOptions) — pass as-is.
+                $retryPolicy->setNonRetryableErrorTypes($options->nonRetryableExceptions);
+            }
+            $attrs->setRetryPolicy($retryPolicy);
         }
 
         $cmd = new Command();
