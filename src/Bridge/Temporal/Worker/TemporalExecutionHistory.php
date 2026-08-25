@@ -8,8 +8,9 @@ use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Durable\ActivityCancellationReason;
 use Gplanchat\Durable\Exception\ActivitySupersededException;
-use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
+use Gplanchat\Durable\Failure\FailureEnvelope;
+use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
@@ -27,6 +28,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 
     /** @var array<string, int> activity ID → scheduled event ID */
     private array $activityIdToScheduledEventId = [];
+
+    /** @var array<string, string> activityId → nom d'activité (pour typer les échecs) */
+    private array $activityNames = [];
 
     /** @var array<int, string> scheduled event ID → activity ID */
     private array $scheduledEventIdToActivityId = [];
@@ -134,6 +138,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     $activityId = (string) $attr->getActivityId();
                     $this->scheduledActivityIds[] = $activityId;
                     $this->activityIdToScheduledEventId[$activityId] = $eventId;
+                    $this->activityNames[$activityId] = (string) ($attr->getActivityType()?->getName() ?? '');
                     $this->scheduledEventIdToActivityId[$eventId] = $activityId;
                 }
                 break;
@@ -165,7 +170,24 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     if (null !== $activityId) {
                         $failure = $attr->getFailure();
                         $message = null !== $failure ? $failure->getMessage() : 'Activity task failed';
-                        $this->activityFailures[$activityId] = new \RuntimeException($message);
+                        $type = $failure?->getApplicationFailureInfo()?->getType();
+                        // Un RuntimeException nu était relevé dans le fiber : le classifieur le
+                        // rangeait en workflow_handler_failure, et le workflow perdait le nom de
+                        // l'activité fautive — là où le backend in-memory relève un
+                        // DurableActivityFailedException complet.
+                        $this->activityFailures[$activityId] = new DurableActivityFailedException(
+                            $activityId,
+                            $this->activityNames[$activityId] ?? '',
+                            1,
+                            new FailureEnvelope(
+                                \is_string($type) && '' !== $type ? $type : \RuntimeException::class,
+                                $message,
+                                0,
+                                [],
+                                null !== $failure ? $failure->getStackTrace() : null,
+                                [],
+                            ),
+                        );
                     }
                 }
                 break;
