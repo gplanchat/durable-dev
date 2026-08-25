@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal;
 
 use Gplanchat\Durable\TaskQueue;
+use Gplanchat\Durable\WorkflowNamespace;
 
 /**
  * Connexion Temporal unique (cible, namespace, TLS, identité) + paramètres pour les différents accès
@@ -33,9 +34,12 @@ final class TemporalConnection
     /** File des tâches d'activité applicatives. */
     public readonly TaskQueue $activityTaskQueue;
 
+    /** Frontière d'isolation : exécutions, files et attributs de recherche y vivent. */
+    public readonly WorkflowNamespace $namespace;
+
     public function __construct(
         public readonly string $target,
-        public readonly string $namespace,
+        WorkflowNamespace|string $namespace,
         TaskQueue|string|null $journalTaskQueue = null,
         public readonly string $workflowType = self::DEFAULT_WORKFLOW_TYPE,
         public readonly string $signalAppend = self::DEFAULT_SIGNAL_APPEND,
@@ -52,6 +56,7 @@ final class TemporalConnection
     ) {
         // Les noms de files viennent d'un DSN : une faute y crée une file où personne ne poll,
         // sans la moindre erreur côté serveur. Ils sont validés ici, au montage.
+        $this->namespace = WorkflowNamespace::from($namespace);
         $this->journalTaskQueue = TaskQueue::from($journalTaskQueue ?? self::DEFAULT_JOURNAL_TASK_QUEUE);
         $this->workflowTaskQueue = TaskQueue::from($workflowTaskQueue ?? self::DEFAULT_WORKFLOW_TASK_QUEUE);
         $this->activityTaskQueue = TaskQueue::from($activityTaskQueue ?? self::DEFAULT_ACTIVITY_TASK_QUEUE);

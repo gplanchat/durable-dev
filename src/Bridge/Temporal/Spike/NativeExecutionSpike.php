@@ -69,7 +69,7 @@ final class NativeExecutionSpike
      */
     public function run(string $workflowId): string
     {
-        $ns = $this->settings->namespace;
+        $ns = $this->settings->namespace->name();
         $identity = $this->settings->identity;
 
         $start = new StartWorkflowExecutionRequest();

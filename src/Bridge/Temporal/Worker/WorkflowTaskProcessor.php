@@ -80,7 +80,7 @@ final class WorkflowTaskProcessor
     private function pollOnce(): PollWorkflowTaskQueueResponse
     {
         $req = new PollWorkflowTaskQueueRequest();
-        $req->setNamespace($this->settings->namespace);
+        $req->setNamespace($this->settings->namespace->name());
         $req->setTaskQueue(new TaskQueue(['name' => $this->settings->workflowTaskQueue->name()]));
         $req->setIdentity($this->settings->identity);
 
@@ -134,7 +134,7 @@ final class WorkflowTaskProcessor
     {
         $req = new RespondWorkflowTaskCompletedRequest();
         $req->setTaskToken($taskToken);
-        $req->setNamespace($this->settings->namespace);
+        $req->setNamespace($this->settings->namespace->name());
         $req->setIdentity($this->settings->identity);
         if ($commands !== []) {
             $req->setCommands($commands);

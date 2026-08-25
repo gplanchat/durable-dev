@@ -164,7 +164,7 @@ final class WorkflowClient implements WorkflowClientInterface
     public function signal(string $workflowId, string $signalName, array $args = []): void
     {
         $req = new SignalWorkflowExecutionRequest();
-        $req->setNamespace($this->settings->namespace);
+        $req->setNamespace($this->settings->namespace->name());
         $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
         $req->setSignalName($signalName);
         $req->setIdentity($this->settings->identity);
@@ -184,7 +184,7 @@ final class WorkflowClient implements WorkflowClientInterface
     public function query(string $workflowId, string $queryType, array $args = []): mixed
     {
         $request = new \Temporal\Api\Workflowservice\V1\QueryWorkflowRequest();
-        $request->setNamespace($this->settings->namespace);
+        $request->setNamespace($this->settings->namespace->name());
         $request->setExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
 
         $query = new \Temporal\Api\Query\V1\WorkflowQuery();
@@ -216,7 +216,7 @@ final class WorkflowClient implements WorkflowClientInterface
     public function update(string $workflowId, string $updateName, array $args = []): mixed
     {
         $request = new \Temporal\Api\Workflowservice\V1\UpdateWorkflowExecutionRequest();
-        $request->setNamespace($this->settings->namespace);
+        $request->setNamespace($this->settings->namespace->name());
         $request->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
 
         $input = new \Temporal\Api\Update\V1\Input();
@@ -266,7 +266,7 @@ final class WorkflowClient implements WorkflowClientInterface
         $options ??= WorkflowStartOptions::defaults();
 
         $req = new StartWorkflowExecutionRequest();
-        $req->setNamespace($this->settings->namespace);
+        $req->setNamespace($this->settings->namespace->name());
         $req->setWorkflowId($workflowId);
         $req->setWorkflowType(new WorkflowType(['name' => $typeName]));
         $req->setTaskQueue(new TaskQueue([

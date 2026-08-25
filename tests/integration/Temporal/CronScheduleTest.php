@@ -96,7 +96,7 @@ final class CronScheduleTest extends TemporalServerTestCase
     private function serverAccepts(string $expression): bool
     {
         $req = new \Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest();
-        $req->setNamespace($this->connection->namespace);
+        $req->setNamespace($this->connection->namespace->name());
         $req->setWorkflowId('cron-agreement-'.bin2hex(random_bytes(5)));
         $req->setWorkflowType(new \Temporal\Api\Common\V1\WorkflowType(['name' => 'Ticking']));
         $req->setTaskQueue(new \Temporal\Api\Taskqueue\V1\TaskQueue(['name' => $this->connection->workflowTaskQueue.'-unserved']));
@@ -131,7 +131,7 @@ final class CronScheduleTest extends TemporalServerTestCase
     private function describeRunId(string $workflowId): ?string
     {
         $req = new \Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionRequest();
-        $req->setNamespace($this->connection->namespace);
+        $req->setNamespace($this->connection->namespace->name());
         $req->setExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
 
         [$response, $status] = $this->client->DescribeWorkflowExecution($req, [], ['timeout' => 10_000_000])->wait();

@@ -192,7 +192,7 @@ abstract class TemporalServerTestCase extends TestCase
                 \PHP_BINARY,
                 __DIR__.'/worker.php',
                 $this->connection->target,
-                $this->connection->namespace,
+                $this->connection->namespace->name(),
                 $this->connection->workflowTaskQueue,
                 $role,
             ],

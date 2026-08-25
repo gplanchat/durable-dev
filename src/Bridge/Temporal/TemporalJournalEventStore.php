@@ -40,7 +40,7 @@ final class TemporalJournalEventStore implements EventStoreInterface
         private readonly WorkflowServiceClient $client,
         private readonly TemporalConnection $settings,
     ) {
-        $this->historyMerger = new HistoryPageMerger($client, $settings->namespace);
+        $this->historyMerger = new HistoryPageMerger($client, $settings->namespace->name());
     }
 
     public function append(Event $event): void
@@ -52,7 +52,7 @@ final class TemporalJournalEventStore implements EventStoreInterface
         $wfId = $this->settings->journalWorkflowId($event->executionId());
 
         $req = new SignalWithStartWorkflowExecutionRequest();
-        $req->setNamespace($this->settings->namespace);
+        $req->setNamespace($this->settings->namespace->name());
         $req->setWorkflowId($wfId);
         $req->setWorkflowType(new WorkflowType(['name' => $this->settings->workflowType]));
         $req->setTaskQueue(new TaskQueue(['name' => $this->settings->journalTaskQueue->name()]));
@@ -125,7 +125,7 @@ final class TemporalJournalEventStore implements EventStoreInterface
     private function resolveRunIdViaDescribe(string $workflowId): string
     {
         $req = new DescribeWorkflowExecutionRequest();
-        $req->setNamespace($this->settings->namespace);
+        $req->setNamespace($this->settings->namespace->name());
         $exec = new WorkflowExecution();
         $exec->setWorkflowId($workflowId);
         $exec->setRunId('');
