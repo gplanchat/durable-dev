@@ -7,12 +7,11 @@ namespace Gplanchat\Bridge\Temporal\Worker;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
-use Gplanchat\Durable\Awaitable\Awaitable;
-use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\NullEventStore;
+use Gplanchat\Durable\Worker\WorkflowFiberDriver;
 use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -93,71 +92,12 @@ final class WorkflowTaskRunner
             $this->workflowDefinitionLoader,
         );
 
-        $fiber = new \Fiber(static fn () => $handler($environment));
-
-        $this->driveFiber($fiber, $commandBuffer);
+        (new WorkflowFiberDriver(new TemporalWorkflowLifecycle($commandBuffer)))
+            ->run($executionId, $environment, $handler);
 
         $commands = $commandBuffer->flush();
 
         return new WorkflowTaskResult($commands, $environment);
-    }
-
-    /**
-     * Drives the fiber until it terminates or produces a new (unsettled) command.
-     *
-     * On replay: awaitables are already settled → resume immediately.
-     * On new command: awaitable is unsettled → stop; the command is in the buffer.
-     */
-    private function driveFiber(
-        \Fiber $fiber,
-        TemporalWorkflowCommandBuffer $commandBuffer,
-    ): void {
-        try {
-            $suspended = $fiber->start();
-        } catch (\Throwable $e) {
-            $this->emitTerminalThrowable($commandBuffer, $e);
-
-            return;
-        }
-
-        while ($fiber->isSuspended()) {
-            if (!($suspended instanceof Awaitable)) {
-                break;
-            }
-
-            if ($suspended->isSettled()) {
-                try {
-                    $suspended = $fiber->resume();
-                } catch (\Throwable $e) {
-                    $this->emitTerminalThrowable($commandBuffer, $e);
-
-                    return;
-                }
-            } else {
-                // Unsettled awaitable: the command was buffered, stop the fiber for this task.
-                return;
-            }
-        }
-
-        if ($fiber->isTerminated()) {
-            $result = $fiber->getReturn();
-            $commandBuffer->completeWorkflow($result);
-        }
-    }
-
-    /**
-     * ContinueAsNew est une **terminaison normale** du run, pas un échec : le catch générique
-     * la transformait en FAIL_WORKFLOW_EXECUTION, rendant continue-as-new inutilisable sur Temporal.
-     */
-    private function emitTerminalThrowable(TemporalWorkflowCommandBuffer $commandBuffer, \Throwable $e): void
-    {
-        if ($e instanceof ContinueAsNewRequested) {
-            $commandBuffer->continueAsNew($e->workflowType, $e->payload, $e->options);
-
-            return;
-        }
-
-        $commandBuffer->failWorkflow($e);
     }
 
     private function resolveExecutionId(
