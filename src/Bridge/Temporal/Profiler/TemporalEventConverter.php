@@ -189,7 +189,9 @@ final class TemporalEventConverter
                 $details = $attr->getDetails();
                 $result = null;
                 if (null !== $details && $details->offsetExists('result')) {
-                    $result = JsonPlainPayload::decode($details->offsetGet('result'));
+                    $detail = $details->offsetGet('result');
+                    $payloads = $detail->getPayloads();
+                    $result = $payloads->count() > 0 ? JsonPlainPayload::decode($payloads[0]) : null;
                 }
 
                 return new SideEffectRecorded($this->executionId, (string) $slot, $result);

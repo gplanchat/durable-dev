@@ -89,6 +89,10 @@ final class WorkflowFiberDriverTest extends TestCase
                 return false;
             }
 
+            public function onCancellationDelivered(string $executionId, array $cancelledOperationIds): void
+            {
+            }
+
             public function onCancelled(string $executionId, WorkflowCancelledFailure $failure): void
             {
             }
@@ -167,6 +171,11 @@ final class WorkflowFiberDriverTest extends TestCase
             public function isCancellationPending(string $executionId): bool
             {
                 return $this->cancellationPending;
+            }
+
+            public function onCancellationDelivered(string $executionId, array $cancelledOperationIds): void
+            {
+                $this->calls[] = 'onCancellationDelivered';
             }
 
             public function onCancelled(string $executionId, WorkflowCancelledFailure $failure): void
