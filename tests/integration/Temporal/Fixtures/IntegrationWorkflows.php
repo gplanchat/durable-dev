@@ -50,6 +50,13 @@ final class IntegrationWorkflows
             return ['text' => $env->await($env->activity('append', ['text' => (string) $doubled], self::options()))];
         });
 
+        // Un run de cron : il doit se terminer pour que le serveur planifie le suivant.
+        $registry->registerFactory('Ticking', static fn (array $input) => static fn (WorkflowEnvironment $env): array => ['tick' => $env->await($env->activity(
+            'double',
+            ['value' => $input['value'] ?? 1],
+            self::options(),
+        ))]);
+
         $registry->registerFactory('Sleeper', static fn (array $input) => static function (WorkflowEnvironment $env): array {
             $env->timer(1.0);
 
