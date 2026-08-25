@@ -256,6 +256,17 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         return $this->commands;
     }
 
+    public function cancelTimer(string $timerId, string $reason): void
+    {
+        $attrs = new \Temporal\Api\Command\V1\CancelTimerCommandAttributes();
+        $attrs->setTimerId($timerId);
+
+        $cmd = new Command();
+        $cmd->setCommandType(CommandType::COMMAND_TYPE_CANCEL_TIMER);
+        $cmd->setCancelTimerCommandAttributes($attrs);
+        $this->commands[] = $cmd;
+    }
+
     private static function toTemporalParentClosePolicy(mixed $policy): int
     {
         $value = $policy instanceof ParentClosePolicy ? $policy : ParentClosePolicy::tryFrom((string) (\is_scalar($policy) ? $policy : ''));
