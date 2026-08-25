@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Durable;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Awaitable\AwaitableInspector;
 use Gplanchat\Durable\Event\ActivityCompleted;
+use Gplanchat\Durable\Exception\WorkflowStuckException;
 use Gplanchat\Durable\Exception\WorkflowSuspendedException;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionRuntime;
@@ -102,6 +103,24 @@ final class DriverParityRegressionTest extends TestCase
         self::assertFalse(AwaitableInspector::waitsOnTimer(
             new \Gplanchat\Durable\Awaitable\AnyAwaitable([$activity, $activity]),
         ));
+    }
+
+    public function testTheHarnessReportsAnActivityThatRetriesForever(): void
+    {
+        // Les tentatives étant désormais illimitées par défaut, le harnais doit échouer avec un
+        // message actionnable au lieu de tourner sans fin.
+        $env = WorkflowTestEnvironment::inMemory(
+            ['always' => static function (): never { throw new \RuntimeException('boom'); }],
+            budgetSeconds: 0.5,
+        );
+
+        $this->expectException(WorkflowStuckException::class);
+        $this->expectExceptionMessageMatches('/retry indefinitely by default/');
+
+        $env->run(
+            static fn (WorkflowEnvironment $wf): mixed => $wf->await($wf->activity('always', [], new ActivityOptions(initialIntervalSeconds: 0.05))),
+            'runaway-1',
+        );
     }
 
     public function testSyncDrainStillCompletesASimpleActivity(): void
