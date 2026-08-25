@@ -7,6 +7,8 @@ namespace unit\Gplanchat\Bridge\Temporal\Worker;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\ActivityTimeouts;
+use Gplanchat\Durable\Activity\Duration;
 use Gplanchat\Durable\Activity\RetryLimit;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
@@ -39,7 +41,7 @@ final class TemporalWorkflowCommandBufferRetryPolicyTest extends TestCase
         $options = (new ActivityOptions(
             RetryLimit::ofAttempts(5),
             nonRetryableExceptions: ['App\Domain\Exception\BusinessException'],
-            startToCloseTimeoutSeconds: 30.0,
+            timeouts: ActivityTimeouts::attempt(Duration::seconds(30.0)),
         ))->toMetadata();
 
         $buffer = $this->buffer();

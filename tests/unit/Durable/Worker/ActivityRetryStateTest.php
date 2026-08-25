@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Worker;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\Duration;
 use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityFailed;
@@ -36,7 +37,7 @@ final class ActivityRetryStateTest extends TestCase
         $this->drain($store, $transport, static function () use (&$runs): never {
             ++$runs;
             throw new \RuntimeException('boom');
-        }, new ActivityOptions(RetryLimit::ofAttempts(3), initialIntervalSeconds: 0.0));
+        }, new ActivityOptions(RetryLimit::ofAttempts(3), initialInterval: Duration::seconds(0.0)));
 
         // RetryLimit::ofAttempts(3) => 3 exécutions au total (Temporal), pas 4.
         self::assertSame(3, $runs);
@@ -66,7 +67,7 @@ final class ActivityRetryStateTest extends TestCase
         $this->drain($store, $transport, static function () use (&$runs): never {
             ++$runs;
             throw new \RuntimeException('boom');
-        }, new ActivityOptions(initialIntervalSeconds: 0.0), maxDrain: 6, expectTermination: false);
+        }, new ActivityOptions(initialInterval: Duration::seconds(0.0)), maxDrain: 6, expectTermination: false);
 
         self::assertSame(7, $runs, 'aucune borne : chaque passe rejoue l’activité');
         self::assertNull($this->lastFailure($store), 'aucune issue terminale tant que ça retente');
@@ -107,12 +108,13 @@ final class ActivityRetryStateTest extends TestCase
     {
         // Sans plafond explicite, un backoff exponentiel illimité diverge : le défaut Temporal
         // est 100 x l'intervalle initial.
-        $options = new ActivityOptions(initialIntervalSeconds: 1.0, backoffCoefficient: 2.0);
+        $options = new ActivityOptions(initialInterval: Duration::seconds(1.0), backoffCoefficient: 2.0);
 
-        self::assertSame(1.0, $options->retryDelayBeforeAttempt(2));
-        self::assertSame(64.0, $options->retryDelayBeforeAttempt(8));
-        self::assertSame(100.0, $options->retryDelayBeforeAttempt(20));
-        self::assertSame(100.0, $options->effectiveMaximumIntervalSeconds());
+        self::assertSame(1.0, $options->retryDelayBeforeAttempt(2)->toSeconds());
+        self::assertSame(64.0, $options->retryDelayBeforeAttempt(8)->toSeconds());
+        self::assertSame(100.0, $options->retryDelayBeforeAttempt(20)->toSeconds());
+        self::assertSame(100.0, $options->effectiveMaximumInterval()->toSeconds());
+        self::assertTrue($options->retryDelayBeforeAttempt(1)->isZero());
     }
 
     public function testNonRetryableExceptionStopsAtFirstAttempt(): void
@@ -141,7 +143,7 @@ final class ActivityRetryStateTest extends TestCase
             }
 
             return 'ok';
-        }, new ActivityOptions(RetryLimit::ofAttempts(3), initialIntervalSeconds: 0.0));
+        }, new ActivityOptions(RetryLimit::ofAttempts(3), initialInterval: Duration::seconds(0.0)));
 
         $intermediate = $this->taskFailures($store);
         self::assertCount(1, $intermediate);

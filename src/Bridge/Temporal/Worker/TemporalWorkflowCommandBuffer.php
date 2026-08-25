@@ -8,6 +8,8 @@ use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\ActivityTimeouts;
+use Gplanchat\Durable\Activity\Duration as DurableDuration;
 use Gplanchat\Durable\ContinueAsNewOptions;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Port\WorkflowCommandBufferInterface;
@@ -34,6 +36,9 @@ use Temporal\Api\Taskqueue\V1\TaskQueue;
  */
 final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterface
 {
+    /** Borne d'exécution posée quand l'activité n'en fixe aucune ; le serveur en exige une. */
+    private const DEFAULT_EXECUTION_BOUND_SECONDS = 30.0;
+
     /** @var list<Command> */
     private array $commands = [];
 
@@ -64,20 +69,22 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $scheduled = new ActivityScheduled($this->executionId, $activityId, $activityName, $payload, $metadata);
         $attrs->setInput(TemporalActivityScheduleInput::toPayloads($scheduled));
 
-        $stc = null !== $options && null !== $options->startToCloseTimeoutSeconds && $options->startToCloseTimeoutSeconds > 0
-            ? $options->startToCloseTimeoutSeconds
-            : 30.0;
-        $attrs->setStartToCloseTimeout($this->durationSeconds($stc));
+        // Le serveur refuse une activité sans borne de fermeture : le repli est nommé côté
+        // domaine plutôt que dissimulé dans un `?: 30.0`.
+        $timeouts = null !== $options ? $options->timeouts : ActivityTimeouts::none();
+        $attrs->setStartToCloseTimeout($this->durationSeconds(
+            $timeouts->executionBoundOr(DurableDuration::seconds(self::DEFAULT_EXECUTION_BOUND_SECONDS))->toSeconds(),
+        ));
 
         if (null !== $options) {
-            if (null !== $options->scheduleToCloseTimeoutSeconds && $options->scheduleToCloseTimeoutSeconds > 0) {
-                $attrs->setScheduleToCloseTimeout($this->durationSeconds($options->scheduleToCloseTimeoutSeconds));
+            if (null !== $timeouts->scheduleToClose) {
+                $attrs->setScheduleToCloseTimeout($this->durationSeconds($timeouts->scheduleToClose->toSeconds()));
             }
-            if (null !== $options->scheduleToStartTimeoutSeconds && $options->scheduleToStartTimeoutSeconds > 0) {
-                $attrs->setScheduleToStartTimeout($this->durationSeconds($options->scheduleToStartTimeoutSeconds));
+            if (null !== $timeouts->scheduleToStart) {
+                $attrs->setScheduleToStartTimeout($this->durationSeconds($timeouts->scheduleToStart->toSeconds()));
             }
-            if (null !== $options->heartbeatTimeoutSeconds && $options->heartbeatTimeoutSeconds > 0) {
-                $attrs->setHeartbeatTimeout($this->durationSeconds($options->heartbeatTimeoutSeconds));
+            if (null !== $timeouts->heartbeat) {
+                $attrs->setHeartbeatTimeout($this->durationSeconds($timeouts->heartbeat->toSeconds()));
             }
 
             // Retry is governed by the Temporal server via this policy. Without it the
@@ -86,10 +93,10 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
             // The server treats a failure as non-retryable when its ApplicationFailureInfo
             // type matches nonRetryableErrorTypes (the exception FQCNs).
             $retryPolicy = new RetryPolicy();
-            $retryPolicy->setInitialInterval($this->durationSeconds($options->initialIntervalSeconds));
+            $retryPolicy->setInitialInterval($this->durationSeconds($options->initialInterval->toSeconds()));
             $retryPolicy->setBackoffCoefficient($options->backoffCoefficient);
-            if (null !== $options->maximumIntervalSeconds && $options->maximumIntervalSeconds > 0) {
-                $retryPolicy->setMaximumInterval($this->durationSeconds($options->maximumIntervalSeconds));
+            if (null !== $options->maximumInterval) {
+                $retryPolicy->setMaximumInterval($this->durationSeconds($options->maximumInterval->toSeconds()));
             }
             if (!$options->retryLimit->isUnlimited()) {
                 $retryPolicy->setMaximumAttempts($options->retryLimit->maxAttempts());
