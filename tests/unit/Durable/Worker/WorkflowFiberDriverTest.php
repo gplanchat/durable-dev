@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable\Worker;
 
 use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
+use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Port\WorkflowLifecycleInterface;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreCommandBuffer;
@@ -83,6 +84,15 @@ final class WorkflowFiberDriverTest extends TestCase
             {
             }
 
+            public function isCancellationPending(string $executionId): bool
+            {
+                return false;
+            }
+
+            public function onCancelled(string $executionId, WorkflowCancelledFailure $failure): void
+            {
+            }
+
             public function onContinuedAsNew(string $executionId, ContinueAsNewRequested $request): void
             {
             }
@@ -121,6 +131,7 @@ final class WorkflowFiberDriverTest extends TestCase
 
         return (new WorkflowFiberDriver($lifecycle))->run(
             'exec-1',
+            $context,
             new WorkflowEnvironment($context, $runtime),
             $handler,
         );
@@ -132,6 +143,8 @@ final class WorkflowFiberDriverTest extends TestCase
             /** @var list<string> */
             public array $calls = [];
             public mixed $completedResult = null;
+            public bool $cancellationPending = false;
+            public ?WorkflowCancelledFailure $cancellation = null;
             public ?ContinueAsNewRequested $continuation = null;
             public ?\Throwable $failure = null;
 
@@ -149,6 +162,17 @@ final class WorkflowFiberDriverTest extends TestCase
             public function onSuspended(string $executionId, Awaitable $pending): void
             {
                 $this->calls[] = 'onSuspended';
+            }
+
+            public function isCancellationPending(string $executionId): bool
+            {
+                return $this->cancellationPending;
+            }
+
+            public function onCancelled(string $executionId, WorkflowCancelledFailure $failure): void
+            {
+                $this->calls[] = 'onCancelled';
+                $this->cancellation = $failure;
             }
 
             public function onContinuedAsNew(string $executionId, ContinueAsNewRequested $request): void

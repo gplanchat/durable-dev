@@ -7,7 +7,6 @@ namespace Gplanchat\Bridge\Temporal\Worker;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
-use Gplanchat\Durable\Exception\WorkflowCancelledException;
 use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\RegistryActivityExecutor;
@@ -96,12 +95,7 @@ final class WorkflowTaskRunner
 
         $lifecycle = new TemporalWorkflowLifecycle($commandBuffer, $history->cancellationRequestedCause());
 
-        try {
-            (new WorkflowFiberDriver($lifecycle))->run($executionId, $environment, $handler);
-        } catch (WorkflowCancelledException) {
-            // Le run s'arrête ici : la commande d'annulation est déjà dans le buffer et part
-            // avec la réponse de cette tâche.
-        }
+        (new WorkflowFiberDriver($lifecycle))->run($executionId, $context, $environment, $handler);
 
         $commands = $commandBuffer->flush();
 
