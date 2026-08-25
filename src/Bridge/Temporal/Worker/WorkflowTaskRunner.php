@@ -93,7 +93,11 @@ final class WorkflowTaskRunner
             $this->workflowDefinitionLoader,
         );
 
-        $lifecycle = new TemporalWorkflowLifecycle($commandBuffer, $history->cancellationRequestedCause());
+        $lifecycle = new TemporalWorkflowLifecycle(
+            $commandBuffer,
+            $history->cancellationRequestedCause(),
+            $history->cancellationAlreadyDelivered(),
+        );
 
         (new WorkflowFiberDriver($lifecycle))->run($executionId, $context, $environment, $handler);
 

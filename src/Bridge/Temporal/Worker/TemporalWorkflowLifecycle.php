@@ -23,6 +23,8 @@ final readonly class TemporalWorkflowLifecycle implements WorkflowLifecycleInter
         private TemporalWorkflowCommandBuffer $commandBuffer,
         /** Cause lue dans l'historique ({@see TemporalExecutionHistory::cancellationRequestedCause()}). */
         private ?string $cancellationRequestedCause = null,
+        /** Une tâche antérieure a déjà relevé l'annulation dans le fiber. */
+        private bool $cancellationAlreadyDelivered = false,
     ) {
     }
 
@@ -37,14 +39,18 @@ final readonly class TemporalWorkflowLifecycle implements WorkflowLifecycleInter
      * d'y répondre — ici en relevant un {@see WorkflowCancelledFailure} dans le fiber, puis par
      * COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION si le handler ne l'avale pas.
      *
-     * Contrairement au backend in-memory, l'historique ne garde aucune trace de la livraison :
-     * l'opération sur laquelle le fiber attendait reste non réglée d'une tâche à l'autre, si bien
-     * que la relivraison au rejeu tombe au même endroit. C'est le pilote de fiber qui borne la
-     * livraison à une fois par tâche.
+     * L'historique Temporal ne peut pas porter la *raison* d'une annulation d'opération : la trace
+     * de livraison passe donc par un marqueur, que {@see TemporalExecutionHistory} relit pour
+     * rejeter les mêmes opérations avec la même exception au rejeu.
      */
     public function isCancellationPending(string $executionId): bool
     {
-        return null !== $this->cancellationRequestedCause;
+        return null !== $this->cancellationRequestedCause && !$this->cancellationAlreadyDelivered;
+    }
+
+    public function onCancellationDelivered(string $executionId, array $cancelledOperationIds): void
+    {
+        $this->commandBuffer->recordCancellationDelivered($cancelledOperationIds);
     }
 
     public function onCancelled(string $executionId, WorkflowCancelledFailure $failure): void

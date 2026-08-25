@@ -22,6 +22,7 @@ use Temporal\Api\Common\V1\ActivityType;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\ActivityTaskScheduledEventAttributes;
 use Temporal\Api\History\V1\HistoryEvent;
+use Temporal\Api\History\V1\MarkerRecordedEventAttributes;
 use Temporal\Api\History\V1\WorkflowExecutionCancelRequestedEventAttributes;
 
 /**
@@ -112,6 +113,60 @@ final class TemporalWorkflowCancellationTest extends TestCase
         self::assertSame(17, $cancel->getScheduledEventId());
     }
 
+    public function testDeliveryIsRecordedAndReplaysAsTheSameFailure(): void
+    {
+        // L'historique Temporal ne porte pas la raison d'une annulation d'opération : sans
+        // marqueur, un ACTIVITY_TASK_CANCELED se relirait en ActivitySupersededException et le
+        // catch du workflow ne matcherait plus au rejeu.
+        $history = TemporalExecutionHistory::fromEvents([
+            $this->activityScheduled(17, 'act-7', 'charge'),
+            $this->cancelRequestedEvent('operator'),
+        ]);
+        $commands = $this->drive($history, static function (WorkflowEnvironment $env): mixed {
+            try {
+                return $env->await($env->activity('charge', []));
+            } catch (WorkflowCancelledFailure $e) {
+                throw $e;
+            }
+        });
+
+        $marker = null;
+        foreach ($commands as $command) {
+            if (CommandType::COMMAND_TYPE_RECORD_MARKER === $command->getCommandType()) {
+                $marker = $command->getRecordMarkerCommandAttributes();
+            }
+        }
+        self::assertNotNull($marker);
+        self::assertSame(TemporalExecutionHistory::MARKER_CANCELLATION_DELIVERED, $marker->getMarkerName());
+
+        // Tâche suivante : le marqueur est dans l'historique, l'annulation n'est plus relivrée
+        // et l'activité se relit avec la MÊME exception.
+        $replayed = TemporalExecutionHistory::fromEvents([
+            $this->activityScheduled(17, 'act-7', 'charge'),
+            $this->cancelRequestedEvent('operator'),
+            $this->markerRecorded(21, $marker->getMarkerName(), $marker->getDetails()),
+        ]);
+
+        self::assertTrue($replayed->cancellationAlreadyDelivered());
+        $slot = $replayed->findActivitySlotResult(0);
+        self::assertInstanceOf(WorkflowCancelledFailure::class, $slot['failed'] ?? null);
+    }
+
+    public function testSideEffectMarkerRoundTripsThroughTheCommand(): void
+    {
+        // details est une map<string, Payloads> : un Payload seul y était refusé par protobuf.
+        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1');
+        $buffer->recordSideEffect('se-1', ['value' => 7]);
+
+        $marker = $buffer->peek()[0]->getRecordMarkerCommandAttributes();
+        self::assertNotNull($marker);
+
+        $history = TemporalExecutionHistory::fromEvents([
+            $this->markerRecorded(11, $marker->getMarkerName(), $marker->getDetails()),
+        ]);
+        self::assertSame(['value' => 7], $history->findSideEffectForSlot(0));
+    }
+
     public function testWithoutCancelRequestTheRunProceeds(): void
     {
         $commands = $this->drive(
@@ -164,6 +219,20 @@ final class TemporalWorkflowCancellationTest extends TestCase
         $event->setEventId($eventId);
         $event->setEventType(EventType::EVENT_TYPE_ACTIVITY_TASK_SCHEDULED);
         $event->setActivityTaskScheduledEventAttributes($attrs);
+
+        return $event;
+    }
+
+    private function markerRecorded(int $eventId, string $name, mixed $details): HistoryEvent
+    {
+        $attrs = new MarkerRecordedEventAttributes();
+        $attrs->setMarkerName($name);
+        $attrs->setDetails($details);
+
+        $event = new HistoryEvent();
+        $event->setEventId($eventId);
+        $event->setEventType(EventType::EVENT_TYPE_MARKER_RECORDED);
+        $event->setMarkerRecordedEventAttributes($attrs);
 
         return $event;
     }

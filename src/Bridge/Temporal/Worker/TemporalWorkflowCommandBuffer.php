@@ -133,12 +133,13 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $attrs = new \Temporal\Api\Command\V1\RecordMarkerCommandAttributes();
         $attrs->setMarkerName(TemporalExecutionHistory::MARKER_SIDE_EFFECT);
 
+        // `details` est une map<string, Payloads> : un Payload seul y est refusé.
         $details = new \Google\Protobuf\Internal\MapField(
             \Google\Protobuf\Internal\GPBType::STRING,
             \Google\Protobuf\Internal\GPBType::MESSAGE,
-            \Temporal\Api\Common\V1\Payload::class,
+            \Temporal\Api\Common\V1\Payloads::class,
         );
-        $details['result'] = JsonPlainPayload::encode($result);
+        $details['result'] = JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($result));
         $attrs->setDetails($details);
 
         $cmd = new Command();
@@ -347,6 +348,33 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $cmd = new Command();
         $cmd->setCommandType(CommandType::COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION);
         $cmd->setCancelWorkflowExecutionCommandAttributes($attrs);
+        $this->commands[] = $cmd;
+    }
+
+    /**
+     * Marqueur d'annulation livrée : l'historique Temporal ne peut pas porter la *raison* d'une
+     * annulation d'opération, si bien qu'au rejeu un ACTIVITY_TASK_CANCELED se relit en
+     * ActivitySupersededException — le `catch (WorkflowCancelledFailure)` du workflow ne
+     * matcherait plus et la compensation divergerait d'une tâche à l'autre.
+     *
+     * @param list<string> $targetIds
+     */
+    public function recordCancellationDelivered(array $targetIds): void
+    {
+        $attrs = new \Temporal\Api\Command\V1\RecordMarkerCommandAttributes();
+        $attrs->setMarkerName(TemporalExecutionHistory::MARKER_CANCELLATION_DELIVERED);
+
+        $details = new \Google\Protobuf\Internal\MapField(
+            \Google\Protobuf\Internal\GPBType::STRING,
+            \Google\Protobuf\Internal\GPBType::MESSAGE,
+            \Temporal\Api\Common\V1\Payloads::class,
+        );
+        $details['targets'] = JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($targetIds));
+        $attrs->setDetails($details);
+
+        $cmd = new Command();
+        $cmd->setCommandType(CommandType::COMMAND_TYPE_RECORD_MARKER);
+        $cmd->setRecordMarkerCommandAttributes($attrs);
         $this->commands[] = $cmd;
     }
 
