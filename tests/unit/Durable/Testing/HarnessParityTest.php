@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Testing;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
@@ -57,7 +58,7 @@ final class HarnessParityTest extends TestCase
             },
         ]);
 
-        $options = new ActivityOptions(maxAttempts: 5, nonRetryableExceptions: [\DomainException::class]);
+        $options = new ActivityOptions(RetryLimit::ofAttempts(5), nonRetryableExceptions: [\DomainException::class]);
         try {
             $env->run(static fn (WorkflowEnvironment $wf): mixed
                 => $wf->await($wf->activity('flaky', [], $options)), 'exec-2');
@@ -81,7 +82,7 @@ final class HarnessParityTest extends TestCase
             },
         ]);
 
-        $options = new ActivityOptions(maxAttempts: 3, initialIntervalSeconds: 0.0);
+        $options = new ActivityOptions(RetryLimit::ofAttempts(3), initialIntervalSeconds: 0.0);
         try {
             $env->run(static fn (WorkflowEnvironment $wf): mixed
                 => $wf->await($wf->activity('flaky', [], $options)), 'exec-3');

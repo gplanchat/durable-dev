@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace integration\Temporal;
 
+use Gplanchat\Durable\Activity\RetryLimit;
+
 use Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Temporal\Api\Enums\V1\EventType;
@@ -55,7 +57,7 @@ final class WorkflowFailurePathsTest extends TemporalServerTestCase
 
     public function testNonRetryableExceptionStopsTheServerRetryPolicy(): void
     {
-        // maxAttempts: 5 dans la RetryPolicy, mais l'exception est déclarée non-retryable :
+        // RetryLimit::ofAttempts(5) dans la RetryPolicy, mais l'exception est déclarée non-retryable :
         // le serveur ne doit planifier qu'une seule tentative.
         $executionId = $this->startWorkflow('NonRetryable', []);
         $this->waitForHistoryEvent($executionId, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_FAILED);
