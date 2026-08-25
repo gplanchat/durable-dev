@@ -75,7 +75,7 @@ final class WorkflowTaskRunner
 
         $workflowTypeName = $this->resolveWorkflowTypeName($poll);
 
-        $commandBuffer = new TemporalWorkflowCommandBuffer($this->connection, $executionId);
+        $commandBuffer = new TemporalWorkflowCommandBuffer($this->connection, $executionId, $history);
 
         $context = new ExecutionContext(
             $executionId,

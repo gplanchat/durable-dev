@@ -18,7 +18,9 @@ use Gplanchat\Durable\Worker\WorkflowFiberDriver;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Enums\V1\CommandType;
+use Temporal\Api\Common\V1\ActivityType;
 use Temporal\Api\Enums\V1\EventType;
+use Temporal\Api\History\V1\ActivityTaskScheduledEventAttributes;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\WorkflowExecutionCancelRequestedEventAttributes;
 
@@ -82,6 +84,34 @@ final class TemporalWorkflowCancellationTest extends TestCase
         self::assertNotContains(CommandType::COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION, $types);
     }
 
+    public function testActivityCancellationCarriesTheRealScheduledEventId(): void
+    {
+        // scheduledEventId doit désigner l'événement ACTIVITY_TASK_SCHEDULED réel : il sortait
+        // d'un compteur local partant de 1000, que le serveur aurait rejeté.
+        $history = TemporalExecutionHistory::fromEvents([
+            $this->activityScheduled(17, 'act-7', 'charge'),
+            $this->cancelRequestedEvent('operator'),
+        ]);
+
+        $commands = $this->drive($history, static function (WorkflowEnvironment $env): mixed {
+            try {
+                return $env->await($env->activity('charge', []));
+            } catch (WorkflowCancelledFailure $e) {
+                throw $e;
+            }
+        });
+
+        $cancel = null;
+        foreach ($commands as $command) {
+            if (CommandType::COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK === $command->getCommandType()) {
+                $cancel = $command->getRequestCancelActivityTaskCommandAttributes();
+            }
+        }
+
+        self::assertNotNull($cancel, 'l’activité en attente doit être annulée côté serveur');
+        self::assertSame(17, $cancel->getScheduledEventId());
+    }
+
     public function testWithoutCancelRequestTheRunProceeds(): void
     {
         $commands = $this->drive(
@@ -97,7 +127,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
     /** @return list<\Temporal\Api\Command\V1\Command> */
     private function drive(TemporalExecutionHistory $history, callable $handler): array
     {
-        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1');
+        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1', $history);
         $context = new ExecutionContext('exec-1', $history, $buffer);
         $runtime = new ExecutionRuntime(
             new NullEventStore(),
@@ -122,6 +152,20 @@ final class TemporalWorkflowCancellationTest extends TestCase
     private function commandTypes(array $commands): array
     {
         return array_map(static fn (\Temporal\Api\Command\V1\Command $c): int => $c->getCommandType(), $commands);
+    }
+
+    private function activityScheduled(int $eventId, string $activityId, string $activityType): HistoryEvent
+    {
+        $attrs = new ActivityTaskScheduledEventAttributes();
+        $attrs->setActivityId($activityId);
+        $attrs->setActivityType(new ActivityType(['name' => $activityType]));
+
+        $event = new HistoryEvent();
+        $event->setEventId($eventId);
+        $event->setEventType(EventType::EVENT_TYPE_ACTIVITY_TASK_SCHEDULED);
+        $event->setActivityTaskScheduledEventAttributes($attrs);
+
+        return $event;
     }
 
     private function cancelRequestedEvent(string $cause): HistoryEvent
