@@ -8,9 +8,11 @@ use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\ContinueAsNewOptions;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\ParentClosePolicy;
 use Gplanchat\Durable\Port\WorkflowCommandBufferInterface;
+use Gplanchat\Durable\Failure\WorkflowFailureClassifier;
 use Gplanchat\Durable\WorkflowIdReusePolicy;
 use Google\Protobuf\Duration;
 use Temporal\Api\Command\V1\Command;
@@ -24,6 +26,7 @@ use Temporal\Api\Common\V1\RetryPolicy;
 use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Enums\V1\ParentClosePolicy as TemporalParentClosePolicy;
 use Temporal\Api\Enums\V1\WorkflowIdReusePolicy as TemporalIdReusePolicy;
+use Temporal\Api\Failure\V1\ApplicationFailureInfo;
 use Temporal\Api\Failure\V1\Failure;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
 
@@ -204,9 +207,21 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
 
     public function failWorkflow(\Throwable $reason): void
     {
+        // Le pilote Temporal aplatissait tout échec sur un message brut : le `kind` de
+        // WorkflowExecutionFailed (activité non gérée, échec catastrophique, handler…) était
+        // perdu et l'événement domaine devenait irreconstituable à la relecture de l'historique.
+        // Il voyage désormais dans les `details` de l'ApplicationFailureInfo ; `type` reste le
+        // FQCN de l'exception, seul champ que le serveur confronte à nonRetryableErrorTypes.
+        $classified = WorkflowFailureClassifier::classify($this->executionId, $reason);
+
+        $info = new ApplicationFailureInfo();
+        $info->setType($classified->failureClass());
+        $info->setDetails(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($classified->payload())));
+
         $failure = new Failure();
-        $failure->setMessage($reason->getMessage());
+        $failure->setMessage($classified->failureMessage());
         $failure->setSource('DurableWorkflowWorker');
+        $failure->setApplicationFailureInfo($info);
 
         $attrs = new FailWorkflowExecutionCommandAttributes();
         $attrs->setFailure($failure);
@@ -254,6 +269,42 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     public function peek(): array
     {
         return $this->commands;
+    }
+
+    /**
+     * COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION.
+     *
+     * Hors {@see WorkflowCommandBufferInterface} : le pilote in-memory journalise
+     * {@see \Gplanchat\Durable\Event\WorkflowContinuedAsNew} directement depuis
+     * {@see \Gplanchat\Durable\ExecutionEngine}, sans passer par le buffer de commandes.
+     *
+     * @param array<string, mixed> $payload
+     */
+    public function continueAsNew(string $workflowType, array $payload, ?ContinueAsNewOptions $options = null): void
+    {
+        $attrs = new \Temporal\Api\Command\V1\ContinueAsNewWorkflowExecutionCommandAttributes();
+        $attrs->setWorkflowType(new \Temporal\Api\Common\V1\WorkflowType(['name' => $workflowType]));
+        $attrs->setInput(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($payload)));
+
+        $metadata = null !== $options ? $options->toMetadata() : [];
+        $taskQueue = $metadata['task_queue'] ?? null;
+        $attrs->setTaskQueue(new TaskQueue([
+            'name' => \is_string($taskQueue) && '' !== $taskQueue ? $taskQueue : $this->connection->workflowTaskQueue,
+        ]));
+        foreach ([
+            'workflow_run_timeout_seconds' => 'setWorkflowRunTimeout',
+            'workflow_task_timeout_seconds' => 'setWorkflowTaskTimeout',
+        ] as $key => $setter) {
+            $seconds = $metadata[$key] ?? null;
+            if (is_numeric($seconds) && (float) $seconds > 0) {
+                $attrs->{$setter}($this->durationSeconds((float) $seconds));
+            }
+        }
+
+        $cmd = new Command();
+        $cmd->setCommandType(CommandType::COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION);
+        $cmd->setContinueAsNewWorkflowExecutionCommandAttributes($attrs);
+        $this->commands[] = $cmd;
     }
 
     public function cancelTimer(string $timerId, string $reason): void

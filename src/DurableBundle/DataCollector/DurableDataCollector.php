@@ -19,7 +19,10 @@ use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\SideEffectRecorded;
 use Gplanchat\Durable\Event\TimerCompleted;
 use Gplanchat\Durable\Event\TimerScheduled;
+use Gplanchat\Durable\Event\ActivityTaskFailed;
+use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\WorkflowCancellationRequested;
+use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
@@ -282,6 +285,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             'WorkflowExecutionFailed' => 'failed',
             'WorkflowContinuedAsNew' => 'continued_as_new',
             'WorkflowCancellationRequested' => 'cancel_requested',
+            'WorkflowExecutionCancelled' => 'cancelled',
             default => 'running',
         };
     }
@@ -293,6 +297,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             'failed' => 'Échec',
             'continued_as_new' => 'Continue as new',
             'cancel_requested' => 'Annulation demandée',
+            'cancelled' => 'Annulé',
             'running' => 'En cours',
             'queued' => 'En file (pas encore de journal)',
             'pending' => 'En attente',
@@ -591,7 +596,8 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             $event instanceof ExecutionCompleted,
             $event instanceof WorkflowExecutionFailed,
             $event instanceof WorkflowContinuedAsNew,
-            $event instanceof WorkflowCancellationRequested => 'workflow',
+            $event instanceof WorkflowCancellationRequested,
+            $event instanceof WorkflowExecutionCancelled => 'workflow',
             $event instanceof ActivityScheduled,
             $event instanceof ChildWorkflowScheduled,
             $event instanceof TimerScheduled => 'dispatch',
@@ -599,6 +605,8 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             $event instanceof ActivityFailed,
             $event instanceof ActivityCancelled,
             $event instanceof TimerCompleted,
+            $event instanceof TimerCancelled,
+            $event instanceof ActivityTaskFailed,
             $event instanceof SideEffectRecorded,
             $event instanceof ChildWorkflowCompleted,
             $event instanceof WorkflowSignalReceived,

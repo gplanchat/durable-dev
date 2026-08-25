@@ -8,16 +8,19 @@ use Gplanchat\Durable\Event\ActivityCancelled;
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Event\ActivityScheduled;
+use Gplanchat\Durable\Event\ActivityTaskFailed;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
 use Gplanchat\Durable\Event\ChildWorkflowScheduled;
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\SideEffectRecorded;
+use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\TimerCompleted;
 use Gplanchat\Durable\Event\TimerScheduled;
 use Gplanchat\Durable\Event\WorkflowCancellationRequested;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
+use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
@@ -249,6 +252,38 @@ final class DurableProfilerEventPresentation
                 'title' => 'Update traitée',
                 'subtitle' => '« '.$event->updateName().' »',
                 'category' => 'signal',
+                'technical' => $technical,
+            ];
+        }
+
+        if ($event instanceof ActivityTaskFailed) {
+            return [
+                'title' => $event->willRetry() ? 'Tentative d’activité échouée' : 'Dernière tentative d’activité échouée',
+                'subtitle' => \sprintf(
+                    '%s · tentative %d · %s',
+                    $event->activityName(),
+                    $event->attempt(),
+                    $event->failureMessage(),
+                ),
+                'category' => 'activity',
+                'technical' => $technical,
+            ];
+        }
+
+        if ($event instanceof TimerCancelled) {
+            return [
+                'title' => 'Minuteur annulé',
+                'subtitle' => $event->reason(),
+                'category' => 'activity',
+                'technical' => $technical,
+            ];
+        }
+
+        if ($event instanceof WorkflowExecutionCancelled) {
+            return [
+                'title' => 'Exécution annulée',
+                'subtitle' => $event->reason(),
+                'category' => 'lifecycle',
                 'technical' => $technical,
             ];
         }

@@ -8,6 +8,7 @@ use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Awaitable\Awaitable;
+use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\RegistryActivityExecutor;
@@ -114,7 +115,7 @@ final class WorkflowTaskRunner
         try {
             $suspended = $fiber->start();
         } catch (\Throwable $e) {
-            $commandBuffer->failWorkflow($e);
+            $this->emitTerminalThrowable($commandBuffer, $e);
 
             return;
         }
@@ -128,7 +129,7 @@ final class WorkflowTaskRunner
                 try {
                     $suspended = $fiber->resume();
                 } catch (\Throwable $e) {
-                    $commandBuffer->failWorkflow($e);
+                    $this->emitTerminalThrowable($commandBuffer, $e);
 
                     return;
                 }
@@ -142,6 +143,21 @@ final class WorkflowTaskRunner
             $result = $fiber->getReturn();
             $commandBuffer->completeWorkflow($result);
         }
+    }
+
+    /**
+     * ContinueAsNew est une **terminaison normale** du run, pas un échec : le catch générique
+     * la transformait en FAIL_WORKFLOW_EXECUTION, rendant continue-as-new inutilisable sur Temporal.
+     */
+    private function emitTerminalThrowable(TemporalWorkflowCommandBuffer $commandBuffer, \Throwable $e): void
+    {
+        if ($e instanceof ContinueAsNewRequested) {
+            $commandBuffer->continueAsNew($e->workflowType, $e->payload, $e->options);
+
+            return;
+        }
+
+        $commandBuffer->failWorkflow($e);
     }
 
     private function resolveExecutionId(
