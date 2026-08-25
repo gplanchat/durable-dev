@@ -182,6 +182,40 @@ TLS certificates can be mounted and configured via gRPC channel credentials (see
 
 ---
 
+## Capability matrix
+
+Both backends run the **same fiber driver** and the same activity execution path. What differs is
+what the surrounding platform can offer.
+
+| Capability | In-Memory | Temporal |
+|---|---|---|
+| Activities, retries, timeouts | ✅ | ✅ |
+| Timers, side effects | ✅ | ✅ |
+| Signals, updates, queries | ✅ | ✅ |
+| Child workflows | ✅ | ✅ |
+| `ParentClosePolicy` cascade | ✅ | ✅ (server-driven) |
+| Continue-as-new | ✅ | ✅ |
+| Cancellation with compensation | ✅ | ✅ |
+| Search attributes | journaled only | ✅ indexed and queryable |
+| Cron schedules | ❌ no scheduler | ✅ |
+| Nexus operations | ❌ | ❌ *(planned — caller side)* |
+
+The in-memory backend has no scheduler and no cross-namespace boundary, so cron and Nexus have no
+in-process equivalent. Where a capability is missing it **fails explicitly** rather than being
+silently ignored.
+
+---
+
+## Retry semantics are identical
+
+An activity with no attempt bound retries **indefinitely** on both backends — the Temporal default.
+The bundle's `max_activity_retries` still acts as a ceiling when an activity does not set its own;
+at `0` it caps nothing.
+
+See [Failures and retries](../failures/) and [Options](../options/#retrylimit).
+
+---
+
 ## See also
 
 - [Configuration reference](../configuration/) — full `durable.yaml` key list.

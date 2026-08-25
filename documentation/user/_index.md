@@ -21,7 +21,10 @@ This site is the **user guide**: how to think about the component and how to use
 - [Concepts](concepts/) — workflows, activities, replay, and backends in plain language.
 - [Creating a workflow](workflows/) — interface, `WorkflowEnvironment`, `WorkflowMethod`, signals, queries, updates.
 - [Creating activities](activities/) — activity interfaces, `ActivityMethod`, dependency injection, `ActivityInvoker`.
-- [Testing workflows](testing/) — `DurableTestCase`, `ActivitySpy`, `WorkflowTestEnvironment`, and `DurableBundleTestTrait`.
+- [Failures and retries](failures/) — what the journal records when an activity fails, why it stopped retrying, and how a workflow fails.
+- [Cancellation](cancellation/) — raising cancellation inside the workflow so it can compensate.
+- [Options and value objects](options/) — retry limits, timeouts, task queues, cron schedules, search attributes, and how to migrate to them.
+- [Testing workflows](testing/) — `DurableTestCase`, `ActivitySpy`, `WorkflowTestEnvironment`, `DurableBundleTestTrait`, and the suite that runs against a real Temporal server.
 - [Configuration reference](configuration/) — every `durable.yaml` key explained.
 
 ## Source and feedback
