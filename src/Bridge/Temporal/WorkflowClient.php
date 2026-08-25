@@ -270,9 +270,7 @@ final class WorkflowClient implements WorkflowClientInterface
         $req->setWorkflowId($workflowId);
         $req->setWorkflowType(new WorkflowType(['name' => $typeName]));
         $req->setTaskQueue(new TaskQueue([
-            'name' => null !== $options->taskQueue && '' !== $options->taskQueue
-                ? $options->taskQueue
-                : $this->settings->workflowTaskQueue,
+            'name' => ($options->taskQueue ?? $this->settings->workflowTaskQueue)->name(),
         ]));
         $req->setIdentity($this->settings->identity);
         $req->setInput(JsonPlainPayload::singlePayloads($inputPayload));

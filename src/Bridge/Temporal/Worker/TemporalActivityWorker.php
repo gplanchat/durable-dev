@@ -52,7 +52,7 @@ final class TemporalActivityWorker
     {
         $req = new PollActivityTaskQueueRequest();
         $req->setNamespace($this->connection->namespace);
-        $req->setTaskQueue(new TaskQueue(['name' => $this->connection->activityTaskQueue]));
+        $req->setTaskQueue(new TaskQueue(['name' => $this->connection->activityTaskQueue->name()]));
         $req->setIdentity($this->connection->identity.'-activity');
 
         $resp = $this->activityRpc->pollActivityTaskQueue($req);

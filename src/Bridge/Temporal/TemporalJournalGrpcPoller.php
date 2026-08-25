@@ -25,7 +25,7 @@ final class TemporalJournalGrpcPoller
     {
         $req = new PollWorkflowTaskQueueRequest();
         $req->setNamespace($this->settings->namespace);
-        $req->setTaskQueue(new TaskQueue(['name' => $this->settings->journalTaskQueue]));
+        $req->setTaskQueue(new TaskQueue(['name' => $this->settings->journalTaskQueue->name()]));
         $req->setIdentity($this->settings->identity);
         $call = $this->client->PollWorkflowTaskQueue($req);
         $resp = GrpcUnary::wait($call);

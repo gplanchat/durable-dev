@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal;
 
+use Gplanchat\Durable\TaskQueue;
+
 /**
  * Connexion Temporal unique (cible, namespace, TLS, identité) + paramètres pour les différents accès
  * (worker journal, files applicatives, délégation Messenger transitoire).
@@ -12,29 +14,47 @@ final class TemporalConnection
 {
     public const DEFAULT_WORKFLOW_TYPE = 'DurableJournal';
 
+    public const DEFAULT_JOURNAL_TASK_QUEUE = 'durable-journal';
+
+    public const DEFAULT_WORKFLOW_TASK_QUEUE = 'durable-workflows';
+
+    public const DEFAULT_ACTIVITY_TASK_QUEUE = 'durable-activities';
+
     public const DEFAULT_SIGNAL_APPEND = 'durableAppend';
 
     public const DEFAULT_QUERY_READ_STREAM = 'readStream';
 
+    /** File du worker journal (poll workflow tasks). */
+    public readonly TaskQueue $journalTaskQueue;
+
+    /** File des tâches de workflow applicatives. */
+    public readonly TaskQueue $workflowTaskQueue;
+
+    /** File des tâches d'activité applicatives. */
+    public readonly TaskQueue $activityTaskQueue;
+
     public function __construct(
         public readonly string $target,
         public readonly string $namespace,
-        /** File du worker journal (poll workflow tasks). */
-        public readonly string $journalTaskQueue = 'durable-journal',
+        TaskQueue|string|null $journalTaskQueue = null,
         public readonly string $workflowType = self::DEFAULT_WORKFLOW_TYPE,
         public readonly string $signalAppend = self::DEFAULT_SIGNAL_APPEND,
         public readonly string $queryReadStream = self::DEFAULT_QUERY_READ_STREAM,
         public readonly string $identity = 'durable-temporal-bridge-php',
         public readonly bool $tls = false,
-        /** Noms de task queues applicatives (évolution gRPC). */
-        public readonly string $workflowTaskQueue = 'durable-workflows',
-        public readonly string $activityTaskQueue = 'durable-activities',
+        TaskQueue|string|null $workflowTaskQueue = null,
+        TaskQueue|string|null $activityTaskQueue = null,
         /**
          * DSN Messenger délégué tant que le transport applicatif n’est pas entièrement gRPC.
          * Null pour le transport journal (receive-only) ; requis pour purpose=application.
          */
         public readonly ?string $innerMessengerDsn = null,
     ) {
+        // Les noms de files viennent d'un DSN : une faute y crée une file où personne ne poll,
+        // sans la moindre erreur côté serveur. Ils sont validés ici, au montage.
+        $this->journalTaskQueue = TaskQueue::from($journalTaskQueue ?? self::DEFAULT_JOURNAL_TASK_QUEUE);
+        $this->workflowTaskQueue = TaskQueue::from($workflowTaskQueue ?? self::DEFAULT_WORKFLOW_TASK_QUEUE);
+        $this->activityTaskQueue = TaskQueue::from($activityTaskQueue ?? self::DEFAULT_ACTIVITY_TASK_QUEUE);
     }
 
     public function journalWorkflowId(string $executionId): string
@@ -76,8 +96,8 @@ final class TemporalConnection
 
         $workflowType = \is_string($q['workflow_type'] ?? null) ? $q['workflow_type'] : self::DEFAULT_WORKFLOW_TYPE;
 
-        $workflowTaskQueue = \is_string($q['workflow_task_queue'] ?? null) ? $q['workflow_task_queue'] : 'durable-workflows';
-        $activityTaskQueue = \is_string($q['activity_task_queue'] ?? null) ? $q['activity_task_queue'] : 'durable-activities';
+        $workflowTaskQueue = \is_string($q['workflow_task_queue'] ?? null) ? $q['workflow_task_queue'] : self::DEFAULT_WORKFLOW_TASK_QUEUE;
+        $activityTaskQueue = \is_string($q['activity_task_queue'] ?? null) ? $q['activity_task_queue'] : self::DEFAULT_ACTIVITY_TASK_QUEUE;
 
         $inner = \is_string($q['inner'] ?? null) ? $q['inner'] : null;
         if (null !== $inner && str_starts_with($inner, 'temporal://')) {
