@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
+use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
+use Gplanchat\Durable\WorkflowStartOptions;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
@@ -47,12 +49,30 @@ final class WorkflowClient implements WorkflowClientInterface
      * @param array<string, mixed> $payload Business payload for the workflow input.
      * @return string The Temporal workflow ID used.
      */
-    public function startAsync(string $workflowType, array $payload, string $executionId): string
-    {
+    public function startAsync(
+        string $workflowType,
+        array $payload,
+        string $executionId,
+        ?WorkflowStartOptions $options = null,
+    ): string {
         $workflowId = $this->workflowId($executionId);
-        $this->doStartWorkflow($workflowId, $workflowType, $payload, $executionId);
+        $this->doStartWorkflow($workflowId, $workflowType, $payload, $executionId, $options);
 
         return $workflowId;
+    }
+
+    /**
+     * Démarre une exécution **récurrente** : le serveur en relance une à chaque échéance cron.
+     *
+     * Un cron Temporal n'est pas un planificateur externe — c'est la même exécution logique,
+     * relancée avec un historique neuf. La suivante n'est pas démarrée tant que la précédente
+     * n'est pas terminée : une échéance manquée est sautée, pas rattrapée.
+     *
+     * @param array<string, mixed> $payload
+     */
+    public function startCron(string $workflowType, array $payload, string $executionId, string $cronExpression): string
+    {
+        return $this->startAsync($workflowType, $payload, $executionId, WorkflowStartOptions::cron($cronExpression));
     }
 
     /**
@@ -61,10 +81,14 @@ final class WorkflowClient implements WorkflowClientInterface
      * @param array<string, mixed> $payload Business payload for the workflow input.
      * @return mixed The decoded result of the workflow.
      */
-    public function startSync(string $workflowType, array $payload, string $executionId): mixed
-    {
+    public function startSync(
+        string $workflowType,
+        array $payload,
+        string $executionId,
+        ?WorkflowStartOptions $options = null,
+    ): mixed {
         $workflowId = $this->workflowId($executionId);
-        $this->doStartWorkflow($workflowId, $workflowType, $payload, $executionId);
+        $this->doStartWorkflow($workflowId, $workflowType, $payload, $executionId, $options);
 
         return $this->waitForCompletion($workflowId);
     }
@@ -224,19 +248,44 @@ final class WorkflowClient implements WorkflowClientInterface
         return 'durable-'.substr($safe, 0, 900);
     }
 
-    private function doStartWorkflow(string $workflowId, string $workflowType, array $payload, string $executionId): void
-    {
+    private function doStartWorkflow(
+        string $workflowId,
+        string $workflowType,
+        array $payload,
+        string $executionId,
+        ?WorkflowStartOptions $options = null,
+    ): void {
         $typeName = $this->resolveWorkflowTypeName($workflowType);
         $wireData = $payload === [] ? new \stdClass() : $payload;
         $inputPayload = JsonPlainPayload::encode($wireData);
+        $options ??= WorkflowStartOptions::defaults();
 
         $req = new StartWorkflowExecutionRequest();
         $req->setNamespace($this->settings->namespace);
         $req->setWorkflowId($workflowId);
         $req->setWorkflowType(new WorkflowType(['name' => $typeName]));
-        $req->setTaskQueue(new TaskQueue(['name' => $this->settings->workflowTaskQueue]));
+        $req->setTaskQueue(new TaskQueue([
+            'name' => null !== $options->taskQueue && '' !== $options->taskQueue
+                ? $options->taskQueue
+                : $this->settings->workflowTaskQueue,
+        ]));
         $req->setIdentity($this->settings->identity);
         $req->setInput(JsonPlainPayload::singlePayloads($inputPayload));
+
+        if (null !== $options->cronSchedule && '' !== $options->cronSchedule) {
+            $req->setCronSchedule($options->cronSchedule);
+        }
+        $req->setWorkflowIdReusePolicy(TemporalPolicyMapper::idReusePolicy($options->workflowIdReusePolicy));
+        foreach ([
+            'workflowExecutionTimeoutSeconds' => 'setWorkflowExecutionTimeout',
+            'workflowRunTimeoutSeconds' => 'setWorkflowRunTimeout',
+            'workflowTaskTimeoutSeconds' => 'setWorkflowTaskTimeout',
+        ] as $property => $setter) {
+            $seconds = $options->{$property};
+            if (null !== $seconds && $seconds > 0) {
+                $req->{$setter}(TemporalPolicyMapper::duration($seconds));
+            }
+        }
 
         $memo = new Memo();
         $memo->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] = JsonPlainPayload::encode($executionId);

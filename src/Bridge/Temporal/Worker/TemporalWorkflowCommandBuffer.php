@@ -10,10 +10,8 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\ContinueAsNewOptions;
 use Gplanchat\Durable\Event\ActivityScheduled;
-use Gplanchat\Durable\ParentClosePolicy;
 use Gplanchat\Durable\Port\WorkflowCommandBufferInterface;
 use Gplanchat\Durable\Failure\WorkflowFailureClassifier;
-use Gplanchat\Durable\WorkflowIdReusePolicy;
 use Google\Protobuf\Duration;
 use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
@@ -24,8 +22,6 @@ use Temporal\Api\Command\V1\StartTimerCommandAttributes;
 use Temporal\Api\Common\V1\ActivityType;
 use Temporal\Api\Common\V1\RetryPolicy;
 use Temporal\Api\Enums\V1\CommandType;
-use Temporal\Api\Enums\V1\ParentClosePolicy as TemporalParentClosePolicy;
-use Temporal\Api\Enums\V1\WorkflowIdReusePolicy as TemporalIdReusePolicy;
 use Temporal\Api\Failure\V1\ApplicationFailureInfo;
 use Temporal\Api\Failure\V1\Failure;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
@@ -185,8 +181,8 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
 
         // Sans ces deux politiques le serveur applique ses défauts : la ParentClosePolicy
         // choisie par l'appelant était silencieusement perdue côté Temporal.
-        $attrs->setParentClosePolicy(self::toTemporalParentClosePolicy($schedulingMetadata['parentClosePolicy'] ?? null));
-        $attrs->setWorkflowIdReusePolicy(self::toTemporalIdReusePolicy($schedulingMetadata['workflow_id_reuse_policy'] ?? null));
+        $attrs->setParentClosePolicy(TemporalPolicyMapper::parentClosePolicy($schedulingMetadata['parentClosePolicy'] ?? null));
+        $attrs->setWorkflowIdReusePolicy(TemporalPolicyMapper::idReusePolicy($schedulingMetadata['workflow_id_reuse_policy'] ?? null));
 
         $cmd = new Command();
         $cmd->setCommandType(CommandType::COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION);
@@ -392,40 +388,8 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $this->commands[] = $cmd;
     }
 
-    private static function toTemporalParentClosePolicy(mixed $policy): int
-    {
-        $value = $policy instanceof ParentClosePolicy ? $policy : ParentClosePolicy::tryFrom((string) (\is_scalar($policy) ? $policy : ''));
-
-        return match ($value) {
-            ParentClosePolicy::Abandon => TemporalParentClosePolicy::PARENT_CLOSE_POLICY_ABANDON,
-            ParentClosePolicy::RequestCancel => TemporalParentClosePolicy::PARENT_CLOSE_POLICY_REQUEST_CANCEL,
-            default => TemporalParentClosePolicy::PARENT_CLOSE_POLICY_TERMINATE,
-        };
-    }
-
-    private static function toTemporalIdReusePolicy(mixed $policy): int
-    {
-        $value = $policy instanceof WorkflowIdReusePolicy ? $policy : WorkflowIdReusePolicy::tryFrom((string) (\is_scalar($policy) ? $policy : ''));
-
-        return match ($value) {
-            WorkflowIdReusePolicy::AllowDuplicate => TemporalIdReusePolicy::WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
-            WorkflowIdReusePolicy::RejectDuplicate => TemporalIdReusePolicy::WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-            default => TemporalIdReusePolicy::WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
-        };
-    }
-
     private function durationSeconds(float $seconds): Duration
     {
-        $d = new Duration();
-        $whole = (int) floor($seconds);
-        $nanos = (int) round(($seconds - $whole) * 1_000_000_000);
-        if ($nanos >= 1_000_000_000) {
-            ++$whole;
-            $nanos -= 1_000_000_000;
-        }
-        $d->setSeconds($whole);
-        $d->setNanos($nanos);
-
-        return $d;
+        return TemporalPolicyMapper::duration($seconds);
     }
 }
