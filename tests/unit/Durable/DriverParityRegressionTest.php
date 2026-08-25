@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
-use Gplanchat\Durable\Activity\Duration;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Awaitable\AwaitableInspector;
 use Gplanchat\Durable\Event\ActivityCompleted;

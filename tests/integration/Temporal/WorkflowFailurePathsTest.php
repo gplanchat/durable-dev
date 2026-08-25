@@ -8,6 +8,9 @@ use Gplanchat\Durable\Activity\RetryLimit;
 
 use Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
+use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\WorkflowStartOptions;
+use Gplanchat\Durable\WorkflowTimeouts;
 use Temporal\Api\Enums\V1\EventType;
 
 /**
@@ -53,6 +56,24 @@ final class WorkflowFailurePathsTest extends TemporalServerTestCase
 
         self::assertNotContains('EVENT_TYPE_WORKFLOW_EXECUTION_FAILED', $names);
         self::assertNotContains('EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED', $names);
+    }
+
+    public function testTheServerRewritesARunTimeoutLongerThanTheExecutionTimeout(): void
+    {
+        // Justification empirique de l'invariant porté par WorkflowTimeouts : demander
+        // execution=10s + run=60s ne produit pas d'erreur, le serveur réécrit run à 10s en
+        // silence. Le domaine refuse donc la configuration au lieu de la laisser être réécrite.
+        $executionId = 'runcap-'.bin2hex(random_bytes(4));
+        $this->workflowClient()->startAsync('Plain', ['value' => 1], $executionId, new WorkflowStartOptions(
+            timeouts: new WorkflowTimeouts(execution: Duration::seconds(10.0), run: Duration::seconds(10.0)),
+        ));
+
+        $started = $this->waitForHistoryEvent($executionId, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
+        $attrs = $started->getWorkflowExecutionStartedEventAttributes();
+
+        self::assertNotNull($attrs);
+        self::assertSame(10, $attrs->getWorkflowExecutionTimeout()?->getSeconds());
+        self::assertSame(10, $attrs->getWorkflowRunTimeout()?->getSeconds());
     }
 
     public function testNonRetryableExceptionStopsTheServerRetryPolicy(): void

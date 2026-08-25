@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Temporal\Worker;
 
+use Gplanchat\Durable\Duration;
+
+use Gplanchat\Durable\WorkflowTimeouts;
+
 use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
 use Gplanchat\Durable\ParentClosePolicy;
 use Gplanchat\Durable\WorkflowIdReusePolicy;
@@ -55,7 +59,7 @@ final class TemporalPolicyMapperTest extends TestCase
         $metadata = (new WorkflowStartOptions(
             cronSchedule: '@every 5m',
             taskQueue: 'dedicated',
-            workflowRunTimeoutSeconds: 30.0,
+            timeouts: WorkflowTimeouts::run(Duration::seconds(30.0)),
             workflowIdReusePolicy: WorkflowIdReusePolicy::RejectDuplicate,
         ))->toStartMetadata();
 

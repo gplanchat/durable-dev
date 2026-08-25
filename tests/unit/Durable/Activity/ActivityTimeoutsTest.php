@@ -6,7 +6,7 @@ namespace unit\Gplanchat\Durable\Activity;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
-use Gplanchat\Durable\Activity\Duration;
+use Gplanchat\Durable\Duration;
 use PHPUnit\Framework\TestCase;
 
 /**

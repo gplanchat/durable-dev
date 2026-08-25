@@ -6,6 +6,7 @@ namespace Gplanchat\Bridge\Temporal\Worker;
 
 use Google\Protobuf\Duration;
 use Gplanchat\Durable\ParentClosePolicy;
+use Gplanchat\Durable\WorkflowTimeouts;
 use Gplanchat\Durable\WorkflowIdReusePolicy;
 use Temporal\Api\Enums\V1\ParentClosePolicy as TemporalParentClosePolicy;
 use Temporal\Api\Enums\V1\WorkflowIdReusePolicy as TemporalIdReusePolicy;
@@ -46,6 +47,27 @@ final class TemporalPolicyMapper
             WorkflowIdReusePolicy::RejectDuplicate => TemporalIdReusePolicy::WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
             default => TemporalIdReusePolicy::WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
         };
+    }
+
+    /**
+     * Pose les bornes temporelles sur n'importe quel message qui les accepte — requête de
+     * démarrage, commande d'enfant, commande de continue-as-new : ils exposent les mêmes
+     * setters, et ne doivent pas traduire les mêmes options différemment.
+     *
+     * @param object $target message protobuf exposant setWorkflowExecutionTimeout /
+     *                       setWorkflowRunTimeout / setWorkflowTaskTimeout
+     */
+    public static function applyWorkflowTimeouts(WorkflowTimeouts $timeouts, object $target): void
+    {
+        foreach ([
+            'setWorkflowExecutionTimeout' => $timeouts->execution,
+            'setWorkflowRunTimeout' => $timeouts->run,
+            'setWorkflowTaskTimeout' => $timeouts->task,
+        ] as $setter => $bound) {
+            if (null !== $bound && method_exists($target, $setter)) {
+                $target->{$setter}(self::duration($bound->toSeconds()));
+            }
+        }
     }
 
     public static function duration(float $seconds): Duration

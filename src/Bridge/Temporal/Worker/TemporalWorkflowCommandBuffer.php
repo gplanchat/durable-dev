@@ -9,8 +9,9 @@ use Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
-use Gplanchat\Durable\Activity\Duration as DurableDuration;
+use Gplanchat\Durable\Duration as DurableDuration;
 use Gplanchat\Durable\ContinueAsNewOptions;
+use Gplanchat\Durable\WorkflowTimeouts;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Port\WorkflowCommandBufferInterface;
 use Gplanchat\Durable\Failure\WorkflowFailureClassifier;
@@ -175,16 +176,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         if (\is_string($cron) && '' !== $cron) {
             $attrs->setCronSchedule($cron);
         }
-        foreach ([
-            'workflow_execution_timeout_seconds' => 'setWorkflowExecutionTimeout',
-            'workflow_run_timeout_seconds' => 'setWorkflowRunTimeout',
-            'workflow_task_timeout_seconds' => 'setWorkflowTaskTimeout',
-        ] as $key => $setter) {
-            $seconds = $schedulingMetadata[$key] ?? null;
-            if (is_numeric($seconds) && (float) $seconds > 0) {
-                $attrs->{$setter}($this->durationSeconds((float) $seconds));
-            }
-        }
+        TemporalPolicyMapper::applyWorkflowTimeouts(WorkflowTimeouts::fromMetadata($schedulingMetadata), $attrs);
 
         // Sans ces deux politiques le serveur applique ses défauts : la ParentClosePolicy
         // choisie par l'appelant était silencieusement perdue côté Temporal.
@@ -317,20 +309,13 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $attrs->setWorkflowType(new \Temporal\Api\Common\V1\WorkflowType(['name' => $workflowType]));
         $attrs->setInput(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($payload)));
 
-        $metadata = null !== $options ? $options->toMetadata() : [];
-        $taskQueue = $metadata['task_queue'] ?? null;
+        $options ??= ContinueAsNewOptions::new();
         $attrs->setTaskQueue(new TaskQueue([
-            'name' => \is_string($taskQueue) && '' !== $taskQueue ? $taskQueue : $this->connection->workflowTaskQueue,
+            'name' => null !== $options->taskQueue && '' !== $options->taskQueue
+                ? $options->taskQueue
+                : $this->connection->workflowTaskQueue,
         ]));
-        foreach ([
-            'workflow_run_timeout_seconds' => 'setWorkflowRunTimeout',
-            'workflow_task_timeout_seconds' => 'setWorkflowTaskTimeout',
-        ] as $key => $setter) {
-            $seconds = $metadata[$key] ?? null;
-            if (is_numeric($seconds) && (float) $seconds > 0) {
-                $attrs->{$setter}($this->durationSeconds((float) $seconds));
-            }
-        }
+        TemporalPolicyMapper::applyWorkflowTimeouts($options->timeouts, $attrs);
 
         $cmd = new Command();
         $cmd->setCommandType(CommandType::COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION);

@@ -276,16 +276,7 @@ final class WorkflowClient implements WorkflowClientInterface
             $req->setCronSchedule($options->cronSchedule);
         }
         $req->setWorkflowIdReusePolicy(TemporalPolicyMapper::idReusePolicy($options->workflowIdReusePolicy));
-        foreach ([
-            'workflowExecutionTimeoutSeconds' => 'setWorkflowExecutionTimeout',
-            'workflowRunTimeoutSeconds' => 'setWorkflowRunTimeout',
-            'workflowTaskTimeoutSeconds' => 'setWorkflowTaskTimeout',
-        ] as $property => $setter) {
-            $seconds = $options->{$property};
-            if (null !== $seconds && $seconds > 0) {
-                $req->{$setter}(TemporalPolicyMapper::duration($seconds));
-            }
-        }
+        TemporalPolicyMapper::applyWorkflowTimeouts($options->timeouts, $req);
 
         $memo = new Memo();
         $memo->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] = JsonPlainPayload::encode($executionId);

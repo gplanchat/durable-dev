@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Temporal\Worker;
 
+use Gplanchat\Durable\Duration;
+
+use Gplanchat\Durable\WorkflowTimeouts;
+
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Durable\ChildWorkflowOptions;
@@ -53,7 +57,7 @@ final class TemporalWorkflowCommandBufferSchedulingTest extends TestCase
         $options = new ChildWorkflowOptions(
             parentClosePolicy: ParentClosePolicy::Abandon,
             taskQueue: 'dedicated-queue',
-            workflowRunTimeoutSeconds: 120.0,
+            timeouts: WorkflowTimeouts::run(Duration::seconds(120.0)),
             workflowIdReusePolicy: WorkflowIdReusePolicy::RejectDuplicate,
         );
 
