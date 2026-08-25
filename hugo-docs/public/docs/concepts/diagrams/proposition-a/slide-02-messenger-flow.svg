@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .frame { fill: #fff; stroke: #cbd5e1; stroke-width: 2.5; rx: 18; }
+      .title { font: 700 44px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 23px Arial, sans-serif; fill: #334155; }
+      .note { font: 600 20px Arial, sans-serif; fill: #0f172a; }
+      .bus { fill: #e0f2fe; stroke: #0284c7; stroke-width: 3; }
+      .arrow-in { stroke: #475569; stroke-width: 2.8; fill: none; marker-end: url(#arr); }
+      .arrow-out { stroke: #1d4ed8; stroke-width: 2.8; fill: none; marker-end: url(#arrBlue); }
+    </style>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#475569"/></marker>
+    <marker id="arrBlue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#1d4ed8"/></marker>
+    <g id="env">
+      <rect x="0" y="0" width="100" height="64" rx="10" fill="#fff" stroke="#0f172a" stroke-width="2.2"/>
+      <polyline points="6,8 50,34 94,8" fill="none" stroke="#0f172a" stroke-width="2.2"/>
+    </g>
+    <g id="gear">
+      <circle cx="0" cy="0" r="28" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2.3"/>
+      <circle cx="0" cy="0" r="10" fill="#fff" stroke="#1d4ed8" stroke-width="2"/>
+      <rect x="-4" y="-43" width="8" height="13" fill="#bfdbfe" stroke="#1d4ed8" stroke-width="1.6"/>
+      <rect x="-4" y="30" width="8" height="13" fill="#bfdbfe" stroke="#1d4ed8" stroke-width="1.6"/>
+      <rect x="-43" y="-4" width="13" height="8" fill="#bfdbfe" stroke="#1d4ed8" stroke-width="1.6"/>
+      <rect x="30" y="-4" width="13" height="8" fill="#bfdbfe" stroke="#1d4ed8" stroke-width="1.6"/>
+    </g>
+  </defs>
+  <rect width="1080" height="1080" class="bg"/>
+  <rect x="36" y="36" width="1008" height="1008" class="frame"/>
+  <text x="80" y="124" class="title">Le bus comme recipient global</text>
+  <text x="80" y="166" class="subtitle">Les messages entrent dans le bus. Les handlers consomment depuis le bus.</text>
+
+  <use href="#env" x="90" y="300"/><use href="#env" x="90" y="410"/><use href="#env" x="90" y="520"/><use href="#env" x="90" y="630"/><use href="#env" x="90" y="740"/>
+  <path d="M190,332 L320,420" class="arrow-in"/>
+  <path d="M190,442 L320,470" class="arrow-in"/>
+  <path d="M190,552 L320,520" class="arrow-in"/>
+  <path d="M190,662 L320,570" class="arrow-in"/>
+  <path d="M190,772 L320,620" class="arrow-in"/>
+
+  <rect x="320" y="300" width="440" height="500" rx="220" class="bus"/>
+  <text x="505" y="842" class="note" text-anchor="middle">BUS</text>
+  <use href="#env" x="410" y="390"/><use href="#env" x="535" y="390"/>
+  <use href="#env" x="472" y="510"/><use href="#env" x="380" y="620"/><use href="#env" x="565" y="620"/>
+
+  <use href="#gear" x="885" y="350"/><use href="#gear" x="960" y="440"/><use href="#gear" x="960" y="560"/><use href="#gear" x="885" y="650"/><use href="#gear" x="810" y="500"/>
+  <path d="M760,390 L852,356" class="arrow-out"/>
+  <path d="M760,450 L928,438" class="arrow-out"/>
+  <path d="M760,520 L928,560" class="arrow-out"/>
+  <path d="M760,590 L852,642" class="arrow-out"/>
+  <path d="M760,660 L780,520" class="arrow-out"/>
+
+  <text x="80" y="1000" class="subtitle">Slide 3/6 - Proposition A</text>
+</svg>

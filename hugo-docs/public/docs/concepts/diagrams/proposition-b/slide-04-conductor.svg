@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .frame { fill: #fff; stroke: #cbd5e1; stroke-width: 2.5; rx: 18; }
+      .workflow { fill: #ecfeff; stroke: #0891b2; stroke-width: 2.5; rx: 16; }
+      .bus { fill: #e0f2fe; stroke: #0284c7; stroke-width: 3; }
+      .node { fill: #fff; stroke: #475569; stroke-width: 2.2; rx: 12; }
+      .title { font: 700 44px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 23px Arial, sans-serif; fill: #334155; }
+      .arrow { stroke: #334155; stroke-width: 2.8; fill: none; marker-end: url(#arr); }
+    </style>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
+  </defs>
+  <rect width="1080" height="1080" class="bg"/>
+  <rect x="36" y="36" width="1008" height="1008" class="frame"/>
+  <text x="80" y="124" class="title">Apres: orchestration explicite</text>
+  <text x="80" y="166" class="subtitle">Le workflow pilote. Le bus distribue. Les handlers consomment.</text>
+
+  <rect x="150" y="240" width="780" height="140" class="workflow"/>
+  <rect x="220" y="430" width="640" height="190" rx="95" class="bus"/>
+  <rect x="120" y="700" width="190" height="120" class="node"/>
+  <rect x="330" y="700" width="190" height="120" class="node"/>
+  <rect x="540" y="700" width="190" height="120" class="node"/>
+  <rect x="750" y="700" width="190" height="120" class="node"/>
+
+  <path d="M240,380 L240,430" class="arrow"/>
+  <path d="M410,380 L410,430" class="arrow"/>
+  <path d="M580,380 L580,430" class="arrow"/>
+  <path d="M750,380 L750,430" class="arrow"/>
+  <path d="M215,620 L215,700" class="arrow"/>
+  <path d="M425,620 L425,700" class="arrow"/>
+  <path d="M635,620 L635,700" class="arrow"/>
+  <path d="M845,620 L845,700" class="arrow"/>
+
+  <text x="80" y="1000" class="subtitle">Slide 4/5 - Proposition B</text>
+</svg>

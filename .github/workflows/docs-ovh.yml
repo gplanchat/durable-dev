@@ -1,0 +1,116 @@
+name: Documentation site (OVH)
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'hugo-docs/**'
+      - 'documentation/user/**'
+      - '.github/workflows/docs-ovh.yml'
+  pull_request:
+    paths:
+      - 'hugo-docs/**'
+      - 'documentation/user/**'
+      - '.github/workflows/docs-ovh.yml'
+  workflow_dispatch:
+
+# One deployment at a time: FTP has no atomic swap, two concurrent syncs would
+# interleave files.
+concurrency:
+  group: docs-ovh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Hébergement mutualisé : quota serré. Le job échoue au-delà, plutôt que de
+  # téléverser à moitié et laisser un site cassé en ligne.
+  SITE_QUOTA_KB: 9000
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.159.2'
+          extended: true
+
+      # Le thème embarque mermaid, katex et asciinema — 4,4 Mo copiés dans la
+      # sortie même inutilisés. On les retire, mais seulement tant qu'aucune page
+      # ne les appelle : cette garde échoue le jour où ce ne sera plus vrai.
+      - name: Guard — aucune page n'utilise les bibliothèques élaguées
+        run: |
+          if grep -rlE '\{\{< *(mermaid|katex|math|asciinema)' documentation/user --include='*.md'; then
+            echo "::error::Une page utilise un shortcode dont la bibliothèque est élaguée au déploiement."
+            echo "Retirez le shortcode, ou retirez l'élagage dans l'étape « Prune »."
+            exit 1
+          fi
+
+      - name: Build
+        working-directory: hugo-docs
+        env:
+          HUGO_ENVIRONMENT: production
+        run: hugo --minify --gc
+
+      - name: Prune unused theme libraries
+        working-directory: hugo-docs/public
+        run: |
+          rm -rf mermaid.min.js katex asciinema
+          echo "Après élagage :" && du -sh .
+
+      - name: Guard — le site tient dans le quota
+        working-directory: hugo-docs/public
+        run: |
+          SIZE_KB=$(du -sk . | cut -f1)
+          echo "Site: ${SIZE_KB} Ko (quota ${SITE_QUOTA_KB} Ko)"
+          if [ "$SIZE_KB" -gt "$SITE_QUOTA_KB" ]; then
+            echo "::error::Le site dépasse le quota d'hébergement (${SIZE_KB} Ko > ${SITE_QUOTA_KB} Ko)."
+            exit 1
+          fi
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-site
+          path: hugo-docs/public
+          retention-days: 7
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+    environment:
+      name: durable.rocks
+      url: https://durable.rocks/
+    steps:
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-site
+          path: site
+
+      - name: Deploy over FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.OVH_FTP_SERVER }}
+          username: ${{ secrets.OVH_FTP_USERNAME }}
+          password: ${{ secrets.OVH_FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./site/
+          # Racine web de l'hébergement mutualisé OVH.
+          server-dir: ${{ vars.OVH_FTP_ROOT || './www/' }}
+          # L'action tient un état côté serveur et ne renvoie que le delta :
+          # indispensable sur FTP, où 100 fichiers coûtent 100 aller-retours.
+          state-name: .ftp-deploy-sync-state.json
+          dangerous-clean-slate: false

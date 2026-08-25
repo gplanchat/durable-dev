@@ -1,5 +1,3 @@
-# Le domaine réel est aussi porté par static/CNAME, que GitHub Pages lit dans l'artefact.
-# En CI de déploiement, configure-pages écrase cette valeur par celle du domaine configuré.
 baseURL = 'https://durable.rocks/'
 languageCode = 'en-us'
 title = 'Durable'

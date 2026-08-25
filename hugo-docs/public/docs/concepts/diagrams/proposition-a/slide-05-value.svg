@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .frame { fill: #fff; stroke: #cbd5e1; stroke-width: 2.5; rx: 18; }
+      .title { font: 700 44px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 23px Arial, sans-serif; fill: #334155; }
+      .pill { fill: #ecfeff; stroke: #0891b2; stroke-width: 2.5; rx: 20; }
+      .label { font: 700 24px Arial, sans-serif; fill: #0f172a; }
+      .cta { font: 700 26px Arial, sans-serif; fill: #0f172a; }
+    </style>
+  </defs>
+  <rect width="1080" height="1080" class="bg"/>
+  <rect x="36" y="36" width="1008" height="1008" class="frame"/>
+  <text x="80" y="124" class="title">Pourquoi Durable + Messenger</text>
+  <text x="80" y="166" class="subtitle">3 benefices visuels a retenir</text>
+
+  <rect x="130" y="270" width="820" height="150" class="pill"/>
+  <text x="320" y="355" class="label">replay + etat durable</text>
+
+  <rect x="130" y="460" width="820" height="150" class="pill"/>
+  <text x="250" y="545" class="label">parallelisme collaboratif</text>
+
+  <rect x="130" y="650" width="820" height="150" class="pill"/>
+  <text x="320" y="735" class="label">saga + compensation</text>
+
+  <text x="180" y="920" class="cta">Samples Symfony + documentation</text>
+  <text x="80" y="1000" class="subtitle">Slide 6/6 - Proposition A</text>
+</svg>

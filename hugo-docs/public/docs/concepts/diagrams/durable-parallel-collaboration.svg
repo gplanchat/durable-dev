@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760">
+  <defs>
+    <style>
+      .title { font: 700 24px Arial, sans-serif; fill: #111827; }
+      .subtitle { font: 600 16px Arial, sans-serif; fill: #1f2937; }
+      .label { font: 14px Arial, sans-serif; fill: #111827; }
+      .small { font: 12px Arial, sans-serif; fill: #374151; }
+      .lane { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 2; rx: 10; }
+      .box { fill: #ffffff; stroke: #334155; stroke-width: 2; rx: 8; }
+      .workflow { fill: #ecfeff; stroke: #0891b2; stroke-width: 2; rx: 8; }
+      .activity { fill: #eef2ff; stroke: #4f46e5; stroke-width: 2; rx: 8; }
+      .child { fill: #f0fdf4; stroke: #16a34a; stroke-width: 2; rx: 8; }
+      .arrow { stroke: #334155; stroke-width: 2.5; fill: none; marker-end: url(#mArrow); }
+      .arrow-dash { stroke: #334155; stroke-width: 2.2; stroke-dasharray: 7 6; fill: none; marker-end: url(#mArrow); }
+    </style>
+    <marker id="mArrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+  </defs>
+
+  <text x="40" y="42" class="title">Parallel collaborative orchestration with Durable</text>
+  <text x="40" y="70" class="small">One workflow coordinates concurrent tasks, waits for all or first, then continues business logic.</text>
+
+  <rect x="40" y="100" width="1120" height="620" class="lane"/>
+
+  <rect x="90" y="145" width="250" height="70" class="workflow"/>
+  <text x="118" y="185" class="label">Parent Workflow</text>
+
+  <rect x="470" y="140" width="250" height="80" class="box"/>
+  <text x="495" y="172" class="label">Parallel fan-out</text>
+  <text x="505" y="192" class="small">await(all([...]))</text>
+
+  <rect x="860" y="145" width="250" height="70" class="box"/>
+  <text x="892" y="185" class="label">Aggregate results</text>
+
+  <path d="M340,180 L470,180" class="arrow"/>
+  <path d="M720,180 L860,180" class="arrow"/>
+
+  <rect x="120" y="290" width="220" height="65" class="activity"/>
+  <text x="162" y="327" class="label">Activity A</text>
+
+  <rect x="410" y="290" width="220" height="65" class="activity"/>
+  <text x="452" y="327" class="label">Activity B</text>
+
+  <rect x="700" y="290" width="220" height="65" class="activity"/>
+  <text x="742" y="327" class="label">Activity C</text>
+
+  <path d="M595,220 L230,290" class="arrow"/>
+  <path d="M595,220 L520,290" class="arrow"/>
+  <path d="M595,220 L810,290" class="arrow"/>
+
+  <path d="M230,355 L860,215" class="arrow-dash"/>
+  <path d="M520,355 L860,215" class="arrow-dash"/>
+  <path d="M810,355 L860,215" class="arrow-dash"/>
+
+  <rect x="120" y="450" width="260" height="70" class="child"/>
+  <text x="148" y="490" class="label">Child Workflow: Billing</text>
+
+  <rect x="470" y="450" width="260" height="70" class="child"/>
+  <text x="498" y="490" class="label">Child Workflow: Shipping</text>
+
+  <rect x="820" y="450" width="260" height="70" class="child"/>
+  <text x="850" y="490" class="label">Child Workflow: Notification</text>
+
+  <path d="M985,215 L250,450" class="arrow"/>
+  <path d="M985,215 L600,450" class="arrow"/>
+  <path d="M985,215 L950,450" class="arrow"/>
+
+  <rect x="390" y="590" width="420" height="90" class="workflow"/>
+  <text x="425" y="625" class="label">Final business decision</text>
+  <text x="430" y="648" class="small">complete, retry branch, or compensation branch</text>
+
+  <path d="M250,520 L520,590" class="arrow-dash"/>
+  <path d="M600,520 L600,590" class="arrow-dash"/>
+  <path d="M950,520 L680,590" class="arrow-dash"/>
+</svg>

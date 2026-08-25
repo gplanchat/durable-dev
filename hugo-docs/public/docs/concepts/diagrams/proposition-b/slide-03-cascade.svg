@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .frame { fill: #fff; stroke: #cbd5e1; stroke-width: 2.5; rx: 18; }
+      .title { font: 700 44px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 23px Arial, sans-serif; fill: #334155; }
+      .node { fill: #fff; stroke: #475569; stroke-width: 2.2; rx: 12; }
+      .tag { fill: #fef3c7; stroke: #d97706; stroke-width: 2.2; rx: 12; }
+      .arrow { stroke: #334155; stroke-width: 2.8; fill: none; marker-end: url(#arr); }
+      .danger { stroke: #ef4444; stroke-width: 3; }
+    </style>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
+  </defs>
+  <rect width="1080" height="1080" class="bg"/>
+  <rect x="36" y="36" width="1008" height="1008" class="frame"/>
+  <text x="80" y="124" class="title">Cascade de dispatch</text>
+  <text x="80" y="166" class="subtitle">La logique d orchestration se fragmente.</text>
+
+  <rect x="140" y="270" width="200" height="90" class="node"/>
+  <rect x="420" y="270" width="200" height="90" class="node"/>
+  <rect x="700" y="270" width="200" height="90" class="node"/>
+  <rect x="280" y="460" width="200" height="90" class="node"/>
+  <rect x="560" y="460" width="200" height="90" class="node"/>
+
+  <rect x="170" y="380" width="140" height="56" class="tag"/>
+  <rect x="450" y="380" width="140" height="56" class="tag"/>
+  <rect x="730" y="380" width="140" height="56" class="tag"/>
+
+  <path d="M340,315 L420,315" class="arrow"/>
+  <path d="M620,315 L700,315" class="arrow"/>
+  <path d="M240,436 L360,460" class="arrow"/>
+  <path d="M520,436 L640,460" class="arrow"/>
+  <path d="M800,436 L660,460" class="arrow"/>
+  <path d="M760,500 L900,315" class="arrow"/>
+  <path d="M280,500 L140,315" class="arrow"/>
+
+  <line x1="170" y1="600" x2="920" y2="600" class="danger"/>
+  <rect x="150" y="680" width="230" height="90" class="tag"/>
+  <rect x="420" y="680" width="230" height="90" class="tag"/>
+  <rect x="690" y="680" width="230" height="90" class="tag"/>
+
+  <text x="80" y="1000" class="subtitle">Slide 3/5 - Proposition B</text>
+</svg>

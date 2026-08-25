@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .frame { fill: #fff; stroke: #cbd5e1; stroke-width: 2.5; rx: 18; }
+      .title { font: 700 44px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 23px Arial, sans-serif; fill: #334155; }
+      .chip { fill: #fff7ed; stroke: #d97706; stroke-width: 2.2; rx: 12; }
+      .chiptxt { font: 600 20px Arial, sans-serif; fill: #7c2d12; }
+      .node { fill: #fff; stroke: #475569; stroke-width: 2.2; rx: 12; }
+      .nlabel { font: 700 18px Arial, sans-serif; fill: #334155; }
+      .arrow { stroke: #334155; stroke-width: 2.8; fill: none; marker-end: url(#arr); }
+      .danger { stroke: #ef4444; stroke-width: 3; }
+    </style>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
+  </defs>
+  <rect width="1080" height="1080" class="bg"/>
+  <rect x="36" y="36" width="1008" height="1008" class="frame"/>
+  <text x="80" y="124" class="title">Quand le process fuit dans les handlers</text>
+  <text x="80" y="166" class="subtitle">Peu de lisibilite globale, plus de risque operationnel.</text>
+
+  <rect x="140" y="270" width="170" height="80" class="node"/><text x="182" y="318" class="nlabel">H1</text>
+  <rect x="360" y="270" width="170" height="80" class="node"/><text x="402" y="318" class="nlabel">H2</text>
+  <rect x="580" y="270" width="170" height="80" class="node"/><text x="622" y="318" class="nlabel">H3</text>
+  <rect x="800" y="270" width="170" height="80" class="node"/><text x="842" y="318" class="nlabel">H4</text>
+  <rect x="470" y="440" width="170" height="80" class="node"/><text x="512" y="488" class="nlabel">H5</text>
+
+  <path d="M310,310 L360,310" class="arrow"/>
+  <path d="M530,310 L580,310" class="arrow"/>
+  <path d="M750,310 L800,310" class="arrow"/>
+  <path d="M885,350 L615,440" class="arrow"/>
+  <path d="M470,480 L225,350" class="arrow"/>
+  <path d="M225,350 L840,440" class="arrow"/>
+
+  <line x1="190" y1="560" x2="910" y2="560" class="danger"/>
+  <line x1="910" y1="560" x2="870" y2="540" class="danger"/>
+  <line x1="910" y1="560" x2="870" y2="580" class="danger"/>
+
+  <rect x="130" y="650" width="260" height="70" class="chip"/><text x="165" y="693" class="chiptxt">etat disperse</text>
+  <rect x="410" y="650" width="260" height="70" class="chip"/><text x="445" y="693" class="chiptxt">reprise manuelle</text>
+  <rect x="690" y="650" width="260" height="70" class="chip"/><text x="730" y="693" class="chiptxt">saga implicite</text>
+
+  <rect x="130" y="760" width="820" height="170" rx="16" fill="#fff7ed" stroke="#d97706" stroke-width="2.5"/>
+  <text x="410" y="855" class="subtitle">ou est mon process maintenant ?</text>
+
+  <text x="80" y="1000" class="subtitle">Slide 4/6 - Proposition A</text>
+</svg>
