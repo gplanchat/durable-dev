@@ -109,6 +109,65 @@ final class ActivityRetryStateTest extends TestCase
         self::assertFalse(ActivityEventJournal::hasTerminalOutcomeForActivity($store, 'exec-1', 'act-1'));
     }
 
+    public function testTransportDelegatedRetryAppliesWithoutAnyLocalRetryPolicy(): void
+    {
+        // Configuration par défaut : aucune option, `max_activity_retries` à 0. Le décompte de
+        // tentatives PHP dit « plus de retentative », mais sous Noop c'est le serveur Temporal qui
+        // décide — un échec terminal ici empêcherait le worker de rejouer la tentative suivante.
+        $store = new InMemoryEventStore();
+        $this->drain($store, new NoopActivityTransport(), static function (): never {
+            throw new \RuntimeException('transient');
+        }, ActivityOptions::default(), maxDrain: 1);
+
+        $failed = $this->lastFailure($store);
+        self::assertNotNull($failed);
+        self::assertSame(ActivityRetryState::InProgress, $failed->retryState());
+        self::assertFalse(ActivityEventJournal::hasTerminalOutcomeForActivity($store, 'exec-1', 'act-1'));
+    }
+
+    public function testTransportDelegatedNonRetryableStaysTerminal(): void
+    {
+        $store = new InMemoryEventStore();
+        $this->drain($store, new NoopActivityTransport(), static function (): never {
+            throw new \DomainException('refused');
+        }, new ActivityOptions(maxAttempts: 5, nonRetryableExceptions: [\DomainException::class]), maxDrain: 1);
+
+        $failed = $this->lastFailure($store);
+        self::assertNotNull($failed);
+        self::assertSame(ActivityRetryState::NonRetryableFailure, $failed->retryState());
+        self::assertTrue(ActivityEventJournal::hasTerminalOutcomeForActivity($store, 'exec-1', 'act-1'));
+    }
+
+    public function testSyncInMemoryDrainHonorsNonRetryableExceptions(): void
+    {
+        // Le drain synchrone (InMemoryWorkflowRunner) ignorait les ActivityOptions :
+        // une exception déclarée non-retryable y était retentée quand même.
+        $store = new InMemoryEventStore();
+        $transport = new InMemoryActivityTransport();
+        $executor = new RegistryActivityExecutor();
+        $runs = 0;
+        $executor->register('Boom', static function () use (&$runs): never {
+            ++$runs;
+            throw new \DomainException('refused');
+        });
+
+        $runtime = new \Gplanchat\Durable\ExecutionRuntime($store, $transport, $executor, 5);
+        $options = new ActivityOptions(nonRetryableExceptions: [\DomainException::class]);
+        $transport->enqueue(new ActivityMessage('exec-1', 'act-1', 'Boom', [], $options->toMetadata()));
+
+        $context = new \Gplanchat\Durable\ExecutionContext(
+            'exec-1',
+            new \Gplanchat\Durable\Store\EventStoreHistorySource($store, 'exec-1'),
+            new \Gplanchat\Durable\Store\EventStoreCommandBuffer($store, $transport, 'exec-1'),
+        );
+        $runtime->runUntilIdle($context);
+
+        self::assertSame(1, $runs, 'une exception non-retryable ne doit pas être retentée');
+        $failed = $this->lastFailure($store);
+        self::assertNotNull($failed);
+        self::assertSame(ActivityRetryState::NonRetryableFailure, $failed->retryState());
+    }
+
     // -------------------------------------------------------------------------
 
     private function drain(
