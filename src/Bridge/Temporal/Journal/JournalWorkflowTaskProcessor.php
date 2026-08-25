@@ -38,7 +38,7 @@ final class JournalWorkflowTaskProcessor
 
         $req = new RespondWorkflowTaskCompletedRequest();
         $req->setTaskToken($token);
-        $req->setNamespace($this->settings->namespace);
+        $req->setNamespace($this->settings->namespace->name());
         $req->setIdentity($this->settings->identity);
 
         $queries = $poll->getQueries();

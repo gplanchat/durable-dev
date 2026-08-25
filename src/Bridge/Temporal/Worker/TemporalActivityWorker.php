@@ -51,7 +51,7 @@ final class TemporalActivityWorker
     public function pollOnce(): void
     {
         $req = new PollActivityTaskQueueRequest();
-        $req->setNamespace($this->connection->namespace);
+        $req->setNamespace($this->connection->namespace->name());
         $req->setTaskQueue(new TaskQueue(['name' => $this->connection->activityTaskQueue->name()]));
         $req->setIdentity($this->connection->identity.'-activity');
 
@@ -156,7 +156,7 @@ final class TemporalActivityWorker
     {
         $req = new RespondActivityTaskCompletedRequest();
         $req->setTaskToken($poll->getTaskToken());
-        $req->setNamespace($this->connection->namespace);
+        $req->setNamespace($this->connection->namespace->name());
         $req->setIdentity($this->connection->identity.'-activity');
         $req->setResult(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($result)));
 
@@ -183,7 +183,7 @@ final class TemporalActivityWorker
 
         $req = new RespondActivityTaskFailedRequest();
         $req->setTaskToken($poll->getTaskToken());
-        $req->setNamespace($this->connection->namespace);
+        $req->setNamespace($this->connection->namespace->name());
         $req->setIdentity($this->connection->identity.'-activity');
         $req->setFailure($failure);
 
@@ -194,7 +194,7 @@ final class TemporalActivityWorker
     {
         $req = new RespondActivityTaskCanceledRequest();
         $req->setTaskToken($poll->getTaskToken());
-        $req->setNamespace($this->connection->namespace);
+        $req->setNamespace($this->connection->namespace->name());
         $req->setIdentity($this->connection->identity.'-activity');
 
         $this->activityRpc->respondActivityTaskCanceled($req);

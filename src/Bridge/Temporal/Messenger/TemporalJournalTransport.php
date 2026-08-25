@@ -50,7 +50,7 @@ final class TemporalJournalTransport implements TransportInterface
     public static function fromConnection(TemporalConnection $connection, WorkflowRegistry $registry): self
     {
         $client = WorkflowServiceClientFactory::create($connection);
-        $cursor = new TemporalHistoryCursor($client, $connection->namespace);
+        $cursor = new TemporalHistoryCursor($client, $connection->namespace->name());
         $runner = new WorkflowTaskRunner($cursor, $registry, $connection);
         $processor = new WorkflowTaskProcessor($client, $connection, $runner);
 
