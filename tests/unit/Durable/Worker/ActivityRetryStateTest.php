@@ -163,6 +163,14 @@ final class ActivityRetryStateTest extends TestCase
         $runtime->runUntilIdle($context);
 
         self::assertSame(1, $runs, 'une exception non-retryable ne doit pas être retentée');
+        self::assertSame(
+            ['ActivityTaskStarted', 'ActivityTaskFailed', 'ActivityFailed'],
+            array_map(
+                static fn (object $e): string => (new \ReflectionClass($e))->getShortName(),
+                iterator_to_array($store->readStream('exec-1'), false),
+            ),
+            'le drain synchrone doit produire le même trio de marqueurs que le chemin Messenger',
+        );
         $failed = $this->lastFailure($store);
         self::assertNotNull($failed);
         self::assertSame(ActivityRetryState::NonRetryableFailure, $failed->retryState());
