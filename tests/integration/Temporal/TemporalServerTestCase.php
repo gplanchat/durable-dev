@@ -9,6 +9,7 @@ use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Durable\WorkflowStartOptions;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\EventType;
@@ -112,10 +113,10 @@ abstract class TemporalServerTestCase extends TestCase
     /**
      * @param array<string, mixed> $input
      */
-    protected function startWorkflow(string $workflowType, array $input): string
+    protected function startWorkflow(string $workflowType, array $input, ?WorkflowStartOptions $options = null): string
     {
         $executionId = strtolower($workflowType).'-'.bin2hex(random_bytes(4));
-        $this->workflowClient()->startAsync($workflowType, $input, $executionId);
+        $this->workflowClient()->startAsync($workflowType, $input, $executionId, $options);
 
         return $executionId;
     }

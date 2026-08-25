@@ -280,6 +280,7 @@ final class WorkflowClient implements WorkflowClientInterface
         }
         $req->setWorkflowIdReusePolicy(TemporalPolicyMapper::idReusePolicy($options->workflowIdReusePolicy));
         TemporalPolicyMapper::applyWorkflowTimeouts($options->timeouts, $req);
+        TemporalPolicyMapper::applySearchAttributes($options->searchAttributes, $req);
 
         $memo = new Memo();
         $memo->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] = JsonPlainPayload::encode($executionId);

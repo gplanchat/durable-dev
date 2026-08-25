@@ -11,6 +11,7 @@ use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
 use Gplanchat\Durable\Duration as DurableDuration;
 use Gplanchat\Durable\ContinueAsNewOptions;
+use Gplanchat\Durable\SearchAttributes;
 use Gplanchat\Durable\TaskQueue as DurableTaskQueue;
 use Gplanchat\Durable\WorkflowTimeouts;
 use Gplanchat\Durable\Event\ActivityScheduled;
@@ -176,6 +177,10 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
             $attrs->setCronSchedule($cron);
         }
         TemporalPolicyMapper::applyWorkflowTimeouts(WorkflowTimeouts::fromMetadata($schedulingMetadata), $attrs);
+        TemporalPolicyMapper::applySearchAttributes(
+            SearchAttributes::fromMetadata(\is_array($schedulingMetadata['search_attributes'] ?? null) ? $schedulingMetadata['search_attributes'] : []),
+            $attrs,
+        );
 
         // Sans ces deux politiques le serveur applique ses défauts : la ParentClosePolicy
         // choisie par l'appelant était silencieusement perdue côté Temporal.
