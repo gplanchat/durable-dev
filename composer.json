@@ -48,7 +48,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "unit\\": "tests/unit/"
+            "unit\\": "tests/unit/",
+            "integration\\": "tests/integration/"
         }
     },
     "scripts": {

@@ -196,8 +196,11 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
 
     public function completeWorkflow(mixed $result): void
     {
+        // Le résultat est encodé tel quel : il était enveloppé dans ['result' => …] alors que ni
+        // WorkflowClient::pollForCompletion() ni TemporalEventConverter ne déballent — l'appelant
+        // recevait ['result' => x] au lieu de x, et le driver in-memory n'enveloppe pas non plus.
         $attrs = new CompleteWorkflowExecutionCommandAttributes();
-        $attrs->setResult(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode(['result' => $result])));
+        $attrs->setResult(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($result)));
 
         $cmd = new Command();
         $cmd->setCommandType(CommandType::COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION);
