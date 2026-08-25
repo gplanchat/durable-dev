@@ -82,6 +82,7 @@ final class WorkflowTaskRunner
             $executionId,
             $history,
             $commandBuffer,
+            new TemporalChildWorkflowRunner(),
         );
 
         $handler = $this->registry->getHandler($workflowTypeName, $history->startInput());
