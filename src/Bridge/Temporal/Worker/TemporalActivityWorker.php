@@ -69,7 +69,7 @@ final class TemporalActivityWorker
             return;
         }
 
-        if (null !== $options && null !== $options->heartbeatTimeoutSeconds && $options->heartbeatTimeoutSeconds > 0) {
+        if (null !== $options?->timeouts->heartbeat) {
             if ($this->heartbeatSender instanceof TemporalActivityHeartbeatSender) {
                 $this->heartbeatSender->bindTaskToken((string) $resp->getTaskToken());
             }

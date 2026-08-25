@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace integration\Temporal\Fixtures;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\ActivityTimeouts;
+use Gplanchat\Durable\Activity\Duration;
 use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\RegistryActivityExecutor;
@@ -19,7 +21,7 @@ use Gplanchat\Durable\WorkflowRegistry;
  */
 final class IntegrationWorkflows
 {
-    public const ACTIVITY_TIMEOUT = 10.0;
+    private const ACTIVITY_TIMEOUT_SECONDS = 10.0;
 
     private function __construct()
     {
@@ -72,24 +74,23 @@ final class IntegrationWorkflows
         // indéfiniment — le workflow n'échouerait jamais.
         $registry->registerFactory('FailsOnActivity', static fn (array $input) => static fn (WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], new ActivityOptions(
             RetryLimit::once(),
-            startToCloseTimeoutSeconds: self::ACTIVITY_TIMEOUT,
+            timeouts: self::attemptTimeout(),
         ))));
 
         $registry->registerFactory('UnboundedRetry', static fn (array $input) => static fn (WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], self::options())));
 
         $registry->registerFactory('NonRetryable', static fn (array $input) => static fn (WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], new ActivityOptions(
             RetryLimit::ofAttempts(5),
-            initialIntervalSeconds: 0.1,
+            initialInterval: Duration::seconds(0.1),
             nonRetryableExceptions: [\DomainException::class],
-            startToCloseTimeoutSeconds: self::ACTIVITY_TIMEOUT,
+            timeouts: self::attemptTimeout(),
         ))));
 
         $registry->registerFactory('Compensating', static fn (array $input) => static function (WorkflowEnvironment $env) use ($input): mixed {
             try {
                 return $env->await($env->activity('double', ['value' => 1], new ActivityOptions(
-                    startToCloseTimeoutSeconds: 60.0,
-                    scheduleToStartTimeoutSeconds: 60.0,
-                )));
+                    timeouts: ActivityTimeouts::attempt(Duration::seconds(60.0)),
+                                    )));
             } catch (WorkflowCancelledFailure $e) {
                 $env->await($env->activity('refund', ['order' => $input['order'] ?? 'x'], self::options()));
 
@@ -104,6 +105,11 @@ final class IntegrationWorkflows
 
     private static function options(): ActivityOptions
     {
-        return new ActivityOptions(startToCloseTimeoutSeconds: self::ACTIVITY_TIMEOUT);
+        return new ActivityOptions(timeouts: self::attemptTimeout());
+    }
+
+    private static function attemptTimeout(): ActivityTimeouts
+    {
+        return ActivityTimeouts::attempt(Duration::seconds(self::ACTIVITY_TIMEOUT_SECONDS));
     }
 }

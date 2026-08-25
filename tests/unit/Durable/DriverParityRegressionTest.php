@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\Duration;
 use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Awaitable\AwaitableInspector;
 use Gplanchat\Durable\Event\ActivityCompleted;
@@ -40,7 +41,7 @@ final class DriverParityRegressionTest extends TestCase
             $env->run(static fn (WorkflowEnvironment $wf): mixed => $wf->await($wf->activity(
                 'flaky',
                 [],
-                new ActivityOptions(RetryLimit::ofAttempts(3), initialIntervalSeconds: 0.01),
+                new ActivityOptions(RetryLimit::ofAttempts(3), initialInterval: Duration::seconds(0.01)),
             )), 'retry-1');
         } catch (\Throwable) {
         }
@@ -119,7 +120,7 @@ final class DriverParityRegressionTest extends TestCase
         $this->expectExceptionMessageMatches('/retry indefinitely by default/');
 
         $env->run(
-            static fn (WorkflowEnvironment $wf): mixed => $wf->await($wf->activity('always', [], new ActivityOptions(initialIntervalSeconds: 0.05))),
+            static fn (WorkflowEnvironment $wf): mixed => $wf->await($wf->activity('always', [], new ActivityOptions(initialInterval: Duration::seconds(0.05)))),
             'runaway-1',
         );
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Activity;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\Duration;
 use Gplanchat\Durable\Activity\RetryLimit;
 use PHPUnit\Framework\TestCase;
 
@@ -89,10 +90,10 @@ final class RetryLimitTest extends TestCase
 
     public function testWithRetryLimitReplacesOnlyTheBound(): void
     {
-        $options = (new ActivityOptions(RetryLimit::once(), initialIntervalSeconds: 0.5))
+        $options = (new ActivityOptions(RetryLimit::once(), Duration::seconds(0.5)))
             ->withRetryLimit(RetryLimit::ofAttempts(7));
 
         self::assertSame(7, $options->retryLimit->maxAttempts());
-        self::assertSame(0.5, $options->initialIntervalSeconds);
+        self::assertSame(0.5, $options->initialInterval->toSeconds());
     }
 }
