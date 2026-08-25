@@ -271,6 +271,17 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         return $this->commands;
     }
 
+    public function completeChildWorkflow(string $childExecutionId, mixed $result): void
+    {
+        // Sans objet côté Temporal : le serveur écrit lui-même CHILD_WORKFLOW_EXECUTION_COMPLETED
+        // dans l'historique du parent quand l'enfant se termine.
+    }
+
+    public function failChildWorkflow(string $childExecutionId, \Throwable $reason): void
+    {
+        // Idem : CHILD_WORKFLOW_EXECUTION_FAILED est écrit par le serveur.
+    }
+
     /**
      * COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION.
      *
