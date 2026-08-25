@@ -6,6 +6,7 @@ namespace Gplanchat\Bridge\Temporal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
+use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\WorkflowStartOptions;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
@@ -70,9 +71,13 @@ final class WorkflowClient implements WorkflowClientInterface
      *
      * @param array<string, mixed> $payload
      */
-    public function startCron(string $workflowType, array $payload, string $executionId, string $cronExpression): string
-    {
-        return $this->startAsync($workflowType, $payload, $executionId, WorkflowStartOptions::cron($cronExpression));
+    public function startCron(
+        string $workflowType,
+        array $payload,
+        string $executionId,
+        CronSchedule|string $schedule,
+    ): string {
+        return $this->startAsync($workflowType, $payload, $executionId, WorkflowStartOptions::cron($schedule));
     }
 
     /**
@@ -272,8 +277,8 @@ final class WorkflowClient implements WorkflowClientInterface
         $req->setIdentity($this->settings->identity);
         $req->setInput(JsonPlainPayload::singlePayloads($inputPayload));
 
-        if (null !== $options->cronSchedule && '' !== $options->cronSchedule) {
-            $req->setCronSchedule($options->cronSchedule);
+        if (null !== $options->cronSchedule) {
+            $req->setCronSchedule($options->cronSchedule->toExpression());
         }
         $req->setWorkflowIdReusePolicy(TemporalPolicyMapper::idReusePolicy($options->workflowIdReusePolicy));
         TemporalPolicyMapper::applyWorkflowTimeouts($options->timeouts, $req);
