@@ -424,6 +424,18 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /**
      * Cause de l'annulation demandée par le serveur, ou null si aucune ne l'a été.
      */
+    /**
+     * Identifiant de l'événement ACTIVITY_TASK_SCHEDULED de cette activité, ou null si elle n'a
+     * pas encore été planifiée dans l'historique.
+     *
+     * Attendu par {@code RequestCancelActivityTaskCommandAttributes::scheduledEventId} : un
+     * identifiant qui ne correspond à aucun événement fait rejeter la tâche par le serveur.
+     */
+    public function scheduledEventIdForActivity(string $activityId): ?int
+    {
+        return $this->activityIdToScheduledEventId[$activityId] ?? null;
+    }
+
     public function cancellationRequestedCause(): ?string
     {
         return $this->cancelRequestedCause;

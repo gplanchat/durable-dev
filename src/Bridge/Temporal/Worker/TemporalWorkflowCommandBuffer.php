@@ -41,14 +41,14 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     /** @var list<Command> */
     private array $commands = [];
 
-    /** @var array<string, int> activity ID → scheduled event ID (for cancel) */
-    private array $activityIdToEventId = [];
-
-    private int $nextEventId = 1000;
-
     public function __construct(
         private readonly TemporalConnection $connection,
         private readonly string $executionId,
+        /**
+         * Source des `scheduledEventId` réels pour {@see cancelActivity()}. Absente, l'annulation
+         * ciblée d'activité n'est pas émise — voir la note de cette méthode.
+         */
+        private readonly ?TemporalExecutionHistory $history = null,
     ) {
     }
 
@@ -109,7 +109,6 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $cmd->setCommandType(CommandType::COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK);
         $cmd->setScheduleActivityTaskCommandAttributes($attrs);
 
-        $this->activityIdToEventId[$activityId] = $this->nextEventId++;
         $this->commands[] = $cmd;
     }
 
@@ -232,9 +231,23 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $this->commands[] = $cmd;
     }
 
+    /**
+     * COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK.
+     *
+     * `scheduledEventId` doit désigner l'événement ACTIVITY_TASK_SCHEDULED réel : il était
+     * auparavant tiré d'un compteur local partant de 1000, donc sans rapport avec l'historique.
+     * Le serveur rejette une tâche portant un identifiant inconnu, et l'identifiant n'existait
+     * de toute façon que pour les activités planifiées dans la tâche courante — jamais celles
+     * qu'on annule, planifiées lors d'une tâche antérieure.
+     *
+     * ponytail: une activité planifiée dans la tâche COURANTE n'a pas encore d'identifiant
+     * d'événement ; sa commande n'est donc pas émise. Le cas n'est pas atteignable par l'API
+     * (on n'annule qu'une opération déjà en attente), et le prédire demanderait de reproduire
+     * l'attribution d'identifiants du serveur à partir de `startedEventId`.
+     */
     public function cancelActivity(string $activityId, string $reason): void
     {
-        $scheduledEventId = $this->activityIdToEventId[$activityId] ?? null;
+        $scheduledEventId = $this->history?->scheduledEventIdForActivity($activityId);
         if (null === $scheduledEventId) {
             return;
         }
