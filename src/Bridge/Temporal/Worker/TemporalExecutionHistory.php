@@ -72,6 +72,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var array<string, mixed> */
     private array $startInput = [];
 
+    /** Cause du WORKFLOW_EXECUTION_CANCEL_REQUESTED, si le serveur en a enregistré un. */
+    private ?string $cancelRequestedCause = null;
+
     /**
      * @param iterable<HistoryEvent> $events
      */
@@ -272,6 +275,12 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 }
                 break;
 
+            case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
+                $attr = $event->getWorkflowExecutionCancelRequestedEventAttributes();
+                $cause = null !== $attr ? (string) $attr->getCause() : '';
+                $this->cancelRequestedCause = '' !== $cause ? $cause : 'cancel_requested';
+                break;
+
             case EventType::EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED:
                 $attr = $event->getChildWorkflowExecutionFailedEventAttributes();
                 if (null !== $attr) {
@@ -408,6 +417,14 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /**
      * @return array<string, mixed>
      */
+    /**
+     * Cause de l'annulation demandée par le serveur, ou null si aucune ne l'a été.
+     */
+    public function cancellationRequestedCause(): ?string
+    {
+        return $this->cancelRequestedCause;
+    }
+
     public function startInput(): array
     {
         return $this->startInput;
