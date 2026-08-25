@@ -83,6 +83,15 @@ final class MessengerActivityTransport implements ActivityTransportInterface
         return null;
     }
 
+    /**
+     * Messenger porte lui-même le report (DelayStamp) : le worker n'a pas à attendre une
+     * échéance côté PHP.
+     */
+    public function nextDueAt(): ?float
+    {
+        return $this->isEmpty() ? null : microtime(true);
+    }
+
     public function isEmpty(): bool
     {
         if (null !== $this->pending) {
