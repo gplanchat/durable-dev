@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace integration\Temporal\Fixtures;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -70,14 +71,14 @@ final class IntegrationWorkflows
         // maxAttempts borné : sans lui le serveur applique sa RetryPolicy par défaut et retente
         // indéfiniment — le workflow n'échouerait jamais.
         $registry->registerFactory('FailsOnActivity', static fn (array $input) => static fn (WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], new ActivityOptions(
-            maxAttempts: 1,
+            RetryLimit::once(),
             startToCloseTimeoutSeconds: self::ACTIVITY_TIMEOUT,
         ))));
 
         $registry->registerFactory('UnboundedRetry', static fn (array $input) => static fn (WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], self::options())));
 
         $registry->registerFactory('NonRetryable', static fn (array $input) => static fn (WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], new ActivityOptions(
-            maxAttempts: 5,
+            RetryLimit::ofAttempts(5),
             initialIntervalSeconds: 0.1,
             nonRetryableExceptions: [\DomainException::class],
             startToCloseTimeoutSeconds: self::ACTIVITY_TIMEOUT,

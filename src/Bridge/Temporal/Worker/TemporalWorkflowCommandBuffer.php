@@ -81,7 +81,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
             }
 
             // Retry is governed by the Temporal server via this policy. Without it the
-            // server applies its default (unbounded retries), so a bounded maxAttempts
+            // server applies its default (unbounded retries), so a bounded RetryLimit
             // or a non-retryable business exception only takes effect once it is set here.
             // The server treats a failure as non-retryable when its ApplicationFailureInfo
             // type matches nonRetryableErrorTypes (the exception FQCNs).
@@ -91,8 +91,8 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
             if (null !== $options->maximumIntervalSeconds && $options->maximumIntervalSeconds > 0) {
                 $retryPolicy->setMaximumInterval($this->durationSeconds($options->maximumIntervalSeconds));
             }
-            if ($options->maxAttempts > 0) {
-                $retryPolicy->setMaximumAttempts($options->maxAttempts);
+            if (!$options->retryLimit->isUnlimited()) {
+                $retryPolicy->setMaximumAttempts($options->retryLimit->maxAttempts());
             }
             if ([] !== $options->nonRetryableExceptions) {
                 // Already a list<class-string> (per ActivityOptions) — pass as-is.

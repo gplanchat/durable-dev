@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Worker;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Event\ActivityTaskFailed;
@@ -35,9 +36,9 @@ final class ActivityRetryStateTest extends TestCase
         $this->drain($store, $transport, static function () use (&$runs): never {
             ++$runs;
             throw new \RuntimeException('boom');
-        }, new ActivityOptions(maxAttempts: 3, initialIntervalSeconds: 0.0));
+        }, new ActivityOptions(RetryLimit::ofAttempts(3), initialIntervalSeconds: 0.0));
 
-        // maxAttempts: 3 => 3 exécutions au total (Temporal), pas 4.
+        // RetryLimit::ofAttempts(3) => 3 exécutions au total (Temporal), pas 4.
         self::assertSame(3, $runs);
 
         $failed = $this->lastFailure($store);
@@ -121,7 +122,7 @@ final class ActivityRetryStateTest extends TestCase
         $this->drain($store, new InMemoryActivityTransport(), static function () use (&$runs): never {
             ++$runs;
             throw new \DomainException('refused');
-        }, new ActivityOptions(maxAttempts: 5, nonRetryableExceptions: [\DomainException::class]));
+        }, new ActivityOptions(RetryLimit::ofAttempts(5), nonRetryableExceptions: [\DomainException::class]));
 
         self::assertSame(1, $runs);
         $failed = $this->lastFailure($store);
@@ -140,7 +141,7 @@ final class ActivityRetryStateTest extends TestCase
             }
 
             return 'ok';
-        }, new ActivityOptions(maxAttempts: 3, initialIntervalSeconds: 0.0));
+        }, new ActivityOptions(RetryLimit::ofAttempts(3), initialIntervalSeconds: 0.0));
 
         $intermediate = $this->taskFailures($store);
         self::assertCount(1, $intermediate);
@@ -158,7 +159,7 @@ final class ActivityRetryStateTest extends TestCase
         $store = new InMemoryEventStore();
         $this->drain($store, new NoopActivityTransport(), static function (): never {
             throw new \DomainException('real cause');
-        }, new ActivityOptions(maxAttempts: 5), maxDrain: 1);
+        }, new ActivityOptions(RetryLimit::ofAttempts(5)), maxDrain: 1);
 
         $failed = $this->lastFailure($store);
         self::assertNotNull($failed);
@@ -189,7 +190,7 @@ final class ActivityRetryStateTest extends TestCase
         $store = new InMemoryEventStore();
         $this->drain($store, new NoopActivityTransport(), static function (): never {
             throw new \DomainException('refused');
-        }, new ActivityOptions(maxAttempts: 5, nonRetryableExceptions: [\DomainException::class]), maxDrain: 1);
+        }, new ActivityOptions(RetryLimit::ofAttempts(5), nonRetryableExceptions: [\DomainException::class]), maxDrain: 1);
 
         $failed = $this->lastFailure($store);
         self::assertNotNull($failed);

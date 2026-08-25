@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Testing;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Testing\ActivitySpy;
 use Gplanchat\Durable\Testing\DurableTestCase;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
@@ -117,9 +118,9 @@ final class WorkflowTestingExampleTest extends DurableTestCase
 
         $env->run(
             static function (WorkflowEnvironment $wf): void {
-                // maxAttempts: 1 — sans borne, les tentatives sont illimitées (sémantique
+                // RetryLimit::once() — sans borne, les tentatives sont illimitées (sémantique
                 // Temporal) et l'activité serait retentée au lieu de faire échouer le workflow.
-                $wf->await($wf->activity('validate', ['data' => 'invalid'], new ActivityOptions(maxAttempts: 1)));
+                $wf->await($wf->activity('validate', ['data' => 'invalid'], new ActivityOptions(RetryLimit::once())));
             },
             $executionId,
         );
@@ -137,7 +138,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
         try {
             $env->run(
                 static function (WorkflowEnvironment $wf): void {
-                    $wf->await($wf->activity('explode', [], new ActivityOptions(maxAttempts: 1)));
+                    $wf->await($wf->activity('explode', [], new ActivityOptions(RetryLimit::once())));
                 },
                 $executionId,
             );
