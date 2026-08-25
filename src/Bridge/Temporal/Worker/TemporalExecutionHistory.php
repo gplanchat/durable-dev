@@ -75,6 +75,8 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** Cause du WORKFLOW_EXECUTION_CANCEL_REQUESTED, si le serveur en a enregistré un. */
     private ?string $cancelRequestedCause = null;
 
+    public const MARKER_SIDE_EFFECT = 'SideEffect';
+
     /**
      * @param iterable<HistoryEvent> $events
      */
@@ -195,7 +197,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 
             case EventType::EVENT_TYPE_MARKER_RECORDED:
                 $attr = $event->getMarkerRecordedEventAttributes();
-                if (null !== $attr) {
+                // Filtrer sur le nom : sans ça, TOUT marqueur consommait un slot de side effect
+                // et décalait le replay de tous les suivants.
+                if (null !== $attr && self::MARKER_SIDE_EFFECT === $attr->getMarkerName()) {
                     $details = $attr->getDetails();
                     $resultPayload = null;
                     if (null !== $details && $details->offsetExists('result')) {
@@ -326,7 +330,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
             return null;
         }
 
-        return ['id' => $timerId, 'scheduledAt' => $this->timerScheduledAt[$timerId] ?? 0.0];
+        return ['id' => $timerId, 'scheduledAt' => $this->timerScheduledAt[$timerId] ?? 0.0, 'failed' => null];
     }
 
     public function findScheduledTimerId(int $slot): ?string

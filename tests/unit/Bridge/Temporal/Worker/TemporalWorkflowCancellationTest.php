@@ -8,7 +8,14 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowLifecycle;
-use Gplanchat\Durable\Exception\WorkflowCancelledException;
+use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
+use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\ExecutionRuntime;
+use Gplanchat\Durable\RegistryActivityExecutor;
+use Gplanchat\Durable\Store\NullEventStore;
+use Gplanchat\Durable\Transport\NoopActivityTransport;
+use Gplanchat\Durable\Worker\WorkflowFiberDriver;
+use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Enums\V1\EventType;
@@ -17,8 +24,8 @@ use Temporal\Api\History\V1\WorkflowExecutionCancelRequestedEventAttributes;
 
 /**
  * L'annulation Temporal est coopérative : le serveur n'enregistre qu'une demande et replanifie
- * une tâche. Tant que le worker rejoue l'historique sans émettre
- * COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION, l'exécution continue de tourner.
+ * une tâche. Le worker doit relever un CanceledFailure dans le fiber — pour laisser le workflow
+ * compenser — puis répondre par COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION.
  */
 final class TemporalWorkflowCancellationTest extends TestCase
 {
@@ -34,31 +41,87 @@ final class TemporalWorkflowCancellationTest extends TestCase
         self::assertNull(TemporalExecutionHistory::fromEvents([])->cancellationRequestedCause());
     }
 
-    public function testCancelRequestEmitsTheCancelCommandAndStopsTheRun(): void
+    public function testCancellationIsRaisedInTheFiberThenAnsweredWithTheCancelCommand(): void
     {
-        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1');
-        $lifecycle = new TemporalWorkflowLifecycle($buffer, 'parent_request_cancel');
+        $seen = null;
+        $commands = $this->drive(
+            TemporalExecutionHistory::fromEvents([$this->cancelRequestedEvent('operator')]),
+            static function (WorkflowEnvironment $env) use (&$seen): mixed {
+                try {
+                    return $env->await($env->activity('charge', []));
+                } catch (WorkflowCancelledFailure $e) {
+                    $seen = $e;
 
-        try {
-            $lifecycle->onBeforeRun('exec-1');
-            self::fail('onBeforeRun doit empêcher le fiber de démarrer');
-        } catch (WorkflowCancelledException $e) {
-            self::assertSame('parent_request_cancel', $e->reason);
-        }
+                    throw $e;
+                }
+            },
+        );
 
-        $commands = $buffer->peek();
-        self::assertCount(1, $commands);
-        self::assertSame(CommandType::COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION, $commands[0]->getCommandType());
-        self::assertNotNull($commands[0]->getCancelWorkflowExecutionCommandAttributes()?->getDetails());
+        self::assertInstanceOf(WorkflowCancelledFailure::class, $seen, 'le workflow doit pouvoir attraper l’annulation');
+        self::assertContains(CommandType::COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION, $this->commandTypes($commands));
     }
 
-    public function testWithoutCancelRequestTheRunStartsNormally(): void
+    public function testCompensationSchedulesItsActivityInsteadOfBeingCancelledInTurn(): void
+    {
+        $commands = $this->drive(
+            TemporalExecutionHistory::fromEvents([$this->cancelRequestedEvent('operator')]),
+            static function (WorkflowEnvironment $env): mixed {
+                try {
+                    return $env->await($env->activity('charge', []));
+                } catch (WorkflowCancelledFailure $e) {
+                    $env->await($env->activity('refund', []));
+
+                    throw $e;
+                }
+            },
+        );
+
+        // La compensation doit être planifiée : l'annulation ne se livre qu'une fois par tâche.
+        $types = $this->commandTypes($commands);
+        self::assertContains(CommandType::COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, $types);
+        self::assertNotContains(CommandType::COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION, $types);
+    }
+
+    public function testWithoutCancelRequestTheRunProceeds(): void
+    {
+        $commands = $this->drive(
+            TemporalExecutionHistory::fromEvents([]),
+            static fn (WorkflowEnvironment $env): mixed => $env->await($env->activity('charge', [])),
+        );
+
+        self::assertNotContains(CommandType::COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION, $this->commandTypes($commands));
+    }
+
+    // -------------------------------------------------------------------------
+
+    /** @return list<\Temporal\Api\Command\V1\Command> */
+    private function drive(TemporalExecutionHistory $history, callable $handler): array
     {
         $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1');
+        $context = new ExecutionContext('exec-1', $history, $buffer);
+        $runtime = new ExecutionRuntime(
+            new NullEventStore(),
+            new NoopActivityTransport(),
+            new RegistryActivityExecutor(),
+            0,
+            null,
+            true,
+        );
 
-        (new TemporalWorkflowLifecycle($buffer))->onBeforeRun('exec-1');
+        (new WorkflowFiberDriver(new TemporalWorkflowLifecycle($buffer, $history->cancellationRequestedCause())))
+            ->run('exec-1', $context, new WorkflowEnvironment($context, $runtime), $handler);
 
-        self::assertSame([], $buffer->peek());
+        return $buffer->peek();
+    }
+
+    /**
+     * @param list<\Temporal\Api\Command\V1\Command> $commands
+     *
+     * @return list<int>
+     */
+    private function commandTypes(array $commands): array
+    {
+        return array_map(static fn (\Temporal\Api\Command\V1\Command $c): int => $c->getCommandType(), $commands);
     }
 
     private function cancelRequestedEvent(string $cause): HistoryEvent

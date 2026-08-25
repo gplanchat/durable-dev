@@ -132,7 +132,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     public function recordSideEffect(string $sideEffectId, mixed $result): void
     {
         $attrs = new \Temporal\Api\Command\V1\RecordMarkerCommandAttributes();
-        $attrs->setMarkerName('SideEffect');
+        $attrs->setMarkerName(TemporalExecutionHistory::MARKER_SIDE_EFFECT);
 
         $details = new \Google\Protobuf\Internal\MapField(
             \Google\Protobuf\Internal\GPBType::STRING,
