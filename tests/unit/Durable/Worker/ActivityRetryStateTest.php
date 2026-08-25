@@ -55,6 +55,65 @@ final class ActivityRetryStateTest extends TestCase
         self::assertSame('boom', $intermediate[0]->failureMessage());
     }
 
+    public function testNoMaxAttemptsMeansUnlimitedRetriesLikeTemporal(): void
+    {
+        // Sémantique Temporal : une RetryPolicy sans maximum_attempts retente indéfiniment.
+        // L'in-memory échouait au contraire dès la première tentative.
+        $store = new InMemoryEventStore();
+        $transport = new InMemoryActivityTransport();
+        $runs = 0;
+        $this->drain($store, $transport, static function () use (&$runs): never {
+            ++$runs;
+            throw new \RuntimeException('boom');
+        }, new ActivityOptions(initialIntervalSeconds: 0.0), maxDrain: 6, expectTermination: false);
+
+        self::assertSame(7, $runs, 'aucune borne : chaque passe rejoue l’activité');
+        self::assertNull($this->lastFailure($store), 'aucune issue terminale tant que ça retente');
+        self::assertFalse(ActivityEventJournal::hasTerminalOutcomeForActivity($store, 'exec-1', 'act-1'));
+    }
+
+    public function testBundleRetryCeilingStillBoundsAnActivityWithoutOptions(): void
+    {
+        // `max_activity_retries` reste un plafond quand l'activité n'en fixe pas.
+        $store = new InMemoryEventStore();
+        $runs = 0;
+        $executor = new RegistryActivityExecutor();
+        $executor->register('Boom', static function () use (&$runs): never {
+            ++$runs;
+            throw new \RuntimeException('boom');
+        });
+        $transport = new InMemoryActivityTransport();
+        $processor = new ActivityMessageProcessor(
+            $store,
+            $transport,
+            $executor,
+            new NullWorkflowResumeDispatcher(),
+            $this->createMock(ActivityHeartbeatSenderInterface::class),
+            2,
+        );
+
+        $message = new ActivityMessage('exec-1', 'act-1', 'Boom', [], []);
+        $processor->process($message);
+        while (null !== ($next = $transport->dequeue())) {
+            $processor->process($next);
+        }
+
+        self::assertSame(3, $runs, '2 retentatives = 3 tentatives au total');
+        self::assertSame(ActivityRetryState::MaximumAttemptsReached, $this->lastFailure($store)?->retryState());
+    }
+
+    public function testBackoffIsCappedAtTheTemporalDefaultInterval(): void
+    {
+        // Sans plafond explicite, un backoff exponentiel illimité diverge : le défaut Temporal
+        // est 100 x l'intervalle initial.
+        $options = new ActivityOptions(initialIntervalSeconds: 1.0, backoffCoefficient: 2.0);
+
+        self::assertSame(1.0, $options->retryDelayBeforeAttempt(2));
+        self::assertSame(64.0, $options->retryDelayBeforeAttempt(8));
+        self::assertSame(100.0, $options->retryDelayBeforeAttempt(20));
+        self::assertSame(100.0, $options->effectiveMaximumIntervalSeconds());
+    }
+
     public function testNonRetryableExceptionStopsAtFirstAttempt(): void
     {
         $store = new InMemoryEventStore();
@@ -184,6 +243,7 @@ final class ActivityRetryStateTest extends TestCase
         callable $handler,
         ActivityOptions $options,
         int $maxDrain = 20,
+        bool $expectTermination = true,
     ): void {
         $executor = new RegistryActivityExecutor();
         $executor->register('Boom', $handler);
@@ -207,7 +267,9 @@ final class ActivityRetryStateTest extends TestCase
             $processor->process($next);
         }
 
-        self::fail('Retry loop did not terminate');
+        if ($expectTermination) {
+            self::fail('Retry loop did not terminate');
+        }
     }
 
     private function lastFailure(InMemoryEventStore $store): ?ActivityFailed

@@ -38,6 +38,21 @@ final class WorkflowFailurePathsTest extends TemporalServerTestCase
         self::assertSame('boom', $decoded->context()['activityName'] ?? null);
     }
 
+    public function testAnActivityWithoutMaxAttemptsRetriesIndefinitely(): void
+    {
+        // Référence de l'alignement in-memory : sans maximum_attempts, le serveur retente sans
+        // fin et le workflow ne se termine jamais.
+        $executionId = $this->startWorkflow('UnboundedRetry', []);
+        $this->waitForHistoryEvent($executionId, EventType::EVENT_TYPE_ACTIVITY_TASK_SCHEDULED);
+
+        // Après plusieurs secondes, toujours aucune issue terminale.
+        sleep(4);
+        $names = $this->historyEventNames($executionId);
+
+        self::assertNotContains('EVENT_TYPE_WORKFLOW_EXECUTION_FAILED', $names);
+        self::assertNotContains('EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED', $names);
+    }
+
     public function testNonRetryableExceptionStopsTheServerRetryPolicy(): void
     {
         // maxAttempts: 5 dans la RetryPolicy, mais l'exception est déclarée non-retryable :
