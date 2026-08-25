@@ -307,6 +307,25 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $this->commands[] = $cmd;
     }
 
+    /**
+     * COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION — seule réponse qui clôt réellement une exécution
+     * dont l'annulation a été demandée. Sans elle le serveur replanifie une tâche de workflow
+     * et l'exécution continue de tourner.
+     *
+     * Hors {@see WorkflowCommandBufferInterface} : côté in-memory, l'annulation est journalisée
+     * par {@see \Gplanchat\Durable\Store\EventStoreWorkflowLifecycle}.
+     */
+    public function cancelWorkflow(string $reason): void
+    {
+        $attrs = new \Temporal\Api\Command\V1\CancelWorkflowExecutionCommandAttributes();
+        $attrs->setDetails(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode(['reason' => $reason])));
+
+        $cmd = new Command();
+        $cmd->setCommandType(CommandType::COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION);
+        $cmd->setCancelWorkflowExecutionCommandAttributes($attrs);
+        $this->commands[] = $cmd;
+    }
+
     public function cancelTimer(string $timerId, string $reason): void
     {
         $attrs = new \Temporal\Api\Command\V1\CancelTimerCommandAttributes();
