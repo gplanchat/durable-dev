@@ -30,5 +30,16 @@ Le workflow `.github/workflows/docs-ovh.yml` construit et téléverse par FTPS �
   Une garde échoue le build si une page se met à utiliser l'un de ces shortcodes, pour que
   l'élagage ne casse rien en silence.
 
+### `.htaccess`
+
+`hugo-docs/static/.htaccess` est publié à la racine du site et porte la redirection HTTP → HTTPS,
+les en-têtes de sécurité, la compression et le cache. Chaque directive est protégée par
+`<IfModule>` : sur un mutualisé, une directive portant sur un module absent renvoie **500 pour tout
+le site**, pas seulement pour la page concernée.
+
+Le `max-age` HSTS est volontairement court (300 s) au démarrage. HSTS est difficile à défaire — le
+navigateur refuse `http://` pendant toute la durée annoncée, même si le certificat expire. Le
+passer à un an une fois le domaine stable.
+
 GitHub Pages reste disponible en publication manuelle (`hugo-docs.yml`), non déclenchée
 automatiquement.
