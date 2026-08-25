@@ -55,7 +55,7 @@ final class TemporalJournalEventStore implements EventStoreInterface
         $req->setNamespace($this->settings->namespace);
         $req->setWorkflowId($wfId);
         $req->setWorkflowType(new WorkflowType(['name' => $this->settings->workflowType]));
-        $req->setTaskQueue(new TaskQueue(['name' => $this->settings->journalTaskQueue]));
+        $req->setTaskQueue(new TaskQueue(['name' => $this->settings->journalTaskQueue->name()]));
         $req->setSignalName($this->settings->signalAppend);
         $req->setSignalInput($payloads);
         $req->setIdentity($this->settings->identity);

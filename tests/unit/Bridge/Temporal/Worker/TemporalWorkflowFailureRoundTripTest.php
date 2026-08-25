@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Temporal\Worker;
 
+use Gplanchat\Durable\TaskQueue;
+
 use Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
@@ -65,7 +67,7 @@ final class TemporalWorkflowFailureRoundTripTest extends TestCase
     public function testContinueAsNewEmitsItsOwnCommandNotAFailure(): void
     {
         $buffer = $this->buffer();
-        $buffer->continueAsNew('NextWorkflow', ['cursor' => 12], new ContinueAsNewOptions(taskQueue: 'next-queue'));
+        $buffer->continueAsNew('NextWorkflow', ['cursor' => 12], new ContinueAsNewOptions(taskQueue: TaskQueue::named('next-queue')));
 
         $command = $buffer->peek()[0];
         self::assertSame(CommandType::COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION, $command->getCommandType());

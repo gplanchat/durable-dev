@@ -11,6 +11,7 @@ use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
 use Gplanchat\Durable\Duration as DurableDuration;
 use Gplanchat\Durable\ContinueAsNewOptions;
+use Gplanchat\Durable\TaskQueue as DurableTaskQueue;
 use Gplanchat\Durable\WorkflowTimeouts;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Port\WorkflowCommandBufferInterface;
@@ -58,9 +59,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     {
         $options = ActivityOptions::fromMetadata($metadata);
 
-        $taskQueueName = null !== $options && null !== $options->taskQueue && '' !== $options->taskQueue
-            ? $options->taskQueue
-            : $this->connection->activityTaskQueue;
+        $taskQueueName = ((null !== $options ? $options->taskQueue : null) ?? $this->connection->activityTaskQueue)->name();
 
         $attrs = new ScheduleActivityTaskCommandAttributes();
         $attrs->setActivityId($activityId);
@@ -164,7 +163,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
 
         $taskQueue = $schedulingMetadata['task_queue'] ?? null;
         $attrs->setTaskQueue(new TaskQueue([
-            'name' => \is_string($taskQueue) && '' !== $taskQueue ? $taskQueue : $this->connection->workflowTaskQueue,
+            'name' => (DurableTaskQueue::fromNullable(\is_string($taskQueue) ? $taskQueue : null) ?? $this->connection->workflowTaskQueue)->name(),
         ]));
         $attrs->setInput(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($input)));
 
@@ -311,9 +310,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
 
         $options ??= ContinueAsNewOptions::new();
         $attrs->setTaskQueue(new TaskQueue([
-            'name' => null !== $options->taskQueue && '' !== $options->taskQueue
-                ? $options->taskQueue
-                : $this->connection->workflowTaskQueue,
+            'name' => ($options->taskQueue ?? $this->connection->workflowTaskQueue)->name(),
         ]));
         TemporalPolicyMapper::applyWorkflowTimeouts($options->timeouts, $attrs);
 
