@@ -60,12 +60,9 @@ distinct event type.
 ## Declaring an exception non-retryable
 
 ```php
-use Gplanchat\Durable\Activity\{ActivityOptions, RetryLimit};
+use Gplanchat\Durable\Activity\ActivityOptions;
 
-new ActivityOptions(
-    RetryLimit::ofAttempts(5),
-    nonRetryableExceptions: [PaymentRefusedException::class],
-);
+ActivityOptions::of(5, nonRetryableExceptions: [PaymentRefusedException::class]);
 ```
 
 A refused card will not get better on the third attempt. On the Temporal backend this becomes the

@@ -89,4 +89,24 @@ final class DurationTest extends TestCase
         self::assertNull(Duration::fromWireValue(-5));
         self::assertSame(12.5, Duration::fromWireValue(12.5)?->toSeconds());
     }
+
+    public function testInfinityIsAValueAndNotAnAbsence(): void
+    {
+        $forever = Duration::infinity();
+
+        self::assertTrue($forever->isInfinite());
+        self::assertFalse(Duration::seconds(1.0)->isInfinite());
+        // Ce que null ne savait pas faire : se comparer aux autres durees.
+        self::assertEquals(Duration::seconds(30.0), $forever->shortest(Duration::seconds(30.0)));
+        self::assertTrue($forever->isLongerThan(Duration::seconds(1e12)));
+    }
+
+    public function testAComputedInfinityIsRefusedRatherThanAccepted(): void
+    {
+        // Un INF arrive d'une faute d'arithmetique bien plus souvent que d'une intention.
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/finite number of seconds/');
+
+        Duration::seconds(\INF);
+    }
 }
