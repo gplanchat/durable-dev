@@ -101,7 +101,7 @@ final class WorkflowTaskRunner
 
         $commands = $commandBuffer->flush();
 
-        return new WorkflowTaskResult($commands, $environment);
+        return new WorkflowTaskResult($commands, $context->queryHandlers());
     }
 
     private function resolveExecutionId(

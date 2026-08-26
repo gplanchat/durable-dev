@@ -294,21 +294,13 @@ final class WorkflowTaskProcessorTest extends TestCase
 
     public function testQueryIsAnsweredInResponse(): void
     {
+        // Une classe, et une query déclarée par attribut : c'est la seule forme désormais.
+        // L'enregistrement impératif depuis une closure court-circuitait la déclaration, et le
+        // moteur n'a plus de verbe à lui prêter pour ça.
         $registry = new WorkflowRegistry();
-        $registry->registerFactory(
-            'QueryableWorkflow',
-            static fn(array $payload)
-            => static function (WorkflowEnvironment $env): string {
-                $env->registerQueryHandler('getStatus', static fn() => 'running');
+        $registry->registerClass(QueryableWorkflow::class);
 
-                // Suspend workflow (wait for signal that never comes in this task)
-                $env->waitSignal('done');
-
-                return 'completed';
-            },
-        );
-
-        $poll = self::buildPoll('token-query', 'wf-4', 'QueryableWorkflow', [
+        $poll = self::buildPoll('token-query', 'wf-4', 'queryable', [
             self::makeStarted(1),
         ], ['q1' => 'getStatus']);
 
@@ -394,5 +386,30 @@ final class WorkflowTaskProcessorTest extends TestCase
         });
 
         self::assertSame(3, $callCount);
+    }
+}
+
+#[\Gplanchat\Durable\Attribute\Workflow(name: 'queryable')]
+final class QueryableWorkflow
+{
+    public function __construct(
+        private readonly WorkflowEnvironment $environment,
+    ) {
+    }
+
+    #[\Gplanchat\Durable\Attribute\QueryMethod('getStatus')]
+    public function status(): string
+    {
+        return 'running';
+    }
+
+    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    public function run(): string
+    {
+        // Suspend : le signal n'arrive jamais dans cette task, ce qui laisse la query être posée
+        // sur une exécution encore en cours.
+        $this->environment->waitSignal('done');
+
+        return 'completed';
     }
 }
