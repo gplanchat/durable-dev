@@ -23,13 +23,41 @@ Per the house rule, the boundary between observed and assumed:
   contract is now exactly `isSettled()` and `getResult()`, and `awaitUnderDeadline()` calls nothing
   else on its branches. A condition therefore *is* an awaitable — `isSettled()` is the predicate —
   and the deadline path does not fork.
-- **Not probed, and it blocks the update half (task 1):** how a worker accepts and completes an
-  update against a real server — which protocol messages carry the acceptance and the response, and
-  on which task they must be returned. Nothing about update responses reaches the domain before
-  that is seen on `:7233`. The signal half has no such dependency: it rides the
-  `WORKFLOW_EXECUTION_SIGNALED` events already read and already exercised by the integration suite.
-- **Assumed, and cheap to check first:** that a Temporal workflow task can carry several journaled
-  messages at once, so interleaving is a real question inside one task and not only across tasks.
+- **Probed, whole round trip (task 1.3).** An update reaches a worker **outside the journal**, as
+  a `temporal.api.protocol.v1.Message` on `PollWorkflowTaskQueueResponse.messages` — not as a
+  history event. The message carries `id = <update_id>/request`, `protocol_instance_id =
+  <update_id>`, a body of `Any(update.v1.Request)` with the name and arguments, and it is anchored
+  on the `event_id` of the task's `WORKFLOW_TASK_SCHEDULED` plus a `command_index`.
+
+  The worker answers **on that same task**, in `RespondWorkflowTaskCompleted`: two messages — an
+  `Acceptance` (echoing `accepted_request_message_id`, `accepted_request_sequencing_event_id` and
+  the original request) and a `Response` (`meta` + `outcome.success`) — plus one
+  `COMMAND_TYPE_PROTOCOL_MESSAGE` command referencing the acceptance's message id. No second task
+  is needed.
+
+  The caller then receives stage `COMPLETED` and the outcome payload, and history gains
+  `WORKFLOW_EXECUTION_UPDATE_ACCEPTED` followed by `WORKFLOW_EXECUTION_UPDATE_COMPLETED` — exactly
+  the two events `TemporalExecutionHistory` already reads. **The replay side is already built; what
+  is missing is entirely the worker-side protocol.**
+
+  Two server rules learned by being refused: `Meta.update_id` is mandatory on the request, and
+  waiting on the `ADMITTED` stage is rejected outright ("issued asynchronously and waiting on
+  update admitted is not supported"), so an update cannot be observed without something to accept
+  it.
+- **Probed, and the answer is yes (task 1.2).** A Temporal workflow task can carry several
+  journaled messages at once. Against the running server, on a task queue no worker polls: three
+  signals sent in a row produce **one** `WORKFLOW_TASK_SCHEDULED` followed by three
+  `WORKFLOW_EXECUTION_SIGNALED` — no extra task is scheduled per signal — and a single
+  `PollWorkflowTaskQueue` hands the worker all three in one task.
+
+  The same probe run *with* a worker polling showed one signal per task, because the worker
+  claimed each task before the next signal landed. Both regimes are real: **how many messages a
+  task carries is a timing artefact of worker availability, not a contract.** A worker restart, a
+  deploy, or a scaling event produces the batched regime in ordinary production.
+
+  That settles the question 1.1 depended on: the task boundary cannot be used to order message
+  application, because it does not reliably separate messages. The interleaving has to be enforced
+  inside one replay pass.
 
 ## Decisions
 
@@ -149,6 +177,25 @@ what a comparison of two positions already gives.
   belongs in the ADR.
 - Nothing here needs a new event type, and nothing here is backend-specific.
 
+### An update has no journal position until it is accepted
+
+The interleaving rule of 1.1 orders messages by their rank in the recorded stream. A signal has
+one the moment it is delivered. An inbound update does **not**: it arrives out-of-band on the task,
+carrying an `event_id` anchor and a `command_index` rather than a position of its own.
+
+This does not break the rule, because of where determinism actually matters. Accepting an update
+writes the original request into history (`WORKFLOW_EXECUTION_UPDATE_ACCEPTED` carries
+`accepted_request`), so from the *next* replay onward an update is journal-positioned like any
+signal. Only the first execution sees it out-of-band, and there the anchor supplies the order:
+after the history events up to `event_id`, then by `command_index`.
+
+So the rule reads, precisely: **a message is applied at its recorded position when it has one, and
+at its anchor when it does not yet.** A replay only ever meets the first case.
+
+The consequence for the domain is that update dispatch cannot be fed from the history source alone
+— the worker must hand the pending protocol messages to the execution for the first pass. Signals
+need nothing of the sort.
+
 ### Handlers are declarable both ways, because the tests are closures
 
 `registerQueryHandler()` already exists on `WorkflowEnvironment`, and `#[QueryMethod]` is the
@@ -157,11 +204,60 @@ this is not a concession, it is load-bearing: nearly every workflow in the test 
 and a closure cannot carry an attribute. Without imperative registration the new primitive is not
 testable in the style the suite is written in.
 
+### Un update se livre en une passe, et n'ajoute aucun événement
+
+La sonde 1.3 a montré que Temporal accepte et complète un update sur **la même** tâche. Le backend
+in-memory suit la même forme : la livraison exécute une passe du workflow, le handler rend sa
+valeur, et le journal reçoit un `WorkflowUpdateHandled` portant ce retour.
+
+C'est un **retrait**, pas un ajout. `DeliverWorkflowUpdateMessage` porte aujourd'hui un `result`
+calculé par l'appelant, que `waitUpdate()` se contente de relire — l'inverse du modèle visé. Ce
+champ disparaît : le résultat appartient au handler.
+
+Rejeté : un événement `WorkflowUpdateRequested` séparant l'arrivée du traitement. Il ne servirait
+qu'à faire survivre la requête entre deux passes, ce qu'une livraison en une passe rend inutile —
+et ce change s'interdit d'ajouter un événement (DUR032, option 1 contre option 2).
+
+**Tranché en écrivant le domaine :** un champ d'échec nullable sur `WorkflowUpdateHandled`, pas un
+événement frère. Cela s'écarte de la forme maison — `ActivityFailed` est le frère
+d'`ActivityCompleted`, `ChildWorkflowFailed` celui de `ChildWorkflowCompleted` — et la raison est
+dans le protocole : Temporal n'écrit qu'un `WORKFLOW_EXECUTION_UPDATE_COMPLETED`, dont l'`Outcome`
+est soit un succès soit un échec. Un frère ferait diverger le journal in-memory de ce que la sonde
+1.3 a observé, pour un champ de plus.
+
+**Et le handler rejoue.** « La réponse survit au replay » ne veut pas dire que le handler n'est pas
+rappelé : il mute l'état du workflow, et ne pas le rejouer reconstruirait un état faux. Il rejoue
+comme un handler de signal ; ce qui est figé, c'est l'issue déjà consignée, celle que l'appelant a
+reçue.
+
 ### An update answers; a signal does not
 
 That is the whole difference, and it is why updates are a separate requirement rather than a
 parameter. An update handler's return value is the response the caller is blocking on, so it must
 survive replay: a replay reproduces the recorded response rather than recomputing it.
+
+### Ce que le serveur a corrigé dans la transcription (tâche 5.5)
+
+La sonde 1.3 avait la carte du protocole, et l'écrire n'a pourtant pas suffi. Deux règles ne se
+voient qu'en s'y frottant :
+
+- **L'ordre des commandes.** Les commandes de protocole partent *avant* celles du workflow :
+  `CompleteWorkflowExecution` doit être la dernière de la séquence, et un update qui débloque une
+  condition provoque justement la complétion sur la même tâche. Envoyées après, le serveur refuse
+  tout le lot — « invalid command sequence ».
+- **Une commande par message, pas une pour l'acceptation seule.** La sonde n'avait pas terminé le
+  workflow, et n'avait donc jamais vu que la `Response` laissée hors de la séquence n'est pas
+  délivrée : l'appelant reçoit « the Workflow completed before the Update completed ».
+
+Et un défaut du domaine que seul le serveur pouvait exposer : au replay, un update **en échec**
+relu du journal rejoue son handler, qui relève de nouveau. Le chemin hors journal attrapait la
+levée, le chemin rejoué non — une exécution que l'original avait laissée vivante mourait à la
+reprise. La défaillance est déjà partie chez l'appelant ; au replay elle est absorbée. Un test
+in-memory la couvre désormais, mais il a fallu le serveur pour savoir qu'il fallait l'écrire.
+
+Corrigé au passage : `WorkflowClient::update()` n'envoyait pas `Meta.update_id`, que le serveur
+exige, et avalait un échec d'update en rendant `null`. Il relève maintenant
+`DurableUpdateFailedException`.
 
 ## Non-goals
 

@@ -40,7 +40,17 @@ final class SignalNameTest extends TestCase
 
         $result = $engine->resume(
             'signal-enum-1',
-            static fn(WorkflowEnvironment $wf): array => $wf->waitSignal(SampleSignal::Approve),
+            static function (WorkflowEnvironment $wf): array {
+                $approvals = [];
+                $wf->onSignal(SampleSignal::Approve, static function (array $payload) use (&$approvals): void {
+                    $approvals[] = $payload;
+                });
+                $wf->await(static function () use (&$approvals): bool {
+                    return [] !== $approvals;
+                });
+
+                return array_shift($approvals);
+            },
         );
 
         self::assertSame(['by' => 'alice'], $result);

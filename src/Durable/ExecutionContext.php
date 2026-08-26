@@ -35,9 +35,11 @@ final class ExecutionContext
 
     private int $childWorkflowSlotIndex = 0;
 
-    private int $signalWaitSlotIndex = 0;
-
-    private int $updateWaitSlotIndex = 0;
+    /**
+     * Rang du prochain message non appliqué. Reconstruit à zéro à chaque passe, avancé par la
+     * même règle sur le même journal : c'est ce qui rend le verdict d'une condition reproductible.
+     */
+    private int $messageCursor = 0;
 
     public function __construct(
         private readonly string $executionId,
@@ -45,6 +47,13 @@ final class ExecutionContext
         private readonly WorkflowCommandBufferInterface $commandBuffer,
         private readonly ?ChildWorkflowRunnerInterface $childWorkflowRunner = null,
         private readonly ?UuidGeneratorInterface $uuidGenerator = null,
+        /**
+         * Les updates que la passe reçoit hors journal. Ils viennent après tout ce qui est
+         * enregistré : n'ayant pas encore de position, ils prennent celle de leur arrivée.
+         *
+         * @var list<\Gplanchat\Durable\Workflow\PendingUpdate>
+         */
+        private readonly array $pendingUpdates = [],
     ) {}
 
     public function executionId(): string
@@ -200,60 +209,64 @@ final class ExecutionContext
     }
 
     /**
-     * Waits for a signal at signal slot N (order of signals of that name in history).
-     * In distributed mode, suspends until the signal is present in history.
+     * Applique le prochain message enregistré, s'il en reste un avant `$beforePosition`.
      *
-     * `$notAfterTimerId` borne l'attente : un signal enregistré *après* le tir de ce minuteur ne
-     * la règle pas. Sans cette règle, une attente sous échéance qui a expiré serait réglée au
-     * replay par le signal arrivé ensuite, et l'exécution rejouée prendrait le chemin inverse de
-     * celui déjà journalisé (ADR DUR032).
+     * Un par un, jamais par lot : un message enregistré après le tir d'une échéance ne doit pas
+     * régler la condition qu'elle bornait, et une condition satisfaite par le premier de deux
+     * messages doit reprendre en n'ayant vu que celui-là. Les deux sortent de la même règle —
+     * le verdict est une position dans le journal (ADR DUR035).
      *
-     * @return Awaitable<mixed>
+     * `pending` porte l'update hors journal quand c'en est un, et null quand le message est relu
+     * du journal : c'est ce qui distingue « produire l'issue » de « refaire l'état ».
+     *
+     * @return array{kind: 'signal'|'update', name: string, payload: array<string, mixed>, pending: \Gplanchat\Durable\Workflow\PendingUpdate|null}|null
      */
-    public function waitSignal(string $signalName, ?string $notAfterTimerId = null): Awaitable
+    public function nextMessage(?int $beforePosition = null): ?array
     {
-        $slot = $this->signalWaitSlotIndex++;
-        $found = $this->historySource->findSignalForSlot($signalName, $slot, $notAfterTimerId);
-        $deferred = new \Gplanchat\Durable\Awaitable\Deferred();
-        if (null !== $found) {
-            $deferred->resolve($found['payload']);
+        $message = $this->historySource->messageAt($this->messageCursor);
+        if (null !== $message) {
+            if (null !== $beforePosition && $message['position'] > $beforePosition) {
+                return null;
+            }
 
-            return $deferred->awaitable();
+            ++$this->messageCursor;
+
+            return [
+                'kind' => $message['kind'],
+                'name' => $message['name'],
+                'payload' => $message['payload'],
+                'pending' => null,
+            ];
         }
 
-        return $deferred->awaitable();
+        // Le journal est épuisé : restent les updates arrivés hors journal pour cette passe.
+        $recorded = $this->countRecordedMessages();
+        $pending = $this->pendingUpdates[$this->messageCursor - $recorded] ?? null;
+        if (null === $pending) {
+            return null;
+        }
+
+        ++$this->messageCursor;
+
+        return ['kind' => 'update', 'name' => $pending->name, 'payload' => $pending->arguments, 'pending' => $pending];
+    }
+
+    private function countRecordedMessages(): int
+    {
+        $count = 0;
+        while (null !== $this->historySource->messageAt($count)) {
+            ++$count;
+        }
+
+        return $count;
     }
 
     /**
-     * Rend le rang qu'une attente de signal abandonnée n'a pas consommé.
-     *
-     * Une attente qui expire n'a lu aucun signal : sans cela, l'attente suivante du même nom
-     * chercherait le deuxième et manquerait celui arrivé en retard.
+     * Position à laquelle le tir de ce minuteur est enregistré, ou null s'il n'a pas tiré.
      */
-    public function releaseSignalWaitSlot(): void
+    public function timerCompletionPosition(string $timerId): ?int
     {
-        if ($this->signalWaitSlotIndex > 0) {
-            --$this->signalWaitSlotIndex;
-        }
-    }
-
-    /**
-     * Waits for an update at update slot N (order of updates in history).
-     *
-     * @return Awaitable<mixed>
-     */
-    public function waitUpdate(string $updateName): Awaitable
-    {
-        $slot = $this->updateWaitSlotIndex++;
-        $found = $this->historySource->findUpdateForSlot($updateName, $slot);
-        $deferred = new \Gplanchat\Durable\Awaitable\Deferred();
-        if (null !== $found) {
-            $deferred->resolve($found['result']);
-
-            return $deferred->awaitable();
-        }
-
-        return $deferred->awaitable();
+        return $this->historySource->timerCompletionPosition($timerId);
     }
 
     /**

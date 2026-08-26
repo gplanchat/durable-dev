@@ -60,7 +60,6 @@ final class SamplesWorkflowController extends AbstractController
                         $payload,
                         $autoUpdate['name'],
                         $autoUpdate['arguments'] ?? [],
-                        $autoUpdate['result'] ?? null,
                     );
                 } elseif (\is_array($autoSignal) && isset($autoSignal['name'])) {
                     $outcome = $this->workflowRunner->runAndSettleWithAutoSignal(

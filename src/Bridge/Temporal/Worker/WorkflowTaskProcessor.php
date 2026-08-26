@@ -20,8 +20,8 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * Workflow task poll → execute → respond loop (Temporal native backend).
  *
  * Polls one workflow task, delegates replay to WorkflowTaskRunner, then sends commands
- * back via RespondWorkflowTaskCompleted. Query handling (signal, query, update) will be
- * added in the signal-query-update phase (DUR ADR, WorkflowTaskProcessor todo).
+ * back via RespondWorkflowTaskCompleted, avec les messages de protocole qui les accompagnent
+ * ({@see UpdateProtocol}).
  *
  * Replaces JournalWorkflowTaskProcessor for the native execution path.
  */
@@ -53,7 +53,7 @@ final class WorkflowTaskProcessor
             $queryResults = $this->handleQueries($poll, $result->environment);
         }
 
-        $this->respond($poll->getTaskToken(), $commands, $queryResults);
+        $this->respond($poll->getTaskToken(), $commands, $queryResults, $result->messages);
 
         return true;
     }
@@ -126,10 +126,11 @@ final class WorkflowTaskProcessor
     }
 
     /**
-     * @param list<\Temporal\Api\Command\V1\Command> $commands
-     * @param array<string, WorkflowQueryResult>     $queryResults
+     * @param list<\Temporal\Api\Command\V1\Command>  $commands
+     * @param array<string, WorkflowQueryResult>      $queryResults
+     * @param list<\Temporal\Api\Protocol\V1\Message> $messages
      */
-    private function respond(string $taskToken, array $commands, array $queryResults = []): void
+    private function respond(string $taskToken, array $commands, array $queryResults = [], array $messages = []): void
     {
         $req = new RespondWorkflowTaskCompletedRequest();
         $req->setTaskToken($taskToken);
@@ -137,6 +138,9 @@ final class WorkflowTaskProcessor
         $req->setIdentity($this->settings->identity);
         if ($commands !== []) {
             $req->setCommands($commands);
+        }
+        if ($messages !== []) {
+            $req->setMessages($messages);
         }
         foreach ($queryResults as $queryId => $queryResult) {
             $req->getQueryResults()[$queryId] = $queryResult;
