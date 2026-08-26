@@ -5,6 +5,7 @@
     "type": "symfony-bundle",
     "require": {
         "php": ">=8.2",
+        "gplanchat/durable": "self.version",
         "knplabs/knp-menu": "^3.5",
         "symfony/config": "^6.4 || ^7.0 || ^8.0",
         "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",

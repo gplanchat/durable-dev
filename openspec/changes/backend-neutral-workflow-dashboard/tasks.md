@@ -9,11 +9,11 @@
 - [x] 2.1 A run that failed on the DBAL backend is listed, named, and reads as failed
 - [x] 2.2 A run that was cancelled is listed, named, and is distinguishable from a failed one
 - [x] 2.3 A run that continued as new leaves both runs visible, and the one that ended is not reported as failed
-- [ ] 2.4 Filtering by status returns only matching runs, and the counters agree with the list — *partiel* : le filtre est fait et pagine sur l'ensemble filtré ; les compteurs sont calculés par la vue et se vérifient donc avec §6.3
+- [x] 2.4 Filtering by status returns only matching runs, and the counters agree with the list — les compteurs sont vérifiés sur le modèle de vue, et **chaque** issue a le sien : `continued_as_new` comptait dans le total et dans aucun seau
 - [x] 2.5 Paging through more runs than one page holds returns each run once and none twice — pagination **par clé** (date + id), pas par décalage : `started_at` est à la seconde et la table grossit pendant qu'on la lit
 - [x] 2.6 Selecting a run returns its events in recorded order, with activities and signals on distinct lanes — plus l'étiquetage : une activité porte son **nom** y compris sur sa complétion, qui ne connaît que son id
-- [ ] 2.7 A fact the backend does not have is absent from the description — not `''`, not a placeholder
-- [ ] 2.8 With no readable backend configured, the dashboard reports that and does not name Temporal
+- [x] 2.7 A fact the backend does not have is absent from the description — not `''`, not a placeholder — vérifié sur le modèle de vue : ni `taskQueue`, ni `groupId` quand le backend n'en a pas, et aucune voie vide dans la frise
+- [x] 2.8 With no readable backend configured, the dashboard reports that and does not name Temporal — le test assure aussi que le message ne contient pas le mot
 - [x] 2.9 The Temporal adapter returns what the current provider returns for the same server state — le test prouve l'identité (exécutions, identifiants, noms, ordre, curseur) **et** la divergence assumée : le fournisseur rangeait annulation et continue-as-new sous « failed », le port ne le fait plus (cf. `design.md`)
 
 ## 3. Domain
@@ -35,8 +35,8 @@
 
 ## 6. Bundle and plugin
 
-- [ ] 6.1 Register the adapter matching the configured backend, and register none when no backend is readable
-- [ ] 6.2 The plugin depends on the port instead of the Temporal bridge; the bridge leaves its `suggest` entry
+- [x] 6.1 Register the adapter matching the configured backend, and register none when no backend is readable — et les deux décorateurs de projection avec le catalogue DBAL, faute de quoi il lirait une table que personne n'écrit. La projection n'est câblée que si le **journal** est en SQL : c'est de lui que viennent les issues
+- [x] 6.2 The plugin depends on the port instead of the Temporal bridge; the bridge leaves its `suggest` entry — *partiel assumé* : `RunDashboardView` est bâti sur le port seul et le paquet requiert `gplanchat/durable`. Le fournisseur Temporal et l'entrée `suggest` ne partent qu'avec §6.3, faute de quoi la page serait cassée entre deux tranches
 - [ ] 6.3 Rename the view model's `temporal` key to `backend`, and render absent facts as absent in the template — no empty task queue column, no query lane where no query is recorded
 - [ ] 6.4 Move the plugin's dashboard tests onto the port, and keep one that pins the no-backend page
 
