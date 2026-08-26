@@ -61,6 +61,34 @@ Nexus fits this shape exactly on the caller side. What was verified before writi
 
 The server states its own rule: `^[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9]$`, 200 characters.
 
+**Operation bounds, probed against Temporal 1.31.2 (task 1.3).** The three bounds ride the
+`ScheduleNexusOperation` command; the server records them on `NEXUS_OPERATION_SCHEDULED`, so what
+it kept is readable without anything ever running. Nothing needs a Nexus handler to establish this.
+
+| Case | Verdict |
+|---|---|
+| `schedule_to_close` 30 s, `schedule_to_start` 10 s, `start_to_close` 20 s | recorded **exactly as sent** |
+| no bound at all | **accepted**, and all three recorded unset — the server supplies no default |
+| `schedule_to_close` 3600 s on a run bounded to 60 s | silently rewritten to **60 s** |
+| `schedule_to_close` 10 s with `schedule_to_start` 30 s | `schedule_to_start` silently rewritten to **10 s** |
+
+Pinned by `NexusOperationBoundsTest`.
+
+**Two consequences, and they pull in opposite directions.**
+
+*Like activities:* the bounds are silently rewritten. Clamping to the workflow run, and clamping
+`schedule_to_start` down to `schedule_to_close`, are the same rewrites `ActivityTimeouts` lives
+with. A caller reading back its own value would believe it asked for an hour. So the value object
+must not promise that what it holds is what the server enforces — the docblock says which two
+rewrites exist, since only the journal knows the applied value.
+
+*Unlike activities:* **no closing bound is required.** Temporal refuses an activity that has
+neither `start_to_close` nor `schedule_to_close`, which is exactly why `ActivityTimeouts` carries
+`executionBoundOr()`. A Nexus operation with no bound whatsoever is accepted and scheduled. **§2.2
+must therefore not carry `executionBoundOr()`** — its conditional is answered, and the answer is
+no. Inventing a fallback bound here would impose a limit the server does not, and would be an
+invariant that was never observed.
+
 **This inverts the lesson of `TaskQueue`, and §2.1 must not copy it.** `TaskQueue` is deliberately
 *stricter than the server*, because the server accepts `" "` and edge whitespace while a misnamed
 queue fails silently — the work is queued and no worker ever comes. A Nexus endpoint has no such
@@ -128,10 +156,18 @@ Temporal 1.31.2:
 | `scheduleToClose` 10, `startToClose` 60 | **10s** — silently clamped |
 | `scheduleToClose` 0, `scheduleToStart` 30 | 0s and 30s — zero means *unbounded*, and clamps nothing |
 | any of the three negative | refused, `INVALID_ARGUMENT`, message naming the field: `ScheduleNexusOperationCommandAttributes.<Field> is invalid: negative duration` |
+| `scheduleToClose` 3600 on a workflow run bounded to 60 | **60s** — clamped to the *workflow run*, a second envelope outside the three |
 
 So they behave like the activity bounds: `scheduleToClose` is the envelope, and a sub-bound asking
 for more than it is cut down to it without an error. Zero is the one value that does not mean a
 duration.
+
+**And there is a second envelope, outside the three: the workflow run itself.** A `scheduleToClose`
+of one hour under an execution bounded to one minute is recorded as one minute. This one is *not*
+reachable by a value object — the three bounds can be perfectly coherent with each other and still
+be cut down, because the limit belongs to the execution, not to the operation. §2.2 can make the
+first clamp impossible at construction; it cannot make this one visible. Only the journal knows the
+applied value, and the docblock must say so rather than let a caller trust what it holds.
 
 **What this asks of `NexusOperationTimeouts` (§2.2).** Make the rewrite visible at construction
 instead of letting it happen server-side. A value object that accepts `startToClose` 60 under
