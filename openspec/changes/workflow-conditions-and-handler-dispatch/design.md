@@ -171,11 +171,17 @@ Rejeté : un événement `WorkflowUpdateRequested` séparant l'arrivée du trait
 qu'à faire survivre la requête entre deux passes, ce qu'une livraison en une passe rend inutile —
 et ce change s'interdit d'ajouter un événement (DUR032, option 1 contre option 2).
 
-**Point ouvert pour le bloc 5 :** `WorkflowUpdateHandled` ne porte qu'un résultat. Un update en
-échec n'a nulle part où aller, alors que la spec demande que l'appelant reçoive la défaillance
-sans que le workflow échoue. Deux formes plausibles — un champ d'échec nullable sur l'événement,
-comme `ActivityFailed` en porte un, ou un événement frère. À trancher en écrivant le domaine, pas
-avant.
+**Tranché en écrivant le domaine :** un champ d'échec nullable sur `WorkflowUpdateHandled`, pas un
+événement frère. Cela s'écarte de la forme maison — `ActivityFailed` est le frère
+d'`ActivityCompleted`, `ChildWorkflowFailed` celui de `ChildWorkflowCompleted` — et la raison est
+dans le protocole : Temporal n'écrit qu'un `WORKFLOW_EXECUTION_UPDATE_COMPLETED`, dont l'`Outcome`
+est soit un succès soit un échec. Un frère ferait diverger le journal in-memory de ce que la sonde
+1.3 a observé, pour un champ de plus.
+
+**Et le handler rejoue.** « La réponse survit au replay » ne veut pas dire que le handler n'est pas
+rappelé : il mute l'état du workflow, et ne pas le rejouer reconstruirait un état faux. Il rejoue
+comme un handler de signal ; ce qui est figé, c'est l'issue déjà consignée, celle que l'appelant a
+reçue.
 
 ### An update answers; a signal does not
 

@@ -62,7 +62,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var list<array{signalName: string, payload: mixed, eventId: int}> signals in receive order */
     private array $signals = [];
 
-    /** @var list<array{updateName: string, result: mixed}> updates in accept order */
+    /** @var list<array{updateName: string, result: mixed, eventId: int}> updates in accept order */
     private array $updates = [];
 
     /** @var list<string> child execution IDs in schedule order */
@@ -272,7 +272,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     if (null !== $request) {
                         $input = $request->getInput();
                         $updateName = null !== $input ? $input->getName() : '';
-                        $this->updates[] = ['updateName' => $updateName, 'result' => null];
+                        $this->updates[] = ['updateName' => $updateName, 'result' => null, 'eventId' => (int) $eventId];
                     }
                 }
                 break;
@@ -467,16 +467,30 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 
     public function messageAt(int $index): ?array
     {
-        $signal = $this->signals[$index] ?? null;
-        if (null === $signal) {
-            return null;
+        // Deux tableaux séparés côté Temporal, un seul ordre côté workflow : la fusion se fait
+        // par eventId, sinon tous les signaux passeraient avant tous les updates.
+        $messages = [];
+        foreach ($this->signals as $signal) {
+            $messages[] = [
+                'position' => $signal['eventId'],
+                'kind' => 'signal',
+                'name' => $signal['signalName'],
+                'payload' => \is_array($signal['payload']) ? $signal['payload'] : ['value' => $signal['payload']],
+            ];
         }
+        foreach ($this->updates as $update) {
+            $messages[] = [
+                'position' => $update['eventId'],
+                'kind' => 'update',
+                'name' => $update['updateName'],
+                // Les arguments viennent de `accepted_request`, que le protocole worker apporte
+                // avec la tâche 5.5 ; l'ordre, lui, est déjà juste.
+                'payload' => [],
+            ];
+        }
+        usort($messages, static fn(array $a, array $b): int => $a['position'] <=> $b['position']);
 
-        return [
-            'position' => $signal['eventId'],
-            'name' => $signal['signalName'],
-            'payload' => \is_array($signal['payload']) ? $signal['payload'] : ['value' => $signal['payload']],
-        ];
+        return $messages[$index] ?? null;
     }
 
     public function timerCompletionPosition(string $timerId): ?int

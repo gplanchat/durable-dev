@@ -9,11 +9,13 @@ use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
+use Gplanchat\Durable\Event\WorkflowUpdateHandled;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
+use Gplanchat\Durable\Workflow\PendingUpdate;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
@@ -210,19 +212,66 @@ final class WorkflowHandlerDispatchTest extends TestCase
 
     public function testAnUpdateHandlerReturnValueReachesTheCaller(): void
     {
-        self::markTestIncomplete(
-            'La forme d’injection d’un update entrant appartient au bloc 5 : la sonde 1.3 a montré '
-            . 'qu’il arrive hors journal, accepté et complété sur la même tâche. Écrire ici un '
-            . 'transport que le bloc 5 réécrira vaudrait moins qu’un test honnêtement différé.',
-        );
+        $store = new InMemoryEventStore();
+        $engine = $this->engine($store);
+        $store->append(new ExecutionStarted('upd-1', []));
+
+        $handler = static function (WorkflowEnvironment $wf): string {
+            $approved = false;
+            $wf->onUpdate('approve', static function (array $args) use (&$approved): array {
+                $approved = true;
+
+                return ['ok' => true, 'by' => $args['by']];
+            });
+            $wf->await(static function () use (&$approved): bool {
+                return $approved;
+            });
+
+            return 'terminé';
+        };
+
+        // L'update arrive hors journal, pour cette passe seulement — comme sur la tâche Temporal.
+        $pending = new PendingUpdate('approve', ['by' => 'alice']);
+
+        self::assertSame('terminé', $engine->resume('upd-1', $handler, null, [$pending]));
+        self::assertTrue($pending->handled);
+        self::assertSame(['ok' => true, 'by' => 'alice'], $pending->result);
+        self::assertNull($pending->failure);
+
+        // L'appelant consigne l'issue, comme le serveur écrit UPDATE_COMPLETED après la réponse
+        // du worker.
+        $store->append(new WorkflowUpdateHandled('upd-1', 'approve', ['by' => 'alice'], $pending->result));
+
+        // Rejoué sans update en attente : l'update est relu du journal, le handler refait l'état,
+        // et le workflow reprend le même chemin.
+        self::assertSame('terminé', $engine->resume('upd-1', $handler));
     }
 
     public function testARaisingUpdateHandlerDoesNotFailTheWorkflow(): void
     {
-        self::markTestIncomplete(
-            'Même raison, plus un manque à combler d’abord : WorkflowUpdateHandled ne porte qu’un '
-            . 'résultat, un update en échec n’a nulle part où aller. Voir design.md, point ouvert.',
-        );
+        $store = new InMemoryEventStore();
+        $engine = $this->engine($store);
+        $store->append(new ExecutionStarted('upd-2', []));
+
+        $result = $engine->resume('upd-2', static function (WorkflowEnvironment $wf): string {
+            $attempts = 0;
+            $wf->onUpdate('approve', static function (array $args) use (&$attempts): never {
+                ++$attempts;
+
+                throw new \DomainException('approbation refusée');
+            });
+            $wf->await(static function () use (&$attempts): bool {
+                return $attempts > 0;
+            });
+
+            return 'le workflow continue';
+        }, null, [$pending = new PendingUpdate('approve', ['by' => 'alice'])]);
+
+        self::assertSame('le workflow continue', $result, 'un update en échec ne fait pas échouer l’exécution');
+        self::assertTrue($pending->handled);
+        self::assertNotNull($pending->failure);
+        self::assertSame(\DomainException::class, $pending->failure->class);
+        self::assertSame('approbation refusée', $pending->failure->message);
     }
 
     // -------------------------------------------------------------------------
