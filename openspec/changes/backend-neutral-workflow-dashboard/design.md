@@ -30,6 +30,41 @@ projection is written on the same lifecycle transitions that already touch the m
 "kept in step" means one more call beside calls that are already there, not a new subscriber to
 maintain.
 
+## Where the projection is written
+
+Seven sites touch the metadata store. Four of them end a run.
+
+| Site | What it means |
+|---|---|
+| `MessengerWorkflowResumeDispatcher::dispatchNewWorkflowRun()` — `save()` | a run starts, journal backend |
+| `TemporalWorkflowResumeDispatcher::dispatchNewWorkflowRun()` — `save()` | a run starts, Temporal backend |
+| `ResumeWorkflowHandler:89` — `save()` | the successor of a continue-as-new starts |
+| `ResumeWorkflowHandler:86` — `delete()` | the run that continued as new **ends** |
+| `ResumeWorkflowHandler:97` — `delete()` | the run was **cancelled** |
+| `ResumeWorkflowHandler:102` — `delete()` | the run **failed** |
+| `ResumeWorkflowHandler:108` — `markCompleted()` | the run **completed** |
+
+**A decorator on `WorkflowMetadataStore` cannot carry this.** Three of the four endings are the same
+call — `delete()` — and it means continued-as-new, cancelled, and failed at the three sites. A
+decorator sees one method and cannot tell them apart, which is exactly the distinction the dashboard
+exists to show.
+
+**Decision: two writers, each writing only what it alone knows.**
+
+- **The name comes from the metadata store.** `save()` is unambiguous and carries the workflow type;
+  a decorator seeds the projection row there. `delete()` is never consulted, so its ambiguity costs
+  nothing, and the metadata lifecycle is untouched — which the proposal requires.
+- **The outcome comes from the journal.** `EventStoreWorkflowLifecycle` already appends
+  `ExecutionCompleted`, `WorkflowExecutionCancelled`, `WorkflowContinuedAsNew`, and a classified
+  `WorkflowExecutionFailed` — the four endings, each with its own type, at one site. The DBAL event
+  store settles the projection row when it appends one of them.
+
+Two properties fall out, and both are why this shape was chosen over writing at the seven sites.
+`EventStoreWorkflowLifecycle` is the journal-backed lifecycle; Temporal runs
+`TemporalWorkflowLifecycle` instead, so the outcome writer never fires on a Temporal-backed
+application. And a future ending that forgets the projection is a lifecycle event that was never
+journalled — which replay would already have caught long before the dashboard did.
+
 ## Continue-as-new records two independent runs
 
 **Decision: two rows, not a chain.** A run that continues as new ends, and the run that takes over
