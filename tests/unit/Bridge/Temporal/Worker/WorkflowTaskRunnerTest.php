@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Temporal\Worker;
 
+use Google\Protobuf\Any;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
@@ -29,6 +30,11 @@ use Temporal\Api\History\V1\TimerFiredEventAttributes;
 use Temporal\Api\History\V1\TimerStartedEventAttributes;
 use Temporal\Api\History\V1\WorkflowExecutionSignaledEventAttributes;
 use Temporal\Api\History\V1\WorkflowExecutionStartedEventAttributes;
+use Temporal\Api\Protocol\V1\Message as ProtocolMessage;
+use Temporal\Api\Update\V1\Input as UpdateInput;
+use Temporal\Api\Update\V1\Meta as UpdateMeta;
+use Temporal\Api\Update\V1\Request as UpdateRequest;
+use Temporal\Api\Update\V1\Response as UpdateResponse;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
@@ -170,6 +176,31 @@ final class WorkflowTaskRunnerTest extends TestCase
         $e->setWorkflowExecutionSignaledEventAttributes($attr);
 
         return $e;
+    }
+
+    /**
+     * Un update tel qu'il arrive : message de protocole sur la tâche, pas événement d'historique.
+     */
+    private static function makeUpdateMessage(string $updateId, string $name, mixed $args, int $sequencingEventId): ProtocolMessage
+    {
+        $input = new UpdateInput();
+        $input->setName($name);
+        $input->setArgs(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($args)));
+
+        $request = new UpdateRequest();
+        $request->setMeta(new UpdateMeta(['update_id' => $updateId, 'identity' => 'test']));
+        $request->setInput($input);
+
+        $body = new Any();
+        $body->pack($request);
+
+        $message = new ProtocolMessage();
+        $message->setId($updateId . '/request');
+        $message->setProtocolInstanceId($updateId);
+        $message->setEventId($sequencingEventId);
+        $message->setBody($body);
+
+        return $message;
     }
 
     private function makeRunner(WorkflowRegistry $registry): WorkflowTaskRunner
@@ -409,8 +440,14 @@ final class WorkflowTaskRunnerTest extends TestCase
         $registry = new WorkflowRegistry();
         $registry->registerFactory('SignaledWorkflow', function (array $payload) use ($capturedSignal) {
             return function (WorkflowEnvironment $env) use ($capturedSignal): string {
-                $signal = $env->waitSignal('mySignal');
-                $capturedSignal->value = $signal;
+                $received = [];
+                $env->onSignal('mySignal', static function (array $payload) use (&$received): void {
+                    $received[] = $payload;
+                });
+                $env->await(static function () use (&$received): bool {
+                    return [] !== $received;
+                });
+                $capturedSignal->value = array_shift($received);
 
                 return 'received';
             };
@@ -477,8 +514,16 @@ final class WorkflowTaskRunnerTest extends TestCase
         $registry = new WorkflowRegistry();
         $registry->registerFactory('DeadlineWorkflow', static fn(array $payload)
             => static function (WorkflowEnvironment $env) use ($verdict): array {
+                $approvals = [];
+                $env->onSignal('approve', static function (array $payload) use (&$approvals): void {
+                    $approvals[] = $payload;
+                });
+
                 try {
-                    $verdict->value = ['signal', $env->waitSignal('approve', Duration::seconds(30))];
+                    $env->await(static function () use (&$approvals): bool {
+                        return [] !== $approvals;
+                    }, Duration::seconds(30));
+                    $verdict->value = ['signal', array_shift($approvals)];
                 } catch (DeadlineExceededException) {
                     $verdict->value = ['timeout'];
                 }
@@ -489,6 +534,64 @@ final class WorkflowTaskRunnerTest extends TestCase
         return $registry;
     }
 
+    public function testAnUpdateIsAcceptedAndAnsweredOnTheSameTask(): void
+    {
+        // Parité avec la sonde 1.3 : acceptation et réponse repartent sur la tâche courante, et
+        // c'est le retour du handler qui fait l'issue.
+        $registry = new WorkflowRegistry();
+        $registry->registerFactory('UpdatableWorkflow', static fn(array $payload)
+            => static function (WorkflowEnvironment $env): string {
+                $answered = false;
+                $env->onUpdate('approve', static function (array $args) use (&$answered): array {
+                    $answered = true;
+
+                    return ['ok' => true, 'by' => $args['by']];
+                });
+                $env->await(static function () use (&$answered): bool {
+                    return $answered;
+                });
+
+                return 'terminé';
+            });
+
+        $poll = self::buildPoll('token-upd', 'wf-upd', 'UpdatableWorkflow', [self::makeStarted(1)]);
+        $poll->setMessages([self::makeUpdateMessage('upd-42', 'approve', ['by' => 'alice'], 2)]);
+
+        $result = $this->makeRunner($registry)->run($poll);
+
+        $ids = array_map(static fn(ProtocolMessage $m): string => $m->getId(), $result->messages);
+        self::assertSame(['upd-42/accept', 'upd-42/complete'], $ids);
+
+        // Une commande par message. L'acceptation seule laisserait la réponse hors de la
+        // séquence, et le serveur clôrait l'exécution avant de la délivrer.
+        $protocolCommands = array_values(array_filter(
+            $result->commands,
+            static fn($c): bool => CommandType::COMMAND_TYPE_PROTOCOL_MESSAGE === $c->getCommandType(),
+        ));
+        self::assertSame(
+            ['upd-42/accept', 'upd-42/complete'],
+            array_map(static fn($c): ?string => $c->getProtocolMessageCommandAttributes()?->getMessageId(), $protocolCommands),
+        );
+
+        $response = new UpdateResponse();
+        $response->mergeFromString($result->messages[1]->getBody()->getValue());
+        $success = $response->getOutcome()?->getSuccess();
+        self::assertNotNull($success);
+        self::assertSame(['ok' => true, 'by' => 'alice'], JsonPlainPayload::decode($success->getPayloads()[0]));
+
+        // Le workflow est allé au bout : l'update l'a débloqué, pas l'inverse. Et l'ordre compte —
+        // le serveur refuse toute séquence où CompleteWorkflowExecution n'est pas la dernière.
+        $types = array_map(static fn($c): int => $c->getCommandType(), $result->commands);
+        self::assertSame(
+            [
+                CommandType::COMMAND_TYPE_PROTOCOL_MESSAGE,
+                CommandType::COMMAND_TYPE_PROTOCOL_MESSAGE,
+                CommandType::COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION,
+            ],
+            $types,
+        );
+    }
+
     public function testSignalNotYetReceivedSuspendsWorkflow(): void
     {
         $registry = new WorkflowRegistry();
@@ -496,7 +599,13 @@ final class WorkflowTaskRunnerTest extends TestCase
             'SignaledWorkflow',
             static fn(array $payload)
             => static function (WorkflowEnvironment $env): string {
-                $env->waitSignal('mySignal');
+                $received = false;
+                $env->onSignal('mySignal', static function (array $payload) use (&$received): void {
+                    $received = true;
+                });
+                $env->await(static function () use (&$received): bool {
+                    return $received;
+                });
 
                 return 'received';
             },

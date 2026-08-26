@@ -1,37 +1,37 @@
 ## 1. Settle the run projection before writing the port
 
-- [ ] 1.1 Confirm on an existing install that `DurableSchema::ensure()` adds a *new* table to a database that already carries the other three, and does not touch them — the whole choice of a projection over a column rests on this
-- [ ] 1.2 List every transition that ends a run (`markCompleted`, and the three `delete()` calls in `ResumeWorkflowHandler`) and decide where the projection is written, so no ending is missed and the metadata lifecycle stays as it is
+- [x] 1.1 Confirm on an existing install that `DurableSchema::ensure()` adds a *new* table to a database that already carries the other three, and does not touch them — the whole choice of a projection over a column rests on this — confirmed, and pinned by `DurableSchemaIncrementalCreationTest`: a missing table is created beside existing ones, an existing table keeps its rows, and a table the install has never seen appears
+- [x] 1.2 List every transition that ends a run (`markCompleted`, and the three `delete()` calls in `ResumeWorkflowHandler`) and decide where the projection is written, so no ending is missed and the metadata lifecycle stays as it is — seven sites listed in `design.md`; a decorator on the metadata store is ruled out because three endings share one `delete()` call, so the name is seeded from `save()` and the outcome settled from the journal's lifecycle events
 - [x] 1.3 Decide what the projection records for a run that continued as new — one row that ends and one that starts, or a chain — and note the verdict in `design.md`: **two independent rows**, no link column; the chain is carried by the port's optional grouping id, which Temporal fills and DBAL leaves absent
 
 ## 2. Failing tests first
 
-- [ ] 2.1 A run that failed on the DBAL backend is listed, named, and reads as failed
-- [ ] 2.2 A run that was cancelled is listed, named, and is distinguishable from a failed one
-- [ ] 2.3 A run that continued as new leaves both runs visible, and the one that ended is not reported as failed
-- [ ] 2.4 Filtering by status returns only matching runs, and the counters agree with the list
-- [ ] 2.5 Paging through more runs than one page holds returns each run once and none twice
-- [ ] 2.6 Selecting a run returns its events in recorded order, with activities and signals on distinct lanes
+- [x] 2.1 A run that failed on the DBAL backend is listed, named, and reads as failed
+- [x] 2.2 A run that was cancelled is listed, named, and is distinguishable from a failed one
+- [x] 2.3 A run that continued as new leaves both runs visible, and the one that ended is not reported as failed
+- [ ] 2.4 Filtering by status returns only matching runs, and the counters agree with the list — *partiel* : le filtre est fait et pagine sur l'ensemble filtré ; les compteurs sont calculés par la vue et se vérifient donc avec §6.3
+- [x] 2.5 Paging through more runs than one page holds returns each run once and none twice — pagination **par clé** (date + id), pas par décalage : `started_at` est à la seconde et la table grossit pendant qu'on la lit
+- [x] 2.6 Selecting a run returns its events in recorded order, with activities and signals on distinct lanes — plus l'étiquetage : une activité porte son **nom** y compris sur sa complétion, qui ne connaît que son id
 - [ ] 2.7 A fact the backend does not have is absent from the description — not `''`, not a placeholder
 - [ ] 2.8 With no readable backend configured, the dashboard reports that and does not name Temporal
-- [ ] 2.9 The Temporal adapter returns what the current provider returns for the same server state — the test that proves the move changed nothing
+- [x] 2.9 The Temporal adapter returns what the current provider returns for the same server state — le test prouve l'identité (exécutions, identifiants, noms, ordre, curseur) **et** la divergence assumée : le fournisseur rangeait annulation et continue-as-new sous « failed », le port ne le fait plus (cf. `design.md`)
 
 ## 3. Domain
 
-- [ ] 3.1 A read port for observing runs: listing with a cursor and a status filter, and reading one run's recorded history
-- [ ] 3.2 The run description the port returns, with the facts a backend may not have modelled as absent rather than as empty values
+- [x] 3.1 A read port for observing runs: listing with a cursor and a status filter, and reading one run's recorded history — `listRuns()` et `readHistory()`
+- [x] 3.2 The run description the port returns, with the facts a backend may not have modelled as absent rather than as empty values — `WorkflowRunDescription` + `WorkflowRunStatus` ; `groupId`, `startedAt` et `endedAt` sont nullables, jamais des valeurs de remplissage
 
 ## 4. DBAL backend
 
-- [ ] 4.1 The run projection table, declared in `DurableSchema` so it appears on installs that already exist
-- [ ] 4.2 Writing the projection on every transition from 1.2, leaving the metadata lifecycle and `hasActiveWorkflowMetadata()` untouched
-- [ ] 4.3 The adapter: listing from the projection, history from `durable_events`
+- [x] 4.1 The run projection table, declared in `DurableSchema` so it appears on installs that already exist — `durable_workflow_runs`, indexée sur `started_at`
+- [x] 4.2 Writing the projection on every transition from 1.2, leaving the metadata lifecycle and `hasActiveWorkflowMetadata()` untouched — deux décorateurs, `ProjectingWorkflowMetadataStore` (le nom) et `ProjectingEventStore` (l'issue) ; aucune classe existante modifiée
+- [x] 4.3 The adapter: listing from the projection, history from `durable_events` — `JournalRunHistoryReader` traduit le flux du journal, une seule passe avant suffisant à nommer les activités
 - [ ] 4.4 Backend reachability reported for the database, answering the same question the Temporal adapter answers about gRPC
 
 ## 5. Temporal backend
 
-- [ ] 5.1 Move the dashboard's gRPC reading code out of the plugin and behind the port, unchanged in behaviour
-- [ ] 5.2 Map its Temporal-shaped record onto the port's description, leaving no Temporal type in the port's vocabulary
+- [ ] 5.1 Move the dashboard's gRPC reading code out of the plugin and behind the port, unchanged in behaviour — *partiel* : le listage est derrière le port (`TemporalWorkflowRunCatalog`) ; la lecture d'historique est encore dans le plugin, et `readHistory()` y lève tant que ce n'est pas fait
+- [x] 5.2 Map its Temporal-shaped record onto the port's description, leaving no Temporal type in the port's vocabulary — le workflow id devient `groupId`, que DBAL laisse absent
 
 ## 6. Bundle and plugin
 

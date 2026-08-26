@@ -75,11 +75,17 @@ final class WorkflowTaskRunner
 
         $commandBuffer = new TemporalWorkflowCommandBuffer($this->connection, $executionId, $history);
 
+        // Les updates arrivent à côté du journal, sur la tâche : ils sont remis à l'exécution
+        // pour cette passe, et l'ordre du journal reprend la main dès qu'ils y sont acceptés.
+        $inboundUpdates = UpdateProtocol::inboundFrom($poll);
+
         $context = new ExecutionContext(
             $executionId,
             $history,
             $commandBuffer,
             new TemporalChildWorkflowRunner(),
+            null,
+            array_map(static fn(InboundUpdate $update) => $update->pending, $inboundUpdates),
         );
 
         $handler = $this->registry->getHandler($workflowTypeName, $history->startInput());
@@ -101,7 +107,12 @@ final class WorkflowTaskRunner
 
         $commands = $commandBuffer->flush();
 
-        return new WorkflowTaskResult($commands, $environment);
+        // Acceptation et réponse partent sur la tâche courante — et *avant* les commandes du
+        // workflow : le serveur refuse toute séquence où CompleteWorkflowExecution n'est pas la
+        // dernière commande, et un update traité débloque justement souvent la complétion.
+        $reply = UpdateProtocol::reply($inboundUpdates);
+
+        return new WorkflowTaskResult([...$reply['commands'], ...$commands], $environment, $reply['messages']);
     }
 
     private function resolveExecutionId(

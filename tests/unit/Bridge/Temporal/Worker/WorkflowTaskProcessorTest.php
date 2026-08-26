@@ -300,8 +300,8 @@ final class WorkflowTaskProcessorTest extends TestCase
             => static function (WorkflowEnvironment $env): string {
                 $env->registerQueryHandler('getStatus', static fn() => 'running');
 
-                // Suspend workflow (wait for signal that never comes in this task)
-                $env->waitSignal('done');
+                // Suspend workflow (condition nothing satisfies in this task)
+                $env->await(static fn(): bool => false);
 
                 return 'completed';
             },
@@ -341,7 +341,7 @@ final class WorkflowTaskProcessorTest extends TestCase
             'SimpleWorkflow',
             static fn(array $payload)
             => static function (WorkflowEnvironment $env): string {
-                $env->waitSignal('done');
+                $env->await(static fn(): bool => false);
 
                 return 'completed';
             },

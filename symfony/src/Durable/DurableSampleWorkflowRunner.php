@@ -97,7 +97,7 @@ final class DurableSampleWorkflowRunner
     }
 
     /**
-     * Pour un workflow qui commence par {@see WorkflowEnvironment::waitSignal()} : vide les transports
+     * Pour un workflow qui attend un signal ({@see WorkflowEnvironment::onSignal()}) : vide les transports
      * jusqu'à la suspension sans minuteur en attente, envoie le signal, puis attend la fin.
      *
      * @param array<string, mixed> $signalPayload
@@ -142,7 +142,7 @@ final class DurableSampleWorkflowRunner
     }
 
     /**
-     * Comme {@see runAndSettleWithAutoSignal} mais pour {@see \Gplanchat\Durable\WorkflowEnvironment::waitUpdate()}.
+     * Comme {@see runAndSettleWithAutoSignal} mais pour un update ({@see \Gplanchat\Durable\WorkflowEnvironment::onUpdate()}).
      *
      * @param array<string, mixed> $updateArguments
      *
@@ -153,7 +153,6 @@ final class DurableSampleWorkflowRunner
         array $payload,
         string $updateName,
         array $updateArguments,
-        mixed $updateResult,
         ?string $executionId = null,
     ): array {
         $executionId = $executionId ?? (string) Uuid::v4();
@@ -184,7 +183,8 @@ final class DurableSampleWorkflowRunner
             $executionId,
             $updateName,
             $updateArguments,
-            $updateResult,
+            // La réponse appartient au handler d'update, plus à l'appelant.
+            null,
         ));
         $result = $this->waitForWorkflowCompletion($executionId);
 

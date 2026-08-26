@@ -30,6 +30,41 @@ projection is written on the same lifecycle transitions that already touch the m
 "kept in step" means one more call beside calls that are already there, not a new subscriber to
 maintain.
 
+## Where the projection is written
+
+Seven sites touch the metadata store. Four of them end a run.
+
+| Site | What it means |
+|---|---|
+| `MessengerWorkflowResumeDispatcher::dispatchNewWorkflowRun()` — `save()` | a run starts, journal backend |
+| `TemporalWorkflowResumeDispatcher::dispatchNewWorkflowRun()` — `save()` | a run starts, Temporal backend |
+| `ResumeWorkflowHandler:89` — `save()` | the successor of a continue-as-new starts |
+| `ResumeWorkflowHandler:86` — `delete()` | the run that continued as new **ends** |
+| `ResumeWorkflowHandler:97` — `delete()` | the run was **cancelled** |
+| `ResumeWorkflowHandler:102` — `delete()` | the run **failed** |
+| `ResumeWorkflowHandler:108` — `markCompleted()` | the run **completed** |
+
+**A decorator on `WorkflowMetadataStore` cannot carry this.** Three of the four endings are the same
+call — `delete()` — and it means continued-as-new, cancelled, and failed at the three sites. A
+decorator sees one method and cannot tell them apart, which is exactly the distinction the dashboard
+exists to show.
+
+**Decision: two writers, each writing only what it alone knows.**
+
+- **The name comes from the metadata store.** `save()` is unambiguous and carries the workflow type;
+  a decorator seeds the projection row there. `delete()` is never consulted, so its ambiguity costs
+  nothing, and the metadata lifecycle is untouched — which the proposal requires.
+- **The outcome comes from the journal.** `EventStoreWorkflowLifecycle` already appends
+  `ExecutionCompleted`, `WorkflowExecutionCancelled`, `WorkflowContinuedAsNew`, and a classified
+  `WorkflowExecutionFailed` — the four endings, each with its own type, at one site. The DBAL event
+  store settles the projection row when it appends one of them.
+
+Two properties fall out, and both are why this shape was chosen over writing at the seven sites.
+`EventStoreWorkflowLifecycle` is the journal-backed lifecycle; Temporal runs
+`TemporalWorkflowLifecycle` instead, so the outcome writer never fires on a Temporal-backed
+application. And a future ending that forgets the projection is a lifecycle event that was never
+journalled — which replay would already have caught long before the dashboard did.
+
 ## Continue-as-new records two independent runs
 
 **Decision: two rows, not a chain.** A run that continues as new ends, and the run that takes over
@@ -79,6 +114,21 @@ the template changes with it; that is in scope.
 Two lanes the Temporal dashboard never showed are journalled by both backends — timers and child
 workflows. They are **not** added here. This change is about backend neutrality, and widening the
 view at the same time would make it impossible to tell a missing lane from a broken adapter.
+
+## Moving the Temporal reading also fixes a status it was flattening
+
+The provider being moved maps Temporal's execution status with `running`, `completed`, and
+`default => 'failed'`. Cancelled, terminated, timed out and **continued as new** therefore all
+render as failures today. A long workflow that continues as new on schedule shows up red every time
+it rolls over.
+
+The port has the vocabulary not to. `Cancelled` and `ContinuedAsNew` map to themselves, and only
+`TERMINATED` and `TIMED_OUT` keep falling back to `Failed` — those are genuinely endings the run
+did not choose, and inventing two more cases would buy nothing until a view separates them.
+
+This is a deliberate divergence from "the move changes nothing", and the parity test asserts it in
+both directions: the old reading still says `failed`, the new one does not. Reproducing the
+shortcut in the name of parity would have meant proving the move copied a defect faithfully.
 
 ## Why not a query over the journal
 

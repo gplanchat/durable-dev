@@ -183,14 +183,15 @@ final class SampleWorkflowCatalog
             [
                 'id' => 'updates',
                 'sourceFolder' => 'Updates',
-                'label' => 'Updates (waitUpdate + greeting)',
+                'label' => 'Updates (#[UpdateMethod] + greeting)',
                 'workflowType' => self::workflowAlias(SamplesUpdatesWorkflow::class),
-                'description' => 'Attend l’update « greet » puis composeGreeting ; l’UI livre l’update automatiquement après suspension.',
+                'description' => 'Un #[UpdateMethod] « greet » répond et débloque le corps, puis composeGreeting ; l’UI livre l’update automatiquement après suspension.',
                 'defaultPayload' => [],
                 'autoUpdate' => [
                     'name' => 'greet',
-                    'arguments' => [],
-                    'result' => 'Temporal',
+                    // La réponse n'est plus fournie par l'appelant : le handler la produit à
+                    // partir de ces arguments.
+                    'arguments' => ['name' => 'Temporal'],
                 ],
             ],
         ];

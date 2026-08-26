@@ -112,11 +112,11 @@ final class HarnessParityTest extends TestCase
     public function testParentClosePolicyCascadesInTheHarness(): void
     {
         $env = WorkflowTestEnvironment::inMemory([]);
-        // L'enfant reste bloqué sur un signal jamais délivré : le runner le signale
-        // (WorkflowStuckException), son journal reste sans issue terminale, il est donc
+        // L'enfant reste bloqué sur une condition que rien ne peut satisfaire : le runner le
+        // signale (WorkflowStuckException), son journal reste sans issue terminale, il est donc
         // encore actif à la clôture du parent.
         $env->registerWorkflow('Pending', static fn(array $input) => static fn(WorkflowEnvironment $wf): mixed
-            => $wf->waitSignal('never'));
+            => $wf->await(static fn(): bool => false));
 
         $env->run(static function (WorkflowEnvironment $wf): string {
             $wf->scheduleChildWorkflow('Pending', [], new ChildWorkflowOptions(
@@ -144,9 +144,9 @@ final class HarnessParityTest extends TestCase
         $env = WorkflowTestEnvironment::inMemory([]);
 
         $this->expectException(WorkflowStuckException::class);
-        $this->expectExceptionMessageMatches('/undelivered signal/');
+        $this->expectExceptionMessageMatches('/waiting on condition at/');
 
-        $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->waitSignal('never'), 'exec-stuck');
+        $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->await(static fn(): bool => false), 'exec-stuck');
     }
 
     // -------------------------------------------------------------------------

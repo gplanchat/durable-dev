@@ -90,8 +90,15 @@ final class WorkflowDeadlineTest extends TestCase
         $env = WorkflowTestEnvironment::inMemory([]);
 
         $result = $env->run(static function (WorkflowEnvironment $wf): string {
+            $approvals = [];
+            $wf->onSignal('approve', static function (array $payload) use (&$approvals): void {
+                $approvals[] = $payload;
+            });
+
             try {
-                $wf->waitSignal('approve', Duration::hours(1));
+                $wf->await(static function () use (&$approvals): bool {
+                    return [] !== $approvals;
+                }, Duration::hours(1));
 
                 return 'approved';
             } catch (DeadlineExceededException) {
@@ -216,12 +223,24 @@ final class WorkflowDeadlineTest extends TestCase
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
         $handler = static function (WorkflowEnvironment $wf): array {
+            $approvals = [];
+            $wf->onSignal('approve', static function (array $payload) use (&$approvals): void {
+                $approvals[] = $payload;
+            });
+            $pending = static function () use (&$approvals): bool {
+                return [] !== $approvals;
+            };
+
             try {
-                $wf->waitSignal('approve', Duration::seconds(30));
+                $wf->await($pending, Duration::seconds(30));
 
                 return ['unexpected'];
             } catch (DeadlineExceededException) {
-                return ['second wait', $wf->waitSignal('approve')];
+                // Le signal en retard n'a pas été appliqué à l'attente que l'échéance a
+                // tranchée : la suivante l'observe.
+                $wf->await($pending);
+
+                return ['second wait', array_shift($approvals)];
             }
         };
 
@@ -252,8 +271,17 @@ final class WorkflowDeadlineTest extends TestCase
     private function signalHandler(): callable
     {
         return static function (WorkflowEnvironment $wf): array {
+            $approvals = [];
+            $wf->onSignal('approve', static function (array $payload) use (&$approvals): void {
+                $approvals[] = $payload;
+            });
+
             try {
-                return ['signal', $wf->waitSignal('approve', Duration::seconds(30))];
+                $wf->await(static function () use (&$approvals): bool {
+                    return [] !== $approvals;
+                }, Duration::seconds(30));
+
+                return ['signal', array_shift($approvals)];
             } catch (DeadlineExceededException) {
                 return ['timeout'];
             }
