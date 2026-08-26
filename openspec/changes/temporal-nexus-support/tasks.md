@@ -25,8 +25,8 @@
 - [x] 4.1 Build `ScheduleNexusOperation` in `TemporalWorkflowCommandBuffer`, bounds and headers included — aucune borne inventée, le serveur n'en exige pas pour Nexus (§1.3), et l'entrée est **un** `Payload` et non une liste, contrairement à une activité
 - [x] 4.2 Build `RequestCancelNexusOperation` using the real scheduled event id read from history — et rien n'est émis quand le serveur n'a pas encore vu l'opération, viser un identifiant inexistant ferait échouer la tâche
 - [x] 4.3 Read the nine `NEXUS_OPERATION_*` events in `TemporalExecutionHistory`, keyed by scheduled event id — les quatre terminaux ; `SCHEDULED` ne portant aucune identité fournie par l'appelant, le rang de l'événement *est* l'identité
-- [ ] 4.4 Convert those events in `TemporalEventConverter` so the profiler and the read-through store show them
-- [ ] 4.5 Fail clearly when an operation reports `NEXUS_OPERATION_STARTED` with a token — asynchronous operations are out of scope for this increment
+- [x] 4.4 Convert those events in `TemporalEventConverter` so the profiler and the read-through store show them — trois événements de domaine naissent pour ça, aucun backend de journal n'en produisant ; l'échec est un événement frère parce que c'est la forme du fil
+- [x] 4.5 Fail clearly when an operation reports `NEXUS_OPERATION_STARTED` with a token — asynchronous operations are out of scope for this increment : l'opération est réglée en échec plutôt que laissée en vol, et `STARTED` sans jeton reste le cas courant qu'on ne dérange pas
 
 ## 5. In-memory backend
 

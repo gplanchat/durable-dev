@@ -12,6 +12,7 @@ use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\Nexus\DurableNexusOperationFailedException;
+use Gplanchat\Durable\Nexus\NexusAsynchronousOperationUnsupportedException;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
@@ -267,6 +268,23 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     // l'événement fait office d'identité, et les issues s'y réfèrent.
                     $this->scheduledNexusEventIds[] = (int) $eventId;
                     $this->nexusOperationNames[(int) $eventId] = (string) $attr->getOperation();
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED:
+                $attr = $event->getNexusOperationStartedEventAttributes();
+                // Un jeton signale une opération que l'endpoint complétera plus tard, hors de
+                // cette conversation. Hors périmètre de cet incrément : la régler en échec vaut
+                // mieux que laisser le workflow attendre sans fin et sans trace.
+                if (null !== $attr && '' !== (string) $attr->getOperationToken()) {
+                    $id = (int) $attr->getScheduledEventId();
+                    $this->nexusOutcomes[$id] = [
+                        'result' => null,
+                        'failed' => NexusAsynchronousOperationUnsupportedException::forOperation(
+                            (string) $id,
+                            $this->nexusOperationNames[$id] ?? '',
+                        ),
+                    ];
                 }
                 break;
 

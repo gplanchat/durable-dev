@@ -12,3 +12,4 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 | `feat/nexus-caller-scheduling` | temporal-nexus-support | 3.2, 3.3 | en relecture |
 | `feat/nexus-cancellation-and-failure` | temporal-nexus-support | 3.5, 3.6 | en relecture, empilée sur `feat/nexus-caller-scheduling` |
 | `feat/nexus-temporal-backend` | temporal-nexus-support | 4.1, 4.2, 4.3 | en relecture, empilée sur `feat/nexus-cancellation-and-failure` |
+| `feat/nexus-profiler-and-async-guard` | temporal-nexus-support | 4.4, 4.5 | en relecture, empilée sur `feat/nexus-temporal-backend` |

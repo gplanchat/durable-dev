@@ -14,6 +14,9 @@ use Gplanchat\Durable\Event\ChildWorkflowScheduled;
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
+use Gplanchat\Durable\Event\NexusOperationCompleted;
+use Gplanchat\Durable\Event\NexusOperationFailed;
+use Gplanchat\Durable\Event\NexusOperationScheduled;
 use Gplanchat\Durable\Event\SideEffectRecorded;
 use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\TimerCompleted;
@@ -23,6 +26,7 @@ use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Failure\ActivityRetryState;
+use Gplanchat\Durable\Nexus\DurableNexusOperationFailedException;
 use Gplanchat\Durable\ParentClosePolicy;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\Enums\V1\RetryState;
@@ -166,6 +170,65 @@ final class TemporalEventConverter
                 $this->startedEventIdToTimerId[$eventId] = $timerId;
 
                 return new TimerScheduled($this->executionId, $timerId, $ts);
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED:
+                $attr = $event->getNexusOperationScheduledEventAttributes();
+                if (null === $attr) {
+                    return null;
+                }
+                // L'identité est celle de l'événement : le message n'en porte aucune autre.
+                $operationId = (string) $event->getEventId();
+
+                return new NexusOperationScheduled(
+                    $this->executionId,
+                    $operationId,
+                    (string) $attr->getEndpoint(),
+                    (string) $attr->getService(),
+                    (string) $attr->getOperation(),
+                );
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED:
+                $attr = $event->getNexusOperationCompletedEventAttributes();
+                if (null === $attr) {
+                    return null;
+                }
+                $payload = $attr->getResult();
+
+                return new NexusOperationCompleted(
+                    $this->executionId,
+                    (string) $attr->getScheduledEventId(),
+                    null !== $payload ? JsonPlainPayload::decode($payload) : null,
+                );
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED:
+                $attr = $event->getNexusOperationFailedEventAttributes();
+
+                return null === $attr ? null : new NexusOperationFailed(
+                    $this->executionId,
+                    (string) $attr->getScheduledEventId(),
+                    DurableNexusOperationFailedException::KIND_OPERATION_FAILED,
+                    (string) ($attr->getFailure()?->getMessage() ?? ''),
+                );
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_CANCELED:
+                $attr = $event->getNexusOperationCanceledEventAttributes();
+
+                return null === $attr ? null : new NexusOperationFailed(
+                    $this->executionId,
+                    (string) $attr->getScheduledEventId(),
+                    DurableNexusOperationFailedException::KIND_CANCELLED,
+                    (string) ($attr->getFailure()?->getMessage() ?? ''),
+                );
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT:
+                $attr = $event->getNexusOperationTimedOutEventAttributes();
+
+                return null === $attr ? null : new NexusOperationFailed(
+                    $this->executionId,
+                    (string) $attr->getScheduledEventId(),
+                    DurableNexusOperationFailedException::KIND_TIMED_OUT,
+                    (string) ($attr->getFailure()?->getMessage() ?? ''),
+                );
 
             case EventType::EVENT_TYPE_TIMER_FIRED:
                 $attr = $event->getTimerFiredEventAttributes();
