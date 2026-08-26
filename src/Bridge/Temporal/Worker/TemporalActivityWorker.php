@@ -36,6 +36,9 @@ use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedRequest;
  */
 final class TemporalActivityWorker
 {
+    /** gRPC NOT_FOUND: the task token is stale (activity timed out / workflow already closed). */
+    private const GRPC_NOT_FOUND = 5;
+
     public function __construct(
         private readonly WorkflowServiceActivityRpc $activityRpc,
         private readonly TemporalConnection $connection,
@@ -160,7 +163,7 @@ final class TemporalActivityWorker
         $req->setIdentity($this->connection->identity . '-activity');
         $req->setResult(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($result)));
 
-        $this->activityRpc->respondActivityTaskCompleted($req);
+        $this->ignoringStaleTask(fn() => $this->activityRpc->respondActivityTaskCompleted($req));
     }
 
     private function respondFailed(
@@ -187,7 +190,7 @@ final class TemporalActivityWorker
         $req->setIdentity($this->connection->identity . '-activity');
         $req->setFailure($failure);
 
-        $this->activityRpc->respondActivityTaskFailed($req);
+        $this->ignoringStaleTask(fn() => $this->activityRpc->respondActivityTaskFailed($req));
     }
 
     private function respondCanceled(PollActivityTaskQueueResponse $poll): void
@@ -197,6 +200,25 @@ final class TemporalActivityWorker
         $req->setNamespace($this->connection->namespace->name());
         $req->setIdentity($this->connection->identity . '-activity');
 
-        $this->activityRpc->respondActivityTaskCanceled($req);
+        $this->ignoringStaleTask(fn() => $this->activityRpc->respondActivityTaskCanceled($req));
+    }
+
+    /**
+     * Run a RespondActivityTask* call, tolerating a stale task.
+     *
+     * Responding for a task whose workflow/activity already closed or timed out
+     * yields gRPC NOT_FOUND (5); the server no longer tracks the task, so this
+     * is benign and must not kill the poll loop. Mirrors the NOT_FOUND handling
+     * already present in {@see \Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor::respond()}.
+     */
+    private function ignoringStaleTask(\Closure $respond): void
+    {
+        try {
+            $respond();
+        } catch (\RuntimeException $e) {
+            if (self::GRPC_NOT_FOUND !== $e->getCode()) {
+                throw $e;
+            }
+        }
     }
 }
