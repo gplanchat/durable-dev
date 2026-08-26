@@ -45,6 +45,28 @@ final class NexusOperationSchedulingTest extends TestCase
         self::assertNotSame('', $this->scheduled[0]['operationId']);
     }
 
+    public function testAScheduledOperationIsTrackedAsPending(): void
+    {
+        // Sans ce registre, l'issue lue dans l'historique n'aurait pas d'attente à régler.
+        $context = $this->context($this->history());
+
+        $awaitable = $this->schedule($context);
+
+        self::assertArrayHasKey($awaitable->operationId(), $context->pendingNexusOperations());
+    }
+
+    public function testAReplayedResultIsNotTrackedAsPending(): void
+    {
+        $context = $this->context($this->history(
+            scheduledId: 'op-finie',
+            slotResult: ['result' => 'ok', 'failed' => null],
+        ));
+
+        $this->schedule($context);
+
+        self::assertSame([], $context->pendingNexusOperations());
+    }
+
     public function testEachCallTakesTheNextSlot(): void
     {
         $context = $this->context($this->history());
@@ -92,6 +114,41 @@ final class NexusOperationSchedulingTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('handler exploded');
         $awaitable->getResult();
+    }
+
+    public function testTheEnvironmentDelegatesAndCoercesTheThreeNames(): void
+    {
+        $context = $this->context($this->history());
+        $environment = $this->environment($context);
+
+        // Chaînes brutes en entrée : la coercition de frontière est ce qui rend l'appel écrivable
+        // sans importer trois classes, sans renoncer à la validation.
+        $awaitable = $environment->nexusOperation('billing-endpoint', 'billing', 'charge', ['amount' => 10]);
+
+        self::assertInstanceOf(NexusOperationAwaitable::class, $awaitable);
+        self::assertCount(1, $this->scheduled);
+        self::assertSame('charge', $this->scheduled[0]['operation']);
+    }
+
+    public function testTheEnvironmentRefusesABlankServiceName(): void
+    {
+        $environment = $this->environment($this->context($this->history()));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $environment->nexusOperation('billing-endpoint', ' ', 'charge');
+    }
+
+    private function environment(ExecutionContext $context): \Gplanchat\Durable\WorkflowEnvironment
+    {
+        // ExecutionRuntime est final : on en monte un vrai, inerte. Rien de ce que teste ce
+        // fichier ne passe par lui.
+        $runtime = new \Gplanchat\Durable\ExecutionRuntime(
+            new \Gplanchat\Durable\Store\InMemoryEventStore(),
+            new \Gplanchat\Durable\Transport\NoopActivityTransport(),
+            new \Gplanchat\Durable\RegistryActivityExecutor(),
+        );
+
+        return new \Gplanchat\Durable\WorkflowEnvironment($context, $runtime);
     }
 
     private function schedule(ExecutionContext $context): NexusOperationAwaitable
