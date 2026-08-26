@@ -33,9 +33,9 @@
 
 ## 4. Domain — conditions
 
-- [ ] 4.1 `await()` accepts a condition, wrapped into the existing awaitable contract, composing with the deadline path unchanged
-- [ ] 4.2 The evaluation loop from 1.1: messages applied one at a time, pending conditions re-tested after each
-- [ ] 4.3 A condition that can never hold reported through the existing "cannot advance" path, naming the condition, rather than a new failure vocabulary
+- [x] 4.1 `await()` accepts a condition, wrapped into the existing awaitable contract, composing with the deadline path unchanged — `ConditionAwaitable::isSettled()` *est* le prédicat, le chemin d’échéance ne bifurque pas
+- [ ] 4.2 The evaluation loop from 1.1: messages applied one at a time, pending conditions re-tested after each — part avec 5.3 : sans handler pour consommer un message, appliquer n’a aucun effet observable, et la boucle serait écrite sans test
+- [x] 4.3 A condition that can never hold reported through the existing "cannot advance" path, naming the condition, rather than a new failure vocabulary — la suspension porte ce qu’elle attend, le runner le relaie dans `noProgress`
 
 ## 5. Domain — dispatch
 
