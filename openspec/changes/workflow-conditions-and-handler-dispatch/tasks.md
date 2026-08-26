@@ -53,7 +53,7 @@
 - [x] 6.4 Symfony samples and integration fixtures migrated to handler + condition — les deux échantillons passent à la forme déclarative, `#[SignalMethod]` et `#[UpdateMethod]`
 - [x] 6.5 The deadline tests rewritten onto conditions, asserting the same outcomes — 11 tests, 16 assertions avant comme après
 
-- [ ] 6.6 `DeliverWorkflowUpdateMessage` perd son `result` : la livraison in-memory exécute une passe et laisse le handler produire l'issue, comme le worker Temporal accepte et répond sur la même tâche. Découvert en migrant l'échantillon Symfony, qui fournissait encore la réponse depuis l'appelant
+- [x] 6.6 `DeliverWorkflowUpdateMessage` perd son `result` : la livraison in-memory exécute une passe et laisse le handler produire l'issue, comme le worker Temporal accepte et répond sur la même tâche. Découvert en migrant l'échantillon Symfony, qui fournissait encore la réponse depuis l'appelant
 
 ## 7. Backend parity
 
