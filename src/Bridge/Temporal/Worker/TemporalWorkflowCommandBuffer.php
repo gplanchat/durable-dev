@@ -10,6 +10,7 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
 use Gplanchat\Durable\Duration as DurableDuration;
+use Gplanchat\Durable\ChildWorkflowOptions;
 use Gplanchat\Durable\ContinueAsNewOptions;
 use Gplanchat\Durable\SearchAttributes;
 use Gplanchat\Durable\TaskQueue as DurableTaskQueue;
@@ -56,10 +57,8 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     ) {
     }
 
-    public function scheduleActivity(string $activityId, string $activityName, array $payload, array $metadata): void
+    public function scheduleActivity(string $activityId, string $activityName, array $payload, ?ActivityOptions $options): void
     {
-        $options = ActivityOptions::fromMetadata($metadata);
-
         $taskQueueName = ((null !== $options ? $options->taskQueue : null) ?? $this->connection->activityTaskQueue)->name();
 
         $attrs = new ScheduleActivityTaskCommandAttributes();
@@ -67,7 +66,15 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $attrs->setActivityType(new ActivityType(['name' => $activityName]));
         $attrs->setTaskQueue(new TaskQueue(['name' => $taskQueueName]));
 
-        $scheduled = new ActivityScheduled($this->executionId, $activityId, $activityName, $payload, $metadata);
+        // Le worker relira ces options depuis l'entrée de l'activité : c'est le fil, il garde sa
+        // forme plate. Le serveur horodate lui-même la mise en file.
+        $scheduled = new ActivityScheduled(
+            $this->executionId,
+            $activityId,
+            $activityName,
+            $payload,
+            $options?->toMetadata() ?? [],
+        );
         $attrs->setInput(TemporalActivityScheduleInput::toPayloads($scheduled));
 
         // Le serveur refuse une activité sans borne de fermeture : le repli est nommé côté
@@ -116,15 +123,13 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $this->commands[] = $cmd;
     }
 
-    public function startTimer(string $timerId, float $scheduledAt, string $summary): void
+    public function startTimer(string $timerId, DurableDuration $delay, string $summary): void
     {
         $attrs = new StartTimerCommandAttributes();
         $attrs->setTimerId($timerId);
-        // `$scheduledAt` est une échéance absolue ; Temporal attend une durée. Sans
-        // `start_to_fire_timeout` le serveur rejette la commande — le minuteur ne partait jamais.
-        // ponytail: plancher à 1 ms si la tâche a été traitée après l'échéance (latence de poll) ;
-        // un vrai rattrapage demanderait l'horloge serveur, pas microtime().
-        $attrs->setStartToFireTimeout($this->durationSeconds(max(0.001, $scheduledAt - microtime(true))));
+        // Le serveur veut une durée, et il en reçoit une : plus de soustraction d'échéance ni de
+        // plancher pour rattraper la latence de poll. C'est le port qui portait le défaut.
+        $attrs->setStartToFireTimeout($this->durationSeconds($delay->toSeconds()));
 
         $cmd = new Command();
         $cmd->setCommandType(CommandType::COMMAND_TYPE_START_TIMER);
@@ -156,36 +161,29 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         string $childExecutionId,
         string $childWorkflowType,
         array $input,
-        array $schedulingMetadata,
+        ChildWorkflowOptions $options,
     ): void {
         $attrs = new \Temporal\Api\Command\V1\StartChildWorkflowExecutionCommandAttributes();
         $attrs->setWorkflowId($childExecutionId);
         $attrs->setWorkflowType(new \Temporal\Api\Common\V1\WorkflowType(['name' => $childWorkflowType]));
-
-        $taskQueue = $schedulingMetadata['task_queue'] ?? null;
         $attrs->setTaskQueue(new TaskQueue([
-            'name' => (DurableTaskQueue::fromNullable(\is_string($taskQueue) ? $taskQueue : null) ?? $this->connection->workflowTaskQueue)->name(),
+            'name' => ($options->taskQueue ?? $this->connection->workflowTaskQueue)->name(),
         ]));
         $attrs->setInput(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($input)));
 
-        $namespace = $schedulingMetadata['namespace'] ?? null;
-        if (\is_string($namespace) && '' !== $namespace) {
-            $attrs->setNamespace($namespace);
+        if (null !== $options->namespace) {
+            $attrs->setNamespace($options->namespace->name());
         }
-        $cron = $schedulingMetadata['cron_schedule'] ?? null;
-        if (\is_string($cron) && '' !== $cron) {
-            $attrs->setCronSchedule($cron);
+        if (null !== $options->cronSchedule) {
+            $attrs->setCronSchedule($options->cronSchedule->toExpression());
         }
-        TemporalPolicyMapper::applyWorkflowTimeouts(WorkflowTimeouts::fromMetadata($schedulingMetadata), $attrs);
-        TemporalPolicyMapper::applySearchAttributes(
-            SearchAttributes::fromMetadata(\is_array($schedulingMetadata['search_attributes'] ?? null) ? $schedulingMetadata['search_attributes'] : []),
-            $attrs,
-        );
+        TemporalPolicyMapper::applyWorkflowTimeouts($options->timeouts, $attrs);
+        TemporalPolicyMapper::applySearchAttributes($options->searchAttributes, $attrs);
 
         // Sans ces deux politiques le serveur applique ses défauts : la ParentClosePolicy
         // choisie par l'appelant était silencieusement perdue côté Temporal.
-        $attrs->setParentClosePolicy(TemporalPolicyMapper::parentClosePolicy($schedulingMetadata['parentClosePolicy'] ?? null));
-        $attrs->setWorkflowIdReusePolicy(TemporalPolicyMapper::idReusePolicy($schedulingMetadata['workflow_id_reuse_policy'] ?? null));
+        $attrs->setParentClosePolicy(TemporalPolicyMapper::parentClosePolicy($options->parentClosePolicy));
+        $attrs->setWorkflowIdReusePolicy(TemporalPolicyMapper::idReusePolicy($options->workflowIdReusePolicy));
 
         $cmd = new Command();
         $cmd->setCommandType(CommandType::COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION);

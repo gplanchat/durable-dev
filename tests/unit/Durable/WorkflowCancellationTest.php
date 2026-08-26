@@ -146,7 +146,7 @@ final class WorkflowCancellationTest extends TestCase
 
         $result = $runner->run('race-1', static fn (WorkflowEnvironment $env): mixed => $env->any(
             $env->activity('fast', []),
-            $env->timerAwaitable(3600.0),
+            $env->timer(3600.0),
         ));
 
         self::assertSame('winner', $result);

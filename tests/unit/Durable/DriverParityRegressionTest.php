@@ -58,7 +58,7 @@ final class DriverParityRegressionTest extends TestCase
             'act-1',
             'later',
             [],
-            ['retry_delay_seconds' => 30.0],
+            retryDelay: Duration::seconds(30),
         ));
 
         self::assertNull($transport->dequeue());
@@ -82,13 +82,78 @@ final class DriverParityRegressionTest extends TestCase
         try {
             $engine->start('race-1', static fn (WorkflowEnvironment $env): mixed => $env->any(
                 $env->activity('slow', []),
-                $env->timerAwaitable(3600.0),
+                $env->timer(3600.0),
             ));
             self::fail('le workflow devait suspendre');
         } catch (WorkflowSuspendedException $e) {
             self::assertTrue($e->waitingOnTimer(), 'la course porte une échéance à réveiller');
             self::assertTrue($e->shouldDispatchResume());
         }
+    }
+
+    public function testSleepWaitsWhileTimerComposes(): void
+    {
+        // Deux méthodes voisines de la même façade avaient des contrats opposés : activity()
+        // rendait un awaitable, timer() attendait sur place et rendait void. Les noms disent
+        // maintenant lequel fait quoi.
+        $env = WorkflowTestEnvironment::inMemory(['echo' => static fn (): string => 'done']);
+
+        $result = $env->run(static function (WorkflowEnvironment $wf): array {
+            $composable = $wf->timer(0.0);
+            $wf->sleep(0.0);
+
+            return [$composable instanceof \Gplanchat\Durable\Awaitable\Awaitable, $wf->await($wf->activity('echo', []))];
+        }, 'sleep-1');
+
+        self::assertSame([true, 'done'], $result);
+    }
+
+    public function testTimerAcceptsEveryDurationForm(): void
+    {
+        $env = WorkflowTestEnvironment::inMemory([]);
+
+        $result = $env->run(static function (WorkflowEnvironment $wf): string {
+            $wf->sleep(30.0);
+            $wf->sleep(Duration::minutes(5));
+            $wf->sleep(new \DateInterval('PT2H'));
+
+            return 'ok';
+        }, 'sleep-2');
+
+        self::assertSame('ok', $result);
+    }
+
+    public function testTheHarnessSkipsTimeInsteadOfWaitingForIt(): void
+    {
+        // Sans saut d'horloge, aucun workflow qui dort n'est testable : le harnais n'a personne
+        // pour lui livrer un réveil de minuteur.
+        $env = WorkflowTestEnvironment::inMemory(['ping' => static fn (): string => 'pong']);
+
+        $startedAt = microtime(true);
+        $result = $env->run(static function (WorkflowEnvironment $wf): string {
+            $wf->sleep(Duration::hours(1));
+            $answer = $wf->await($wf->activity('ping', []));
+            $wf->sleep(Duration::hours(24));
+
+            return $answer;
+        }, 'skip-1');
+
+        self::assertSame('pong', $result);
+        self::assertLessThan(1.0, microtime(true) - $startedAt, '25 heures de sommeil ne doivent coûter aucun temps réel');
+    }
+
+    public function testTimeIsNotSkippedWhileAnActivityCanStillWin(): void
+    {
+        // Le saut ne doit intervenir que lorsque plus rien d'autre ne progresse : sauter plus tôt
+        // ferait gagner le minuteur de toute course qu'une activité était en train de remporter.
+        $env = WorkflowTestEnvironment::inMemory(['fast' => static fn (): string => 'winner']);
+
+        $result = $env->run(static fn (WorkflowEnvironment $wf): mixed => $wf->any(
+            $wf->activity('fast', []),
+            $wf->timer(Duration::hours(1)),
+        ), 'race-skip');
+
+        self::assertSame('winner', $result);
     }
 
     public function testTimerWaitDetectionTraversesComposites(): void

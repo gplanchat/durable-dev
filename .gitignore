@@ -6,3 +6,9 @@
 # Work journal day files (kept locally; see documentation/journal/README.md)
 documentation/journal/inbox/*.md
 documentation/journal/archive/*.md
+
+# Hugo : thème vendorisé pour inspection locale, la CI le récupère via go modules
+hugo-docs/_vendor/
+hugo-docs/public/
+hugo-docs/resources/
+hugo-docs/.hugo_build.lock

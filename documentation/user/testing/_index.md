@@ -279,6 +279,30 @@ temporal operator search-attribute create --name DurableAmount  --type Int
 
 ---
 
+## Time is skipped, not waited for
+
+A workflow that sleeps is testable in milliseconds. The harness runs on a **virtual clock** it
+advances to the next due timer, so `sleep(Duration::hours(24))` costs no real time:
+
+```php
+$result = $env->run(function (WorkflowEnvironment $wf): string {
+    $wf->sleep(Duration::hours(1));
+    $answer = $wf->await($wf->activity('ping', []));
+    $wf->sleep(Duration::hours(24));
+
+    return $answer;
+}, 'nightly-1');
+```
+
+The clock only moves when **nothing else can progress**. Skipping earlier would make the timer win
+every `any(activity, timer)` race that an activity was about to win — so a race behaves the same
+here as it does in production.
+
+Retry backoff is a different matter: it uses real time, because a retry is queued on the transport
+rather than recorded as a timer. Pass `initialInterval: Duration::zero()` to keep those tests fast.
+
+---
+
 ## Two traps of the in-memory runner
 
 **An execution that cannot progress fails instead of hanging.** A workflow waiting on a signal you

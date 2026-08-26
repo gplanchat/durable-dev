@@ -318,7 +318,7 @@ final class WorkflowTaskRunnerTest extends TestCase
         $registry = new WorkflowRegistry();
         $registry->registerFactory('TimerWorkflow', static fn (array $payload) =>
             static function (WorkflowEnvironment $env): string {
-                $env->timer(60);
+                $env->sleep(60);
 
                 return 'after-timer';
             }
@@ -344,7 +344,7 @@ final class WorkflowTaskRunnerTest extends TestCase
         $registry = new WorkflowRegistry();
         $registry->registerFactory('TimerWorkflow', static fn (array $payload) =>
             static function (WorkflowEnvironment $env): string {
-                $env->timer(60);
+                $env->sleep(60);
 
                 return 'after-timer';
             }

@@ -10,6 +10,13 @@ enableGitInfo = true
 [[module.imports]]
 path = 'github.com/alex-shpak/hugo-book'
 
+# Déclarer un montage remplace les montages par défaut du module projet : le
+# dossier content/ local doit donc être remonté explicitement, sinon la page
+# d'accueil du site n'est jamais lue.
+[[module.mounts]]
+source = 'content'
+target = 'content'
+
 [[module.mounts]]
 source = '../documentation/user'
 target = 'content/docs'

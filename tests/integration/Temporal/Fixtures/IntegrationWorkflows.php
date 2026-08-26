@@ -61,7 +61,7 @@ final class IntegrationWorkflows
         ))]);
 
         $registry->registerFactory('Sleeper', static fn (array $input) => static function (WorkflowEnvironment $env): array {
-            $env->timer(1.0);
+            $env->sleep(1.0);
 
             return ['slept' => true];
         });

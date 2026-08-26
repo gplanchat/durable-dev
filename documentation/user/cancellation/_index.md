@@ -82,10 +82,13 @@ A race loser is cancelled with reason `race_superseded` instead, and surfaces as
 ```php
 $winner = $env->any(
     $env->activity('slow-call', $payload),
-    $env->timerAwaitable(30.0),          // composable timer, unlike timer() which waits
+    $env->timer(30.0),                   // an awaitable, like the activity above
 );
 ```
 
 When one branch wins, the others are cancelled: pending activities are removed from the queue and
-pending timers stop waking the execution. `timerAwaitable()` is what makes the "activity with a
-timeout" pattern expressible — `timer()` returns `void` and waits on the spot.
+pending timers stop waking the execution.
+
+`timer()` returns an `Awaitable`, exactly like `activity()` — which is what makes the "activity with
+a timeout" pattern above expressible. When you only want to wait, `sleep()` says so in its name and
+awaits for you.

@@ -68,23 +68,23 @@ The **`ActivityStub`** type (see [Creating a workflow](../workflows/) for the **
 
 ## ActivityOptions (timeouts, retries, task queue)
 
-Pass **`ActivityOptions`** as the **second argument** to **`activityStub()`**. All **`Awaitable`** instances returned by that stub use these settings when the activity is scheduled (retries, backoff, timeouts, optional task queue, activity id, UI summary, etc.). Timeouts are in **seconds** (fractional allowed).
+Pass **`ActivityOptions`** as the **second argument** to **`activityStub()`**. Every **`Awaitable`** returned by that stub uses these settings when the activity is scheduled.
 
-### Using the constructor
+Retry limits and durations are **value objects**, not numbers — see [Options and value objects](../options/).
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\{ActivityOptions, ActivityTimeouts, RetryLimit};
+use Gplanchat\Durable\Duration;
 
 $options = new ActivityOptions(
-    maxAttempts: 5,
-    initialIntervalSeconds: 2.0,
-    backoffCoefficient: 2.0,
-    maximumIntervalSeconds: 60.0,
-    startToCloseTimeoutSeconds: 120.0,
+    RetryLimit::ofAttempts(5),
+    initialInterval: Duration::seconds(2),
+    nonRetryableExceptions: [PaymentRefusedException::class],
+    timeouts: ActivityTimeouts::attempt(Duration::seconds(120)),
     summary: 'Charge order payment',
 );
 
@@ -93,26 +93,25 @@ $activities = $this->environment->activityStub(OrderActivities::class, $options)
 $result = $this->environment->await($activities->charge($orderId));
 ```
 
-### Using `default()` and `with*()` builders
+> [!WARNING]
+> With no `RetryLimit`, attempts are **unlimited** — Temporal's default. An activity that always
+> fails retries forever instead of failing the workflow. Pass `RetryLimit::once()` when a failure
+> should be final.
 
-For small tweaks, start from **`ActivityOptions::default()`** and chain immutable setters:
+Create **separate stubs** when different calls need different policies — one with aggressive
+retries for a flaky HTTP call, another with stricter timeouts for a fast path:
 
 ```php
-<?php
+$this->flaky  = $env->activityStub(SearchActivities::class, new ActivityOptions(
+    RetryLimit::ofAttempts(10),
+    initialInterval: Duration::milliseconds(200),
+));
 
-declare(strict_types=1);
-
-use Gplanchat\Durable\Activity\ActivityOptions;
-
-$options = ActivityOptions::default()
-    ->withMaxAttempts(3)
-    ->withStartToCloseTimeoutSeconds(90.0)
-    ->withNonRetryableExceptions([\InvalidArgumentException::class]);
-
-$activities = $this->environment->activityStub(OrderActivities::class, $options);
+$this->strict = $env->activityStub(PricingActivities::class, new ActivityOptions(
+    RetryLimit::once(),
+    timeouts: ActivityTimeouts::attempt(Duration::seconds(2)),
+));
 ```
-
-Create **separate stubs** when different calls need different policies (for example one stub with aggressive retries for flaky HTTP, another with stricter timeouts for a fast path).
 
 ### Low-level `activity()` call
 
