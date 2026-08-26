@@ -30,19 +30,9 @@ final class MessengerActivityTransport implements ActivityTransportInterface
 
     public function enqueue(ActivityMessage $message): void
     {
-        $meta = $message->metadata;
-        $delayMs = 0;
-        if (isset($meta['retry_delay_seconds'])) {
-            $delayMs = (int) round((float) $meta['retry_delay_seconds'] * 1000);
-            unset($meta['retry_delay_seconds']);
-        }
-        $clean = new ActivityMessage(
-            $message->executionId,
-            $message->activityId,
-            $message->activityName,
-            $message->payload,
-            $meta,
-        );
+        // Même principe : le report devient un DelayStamp, et disparaît du message.
+        $delayMs = null !== $message->retryDelay ? (int) round($message->retryDelay->toSeconds() * 1000.0) : 0;
+        $clean = $message->withoutRetryDelay();
 
         $stamps = [];
         if ($delayMs > 0) {
@@ -81,6 +71,15 @@ final class MessengerActivityTransport implements ActivityTransportInterface
         }
 
         return null;
+    }
+
+    /**
+     * Messenger porte lui-même le report (DelayStamp) : le worker n'a pas à attendre une
+     * échéance côté PHP.
+     */
+    public function nextDueAt(): ?float
+    {
+        return $this->isEmpty() ? null : microtime(true);
     }
 
     public function isEmpty(): bool

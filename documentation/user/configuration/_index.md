@@ -110,7 +110,7 @@ durable:
     max_activity_retries: 3
 ```
 
-Maximum number of automatic retries applied globally to activities before they are marked as failed. `0` means no automatic retries (the workflow receives the failure immediately). Override per-activity via `ActivityOptions::withMaxAttempts()`.
+Ceiling on automatic retries, applied to activities that do not set their own. `0` means **no ceiling** — and since an activity with no `RetryLimit` retries indefinitely (Temporal's default), leaving both unset means a failing activity never fails the workflow. Set a bound per activity with `RetryLimit::ofAttempts()` or `RetryLimit::once()`; see [Options and value objects](../options/#retrylimit).
 
 ---
 

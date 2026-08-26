@@ -1,0 +1,89 @@
+<?php
+
+declare(strict_types=1);
+
+namespace unit\Gplanchat\Bridge\Temporal\Worker;
+
+use Gplanchat\Durable\TaskQueue;
+
+use Gplanchat\Durable\CronSchedule;
+
+use Gplanchat\Durable\Duration;
+
+use Gplanchat\Durable\WorkflowTimeouts;
+
+use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
+use Gplanchat\Durable\ParentClosePolicy;
+use Gplanchat\Durable\WorkflowIdReusePolicy;
+use Gplanchat\Durable\WorkflowStartOptions;
+use PHPUnit\Framework\TestCase;
+use Temporal\Api\Enums\V1\ParentClosePolicy as TemporalParentClosePolicy;
+use Temporal\Api\Enums\V1\WorkflowIdReusePolicy as TemporalIdReusePolicy;
+
+/**
+ * Racine et enfant décrivent les mêmes réglages : ils ne doivent pas les traduire différemment.
+ */
+final class TemporalPolicyMapperTest extends TestCase
+{
+    /**
+     * Le mapper acceptait `mixed` parce que les valeurs traversaient un tableau avant d'arriver.
+     * Elles franchissent maintenant le port typées : chaque cas de l'énumération est couvert, et
+     * il n'y a plus de branche par défaut où une valeur inconnue pourrait se réfugier.
+     */
+    public function testEveryPolicyCaseIsMapped(): void
+    {
+        self::assertSame(
+            TemporalParentClosePolicy::PARENT_CLOSE_POLICY_ABANDON,
+            TemporalPolicyMapper::parentClosePolicy(ParentClosePolicy::Abandon),
+        );
+        self::assertSame(
+            TemporalParentClosePolicy::PARENT_CLOSE_POLICY_REQUEST_CANCEL,
+            TemporalPolicyMapper::parentClosePolicy(ParentClosePolicy::RequestCancel),
+        );
+        self::assertSame(
+            TemporalParentClosePolicy::PARENT_CLOSE_POLICY_TERMINATE,
+            TemporalPolicyMapper::parentClosePolicy(ParentClosePolicy::Terminate),
+        );
+
+        self::assertSame(
+            TemporalIdReusePolicy::WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
+            TemporalPolicyMapper::idReusePolicy(WorkflowIdReusePolicy::AllowDuplicate),
+        );
+        self::assertSame(
+            TemporalIdReusePolicy::WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+            TemporalPolicyMapper::idReusePolicy(WorkflowIdReusePolicy::RejectDuplicate),
+        );
+        self::assertSame(
+            TemporalIdReusePolicy::WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
+            TemporalPolicyMapper::idReusePolicy(WorkflowIdReusePolicy::AllowDuplicateFailedOnly),
+        );
+    }
+
+    public function testDurationSplitsSecondsAndNanos(): void
+    {
+        $duration = TemporalPolicyMapper::duration(1.5);
+
+        self::assertSame(1, $duration->getSeconds());
+        self::assertSame(500_000_000, $duration->getNanos());
+    }
+
+    public function testStartOptionsCarryCronAndUseTheSameMetadataKeysAsChildren(): void
+    {
+        $metadata = (new WorkflowStartOptions(
+            cronSchedule: CronSchedule::parse('@every 5m'),
+            taskQueue: TaskQueue::named('dedicated'),
+            timeouts: WorkflowTimeouts::run(Duration::seconds(30.0)),
+            workflowIdReusePolicy: WorkflowIdReusePolicy::RejectDuplicate,
+        ))->toStartMetadata();
+
+        self::assertSame('@every 5m', $metadata['cron_schedule']);
+        self::assertSame('dedicated', $metadata['task_queue']);
+        self::assertSame(30.0, $metadata['workflow_run_timeout_seconds']);
+        self::assertSame('reject_duplicate', $metadata['workflow_id_reuse_policy']);
+    }
+
+    public function testDefaultStartOptionsCarryNoCron(): void
+    {
+        self::assertArrayNotHasKey('cron_schedule', WorkflowStartOptions::defaults()->toStartMetadata());
+    }
+}

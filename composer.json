@@ -11,13 +11,15 @@
     "repositories": [
         {"type": "path", "url": "src/Durable"},
         {"type": "path", "url": "src/DurableBundle"},
-        {"type": "path", "url": "src/Bridge/Temporal"}
+        {"type": "path", "url": "src/Bridge/Temporal"},
+        {"type": "path", "url": "src/Bridge/Dbal"}
     ],
     "require": {
         "php": ">=8.2",
         "gplanchat/durable": "@dev",
         "gplanchat/durable-bundle": "@dev",
         "gplanchat/durable-bridge-temporal": "@dev",
+        "gplanchat/durable-bridge-dbal": "@dev",
         "psr/clock": "^1.0",
         "psr/log": "^3.0",
         "symfony/uid": "^7.0",
@@ -42,13 +44,15 @@
             "Gplanchat\\Durable\\": "src/Durable/",
             "Gplanchat\\Durable\\Bundle\\": "src/DurableBundle/",
             "Gplanchat\\Bridge\\Temporal\\": "src/Bridge/Temporal/",
+            "Gplanchat\\Bridge\\Dbal\\": "src/Bridge/Dbal/",
             "Temporal\\Api\\": "src/Bridge/Temporal/Api/",
             "GPBMetadata\\Temporal\\": "src/Bridge/Temporal/Generated/GPBMetadata/Temporal/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "unit\\": "tests/unit/"
+            "unit\\": "tests/unit/",
+            "integration\\": "tests/integration/"
         }
     },
     "scripts": {

@@ -3,9 +3,10 @@
     "description": "Temporal journal EventStore + worker (gRPC only, no Temporal PHP SDK) for gplanchat/durable",
     "license": "MIT",
     "type": "library",
+    "version": "0.1.0",
     "require": {
         "php": ">=8.2",
-        "gplanchat/durable": "self.version",
+        "gplanchat/durable": "^0.1",
         "google/common-protos": "^4.9",
         "google/protobuf": "^4.31",
         "grpc/grpc": "^1.57",

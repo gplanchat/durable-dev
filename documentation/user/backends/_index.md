@@ -5,12 +5,16 @@ weight: 15
 
 # Backends
 
-Durable supports two execution backends. You choose by setting (or not setting) `DURABLE_DSN` in your environment.
+Durable supports three execution backends.
 
 | Backend | Use case |
 |---------|----------|
-| **In-Memory** | Unit tests, functional tests, local exploration — no Temporal server needed. |
-| **Temporal** | Production, staging, realistic integration tests — `ext-grpc` + a Temporal cluster required. |
+| **In-Memory** | Unit tests, functional tests, local exploration — no server needed. |
+| **DBAL** | Production without an orchestration cluster — one SQL database, no `ext-grpc`. |
+| **Temporal** | Production and staging at scale, realistic integration tests — `ext-grpc` + a Temporal cluster required. |
+
+All three run the **same fiber driver** and the same workflow and activity code. You choose with
+`durable.event_store.type` (and `DURABLE_DSN` for Temporal).
 
 ---
 
@@ -166,6 +170,70 @@ TLS certificates can be mounted and configured via gRPC channel credentials (see
 
 ---
 
+## DBAL backend
+
+The DBAL backend persists the journal, the resume metadata and the parent/child links in a **single
+SQL database** through Doctrine DBAL. There is no orchestration server, no sidecar and no
+`ext-grpc`. See **DUR030**.
+
+### How it works
+
+- The three process-local stores become SQL tables; everything else — replay, command buffer,
+  lifecycle — is the code the In-Memory backend already runs.
+- Resumes and activities ride **Symfony Messenger**, so use a durable transport (Doctrine, Redis,
+  AMQP). An `in-memory://` transport throws away what the SQL journal just persisted.
+- Timers ride Messenger `DelayStamp` through `FireWorkflowTimersHandler`.
+- Tables are created on **first write** — no migration to run, no `doctrine/migrations` dependency.
+
+### Configuration
+
+```yaml
+# config/packages/durable.yaml
+durable:
+    dbal:
+        connection: doctrine.dbal.default_connection
+        lock_factory: lock.factory
+    event_store:
+        type: dbal
+    workflow_metadata:
+        type: dbal
+    child_workflow:
+        parent_link_store:
+            type: dbal
+    activity_transport:
+        type: messenger
+        transport_name: durable_activities
+
+framework:
+    lock:
+        default: '%env(LOCK_DSN)%'   # doctrine://default, redis://… — must be shared across workers
+```
+
+Setting `event_store.type: dbal` together with a non-empty `temporal.dsn` throws at compile time:
+the journal cannot have two sources of truth.
+
+### One resume at a time — the thing to get right
+
+Temporal serialises workflow tasks for one execution server-side. There is no server here, so two
+consumers can dequeue two resumes of the same execution and replay the same fiber in parallel,
+each appending its own commands: **duplicated activities, forked journal**.
+
+Durable prevents this with a per-execution lock (`SingleResumeLockMiddleware`), registered
+automatically when the DBAL event store is active. **It is only as safe as your lock store**: an
+in-memory or per-process `lock.factory` with several workers gives back exactly the failure the
+lock exists to prevent. Configure a shared one.
+
+### When to use it
+
+- **Production without operating a cluster** — a Symfony app that already has a database and a
+  Messenger transport.
+- Long-running workflows that must survive deploys and restarts, at a scale one database can hold.
+
+Not for: search-attribute queries, cron schedules, or the throughput and visibility a Temporal
+cluster gives you. See the capability matrix below.
+
+---
+
 ## Choosing a backend per environment
 
 ```
@@ -175,10 +243,65 @@ TLS certificates can be mounted and configured via gRPC channel credentials (see
 │ Unit tests           │ In-Memory (DurableTestCase)                       │
 │ Integration tests    │ In-Memory (DurableBundleTestTrait + KernelTestCase│
 │ CI with Temporal     │ Temporal (temporal-integration group)             │
-│ Local dev            │ Either (In-Memory for speed, Temporal for realism)│
-│ Production           │ Temporal                                          │
+│ Local dev            │ Any (In-Memory for speed, DBAL/Temporal for realism)│
+│ Production, no cluster│ DBAL                                             │
+│ Production, at scale │ Temporal                                          │
 └──────────────────────┴───────────────────────────────────────────────────┘
 ```
+
+---
+
+## Capability matrix
+
+All three backends run the **same fiber driver** and the same activity execution path. What differs
+is what the surrounding platform can offer.
+
+| Capability | In-Memory | DBAL | Temporal |
+|---|---|---|---|
+| Activities, retries, timeouts | ✅ | ✅ | ✅ |
+| Timers, side effects | ✅ | ✅ (Messenger delays) | ✅ |
+| Signals, updates, queries | ✅ | ✅ | ✅ |
+| Child workflows | ✅ | ✅ | ✅ |
+| `ParentClosePolicy` cascade | ✅ | ✅ | ✅ (server-driven) |
+| Continue-as-new | ✅ | ✅ | ✅ |
+| Cancellation with compensation | ✅ | ✅ | ✅ |
+| Survives process restart | ❌ | ✅ | ✅ |
+| Task serialisation per execution | n/a (single process) | application lock | ✅ server-side |
+| Search attributes | journaled only | journaled only | ✅ indexed and queryable |
+| Cron schedules | ❌ no scheduler | ❌ no scheduler | ✅ |
+| History retention / visibility API | ❌ | your SQL table | ✅ |
+| Nexus operations | ❌ | ❌ | ❌ *(planned — caller side)* |
+
+Neither the in-memory nor the DBAL backend has a scheduler or a cross-namespace boundary, so cron
+and Nexus have no equivalent there. Where a capability is missing it **fails explicitly** rather
+than being silently ignored.
+
+---
+
+## Retry semantics are identical
+
+An activity with no attempt bound retries **indefinitely** on both backends — the Temporal default.
+The bundle's `max_activity_retries` still acts as a ceiling when an activity does not set its own;
+at `0` it caps nothing.
+
+See [Failures and retries](../failures/) and [Options](../options/#retrylimit).
+
+---
+
+## Writing your own backend
+
+Two ports define a backend: `WorkflowCommandBufferInterface` for what a workflow asks for, and
+`WorkflowHistorySourceInterface` for what already happened.
+
+Both carry **value objects**, not primitives. An implementation receives the options as the caller
+built them — retry limits, timeouts, task queues, cron schedules — and owns the translation to its
+own representation, including serialisation and any reading of a clock.
+
+`startTimer()` receives a **delay**, not a deadline: turning it into an instant is your decision,
+with your clock. That is what lets a test harness advance a virtual clock, and what lets the
+Temporal driver pass the duration the server expects.
+
+The contributor decision record is [DUR031](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR031-value-objects-across-ports-and-wire-ownership.md).
 
 ---
 

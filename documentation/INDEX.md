@@ -38,6 +38,8 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR027 | WorkflowTaskRunner: fiber-based replay from Temporal history | [adr/DUR027-workflow-task-runner-fiber-replay.md](adr/DUR027-workflow-task-runner-fiber-replay.md) |
 | DUR028 | Synchronous completion polling for multi-process Temporal setups | [adr/DUR028-synchronous-completion-polling-multi-process.md](adr/DUR028-synchronous-completion-polling-multi-process.md) |
 | DUR029 | Temporal read-through event store and profiler event conversion | [adr/DUR029-temporal-profiler-read-through-event-store.md](adr/DUR029-temporal-profiler-read-through-event-store.md) |
+| DUR030 | DBAL backend: simplified durable execution on a single SQL database | [adr/DUR030-dbal-backend-simplified-durable-execution.md](adr/DUR030-dbal-backend-simplified-durable-execution.md) |
+| DUR031 | Value objects across the ports, and who owns the wire | [adr/DUR031-value-objects-across-ports-and-wire-ownership.md](adr/DUR031-value-objects-across-ports-and-wire-ownership.md) |
 
 ## Working agreements (WA)
 
@@ -47,6 +49,12 @@ This repository documents the **Durable** component (durable execution orchestra
 | WA002 | Test-driven development (TDD) | [wa/WA002-test-driven-development.md](wa/WA002-test-driven-development.md) |
 | WA003 | GitHub epics, tasks, and project tracking | [wa/WA003-github-epics-tasks-and-project-tracking.md](wa/WA003-github-epics-tasks-and-project-tracking.md) |
 | WA004 | MIT license for the repository and Composer packages | [wa/WA004-mit-license-distribution.md](wa/WA004-mit-license-distribution.md) |
+
+## Opportunity solution trees (OST)
+
+| ID | Title | File |
+|----|--------|------|
+| OST001 | Alternative durable execution backends (market study) | [ost/OST001-alternative-durable-execution-backends.md](ost/OST001-alternative-durable-execution-backends.md) |
 
 ## Other
 

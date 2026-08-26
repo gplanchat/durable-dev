@@ -4,26 +4,54 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Port;
 
+use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\ChildWorkflowOptions;
+use Gplanchat\Durable\Duration;
+
 /**
  * Collects new workflow orchestration commands discovered during fiber replay.
  *
  * Each method corresponds to a Temporal CommandType emitted in RespondWorkflowTaskCompleted.
  * The in-memory backend appends domain events; the Temporal backend builds protobuf Command objects.
+ *
+ * **This port carries value objects, not primitives.** An implementation receives the options the
+ * caller constructed — with their invariants intact — and owns the translation to its own
+ * representation, including any serialisation to a wire format and any reading of a clock. See
+ * ADR DUR031.
+ *
+ * Third-party implementations written against the previous signatures must update three methods:
+ *
+ * | Before | Now |
+ * |---|---|
+ * | `scheduleActivity(..., array $metadata)` | `scheduleActivity(..., ?ActivityOptions $options)` |
+ * | `scheduleChildWorkflow(..., array $schedulingMetadata)` | `scheduleChildWorkflow(..., ChildWorkflowOptions $options)` |
+ * | `startTimer($id, float $scheduledAt, ...)` | `startTimer($id, Duration $delay, ...)` |
+ *
+ * `startTimer` is the one that changes meaning, not just type: it now receives the **delay** to
+ * wait. Turning it into a deadline is the implementation's decision, and the implementation's
+ * clock.
  */
 interface WorkflowCommandBufferInterface
 {
     /**
      * Records a new activity to schedule (COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK for Temporal).
      *
+     * Reçoit les options telles que l'appelant les a construites : leurs invariants traversent,
+     * et c'est au backend de les traduire vers ses primitives et d'horodater la mise en file avec
+     * sa propre horloge.
+     *
      * @param array<string, mixed> $payload
-     * @param array<string, mixed> $metadata
      */
-    public function scheduleActivity(string $activityId, string $activityName, array $payload, array $metadata): void;
+    public function scheduleActivity(string $activityId, string $activityName, array $payload, ?ActivityOptions $options): void;
 
     /**
      * Records a new timer to start (COMMAND_TYPE_START_TIMER for Temporal).
+     *
+     * Reçoit le **délai**, pas une échéance : le backend in-memory a besoin d'un instant à
+     * comparer à son horloge, le serveur Temporal exige une durée. Chacun fait son arithmétique,
+     * le cœur ne lit aucune horloge.
      */
-    public function startTimer(string $timerId, float $scheduledAt, string $summary): void;
+    public function startTimer(string $timerId, Duration $delay, string $summary): void;
 
     /**
      * Records a side effect result (COMMAND_TYPE_RECORD_MARKER for Temporal).
@@ -34,19 +62,31 @@ interface WorkflowCommandBufferInterface
      * Records a child workflow to schedule (COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION for Temporal).
      *
      * @param array<string, mixed> $input
-     * @param array<string, mixed> $schedulingMetadata
      */
     public function scheduleChildWorkflow(
         string $childExecutionId,
         string $childWorkflowType,
         array $input,
-        array $schedulingMetadata,
+        ChildWorkflowOptions $options,
     ): void;
 
     /**
      * Records workflow completion (COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION for Temporal).
      */
     public function completeWorkflow(mixed $result): void;
+
+    /**
+     * Records the outcome of a child workflow executed **inline** (backend in-memory sans
+     * démarrage différé Messenger), dans le journal du parent.
+     *
+     * Sans équivalent Temporal : le serveur écrit lui-même CHILD_WORKFLOW_EXECUTION_COMPLETED.
+     */
+    public function completeChildWorkflow(string $childExecutionId, mixed $result): void;
+
+    /**
+     * Pendant en échec de {@see completeChildWorkflow()}.
+     */
+    public function failChildWorkflow(string $childExecutionId, \Throwable $reason): void;
 
     /**
      * Records workflow failure (COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION for Temporal).
@@ -57,4 +97,9 @@ interface WorkflowCommandBufferInterface
      * Records an activity cancellation request (COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK for Temporal).
      */
     public function cancelActivity(string $activityId, string $reason): void;
+
+    /**
+     * Records a timer cancellation (COMMAND_TYPE_CANCEL_TIMER for Temporal).
+     */
+    public function cancelTimer(string $timerId, string $reason): void;
 }

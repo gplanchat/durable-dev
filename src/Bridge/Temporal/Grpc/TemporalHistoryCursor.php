@@ -32,7 +32,7 @@ final class TemporalHistoryCursor
         string|\Gplanchat\Bridge\Temporal\TemporalConnection $namespace,
     ) {
         $this->namespace = $namespace instanceof \Gplanchat\Bridge\Temporal\TemporalConnection
-            ? $namespace->namespace
+            ? $namespace->namespace->name()
             : $namespace;
     }
 

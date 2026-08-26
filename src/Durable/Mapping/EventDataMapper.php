@@ -10,6 +10,7 @@ use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\ActivityTaskCompleted;
+use Gplanchat\Durable\Event\ActivityTaskFailed;
 use Gplanchat\Durable\Event\ActivityTaskStarted;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
 use Gplanchat\Durable\Event\ChildWorkflowFailed;
@@ -18,13 +19,16 @@ use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\SideEffectRecorded;
+use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\TimerCompleted;
 use Gplanchat\Durable\Event\TimerScheduled;
 use Gplanchat\Durable\Event\WorkflowCancellationRequested;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
+use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
+use Gplanchat\Durable\Failure\ActivityRetryState;
 use Gplanchat\Durable\ParentClosePolicy;
 
 /**
@@ -109,6 +113,16 @@ final class EventDataMapper
                 \is_array($payload['failurePrevious'] ?? null) ? $payload['failurePrevious'] : [],
                 (string) ($payload['activityName'] ?? ''),
                 (int) ($payload['failureAttempt'] ?? 0),
+                isset($payload['retryState']) ? ActivityRetryState::tryFrom((string) $payload['retryState']) : null,
+            ),
+            ActivityTaskFailed::class => new ActivityTaskFailed(
+                $executionId,
+                (string) $payload['activityId'],
+                (string) ($payload['activityName'] ?? ''),
+                (int) ($payload['attempt'] ?? 1),
+                (string) ($payload['failureClass'] ?? ''),
+                (string) ($payload['failureMessage'] ?? ''),
+                ActivityRetryState::tryFrom((string) ($payload['retryState'] ?? '')) ?? ActivityRetryState::InProgress,
             ),
             ActivityCatastrophicFailure::class => ActivityCatastrophicFailure::fromStoredPayload($executionId, $payload),
             WorkflowExecutionFailed::class => WorkflowExecutionFailed::fromStoredPayload($executionId, $payload),
@@ -119,6 +133,7 @@ final class EventDataMapper
                 isset($payload['summary']) ? (string) $payload['summary'] : '',
             ),
             TimerCompleted::class => new TimerCompleted($executionId, (string) $payload['timerId']),
+            TimerCancelled::class => new TimerCancelled($executionId, (string) $payload['timerId'], (string) ($payload['reason'] ?? '')),
             SideEffectRecorded::class => new SideEffectRecorded($executionId, (string) $payload['sideEffectId'], $payload['result'] ?? null),
             ChildWorkflowScheduled::class => self::toDomainEventChildWorkflowScheduled($executionId, $payload),
             ChildWorkflowCompleted::class => new ChildWorkflowCompleted($executionId, (string) $payload['childExecutionId'], $payload['result'] ?? null),
@@ -141,6 +156,11 @@ final class EventDataMapper
                 $payload['result'] ?? null,
             ),
             WorkflowCancellationRequested::class => self::toDomainEventWorkflowCancellationRequested($executionId, $payload),
+            WorkflowExecutionCancelled::class => new WorkflowExecutionCancelled(
+                $executionId,
+                (string) ($payload['reason'] ?? ''),
+                isset($payload['sourceParentExecutionId']) ? (string) $payload['sourceParentExecutionId'] : null,
+            ),
             default => throw new \InvalidArgumentException(\sprintf('Unknown event type: %s', $eventType)),
         };
     }

@@ -11,6 +11,7 @@ This monorepo contains:
 | `gplanchat/durable` | [`src/Durable/`](src/Durable/) | Core library (workflows, activities, event store, in-memory and integration surfaces) |
 | `gplanchat/durable-bundle` | [`src/DurableBundle/`](src/DurableBundle/) | Symfony bundle (Messenger, configuration, profiler) |
 | `gplanchat/durable-bridge-temporal` | [`src/Bridge/Temporal/`](src/Bridge/Temporal/) | Temporal gRPC bridge (no official Temporal PHP SDK; see **DUR006**) |
+| `gplanchat/durable-bridge-dbal` | [`src/Bridge/Dbal/`](src/Bridge/Dbal/) | Doctrine DBAL journal + stores: durable execution on one SQL database, no cluster (**DUR030**) |
 | Sample app | [`symfony/`](symfony/) | Example Symfony application using the bundle + Temporal |
 
 Constraints aligned with project rules: **no official Temporal PHP SDK**, **no RoadRunner** as the Durable runtime (**DUR006**).

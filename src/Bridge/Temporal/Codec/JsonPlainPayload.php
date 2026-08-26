@@ -18,11 +18,23 @@ final class JsonPlainPayload
 
     public static function encode(mixed $data): Payload
     {
+        return self::encodeWithMetadata($data, []);
+    }
+
+    /**
+     * Encode en ajoutant des métadonnées à celles de l'encodage.
+     *
+     * Sert notamment aux attributs de recherche, dont chaque valeur annonce son type.
+     *
+     * @param array<string, string> $extraMetadata
+     */
+    public static function encodeWithMetadata(mixed $data, array $extraMetadata): Payload
+    {
         $json = json_encode($data, \JSON_THROW_ON_ERROR);
 
         return new Payload([
             'data' => $json,
-            'metadata' => ['encoding' => self::ENCODING],
+            'metadata' => ['encoding' => self::ENCODING] + $extraMetadata,
         ]);
     }
 

@@ -6,8 +6,11 @@ namespace Gplanchat\Bridge\Temporal\Worker;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
+use Gplanchat\Durable\ActivityCancellationReason;
 use Gplanchat\Durable\Exception\ActivitySupersededException;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
+use Gplanchat\Durable\Failure\FailureEnvelope;
+use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
@@ -25,6 +28,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 
     /** @var array<string, int> activity ID → scheduled event ID */
     private array $activityIdToScheduledEventId = [];
+
+    /** @var array<string, string> activityId → nom d'activité (pour typer les échecs) */
+    private array $activityNames = [];
 
     /** @var array<int, string> scheduled event ID → activity ID */
     private array $scheduledEventIdToActivityId = [];
@@ -71,6 +77,16 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 
     /** @var array<string, mixed> */
     private array $startInput = [];
+
+    /** Cause du WORKFLOW_EXECUTION_CANCEL_REQUESTED, si le serveur en a enregistré un. */
+    private ?string $cancelRequestedCause = null;
+
+    public const MARKER_SIDE_EFFECT = 'SideEffect';
+
+    public const MARKER_CANCELLATION_DELIVERED = 'WorkflowCancellationDelivered';
+
+    /** @var array<string, true> identifiants d'opérations retirées par l'annulation du workflow */
+    private array $cancellationDeliveredTargets = [];
 
     /**
      * @param iterable<HistoryEvent> $events
@@ -122,6 +138,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     $activityId = (string) $attr->getActivityId();
                     $this->scheduledActivityIds[] = $activityId;
                     $this->activityIdToScheduledEventId[$activityId] = $eventId;
+                    $this->activityNames[$activityId] = (string) ($attr->getActivityType()?->getName() ?? '');
                     $this->scheduledEventIdToActivityId[$eventId] = $activityId;
                 }
                 break;
@@ -153,7 +170,24 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     if (null !== $activityId) {
                         $failure = $attr->getFailure();
                         $message = null !== $failure ? $failure->getMessage() : 'Activity task failed';
-                        $this->activityFailures[$activityId] = new \RuntimeException($message);
+                        $type = $failure?->getApplicationFailureInfo()?->getType();
+                        // Un RuntimeException nu était relevé dans le fiber : le classifieur le
+                        // rangeait en workflow_handler_failure, et le workflow perdait le nom de
+                        // l'activité fautive — là où le backend in-memory relève un
+                        // DurableActivityFailedException complet.
+                        $this->activityFailures[$activityId] = new DurableActivityFailedException(
+                            $activityId,
+                            $this->activityNames[$activityId] ?? '',
+                            1,
+                            new FailureEnvelope(
+                                \is_string($type) && '' !== $type ? $type : \RuntimeException::class,
+                                $message,
+                                0,
+                                [],
+                                null !== $failure ? $failure->getStackTrace() : null,
+                                [],
+                            ),
+                        );
                     }
                 }
                 break;
@@ -192,13 +226,26 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 
             case EventType::EVENT_TYPE_MARKER_RECORDED:
                 $attr = $event->getMarkerRecordedEventAttributes();
-                if (null !== $attr) {
+                if (null !== $attr && self::MARKER_CANCELLATION_DELIVERED === $attr->getMarkerName()) {
+                    $details = $attr->getDetails();
+                    $targetsPayload = null !== $details && $details->offsetExists('targets')
+                        ? $details->offsetGet('targets')
+                        : null;
+                    $targets = null !== $targetsPayload ? self::decodeMarkerDetail($targetsPayload) : null;
+                    foreach (\is_array($targets) ? $targets : [] as $target) {
+                        $this->cancellationDeliveredTargets[(string) $target] = true;
+                    }
+                    break;
+                }
+                // Filtrer sur le nom : sans ça, TOUT marqueur consommait un slot de side effect
+                // et décalait le replay de tous les suivants.
+                if (null !== $attr && self::MARKER_SIDE_EFFECT === $attr->getMarkerName()) {
                     $details = $attr->getDetails();
                     $resultPayload = null;
                     if (null !== $details && $details->offsetExists('result')) {
                         $resultPayload = $details->offsetGet('result');
                     }
-                    $result = null !== $resultPayload ? JsonPlainPayload::decode($resultPayload) : null;
+                    $result = null !== $resultPayload ? self::decodeMarkerDetail($resultPayload) : null;
                     $this->sideEffects[$this->sideEffectSlot++] = $result;
                 }
                 break;
@@ -272,6 +319,12 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 }
                 break;
 
+            case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
+                $attr = $event->getWorkflowExecutionCancelRequestedEventAttributes();
+                $cause = null !== $attr ? (string) $attr->getCause() : '';
+                $this->cancelRequestedCause = '' !== $cause ? $cause : 'cancel_requested';
+                break;
+
             case EventType::EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED:
                 $attr = $event->getChildWorkflowExecutionFailedEventAttributes();
                 if (null !== $attr) {
@@ -292,6 +345,12 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
             return null;
         }
 
+        // Prioritaire sur tout le reste : une fois l'annulation livrée pour cette opération,
+        // elle doit se relire à l'identique, même si le serveur a finalement enregistré une
+        // complétion arrivée entre-temps.
+        if (isset($this->cancellationDeliveredTargets[$activityId])) {
+            return ['result' => null, 'failed' => new WorkflowCancelledFailure($this->durableExecutionId() ?? '', ActivityCancellationReason::WORKFLOW_CANCELLED)];
+        }
         if (isset($this->activityFailures[$activityId])) {
             return ['result' => null, 'failed' => $this->activityFailures[$activityId]];
         }
@@ -313,11 +372,21 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     public function findTimerSlotResult(int $slot): ?array
     {
         $timerId = $this->scheduledTimerIds[$slot] ?? null;
-        if (null === $timerId || !isset($this->firedTimerIds[$timerId])) {
+        if (null === $timerId) {
+            return null;
+        }
+        if (isset($this->cancellationDeliveredTargets[$timerId])) {
+            return [
+                'id' => $timerId,
+                'scheduledAt' => $this->timerScheduledAt[$timerId] ?? 0.0,
+                'failed' => new WorkflowCancelledFailure($this->durableExecutionId() ?? '', ActivityCancellationReason::WORKFLOW_CANCELLED),
+            ];
+        }
+        if (!isset($this->firedTimerIds[$timerId])) {
             return null;
         }
 
-        return ['id' => $timerId, 'scheduledAt' => $this->timerScheduledAt[$timerId] ?? 0.0];
+        return ['id' => $timerId, 'scheduledAt' => $this->timerScheduledAt[$timerId] ?? 0.0, 'failed' => null];
     }
 
     public function findScheduledTimerId(int $slot): ?string
@@ -408,6 +477,46 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /**
      * @return array<string, mixed>
      */
+    /**
+     * Cause de l'annulation demandée par le serveur, ou null si aucune ne l'a été.
+     */
+    /**
+     * Identifiant de l'événement ACTIVITY_TASK_SCHEDULED de cette activité, ou null si elle n'a
+     * pas encore été planifiée dans l'historique.
+     *
+     * Attendu par {@code RequestCancelActivityTaskCommandAttributes::scheduledEventId} : un
+     * identifiant qui ne correspond à aucun événement fait rejeter la tâche par le serveur.
+     */
+    public function scheduledEventIdForActivity(string $activityId): ?int
+    {
+        return $this->activityIdToScheduledEventId[$activityId] ?? null;
+    }
+
+    /**
+     * `RecordMarkerCommandAttributes::details` est une map<string, Payloads> : la valeur est une
+     * enveloppe, pas un Payload.
+     */
+    private static function decodeMarkerDetail(\Temporal\Api\Common\V1\Payloads $detail): mixed
+    {
+        $payloads = $detail->getPayloads();
+
+        return $payloads->count() > 0 ? JsonPlainPayload::decode($payloads[0]) : null;
+    }
+
+    public function cancellationRequestedCause(): ?string
+    {
+        return $this->cancelRequestedCause;
+    }
+
+    /**
+     * Vrai si l'annulation a déjà été relevée dans le fiber lors d'une tâche antérieure : au
+     * rejeu, c'est le rejet des opérations retirées qui la reporte, pas une nouvelle livraison.
+     */
+    public function cancellationAlreadyDelivered(): bool
+    {
+        return [] !== $this->cancellationDeliveredTargets;
+    }
+
     public function startInput(): array
     {
         return $this->startInput;

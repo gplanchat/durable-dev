@@ -1,0 +1,68 @@
+# Site statique servi par un hébergement mutualisé Apache (OVH).
+#
+# Chaque directive est protégée par <IfModule> : sur un mutualisé, une directive
+# portant sur un module absent renvoie 500 pour TOUT le site, pas seulement pour
+# la page concernée.
+
+# --- HTTPS ---------------------------------------------------------------
+# Le certificat est fourni par l'hébergeur, mais l'accès en clair reste ouvert :
+# on redirige explicitement.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # OVH termine TLS en amont ; la variable HTTPS n'est pas fiable, l'en-tête l'est.
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+    RewriteCond %{HTTPS} !=on
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    # HSTS. Un navigateur ignore cet en-tete sur une reponse en clair : sans effet
+    # sur la redirection ci-dessus.
+    #
+    # max-age volontairement court au demarrage. HSTS est difficile a defaire : le
+    # navigateur refusera http:// pendant toute la duree annoncee, meme si le
+    # certificat expire. Passer a 31536000 une fois le domaine stable, et
+    # n ajouter includeSubDomains que si tous les sous-domaines sont en HTTPS.
+    Header always set Strict-Transport-Security "max-age=300"
+
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# --- Compression ---------------------------------------------------------
+# L'index de recherche fait ~71 Ko de JSON : il compresse d'un facteur cinq.
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/plain text/xml
+    AddOutputFilterByType DEFLATE application/javascript application/json
+    AddOutputFilterByType DEFLATE application/xml image/svg+xml
+</IfModule>
+
+# --- Cache ---------------------------------------------------------------
+# Les assets du thème portent leur empreinte dans le nom : leur contenu ne change
+# jamais sous une même URL, ils peuvent être gardés indéfiniment. Le HTML, lui,
+# est revalidé — c'est ce qui rend une republication visible tout de suite.
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType text/html "access plus 0 seconds"
+    ExpiresByType application/json "access plus 1 hour"
+</IfModule>
+
+# Second bloc mod_headers : Cache-Control complete mod_expires, qui ne sait pas
+# exprimer must-revalidate.
+<IfModule mod_headers.c>
+    <FilesMatch "\.(html|xml)$">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+</IfModule>
+
+# --- Divers --------------------------------------------------------------
+ErrorDocument 404 /404.html
+
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>
