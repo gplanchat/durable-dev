@@ -34,7 +34,24 @@
 ## 6. Prove the wire did not move
 
 - [x] 6.1 Integration suite green against the same server, same namespace
-- [ ] 6.2 An execution started before the change replays to completion after it
+- [ ] 6.2 An execution started before the change replays to completion after it — **left open on purpose**
+
+      Not verifiable from the test suite: every test creates its executions on the fly, so they are
+      always born under the current code. Ticking it would misstate what was checked.
+
+      What was established instead: the wire format is pinned byte-for-byte
+      (`tests/unit/Durable/Wire/WireFormatPinTest`) and the seventeen integration tests pass
+      against the same server and namespace, before and after. Necessary, not quite sufficient.
+
+      To close it for real, the scenario has to span the change:
+
+      ```bash
+      # on the commit before the change (b6946c8)
+      temporal server start-dev --namespace durable-test
+      # start a workflow that sleeps for a long time, then stop the worker
+      # check out the commit after the change, restart the worker
+      # the execution must resume and complete
+      ```
 - [x] 6.3 Recorded journal entries compared byte-for-byte against the pinned fixture from task 1.2
 
 ## 7. Documentation
