@@ -22,7 +22,7 @@ final class DurableBundle extends Bundle
             AsDurableActivity::class,
             static function (ChildDefinition $definition, AsDurableActivity $attribute, \Reflector $_reflector): void {
                 $definition->addTag('durable.activity_handler', ['contract' => $attribute->contract]);
-            }
+            },
         );
 
         // Avant MessengerPass du FrameworkBundle : enrichit messenger.bus.*.middleware.

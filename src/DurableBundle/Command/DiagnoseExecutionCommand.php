@@ -91,7 +91,7 @@ final class DiagnoseExecutionCommand extends Command
         }
 
         $io = new SymfonyStyle($input, $output);
-        $io->title('Diagnostic Durable — '.$executionId);
+        $io->title('Diagnostic Durable — ' . $executionId);
 
         $io->section('Métadonnées workflow');
         if (null === $meta) {
@@ -109,8 +109,8 @@ final class DiagnoseExecutionCommand extends Command
 
         $io->section('Lien parent / enfants');
         $io->listing([
-            'Parent si cet ID est un enfant : '.($parentId ?? '(aucun)'),
-            'Enfants enregistrés pour cet ID comme parent : '.(0 === \count($childIds) ? '(aucun)' : implode(', ', $childIds)),
+            'Parent si cet ID est un enfant : ' . ($parentId ?? '(aucun)'),
+            'Enfants enregistrés pour cet ID comme parent : ' . (0 === \count($childIds) ? '(aucun)' : implode(', ', $childIds)),
         ]);
 
         $io->section('Journal d’événements');
@@ -148,7 +148,7 @@ final class DiagnoseExecutionCommand extends Command
     {
         $json = json_encode($payload, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE);
         if (\strlen($json) > 200) {
-            return substr($json, 0, 197).'…';
+            return substr($json, 0, 197) . '…';
         }
 
         return $json;

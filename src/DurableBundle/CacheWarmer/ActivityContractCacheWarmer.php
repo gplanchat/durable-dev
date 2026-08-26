@@ -18,8 +18,7 @@ final class ActivityContractCacheWarmer implements CacheWarmerInterface
     public function __construct(
         private readonly ActivityContractResolver $resolver,
         private readonly array $contractClasses,
-    ) {
-    }
+    ) {}
 
     public function warmUp(string $cacheDir, ?string $buildDir = null): array
     {

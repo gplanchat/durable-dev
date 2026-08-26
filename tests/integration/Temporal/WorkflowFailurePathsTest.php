@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace integration\Temporal;
 
-use Gplanchat\Durable\Activity\RetryLimit;
-
 use Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter;
-use Gplanchat\Durable\Event\WorkflowExecutionFailed;
+use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\WorkflowStartOptions;
 use Gplanchat\Durable\WorkflowTimeouts;
 use Temporal\Api\Enums\V1\EventType;
@@ -63,7 +62,7 @@ final class WorkflowFailurePathsTest extends TemporalServerTestCase
         // Justification empirique de l'invariant porté par WorkflowTimeouts : demander
         // execution=10s + run=60s ne produit pas d'erreur, le serveur réécrit run à 10s en
         // silence. Le domaine refuse donc la configuration au lieu de la laisser être réécrite.
-        $executionId = 'runcap-'.bin2hex(random_bytes(4));
+        $executionId = 'runcap-' . bin2hex(random_bytes(4));
         $this->workflowClient()->startAsync('Plain', ['value' => 1], $executionId, new WorkflowStartOptions(
             timeouts: new WorkflowTimeouts(execution: Duration::seconds(10.0), run: Duration::seconds(10.0)),
         ));
@@ -85,7 +84,7 @@ final class WorkflowFailurePathsTest extends TemporalServerTestCase
 
         $starts = array_filter(
             $this->historyEventNames($executionId),
-            static fn (string $name): bool => 'EVENT_TYPE_ACTIVITY_TASK_STARTED' === $name,
+            static fn(string $name): bool => 'EVENT_TYPE_ACTIVITY_TASK_STARTED' === $name,
         );
 
         self::assertCount(1, $starts, 'une exception non-retryable ne doit pas être retentée');

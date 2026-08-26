@@ -24,8 +24,7 @@ final class TemporalJournalTransport implements TransportInterface
 {
     public function __construct(
         private readonly WorkflowTaskProcessor $processor,
-    ) {
-    }
+    ) {}
 
     public function get(): iterable
     {
@@ -34,13 +33,9 @@ final class TemporalJournalTransport implements TransportInterface
         return [];
     }
 
-    public function ack(Envelope $envelope): void
-    {
-    }
+    public function ack(Envelope $envelope): void {}
 
-    public function reject(Envelope $envelope): void
-    {
-    }
+    public function reject(Envelope $envelope): void {}
 
     public function send(Envelope $envelope): Envelope
     {

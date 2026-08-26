@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable;
 
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -66,17 +67,13 @@ final class CronScheduleTest extends TestCase
         }
     }
 
-    /**
-     * @dataProvider acceptedByTheServer
-     */
+    #[DataProvider('acceptedByTheServer')]
     public function testExpressionsTheServerAcceptsAreAccepted(string $expression): void
     {
         self::assertSame($expression, CronSchedule::parse($expression)->toExpression());
     }
 
-    /**
-     * @dataProvider rejectedByTheServer
-     */
+    #[DataProvider('rejectedByTheServer')]
     public function testExpressionsTheServerRejectsAreRejected(string $expression): void
     {
         $this->expectException(\InvalidArgumentException::class);

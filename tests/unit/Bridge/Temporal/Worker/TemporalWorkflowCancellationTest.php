@@ -17,8 +17,8 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\WorkflowFiberDriver;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
-use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Common\V1\ActivityType;
+use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\ActivityTaskScheduledEventAttributes;
 use Temporal\Api\History\V1\HistoryEvent;
@@ -171,7 +171,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
     {
         $commands = $this->drive(
             TemporalExecutionHistory::fromEvents([]),
-            static fn (WorkflowEnvironment $env): mixed => $env->await($env->activity('charge', [])),
+            static fn(WorkflowEnvironment $env): mixed => $env->await($env->activity('charge', [])),
         );
 
         self::assertNotContains(CommandType::COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION, $this->commandTypes($commands));
@@ -206,7 +206,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
      */
     private function commandTypes(array $commands): array
     {
-        return array_map(static fn (\Temporal\Api\Command\V1\Command $c): int => $c->getCommandType(), $commands);
+        return array_map(static fn(\Temporal\Api\Command\V1\Command $c): int => $c->getCommandType(), $commands);
     }
 
     private function activityScheduled(int $eventId, string $activityId, string $activityType): HistoryEvent

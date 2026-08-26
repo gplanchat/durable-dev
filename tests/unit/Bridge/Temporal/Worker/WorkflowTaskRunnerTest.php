@@ -10,6 +10,7 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\WorkflowExecution;
@@ -35,9 +36,8 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * The gRPC client is mocked but NEVER called in these tests because the full history is
  * provided inline in PollWorkflowTaskQueueResponse (next_page_token = '' → no pagination).
  * This makes tests fast and deterministic without a running Temporal server.
- *
- * @requires extension grpc
  */
+#[RequiresPhpExtension('grpc')]
 final class WorkflowTaskRunnerTest extends TestCase
 {
     private WorkflowServiceClient $grpcClient;
@@ -193,10 +193,12 @@ final class WorkflowTaskRunnerTest extends TestCase
     public function testWorkflowCompletesImmediately(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('ImmediateWorkflow', static fn (array $payload) =>
-            static function (WorkflowEnvironment $env) use ($payload): string {
-                return 'done-'.$payload['key'];
-            }
+        $registry->registerFactory(
+            'ImmediateWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env) use ($payload): string {
+                return 'done-' . $payload['key'];
+            },
         );
 
         $runner = $this->makeRunner($registry);
@@ -213,12 +215,14 @@ final class WorkflowTaskRunnerTest extends TestCase
     public function testWorkflowWithReplayedActivityCompletesSuccessfully(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('ActivityWorkflow', static fn (array $payload) =>
-            static function (WorkflowEnvironment $env): string {
+        $registry->registerFactory(
+            'ActivityWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env): string {
                 $result = $env->await($env->activity('greet', ['name' => 'World']));
 
-                return 'result: '.$result;
-            }
+                return 'result: ' . $result;
+            },
         );
 
         $runner = $this->makeRunner($registry);
@@ -240,10 +244,12 @@ final class WorkflowTaskRunnerTest extends TestCase
     public function testWorkflowWithNewActivityEmitsScheduleCommand(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('ActivityWorkflow', static fn (array $payload) =>
-            static function (WorkflowEnvironment $env): string {
+        $registry->registerFactory(
+            'ActivityWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env): string {
                 return $env->await($env->activity('greet', ['name' => 'World']));
-            }
+            },
         );
 
         $runner = $this->makeRunner($registry);
@@ -263,10 +269,12 @@ final class WorkflowTaskRunnerTest extends TestCase
     public function testWorkflowWithFailedActivityPropagatesException(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('FailingWorkflow', static fn (array $payload) =>
-            static function (WorkflowEnvironment $env): string {
+        $registry->registerFactory(
+            'FailingWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env): string {
                 return $env->await($env->activity('doWork', []));
-            }
+            },
         );
 
         $runner = $this->makeRunner($registry);
@@ -287,13 +295,15 @@ final class WorkflowTaskRunnerTest extends TestCase
     public function testWorkflowWithParallelActivitiesEmitsMultipleScheduleCommands(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('ParallelWorkflow', static fn (array $payload) =>
-            static function (WorkflowEnvironment $env): array {
+        $registry->registerFactory(
+            'ParallelWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env): array {
                 return $env->all(
                     $env->activity('task-a', []),
                     $env->activity('task-b', []),
                 );
-            }
+            },
         );
 
         $runner = $this->makeRunner($registry);
@@ -308,7 +318,7 @@ final class WorkflowTaskRunnerTest extends TestCase
         // Both ScheduleActivityTask commands emitted in the same workflow task
         $scheduleCommands = array_filter(
             $result->commands,
-            static fn ($cmd) => $cmd->getCommandType() === CommandType::COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK
+            static fn($cmd) => $cmd->getCommandType() === CommandType::COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK,
         );
         self::assertCount(2, $scheduleCommands, 'Two parallel activities must be scheduled in a single task');
     }
@@ -316,12 +326,14 @@ final class WorkflowTaskRunnerTest extends TestCase
     public function testWorkflowWithTimerReplayCompletesWhenFired(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('TimerWorkflow', static fn (array $payload) =>
-            static function (WorkflowEnvironment $env): string {
+        $registry->registerFactory(
+            'TimerWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env): string {
                 $env->sleep(60);
 
                 return 'after-timer';
-            }
+            },
         );
 
         $runner = $this->makeRunner($registry);
@@ -342,12 +354,14 @@ final class WorkflowTaskRunnerTest extends TestCase
     public function testWorkflowWithTimerNotYetFiredEmitsStartTimerCommand(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('TimerWorkflow', static fn (array $payload) =>
-            static function (WorkflowEnvironment $env): string {
+        $registry->registerFactory(
+            'TimerWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env): string {
                 $env->sleep(60);
 
                 return 'after-timer';
-            }
+            },
         );
 
         $runner = $this->makeRunner($registry);
@@ -366,10 +380,12 @@ final class WorkflowTaskRunnerTest extends TestCase
     public function testWorkflowHandlerThrowsProducesFailWorkflowCommand(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('BrokenWorkflow', static fn (array $payload) =>
-            static function (WorkflowEnvironment $env): never {
+        $registry->registerFactory(
+            'BrokenWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env): never {
                 throw new \RuntimeException('Unhandled workflow error');
-            }
+            },
         );
 
         $runner = $this->makeRunner($registry);
@@ -416,12 +432,14 @@ final class WorkflowTaskRunnerTest extends TestCase
     public function testSignalNotYetReceivedSuspendsWorkflow(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('SignaledWorkflow', static fn (array $payload) =>
-            static function (WorkflowEnvironment $env): string {
+        $registry->registerFactory(
+            'SignaledWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env): string {
                 $env->waitSignal('mySignal');
 
                 return 'received';
-            }
+            },
         );
 
         $runner = $this->makeRunner($registry);

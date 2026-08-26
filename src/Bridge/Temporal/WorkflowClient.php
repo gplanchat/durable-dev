@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
-use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
-use Gplanchat\Durable\CronSchedule;
-use Gplanchat\Durable\WorkflowStartOptions;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
+use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
+use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
+use Gplanchat\Durable\WorkflowStartOptions;
 use Temporal\Api\Common\V1\Memo;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
@@ -41,8 +41,7 @@ final class WorkflowClient implements WorkflowClientInterface
         private readonly TemporalHistoryCursor $historyCursor,
         private readonly WorkflowServiceExecutionRpc $executionRpc,
         private readonly ?WorkflowDefinitionLoader $workflowDefinitionLoader = null,
-    ) {
-    }
+    ) {}
 
     /**
      * Starts a workflow asynchronously (fire and forget).
@@ -250,7 +249,7 @@ final class WorkflowClient implements WorkflowClientInterface
     {
         $safe = preg_replace('/[^a-zA-Z0-9._-]/', '-', $executionId) ?? 'invalid';
 
-        return 'durable-'.substr($safe, 0, 900);
+        return 'durable-' . substr($safe, 0, 900);
     }
 
     private function doStartWorkflow(

@@ -15,14 +15,14 @@ use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\SideEffectRecorded;
+use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\TimerCompleted;
 use Gplanchat\Durable\Event\TimerScheduled;
-use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\WorkflowCancellationRequested;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
-use Gplanchat\Durable\Failure\ActivityRetryState;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
+use Gplanchat\Durable\Failure\ActivityRetryState;
 use Gplanchat\Durable\ParentClosePolicy;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\Enums\V1\RetryState;
@@ -46,8 +46,7 @@ final class TemporalEventConverter
 
     public function __construct(
         private readonly string $executionId,
-    ) {
-    }
+    ) {}
 
     /**
      * Convert one Temporal HistoryEvent to a Durable Event.

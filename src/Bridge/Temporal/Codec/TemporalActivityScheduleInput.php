@@ -56,7 +56,7 @@ final class TemporalActivityScheduleInput
 
         foreach (['executionId', 'activityId', 'activityName'] as $k) {
             if (!isset($first[$k]) || !\is_string($first[$k]) || '' === $first[$k]) {
-                throw new \InvalidArgumentException('Activity poll: missing or invalid field "'.$k.'".');
+                throw new \InvalidArgumentException('Activity poll: missing or invalid field "' . $k . '".');
             }
         }
 

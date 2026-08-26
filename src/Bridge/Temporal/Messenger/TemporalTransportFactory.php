@@ -30,8 +30,7 @@ final class TemporalTransportFactory implements TransportFactoryInterface
         private readonly ?TemporalActivityWorker $activityWorker = null,
         private readonly ?TemporalConnection $temporalConnection = null,
         private readonly ?WorkflowRegistry $workflowRegistry = null,
-    ) {
-    }
+    ) {}
 
     /**
      * @param array<string, mixed> $options

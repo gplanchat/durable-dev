@@ -11,19 +11,19 @@ use Gplanchat\Durable\Event\ActivityCancelled;
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Event\ActivityScheduled;
+use Gplanchat\Durable\Event\ActivityTaskFailed;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
 use Gplanchat\Durable\Event\ChildWorkflowScheduled;
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\SideEffectRecorded;
+use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\TimerCompleted;
 use Gplanchat\Durable\Event\TimerScheduled;
-use Gplanchat\Durable\Event\ActivityTaskFailed;
-use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\WorkflowCancellationRequested;
-use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
+use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
@@ -51,8 +51,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         private readonly DurableExecutionTrace $trace,
         private readonly WorkflowMetadataStore $metadataStore,
         private readonly EventStoreInterface $eventStore,
-    ) {
-    }
+    ) {}
 
     #[\Override]
     public function collect(Request $request, Response $response, ?\Throwable $exception = null): void
@@ -259,9 +258,9 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         }
 
         return 'Un dispatch WorkflowRunMessage a été observé sur cette requête, mais le journal est encore vide : '
-            .'le handler n’a probablement pas encore tourné dans ce processus (Messenger asynchrone). '
-            .'Pour remplir le journal dans le même profil, utilisez la démo avec attente (drain) ou rechargez avec '
-            .'?durable_execution=&lt;uuid&gt; une fois les workers passés.';
+            . 'le handler n’a probablement pas encore tourné dans ce processus (Messenger asynchrone). '
+            . 'Pour remplir le journal dans le même profil, utilisez la démo avec attente (drain) ou rechargez avec '
+            . '?durable_execution=&lt;uuid&gt; une fois les workers passés.';
     }
 
     /**
@@ -364,13 +363,14 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         if ([] === $payload) {
             return '—';
         }
+
         try {
             $j = json_encode($payload, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE);
         } catch (\JsonException) {
             return '…';
         }
         if (\strlen($j) > 140) {
-            return substr($j, 0, 137).'…';
+            return substr($j, 0, 137) . '…';
         }
 
         return $j;
@@ -391,12 +391,12 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             if ('workflow' === $kind) {
                 $wt = trim((string) ($e['workflowType'] ?? ''));
                 $timeline[$i]['dispatchSummary'] = ($e['isResume'] ?? false)
-                    ? 'Reprise moteur · '.('' !== $wt ? $wt : '(type inconnu)')
-                    : 'Démarrage moteur · '.('' !== $wt ? $wt : '(type inconnu)');
+                    ? 'Reprise moteur · ' . ('' !== $wt ? $wt : '(type inconnu)')
+                    : 'Démarrage moteur · ' . ('' !== $wt ? $wt : '(type inconnu)');
             }
             if ('activity' === $kind) {
-                $timeline[$i]['dispatchSummary'] = ($e['activityName'] ?? '?').' · '.($e['activityId'] ?? '?')
-                    .(empty($e['success']) && \array_key_exists('success', $e) ? ' · échec' : '');
+                $timeline[$i]['dispatchSummary'] = ($e['activityName'] ?? '?') . ' · ' . ($e['activityId'] ?? '?')
+                    . (empty($e['success']) && \array_key_exists('success', $e) ? ' · échec' : '');
             }
         }
 
@@ -511,7 +511,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     private function buildTimeFrameModelFromStoreEvents(string $executionId, array $entries): array
     {
         $timeRows = array_map(
-            static fn (array $e): array => ['recordedAt' => $e['recordedAt'] ?? null],
+            static fn(array $e): array => ['recordedAt' => $e['recordedAt'] ?? null],
             $entries,
         );
         $times = DurableProfilerTimeframe::monotonicUnixSecondsFromRecordedEntries($timeRows);
@@ -556,8 +556,8 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             return ['bounds' => null, 'segments' => []];
         }
 
-        $starts = array_map(static fn (array $s): float => $s['startSec'], $raw);
-        $ends = array_map(static fn (array $s): float => $s['endSec'], $raw);
+        $starts = array_map(static fn(array $s): float => $s['startSec'], $raw);
+        $ends = array_map(static fn(array $s): float => $s['endSec'], $raw);
         $tMin = min($starts);
         $tMax = max($ends);
         $span = $tMax - $tMin;
@@ -662,7 +662,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         }
 
         $ordered = $timeline;
-        usort($ordered, static fn (array $a, array $b): int => ($a['seq'] ?? 0) <=> ($b['seq'] ?? 0));
+        usort($ordered, static fn(array $a, array $b): int => ($a['seq'] ?? 0) <=> ($b['seq'] ?? 0));
 
         $n = \count($ordered);
         $raw = [];

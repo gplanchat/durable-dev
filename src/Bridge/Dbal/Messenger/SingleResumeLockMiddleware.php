@@ -29,8 +29,7 @@ final class SingleResumeLockMiddleware implements MiddlewareInterface
     public function __construct(
         private readonly LockFactory $lockFactory,
         private readonly float $ttlSeconds = 300.0,
-    ) {
-    }
+    ) {}
 
     public function handle(Envelope $envelope, StackInterface $stack): Envelope
     {
@@ -39,7 +38,7 @@ final class SingleResumeLockMiddleware implements MiddlewareInterface
             return $stack->next()->handle($envelope, $stack);
         }
 
-        $lock = $this->lockFactory->createLock('durable-resume-'.$executionId, $this->ttlSeconds);
+        $lock = $this->lockFactory->createLock('durable-resume-' . $executionId, $this->ttlSeconds);
         $lock->acquire(true);
 
         try {

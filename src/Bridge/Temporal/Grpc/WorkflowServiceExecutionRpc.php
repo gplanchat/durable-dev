@@ -22,8 +22,7 @@ final readonly class WorkflowServiceExecutionRpc
 {
     public function __construct(
         private WorkflowServiceClient $client,
-    ) {
-    }
+    ) {}
 
     /**
      * @param array<string, mixed> $metadata

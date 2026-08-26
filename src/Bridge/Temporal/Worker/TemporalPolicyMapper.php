@@ -8,8 +8,8 @@ use Google\Protobuf\Duration;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Durable\ParentClosePolicy;
 use Gplanchat\Durable\SearchAttributes;
-use Gplanchat\Durable\WorkflowTimeouts;
 use Gplanchat\Durable\WorkflowIdReusePolicy;
+use Gplanchat\Durable\WorkflowTimeouts;
 use Temporal\Api\Common\V1\SearchAttributes as TemporalSearchAttributes;
 use Temporal\Api\Enums\V1\ParentClosePolicy as TemporalParentClosePolicy;
 use Temporal\Api\Enums\V1\WorkflowIdReusePolicy as TemporalIdReusePolicy;
@@ -26,9 +26,7 @@ use Temporal\Api\Enums\V1\WorkflowIdReusePolicy as TemporalIdReusePolicy;
  */
 final class TemporalPolicyMapper
 {
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     public static function parentClosePolicy(ParentClosePolicy $policy): int
     {

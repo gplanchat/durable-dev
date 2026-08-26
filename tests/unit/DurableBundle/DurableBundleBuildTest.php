@@ -11,8 +11,8 @@ use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\WorkflowPass;
 use Gplanchat\Durable\Bundle\DurableBundle;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
  * Vérifie que DurableBundle::build() enregistre tous les compiler passes requis.

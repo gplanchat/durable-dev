@@ -18,7 +18,5 @@ final class TemporalGrpcTimeouts
 
     public const RESPOND_WORKFLOW_TASK_US = 60_000_000;
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 }

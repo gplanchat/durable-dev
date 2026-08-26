@@ -25,8 +25,7 @@ final readonly class TemporalWorkflowLifecycle implements WorkflowLifecycleInter
         private ?string $cancellationRequestedCause = null,
         /** Une tâche antérieure a déjà relevé l'annulation dans le fiber. */
         private bool $cancellationAlreadyDelivered = false,
-    ) {
-    }
+    ) {}
 
     public function onBeforeRun(string $executionId): void
     {

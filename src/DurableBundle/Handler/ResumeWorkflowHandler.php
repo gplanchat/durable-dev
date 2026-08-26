@@ -38,8 +38,7 @@ final class ResumeWorkflowHandler
         private readonly ChildWorkflowParentLinkStoreInterface $childWorkflowParentLinkStore,
         private readonly MessageBusInterface $messageBus,
         private readonly WorkflowDefinitionLoader $workflowDefinitionLoader,
-    ) {
-    }
+    ) {}
 
     public function __invoke(ResumeWorkflowMessage $message): void
     {
