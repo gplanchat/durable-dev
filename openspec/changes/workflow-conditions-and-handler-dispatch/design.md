@@ -71,7 +71,7 @@ Rejected: keeping `waitSignal()` as sugar over an auto-registered buffering hand
 compatibility and deletes most of the machinery, but the moment a *declared* handler exists for the
 same name, "who consumes it" is back — two paths again, which is the thing being removed.
 
-### Evaluation is interleaved with message application, not batched
+### Evaluation is interleaved with message application, not batched (task 1.1)
 
 This is the decision the change turns on, and the one that can break DUR032 silently.
 
@@ -79,17 +79,75 @@ DUR032's rule — a signal recorded after the deadline fired does not settle the
 bounded — is a *history query* today. A predicate cannot be asked that: there is no way to
 interrogate a closure for "did you become true before journal position P".
 
-The naive implementation is "apply every journaled message, then run the body". It is correct on a
-first execution and wrong on replay: with a deadline fired at position P and a signal recorded at
-Q > P, replaying applies both, the body reaches its condition, the predicate sees the signal, and
-the condition wins a race the deadline had already won. The verdict flips.
+**A journal position is the rank of an event in the recorded stream of one execution.** In-memory
+that is its index in `readStream()`; on Temporal it is the `eventId`, which
+`TemporalExecutionHistory` already records for `TIMER_FIRED` and `WORKFLOW_EXECUTION_SIGNALED`.
+The two numbering spaces are **not** comparable with each other and a position SHALL never be
+serialized or carried across backends — every comparison happens inside one execution's own
+history, where both backends are totally ordered.
 
-So the driver applies journaled messages **one at a time** and re-tests pending conditions after
-each. The workflow body blocks on the condition; the driver applies the next message, dispatches
-its handler, re-tests, and resumes only if it now holds. The verdict is then the position at which
-it first held, and DUR032's rule follows without being restated.
+#### The rule
 
-That loop is the real work of this change. The primitive is three lines.
+A wait, bounded or not, drives a **cursor** over the message events of its execution — the signals
+and updates, in recorded order. At a wait:
+
+1. **P** is the journal position of the deadline timer's completion, read from history, or infinity
+   when there is no deadline or the timer has not fired.
+2. Evaluate the predicate as it stands. If it holds, the wait is settled at the current position.
+3. Otherwise, while the next unapplied message has a position **below P**: apply it, dispatch its
+   handler, re-evaluate. Stop at the first message that makes the predicate hold — **Q** is *that
+   message's* position.
+4. Predicate holds → the wait returns. Timer settled and predicate still false → the deadline
+   failure. Neither → suspend, unchanged.
+
+The cursor is per-execution state, rebuilt from zero on every replay pass, advanced by the same
+rule over the same journal — so Q and P are the same on every pass, and so is the verdict.
+
+#### Both positions must be stream positions, not two different counts
+
+The trap is to let **Q** be "how many messages have been applied" while **P** is a stream rank.
+Those count over different subsets, and comparing them is comparing unlike things. Against the
+journals already hand-built in `WorkflowDeadlineTest`:
+
+| journal (stream ranks) | P | Q as stream rank | Q as message count | expected |
+|---|---|---|---|---|
+| `Started, TimerScheduled, TimerCompleted, Signal` | 2 | 3 → deadline | 1 → **signal, wrong** | deadline |
+| `Started, TimerScheduled, Signal, TimerCompleted` | 3 | 2 → signal | 1 → signal | signal |
+| `Started, TimerScheduled, TimerCompleted` | 2 | ∞ → deadline | ∞ → deadline | deadline |
+| `Started, Signal` | ∞ | 1 → signal | 1 → signal | signal |
+
+The message count gets the first row wrong, and gets the second right only by coincidence. **Q is
+the stream position of the message that satisfied the predicate.**
+
+#### The wait drives the cursor, never `isSettled()`
+
+`AnyAwaitable::isSettled()` returns true as soon as *any* member is, and `ExecutionRuntime::await()`
+short-circuits on it. So on a replay where the timer completion is in history, the composite reports
+settled before anything has advanced the cursor: the condition would never be evaluated, and the
+deadline would win every time.
+
+The cursor is therefore driven by the wait itself — the loop above runs **before** the composite is
+handed to the runtime — and `isSettled()` on a condition stays a pure evaluation of the predicate at
+the current state. Both the bounded and the unbounded path share that loop, the unbounded one with
+P = infinity.
+
+Rejected: letting the condition advance the cursor inside its own `isSettled()`. It removes the
+explicit loop, at the price of a side-effecting `isSettled()` — which nothing else in the awaitable
+contract has — and it still has to be told P, so the deadline leaks into the branch anyway.
+
+Rejected: gating *every* awaitable on the cursor, so that an activity or a timer only settles at or
+before it. It is the uniform model, and it rewrites slot resolution for every operation type to buy
+what a comparison of two positions already gives.
+
+#### Consequences to state plainly
+
+- `findTimerSlotResult()` must expose the position of the timer's completion. Temporal already has
+  it; the in-memory source derives it while enumerating.
+- **A handler for a message recorded after a deadline runs only when the workflow reaches its next
+  wait** — after the expiry path has already run. That is surprising, and it is the same rule as
+  DUR032's "the late signal remains available to a later wait", seen from the handler side. It
+  belongs in the ADR.
+- Nothing here needs a new event type, and nothing here is backend-specific.
 
 ### Handlers are declarable both ways, because the tests are closures
 
