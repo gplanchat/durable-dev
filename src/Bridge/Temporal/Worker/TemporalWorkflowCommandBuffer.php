@@ -25,6 +25,7 @@ use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\FailWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\RequestCancelActivityTaskCommandAttributes;
+use Temporal\Api\Command\V1\RequestCancelNexusOperationCommandAttributes;
 use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
 use Temporal\Api\Command\V1\ScheduleNexusOperationCommandAttributes;
 use Temporal\Api\Command\V1\StartTimerCommandAttributes;
@@ -453,6 +454,20 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
 
     public function cancelNexusOperation(string $operationId, string $reason): void
     {
-        throw new \LogicException('RequestCancelNexusOperation is not built yet on the Temporal command buffer (temporal-nexus-support §4.2).');
+        // Même règle que pour une activité : le serveur veut l'eventId réel de la planification,
+        // et rejette la tâche entière si l'identifiant ne correspond à rien. Une opération qu'on
+        // ne retrouve pas dans l'historique n'a rien à annuler — on se tait plutôt que d'inventer.
+        $scheduledEventId = $this->history?->scheduledEventIdForNexusOperation($operationId);
+        if (null === $scheduledEventId) {
+            return;
+        }
+
+        $attrs = new RequestCancelNexusOperationCommandAttributes();
+        $attrs->setScheduledEventId($scheduledEventId);
+
+        $cmd = new Command();
+        $cmd->setCommandType(CommandType::COMMAND_TYPE_REQUEST_CANCEL_NEXUS_OPERATION);
+        $cmd->setRequestCancelNexusOperationCommandAttributes($attrs);
+        $this->commands[] = $cmd;
     }
 }

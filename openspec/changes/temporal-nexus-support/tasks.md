@@ -23,24 +23,31 @@
 ## 4. Temporal backend
 
 - [ ] 4.1 Build `ScheduleNexusOperation` in `TemporalWorkflowCommandBuffer`, bounds and headers included — **commande et bornes faites** : les trois bornes ne partent que si le domaine en porte une (le serveur n'applique aucun défaut, §1.3), l'infini part en `0`, et l'entrée est **un** `Payload` et non un `Payloads` comme pour une activité. **Les en-têtes restent à faire** : rien côté domaine n'en porte, et c'est le port de §3.4 qui devra les transporter — les ajouter ici sans source serait un champ vide déguisé en fonctionnalité
+<<<<<<< HEAD
 - [ ] 4.2 Build `RequestCancelNexusOperation` using the real scheduled event id read from history
 - [ ] 4.3 Read the nine `NEXUS_OPERATION_*` events in `TemporalExecutionHistory`, keyed by scheduled event id
 - [x] 4.4 Convert those events in `TemporalEventConverter` so the profiler and the read-through store show them — cinq événements de domaine (`NexusOperationScheduled` et les quatre états terminaux), rattachés par l'`eventId` de la planification, qui est la clé dont Temporal se sert lui-même. `NEXUS_OPERATION_STARTED` et les trois événements d'annulation ne sont pas convertis : le premier relève de §4.5, les autres n'ajoutent rien au profil tant que l'annulation n'est pas construite (§4.2)
 - [ ] 4.5 Fail clearly when an operation reports `NEXUS_OPERATION_STARTED` with a token — asynchronous operations are out of scope for this increment
+=======
+- [x] 4.2 Build `RequestCancelNexusOperation` using the real scheduled event id read from history — débloquée par 4.3 ; une opération absente de l'historique n'émet rien, un eventId inventé faisant rejeter la tâche entière
+- [x] 4.3 Read the nine `NEXUS_OPERATION_*` events in `TemporalExecutionHistory`, keyed by scheduled event id — planification (identité relue du payload d'entrée, faute de champ dédié côté Temporal) et les quatre états terminaux. Les trois événements d'annulation et `STARTED` restent hors périmètre (§4.5)
+- [ ] 4.4 Convert those events in `TemporalEventConverter` so the profiler and the read-through store show them
+- [x] 4.5 Fail clearly when an operation reports `NEXUS_OPERATION_STARTED` with a token — asynchronous operations are out of scope for this increment — `NexusAsynchronousOperationUnsupportedException`, nommant l'opération. **Le jeton seul déclenche le refus** : un `STARTED` sans jeton est une opération synchrone en vol, et la refuser rejetterait le cas nominal
+>>>>>>> origin/main
 
 ## 5. In-memory backend
 
-- [ ] 5.1 `EventStoreCommandBuffer::scheduleNexusOperation()` throws, naming the limitation and pointing at the Temporal backend
-- [ ] 5.2 A test asserting the harness fails fast rather than hanging
+- [x] 5.1 `EventStoreCommandBuffer::scheduleNexusOperation()` throws, naming the limitation and pointing at the Temporal backend — **livré par §3.4**, `NexusUnsupportedByBackendException::forBackend('journal')` ; la case était restée ouverte alors que le code était sur `main`
+- [x] 5.2 A test asserting the harness fails fast rather than hanging — au niveau du **harnais**, et pas seulement du tampon : le refus doit traverser le moteur. Un test épingle qu'il tombe à la planification et qu'aucun `await()` n'est atteint, ce qui distingue « échoue vite » de « échoue après un délai »
 
 ## 6. Integration against a real server
 
-- [ ] 6.1 Document the endpoint prerequisite at the top of the test, as the search-attribute suite documents its two attributes
-- [ ] 6.2 Schedule an operation and assert the round trip through history
+- [x] 6.1 Document the endpoint prerequisite at the top of the test, as the search-attribute suite documents its two attributes — avec une différence assumée : le test **crée et supprime** son endpoint, un nom d'endpoint étant unique pour le cluster entier. L'équivalent manuel est donné pour qui veut reproduire à la main
+- [x] 6.2 Schedule an operation and assert the round trip through history — la commande est construite **par le tampon du pont**, pas à la main : c'est ce qui prouve que §4.1 est acceptée par un vrai serveur. Trois cas — les trois noms et les trois bornes reviennent inchangés, l'entrée survit, et l'absence de borne reste une absence
 - [ ] 6.3 Assert cancellation reaches the server with the real scheduled event id
 - [ ] 6.4 Assert a failed operation surfaces to the workflow with its origin named
 
 ## 7. Documentation
 
-- [ ] 7.1 ADR recording the caller-only scope, the backend asymmetry, and why the handler side is a separate change
+- [x] 7.1 ADR recording the caller-only scope, the backend asymmetry, and why the handler side is a separate change — **DUR036** (DUR035 est attribué deux fois sur `main`, à deux ADR distinctes : ne pas le réutiliser). L'ADR s'ouvre sur les quatre mesures serveur, parce que ce sont elles qui ont donné leur forme aux décisions
 - [ ] 7.2 Update `documentation/INDEX.md`

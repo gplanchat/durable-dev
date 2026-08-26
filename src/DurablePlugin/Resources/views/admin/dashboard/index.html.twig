@@ -35,7 +35,12 @@
                 </div>
 
                 <div class="alert {% if backend.available %}alert-success{% else %}alert-warning{% endif %}" role="alert">
-                    {{ backend.message }}
+                    <div>{{ backend.message }}</div>
+                    {# Le backend n'est nommé que s'il y en a un : sans catalogue, nommer un serveur
+                       enverrait l'exploitant sur une fausse piste. #}
+                    {% if backend.name is defined %}
+                        <small class="text-secondary">{{ backend.name }} · checked at {{ backend.checkedAt|date('Y-m-d H:i:s') }}</small>
+                    {% endif %}
                 </div>
 
                 {% if backend.available %}
