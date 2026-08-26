@@ -2,7 +2,7 @@
 
 - [ ] 1.1 Confirm on an existing install that `DurableSchema::ensure()` adds a *new* table to a database that already carries the other three, and does not touch them — the whole choice of a projection over a column rests on this
 - [ ] 1.2 List every transition that ends a run (`markCompleted`, and the three `delete()` calls in `ResumeWorkflowHandler`) and decide where the projection is written, so no ending is missed and the metadata lifecycle stays as it is
-- [ ] 1.3 Decide what the projection records for a run that continued as new — one row that ends and one that starts, or a chain — and note the verdict in `design.md`
+- [x] 1.3 Decide what the projection records for a run that continued as new — one row that ends and one that starts, or a chain — and note the verdict in `design.md`: **two independent rows**, no link column; the chain is carried by the port's optional grouping id, which Temporal fills and DBAL leaves absent
 
 ## 2. Failing tests first
 

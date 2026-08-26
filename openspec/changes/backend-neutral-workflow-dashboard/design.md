@@ -30,6 +30,27 @@ projection is written on the same lifecycle transitions that already touch the m
 "kept in step" means one more call beside calls that are already there, not a new subscriber to
 maintain.
 
+## Continue-as-new records two independent runs
+
+**Decision: two rows, not a chain.** A run that continues as new ends, and the run that takes over
+starts; the projection records each on its own terms, and neither points at the other.
+
+This costs something and it is worth naming: on a DBAL-backed application an operator cannot follow
+a workflow across its continuations. They see the run that ended and the run that took over as two
+entries, and nothing tells them the second came from the first.
+
+It is nonetheless the shape that matches what already exists. Continue-as-new in this component is
+already a new execution and not a continued one — `ResumeWorkflowHandler` mints a fresh execution
+id, saves fresh metadata under it, and dispatches it as a new run. A chain in the projection would
+be the only place in the codebase claiming these are one thing, and it would need a link column and
+a view affordance to mean anything.
+
+It also lands exactly on the port's grouping id. Temporal keeps the workflow id across
+continuations and gives each run its own run id, so a Temporal-backed dashboard *can* group them —
+and does, through that optional field. The DBAL backend has no such concept, so it leaves the field
+absent. That is the same rule as everywhere else here: absent, not invented. The chain is a fact
+one backend has and the other does not, and the view says so rather than faking a link.
+
 ## What each backend can honestly answer
 
 The template consumes exactly these. This is the table the port is cut from.

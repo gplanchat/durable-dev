@@ -58,6 +58,8 @@ records that the end of the run removes.
 - **WHEN** a workflow continues as new on a DBAL-backed application
 - **THEN** the run that ended and the run that took over both appear in the list
 - **AND** the run that ended is not reported as failed
+- **AND** on a backend that does not record the link between them, they appear as two independent
+  runs rather than one presented as a continuation of the other
 
 #### Scenario: Filtering by status finds the failures
 
