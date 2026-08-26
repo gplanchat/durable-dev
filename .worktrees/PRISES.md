@@ -8,4 +8,3 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
-| `feat/nexus-service-operation-value-objects` | temporal-nexus-support | 2.1 (NexusService, NexusOperationName) + 2.3 pour eux | en cours |
