@@ -8,3 +8,4 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
+| `feat/nexus-operation-awaitable` | temporal-nexus-support | 3.1 | en cours |
