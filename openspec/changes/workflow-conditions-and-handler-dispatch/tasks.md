@@ -18,7 +18,7 @@
 - [ ] 2.4 A condition under a deadline that does not hold in time raises the timeout failure, and a message recorded afterwards does not undo it — the DUR032 guarantee, restated on conditions
 - [ ] 2.5 Two messages that each satisfy a pending condition are applied one at a time, and the workflow resumes on the first
 - [ ] 2.6 A condition that can never hold is reported as unable to advance, naming the condition, instead of spinning
-- [ ] 2.7 A condition whose outcome depends on something the journal does not record is reported as a divergence, not silently resolved
+- [ ] 2.7 A non-reproducible value recorded before the condition reads it is read back identically on replay
 
 ## 3. Failing tests first — dispatch
 
@@ -35,7 +35,7 @@
 
 - [ ] 4.1 `await()` accepts a condition, wrapped into the existing awaitable contract, composing with the deadline path unchanged
 - [ ] 4.2 The evaluation loop from 1.1: messages applied one at a time, pending conditions re-tested after each
-- [ ] 4.3 Divergence and never-true conditions reported through the existing "cannot advance" path rather than a new failure vocabulary
+- [ ] 4.3 A condition that can never hold reported through the existing "cannot advance" path, naming the condition, rather than a new failure vocabulary
 
 ## 5. Domain — dispatch
 
