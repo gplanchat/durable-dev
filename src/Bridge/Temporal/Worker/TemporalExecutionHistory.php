@@ -11,6 +11,7 @@ use Gplanchat\Durable\Exception\ActivitySupersededException;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Failure\FailureEnvelope;
+use Gplanchat\Durable\Nexus\NexusAsynchronousOperationUnsupportedException;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
@@ -152,6 +153,23 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                         $this->scheduledNexusOperationIds[] = $operationId;
                         $this->nexusOperationToScheduledEventId[$operationId] = (int) $eventId;
                     }
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED:
+                $attr = $event->getNexusOperationStartedEventAttributes();
+                // Sans jeton, l'opération est synchrone : elle a démarré et répondra sur cette
+                // exécution, il n'y a rien à signaler. Avec un jeton, le handler annonce qu'il
+                // répondra par rappel — et rien ici ne sait le recevoir (§4.5).
+                if (null !== $attr && '' !== (string) $attr->getOperationToken()) {
+                    $scheduledEventId = (int) $attr->getScheduledEventId();
+                    $operationId = array_search($scheduledEventId, $this->nexusOperationToScheduledEventId, true);
+                    $this->nexusOperationOutcomes[$scheduledEventId] = [
+                        'result' => null,
+                        'failed' => NexusAsynchronousOperationUnsupportedException::forOperation(
+                            false === $operationId ? (string) $scheduledEventId : $operationId,
+                        ),
+                    ];
                 }
                 break;
 
