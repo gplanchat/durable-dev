@@ -5,18 +5,15 @@
     "type": "library",
     "require": {
         "php": ">=8.2",
+        "ext-grpc": "*",
         "gplanchat/durable": "self.version",
         "google/common-protos": "^4.9",
         "google/protobuf": "^4.31",
         "grpc/grpc": "^1.57",
         "symfony/messenger": "^7.0",
-        "symfony/console": "^7.0",
         "symfony/http-kernel": "^7.0",
         "symfony/dependency-injection": "^7.0",
         "symfony/config": "^7.0"
-    },
-    "suggest": {
-        "ext-grpc": "Required for Temporal gRPC client and worker poll"
     },
     "autoload": {
         "psr-4": {

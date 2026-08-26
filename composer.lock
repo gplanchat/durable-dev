@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "aec699525fc182fac2ed633c6146af3f",
+    "content-hash": "f72d33af232f81a33ed973fbd495e7f4",
     "packages": [
         {
             "name": "doctrine/dbal",
@@ -265,20 +265,23 @@
         },
         {
             "name": "gplanchat/durable",
-            "version": "0.1.0",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "src/Durable",
-                "reference": "14dc71c9a190611c05dfef3079c74320cb42fbf1"
+                "reference": "40f087035f255bf766fd2e051a3940509b042653"
             },
             "require": {
                 "php": ">=8.2",
-                "psr/clock": "^1.0",
-                "psr/log": "^3.0"
+                "psr/cache": "^3.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^11.0"
             },
             "suggest": {
                 "gplanchat/durable-phpstan": "Optional PHPStan extension (ActivityStub + Awaitable; see ADR012)",
-                "gplanchat/durable-psalm-plugin": "Optional Psalm plugin entry point; prefer durable-phpstan for stubs (ADR012)"
+                "gplanchat/durable-psalm-plugin": "Optional Psalm plugin entry point; prefer durable-phpstan for stubs (ADR012)",
+                "phpunit/phpunit": "Required by the shipped test helpers (Testing\\DurableTestCase, Testing\\WorkflowTestEnvironment)"
             },
             "type": "library",
             "extra": {
@@ -307,15 +310,15 @@
         },
         {
             "name": "gplanchat/durable-bridge-dbal",
-            "version": "0.1.0",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "src/Bridge/Dbal",
-                "reference": "91960790d87829367e1c7c6e1735ae6eef7a55ff"
+                "reference": "67900c22a2480109801bfd276e769fc32afc87a4"
             },
             "require": {
                 "doctrine/dbal": "^3.7 || ^4.0",
-                "gplanchat/durable": "^0.1",
+                "gplanchat/durable": "self.version",
                 "php": ">=8.2",
                 "symfony/lock": "^7.0",
                 "symfony/messenger": "^7.0"
@@ -347,26 +350,23 @@
         },
         {
             "name": "gplanchat/durable-bridge-temporal",
-            "version": "0.1.0",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "src/Bridge/Temporal",
-                "reference": "5d324c3f8ce8970048810f5473a79f7541717376"
+                "reference": "48403afa7651c4f02ddbad564828b019bae84791"
             },
             "require": {
+                "ext-grpc": "*",
                 "google/common-protos": "^4.9",
                 "google/protobuf": "^4.31",
-                "gplanchat/durable": "^0.1",
+                "gplanchat/durable": "self.version",
                 "grpc/grpc": "^1.57",
                 "php": ">=8.2",
                 "symfony/config": "^7.0",
-                "symfony/console": "^7.0",
                 "symfony/dependency-injection": "^7.0",
                 "symfony/http-kernel": "^7.0",
                 "symfony/messenger": "^7.0"
-            },
-            "suggest": {
-                "ext-grpc": "Required for Temporal gRPC client and worker poll"
             },
             "type": "library",
             "extra": {
@@ -397,25 +397,34 @@
         },
         {
             "name": "gplanchat/durable-bundle",
-            "version": "0.1.0",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "src/DurableBundle",
-                "reference": "a9b754600d38bbba7faf4413ad60ebf2668b41f6"
+                "reference": "0b69c5eb34934a929ae84468bc893933423b974d"
             },
             "require": {
-                "gplanchat/durable": "^0.1",
+                "gplanchat/durable": "self.version",
                 "php": ">=8.2",
+                "psr/container": "^2.0",
                 "symfony/config": "^6.4 || ^7.4",
                 "symfony/console": "^6.4 || ^7.4",
                 "symfony/dependency-injection": "^6.4 || ^7.4",
+                "symfony/event-dispatcher": "^6.4 || ^7.4",
                 "symfony/framework-bundle": "^6.4 || ^7.4",
+                "symfony/http-foundation": "^6.4 || ^7.4",
                 "symfony/http-kernel": "^6.4 || ^7.4",
-                "symfony/messenger": "^6.4 || ^7.4"
+                "symfony/messenger": "^6.4 || ^7.4",
+                "symfony/service-contracts": "^3.0",
+                "symfony/uid": "^6.4 || ^7.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^11.0"
             },
             "suggest": {
                 "gplanchat/durable-bridge-dbal": "SQL backend: durable execution on one database, no cluster (DUR030)",
                 "gplanchat/durable-bridge-temporal": "Temporal gRPC backend (requires ext-grpc)",
+                "phpunit/phpunit": "Required by the shipped test helper (Testing\\DurableBundleTestTrait)",
                 "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)"
             },
             "type": "symfony-bundle",
