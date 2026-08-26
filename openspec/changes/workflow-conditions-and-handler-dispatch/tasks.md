@@ -28,8 +28,8 @@
 - [x] 3.4 Two signals are handled in recorded order, identically on every replay
 - [x] 3.5 Three deliveries of one name reach the handler three times, on a first run and on replay — un appel par livraison et par passe
 - [x] 3.6 A delivery recorded while no await was pending is still observed by the next one
-- [ ] 3.7 An update handler's return value reaches the caller, and survives replay — différé : la forme d’injection d’un update entrant appartient au bloc 5
-- [ ] 3.8 A raising update handler fails the update, not the workflow — différé : `WorkflowUpdateHandled` n’a pas de canal d’échec, point ouvert consigné dans `design.md`
+- [x] 3.7 An update handler's return value reaches the caller, and survives replay
+- [x] 3.8 A raising update handler fails the update, not the workflow
 
 ## 4. Domain — conditions
 
@@ -39,10 +39,10 @@
 
 ## 5. Domain — dispatch
 
-- [x] 5.1 `#[SignalMethod]` read at load time, alongside the existing `#[QueryMethod]` scan, et acceptant une enum — `#[UpdateMethod]` attend la décision de transport
+- [x] 5.1 `#[SignalMethod]` and `#[UpdateMethod]` read at load time, alongside the existing `#[QueryMethod]` scan, tous deux acceptant une enum
 - [x] 5.2 Imperative registration on `WorkflowEnvironment`, mirroring `registerQueryHandler()`
-- [x] 5.3 Engine-side dispatch, interleaved with 4.2 — pour les signaux ; les updates suivent avec 5.4/5.5
-- [ ] 5.4 Update responses recorded and reproduced on replay
+- [x] 5.3 Engine-side dispatch, interleaved with 4.2 — signaux et updates sur le même curseur, ordonnés par position de journal
+- [x] 5.4 Update responses recorded and reproduced on replay — issue déposée sur le `PendingUpdate`, consignée par l’appelant de la passe comme le serveur écrit UPDATE_COMPLETED
 - [ ] 5.5 Worker-side update acceptance and completion on the Temporal bridge, from the probe in 1.3
 
 ## 6. Deletions
