@@ -7,6 +7,7 @@ namespace App\Samples\Workflow\Exception;
 use App\Samples\Activity\FlakyActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
@@ -25,8 +26,7 @@ final class ExceptionHandledWorkflow
     ) {
         $this->flaky = $environment->activityStub(
             FlakyActivityInterface::class,
-            ActivityOptions::default()
-                ->withMaxAttempts(1)
+            new ActivityOptions(RetryLimit::once())
         );
     }
 
