@@ -14,7 +14,11 @@
 - PHP 8.2+
 - Symfony 6.4, 7.x or 8.x
 - Sylius 2.x (when used inside a Sylius application)
-- Durable bridge services (`durable.temporal.*`) for live data
+- `gplanchat/durable-bridge-temporal` for live data — **optional**
+
+The bridge is a `suggest`, not a `require`, because it needs `ext-grpc`, which most Sylius hosts
+do not ship. Without it the plugin still installs, the route and the menu entry still work, and the
+dashboard renders its degraded state instead of live runs.
 
 ## Installation in a Sylius app
 
