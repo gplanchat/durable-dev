@@ -3,10 +3,9 @@
     "description": "Symfony bundle for gplanchat/durable: extension, autoconfiguration of workflows and activities.",
     "license": "MIT",
     "type": "symfony-bundle",
-    "version": "0.1.0",
     "require": {
         "php": ">=8.2",
-        "gplanchat/durable": "^0.1",
+        "gplanchat/durable": "self.version",
         "symfony/framework-bundle": "^6.4 || ^7.4",
         "symfony/http-kernel": "^6.4 || ^7.4",
         "symfony/console": "^6.4 || ^7.4",
