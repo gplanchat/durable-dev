@@ -3,12 +3,12 @@
 - [x] 1.1 Probe Nexus endpoint, service and operation name rules (empty, blank, edge whitespace, control characters, length, case) against a local dev server, as was done for `TaskQueue`, `WorkflowNamespace` and `CronSchedule` — **endpoint**: server-enforced `^[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9]$`, 200 chars, refused at creation. **service and operation**: the server validates neither and records them verbatim, so they need `TaskQueue`-style strictness while the endpoint needs none. Pinned by `NexusEndpointNameRulesTest` and `NexusServiceAndOperationNameRulesTest`; the three rules are tabulated in `design.md`
 - [x] 1.2 Probe what the server does when scheduling on an unknown endpoint, and record the error shape — gRPC `INVALID_ARGUMENT`, `BadScheduleNexusOperationAttributes: endpoint "…" not found`, `WORKFLOW_TASK_FAILED` with cause `BAD_SCHEDULE_NEXUS_OPERATION_ATTRIBUTES`, and the task is retried without end. No typed failure reaches the workflow; pinned by `NexusUnknownEndpointTest`, consequence recorded in `design.md`
 - [x] 1.3 Probe whether the three operation bounds behave like the activity ones, including any silent rewrite — **yes, and the rewrite exists**: a sub-bound larger than `scheduleToClose` is clamped down to it without an error; a negative duration is refused with the field named; `scheduleToClose = 0` means unbounded and clamps nothing; omitted bounds stay absent. Pinned by `NexusOperationBoundsTest`, table in `design.md`
-- [ ] 1.4 Record every verdict in the value-object docblocks, and write no invariant that was not observed
+- [ ] ⛔ 1.4 attend:temporal-nexus-support §2.1 — les docblocks à écrire sont ceux des objets-valeurs, et `NexusService` / `NexusOperationName` n'existent pas encore (`NexusEndpoint` et `NexusOperationTimeouts` sont faits). Record every verdict in the value-object docblocks, and write no invariant that was not observed
 
 ## 2. Domain value objects
 
 - [ ] 2.1 `NexusEndpoint`, `NexusService`, `NexusOperationName` — named constructors, boundary coercion, validation limited to probed rules
-- [ ] 2.2 `NexusOperationTimeouts` built on `Duration`, mirroring `ActivityTimeouts`, with `executionBoundOr()` if the server requires a closing bound
+- [x] 2.2 `NexusOperationTimeouts` built on `Duration`, mirroring `ActivityTimeouts`, with `executionBoundOr()` if the server requires a closing bound — **no `executionBoundOr()`**: §1.3 measured that the server requires no closing bound (a command with none of the three is accepted and records none), so the condition does not hold. The object is stricter than the server on the one thing the server does silently: a sub-bound exceeding `schedule-to-close` is refused at construction instead of being clamped without a word. No heartbeat bound — a Nexus operation is served elsewhere and gives no intermediate sign of life
 - [ ] 2.3 Unit tests asserting the probed verdicts, one case per observation
 
 ## 3. Caller-side domain plumbing
