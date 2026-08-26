@@ -42,6 +42,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR031 | Value objects across the ports, and who owns the wire | [adr/DUR031-value-objects-across-ports-and-wire-ownership.md](adr/DUR031-value-objects-across-ports-and-wire-ownership.md) |
 | DUR032 | Workflow-side deadlines: a failure, and a verdict read from history | [adr/DUR032-workflow-side-deadlines.md](adr/DUR032-workflow-side-deadlines.md) |
 | DUR033 | Assemblers return an Awaitable, and `await()` is the only wait | [adr/DUR033-awaitable-assemblers-and-the-single-wait.md](adr/DUR033-awaitable-assemblers-and-the-single-wait.md) |
+| DUR034 | A signal name is a backed enum, and the wire keeps the string | [adr/DUR034-signal-names-as-backed-enums.md](adr/DUR034-signal-names-as-backed-enums.md) |
 
 ## Working agreements (WA)
 
