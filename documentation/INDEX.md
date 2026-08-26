@@ -39,6 +39,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR028 | Synchronous completion polling for multi-process Temporal setups | [adr/DUR028-synchronous-completion-polling-multi-process.md](adr/DUR028-synchronous-completion-polling-multi-process.md) |
 | DUR029 | Temporal read-through event store and profiler event conversion | [adr/DUR029-temporal-profiler-read-through-event-store.md](adr/DUR029-temporal-profiler-read-through-event-store.md) |
 | DUR030 | DBAL backend: simplified durable execution on a single SQL database | [adr/DUR030-dbal-backend-simplified-durable-execution.md](adr/DUR030-dbal-backend-simplified-durable-execution.md) |
+| DUR031 | Value objects across the ports, and who owns the wire | [adr/DUR031-value-objects-across-ports-and-wire-ownership.md](adr/DUR031-value-objects-across-ports-and-wire-ownership.md) |
 
 ## Working agreements (WA)
 
@@ -53,7 +54,7 @@ This repository documents the **Durable** component (durable execution orchestra
 
 | ID | Title | File |
 |----|--------|------|
-| OST002 | Alternative durable execution backends (market study) | [ost/OST002-alternative-durable-execution-backends.md](ost/OST002-alternative-durable-execution-backends.md) |
+| OST001 | Alternative durable execution backends (market study) | [ost/OST001-alternative-durable-execution-backends.md](ost/OST001-alternative-durable-execution-backends.md) |
 
 ## Other
 

@@ -39,5 +39,5 @@
 
 ## 7. Documentation
 
-- [ ] 7.1 ADR recording where serialisation lives and why the wire format is frozen
-- [ ] 7.2 Note the port break for third-party driver implementers
+- [x] 7.1 ADR recording where serialisation lives and why the wire format is frozen
+- [x] 7.2 Note the port break for third-party driver implementers
