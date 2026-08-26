@@ -35,7 +35,7 @@
 
 ## 6. Bundle and plugin
 
-- [ ] 6.1 Register the adapter matching the configured backend, and register none when no backend is readable
+- [x] 6.1 Register the adapter matching the configured backend, and register none when no backend is readable — et les deux décorateurs de projection avec le catalogue DBAL, faute de quoi il lirait une table que personne n'écrit. La projection n'est câblée que si le **journal** est en SQL : c'est de lui que viennent les issues
 - [ ] 6.2 The plugin depends on the port instead of the Temporal bridge; the bridge leaves its `suggest` entry
 - [ ] 6.3 Rename the view model's `temporal` key to `backend`, and render absent facts as absent in the template — no empty task queue column, no query lane where no query is recorded
 - [ ] 6.4 Move the plugin's dashboard tests onto the port, and keep one that pins the no-backend page
