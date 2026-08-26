@@ -160,7 +160,7 @@ final class WorkflowClient implements WorkflowClientInterface
      * Delivers an external signal to a running workflow.
      *
      * Le nom se donne en {@see \BackedEnum} comme du côté workflow
-     * ({@see \Gplanchat\Durable\WorkflowEnvironment::waitSignal()}), pour que l'émetteur et
+     * ({@see \Gplanchat\Durable\WorkflowEnvironment::onSignal()}), pour que l'émetteur et
      * l'attente partagent une même énumération plutôt que deux littéraux à garder d'accord.
      *
      * @param array<string, mixed> $args Signal arguments.

@@ -216,8 +216,11 @@ final class TemporalExecutionHistoryTest extends TestCase
         self::assertSame('timer-1', $slot['id']);
     }
 
-    public function testSignalFoundByNameAndSlot(): void
+    public function testMessagesAreReadInRecordedOrderWhateverTheirName(): void
     {
+        // Il n'y a plus de rang par nom : les messages se lisent dans l'ordre du journal, et
+        // c'est le handler de chaque nom qui trie. Un signal `reject` intercalé ne décale donc
+        // plus les `approve` — il occupe simplement sa place.
         $history = TemporalExecutionHistory::fromEvents([
             self::makeStartedEvent(1),
             self::makeSignal(2, 'approve', ['approved' => true]),
@@ -225,20 +228,26 @@ final class TemporalExecutionHistoryTest extends TestCase
             self::makeSignal(4, 'approve', ['approved' => true, 'second' => true]),
         ]);
 
-        $approveSlot0 = $history->findSignalForSlot('approve', 0);
-        self::assertNotNull($approveSlot0);
-        self::assertSame(['approved' => true], $approveSlot0['payload']);
+        $first = $history->messageAt(0);
+        self::assertNotNull($first);
+        self::assertSame('approve', $first['name']);
+        self::assertSame(['approved' => true], $first['payload']);
 
-        $rejectSlot0 = $history->findSignalForSlot('reject', 0);
-        self::assertNotNull($rejectSlot0);
-        self::assertSame(['reason' => 'no budget'], $rejectSlot0['payload']);
+        $second = $history->messageAt(1);
+        self::assertNotNull($second);
+        self::assertSame('reject', $second['name']);
+        self::assertSame(['reason' => 'no budget'], $second['payload']);
 
-        $approveSlot1 = $history->findSignalForSlot('approve', 1);
-        self::assertNotNull($approveSlot1);
-        self::assertTrue($approveSlot1['payload']['second'] ?? false);
+        $third = $history->messageAt(2);
+        self::assertNotNull($third);
+        self::assertSame('approve', $third['name']);
+        self::assertTrue($third['payload']['second'] ?? false);
 
-        self::assertNull($history->findSignalForSlot('approve', 2), 'Third approve does not exist');
-        self::assertNull($history->findSignalForSlot('unknown', 0), 'Unknown signal name');
+        // Les positions sont croissantes : c'est ce qui permet de comparer un message au tir
+        // d'une échéance.
+        self::assertSame([2, 3, 4], [$first['position'], $second['position'], $third['position']]);
+
+        self::assertNull($history->messageAt(3), 'Il n’y a pas de quatrième message');
     }
 
     public function testFindScheduledActivityId(): void

@@ -63,8 +63,17 @@ final class IntegrationWorkflows
         // l'échéance, et chaque tâche de workflow rejoue tout depuis le début — si le verdict
         // venait d'ailleurs que de l'ordre du journal, le replay lirait l'inverse (ADR DUR032).
         $registry->registerFactory('SignalDeadline', static fn(array $input) => static function (WorkflowEnvironment $env): array {
+            $approvals = [];
+            $env->onSignal('approve', static function (array $payload) use (&$approvals): void {
+                $approvals[] = $payload;
+            });
+            $pending = static function () use (&$approvals): bool {
+                return [] !== $approvals;
+            };
+
             try {
-                $first = ['signal', $env->waitSignal('approve', Duration::seconds(2))];
+                $env->await($pending, Duration::seconds(2));
+                $first = ['signal', array_shift($approvals)];
             } catch (DeadlineExceededException) {
                 $first = ['timeout'];
             }
@@ -74,7 +83,8 @@ final class IntegrationWorkflows
             $env->sleep(Duration::seconds(5));
 
             try {
-                $second = ['signal', $env->waitSignal('approve', Duration::seconds(10))];
+                $env->await($pending, Duration::seconds(10));
+                $second = ['signal', array_shift($approvals)];
             } catch (DeadlineExceededException) {
                 $second = ['timeout'];
             }

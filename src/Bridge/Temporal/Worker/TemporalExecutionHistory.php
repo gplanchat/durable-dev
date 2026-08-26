@@ -427,44 +427,6 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         return $this->childExecutionIds[$slot] ?? null;
     }
 
-    public function findSignalForSlot(string $signalName, int $slot, ?string $notAfterTimerId = null): ?array
-    {
-        $deadlineFiredAt = null !== $notAfterTimerId ? ($this->firedTimerIds[$notAfterTimerId] ?? null) : null;
-        $index = 0;
-        foreach ($this->signals as $signal) {
-            if ($signal['signalName'] === $signalName) {
-                if ($index === $slot) {
-                    // L'historique Temporal est totalement ordonné par eventId : un signal
-                    // d'eventId supérieur à celui du TIMER_FIRED est enregistré après le tir de
-                    // l'échéance, et ne règle pas l'attente qu'elle bornait.
-                    if (null !== $deadlineFiredAt && $signal['eventId'] > $deadlineFiredAt) {
-                        return null;
-                    }
-
-                    return ['payload' => $signal['payload']];
-                }
-                ++$index;
-            }
-        }
-
-        return null;
-    }
-
-    public function findUpdateForSlot(string $updateName, int $slot): ?array
-    {
-        $index = 0;
-        foreach ($this->updates as $update) {
-            if ($update['updateName'] === $updateName) {
-                if ($index === $slot) {
-                    return ['result' => $update['result']];
-                }
-                ++$index;
-            }
-        }
-
-        return null;
-    }
-
     public function messageAt(int $index): ?array
     {
         // Deux tableaux séparés côté Temporal, un seul ordre côté workflow : la fusion se fait

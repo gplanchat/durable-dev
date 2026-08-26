@@ -440,8 +440,14 @@ final class WorkflowTaskRunnerTest extends TestCase
         $registry = new WorkflowRegistry();
         $registry->registerFactory('SignaledWorkflow', function (array $payload) use ($capturedSignal) {
             return function (WorkflowEnvironment $env) use ($capturedSignal): string {
-                $signal = $env->waitSignal('mySignal');
-                $capturedSignal->value = $signal;
+                $received = [];
+                $env->onSignal('mySignal', static function (array $payload) use (&$received): void {
+                    $received[] = $payload;
+                });
+                $env->await(static function () use (&$received): bool {
+                    return [] !== $received;
+                });
+                $capturedSignal->value = array_shift($received);
 
                 return 'received';
             };
@@ -508,8 +514,16 @@ final class WorkflowTaskRunnerTest extends TestCase
         $registry = new WorkflowRegistry();
         $registry->registerFactory('DeadlineWorkflow', static fn(array $payload)
             => static function (WorkflowEnvironment $env) use ($verdict): array {
+                $approvals = [];
+                $env->onSignal('approve', static function (array $payload) use (&$approvals): void {
+                    $approvals[] = $payload;
+                });
+
                 try {
-                    $verdict->value = ['signal', $env->waitSignal('approve', Duration::seconds(30))];
+                    $env->await(static function () use (&$approvals): bool {
+                        return [] !== $approvals;
+                    }, Duration::seconds(30));
+                    $verdict->value = ['signal', array_shift($approvals)];
                 } catch (DeadlineExceededException) {
                     $verdict->value = ['timeout'];
                 }
@@ -585,7 +599,13 @@ final class WorkflowTaskRunnerTest extends TestCase
             'SignaledWorkflow',
             static fn(array $payload)
             => static function (WorkflowEnvironment $env): string {
-                $env->waitSignal('mySignal');
+                $received = false;
+                $env->onSignal('mySignal', static function (array $payload) use (&$received): void {
+                    $received = true;
+                });
+                $env->await(static function () use (&$received): bool {
+                    return $received;
+                });
 
                 return 'received';
             },
