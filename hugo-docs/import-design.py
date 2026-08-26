@@ -123,17 +123,51 @@ def convert_handlers(root: str) -> str:
 
 
 def inline_logos(root: str) -> str:
-    """Un SVG en `<img>` ne suit pas le thème ; incorporé, il l'hérite."""
+    """Un SVG externe ne suit pas le thème ; incorporé, il l'hérite.
+
+    Le design a déjà changé de mécanique une fois — d'un `<img>` vers un couple
+    « emplacement à peindre + glyphe de repli », les deux masqués en attendant
+    un script. Les deux formes sont donc reconnues, et l'absence de l'une comme
+    de l'autre est une erreur : la fois où elle est passée inaperçue, ce sont
+    les glyphes de repli qui se sont retrouvés dans le rendu.
+    """
     def replace(match: re.Match[str]) -> str:
-        name = match.group(1)
+        name = match.group("name")
+        box = match.groupdict().get("box")
         path = HERE / "assets" / "logos" / f"{name}.svg"
         if not path.exists():
             die(f"logo absent : {path} — voir assets/logos/")
         svg = path.read_text().strip()
-        # La taille vient du conteneur, plus d'un plafond de 20 px en dur.
-        return svg.replace('width="1em" height="1em"', 'width="100%" height="100%"')
+        # La taille vient du `data-box` du design. Sylius est une signature
+        # typographique, ratio 3,1:1 : lui imposer la même valeur dans les deux
+        # sens l'étirerait. Il se cale sur la hauteur, sa largeur suit.
+        wide = 'width="auto"' in svg
+        size = f"{box}px" if box else "100%"
+        sized = f'height="{size}" width="auto"' if wide else f'width="{size}" height="{size}"'
+        svg = re.sub(r'width="[^"]*" height="[^"]*"', sized, svg, count=1)
+        if "width=" not in svg:
+            die(f"dimensions perdues sur {name}.svg")
+        return svg
 
-    return re.sub(r'<img[^>]*data-logo[^>]*src="logo-([a-z]+)\.svg"[^>]*/?>', replace, root)
+    # Forme actuelle : un emplacement à peindre suivi de son glyphe de repli.
+    root, painted = re.subn(
+        r'<span[^>]*data-paint[^>]*data-box="(?P<box>\d+)"[^>]*'
+        r'data-src="logo-(?P<name>[a-z]+)\.svg"[^>]*>\s*</span>\s*'
+        r"<svg[^>]*data-glyph.*?</svg>",
+        replace, root, flags=re.S)
+
+    # Forme précédente, gardée le temps que plus aucun design ne la porte.
+    root, imaged = re.subn(
+        r'<img[^>]*data-logo[^>]*src="logo-(?P<name>[a-z]+)\.svg"[^>]*/?>', replace, root)
+
+    if not (painted or imaged):
+        die("aucun logo reconnu : la mécanique du design a encore changé")
+
+    orphans = sorted(set(re.findall(r"logo-[a-z]+\.svg", root)))
+    if orphans:
+        die(f"logos non incorporés, le repli s'afficherait à leur place : {orphans}")
+
+    return root
 
 
 def rewrite_links(root: str) -> str:
