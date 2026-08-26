@@ -216,6 +216,31 @@ That is the whole difference, and it is why updates are a separate requirement r
 parameter. An update handler's return value is the response the caller is blocking on, so it must
 survive replay: a replay reproduces the recorded response rather than recomputing it.
 
+### Où se consigne l'issue d'un update (tâche 6.6)
+
+Au moment où le curseur applique l'update, par le tampon de commandes — pas par l'appelant de la
+passe une fois celle-ci finie.
+
+La raison est l'ordre. L'enregistrement doit précéder ce que le workflow fait *en réponse*, sinon
+un replay appliquerait les deux dans l'autre sens. C'est exactement l'ordre que Temporal impose et
+que la tâche 5.5 a appris de lui : la commande d'acceptation précède les commandes du workflow. Le
+tampon in-memory écrivant sans différé, consigner dans la boucle donne la position voulue.
+
+Sur le backend Temporal, `recordUpdateHandled()` est délibérément vide : c'est le **serveur** qui
+écrit `UPDATE_ACCEPTED` et `UPDATE_COMPLETED` à partir des messages de protocole renvoyés, et un
+worker qui journaliserait aussi ferait double emploi. L'asymétrie est dans le docblock, faute de
+quoi quelqu'un « réparera » ce vide.
+
+Rejeté : consigner après la passe, depuis le handler de livraison. C'est la forme la plus simple,
+et un signal livré pendant la passe se retrouverait enregistré *avant* l'update alors qu'il est
+arrivé après — les deux seraient rejoués dans le désordre.
+
+Le transport, lui, ne duplique rien : `ResumeWorkflowMessage` porte les updates en attente, et
+`DeliverWorkflowUpdateHandler` se contente de demander une reprise qui les emporte. Tout le cycle
+de vie d'une exécution — suspension, continue-as-new, clôture, remontée au parent — reste dans le
+seul `ResumeWorkflowHandler`, ce que DUR027 avait consolidé et qu'il aurait été coûteux de
+ré-éclater.
+
 ## Non-goals
 
 - **Update validator methods.** Temporal separates validation from execution for updates; that is

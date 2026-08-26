@@ -101,7 +101,8 @@ $result = $this->environment->await($activities->charge($orderId));
 > [!NOTE]
 > **Two timeouts, two owners.** `ActivityTimeouts` bounds an activity **attempt** and is enforced
 > by the **backend**: it survives a worker crash, and it applies to that activity only. A
-> **deadline** passed to `await()` or `waitSignal()` is enforced **workflow-side**: it bounds
+> **deadline** passed to `await()` — over an awaitable or a condition — is enforced
+> **workflow-side**: it bounds
 > *this* wait in *this* execution, and it covers what activity bounds cannot — a child workflow, a
 > signal, a composed group. Reach for `ActivityTimeouts` to bound a single attempt, and for a
 > deadline to bound anything else. See

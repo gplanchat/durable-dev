@@ -26,7 +26,7 @@
 - [x] 4.1 The run projection table, declared in `DurableSchema` so it appears on installs that already exist — `durable_workflow_runs`, indexée sur `started_at`
 - [x] 4.2 Writing the projection on every transition from 1.2, leaving the metadata lifecycle and `hasActiveWorkflowMetadata()` untouched — deux décorateurs, `ProjectingWorkflowMetadataStore` (le nom) et `ProjectingEventStore` (l'issue) ; aucune classe existante modifiée
 - [x] 4.3 The adapter: listing from the projection, history from `durable_events` — `JournalRunHistoryReader` traduit le flux du journal, une seule passe avant suffisant à nommer les activités
-- [ ] 4.4 Backend reachability reported for the database, answering the same question the Temporal adapter answers about gRPC
+- [ ] 4.4 Backend reachability reported for the database, answering the same question the Temporal adapter answers about gRPC — **non fait** : la page dit aujourd'hui si un catalogue est *enregistré*, pas si le backend *répond*. Ni l'adaptateur DBAL ni l'adaptateur Temporal ne sondent leur backend, et `design.md` promet les deux. Dernière tâche avant archivage
 
 ## 5. Temporal backend
 
@@ -36,12 +36,12 @@
 ## 6. Bundle and plugin
 
 - [x] 6.1 Register the adapter matching the configured backend, and register none when no backend is readable — et les deux décorateurs de projection avec le catalogue DBAL, faute de quoi il lirait une table que personne n'écrit. La projection n'est câblée que si le **journal** est en SQL : c'est de lui que viennent les issues
-- [x] 6.2 The plugin depends on the port instead of the Temporal bridge; the bridge leaves its `suggest` entry — *partiel assumé* : `RunDashboardView` est bâti sur le port seul et le paquet requiert `gplanchat/durable`. Le fournisseur Temporal et l'entrée `suggest` ne partent qu'avec §6.3, faute de quoi la page serait cassée entre deux tranches
-- [ ] 6.3 Rename the view model's `temporal` key to `backend`, and render absent facts as absent in the template — no empty task queue column, no query lane where no query is recorded
-- [ ] 6.4 Move the plugin's dashboard tests onto the port, and keep one that pins the no-backend page
+- [x] 6.2 The plugin depends on the port instead of the Temporal bridge; the bridge leaves its `suggest` entry — achevée avec §6.3 : le paquet requiert `gplanchat/durable` et plus rien de Temporal, et suggère `gplanchat/durable-bundle` qui câble le catalogue quel que soit le backend
+- [x] 6.3 Rename the view model's `temporal` key to `backend`, and render absent facts as absent in the template — no empty task queue column, no query lane where no query is recorded — et les 912 lignes du fournisseur gRPC quittent le plugin
+- [x] 6.4 Move the plugin's dashboard tests onto the port, and keep one that pins the no-backend page — les trois tests du fournisseur disparaissent avec lui ; le test de parité §2.9 devient le contrat de l'adaptateur Temporal, la correction du statut restant épinglée
 
 ## 7. Documentation
 
-- [ ] 7.1 State in the DBAL backend documentation that ending a run now leaves a projection row behind, and what it holds
-- [ ] 7.2 Rewrite the plugin README: the dashboard reads whichever backend is configured, and what it cannot show on each
-- [ ] 7.3 ADR DUR035: why run observation is a projection rather than a query over the journal, and why an absent fact is modelled as absent
+- [x] 7.1 State in the DBAL backend documentation that ending a run now leaves a projection row behind, and what it holds — `durable_workflow_runs` : pourquoi elle existe, les deux plumes qui l'écrivent, les deux lignes d'un continue-as-new, et la rétention à la charge de l'application
+- [x] 7.2 Rewrite the plugin README: the dashboard reads whichever backend is configured, and what it cannot show on each — fait avec §6.3, tableau des faits par backend inclus
+- [x] 7.3 ADR DUR035: why run observation is a projection rather than a query over the journal, and why an absent fact is modelled as absent

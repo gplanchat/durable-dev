@@ -14,7 +14,12 @@ use Gplanchat\Durable\ChildWorkflowOptions;
 use Gplanchat\Durable\ContinueAsNewOptions;
 use Gplanchat\Durable\Duration as DurableDuration;
 use Gplanchat\Durable\Event\ActivityScheduled;
+use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\Failure\WorkflowFailureClassifier;
+use Gplanchat\Durable\Nexus\NexusEndpoint;
+use Gplanchat\Durable\Nexus\NexusOperationName;
+use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
+use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Port\WorkflowCommandBufferInterface;
 use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
@@ -242,6 +247,13 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
      * (on n'annule qu'une opération déjà en attente), et le prédire demanderait de reproduire
      * l'attribution d'identifiants du serveur à partir de `startedEventId`.
      */
+    public function recordUpdateHandled(string $updateName, array $arguments, mixed $result, ?FailureEnvelope $failure): void
+    {
+        // Volontairement vide : c'est le **serveur** qui écrit UPDATE_ACCEPTED et
+        // UPDATE_COMPLETED, à partir des messages de protocole que le worker lui renvoie
+        // ({@see UpdateProtocol}). Un worker qui journaliserait aussi ferait double emploi.
+    }
+
     public function cancelActivity(string $activityId, string $reason): void
     {
         $scheduledEventId = $this->history?->scheduledEventIdForActivity($activityId);
@@ -380,5 +392,30 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     private function durationSeconds(float $seconds): Duration
     {
         return TemporalPolicyMapper::duration($seconds);
+    }
+
+    /**
+     * Temporal SAIT servir Nexus — la commande protobuf n'est simplement pas encore construite
+     * (§4.1). Ne pas lever ici {@see NexusUnsupportedByBackendException} : elle dit « ce backend
+     * n'a aucune route pour cet appel », ce qui serait faux et enverrait le lecteur réécrire son
+     * workflow au lieu d'attendre une tranche.
+     *
+     * Inatteignable en l'état : rien n'appelle encore ces méthodes, faute du
+     * `scheduleNexusOperation()` de §3.2 sur l'environnement.
+     */
+    public function scheduleNexusOperation(
+        string $operationId,
+        NexusEndpoint $endpoint,
+        NexusService $service,
+        NexusOperationName $operation,
+        array $payload,
+        NexusOperationTimeouts $timeouts,
+    ): void {
+        throw new \LogicException('ScheduleNexusOperation is not built yet on the Temporal command buffer (temporal-nexus-support §4.1).');
+    }
+
+    public function cancelNexusOperation(string $operationId, string $reason): void
+    {
+        throw new \LogicException('RequestCancelNexusOperation is not built yet on the Temporal command buffer (temporal-nexus-support §4.2).');
     }
 }

@@ -481,7 +481,6 @@ final class DurableExtension extends Extension
 
         $container->register(DeliverWorkflowUpdateHandler::class)
             ->setArguments([
-                new Reference(EventStoreInterface::class),
                 new Reference(WorkflowResumeDispatcher::class),
             ])
             ->addTag('messenger.message_handler')

@@ -183,8 +183,6 @@ final class DurableSampleWorkflowRunner
             $executionId,
             $updateName,
             $updateArguments,
-            // La réponse appartient au handler d'update, plus à l'appelant.
-            null,
         ));
         $result = $this->waitForWorkflowCompletion($executionId);
 
