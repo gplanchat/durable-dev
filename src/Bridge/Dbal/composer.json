@@ -3,10 +3,9 @@
     "description": "Doctrine DBAL journal, metadata and parent-link stores for gplanchat/durable — durable execution on a single SQL database, no orchestrator cluster",
     "license": "MIT",
     "type": "library",
-    "version": "0.1.0",
     "require": {
         "php": ">=8.2",
-        "gplanchat/durable": "^0.1",
+        "gplanchat/durable": "self.version",
         "doctrine/dbal": "^3.7 || ^4.0",
         "symfony/lock": "^7.0",
         "symfony/messenger": "^7.0"
