@@ -168,7 +168,9 @@ final class WorkflowHandlerDispatchTest extends TestCase
             return $seen;
         };
 
-        self::assertSame(3, $engine->resume('disp-6-first', $handler), 'trois livraisons, trois appels');
+        self::assertSame(3, $engine->resume('disp-5', $handler), 'trois livraisons, trois appels');
+        self::assertSame(3, $calls);
+
         $calls = 0;
         self::assertSame(3, $engine->resume('disp-5', $handler));
         self::assertSame(3, $calls, 'un replay rejoue les trois, ni plus ni moins');

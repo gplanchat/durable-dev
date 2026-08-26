@@ -34,14 +34,14 @@
 ## 4. Domain — conditions
 
 - [x] 4.1 `await()` accepts a condition, wrapped into the existing awaitable contract, composing with the deadline path unchanged — `ConditionAwaitable::isSettled()` *est* le prédicat, le chemin d’échéance ne bifurque pas
-- [ ] 4.2 The evaluation loop from 1.1: messages applied one at a time, pending conditions re-tested after each — part avec 5.3 : sans handler pour consommer un message, appliquer n’a aucun effet observable, et la boucle serait écrite sans test
+- [x] 4.2 The evaluation loop from 1.1: messages applied one at a time, pending conditions re-tested after each — pilotée par l’attente, avant que le composite n’atteigne le runtime
 - [x] 4.3 A condition that can never hold reported through the existing "cannot advance" path, naming the condition, rather than a new failure vocabulary — la suspension porte ce qu’elle attend, le runner le relaie dans `noProgress`
 
 ## 5. Domain — dispatch
 
-- [ ] 5.1 `#[SignalMethod]` and `#[UpdateMethod]` read at load time, alongside the existing `#[QueryMethod]` scan
-- [ ] 5.2 Imperative registration on `WorkflowEnvironment`, mirroring `registerQueryHandler()`
-- [ ] 5.3 Engine-side dispatch, interleaved with 4.2
+- [x] 5.1 `#[SignalMethod]` read at load time, alongside the existing `#[QueryMethod]` scan, et acceptant une enum — `#[UpdateMethod]` attend la décision de transport
+- [x] 5.2 Imperative registration on `WorkflowEnvironment`, mirroring `registerQueryHandler()`
+- [x] 5.3 Engine-side dispatch, interleaved with 4.2 — pour les signaux ; les updates suivent avec 5.4/5.5
 - [ ] 5.4 Update responses recorded and reproduced on replay
 - [ ] 5.5 Worker-side update acceptance and completion on the Temporal bridge, from the probe in 1.3
 

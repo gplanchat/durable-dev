@@ -78,11 +78,13 @@ final class WorkflowConditionTest extends TestCase
         $store->append(new WorkflowSignalReceived('cond-3', 'tick', ['n' => 1]));
 
         $first = $engine->resume('cond-3', $handler);
-        $before = $store->countEventsInStream('cond-3');
         $second = $engine->resume('cond-3', $handler);
 
         self::assertSame($first, $second);
-        self::assertSame($before, $store->countEventsInStream('cond-3'), 'un replay ne planifie rien de neuf');
+        // « rien de neuf » porte sur le travail planifié, pas sur le journal entier : rejouer une
+        // exécution déjà close y réécrit sa clôture, et c'est vrai de tout replay, condition ou pas.
+        self::assertSame([], $this->eventsOf($store, 'cond-3', TimerScheduled::class));
+        self::assertCount(1, $this->eventsOf($store, 'cond-3', WorkflowSignalReceived::class));
     }
 
     // -------------------------------------------------------------------------
