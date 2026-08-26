@@ -465,6 +465,25 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         return null;
     }
 
+    public function messageAt(int $index): ?array
+    {
+        $signal = $this->signals[$index] ?? null;
+        if (null === $signal) {
+            return null;
+        }
+
+        return [
+            'position' => $signal['eventId'],
+            'name' => $signal['signalName'],
+            'payload' => \is_array($signal['payload']) ? $signal['payload'] : ['value' => $signal['payload']],
+        ];
+    }
+
+    public function timerCompletionPosition(string $timerId): ?int
+    {
+        return $this->firedTimerIds[$timerId] ?? null;
+    }
+
     public function hasChildExecutionId(string $childExecutionId): bool
     {
         return \in_array($childExecutionId, $this->childExecutionIds, true);
