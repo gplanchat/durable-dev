@@ -19,6 +19,7 @@ use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
 use PHPUnit\Framework\TestCase;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * DUR030 promet le **même modèle d'écriture** sur le backend DBAL que sur les deux autres : la
@@ -105,7 +106,7 @@ final class DbalBackendParityTest extends TestCase
 
         return $runner->run($executionId, static function (WorkflowEnvironment $wf): array {
             $nested = $wf->sideEffect(static fn(): array => ['nested' => ['deep' => true], 'ratio' => 0.1]);
-            $quote = $wf->await($wf->activity('quote', ['lines' => ['a', 'b']]));
+            $quote = $wf->await($wf->activityStub(SuiteActivities::class)->quote(['a', 'b']));
             $wf->sleep(Duration::seconds(0.001));
             $flag = $wf->sideEffect(static fn(): string => 'after-timer');
 
