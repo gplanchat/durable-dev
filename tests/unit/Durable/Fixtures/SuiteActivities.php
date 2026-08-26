@@ -9,7 +9,7 @@ use Gplanchat\Durable\Attribute\ActivityMethod;
 /**
  * Les activités que la suite planifie, déclarées une fois.
  *
- * La suite nommait ses activités par des chaînes — `$env->activity('double', ['value' => 2])` —
+ * La suite nommait ses activités par des chaînes — `$env->activity('double', ['value' => 2])`, sans contrat —
  * la forme que la bibliothèque n'enseigne plus. Ces noms sont des accessoires de test, pas des
  * contrats métier, mais ce sont quand même du code de workflow : la règle vaut pour eux.
  *
@@ -84,4 +84,17 @@ interface SuiteActivities
     /** Échoue toujours : sert aux tests de retentative sans issue. */
     #[ActivityMethod('always')]
     public function always(): mixed;
+
+    #[ActivityMethod('square')]
+    public function square(int $value): int;
+
+    #[ActivityMethod('add')]
+    public function add(int $a, int $b): int;
+
+    #[ActivityMethod('task')]
+    public function task(string $name): mixed;
+
+    /** Rend ce qu'on lui donne : sert à distinguer deux branches d'une même course. */
+    #[ActivityMethod('id')]
+    public function id(mixed $v): mixed;
 }
