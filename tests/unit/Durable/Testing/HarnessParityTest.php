@@ -17,6 +17,7 @@ use Gplanchat\Durable\ParentClosePolicy;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Le harness public exécutait les activités par un chemin distinct de la production
@@ -31,7 +32,7 @@ final class HarnessParityTest extends TestCase
         $env = WorkflowTestEnvironment::inMemory(['greet' => static fn(array $p): string => 'hi ' . $p['name']]);
 
         $result = $env->run(static fn(WorkflowEnvironment $wf): mixed
-            => $wf->await($wf->activity('greet', ['name' => 'world'])), 'exec-1');
+            => $wf->await($wf->activityStub(SuiteActivities::class)->greet('world')), 'exec-1');
 
         self::assertSame('hi world', $result);
         self::assertSame(
@@ -62,7 +63,7 @@ final class HarnessParityTest extends TestCase
 
         try {
             $env->run(static fn(WorkflowEnvironment $wf): mixed
-                => $wf->await($wf->activity('flaky', [], $options)), 'exec-2');
+                => $wf->await($wf->activityStub(SuiteActivities::class, $options)->flaky()), 'exec-2');
         } catch (\Throwable) {
             // Le workflow ne gère pas l'échec : attendu ici.
         }
@@ -88,7 +89,7 @@ final class HarnessParityTest extends TestCase
 
         try {
             $env->run(static fn(WorkflowEnvironment $wf): mixed
-                => $wf->await($wf->activity('flaky', [], $options)), 'exec-3');
+                => $wf->await($wf->activityStub(SuiteActivities::class, $options)->flaky()), 'exec-3');
         } catch (\Throwable) {
         }
 
@@ -100,7 +101,7 @@ final class HarnessParityTest extends TestCase
     {
         $env = WorkflowTestEnvironment::inMemory(['work' => static fn(): string => 'from-activity']);
         $env->registerWorkflow('Child', static fn(array $input) => static fn(WorkflowEnvironment $wf): string
-            => 'child(' . $wf->await($wf->activity('work', [])) . ')');
+            => 'child(' . $wf->await($wf->activityStub(SuiteActivities::class)->work()) . ')');
 
         $result = $env->run(static fn(WorkflowEnvironment $wf): string
             => 'parent[' . $wf->executeChildWorkflow('Child', []) . ']', 'parent-1');

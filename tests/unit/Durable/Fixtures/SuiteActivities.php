@@ -41,4 +41,23 @@ interface SuiteActivities
     /** @param list<string> $lines */
     #[ActivityMethod('quote')]
     public function quote(array $lines): mixed;
+
+    // Accessoires d'ordonnancement : ces noms ne décrivent aucun métier, ils servent à faire
+    // gagner ou perdre une branche dans une course. Ils n'ont donc pas d'argument.
+    #[ActivityMethod('fast')]
+    public function fast(): mixed;
+
+    #[ActivityMethod('slow')]
+    public function slow(): mixed;
+
+    #[ActivityMethod('work')]
+    public function work(): mixed;
+
+    /** Rend une valeur vide : `empty` est une construction du langage, pas un nom de méthode. */
+    #[ActivityMethod('empty')]
+    public function emptyResult(): mixed;
+
+    /** Échoue puis réussit : sert aux tests de retentative. */
+    #[ActivityMethod('flaky')]
+    public function flaky(): mixed;
 }

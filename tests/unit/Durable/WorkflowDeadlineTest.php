@@ -23,6 +23,7 @@ use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Borner une attente dans le temps depuis le code workflow.
@@ -42,7 +43,7 @@ final class WorkflowDeadlineTest extends TestCase
         $env = WorkflowTestEnvironment::inMemory(['fast' => static fn(): string => 'answer']);
 
         $result = $env->run(
-            static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activity('fast', []), Duration::hours(1)),
+            static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activityStub(SuiteActivities::class)->fast(), Duration::hours(1)),
             'deadline-1',
         );
 
@@ -58,7 +59,7 @@ final class WorkflowDeadlineTest extends TestCase
         $env = WorkflowTestEnvironment::inMemory(['empty' => static fn(): mixed => null]);
 
         $result = $env->run(
-            static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activity('empty', []), Duration::hours(1)),
+            static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activityStub(SuiteActivities::class)->emptyResult(), Duration::hours(1)),
             'deadline-2',
         );
 
@@ -110,7 +111,7 @@ final class WorkflowDeadlineTest extends TestCase
     {
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
-        $handler = static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activity('slow', []), Duration::seconds(30));
+        $handler = static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activityStub(SuiteActivities::class)->slow(), Duration::seconds(30));
 
         try {
             $engine->start('deadline-4', $handler);
@@ -134,7 +135,7 @@ final class WorkflowDeadlineTest extends TestCase
     {
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
-        $handler = static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activity('slow', []), Duration::seconds(30));
+        $handler = static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activityStub(SuiteActivities::class)->slow(), Duration::seconds(30));
 
         try {
             $engine->start('deadline-5', $handler);

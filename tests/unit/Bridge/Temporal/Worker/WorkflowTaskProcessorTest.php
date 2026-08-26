@@ -14,6 +14,7 @@ use Gplanchat\Durable\WorkflowRegistry;
 use Grpc\UnaryCall;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
+use unit\Durable\Fixtures\SuiteActivities;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
@@ -224,7 +225,7 @@ final class WorkflowTaskProcessorTest extends TestCase
             'ActivityWorkflow',
             static fn(array $payload)
             => static function (WorkflowEnvironment $env): string {
-                return $env->await($env->activity('greet', ['name' => 'World']));
+                return $env->await($env->activityStub(SuiteActivities::class)->greet('World'));
             },
         );
 
@@ -260,7 +261,7 @@ final class WorkflowTaskProcessorTest extends TestCase
             'ActivityWorkflow',
             static fn(array $payload)
             => static function (WorkflowEnvironment $env): string {
-                return $env->await($env->activity('greet', ['name' => 'World']));
+                return $env->await($env->activityStub(SuiteActivities::class)->greet('World'));
             },
         );
 
