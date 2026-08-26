@@ -26,6 +26,7 @@ SPLITS=(
     "src/Durable/|durable"
     "src/DurableBundle/|durable-bundle"
     "src/Bridge/Temporal/|durable-bridge-temporal"
+    "src/Bridge/Dbal/|durable-bridge-dbal"
 )
 
 # Push using Authorization: Basic so the credential helper from CI (GITHUB_TOKEN) cannot override

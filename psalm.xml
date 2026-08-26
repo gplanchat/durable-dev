@@ -13,6 +13,7 @@
         <directory name="src/Durable" />
         <directory name="src/DurableBundle" />
         <directory name="src/Bridge/Temporal" />
+        <directory name="src/Bridge/Dbal" />
         <ignoreFiles>
             <directory name="src/Bridge/Temporal/Api" />
             <directory name="src/Bridge/Temporal/Generated" />
