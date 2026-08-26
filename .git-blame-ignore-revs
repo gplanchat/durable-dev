@@ -1,0 +1,8 @@
+# Révisions à sauter par `git blame` : des reformatages en masse, aucune décision dedans.
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# GitHub et GitLab lisent ce fichier tout seuls.
+
+# style: adopter PER-CS 3.0 et figer la config php-cs-fixer (160 fichiers)
+015b228f5665d9efcbce887574e8a9ca0d027043
