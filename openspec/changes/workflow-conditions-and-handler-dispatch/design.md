@@ -28,8 +28,27 @@ Per the house rule, the boundary between observed and assumed:
   on which task they must be returned. Nothing about update responses reaches the domain before
   that is seen on `:7233`. The signal half has no such dependency: it rides the
   `WORKFLOW_EXECUTION_SIGNALED` events already read and already exercised by the integration suite.
-- **Assumed, and cheap to check first:** that a Temporal workflow task can carry several journaled
-  messages at once, so interleaving is a real question inside one task and not only across tasks.
+- **Observed against a running server (task 1.2), and it is the premise §4.2 rests on:** a single
+  workflow task carries several journaled messages. Probed with no worker on the task queue, three
+  signals sent to a started execution, then the task queue polled directly. The pending segment —
+  what follows the last `WORKFLOW_TASK_COMPLETED` — came back as:
+
+  ```
+  WORKFLOW_EXECUTION_SIGNALED      <- the first signal schedules the task
+  WORKFLOW_TASK_SCHEDULED
+  WORKFLOW_EXECUTION_SIGNALED      <- the second lands after the task is scheduled
+  WORKFLOW_EXECUTION_SIGNALED      <- so does the third
+  WORKFLOW_TASK_STARTED            <- one task, and it carries all three
+  ```
+
+  So ordering messages against condition re-evaluation is a question **inside** one task, not only
+  across tasks: the loop of §4.2 has an object. Had the server delivered one message per task, the
+  ordering would have been its business and not the domain's.
+
+  Pinned by `tests/integration/Temporal/WorkflowTaskMessageBatchTest.php`, which counts within the
+  pending segment rather than over the whole history — the poll returns the full history, so
+  counting over all of it would prove only that several signals were recorded at some point, never
+  that **one** task carries them.
 
 ## Decisions
 
