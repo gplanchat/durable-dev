@@ -24,6 +24,7 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * L'annulation est livrée DANS le fiber, au point d'attente — équivalent du CanceledFailure
@@ -50,7 +51,7 @@ final class WorkflowCancellationTest extends TestCase
     public function testCancellationIsRaisedAtTheAwaitPoint(): void
     {
         $this->executor->register('slow', static fn(): string => 'never used');
-        $handler = static fn(WorkflowEnvironment $env): mixed => $env->await($env->activity('slow', []));
+        $handler = static fn(WorkflowEnvironment $env): mixed => $env->await($env->activityStub(SuiteActivities::class)->slow());
 
         $this->startAndSuspend('exec-1', $handler);
         $this->requestCancellation('exec-1');
@@ -83,9 +84,9 @@ final class WorkflowCancellationTest extends TestCase
 
         $handler = static function (WorkflowEnvironment $env): mixed {
             try {
-                return $env->await($env->activity('charge', []));
+                return $env->await($env->activityStub(SuiteActivities::class)->charge());
             } catch (WorkflowCancelledFailure $e) {
-                $env->await($env->activity('refund', []));
+                $env->await($env->activityStub(SuiteActivities::class)->refund());
 
                 throw $e;
             }
@@ -114,7 +115,7 @@ final class WorkflowCancellationTest extends TestCase
         $this->executor->register('slow', static fn(): string => 'never used');
         $handler = static function (WorkflowEnvironment $env): string {
             try {
-                return $env->await($env->activity('slow', []));
+                return $env->await($env->activityStub(SuiteActivities::class)->slow());
             } catch (WorkflowCancelledFailure) {
                 return 'finished anyway';
             }
@@ -145,7 +146,7 @@ final class WorkflowCancellationTest extends TestCase
         $runner = new \Gplanchat\Durable\InMemoryWorkflowRunner($this->eventStore, $this->transport, $this->executor);
 
         $result = $runner->run('race-1', static fn(WorkflowEnvironment $env): mixed => $env->await($env->any(
-            $env->activity('fast', []),
+            $env->activityStub(SuiteActivities::class)->fast(),
             $env->timer(3600.0),
         )));
 

@@ -60,4 +60,21 @@ interface SuiteActivities
     /** Échoue puis réussit : sert aux tests de retentative. */
     #[ActivityMethod('flaky')]
     public function flaky(): mixed;
+
+    #[ActivityMethod('charge')]
+    public function charge(mixed $o = null): mixed;
+
+    #[ActivityMethod('refund')]
+    public function refund(mixed $order = null): mixed;
+
+    #[ActivityMethod('doWork')]
+    public function doWork(): mixed;
+
+    // Le trait d'union n'est pas un nom de méthode PHP ; l'attribut porte le nom transmis, donc
+    // rien ne bouge sur le fil.
+    #[ActivityMethod('task-a')]
+    public function taskA(): mixed;
+
+    #[ActivityMethod('task-b')]
+    public function taskB(): mixed;
 }
