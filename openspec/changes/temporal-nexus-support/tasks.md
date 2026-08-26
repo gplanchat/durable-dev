@@ -7,9 +7,9 @@
 
 ## 2. Domain value objects
 
-- [ ] 2.1 `NexusEndpoint`, `NexusService`, `NexusOperationName` — named constructors, boundary coercion, validation limited to probed rules
+- [ ] 2.1 `NexusEndpoint`, `NexusService`, `NexusOperationName` — named constructors, boundary coercion, validation limited to probed rules — **`NexusEndpoint` fait** : motif et limite du serveur, ni plus ni moins, avec la distinction vide/malformé qu'il fait lui-même. `NexusService` et `NexusOperationName` attendent la moitié service/opération de 1.1
 - [ ] 2.2 `NexusOperationTimeouts` built on `Duration`, mirroring `ActivityTimeouts`, with `executionBoundOr()` if the server requires a closing bound
-- [ ] 2.3 Unit tests asserting the probed verdicts, one case per observation
+- [ ] 2.3 Unit tests asserting the probed verdicts, one case per observation — **fait pour `NexusEndpoint`** : 20 cas, un par verdict du tableau de `design.md`, y compris la lettre seule que le motif refuse
 
 ## 3. Caller-side domain plumbing
 
