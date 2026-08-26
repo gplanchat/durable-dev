@@ -26,7 +26,7 @@
 - [x] 4.1 The run projection table, declared in `DurableSchema` so it appears on installs that already exist — `durable_workflow_runs`, indexée sur `started_at`
 - [x] 4.2 Writing the projection on every transition from 1.2, leaving the metadata lifecycle and `hasActiveWorkflowMetadata()` untouched — deux décorateurs, `ProjectingWorkflowMetadataStore` (le nom) et `ProjectingEventStore` (l'issue) ; aucune classe existante modifiée
 - [x] 4.3 The adapter: listing from the projection, history from `durable_events` — `JournalRunHistoryReader` traduit le flux du journal, une seule passe avant suffisant à nommer les activités
-- [ ] 4.4 Backend reachability reported for the database, answering the same question the Temporal adapter answers about gRPC — **non fait** : la page dit aujourd'hui si un catalogue est *enregistré*, pas si le backend *répond*. Ni l'adaptateur DBAL ni l'adaptateur Temporal ne sondent leur backend, et `design.md` promet les deux. Dernière tâche avant archivage
+- [x] 4.4 Backend reachability reported for the database, answering the same question the Temporal adapter answers about gRPC — `checkHealth()` sur le port, sondé par les deux adaptateurs, et la page ne liste rien d'un backend muet plutôt que d'afficher un tableau vide et serein
 
 ## 5. Temporal backend
 
