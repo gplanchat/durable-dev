@@ -17,16 +17,16 @@
 - [x] 3.2 `nexusOperationSlotIndex` in `ExecutionContext`, plus `scheduleNexusOperation()` on the environment — `nexusOperation()` des deux côtés (même verbe que `activity()`, plutôt que `scheduleNexusOperation()` qui aurait juré avec lui) ; coercition des trois noms à la frontière de l'environnement, registre `pendingNexusOperations` en miroir de celui des activités
 - [x] 3.3 `findNexusOperationSlotResult()` and `findScheduledNexusOperation()` on `WorkflowHistorySourceInterface` — la source journal rend `null` **définitivement** (son tampon refuse d'écrire, il n'y a rien à relire) ; la source Temporal lève un `LogicException` nommant §4.3, parce que rendre `null` là ferait replanifier l'opération à chaque replay, en silence
 - [x] 3.4 `scheduleNexusOperation()` and `cancelNexusOperation()` on `WorkflowCommandBufferInterface` — le backend journal **refuse** avec `NexusUnsupportedByBackendException`, ce que la proposition exige ; le tampon Temporal lève un `LogicException` nommant §4.1 / §4.2, pas l'exception « backend sans route » qui serait un mensonge sur ce que Temporal sait faire
-- [ ] 3.5 Extend `WorkflowFiberDriver::cancelPending()` to cancel a pending Nexus operation on workflow cancellation
+- [x] 3.5 Extend `WorkflowFiberDriver::cancelPending()` to cancel a pending Nexus operation on workflow cancellation — rien à étendre dans le pilote : la marche unique est `AwaitableCancellation`, que les deux appelants partagent, et c'est elle qui descend, composites traversés
 - [x] 3.6 `DurableNexusOperationFailedException` with its four kinds, and its classification in `WorkflowFailureClassifier` — natures dans `NexusOperationFailureKind`, prises mot pour mot du spec ; le triplet endpoint/service/opération voyage dans le contexte de `KIND_UNHANDLED_NEXUS_OPERATION` ; le comportement de reprise n'est porté que par `HandlerError`
 
 ## 4. Temporal backend
 
 - [ ] 4.1 Build `ScheduleNexusOperation` in `TemporalWorkflowCommandBuffer`, bounds and headers included — **commande et bornes faites** : les trois bornes ne partent que si le domaine en porte une (le serveur n'applique aucun défaut, §1.3), l'infini part en `0`, et l'entrée est **un** `Payload` et non un `Payloads` comme pour une activité. **Les en-têtes restent à faire** : rien côté domaine n'en porte, et c'est le port de §3.4 qui devra les transporter — les ajouter ici sans source serait un champ vide déguisé en fonctionnalité
-- [ ] 4.2 Build `RequestCancelNexusOperation` using the real scheduled event id read from history
-- [ ] 4.3 Read the nine `NEXUS_OPERATION_*` events in `TemporalExecutionHistory`, keyed by scheduled event id
+- [x] 4.2 Build `RequestCancelNexusOperation` using the real scheduled event id read from history — et rien n'est émis tant que le serveur n'a pas vu l'opération
+- [x] 4.3 Read the nine `NEXUS_OPERATION_*` events in `TemporalExecutionHistory`, keyed by scheduled event id — l'identité se relit de la charge utile, comme la commande de planification l'écrit ; les quatre issues portent la nature *et* le site d'appel
 - [ ] 4.4 Convert those events in `TemporalEventConverter` so the profiler and the read-through store show them
-- [ ] 4.5 Fail clearly when an operation reports `NEXUS_OPERATION_STARTED` with a token — asynchronous operations are out of scope for this increment
+- [x] 4.5 Fail clearly when an operation reports `NEXUS_OPERATION_STARTED` with a token — asynchronous operations are out of scope for this increment
 
 ## 5. In-memory backend
 

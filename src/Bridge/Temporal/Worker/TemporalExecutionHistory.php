@@ -9,8 +9,10 @@ use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Durable\ActivityCancellationReason;
 use Gplanchat\Durable\Exception\ActivitySupersededException;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
+use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Failure\FailureEnvelope;
+use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
@@ -52,6 +54,12 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 
     /** @var array<string, float> timer ID → scheduled-at */
     private array $timerScheduledAt = [];
+
+    /** @var list<array{eventId: int, operationId: string, endpoint: string, service: string, operation: string}> opérations Nexus planifiées, dans l'ordre */
+    private array $scheduledNexusOperations = [];
+
+    /** @var array<int, array{result: mixed, failed: \Throwable|null}> eventId de planification → issue */
+    private array $nexusOutcomes = [];
 
     /** @var array<string, int> timer ID → eventId of its TIMER_FIRED (l'ordre du journal tranche le verdict d'une échéance) */
     private array $firedTimerIds = [];
@@ -247,6 +255,83 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     }
                     $result = null !== $resultPayload ? self::decodeMarkerDetail($resultPayload) : null;
                     $this->sideEffects[$this->sideEffectSlot++] = $result;
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED:
+                $attr = $event->getNexusOperationScheduledEventAttributes();
+                if (null !== $attr) {
+                    // L'identité voyage dans la charge utile : le message n'a aucun champ pour
+                    // elle, et le fil ne porte qu'un Payload — c'est la forme que la commande de
+                    // planification écrit.
+                    $input = $attr->getInput();
+                    $decoded = null !== $input ? JsonPlainPayload::decode($input) : null;
+                    $this->scheduledNexusOperations[] = [
+                        'eventId' => (int) $eventId,
+                        'operationId' => \is_array($decoded) ? (string) ($decoded['operationId'] ?? '') : '',
+                        'endpoint' => (string) $attr->getEndpoint(),
+                        'service' => (string) $attr->getService(),
+                        'operation' => (string) $attr->getOperation(),
+                    ];
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED:
+                $attr = $event->getNexusOperationStartedEventAttributes();
+                // Un jeton signale une opération que l'endpoint complétera plus tard, hors de
+                // cette conversation. Hors périmètre : la régler en échec vaut mieux que laisser
+                // le workflow attendre sans fin et sans trace (§4.5).
+                if (null !== $attr && '' !== (string) $attr->getOperationToken()) {
+                    $this->recordNexusOutcome(
+                        (int) $attr->getScheduledEventId(),
+                        NexusOperationFailureKind::HandlerError,
+                        'the endpoint started this operation asynchronously and will complete it out of band; '
+                        . 'this increment only supports operations that complete in the same exchange (temporal-nexus-support §4.5)',
+                    );
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED:
+                $attr = $event->getNexusOperationCompletedEventAttributes();
+                if (null !== $attr) {
+                    $payload = $attr->getResult();
+                    $this->nexusOutcomes[(int) $attr->getScheduledEventId()] = [
+                        'result' => null !== $payload ? JsonPlainPayload::decode($payload) : null,
+                        'failed' => null,
+                    ];
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED:
+                $attr = $event->getNexusOperationFailedEventAttributes();
+                if (null !== $attr) {
+                    $this->recordNexusOutcome(
+                        (int) $attr->getScheduledEventId(),
+                        NexusOperationFailureKind::OperationFailed,
+                        (string) ($attr->getFailure()?->getMessage() ?? ''),
+                    );
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_CANCELED:
+                $attr = $event->getNexusOperationCanceledEventAttributes();
+                if (null !== $attr) {
+                    $this->recordNexusOutcome(
+                        (int) $attr->getScheduledEventId(),
+                        NexusOperationFailureKind::Cancellation,
+                        (string) ($attr->getFailure()?->getMessage() ?? ''),
+                    );
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT:
+                $attr = $event->getNexusOperationTimedOutEventAttributes();
+                if (null !== $attr) {
+                    $this->recordNexusOutcome(
+                        (int) $attr->getScheduledEventId(),
+                        NexusOperationFailureKind::Timeout,
+                        (string) ($attr->getFailure()?->getMessage() ?? ''),
+                    );
                 }
                 break;
 
@@ -540,12 +625,57 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
      */
     public function findNexusOperationSlotResult(int $slot): ?array
     {
-        throw new \LogicException('Reading NEXUS_OPERATION_* events is not built yet (temporal-nexus-support §4.3).');
+        $scheduled = $this->scheduledNexusOperations[$slot] ?? null;
+
+        return null === $scheduled ? null : ($this->nexusOutcomes[$scheduled['eventId']] ?? null);
     }
 
     /** @see findNexusOperationSlotResult() */
     public function findScheduledNexusOperation(int $slot): ?string
     {
-        throw new \LogicException('Reading NEXUS_OPERATION_* events is not built yet (temporal-nexus-support §4.3).');
+        $operationId = $this->scheduledNexusOperations[$slot]['operationId'] ?? null;
+
+        return null === $operationId || '' === $operationId ? null : $operationId;
+    }
+
+    /**
+     * L'identifiant d'événement que la commande d'annulation doit viser, pour l'identité donnée.
+     *
+     * Null tant que le serveur n'a pas vu l'opération : sur la première passe, la commande de
+     * planification n'est pas encore partie, et viser un identifiant inexistant ferait échouer la
+     * tâche de workflow.
+     */
+    public function scheduledEventIdForNexusOperation(string $operationId): ?int
+    {
+        foreach ($this->scheduledNexusOperations as $scheduled) {
+            if ($scheduled['operationId'] === $operationId) {
+                return $scheduled['eventId'];
+            }
+        }
+
+        return null;
+    }
+
+    private function recordNexusOutcome(int $scheduledEventId, NexusOperationFailureKind $kind, string $message): void
+    {
+        $scheduled = null;
+        foreach ($this->scheduledNexusOperations as $candidate) {
+            if ($candidate['eventId'] === $scheduledEventId) {
+                $scheduled = $candidate;
+                break;
+            }
+        }
+
+        if (null === $scheduled) {
+            return;
+        }
+
+        $this->nexusOutcomes[$scheduledEventId] = ['result' => null, 'failed' => new DurableNexusOperationFailedException(
+            $scheduled['endpoint'],
+            $scheduled['service'],
+            $scheduled['operation'],
+            $kind,
+            new FailureEnvelope(DurableNexusOperationFailedException::class, $message),
+        )];
     }
 }
