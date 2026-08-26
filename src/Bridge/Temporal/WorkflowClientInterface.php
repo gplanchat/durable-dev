@@ -49,9 +49,12 @@ interface WorkflowClientInterface
     /**
      * Delivers an external signal to a running workflow.
      *
+     * Le nom se donne en {@see \BackedEnum} comme du côté workflow ; la chaîne nue reste
+     * acceptée pour les émetteurs qui ne sont pas du PHP.
+     *
      * @param array<string, mixed> $args Signal arguments.
      */
-    public function signal(string $workflowId, string $signalName, array $args = []): void;
+    public function signal(string $workflowId, \BackedEnum|string $signalName, array $args = []): void;
 
     /**
      * Evaluates a query on a running workflow.

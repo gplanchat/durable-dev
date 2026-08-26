@@ -158,14 +158,18 @@ final class WorkflowClient implements WorkflowClientInterface
     /**
      * Delivers an external signal to a running workflow.
      *
+     * Le nom se donne en {@see \BackedEnum} comme du côté workflow
+     * ({@see \Gplanchat\Durable\WorkflowEnvironment::waitSignal()}), pour que l'émetteur et
+     * l'attente partagent une même énumération plutôt que deux littéraux à garder d'accord.
+     *
      * @param array<string, mixed> $args Signal arguments.
      */
-    public function signal(string $workflowId, string $signalName, array $args = []): void
+    public function signal(string $workflowId, \BackedEnum|string $signalName, array $args = []): void
     {
         $req = new SignalWorkflowExecutionRequest();
         $req->setNamespace($this->settings->namespace->name());
         $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
-        $req->setSignalName($signalName);
+        $req->setSignalName($signalName instanceof \BackedEnum ? (string) $signalName->value : $signalName);
         $req->setIdentity($this->settings->identity);
         if ($args !== []) {
             $req->setInput(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($args)));
