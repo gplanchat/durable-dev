@@ -30,26 +30,6 @@ payload. That form remains inside the engine, where the stub uses it.
 - **WHEN** workflow code tries to schedule an activity by name and payload on the environment
 - **THEN** the code does not compile
 
-### Requirement: Query handlers are declared, not registered
-
-A workflow SHALL declare a query handler by marking a method, and the engine SHALL wire it.
-
-Workflow code SHALL NOT be able to register a query handler, ask whether one exists, or invoke one,
-on the environment it receives. Those three are the engine's, and a workflow reaching them would be
-bypassing the declaration it is supposed to use.
-
-#### Scenario: A declared query is answered
-
-- **WHEN** a workflow marks a method as a query handler
-- **AND** a query of that name arrives while the execution is running
-- **THEN** the marked method answers it
-- **AND** the workflow was never asked to register anything
-
-#### Scenario: Reaching for the registration API
-
-- **WHEN** workflow code tries to register, probe or invoke a query handler on its environment
-- **THEN** the code does not compile
-
 ### Requirement: A test can run a workflow in its production shape
 
 The test harness SHALL be able to run a workflow class: the environment reaching its constructor,

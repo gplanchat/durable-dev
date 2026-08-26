@@ -14,13 +14,19 @@ use Gplanchat\Durable\ChildWorkflowOptions;
 use Gplanchat\Durable\ContinueAsNewOptions;
 use Gplanchat\Durable\Duration as DurableDuration;
 use Gplanchat\Durable\Event\ActivityScheduled;
+use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\Failure\WorkflowFailureClassifier;
+use Gplanchat\Durable\Nexus\NexusEndpoint;
+use Gplanchat\Durable\Nexus\NexusOperationName;
+use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
+use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Port\WorkflowCommandBufferInterface;
 use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\FailWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\RequestCancelActivityTaskCommandAttributes;
 use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
+use Temporal\Api\Command\V1\ScheduleNexusOperationCommandAttributes;
 use Temporal\Api\Command\V1\StartTimerCommandAttributes;
 use Temporal\Api\Common\V1\ActivityType;
 use Temporal\Api\Common\V1\RetryPolicy;
@@ -242,6 +248,13 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
      * (on n'annule qu'une opération déjà en attente), et le prédire demanderait de reproduire
      * l'attribution d'identifiants du serveur à partir de `startedEventId`.
      */
+    public function recordUpdateHandled(string $updateName, array $arguments, mixed $result, ?FailureEnvelope $failure): void
+    {
+        // Volontairement vide : c'est le **serveur** qui écrit UPDATE_ACCEPTED et
+        // UPDATE_COMPLETED, à partir des messages de protocole que le worker lui renvoie
+        // ({@see UpdateProtocol}). Un worker qui journaliserait aussi ferait double emploi.
+    }
+
     public function cancelActivity(string $activityId, string $reason): void
     {
         $scheduledEventId = $this->history?->scheduledEventIdForActivity($activityId);
@@ -380,5 +393,66 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     private function durationSeconds(float $seconds): Duration
     {
         return TemporalPolicyMapper::duration($seconds);
+    }
+
+    /**
+     * Émet `ScheduleNexusOperation`.
+     *
+     * Les trois bornes ne sont posées que si le domaine en porte une. Sondé (§1.3), le serveur
+     * n'applique aucun défaut et n'enregistre que ce qu'on lui donne : en poser une « pour
+     * remplir » inventerait une contrainte que l'appelant n'a pas demandée. Une enveloppe infinie
+     * part en `0`, qui est la façon dont Temporal écrit « pas de borne » — et qui, mesuré, ne
+     * rabote pas les sous-bornes.
+     *
+     * Pas d'en-tête Nexus : rien côté domaine n'en porte encore, et un champ vide n'est pas un
+     * en-tête. Le jour où un appelant en aura besoin, c'est le port qui devra le transporter.
+     */
+    public function scheduleNexusOperation(
+        string $operationId,
+        NexusEndpoint $endpoint,
+        NexusService $service,
+        NexusOperationName $operation,
+        array $payload,
+        NexusOperationTimeouts $timeouts,
+    ): void {
+        $attrs = new ScheduleNexusOperationCommandAttributes();
+        $attrs->setEndpoint($endpoint->name());
+        $attrs->setService($service->name());
+        $attrs->setOperation($operation->name());
+        // Une opération Nexus porte UN payload, là où une activité en porte une liste : le
+        // champ est un Payload, pas un Payloads.
+        $attrs->setInput(JsonPlainPayload::encode([
+            'operationId' => $operationId,
+            'payload' => $payload,
+        ]));
+
+        if (null !== $timeouts->scheduleToClose) {
+            $attrs->setScheduleToCloseTimeout($this->nexusBound($timeouts->scheduleToClose));
+        }
+        if (null !== $timeouts->scheduleToStart) {
+            $attrs->setScheduleToStartTimeout($this->nexusBound($timeouts->scheduleToStart));
+        }
+        if (null !== $timeouts->startToClose) {
+            $attrs->setStartToCloseTimeout($this->nexusBound($timeouts->startToClose));
+        }
+
+        $cmd = new Command();
+        $cmd->setCommandType(CommandType::COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION);
+        $cmd->setScheduleNexusOperationCommandAttributes($attrs);
+
+        $this->commands[] = $cmd;
+    }
+
+    /**
+     * Une borne d'opération Nexus sur le fil : l'infini du domaine s'y écrit `0`.
+     */
+    private function nexusBound(DurableDuration $bound): Duration
+    {
+        return $this->durationSeconds($bound->isInfinite() ? 0.0 : $bound->toSeconds());
+    }
+
+    public function cancelNexusOperation(string $operationId, string $reason): void
+    {
+        throw new \LogicException('RequestCancelNexusOperation is not built yet on the Temporal command buffer (temporal-nexus-support §4.2).');
     }
 }

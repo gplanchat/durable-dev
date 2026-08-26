@@ -1,114 +1,279 @@
-// Surcharge du thème hugo-book. Le thème charge ce fichier depuis le projet en
-// priorité sur le sien : on ne modifie rien dans _vendor.
+// Surcharge de hugo-book. Le thème charge ce fichier depuis le projet en
+// priorité sur le sien : rien n'est modifié dans _vendor.
 //
-// Volontairement court. Un thème de documentation doit se faire oublier ; ce qui
-// suit corrige la lisibilité et donne à la page d'accueil de quoi respirer.
+// Porte le design de la page de documentation sur la structure du thème plutôt
+// que de la remplacer. La navigation, le sommaire, la recherche, les liens
+// d'édition et l'arbre des pages restent ceux de hugo-book — ils sont des
+// données, pas du balisage, et le design les figeait en dur avec cinq slugs
+// faux. Ce qui se porte, c'est la palette, la typographie et les composants.
+//
+// La palette est celle de la page d'accueil, aux mêmes valeurs : deux thèmes
+// qui divergeraient sur le même site se verraient au premier clic.
 
 // --- Palette -------------------------------------------------------------
-:root {
-  --durable-accent: #2f6f4f;
-  --durable-accent-soft: rgba(47, 111, 79, 0.08);
-  --durable-rule: rgba(128, 128, 128, 0.22);
+
+@mixin durable-light {
+  --dz-bg: #f7f4ef;
+  --dz-bg2: #efe9df;
+  --dz-fg: #1d1a16;
+  --dz-fg2: #6c6459;
+  --dz-line: #ddd6ca;
+  --dz-accent: #9e488b;
+  --dz-code-bg: #ffffff;
+  --dz-ck: #a1341f;
+  --dz-cs: #6b7d1f;
+  --dz-cc: #9a9184;
+  --dz-cv: #1c6b8a;
 }
 
+@mixin durable-dark {
+  --dz-bg: #141310;
+  --dz-bg2: #1c1a17;
+  --dz-fg: #eae5dc;
+  --dz-fg2: #a09a90;
+  --dz-line: #2c2925;
+  --dz-accent: #c27ab2;
+  --dz-code-bg: #100f0d;
+  --dz-ck: #e58a6a;
+  --dz-cs: #a8bf62;
+  --dz-cc: #6b665e;
+  --dz-cv: #79b6cf;
+}
+
+// Les propriétés du thème sont réécrites depuis les nôtres, plutôt que
+// dupliquées : une seule source par couleur, et le thème continue de s'en
+// servir partout où nous n'avons rien dit.
+@mixin durable-bind {
+  --body-background: var(--dz-bg);
+  --body-font-color: var(--dz-fg);
+  --color-link: var(--dz-accent);
+  --color-visited-link: var(--dz-accent);
+  --gray-100: var(--dz-bg2);
+  --gray-200: var(--dz-line);
+  --gray-500: var(--dz-fg2);
+  --border-radius: 5px;
+  --font-size: 15.5px;
+}
+
+:root {
+  @include durable-light;
+  @include durable-bind;
+}
+
+// `BookTheme = 'auto'` fait suivre le système. Le sélecteur du thème n'est
+// redéfini que pour les couleurs : le liant ci-dessus vaut pour les deux.
 @media (prefers-color-scheme: dark) {
   :root {
-    --durable-accent: #6fbf95;
-    --durable-accent-soft: rgba(111, 191, 149, 0.12);
+    @include durable-dark;
   }
 }
 
-// --- Lisibilité du corps de texte ---------------------------------------
-.book-page {
-  // Une ligne de doc trop longue fatigue ; le thème n'impose pas de mesure.
-  .markdown {
-    p, li { line-height: 1.7; }
+// --- Typographie ---------------------------------------------------------
+// Trois fontes, chacune avec une pile de repli réelle : la page doit rester
+// lisible si fonts.googleapis.com ne répond pas.
 
-    h1 { letter-spacing: -0.02em; }
+$dz-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+$dz-sans: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+$dz-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-    h2 {
-      margin-top: 2.4rem;
-      padding-bottom: 0.3rem;
-      border-bottom: 1px solid var(--durable-rule);
-    }
+body {
+  font-family: $dz-sans;
+  -webkit-font-smoothing: antialiased;
+}
 
-    // Les tableaux servent surtout de matrices de décision : ils doivent se lire
-    // en diagonale.
-    table {
-      display: table;
-      width: 100%;
-      font-size: 0.94em;
-
-      th {
-        background: var(--durable-accent-soft);
-        text-align: left;
-      }
-
-      td, th { vertical-align: top; }
-    }
-
-    code:not(pre code) {
-      background: var(--durable-accent-soft);
-      padding: 0.1em 0.35em;
-      border-radius: 3px;
-    }
-
-    // Les blocs d'alerte markdown (> [!NOTE]) sont rendus en citation par le
-    // thème : on les distingue d'une citation ordinaire.
-    blockquote {
-      border-left: 3px solid var(--durable-accent);
-      background: var(--durable-accent-soft);
-      padding: 0.6rem 1rem;
-      margin-left: 0;
-    }
+.book-page .markdown {
+  // Une ligne de doc qui court sur toute la largeur ne se lit pas. Le thème
+  // n'impose pas de mesure ; les blocs de code s'en affranchissent plus bas,
+  // parce qu'une ligne de PHP coupée est pire qu'une ligne longue.
+  > p,
+  > ul,
+  > ol,
+  > blockquote {
+    max-width: $book-measure;
   }
-}
 
-// --- Page d'accueil ------------------------------------------------------
-// Reconnaissable au bookToc désactivé du front matter.
-.book-page .markdown > h1:first-child {
-  font-size: 2.1rem;
-  line-height: 1.2;
-  margin-bottom: 1.2rem;
-}
+  p,
+  li {
+    line-height: 1.7;
+  }
 
-.book-columns {
-  gap: 1.5rem;
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: $dz-serif;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+  }
 
-  > div {
-    min-width: 12rem;
+  h1 {
+    font-size: 2.125rem; // 33 px
+    margin-bottom: 1.5rem;
+  }
+
+  h2 {
+    margin-top: 2.6rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--dz-line);
   }
 
   h3 {
-    margin-top: 0;
-    font-size: 1.05rem;
-    color: var(--durable-accent);
+    margin-top: 2rem;
+  }
+
+  // Le lien d'ancre du thème : discret jusqu'au survol du titre.
+  h1 a.anchor,
+  h2 a.anchor,
+  h3 a.anchor,
+  h4 a.anchor {
+    opacity: 0;
+    transition: opacity 0.15s;
+    color: var(--dz-accent);
+  }
+
+  h1:hover a.anchor,
+  h2:hover a.anchor,
+  h3:hover a.anchor,
+  h4:hover a.anchor {
+    opacity: 1;
   }
 }
 
-.book-card {
-  border: 1px solid var(--durable-rule);
-  border-radius: 6px;
-  padding: 1rem 1.1rem;
-  height: 100%;
+// --- Code ----------------------------------------------------------------
+// L'élément dominant de ces pages, pas un ornement : douze à seize blocs sur
+// une page de guide.
 
-  .book-card-title {
-    font-family: var(--code-font-family, monospace);
-    font-size: 0.95rem;
-    color: var(--durable-accent);
+.book-page .markdown {
+  code {
+    font-family: $dz-mono;
+    font-size: 0.875em;
   }
 
-  .book-card-subtitle {
-    font-size: 0.9rem;
-    line-height: 1.55;
-    opacity: 0.85;
+  :not(pre) > code {
+    background: var(--dz-bg2);
+    border: 1px solid var(--dz-line);
+    padding: 0.1em 0.35em;
+  }
+
+  pre {
+    background: var(--dz-code-bg);
+    border: 1px solid var(--dz-line);
+    border-radius: 5px;
+    padding: 1rem 1.15rem;
+    line-height: 1.65;
+    // Une ligne de PHP coupée est pire qu'une ligne longue : elle se défile.
+    overflow-x: auto;
+  }
+
+  // Coloration syntaxique alignée sur celle du design.
+  .chroma {
+    .k, .kd, .kn, .kr, .kt { color: var(--dz-ck); }
+    .s, .s1, .s2, .sb, .sc { color: var(--dz-cs); }
+    .c, .c1, .cm, .cs      { color: var(--dz-cc); font-style: italic; }
+    .nv, .vc, .vg, .vi     { color: var(--dz-cv); }
   }
 }
 
-// --- Navigation latérale -------------------------------------------------
+// --- Alertes -------------------------------------------------------------
+// Trois sortes en usage dans la doc : NOTE, WARNING, CAUTION. Le thème les
+// rend en blockquote ; sans distinction, un avertissement se lit comme un
+// aparté.
+
+.book-page .markdown blockquote {
+  border-left: 3px solid var(--dz-line);
+  background: var(--dz-bg2);
+  border-radius: 0 5px 5px 0;
+  padding: 0.85rem 1.1rem;
+  margin-left: 0;
+
+  &.book-hint.info,
+  &:has(> p > strong:first-child) {
+    border-left-color: var(--dz-accent);
+  }
+
+  &.book-hint.warning {
+    border-left-color: var(--dz-ck);
+  }
+
+  &.book-hint.danger {
+    border-left-color: var(--dz-ck);
+    background: color-mix(in srgb, var(--dz-ck) 8%, var(--dz-bg2));
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+}
+
+// --- Tableaux ------------------------------------------------------------
+// Ils servent de matrices de décision — gardé/abandonné, situation/commande —
+// donc ils doivent se lire en diagonale.
+
+.book-page .markdown table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.94em;
+
+  th {
+    font-family: $dz-sans;
+    font-weight: 600;
+    text-align: left;
+    border-bottom: 2px solid var(--dz-line);
+  }
+
+  td,
+  th {
+    padding: 0.55rem 0.7rem;
+    border-bottom: 1px solid var(--dz-line);
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+// --- Navigation et sommaire ----------------------------------------------
+
 .book-menu {
-  .book-menu-content a.active {
-    color: var(--durable-accent);
+  font-size: 0.875rem;
+
+  .book-menu-content {
+    background: var(--dz-bg2);
+    border-right: 1px solid var(--dz-line);
+  }
+
+  a {
+    color: var(--dz-fg2);
+
+    &:hover {
+      color: var(--dz-accent);
+    }
+  }
+
+  // La page courante, sans quoi le lecteur ne sait pas où il est.
+  a.active {
+    color: var(--dz-fg);
     font-weight: 600;
   }
+}
+
+.book-toc {
+  font-size: 0.8125rem;
+
+  a {
+    color: var(--dz-fg2);
+
+    &:hover {
+      color: var(--dz-accent);
+    }
+  }
+}
+
+// --- Marque --------------------------------------------------------------
+
+.book-brand a {
+  font-family: $dz-serif;
+  font-size: 1.4rem;
+  letter-spacing: -0.01em;
 }

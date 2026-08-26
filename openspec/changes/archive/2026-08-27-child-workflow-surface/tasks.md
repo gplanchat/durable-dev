@@ -25,7 +25,7 @@
 
 - [x] 4.1 The `WorkflowEnvironment` table and the child-workflow section of the workflow guide
 - [x] 4.2 The testing guide's child-workflow example
-- [x] 4.3 DUR036 — a stub assembles, it does not wait, and why DUR033 did not catch it
+- [x] 4.3 DUR038 — a stub assembles, it does not wait, and why DUR033 did not catch it
 
 ## 5. Verification
 

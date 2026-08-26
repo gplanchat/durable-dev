@@ -9,11 +9,16 @@ use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Bridge\Dbal\Store\DbalChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Dbal\Store\DbalEventStore;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowMetadataStore;
+use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunCatalog;
+use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunProjection;
+use Gplanchat\Bridge\Dbal\Store\ProjectingEventStore;
+use Gplanchat\Bridge\Dbal\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowResumeDispatcher;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
+use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
@@ -44,6 +49,7 @@ use Gplanchat\Durable\Port\LocalWorkflowBackend;
 use Gplanchat\Durable\Port\ParentChildWorkflowCoordinatorInterface;
 use Gplanchat\Durable\Port\WorkflowBackendInterface;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
+use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Query\WorkflowQueryRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
@@ -52,15 +58,15 @@ use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
+// Et non celle de HttpKernel, qui n'en est qu'une sous-classe mince — `@internal` depuis
+// Symfony 7.1, dépréciée en 8.1 — et n'ajoute que les restes du cache de classes annotées.
+// Celle-ci existe depuis 6.4 : l'échange ne coûte aucune version supportée.
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-// Et non celle de HttpKernel, qui n'en est qu'une sous-classe mince — `@internal` depuis
-// Symfony 7.1, dépréciée en 8.1 — et n'ajoute que les restes du cache de classes annotées.
-// Celle-ci existe depuis 6.4 : l'échange ne coûte aucune version supportée.
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
@@ -154,10 +160,11 @@ final class DurableExtension extends Extension
         }
 
         if ($metadataDbal) {
-            $container->register(WorkflowMetadataStore::class, DbalWorkflowMetadataStore::class)
+            $container->register('durable.workflow_metadata_store.inner', DbalWorkflowMetadataStore::class)
                 ->setArguments([$connection, $schema, $config['workflow_metadata']['table_name']])
                 ->setPublic(true)
             ;
+            $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.inner')->setPublic(true);
         }
 
         if ($parentLinkDbal) {
@@ -166,6 +173,59 @@ final class DurableExtension extends Extension
                 ->setPublic(true)
             ;
         }
+
+        // La projection ne vaut que si le journal est en SQL : c'est de lui que viennent les issues.
+        // Un journal in-memory laisserait des lignes qui ne se terminent jamais.
+        if ($eventStoreDbal) {
+            $this->registerDbalRunCatalog($container, $connection, $schema);
+        }
+    }
+
+    /**
+     * Le catalogue DBAL, et les deux plumes qui l'alimentent.
+     *
+     * Les décorateurs sont posés ici plutôt que dans les blocs qui enregistrent le journal et les
+     * métadonnées : le nom vient de `save()`, l'issue du journal, et les deux doivent pointer sur la
+     * **même** projection. Les séparer aurait invité à en instancier deux.
+     *
+     * @see openspec/changes/backend-neutral-workflow-dashboard/design.md
+     */
+    private function registerDbalRunCatalog(ContainerBuilder $container, Reference $connection, Reference $schema): void
+    {
+        $container->register('durable.dbal.run_projection', DbalWorkflowRunProjection::class)
+            ->setArguments([$connection, $schema])
+            ->setPublic(false)
+        ;
+        $projection = new Reference('durable.dbal.run_projection');
+
+        $container->register('durable.event_store.dbal.projecting', ProjectingEventStore::class)
+            ->setArguments([new Reference('durable.event_store.dbal'), $projection])
+            ->setPublic(true)
+        ;
+        $container->setAlias(EventStoreInterface::class, 'durable.event_store.dbal.projecting')->setPublic(true);
+
+        // Le journal peut être en SQL sans que les métadonnées le soient : dans ce cas le magasin
+        // en place — in-memory — devient l'intérieur du décorateur, plutôt que d'exiger une
+        // configuration que rien n'oblige à donner.
+        if (!$container->hasDefinition('durable.workflow_metadata_store.inner')) {
+            $container->setDefinition(
+                'durable.workflow_metadata_store.inner',
+                $container->getDefinition(WorkflowMetadataStore::class),
+            );
+            $container->removeDefinition(WorkflowMetadataStore::class);
+        }
+
+        $container->register('durable.workflow_metadata_store.projecting', ProjectingWorkflowMetadataStore::class)
+            ->setArguments([new Reference('durable.workflow_metadata_store.inner'), $projection])
+            ->setPublic(true)
+        ;
+        $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.projecting')->setPublic(true);
+
+        $container->register('durable.run_catalog.dbal', DbalWorkflowRunCatalog::class)
+            ->setArguments([$connection, $schema])
+            ->setPublic(true)
+        ;
+        $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.dbal')->setPublic(true);
     }
 
     private function registerWorkflowDefinitionLoader(ContainerBuilder $container): void
@@ -231,6 +291,16 @@ final class DurableExtension extends Extension
             $container->setAlias(WorkflowClientInterface::class, WorkflowClient::class)
                 ->setPublic(false)
             ;
+
+            $container->register('durable.run_catalog.temporal', TemporalWorkflowRunCatalog::class)
+                ->setArguments([
+                    new Reference('durable.temporal.workflow_service_client'),
+                    new Reference('durable.temporal.connection'),
+                    new Reference(TemporalHistoryCursor::class),
+                ])
+                ->setPublic(true)
+            ;
+            $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.temporal')->setPublic(true);
 
             $container->register(\Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor::class)
                 ->setArguments([
@@ -411,7 +481,6 @@ final class DurableExtension extends Extension
 
         $container->register(DeliverWorkflowUpdateHandler::class)
             ->setArguments([
-                new Reference(EventStoreInterface::class),
                 new Reference(WorkflowResumeDispatcher::class),
             ])
             ->addTag('messenger.message_handler')

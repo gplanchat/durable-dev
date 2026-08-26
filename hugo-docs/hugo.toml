@@ -26,6 +26,8 @@ BookRepo = 'https://github.com/gplanchat/durable-dev'
 BookEditPath = 'edit/main/documentation/user'
 BookSection = 'docs'
 BookSearch = true
+# 'auto' : les pages de doc suivent le thème du système, comme la page d'accueil.
+BookTheme = 'auto'
 BookToC = true
 BookCollapsedLevel = 1
 

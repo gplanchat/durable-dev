@@ -6,7 +6,9 @@ namespace Gplanchat\Bridge\Dbal\Store;
 
 use Doctrine\DBAL\Connection;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
+use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
+use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunPage;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
@@ -27,10 +29,13 @@ use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
  */
 final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
 {
+    private const BACKEND = 'SQL database';
+
     public function __construct(
         private readonly Connection $connection,
         private readonly DurableSchema $schema,
         private readonly string $table = 'durable_workflow_runs',
+        private readonly ?JournalRunHistoryReader $history = null,
     ) {}
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
@@ -89,6 +94,38 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
                 ? self::encodeCursor((string) $last['started_at'], (string) $last['execution_id'])
                 : null,
         );
+    }
+
+    /**
+     * @return list<WorkflowRunEvent>
+     */
+    public function readHistory(WorkflowRunDescription $run): array
+    {
+        $reader = $this->history ?? new JournalRunHistoryReader(
+            new DbalEventStore($this->connection, $this->schema),
+        );
+
+        return $reader->read($run->runId);
+    }
+
+    public function checkHealth(): BackendHealth
+    {
+        $checkedAt = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+
+        try {
+            // L'ordre le plus creux que le dialecte accepte : on sonde la connexion, pas le schéma.
+            // Passer par `ensure()` transformerait une base joignable mais vide en échec.
+            $this->connection->executeQuery($this->connection->getDatabasePlatform()->getDummySelectSQL());
+        } catch (\Throwable $failure) {
+            return new BackendHealth(
+                self::BACKEND,
+                false,
+                \sprintf('The SQL database is unreachable: %s', $failure->getMessage()),
+                $checkedAt,
+            );
+        }
+
+        return new BackendHealth(self::BACKEND, true, 'The SQL database answers.', $checkedAt);
     }
 
     private static function encodeCursor(string $startedAt, string $executionId): string

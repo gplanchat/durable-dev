@@ -44,22 +44,6 @@ final class ActivitySchedulingPortTest extends TestCase
         self::assertNotContains('activity', $public);
     }
 
-    public function testTheEnvironmentExposesNoQueryPlumbing(): void
-    {
-        $reflection = new \ReflectionClass(WorkflowEnvironment::class);
-
-        $public = [];
-        foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-            $public[] = $method->getName();
-        }
-
-        // Un auteur déclare `#[QueryMethod]` et le moteur câble. Ces trois-là étaient sur
-        // l'environnement parce que c'est l'objet que le moteur avait sous la main, pas parce
-        // qu'un workflow en a besoin — les atteindre revenait à court-circuiter la déclaration.
-        self::assertNotContains('registerQueryHandler', $public);
-        self::assertNotContains('callQueryHandler', $public);
-        self::assertNotContains('hasQueryHandler', $public);
-    }
 
     public function testTheStubStillSchedulesThroughTheNarrowPort(): void
     {

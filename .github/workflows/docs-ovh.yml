@@ -14,7 +14,7 @@ on:
       - '.github/workflows/docs-ovh.yml'
   workflow_dispatch:
 
-# One deployment at a time: FTP has no atomic swap, two concurrent syncs would
+# One deployment at a time: SFTP has no atomic swap, two concurrent syncs would
 # interleave files.
 concurrency:
   group: docs-ovh
@@ -100,17 +100,31 @@ jobs:
           name: docs-site
           path: site
 
-      - name: Deploy over FTPS
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.OVH_FTP_SERVER }}
-          username: ${{ secrets.OVH_FTP_USERNAME }}
-          password: ${{ secrets.OVH_FTP_PASSWORD }}
-          protocol: ftps
-          local-dir: ./site/
+      - name: Deploy over SFTP
+        env:
+          SFTP_HOST: ${{ secrets.OVH_FTP_SERVER }}
+          SFTP_USER: ${{ secrets.OVH_FTP_USERNAME }}
+          SSHPASS: ${{ secrets.OVH_FTP_PASSWORD }}
           # Racine web de l'hébergement mutualisé OVH.
-          server-dir: ${{ vars.OVH_FTP_ROOT || './www/' }}
-          # L'action tient un état côté serveur et ne renvoie que le delta :
-          # indispensable sur FTP, où 100 fichiers coûtent 100 aller-retours.
-          state-name: .ftp-deploy-sync-state.json
-          dangerous-clean-slate: false
+          SERVER_DIR: ${{ vars.OVH_FTP_ROOT || './www/' }}
+          KNOWN_HOSTS: ${{ secrets.OVH_SSH_KNOWN_HOSTS }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp sshpass
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            echo "::warning::OVH_SSH_KNOWN_HOSTS absent — empreinte du serveur acceptée à l'aveugle."
+            ssh-keyscan -H "$SFTP_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          if [ ! -s ~/.ssh/known_hosts ]; then
+            echo "::error::Aucune clé d'hôte pour $SFTP_HOST — SSH/SFTP est-il activé sur l'hébergement ?"
+            exit 1
+          fi
+          echo "Cible : $SFTP_USER@$SFTP_HOST:$SERVER_DIR"
+          # lftp délègue SFTP à ssh, qui n'accepte pas de mot de passe sur stdin :
+          # sshpass le fournit depuis $SSHPASS. Le mot de passe passé à -u est ignoré.
+          lftp -u "$SFTP_USER",ignored "sftp://$SFTP_HOST" -e "
+            set sftp:connect-program 'sshpass -e ssh -a -x -o StrictHostKeyChecking=yes';
+            mirror --reverse --delete --verbose ./site/ '$SERVER_DIR';
+            bye"

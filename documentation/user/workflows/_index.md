@@ -112,16 +112,44 @@ than with a missing argument, so a caller that computes its own deadline has no 
 special-case.
 
 A deadline is a failure, not a sentinel: `null`, `false` and `[]` come back untouched when the
-work settles in time. `waitSignal()` takes the same second argument, which is the canonical saga
-shape:
+work settles in time.
+
+### Waiting on a condition
+
+`await()` also takes a **condition** — a predicate over the workflow's own state — wherever it
+takes an awaitable, with the same optional deadline. That is what a signal handler wakes:
 
 ```php
+$env->onSignal(OrderSignal::Approve, fn(array $p) => $this->approvals[] = $p);
+
 try {
-    $approval = $env->waitSignal(OrderSignal::Approve, Duration::hours(1));
+    $env->await(fn(): bool => [] !== $this->approvals, Duration::hours(1));
 } catch (DeadlineExceededException) {
     return $this->expire($orderId);
 }
 ```
+
+That is the canonical saga shape: wait for approval, give up after an hour.
+
+A condition must be a function of **workflow state and nothing else**. It is re-evaluated on every
+replay, so anything a replay cannot reproduce — a clock, a random draw, an environment variable —
+must be recorded once with `sideEffect()` and read back:
+
+```php
+$threshold = $env->sideEffect(fn(): int => random_int(1, 10));   // recorded once
+$env->await(fn(): bool => $this->received >= $threshold);        // replays identically
+```
+
+The component does **not** detect a condition that breaks this rule; it detects no other
+non-determinism either, and `sideEffect()` is the mechanism it gives you instead.
+
+> [!WARNING]
+> `fn()` captures **by value**. A condition over a local variable must use the long form:
+> `function () use (&$approvals): bool { … }`. Over `$this->property` the short form is fine —
+> `$this` is captured, not the value.
+
+A condition that can never hold — nothing pending can change the state it reads — is reported as an
+execution that cannot advance, naming the condition by its file and line, rather than spinning.
 
 Whichever branch loses is cancelled: a deadline that elapses cancels the work it bounded, and
 work that settles cancels the deadline, so no dead timer wakes the execution later. Cancelling an
@@ -130,9 +158,9 @@ that does not honour it may keep running on its worker. What the deadline guaran
 completion no longer resumes your workflow.
 
 The verdict is read from recorded history, so a replay reaches the verdict the original execution
-reached — **including** when the awaited signal is delivered after the deadline elapsed. That late
-signal does not undo the timeout, and it stays available to a later `waitSignal()` for the same
-name.
+reached — **including** when the awaited signal is delivered after the deadline elapsed. A message
+recorded after the deadline fired is never applied to the wait that deadline settled; it stays
+available to the next wait, and its handler runs then. See **DUR032** and **DUR035**.
 
 ### ActivityOptions on the stub
 
@@ -214,9 +242,11 @@ Activities are **only** reachable through a stub. Naming one as a string with a 
 is not on this surface: a typo there produces an activity that is never scheduled, instead of an
 error your IDE and your static analyser catch first.
 
-Query, signal and update **handlers are declared**, with `#[QueryMethod]`, `#[SignalMethod]` and
-`#[UpdateMethod]`. There is no way to register one imperatively — the engine wires what you
-declare, and a second way to declare a handler would be a second way to get it wrong.
+Query, signal and update handlers are declared with `#[QueryMethod]`, `#[SignalMethod]` and
+`#[UpdateMethod]`, and the engine wires them. They can also be registered imperatively —
+`registerQueryHandler()`, `onSignal()`, `onUpdate()` — which is what a workflow expressed as a
+closure has to use, since a closure cannot carry an attribute. Prefer the attribute: it is the
+form a reader can see without running anything.
 
 You never instantiate activity implementations inside the workflow body.
 

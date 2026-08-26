@@ -135,17 +135,16 @@ $quotes = $env->await($env->some(3, ...$providers));
 
 ### Signal
 
-A **signal** is a one-way external message delivered to a running workflow. The workflow can suspend with `waitSignal()` and resume when the signal arrives. Signals have no return value.
+A **signal** is a one-way external message delivered to a running workflow. Signals have no return
+value.
+
+A workflow **declares a handler** for the signals it accepts, and the engine calls it when one
+arrives. The handler mutates workflow state; the body carries on when that state satisfies a
+**condition**:
 
 ```
-HTTP request → dispatchSignal("approve") → workflow resumes from waitSignal
+HTTP request → signal("approve") → handler runs → condition holds → workflow resumes
 ```
-
-Use signals for: approval flows, pause/resume, external triggers.
-
-**Name signals with a string-backed enum**, not a literal. Both ends of a signal — the sender and
-the `waitSignal()` that consumes it — take a `BackedEnum`, so one enum enumerates a workflow's
-signal surface and a typo is a type error instead of a wait that never settles:
 
 ```php
 enum OrderSignal: string
@@ -154,13 +153,71 @@ enum OrderSignal: string
     case Cancel  = 'cancel';
 }
 
-$approval = $env->waitSignal(OrderSignal::Approve);      // workflow side
-$client->signal($workflowId, OrderSignal::Approve, []);  // sender side
+#[Workflow('Order')]
+final class OrderWorkflow
+{
+    /** @var list<array<string, mixed>> */
+    private array $approvals = [];
+
+    public function __construct(private readonly WorkflowEnvironment $environment) {}
+
+    #[SignalMethod(OrderSignal::Approve)]
+    public function onApprove(array $payload): void
+    {
+        $this->approvals[] = $payload;
+    }
+
+    #[WorkflowMethod]
+    public function run(): string
+    {
+        $this->environment->await(fn(): bool => [] !== $this->approvals);
+
+        return 'approved by ' . ($this->approvals[0]['by'] ?? '?');
+    }
+}
 ```
 
-A plain string is still accepted, and has to be: a signal can arrive from `curl`, the Temporal
-CLI, or a service written in another language. The enum types the inside; it cannot type that
-boundary.
+A workflow written as a callable registers the same handler imperatively, exactly as it would a
+query handler:
+
+```php
+$env->onSignal(OrderSignal::Approve, function (array $payload) use (&$approvals): void {
+    $approvals[] = $payload;
+});
+$env->await(function () use (&$approvals): bool { return [] !== $approvals; });
+```
+
+Use signals for: approval flows, pause/resume, external triggers.
+
+**Name signals with a string-backed enum**, not a literal. Both ends take a `BackedEnum` — the
+handler that consumes the signal and the client that sends it — so one enum enumerates a workflow's
+signal surface and a typo is a type error instead of a wait that never settles (see **DUR034**):
+
+```php
+$client->signal($workflowId, OrderSignal::Approve, ['by' => 'alice']);
+```
+
+A plain string is still accepted, and has to be: a signal can arrive from `curl`, the Temporal CLI,
+or a service written in another language. The enum types the inside; it cannot type that boundary.
+
+> [!IMPORTANT]
+> **Migrating from `waitSignal()`.** The method is gone. It read history directly, which is why it
+> needed a positional slot, a per-name counter, and a rule for a wait that gave up — machinery a
+> handler plus a condition replaces outright (see **DUR035**).
+>
+> ```php
+> // Before
+> $approval = $env->waitSignal(OrderSignal::Approve, Duration::hours(1));
+>
+> // After
+> $env->onSignal(OrderSignal::Approve, fn(array $p) => $this->approvals[] = $p);
+> $env->await(fn(): bool => [] !== $this->approvals, Duration::hours(1));
+> $approval = array_shift($this->approvals);
+> ```
+>
+> What you keep of the deliveries is now workflow state, so a workflow that waits for the same
+> signal three times keeps three entries and consumes them at its own pace. What arrived while
+> nothing was waiting is still there when the next wait comes.
 
 ### Query
 
@@ -170,9 +227,29 @@ Use queries for: checking progress, reading a counter, inspecting a list of pend
 
 ### Update
 
-An **update** is a transactional message: the workflow validates and processes it, then returns a response. The interaction is recorded in history. Updates combine signal semantics (state change) with query semantics (return value).
+An **update** is a transactional message: the workflow processes it and **returns a response** to
+the caller. The interaction is recorded in history. Updates combine signal semantics (state change)
+with query semantics (return value).
 
-Use updates for: incrementing a counter and returning the new value, conditional approvals that must return an acknowledgment.
+The handler's return value *is* the response — that is the whole difference from a signal, which
+has none:
+
+```php
+#[UpdateMethod('greet')]
+public function greet(array $arguments): string
+{
+    $this->name = (string) ($arguments['name'] ?? 'World');
+
+    return $this->name;   // what the caller receives
+}
+```
+
+A handler that raises makes the **update** fail — the caller receives the failure, and the
+execution carries on. On replay the handler runs again to rebuild the state it mutated, while the
+recorded outcome stays the one the caller already received.
+
+Use updates for: incrementing a counter and returning the new value, conditional approvals that
+must return an acknowledgment.
 
 ---
 

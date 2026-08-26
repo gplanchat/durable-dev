@@ -55,5 +55,5 @@ final class TemporalWorkflowResumeDispatcher implements WorkflowResumeDispatcher
      * No-op: Temporal schedules the next workflow task automatically after each activity/timer
      * completion. There is no application-level message to dispatch.
      */
-    public function dispatchResume(string $executionId): void {}
+    public function dispatchResume(string $executionId, array $pendingUpdates = []): void {}
 }

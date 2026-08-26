@@ -62,7 +62,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var list<array{signalName: string, payload: mixed, eventId: int}> signals in receive order */
     private array $signals = [];
 
-    /** @var list<array{updateName: string, result: mixed}> updates in accept order */
+    /** @var list<array{updateName: string, result: mixed, eventId: int, arguments: array<string, mixed>}> updates in accept order */
     private array $updates = [];
 
     /** @var list<string> child execution IDs in schedule order */
@@ -272,7 +272,15 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     if (null !== $request) {
                         $input = $request->getInput();
                         $updateName = null !== $input ? $input->getName() : '';
-                        $this->updates[] = ['updateName' => $updateName, 'result' => null];
+                        // `accepted_request` réécho la requête d'origine : les arguments sont
+                        // donc relisibles au replay, comme la charge utile d'un signal.
+                        $arguments = [];
+                        $args = $input?->getArgs()?->getPayloads();
+                        if (null !== $args && $args->count() > 0) {
+                            $decoded = JsonPlainPayload::decode($args[0]);
+                            $arguments = \is_array($decoded) ? $decoded : ['value' => $decoded];
+                        }
+                        $this->updates[] = ['updateName' => $updateName, 'result' => null, 'eventId' => (int) $eventId, 'arguments' => $arguments];
                     }
                 }
                 break;
@@ -427,42 +435,35 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         return $this->childExecutionIds[$slot] ?? null;
     }
 
-    public function findSignalForSlot(string $signalName, int $slot, ?string $notAfterTimerId = null): ?array
+    public function messageAt(int $index): ?array
     {
-        $deadlineFiredAt = null !== $notAfterTimerId ? ($this->firedTimerIds[$notAfterTimerId] ?? null) : null;
-        $index = 0;
+        // Deux tableaux séparés côté Temporal, un seul ordre côté workflow : la fusion se fait
+        // par eventId, sinon tous les signaux passeraient avant tous les updates.
+        $messages = [];
         foreach ($this->signals as $signal) {
-            if ($signal['signalName'] === $signalName) {
-                if ($index === $slot) {
-                    // L'historique Temporal est totalement ordonné par eventId : un signal
-                    // d'eventId supérieur à celui du TIMER_FIRED est enregistré après le tir de
-                    // l'échéance, et ne règle pas l'attente qu'elle bornait.
-                    if (null !== $deadlineFiredAt && $signal['eventId'] > $deadlineFiredAt) {
-                        return null;
-                    }
-
-                    return ['payload' => $signal['payload']];
-                }
-                ++$index;
-            }
+            $messages[] = [
+                'position' => $signal['eventId'],
+                'kind' => 'signal',
+                'name' => $signal['signalName'],
+                'payload' => \is_array($signal['payload']) ? $signal['payload'] : ['value' => $signal['payload']],
+            ];
         }
+        foreach ($this->updates as $update) {
+            $messages[] = [
+                'position' => $update['eventId'],
+                'kind' => 'update',
+                'name' => $update['updateName'],
+                'payload' => $update['arguments'],
+            ];
+        }
+        usort($messages, static fn(array $a, array $b): int => $a['position'] <=> $b['position']);
 
-        return null;
+        return $messages[$index] ?? null;
     }
 
-    public function findUpdateForSlot(string $updateName, int $slot): ?array
+    public function timerCompletionPosition(string $timerId): ?int
     {
-        $index = 0;
-        foreach ($this->updates as $update) {
-            if ($update['updateName'] === $updateName) {
-                if ($index === $slot) {
-                    return ['result' => $update['result']];
-                }
-                ++$index;
-            }
-        }
-
-        return null;
+        return $this->firedTimerIds[$timerId] ?? null;
     }
 
     public function hasChildExecutionId(string $childExecutionId): bool
@@ -528,5 +529,23 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     public function startInput(): array
     {
         return $this->startInput;
+    }
+
+    /**
+     * Temporal SAIT relire ces événements — les neuf `NEXUS_OPERATION_*` sont dans l'historique.
+     * Leur lecture est §4.3. Rendre null ici ferait replanifier l'opération à chaque replay, en
+     * silence : l'aveu bruyant coûte moins cher que la boucle muette.
+     *
+     * Inatteignable en l'état : rien ne planifie encore d'opération Nexus, faute du §3.2.
+     */
+    public function findNexusOperationSlotResult(int $slot): ?array
+    {
+        throw new \LogicException('Reading NEXUS_OPERATION_* events is not built yet (temporal-nexus-support §4.3).');
+    }
+
+    /** @see findNexusOperationSlotResult() */
+    public function findScheduledNexusOperation(int $slot): ?string
+    {
+        throw new \LogicException('Reading NEXUS_OPERATION_* events is not built yet (temporal-nexus-support §4.3).');
     }
 }

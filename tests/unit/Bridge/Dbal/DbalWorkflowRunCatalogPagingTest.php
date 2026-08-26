@@ -132,9 +132,24 @@ final class DbalWorkflowRunCatalogPagingTest extends TestCase
         ));
     }
 
-    private function startRun(string $executionId, string $workflowType): void
+    /**
+     * Démarre une exécution **et fige sa date**.
+     *
+     * `recordStart()` horodate à `now`, et `started_at` est stocké à la seconde : une salve de cinq
+     * exécutions tombe dans la même seconde presque toujours, et à cheval sur deux de temps en
+     * temps. L'ordre attendu changeait alors sous les pieds du test — c'est arrivé en CI, pas ici.
+     * Ces tests portent sur la pagination, pas sur l'horodatage : la date est donc dictée.
+     */
+    private function startRun(string $executionId, string $workflowType, int $startedAt = 1_700_000_000): void
     {
         $this->metadataStore()->save($executionId, $workflowType, []);
+
+        $this->connection->update(
+            'durable_workflow_runs',
+            ['started_at' => (new \DateTimeImmutable('@' . $startedAt))->setTimezone(new \DateTimeZone('UTC'))],
+            ['execution_id' => $executionId],
+            ['started_at' => 'datetime_immutable'],
+        );
     }
 
     private function metadataStore(): ProjectingWorkflowMetadataStore

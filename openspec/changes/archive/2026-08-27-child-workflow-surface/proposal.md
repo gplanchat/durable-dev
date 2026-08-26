@@ -56,5 +56,5 @@ string. The typed form exists and is unusable for the one case that needs compos
 - **Test suite**: seven call sites, five of them on `ExecutionContext` rather than the environment
   and therefore untouched.
 - **User documentation**: the `WorkflowEnvironment` table and the child-workflow section.
-- **ADR**: DUR036 records that the stub assembles rather than waits, and why DUR033 missed it.
+- **ADR**: DUR038 records that the stub assembles rather than waits, and why DUR033 missed it.
 - **Dependencies**: none.

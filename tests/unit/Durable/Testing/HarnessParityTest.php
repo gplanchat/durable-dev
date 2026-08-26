@@ -112,8 +112,8 @@ final class HarnessParityTest extends TestCase
     public function testParentClosePolicyCascadesInTheHarness(): void
     {
         $env = WorkflowTestEnvironment::inMemory([]);
-        // L'enfant reste bloqué sur un signal jamais délivré : le runner le signale
-        // (WorkflowStuckException), son journal reste sans issue terminale, il est donc
+        // L'enfant reste bloqué sur une condition que rien ne peut satisfaire : le runner le
+        // signale (WorkflowStuckException), son journal reste sans issue terminale, il est donc
         // encore actif à la clôture du parent.
         $env->registerWorkflowClass(PendingChild::class);
 
@@ -145,9 +145,9 @@ final class HarnessParityTest extends TestCase
         $env = WorkflowTestEnvironment::inMemory([]);
 
         $this->expectException(WorkflowStuckException::class);
-        $this->expectExceptionMessageMatches('/undelivered signal/');
+        $this->expectExceptionMessageMatches('/waiting on condition at/');
 
-        $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->waitSignal('never'), 'exec-stuck');
+        $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->await(static fn(): bool => false), 'exec-stuck');
     }
 
     // -------------------------------------------------------------------------
@@ -200,8 +200,8 @@ final class WorkingChild
 }
 
 /**
- * Reste bloqué sur un signal jamais délivré : son journal n'a pas d'issue terminale, il est donc
- * encore actif à la clôture du parent.
+ * Reste bloqué sur une condition que rien ne peut satisfaire : son journal n'a pas d'issue
+ * terminale, il est donc encore actif à la clôture du parent.
  */
 #[\Gplanchat\Durable\Attribute\Workflow(name: 'Pending')]
 final class PendingChild
@@ -214,6 +214,6 @@ final class PendingChild
     #[\Gplanchat\Durable\Attribute\WorkflowMethod]
     public function run(): mixed
     {
-        return $this->environment->waitSignal('never');
+        return $this->environment->await(static fn (): bool => false);
     }
 }

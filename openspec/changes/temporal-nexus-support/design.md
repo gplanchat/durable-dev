@@ -43,6 +43,140 @@ Nexus fits this shape exactly on the caller side. What was verified before writi
   created with the `temporal` CLI or by an operator API; the component consumes them.
 - Any in-memory simulation of Nexus.
 
+## What was probed, and what was assumed
+
+**Endpoint names, probed against Temporal 1.31.2 (task 1.1).** Every verdict below was observed by
+`CreateNexusEndpoint`, not inferred:
+
+| Case | Verdict |
+|---|---|
+| `""` | refused — `endpoint name not set` |
+| `" "`, leading/trailing space, inner tab or newline, control character | refused — regex |
+| `_`, `.`, `/`, accented letter | refused — regex |
+| leading digit, leading hyphen, trailing hyphen | refused — regex |
+| single letter `a` | refused — regex (the pattern needs a first *and* a last character) |
+| `ab`, `Probe-Nexus-42` (letters, digits, inner hyphens, either case) | accepted |
+| 200 characters | accepted |
+| 201 characters | refused — `endpoint name exceeds length limit of 200` |
+
+The server states its own rule: `^[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9]$`, 200 characters.
+
+**Operation bounds, probed against Temporal 1.31.2 (task 1.3).** The three bounds ride the
+`ScheduleNexusOperation` command; the server records them on `NEXUS_OPERATION_SCHEDULED`, so what
+it kept is readable without anything ever running. Nothing needs a Nexus handler to establish this.
+
+| Case | Verdict |
+|---|---|
+| `schedule_to_close` 30 s, `schedule_to_start` 10 s, `start_to_close` 20 s | recorded **exactly as sent** |
+| no bound at all | **accepted**, and all three recorded unset — the server supplies no default |
+| `schedule_to_close` 3600 s on a run bounded to 60 s | silently rewritten to **60 s** |
+| `schedule_to_close` 10 s with `schedule_to_start` 30 s | `schedule_to_start` silently rewritten to **10 s** |
+
+Pinned by `NexusOperationBoundsTest`.
+
+**Two consequences, and they pull in opposite directions.**
+
+*Like activities:* the bounds are silently rewritten. Clamping to the workflow run, and clamping
+`schedule_to_start` down to `schedule_to_close`, are the same rewrites `ActivityTimeouts` lives
+with. A caller reading back its own value would believe it asked for an hour. So the value object
+must not promise that what it holds is what the server enforces — the docblock says which two
+rewrites exist, since only the journal knows the applied value.
+
+*Unlike activities:* **no closing bound is required.** Temporal refuses an activity that has
+neither `start_to_close` nor `schedule_to_close`, which is exactly why `ActivityTimeouts` carries
+`executionBoundOr()`. A Nexus operation with no bound whatsoever is accepted and scheduled. **§2.2
+must therefore not carry `executionBoundOr()`** — its conditional is answered, and the answer is
+no. Inventing a fallback bound here would impose a limit the server does not, and would be an
+invariant that was never observed.
+
+**This inverts the lesson of `TaskQueue`, and §2.1 must not copy it.** `TaskQueue` is deliberately
+*stricter than the server*, because the server accepts `" "` and edge whitespace while a misnamed
+queue fails silently — the work is queued and no worker ever comes. A Nexus endpoint has no such
+failure mode: the name is validated at creation, and a malformed one is refused outright. So
+`NexusEndpoint` mirrors the server's rule and invents nothing on top of it. The one distinction
+worth keeping is the server's own: an empty name is *unset*, not *malformed*, and the two deserve
+different messages.
+
+Pinned by `tests/integration/Temporal/NexusEndpointNameRulesTest.php`, so a change of server rule
+is caught rather than discovered inside a value object.
+
+**Scheduling on an unknown endpoint, probed (task 1.2) — and it contradicts a premise of the
+proposal.** The proposal says Nexus failures surface to the workflow as typed failures. An unknown
+endpoint is not among them, and never becomes one:
+
+- `RespondWorkflowTaskCompleted` is rejected with gRPC `INVALID_ARGUMENT` (3),
+  `BadScheduleNexusOperationAttributes: endpoint "…" not found`;
+- history records `WORKFLOW_TASK_FAILED`, cause
+  `WORKFLOW_TASK_FAILED_CAUSE_BAD_SCHEDULE_NEXUS_OPERATION_ATTRIBUTES`;
+- the workflow task is **re-served**, its `attempt` climbing on every round — measured to 4 and
+  still going;
+- no `NEXUS_OPERATION_SCHEDULED` is ever written, so there is no operation to fail.
+
+The workflow does not fall over. It spins, and the only trace is a task-failure cause the workflow
+code never sees. A validated `NexusEndpoint` value object does **not** cover this: the name is
+well formed, it is the endpoint that is missing. Either the caller checks the endpoint exists
+before emitting the command, or this loop is accepted knowingly and documented as the failure mode
+of a misconfigured endpoint. That choice belongs to §3, not to the value objects of §2.
+
+Pinned by `tests/integration/Temporal/NexusUnknownEndpointTest.php`.
+
+**Service and operation names, probed (task 1.1, second half) — and the rule is the opposite of the
+endpoint's.** They travel in the `ScheduleNexusOperation` command, so measuring them needs a real
+endpoint and a completed workflow task. Against Temporal 1.31.2, **the server validates neither**:
+empty, a single space, edge whitespace, an inner tab, a control character, a slash, an accent, a
+thousand characters — every one accepted, and `NEXUS_OPERATION_SCHEDULED` records the name
+**verbatim** (measured: `service: ""` and `service: "sv\tc"` read back unchanged).
+
+Nothing follows. The operation sits scheduled, waiting for a handler whose service and operation
+will never match, and no error is ever written.
+
+**So the three names of one command follow three different rules, and §2.1 cannot treat them as a
+block:**
+
+| Name | Server | What the value object must do |
+|---|---|---|
+| endpoint | strict — regex, 200 chars, refused at creation | mirror the server, invent nothing |
+| service | accepts anything | be **stricter than the server**, like `TaskQueue` |
+| operation | accepts anything | be **stricter than the server**, like `TaskQueue` |
+
+The `TaskQueue` reasoning applies verbatim to the last two: the server accepts what cannot be
+anything but a mistake, and the mistake costs an execution that waits forever with nothing in the
+logs. It does not apply to the endpoint, whose failure is loud and immediate.
+
+Pinned by `tests/integration/Temporal/NexusServiceAndOperationNameRulesTest.php`.
+
+**The three operation bounds, probed (task 1.3) — and there is a silent rewrite.** Against
+Temporal 1.31.2:
+
+| Given | Recorded in `NEXUS_OPERATION_SCHEDULED` |
+|---|---|
+| nothing | nothing — the server defaults none of the three |
+| `scheduleToClose` 60 | 60s |
+| `scheduleToClose` 10, `scheduleToStart` 60 | **10s** — silently clamped |
+| `scheduleToClose` 10, `startToClose` 60 | **10s** — silently clamped |
+| `scheduleToClose` 0, `scheduleToStart` 30 | 0s and 30s — zero means *unbounded*, and clamps nothing |
+| any of the three negative | refused, `INVALID_ARGUMENT`, message naming the field: `ScheduleNexusOperationCommandAttributes.<Field> is invalid: negative duration` |
+| `scheduleToClose` 3600 on a workflow run bounded to 60 | **60s** — clamped to the *workflow run*, a second envelope outside the three |
+
+So they behave like the activity bounds: `scheduleToClose` is the envelope, and a sub-bound asking
+for more than it is cut down to it without an error. Zero is the one value that does not mean a
+duration.
+
+**And there is a second envelope, outside the three: the workflow run itself.** A `scheduleToClose`
+of one hour under an execution bounded to one minute is recorded as one minute. This one is *not*
+reachable by a value object — the three bounds can be perfectly coherent with each other and still
+be cut down, because the limit belongs to the execution, not to the operation. §2.2 can make the
+first clamp impossible at construction; it cannot make this one visible. Only the journal knows the
+applied value, and the docblock must say so rather than let a caller trust what it holds.
+
+**What this asks of `NexusOperationTimeouts` (§2.2).** Make the rewrite visible at construction
+instead of letting it happen server-side. A value object that accepts `startToClose` 60 under
+`scheduleToClose` 10 and lets the caller believe in 60 reproduces exactly the class of mistake
+`ActivityTimeouts` exists to make impossible. Rejecting the combination and naming the envelope is
+one line; discovering the clamp in a history dump is an afternoon.
+
+Pinned by `tests/integration/Temporal/NexusOperationBoundsTest.php`.
+
 ## Decisions
 
 **Model a Nexus operation as its own awaitable family, not as an activity.**

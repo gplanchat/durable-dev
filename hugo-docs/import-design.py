@@ -57,6 +57,13 @@ PALETTE = {
 # canevas. Elles se figent à 1 : plus personne ne les tourne.
 SCALARS = {"ts": "1", "sp": "1"}
 
+# Le design pose 26 ou 30 px sur ses logos, ce qui les rend illisibles : à cette
+# taille ils ne portent aucune information. Plancher imposé ici plutôt que dans
+# le design, parce que c'est une valeur et non un choix de mise en page — mais
+# le conteneur doit grandir avec, sinon le logo déborde d'une pastille haute de
+# 26 px.
+LOGO_MIN_PX = 48
+
 # Les liens de cas d'usage pointaient vers des pages qui n'ont jamais existé
 # (`/docs/use-cases/<slug>`). Chacun va vers la section qui traite réellement
 # le sujet, ancre comprise ; les ancres sont vérifiées à l'exécution.
@@ -142,7 +149,8 @@ def inline_logos(root: str) -> str:
         # typographique, ratio 3,1:1 : lui imposer la même valeur dans les deux
         # sens l'étirerait. Il se cale sur la hauteur, sa largeur suit.
         wide = 'width="auto"' in svg
-        size = f"{box}px" if box else "100%"
+        px = max(int(box), LOGO_MIN_PX) if box else None
+        size = f"{px}px" if px else "100%"
         sized = f'height="{size}" width="auto"' if wide else f'width="{size}" height="{size}"'
         svg = re.sub(r'width="[^"]*" height="[^"]*"', sized, svg, count=1)
         if "width=" not in svg:
@@ -167,13 +175,33 @@ def inline_logos(root: str) -> str:
     if orphans:
         die(f"logos non incorporés, le repli s'afficherait à leur place : {orphans}")
 
+    # Le conteneur suit le plancher, sinon le logo déborde de sa pastille.
+    def grow(match: re.Match[str]) -> str:
+        return match.group(0).replace(
+            match.group("h"), f"height: {max(int(match.group('px')), LOGO_MIN_PX)}px")
+
+    root = re.sub(
+        r'<span[^>]*data-mark[^>]*(?P<h>height:\s*(?P<px>\d+)px)[^>]*>', grow, root)
+
     return root
 
 
 def rewrite_links(root: str) -> str:
     for dead, live in LINKS.items():
         root = root.replace(f"https://durable.rocks{dead}", live)
+
+    # L'ordre compte : la forme avec barre finale d'abord, sinon `…/docs` est
+    # remplacé par `/docs/` au milieu de `…/docs/packages/` et laisse un double
+    # slash. Il passerait sur la plupart des serveurs, et casserait la première
+    # règle de réécriture stricte rencontrée.
+    root = root.replace("https://durable.rocks/docs/", "/docs/")
     root = root.replace("https://durable.rocks/docs", "/docs/")
+    root = root.replace("https://durable.rocks/", "/")
+
+    doubled = sorted(set(re.findall(r'href="(/[^"]*//[^"]*)"', root)))
+    if doubled:
+        die(f"double barre dans un lien : {doubled}")
+
     return root
 
 
@@ -266,6 +294,45 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
     print(f"écrit  {out_path}  ({out_path.stat().st_size} octets)")
     print(f"       {len(hover_rules)} règles :hover, {len(notes)} annotations, "
           f"{len(LINKS)} liens réécrits")
+    check_commands_agree(source)
+
+
+COMMANDS_REFERENCE = pathlib.Path("../documentation/user/packages/_index.md")
+
+
+def check_commands_agree(source: str) -> None:
+    """Le sélecteur et la page Packages listent les mêmes commandes.
+
+    Elles vivent aux deux endroits, et une page d'accueil qui installe autre
+    chose que sa documentation est pire qu'une page d'accueil muette : le
+    lecteur suit la première et se fait démentir par la seconde. La ligne
+    Sylius a déjà changé une fois en une journée — un lien entre les deux
+    pages signale la référence, il n'empêche pas la dérive.
+
+    Averti, pas fatal : la page Packages a le droit de documenter une commande
+    que le sélecteur ne propose pas — « aucun framework », par exemple.
+    """
+    reference = HERE / COMMANDS_REFERENCE
+    if not reference.exists():
+        print(f"       ⚠ référence introuvable : {reference}")
+        return
+
+    def commands(text: str) -> set[str]:
+        return {
+            " ".join(m.split())
+            for m in re.findall(r"composer require [a-z0-9/ -]+", text)
+        }
+
+    landing = commands(source)
+    documented = commands(reference.read_text())
+    missing = sorted(landing - documented)
+
+    if missing:
+        print("       ⚠ commandes du sélecteur absentes de la page Packages :")
+        for command in missing:
+            print(f"           {command}")
+    else:
+        print(f"       {len(landing)} commandes, toutes documentées dans Packages")
 
 
 if __name__ == "__main__":

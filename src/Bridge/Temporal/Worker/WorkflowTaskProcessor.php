@@ -20,8 +20,8 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * Workflow task poll → execute → respond loop (Temporal native backend).
  *
  * Polls one workflow task, delegates replay to WorkflowTaskRunner, then sends commands
- * back via RespondWorkflowTaskCompleted. Query handling (signal, query, update) will be
- * added in the signal-query-update phase (DUR ADR, WorkflowTaskProcessor todo).
+ * back via RespondWorkflowTaskCompleted, avec les messages de protocole qui les accompagnent
+ * ({@see UpdateProtocol}).
  *
  * Replaces JournalWorkflowTaskProcessor for the native execution path.
  */
@@ -49,11 +49,11 @@ final class WorkflowTaskProcessor
         $commands = $result->commands;
 
         $queryResults = [];
-        if (null !== $result->queryHandlers) {
-            $queryResults = $this->handleQueries($poll, $result->queryHandlers);
+        if (null !== $result->environment) {
+            $queryResults = $this->handleQueries($poll, $result->environment);
         }
 
-        $this->respond($poll->getTaskToken(), $commands, $queryResults);
+        $this->respond($poll->getTaskToken(), $commands, $queryResults, $result->messages);
 
         return true;
     }
@@ -93,13 +93,13 @@ final class WorkflowTaskProcessor
     }
 
     /**
-     * Answers Temporal queries from the handlers the definition loader registered.
+     * Answers Temporal queries by calling the registered #[QueryMethod] handlers on the environment.
      *
      * @return array<string, WorkflowQueryResult>
      */
     private function handleQueries(
         PollWorkflowTaskQueueResponse $poll,
-        \Gplanchat\Durable\Workflow\QueryHandlerRegistry $queries,
+        \Gplanchat\Durable\WorkflowEnvironment $environment,
     ): array {
         $results = [];
 
@@ -107,9 +107,9 @@ final class WorkflowTaskProcessor
             $queryType = $query->getQueryType();
             $queryResult = new WorkflowQueryResult();
 
-            if ($queries->has($queryType)) {
+            if ($environment->hasQueryHandler($queryType)) {
                 try {
-                    $answer = $queries->call($queryType, []);
+                    $answer = $environment->callQueryHandler($queryType, []);
                     $queryResult->setResultType(QueryResultType::QUERY_RESULT_TYPE_ANSWERED);
                     $queryResult->setAnswer(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($answer)));
                 } catch (\Throwable) {
@@ -126,10 +126,11 @@ final class WorkflowTaskProcessor
     }
 
     /**
-     * @param list<\Temporal\Api\Command\V1\Command> $commands
-     * @param array<string, WorkflowQueryResult>     $queryResults
+     * @param list<\Temporal\Api\Command\V1\Command>  $commands
+     * @param array<string, WorkflowQueryResult>      $queryResults
+     * @param list<\Temporal\Api\Protocol\V1\Message> $messages
      */
-    private function respond(string $taskToken, array $commands, array $queryResults = []): void
+    private function respond(string $taskToken, array $commands, array $queryResults = [], array $messages = []): void
     {
         $req = new RespondWorkflowTaskCompletedRequest();
         $req->setTaskToken($taskToken);
@@ -137,6 +138,9 @@ final class WorkflowTaskProcessor
         $req->setIdentity($this->settings->identity);
         if ($commands !== []) {
             $req->setCommands($commands);
+        }
+        if ($messages !== []) {
+            $req->setMessages($messages);
         }
         foreach ($queryResults as $queryId => $queryResult) {
             $req->getQueryResults()[$queryId] = $queryResult;
