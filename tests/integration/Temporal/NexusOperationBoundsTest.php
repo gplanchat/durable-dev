@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace integration\Temporal;
 
-use Google\Protobuf\Duration as PbDuration;
+use Google\Protobuf\Duration;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Command\V1\Command;
@@ -18,7 +19,7 @@ use Temporal\Api\Command\V1\ScheduleNexusOperationCommandAttributes;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Enums\V1\EventType;
-use Temporal\Api\History\V1\HistoryEvent;
+use Temporal\Api\History\V1\NexusOperationScheduledEventAttributes;
 use Temporal\Api\Nexus\V1\EndpointSpec;
 use Temporal\Api\Nexus\V1\EndpointTarget;
 use Temporal\Api\Nexus\V1\EndpointTarget\Worker;
@@ -27,34 +28,44 @@ use Temporal\Api\Operatorservice\V1\DeleteNexusEndpointRequest;
 use Temporal\Api\Operatorservice\V1\OperatorServiceClient;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
-use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Sonde §1.3 : les trois bornes d'une opération Nexus se comportent-elles comme celles d'une
- * activité, réécriture silencieuse comprise ?
+ * Sonde, et non fonctionnalité : §1.3 demande si les trois bornes d'une opération Nexus se
+ * comportent comme celles d'une activité, **réécritures silencieuses comprises**. Il y en a une, et
+ * c'est le résultat qui compte ici.
  *
- * Rien n'a besoin de **s'exécuter** pour le savoir. Les bornes sont des attributs que le serveur
- * valide à la soumission de la commande, et l'événement `NEXUS_OPERATION_SCHEDULED` les renvoie
- * telles qu'il les a retenues. La sonde envoie donc des valeurs connues et relit ce qui a été
- * enregistré : tout écart est une réécriture.
+ * Mesuré contre Temporal 1.31.2 :
  *
- * Aucun worker ne sert l'endpoint. C'est voulu : l'opération n'a pas à démarrer, il suffit
- * qu'elle soit planifiée.
+ * - une durée négative est refusée sur chacune des trois, et le message NOMME le champ fautif ;
+ * - une sous-borne plus grande que `scheduleToClose` est **rabotée à sa valeur, sans un mot** :
+ *   demander 60 s de `startToClose` sous 10 s de `scheduleToClose` fait enregistrer 10 s ;
+ * - `scheduleToClose = 0` ne rabote rien : c'est « pas de borne », pas « zéro seconde » ;
+ * - une borne omise reste absente de l'événement — le serveur n'en invente pas.
+ *
+ * Ce que cela impose à `NexusOperationTimeouts` : rendre la réécriture visible à la construction
+ * plutôt que la laisser se produire côté serveur. Un objet-valeur qui accepte 60/10 et laisse
+ * l'utilisateur croire à 60 reproduit exactement la classe de fautes que `ActivityTimeouts` a été
+ * écrite pour rendre impossible.
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §1.3
  */
 #[RequiresPhpExtension('grpc')]
 final class NexusOperationBoundsTest extends TestCase
 {
+    private const GRPC_INVALID_ARGUMENT = 3;
+
     private TemporalConnection $connection;
     private WorkflowServiceClient $client;
     private OperatorServiceClient $operator;
-    private ?string $workflowId = null;
-    private ?string $endpointId = null;
-    private string $endpointName = '';
+    private string $endpointName;
+    private string $endpointId = '';
+    private int $endpointVersion = 0;
+
+    /** @var list<string> */
+    private array $started = [];
 
     protected function setUp(): void
     {
@@ -73,16 +84,32 @@ final class NexusOperationBoundsTest extends TestCase
         );
         $this->client = WorkflowServiceClientFactory::create($this->connection);
         $this->operator = new OperatorServiceClient($address, ['credentials' => \Grpc\ChannelCredentials::createInsecure()]);
-        $this->createEndpoint();
+
+        $this->endpointName = 'probe-bounds-' . bin2hex(random_bytes(4));
+        $worker = new Worker();
+        $worker->setNamespace($this->connection->namespace->name());
+        $worker->setTaskQueue($queue);
+        $target = new EndpointTarget();
+        $target->setWorker($worker);
+        $spec = new EndpointSpec();
+        $spec->setName($this->endpointName);
+        $spec->setTarget($target);
+        $req = new CreateNexusEndpointRequest();
+        $req->setSpec($spec);
+
+        $created = GrpcUnary::wait($this->operator->CreateNexusEndpoint($req, [], ['timeout' => 10_000_000]));
+        $endpoint = $created->getEndpoint();
+        self::assertNotNull($endpoint);
+        $this->endpointId = $endpoint->getId();
+        $this->endpointVersion = $endpoint->getVersion();
     }
 
     protected function tearDown(): void
     {
-        // Le serveur est partagé : ni exécution ouverte, ni endpoint laissé derrière soi.
-        if (null !== $this->workflowId) {
+        foreach ($this->started as $workflowId) {
             $req = new TerminateWorkflowExecutionRequest();
             $req->setNamespace($this->connection->namespace->name());
-            $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $this->workflowId]));
+            $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
             $req->setReason('fin de sonde');
 
             try {
@@ -91,141 +118,103 @@ final class NexusOperationBoundsTest extends TestCase
             }
         }
 
-        if (null !== $this->endpointId) {
-            $del = new DeleteNexusEndpointRequest();
-            $del->setId($this->endpointId);
-            $del->setVersion(1);
-            $this->operator->DeleteNexusEndpoint($del, [], ['timeout' => 10_000_000])->wait();
+        if ('' !== $this->endpointId) {
+            $req = new DeleteNexusEndpointRequest();
+            $req->setId($this->endpointId);
+            $req->setVersion($this->endpointVersion);
+
+            try {
+                GrpcUnary::wait($this->operator->DeleteNexusEndpoint($req, [], ['timeout' => 10_000_000]));
+            } catch (\RuntimeException) {
+            }
         }
     }
 
-    public function testTheThreeBoundsAreRecordedExactlyAsSent(): void
+    /** @return iterable<string, array{int, string}> */
+    public static function eachBound(): iterable
     {
-        $scheduled = $this->scheduleWith(30, 10, 20);
-
-        self::assertNotNull($scheduled, "L'opération n'a pas été planifiée : " . $this->historyNames());
-        $attrs = $scheduled->getNexusOperationScheduledEventAttributes();
-        self::assertNotNull($attrs);
-
-        self::assertSame(30, (int) $attrs->getScheduleToCloseTimeout()?->getSeconds(), 'schedule-to-close réécrit');
-        self::assertSame(10, (int) $attrs->getScheduleToStartTimeout()?->getSeconds(), 'schedule-to-start réécrit');
-        self::assertSame(20, (int) $attrs->getStartToCloseTimeout()?->getSeconds(), 'start-to-close réécrit');
+        yield 'scheduleToClose' => [0, 'ScheduleToCloseTimeout'];
+        yield 'scheduleToStart' => [1, 'ScheduleToStartTimeout'];
+        yield 'startToClose' => [2, 'StartToCloseTimeout'];
     }
 
-    public function testAnOperationWithNoBoundAtAllIsAcceptedAndNoDefaultIsSupplied(): void
+    #[DataProvider('eachBound')]
+    public function testANegativeDurationIsRefusedAndTheFieldIsNamed(int $index, string $field): void
     {
-        $scheduled = $this->scheduleWith(null, null, null);
+        $bounds = [null, null, null];
+        $bounds[$index] = -5;
 
-        self::assertNotNull($scheduled, "L'opération n'a pas été planifiée sans borne : " . $this->historyNames());
-        $attrs = $scheduled->getNexusOperationScheduledEventAttributes();
-        self::assertNotNull($attrs);
+        $error = $this->schedule(...$bounds);
 
-        // Verdict : le serveur n'exige **aucune** borne de fermeture et n'en invente aucune.
-        // C'est la divergence avec les activités, que Temporal refuse sans borne de fermeture —
-        // et donc la réponse à la condition posée en §2.2.
-        self::assertNull($attrs->getScheduleToCloseTimeout());
-        self::assertNull($attrs->getScheduleToStartTimeout());
-        self::assertNull($attrs->getStartToCloseTimeout());
+        self::assertIsString($error, 'Une durée négative a été acceptée.');
+        self::assertStringContainsString('negative duration', $error);
+        self::assertStringContainsString($field, $error, 'Le message ne nomme pas la borne fautive.');
     }
 
-    public function testABoundLongerThanTheWorkflowRunIsClampedToIt(): void
+    public function testASubBoundLargerThanScheduleToCloseIsSilentlyRewrittenDownToIt(): void
     {
-        // Réécriture silencieuse n° 1, et c'est exactement le comportement des bornes d'activité :
-        // le serveur rabat sur la durée de l'exécution, sans le dire. Un appelant qui relit sa
-        // propre valeur croirait avoir demandé une heure.
-        $scheduled = $this->scheduleWith(3600, null, null, runTimeout: 60);
+        // Le cœur de §1.3 : demander plus que l'enveloppe et l'obtenir rabotée, sans erreur.
+        $scheduled = $this->schedule(10, 60, 60);
 
-        self::assertNotNull($scheduled, "L'opération n'a pas été planifiée : " . $this->historyNames());
+        self::assertInstanceOf(NexusOperationScheduledEventAttributes::class, $scheduled);
+        self::assertSame(10, $scheduled->getScheduleToCloseTimeout()?->getSeconds());
         self::assertSame(
-            60,
-            (int) $scheduled->getNexusOperationScheduledEventAttributes()?->getScheduleToCloseTimeout()?->getSeconds(),
-            'La borne devrait être rabattue sur la durée de run.',
+            10,
+            $scheduled->getScheduleToStartTimeout()?->getSeconds(),
+            'scheduleToStart n’a pas été raboté à scheduleToClose.',
+        );
+        self::assertSame(
+            10,
+            $scheduled->getStartToCloseTimeout()?->getSeconds(),
+            'startToClose n’a pas été raboté à scheduleToClose.',
         );
     }
 
-    public function testAnIncoherentPairIsAcceptedAsIs(): void
+    public function testAZeroScheduleToCloseMeansUnboundedAndRewritesNothing(): void
     {
-        // schedule-to-start plus long que schedule-to-close n'a aucun sens : l'opération devrait
-        // expirer avant d'avoir pu démarrer. Le serveur le refuse-t-il, le réécrit-il, ou le
-        // garde-t-il tel quel ?
-        $scheduled = $this->scheduleWith(10, 30, null);
+        $scheduled = $this->schedule(0, 30, null);
 
-        self::assertNotNull($scheduled, "L'opération n'a pas été planifiée : " . $this->historyNames());
-        $attrs = $scheduled->getNexusOperationScheduledEventAttributes();
-
-        // Réécriture silencieuse n° 2 : schedule-to-start est rabattu sur schedule-to-close.
-        // Le serveur ne refuse pas la paire, il la rend cohérente sans le dire.
-        self::assertSame(10, (int) $attrs?->getScheduleToCloseTimeout()?->getSeconds());
-        self::assertSame(10, (int) $attrs?->getScheduleToStartTimeout()?->getSeconds());
+        self::assertInstanceOf(NexusOperationScheduledEventAttributes::class, $scheduled);
+        self::assertSame(0, $scheduled->getScheduleToCloseTimeout()?->getSeconds());
+        self::assertSame(
+            30,
+            $scheduled->getScheduleToStartTimeout()?->getSeconds(),
+            'Zéro a été traité comme une enveloppe de zéro seconde et a tout raboté.',
+        );
     }
 
-    private function scheduleWith(?int $scheduleToClose, ?int $scheduleToStart, ?int $startToClose, ?int $runTimeout = null): ?HistoryEvent
+    public function testOmittedBoundsStayAbsent(): void
     {
-        $this->workflowId = $this->startWithoutWorker($runTimeout);
-        $poll = $this->pollOnce();
+        $scheduled = $this->schedule(null, null, null);
 
-        $attrs = new ScheduleNexusOperationCommandAttributes();
-        $attrs->setEndpoint($this->endpointName);
-        $attrs->setService('probe-service');
-        $attrs->setOperation('probe-operation');
-        if (null !== $scheduleToClose) {
-            $attrs->setScheduleToCloseTimeout(new PbDuration(['seconds' => $scheduleToClose]));
-        }
-        if (null !== $scheduleToStart) {
-            $attrs->setScheduleToStartTimeout(new PbDuration(['seconds' => $scheduleToStart]));
-        }
-        if (null !== $startToClose) {
-            $attrs->setStartToCloseTimeout(new PbDuration(['seconds' => $startToClose]));
-        }
-
-        $command = new Command();
-        $command->setCommandType(CommandType::COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION);
-        $command->setScheduleNexusOperationCommandAttributes($attrs);
-
-        $req = new RespondWorkflowTaskCompletedRequest();
-        $req->setNamespace($this->connection->namespace->name());
-        $req->setTaskToken($poll->getTaskToken());
-        $req->setIdentity($this->connection->identity);
-        $req->setCommands([$command]);
-
-        /** @var array{0: mixed, 1: \stdClass} $pair */
-        $pair = $this->client->RespondWorkflowTaskCompleted($req, [], ['timeout' => 30_000_000])->wait();
-        $status = $pair[1];
-        if (0 !== (int) ($status->code ?? -1)) {
-            self::fail(\sprintf('Commande refusée [%d] : %s', (int) $status->code, (string) ($status->details ?? '')));
-        }
-
-        return $this->findEvent(EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
+        self::assertInstanceOf(NexusOperationScheduledEventAttributes::class, $scheduled);
+        self::assertNull($scheduled->getScheduleToCloseTimeout());
+        self::assertNull($scheduled->getScheduleToStartTimeout());
+        self::assertNull($scheduled->getStartToCloseTimeout());
     }
 
-    private function createEndpoint(): void
+    /**
+     * Planifie l'opération et relit son événement.
+     * Rend les attributs enregistrés, ou le message du serveur s'il a refusé.
+     */
+    public function testTheWorkflowRunIsASecondOuterEnvelopeThatAlsoClampsSilently(): void
     {
-        $this->endpointName = 'probe-bounds-' . bin2hex(random_bytes(6));
+        // `scheduleToClose` est l'enveloppe des trois bornes, mais il en existe une **seconde**,
+        // par-dessus : la durée de l'exécution elle-même. Un appelant peut donc composer un jeu de
+        // bornes parfaitement cohérent entre elles et se les faire rogner quand même, sans erreur.
+        // C'est la question que §1.3 posait — « comme les activités ? » — et la réponse est oui
+        // jusque-là aussi.
+        $attrs = $this->schedule(3600, null, null, runTimeout: 60);
 
-        $worker = new Worker();
-        $worker->setNamespace($this->connection->namespace->name());
-        $worker->setTaskQueue('durable-nexus-probe');
-
-        $target = new EndpointTarget();
-        $target->setWorker($worker);
-
-        $spec = new EndpointSpec();
-        $spec->setName($this->endpointName);
-        $spec->setTarget($target);
-
-        $req = new CreateNexusEndpointRequest();
-        $req->setSpec($spec);
-
-        /** @var array{0: \Temporal\Api\Operatorservice\V1\CreateNexusEndpointResponse|null, 1: \stdClass} $pair */
-        $pair = $this->operator->CreateNexusEndpoint($req, [], ['timeout' => 10_000_000])->wait();
-        [$resp, $status] = $pair;
-        if (0 !== (int) ($status->code ?? -1)) {
-            self::markTestSkipped('Endpoint Nexus non créable : ' . (string) ($status->details ?? ''));
-        }
-        $this->endpointId = $resp?->getEndpoint()?->getId();
+        self::assertInstanceOf(NexusOperationScheduledEventAttributes::class, $attrs);
+        self::assertSame(
+            60,
+            (int) $attrs->getScheduleToCloseTimeout()?->getSeconds(),
+            'Une heure demandée sous une exécution bornée à une minute devrait être rabattue.',
+        );
     }
 
-    private function startWithoutWorker(?int $runTimeout = null): string
+    private function schedule(?int $scheduleToClose, ?int $scheduleToStart, ?int $startToClose, ?int $runTimeout = null): NexusOperationScheduledEventAttributes|string|null
     {
         $client = new WorkflowClient(
             $this->client,
@@ -233,49 +222,58 @@ final class NexusOperationBoundsTest extends TestCase
             new TemporalHistoryCursor($this->client, $this->connection),
             new WorkflowServiceExecutionRpc($this->client),
         );
-
         $options = null === $runTimeout ? null : new \Gplanchat\Durable\WorkflowStartOptions(
             timeouts: new \Gplanchat\Durable\WorkflowTimeouts(run: \Gplanchat\Durable\Duration::seconds((float) $runTimeout)),
         );
+        $workflowId = $client->startAsync('NexusBoundsProbe', [], 'bounds-' . bin2hex(random_bytes(5)), $options);
+        $this->started[] = $workflowId;
 
-        return $client->startAsync('NexusBoundsProbe', [], 'nexusbounds-' . bin2hex(random_bytes(4)), $options);
-    }
+        $poll = new PollWorkflowTaskQueueRequest();
+        $poll->setNamespace($this->connection->namespace->name());
+        $poll->setTaskQueue(new TaskQueue(['name' => $this->connection->workflowTaskQueue->name()]));
+        $poll->setIdentity($this->connection->identity);
+        $task = GrpcUnary::wait($this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]));
 
-    private function pollOnce(): PollWorkflowTaskQueueResponse
-    {
-        $req = new PollWorkflowTaskQueueRequest();
-        $req->setNamespace($this->connection->namespace->name());
-        $req->setTaskQueue(new TaskQueue(['name' => $this->connection->workflowTaskQueue->name()]));
-        $req->setIdentity($this->connection->identity);
+        $attrs = new ScheduleNexusOperationCommandAttributes();
+        $attrs->setEndpoint($this->endpointName);
+        $attrs->setService('svc');
+        $attrs->setOperation('op');
+        if (null !== $scheduleToClose) {
+            $attrs->setScheduleToCloseTimeout((new Duration())->setSeconds($scheduleToClose));
+        }
+        if (null !== $scheduleToStart) {
+            $attrs->setScheduleToStartTimeout((new Duration())->setSeconds($scheduleToStart));
+        }
+        if (null !== $startToClose) {
+            $attrs->setStartToCloseTimeout((new Duration())->setSeconds($startToClose));
+        }
 
-        $resp = GrpcUnary::wait($this->client->PollWorkflowTaskQueue($req, [], ['timeout' => 30_000_000]));
-        self::assertInstanceOf(PollWorkflowTaskQueueResponse::class, $resp);
+        $command = new Command();
+        $command->setCommandType(CommandType::COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION);
+        $command->setScheduleNexusOperationCommandAttributes($attrs);
 
-        return $resp;
-    }
+        $done = new RespondWorkflowTaskCompletedRequest();
+        $done->setNamespace($this->connection->namespace->name());
+        $done->setTaskToken($task->getTaskToken());
+        $done->setIdentity($this->connection->identity);
+        $done->setCommands([$command]);
 
-    private function findEvent(int $type): ?HistoryEvent
-    {
+        /** @var array{0: mixed, 1: \stdClass} $pair */
+        $pair = $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000])->wait();
+        $code = (int) ($pair[1]->code ?? -1);
+        if (0 !== $code) {
+            self::assertSame(self::GRPC_INVALID_ARGUMENT, $code, 'Refus pour un autre motif qu’un argument invalide.');
+
+            return (string) ($pair[1]->details ?? '');
+        }
+
         $cursor = new TemporalHistoryCursor($this->client, $this->connection);
-        $execution = new WorkflowExecution(['workflow_id' => (string) $this->workflowId]);
-        foreach ($cursor->events($execution) as $event) {
-            if ($event->getEventType() === $type) {
-                return $event;
+        foreach ($cursor->events(new WorkflowExecution(['workflow_id' => $workflowId])) as $event) {
+            if (EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED === $event->getEventType()) {
+                return $event->getNexusOperationScheduledEventAttributes();
             }
         }
 
         return null;
-    }
-
-    private function historyNames(): string
-    {
-        $cursor = new TemporalHistoryCursor($this->client, $this->connection);
-        $execution = new WorkflowExecution(['workflow_id' => (string) $this->workflowId]);
-        $names = [];
-        foreach ($cursor->events($execution) as $event) {
-            $names[] = EventType::name($event->getEventType());
-        }
-
-        return implode(', ', $names);
     }
 }

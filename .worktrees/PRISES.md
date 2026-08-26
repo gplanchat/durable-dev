@@ -8,5 +8,3 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
-| `test/nexus-service-operation-names` | temporal-nexus-support | 1.1 (moitié service/opération) | en cours |
-| `test/nexus-operation-bounds` | temporal-nexus-support | 1.3 (bornes d'opération) — reprise, la branche précédente avait disparu sans verdict | en cours |

@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use Gplanchat\Durable\Plugin\Controller\AdminDashboardController;
+use Gplanchat\Durable\Plugin\Dashboard\RunDashboardView;
 use Gplanchat\Durable\Plugin\Dashboard\TemporalEventsDashboardDataProvider;
 use Gplanchat\Durable\Plugin\EventListener\AdminMenuListener;
+use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
@@ -17,6 +19,13 @@ return static function (ContainerConfigurator $container): void {
         ->arg('$workflowServiceClient', service('durable.temporal.workflow_service_client')->nullOnInvalid())
         ->arg('$connection', service('durable.temporal.connection')->nullOnInvalid())
         ->arg('$historyCursor', service('Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor')->nullOnInvalid())
+    ;
+
+    // Le catalogue est absent quand aucun backend n'est lisible : le conteneur n'en enregistre
+    // alors aucun, et la page doit le dire plutôt que d'échouer au montage.
+    $services
+        ->set(RunDashboardView::class)
+        ->arg('$catalog', service(WorkflowRunCatalogInterface::class)->nullOnInvalid())
     ;
 
     $services

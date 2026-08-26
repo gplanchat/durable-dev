@@ -120,10 +120,62 @@ of a misconfigured endpoint. That choice belongs to §3, not to the value object
 
 Pinned by `tests/integration/Temporal/NexusUnknownEndpointTest.php`.
 
-**Not probed: service and operation names.** They travel in the `ScheduleNexusOperation` command,
-so measuring them needs a workflow scheduling a real operation against a worker — the endpoint
-probe reaches them by no path. Task 1.1 covers all three names; only the endpoint half is
-established.
+**Service and operation names, probed (task 1.1, second half) — and the rule is the opposite of the
+endpoint's.** They travel in the `ScheduleNexusOperation` command, so measuring them needs a real
+endpoint and a completed workflow task. Against Temporal 1.31.2, **the server validates neither**:
+empty, a single space, edge whitespace, an inner tab, a control character, a slash, an accent, a
+thousand characters — every one accepted, and `NEXUS_OPERATION_SCHEDULED` records the name
+**verbatim** (measured: `service: ""` and `service: "sv\tc"` read back unchanged).
+
+Nothing follows. The operation sits scheduled, waiting for a handler whose service and operation
+will never match, and no error is ever written.
+
+**So the three names of one command follow three different rules, and §2.1 cannot treat them as a
+block:**
+
+| Name | Server | What the value object must do |
+|---|---|---|
+| endpoint | strict — regex, 200 chars, refused at creation | mirror the server, invent nothing |
+| service | accepts anything | be **stricter than the server**, like `TaskQueue` |
+| operation | accepts anything | be **stricter than the server**, like `TaskQueue` |
+
+The `TaskQueue` reasoning applies verbatim to the last two: the server accepts what cannot be
+anything but a mistake, and the mistake costs an execution that waits forever with nothing in the
+logs. It does not apply to the endpoint, whose failure is loud and immediate.
+
+Pinned by `tests/integration/Temporal/NexusServiceAndOperationNameRulesTest.php`.
+
+**The three operation bounds, probed (task 1.3) — and there is a silent rewrite.** Against
+Temporal 1.31.2:
+
+| Given | Recorded in `NEXUS_OPERATION_SCHEDULED` |
+|---|---|
+| nothing | nothing — the server defaults none of the three |
+| `scheduleToClose` 60 | 60s |
+| `scheduleToClose` 10, `scheduleToStart` 60 | **10s** — silently clamped |
+| `scheduleToClose` 10, `startToClose` 60 | **10s** — silently clamped |
+| `scheduleToClose` 0, `scheduleToStart` 30 | 0s and 30s — zero means *unbounded*, and clamps nothing |
+| any of the three negative | refused, `INVALID_ARGUMENT`, message naming the field: `ScheduleNexusOperationCommandAttributes.<Field> is invalid: negative duration` |
+| `scheduleToClose` 3600 on a workflow run bounded to 60 | **60s** — clamped to the *workflow run*, a second envelope outside the three |
+
+So they behave like the activity bounds: `scheduleToClose` is the envelope, and a sub-bound asking
+for more than it is cut down to it without an error. Zero is the one value that does not mean a
+duration.
+
+**And there is a second envelope, outside the three: the workflow run itself.** A `scheduleToClose`
+of one hour under an execution bounded to one minute is recorded as one minute. This one is *not*
+reachable by a value object — the three bounds can be perfectly coherent with each other and still
+be cut down, because the limit belongs to the execution, not to the operation. §2.2 can make the
+first clamp impossible at construction; it cannot make this one visible. Only the journal knows the
+applied value, and the docblock must say so rather than let a caller trust what it holds.
+
+**What this asks of `NexusOperationTimeouts` (§2.2).** Make the rewrite visible at construction
+instead of letting it happen server-side. A value object that accepts `startToClose` 60 under
+`scheduleToClose` 10 and lets the caller believe in 60 reproduces exactly the class of mistake
+`ActivityTimeouts` exists to make impossible. Rejecting the combination and naming the envelope is
+one line; discovering the clamp in a history dump is an afternoon.
+
+Pinned by `tests/integration/Temporal/NexusOperationBoundsTest.php`.
 
 ## Decisions
 
