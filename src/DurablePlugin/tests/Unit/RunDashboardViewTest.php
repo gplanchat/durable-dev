@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Plugin\Tests\Unit;
 
+use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunEventKind;
@@ -31,6 +32,7 @@ final class RunDashboardViewTest extends TestCase
         self::assertFalse($view['backend']['available']);
         self::assertNotSame('', $view['backend']['message']);
         self::assertStringNotContainsStringIgnoringCase('temporal', $view['backend']['message']);
+        self::assertArrayNotHasKey('name', $view['backend'], 'sans backend, nommer un serveur enverrait sur une fausse piste');
         self::assertSame([], $view['runs']);
     }
 
@@ -119,6 +121,36 @@ final class RunDashboardViewTest extends TestCase
         self::assertNull($catalog->askedStatus);
     }
 
+    /**
+     * « Un catalogue est enregistré » et « le backend répond » sont deux questions distinctes. Une
+     * base tombée donnait une page vide et sereine, ce qui est la pire des deux erreurs possibles :
+     * l'exploitant en conclut qu'il n'y a rien à voir.
+     */
+    public function testAnUnreachableBackendIsNotPresentedAsAnEmptyDashboard(): void
+    {
+        $catalog = new FakeRunCatalog(
+            [$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)],
+            [],
+            null,
+            reachable: false,
+        );
+
+        $view = (new RunDashboardView($catalog))->build();
+
+        self::assertFalse($view['backend']['available']);
+        self::assertSame([], $view['runs'], 'ne rien lister vaut mieux que lister le vide d\'une base muette');
+        self::assertNull($catalog->askedCursor, 'inutile de demander une page à un backend qui ne répond pas');
+    }
+
+    public function testAReachableBackendNamesItselfAndSaysWhenItWasChecked(): void
+    {
+        $view = $this->viewOver([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)])->build();
+
+        self::assertTrue($view['backend']['available']);
+        self::assertSame('Fake backend', $view['backend']['name']);
+        self::assertInstanceOf(\DateTimeImmutable::class, $view['backend']['checkedAt']);
+    }
+
     public function testTheSelectedRunHistoryIsGroupedInDistinctLanes(): void
     {
         $catalog = new FakeRunCatalog(
@@ -176,7 +208,18 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
         private readonly array $runs = [],
         private readonly array $history = [],
         private readonly ?string $nextCursor = null,
+        private readonly bool $reachable = true,
     ) {}
+
+    public function checkHealth(): BackendHealth
+    {
+        return new BackendHealth(
+            'Fake backend',
+            $this->reachable,
+            $this->reachable ? 'The fake backend answers.' : 'The fake backend is unreachable.',
+            new \DateTimeImmutable('@1700000000'),
+        );
+    }
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
     {
