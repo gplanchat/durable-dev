@@ -12,6 +12,7 @@ use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
 use Gplanchat\Durable\CronSchedule;
+use Gplanchat\Durable\Exception\WorkflowUpdateFailedException;
 use Gplanchat\Durable\Uuid\NativeUuidV7Generator;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowStartOptions;
@@ -244,6 +245,12 @@ final class WorkflowClient implements WorkflowClientInterface
 
         $response = $this->executionRpc->updateWorkflowExecution($request);
         $outcome = $response->getOutcome();
+        // Un handler qui relève fait échouer l'update, pas l'exécution — mais encore faut-il que
+        // l'appelant l'apprenne. Rendre `null` le rendait indiscernable d'un handler qui rend
+        // légitimement `null`.
+        if (null !== $outcome && null !== $outcome->getFailure()) {
+            throw new WorkflowUpdateFailedException($updateName, $outcome->getFailure()->getMessage());
+        }
         if (null !== $outcome && null !== $outcome->getSuccess()) {
             $payloads = $outcome->getSuccess()->getPayloads();
             if ($payloads->count() > 0) {

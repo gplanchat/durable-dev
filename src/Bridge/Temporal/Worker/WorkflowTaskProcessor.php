@@ -55,9 +55,14 @@ final class WorkflowTaskProcessor
 
         // Acceptation et réponse repartent sur CETTE tâche, avec les commandes qui les
         // référencent — c'est ce que la sonde 1.3 a vu le serveur accepter en un aller-retour.
+        //
+        // Elles passent **avant** les commandes du workflow, et l'ordre n'est pas cosmétique : un
+        // workflow que l'update débloque se termine dans cette même tâche, et sa commande de
+        // complétion placée avant ferait avorter l'update qui venait de le débloquer
+        // (« workflow update was aborted »). L'appelant n'aurait jamais eu sa réponse.
         [$updateMessages, $updateCommands] = TemporalUpdateProtocol::answer($result->updates);
 
-        $this->respond($poll->getTaskToken(), [...$commands, ...$updateCommands], $queryResults, $updateMessages);
+        $this->respond($poll->getTaskToken(), [...$updateCommands, ...$commands], $queryResults, $updateMessages);
 
         return true;
     }

@@ -151,9 +151,29 @@ final class IntegrationWorkflows
                 return ['approvedBy' => $approved];
             });
 
-            $env->await(static fn(): bool => null !== $approved, Duration::minutes(2));
+            $env->await(static function () use (&$approved): bool {
+                return null !== $approved;
+            }, Duration::minutes(2));
 
             return ['approvedBy' => $approved];
+        });
+
+        // Tâche 3.8 : un handler qui relève fait échouer l'update, pas l'exécution. Le workflow
+        // doit poursuivre et se terminer par la voie normale, ici un signal.
+        $registry->registerFactory('UpdateRefusing', static fn(array $input) => static function (WorkflowEnvironment $env): array {
+            $released = false;
+            $env->onUpdate('approve', static function (): never {
+                throw new \DomainException('approbation refusée');
+            });
+            $env->onSignal('release', static function () use (&$released): void {
+                $released = true;
+            });
+
+            $env->await(static function () use (&$released): bool {
+                return $released;
+            }, Duration::minutes(2));
+
+            return ['completed' => true];
         });
 
         $registry->registerFactory('ChildParent', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): array {
