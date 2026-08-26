@@ -14,7 +14,7 @@
     "license": "MIT",
     "authors": [
         {
-            "name": "Paweł Jędrzejewski"
+            "name": "Pawe\u0142 J\u0119drzejewski"
         },
         {
             "name": "Sylius project"
@@ -33,7 +33,11 @@
         "sylius/sylius": "^2.2.6",
         "symfony/dotenv": "^7.4.11",
         "symfony/flex": "^2.11",
-        "symfony/runtime": "^7.4.13"
+        "symfony/runtime": "^7.4.13",
+        "gplanchat/durable": "@dev",
+        "gplanchat/durable-bundle": "@dev",
+        "gplanchat/durable-plugin": "@dev",
+        "gplanchat/durable-bridge-dbal": "@dev"
     },
     "require-dev": {
         "behat/behat": "^3.31",
@@ -151,5 +155,42 @@
         "symfony/polyfill-php81": "*",
         "symfony/polyfill-php82": "*",
         "symfony/polyfill-php83": "*"
-    }
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../src/Durable",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../src/DurableBundle",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../src/DurablePlugin",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../src/Bridge/Dbal",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../src/Bridge/Temporal",
+            "options": {
+                "symlink": true
+            }
+        }
+    ]
 }

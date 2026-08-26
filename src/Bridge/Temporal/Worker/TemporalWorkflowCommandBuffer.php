@@ -452,19 +452,11 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         return $this->durationSeconds($bound->isInfinite() ? 0.0 : $bound->toSeconds());
     }
 
-    /**
-     * Demande l'annulation d'une opération encore en vol.
-     *
-     * La commande vise l'identifiant de l'événement de planification, relu de l'historique — le
-     * message n'accepte que celui-là. Un compteur inventé localement a déjà fait taire cette
-     * commande une fois, pour les activités.
-     *
-     * Rien n'est émis tant que le serveur n'a pas vu l'opération : sur la première passe la
-     * commande de planification n'est pas encore partie, et viser un identifiant inexistant
-     * ferait échouer la tâche de workflow.
-     */
     public function cancelNexusOperation(string $operationId, string $reason): void
     {
+        // Même règle que pour une activité : le serveur veut l'eventId réel de la planification,
+        // et rejette la tâche entière si l'identifiant ne correspond à rien. Une opération qu'on
+        // ne retrouve pas dans l'historique n'a rien à annuler — on se tait plutôt que d'inventer.
         $scheduledEventId = $this->history?->scheduledEventIdForNexusOperation($operationId);
         if (null === $scheduledEventId) {
             return;
@@ -476,7 +468,6 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $cmd = new Command();
         $cmd->setCommandType(CommandType::COMMAND_TYPE_REQUEST_CANCEL_NEXUS_OPERATION);
         $cmd->setRequestCancelNexusOperationCommandAttributes($attrs);
-
         $this->commands[] = $cmd;
     }
 }
