@@ -22,14 +22,14 @@
 
 ## 3. Failing tests first — dispatch
 
-- [ ] 3.1 An annotated method handles the signal it names, and the state it mutates is visible to the body
-- [ ] 3.2 A workflow expressed as a callable registers a handler and behaves identically
-- [ ] 3.3 A message with no declared handler is recorded and does not fail the execution
-- [ ] 3.4 Two signals are handled in recorded order, identically on every replay
-- [ ] 3.5 Three deliveries of one name reach the handler three times, on a first run and on replay
-- [ ] 3.6 A delivery recorded while no await was pending is still observed by the next one
-- [ ] 3.7 An update handler's return value reaches the caller, and survives replay
-- [ ] 3.8 A raising update handler fails the update, not the workflow
+- [x] 3.1 An annotated method handles the signal it names, and the state it mutates is visible to the body
+- [x] 3.2 A workflow expressed as a callable registers a handler and behaves identically
+- [x] 3.3 A message with no declared handler is recorded and does not fail the execution — vert sans une ligne de code neuve : un signal que personne ne consomme dort déjà dans l’historique
+- [x] 3.4 Two signals are handled in recorded order, identically on every replay
+- [x] 3.5 Three deliveries of one name reach the handler three times, on a first run and on replay — un appel par livraison et par passe
+- [x] 3.6 A delivery recorded while no await was pending is still observed by the next one
+- [ ] 3.7 An update handler's return value reaches the caller, and survives replay — différé : la forme d’injection d’un update entrant appartient au bloc 5
+- [ ] 3.8 A raising update handler fails the update, not the workflow — différé : `WorkflowUpdateHandled` n’a pas de canal d’échec, point ouvert consigné dans `design.md`
 
 ## 4. Domain — conditions
 

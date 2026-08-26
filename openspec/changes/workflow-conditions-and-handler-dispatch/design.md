@@ -157,6 +157,26 @@ this is not a concession, it is load-bearing: nearly every workflow in the test 
 and a closure cannot carry an attribute. Without imperative registration the new primitive is not
 testable in the style the suite is written in.
 
+### Un update se livre en une passe, et n'ajoute aucun événement
+
+La sonde 1.3 a montré que Temporal accepte et complète un update sur **la même** tâche. Le backend
+in-memory suit la même forme : la livraison exécute une passe du workflow, le handler rend sa
+valeur, et le journal reçoit un `WorkflowUpdateHandled` portant ce retour.
+
+C'est un **retrait**, pas un ajout. `DeliverWorkflowUpdateMessage` porte aujourd'hui un `result`
+calculé par l'appelant, que `waitUpdate()` se contente de relire — l'inverse du modèle visé. Ce
+champ disparaît : le résultat appartient au handler.
+
+Rejeté : un événement `WorkflowUpdateRequested` séparant l'arrivée du traitement. Il ne servirait
+qu'à faire survivre la requête entre deux passes, ce qu'une livraison en une passe rend inutile —
+et ce change s'interdit d'ajouter un événement (DUR032, option 1 contre option 2).
+
+**Point ouvert pour le bloc 5 :** `WorkflowUpdateHandled` ne porte qu'un résultat. Un update en
+échec n'a nulle part où aller, alors que la spec demande que l'appelant reçoive la défaillance
+sans que le workflow échoue. Deux formes plausibles — un champ d'échec nullable sur l'événement,
+comme `ActivityFailed` en porte un, ou un événement frère. À trancher en écrivant le domaine, pas
+avant.
+
 ### An update answers; a signal does not
 
 That is the whole difference, and it is why updates are a separate requirement rather than a
