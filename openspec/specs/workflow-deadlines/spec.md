@@ -81,30 +81,6 @@ the deadline SHALL NOT settle a wait that already timed out.
 - **AND** the workflow waits for the same signal name again
 - **THEN** that later wait observes the delivered signal
 
-### Requirement: Waiting for a signal under a deadline
-
-A workflow SHALL be able to wait for a signal under a deadline. Without a deadline, the wait SHALL
-behave exactly as it does today: it waits indefinitely.
-
-#### Scenario: The signal arrives before the deadline
-
-- **WHEN** a workflow waits for an approval signal under a one-hour deadline
-- **AND** the signal is delivered after ten minutes
-- **THEN** the wait returns the signal payload
-
-#### Scenario: The deadline elapses before the signal
-
-- **WHEN** a workflow waits for an approval signal under a one-hour deadline
-- **AND** no such signal is delivered within the hour
-- **THEN** the wait raises a timeout failure
-- **AND** the workflow can catch it and take its expiry path
-
-#### Scenario: A wait without a deadline is unchanged
-
-- **WHEN** a workflow waits for a signal without a deadline
-- **THEN** the wait does not time out
-- **AND** it settles only when the signal is delivered
-
 ### Requirement: Backends agree on the verdict
 
 A deadline SHALL be expressed in terms of primitives every backend already supports, and SHALL NOT
