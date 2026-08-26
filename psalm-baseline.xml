@@ -492,4 +492,46 @@
       <code><![CDATA[public function removePendingFor(string $executionId, string $activityId): bool]]></code>
     </MissingOverrideAttribute>
   </file>
+  <file src="src/DurablePlugin/Dashboard/TemporalEventsDashboardDataProvider.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[[
+                'runs' => [],
+                'nextCursor' => null,
+                'temporal' => [
+                    'connected' => false,
+                    'namespace' => $this->connection->namespace->name(),
+                    'message' => 'Temporal returned an unexpected response.',
+                    'checkedAt' => $checkedAt,
+                    'lastSuccessfulAt' => null,
+                ],
+            ]]]></code>
+      <code><![CDATA[[
+                'runs' => [],
+                'nextCursor' => null,
+                'temporal' => [
+                    'connected' => true,
+                    'namespace' => $this->connection->namespace->name(),
+                    'message' => 'Connected to Temporal. No workflow execution found for the selected filters.',
+                    'checkedAt' => $checkedAt,
+                    'lastSuccessfulAt' => $lastSuccessfulAt,
+                ],
+            ]]]></code>
+      <code><![CDATA[[
+            'runs' => $runs,
+            'nextCursor' => '' !== $nextToken ? $this->encodeCursor($nextToken) : null,
+            'temporal' => [
+                'connected' => true,
+                'namespace' => $this->connection->namespace->name(),
+                'message' => 'Connected to Temporal.',
+                'checkedAt' => $checkedAt,
+                'lastSuccessfulAt' => $lastSuccessfulAt,
+            ],
+        ]]]></code>
+    </InvalidReturnStatement>
+  </file>
+  <file src="src/DurablePlugin/DependencyInjection/DurablePluginExtension.php">
+    <MoreSpecificImplementedParamType>
+      <code><![CDATA[$configs]]></code>
+    </MoreSpecificImplementedParamType>
+  </file>
 </files>
