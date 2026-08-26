@@ -40,24 +40,22 @@ final class IntegrationWorkflows
     {
         $registry->registerFactory('Plain', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['echo' => $input['value'] ?? null]);
 
-        $registry->registerFactory('Doubler', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['doubled' => $env->await($env->activity(
-            'double',
-            ['value' => $input['value'] ?? 0],
+        $registry->registerFactory('Doubler', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['doubled' => $env->await($env->activityStub(
+            IntegrationActivities::class,
             self::options(),
-        ))]);
+        )->double((int) ($input['value'] ?? 0)))]);
 
         $registry->registerFactory('TwoActivities', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): array {
-            $doubled = $env->await($env->activity('double', ['value' => $input['value'] ?? 0], self::options()));
+            $doubled = $env->await($env->activityStub(IntegrationActivities::class, self::options())->double((int) ($input['value'] ?? 0)));
 
-            return ['text' => $env->await($env->activity('append', ['text' => (string) $doubled], self::options()))];
+            return ['text' => $env->await($env->activityStub(IntegrationActivities::class, self::options())->append((string) $doubled))];
         });
 
         // Un run de cron : il doit se terminer pour que le serveur planifie le suivant.
-        $registry->registerFactory('Ticking', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['tick' => $env->await($env->activity(
-            'double',
-            ['value' => $input['value'] ?? 1],
+        $registry->registerFactory('Ticking', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['tick' => $env->await($env->activityStub(
+            IntegrationActivities::class,
             self::options(),
-        ))]);
+        )->double((int) ($input['value'] ?? 1)))]);
 
         // Le cas qu'aucun faux serveur ne peut trancher : le signal est livré *après* le tir de
         // l'échéance, et chaque tâche de workflow rejoue tout depuis le début — si le verdict
@@ -94,27 +92,27 @@ final class IntegrationWorkflows
 
         // maxAttempts borné : sans lui le serveur applique sa RetryPolicy par défaut et retente
         // indéfiniment — le workflow n'échouerait jamais.
-        $registry->registerFactory('FailsOnActivity', static fn(array $input) => static fn(WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], new ActivityOptions(
+        $registry->registerFactory('FailsOnActivity', static fn(array $input) => static fn(WorkflowEnvironment $env): mixed => $env->await($env->activityStub(IntegrationActivities::class, new ActivityOptions(
             RetryLimit::once(),
             timeouts: self::attemptTimeout(),
-        ))));
+        ))->boom()));
 
-        $registry->registerFactory('UnboundedRetry', static fn(array $input) => static fn(WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], self::options())));
+        $registry->registerFactory('UnboundedRetry', static fn(array $input) => static fn(WorkflowEnvironment $env): mixed => $env->await($env->activityStub(IntegrationActivities::class, self::options())->boom()));
 
-        $registry->registerFactory('NonRetryable', static fn(array $input) => static fn(WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], new ActivityOptions(
+        $registry->registerFactory('NonRetryable', static fn(array $input) => static fn(WorkflowEnvironment $env): mixed => $env->await($env->activityStub(IntegrationActivities::class, new ActivityOptions(
             RetryLimit::ofAttempts(5),
             initialInterval: Duration::seconds(0.1),
             nonRetryableExceptions: [\DomainException::class],
             timeouts: self::attemptTimeout(),
-        ))));
+        ))->boom()));
 
         $registry->registerFactory('Compensating', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): mixed {
             try {
-                return $env->await($env->activity('double', ['value' => 1], new ActivityOptions(
+                return $env->await($env->activityStub(IntegrationActivities::class, new ActivityOptions(
                     timeouts: ActivityTimeouts::attempt(Duration::seconds(60.0)),
-                )));
+                ))->double(1));
             } catch (WorkflowCancelledFailure $e) {
-                $env->await($env->activity('refund', ['order' => $input['order'] ?? 'x'], self::options()));
+                $env->await($env->activityStub(IntegrationActivities::class, self::options())->refund((string) ($input['order'] ?? 'x')));
 
                 throw $e;
             }
@@ -123,8 +121,8 @@ final class IntegrationWorkflows
         // Les deux branches doivent partir dans la MÊME workflow task : c'est ce que le passage
         // de N suspensions de fiber à une seule ne doit pas avoir changé (ADR DUR033).
         $registry->registerFactory('Assembled', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['both' => $env->await($env->all(
-            $env->activity('double', ['value' => $input['value'] ?? 0], self::options()),
-            $env->activity('append', ['text' => 'x'], self::options()),
+            $env->activityStub(IntegrationActivities::class, self::options())->double((int) ($input['value'] ?? 0)),
+            $env->activityStub(IntegrationActivities::class, self::options())->append('x'),
         ))]);
 
         // Quorum atteint par les activités ; les minuteurs perdants doivent être retirés côté
@@ -132,8 +130,8 @@ final class IntegrationWorkflows
         $registry->registerFactory('Quorum', static fn(array $input) => static function (WorkflowEnvironment $env): array {
             $reached = $env->await($env->some(
                 2,
-                $env->activity('double', ['value' => 1], self::options()),
-                $env->activity('double', ['value' => 2], self::options()),
+                $env->activityStub(IntegrationActivities::class, self::options())->double(1),
+                $env->activityStub(IntegrationActivities::class, self::options())->double(2),
                 $env->timer(Duration::hours(1), 'loser-1'),
                 $env->timer(Duration::hours(2), 'loser-2'),
             ));
