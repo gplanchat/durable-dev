@@ -21,6 +21,10 @@ use Gplanchat\Durable\Exception\DeadlineExceededException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Exception\WorkflowSuspendedException;
 use Gplanchat\Durable\Failure\FailureEnvelope;
+use Gplanchat\Durable\Nexus\NexusEndpoint;
+use Gplanchat\Durable\Nexus\NexusOperationName;
+use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
+use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Workflow\ChildWorkflowStub;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 
@@ -484,6 +488,33 @@ final class WorkflowEnvironment
     public function activity(string $name, array $payload = [], ?ActivityOptions $options = null): Awaitable
     {
         return $this->context->activity($name, $payload, $options);
+    }
+
+    /**
+     * Planifie une opération Nexus et rend un {@see Awaitable}, comme {@see activity()}.
+     *
+     * Rend la main aussitôt : c'est {@see await()} qui attend, et lui seul (ADR DUR033). Une
+     * opération Nexus se compose donc comme le reste — bornée par une échéance, mise en course
+     * avec {@see any()}, ou attendue en quorum.
+     *
+     * @param array<string, mixed> $payload
+     *
+     * @return Awaitable<mixed>
+     */
+    public function scheduleNexusOperation(
+        NexusEndpoint|string $endpoint,
+        NexusService|string $service,
+        NexusOperationName|string $operation,
+        array $payload = [],
+        ?NexusOperationTimeouts $timeouts = null,
+    ): Awaitable {
+        return $this->context->nexusOperation(
+            NexusEndpoint::from($endpoint),
+            NexusService::from($service),
+            NexusOperationName::from($operation),
+            $payload,
+            $timeouts,
+        );
     }
 
     /**

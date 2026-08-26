@@ -7,6 +7,7 @@ namespace Gplanchat\Durable;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Awaitable\ActivityAwaitable;
 use Gplanchat\Durable\Awaitable\Awaitable;
+use Gplanchat\Durable\Awaitable\NexusOperationAwaitable;
 use Gplanchat\Durable\Awaitable\TimerAwaitable;
 use Gplanchat\Durable\Exception\ActivitySupersededException;
 use Gplanchat\Durable\Exception\ChildWorkflowStartDeferred;
@@ -29,6 +30,11 @@ final class ExecutionContext
     private array $pendingTimers = [];
 
     private int $activitySlotIndex = 0;
+
+    private int $nexusOperationSlotIndex = 0;
+
+    /** @var array<string, \Gplanchat\Durable\Awaitable\Deferred> */
+    private array $pendingNexusOperations = [];
 
     private int $timerSlotIndex = 0;
 
@@ -67,6 +73,75 @@ final class ExecutionContext
      *
      * @return Awaitable<mixed>
      */
+    /**
+     * Planifie une opération Nexus et rend de quoi l'attendre.
+     *
+     * Même mécanique de **slot** que les activités, et pour la même raison : c'est la position
+     * d'appel dans l'exécution, non un identifiant tiré au sort, qui permet au replay de retomber
+     * sur l'opération déjà lancée. Sans ce compteur, la seconde passe replanifierait ce que la
+     * première a déjà envoyé — et une opération Nexus qui part deux fois est facturée deux fois.
+     *
+     * @param array<string, mixed> $payload
+     *
+     * @return Awaitable<mixed>
+     */
+    public function nexusOperation(
+        \Gplanchat\Durable\Nexus\NexusEndpoint $endpoint,
+        \Gplanchat\Durable\Nexus\NexusService $service,
+        \Gplanchat\Durable\Nexus\NexusOperationName $operation,
+        array $payload = [],
+        ?\Gplanchat\Durable\Nexus\NexusOperationTimeouts $timeouts = null,
+    ): Awaitable {
+        $slotIndex = $this->nexusOperationSlotIndex++;
+        $recordedId = $this->historySource->findScheduledNexusOperation($slotIndex);
+
+        $replay = $this->historySource->findNexusOperationSlotResult($slotIndex);
+        if (null !== $replay) {
+            $deferred = new \Gplanchat\Durable\Awaitable\Deferred();
+            if (null !== $replay['failed']) {
+                $deferred->reject($replay['failed']);
+            } else {
+                $deferred->resolve($replay['result']);
+            }
+
+            return new NexusOperationAwaitable($deferred->awaitable(), $recordedId ?? '');
+        }
+
+        $operationId = $recordedId ?? $this->uuid();
+        $deferred = new \Gplanchat\Durable\Awaitable\Deferred();
+        $this->pendingNexusOperations[$operationId] = $deferred;
+
+        // Déjà dans l'historique : l'opération est en vol, la commande ne repart pas.
+        if (null === $recordedId) {
+            $this->commandBuffer->scheduleNexusOperation(
+                $operationId,
+                $endpoint,
+                $service,
+                $operation,
+                $payload,
+                $timeouts ?? new \Gplanchat\Durable\Nexus\NexusOperationTimeouts(),
+            );
+        }
+
+        return new NexusOperationAwaitable($deferred->awaitable(), $operationId);
+    }
+
+    /**
+     * Retire de la file une opération Nexus encore en vol. Best effort, comme pour une activité :
+     * le serveur reçoit une demande, et le workflow cesse d'attendre.
+     */
+    public function cancelScheduledNexusOperation(string $operationId, string $reason): bool
+    {
+        if (!isset($this->pendingNexusOperations[$operationId])) {
+            return false;
+        }
+
+        unset($this->pendingNexusOperations[$operationId]);
+        $this->commandBuffer->cancelNexusOperation($operationId, $reason);
+
+        return true;
+    }
+
     public function activity(string $name, array $payload = [], ?ActivityOptions $options = null): Awaitable
     {
         $slotIndex = $this->activitySlotIndex++;

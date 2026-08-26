@@ -9,3 +9,4 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
 | `feat/update-delivery-pass` | workflow-conditions-and-handler-dispatch | 6.6 | en relecture |
+| `feat/nexus-schedule-and-cancel` | temporal-nexus-support | 3.2 + 3.5 (planifier et annuler cote appelant) | en cours |
