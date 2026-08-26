@@ -13,5 +13,8 @@ hugo-docs/public/
 hugo-docs/resources/
 hugo-docs/.hugo_build.lock
 
-# Outils
+# Dépendances et caches d'outils : jamais au dépôt, chaque poste les reconstruit.
+# `vendor/` sans barre initiale attrape aussi celui des paquets satellites.
+vendor/
+.phpunit.cache/
 .php-cs-fixer.cache
