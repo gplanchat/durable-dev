@@ -25,6 +25,7 @@ final class DurableSchema
         private readonly string $eventsTable = 'durable_events',
         private readonly string $metadataTable = 'durable_workflow_metadata',
         private readonly string $parentLinkTable = 'durable_child_workflow_parent_link',
+        private readonly string $runsTable = 'durable_workflow_runs',
     ) {}
 
     /**
@@ -39,7 +40,7 @@ final class DurableSchema
 
         $schemaManager = $this->connection->createSchemaManager();
         $existing = array_values(array_filter(
-            [$this->eventsTable, $this->metadataTable, $this->parentLinkTable],
+            [$this->eventsTable, $this->metadataTable, $this->parentLinkTable, $this->runsTable],
             static fn(string $table): bool => $schemaManager->tablesExist([$table]),
         ));
 
@@ -79,6 +80,21 @@ final class DurableSchema
             $metadata->addColumn('payload', Types::TEXT);
             $metadata->addColumn('completed', Types::BOOLEAN, ['default' => false]);
             $metadata->setPrimaryKey(['execution_id']);
+        }
+
+        if (!\in_array($this->runsTable, $skip, true)) {
+            // Projection de lecture : le journal est écrit à chaque pas et lu par id d'exécution,
+            // un tableau de bord lit en travers et ordonne par date. Deux motifs d'accès, et
+            // `durable_events` n'est indexée que sur `execution_id` — lister depuis lui serait un
+            // balayage par page, croissant avec le nombre total d'événements jamais écrits.
+            $runs = $schema->createTable($this->runsTable);
+            $runs->addColumn('execution_id', Types::STRING, ['length' => 128]);
+            $runs->addColumn('workflow_type', Types::STRING, ['length' => 255]);
+            $runs->addColumn('status', Types::STRING, ['length' => 32]);
+            $runs->addColumn('started_at', Types::DATETIME_IMMUTABLE);
+            $runs->addColumn('ended_at', Types::DATETIME_IMMUTABLE, ['notnull' => false]);
+            $runs->setPrimaryKey(['execution_id']);
+            $runs->addIndex(['started_at'], $this->runsTable . '_started_idx');
         }
 
         if (!\in_array($this->parentLinkTable, $skip, true)) {

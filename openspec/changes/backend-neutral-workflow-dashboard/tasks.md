@@ -1,14 +1,14 @@
 ## 1. Settle the run projection before writing the port
 
-- [ ] 1.1 Confirm on an existing install that `DurableSchema::ensure()` adds a *new* table to a database that already carries the other three, and does not touch them — the whole choice of a projection over a column rests on this
-- [ ] 1.2 List every transition that ends a run (`markCompleted`, and the three `delete()` calls in `ResumeWorkflowHandler`) and decide where the projection is written, so no ending is missed and the metadata lifecycle stays as it is
+- [x] 1.1 Confirm on an existing install that `DurableSchema::ensure()` adds a *new* table to a database that already carries the other three, and does not touch them — the whole choice of a projection over a column rests on this — confirmed, and pinned by `DurableSchemaIncrementalCreationTest`: a missing table is created beside existing ones, an existing table keeps its rows, and a table the install has never seen appears
+- [x] 1.2 List every transition that ends a run (`markCompleted`, and the three `delete()` calls in `ResumeWorkflowHandler`) and decide where the projection is written, so no ending is missed and the metadata lifecycle stays as it is — seven sites listed in `design.md`; a decorator on the metadata store is ruled out because three endings share one `delete()` call, so the name is seeded from `save()` and the outcome settled from the journal's lifecycle events
 - [x] 1.3 Decide what the projection records for a run that continued as new — one row that ends and one that starts, or a chain — and note the verdict in `design.md`: **two independent rows**, no link column; the chain is carried by the port's optional grouping id, which Temporal fills and DBAL leaves absent
 
 ## 2. Failing tests first
 
-- [ ] 2.1 A run that failed on the DBAL backend is listed, named, and reads as failed
-- [ ] 2.2 A run that was cancelled is listed, named, and is distinguishable from a failed one
-- [ ] 2.3 A run that continued as new leaves both runs visible, and the one that ended is not reported as failed
+- [x] 2.1 A run that failed on the DBAL backend is listed, named, and reads as failed
+- [x] 2.2 A run that was cancelled is listed, named, and is distinguishable from a failed one
+- [x] 2.3 A run that continued as new leaves both runs visible, and the one that ended is not reported as failed
 - [ ] 2.4 Filtering by status returns only matching runs, and the counters agree with the list
 - [ ] 2.5 Paging through more runs than one page holds returns each run once and none twice
 - [ ] 2.6 Selecting a run returns its events in recorded order, with activities and signals on distinct lanes
@@ -18,14 +18,14 @@
 
 ## 3. Domain
 
-- [ ] 3.1 A read port for observing runs: listing with a cursor and a status filter, and reading one run's recorded history
-- [ ] 3.2 The run description the port returns, with the facts a backend may not have modelled as absent rather than as empty values
+- [ ] 3.1 A read port for observing runs: listing with a cursor and a status filter, and reading one run's recorded history — *partiel* : `WorkflowRunCatalogInterface::listRuns()` existe ; le curseur, le filtre de statut et la lecture d'historique restent à faire (§2.4, §2.5, §2.6)
+- [x] 3.2 The run description the port returns, with the facts a backend may not have modelled as absent rather than as empty values — `WorkflowRunDescription` + `WorkflowRunStatus` ; `groupId`, `startedAt` et `endedAt` sont nullables, jamais des valeurs de remplissage
 
 ## 4. DBAL backend
 
-- [ ] 4.1 The run projection table, declared in `DurableSchema` so it appears on installs that already exist
-- [ ] 4.2 Writing the projection on every transition from 1.2, leaving the metadata lifecycle and `hasActiveWorkflowMetadata()` untouched
-- [ ] 4.3 The adapter: listing from the projection, history from `durable_events`
+- [x] 4.1 The run projection table, declared in `DurableSchema` so it appears on installs that already exist — `durable_workflow_runs`, indexée sur `started_at`
+- [x] 4.2 Writing the projection on every transition from 1.2, leaving the metadata lifecycle and `hasActiveWorkflowMetadata()` untouched — deux décorateurs, `ProjectingWorkflowMetadataStore` (le nom) et `ProjectingEventStore` (l'issue) ; aucune classe existante modifiée
+- [ ] 4.3 The adapter: listing from the projection, history from `durable_events` — *partiel* : `DbalWorkflowRunCatalog` liste depuis la projection ; l'historique reste à faire (§2.6)
 - [ ] 4.4 Backend reachability reported for the database, answering the same question the Temporal adapter answers about gRPC
 
 ## 5. Temporal backend
