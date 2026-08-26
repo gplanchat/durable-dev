@@ -25,6 +25,7 @@ use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\FailWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\RequestCancelActivityTaskCommandAttributes;
+use Temporal\Api\Command\V1\RequestCancelNexusOperationCommandAttributes;
 use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
 use Temporal\Api\Command\V1\ScheduleNexusOperationCommandAttributes;
 use Temporal\Api\Command\V1\StartTimerCommandAttributes;
@@ -451,8 +452,31 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         return $this->durationSeconds($bound->isInfinite() ? 0.0 : $bound->toSeconds());
     }
 
+    /**
+     * Demande l'annulation d'une opération encore en vol.
+     *
+     * La commande vise l'identifiant de l'événement de planification, relu de l'historique — le
+     * message n'accepte que celui-là. Un compteur inventé localement a déjà fait taire cette
+     * commande une fois, pour les activités.
+     *
+     * Rien n'est émis tant que le serveur n'a pas vu l'opération : sur la première passe la
+     * commande de planification n'est pas encore partie, et viser un identifiant inexistant
+     * ferait échouer la tâche de workflow.
+     */
     public function cancelNexusOperation(string $operationId, string $reason): void
     {
-        throw new \LogicException('RequestCancelNexusOperation is not built yet on the Temporal command buffer (temporal-nexus-support §4.2).');
+        $scheduledEventId = $this->history?->scheduledEventIdForNexusOperation($operationId);
+        if (null === $scheduledEventId) {
+            return;
+        }
+
+        $attrs = new RequestCancelNexusOperationCommandAttributes();
+        $attrs->setScheduledEventId($scheduledEventId);
+
+        $cmd = new Command();
+        $cmd->setCommandType(CommandType::COMMAND_TYPE_REQUEST_CANCEL_NEXUS_OPERATION);
+        $cmd->setRequestCancelNexusOperationCommandAttributes($attrs);
+
+        $this->commands[] = $cmd;
     }
 }
