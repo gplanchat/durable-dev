@@ -9,9 +9,11 @@ use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Durable\ActivityCancellationReason;
 use Gplanchat\Durable\Exception\ActivitySupersededException;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
+use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\Nexus\NexusAsynchronousOperationUnsupportedException;
+use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
@@ -32,6 +34,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 
     /** @var array<string, int> identité applicative → eventId du NEXUS_OPERATION_SCHEDULED */
     private array $nexusOperationToScheduledEventId = [];
+
+    /** @var array<int, array{operationId: string, endpoint: string, service: string, operation: string}> */
+    private array $nexusOperationCallSites = [];
 
     /** @var array<int, array{result: mixed, failed: \Throwable|null}> eventId de planification → issue */
     private array $nexusOperationOutcomes = [];
@@ -152,6 +157,15 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     if ('' !== $operationId) {
                         $this->scheduledNexusOperationIds[] = $operationId;
                         $this->nexusOperationToScheduledEventId[$operationId] = (int) $eventId;
+                        // Le site d'appel n'est écrit qu'ici : les événements terminaux ne portent
+                        // que l'eventId. Sans le retenir, un échec ne pourrait pas dire d'où il
+                        // vient, et le spec l'exige.
+                        $this->nexusOperationCallSites[(int) $eventId] = [
+                            'operationId' => $operationId,
+                            'endpoint' => (string) $attr->getEndpoint(),
+                            'service' => (string) $attr->getService(),
+                            'operation' => (string) $attr->getOperation(),
+                        ];
                     }
                 }
                 break;
@@ -190,7 +204,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 if (null !== $attr) {
                     $this->nexusOperationOutcomes[(int) $attr->getScheduledEventId()] = [
                         'result' => null,
-                        'failed' => new \RuntimeException('Nexus operation failed'),
+                        'failed' => $this->nexusFailure((int) $attr->getScheduledEventId(), NexusOperationFailureKind::OperationFailed),
                     ];
                 }
                 break;
@@ -200,7 +214,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 if (null !== $attr) {
                     $this->nexusOperationOutcomes[(int) $attr->getScheduledEventId()] = [
                         'result' => null,
-                        'failed' => new \RuntimeException('Nexus operation timed out'),
+                        'failed' => $this->nexusFailure((int) $attr->getScheduledEventId(), NexusOperationFailureKind::Timeout),
                     ];
                 }
                 break;
@@ -210,7 +224,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 if (null !== $attr) {
                     $this->nexusOperationOutcomes[(int) $attr->getScheduledEventId()] = [
                         'result' => null,
-                        'failed' => new \RuntimeException('Nexus operation canceled'),
+                        'failed' => $this->nexusFailure((int) $attr->getScheduledEventId(), NexusOperationFailureKind::Cancellation),
                     ];
                 }
                 break;
@@ -612,6 +626,27 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     public function startInput(): array
     {
         return $this->startInput;
+    }
+
+    /**
+     * L'échec typé d'une opération, avec sa nature et son site d'appel.
+     *
+     * §3.6 avait construit l'exception, §4.3 lisait les événements, et rien ne reliait les deux :
+     * la lecture rendait des `RuntimeException` nues, si bien que la branche Nexus du
+     * classificateur ne pouvait jamais se déclencher. Un workflow tombé sur une opération ne
+     * disait donc pas laquelle.
+     */
+    private function nexusFailure(int $scheduledEventId, NexusOperationFailureKind $kind): DurableNexusOperationFailedException
+    {
+        $site = $this->nexusOperationCallSites[$scheduledEventId] ?? null;
+
+        return new DurableNexusOperationFailedException(
+            $site['endpoint'] ?? '',
+            $site['service'] ?? '',
+            $site['operation'] ?? '',
+            $kind,
+            new FailureEnvelope(self::class, \sprintf('Nexus operation ended as %s', $kind->value)),
+        );
     }
 
     /**

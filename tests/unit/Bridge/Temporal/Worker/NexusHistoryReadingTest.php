@@ -6,6 +6,8 @@ namespace unit\Gplanchat\Bridge\Temporal\Worker;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
+use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
+use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
 use Gplanchat\Durable\Nexus\NexusAsynchronousOperationUnsupportedException;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payload;
@@ -69,17 +71,17 @@ final class NexusHistoryReadingTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{int, string}>
+     * @return iterable<string, array{int, NexusOperationFailureKind}>
      */
     public static function terminalFailures(): iterable
     {
-        yield 'échec' => [EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED, 'failed'];
-        yield 'dépassement de borne' => [EventType::EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT, 'timed out'];
-        yield 'annulation' => [EventType::EVENT_TYPE_NEXUS_OPERATION_CANCELED, 'canceled'];
+        yield 'échec' => [EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED, NexusOperationFailureKind::OperationFailed];
+        yield 'dépassement de borne' => [EventType::EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT, NexusOperationFailureKind::Timeout];
+        yield 'annulation' => [EventType::EVENT_TYPE_NEXUS_OPERATION_CANCELED, NexusOperationFailureKind::Cancellation];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('terminalFailures')]
-    public function testEveryNonSuccessfulEndingSurfacesAsAFailure(int $type, string $needle): void
+    public function testEveryNonSuccessfulEndingSurfacesAsAFailure(int $type, NexusOperationFailureKind $expected): void
     {
         $history = TemporalExecutionHistory::fromEvents([
             $this->scheduled(5, 'op-un'),
@@ -94,8 +96,9 @@ final class NexusHistoryReadingTest extends TestCase
 
         $slot = $history->findNexusOperationSlotResult(0);
         self::assertNotNull($slot);
-        self::assertInstanceOf(\Throwable::class, $slot['failed']);
-        self::assertStringContainsStringIgnoringCase($needle, $slot['failed']->getMessage());
+        // La nature, pas le libellé : un message est une formulation, une nature est un contrat.
+        self::assertInstanceOf(DurableNexusOperationFailedException::class, $slot['failed']);
+        self::assertSame($expected, $slot['failed']->kind());
     }
 
     public function testTheScheduledEventIdIsRecoverableForCancellation(): void
