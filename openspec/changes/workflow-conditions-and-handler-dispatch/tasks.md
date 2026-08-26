@@ -29,7 +29,7 @@
 - [x] 3.5 Three deliveries of one name reach the handler three times, on a first run and on replay — un appel par livraison et par passe
 - [x] 3.6 A delivery recorded while no await was pending is still observed by the next one
 - [x] 3.7 An update handler's return value reaches the caller, and survives replay
-- [x] 3.8 A raising update handler fails the update, not the workflow
+- [x] 3.8 A raising update handler fails the update, not the workflow — exercé de bout en bout contre un vrai serveur, ce qui a sorti deux fuites : le chemin de **replay** ne rattrapait pas le handler (l'exécution tombait à la seconde passe après avoir survécu à la première), et `WorkflowClient::update()` avalait l'issue en échec, indiscernable d'un handler qui rend `null` — d'où `WorkflowUpdateFailedException`
 
 ## 4. Domain — conditions
 
