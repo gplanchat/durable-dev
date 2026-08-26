@@ -14,7 +14,7 @@
 - [x] 2.6 Selecting a run returns its events in recorded order, with activities and signals on distinct lanes — plus l'étiquetage : une activité porte son **nom** y compris sur sa complétion, qui ne connaît que son id
 - [ ] 2.7 A fact the backend does not have is absent from the description — not `''`, not a placeholder
 - [ ] 2.8 With no readable backend configured, the dashboard reports that and does not name Temporal
-- [ ] 2.9 The Temporal adapter returns what the current provider returns for the same server state — the test that proves the move changed nothing
+- [x] 2.9 The Temporal adapter returns what the current provider returns for the same server state — le test prouve l'identité (exécutions, identifiants, noms, ordre, curseur) **et** la divergence assumée : le fournisseur rangeait annulation et continue-as-new sous « failed », le port ne le fait plus (cf. `design.md`)
 
 ## 3. Domain
 
@@ -30,8 +30,8 @@
 
 ## 5. Temporal backend
 
-- [ ] 5.1 Move the dashboard's gRPC reading code out of the plugin and behind the port, unchanged in behaviour
-- [ ] 5.2 Map its Temporal-shaped record onto the port's description, leaving no Temporal type in the port's vocabulary
+- [ ] 5.1 Move the dashboard's gRPC reading code out of the plugin and behind the port, unchanged in behaviour — *partiel* : le listage est derrière le port (`TemporalWorkflowRunCatalog`) ; la lecture d'historique est encore dans le plugin, et `readHistory()` y lève tant que ce n'est pas fait
+- [x] 5.2 Map its Temporal-shaped record onto the port's description, leaving no Temporal type in the port's vocabulary — le workflow id devient `groupId`, que DBAL laisse absent
 
 ## 6. Bundle and plugin
 

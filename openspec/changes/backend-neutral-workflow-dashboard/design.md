@@ -115,6 +115,21 @@ Two lanes the Temporal dashboard never showed are journalled by both backends â€
 workflows. They are **not** added here. This change is about backend neutrality, and widening the
 view at the same time would make it impossible to tell a missing lane from a broken adapter.
 
+## Moving the Temporal reading also fixes a status it was flattening
+
+The provider being moved maps Temporal's execution status with `running`, `completed`, and
+`default => 'failed'`. Cancelled, terminated, timed out and **continued as new** therefore all
+render as failures today. A long workflow that continues as new on schedule shows up red every time
+it rolls over.
+
+The port has the vocabulary not to. `Cancelled` and `ContinuedAsNew` map to themselves, and only
+`TERMINATED` and `TIMED_OUT` keep falling back to `Failed` â€” those are genuinely endings the run
+did not choose, and inventing two more cases would buy nothing until a view separates them.
+
+This is a deliberate divergence from "the move changes nothing", and the parity test asserts it in
+both directions: the old reading still says `failed`, the new one does not. Reproducing the
+shortcut in the name of parity would have meant proving the move copied a defect faithfully.
+
 ## Why not a query over the journal
 
 The projection duplicates facts the journal already holds, which is worth justifying. Listing runs
