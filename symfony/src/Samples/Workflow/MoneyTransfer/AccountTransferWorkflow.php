@@ -7,6 +7,9 @@ namespace App\Samples\Workflow\MoneyTransfer;
 use App\Samples\Activity\AccountTransferActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Activity\ActivityTimeouts;
+use Gplanchat\Durable\Activity\RetryLimit;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -23,11 +26,11 @@ final class AccountTransferWorkflow
     ) {
         $this->withdraw = $environment->activityStub(
             AccountTransferActivityInterface::class,
-            ActivityOptions::default()->withMaxAttempts(10)->withStartToCloseTimeoutSeconds(5.0),
+            new ActivityOptions(RetryLimit::ofAttempts(10), timeouts: ActivityTimeouts::attempt(Duration::seconds(5.0))),
         );
         $this->deposit = $environment->activityStub(
             AccountTransferActivityInterface::class,
-            ActivityOptions::default()->withMaxAttempts(10)->withStartToCloseTimeoutSeconds(5.0),
+            new ActivityOptions(RetryLimit::ofAttempts(10), timeouts: ActivityTimeouts::attempt(Duration::seconds(5.0))),
         );
     }
 

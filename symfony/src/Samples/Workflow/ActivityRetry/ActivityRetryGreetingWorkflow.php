@@ -7,6 +7,9 @@ namespace App\Samples\Workflow\ActivityRetry;
 use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Activity\ActivityTimeouts;
+use Gplanchat\Durable\Activity\RetryLimit;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -25,11 +28,12 @@ final class ActivityRetryGreetingWorkflow
     ) {
         $this->greeting = $environment->activityStub(
             GreetingActivityInterface::class,
-            ActivityOptions::default()
-                ->withMaxAttempts(5)
-                ->withInitialInterval(1.0)
-                ->withScheduleToCloseTimeoutSeconds(10.0)
-                ->withNonRetryableExceptions([InvalidArgumentException::class])
+            new ActivityOptions(
+                RetryLimit::ofAttempts(5),
+                Duration::seconds(1.0),
+                nonRetryableExceptions: [InvalidArgumentException::class],
+                timeouts: ActivityTimeouts::none()->withScheduleToClose(Duration::seconds(10.0)),
+            )
         );
     }
 

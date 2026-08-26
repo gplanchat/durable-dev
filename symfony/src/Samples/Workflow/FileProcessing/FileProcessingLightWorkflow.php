@@ -7,6 +7,8 @@ namespace App\Samples\Workflow\FileProcessing;
 use App\Samples\Activity\FilePipelineActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Activity\ActivityTimeouts;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -26,7 +28,7 @@ final class FileProcessingLightWorkflow
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
-        $opts = ActivityOptions::default()->withScheduleToCloseTimeoutSeconds(300.0);
+        $opts = new ActivityOptions(timeouts: ActivityTimeouts::none()->withScheduleToClose(Duration::seconds(300.0)));
         $this->download = $environment->activityStub(
             FilePipelineActivityInterface::class,
             $opts,

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Samples\Workflow\BookingSaga;
 
 use App\Samples\Activity\TripBookingActivityInterface;
+use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
@@ -22,7 +24,12 @@ final class BookingSagaLightWorkflow
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
-        $this->trip = $environment->activityStub(TripBookingActivityInterface::class);
+        // Une seule tentative : les retentatives sont illimitées par défaut, et l'échec hôtel
+        // du scénario ne remonterait jamais jusqu'à la compensation.
+        $this->trip = $environment->activityStub(
+            TripBookingActivityInterface::class,
+            new ActivityOptions(RetryLimit::once()),
+        );
     }
 
     #[WorkflowMethod]

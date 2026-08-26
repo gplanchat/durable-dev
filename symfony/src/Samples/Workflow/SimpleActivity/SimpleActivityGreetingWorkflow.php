@@ -7,6 +7,7 @@ namespace App\Samples\Workflow\SimpleActivity;
 use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -25,8 +26,7 @@ final class SimpleActivityGreetingWorkflow
     ) {
         $this->greeting = $environment->activityStub(
             GreetingActivityInterface::class,
-            ActivityOptions::default()
-                ->withMaxAttempts(3),
+            new ActivityOptions(RetryLimit::ofAttempts(3)),
         );
     }
 
