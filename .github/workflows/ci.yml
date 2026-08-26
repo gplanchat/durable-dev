@@ -51,9 +51,11 @@ jobs:
                     - { php-version: '8.2', symfony: '6.4.*', deps: 'lowest' }
                     # 6.4 LTS sous un PHP récent : le croisement qui mord.
                     - { php-version: '8.4', symfony: '6.4.*', deps: 'highest' }
-                    # Plancher de la ligne 7, que `^6.4 || ^7.0 || ^8.0` autorise.
-                    - { php-version: '8.2', symfony: '7.0.*', deps: 'lowest' }
-                    # 7.4 LTS : ce que le lock résout aujourd'hui.
+                    # Plancher *installable* de la ligne 7. La contrainte autorise ^7.0, mais
+                    # 7.0.x à 7.3.x sont en fin de vie et bloquées par les avis de sécurité de
+                    # Composer : les épingler ici ne testerait rien, ça échouerait à résoudre.
+                    - { php-version: '8.2', symfony: '7.4.*', deps: 'lowest' }
+                    # 7.4 LTS sous PHP récent : ce que le lock résout aujourd'hui.
                     - { php-version: '8.4', symfony: '7.4.*', deps: 'highest' }
                     # Ligne 8 : exige PHP >= 8.4, donc jamais atteignable en local sur 8.2.
                     - { php-version: '8.4', symfony: '8.0.*', deps: 'lowest' }
@@ -107,8 +109,10 @@ jobs:
             - name: Setup PHP
               uses: shivammathur/setup-php@v2
               with:
+                  # grpc : le pont Temporal le requiert désormais en dur, `composer install`
+                  # échoue sans lui.
                   php-version: '8.2'
-                  extensions: mbstring, sqlite3, pdo_sqlite
+                  extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
 
             - name: Install Composer dependencies
