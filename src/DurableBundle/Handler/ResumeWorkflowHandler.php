@@ -17,6 +17,7 @@ use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
+use Gplanchat\Durable\Workflow\PendingUpdate;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -59,7 +60,12 @@ final class ResumeWorkflowHandler
         $workflowTypeForJournal = $this->workflowDefinitionLoader->aliasForTemporalInterop($lookupKey);
 
         try {
-            $result = $this->engine->resume($executionId, $handler, $workflowTypeForJournal);
+            $pendingUpdates = array_map(
+                static fn(array $update): PendingUpdate => new PendingUpdate($update['name'], $update['arguments']),
+                $message->pendingUpdates,
+            );
+
+            $result = $this->engine->resume($executionId, $handler, $workflowTypeForJournal, $pendingUpdates);
         } catch (WorkflowSuspendedException $e) {
             if ($e->shouldDispatchResume()) {
                 if (!$e->waitingOnTimer()) {

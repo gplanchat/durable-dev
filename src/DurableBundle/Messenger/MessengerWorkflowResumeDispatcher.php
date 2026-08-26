@@ -18,10 +18,10 @@ final class MessengerWorkflowResumeDispatcher implements WorkflowResumeDispatche
         private readonly WorkflowMetadataStore $metadataStore,
     ) {}
 
-    public function dispatchResume(string $executionId): void
+    public function dispatchResume(string $executionId, array $pendingUpdates = []): void
     {
         $this->bus->dispatch(new Envelope(
-            new ResumeWorkflowMessage($executionId),
+            new ResumeWorkflowMessage($executionId, $pendingUpdates),
             [new DispatchAfterCurrentBusStamp()],
         ));
     }
