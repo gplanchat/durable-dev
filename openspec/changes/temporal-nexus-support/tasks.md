@@ -16,7 +16,7 @@
 - [x] 3.1 `NexusOperationAwaitable` carrying the operation identity, so the fiber driver can cancel it — même forme qu'`ActivityAwaitable`, `inner()` compris parce que `AwaitableCancellation` et les composites descendent par lui. L'annulation elle-même reste à câbler : elle a besoin du `cancelScheduledNexusOperation()` de §3.2
 - [ ] 3.2 `nexusOperationSlotIndex` in `ExecutionContext`, plus `scheduleNexusOperation()` on the environment
 - [ ] 3.3 `findNexusOperationSlotResult()` and `findScheduledNexusOperation()` on `WorkflowHistorySourceInterface`
-- [ ] 3.4 `scheduleNexusOperation()` and `cancelNexusOperation()` on `WorkflowCommandBufferInterface`
+- [x] 3.4 `scheduleNexusOperation()` and `cancelNexusOperation()` on `WorkflowCommandBufferInterface` — le backend journal **refuse** avec `NexusUnsupportedByBackendException`, ce que la proposition exige ; le tampon Temporal lève un `LogicException` nommant §4.1 / §4.2, pas l'exception « backend sans route » qui serait un mensonge sur ce que Temporal sait faire
 - [ ] 3.5 Extend `WorkflowFiberDriver::cancelPending()` to cancel a pending Nexus operation on workflow cancellation
 - [ ] 3.6 `DurableNexusOperationFailedException` with its four kinds, and its classification in `WorkflowFailureClassifier`
 
