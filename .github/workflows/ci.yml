@@ -138,6 +138,15 @@ jobs:
             fail-fast: false
             matrix:
                 php-version: ['8.2', '8.3', '8.4', '8.5']
+                symfony: ['7.4.*', '8.0.*']
+                # Symfony 8 exige PHP 8.4+ : pas d'entrée 8.0 sous 8.4.
+                exclude:
+                    - php-version: '8.2'
+                      symfony: '8.0.*'
+                    - php-version: '8.3'
+                      symfony: '8.0.*'
+        env:
+            SYMFONY_REQUIRE: ${{ matrix.symfony }}
         steps:
             - uses: actions/checkout@v4
 
@@ -145,12 +154,16 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   php-version: ${{ matrix.php-version }}
-                  extensions: mbstring, sqlite3, pdo_sqlite
+                  # ext-grpc : le pont Temporal l'exige en dur, et le leg 8.0 résout (composer update)
+                  # au lieu d'installer depuis le lock — la contrainte plateforme y est donc vérifiée.
+                  extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
 
-            - name: Composer install (symfony/)
+            # 7.4 : install, pour que le composer.lock versionné reste exercé (et scanné par Dependabot).
+            # 8.0 : update, SYMFONY_REQUIRE n'agissant qu'à la résolution, hors lock.
+            - name: Composer (symfony/, Symfony ${{ matrix.symfony }})
               working-directory: symfony
-              run: composer install --no-interaction --prefer-dist --no-progress
+              run: composer ${{ matrix.symfony == '7.4.*' && 'install' || 'update' }} --no-interaction --prefer-dist --no-progress
 
             - name: PHPUnit (symfony/)
               working-directory: symfony
