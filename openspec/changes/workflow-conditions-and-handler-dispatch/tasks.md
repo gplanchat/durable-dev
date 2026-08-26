@@ -1,13 +1,13 @@
 ## 0. Unblock
 
-- [ ] 0.1 `workflow-side-deadlines` landed and archived, so `openspec/specs/workflow-deadlines/` exists and this change's removal delta has a requirement to point at
-- [ ] 0.2 The in-flight awaitable refactor (composite / quorum) committed — `WorkflowEnvironment` is the single entry point both changes touch
+- [x] 0.1 `workflow-side-deadlines` landed and archived, so `openspec/specs/workflow-deadlines/` exists and this change's removal delta has a requirement to point at — archived as `openspec/changes/archive/2026-08-26-workflow-side-deadlines/`, spec published
+- [x] 0.2 The in-flight awaitable refactor (composite / quorum) committed — merged in #31 (ADR DUR033); `Awaitable` is now exactly `isSettled()` + `getResult()`, which is what makes a condition an awaitable
 
 ## 1. Establish the evaluation loop before writing the primitive
 
 - [x] 1.1 Write down, in journal-position terms, the interleaving of message application, handler dispatch and condition re-evaluation, and record it in `design.md` — a position is a stream rank, the wait drives the cursor, and both P and Q are stream positions or the comparison is meaningless
 - [ ] 1.2 Check whether a Temporal workflow task can carry several journaled messages at once, so interleaving is an ordering question inside one task and not only across tasks
-- [ ] 1.3 Probe, against the running server, how a worker accepts and completes an update — which messages carry the acceptance and the response, and on which task they are returned. Nothing about update responses reaches the domain before this is seen
+- [ ] 1.3 ⛔ attend:auteur — la sonde est circulaire, telle qu'écrite. Observer « comment un worker accepte et complète un update » suppose un worker qui en complète un, or `WorkflowTaskProcessor` n'en gère aucun (son propre commentaire renvoie à la phase signal-query-update) et `WorkflowClient::update()` demande `LIFECYCLE_STAGE_COMPLETED`, donc l'appel reste bloqué jusqu'au délai gRPC. Rien à observer sans construire d'abord ce que 5.5 doit livrer. **Question : 1.3 vaut-elle mandat de bâtir la gestion worker-side des updates (et absorbe donc 5.5), ou faut-il la réduire à ce qui s'observe sans worker — l'aller simple `UpdateWorkflowExecution` et les événements `WORKFLOW_EXECUTION_UPDATE_ACCEPTED` / `..._UPDATE_COMPLETED` déjà lus par `TemporalExecutionHistory` ?**
 - [ ] 1.4 Record what the probes changed, if anything, in `design.md`
 
 ## 2. Failing tests first — conditions
@@ -63,4 +63,4 @@
 
 - [ ] 8.1 Signals documented as handler + condition, with the `waitSignal()` migration written out, because it is the rewrite every existing workflow has to make
 - [ ] 8.2 Conditions documented with their determinism rule: a predicate reads workflow state and nothing else
-- [ ] 8.3 ADR DUR033: why the condition is the primitive rather than a second wait method, why evaluation is interleaved with message application, and what that let us delete
+- [ ] 8.3 ADR **DUR035** (DUR033 is the assemblers ADR and DUR034 the signal-name enum — both merged; do not reuse either number): why the condition is the primitive rather than a second wait method, why evaluation is interleaved with message application, and what that let us delete
