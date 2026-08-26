@@ -36,9 +36,9 @@
 ## 6. Bundle and plugin
 
 - [x] 6.1 Register the adapter matching the configured backend, and register none when no backend is readable — et les deux décorateurs de projection avec le catalogue DBAL, faute de quoi il lirait une table que personne n'écrit. La projection n'est câblée que si le **journal** est en SQL : c'est de lui que viennent les issues
-- [x] 6.2 The plugin depends on the port instead of the Temporal bridge; the bridge leaves its `suggest` entry — *partiel assumé* : `RunDashboardView` est bâti sur le port seul et le paquet requiert `gplanchat/durable`. Le fournisseur Temporal et l'entrée `suggest` ne partent qu'avec §6.3, faute de quoi la page serait cassée entre deux tranches
-- [ ] 6.3 Rename the view model's `temporal` key to `backend`, and render absent facts as absent in the template — no empty task queue column, no query lane where no query is recorded
-- [ ] 6.4 Move the plugin's dashboard tests onto the port, and keep one that pins the no-backend page
+- [x] 6.2 The plugin depends on the port instead of the Temporal bridge; the bridge leaves its `suggest` entry — achevée avec §6.3 : le paquet requiert `gplanchat/durable` et plus rien de Temporal, et suggère `gplanchat/durable-bundle` qui câble le catalogue quel que soit le backend
+- [x] 6.3 Rename the view model's `temporal` key to `backend`, and render absent facts as absent in the template — no empty task queue column, no query lane where no query is recorded — et les 912 lignes du fournisseur gRPC quittent le plugin
+- [x] 6.4 Move the plugin's dashboard tests onto the port, and keep one that pins the no-backend page — les trois tests du fournisseur disparaissent avec lui ; le test de parité §2.9 devient le contrat de l'adaptateur Temporal, la correction du statut restant épinglée
 
 ## 7. Documentation
 

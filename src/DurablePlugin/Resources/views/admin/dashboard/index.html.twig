@@ -11,13 +11,12 @@
         .durable-run-row.active { border-color: var(--tblr-primary); box-shadow: inset 0 0 0 1px var(--tblr-primary); }
         .durable-status { font-size: .7rem; text-transform: uppercase; letter-spacing: .02em; }
         .durable-meta { color: var(--tblr-secondary-color); font-size: .82rem; display: flex; gap: .35rem .65rem; flex-wrap: wrap; }
-        .durable-track { position: relative; border: 1px solid #d1d5db; background: #f9fafb; height: 12px; border-radius: 999px; }
-        .durable-bar { position: absolute; top: 1px; height: 8px; border-radius: 999px; min-width: 3px; }
-        .durable-bar.execution { background: #93c5fd; }
-        .durable-bar.activity { background: #a7f3d0; }
-        .durable-bar.signal { background: #fbcfe8; }
-        .durable-bar.query { background: #fde68a; }
-        .durable-bar.update { background: #c4b5fd; }
+        .durable-lane { border-left: 3px solid var(--tblr-border-color); padding-left: .65rem; margin-bottom: 1rem; }
+        .durable-lane.execution { border-left-color: #93c5fd; }
+        .durable-lane.activity { border-left-color: #a7f3d0; }
+        .durable-lane.signal { border-left-color: #fbcfe8; }
+        .durable-lane.query { border-left-color: #fde68a; }
+        .durable-lane.update { border-left-color: #c4b5fd; }
         .durable-events { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
         .durable-events li { border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); padding: .5rem .65rem; background: var(--tblr-bg-surface); }
     </style>
@@ -30,172 +29,127 @@
     <div class="page-wrapper">
         <div class="container-xl my-4">
             <div class="d-flex flex-column gap-3">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div>
-                        <h1 class="h2 mb-1">Durable Workflow Dashboard</h1>
-                        <p class="text-secondary mb-0">Observe workflow runs, statuses and recent events from the Sylius back-office.</p>
-                    </div>
+                <div>
+                    <h1 class="h2 mb-1">Durable Workflow Dashboard</h1>
+                    <p class="text-secondary mb-0">Observe workflow runs, outcomes and recorded history from the Sylius back-office.</p>
                 </div>
 
-                <div class="row row-cards">
-                    <div class="col-sm-6 col-lg-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <div class="text-secondary text-uppercase small">Total</div>
-                                <div class="durable-kpi-value">{{ kpis.total }}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-sm-6 col-lg-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <div class="text-secondary text-uppercase small">Running</div>
-                                <div class="durable-kpi-value">{{ kpis.running }}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-sm-6 col-lg-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <div class="text-secondary text-uppercase small">Completed</div>
-                                <div class="durable-kpi-value">{{ kpis.completed }}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-sm-6 col-lg-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <div class="text-secondary text-uppercase small">Failed</div>
-                                <div class="durable-kpi-value">{{ kpis.failed }}</div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="alert {% if backend.available %}alert-success{% else %}alert-warning{% endif %}" role="alert">
+                    {{ backend.message }}
                 </div>
 
-                <div class="card">
-                    <div class="card-body">
-                        {% set refreshParams = { q: query, status: status, cursor: pagination.cursor } %}
-                        {% if selectedRunId is not empty %}
-                            {% set refreshParams = refreshParams|merge({ run: selectedRunId }) %}
-                        {% endif %}
-                        <div class="alert {% if temporal.connected %}alert-success{% else %}alert-warning{% endif %}" role="alert">
-                            <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                                <div class="d-flex flex-column gap-1">
-                                    <span>{{ temporal.message }}</span>
-                                    <small class="text-secondary">
-                                        Check: {{ temporal.checkedAt ?: 'n/a' }}
-                                        {% if temporal.lastSuccessfulAt %}
-                                            · Last successful sync: {{ temporal.lastSuccessfulAt }}
-                                        {% else %}
-                                            · No successful sync yet
-                                        {% endif %}
-                                    </small>
-                                </div>
-                                <div class="d-flex align-items-center gap-2">
-                                    {% if temporal.namespace %}
-                                        <span class="badge bg-secondary-lt text-secondary">namespace: {{ temporal.namespace }}</span>
-                                    {% endif %}
-                                    <a class="btn btn-sm btn-outline-primary" href="{{ path('gplanchat_durable_plugin_admin_dashboard', refreshParams|merge({ _refresh: date().timestamp })) }}">
-                                        Refresh
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-
-                        <form class="row g-2 align-items-end" method="get" action="{{ path('gplanchat_durable_plugin_admin_dashboard') }}">
-                            <div class="col-md-7">
-                                <label for="q" class="form-label">Search</label>
-                                <input id="q" class="form-control" type="search" name="q" value="{{ query }}" placeholder="run id, workflow, task queue">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="status" class="form-label">Status</label>
-                                <select id="status" class="form-select" name="status">
-                                    <option value="all" {% if status == 'all' %}selected{% endif %}>All</option>
-                                    <option value="running" {% if status == 'running' %}selected{% endif %}>Running</option>
-                                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
-                                    <option value="failed" {% if status == 'failed' %}selected{% endif %}>Failed</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2 d-grid">
-                                <button type="submit" class="btn btn-primary">Filter</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <div class="row g-3">
-                    <div class="col-xl-4">
-                        <div class="card">
-                            <div class="card-header">
-                                <h3 class="card-title">Runs</h3>
-                            </div>
-                            <div class="card-body">
-                                {% if runs is empty %}
-                                    <p class="text-secondary mb-0">No workflow run matches your filters.</p>
-                                {% else %}
-                                    {% for run in runs %}
-                                        <a class="durable-run-row {% if selectedRunId == run.runId %}active{% endif %}" href="{{ path('gplanchat_durable_plugin_admin_dashboard', { q: query, status: status, run: run.runId, cursor: pagination.cursor }) }}">
-                                            <div class="d-flex justify-content-between align-items-center gap-2">
-                                                <strong>{{ run.workflowName }}</strong>
-                                                <span class="badge durable-status {% if run.status == 'running' %}bg-blue-lt text-blue{% elseif run.status == 'completed' %}bg-green-lt text-green{% else %}bg-red-lt text-red{% endif %}">{{ run.status|upper }}</span>
-                                            </div>
-                                            <div class="durable-meta mt-1">
-                                                <code>{{ run.runId }}</code>
-                                                <span>{{ run.startedAt }}</span>
-                                                <span>Queue: {{ run.taskQueue }}</span>
-                                                <span>Duration: {{ run.duration }}</span>
-                                            </div>
-                                        </a>
-                                    {% endfor %}
-                                {% endif %}
-
-                                {% if pagination.hasNext %}
-                                    <div class="mt-3">
-                                        <a class="btn btn-outline-primary btn-sm" href="{{ path('gplanchat_durable_plugin_admin_dashboard', { q: query, status: status, cursor: pagination.nextCursor }) }}">Next page</a>
+                {% if backend.available %}
+                    <div class="row row-cards">
+                        {% for label, counter in {
+                            'Total': 'total',
+                            'Running': 'running',
+                            'Completed': 'completed',
+                            'Failed': 'failed',
+                            'Cancelled': 'cancelled',
+                            'Continued as new': 'continued_as_new',
+                        } %}
+                            <div class="col-6 col-lg-2">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="text-secondary text-uppercase small">{{ label }}</div>
+                                        <div class="durable-kpi-value">{{ attribute(kpis, counter) }}</div>
                                     </div>
-                                {% endif %}
+                                </div>
                             </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <form class="row g-2 align-items-end" method="get" action="{{ path('gplanchat_durable_plugin_admin_dashboard') }}">
+                                <div class="col-md-9">
+                                    <label for="status" class="form-label">Outcome</label>
+                                    <select id="status" class="form-select" name="status">
+                                        {% for value, label in {
+                                            'all': 'All',
+                                            'running': 'Running',
+                                            'completed': 'Completed',
+                                            'failed': 'Failed',
+                                            'cancelled': 'Cancelled',
+                                            'continued_as_new': 'Continued as new',
+                                        } %}
+                                            <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3 d-grid">
+                                    <button type="submit" class="btn btn-primary">Filter</button>
+                                </div>
+                            </form>
                         </div>
                     </div>
 
-                    <div class="col-xl-8">
-                        <div class="card">
-                            <div class="card-header">
-                                <h3 class="card-title">Run details</h3>
-                            </div>
-                            <div class="card-body">
-                                {% if selectedRun %}
-                                    <p><strong>Workflow:</strong> {{ selectedRun.workflowName }}</p>
-                                    <p><strong>Run ID:</strong> <code>{{ selectedRun.runId }}</code></p>
-                                    <p><strong>Status:</strong> {{ selectedRun.status|upper }}</p>
-
-                                    {% if selectedRun.timeline is defined and selectedRun.timeline.lanes is not empty %}
-                                        <h4 class="mt-4">Timeline</h4>
-                                        {% for lane in selectedRun.timeline.lanes %}
-                                            <div class="row g-2 align-items-center mb-2">
-                                                <div class="col-lg-4 text-secondary">{{ lane.label }}</div>
-                                                <div class="col-lg-8">
-                                                    <div class="durable-track">
-                                                        <span class="durable-bar {{ lane.kind }}" style="left: {{ lane.startPercent }}%; width: {{ lane.widthPercent }}%;"></span>
-                                                    </div>
+                    <div class="row g-3">
+                        <div class="col-xl-4">
+                            <div class="card">
+                                <div class="card-header"><h3 class="card-title">Runs</h3></div>
+                                <div class="card-body">
+                                    {% if runs is empty %}
+                                        <p class="text-secondary mb-0">No workflow run matches this filter.</p>
+                                    {% else %}
+                                        {% for run in runs %}
+                                            <a class="durable-run-row {% if selectedRun and selectedRun.runId == run.runId %}active{% endif %}"
+                                               href="{{ path('gplanchat_durable_plugin_admin_dashboard', { status: status, run: run.runId, cursor: pagination.cursor }) }}">
+                                                <div class="d-flex justify-content-between align-items-center gap-2">
+                                                    <strong>{{ run.workflowName }}</strong>
+                                                    <span class="badge durable-status {% if run.status == 'running' %}bg-blue-lt text-blue{% elseif run.status == 'completed' %}bg-green-lt text-green{% elseif run.status == 'failed' %}bg-red-lt text-red{% else %}bg-secondary-lt text-secondary{% endif %}">{{ run.status|replace({'_': ' '})|upper }}</span>
                                                 </div>
-                                            </div>
+                                                <div class="durable-meta mt-1">
+                                                    <code>{{ run.runId }}</code>
+                                                    {# Chaque fait n'apparaît que s'il existe : le modèle de vue omet la clé plutôt que de rendre une valeur vide. #}
+                                                    {% if run.startedAt is defined %}<span>{{ run.startedAt|date('Y-m-d H:i:s') }}</span>{% endif %}
+                                                    {% if run.groupId is defined %}<span>Group: <code>{{ run.groupId }}</code></span>{% endif %}
+                                                </div>
+                                            </a>
                                         {% endfor %}
                                     {% endif %}
 
-                                    <h4 class="mt-4">Recent events</h4>
-                                    <ul class="durable-events">
-                                        {% for event in selectedRun.events %}
-                                            <li><strong>#{{ event.eventId }}</strong> {{ event.time }} - <code>{{ event.type }}</code> ({{ event.category }})</li>
-                                        {% endfor %}
-                                    </ul>
-                                {% else %}
-                                    <p class="text-secondary mb-0">Select a run in the list to inspect details.</p>
-                                {% endif %}
+                                    {% if pagination.hasNext %}
+                                        <div class="mt-3">
+                                            <a class="btn btn-outline-primary btn-sm" href="{{ path('gplanchat_durable_plugin_admin_dashboard', { status: status, cursor: pagination.nextCursor }) }}">Next page</a>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-8">
+                            <div class="card">
+                                <div class="card-header"><h3 class="card-title">Run details</h3></div>
+                                <div class="card-body">
+                                    {% if selectedRun %}
+                                        <p><strong>Workflow:</strong> {{ selectedRun.workflowName }}</p>
+                                        <p><strong>Run:</strong> <code>{{ selectedRun.runId }}</code></p>
+                                        <p><strong>Outcome:</strong> {{ selectedRun.status|replace({'_': ' '})|upper }}</p>
+
+                                        {% if selectedRun.lanes is empty %}
+                                            <p class="text-secondary mb-0">No recorded history for this run.</p>
+                                        {% else %}
+                                            {# Une voie que le backend n'alimente jamais n'apparaît pas : le modèle de vue ne la produit pas. #}
+                                            {% for lane in selectedRun.lanes %}
+                                                <div class="durable-lane {{ lane.kind }}">
+                                                    <h4 class="h5 mb-2">{{ lane.kind|replace({'_': ' '})|title }}</h4>
+                                                    <ul class="durable-events">
+                                                        {% for event in lane.events %}
+                                                            <li><strong>#{{ event.sequence }}</strong> {{ event.recordedAt|date('H:i:s') }} — {{ event.label }}</li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </div>
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% else %}
+                                        <p class="text-secondary mb-0">Select a run in the list to inspect its recorded history.</p>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                {% endif %}
             </div>
         </div>
     </div>

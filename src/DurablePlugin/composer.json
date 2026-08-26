@@ -17,12 +17,11 @@
         "symfony/twig-bundle": "^6.4 || ^7.0 || ^8.0"
     },
     "require-dev": {
-        "gplanchat/durable-bridge-temporal": "self.version",
         "phpunit/phpunit": "^11.5",
         "twig/twig": "^3.10"
     },
     "suggest": {
-        "gplanchat/durable-bridge-temporal": "Live workflow data in the dashboard. Kept optional because it requires ext-grpc, which most Sylius hosts do not ship; without it the dashboard renders a degraded state.",
+        "gplanchat/durable-bundle": "Wires the run catalog the dashboard reads — one backend or another. Without it the page reports that no readable backend is configured.",
         "sylius/admin-bundle": "Registers the dashboard entry in the Sylius admin menu (sylius.menu.admin.main)"
     },
     "autoload": {

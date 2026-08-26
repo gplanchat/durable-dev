@@ -151,6 +151,19 @@ section 6 would have cost a migration instead of a signature change.
 `START_CHILD_WORKFLOW_EXECUTION_INITIATED` — so signals and child workflows are both filed under the
 execution lane today. The specific cases now come before the general one, and two tests pin it.
 
+## Two things the page loses, and what it would take to get them back
+
+**The timeline bars.** The provider computed a viewport and a start/width percentage per lane, some
+four hundred lines of geometry. The page now groups the recorded history into lanes and lists each
+lane's events with their time. Nothing in the port stands in the way of drawing bars again — every
+event carries `recordedAt`, so the geometry is derivable in the view — but it is view work, and
+doing it here would have buried the backend-neutrality change under it.
+
+**The free-text search.** It filtered the runs already fetched, which is one page of twenty. It
+therefore never found anything past the first page, and searching a task queue it can no longer
+show would be worse than not searching at all. Real search is a query the port does not have; it is
+a requirement of its own, not a line to squeeze in.
+
 ## Why not a query over the journal
 
 The projection duplicates facts the journal already holds, which is worth justifying. Listing runs

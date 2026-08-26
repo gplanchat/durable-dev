@@ -8,7 +8,6 @@ use Google\Protobuf\Timestamp;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
-use Gplanchat\Durable\Plugin\Dashboard\TemporalEventsDashboardDataProvider;
 use Grpc\UnaryCall;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
@@ -20,38 +19,35 @@ use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Le déplacement du code de lecture du tableau de bord derrière le port ne doit rien changer à ce
- * qu'un exploitant voit — sauf là où le port sait dire mieux.
+ * Ce que le catalogue Temporal dit d'une réponse de visibilité.
  *
- * Ce test compare les deux lectures sur la **même** réponse serveur : le fournisseur actuel, qui
- * vit dans le plugin et parle gRPC, et l'adaptateur qui implémente le port. Il épingle ce qui doit
- * être identique — quelles exécutions, leurs identifiants, leurs noms, leur ordre — et ce qui doit
- * **diverger** : le fournisseur range tout ce qui n'est ni en cours ni terminé sous « failed », si
- * bien qu'une exécution annulée ou passée en continue-as-new s'affiche aujourd'hui en échec. Le
- * port a le vocabulaire pour ne pas mentir, et ce serait un contresens de reproduire ce
- * raccourci-là au nom de la parité.
+ * Ce fichier était un test de **parité** : il lisait la même réponse serveur avec le fournisseur du
+ * plugin et avec ce catalogue, pour prouver que déplacer le code derrière le port ne changeait rien
+ * — sauf là où le port sait dire mieux. Le fournisseur ayant rejoint le pont puis disparu, la
+ * comparaison n'a plus de second terme, et il ne reste que le contrat de l'adaptateur.
  *
- * @see openspec/changes/backend-neutral-workflow-dashboard/tasks.md §2.9
+ * Ce qui reste vaut d'être rappelé : le fournisseur rangeait **tout** ce qui n'était ni en cours ni
+ * terminé sous « failed ». Une exécution annulée ou passée en continue-as-new s'affichait donc en
+ * échec, et un workflow long virait au rouge à chaque roulement. Les deux tests qui portent encore
+ * `IsNoLongerReportedAsFailed` gardent cette correction.
+ *
+ * @see openspec/changes/backend-neutral-workflow-dashboard/tasks.md §2.9 §5.1
  */
 #[RequiresPhpExtension('grpc')]
-final class TemporalWorkflowRunCatalogParityTest extends TestCase
+final class TemporalWorkflowRunCatalogTest extends TestCase
 {
-    public function testBothReadingsSeeTheSameRunsInTheSameOrder(): void
+    public function testRunsComeBackNamedAndInStartOrder(): void
     {
         $response = $this->responseWith(
             $this->info('wf-1', 'run-1', 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING, 1_700_000_200),
             $this->info('wf-2', 'run-2', 'App\\ReportWorkflow', 'reports', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_COMPLETED, 1_700_000_100),
         );
 
-        $legacy = $this->legacyProvider($response)->provideRunsPage();
         $page = $this->catalog($response)->listRuns();
 
+        self::assertSame(['run-1', 'run-2'], array_map(static fn($run): string => $run->runId, $page->runs));
         self::assertSame(
-            array_map(static fn(array $run): string => $run['runId'], $legacy['runs']),
-            array_map(static fn($run): string => $run->runId, $page->runs),
-        );
-        self::assertSame(
-            array_map(static fn(array $run): string => $run['workflowName'], $legacy['runs']),
+            ['App\\OrderWorkflow', 'App\\ReportWorkflow'],
             array_map(static fn($run): string => $run->workflowName, $page->runs),
         );
     }
@@ -62,11 +58,7 @@ final class TemporalWorkflowRunCatalogParityTest extends TestCase
             $this->info('wf-1', 'run-1', 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING, 1_700_000_200),
         );
 
-        $legacy = $this->legacyProvider($response)->provideRunsPage();
-        $page = $this->catalog($response)->listRuns();
-
-        self::assertSame('wf-1', $legacy['runs'][0]['workflowId']);
-        self::assertSame('wf-1', $page->runs[0]->groupId);
+        self::assertSame('wf-1', $this->catalog($response)->listRuns()->runs[0]->groupId);
     }
 
     /**
@@ -78,11 +70,7 @@ final class TemporalWorkflowRunCatalogParityTest extends TestCase
             $this->info('wf-3', 'run-3', 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_CANCELED, 1_700_000_300),
         );
 
-        $legacy = $this->legacyProvider($response)->provideRunsPage();
-        $page = $this->catalog($response)->listRuns();
-
-        self::assertSame('failed', $legacy['runs'][0]['status'], 'le fournisseur actuel range toute fin anormale sous « failed »');
-        self::assertSame(WorkflowRunStatus::Cancelled, $page->runs[0]->status);
+        self::assertSame(WorkflowRunStatus::Cancelled, $this->catalog($response)->listRuns()->runs[0]->status);
     }
 
     public function testAContinuedAsNewRunIsNoLongerReportedAsFailed(): void
@@ -91,29 +79,26 @@ final class TemporalWorkflowRunCatalogParityTest extends TestCase
             $this->info('wf-4', 'run-4', 'App\\ReportWorkflow', 'reports', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW, 1_700_000_400),
         );
 
-        self::assertSame('failed', $this->legacyProvider($response)->provideRunsPage()['runs'][0]['status']);
         self::assertSame(WorkflowRunStatus::ContinuedAsNew, $this->catalog($response)->listRuns()->runs[0]->status);
     }
 
-    public function testARealFailureStaysAFailureOnBothSides(): void
+    public function testARealFailureIsAFailure(): void
     {
         $response = $this->responseWith(
             $this->info('wf-5', 'run-5', 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_FAILED, 1_700_000_500),
         );
 
-        self::assertSame('failed', $this->legacyProvider($response)->provideRunsPage()['runs'][0]['status']);
         self::assertSame(WorkflowRunStatus::Failed, $this->catalog($response)->listRuns()->runs[0]->status);
     }
 
-    public function testTheServerPageTokenBecomesTheCursorOnBothSides(): void
+    public function testTheServerPageTokenBecomesTheCursor(): void
     {
         $response = $this->responseWith(
             $this->info('wf-1', 'run-1', 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING, 1_700_000_200),
         );
         $response->setNextPageToken('jeton-serveur');
 
-        self::assertNotNull($this->legacyProvider($response)->provideRunsPage()['nextCursor']);
-        self::assertNotNull($this->catalog($response)->listRuns()->nextCursor);
+        self::assertSame(base64_encode('jeton-serveur'), $this->catalog($response)->listRuns()->nextCursor);
     }
 
     private function info(string $workflowId, string $runId, string $type, string $taskQueue, int $status, int $startedAt): WorkflowExecutionInfo
@@ -144,11 +129,6 @@ final class TemporalWorkflowRunCatalogParityTest extends TestCase
         $response->setExecutions($infos);
 
         return $response;
-    }
-
-    private function legacyProvider(ListWorkflowExecutionsResponse $response): TemporalEventsDashboardDataProvider
-    {
-        return new TemporalEventsDashboardDataProvider($this->client($response), $this->connection());
     }
 
     private function catalog(ListWorkflowExecutionsResponse $response): TemporalWorkflowRunCatalog
