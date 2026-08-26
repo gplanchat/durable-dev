@@ -14,6 +14,11 @@ use Gplanchat\Durable\Event\ChildWorkflowScheduled;
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
+use Gplanchat\Durable\Event\NexusOperationCancelled;
+use Gplanchat\Durable\Event\NexusOperationCompleted;
+use Gplanchat\Durable\Event\NexusOperationFailed;
+use Gplanchat\Durable\Event\NexusOperationScheduled;
+use Gplanchat\Durable\Event\NexusOperationTimedOut;
 use Gplanchat\Durable\Event\SideEffectRecorded;
 use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\TimerCompleted;
@@ -75,6 +80,43 @@ final class TemporalEventConverter
                 }
 
                 return new ExecutionStarted($this->executionId, $payload);
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED:
+                $attr = $event->getNexusOperationScheduledEventAttributes();
+                if (null === $attr) {
+                    return null;
+                }
+
+                // L'identité d'une opération Nexus est l'eventId de sa planification : c'est par
+                // lui que Temporal rattache les états terminaux, et donc la seule clé qui
+                // permette de recomposer une ligne de vie dans le profileur.
+                return new NexusOperationScheduled(
+                    $this->executionId,
+                    $eventId,
+                    (string) $attr->getEndpoint(),
+                    (string) $attr->getService(),
+                    (string) $attr->getOperation(),
+                );
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED:
+                $attr = $event->getNexusOperationCompletedEventAttributes();
+
+                return null === $attr ? null : new NexusOperationCompleted($this->executionId, $attr->getScheduledEventId());
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED:
+                $attr = $event->getNexusOperationFailedEventAttributes();
+
+                return null === $attr ? null : new NexusOperationFailed($this->executionId, $attr->getScheduledEventId());
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT:
+                $attr = $event->getNexusOperationTimedOutEventAttributes();
+
+                return null === $attr ? null : new NexusOperationTimedOut($this->executionId, $attr->getScheduledEventId());
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_CANCELED:
+                $attr = $event->getNexusOperationCanceledEventAttributes();
+
+                return null === $attr ? null : new NexusOperationCancelled($this->executionId, $attr->getScheduledEventId());
 
             case EventType::EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
                 $attr = $event->getActivityTaskScheduledEventAttributes();
