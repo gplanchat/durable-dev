@@ -12,12 +12,14 @@
     <projectFiles>
         <directory name="src/Durable" />
         <directory name="src/DurableBundle" />
+        <directory name="src/DurablePlugin" />
         <directory name="src/Bridge/Temporal" />
         <directory name="src/Bridge/Dbal" />
         <ignoreFiles>
             <directory name="src/Bridge/Temporal/Api" />
             <directory name="src/Bridge/Temporal/Generated" />
             <directory name="src/Bridge/Temporal/Spike" />
+            <directory name="src/DurablePlugin/tests" />
             <directory name="vendor" />
         </ignoreFiles>
     </projectFiles>
