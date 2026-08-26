@@ -23,7 +23,7 @@
 ## 3. Failing tests first — dispatch
 
 - [ ] 3.1 An annotated method handles the signal it names, and the state it mutates is visible to the body
-- [ ] 3.2 A workflow expressed as a callable registers a handler and behaves identically
+- [ ] 3.2 A workflow **class** declares its handler by attribute and behaves identically to the annotated case above, run through the harness's class-based entry point (`workflow-authoring-surface`)
 - [ ] 3.3 A message with no declared handler is recorded and does not fail the execution
 - [ ] 3.4 Two signals are handled in recorded order, identically on every replay
 - [ ] 3.5 Three deliveries of one name reach the handler three times, on a first run and on replay
@@ -40,7 +40,7 @@
 ## 5. Domain — dispatch
 
 - [ ] 5.1 `#[SignalMethod]` and `#[UpdateMethod]` read at load time, alongside the existing `#[QueryMethod]` scan
-- [ ] 5.2 Imperative registration on `WorkflowEnvironment`, mirroring `registerQueryHandler()`
+- [ ] 5.2 ~~Imperative registration on `WorkflowEnvironment`~~ — dropped: it existed only so a closure could declare a handler, and the harness now runs classes
 - [ ] 5.3 Engine-side dispatch, interleaved with 4.2
 - [ ] 5.4 Update responses recorded and reproduced on replay
 - [ ] 5.5 Worker-side update acceptance and completion on the Temporal bridge, from the probe in 1.3

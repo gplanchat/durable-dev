@@ -29,8 +29,10 @@ care about changes" — expressed once, at the wrong altitude.
   component, and a deadline already composes with it.
 - A method marked `#[SignalMethod]` or `#[UpdateMethod]` SHALL be **invoked by the engine** when
   its message is delivered, in the order the journal records.
-- Handlers SHALL also be registrable imperatively, as query handlers already are, so that a
-  workflow written as a closure can declare one.
+- Handlers SHALL be declared by attribute only. Imperative registration was proposed here so that
+  a closure could declare one, because the test harness runs closures — that gap is closed by
+  `workflow-authoring-surface`, which gives the harness a class-based run. This change **depends**
+  on it landing first.
 - Journaled messages SHALL be applied **one at a time**, with pending conditions re-evaluated
   after each, so that a verdict reached at a given journal position cannot be reversed by state
   deposited after it.
@@ -65,8 +67,11 @@ care about changes" — expressed once, at the wrong altitude.
   disagreement over what a signal slot means. The rule those pieces enforced survives as a
   consequence of positional condition evaluation, not as its own mechanism.
 - **Domain** (`src/Durable`): a condition accepted by `await()`, handler dispatch interleaved with
-  the application of journaled messages, imperative handler registration, and the removal of the
-  two wait methods.
+  the application of journaled messages, and the removal of the two wait methods.
+- **Ordering**: this change depends on `workflow-authoring-surface`, which gives the test harness a
+  class-based run. Without it, handlers declared by attribute are not testable in a suite written
+  in closures — which is why imperative registration was proposed here, and why dropping it is safe
+  only once that lands.
 - **Backends**: the in-memory backend already applies its journal in order. The Temporal worker
   does **not** handle updates at all today; that work is part of this change and is the only part
   with a server surface to probe.

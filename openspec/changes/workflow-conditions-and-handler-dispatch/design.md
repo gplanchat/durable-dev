@@ -149,13 +149,21 @@ what a comparison of two positions already gives.
   belongs in the ADR.
 - Nothing here needs a new event type, and nothing here is backend-specific.
 
-### Handlers are declarable both ways, because the tests are closures
+### Handlers are declared by attribute, and only by attribute
 
-`registerQueryHandler()` already exists on `WorkflowEnvironment`, and `#[QueryMethod]` is the
-declarative form the loader turns into that call. Signals and updates follow the same pattern —
-this is not a concession, it is load-bearing: nearly every workflow in the test suite is a closure,
-and a closure cannot carry an attribute. Without imperative registration the new primitive is not
-testable in the style the suite is written in.
+This section previously argued the opposite, and the argument was sound at the time: nearly every
+workflow in the test suite is a closure, a closure cannot carry an attribute, so the new primitive
+would not have been testable in the style the suite is written in.
+
+That premise was a property of the harness, not of the component. `WorkflowTestEnvironment::run()`
+takes a callable and offers no class-based entry point, which is why the suite is written in
+closures at all — and why forty-seven of its activity calls still use a form the documentation no
+longer teaches. `workflow-authoring-surface` closes that gap.
+
+With a class-based run available, a test declares handlers the way production does. Adding an
+imperative registration would mean adding a second way to declare a handler, reachable from
+workflow code, whose only justification had been a limitation of the test harness. The dependency
+is therefore an ordering constraint: this change cannot land before that one.
 
 ### An update answers; a signal does not
 
