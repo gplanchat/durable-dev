@@ -5,26 +5,36 @@ forty-seven tests with no replacement available — see `design.md`.
 
 ## 1. Check the assumption before breaking anything
 
-- [ ] 1.1 Search the published satellite repositories and the sample applications for callers of
+- [x] 1.1 Search the published satellite repositories and the sample applications for callers of
       `activity()`, `registerQueryHandler()`, `callQueryHandler()`, `hasQueryHandler()` and
       `async()` outside this repository, and record what was found
-- [ ] 1.2 Decide, from 1.1, whether the removals ship as a single breaking release or behind a
+
+      One external consumer exists — `kiboko-labs/quovadis-gdpr-lifecycle`, private — and it calls
+      none of the five: five uses of `activityStub`, zero of `->activity(`. Full table in
+      `design.md`.
+- [x] 1.2 Decide, from 1.1, whether the removals ship as a single breaking release or behind a
       deprecation window, and note the verdict in `design.md`
+
+      Single breaking release. Nothing in the wild to deprecate for, and a deprecated method
+      shorter than its replacement stays in use.
 
 ## 2. The test harness first — failing tests
 
-- [ ] 2.1 A workflow class runs under the harness: the environment reaches its constructor, its
+- [x] 2.1 A workflow class runs under the harness: the environment reaches its constructor, its
       business arguments reach its workflow method
-- [ ] 2.2 An activity double registered for a contract method is called with the arguments the
+- [x] 2.2 An activity double registered for a contract method is called with the arguments the
       workflow passed through its stub
-- [ ] 2.3 A workflow class under test observes the same failure as the same class on a backend
-- [ ] 2.4 The closure form still runs, and still receives the environment
+- [x] 2.3 A workflow class under test observes the same failure as the same class on a backend
+- [x] 2.4 The closure form still runs, and still receives the environment
 
 ## 3. The test harness — make them pass
 
-- [ ] 3.1 Add a class-based run to `WorkflowTestEnvironment`, alongside the callable one
-- [ ] 3.2 Make activity doubles resolvable by contract method as well as by activity name
-- [ ] 3.3 Check that a workflow class needing no activity runs without a resolver being configured
+- [x] 3.1 Add a class-based run to `WorkflowTestEnvironment`, alongside the callable one
+- [x] 3.2 Make activity doubles resolvable by contract method as well as by activity name
+      Already the case, and 2.2 proves it: the stub rebuilds the payload from the contract's named
+      parameters, and the double is registered under the activity name the contract declares.
+      Nothing to add.
+- [x] 3.3 Check that a workflow class needing no activity runs without a resolver being configured
 
 ## 4. Give the stub a route that is not the public API — failing tests
 

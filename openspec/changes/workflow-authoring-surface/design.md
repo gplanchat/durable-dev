@@ -22,10 +22,31 @@ test suite, not in the product.**
 class-based entry point. `ActivityStub::__construct()` requires an `ActivityContractResolver`, so a
 stub cannot be built without a contract carrying `#[ActivityMethod]`.
 
-**Assumed, and worth checking before the tasks below are trusted:** that no third-party code
-outside this repository calls `activity()` directly. The packages are published and at
-`v0.1.0-alpha5`, so this is a real assumption rather than a formality — it is the difference
-between a rename and a break.
+**Since observed — task 1.1.** The assumption was that no third-party code calls `activity()`
+directly. It holds, and it was worth checking: the packages are published at `v0.1.0-alpha5`, so
+this was the difference between a rename and a break.
+
+GitHub code search finds exactly one repository declaring `gplanchat/durable` in its
+`composer.json`: `kiboko-labs/quovadis-gdpr-lifecycle`, private, last pushed 2026-08-25. Its usage:
+
+| symbol | occurrences |
+|---|---|
+| `->activity(` | **0** |
+| `activityStub` | 5 |
+| `WorkflowEnvironment` | 7 |
+| `registerQueryHandler` | 0 |
+
+The only external consumer already schedules exclusively through the typed stub. Inside the
+repository, one sample workflow calls `activity()` directly —
+`symfony/src/Samples/Workflow/Periodic/PeriodicGreetingWorkflow.php` — and one test registers a
+query handler, in `WorkflowTaskProcessorTest`. Everything else is the forty-six calls in the suite.
+
+**Verdict for task 1.2:** a single breaking release, no deprecation window. There is nothing in the
+wild to deprecate for, and a deprecated method shorter than its replacement stays in use.
+
+Search coverage is what it is: GitHub code search sees public repositories and those the token can
+read. A consumer in a private repository outside this account would not appear. Given
+`0.1.0-alpha`, that residual risk is accepted rather than mitigated.
 
 **Nothing was probed against a Temporal server**, and nothing here needs to be: no wire format, no
 command, no history rule changes. This is a change to what PHP code can reach.
