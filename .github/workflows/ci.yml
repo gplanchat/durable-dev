@@ -34,6 +34,70 @@ jobs:
             - name: PHPUnit
               run: composer test
 
+    symfony-matrix:
+        # Le job `qa` installe la résolution du composer.lock : il ne voit qu'une ligne Symfony.
+        # Or le seul bug de compatibilité trouvé jusqu'ici — `#[\Override]` sur une méthode que
+        # le DataCollector de Symfony 6.4 ne déclare pas, fatale à partir de PHP 8.3 — n'était
+        # visible qu'au *croisement* d'une vieille ligne Symfony et d'un PHP récent. D'où une
+        # matrice explicite plutôt qu'un produit cartésien : chaque entrée est un bord qui a une
+        # raison d'exister.
+        name: Symfony ${{ matrix.symfony }} / PHP ${{ matrix.php-version }}
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    # 6.4 LTS au plancher PHP de la bibliothèque.
+                    - { php-version: '8.2', symfony: '6.4.*', deps: 'lowest' }
+                    # 6.4 LTS sous un PHP récent : le croisement qui mord.
+                    - { php-version: '8.4', symfony: '6.4.*', deps: 'highest' }
+                    # Plancher de la ligne 7, que `^6.4 || ^7.0 || ^8.0` autorise.
+                    - { php-version: '8.2', symfony: '7.0.*', deps: 'lowest' }
+                    # 7.4 LTS : ce que le lock résout aujourd'hui.
+                    - { php-version: '8.4', symfony: '7.4.*', deps: 'highest' }
+                    # Ligne 8 : exige PHP >= 8.4, donc jamais atteignable en local sur 8.2.
+                    - { php-version: '8.4', symfony: '8.0.*', deps: 'lowest' }
+                    - { php-version: '8.5', symfony: '8.*', deps: 'highest' }
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php-version }}
+                  extensions: mbstring, sqlite3, pdo_sqlite, grpc
+                  coverage: none
+
+            # Flex contraint *toutes* les dépendances symfony/*, y compris transitives, sur la
+            # ligne demandée. Sans lui il faudrait énumérer chaque paquet à la main, et la racine
+            # du monorepo n'en requiert plus aucun directement.
+            - name: Épingler la ligne Symfony (Flex)
+              run: |
+                  composer global config --no-plugins allow-plugins.symfony/flex true
+                  composer global require --no-progress --no-scripts --no-plugins symfony/flex
+                  composer config --no-plugins allow-plugins.symfony/flex true
+
+            # Mise à jour partielle : seule la dimension Symfony bouge. Un `--prefer-lowest`
+            # non filtré abaisserait aussi phpunit et phpstan, et ferait échouer la matrice sur
+            # autre chose que ce qu'elle mesure.
+            - name: Résoudre la ligne Symfony demandée
+              env:
+                  SYMFONY_REQUIRE: ${{ matrix.symfony }}
+              run: |
+                  composer update --no-interaction --prefer-dist --no-progress \
+                    ${{ matrix.deps == 'lowest' && '--prefer-lowest' || '' }} 'symfony/*'
+
+            - name: Ligne Symfony effectivement installée
+              run: composer show symfony/messenger --no-ansi | head -n 3
+
+            - name: PHPUnit
+              run: composer test
+
+            # PHPStan est l'outil qui avait attrapé `#[\Override]` : sans lui, la matrice ne
+            # verrait le problème que si un test charge la classe fautive.
+            - name: PHPStan
+              run: composer phpstan
+
     static-analysis:
         name: Analyse statique (PHPStan + Psalm)
         runs-on: ubuntu-latest
