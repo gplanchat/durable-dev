@@ -1,0 +1,47 @@
+{{- /*
+  Page d'accueil. Engendrée par ./import-design.py — ne pas modifier à la main,
+  la prochaine reprise du design écraserait la correction.
+
+  Aucun bloc `define` ici, volontairement : Hugo n'enveloppe un gabarit dans le
+  `baseof` du thème que si celui-ci en contient un. La page est donc servie
+  telle quelle, sans la barre latérale ni la feuille de hugo-book — deux resets
+  concurrents se disputeraient la cascade, et la colonne mangerait le premier
+  écran.
+*/ -}}
+<!DOCTYPE html>
+<html lang="{{ .Site.Language.Lang | default "en" }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ .Site.Title }} — durable execution for PHP</title>
+<meta name="description" content="Write a business process as one method. Durable replays it from its journal, so a worker can be redeployed mid-process and the execution continues where it stopped.">
+<link rel="canonical" href="{{ .Permalink }}">
+
+{{- /* Seule dépendance externe de la page ; chaque fonte a une pile de repli. */}}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">
+
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { -webkit-font-smoothing: antialiased; background: var(--bg, #f7f4ef); }
+  a { color: inherit; }
+  a:hover { color: inherit; }
+</style>
+
+{{- /*
+  Avant peinture : sans ça, un visiteur en thème sombre voit un éclair clair le
+  temps que le script de bas de page s'exécute.
+*/}}
+<script>
+  (function () {
+    try {
+      var stored = localStorage.getItem('durable-theme');
+      if (stored === 'dark' || stored === 'light') {
+        document.documentElement.setAttribute('data-theme', stored);
+      }
+    } catch (e) { /* navigation privée, données de site bloquées : le média système décide */ }
+  })();
+</script>
+</head>
+<body>
