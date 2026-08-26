@@ -75,7 +75,22 @@ notion. Only the second is true.
 The same rule applies to lanes: a lane the backend never fills is not rendered empty, it is not
 produced.
 
-### 4. A run that continues as new leaves two independent rows
+### 4. Reachability is asked, not assumed
+
+"A catalogue is registered" and "the backend answers" are different questions, and the page asks
+both. `checkHealth()` probes what each backend can cheaply probe — the emptiest statement the SQL
+dialect accepts, a one-row visibility page for Temporal — and never throws: a failed probe is a
+diagnosis, not a caller's fault.
+
+When the probe fails the page lists nothing rather than showing an empty dashboard. An empty
+dashboard over a database that is down is the worse of the two errors, because the operator
+concludes there is nothing to see.
+
+The health names the backend it probed, so that an operator reading "unreachable" knows what to go
+and restart. That is the exact inverse of the no-backend case, where naming a server that was never
+involved would send them down a false trail.
+
+### 5. A run that continues as new leaves two independent rows
 
 One that ends, one that starts, and nothing links them. The component already mints a fresh
 execution id for the successor and dispatches it as a new run; a link in the projection would be the

@@ -9,6 +9,7 @@ use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunPage;
@@ -34,6 +35,8 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  */
 final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
 {
+    private const BACKEND = 'Temporal';
+
     public function __construct(
         private readonly WorkflowServiceClient $client,
         private readonly TemporalConnection $connection,
@@ -97,6 +100,40 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         }
 
         return (new TemporalRunHistoryReader($this->historyCursor))->read($workflowId, $run->runId);
+    }
+
+    public function checkHealth(): BackendHealth
+    {
+        $checkedAt = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+
+        try {
+            // Une page d'une ligne : la sonde emprunte le même appel que le tableau de bord, donc
+            // elle échoue aussi quand le serveur répond mais que le namespace n'existe pas — ce qui
+            // est exactement ce que l'exploitant a besoin de savoir.
+            $request = new ListWorkflowExecutionsRequest();
+            $request->setNamespace($this->connection->namespace->name());
+            $request->setPageSize(1);
+
+            GrpcUnary::wait($this->client->ListWorkflowExecutions(
+                $request,
+                [],
+                ['timeout' => TemporalGrpcTimeouts::SHORT_US],
+            ));
+        } catch (\Throwable $failure) {
+            return new BackendHealth(
+                self::BACKEND,
+                false,
+                \sprintf('Temporal namespace "%s" is unreachable: %s', $this->connection->namespace->name(), $failure->getMessage()),
+                $checkedAt,
+            );
+        }
+
+        return new BackendHealth(
+            self::BACKEND,
+            true,
+            \sprintf('Connected to Temporal namespace "%s".', $this->connection->namespace->name()),
+            $checkedAt,
+        );
     }
 
     private static function describe(WorkflowExecutionInfo $info): ?WorkflowRunDescription
