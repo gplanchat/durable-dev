@@ -13,6 +13,7 @@ use Gplanchat\Durable\Attribute\QueryMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
 use Grpc\UnaryCall;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\WorkflowExecution;
@@ -41,9 +42,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * - Use a real WorkflowTaskRunner (final, can't mock) backed by the real TemporalHistoryCursor
  *   reading from the inline history (no gRPC pagination since next_page_token = '').
  */
-/**
- * @requires extension grpc
- */
+#[RequiresPhpExtension('grpc')]
 final class WorkflowTaskProcessorTest extends TestCase
 {
     private WorkflowServiceClient $grpcClient;

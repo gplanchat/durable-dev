@@ -11,6 +11,7 @@ use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Failure\ActivityRetryState;
 use Gplanchat\Durable\Mapping\EventDataMapper;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -37,9 +38,7 @@ final class EventDataMapperRoundTripTest extends TestCase
         yield 'WorkflowExecutionCancelled without parent' => [new WorkflowExecutionCancelled('exec-1', 'operator')];
     }
 
-    /**
-     * @dataProvider events
-     */
+    #[DataProvider('events')]
     public function testRoundTripPreservesEveryField(Event $event): void
     {
         $decoded = EventDataMapper::toDomainEvent(EventDataMapper::fromDomainEvent($event));
