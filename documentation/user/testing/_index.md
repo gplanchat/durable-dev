@@ -42,7 +42,9 @@ final class GreetWorkflowTest extends DurableTestCase
         // 2. Create an in-memory environment and register the spy under the activity name.
         $env = $this->createWorkflowTestEnvironment(['greet' => $greetSpy]);
 
-        // 3. Run the workflow closure — same signature as your real workflow.
+        // 3. Run the workflow body as a closure. This is the harness's own shape, not
+        //    your workflow's: a real workflow takes WorkflowEnvironment in its
+        //    constructor and business arguments in its #[WorkflowMethod].
         $result = $env->run(function (WorkflowEnvironment $wf) {
             return $wf->await($wf->activity('greet', ['name' => 'Alice']));
         }, $executionId = 'exec-greet-001');
