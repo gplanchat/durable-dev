@@ -26,6 +26,7 @@ use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\FailWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\RequestCancelActivityTaskCommandAttributes;
 use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
+use Temporal\Api\Command\V1\ScheduleNexusOperationCommandAttributes;
 use Temporal\Api\Command\V1\StartTimerCommandAttributes;
 use Temporal\Api\Common\V1\ActivityType;
 use Temporal\Api\Common\V1\RetryPolicy;
@@ -395,13 +396,16 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     }
 
     /**
-     * Temporal SAIT servir Nexus — la commande protobuf n'est simplement pas encore construite
-     * (§4.1). Ne pas lever ici {@see NexusUnsupportedByBackendException} : elle dit « ce backend
-     * n'a aucune route pour cet appel », ce qui serait faux et enverrait le lecteur réécrire son
-     * workflow au lieu d'attendre une tranche.
+     * Émet `ScheduleNexusOperation`.
      *
-     * Inatteignable en l'état : rien n'appelle encore ces méthodes, faute du
-     * `scheduleNexusOperation()` de §3.2 sur l'environnement.
+     * Les trois bornes ne sont posées que si le domaine en porte une. Sondé (§1.3), le serveur
+     * n'applique aucun défaut et n'enregistre que ce qu'on lui donne : en poser une « pour
+     * remplir » inventerait une contrainte que l'appelant n'a pas demandée. Une enveloppe infinie
+     * part en `0`, qui est la façon dont Temporal écrit « pas de borne » — et qui, mesuré, ne
+     * rabote pas les sous-bornes.
+     *
+     * Pas d'en-tête Nexus : rien côté domaine n'en porte encore, et un champ vide n'est pas un
+     * en-tête. Le jour où un appelant en aura besoin, c'est le port qui devra le transporter.
      */
     public function scheduleNexusOperation(
         string $operationId,
@@ -411,7 +415,40 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         array $payload,
         NexusOperationTimeouts $timeouts,
     ): void {
-        throw new \LogicException('ScheduleNexusOperation is not built yet on the Temporal command buffer (temporal-nexus-support §4.1).');
+        $attrs = new ScheduleNexusOperationCommandAttributes();
+        $attrs->setEndpoint($endpoint->name());
+        $attrs->setService($service->name());
+        $attrs->setOperation($operation->name());
+        // Une opération Nexus porte UN payload, là où une activité en porte une liste : le
+        // champ est un Payload, pas un Payloads.
+        $attrs->setInput(JsonPlainPayload::encode([
+            'operationId' => $operationId,
+            'payload' => $payload,
+        ]));
+
+        if (null !== $timeouts->scheduleToClose) {
+            $attrs->setScheduleToCloseTimeout($this->nexusBound($timeouts->scheduleToClose));
+        }
+        if (null !== $timeouts->scheduleToStart) {
+            $attrs->setScheduleToStartTimeout($this->nexusBound($timeouts->scheduleToStart));
+        }
+        if (null !== $timeouts->startToClose) {
+            $attrs->setStartToCloseTimeout($this->nexusBound($timeouts->startToClose));
+        }
+
+        $cmd = new Command();
+        $cmd->setCommandType(CommandType::COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION);
+        $cmd->setScheduleNexusOperationCommandAttributes($attrs);
+
+        $this->commands[] = $cmd;
+    }
+
+    /**
+     * Une borne d'opération Nexus sur le fil : l'infini du domaine s'y écrit `0`.
+     */
+    private function nexusBound(DurableDuration $bound): Duration
+    {
+        return $this->durationSeconds($bound->isInfinite() ? 0.0 : $bound->toSeconds());
     }
 
     public function cancelNexusOperation(string $operationId, string $reason): void
