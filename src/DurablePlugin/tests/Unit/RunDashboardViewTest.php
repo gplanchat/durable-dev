@@ -65,6 +65,24 @@ final class RunDashboardViewTest extends TestCase
         self::assertSame(\count($view['runs']), $view['kpis']['total']);
     }
 
+    /**
+     * Une issue sans compteur compte quand même dans le total : les compteurs cessent alors de
+     * s'additionner, et c'est une application faite de workflows longs qui s'en aperçoit.
+     */
+    public function testEveryOutcomeHasItsOwnCounter(): void
+    {
+        $view = $this->viewOver([
+            $this->describedRun('run-1', 'App\\ReportWorkflow', WorkflowRunStatus::ContinuedAsNew),
+        ])->build();
+
+        self::assertSame(1, $view['kpis']['continued_as_new']);
+        self::assertSame(
+            $view['kpis']['total'],
+            array_sum(array_diff_key($view['kpis'], ['total' => null])),
+            'la somme des issues doit faire le total',
+        );
+    }
+
     public function testAFactTheBackendDoesNotHaveIsAbsentAndNotEmpty(): void
     {
         $view = $this->viewOver([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)])->build();
