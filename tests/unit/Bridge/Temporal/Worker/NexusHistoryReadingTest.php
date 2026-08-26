@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Bridge\Temporal\Worker;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
+use Gplanchat\Durable\Nexus\NexusAsynchronousOperationUnsupportedException;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payload;
 use Temporal\Api\Enums\V1\EventType;
@@ -14,6 +15,7 @@ use Temporal\Api\History\V1\NexusOperationCanceledEventAttributes;
 use Temporal\Api\History\V1\NexusOperationCompletedEventAttributes;
 use Temporal\Api\History\V1\NexusOperationFailedEventAttributes;
 use Temporal\Api\History\V1\NexusOperationScheduledEventAttributes;
+use Temporal\Api\History\V1\NexusOperationStartedEventAttributes;
 use Temporal\Api\History\V1\NexusOperationTimedOutEventAttributes;
 
 /**
@@ -140,6 +142,63 @@ final class NexusHistoryReadingTest extends TestCase
         $buffer->cancelNexusOperation('jamais-planifiee', 'race_superseded');
 
         self::assertSame([], $buffer->flush());
+    }
+
+    public function testAnOperationStartedWithATokenFailsClearlyInsteadOfHanging(): void
+    {
+        // §4.5 : un jeton signifie que le handler répondra **plus tard**, par rappel. Cet
+        // incrément ne sait pas recevoir ce rappel. Laisser l'attente ouverte suspendrait le
+        // workflow pour toujours sur un résultat que personne ne viendra livrer ici — l'aveu
+        // immédiat et nommé coûte infiniment moins cher.
+        $started = new NexusOperationStartedEventAttributes();
+        $started->setScheduledEventId(5);
+        $started->setOperationToken('jeton-asynchrone');
+
+        $history = TemporalExecutionHistory::fromEvents([
+            $this->scheduled(5, 'op-un'),
+            $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED, 7, static fn(HistoryEvent $e) => $e->setNexusOperationStartedEventAttributes($started)),
+        ]);
+
+        $slot = $history->findNexusOperationSlotResult(0);
+        self::assertNotNull($slot, "L'attente serait restée ouverte pour toujours.");
+        self::assertInstanceOf(NexusAsynchronousOperationUnsupportedException::class, $slot['failed']);
+        self::assertStringContainsString('op-un', $slot['failed']->getMessage());
+        self::assertStringContainsStringIgnoringCase('asynchronous', $slot['failed']->getMessage());
+    }
+
+    public function testAnOperationStartedWithoutATokenIsNotAFailure(): void
+    {
+        // Sans jeton, l'opération est synchrone : elle a démarré, elle répondra sur cette
+        // exécution, et il n'y a rien à signaler. Confondre les deux refuserait le cas nominal.
+        $started = new NexusOperationStartedEventAttributes();
+        $started->setScheduledEventId(5);
+
+        $history = TemporalExecutionHistory::fromEvents([
+            $this->scheduled(5, 'op-un'),
+            $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED, 7, static fn(HistoryEvent $e) => $e->setNexusOperationStartedEventAttributes($started)),
+        ]);
+
+        self::assertNull($history->findNexusOperationSlotResult(0), 'Une opération synchrone démarrée est encore en vol, pas en échec.');
+    }
+
+    public function testACompletionAfterAStartWithoutTokenStillWins(): void
+    {
+        $started = new NexusOperationStartedEventAttributes();
+        $started->setScheduledEventId(5);
+        $completed = new NexusOperationCompletedEventAttributes();
+        $completed->setScheduledEventId(5);
+        $completed->setResult((new Payload())->setData(JsonPlainPayload::encode('fini')->getData()));
+
+        $history = TemporalExecutionHistory::fromEvents([
+            $this->scheduled(5, 'op-un'),
+            $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED, 7, static fn(HistoryEvent $e) => $e->setNexusOperationStartedEventAttributes($started)),
+            $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED, 8, static fn(HistoryEvent $e) => $e->setNexusOperationCompletedEventAttributes($completed)),
+        ]);
+
+        $slot = $history->findNexusOperationSlotResult(0);
+        self::assertNotNull($slot);
+        self::assertNull($slot['failed']);
+        self::assertSame('fini', $slot['result']);
     }
 
     private function scheduled(int $eventId, string $operationId): HistoryEvent

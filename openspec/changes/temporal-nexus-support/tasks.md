@@ -26,7 +26,7 @@
 - [x] 4.2 Build `RequestCancelNexusOperation` using the real scheduled event id read from history — débloquée par 4.3 ; une opération absente de l'historique n'émet rien, un eventId inventé faisant rejeter la tâche entière
 - [x] 4.3 Read the nine `NEXUS_OPERATION_*` events in `TemporalExecutionHistory`, keyed by scheduled event id — planification (identité relue du payload d'entrée, faute de champ dédié côté Temporal) et les quatre états terminaux. Les trois événements d'annulation et `STARTED` restent hors périmètre (§4.5)
 - [ ] 4.4 Convert those events in `TemporalEventConverter` so the profiler and the read-through store show them
-- [ ] 4.5 Fail clearly when an operation reports `NEXUS_OPERATION_STARTED` with a token — asynchronous operations are out of scope for this increment
+- [x] 4.5 Fail clearly when an operation reports `NEXUS_OPERATION_STARTED` with a token — asynchronous operations are out of scope for this increment — `NexusAsynchronousOperationUnsupportedException`, nommant l'opération. **Le jeton seul déclenche le refus** : un `STARTED` sans jeton est une opération synchrone en vol, et la refuser rejetterait le cas nominal
 
 ## 5. In-memory backend
 
