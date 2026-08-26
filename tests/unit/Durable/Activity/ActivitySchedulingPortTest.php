@@ -40,11 +40,6 @@ final class ActivitySchedulingPortTest extends TestCase
         // Nommer l'activité par une chaîne et lui passer un tableau libre est la forme que la
         // bibliothèque n'enseigne plus : une faute de frappe y produit une activité qui n'est
         // jamais planifiée, au lieu d'une erreur de type.
-        //
-        // Rouge à dessein jusqu'à la tâche 5.3. Le port est en place et le stub ne passe déjà
-        // plus par ce verbe ; il ne reste public que pour les quatre-vingt-dix-sept appels de la
-        // suite, marqué @internal en attendant leur réécriture.
-        self::markTestIncomplete('workflow-authoring-surface, tâche 5.3 : 97 appels à réécrire');
 
         self::assertNotContains('activity', $public);
     }

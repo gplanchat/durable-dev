@@ -110,4 +110,26 @@ interface SuiteActivities
 
     #[ActivityMethod('compute')]
     public function compute(int $a, int $b): int;
+
+    // Branches nues d'une composition : `a`, `b`, `c` ne nomment rien d'autre que leur place
+    // dans un assemblage. Le contrat ne les rend pas plus expressives — il les rend seulement
+    // atteignables sans nommer une chaîne.
+    #[ActivityMethod('a')]
+    public function a(): mixed;
+
+    #[ActivityMethod('b')]
+    public function b(): mixed;
+
+    #[ActivityMethod('c')]
+    public function c(): mixed;
+
+    #[ActivityMethod('price')]
+    public function price(int $n): mixed;
+
+    #[ActivityMethod('ok')]
+    public function ok(mixed $n = null): mixed;
+
+    /** Échoue : sert aux compositions où une branche doit tomber. */
+    #[ActivityMethod('boom')]
+    public function boom(): never;
 }
