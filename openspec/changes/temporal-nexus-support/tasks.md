@@ -18,7 +18,7 @@
 - [x] 3.3 `findNexusOperationSlotResult()` and `findScheduledNexusOperation()` on `WorkflowHistorySourceInterface` — la source journal rend `null` **définitivement** (son tampon refuse d'écrire, il n'y a rien à relire) ; la source Temporal lève un `LogicException` nommant §4.3, parce que rendre `null` là ferait replanifier l'opération à chaque replay, en silence
 - [x] 3.4 `scheduleNexusOperation()` and `cancelNexusOperation()` on `WorkflowCommandBufferInterface` — le backend journal **refuse** avec `NexusUnsupportedByBackendException`, ce que la proposition exige ; le tampon Temporal lève un `LogicException` nommant §4.1 / §4.2, pas l'exception « backend sans route » qui serait un mensonge sur ce que Temporal sait faire
 - [ ] 3.5 Extend `WorkflowFiberDriver::cancelPending()` to cancel a pending Nexus operation on workflow cancellation
-- [ ] 3.6 `DurableNexusOperationFailedException` with its four kinds, and its classification in `WorkflowFailureClassifier`
+- [x] 3.6 `DurableNexusOperationFailedException` with its four kinds, and its classification in `WorkflowFailureClassifier` — natures dans `NexusOperationFailureKind`, prises mot pour mot du spec ; le triplet endpoint/service/opération voyage dans le contexte de `KIND_UNHANDLED_NEXUS_OPERATION` ; le comportement de reprise n'est porté que par `HandlerError`
 
 ## 4. Temporal backend
 
