@@ -57,6 +57,13 @@ PALETTE = {
 # canevas. Elles se figent à 1 : plus personne ne les tourne.
 SCALARS = {"ts": "1", "sp": "1"}
 
+# Le design pose 26 ou 30 px sur ses logos, ce qui les rend illisibles : à cette
+# taille ils ne portent aucune information. Plancher imposé ici plutôt que dans
+# le design, parce que c'est une valeur et non un choix de mise en page — mais
+# le conteneur doit grandir avec, sinon le logo déborde d'une pastille haute de
+# 26 px.
+LOGO_MIN_PX = 48
+
 # Les liens de cas d'usage pointaient vers des pages qui n'ont jamais existé
 # (`/docs/use-cases/<slug>`). Chacun va vers la section qui traite réellement
 # le sujet, ancre comprise ; les ancres sont vérifiées à l'exécution.
@@ -142,7 +149,8 @@ def inline_logos(root: str) -> str:
         # typographique, ratio 3,1:1 : lui imposer la même valeur dans les deux
         # sens l'étirerait. Il se cale sur la hauteur, sa largeur suit.
         wide = 'width="auto"' in svg
-        size = f"{box}px" if box else "100%"
+        px = max(int(box), LOGO_MIN_PX) if box else None
+        size = f"{px}px" if px else "100%"
         sized = f'height="{size}" width="auto"' if wide else f'width="{size}" height="{size}"'
         svg = re.sub(r'width="[^"]*" height="[^"]*"', sized, svg, count=1)
         if "width=" not in svg:
@@ -166,6 +174,14 @@ def inline_logos(root: str) -> str:
     orphans = sorted(set(re.findall(r"logo-[a-z]+\.svg", root)))
     if orphans:
         die(f"logos non incorporés, le repli s'afficherait à leur place : {orphans}")
+
+    # Le conteneur suit le plancher, sinon le logo déborde de sa pastille.
+    def grow(match: re.Match[str]) -> str:
+        return match.group(0).replace(
+            match.group("h"), f"height: {max(int(match.group('px')), LOGO_MIN_PX)}px")
+
+    root = re.sub(
+        r'<span[^>]*data-mark[^>]*(?P<h>height:\s*(?P<px>\d+)px)[^>]*>', grow, root)
 
     return root
 

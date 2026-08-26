@@ -5,14 +5,19 @@ weight: 5
 
 # Packages
 
-Durable ships as three Composer packages. They stack: the library on its own, plus the framework
-integration you use, plus the driver that gives you real durability.
+Durable is a core, an optional framework integration, and a choice of backend. You take what you
+need: the library alone is enough to write and unit-test a workflow, and nothing above it changes
+the workflow code — only where the execution is recorded.
 
 | Package | Brings | Needs |
 |---|---|---|
-| `gplanchat/durable` | workflows, activities, timers, event journal, in-memory backend | PSR clock, PSR logger |
+| `gplanchat/durable` | workflows, activities, timers, event journal, in-memory backend | `psr/cache` |
 | `gplanchat/durable-bundle` | Symfony wiring, worker commands, profiler panel | the library, Symfony framework-bundle and Messenger |
 | `gplanchat/durable-bridge-temporal` | the Temporal driver, over gRPC | the library, `ext-grpc`, a Temporal cluster |
+| `gplanchat/durable-bridge-dbal` | durable execution on one SQL database | the library, Doctrine DBAL 3 or 4, `symfony/lock` |
+| `gplanchat/durable-plugin` | a Sylius admin dashboard for workflow runs | Symfony, `knplabs/knp-menu`; Sylius 2.x to appear in its menu |
+
+The two bridges are **alternatives**, not layers: you pick Temporal or DBAL, never both.
 
 ---
 
@@ -26,8 +31,9 @@ The engine and the whole domain: `WorkflowEnvironment`, activities, timers, side
 queries, updates, child workflows, the event journal, and the value objects that describe
 scheduling options.
 
-Two runtime dependencies — `psr/clock` and `psr/log`. **No framework.** You can drive it from a
-plain PHP script, an Laminas application, a console tool, or a test.
+One runtime dependency — `psr/cache`, and even that pool is optional: it memoises activity
+contract resolution, and `ActivityContractResolver` works without one. **No framework.** You can
+drive the library from a plain PHP script, a Laminas application, a console tool, or a test.
 
 It ships an **in-memory backend** that runs everything in one process. That is what your unit
 tests use, and it needs nothing installed.
@@ -88,36 +94,76 @@ temporal server start-dev --namespace durable-test --port 7233
 
 ---
 
+## `gplanchat/durable-bridge-dbal` — the SQL backend
+
+```bash
+composer require gplanchat/durable-bridge-dbal
+```
+
+Durable execution on **one SQL database**, with no orchestration cluster and no `ext-grpc`. The
+decision behind it is [**DUR030**](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR030-dbal-backend-simplified-durable-execution.md).
+
+The replay interpreter, the workflow ports and the command buffer are untouched: this bridge only
+makes the three process-local stores persistent — the event journal, the workflow metadata, and
+the parent links between child workflows. Workflow and activity code is byte-for-byte what runs on
+Temporal or in memory.
+
+| Kept | Given up, against Temporal |
+|---|---|
+| Workflow classes, activities, `WorkflowEnvironment` | Distributed task queues — resumes ride Symfony Messenger |
+| Signals, queries, updates | Server-side scheduling; timers ride Messenger `DelayStamp` |
+| Cancellation and compensation semantics | Server-side task serialisation, replaced by an application lock |
+| Replay determinism and the event journal | History retention, visibility API, the Temporal UI |
+
+Choose it when durability matters and running a cluster does not: one database you already back
+up, one migration, and no extension to compile.
+
+---
+
+## `gplanchat/durable-plugin` — the Sylius dashboard
+
+```bash
+composer require gplanchat/durable-plugin
+```
+
+An admin dashboard for Sylius: the list of workflow runs with search and status filters, and a run
+detail view with timeline lanes and recent events. Timeline labels prefer the human-readable
+`ActivityType.name` and fall back to technical IDs only when there is nothing better.
+
+It **observes**; it does not execute. It imports no class from the library core, so it adds to the
+bundle rather than replacing it — install both.
+
+> [!NOTE]
+> Live data comes from `gplanchat/durable-bridge-temporal`, which is a `suggest` rather than a
+> `require`: it needs `ext-grpc`, which most Sylius hosts do not ship, and an observation dashboard
+> is not worth forcing a PHP rebuild over. Without the bridge the plugin still installs, the route
+> and the menu entry still work, and the dashboard renders its degraded state instead of live runs.
+
+---
+
 ## Which do I install?
 
-{{< columns >}}
+| Your situation | Command |
+|---|---|
+| Learning, or unit tests only | `composer require gplanchat/durable` |
+| A Symfony application, tests only | `composer require gplanchat/durable-bundle` |
+| A Symfony application, one database, no cluster | `composer require gplanchat/durable-bundle gplanchat/durable-bridge-dbal` |
+| A Symfony application, Temporal cluster | `composer require gplanchat/durable-bundle gplanchat/durable-bridge-temporal` |
+| A Sylius application, with the dashboard | add `gplanchat/durable-plugin` to either line above |
+| No framework | `composer require gplanchat/durable` plus the bridge you want; you wire the workers yourself |
 
-**A Symfony application, in production**
-All three. The library for the engine, the bundle for the wiring, the bridge for durability.
-
-<--->
-
-**A Symfony application, tests only**
-Library and bundle. The in-memory backend needs no server, so your test suite stays fast and
-hermetic.
-
-<--->
-
-**No framework**
-The library, and the bridge if you want durability. You wire the workers yourself.
-
-{{< /columns >}}
+The bundle pulls the library in transitively, which is why the Symfony lines do not name it.
 
 ---
 
 ## One codebase, one behaviour
 
-The two backends run the **same fiber driver** and the **same activity execution path**. A workflow
-you tested in memory behaves the same way against Temporal — retry counting, failure
+Every backend runs the **same fiber driver** and the **same activity execution path**. A workflow
+you tested in memory behaves the same way against DBAL or Temporal — retry counting, failure
 classification, cancellation and compensation included.
 
-Where a capability genuinely has no in-process equivalent, the in-memory backend **fails with an
-explicit message** rather than pretending. The differences are listed in
+Where a capability genuinely has no equivalent, the backend **fails with an explicit message**
+rather than pretending. The differences are listed in
 [Backends](../backends/#capability-matrix).
 
 ---
