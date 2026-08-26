@@ -7,6 +7,7 @@ namespace Gplanchat\Bridge\Dbal\Store;
 use Doctrine\DBAL\Connection;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
+use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunPage;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
@@ -31,6 +32,7 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         private readonly Connection $connection,
         private readonly DurableSchema $schema,
         private readonly string $table = 'durable_workflow_runs',
+        private readonly ?JournalRunHistoryReader $history = null,
     ) {}
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
@@ -89,6 +91,18 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
                 ? self::encodeCursor((string) $last['started_at'], (string) $last['execution_id'])
                 : null,
         );
+    }
+
+    /**
+     * @return list<WorkflowRunEvent>
+     */
+    public function readHistory(string $runId): array
+    {
+        $reader = $this->history ?? new JournalRunHistoryReader(
+            new DbalEventStore($this->connection, $this->schema),
+        );
+
+        return $reader->read($runId);
     }
 
     private static function encodeCursor(string $startedAt, string $executionId): string
