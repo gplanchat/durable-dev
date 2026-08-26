@@ -149,8 +149,7 @@ final class EchoingChild
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
-    ) {
-    }
+    ) {}
 
     #[\Gplanchat\Durable\Attribute\WorkflowMethod]
     public function run(): string
@@ -164,8 +163,7 @@ final class ExplodingChild
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
-    ) {
-    }
+    ) {}
 
     #[\Gplanchat\Durable\Attribute\WorkflowMethod]
     public function run(): never

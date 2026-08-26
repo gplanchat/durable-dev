@@ -15,7 +15,6 @@ use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
-use unit\Durable\Fixtures\SuiteActivities;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
@@ -38,6 +37,7 @@ use Temporal\Api\Update\V1\Request as UpdateRequest;
 use Temporal\Api\Update\V1\Response as UpdateResponse;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Unit tests for WorkflowTaskRunner — fiber-based replay of Temporal workflow history.

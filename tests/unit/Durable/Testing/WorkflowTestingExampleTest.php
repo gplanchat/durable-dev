@@ -10,8 +10,8 @@ use Gplanchat\Durable\Testing\ActivitySpy;
 use Gplanchat\Durable\Testing\DurableTestCase;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
 use Gplanchat\Durable\WorkflowEnvironment;
-use unit\Durable\Fixtures\SuiteActivities;
 use PHPUnit\Framework\Attributes\Test;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Exemples d'utilisation de l'infrastructure de test in-memory.

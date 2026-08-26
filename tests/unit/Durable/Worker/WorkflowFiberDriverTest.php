@@ -17,8 +17,8 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Worker\WorkflowFiberDriver;
 use Gplanchat\Durable\WorkflowEnvironment;
-use unit\Durable\Fixtures\SuiteActivities;
 use PHPUnit\Framework\TestCase;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Le pilotage du fiber existait en double (ExecutionEngine / WorkflowTaskRunner) avec des

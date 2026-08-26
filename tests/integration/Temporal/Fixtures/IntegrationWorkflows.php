@@ -198,8 +198,7 @@ final class DoublerWorkflow
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{doubled: mixed}

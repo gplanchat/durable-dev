@@ -80,7 +80,7 @@ final class ActivitySchedulingPortTest extends TestCase
     public function testTheJournalDoesNotMove(): void
     {
         $env = WorkflowTestEnvironment::inMemory([
-            'charge' => static fn (array $p): string => 'charged:'.$p['orderId'],
+            'charge' => static fn(array $p): string => 'charged:' . $p['orderId'],
         ]);
 
         $env->runWorkflowClass(PortWorkflow::class, ['orderId' => 'ORD-9'], 'exec-journal');

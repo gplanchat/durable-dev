@@ -187,8 +187,7 @@ final class WorkingChild
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
-    ) {
-    }
+    ) {}
 
     #[\Gplanchat\Durable\Attribute\WorkflowMethod]
     public function run(): string
@@ -208,12 +207,11 @@ final class PendingChild
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
-    ) {
-    }
+    ) {}
 
     #[\Gplanchat\Durable\Attribute\WorkflowMethod]
     public function run(): mixed
     {
-        return $this->environment->await(static fn (): bool => false);
+        return $this->environment->await(static fn(): bool => false);
     }
 }

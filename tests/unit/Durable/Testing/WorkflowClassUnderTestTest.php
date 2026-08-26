@@ -34,7 +34,7 @@ final class WorkflowClassUnderTestTest extends TestCase
     public function testTheEnvironmentReachesTheConstructorAndTheInputReachesTheMethod(): void
     {
         $env = WorkflowTestEnvironment::inMemory([
-            'greet' => static fn (array $p): string => 'Hello, '.$p['name'].'!',
+            'greet' => static fn(array $p): string => 'Hello, ' . $p['name'] . '!',
         ]);
 
         $result = $env->runWorkflowClass(GreetingWorkflow::class, ['name' => 'Alice']);
@@ -88,13 +88,13 @@ final class WorkflowClassUnderTestTest extends TestCase
     public function testTheClosureFormStillRuns(): void
     {
         $env = WorkflowTestEnvironment::inMemory([
-            'greet' => static fn (array $p): string => 'Hello, '.$p['name'].'!',
+            'greet' => static fn(array $p): string => 'Hello, ' . $p['name'] . '!',
         ]);
 
         // La forme anonyme reste : un test qui veut trois lignes ne doit pas déclarer une classe
         // et un contrat pour les écrire. Ce qui change, c'est qu'elle est la forme du harnais et
         // non celle d'un workflow.
-        $result = $env->run(static fn (WorkflowEnvironment $wf): mixed => $wf->await(
+        $result = $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->await(
             $wf->activityStub(GreetingActivities::class)->greet('Dave'),
         ));
 
@@ -139,8 +139,7 @@ final class EchoWorkflow
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
-    ) {
-    }
+    ) {}
 
     #[WorkflowMethod]
     public function run(string $text): string

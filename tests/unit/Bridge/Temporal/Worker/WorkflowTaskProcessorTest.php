@@ -14,7 +14,6 @@ use Gplanchat\Durable\WorkflowRegistry;
 use Grpc\UnaryCall;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
-use unit\Durable\Fixtures\SuiteActivities;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
@@ -31,6 +30,7 @@ use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Tests for WorkflowTaskProcessor — the poll → execute → respond loop.

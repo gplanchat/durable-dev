@@ -80,13 +80,12 @@ final class EchoChild
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
-    ) {
-    }
+    ) {}
 
     #[WorkflowMethod]
     public function run(string $text): string
     {
-        return 'child:'.$text;
+        return 'child:' . $text;
     }
 }
 

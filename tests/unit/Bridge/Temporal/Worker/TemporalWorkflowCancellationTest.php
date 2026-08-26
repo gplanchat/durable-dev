@@ -17,7 +17,6 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\WorkflowFiberDriver;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
-use unit\Durable\Fixtures\SuiteActivities;
 use Temporal\Api\Common\V1\ActivityType;
 use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Enums\V1\EventType;
@@ -25,6 +24,7 @@ use Temporal\Api\History\V1\ActivityTaskScheduledEventAttributes;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\MarkerRecordedEventAttributes;
 use Temporal\Api\History\V1\WorkflowExecutionCancelRequestedEventAttributes;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * L'annulation Temporal est coopérative : le serveur n'enregistre qu'une demande et replanifie
