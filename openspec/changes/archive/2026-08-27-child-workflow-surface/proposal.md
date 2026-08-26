@@ -43,9 +43,9 @@ string. The typed form exists and is unusable for the one case that needs compos
 
 ### Modified Capabilities
 
-- `workflow-authoring-surface`: the requirement that activities are only reachable through a typed
-  contract is extended to child workflows, and gains the rule that a stub call assembles rather than
-  waits.
+- `workflow-authoring-surface` gains two requirements: child workflows are started through a typed
+  stub, and a stub call assembles rather than waits. The activity requirement is untouched — it was
+  already right, which is what made the asymmetry visible.
 
 ## Impact
 
