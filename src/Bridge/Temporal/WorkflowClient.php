@@ -12,6 +12,7 @@ use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
 use Gplanchat\Durable\CronSchedule;
+use Gplanchat\Durable\Uuid\NativeUuidV7Generator;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowStartOptions;
 use Temporal\Api\Common\V1\Memo;
@@ -216,7 +217,7 @@ final class WorkflowClient implements WorkflowClientInterface
      * @param array<string, mixed> $args Update arguments.
      * @return mixed The decoded update result.
      */
-    public function update(string $workflowId, string $updateName, array $args = []): mixed
+    public function update(string $workflowId, string $updateName, array $args = [], ?string $updateId = null): mixed
     {
         $request = new \Temporal\Api\Workflowservice\V1\UpdateWorkflowExecutionRequest();
         $request->setNamespace($this->settings->namespace->name());
@@ -229,6 +230,13 @@ final class WorkflowClient implements WorkflowClientInterface
         }
         $updateRequest = new \Temporal\Api\Update\V1\Request();
         $updateRequest->setInput($input);
+        // Le serveur refuse d'emblée une requête sans méta — « Update meta is not set on request »,
+        // INVALID_ARGUMENT, avant même de chercher un worker. L'`update_id` est aussi la clé de
+        // déduplication : deux envois du même id ne produisent qu'un update.
+        $updateRequest->setMeta(new \Temporal\Api\Update\V1\Meta([
+            'update_id' => $updateId ?? (new NativeUuidV7Generator())->generate(),
+            'identity' => $this->settings->identity,
+        ]));
         $request->setRequest($updateRequest);
         $request->setWaitPolicy(new \Temporal\Api\Update\V1\WaitPolicy([
             'lifecycle_stage' => \Temporal\Api\Enums\V1\UpdateWorkflowExecutionLifecycleStage::UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,

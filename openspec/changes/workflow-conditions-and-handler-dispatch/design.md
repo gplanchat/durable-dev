@@ -23,11 +23,36 @@ Per the house rule, the boundary between observed and assumed:
   contract is now exactly `isSettled()` and `getResult()`, and `awaitUnderDeadline()` calls nothing
   else on its branches. A condition therefore *is* an awaitable — `isSettled()` is the predicate —
   and the deadline path does not fork.
-- **Not probed, and it blocks the update half (task 1):** how a worker accepts and completes an
-  update against a real server — which protocol messages carry the acceptance and the response, and
-  on which task they must be returned. Nothing about update responses reaches the domain before
-  that is seen on `:7233`. The signal half has no such dependency: it rides the
-  `WORKFLOW_EXECUTION_SIGNALED` events already read and already exercised by the integration suite.
+- **Probed on `:7233`, and it answered every question task 1.3 asked.** An update does **not**
+  arrive as a history event. It arrives as a **protocol message on the workflow task**, in the
+  `messages` field of `PollWorkflowTaskQueueResponse`, while the history at that moment still shows
+  nothing but the task itself:
+
+      messages: 1
+        id=<update_id>/request  protocol_instance_id=<update_id>
+        event_id=5  sequencing_id=event_id  command_index=0
+        body type_url=type.googleapis.com/temporal.api.update.v1.Request
+
+  **Acceptance and response ride the same `RespondWorkflowTaskCompleted`.** Returning two
+  `Protocol\V1\Message` bodies — an `Update\V1\Acceptance` and an `Update\V1\Response` carrying
+  the `Outcome` — together with two `COMMAND_TYPE_PROTOCOL_MESSAGE` commands referencing their ids,
+  was accepted by the server in one round trip. `processOne()` therefore needs **no second round
+  trip**, and the caller received its outcome.
+
+  The two history events appear only **after** the worker has answered:
+
+      WORKFLOW_TASK_COMPLETED#7
+      WORKFLOW_EXECUTION_UPDATE_ACCEPTED#8
+      WORKFLOW_EXECUTION_UPDATE_COMPLETED#9
+
+  Two constraints found the hard way. `Update.Request.meta` is **mandatory** — without it the server
+  answers `INVALID_ARGUMENT: Update meta is not set on request` before looking for a worker, which
+  is why `WorkflowClient::update()` could never have worked. And `LIFECYCLE_STAGE_ADMITTED` is
+  refused for an asynchronously issued update, so an emitter can only wait on `ACCEPTED` or
+  `COMPLETED` — both of which block until a worker answers.
+
+  The signal half has no such dependency: it rides the `WORKFLOW_EXECUTION_SIGNALED` events already
+  read and already exercised by the integration suite.
 - **Assumed, and cheap to check first:** that a Temporal workflow task can carry several journaled
   messages at once, so interleaving is a real question inside one task and not only across tasks.
 
