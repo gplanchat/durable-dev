@@ -48,10 +48,19 @@ final class DashboardTemplateRenderTest extends TestCase
         self::assertStringContainsString('@SyliusAdmin/shared/layout/base.html.twig', $this->template);
     }
 
+    /**
+     * L'assertion porte sur les clés et non sur `kpis.<clé>` : la page les parcourt en boucle plutôt
+     * que de les écrire une à une, et exiger la forme pointée reviendrait à figer la manière de
+     * rendre au lieu du vocabulaire rendu.
+     */
     public function testEveryOutcomeHasItsCounterOnThePage(): void
     {
         foreach (['total', 'running', 'completed', 'failed', 'cancelled', 'continued_as_new'] as $counter) {
-            self::assertStringContainsString('kpis.' . $counter, $this->template, \sprintf('le compteur « %s » manque', $counter));
+            self::assertStringContainsString(
+                \sprintf("'%s'", $counter),
+                $this->template,
+                \sprintf('le compteur « %s » manque', $counter),
+            );
         }
     }
 

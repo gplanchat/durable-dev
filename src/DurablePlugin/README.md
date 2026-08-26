@@ -4,21 +4,40 @@
 
 ## Features
 
-- Workflow runs list with search and status filters.
-- Run details with timeline lanes and recent events.
-- Optional live data from Temporal via `gplanchat/durable-bridge-temporal`.
-- Timeline labels prioritize human-readable names (`ActivityType.name`) and fall back to technical IDs only when needed.
+- Workflow runs list with an outcome filter and cursor paging.
+- Run details with recorded history grouped in lanes.
+- Backend-neutral: reads whichever catalog the bundle registers.
+- Lane labels prioritise human-readable names and fall back to technical IDs only when needed.
+
+### What the page does not show, and why
+
+A fact the configured backend does not have is **absent** from the page rather than rendered empty.
+An empty "task queue" column would teach an operator that the run has no queue, when it is the
+backend that has no such notion.
+
+| | Temporal | SQL (DBAL) |
+| --- | --- | --- |
+| Task queue, namespace | recorded, not shown — see below | no such notion |
+| Grouping across continue-as-new | the workflow id | no such notion |
+| Query lane | recorded | never recorded; queries are answered live |
+
+Task queue and namespace are not shown at all for now: they belong to one backend only, and the page
+is meant to read the same on both.
 
 ## Requirements
 
 - PHP 8.2+
 - Symfony 6.4, 7.x or 8.x
 - Sylius 2.x (when used inside a Sylius application)
-- `gplanchat/durable-bridge-temporal` for live data — **optional**
+- `gplanchat/durable-bundle`, which wires the run catalog the dashboard reads — **optional**
 
-The bridge is a `suggest`, not a `require`, because it needs `ext-grpc`, which most Sylius hosts
-do not ship. Without it the plugin still installs, the route and the menu entry still work, and the
-dashboard renders its degraded state instead of live runs.
+The plugin depends on `gplanchat/durable` for the read port and on nothing else. Whichever backend
+records your durable executions — a SQL database through `gplanchat/durable-bridge-dbal`, or a
+Temporal cluster through `gplanchat/durable-bridge-temporal` — the bundle registers the matching
+catalog and the dashboard reads it. Nothing here requires `ext-grpc`.
+
+Without a readable backend the plugin still installs, the route and the menu entry still work, and
+the page says that no readable backend is configured.
 
 ## Installation in a Sylius app
 
@@ -49,7 +68,7 @@ The dashboard route is:
 ## Development notes
 
 - Menu entry registration listens to `sylius.menu.admin.main`.
-- If Temporal is unavailable, the provider returns an empty list with a degraded status message.
+- If no catalog is registered, the page reports it without naming any particular backend.
 - Timeline labeling rules:
   - Activity lanes: `ActivityType.name` > `activityId` > generated fallback label.
   - Signal lanes: signal name from Temporal event attributes.
