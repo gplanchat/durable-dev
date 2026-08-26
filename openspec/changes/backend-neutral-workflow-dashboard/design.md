@@ -130,6 +130,27 @@ This is a deliberate divergence from "the move changes nothing", and the parity 
 both directions: the old reading still says `failed`, the new one does not. Reproducing the
 shortcut in the name of parity would have meant proving the move copied a defect faithfully.
 
+## Reading a history takes the description, not the identifier
+
+Temporal cannot fetch a history from a run id alone: `GetWorkflowExecutionHistory` is addressed by
+`WorkflowExecution`, whose workflow id is mandatory. That workflow id is the port's `groupId`.
+
+So `readHistory()` takes the `WorkflowRunDescription`, not a string. A port that passed only the
+identifier would force the caller to find the rest by itself — that is, to know which backend it is
+talking to, which is the one thing the port exists to spare it. DBAL reads `runId` and ignores the
+rest; Temporal needs both.
+
+This came out of writing the second implementer, not out of designing the port. It is the argument
+for §2.9 and §5.1 landing before the bundle and the plugin are wired: the same discovery after
+section 6 would have cost a migration instead of a signature change.
+
+## The move also fixes two lanes it was mis-sorting
+
+`categoryForEventType()` in the provider tests `WORKFLOW_` before `SIGNAL` and before
+`CHILD_WORKFLOW`. But `WORKFLOW_EXECUTION_SIGNALED` contains `WORKFLOW_`, and so does
+`START_CHILD_WORKFLOW_EXECUTION_INITIATED` — so signals and child workflows are both filed under the
+execution lane today. The specific cases now come before the general one, and two tests pin it.
+
 ## Why not a query over the journal
 
 The projection duplicates facts the journal already holds, which is worth justifying. Listing runs
