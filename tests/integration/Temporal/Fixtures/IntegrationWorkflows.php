@@ -8,6 +8,7 @@ use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
 use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Exception\DeadlineExceededException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -57,6 +58,29 @@ final class IntegrationWorkflows
             ['value' => $input['value'] ?? 1],
             self::options(),
         ))]);
+
+        // Le cas qu'aucun faux serveur ne peut trancher : le signal est livré *après* le tir de
+        // l'échéance, et chaque tâche de workflow rejoue tout depuis le début — si le verdict
+        // venait d'ailleurs que de l'ordre du journal, le replay lirait l'inverse (ADR DUR032).
+        $registry->registerFactory('SignalDeadline', static fn(array $input) => static function (WorkflowEnvironment $env): array {
+            try {
+                $first = ['signal', $env->waitSignal('approve', Duration::seconds(2))];
+            } catch (DeadlineExceededException) {
+                $first = ['timeout'];
+            }
+
+            // Laisse au signal en retard le temps d'être enregistré pendant que l'exécution est
+            // encore ouverte.
+            $env->sleep(Duration::seconds(5));
+
+            try {
+                $second = ['signal', $env->waitSignal('approve', Duration::seconds(10))];
+            } catch (DeadlineExceededException) {
+                $second = ['timeout'];
+            }
+
+            return ['first' => $first, 'second' => $second];
+        });
 
         $registry->registerFactory('Sleeper', static fn(array $input) => static function (WorkflowEnvironment $env): array {
             $env->sleep(1.0);

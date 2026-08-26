@@ -37,10 +37,10 @@ final class TimerCancellationTest extends TestCase
 
     public function testLoserTimerIsCancelledAndNeverFires(): void
     {
-        $result = $this->runner->run('race-1', static fn(WorkflowEnvironment $env): mixed => $env->any(
+        $result = $this->runner->run('race-1', static fn(WorkflowEnvironment $env): mixed => $env->await($env->any(
             $env->activity('fast', []),
             $env->timer(3600.0),
-        ));
+        )));
 
         self::assertSame('winner', $result);
 
@@ -58,10 +58,10 @@ final class TimerCancellationTest extends TestCase
 
     public function testCancellationIsNotDuplicatedOnReplay(): void
     {
-        $handler = static fn(WorkflowEnvironment $env): mixed => $env->any(
+        $handler = static fn(WorkflowEnvironment $env): mixed => $env->await($env->any(
             $env->activity('fast', []),
             $env->timer(3600.0),
-        );
+        ));
 
         $this->runner->run('race-2', $handler);
         $this->runner->run('race-2', $handler);

@@ -8,6 +8,8 @@ use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
+use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Exception\DeadlineExceededException;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
@@ -299,10 +301,10 @@ final class WorkflowTaskRunnerTest extends TestCase
             'ParallelWorkflow',
             static fn(array $payload)
             => static function (WorkflowEnvironment $env): array {
-                return $env->all(
+                return $env->await($env->all(
                     $env->activity('task-a', []),
                     $env->activity('task-b', []),
-                );
+                ));
             },
         );
 
@@ -427,6 +429,64 @@ final class WorkflowTaskRunnerTest extends TestCase
         self::assertCount(1, $result->commands);
         self::assertSame(CommandType::COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, $result->commands[0]->getCommandType());
         self::assertSame(['value' => 42], $capturedSignal->value);
+    }
+
+    public function testASignalDeliveredAfterItsDeadlineDoesNotUndoTheTimeoutOnReplay(): void
+    {
+        // Parité de verdict avec le backend in-memory (WorkflowDeadlineTest) : l'historique
+        // Temporal est ordonné par eventId, et un signal d'eventId supérieur à celui du
+        // TIMER_FIRED est arrivé trop tard pour l'attente que le minuteur bornait.
+        $verdict = new \stdClass();
+        $verdict->value = null;
+
+        $runner = $this->makeRunner($this->deadlineRegistry($verdict));
+        $poll = self::buildPoll('token-deadline-1', 'wf-deadline-1', 'DeadlineWorkflow', [
+            self::makeStarted(1),
+            self::makeTimerStarted(2, 'timer-a'),
+            self::makeTimerFired(3, 2),
+            self::makeSignalEvent(4, 'approve', ['by' => 'late']),
+        ]);
+
+        $result = $runner->run($poll);
+
+        self::assertSame(['timeout'], $verdict->value);
+        self::assertCount(1, $result->commands);
+        self::assertSame(CommandType::COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, $result->commands[0]->getCommandType());
+    }
+
+    public function testASignalRecordedBeforeTheDeadlineFiredStillSettlesTheWait(): void
+    {
+        $verdict = new \stdClass();
+        $verdict->value = null;
+
+        $runner = $this->makeRunner($this->deadlineRegistry($verdict));
+        $poll = self::buildPoll('token-deadline-2', 'wf-deadline-2', 'DeadlineWorkflow', [
+            self::makeStarted(1),
+            self::makeTimerStarted(2, 'timer-a'),
+            self::makeSignalEvent(3, 'approve', ['by' => 'alice']),
+            self::makeTimerFired(4, 2),
+        ]);
+
+        $runner->run($poll);
+
+        self::assertSame(['signal', ['by' => 'alice']], $verdict->value);
+    }
+
+    private function deadlineRegistry(\stdClass $verdict): WorkflowRegistry
+    {
+        $registry = new WorkflowRegistry();
+        $registry->registerFactory('DeadlineWorkflow', static fn(array $payload)
+            => static function (WorkflowEnvironment $env) use ($verdict): array {
+                try {
+                    $verdict->value = ['signal', $env->waitSignal('approve', Duration::seconds(30))];
+                } catch (DeadlineExceededException) {
+                    $verdict->value = ['timeout'];
+                }
+
+                return $verdict->value;
+            });
+
+        return $registry;
     }
 
     public function testSignalNotYetReceivedSuspendsWorkflow(): void

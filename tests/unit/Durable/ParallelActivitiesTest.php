@@ -43,10 +43,10 @@ final class ParallelActivitiesTest extends TestCase
         $this->executor->register('square', static fn(array $p) => ($p['value'] ?? 0) ** 2);
 
         $result = $this->runner->run('parallel-test-1', static function (WorkflowEnvironment $env): array {
-            return $env->all(
+            return $env->await($env->all(
                 $env->activity('double', ['value' => 3]),
                 $env->activity('square', ['value' => 4]),
-            );
+            ));
         });
 
         self::assertIsArray($result);
@@ -55,16 +55,16 @@ final class ParallelActivitiesTest extends TestCase
         self::assertSame(16, $result[1]);
     }
 
-    public function testParallelWithThreeActivitiesReturnsBothResults(): void
+    public function testAllWithThreeActivitiesReturnsEveryResult(): void
     {
         $this->executor->register('add', static fn(array $p) => ($p['a'] ?? 0) + ($p['b'] ?? 0));
 
         $result = $this->runner->run('parallel-test-2', static function (WorkflowEnvironment $env): array {
-            return $env->parallel(
+            return $env->await($env->all(
                 $env->activity('add', ['a' => 1, 'b' => 2]),
                 $env->activity('add', ['a' => 3, 'b' => 4]),
                 $env->activity('add', ['a' => 5, 'b' => 6]),
-            );
+            ));
         });
 
         self::assertIsArray($result);
@@ -87,7 +87,7 @@ final class ParallelActivitiesTest extends TestCase
             $a = $env->activity('task', ['name' => 'x']);
             $b = $env->activity('task', ['name' => 'y']);
 
-            return $env->all($a, $b);
+            return $env->await($env->all($a, $b));
         });
 
         self::assertIsArray($result);
@@ -104,10 +104,10 @@ final class ParallelActivitiesTest extends TestCase
 
         $result = $this->runner->run('parallel-test-4', static function (WorkflowEnvironment $env): array {
             $first = $env->await($env->activity('id', ['v' => 'seq']));
-            $parallel = $env->all(
+            $parallel = $env->await($env->all(
                 $env->activity('id', ['v' => 'p1']),
                 $env->activity('id', ['v' => 'p2']),
-            );
+            ));
 
             return ['first' => $first, 'parallel' => $parallel];
         });

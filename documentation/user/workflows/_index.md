@@ -45,37 +45,103 @@ final class OrderWorkflow implements OrderWorkflowContract
 }
 ```
 
-`WorkflowEnvironment` provides **`await`**, **`all`**, **`any`**, **`race`**, **`parallel`**, **`async`**, timers, child workflows, signals, and more — see the class in the repository for the full API.
+`WorkflowEnvironment` provides **`await`**, the assemblers **`all`** / **`any`** / **`some`**, **`async`**, timers, child workflows, signals, and more — see the class in the repository for the full API.
 
-### Waiting versus composing
+### Waiting versus assembling
 
-Two methods, and the names say which is which:
+**`await()` is the only method that waits.** Everything else assembles: `activity()`, `timer()`,
+`scheduleChildWorkflow()` and the assemblers below all return an `Awaitable` and return
+immediately.
 
 ```php
 $env->sleep(Duration::minutes(5));            // wait, and nothing else — awaits for you
 
-$winner = $env->any(                          // compose: whichever finishes first
+$winner = $env->await($env->any(              // assemble, then wait
     $activities->callProvider($orderId),
-    $env->timer(Duration::seconds(30)),       // an Awaitable, like an activity call
-);
+    $activities->callFallbackProvider($orderId),
+));
 ```
+
+Three assemblers, by how many members have to finish:
+
+```php
+$env->all($a, $b, $c)      // Awaitable of [$a, $b, $c] — every member, in declaration order
+$env->any($a, $b, $c)      // Awaitable of the first member to settle, whatever its fate
+$env->some(2, $a, $b, $c)  // Awaitable of the first 2 members to succeed, keyed by position
+```
+
+Because they return an `Awaitable` and not a value, they **compose**: an assembly nests in
+another, and — the reason this matters most — an assembly can be bounded by a deadline.
+
+```php
+$quotes = $env->await($env->some(3, ...$providers), Duration::seconds(2));
+```
+
+`some()` counts only members that **succeed**: a provider that fails does not bring the quorum
+closer, and once too few remain to reach it the wait fails rather than never settling. `all()` is
+the full quorum, so one failed member fails the whole assembly. `any()` is a race, so the first
+member to settle wins even by failing.
+
+Losing branches are cancelled — activities removed from the queue, timers stopped from waking the
+execution — including branches nested inside an assembly.
 
 `timer()` returns an `Awaitable` exactly like `activity()`, so both compose the same way. Both
 accept a `Duration`, a `DateInterval` (so a `CarbonInterval`), a `DateTimeInterface` deadline, or a
 plain number of seconds.
+
+### Bounding a wait in time
+
+To give up on a wait after a while, pass a **deadline** to `await()` — do not race a timer by
+hand. `any()` resolves to the winning **value** and nothing else, so a provider that legitimately
+answers `null` is indistinguishable from an elapsed deadline; a saga that compensates on timeout
+would compensate on an empty answer too.
+
+```php
+use Gplanchat\Durable\Exception\DeadlineExceededException;
+
+try {
+    $quote = $env->await($activities->callProvider($orderId), Duration::seconds(30));
+} catch (DeadlineExceededException $e) {
+    // The provider did not answer in time — compensation path.
+    // $e->deadline() is the deadline that elapsed, $e->awaited() what it was bounding.
+}
+```
+
+The deadline defaults to `Duration::infinity()` — an unbounded wait says so with a value rather
+than with a missing argument, so a caller that computes its own deadline has no "no bound" case to
+special-case.
+
+A deadline is a failure, not a sentinel: `null`, `false` and `[]` come back untouched when the
+work settles in time. `waitSignal()` takes the same second argument, which is the canonical saga
+shape:
+
+```php
+try {
+    $approval = $env->waitSignal(OrderSignal::Approve, Duration::hours(1));
+} catch (DeadlineExceededException) {
+    return $this->expire($orderId);
+}
+```
+
+Whichever branch loses is cancelled: a deadline that elapses cancels the work it bounded, and
+work that settles cancels the deadline, so no dead timer wakes the execution later. Cancelling an
+in-flight activity is **best effort** — Temporal receives a cancellation *request*, and an attempt
+that does not honour it may keep running on its worker. What the deadline guarantees is that its
+completion no longer resumes your workflow.
+
+The verdict is read from recorded history, so a replay reaches the verdict the original execution
+reached — **including** when the awaited signal is delivered after the deadline elapsed. That late
+signal does not undo the timeout, and it stays available to a later `waitSignal()` for the same
+name.
 
 ### ActivityOptions on the stub
 
 To apply **retries**, **timeouts**, **task queue**, and related scheduling metadata to every call made through a given stub, pass **`ActivityOptions`** as the second argument to **`activityStub()`**:
 
 ```php
-use Gplanchat\Durable\Activity\{ActivityOptions, ActivityTimeouts, RetryLimit};
-use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Activity\ActivityOptions;
 
-$options = new ActivityOptions(
-    RetryLimit::ofAttempts(5),
-    timeouts: ActivityTimeouts::attempt(Duration::seconds(120)),
-);
+$options = ActivityOptions::of(5, 120);   // 5 attempts, 120s each
 $activities = $this->environment->activityStub(OrderActivities::class, $options);
 ```
 

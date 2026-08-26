@@ -81,10 +81,10 @@ final class DriverParityRegressionTest extends TestCase
         );
 
         try {
-            $engine->start('race-1', static fn(WorkflowEnvironment $env): mixed => $env->any(
+            $engine->start('race-1', static fn(WorkflowEnvironment $env): mixed => $env->await($env->any(
                 $env->activity('slow', []),
                 $env->timer(3600.0),
-            ));
+            )));
             self::fail('le workflow devait suspendre');
         } catch (WorkflowSuspendedException $e) {
             self::assertTrue($e->waitingOnTimer(), 'la course porte une échéance à réveiller');
@@ -149,10 +149,10 @@ final class DriverParityRegressionTest extends TestCase
         // ferait gagner le minuteur de toute course qu'une activité était en train de remporter.
         $env = WorkflowTestEnvironment::inMemory(['fast' => static fn(): string => 'winner']);
 
-        $result = $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->any(
+        $result = $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->any(
             $wf->activity('fast', []),
             $wf->timer(Duration::hours(1)),
-        ), 'race-skip');
+        )), 'race-skip');
 
         self::assertSame('winner', $result);
     }

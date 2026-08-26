@@ -61,10 +61,10 @@ final class WorkflowTestingExampleTest extends DurableTestCase
 
         $result = $env->run(
             static function (WorkflowEnvironment $wf): array {
-                return $wf->all(
+                return $wf->await($wf->all(
                     $wf->activity('double', ['value' => 3]),
                     $wf->activity('square', ['value' => 4]),
-                );
+                ));
             },
             $executionId = 'exec-parallel-001',
         );
@@ -240,11 +240,11 @@ final class WorkflowTestingExampleTest extends DurableTestCase
 
         $env->run(
             static function (WorkflowEnvironment $wf): array {
-                return $wf->parallel(
+                return $wf->await($wf->all(
                     $wf->activity('add', ['a' => 1, 'b' => 2]),
                     $wf->activity('add', ['a' => 3, 'b' => 4]),
                     $wf->activity('add', ['a' => 5, 'b' => 6]),
-                );
+                ));
             },
             $executionId = 'exec-count-001',
         );
