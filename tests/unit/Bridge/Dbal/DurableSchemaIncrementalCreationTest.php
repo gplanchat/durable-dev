@@ -41,7 +41,12 @@ final class DurableSchemaIncrementalCreationTest extends TestCase
         (new DurableSchema($this->connection))->ensure();
 
         self::assertSame(
-            ['durable_child_workflow_parent_link', 'durable_events', 'durable_workflow_metadata'],
+            [
+                'durable_child_workflow_parent_link',
+                'durable_events',
+                'durable_workflow_metadata',
+                'durable_workflow_runs',
+            ],
             $this->durableTables(),
         );
     }
@@ -69,8 +74,10 @@ final class DurableSchemaIncrementalCreationTest extends TestCase
     }
 
     /**
-     * La propriété dont dépend la tranche 4.1 : une table *nouvelle*, inconnue de l'installation,
-     * apparaît sans que les trois autres soient retouchées.
+     * La propriété dont dépend la projection : une table *nouvelle*, inconnue de l'installation,
+     * apparaît sans que les autres soient retouchées. Le nom est délibérément étranger au schéma —
+     * y mettre le nom d'une table réelle a fait entrer ce test en collision avec la projection le
+     * jour où elle a été déclarée.
      */
     public function testATableTheInstallHasNeverSeenIsCreated(): void
     {
@@ -78,14 +85,17 @@ final class DurableSchemaIncrementalCreationTest extends TestCase
         $before = $this->durableTables();
 
         $schema = new Schema();
-        $projection = $schema->createTable('durable_workflow_runs');
+        $projection = $schema->createTable('durable_probe_unknown');
         $projection->addColumn('execution_id', 'string', ['length' => 128]);
         $projection->setPrimaryKey(['execution_id']);
         foreach ($schema->toSql($this->connection->getDatabasePlatform()) as $sql) {
             $this->connection->executeStatement($sql);
         }
 
-        self::assertSame([...$before, 'durable_workflow_runs'], $this->durableTables());
+        $expected = [...$before, 'durable_probe_unknown'];
+        sort($expected);
+
+        self::assertSame($expected, $this->durableTables());
     }
 
     private function createEventsTableAlone(): void
@@ -93,7 +103,7 @@ final class DurableSchemaIncrementalCreationTest extends TestCase
         $schema = new Schema();
         (new DurableSchema($this->connection))->addToSchema(
             $schema,
-            ['durable_workflow_metadata', 'durable_child_workflow_parent_link'],
+            ['durable_workflow_metadata', 'durable_child_workflow_parent_link', 'durable_workflow_runs'],
         );
         foreach ($schema->toSql($this->connection->getDatabasePlatform()) as $sql) {
             $this->connection->executeStatement($sql);
