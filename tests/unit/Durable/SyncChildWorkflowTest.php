@@ -47,10 +47,10 @@ final class SyncChildWorkflowTest extends TestCase
 
     public function testChildOutcomeLandsOnTheParentAsAChildEvent(): void
     {
-        $this->registry->registerFactory('Child', static fn(array $i) => static fn(WorkflowEnvironment $env): string => 'child-result');
+        $this->registry->registerClass(EchoingChild::class);
 
         $result = $this->engine->start('parent-1', static fn(WorkflowEnvironment $env): string
-            => 'parent-saw:' . $env->executeChildWorkflow('Child', []));
+            => 'parent-saw:' . $env->await($env->childWorkflowStub(EchoingChild::class)->run()));
 
         self::assertSame('parent-saw:child-result', $result);
 
@@ -81,7 +81,7 @@ final class SyncChildWorkflowTest extends TestCase
         });
 
         $handler = static fn(WorkflowEnvironment $env): string
-            => 'parent-saw:' . $env->executeChildWorkflow('Child', []);
+            => 'parent-saw:' . $env->await($env->childWorkflowStub(EchoingChild::class)->run());
 
         $this->engine->start('parent-2', $handler);
         self::assertSame(1, $childRuns);
@@ -93,13 +93,11 @@ final class SyncChildWorkflowTest extends TestCase
 
     public function testFailingChildLandsAsChildWorkflowFailedNotAsAParentFailure(): void
     {
-        $this->registry->registerFactory('Child', static fn(array $i) => static function (WorkflowEnvironment $env): never {
-            throw new \DomainException('child exploded');
-        });
+        $this->registry->registerClass(ExplodingChild::class);
 
         try {
             $this->engine->start('parent-3', static fn(WorkflowEnvironment $env): mixed
-                => $env->executeChildWorkflow('Child', []));
+                => $env->await($env->childWorkflowStub(ExplodingChild::class)->run()));
         } catch (\Throwable) {
             // Le parent ne gère pas l'échec de l'enfant : c'est attendu ici.
         }
@@ -117,13 +115,11 @@ final class SyncChildWorkflowTest extends TestCase
 
     public function testParentStaysActiveWhileTheChildCompletes(): void
     {
-        $this->registry->registerFactory('Child', static fn(array $i) => static function (WorkflowEnvironment $env): string {
-            return 'child-result';
-        });
+        $this->registry->registerClass(EchoingChild::class);
 
         $seenActive = null;
         $this->engine->start('parent-4', function (WorkflowEnvironment $env) use (&$seenActive): string {
-            $child = $env->executeChildWorkflow('Child', []);
+            $child = $env->await($env->childWorkflowStub(EchoingChild::class)->run());
             $seenActive = ParentChildWorkflowCoordinator::isChildRunActive($this->eventStore, 'parent-4');
 
             return $child;
@@ -145,5 +141,35 @@ final class SyncChildWorkflowTest extends TestCase
         }
 
         return $out;
+    }
+}
+
+#[\Gplanchat\Durable\Attribute\Workflow(name: 'Child')]
+final class EchoingChild
+{
+    public function __construct(
+        private readonly WorkflowEnvironment $environment,
+    ) {
+    }
+
+    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    public function run(): string
+    {
+        return 'child-result';
+    }
+}
+
+#[\Gplanchat\Durable\Attribute\Workflow(name: 'ExplodingChild')]
+final class ExplodingChild
+{
+    public function __construct(
+        private readonly WorkflowEnvironment $environment,
+    ) {
+    }
+
+    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    public function run(): never
+    {
+        throw new \DomainException('child exploded');
     }
 }

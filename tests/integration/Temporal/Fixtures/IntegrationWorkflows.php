@@ -40,10 +40,10 @@ final class IntegrationWorkflows
     {
         $registry->registerFactory('Plain', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['echo' => $input['value'] ?? null]);
 
-        $registry->registerFactory('Doubler', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['doubled' => $env->await($env->activityStub(
-            IntegrationActivities::class,
-            self::options(),
-        )->double((int) ($input['value'] ?? 0)))]);
+        // Une classe et non une fabrique : c'est ce qu'un stub d'enfant sait résoudre, et
+        // `registerClass()` l'enregistre sous son alias comme sous son FQCN — les tests qui la
+        // démarrent par « Doubler » ne changent pas.
+        $registry->registerClass(DoublerWorkflow::class);
 
         $registry->registerFactory('TwoActivities', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): array {
             $doubled = $env->await($env->activityStub(IntegrationActivities::class, self::options())->double((int) ($input['value'] ?? 0)));
@@ -140,8 +140,16 @@ final class IntegrationWorkflows
         });
 
         $registry->registerFactory('ChildParent', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): array {
-            return ['fromChild' => $env->executeChildWorkflow('Doubler', ['value' => $input['value'] ?? 0])];
+            return ['fromChild' => $env->await(
+                $env->childWorkflowStub(DoublerWorkflow::class)->run((int) ($input['value'] ?? 0)),
+            )];
         });
+    }
+
+    /** Exposé pour {@see DoublerWorkflow}, qui vit hors de cette classe. */
+    public static function stubOptions(): ActivityOptions
+    {
+        return self::options();
     }
 
     private static function options(): ActivityOptions
@@ -152,5 +160,25 @@ final class IntegrationWorkflows
     private static function attemptTimeout(): ActivityTimeouts
     {
         return ActivityTimeouts::attempt(Duration::seconds(self::ACTIVITY_TIMEOUT_SECONDS));
+    }
+}
+
+#[\Gplanchat\Durable\Attribute\Workflow(name: 'Doubler')]
+final class DoublerWorkflow
+{
+    public function __construct(
+        private readonly WorkflowEnvironment $environment,
+    ) {
+    }
+
+    /**
+     * @return array{doubled: mixed}
+     */
+    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    public function run(int $value = 0): array
+    {
+        return ['doubled' => $this->environment->await(
+            $this->environment->activityStub(IntegrationActivities::class, IntegrationWorkflows::stubOptions())->double($value),
+        )];
     }
 }

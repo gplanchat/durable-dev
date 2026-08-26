@@ -100,11 +100,10 @@ final class HarnessParityTest extends TestCase
     public function testChildWorkflowsRunInTheHarness(): void
     {
         $env = WorkflowTestEnvironment::inMemory(['work' => static fn(): string => 'from-activity']);
-        $env->registerWorkflow('Child', static fn(array $input) => static fn(WorkflowEnvironment $wf): string
-            => 'child(' . $wf->await($wf->activityStub(SuiteActivities::class)->work()) . ')');
+        $env->registerWorkflowClass(WorkingChild::class);
 
         $result = $env->run(static fn(WorkflowEnvironment $wf): string
-            => 'parent[' . $wf->executeChildWorkflow('Child', []) . ']', 'parent-1');
+            => 'parent[' . $wf->await($wf->childWorkflowStub(WorkingChild::class)->run()) . ']', 'parent-1');
 
         self::assertSame('parent[child(from-activity)]', $result);
         self::assertNotNull($this->firstOf($env, 'parent-1', ChildWorkflowCompleted::class));
@@ -116,13 +115,14 @@ final class HarnessParityTest extends TestCase
         // L'enfant reste bloqué sur un signal jamais délivré : le runner le signale
         // (WorkflowStuckException), son journal reste sans issue terminale, il est donc
         // encore actif à la clôture du parent.
-        $env->registerWorkflow('Pending', static fn(array $input) => static fn(WorkflowEnvironment $wf): mixed
-            => $wf->waitSignal('never'));
+        $env->registerWorkflowClass(PendingChild::class);
 
         $env->run(static function (WorkflowEnvironment $wf): string {
-            $wf->scheduleChildWorkflow('Pending', [], new ChildWorkflowOptions(
+            // Démarré et jamais attendu : c'est le sujet du test, et c'est justement ce qu'un
+            // stub qui attendait pour l'appelant ne savait pas exprimer.
+            $wf->childWorkflowStub(PendingChild::class, new ChildWorkflowOptions(
                 parentClosePolicy: ParentClosePolicy::Terminate,
-            ));
+            ))->run();
 
             return 'parent-done';
         }, 'parent-2');
@@ -179,5 +179,41 @@ final class HarnessParityTest extends TestCase
         }
 
         return null;
+    }
+}
+
+#[\Gplanchat\Durable\Attribute\Workflow(name: 'Child')]
+final class WorkingChild
+{
+    public function __construct(
+        private readonly WorkflowEnvironment $environment,
+    ) {
+    }
+
+    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    public function run(): string
+    {
+        return 'child(' . $this->environment->await(
+            $this->environment->activityStub(SuiteActivities::class)->work(),
+        ) . ')';
+    }
+}
+
+/**
+ * Reste bloqué sur un signal jamais délivré : son journal n'a pas d'issue terminale, il est donc
+ * encore actif à la clôture du parent.
+ */
+#[\Gplanchat\Durable\Attribute\Workflow(name: 'Pending')]
+final class PendingChild
+{
+    public function __construct(
+        private readonly WorkflowEnvironment $environment,
+    ) {
+    }
+
+    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    public function run(): mixed
+    {
+        return $this->environment->waitSignal('never');
     }
 }

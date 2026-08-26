@@ -388,7 +388,7 @@ $env = WorkflowTestEnvironment::inMemory(['work' => $spy]);
 $env->registerWorkflow('Child', fn (array $input) => fn (WorkflowEnvironment $wf) => /* … */);
 
 $result = $env->run(
-    fn (WorkflowEnvironment $wf) => $wf->executeChildWorkflow('Child', ['value' => 21]),
+    fn (WorkflowEnvironment $wf) => $wf->await($wf->childWorkflowStub(ChildWorkflow::class)->run(21)),
     'parent-1',
 );
 ```

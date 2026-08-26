@@ -50,7 +50,7 @@ final class OrderWorkflow implements OrderWorkflowContract
 ### Waiting versus assembling
 
 **`await()` is the only method that waits.** Everything else assembles: `activity()`, `timer()`,
-`scheduleChildWorkflow()` and the assemblers below all return an `Awaitable` and return
+Stub calls and the assemblers below all return an `Awaitable` and return
 immediately.
 
 ```php
@@ -203,8 +203,7 @@ everything a workflow can do, and nothing the engine keeps for itself.
 | `timer($duration, $summary = '')` | An awaitable that settles when the duration elapses. Composes like any other. |
 | `sleep($duration, $summary = '')` | Waits, and awaits for you. Says what it does. |
 | `activityStub($contract, $options = null)` | A typed proxy over an activity contract. Build it in the constructor; every call it makes carries `$options`. |
-| `childWorkflowStub($class, $options = null)` | The same, for a child workflow. |
-| `scheduleChildWorkflow()` · `executeChildWorkflow()` | Start a child by name — scheduled, or awaited to completion. |
+| `childWorkflowStub($class, $options = null)` | The same, for a child workflow: resolved from the child's class, and its calls compose like any other. |
 | `waitSignal($name, $deadline = null)` | Waits for a signal. The name takes a backed enum, so a typo is a type error rather than a wait that never settles. |
 | `waitUpdate($name)` | Waits for an update. |
 | `sideEffect($closure)` | Runs non-deterministic local work once and journals its result, so replay reproduces it. |
