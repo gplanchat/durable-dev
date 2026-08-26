@@ -53,7 +53,11 @@ final class WorkflowTaskProcessor
             $queryResults = $this->handleQueries($poll, $result->environment);
         }
 
-        $this->respond($poll->getTaskToken(), $commands, $queryResults);
+        // Acceptation et réponse repartent sur CETTE tâche, avec les commandes qui les
+        // référencent — c'est ce que la sonde 1.3 a vu le serveur accepter en un aller-retour.
+        [$updateMessages, $updateCommands] = TemporalUpdateProtocol::answer($result->updates);
+
+        $this->respond($poll->getTaskToken(), [...$commands, ...$updateCommands], $queryResults, $updateMessages);
 
         return true;
     }
@@ -129,9 +133,16 @@ final class WorkflowTaskProcessor
      * @param list<\Temporal\Api\Command\V1\Command> $commands
      * @param array<string, WorkflowQueryResult>     $queryResults
      */
-    private function respond(string $taskToken, array $commands, array $queryResults = []): void
+    /**
+     * @param list<\Temporal\Api\Command\V1\Command>  $commands
+     * @param list<\Temporal\Api\Protocol\V1\Message> $messages
+     */
+    private function respond(string $taskToken, array $commands, array $queryResults = [], array $messages = []): void
     {
         $req = new RespondWorkflowTaskCompletedRequest();
+        if ([] !== $messages) {
+            $req->setMessages($messages);
+        }
         $req->setTaskToken($taskToken);
         $req->setNamespace($this->settings->namespace->name());
         $req->setIdentity($this->settings->identity);

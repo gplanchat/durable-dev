@@ -19,6 +19,7 @@ final class WorkflowUpdateRequestTest extends TemporalServerTestCase
         $executionId = $this->startWorkflow('Sleeper', []);
 
         $rejection = null;
+
         try {
             $this->workflowClient()->update($this->workflowId($executionId), 'approve', ['by' => 'alice']);
         } catch (\Throwable $e) {

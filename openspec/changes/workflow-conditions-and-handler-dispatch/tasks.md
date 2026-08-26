@@ -43,7 +43,7 @@
 - [x] 5.2 Imperative registration on `WorkflowEnvironment`, mirroring `registerQueryHandler()`
 - [x] 5.3 Engine-side dispatch, interleaved with 4.2 — signaux et updates sur le même curseur, ordonnés par position de journal
 - [x] 5.4 Update responses recorded and reproduced on replay — issue déposée sur le `PendingUpdate`, consignée par l’appelant de la passe comme le serveur écrit UPDATE_COMPLETED
-- [ ] 5.5 Worker-side update acceptance and completion on the Temporal bridge, from the probe in 1.3
+- [x] 5.5 Worker-side update acceptance and completion on the Temporal bridge, from the probe in 1.3 — `TemporalUpdateProtocol` extrait les updates du champ `messages` de la tâche, le runner les remet à l'exécution comme `PendingUpdate`, et le processeur renvoie acceptation + réponse sur la **même** tâche avec leurs deux `COMMAND_TYPE_PROTOCOL_MESSAGE`. Prouvé contre un vrai serveur
 
 ## 6. Deletions
 

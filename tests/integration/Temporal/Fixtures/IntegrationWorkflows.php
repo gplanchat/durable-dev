@@ -141,6 +141,21 @@ final class IntegrationWorkflows
             return ['keys' => array_keys($reached), 'values' => array_values($reached)];
         });
 
+        // Un workflow qui répond à un update, pour la tâche 5.5 : le worker doit accepter et
+        // compléter l'update sur la même tâche, et l'appelant recevoir la valeur rendue.
+        $registry->registerFactory('Updatable', static fn(array $input) => static function (WorkflowEnvironment $env): array {
+            $approved = null;
+            $env->onUpdate('approve', static function (array $args) use (&$approved): array {
+                $approved = $args['by'] ?? 'anonyme';
+
+                return ['approvedBy' => $approved];
+            });
+
+            $env->await(static fn(): bool => null !== $approved, Duration::minutes(2));
+
+            return ['approvedBy' => $approved];
+        });
+
         $registry->registerFactory('ChildParent', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): array {
             return ['fromChild' => $env->executeChildWorkflow('Doubler', ['value' => $input['value'] ?? 0])];
         });

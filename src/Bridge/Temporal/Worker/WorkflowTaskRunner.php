@@ -75,11 +75,16 @@ final class WorkflowTaskRunner
 
         $commandBuffer = new TemporalWorkflowCommandBuffer($this->connection, $executionId, $history);
 
+        // Un update n'arrive pas par l'historique mais à côté, sur la tâche (sonde 1.3) : il est
+        // remis à l'exécution comme update « hors journal » de cette passe.
+        $incoming = TemporalUpdateProtocol::incoming($poll);
+
         $context = new ExecutionContext(
             $executionId,
             $history,
             $commandBuffer,
             new TemporalChildWorkflowRunner(),
+            pendingUpdates: array_map(static fn(array $e) => $e['pending'], $incoming),
         );
 
         $handler = $this->registry->getHandler($workflowTypeName, $history->startInput());
@@ -101,7 +106,7 @@ final class WorkflowTaskRunner
 
         $commands = $commandBuffer->flush();
 
-        return new WorkflowTaskResult($commands, $environment);
+        return new WorkflowTaskResult($commands, $environment, $incoming);
     }
 
     private function resolveExecutionId(
