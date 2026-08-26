@@ -25,7 +25,7 @@
 - [ ] 4.1 Build `ScheduleNexusOperation` in `TemporalWorkflowCommandBuffer`, bounds and headers included — **commande et bornes faites** : les trois bornes ne partent que si le domaine en porte une (le serveur n'applique aucun défaut, §1.3), l'infini part en `0`, et l'entrée est **un** `Payload` et non un `Payloads` comme pour une activité. **Les en-têtes restent à faire** : rien côté domaine n'en porte, et c'est le port de §3.4 qui devra les transporter — les ajouter ici sans source serait un champ vide déguisé en fonctionnalité
 - [x] 4.2 Build `RequestCancelNexusOperation` using the real scheduled event id read from history — et rien n'est émis tant que le serveur n'a pas vu l'opération
 - [x] 4.3 Read the nine `NEXUS_OPERATION_*` events in `TemporalExecutionHistory`, keyed by scheduled event id — l'identité se relit de la charge utile, comme la commande de planification l'écrit ; les quatre issues portent la nature *et* le site d'appel
-- [ ] 4.4 Convert those events in `TemporalEventConverter` so the profiler and the read-through store show them
+- [x] 4.4 Convert those events in `TemporalEventConverter` so the profiler and the read-through store show them — cinq événements de domaine (`NexusOperationScheduled` et les quatre états terminaux), rattachés par l'`eventId` de la planification, qui est la clé dont Temporal se sert lui-même. `NEXUS_OPERATION_STARTED` et les trois événements d'annulation ne sont pas convertis : le premier relève de §4.5, les autres n'ajoutent rien au profil tant que l'annulation n'est pas construite (§4.2)
 - [x] 4.5 Fail clearly when an operation reports `NEXUS_OPERATION_STARTED` with a token — asynchronous operations are out of scope for this increment
 
 ## 5. In-memory backend
