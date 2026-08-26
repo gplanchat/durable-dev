@@ -197,7 +197,24 @@ final class NexusOperationBoundsTest extends TestCase
      * Planifie l'opération et relit son événement.
      * Rend les attributs enregistrés, ou le message du serveur s'il a refusé.
      */
-    private function schedule(?int $scheduleToClose, ?int $scheduleToStart, ?int $startToClose): NexusOperationScheduledEventAttributes|string|null
+    public function testTheWorkflowRunIsASecondOuterEnvelopeThatAlsoClampsSilently(): void
+    {
+        // `scheduleToClose` est l'enveloppe des trois bornes, mais il en existe une **seconde**,
+        // par-dessus : la durée de l'exécution elle-même. Un appelant peut donc composer un jeu de
+        // bornes parfaitement cohérent entre elles et se les faire rogner quand même, sans erreur.
+        // C'est la question que §1.3 posait — « comme les activités ? » — et la réponse est oui
+        // jusque-là aussi.
+        $attrs = $this->schedule(3600, null, null, runTimeout: 60);
+
+        self::assertInstanceOf(NexusOperationScheduledEventAttributes::class, $attrs);
+        self::assertSame(
+            60,
+            (int) $attrs->getScheduleToCloseTimeout()?->getSeconds(),
+            'Une heure demandée sous une exécution bornée à une minute devrait être rabattue.',
+        );
+    }
+
+    private function schedule(?int $scheduleToClose, ?int $scheduleToStart, ?int $startToClose, ?int $runTimeout = null): NexusOperationScheduledEventAttributes|string|null
     {
         $client = new WorkflowClient(
             $this->client,
@@ -205,7 +222,10 @@ final class NexusOperationBoundsTest extends TestCase
             new TemporalHistoryCursor($this->client, $this->connection),
             new WorkflowServiceExecutionRpc($this->client),
         );
-        $workflowId = $client->startAsync('NexusBoundsProbe', [], 'bounds-' . bin2hex(random_bytes(5)));
+        $options = null === $runTimeout ? null : new \Gplanchat\Durable\WorkflowStartOptions(
+            timeouts: new \Gplanchat\Durable\WorkflowTimeouts(run: \Gplanchat\Durable\Duration::seconds((float) $runTimeout)),
+        );
+        $workflowId = $client->startAsync('NexusBoundsProbe', [], 'bounds-' . bin2hex(random_bytes(5)), $options);
         $this->started[] = $workflowId;
 
         $poll = new PollWorkflowTaskQueueRequest();
