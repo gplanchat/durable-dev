@@ -11,21 +11,21 @@
 - [x] 2.3 A run that continued as new leaves both runs visible, and the one that ended is not reported as failed
 - [ ] 2.4 Filtering by status returns only matching runs, and the counters agree with the list — *partiel* : le filtre est fait et pagine sur l'ensemble filtré ; les compteurs sont calculés par la vue et se vérifient donc avec §6.3
 - [x] 2.5 Paging through more runs than one page holds returns each run once and none twice — pagination **par clé** (date + id), pas par décalage : `started_at` est à la seconde et la table grossit pendant qu'on la lit
-- [ ] 2.6 Selecting a run returns its events in recorded order, with activities and signals on distinct lanes
+- [x] 2.6 Selecting a run returns its events in recorded order, with activities and signals on distinct lanes — plus l'étiquetage : une activité porte son **nom** y compris sur sa complétion, qui ne connaît que son id
 - [ ] 2.7 A fact the backend does not have is absent from the description — not `''`, not a placeholder
 - [ ] 2.8 With no readable backend configured, the dashboard reports that and does not name Temporal
 - [ ] 2.9 The Temporal adapter returns what the current provider returns for the same server state — the test that proves the move changed nothing
 
 ## 3. Domain
 
-- [ ] 3.1 A read port for observing runs: listing with a cursor and a status filter, and reading one run's recorded history — *partiel* : listage, curseur et filtre de statut faits (`WorkflowRunPage`) ; la lecture d'historique reste à faire (§2.6)
+- [x] 3.1 A read port for observing runs: listing with a cursor and a status filter, and reading one run's recorded history — `listRuns()` et `readHistory()`
 - [x] 3.2 The run description the port returns, with the facts a backend may not have modelled as absent rather than as empty values — `WorkflowRunDescription` + `WorkflowRunStatus` ; `groupId`, `startedAt` et `endedAt` sont nullables, jamais des valeurs de remplissage
 
 ## 4. DBAL backend
 
 - [x] 4.1 The run projection table, declared in `DurableSchema` so it appears on installs that already exist — `durable_workflow_runs`, indexée sur `started_at`
 - [x] 4.2 Writing the projection on every transition from 1.2, leaving the metadata lifecycle and `hasActiveWorkflowMetadata()` untouched — deux décorateurs, `ProjectingWorkflowMetadataStore` (le nom) et `ProjectingEventStore` (l'issue) ; aucune classe existante modifiée
-- [ ] 4.3 The adapter: listing from the projection, history from `durable_events` — *partiel* : `DbalWorkflowRunCatalog` liste depuis la projection ; l'historique reste à faire (§2.6)
+- [x] 4.3 The adapter: listing from the projection, history from `durable_events` — `JournalRunHistoryReader` traduit le flux du journal, une seule passe avant suffisant à nommer les activités
 - [ ] 4.4 Backend reachability reported for the database, answering the same question the Temporal adapter answers about gRPC
 
 ## 5. Temporal backend
