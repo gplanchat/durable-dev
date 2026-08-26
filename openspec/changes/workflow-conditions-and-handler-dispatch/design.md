@@ -23,32 +23,47 @@ Per the house rule, the boundary between observed and assumed:
   contract is now exactly `isSettled()` and `getResult()`, and `awaitUnderDeadline()` calls nothing
   else on its branches. A condition therefore *is* an awaitable — `isSettled()` is the predicate —
   and the deadline path does not fork.
-- **Not probed, and it blocks the update half (task 1):** how a worker accepts and completes an
-  update against a real server — which protocol messages carry the acceptance and the response, and
-  on which task they must be returned. Nothing about update responses reaches the domain before
-  that is seen on `:7233`. The signal half has no such dependency: it rides the
-  `WORKFLOW_EXECUTION_SIGNALED` events already read and already exercised by the integration suite.
-- **Observed against a running server (task 1.2), and it is the premise §4.2 rests on:** a single
-  workflow task carries several journaled messages. Probed with no worker on the task queue, three
-  signals sent to a started execution, then the task queue polled directly. The pending segment —
-  what follows the last `WORKFLOW_TASK_COMPLETED` — came back as:
+- **Probed, whole round trip (task 1.3).** An update reaches a worker **outside the journal**, as
+  a `temporal.api.protocol.v1.Message` on `PollWorkflowTaskQueueResponse.messages` — not as a
+  history event. The message carries `id = <update_id>/request`, `protocol_instance_id =
+  <update_id>`, a body of `Any(update.v1.Request)` with the name and arguments, and it is anchored
+  on the `event_id` of the task's `WORKFLOW_TASK_SCHEDULED` plus a `command_index`.
 
-  ```
-  WORKFLOW_EXECUTION_SIGNALED      <- the first signal schedules the task
-  WORKFLOW_TASK_SCHEDULED
-  WORKFLOW_EXECUTION_SIGNALED      <- the second lands after the task is scheduled
-  WORKFLOW_EXECUTION_SIGNALED      <- so does the third
-  WORKFLOW_TASK_STARTED            <- one task, and it carries all three
-  ```
+  The worker answers **on that same task**, in `RespondWorkflowTaskCompleted`: two messages — an
+  `Acceptance` (echoing `accepted_request_message_id`, `accepted_request_sequencing_event_id` and
+  the original request) and a `Response` (`meta` + `outcome.success`) — plus one
+  `COMMAND_TYPE_PROTOCOL_MESSAGE` command referencing the acceptance's message id. No second task
+  is needed.
 
-  So ordering messages against condition re-evaluation is a question **inside** one task, not only
-  across tasks: the loop of §4.2 has an object. Had the server delivered one message per task, the
-  ordering would have been its business and not the domain's.
+  The caller then receives stage `COMPLETED` and the outcome payload, and history gains
+  `WORKFLOW_EXECUTION_UPDATE_ACCEPTED` followed by `WORKFLOW_EXECUTION_UPDATE_COMPLETED` — exactly
+  the two events `TemporalExecutionHistory` already reads. **The replay side is already built; what
+  is missing is entirely the worker-side protocol.**
 
-  Pinned by `tests/integration/Temporal/WorkflowTaskMessageBatchTest.php`, which counts within the
-  pending segment rather than over the whole history — the poll returns the full history, so
-  counting over all of it would prove only that several signals were recorded at some point, never
-  that **one** task carries them.
+  Two server rules learned by being refused: `Meta.update_id` is mandatory on the request, and
+  waiting on the `ADMITTED` stage is rejected outright ("issued asynchronously and waiting on
+  update admitted is not supported"), so an update cannot be observed without something to accept
+  it.
+- **Probed, and the answer is yes (task 1.2).** A Temporal workflow task can carry several
+  journaled messages at once. Against the running server, on a task queue no worker polls: three
+  signals sent in a row produce **one** `WORKFLOW_TASK_SCHEDULED` followed by three
+  `WORKFLOW_EXECUTION_SIGNALED` — no extra task is scheduled per signal — and a single
+  `PollWorkflowTaskQueue` hands the worker all three in one task.
+
+  The same probe run *with* a worker polling showed one signal per task, because the worker
+  claimed each task before the next signal landed. Both regimes are real: **how many messages a
+  task carries is a timing artefact of worker availability, not a contract.** A worker restart, a
+  deploy, or a scaling event produces the batched regime in ordinary production.
+
+  That settles the question 1.1 depended on: the task boundary cannot be used to order message
+  application, because it does not reliably separate messages. The interleaving has to be enforced
+  inside one replay pass.
+
+  Le régime groupé est épinglé par `tests/integration/Temporal/WorkflowTaskMessageBatchTest.php`,
+  qui compte dans le segment suivant le dernier `WORKFLOW_TASK_COMPLETED` — le poll rend
+  l'historique entier, et compter dessus prouverait seulement que plusieurs signaux ont été
+  enregistrés un jour, jamais qu'une tâche les transporte. La sonde établit que ce régime est
+  **atteignable**, ce qui suffit : c'est lui qui interdit d'ordonner par frontière de tâche.
 
 ## Decisions
 
@@ -167,6 +182,25 @@ what a comparison of two positions already gives.
   DUR032's "the late signal remains available to a later wait", seen from the handler side. It
   belongs in the ADR.
 - Nothing here needs a new event type, and nothing here is backend-specific.
+
+### An update has no journal position until it is accepted
+
+The interleaving rule of 1.1 orders messages by their rank in the recorded stream. A signal has
+one the moment it is delivered. An inbound update does **not**: it arrives out-of-band on the task,
+carrying an `event_id` anchor and a `command_index` rather than a position of its own.
+
+This does not break the rule, because of where determinism actually matters. Accepting an update
+writes the original request into history (`WORKFLOW_EXECUTION_UPDATE_ACCEPTED` carries
+`accepted_request`), so from the *next* replay onward an update is journal-positioned like any
+signal. Only the first execution sees it out-of-band, and there the anchor supplies the order:
+after the history events up to `event_id`, then by `command_index`.
+
+So the rule reads, precisely: **a message is applied at its recorded position when it has one, and
+at its anchor when it does not yet.** A replay only ever meets the first case.
+
+The consequence for the domain is that update dispatch cannot be fed from the history source alone
+— the worker must hand the pending protocol messages to the execution for the first pass. Signals
+need nothing of the sort.
 
 ### Handlers are declarable both ways, because the tests are closures
 

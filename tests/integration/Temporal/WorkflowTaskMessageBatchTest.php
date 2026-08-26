@@ -33,6 +33,12 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * La propriété se MESURE contre un vrai serveur et ne se déduit pas des protos : ce que
  * `PollWorkflowTaskQueueResponse` sait représenter ne dit pas ce que le serveur émet.
  *
+ * ⚠ Ce que la sonde établit est que le régime groupé est **atteignable**, pas qu'il soit garanti :
+ * la même sonde avec un worker en écoute rend un signal par tâche, celui-ci réclamant chaque tâche
+ * avant l'arrivée du suivant. Le nombre de messages par tâche est un artefact de disponibilité du
+ * worker, non un contrat — et c'est précisément ce qui interdit d'ordonner les messages par
+ * frontière de tâche. Voir la section « probed » du design.
+ *
  * Aucun worker n'est démarré ici, à dessein — c'est ce qui laisse les signaux s'accumuler sur la
  * tâche en attente. Le test poll la file lui-même et lit le lot que le serveur lui rend.
  *
