@@ -58,9 +58,9 @@ Required API:
 | Method | Description |
 |---|---|
 | `await(Awaitable $a): mixed` | Suspend the fiber until the awaitable completes (replay-safe) |
-| `async(callable $fn): Awaitable` | Schedule async work compatible with the fiber model |
-| `resolve(Awaitable $a, mixed $value): void` | Complete an internal async handle |
-| `reject(Awaitable $a, \Throwable $e): void` | Fail an internal async handle |
+| ~~`async(callable $fn): Awaitable`~~ | **Removed.** It took a value, not a callable, and returned it already settled — it scheduled nothing, and nothing called it. |
+| ~~`resolve(Awaitable $a, mixed $value): void`~~ | Never on `WorkflowEnvironment`. |
+| ~~`reject(Awaitable $a, \Throwable $e): void`~~ | Never on `WorkflowEnvironment`. |
 | `all(Awaitable ...$awaitables): array` | Wait for all branches (used for parallel activities) |
 | `race(Awaitable ...$awaitables): mixed` | First completion wins |
 | `any(Awaitable ...$awaitables): mixed` | First useful result |
