@@ -10,10 +10,10 @@
         "google/common-protos": "^4.9",
         "google/protobuf": "^4.31",
         "grpc/grpc": "^1.57",
-        "symfony/messenger": "^7.0",
-        "symfony/http-kernel": "^7.0",
-        "symfony/dependency-injection": "^7.0",
-        "symfony/config": "^7.0"
+        "symfony/messenger": "^6.4 || ^7.0 || ^8.0",
+        "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
+        "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
+        "symfony/config": "^6.4 || ^7.0 || ^8.0"
     },
     "autoload": {
         "psr-4": {

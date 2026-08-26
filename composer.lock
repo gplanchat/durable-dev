@@ -314,14 +314,14 @@
             "dist": {
                 "type": "path",
                 "url": "src/Bridge/Dbal",
-                "reference": "67900c22a2480109801bfd276e769fc32afc87a4"
+                "reference": "fc0a50ba49b7ef6e27e667e40122ec066af46373"
             },
             "require": {
                 "doctrine/dbal": "^3.7 || ^4.0",
                 "gplanchat/durable": "self.version",
                 "php": ">=8.2",
-                "symfony/lock": "^7.0",
-                "symfony/messenger": "^7.0"
+                "symfony/lock": "^6.4 || ^7.0 || ^8.0",
+                "symfony/messenger": "^6.4 || ^7.0 || ^8.0"
             },
             "type": "library",
             "extra": {
@@ -354,7 +354,7 @@
             "dist": {
                 "type": "path",
                 "url": "src/Bridge/Temporal",
-                "reference": "48403afa7651c4f02ddbad564828b019bae84791"
+                "reference": "02e08229462d41ad9eab4ccbc5923263ad4fc53a"
             },
             "require": {
                 "ext-grpc": "*",
@@ -363,10 +363,10 @@
                 "gplanchat/durable": "self.version",
                 "grpc/grpc": "^1.57",
                 "php": ">=8.2",
-                "symfony/config": "^7.0",
-                "symfony/dependency-injection": "^7.0",
-                "symfony/http-kernel": "^7.0",
-                "symfony/messenger": "^7.0"
+                "symfony/config": "^6.4 || ^7.0 || ^8.0",
+                "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
+                "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
+                "symfony/messenger": "^6.4 || ^7.0 || ^8.0"
             },
             "type": "library",
             "extra": {
@@ -401,22 +401,22 @@
             "dist": {
                 "type": "path",
                 "url": "src/DurableBundle",
-                "reference": "0b69c5eb34934a929ae84468bc893933423b974d"
+                "reference": "a7529e53a4016df71b3cb01aac7c5e625c9442eb"
             },
             "require": {
                 "gplanchat/durable": "self.version",
                 "php": ">=8.2",
                 "psr/container": "^2.0",
-                "symfony/config": "^6.4 || ^7.4",
-                "symfony/console": "^6.4 || ^7.4",
-                "symfony/dependency-injection": "^6.4 || ^7.4",
-                "symfony/event-dispatcher": "^6.4 || ^7.4",
-                "symfony/framework-bundle": "^6.4 || ^7.4",
-                "symfony/http-foundation": "^6.4 || ^7.4",
-                "symfony/http-kernel": "^6.4 || ^7.4",
-                "symfony/messenger": "^6.4 || ^7.4",
+                "symfony/config": "^6.4 || ^7.0 || ^8.0",
+                "symfony/console": "^6.4 || ^7.0 || ^8.0",
+                "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
+                "symfony/event-dispatcher": "^6.4 || ^7.0 || ^8.0",
+                "symfony/framework-bundle": "^6.4 || ^7.0 || ^8.0",
+                "symfony/http-foundation": "^6.4 || ^7.0 || ^8.0",
+                "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
+                "symfony/messenger": "^6.4 || ^7.0 || ^8.0",
                 "symfony/service-contracts": "^3.0",
-                "symfony/uid": "^6.4 || ^7.4"
+                "symfony/uid": "^6.4 || ^7.0 || ^8.0"
             },
             "require-dev": {
                 "phpunit/phpunit": "^11.0"

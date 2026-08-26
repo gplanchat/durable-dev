@@ -22,6 +22,11 @@ parameters:
         # Property written and used only via Temporal gRPC mapping (dynamic dispatch)
         - identifier: property.onlyWritten
           path: src/Bridge/Temporal/Worker/TemporalExecutionHistory.php
+        # Symfony 6.4 types the config builder's fluent chain more loosely than 7.x:
+        # ->end() returns NodeParentInterface there, so the chain loses ArrayNodeDefinition.
+        # Runtime is unaffected; the tree is the same object on every supported version.
+        - identifier: method.notFound
+          path: src/DurableBundle/DependencyInjection/Configuration.php
         # PHPStan cannot track Awaitable settlement across Fiber boundary
         - identifier: booleanNot.alwaysTrue
           path: src/Durable/ExecutionRuntime.php
