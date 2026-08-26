@@ -64,17 +64,20 @@ A condition SHALL NOT be evaluated against state that no journaled message produ
 
 ### Requirement: A condition reads workflow state and nothing else
 
-A condition SHALL be a function of workflow state alone. When replaying an execution reaches a
-different verdict from the one recorded, the divergence SHALL be reported as a workflow failure
-naming the condition, rather than resolved to either outcome.
+A condition SHALL be a function of workflow state alone — state the journal produced, and nothing
+else. Anything a replay cannot reproduce SHALL be recorded once and read back, as any other
+non-reproducible value already is.
 
-#### Scenario: A condition reading outside workflow state is reported
+The component SHALL NOT promise to detect a condition that breaks this rule. It detects no other
+non-determinism, and detecting this one would require recording a verdict per wait — an event this
+change exists to avoid.
 
-- **WHEN** a workflow awaits a condition whose outcome depends on something the journal does not
-  record
-- **AND** the execution is replayed
-- **THEN** the divergence is reported as a workflow failure naming the condition
-- **AND** it is not silently resolved to either outcome
+#### Scenario: A non-reproducible value is recorded before a condition reads it
+
+- **WHEN** a workflow needs a value the journal does not record in order to decide a condition
+- **AND** it records that value once before awaiting
+- **THEN** the replay reads back the recorded value
+- **AND** the condition reaches the same verdict as the original execution
 
 ### Requirement: A condition that can never hold is reported, not hung
 

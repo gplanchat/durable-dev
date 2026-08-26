@@ -6,12 +6,15 @@ namespace App\Samples\Workflow\Updates;
 
 use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\UpdateMethod;
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Port minimal de samples-php Updates : attend une « update » durable puis salutation avec la valeur reçue.
+ * Port minimal de samples-php Updates : le handler d'update répond à son appelant *et* mute
+ * l'état que le corps attend. La valeur de retour est la réponse — c'est toute la différence
+ * avec un signal.
  */
 #[Workflow('Samples_Updates_Greeting')]
 final class SamplesUpdatesWorkflow
@@ -26,11 +29,24 @@ final class SamplesUpdatesWorkflow
         );
     }
 
+    private ?string $name = null;
+
+    /**
+     * @param array<string, mixed> $arguments
+     */
+    #[UpdateMethod('greet')]
+    public function greet(array $arguments): string
+    {
+        $this->name = (string) ($arguments['name'] ?? 'World');
+
+        return $this->name;
+    }
+
     #[WorkflowMethod]
     public function run(): string
     {
-        $name = $this->environment->waitUpdate('greet');
+        $this->environment->await(fn(): bool => null !== $this->name);
 
-        return $this->environment->await($this->greeting->composeGreeting((string) $name));
+        return $this->environment->await($this->greeting->composeGreeting($this->name));
     }
 }

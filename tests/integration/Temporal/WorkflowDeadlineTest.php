@@ -12,6 +12,9 @@ use Temporal\Api\Enums\V1\EventType;
  * Le cas qui ne se délègue pas à un faux : un signal livré *après* le tir de l'échéance. Chaque
  * tâche de workflow rejoue l'exécution depuis le début, l'historique contient alors le minuteur
  * tiré *et* le signal, et rien d'autre que leur ordre ne dit lequel a réglé l'attente.
+ *
+ * La garantie de DUR032, désormais portée par une condition et un handler : le test est le même,
+ * il assert la même chose, seule sa forme a changé.
  */
 final class WorkflowDeadlineTest extends TemporalServerTestCase
 {

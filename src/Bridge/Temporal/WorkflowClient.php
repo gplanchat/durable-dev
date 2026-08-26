@@ -12,6 +12,7 @@ use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
 use Gplanchat\Durable\CronSchedule;
+use Gplanchat\Durable\Exception\DurableUpdateFailedException;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowStartOptions;
 use Temporal\Api\Common\V1\Memo;
@@ -159,7 +160,7 @@ final class WorkflowClient implements WorkflowClientInterface
      * Delivers an external signal to a running workflow.
      *
      * Le nom se donne en {@see \BackedEnum} comme du côté workflow
-     * ({@see \Gplanchat\Durable\WorkflowEnvironment::waitSignal()}), pour que l'émetteur et
+     * ({@see \Gplanchat\Durable\WorkflowEnvironment::onSignal()}), pour que l'émetteur et
      * l'attente partagent une même énumération plutôt que deux littéraux à garder d'accord.
      *
      * @param array<string, mixed> $args Signal arguments.
@@ -228,6 +229,11 @@ final class WorkflowClient implements WorkflowClientInterface
             $input->setArgs(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($args)));
         }
         $updateRequest = new \Temporal\Api\Update\V1\Request();
+        // Sans meta, le serveur refuse net : « Update meta is not set on request ».
+        $updateRequest->setMeta(new \Temporal\Api\Update\V1\Meta([
+            'update_id' => bin2hex(random_bytes(16)),
+            'identity' => $this->settings->identity,
+        ]));
         $updateRequest->setInput($input);
         $request->setRequest($updateRequest);
         $request->setWaitPolicy(new \Temporal\Api\Update\V1\WaitPolicy([
@@ -236,6 +242,11 @@ final class WorkflowClient implements WorkflowClientInterface
 
         $response = $this->executionRpc->updateWorkflowExecution($request);
         $outcome = $response->getOutcome();
+        if (null !== $outcome && null !== $outcome->getFailure()) {
+            // L'update a échoué, pas l'exécution : l'appelant reçoit la défaillance, et le
+            // workflow continue son chemin.
+            throw new DurableUpdateFailedException($updateName, (string) $outcome->getFailure()->getMessage());
+        }
         if (null !== $outcome && null !== $outcome->getSuccess()) {
             $payloads = $outcome->getSuccess()->getPayloads();
             if ($payloads->count() > 0) {

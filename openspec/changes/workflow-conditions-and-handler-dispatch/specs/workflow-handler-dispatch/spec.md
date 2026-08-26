@@ -95,8 +95,8 @@ An update SHALL be distinguishable from a signal by that response: a signal has 
 #### Scenario: The response survives replay
 
 - **WHEN** an execution that answered an update is replayed
-- **THEN** the replay reproduces the recorded response
-- **AND** the handler is not asked to compute a different one
+- **THEN** the recorded response remains the one the caller received
+- **AND** the handler runs again to rebuild the state it mutated, as a signal handler does
 
 ### Requirement: Both backends dispatch identically
 

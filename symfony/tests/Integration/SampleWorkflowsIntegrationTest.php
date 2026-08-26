@@ -230,7 +230,6 @@ final class SampleWorkflowsIntegrationTest extends KernelTestCase
             $s['defaultPayload'],
             $s['autoUpdate']['name'],
             $s['autoUpdate']['arguments'] ?? [],
-            $s['autoUpdate']['result'],
         );
         self::assertSame('Hello, Temporal!', $out['result']);
     }
