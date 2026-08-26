@@ -1,0 +1,12 @@
+{{- /*
+  Point d'injection prévu par hugo-book. On le remplit plutôt que de surcharger
+  `html-head.html` : la recherche, le favicon et les métadonnées du thème
+  restent les siens.
+
+  Seule dépendance externe des pages de documentation. Chaque fonte a une pile
+  de repli réelle dans `_custom.scss` — la page doit rester lisible si
+  fonts.googleapis.com ne répond pas.
+*/ -}}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">

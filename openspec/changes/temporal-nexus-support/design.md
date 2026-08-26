@@ -43,6 +43,60 @@ Nexus fits this shape exactly on the caller side. What was verified before writi
   created with the `temporal` CLI or by an operator API; the component consumes them.
 - Any in-memory simulation of Nexus.
 
+## What was probed, and what was assumed
+
+**Endpoint names, probed against Temporal 1.31.2 (task 1.1).** Every verdict below was observed by
+`CreateNexusEndpoint`, not inferred:
+
+| Case | Verdict |
+|---|---|
+| `""` | refused — `endpoint name not set` |
+| `" "`, leading/trailing space, inner tab or newline, control character | refused — regex |
+| `_`, `.`, `/`, accented letter | refused — regex |
+| leading digit, leading hyphen, trailing hyphen | refused — regex |
+| single letter `a` | refused — regex (the pattern needs a first *and* a last character) |
+| `ab`, `Probe-Nexus-42` (letters, digits, inner hyphens, either case) | accepted |
+| 200 characters | accepted |
+| 201 characters | refused — `endpoint name exceeds length limit of 200` |
+
+The server states its own rule: `^[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9]$`, 200 characters.
+
+**This inverts the lesson of `TaskQueue`, and §2.1 must not copy it.** `TaskQueue` is deliberately
+*stricter than the server*, because the server accepts `" "` and edge whitespace while a misnamed
+queue fails silently — the work is queued and no worker ever comes. A Nexus endpoint has no such
+failure mode: the name is validated at creation, and a malformed one is refused outright. So
+`NexusEndpoint` mirrors the server's rule and invents nothing on top of it. The one distinction
+worth keeping is the server's own: an empty name is *unset*, not *malformed*, and the two deserve
+different messages.
+
+Pinned by `tests/integration/Temporal/NexusEndpointNameRulesTest.php`, so a change of server rule
+is caught rather than discovered inside a value object.
+
+**Scheduling on an unknown endpoint, probed (task 1.2) — and it contradicts a premise of the
+proposal.** The proposal says Nexus failures surface to the workflow as typed failures. An unknown
+endpoint is not among them, and never becomes one:
+
+- `RespondWorkflowTaskCompleted` is rejected with gRPC `INVALID_ARGUMENT` (3),
+  `BadScheduleNexusOperationAttributes: endpoint "…" not found`;
+- history records `WORKFLOW_TASK_FAILED`, cause
+  `WORKFLOW_TASK_FAILED_CAUSE_BAD_SCHEDULE_NEXUS_OPERATION_ATTRIBUTES`;
+- the workflow task is **re-served**, its `attempt` climbing on every round — measured to 4 and
+  still going;
+- no `NEXUS_OPERATION_SCHEDULED` is ever written, so there is no operation to fail.
+
+The workflow does not fall over. It spins, and the only trace is a task-failure cause the workflow
+code never sees. A validated `NexusEndpoint` value object does **not** cover this: the name is
+well formed, it is the endpoint that is missing. Either the caller checks the endpoint exists
+before emitting the command, or this loop is accepted knowingly and documented as the failure mode
+of a misconfigured endpoint. That choice belongs to §3, not to the value objects of §2.
+
+Pinned by `tests/integration/Temporal/NexusUnknownEndpointTest.php`.
+
+**Not probed: service and operation names.** They travel in the `ScheduleNexusOperation` command,
+so measuring them needs a workflow scheduling a real operation against a worker — the endpoint
+probe reaches them by no path. Task 1.1 covers all three names; only the endpoint half is
+established.
+
 ## Decisions
 
 **Model a Nexus operation as its own awaitable family, not as an activity.**

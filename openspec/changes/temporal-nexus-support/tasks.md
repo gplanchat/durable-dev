@@ -1,7 +1,7 @@
 ## 1. Probe the server before encoding any rule
 
-- [ ] 1.1 Probe Nexus endpoint, service and operation name rules (empty, blank, edge whitespace, control characters, length, case) against a local dev server, as was done for `TaskQueue`, `WorkflowNamespace` and `CronSchedule`
-- [ ] 1.2 Probe what the server does when scheduling on an unknown endpoint, and record the error shape
+- [ ] 1.1 Probe Nexus endpoint, service and operation name rules (empty, blank, edge whitespace, control characters, length, case) against a local dev server, as was done for `TaskQueue`, `WorkflowNamespace` and `CronSchedule` — **endpoint names done**: server enforces `^[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9]$` and a 200-character limit, pinned by `NexusEndpointNameRulesTest`, verdicts in `design.md`. Service and operation names remain: they travel in the `ScheduleNexusOperation` command and need a workflow scheduling a real operation
+- [x] 1.2 Probe what the server does when scheduling on an unknown endpoint, and record the error shape — gRPC `INVALID_ARGUMENT`, `BadScheduleNexusOperationAttributes: endpoint "…" not found`, `WORKFLOW_TASK_FAILED` with cause `BAD_SCHEDULE_NEXUS_OPERATION_ATTRIBUTES`, and the task is retried without end. No typed failure reaches the workflow; pinned by `NexusUnknownEndpointTest`, consequence recorded in `design.md`
 - [ ] 1.3 Probe whether the three operation bounds behave like the activity ones, including any silent rewrite
 - [ ] 1.4 Record every verdict in the value-object docblocks, and write no invariant that was not observed
 

@@ -59,6 +59,12 @@ Per the house rule, the boundary between observed and assumed:
   application, because it does not reliably separate messages. The interleaving has to be enforced
   inside one replay pass.
 
+  Le régime groupé est épinglé par `tests/integration/Temporal/WorkflowTaskMessageBatchTest.php`,
+  qui compte dans le segment suivant le dernier `WORKFLOW_TASK_COMPLETED` — le poll rend
+  l'historique entier, et compter dessus prouverait seulement que plusieurs signaux ont été
+  enregistrés un jour, jamais qu'une tâche les transporte. La sonde établit que ce régime est
+  **atteignable**, ce qui suffit : c'est lui qui interdit d'ordonner par frontière de tâche.
+
 ## Decisions
 
 ### `await()` takes a condition. There is no second wait method.
@@ -204,60 +210,11 @@ this is not a concession, it is load-bearing: nearly every workflow in the test 
 and a closure cannot carry an attribute. Without imperative registration the new primitive is not
 testable in the style the suite is written in.
 
-### Un update se livre en une passe, et n'ajoute aucun événement
-
-La sonde 1.3 a montré que Temporal accepte et complète un update sur **la même** tâche. Le backend
-in-memory suit la même forme : la livraison exécute une passe du workflow, le handler rend sa
-valeur, et le journal reçoit un `WorkflowUpdateHandled` portant ce retour.
-
-C'est un **retrait**, pas un ajout. `DeliverWorkflowUpdateMessage` porte aujourd'hui un `result`
-calculé par l'appelant, que `waitUpdate()` se contente de relire — l'inverse du modèle visé. Ce
-champ disparaît : le résultat appartient au handler.
-
-Rejeté : un événement `WorkflowUpdateRequested` séparant l'arrivée du traitement. Il ne servirait
-qu'à faire survivre la requête entre deux passes, ce qu'une livraison en une passe rend inutile —
-et ce change s'interdit d'ajouter un événement (DUR032, option 1 contre option 2).
-
-**Tranché en écrivant le domaine :** un champ d'échec nullable sur `WorkflowUpdateHandled`, pas un
-événement frère. Cela s'écarte de la forme maison — `ActivityFailed` est le frère
-d'`ActivityCompleted`, `ChildWorkflowFailed` celui de `ChildWorkflowCompleted` — et la raison est
-dans le protocole : Temporal n'écrit qu'un `WORKFLOW_EXECUTION_UPDATE_COMPLETED`, dont l'`Outcome`
-est soit un succès soit un échec. Un frère ferait diverger le journal in-memory de ce que la sonde
-1.3 a observé, pour un champ de plus.
-
-**Et le handler rejoue.** « La réponse survit au replay » ne veut pas dire que le handler n'est pas
-rappelé : il mute l'état du workflow, et ne pas le rejouer reconstruirait un état faux. Il rejoue
-comme un handler de signal ; ce qui est figé, c'est l'issue déjà consignée, celle que l'appelant a
-reçue.
-
 ### An update answers; a signal does not
 
 That is the whole difference, and it is why updates are a separate requirement rather than a
 parameter. An update handler's return value is the response the caller is blocking on, so it must
 survive replay: a replay reproduces the recorded response rather than recomputing it.
-
-### Ce que le serveur a corrigé dans la transcription (tâche 5.5)
-
-La sonde 1.3 avait la carte du protocole, et l'écrire n'a pourtant pas suffi. Deux règles ne se
-voient qu'en s'y frottant :
-
-- **L'ordre des commandes.** Les commandes de protocole partent *avant* celles du workflow :
-  `CompleteWorkflowExecution` doit être la dernière de la séquence, et un update qui débloque une
-  condition provoque justement la complétion sur la même tâche. Envoyées après, le serveur refuse
-  tout le lot — « invalid command sequence ».
-- **Une commande par message, pas une pour l'acceptation seule.** La sonde n'avait pas terminé le
-  workflow, et n'avait donc jamais vu que la `Response` laissée hors de la séquence n'est pas
-  délivrée : l'appelant reçoit « the Workflow completed before the Update completed ».
-
-Et un défaut du domaine que seul le serveur pouvait exposer : au replay, un update **en échec**
-relu du journal rejoue son handler, qui relève de nouveau. Le chemin hors journal attrapait la
-levée, le chemin rejoué non — une exécution que l'original avait laissée vivante mourait à la
-reprise. La défaillance est déjà partie chez l'appelant ; au replay elle est absorbée. Un test
-in-memory la couvre désormais, mais il a fallu le serveur pour savoir qu'il fallait l'écrire.
-
-Corrigé au passage : `WorkflowClient::update()` n'envoyait pas `Meta.update_id`, que le serveur
-exige, et avalait un échec d'update en rendant `null`. Il relève maintenant
-`DurableUpdateFailedException`.
 
 ## Non-goals
 
