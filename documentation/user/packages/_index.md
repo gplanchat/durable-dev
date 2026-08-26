@@ -10,7 +10,7 @@ integration you use, plus the driver that gives you real durability.
 
 | Package | Brings | Needs |
 |---|---|---|
-| `gplanchat/durable` | workflows, activities, timers, event journal, in-memory backend | PSR clock, PSR logger |
+| `gplanchat/durable` | workflows, activities, timers, event journal, in-memory backend | `psr/cache` |
 | `gplanchat/durable-bundle` | Symfony wiring, worker commands, profiler panel | the library, Symfony framework-bundle and Messenger |
 | `gplanchat/durable-bridge-temporal` | the Temporal driver, over gRPC | the library, `ext-grpc`, a Temporal cluster |
 
@@ -26,8 +26,9 @@ The engine and the whole domain: `WorkflowEnvironment`, activities, timers, side
 queries, updates, child workflows, the event journal, and the value objects that describe
 scheduling options.
 
-Two runtime dependencies — `psr/clock` and `psr/log`. **No framework.** You can drive it from a
-plain PHP script, an Laminas application, a console tool, or a test.
+One runtime dependency — `psr/cache`, and even that pool is optional: it memoises activity
+contract resolution, and `ActivityContractResolver` works without one. **No framework.** You can
+drive the library from a plain PHP script, a Laminas application, a console tool, or a test.
 
 It ships an **in-memory backend** that runs everything in one process. That is what your unit
 tests use, and it needs nothing installed.
