@@ -25,8 +25,7 @@ final class MessengerActivityTransport implements ActivityTransportInterface
     public function __construct(
         private readonly SenderInterface $sender,
         private readonly ReceiverInterface $receiver,
-    ) {
-    }
+    ) {}
 
     public function enqueue(ActivityMessage $message): void
     {

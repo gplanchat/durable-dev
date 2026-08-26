@@ -9,10 +9,10 @@ use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
-use Gplanchat\Durable\Attribute\QueryMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
 use Grpc\UnaryCall;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\WorkflowExecution;
@@ -26,7 +26,6 @@ use Temporal\Api\History\V1\History;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\WorkflowExecutionStartedEventAttributes;
 use Temporal\Api\Query\V1\WorkflowQuery;
-use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedResponse;
@@ -41,9 +40,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * - Use a real WorkflowTaskRunner (final, can't mock) backed by the real TemporalHistoryCursor
  *   reading from the inline history (no gRPC pagination since next_page_token = '').
  */
-/**
- * @requires extension grpc
- */
+#[RequiresPhpExtension('grpc')]
 final class WorkflowTaskProcessorTest extends TestCase
 {
     private WorkflowServiceClient $grpcClient;
@@ -182,8 +179,10 @@ final class WorkflowTaskProcessorTest extends TestCase
     public function testWorkflowCompletesAndRespondsWithCompleteCommand(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('ImmediateWorkflow', static fn (array $payload) =>
-            static fn (WorkflowEnvironment $env): string => 'done'
+        $registry->registerFactory(
+            'ImmediateWorkflow',
+            static fn(array $payload)
+            => static fn(WorkflowEnvironment $env): string => 'done',
         );
 
         $poll = self::buildPoll('my-token', 'wf-1', 'ImmediateWorkflow', [
@@ -221,10 +220,12 @@ final class WorkflowTaskProcessorTest extends TestCase
     public function testNewActivityEmitsScheduleCommandInResponse(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('ActivityWorkflow', static fn (array $payload) =>
-            static function (WorkflowEnvironment $env): string {
+        $registry->registerFactory(
+            'ActivityWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env): string {
                 return $env->await($env->activity('greet', ['name' => 'World']));
-            }
+            },
         );
 
         $poll = self::buildPoll('token-act', 'wf-2', 'ActivityWorkflow', [
@@ -255,10 +256,12 @@ final class WorkflowTaskProcessorTest extends TestCase
     public function testReplayedActivityCompletesWorkflow(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('ActivityWorkflow', static fn (array $payload) =>
-            static function (WorkflowEnvironment $env): string {
+        $registry->registerFactory(
+            'ActivityWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env): string {
                 return $env->await($env->activity('greet', ['name' => 'World']));
-            }
+            },
         );
 
         $poll = self::buildPoll('token-replay', 'wf-3', 'ActivityWorkflow', [
@@ -291,15 +294,17 @@ final class WorkflowTaskProcessorTest extends TestCase
     public function testQueryIsAnsweredInResponse(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('QueryableWorkflow', static fn (array $payload) =>
-            static function (WorkflowEnvironment $env): string {
-                $env->registerQueryHandler('getStatus', static fn () => 'running');
+        $registry->registerFactory(
+            'QueryableWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env): string {
+                $env->registerQueryHandler('getStatus', static fn() => 'running');
 
                 // Suspend workflow (wait for signal that never comes in this task)
                 $env->waitSignal('done');
 
                 return 'completed';
-            }
+            },
         );
 
         $poll = self::buildPoll('token-query', 'wf-4', 'QueryableWorkflow', [
@@ -332,12 +337,14 @@ final class WorkflowTaskProcessorTest extends TestCase
     public function testUnknownQueryResultsInFailedQueryResult(): void
     {
         $registry = new WorkflowRegistry();
-        $registry->registerFactory('SimpleWorkflow', static fn (array $payload) =>
-            static function (WorkflowEnvironment $env): string {
+        $registry->registerFactory(
+            'SimpleWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env): string {
                 $env->waitSignal('done');
 
                 return 'completed';
-            }
+            },
         );
 
         $poll = self::buildPoll('token-unknown-query', 'wf-5', 'SimpleWorkflow', [

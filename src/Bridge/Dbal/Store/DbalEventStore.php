@@ -30,8 +30,7 @@ final class DbalEventStore implements EventStoreInterface
         private readonly Connection $connection,
         private readonly DurableSchema $schema,
         private readonly string $table = 'durable_events',
-    ) {
-    }
+    ) {}
 
     public function append(Event $event): void
     {

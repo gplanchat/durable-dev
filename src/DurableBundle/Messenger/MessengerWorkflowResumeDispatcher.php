@@ -16,8 +16,7 @@ final class MessengerWorkflowResumeDispatcher implements WorkflowResumeDispatche
     public function __construct(
         private readonly MessageBusInterface $bus,
         private readonly WorkflowMetadataStore $metadataStore,
-    ) {
-    }
+    ) {}
 
     public function dispatchResume(string $executionId): void
     {

@@ -62,7 +62,7 @@ final class ActivityHandlerPass implements CompilerPassInterface
                         throw new \LogicException(\sprintf('Handler "%s" must implement %s::%s() for durable.activity_handler (contract %s).', $handlerClass, $contract, $methodName, $contract));
                     }
 
-                    $invokerId = 'durable.activity_invoker.'.hash('xxh128', $serviceId.$contract.$methodName);
+                    $invokerId = 'durable.activity_invoker.' . hash('xxh128', $serviceId . $contract . $methodName);
                     $container->register($invokerId, PayloadToContractMethodInvoker::class)
                         ->setArguments([
                             new Reference($serviceId),

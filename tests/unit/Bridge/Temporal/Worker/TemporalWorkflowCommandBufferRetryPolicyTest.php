@@ -8,8 +8,8 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
-use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Activity\RetryLimit;
+use Gplanchat\Durable\Duration;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
 

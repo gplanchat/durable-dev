@@ -30,8 +30,7 @@ final class TemporalWorkflowResumeDispatcher implements WorkflowResumeDispatcher
         private readonly WorkflowMetadataStore $metadataStore,
         private readonly WorkflowDefinitionLoader $workflowDefinitionLoader,
         private readonly ?DurableExecutionTrace $executionTrace = null,
-    ) {
-    }
+    ) {}
 
     /**
      * @param array<string, mixed> $payload
@@ -56,7 +55,5 @@ final class TemporalWorkflowResumeDispatcher implements WorkflowResumeDispatcher
      * No-op: Temporal schedules the next workflow task automatically after each activity/timer
      * completion. There is no application-level message to dispatch.
      */
-    public function dispatchResume(string $executionId): void
-    {
-    }
+    public function dispatchResume(string $executionId): void {}
 }

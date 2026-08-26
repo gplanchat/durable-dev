@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal\Spike;
 
+use Google\Protobuf\Duration;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
-use Google\Protobuf\Duration;
 use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
@@ -52,8 +52,7 @@ final class NativeExecutionSpike
         private readonly WorkflowServiceClient $client,
         private readonly WorkflowServiceActivityRpc $activityRpc,
         private readonly TemporalConnection $settings,
-    ) {
-    }
+    ) {}
 
     public static function create(TemporalConnection $settings): self
     {

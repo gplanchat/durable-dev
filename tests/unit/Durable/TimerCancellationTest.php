@@ -27,7 +27,7 @@ final class TimerCancellationTest extends TestCase
     {
         $this->eventStore = new InMemoryEventStore();
         $executor = new RegistryActivityExecutor();
-        $executor->register('fast', static fn (): string => 'winner');
+        $executor->register('fast', static fn(): string => 'winner');
         $this->runner = new InMemoryWorkflowRunner(
             $this->eventStore,
             new InMemoryActivityTransport(),
@@ -37,7 +37,7 @@ final class TimerCancellationTest extends TestCase
 
     public function testLoserTimerIsCancelledAndNeverFires(): void
     {
-        $result = $this->runner->run('race-1', static fn (WorkflowEnvironment $env): mixed => $env->any(
+        $result = $this->runner->run('race-1', static fn(WorkflowEnvironment $env): mixed => $env->any(
             $env->activity('fast', []),
             $env->timer(3600.0),
         ));
@@ -58,7 +58,7 @@ final class TimerCancellationTest extends TestCase
 
     public function testCancellationIsNotDuplicatedOnReplay(): void
     {
-        $handler = static fn (WorkflowEnvironment $env): mixed => $env->any(
+        $handler = static fn(WorkflowEnvironment $env): mixed => $env->any(
             $env->activity('fast', []),
             $env->timer(3600.0),
         );

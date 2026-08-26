@@ -95,7 +95,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
                 try {
                     return (string) $wf->await($wf->activity('flaky', []));
                 } catch (\Throwable $e) {
-                    return 'caught: '.$e->getMessage();
+                    return 'caught: ' . $e->getMessage();
                 }
             },
             $executionId = 'exec-retry-001',
@@ -202,7 +202,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
     public function standaloneEnvironmentCanBeUsedWithoutTestCase(): void
     {
         $env = WorkflowTestEnvironment::inMemory([
-            'compute' => static fn (array $p): int => ($p['a'] ?? 0) + ($p['b'] ?? 0),
+            'compute' => static fn(array $p): int => ($p['a'] ?? 0) + ($p['b'] ?? 0),
         ]);
 
         $executionId = 'exec-standalone-001';
@@ -235,7 +235,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
     public function countActivityExecutionsCountsCorrectly(): void
     {
         $env = $this->createWorkflowTestEnvironment([
-            'add' => static fn (array $p): int => ($p['a'] ?? 0) + ($p['b'] ?? 0),
+            'add' => static fn(array $p): int => ($p['a'] ?? 0) + ($p['b'] ?? 0),
         ]);
 
         $env->run(

@@ -17,6 +17,7 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Grpc\UnaryCall;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueResponse;
@@ -29,9 +30,8 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * exception type is listed in the activity's nonRetryableExceptions — otherwise
  * a bad-credential / rejected-payload failure would be retried forever by the
  * Temporal server instead of failing the workflow.
- *
- * @requires extension grpc
  */
+#[RequiresPhpExtension('grpc')]
 final class TemporalActivityWorkerNonRetryableTest extends TestCase
 {
     private WorkflowServiceClient $grpcClient;

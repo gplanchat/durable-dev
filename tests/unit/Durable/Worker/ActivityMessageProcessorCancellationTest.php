@@ -22,9 +22,7 @@ final class ActivityMessageProcessorCancellationTest extends TestCase
         $eventStore = new InMemoryEventStore();
         $transport = new InMemoryActivityTransport();
         $executor = new class implements ActivityExecutor {
-            public function register(string $activityName, callable $handler): void
-            {
-            }
+            public function register(string $activityName, callable $handler): void {}
 
             public function execute(string $activityName, array $payload): mixed
             {
@@ -33,18 +31,14 @@ final class ActivityMessageProcessorCancellationTest extends TestCase
         };
         $resumed = [];
         $resume = new class ($resumed) implements WorkflowResumeDispatcher {
-            public function __construct(private array &$resumed)
-            {
-            }
+            public function __construct(private array &$resumed) {}
 
             public function dispatchResume(string $executionId): void
             {
                 $this->resumed[] = $executionId;
             }
 
-            public function dispatchNewWorkflowRun(string $executionId, string $workflowType, array $payload): void
-            {
-            }
+            public function dispatchNewWorkflowRun(string $executionId, string $workflowType, array $payload): void {}
         };
 
         $heartbeatSender = new class implements ActivityHeartbeatSenderInterface {
@@ -95,9 +89,7 @@ final class ActivityMessageProcessorCancellationTest extends TestCase
         $eventStore = new InMemoryEventStore();
         $transport = new InMemoryActivityTransport();
         $executor = new class implements ActivityExecutor {
-            public function register(string $activityName, callable $handler): void
-            {
-            }
+            public function register(string $activityName, callable $handler): void {}
 
             public function execute(string $activityName, array $payload): mixed
             {
@@ -106,18 +98,14 @@ final class ActivityMessageProcessorCancellationTest extends TestCase
         };
         $resumed = [];
         $resume = new class ($resumed) implements WorkflowResumeDispatcher {
-            public function __construct(private array &$resumed)
-            {
-            }
+            public function __construct(private array &$resumed) {}
 
             public function dispatchResume(string $executionId): void
             {
                 $this->resumed[] = $executionId;
             }
 
-            public function dispatchNewWorkflowRun(string $executionId, string $workflowType, array $payload): void
-            {
-            }
+            public function dispatchNewWorkflowRun(string $executionId, string $workflowType, array $payload): void {}
         };
 
         $heartbeatSender = new class implements ActivityHeartbeatSenderInterface {

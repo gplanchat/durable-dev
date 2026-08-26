@@ -17,8 +17,7 @@ final class DeliverWorkflowUpdateHandler
     public function __construct(
         private readonly EventStoreInterface $eventStore,
         private readonly WorkflowResumeDispatcher $resumeDispatcher,
-    ) {
-    }
+    ) {}
 
     public function __invoke(DeliverWorkflowUpdateMessage $message): void
     {

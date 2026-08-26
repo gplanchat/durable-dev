@@ -16,6 +16,5 @@ final readonly class AsDurableActivity
      */
     public function __construct(
         public string $contract,
-    ) {
-    }
+    ) {}
 }

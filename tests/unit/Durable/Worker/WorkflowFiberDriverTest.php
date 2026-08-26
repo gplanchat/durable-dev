@@ -7,13 +7,13 @@ namespace unit\Gplanchat\Durable\Worker;
 use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
+use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Port\WorkflowLifecycleInterface;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreCommandBuffer;
 use Gplanchat\Durable\Store\EventStoreHistorySource;
 use Gplanchat\Durable\Store\InMemoryEventStore;
-use Gplanchat\Durable\ExecutionContext;
-use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Worker\WorkflowFiberDriver;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -29,7 +29,7 @@ final class WorkflowFiberDriverTest extends TestCase
     public function testHandlerGoingAllTheWayReportsCompleted(): void
     {
         $lifecycle = $this->recorder();
-        $result = $this->drive($lifecycle, static fn (WorkflowEnvironment $env): string => 'done');
+        $result = $this->drive($lifecycle, static fn(WorkflowEnvironment $env): string => 'done');
 
         self::assertSame('done', $result);
         self::assertSame(['onBeforeRun', 'onCompleted'], $lifecycle->calls);
@@ -39,7 +39,7 @@ final class WorkflowFiberDriverTest extends TestCase
     public function testUnsettledAwaitableReportsSuspendedNotFailed(): void
     {
         $lifecycle = $this->recorder();
-        $result = $this->drive($lifecycle, static fn (WorkflowEnvironment $env): mixed => $env->await($env->activity('never', [])));
+        $result = $this->drive($lifecycle, static fn(WorkflowEnvironment $env): mixed => $env->await($env->activity('never', [])));
 
         self::assertNull($result);
         self::assertSame(['onBeforeRun', 'onSuspended'], $lifecycle->calls);
@@ -80,26 +80,18 @@ final class WorkflowFiberDriverTest extends TestCase
                 throw new \LogicException('must not run');
             }
 
-            public function onSuspended(string $executionId, Awaitable $pending): void
-            {
-            }
+            public function onSuspended(string $executionId, Awaitable $pending): void {}
 
             public function isCancellationPending(string $executionId): bool
             {
                 return false;
             }
 
-            public function onCancellationDelivered(string $executionId, array $cancelledOperationIds): void
-            {
-            }
+            public function onCancellationDelivered(string $executionId, array $cancelledOperationIds): void {}
 
-            public function onCancelled(string $executionId, WorkflowCancelledFailure $failure): void
-            {
-            }
+            public function onCancelled(string $executionId, WorkflowCancelledFailure $failure): void {}
 
-            public function onContinuedAsNew(string $executionId, ContinueAsNewRequested $request): void
-            {
-            }
+            public function onContinuedAsNew(string $executionId, ContinueAsNewRequested $request): void {}
 
             public function onFailed(string $executionId, \Throwable $failure): void
             {
@@ -109,6 +101,7 @@ final class WorkflowFiberDriverTest extends TestCase
 
         $ran = false;
         $this->expectException(\RuntimeException::class);
+
         try {
             $this->drive($lifecycle, static function () use (&$ran): string {
                 $ran = true;

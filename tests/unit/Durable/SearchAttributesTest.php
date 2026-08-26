@@ -8,6 +8,7 @@ use Gplanchat\Durable\ChildWorkflowOptions;
 use Gplanchat\Durable\SearchAttributes;
 use Gplanchat\Durable\SearchAttributeType;
 use Gplanchat\Durable\WorkflowStartOptions;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -39,9 +40,7 @@ final class SearchAttributesTest extends TestCase
         ], $attributes->toValues());
     }
 
-    /**
-     * @dataProvider mismatchedValues
-     */
+    #[DataProvider('mismatchedValues')]
     public function testAValueThatDoesNotMatchItsTypeIsRejected(SearchAttributeType $type, mixed $value): void
     {
         // Le serveur refuse au démarrage (« invalid value for search attribute … of type Int ») ;
@@ -65,9 +64,7 @@ final class SearchAttributesTest extends TestCase
         yield 'Datetime recevant du charabia' => [SearchAttributeType::Datetime, 'pas une date'];
     }
 
-    /**
-     * @dataProvider readOnlyAttributes
-     */
+    #[DataProvider('readOnlyAttributes')]
     public function testServerMaintainedAttributesAreRefused(string $name): void
     {
         // Relevé nom par nom : « … attribute can't be set in SearchAttributes ».

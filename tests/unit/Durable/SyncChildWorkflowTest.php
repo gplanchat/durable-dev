@@ -47,10 +47,10 @@ final class SyncChildWorkflowTest extends TestCase
 
     public function testChildOutcomeLandsOnTheParentAsAChildEvent(): void
     {
-        $this->registry->registerFactory('Child', static fn (array $i) => static fn (WorkflowEnvironment $env): string => 'child-result');
+        $this->registry->registerFactory('Child', static fn(array $i) => static fn(WorkflowEnvironment $env): string => 'child-result');
 
-        $result = $this->engine->start('parent-1', static fn (WorkflowEnvironment $env): string
-            => 'parent-saw:'.$env->executeChildWorkflow('Child', []));
+        $result = $this->engine->start('parent-1', static fn(WorkflowEnvironment $env): string
+            => 'parent-saw:' . $env->executeChildWorkflow('Child', []));
 
         self::assertSame('parent-saw:child-result', $result);
 
@@ -63,7 +63,7 @@ final class SyncChildWorkflowTest extends TestCase
         // Un seul ExecutionCompleted, et il porte le résultat du PARENT.
         $completed = array_values(array_filter(
             iterator_to_array($this->eventStore->readStream('parent-1'), false),
-            static fn (object $e): bool => $e instanceof ExecutionCompleted,
+            static fn(object $e): bool => $e instanceof ExecutionCompleted,
         ));
         self::assertCount(1, $completed);
         self::assertSame('parent-saw:child-result', $completed[0]->result());
@@ -80,8 +80,8 @@ final class SyncChildWorkflowTest extends TestCase
             };
         });
 
-        $handler = static fn (WorkflowEnvironment $env): string
-            => 'parent-saw:'.$env->executeChildWorkflow('Child', []);
+        $handler = static fn(WorkflowEnvironment $env): string
+            => 'parent-saw:' . $env->executeChildWorkflow('Child', []);
 
         $this->engine->start('parent-2', $handler);
         self::assertSame(1, $childRuns);
@@ -93,12 +93,12 @@ final class SyncChildWorkflowTest extends TestCase
 
     public function testFailingChildLandsAsChildWorkflowFailedNotAsAParentFailure(): void
     {
-        $this->registry->registerFactory('Child', static fn (array $i) => static function (WorkflowEnvironment $env): never {
+        $this->registry->registerFactory('Child', static fn(array $i) => static function (WorkflowEnvironment $env): never {
             throw new \DomainException('child exploded');
         });
 
         try {
-            $this->engine->start('parent-3', static fn (WorkflowEnvironment $env): mixed
+            $this->engine->start('parent-3', static fn(WorkflowEnvironment $env): mixed
                 => $env->executeChildWorkflow('Child', []));
         } catch (\Throwable) {
             // Le parent ne gère pas l'échec de l'enfant : c'est attendu ici.
@@ -110,14 +110,14 @@ final class SyncChildWorkflowTest extends TestCase
 
         $failed = array_values(array_filter(
             iterator_to_array($this->eventStore->readStream('parent-3'), false),
-            static fn (object $e): bool => $e instanceof ChildWorkflowFailed,
+            static fn(object $e): bool => $e instanceof ChildWorkflowFailed,
         ));
         self::assertStringContainsString('child exploded', $failed[0]->failureMessage());
     }
 
     public function testParentStaysActiveWhileTheChildCompletes(): void
     {
-        $this->registry->registerFactory('Child', static fn (array $i) => static function (WorkflowEnvironment $env): string {
+        $this->registry->registerFactory('Child', static fn(array $i) => static function (WorkflowEnvironment $env): string {
             return 'child-result';
         });
 
@@ -132,7 +132,7 @@ final class SyncChildWorkflowTest extends TestCase
         self::assertTrue($seenActive, 'le parent ne doit pas être vu comme terminé pendant son propre run');
         self::assertNotEmpty(array_filter(
             iterator_to_array($this->eventStore->readStream('parent-4'), false),
-            static fn (object $e): bool => $e instanceof ChildWorkflowCompleted,
+            static fn(object $e): bool => $e instanceof ChildWorkflowCompleted,
         ));
     }
 

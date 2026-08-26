@@ -14,8 +14,7 @@ final class ActivityRunHandler
 {
     public function __construct(
         private readonly ActivityMessageProcessor $activityMessageProcessor,
-    ) {
-    }
+    ) {}
 
     public function __invoke(ActivityMessage $message): void
     {

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Activity;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
-use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Activity\RetryLimit;
+use Gplanchat\Durable\Duration;
 use PHPUnit\Framework\TestCase;
 
 /**

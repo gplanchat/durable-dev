@@ -23,8 +23,7 @@ final class JournalWorkflowTaskProcessor
         private readonly WorkflowServiceClient $client,
         private readonly TemporalConnection $settings,
         private readonly HistoryPageMerger $historyMerger,
-    ) {
-    }
+    ) {}
 
     public function process(PollWorkflowTaskQueueResponse $poll): void
     {
