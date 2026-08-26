@@ -17,6 +17,7 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\WorkflowFiberDriver;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
+use unit\Durable\Fixtures\SuiteActivities;
 use Temporal\Api\Common\V1\ActivityType;
 use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Enums\V1\EventType;
@@ -51,7 +52,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
             TemporalExecutionHistory::fromEvents([$this->cancelRequestedEvent('operator')]),
             static function (WorkflowEnvironment $env) use (&$seen): mixed {
                 try {
-                    return $env->await($env->activity('charge', []));
+                    return $env->await($env->activityStub(SuiteActivities::class)->charge());
                 } catch (WorkflowCancelledFailure $e) {
                     $seen = $e;
 
@@ -70,9 +71,9 @@ final class TemporalWorkflowCancellationTest extends TestCase
             TemporalExecutionHistory::fromEvents([$this->cancelRequestedEvent('operator')]),
             static function (WorkflowEnvironment $env): mixed {
                 try {
-                    return $env->await($env->activity('charge', []));
+                    return $env->await($env->activityStub(SuiteActivities::class)->charge());
                 } catch (WorkflowCancelledFailure $e) {
-                    $env->await($env->activity('refund', []));
+                    $env->await($env->activityStub(SuiteActivities::class)->refund());
 
                     throw $e;
                 }
@@ -96,7 +97,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
 
         $commands = $this->drive($history, static function (WorkflowEnvironment $env): mixed {
             try {
-                return $env->await($env->activity('charge', []));
+                return $env->await($env->activityStub(SuiteActivities::class)->charge());
             } catch (WorkflowCancelledFailure $e) {
                 throw $e;
             }
@@ -124,7 +125,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
         ]);
         $commands = $this->drive($history, static function (WorkflowEnvironment $env): mixed {
             try {
-                return $env->await($env->activity('charge', []));
+                return $env->await($env->activityStub(SuiteActivities::class)->charge());
             } catch (WorkflowCancelledFailure $e) {
                 throw $e;
             }
@@ -171,7 +172,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
     {
         $commands = $this->drive(
             TemporalExecutionHistory::fromEvents([]),
-            static fn(WorkflowEnvironment $env): mixed => $env->await($env->activity('charge', [])),
+            static fn(WorkflowEnvironment $env): mixed => $env->await($env->activityStub(SuiteActivities::class)->charge()),
         );
 
         self::assertNotContains(CommandType::COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION, $this->commandTypes($commands));

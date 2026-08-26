@@ -77,4 +77,11 @@ interface SuiteActivities
 
     #[ActivityMethod('task-b')]
     public function taskB(): mixed;
+
+    #[ActivityMethod('ping')]
+    public function ping(): mixed;
+
+    /** Échoue toujours : sert aux tests de retentative sans issue. */
+    #[ActivityMethod('always')]
+    public function always(): mixed;
 }
