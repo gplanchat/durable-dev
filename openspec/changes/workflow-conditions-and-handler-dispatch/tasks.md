@@ -1,7 +1,7 @@
 ## 0. Unblock
 
-- [ ] 0.1 `workflow-side-deadlines` landed and archived, so `openspec/specs/workflow-deadlines/` exists and this change's removal delta has a requirement to point at
-- [ ] 0.2 The in-flight awaitable refactor (composite / quorum) committed — `WorkflowEnvironment` is the single entry point both changes touch
+- [x] 0.1 `workflow-side-deadlines` landed and archived, so `openspec/specs/workflow-deadlines/` exists and this change's removal delta has a requirement to point at
+- [x] 0.2 The in-flight awaitable refactor (composite / quorum) committed — `WorkflowEnvironment` is the single entry point both changes touch
 
 ## 1. Establish the evaluation loop before writing the primitive
 
@@ -65,4 +65,4 @@
 
 - [ ] 8.1 Signals documented as handler + condition, with the `waitSignal()` migration written out, because it is the rewrite every existing workflow has to make
 - [ ] 8.2 Conditions documented with their determinism rule: a predicate reads workflow state and nothing else
-- [ ] 8.3 ADR DUR033: why the condition is the primitive rather than a second wait method, why evaluation is interleaved with message application, and what that let us delete
+- [ ] 8.3 ADR DUR035 (DUR033 et DUR034 sont pris) : why the condition is the primitive rather than a second wait method, why evaluation is interleaved with message application, and what that let us delete
