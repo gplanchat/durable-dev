@@ -35,8 +35,8 @@
 
 ## 6. Integration against a real server
 
-- [ ] 6.1 Document the endpoint prerequisite at the top of the test, as the search-attribute suite documents its two attributes
-- [ ] 6.2 Schedule an operation and assert the round trip through history
+- [x] 6.1 Document the endpoint prerequisite at the top of the test, as the search-attribute suite documents its two attributes — avec une différence assumée : le test **crée et supprime** son endpoint, un nom d'endpoint étant unique pour le cluster entier. L'équivalent manuel est donné pour qui veut reproduire à la main
+- [x] 6.2 Schedule an operation and assert the round trip through history — la commande est construite **par le tampon du pont**, pas à la main : c'est ce qui prouve que §4.1 est acceptée par un vrai serveur. Trois cas — les trois noms et les trois bornes reviennent inchangés, l'entrée survit, et l'absence de borne reste une absence
 - [ ] 6.3 Assert cancellation reaches the server with the real scheduled event id
 - [ ] 6.4 Assert a failed operation surfaces to the workflow with its origin named
 
