@@ -43,6 +43,40 @@ Nexus fits this shape exactly on the caller side. What was verified before writi
   created with the `temporal` CLI or by an operator API; the component consumes them.
 - Any in-memory simulation of Nexus.
 
+## What was probed, and what was assumed
+
+**Endpoint names, probed against Temporal 1.31.2 (task 1.1).** Every verdict below was observed by
+`CreateNexusEndpoint`, not inferred:
+
+| Case | Verdict |
+|---|---|
+| `""` | refused — `endpoint name not set` |
+| `" "`, leading/trailing space, inner tab or newline, control character | refused — regex |
+| `_`, `.`, `/`, accented letter | refused — regex |
+| leading digit, leading hyphen, trailing hyphen | refused — regex |
+| single letter `a` | refused — regex (the pattern needs a first *and* a last character) |
+| `ab`, `Probe-Nexus-42` (letters, digits, inner hyphens, either case) | accepted |
+| 200 characters | accepted |
+| 201 characters | refused — `endpoint name exceeds length limit of 200` |
+
+The server states its own rule: `^[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9]$`, 200 characters.
+
+**This inverts the lesson of `TaskQueue`, and §2.1 must not copy it.** `TaskQueue` is deliberately
+*stricter than the server*, because the server accepts `" "` and edge whitespace while a misnamed
+queue fails silently — the work is queued and no worker ever comes. A Nexus endpoint has no such
+failure mode: the name is validated at creation, and a malformed one is refused outright. So
+`NexusEndpoint` mirrors the server's rule and invents nothing on top of it. The one distinction
+worth keeping is the server's own: an empty name is *unset*, not *malformed*, and the two deserve
+different messages.
+
+Pinned by `tests/integration/Temporal/NexusEndpointNameRulesTest.php`, so a change of server rule
+is caught rather than discovered inside a value object.
+
+**Not probed: service and operation names.** They travel in the `ScheduleNexusOperation` command,
+so measuring them needs a workflow scheduling a real operation against a worker — the endpoint
+probe reaches them by no path. Task 1.1 covers all three names; only the endpoint half is
+established.
+
 ## Decisions
 
 **Model a Nexus operation as its own awaitable family, not as an activity.**
