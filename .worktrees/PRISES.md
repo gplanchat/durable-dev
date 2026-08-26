@@ -8,4 +8,4 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
-| `docs/adr-dur035` | workflow-conditions-and-handler-dispatch | 8.3 (ADR) | en relecture |
+| `docs/conditions-user-doc` | workflow-conditions-and-handler-dispatch | 8.1, 8.2 (doc utilisateur) | en relecture |

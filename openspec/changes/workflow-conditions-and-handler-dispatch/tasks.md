@@ -63,6 +63,6 @@
 
 ## 8. Documentation
 
-- [ ] 8.1 Signals documented as handler + condition, with the `waitSignal()` migration written out, because it is the rewrite every existing workflow has to make
-- [ ] 8.2 Conditions documented with their determinism rule: a predicate reads workflow state and nothing else
+- [x] 8.1 Signals documented as handler + condition, with the `waitSignal()` migration written out, because it is the rewrite every existing workflow has to make
+- [x] 8.2 Conditions documented with their determinism rule: a predicate reads workflow state and nothing else — plus le piège de la capture par valeur de `fn()`
 - [x] 8.3 ADR DUR035 (DUR033 et DUR034 sont pris) : why the condition is the primitive rather than a second wait method, why evaluation is interleaved with message application, and what that let us delete
