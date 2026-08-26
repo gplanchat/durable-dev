@@ -69,4 +69,6 @@ return [
     Knp\Bundle\SnappyBundle\KnpSnappyBundle::class => ['all' => true],
     Sylius\RefundPlugin\SyliusRefundPlugin::class => ['all' => true],
     Sylius\AdyenPlugin\SyliusAdyenPlugin::class => ['all' => true],
+    Gplanchat\Durable\Bundle\DurableBundle::class => ['all' => true],
+    Gplanchat\Durable\Plugin\DurablePlugin::class => ['all' => true],
 ];

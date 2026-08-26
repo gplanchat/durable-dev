@@ -1,0 +1,14 @@
+# Le tableau de bord lit le backend configuré ici. DBAL plutôt que Temporal : une boutique Sylius
+# n'a pas de cluster, et le pont Temporal exigerait ext-grpc — c'est précisément ce que le plugin a
+# cessé d'imposer (DUR035).
+durable:
+    dbal:
+        connection: doctrine.dbal.default_connection
+        lock_factory: lock.factory
+    event_store:
+        type: dbal
+    workflow_metadata:
+        type: dbal
+    child_workflow:
+        parent_link_store:
+            type: dbal
