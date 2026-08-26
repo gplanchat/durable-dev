@@ -7,6 +7,7 @@ namespace Gplanchat\Durable;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Awaitable\ActivityAwaitable;
 use Gplanchat\Durable\Awaitable\Awaitable;
+use Gplanchat\Durable\Awaitable\NexusOperationAwaitable;
 use Gplanchat\Durable\Awaitable\TimerAwaitable;
 use Gplanchat\Durable\Exception\ActivitySupersededException;
 use Gplanchat\Durable\Exception\ChildWorkflowStartDeferred;
@@ -14,6 +15,10 @@ use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\Exception\DurableChildWorkflowFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Failure\FailureEnvelope;
+use Gplanchat\Durable\Nexus\NexusEndpoint;
+use Gplanchat\Durable\Nexus\NexusOperationName;
+use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
+use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Port\ChildWorkflowRunnerInterface;
 use Gplanchat\Durable\Port\WorkflowCommandBufferInterface;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
@@ -28,6 +33,9 @@ final class ExecutionContext
     /** @var array<string, \Gplanchat\Durable\Awaitable\Deferred> */
     private array $pendingTimers = [];
 
+    /** @var array<string, \Gplanchat\Durable\Awaitable\Deferred> opérations Nexus encore en vol */
+    private array $pendingNexusOperations = [];
+
     private int $activitySlotIndex = 0;
 
     private int $timerSlotIndex = 0;
@@ -35,6 +43,8 @@ final class ExecutionContext
     private int $sideEffectSlotIndex = 0;
 
     private int $childWorkflowSlotIndex = 0;
+
+    private int $nexusOperationSlotIndex = 0;
 
     /**
      * Rang du prochain message non appliqué. Reconstruit à zéro à chaque passe, avancé par la
@@ -100,6 +110,59 @@ final class ExecutionContext
         }
 
         return new ActivityAwaitable($deferred->awaitable(), $activityId);
+    }
+
+    /**
+     * Planifie une opération Nexus : un appel servi par un endpoint extérieur.
+     *
+     * Même forme de replay qu'une activité — un rang, une identité relue de l'historique, rien de
+     * replanifié quand l'issue y est déjà. Ce qui diffère est ailleurs : un backend sans route
+     * vers l'endpoint refuse au lieu d'attendre, et c'est le tampon de commandes qui le dit.
+     *
+     * @param array<string, mixed> $payload
+     *
+     * @return Awaitable<mixed>
+     *
+     * @throws \Gplanchat\Durable\Nexus\NexusUnsupportedByBackendException si le backend ne sait pas router l'appel
+     */
+    public function nexusOperation(
+        NexusEndpoint $endpoint,
+        NexusService $service,
+        NexusOperationName $operation,
+        array $payload = [],
+        ?NexusOperationTimeouts $timeouts = null,
+    ): Awaitable {
+        $slotIndex = $this->nexusOperationSlotIndex++;
+        $recordedId = $this->historySource->findScheduledNexusOperation($slotIndex);
+
+        $replay = $this->historySource->findNexusOperationSlotResult($slotIndex);
+        if (null !== $replay) {
+            $deferred = new \Gplanchat\Durable\Awaitable\Deferred();
+            if (null !== $replay['failed']) {
+                $deferred->reject($replay['failed']);
+            } else {
+                $deferred->resolve($replay['result']);
+            }
+
+            return new NexusOperationAwaitable($deferred->awaitable(), $recordedId ?? '');
+        }
+
+        $operationId = $recordedId ?? $this->uuid();
+        $deferred = new \Gplanchat\Durable\Awaitable\Deferred();
+        $this->pendingNexusOperations[$operationId] = $deferred;
+
+        if (null === $recordedId) {
+            $this->commandBuffer->scheduleNexusOperation(
+                $operationId,
+                $endpoint,
+                $service,
+                $operation,
+                $payload,
+                $timeouts ?? NexusOperationTimeouts::none(),
+            );
+        }
+
+        return new NexusOperationAwaitable($deferred->awaitable(), $operationId);
     }
 
     /**
@@ -370,6 +433,20 @@ final class ExecutionContext
             $deferred->resolve(null);
             unset($this->pendingTimers[$timerId]);
         }
+    }
+
+    /**
+     * Opérations Nexus encore en vol, par identité.
+     *
+     * Le pendant de {@see pendingActivities()} : c'est par là que le backend réglera l'attente
+     * quand il saura lire les événements `NEXUS_OPERATION_*` (§4.3), et que l'annulation d'un
+     * workflow retirera l'opération de la file (§3.5).
+     *
+     * @return array<string, \Gplanchat\Durable\Awaitable\Deferred>
+     */
+    public function pendingNexusOperations(): array
+    {
+        return $this->pendingNexusOperations;
     }
 
     /**

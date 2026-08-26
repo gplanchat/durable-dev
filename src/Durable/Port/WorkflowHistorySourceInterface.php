@@ -85,6 +85,26 @@ interface WorkflowHistorySourceInterface
     public function timerCompletionPosition(string $timerId): ?int;
 
     /**
+     * Returns the recorded outcome for Nexus operation slot N, or null while it is still in flight.
+     *
+     * Same shape as an activity slot, because the caller side of a Nexus operation replays the
+     * same way: one slot per call, an outcome read from history, nothing rescheduled once it is
+     * there. What differs is who serves it, and that is not this interface's concern.
+     *
+     * @return array{result: mixed, failed: \Throwable|null}|null
+     */
+    public function findNexusOperationSlotResult(int $slot): ?array;
+
+    /**
+     * Returns the operation ID recorded at Nexus slot N, or null.
+     *
+     * Read from history rather than counted locally: the Temporal bridge needs the real scheduled
+     * event id to cancel an operation, and an invented counter has already silenced that command
+     * once, for activities.
+     */
+    public function findScheduledNexusOperation(int $slot): ?string;
+
+    /**
      * Returns whether the given child execution ID has already been scheduled (for reuse policy checks).
      */
     public function hasChildExecutionId(string $childExecutionId): bool;

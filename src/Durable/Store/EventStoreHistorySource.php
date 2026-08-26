@@ -282,6 +282,21 @@ final class EventStoreHistorySource implements WorkflowHistorySourceInterface
         return null;
     }
 
+    /**
+     * Toujours null : ce backend refuse de planifier une opération Nexus
+     * ({@see \Gplanchat\Durable\Store\EventStoreCommandBuffer::scheduleNexusOperation()}), donc
+     * son journal n'en porte jamais l'issue.
+     */
+    public function findNexusOperationSlotResult(int $slot): ?array
+    {
+        return null;
+    }
+
+    public function findScheduledNexusOperation(int $slot): ?string
+    {
+        return null;
+    }
+
     public function hasChildExecutionId(string $childExecutionId): bool
     {
         foreach ($this->eventStore->readStream($childExecutionId) as $_event) {

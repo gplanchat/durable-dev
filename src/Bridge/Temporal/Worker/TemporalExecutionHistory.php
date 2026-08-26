@@ -466,6 +466,21 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         return $this->firedTimerIds[$timerId] ?? null;
     }
 
+    /**
+     * Toujours null pour l'instant : la lecture des neuf événements `NEXUS_OPERATION_*` est la
+     * tâche §4.3 du change temporal-nexus-support. Tant qu'elle n'est pas faite, une opération
+     * planifiée n'est jamais vue comme réglée, et le workflow suspend au lieu de conclure à tort.
+     */
+    public function findNexusOperationSlotResult(int $slot): ?array
+    {
+        return null;
+    }
+
+    public function findScheduledNexusOperation(int $slot): ?string
+    {
+        return null;
+    }
+
     public function hasChildExecutionId(string $childExecutionId): bool
     {
         return \in_array($childExecutionId, $this->childExecutionIds, true);

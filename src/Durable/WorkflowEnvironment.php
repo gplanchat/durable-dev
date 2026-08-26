@@ -21,6 +21,10 @@ use Gplanchat\Durable\Exception\DeadlineExceededException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Exception\WorkflowSuspendedException;
 use Gplanchat\Durable\Failure\FailureEnvelope;
+use Gplanchat\Durable\Nexus\NexusEndpoint;
+use Gplanchat\Durable\Nexus\NexusOperationName;
+use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
+use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Workflow\ChildWorkflowStub;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 
@@ -484,6 +488,33 @@ final class WorkflowEnvironment
     public function activity(string $name, array $payload = [], ?ActivityOptions $options = null): Awaitable
     {
         return $this->context->activity($name, $payload, $options);
+    }
+
+    /**
+     * Planifie une opération Nexus sans l'attendre ; à combiner avec {@see await()} ou les
+     * assembleurs, comme {@see activity()}.
+     *
+     * Nexus route l'appel vers un endpoint servi ailleurs — un autre namespace, un autre cluster,
+     * une autre équipe. Les noms se donnent en objets-valeurs : le serveur ne valide ni le service
+     * ni l'opération et les enregistre tels quels, si bien qu'une faute de frappe y est muette
+     * (§1.1 du change temporal-nexus-support).
+     *
+     * Un backend sans route vers l'endpoint **refuse** au lieu d'attendre :
+     * {@see \Gplanchat\Durable\Nexus\NexusUnsupportedByBackendException}. Attendre une réponse
+     * que personne ne produira est le mode d'échec le plus coûteux à diagnostiquer.
+     *
+     * @param array<string, mixed> $payload
+     *
+     * @return Awaitable<mixed>
+     */
+    public function scheduleNexusOperation(
+        NexusEndpoint $endpoint,
+        NexusService $service,
+        NexusOperationName $operation,
+        array $payload = [],
+        ?NexusOperationTimeouts $timeouts = null,
+    ): Awaitable {
+        return $this->context->nexusOperation($endpoint, $service, $operation, $payload, $timeouts);
     }
 
     /**
