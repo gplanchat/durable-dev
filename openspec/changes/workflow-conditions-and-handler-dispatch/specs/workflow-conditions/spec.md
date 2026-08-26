@@ -1,21 +1,23 @@
 ## Purpose
 
-Awaiting a condition over workflow state: when the condition is evaluated, what makes its verdict
-the same on every replay, and what a workflow observes when a condition can never become true.
+Awaiting a condition over workflow state: how a condition is expressed, when it is evaluated, what
+makes its verdict the same on every replay, and what a workflow observes when a condition can never
+hold.
 
 ## ADDED Requirements
 
-### Requirement: Awaiting a condition
+### Requirement: A condition is awaited like anything else
 
-A workflow SHALL be able to await a condition expressed over its own state. The workflow SHALL
-resume as soon as the condition holds, and SHALL NOT resume while it does not.
+The single wait of the component SHALL accept a condition — a predicate over workflow state —
+wherever it accepts an awaitable. The workflow SHALL resume as soon as the condition holds, and
+SHALL NOT resume while it does not.
 
 A condition that already holds SHALL NOT suspend the workflow.
 
 #### Scenario: The condition becomes true and the workflow resumes
 
 - **WHEN** a workflow awaits a condition over a counter it keeps
-- **AND** an external input raises that counter above the threshold
+- **AND** a delivered message raises that counter above the threshold
 - **THEN** the workflow resumes at the point it was waiting
 - **AND** it observes the state that made the condition true
 
@@ -25,14 +27,20 @@ A condition that already holds SHALL NOT suspend the workflow.
 - **THEN** the workflow continues without suspending
 - **AND** nothing is recorded that would wake it later
 
-### Requirement: A condition verdict is reproducible on replay
+#### Scenario: A condition takes a deadline like any other wait
 
-Condition evaluation SHALL be staged by recorded journal position: journaled inputs SHALL be
-applied in the order they were recorded, and pending conditions SHALL be re-evaluated after each
-one. A condition SHALL NOT be evaluated against state that no journaled input produced.
+- **WHEN** a workflow awaits a condition under a deadline
+- **AND** the condition does not hold when the deadline elapses
+- **THEN** the await raises the same timeout failure a bounded activity would raise
+- **AND** the workflow can catch it and take its expiry path
 
-Replaying an execution SHALL resume it at the same journal position at which the original
-execution resumed.
+### Requirement: A condition verdict is positional and reproducible
+
+Journaled messages SHALL be applied one at a time, in recorded order, with pending conditions
+re-evaluated after each. A condition's verdict SHALL therefore be the journal position at which it
+first held, and replaying an execution SHALL resume it at that same position.
+
+A condition SHALL NOT be evaluated against state that no journaled message produced.
 
 #### Scenario: Replay resumes at the same point
 
@@ -42,10 +50,23 @@ execution resumed.
 
 #### Scenario: A verdict already reached is not reversed by later state
 
-- **WHEN** a wait bounded by a deadline gives up at a given journal position
-- **AND** an input recorded after that position would have made its condition true
+- **WHEN** a condition awaited under a deadline gives up at a given journal position
+- **AND** a message recorded after that position would have made the condition hold
 - **THEN** the wait keeps the verdict it reached
 - **AND** every subsequent replay reaches that same verdict
+
+#### Scenario: Two messages are applied one at a time
+
+- **WHEN** two messages that each affect a pending condition are recorded before the workflow is
+  replayed
+- **THEN** the condition is re-evaluated after the first is applied, before the second
+- **AND** the workflow resumes on the first message that made it hold
+
+### Requirement: A condition reads workflow state and nothing else
+
+A condition SHALL be a function of workflow state alone. When replaying an execution reaches a
+different verdict from the one recorded, the divergence SHALL be reported as a workflow failure
+naming the condition, rather than resolved to either outcome.
 
 #### Scenario: A condition reading outside workflow state is reported
 
@@ -57,25 +78,13 @@ execution resumed.
 
 ### Requirement: A condition that can never hold is reported, not hung
 
-When a condition does not hold and no journaled input is pending that could change it, the
-execution SHALL be reported as unable to advance, with the same treatment as a wait for an input
-that is never delivered. It SHALL NOT spin, and it SHALL NOT be reported as complete.
+When a condition does not hold and no journaled message is pending that could change the state it
+reads, the execution SHALL be reported as unable to advance, with the same treatment as a wait for
+a message that is never delivered. It SHALL NOT spin, and it SHALL NOT be reported as complete.
 
 #### Scenario: Nothing can make the condition true
 
 - **WHEN** a workflow awaits a condition that does not hold
-- **AND** no input is pending that could change the state it reads
+- **AND** no message is pending that could change the state it reads
 - **THEN** the execution is reported as unable to advance, naming the condition
 - **AND** no further work is scheduled for it
-
-### Requirement: A condition composes with a deadline
-
-A condition SHALL be awaitable under a deadline, with the same failure and the same guarantees as
-any other bounded wait.
-
-#### Scenario: The condition does not hold before its deadline
-
-- **WHEN** a workflow awaits a condition under a deadline
-- **AND** the condition does not hold when the deadline elapses
-- **THEN** the await raises a timeout failure
-- **AND** an input recorded after the deadline does not undo that verdict

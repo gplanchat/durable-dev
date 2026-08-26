@@ -1,37 +1,44 @@
 ## Purpose
 
-Signal and update handlers invoked by the engine: which method a delivered message reaches, in
-what order handlers run, how a handler and an explicit wait share the same message, what lets the
-same signal be delivered repeatedly, and what separates an update from a signal.
+Signal and update handlers invoked by the engine: how a handler is declared, in what order handlers
+run, how their application interleaves with the conditions that observe them, and what separates an
+update from a signal.
 
 ## ADDED Requirements
 
-### Requirement: A signal handler is invoked by the engine
+### Requirement: A handler is declared by attribute or registered on the environment
 
-A workflow method marked as the handler for a signal SHALL be invoked when that signal is
-delivered, without the workflow body asking for it. The signal payload SHALL be passed to the
-handler.
+A workflow SHALL be able to declare the handler for a signal or an update as an annotated method on
+its class. A workflow SHALL also be able to register a handler imperatively, as it already can for
+a query, so that a workflow expressed as a callable can declare one.
 
-A workflow that declares no handler SHALL behave exactly as it does today.
+Both forms SHALL produce the same dispatch.
 
-#### Scenario: The declared handler receives the signal
+#### Scenario: An annotated method handles the signal it names
 
-- **WHEN** a workflow declares a handler for a signal name
+- **WHEN** a workflow class annotates a method as the handler for a signal name
 - **AND** that signal is delivered with a payload
-- **THEN** the handler is invoked with that payload
+- **THEN** the method is invoked with that payload
 - **AND** the state it mutates is visible to the workflow body
 
-#### Scenario: A signal with no declared handler is unchanged
+#### Scenario: A workflow expressed as a callable registers a handler
 
-- **WHEN** a workflow declares no handler for a signal name
+- **WHEN** a workflow that is not a class registers a handler for a signal name
 - **AND** that signal is delivered
-- **THEN** an explicit wait for that name observes it exactly as before
+- **THEN** the registered handler is invoked with the payload
+- **AND** the workflow behaves exactly as the annotated form would
 
-### Requirement: Handlers run in journal order, before the waits they feed
+#### Scenario: A message with no declared handler is recorded and ignored
 
-Handlers SHALL be invoked in the order their messages are recorded in the journal. A handler
-SHALL run **before** any wait that its effect resolves, so that a wait never observes a message
-its handler has not yet processed.
+- **WHEN** a signal is delivered for a name the workflow declares no handler for
+- **THEN** the delivery is recorded in the journal
+- **AND** the execution is not failed by it
+
+### Requirement: Handlers run in journal order, interleaved with condition evaluation
+
+Handlers SHALL be invoked in the order their messages are recorded. A pending condition SHALL be
+re-evaluated after each handler returns, before the next message is applied, so that a workflow
+resumes on the first message that made its condition hold and not on a later one.
 
 #### Scenario: Two signals are handled in the order recorded
 
@@ -39,38 +46,36 @@ its handler has not yet processed.
 - **THEN** their handlers are invoked in that order
 - **AND** the order is the same on every replay
 
-#### Scenario: The handler runs before the wait resolves
+#### Scenario: The workflow resumes on the message that satisfied it
 
-- **WHEN** a workflow declares a handler for a signal and also waits for it
-- **AND** that signal is delivered
-- **THEN** the handler is invoked first
-- **AND** only then does the wait resolve, with the same payload
+- **WHEN** a workflow awaits a condition that two successive deliveries would each satisfy
+- **THEN** the workflow resumes after the first is applied
+- **AND** the second is applied to the state the resumed workflow left behind
 
-### Requirement: The same signal can be delivered and consumed repeatedly
+### Requirement: The same message name can be delivered repeatedly
 
 A workflow SHALL be able to receive the same signal name any number of times. Each delivery SHALL
-reach the handler once, and each wait for that name SHALL consume one delivery, in recorded order.
-A wait that gives up SHALL consume none.
+reach the handler exactly once, in recorded order, on a first execution and on every replay.
 
-#### Scenario: Three deliveries feed three waits
+What the workflow keeps of those deliveries SHALL be workflow state, not engine bookkeeping.
+
+#### Scenario: Three deliveries reach the handler three times
 
 - **WHEN** the same signal name is delivered three times with different payloads
-- **AND** the workflow waits for that name three times
-- **THEN** each wait returns the payloads in the order they were recorded
-- **AND** the handler was invoked three times
+- **THEN** the handler is invoked three times, with those payloads in recorded order
+- **AND** a replay invokes it three times with the same payloads
 
-#### Scenario: An abandoned wait consumes nothing
+#### Scenario: A workflow consumes deliveries at its own pace
 
-- **WHEN** a wait for a signal name gives up on its deadline
-- **AND** that signal is delivered afterwards
-- **THEN** the handler is invoked for it
-- **AND** a later wait for the same name observes that delivery
+- **WHEN** a handler records each delivery in workflow state
+- **AND** the workflow body awaits a condition on that state, one delivery at a time
+- **THEN** each await returns the next recorded delivery
+- **AND** a delivery recorded while no await was pending is still observed by the next one
 
 ### Requirement: An update handler answers
 
-A workflow method marked as the handler for an update SHALL be invoked when that update is
-delivered, and its **return value** SHALL be the response the caller receives. A handler that
-raises SHALL make the update fail with that failure, without failing the workflow.
+An update handler's **return value** SHALL be the response the caller receives. A handler that
+raises SHALL make the update fail with that failure, without failing the workflow execution.
 
 An update SHALL be distinguishable from a signal by that response: a signal has none.
 
@@ -90,7 +95,7 @@ An update SHALL be distinguishable from a signal by that response: a signal has 
 #### Scenario: The response survives replay
 
 - **WHEN** an execution that answered an update is replayed
-- **THEN** the replay reproduces the same response
+- **THEN** the replay reproduces the recorded response
 - **AND** the handler is not asked to compute a different one
 
 ### Requirement: Both backends dispatch identically

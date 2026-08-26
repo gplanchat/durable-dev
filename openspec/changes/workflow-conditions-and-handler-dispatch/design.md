@@ -3,13 +3,12 @@
 Two things are missing, and they turn out to be one thing.
 
 A handler that pushes — the engine calls it, it mutates workflow state — cannot wake the workflow
-body, because nothing in `WorkflowEnvironment` waits on a predicate. And a wait on a predicate has
-no compelling use until something pushes state into the workflow between wakes. Neither half is
-worth building alone.
+body, because nothing waits on a predicate. And a wait on a predicate has no compelling use until
+something pushes state into the workflow between wakes. Neither half is worth building alone.
 
 `#[SignalMethod]` and `#[UpdateMethod]` exist as attributes and are read by nothing; only
-`#[QueryMethod]` is wired, through `WorkflowDefinitionLoader::registerQueryHandlers()`. So there is
-no dispatch to modify — there is dispatch to build.
+`#[QueryMethod]` is wired, through `WorkflowDefinitionLoader::registerQueryHandlers()`. There is no
+dispatch to modify — there is dispatch to build.
 
 ## What was probed, and what was assumed
 
@@ -19,93 +18,115 @@ Per the house rule, the boundary between observed and assumed:
   `WorkflowTaskProcessor` says signal/query/update handling "will be added in the
   signal-query-update phase". `TemporalExecutionHistory` reads `WORKFLOW_EXECUTION_UPDATE_ACCEPTED`
   and `..._UPDATE_COMPLETED`, and `WorkflowClient` can send `UpdateWorkflowExecution` — so an update
-  can be sent and its recorded result read back, but nothing produces one. `waitUpdate()` is a
-  write-only surface today.
+  can be sent and its recorded result read back, but nothing produces one.
+- **Observed by reading the current code, and it is what makes this change cheap:** the `Awaitable`
+  contract is now exactly `isSettled()` and `getResult()`, and `awaitUnderDeadline()` calls nothing
+  else on its branches. A condition therefore *is* an awaitable — `isSettled()` is the predicate —
+  and the deadline path does not fork.
 - **Not probed, and it blocks the update half (task 1):** how a worker accepts and completes an
-  update against a real server — which protocol messages carry the acceptance and the response,
-  and on which task they must be returned. Nothing about update responses should reach the spec's
-  promises before that is seen on `:7233`. The signal half has no such dependency: it rides the
+  update against a real server — which protocol messages carry the acceptance and the response, and
+  on which task they must be returned. Nothing about update responses reaches the domain before
+  that is seen on `:7233`. The signal half has no such dependency: it rides the
   `WORKFLOW_EXECUTION_SIGNALED` events already read and already exercised by the integration suite.
 - **Assumed, and cheap to check first:** that a Temporal workflow task can carry several journaled
-  messages at once, so "handlers run in journal order" is a real ordering question inside one task
-  and not only across tasks. The in-memory backend applies one event per resume today.
+  messages at once, so interleaving is a real question inside one task and not only across tasks.
 
 ## Decisions
 
-### The condition is the primitive; the named wait is its special case
+### `await()` takes a condition. There is no second wait method.
 
-`waitSignal()` and a condition are the same mechanism at two altitudes. Once a handler owns signal
-ingestion, "wait for the Nth signal named X" *is* "wait until the buffer for X holds more than K
-entries", where the handler fills the buffer and K is the consumption counter.
+`await()` is already the single wait of this component — `2cec7a4` made every assembler return an
+awaitable precisely so there would be one. Adding `awaitCondition()` would re-split the surface that
+commit unified.
 
-That reduction is not an aesthetic preference, it is forced by the dispatch rule: if the handler
-runs first and its call is what resolves the wait, then the wait no longer reads history — it
-reads what the handler deposited. Keeping `waitSignal()` on a second, independent path into the
-same journaled event would leave "who consumed it" without a stable answer, and the two paths free
-to disagree on replay.
+So a condition is a second accepted argument type, not a second method:
 
-So `waitSignal()` is re-founded, not duplicated. Its public behaviour does not change.
+```php
+$env->await(fn(): bool => $this->approved, Duration::hours(1));
+```
 
-**The counter is not new.** `ExecutionContext` already carries a per-name signal consumption index,
-and `releaseSignalWaitSlot()` already encodes "a wait that gave up consumed nothing" — both landed
-with the deadline change. They move from indexing history to indexing what handlers deposited. The
-rule they express is unchanged, which is why the existing deadline tests are the right gate.
+This is also the sharpest answer to "aren't a signal wait and a condition two versions of the same
+mechanism?" — they are not two altitudes of a mechanism, they are one method with one more accepted
+argument type.
 
-Rejected: leaving `waitSignal()` reading history and letting handlers run beside it. It is the
-smaller diff and the larger bug: a signal would be observed twice, by two paths with different
-notions of order.
+The wrapper is three lines, because the awaitable contract already is a condition:
 
-### Condition evaluation is staged by journal position
+```php
+public function isSettled(): bool { return ($this->predicate)(); }
+public function getResult(): mixed { return null; }
+```
 
-This is the decision the whole change turns on, and the one that can break DUR032 silently.
+### `waitSignal()` and `waitUpdate()` are removed, and that is the point
 
-DUR032's rule — "a signal recorded after the deadline timer fired does not settle the wait that
-timer bounded" — is a *history query* today: the wait knows its deadline timer and refuses any
-signal recorded after it fired. A predicate cannot be asked that question. There is no way to
-interrogate an arbitrary closure for "did you become true before journal position P".
+A signal wait reads history directly. That is what forced all of it: a positional slot, a per-name
+consumption counter, `releaseSignalWaitSlot()` for a wait that gave up without consuming, an
+order-aware history lookup so a signal recorded after a deadline fired cannot settle the wait it
+bounded, and an alignment between the two backends on what a slot means — they disagreed.
 
-So the evaluation loop has to make the position explicit: apply journaled inputs **one at a time,
-in recorded order**, re-evaluating pending conditions after each. The verdict of a wait is then the
-position at which its condition first held, and "a wait that gave up at position P is not settled
-by state deposited after P" is expressible again.
+Under handler dispatch none of that has anywhere to live. The handler deposits into workflow state;
+the body observes that state through a condition. The counter becomes `$this->approvals[] =
+$payload` and `array_shift()`, owned by the workflow, obviously correct, and not an engine rule.
 
-Rejected: evaluating conditions "whenever state changes". It is the obvious implementation, it
-works on a first execution, and it makes the deadline verdict unreconstructible — the exact
-failure mode DUR032 exists to remove, reintroduced one layer down.
+Rejected: keeping `waitSignal()` as sugar over an auto-registered buffering handler. It preserves
+compatibility and deletes most of the machinery, but the moment a *declared* handler exists for the
+same name, "who consumes it" is back — two paths again, which is the thing being removed.
 
-### A predicate is workflow state, and nothing else
+### Evaluation is interleaved with message application, not batched
 
-A condition is arbitrary user code re-run on every replay. Reading a clock, a random source, or
-anything the journal does not record makes the replay diverge from the execution it is
-reconstructing. The rule is the determinism rule that already governs the workflow body (DUR003);
-what this change adds is that a divergence must be **reported**, naming the condition, rather than
-resolved to whichever outcome the replay happens to reach.
+This is the decision the change turns on, and the one that can break DUR032 silently.
+
+DUR032's rule — a signal recorded after the deadline fired does not settle the wait that deadline
+bounded — is a *history query* today. A predicate cannot be asked that: there is no way to
+interrogate a closure for "did you become true before journal position P".
+
+The naive implementation is "apply every journaled message, then run the body". It is correct on a
+first execution and wrong on replay: with a deadline fired at position P and a signal recorded at
+Q > P, replaying applies both, the body reaches its condition, the predicate sees the signal, and
+the condition wins a race the deadline had already won. The verdict flips.
+
+So the driver applies journaled messages **one at a time** and re-tests pending conditions after
+each. The workflow body blocks on the condition; the driver applies the next message, dispatches
+its handler, re-tests, and resumes only if it now holds. The verdict is then the position at which
+it first held, and DUR032's rule follows without being restated.
+
+That loop is the real work of this change. The primitive is three lines.
+
+### Handlers are declarable both ways, because the tests are closures
+
+`registerQueryHandler()` already exists on `WorkflowEnvironment`, and `#[QueryMethod]` is the
+declarative form the loader turns into that call. Signals and updates follow the same pattern —
+this is not a concession, it is load-bearing: nearly every workflow in the test suite is a closure,
+and a closure cannot carry an attribute. Without imperative registration the new primitive is not
+testable in the style the suite is written in.
 
 ### An update answers; a signal does not
 
-That is the whole difference, and it is what makes updates a separate requirement rather than a
-parameter. A signal handler's return value is nothing. An update handler's return value is the
-response the caller is blocking on, so it must survive replay: a replay reproduces the recorded
-response rather than recomputing it.
+That is the whole difference, and it is why updates are a separate requirement rather than a
+parameter. An update handler's return value is the response the caller is blocking on, so it must
+survive replay: a replay reproduces the recorded response rather than recomputing it.
 
 ## Non-goals
 
 - **Update validator methods.** Temporal separates validation from execution for updates; that is
   its own reading and its own protocol phase. Adding it later costs an attribute argument.
-- **A deadline on `awaitCondition()` beyond what `await()` already gives.** The spec requires that a
-  condition composes with a deadline; it does not ask for a second deadline vocabulary.
 - **`#[QueryMethod]`.** Already wired, and untouched.
-- **Changing how signals are named.** The `BackedEnum|string` widening already landed; handlers
-  take the same names.
+- **Changing how signals are named.** The `BackedEnum|string` widening already landed; handlers take
+  the same names.
+- **A compatibility shim for `waitSignal()`.** The migration is a documented rewrite, not a
+  deprecation period.
 
 ## Risks
 
-- **Silently breaking DUR032** is the risk this change carries, and staging by journal position is
-  the whole mitigation. The regression gate is concrete: the eleven tests of `WorkflowDeadlineTest`
-  and the signal-after-deadline integration test must stay green **without edits**. Edits to those
-  tests are the signal that the re-founding changed observable behaviour.
-- **A predicate re-run on every replay is user code in a hot path.** The evaluation loop
-  re-evaluates pending conditions after each applied input; a workflow with many conditions and a
-  long history pays for it linearly. Worth measuring before it is documented as free.
-- **The update half may not be buildable as specified** until the worker-side protocol is probed.
-  If the probe in task 1 contradicts the spec, the spec moves — not the server.
+- **Silently breaking DUR032.** Interleaving is the whole mitigation, and the regression gate is
+  concrete: the deadline tests must be *rewritten* onto conditions and must still assert the same
+  outcomes. Where a deadline test loses its assertion instead of changing shape, the guarantee was
+  lost with the method.
+- **A public API is removed.** `waitSignal()` is documented, used in the Symfony samples and the
+  integration fixtures, and has just received deadlines and enum names. Part of what landed this
+  week is deleted on purpose; the migration snippet has to be good enough that no one has to
+  reconstruct it.
+- **A predicate re-run after every applied message is user code in a hot path.** A workflow with
+  many pending conditions and a long history pays linearly. Worth measuring before it is documented
+  as free.
+- **The update half may not be buildable as specified** until the worker-side protocol is probed. If
+  the probe in task 1 contradicts the spec, the spec moves — not the server.
