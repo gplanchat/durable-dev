@@ -120,6 +120,27 @@ final class IntegrationWorkflows
             }
         });
 
+        // Les deux branches doivent partir dans la MÊME workflow task : c'est ce que le passage
+        // de N suspensions de fiber à une seule ne doit pas avoir changé (ADR DUR033).
+        $registry->registerFactory('Assembled', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['both' => $env->await($env->all(
+            $env->activity('double', ['value' => $input['value'] ?? 0], self::options()),
+            $env->activity('append', ['text' => 'x'], self::options()),
+        ))]);
+
+        // Quorum atteint par les activités ; les minuteurs perdants doivent être retirés côté
+        // serveur, sans quoi l'exécution attendrait une heure.
+        $registry->registerFactory('Quorum', static fn(array $input) => static function (WorkflowEnvironment $env): array {
+            $reached = $env->await($env->some(
+                2,
+                $env->activity('double', ['value' => 1], self::options()),
+                $env->activity('double', ['value' => 2], self::options()),
+                $env->timer(Duration::hours(1), 'loser-1'),
+                $env->timer(Duration::hours(2), 'loser-2'),
+            ));
+
+            return ['keys' => array_keys($reached), 'values' => array_values($reached)];
+        });
+
         $registry->registerFactory('ChildParent', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): array {
             return ['fromChild' => $env->executeChildWorkflow('Doubler', ['value' => $input['value'] ?? 0])];
         });
