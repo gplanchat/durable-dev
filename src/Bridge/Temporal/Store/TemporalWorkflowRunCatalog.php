@@ -7,6 +7,7 @@ namespace Gplanchat\Bridge\Temporal\Store;
 use Google\Protobuf\Timestamp;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
+use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
@@ -36,6 +37,7 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     public function __construct(
         private readonly WorkflowServiceClient $client,
         private readonly TemporalConnection $connection,
+        private readonly ?TemporalHistoryCursor $historyCursor = null,
     ) {}
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
@@ -81,15 +83,20 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     }
 
     /**
-     * Non encore implémentée : la lecture d'historique Temporal vit toujours dans le plugin, et son
-     * déplacement est une tranche à part entière (§5.1). Rendre une liste vide ici mentirait sur
-     * une exécution qui a bel et bien une histoire.
+     * Sans curseur câblé ou sans id de regroupement, il n'y a rien à demander au serveur : Temporal
+     * exige le workflow id pour retrouver une histoire. Une liste vide dit « je n'ai rien à
+     * montrer », ce qui est exact, là où une exception dirait « quelque chose ne va pas ».
      *
      * @return list<WorkflowRunEvent>
      */
-    public function readHistory(string $runId): array
+    public function readHistory(WorkflowRunDescription $run): array
     {
-        throw new \LogicException('Temporal history reading has not moved behind the port yet — see openspec/changes/backend-neutral-workflow-dashboard/tasks.md §5.1.');
+        $workflowId = $run->groupId ?? '';
+        if (null === $this->historyCursor || '' === $workflowId || '' === $run->runId) {
+            return [];
+        }
+
+        return (new TemporalRunHistoryReader($this->historyCursor))->read($workflowId, $run->runId);
     }
 
     private static function describe(WorkflowExecutionInfo $info): ?WorkflowRunDescription
