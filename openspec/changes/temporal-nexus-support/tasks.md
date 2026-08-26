@@ -17,8 +17,8 @@
 - [x] 3.2 `nexusOperationSlotIndex` in `ExecutionContext`, plus `scheduleNexusOperation()` on the environment — même forme de replay qu'une activité, et `pendingNexusOperations()` retient l'attente pour que §3.5 et §4.3 puissent la régler
 - [x] 3.3 `findNexusOperationSlotResult()` and `findScheduledNexusOperation()` on `WorkflowHistorySourceInterface` — le backend journal rend toujours null parce qu'il refuse de planifier ; le backend Temporal aussi, en attendant la lecture des neuf événements de §4.3, ce que son docblock dit
 - [x] 3.4 `scheduleNexusOperation()` and `cancelNexusOperation()` on `WorkflowCommandBufferInterface` — le backend journal **refuse** avec `NexusUnsupportedByBackendException`, ce que la proposition exige ; le tampon Temporal lève un `LogicException` nommant §4.1 / §4.2, pas l'exception « backend sans route » qui serait un mensonge sur ce que Temporal sait faire
-- [ ] 3.5 Extend `WorkflowFiberDriver::cancelPending()` to cancel a pending Nexus operation on workflow cancellation
-- [ ] 3.6 `DurableNexusOperationFailedException` with its four kinds, and its classification in `WorkflowFailureClassifier`
+- [x] 3.5 Extend `WorkflowFiberDriver::cancelPending()` to cancel a pending Nexus operation on workflow cancellation — la marche unique est `AwaitableCancellation`, que les deux appelants partagent depuis ; le composite est traversé, une opération sous un `any()` borné ne reste pas en vol
+- [x] 3.6 `DurableNexusOperationFailedException` with its four kinds, and its classification in `WorkflowFailureClassifier` — les quatre viennent des quatre événements terminaux du protobuf et de ses deux infos d'échec, pas d'un découpage de confort
 
 ## 4. Temporal backend
 

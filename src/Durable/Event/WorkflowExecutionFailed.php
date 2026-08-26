@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Event;
 
 use Gplanchat\Durable\Exception\DeadlineExceededException;
+use Gplanchat\Durable\Nexus\DurableNexusOperationFailedException;
 
 /**
  * Le handler de workflow n'a pas géré une erreur (ex. échec d'activité non attrapé) :
@@ -17,6 +18,7 @@ final readonly class WorkflowExecutionFailed implements Event
     public const KIND_UNHANDLED_ACTIVITY_SUPERSEDED = 'unhandled_activity_superseded';
     public const KIND_UNHANDLED_CATASTROPHIC_ACTIVITY = 'unhandled_catastrophic_activity_failure';
     public const KIND_DEADLINE_EXCEEDED = 'deadline_exceeded';
+    public const KIND_NEXUS_OPERATION = 'nexus_operation_failure';
     public const KIND_WORKFLOW_HANDLER = 'workflow_handler_failure';
     public const KIND_TERMINATED_BY_PARENT = 'terminated_by_parent';
 
@@ -99,6 +101,26 @@ final readonly class WorkflowExecutionFailed implements Event
             $cause->getMessage(),
             0,
             ['deadlineSeconds' => $cause->deadline()->toSeconds(), 'awaited' => $cause->awaited()],
+        );
+    }
+
+    /**
+     * Opération Nexus non rattrapée : porte l'origine — opération, handler, échéance ou
+     * annulation — que l'aplatir ferait perdre (ADR à venir, §7.1).
+     */
+    public static function nexusOperationFailure(string $executionId, DurableNexusOperationFailedException $cause): self
+    {
+        return new self(
+            $executionId,
+            self::KIND_NEXUS_OPERATION,
+            $cause::class,
+            $cause->getMessage(),
+            0,
+            [
+                'operationId' => $cause->operationId(),
+                'operationName' => $cause->operationName(),
+                'nexusKind' => $cause->kind(),
+            ],
         );
     }
 
