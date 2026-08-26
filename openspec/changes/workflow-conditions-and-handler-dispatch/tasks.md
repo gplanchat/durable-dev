@@ -6,7 +6,7 @@
 ## 1. Establish the evaluation loop before writing the primitive
 
 - [x] 1.1 Write down, in journal-position terms, the interleaving of message application, handler dispatch and condition re-evaluation, and record it in `design.md` — a position is a stream rank, the wait drives the cursor, and both P and Q are stream positions or the comparison is meaningless
-- [ ] 1.2 Check whether a Temporal workflow task can carry several journaled messages at once, so interleaving is an ordering question inside one task and not only across tasks
+- [x] 1.2 Check whether a Temporal workflow task can carry several journaled messages at once, so interleaving is an ordering question inside one task and not only across tasks — yes: three signals reach a worker in a single task when none is polling, and one per task when one is. The count is a timing artefact, so the task boundary cannot order anything
 - [ ] 1.3 Probe, against the running server, how a worker accepts and completes an update — which messages carry the acceptance and the response, and on which task they are returned. Nothing about update responses reaches the domain before this is seen
 - [ ] 1.4 Record what the probes changed, if anything, in `design.md`
 

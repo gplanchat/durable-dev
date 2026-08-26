@@ -28,8 +28,20 @@ Per the house rule, the boundary between observed and assumed:
   on which task they must be returned. Nothing about update responses reaches the domain before
   that is seen on `:7233`. The signal half has no such dependency: it rides the
   `WORKFLOW_EXECUTION_SIGNALED` events already read and already exercised by the integration suite.
-- **Assumed, and cheap to check first:** that a Temporal workflow task can carry several journaled
-  messages at once, so interleaving is a real question inside one task and not only across tasks.
+- **Probed, and the answer is yes (task 1.2).** A Temporal workflow task can carry several
+  journaled messages at once. Against the running server, on a task queue no worker polls: three
+  signals sent in a row produce **one** `WORKFLOW_TASK_SCHEDULED` followed by three
+  `WORKFLOW_EXECUTION_SIGNALED` — no extra task is scheduled per signal — and a single
+  `PollWorkflowTaskQueue` hands the worker all three in one task.
+
+  The same probe run *with* a worker polling showed one signal per task, because the worker
+  claimed each task before the next signal landed. Both regimes are real: **how many messages a
+  task carries is a timing artefact of worker availability, not a contract.** A worker restart, a
+  deploy, or a scaling event produces the batched regime in ordinary production.
+
+  That settles the question 1.1 depended on: the task boundary cannot be used to order message
+  application, because it does not reliably separate messages. The interleaving has to be enforced
+  inside one replay pass.
 
 ## Decisions
 
