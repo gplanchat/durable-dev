@@ -19,6 +19,7 @@
             <directory>src/Durable</directory>
             <directory>src/DurableBundle</directory>
             <directory>src/Bridge/Temporal</directory>
+            <directory>src/Bridge/Dbal</directory>
         </include>
         <exclude>
             <directory>src/Bridge/Temporal/Api</directory>

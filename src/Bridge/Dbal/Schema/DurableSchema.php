@@ -39,7 +39,10 @@ final class DurableSchema
         $this->ensured = true;
 
         $schemaManager = $this->connection->createSchemaManager();
-        $existing = $schemaManager->listTableNames();
+        $existing = array_values(array_filter(
+            [$this->eventsTable, $this->metadataTable, $this->parentLinkTable],
+            static fn (string $table): bool => $schemaManager->tablesExist([$table]),
+        ));
 
         $schema = new Schema();
         $this->addToSchema($schema, $existing);
@@ -64,6 +67,8 @@ final class DurableSchema
             $events->addColumn('event_type', Types::STRING, ['length' => 255]);
             $events->addColumn('payload', Types::TEXT);
             $events->addColumn('recorded_at', Types::DATETIME_IMMUTABLE);
+            // setPrimaryKey() est déprécié en DBAL 4.3, mais son remplaçant n'existe pas en DBAL 3 :
+            // le paquet supporte les deux majeures, donc on garde l'appel commun.
             $events->setPrimaryKey(['id']);
             $events->addIndex(['execution_id'], $this->eventsTable.'_execution_idx');
         }
