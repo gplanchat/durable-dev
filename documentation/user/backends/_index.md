@@ -288,6 +288,23 @@ See [Failures and retries](../failures/) and [Options](../options/#retrylimit).
 
 ---
 
+## Writing your own backend
+
+Two ports define a backend: `WorkflowCommandBufferInterface` for what a workflow asks for, and
+`WorkflowHistorySourceInterface` for what already happened.
+
+Both carry **value objects**, not primitives. An implementation receives the options as the caller
+built them — retry limits, timeouts, task queues, cron schedules — and owns the translation to its
+own representation, including serialisation and any reading of a clock.
+
+`startTimer()` receives a **delay**, not a deadline: turning it into an instant is your decision,
+with your clock. That is what lets a test harness advance a virtual clock, and what lets the
+Temporal driver pass the duration the server expects.
+
+The contributor decision record is [DUR031](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR031-value-objects-across-ports-and-wire-ownership.md).
+
+---
+
 ## See also
 
 - [Configuration reference](../configuration/) — full `durable.yaml` key list.
