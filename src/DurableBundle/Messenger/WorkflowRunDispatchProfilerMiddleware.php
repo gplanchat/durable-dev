@@ -18,8 +18,7 @@ final class WorkflowRunDispatchProfilerMiddleware implements MiddlewareInterface
 {
     public function __construct(
         private readonly DurableExecutionTrace $trace,
-    ) {
-    }
+    ) {}
 
     public function handle(Envelope $envelope, StackInterface $stack): Envelope
     {

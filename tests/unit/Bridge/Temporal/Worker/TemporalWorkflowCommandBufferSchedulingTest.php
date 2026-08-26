@@ -4,17 +4,14 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Temporal\Worker;
 
-use Gplanchat\Durable\TaskQueue;
-
-use Gplanchat\Durable\Duration;
-
-use Gplanchat\Durable\WorkflowTimeouts;
-
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Durable\ChildWorkflowOptions;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\ParentClosePolicy;
+use Gplanchat\Durable\TaskQueue;
 use Gplanchat\Durable\WorkflowIdReusePolicy;
+use Gplanchat\Durable\WorkflowTimeouts;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Enums\V1\ParentClosePolicy as TemporalParentClosePolicy;
 use Temporal\Api\Enums\V1\WorkflowIdReusePolicy as TemporalIdReusePolicy;

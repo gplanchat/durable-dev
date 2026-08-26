@@ -49,8 +49,8 @@ final class WorkflowCancellationTest extends TestCase
 
     public function testCancellationIsRaisedAtTheAwaitPoint(): void
     {
-        $this->executor->register('slow', static fn (): string => 'never used');
-        $handler = static fn (WorkflowEnvironment $env): mixed => $env->await($env->activity('slow', []));
+        $this->executor->register('slow', static fn(): string => 'never used');
+        $handler = static fn(WorkflowEnvironment $env): mixed => $env->await($env->activity('slow', []));
 
         $this->startAndSuspend('exec-1', $handler);
         $this->requestCancellation('exec-1');
@@ -74,7 +74,7 @@ final class WorkflowCancellationTest extends TestCase
     public function testWorkflowCanCompensateBeforeTheCancellationTakesEffect(): void
     {
         $refunds = 0;
-        $this->executor->register('charge', static fn (): string => 'charged');
+        $this->executor->register('charge', static fn(): string => 'charged');
         $this->executor->register('refund', static function () use (&$refunds): string {
             ++$refunds;
 
@@ -111,7 +111,7 @@ final class WorkflowCancellationTest extends TestCase
 
     public function testAWorkflowMaySwallowTheCancellationAndComplete(): void
     {
-        $this->executor->register('slow', static fn (): string => 'never used');
+        $this->executor->register('slow', static fn(): string => 'never used');
         $handler = static function (WorkflowEnvironment $env): string {
             try {
                 return $env->await($env->activity('slow', []));
@@ -133,7 +133,7 @@ final class WorkflowCancellationTest extends TestCase
         $this->eventStore->append(new ExecutionStarted('exec-4', []));
         $this->requestCancellation('exec-4');
 
-        self::assertSame('done', $this->engine->resume('exec-4', static fn (WorkflowEnvironment $env): string => 'done'));
+        self::assertSame('done', $this->engine->resume('exec-4', static fn(WorkflowEnvironment $env): string => 'done'));
         self::assertNotNull($this->firstOf('exec-4', ExecutionCompleted::class));
     }
 
@@ -141,10 +141,10 @@ final class WorkflowCancellationTest extends TestCase
     {
         // Garde : une activité perdante d'un any() ne doit pas être confondue avec une
         // annulation de workflow — même événement, raison différente.
-        $this->executor->register('fast', static fn (): string => 'winner');
+        $this->executor->register('fast', static fn(): string => 'winner');
         $runner = new \Gplanchat\Durable\InMemoryWorkflowRunner($this->eventStore, $this->transport, $this->executor);
 
-        $result = $runner->run('race-1', static fn (WorkflowEnvironment $env): mixed => $env->any(
+        $result = $runner->run('race-1', static fn(WorkflowEnvironment $env): mixed => $env->any(
             $env->activity('fast', []),
             $env->timer(3600.0),
         ));

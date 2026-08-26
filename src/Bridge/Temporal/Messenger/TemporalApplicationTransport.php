@@ -19,8 +19,7 @@ final class TemporalApplicationTransport implements TransportInterface
     public function __construct(
         private readonly TemporalConnection $connection,
         private readonly TransportInterface $inner,
-    ) {
-    }
+    ) {}
 
     public function get(): iterable
     {

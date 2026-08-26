@@ -18,8 +18,7 @@ final class TemporalJournalGrpcPoller
     public function __construct(
         private readonly WorkflowServiceClient $client,
         private readonly TemporalConnection $settings,
-    ) {
-    }
+    ) {}
 
     public function pollOnce(): PollWorkflowTaskQueueResponse
     {

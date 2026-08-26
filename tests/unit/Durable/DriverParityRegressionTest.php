@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
-use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Awaitable\AwaitableInspector;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Exception\WorkflowStuckException;
 use Gplanchat\Durable\Exception\WorkflowSuspendedException;
@@ -33,12 +33,13 @@ final class DriverParityRegressionTest extends TestCase
         $env = WorkflowTestEnvironment::inMemory([
             'flaky' => static function () use (&$runs): never {
                 ++$runs;
+
                 throw new \RuntimeException('boom');
             },
         ]);
 
         try {
-            $env->run(static fn (WorkflowEnvironment $wf): mixed => $wf->await($wf->activity(
+            $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activity(
                 'flaky',
                 [],
                 new ActivityOptions(RetryLimit::ofAttempts(3), initialInterval: Duration::seconds(0.01)),
@@ -73,14 +74,14 @@ final class DriverParityRegressionTest extends TestCase
         $eventStore = new InMemoryEventStore();
         $transport = new InMemoryActivityTransport();
         $executor = new RegistryActivityExecutor();
-        $executor->register('slow', static fn (): string => 'unused');
+        $executor->register('slow', static fn(): string => 'unused');
         $engine = new ExecutionEngine(
             $eventStore,
             new ExecutionRuntime($eventStore, $transport, $executor, 0, null, true),
         );
 
         try {
-            $engine->start('race-1', static fn (WorkflowEnvironment $env): mixed => $env->any(
+            $engine->start('race-1', static fn(WorkflowEnvironment $env): mixed => $env->any(
                 $env->activity('slow', []),
                 $env->timer(3600.0),
             ));
@@ -96,7 +97,7 @@ final class DriverParityRegressionTest extends TestCase
         // Deux méthodes voisines de la même façade avaient des contrats opposés : activity()
         // rendait un awaitable, timer() attendait sur place et rendait void. Les noms disent
         // maintenant lequel fait quoi.
-        $env = WorkflowTestEnvironment::inMemory(['echo' => static fn (): string => 'done']);
+        $env = WorkflowTestEnvironment::inMemory(['echo' => static fn(): string => 'done']);
 
         $result = $env->run(static function (WorkflowEnvironment $wf): array {
             $composable = $wf->timer(0.0);
@@ -127,7 +128,7 @@ final class DriverParityRegressionTest extends TestCase
     {
         // Sans saut d'horloge, aucun workflow qui dort n'est testable : le harnais n'a personne
         // pour lui livrer un réveil de minuteur.
-        $env = WorkflowTestEnvironment::inMemory(['ping' => static fn (): string => 'pong']);
+        $env = WorkflowTestEnvironment::inMemory(['ping' => static fn(): string => 'pong']);
 
         $startedAt = microtime(true);
         $result = $env->run(static function (WorkflowEnvironment $wf): string {
@@ -146,9 +147,9 @@ final class DriverParityRegressionTest extends TestCase
     {
         // Le saut ne doit intervenir que lorsque plus rien d'autre ne progresse : sauter plus tôt
         // ferait gagner le minuteur de toute course qu'une activité était en train de remporter.
-        $env = WorkflowTestEnvironment::inMemory(['fast' => static fn (): string => 'winner']);
+        $env = WorkflowTestEnvironment::inMemory(['fast' => static fn(): string => 'winner']);
 
-        $result = $env->run(static fn (WorkflowEnvironment $wf): mixed => $wf->any(
+        $result = $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->any(
             $wf->activity('fast', []),
             $wf->timer(Duration::hours(1)),
         ), 'race-skip');
@@ -177,7 +178,9 @@ final class DriverParityRegressionTest extends TestCase
         // Les tentatives étant désormais illimitées par défaut, le harnais doit échouer avec un
         // message actionnable au lieu de tourner sans fin.
         $env = WorkflowTestEnvironment::inMemory(
-            ['always' => static function (): never { throw new \RuntimeException('boom'); }],
+            ['always' => static function (): never {
+                throw new \RuntimeException('boom');
+            }],
             budgetSeconds: 0.5,
         );
 
@@ -185,17 +188,17 @@ final class DriverParityRegressionTest extends TestCase
         $this->expectExceptionMessageMatches('/retry indefinitely by default/');
 
         $env->run(
-            static fn (WorkflowEnvironment $wf): mixed => $wf->await($wf->activity('always', [], new ActivityOptions(initialInterval: Duration::seconds(0.05)))),
+            static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activity('always', [], new ActivityOptions(initialInterval: Duration::seconds(0.05)))),
             'runaway-1',
         );
     }
 
     public function testSyncDrainStillCompletesASimpleActivity(): void
     {
-        $env = WorkflowTestEnvironment::inMemory(['echo' => static fn (array $p): mixed => $p['v']]);
+        $env = WorkflowTestEnvironment::inMemory(['echo' => static fn(array $p): mixed => $p['v']]);
 
         self::assertSame(42, $env->run(
-            static fn (WorkflowEnvironment $wf): mixed => $wf->await($wf->activity('echo', ['v' => 42])),
+            static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activity('echo', ['v' => 42])),
             'plain-1',
         ));
         $completed = null;

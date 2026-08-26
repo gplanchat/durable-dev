@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Worker;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
-use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Activity\RetryLimit;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Event\ActivityTaskFailed;
+use Gplanchat\Durable\Failure\ActivityRetryState;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
-use Gplanchat\Durable\Failure\ActivityRetryState;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\ActivityEventJournal;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -36,6 +36,7 @@ final class ActivityRetryStateTest extends TestCase
         $runs = 0;
         $this->drain($store, $transport, static function () use (&$runs): never {
             ++$runs;
+
             throw new \RuntimeException('boom');
         }, new ActivityOptions(RetryLimit::ofAttempts(3), initialInterval: Duration::seconds(0.0)));
 
@@ -66,6 +67,7 @@ final class ActivityRetryStateTest extends TestCase
         $runs = 0;
         $this->drain($store, $transport, static function () use (&$runs): never {
             ++$runs;
+
             throw new \RuntimeException('boom');
         }, new ActivityOptions(initialInterval: Duration::seconds(0.0)), maxDrain: 6, expectTermination: false);
 
@@ -82,6 +84,7 @@ final class ActivityRetryStateTest extends TestCase
         $executor = new RegistryActivityExecutor();
         $executor->register('Boom', static function () use (&$runs): never {
             ++$runs;
+
             throw new \RuntimeException('boom');
         });
         $transport = new InMemoryActivityTransport();
@@ -123,6 +126,7 @@ final class ActivityRetryStateTest extends TestCase
         $runs = 0;
         $this->drain($store, new InMemoryActivityTransport(), static function () use (&$runs): never {
             ++$runs;
+
             throw new \DomainException('refused');
         }, new ActivityOptions(RetryLimit::ofAttempts(5), nonRetryableExceptions: [\DomainException::class]));
 
@@ -210,6 +214,7 @@ final class ActivityRetryStateTest extends TestCase
         $runs = 0;
         $executor->register('Boom', static function () use (&$runs): never {
             ++$runs;
+
             throw new \DomainException('refused');
         });
 
@@ -228,7 +233,7 @@ final class ActivityRetryStateTest extends TestCase
         self::assertSame(
             ['ActivityTaskStarted', 'ActivityTaskFailed', 'ActivityFailed'],
             array_map(
-                static fn (object $e): string => (new \ReflectionClass($e))->getShortName(),
+                static fn(object $e): string => (new \ReflectionClass($e))->getShortName(),
                 iterator_to_array($store->readStream('exec-1'), false),
             ),
             'le drain synchrone doit produire le même trio de marqueurs que le chemin Messenger',

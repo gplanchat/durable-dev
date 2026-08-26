@@ -4,21 +4,18 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal\Worker;
 
+use Google\Protobuf\Duration;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
-use Gplanchat\Durable\Duration as DurableDuration;
 use Gplanchat\Durable\ChildWorkflowOptions;
 use Gplanchat\Durable\ContinueAsNewOptions;
-use Gplanchat\Durable\SearchAttributes;
-use Gplanchat\Durable\TaskQueue as DurableTaskQueue;
-use Gplanchat\Durable\WorkflowTimeouts;
+use Gplanchat\Durable\Duration as DurableDuration;
 use Gplanchat\Durable\Event\ActivityScheduled;
-use Gplanchat\Durable\Port\WorkflowCommandBufferInterface;
 use Gplanchat\Durable\Failure\WorkflowFailureClassifier;
-use Google\Protobuf\Duration;
+use Gplanchat\Durable\Port\WorkflowCommandBufferInterface;
 use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\FailWorkflowExecutionCommandAttributes;
@@ -54,8 +51,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
          * ciblée d'activité n'est pas émise — voir la note de cette méthode.
          */
         private readonly ?TemporalExecutionHistory $history = null,
-    ) {
-    }
+    ) {}
 
     public function scheduleActivity(string $activityId, string $activityName, array $payload, ?ActivityOptions $options): void
     {

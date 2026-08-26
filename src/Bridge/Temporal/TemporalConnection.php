@@ -66,7 +66,7 @@ final class TemporalConnection
     {
         $safe = preg_replace('/[^a-zA-Z0-9._-]/', '-', $executionId) ?? 'invalid';
 
-        return 'durable-journal-'.substr($safe, 0, 900);
+        return 'durable-journal-' . substr($safe, 0, 900);
     }
 
     /**
@@ -87,7 +87,7 @@ final class TemporalConnection
 
         $host = $parts['host'] ?? '127.0.0.1';
         $port = isset($parts['port']) ? (int) $parts['port'] : 7233;
-        $target = $host.':'.$port;
+        $target = $host . ':' . $port;
 
         parse_str($parts['query'] ?? '', $q);
 

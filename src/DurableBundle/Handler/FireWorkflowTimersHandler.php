@@ -33,8 +33,7 @@ final class FireWorkflowTimersHandler
         private readonly ExecutionRuntime $runtime,
         private readonly WorkflowResumeDispatcher $resumeDispatcher,
         private readonly MessageBusInterface $messageBus,
-    ) {
-    }
+    ) {}
 
     public function __invoke(FireWorkflowTimersMessage $message): void
     {

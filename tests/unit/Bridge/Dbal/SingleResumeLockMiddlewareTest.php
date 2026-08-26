@@ -84,10 +84,8 @@ final class SingleResumeLockMiddlewareTest extends TestCase
 
     private function stackRunning(callable $duringHandling): StackInterface
     {
-        $next = new class($duringHandling) implements MiddlewareInterface {
-            public function __construct(private $duringHandling)
-            {
-            }
+        $next = new class ($duringHandling) implements MiddlewareInterface {
+            public function __construct(private $duringHandling) {}
 
             public function handle(Envelope $envelope, StackInterface $stack): Envelope
             {
@@ -97,10 +95,8 @@ final class SingleResumeLockMiddlewareTest extends TestCase
             }
         };
 
-        return new class($next) implements StackInterface {
-            public function __construct(private readonly MiddlewareInterface $next)
-            {
-            }
+        return new class ($next) implements StackInterface {
+            public function __construct(private readonly MiddlewareInterface $next) {}
 
             public function next(): MiddlewareInterface
             {

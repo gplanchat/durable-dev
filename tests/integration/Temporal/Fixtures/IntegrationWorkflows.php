@@ -6,8 +6,8 @@ namespace integration\Temporal\Fixtures;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
-use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Activity\RetryLimit;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -23,15 +23,13 @@ final class IntegrationWorkflows
 {
     private const ACTIVITY_TIMEOUT_SECONDS = 10.0;
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     public static function registerActivities(RegistryActivityExecutor $executor): void
     {
-        $executor->register('double', static fn (array $p): int => ((int) ($p['value'] ?? 0)) * 2);
-        $executor->register('append', static fn (array $p): string => ((string) ($p['text'] ?? '')).'!');
-        $executor->register('refund', static fn (array $p): string => 'refunded:'.($p['order'] ?? '?'));
+        $executor->register('double', static fn(array $p): int => ((int) ($p['value'] ?? 0)) * 2);
+        $executor->register('append', static fn(array $p): string => ((string) ($p['text'] ?? '')) . '!');
+        $executor->register('refund', static fn(array $p): string => 'refunded:' . ($p['order'] ?? '?'));
         $executor->register('boom', static function (array $p): never {
             throw new \DomainException('activity exploded');
         });
@@ -39,58 +37,58 @@ final class IntegrationWorkflows
 
     public static function registerWorkflows(WorkflowRegistry $registry): void
     {
-        $registry->registerFactory('Plain', static fn (array $input) => static fn (WorkflowEnvironment $env): array => ['echo' => $input['value'] ?? null]);
+        $registry->registerFactory('Plain', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['echo' => $input['value'] ?? null]);
 
-        $registry->registerFactory('Doubler', static fn (array $input) => static fn (WorkflowEnvironment $env): array => ['doubled' => $env->await($env->activity(
+        $registry->registerFactory('Doubler', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['doubled' => $env->await($env->activity(
             'double',
             ['value' => $input['value'] ?? 0],
             self::options(),
         ))]);
 
-        $registry->registerFactory('TwoActivities', static fn (array $input) => static function (WorkflowEnvironment $env) use ($input): array {
+        $registry->registerFactory('TwoActivities', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): array {
             $doubled = $env->await($env->activity('double', ['value' => $input['value'] ?? 0], self::options()));
 
             return ['text' => $env->await($env->activity('append', ['text' => (string) $doubled], self::options()))];
         });
 
         // Un run de cron : il doit se terminer pour que le serveur planifie le suivant.
-        $registry->registerFactory('Ticking', static fn (array $input) => static fn (WorkflowEnvironment $env): array => ['tick' => $env->await($env->activity(
+        $registry->registerFactory('Ticking', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['tick' => $env->await($env->activity(
             'double',
             ['value' => $input['value'] ?? 1],
             self::options(),
         ))]);
 
-        $registry->registerFactory('Sleeper', static fn (array $input) => static function (WorkflowEnvironment $env): array {
+        $registry->registerFactory('Sleeper', static fn(array $input) => static function (WorkflowEnvironment $env): array {
             $env->sleep(1.0);
 
             return ['slept' => true];
         });
 
-        $registry->registerFactory('SideEffecting', static fn (array $input) => static function (WorkflowEnvironment $env) use ($input): array {
-            return ['side' => $env->sideEffect(static fn (): int => ((int) ($input['seed'] ?? 0)) + 1)];
+        $registry->registerFactory('SideEffecting', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): array {
+            return ['side' => $env->sideEffect(static fn(): int => ((int) ($input['seed'] ?? 0)) + 1)];
         });
 
         // maxAttempts borné : sans lui le serveur applique sa RetryPolicy par défaut et retente
         // indéfiniment — le workflow n'échouerait jamais.
-        $registry->registerFactory('FailsOnActivity', static fn (array $input) => static fn (WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], new ActivityOptions(
+        $registry->registerFactory('FailsOnActivity', static fn(array $input) => static fn(WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], new ActivityOptions(
             RetryLimit::once(),
             timeouts: self::attemptTimeout(),
         ))));
 
-        $registry->registerFactory('UnboundedRetry', static fn (array $input) => static fn (WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], self::options())));
+        $registry->registerFactory('UnboundedRetry', static fn(array $input) => static fn(WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], self::options())));
 
-        $registry->registerFactory('NonRetryable', static fn (array $input) => static fn (WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], new ActivityOptions(
+        $registry->registerFactory('NonRetryable', static fn(array $input) => static fn(WorkflowEnvironment $env): mixed => $env->await($env->activity('boom', [], new ActivityOptions(
             RetryLimit::ofAttempts(5),
             initialInterval: Duration::seconds(0.1),
             nonRetryableExceptions: [\DomainException::class],
             timeouts: self::attemptTimeout(),
         ))));
 
-        $registry->registerFactory('Compensating', static fn (array $input) => static function (WorkflowEnvironment $env) use ($input): mixed {
+        $registry->registerFactory('Compensating', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): mixed {
             try {
                 return $env->await($env->activity('double', ['value' => 1], new ActivityOptions(
                     timeouts: ActivityTimeouts::attempt(Duration::seconds(60.0)),
-                                    )));
+                )));
             } catch (WorkflowCancelledFailure $e) {
                 $env->await($env->activity('refund', ['order' => $input['order'] ?? 'x'], self::options()));
 
@@ -98,7 +96,7 @@ final class IntegrationWorkflows
             }
         });
 
-        $registry->registerFactory('ChildParent', static fn (array $input) => static function (WorkflowEnvironment $env) use ($input): array {
+        $registry->registerFactory('ChildParent', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): array {
             return ['fromChild' => $env->executeChildWorkflow('Doubler', ['value' => $input['value'] ?? 0])];
         });
     }

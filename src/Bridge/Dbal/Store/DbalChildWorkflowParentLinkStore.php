@@ -20,8 +20,7 @@ final class DbalChildWorkflowParentLinkStore implements ChildWorkflowParentLinkS
         private readonly Connection $connection,
         private readonly DurableSchema $schema,
         private readonly string $table = 'durable_child_workflow_parent_link',
-    ) {
-    }
+    ) {}
 
     public function link(string $childExecutionId, string $parentExecutionId): void
     {
@@ -57,7 +56,7 @@ final class DbalChildWorkflowParentLinkStore implements ChildWorkflowParentLinkS
         $this->schema->ensure();
 
         return array_map(
-            static fn (mixed $id): string => (string) $id,
+            static fn(mixed $id): string => (string) $id,
             $this->connection->fetchFirstColumn(
                 \sprintf('SELECT child_execution_id FROM %s WHERE parent_execution_id = ?', $this->table),
                 [$parentExecutionId],

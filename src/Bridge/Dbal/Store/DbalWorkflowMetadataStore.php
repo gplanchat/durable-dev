@@ -20,8 +20,7 @@ final class DbalWorkflowMetadataStore implements WorkflowMetadataStore
         private readonly Connection $connection,
         private readonly DurableSchema $schema,
         private readonly string $table = 'durable_workflow_metadata',
-    ) {
-    }
+    ) {}
 
     public function save(string $executionId, string $workflowType, array $payload): void
     {

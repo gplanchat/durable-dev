@@ -11,6 +11,7 @@ use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Failure\ActivityRetryState;
 use Gplanchat\Durable\Mapping\EventDataMapper;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -25,10 +26,25 @@ final class EventDataMapperRoundTripTest extends TestCase
     public static function events(): iterable
     {
         yield 'ActivityTaskFailed' => [new ActivityTaskFailed(
-            'exec-1', 'act-1', 'charge', 3, 'App\\Boom', 'kaput', ActivityRetryState::MaximumAttemptsReached,
+            'exec-1',
+            'act-1',
+            'charge',
+            3,
+            'App\\Boom',
+            'kaput',
+            ActivityRetryState::MaximumAttemptsReached,
         )];
         yield 'ActivityFailed with retryState' => [new ActivityFailed(
-            'exec-1', 'act-1', 'App\\Boom', 'kaput', 7, ['k' => 'v'], 'trace', [], 'charge', 3,
+            'exec-1',
+            'act-1',
+            'App\\Boom',
+            'kaput',
+            7,
+            ['k' => 'v'],
+            'trace',
+            [],
+            'charge',
+            3,
             ActivityRetryState::NonRetryableFailure,
         )];
         yield 'ActivityFailed legacy without retryState' => [new ActivityFailed('exec-1', 'act-1', 'App\\Boom', 'kaput')];
@@ -37,9 +53,7 @@ final class EventDataMapperRoundTripTest extends TestCase
         yield 'WorkflowExecutionCancelled without parent' => [new WorkflowExecutionCancelled('exec-1', 'operator')];
     }
 
-    /**
-     * @dataProvider events
-     */
+    #[DataProvider('events')]
     public function testRoundTripPreservesEveryField(Event $event): void
     {
         $decoded = EventDataMapper::toDomainEvent(EventDataMapper::fromDomainEvent($event));
@@ -52,7 +66,13 @@ final class EventDataMapperRoundTripTest extends TestCase
     public function testRoundTripSurvivesJsonEncodedPayloads(): void
     {
         $record = EventDataMapper::fromDomainEvent(new ActivityTaskFailed(
-            'exec-1', 'act-1', 'charge', 2, 'App\\Boom', 'kaput', ActivityRetryState::InProgress,
+            'exec-1',
+            'act-1',
+            'charge',
+            2,
+            'App\\Boom',
+            'kaput',
+            ActivityRetryState::InProgress,
         ));
         $record['payload'] = json_encode($record['payload'], \JSON_THROW_ON_ERROR);
 

@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Durable;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\TaskQueue;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -38,9 +39,7 @@ final class TaskQueueTest extends TestCase
         TaskQueue::named('   ');
     }
 
-    /**
-     * @dataProvider namesWithEdgeWhitespace
-     */
+    #[DataProvider('namesWithEdgeWhitespace')]
     public function testWhitespaceAtTheEdgesIsRejected(string $name): void
     {
         // Le serveur conserve le nom tel quel : un worker qui poll la version « propre » ne

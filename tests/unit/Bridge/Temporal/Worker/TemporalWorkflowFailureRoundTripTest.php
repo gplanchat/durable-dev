@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Temporal\Worker;
 
-use Gplanchat\Durable\TaskQueue;
-
 use Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
@@ -13,6 +11,7 @@ use Gplanchat\Durable\ContinueAsNewOptions;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\Failure\FailureEnvelope;
+use Gplanchat\Durable\TaskQueue;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Enums\V1\EventType;

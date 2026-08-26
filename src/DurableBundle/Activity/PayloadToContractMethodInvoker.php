@@ -16,8 +16,7 @@ final class PayloadToContractMethodInvoker
         private readonly object $handler,
         private readonly string $contractClass,
         private readonly string $contractMethodName,
-    ) {
-    }
+    ) {}
 
     /**
      * @param array<string, mixed> $payload

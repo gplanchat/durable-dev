@@ -5,17 +5,15 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Testing;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
-use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Activity\RetryLimit;
-use Gplanchat\Durable\Event\ActivityCompleted;
+use Gplanchat\Durable\ChildWorkflowOptions;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
-use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Exception\WorkflowStuckException;
 use Gplanchat\Durable\Failure\ActivityRetryState;
 use Gplanchat\Durable\ParentClosePolicy;
-use Gplanchat\Durable\ChildWorkflowOptions;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
@@ -30,9 +28,9 @@ final class HarnessParityTest extends TestCase
 {
     public function testActivityJournalHasTheSameShapeAsProduction(): void
     {
-        $env = WorkflowTestEnvironment::inMemory(['greet' => static fn (array $p): string => 'hi '.$p['name']]);
+        $env = WorkflowTestEnvironment::inMemory(['greet' => static fn(array $p): string => 'hi ' . $p['name']]);
 
-        $result = $env->run(static fn (WorkflowEnvironment $wf): mixed
+        $result = $env->run(static fn(WorkflowEnvironment $wf): mixed
             => $wf->await($wf->activity('greet', ['name' => 'world'])), 'exec-1');
 
         self::assertSame('hi world', $result);
@@ -55,13 +53,15 @@ final class HarnessParityTest extends TestCase
         $env = WorkflowTestEnvironment::inMemory([
             'flaky' => static function () use (&$runs): never {
                 ++$runs;
+
                 throw new \DomainException('refused');
             },
         ]);
 
         $options = new ActivityOptions(RetryLimit::ofAttempts(5), nonRetryableExceptions: [\DomainException::class]);
+
         try {
-            $env->run(static fn (WorkflowEnvironment $wf): mixed
+            $env->run(static fn(WorkflowEnvironment $wf): mixed
                 => $wf->await($wf->activity('flaky', [], $options)), 'exec-2');
         } catch (\Throwable) {
             // Le workflow ne gère pas l'échec : attendu ici.
@@ -79,13 +79,15 @@ final class HarnessParityTest extends TestCase
         $env = WorkflowTestEnvironment::inMemory([
             'flaky' => static function () use (&$runs): never {
                 ++$runs;
+
                 throw new \RuntimeException('boom');
             },
         ]);
 
         $options = new ActivityOptions(RetryLimit::ofAttempts(3), initialInterval: Duration::seconds(0.0));
+
         try {
-            $env->run(static fn (WorkflowEnvironment $wf): mixed
+            $env->run(static fn(WorkflowEnvironment $wf): mixed
                 => $wf->await($wf->activity('flaky', [], $options)), 'exec-3');
         } catch (\Throwable) {
         }
@@ -96,12 +98,12 @@ final class HarnessParityTest extends TestCase
 
     public function testChildWorkflowsRunInTheHarness(): void
     {
-        $env = WorkflowTestEnvironment::inMemory(['work' => static fn (): string => 'from-activity']);
-        $env->registerWorkflow('Child', static fn (array $input) => static fn (WorkflowEnvironment $wf): string
-            => 'child('.$wf->await($wf->activity('work', [])).')');
+        $env = WorkflowTestEnvironment::inMemory(['work' => static fn(): string => 'from-activity']);
+        $env->registerWorkflow('Child', static fn(array $input) => static fn(WorkflowEnvironment $wf): string
+            => 'child(' . $wf->await($wf->activity('work', [])) . ')');
 
-        $result = $env->run(static fn (WorkflowEnvironment $wf): string
-            => 'parent['.$wf->executeChildWorkflow('Child', []).']', 'parent-1');
+        $result = $env->run(static fn(WorkflowEnvironment $wf): string
+            => 'parent[' . $wf->executeChildWorkflow('Child', []) . ']', 'parent-1');
 
         self::assertSame('parent[child(from-activity)]', $result);
         self::assertNotNull($this->firstOf($env, 'parent-1', ChildWorkflowCompleted::class));
@@ -113,7 +115,7 @@ final class HarnessParityTest extends TestCase
         // L'enfant reste bloqué sur un signal jamais délivré : le runner le signale
         // (WorkflowStuckException), son journal reste sans issue terminale, il est donc
         // encore actif à la clôture du parent.
-        $env->registerWorkflow('Pending', static fn (array $input) => static fn (WorkflowEnvironment $wf): mixed
+        $env->registerWorkflow('Pending', static fn(array $input) => static fn(WorkflowEnvironment $wf): mixed
             => $wf->waitSignal('never'));
 
         $env->run(static function (WorkflowEnvironment $wf): string {
@@ -144,7 +146,7 @@ final class HarnessParityTest extends TestCase
         $this->expectException(WorkflowStuckException::class);
         $this->expectExceptionMessageMatches('/undelivered signal/');
 
-        $env->run(static fn (WorkflowEnvironment $wf): mixed => $wf->waitSignal('never'), 'exec-stuck');
+        $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->waitSignal('never'), 'exec-stuck');
     }
 
     // -------------------------------------------------------------------------

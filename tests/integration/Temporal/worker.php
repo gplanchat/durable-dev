@@ -28,14 +28,14 @@ use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\WorkflowRegistry;
 use integration\Temporal\Fixtures\IntegrationWorkflows;
 
-require __DIR__.'/../../../vendor/autoload.php';
+require __DIR__ . '/../../../vendor/autoload.php';
 
 [$address, $namespace, $taskQueue, $role] = [$argv[1], $argv[2], $argv[3], $argv[4]];
 
 $connection = new TemporalConnection(
     target: $address,
     namespace: $namespace,
-    identity: 'durable-it-'.$role,
+    identity: 'durable-it-' . $role,
     workflowTaskQueue: $taskQueue,
     activityTaskQueue: $taskQueue,
 );
@@ -55,7 +55,7 @@ if ('workflow' === $role) {
         try {
             $processor->processOne();
         } catch (\Throwable $e) {
-            fwrite(STDERR, 'workflow worker: '.$e::class.': '.$e->getMessage()."\n");
+            fwrite(STDERR, 'workflow worker: ' . $e::class . ': ' . $e->getMessage() . "\n");
         }
     }
 }
@@ -82,6 +82,6 @@ while (true) {
     try {
         $worker->pollOnce();
     } catch (\Throwable $e) {
-        fwrite(STDERR, 'activity worker: '.$e::class.': '.$e->getMessage()."\n");
+        fwrite(STDERR, 'activity worker: ' . $e::class . ': ' . $e->getMessage() . "\n");
     }
 }

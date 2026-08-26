@@ -31,8 +31,7 @@ final class WorkflowTaskProcessor
         private readonly WorkflowServiceClient $client,
         private readonly TemporalConnection $settings,
         private readonly WorkflowTaskRunner $runner,
-    ) {
-    }
+    ) {}
 
     /**
      * Long-polls one workflow task, replays the history, and sends the commands back.

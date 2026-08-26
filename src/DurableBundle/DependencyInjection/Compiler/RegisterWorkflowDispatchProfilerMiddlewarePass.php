@@ -18,7 +18,7 @@ final class RegisterWorkflowDispatchProfilerMiddlewarePass implements CompilerPa
     public function process(ContainerBuilder $container): void
     {
         foreach (array_keys($container->findTaggedServiceIds('messenger.bus')) as $busId) {
-            $param = $busId.'.middleware';
+            $param = $busId . '.middleware';
             if (!$container->hasParameter($param)) {
                 continue;
             }

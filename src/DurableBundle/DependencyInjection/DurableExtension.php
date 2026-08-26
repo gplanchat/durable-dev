@@ -4,20 +4,26 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\DependencyInjection;
 
+use Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware;
+use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
+use Gplanchat\Bridge\Dbal\Store\DbalChildWorkflowParentLinkStore;
+use Gplanchat\Bridge\Dbal\Store\DbalEventStore;
+use Gplanchat\Bridge\Dbal\Store\DbalWorkflowMetadataStore;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowResumeDispatcher;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
-use Gplanchat\Bridge\Temporal\WorkflowClient;
-use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
-use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
+use Gplanchat\Bridge\Temporal\WorkflowClient;
+use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
+use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
@@ -33,6 +39,7 @@ use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
 use Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\ParentChildWorkflowCoordinator;
+use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\LocalWorkflowBackend;
 use Gplanchat\Durable\Port\ParentChildWorkflowCoordinatorInterface;
 use Gplanchat\Durable\Port\WorkflowBackendInterface;
@@ -43,18 +50,11 @@ use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
-use Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware;
-use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
-use Gplanchat\Bridge\Dbal\Store\DbalChildWorkflowParentLinkStore;
-use Gplanchat\Bridge\Dbal\Store\DbalEventStore;
-use Gplanchat\Bridge\Dbal\Store\DbalWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Transport\NoopActivityTransport;
-use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
-use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -293,8 +293,8 @@ final class DurableExtension extends Extension
             $transportName = $transportConfig['transport_name'] ?? 'durable_activities';
             $container->register(ActivityTransportInterface::class, MessengerActivityTransport::class)
                 ->setArguments([
-                    new Reference('messenger.transport.'.$transportName),
-                    new Reference('messenger.transport.'.$transportName),
+                    new Reference('messenger.transport.' . $transportName),
+                    new Reference('messenger.transport.' . $transportName),
                 ])
                 ->setPublic(true)
             ;

@@ -22,6 +22,5 @@ final class WorkflowTaskResult
     public function __construct(
         public readonly array $commands,
         public readonly ?WorkflowEnvironment $environment,
-    ) {
-    }
+    ) {}
 }

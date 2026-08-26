@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal\Worker;
 
-use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\NullEventStore;
-use Gplanchat\Durable\Worker\WorkflowFiberDriver;
 use Gplanchat\Durable\Transport\NoopActivityTransport;
+use Gplanchat\Durable\Worker\WorkflowFiberDriver;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
-use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 
 /**
