@@ -30,7 +30,7 @@ final class RunDashboardView
 
     /**
      * @return array{
-     *   backend: array{available: bool, message: string},
+     *   backend: array<string, mixed>,
      *   runs: list<array<string, mixed>>,
      *   kpis: array<string, int>,
      *   pagination: array{cursor: string|null, nextCursor: string|null, hasNext: bool},
@@ -54,6 +54,26 @@ final class RunDashboardView
             ];
         }
 
+        // « Un catalogue est enregistré » et « le backend répond » sont deux questions distinctes.
+        // Sans cette seconde, une base tombée donnerait une page vide et sereine — la pire des deux
+        // erreurs possibles, puisque l'exploitant en conclut qu'il n'y a rien à voir.
+        $health = $this->catalog->checkHealth();
+        if (!$health->reachable) {
+            return [
+                'backend' => [
+                    'available' => false,
+                    'message' => $health->message,
+                    'name' => $health->backend,
+                    'checkedAt' => $health->checkedAt,
+                ],
+                'runs' => [],
+                'kpis' => self::countBy([]),
+                'pagination' => ['cursor' => $cursor, 'nextCursor' => null, 'hasNext' => false],
+                'status' => $status,
+                'selectedRun' => null,
+            ];
+        }
+
         // Un filtre venu d'une URL est une chaîne quelconque : l'ignorer vaut mieux que refuser une
         // page à quelqu'un qui a mal recopié un lien.
         $filter = WorkflowRunStatus::tryFrom($status);
@@ -62,7 +82,12 @@ final class RunDashboardView
         $selected = self::pick($page->runs, $selectedRunId);
 
         return [
-            'backend' => ['available' => true, 'message' => 'Connected to the configured durable backend.'],
+            'backend' => [
+                'available' => true,
+                'message' => $health->message,
+                'name' => $health->backend,
+                'checkedAt' => $health->checkedAt,
+            ],
             'runs' => array_map(self::describe(...), $page->runs),
             'kpis' => self::countBy($page->runs),
             'pagination' => [
