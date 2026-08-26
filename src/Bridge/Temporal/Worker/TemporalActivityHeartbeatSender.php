@@ -27,8 +27,7 @@ final class TemporalActivityHeartbeatSender implements ActivityHeartbeatSenderIn
     public function __construct(
         private readonly WorkflowServiceActivityRpc $activityRpc,
         private readonly TemporalConnection $connection,
-    ) {
-    }
+    ) {}
 
     /**
      * Binds this sender to a specific activity task token.
@@ -50,7 +49,7 @@ final class TemporalActivityHeartbeatSender implements ActivityHeartbeatSenderIn
             $req = new RecordActivityTaskHeartbeatRequest();
             $req->setTaskToken($this->taskToken);
             $req->setNamespace($this->connection->namespace->name());
-            $req->setIdentity($this->connection->identity.'-activity');
+            $req->setIdentity($this->connection->identity . '-activity');
             if (null !== $details) {
                 $req->setDetails(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($details)));
             }

@@ -25,8 +25,7 @@ final class DurableSchema
         private readonly string $eventsTable = 'durable_events',
         private readonly string $metadataTable = 'durable_workflow_metadata',
         private readonly string $parentLinkTable = 'durable_child_workflow_parent_link',
-    ) {
-    }
+    ) {}
 
     /**
      * Idempotent : ne crée que les tables absentes, et ne le vérifie qu'une fois par processus.
@@ -41,7 +40,7 @@ final class DurableSchema
         $schemaManager = $this->connection->createSchemaManager();
         $existing = array_values(array_filter(
             [$this->eventsTable, $this->metadataTable, $this->parentLinkTable],
-            static fn (string $table): bool => $schemaManager->tablesExist([$table]),
+            static fn(string $table): bool => $schemaManager->tablesExist([$table]),
         ));
 
         $schema = new Schema();
@@ -70,7 +69,7 @@ final class DurableSchema
             // setPrimaryKey() est déprécié en DBAL 4.3, mais son remplaçant n'existe pas en DBAL 3 :
             // le paquet supporte les deux majeures, donc on garde l'appel commun.
             $events->setPrimaryKey(['id']);
-            $events->addIndex(['execution_id'], $this->eventsTable.'_execution_idx');
+            $events->addIndex(['execution_id'], $this->eventsTable . '_execution_idx');
         }
 
         if (!\in_array($this->metadataTable, $skip, true)) {
@@ -87,7 +86,7 @@ final class DurableSchema
             $link->addColumn('child_execution_id', Types::STRING, ['length' => 128]);
             $link->addColumn('parent_execution_id', Types::STRING, ['length' => 128]);
             $link->setPrimaryKey(['child_execution_id']);
-            $link->addIndex(['parent_execution_id'], $this->parentLinkTable.'_parent_idx');
+            $link->addIndex(['parent_execution_id'], $this->parentLinkTable . '_parent_idx');
         }
     }
 }

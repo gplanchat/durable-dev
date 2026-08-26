@@ -40,7 +40,7 @@ final class SearchAttributesTest extends TemporalServerTestCase
     public function testTheWorkflowBecomesFindableByItsAttributes(): void
     {
         // C'est tout l'intérêt d'un attribut de recherche : retrouver l'exécution.
-        $orderId = 'ORD-'.bin2hex(random_bytes(4));
+        $orderId = 'ORD-' . bin2hex(random_bytes(4));
         $executionId = $this->startWorkflow('Plain', ['value' => 1], new WorkflowStartOptions(
             searchAttributes: SearchAttributes::none()->keyword('DurableOrderId', $orderId),
         ));

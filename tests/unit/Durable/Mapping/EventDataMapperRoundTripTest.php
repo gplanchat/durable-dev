@@ -26,10 +26,25 @@ final class EventDataMapperRoundTripTest extends TestCase
     public static function events(): iterable
     {
         yield 'ActivityTaskFailed' => [new ActivityTaskFailed(
-            'exec-1', 'act-1', 'charge', 3, 'App\\Boom', 'kaput', ActivityRetryState::MaximumAttemptsReached,
+            'exec-1',
+            'act-1',
+            'charge',
+            3,
+            'App\\Boom',
+            'kaput',
+            ActivityRetryState::MaximumAttemptsReached,
         )];
         yield 'ActivityFailed with retryState' => [new ActivityFailed(
-            'exec-1', 'act-1', 'App\\Boom', 'kaput', 7, ['k' => 'v'], 'trace', [], 'charge', 3,
+            'exec-1',
+            'act-1',
+            'App\\Boom',
+            'kaput',
+            7,
+            ['k' => 'v'],
+            'trace',
+            [],
+            'charge',
+            3,
             ActivityRetryState::NonRetryableFailure,
         )];
         yield 'ActivityFailed legacy without retryState' => [new ActivityFailed('exec-1', 'act-1', 'App\\Boom', 'kaput')];
@@ -51,7 +66,13 @@ final class EventDataMapperRoundTripTest extends TestCase
     public function testRoundTripSurvivesJsonEncodedPayloads(): void
     {
         $record = EventDataMapper::fromDomainEvent(new ActivityTaskFailed(
-            'exec-1', 'act-1', 'charge', 2, 'App\\Boom', 'kaput', ActivityRetryState::InProgress,
+            'exec-1',
+            'act-1',
+            'charge',
+            2,
+            'App\\Boom',
+            'kaput',
+            ActivityRetryState::InProgress,
         ));
         $record['payload'] = json_encode($record['payload'], \JSON_THROW_ON_ERROR);
 

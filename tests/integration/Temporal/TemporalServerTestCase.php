@@ -48,7 +48,7 @@ abstract class TemporalServerTestCase extends TestCase
         }
 
         // Une file par test : les workers d'un cas ne volent pas les tâches d'un autre.
-        $taskQueue = 'durable-it-'.bin2hex(random_bytes(6));
+        $taskQueue = 'durable-it-' . bin2hex(random_bytes(6));
 
         $this->connection = new TemporalConnection(
             target: $address,
@@ -104,7 +104,7 @@ abstract class TemporalServerTestCase extends TestCase
      */
     protected function runWorkflow(string $workflowType, array $input, float $timeoutSeconds = 30.0): mixed
     {
-        $executionId = strtolower($workflowType).'-'.bin2hex(random_bytes(4));
+        $executionId = strtolower($workflowType) . '-' . bin2hex(random_bytes(4));
         $this->workflowClient()->startAsync($workflowType, $input, $executionId);
 
         return $this->workflowClient()->pollForCompletion($executionId, 250, (int) ($timeoutSeconds * 4));
@@ -115,7 +115,7 @@ abstract class TemporalServerTestCase extends TestCase
      */
     protected function startWorkflow(string $workflowType, array $input, ?WorkflowStartOptions $options = null): string
     {
-        $executionId = strtolower($workflowType).'-'.bin2hex(random_bytes(4));
+        $executionId = strtolower($workflowType) . '-' . bin2hex(random_bytes(4));
         $this->workflowClient()->startAsync($workflowType, $input, $executionId, $options);
 
         return $executionId;
@@ -191,7 +191,7 @@ abstract class TemporalServerTestCase extends TestCase
         $process = proc_open(
             [
                 \PHP_BINARY,
-                __DIR__.'/worker.php',
+                __DIR__ . '/worker.php',
                 $this->connection->target,
                 $this->connection->namespace->name(),
                 $this->connection->workflowTaskQueue,

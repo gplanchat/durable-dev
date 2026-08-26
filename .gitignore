@@ -12,3 +12,6 @@ hugo-docs/_vendor/
 hugo-docs/public/
 hugo-docs/resources/
 hugo-docs/.hugo_build.lock
+
+# Outils
+.php-cs-fixer.cache

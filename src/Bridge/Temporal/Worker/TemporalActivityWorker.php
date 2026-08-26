@@ -15,8 +15,8 @@ use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Store\ActivityEventJournal;
-use Gplanchat\Durable\Transport\ActivityMessage;
 use Gplanchat\Durable\Store\EventStoreInterface;
+use Gplanchat\Durable\Transport\ActivityMessage;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Temporal\Api\Failure\V1\ApplicationFailureInfo;
 use Temporal\Api\Failure\V1\Failure;
@@ -42,8 +42,7 @@ final class TemporalActivityWorker
         private readonly ActivityMessageProcessor $processor,
         private readonly EventStoreInterface $eventStore,
         private readonly ActivityHeartbeatSenderInterface $heartbeatSender,
-    ) {
-    }
+    ) {}
 
     /**
      * Un long-poll ; si une tâche est reçue, traitement + réponse gRPC.
@@ -53,7 +52,7 @@ final class TemporalActivityWorker
         $req = new PollActivityTaskQueueRequest();
         $req->setNamespace($this->connection->namespace->name());
         $req->setTaskQueue(new TaskQueue(['name' => $this->connection->activityTaskQueue->name()]));
-        $req->setIdentity($this->connection->identity.'-activity');
+        $req->setIdentity($this->connection->identity . '-activity');
 
         $resp = $this->activityRpc->pollActivityTaskQueue($req);
 
@@ -74,6 +73,7 @@ final class TemporalActivityWorker
                 $this->heartbeatSender->bindTaskToken((string) $resp->getTaskToken());
             }
         }
+
         try {
             $this->processor->process($message);
         } finally {
@@ -157,7 +157,7 @@ final class TemporalActivityWorker
         $req = new RespondActivityTaskCompletedRequest();
         $req->setTaskToken($poll->getTaskToken());
         $req->setNamespace($this->connection->namespace->name());
-        $req->setIdentity($this->connection->identity.'-activity');
+        $req->setIdentity($this->connection->identity . '-activity');
         $req->setResult(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($result)));
 
         $this->activityRpc->respondActivityTaskCompleted($req);
@@ -184,7 +184,7 @@ final class TemporalActivityWorker
         $req = new RespondActivityTaskFailedRequest();
         $req->setTaskToken($poll->getTaskToken());
         $req->setNamespace($this->connection->namespace->name());
-        $req->setIdentity($this->connection->identity.'-activity');
+        $req->setIdentity($this->connection->identity . '-activity');
         $req->setFailure($failure);
 
         $this->activityRpc->respondActivityTaskFailed($req);
@@ -195,7 +195,7 @@ final class TemporalActivityWorker
         $req = new RespondActivityTaskCanceledRequest();
         $req->setTaskToken($poll->getTaskToken());
         $req->setNamespace($this->connection->namespace->name());
-        $req->setIdentity($this->connection->identity.'-activity');
+        $req->setIdentity($this->connection->identity . '-activity');
 
         $this->activityRpc->respondActivityTaskCanceled($req);
     }

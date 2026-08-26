@@ -16,8 +16,7 @@ final class TemporalActivityWorkerTransport implements TransportInterface
 {
     public function __construct(
         private readonly TemporalActivityWorker $worker,
-    ) {
-    }
+    ) {}
 
     public function get(): iterable
     {
@@ -26,13 +25,9 @@ final class TemporalActivityWorkerTransport implements TransportInterface
         return [];
     }
 
-    public function ack(Envelope $envelope): void
-    {
-    }
+    public function ack(Envelope $envelope): void {}
 
-    public function reject(Envelope $envelope): void
-    {
-    }
+    public function reject(Envelope $envelope): void {}
 
     public function send(Envelope $envelope): Envelope
     {

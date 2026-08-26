@@ -16,8 +16,7 @@ final class ResetDurableProfilerListener implements EventSubscriberInterface
 {
     public function __construct(
         private readonly DurableExecutionTrace $trace,
-    ) {
-    }
+    ) {}
 
     #[\Override]
     public static function getSubscribedEvents(): array

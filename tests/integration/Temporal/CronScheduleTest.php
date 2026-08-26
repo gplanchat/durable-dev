@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace integration\Temporal;
 
-use Gplanchat\Durable\CronSchedule;
-
 use Gplanchat\Durable\ChildWorkflowOptions;
+use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\WorkflowStartOptions;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\EventType;
@@ -35,7 +34,7 @@ final class CronScheduleTest extends TemporalServerTestCase
 
     public function testCronScheduleIsCarriedByTheStartRequest(): void
     {
-        $executionId = 'cron-'.bin2hex(random_bytes(4));
+        $executionId = 'cron-' . bin2hex(random_bytes(4));
         $this->workflowClient()->startCron('Ticking', ['value' => 5], $executionId, '@every 2s');
 
         $started = $this->waitForHistoryEvent($executionId, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
@@ -47,7 +46,7 @@ final class CronScheduleTest extends TemporalServerTestCase
 
     public function testTheServerRelaunchesTheWorkflowAfterEachRun(): void
     {
-        $executionId = 'cron-'.bin2hex(random_bytes(4));
+        $executionId = 'cron-' . bin2hex(random_bytes(4));
         $this->workflowClient()->startCron('Ticking', ['value' => 5], $executionId, '@every 2s');
 
         // Le premier run doit se terminer, puis le serveur en enchaîne un second : deux runs
@@ -97,9 +96,9 @@ final class CronScheduleTest extends TemporalServerTestCase
     {
         $req = new \Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest();
         $req->setNamespace($this->connection->namespace->name());
-        $req->setWorkflowId('cron-agreement-'.bin2hex(random_bytes(5)));
+        $req->setWorkflowId('cron-agreement-' . bin2hex(random_bytes(5)));
         $req->setWorkflowType(new \Temporal\Api\Common\V1\WorkflowType(['name' => 'Ticking']));
-        $req->setTaskQueue(new \Temporal\Api\Taskqueue\V1\TaskQueue(['name' => $this->connection->workflowTaskQueue.'-unserved']));
+        $req->setTaskQueue(new \Temporal\Api\Taskqueue\V1\TaskQueue(['name' => $this->connection->workflowTaskQueue . '-unserved']));
         $req->setIdentity('cron-agreement');
         $req->setCronSchedule($expression);
 

@@ -89,7 +89,7 @@ final class DbalBackendParityTest extends TestCase
     private function runWorkflow(EventStoreInterface $eventStore, string $executionId): mixed
     {
         $activityExecutor = new RegistryActivityExecutor();
-        $activityExecutor->register('quote', static fn (array $payload): array => [
+        $activityExecutor->register('quote', static fn(array $payload): array => [
             'total' => 42.5,
             'currency' => 'EUR',
             'lines' => $payload['lines'] ?? [],
@@ -104,10 +104,10 @@ final class DbalBackendParityTest extends TestCase
         );
 
         return $runner->run($executionId, static function (WorkflowEnvironment $wf): array {
-            $nested = $wf->sideEffect(static fn (): array => ['nested' => ['deep' => true], 'ratio' => 0.1]);
+            $nested = $wf->sideEffect(static fn(): array => ['nested' => ['deep' => true], 'ratio' => 0.1]);
             $quote = $wf->await($wf->activity('quote', ['lines' => ['a', 'b']]));
             $wf->sleep(Duration::seconds(0.001));
-            $flag = $wf->sideEffect(static fn (): string => 'after-timer');
+            $flag = $wf->sideEffect(static fn(): string => 'after-timer');
 
             return ['nested' => $nested, 'quote' => $quote, 'flag' => $flag];
         });
@@ -119,7 +119,7 @@ final class DbalBackendParityTest extends TestCase
     private function journalShape(EventStoreInterface $store, string $executionId): array
     {
         return array_map(
-            static fn (Event $event): array => [$event::class, self::scrub($event->payload())],
+            static fn(Event $event): array => [$event::class, self::scrub($event->payload())],
             iterator_to_array($store->readStream($executionId), false),
         );
     }

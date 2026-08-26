@@ -22,8 +22,7 @@ final class HistoryPageMerger
     public function __construct(
         private readonly WorkflowServiceClient $client,
         private readonly string $namespace,
-    ) {
-    }
+    ) {}
 
     /**
      * Historique complet via API serveur (aucun worker requis pour la lecture).

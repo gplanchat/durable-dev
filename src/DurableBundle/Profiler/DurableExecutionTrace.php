@@ -100,7 +100,7 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
     {
         return array_values(array_filter(
             $this->timeline,
-            static fn (array $e): bool => ($e['executionId'] ?? '') === $executionId,
+            static fn(array $e): bool => ($e['executionId'] ?? '') === $executionId,
         ));
     }
 
@@ -108,7 +108,7 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
     {
         return \count(array_filter(
             $this->timeline,
-            static fn (array $e): bool => ($e['kind'] ?? '') === 'dispatch',
+            static fn(array $e): bool => ($e['kind'] ?? '') === 'dispatch',
         ));
     }
 }

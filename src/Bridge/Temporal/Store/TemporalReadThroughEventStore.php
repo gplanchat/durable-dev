@@ -31,8 +31,7 @@ final class TemporalReadThroughEventStore implements EventStoreInterface
         private readonly EventStoreInterface $localStore,
         private readonly TemporalHistoryCursor $cursor,
         private readonly WorkflowClientInterface $workflowClient,
-    ) {
-    }
+    ) {}
 
     #[\Override]
     public function append(Event $event): void

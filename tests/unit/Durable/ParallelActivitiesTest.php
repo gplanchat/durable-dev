@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable;
 
-use Gplanchat\Durable\ActivityExecutor;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -40,8 +39,8 @@ final class ParallelActivitiesTest extends TestCase
 
     public function testAllWithTwoActivitiesReturnsBothResults(): void
     {
-        $this->executor->register('double', static fn (array $p) => ($p['value'] ?? 0) * 2);
-        $this->executor->register('square', static fn (array $p) => ($p['value'] ?? 0) ** 2);
+        $this->executor->register('double', static fn(array $p) => ($p['value'] ?? 0) * 2);
+        $this->executor->register('square', static fn(array $p) => ($p['value'] ?? 0) ** 2);
 
         $result = $this->runner->run('parallel-test-1', static function (WorkflowEnvironment $env): array {
             return $env->all(
@@ -58,7 +57,7 @@ final class ParallelActivitiesTest extends TestCase
 
     public function testParallelWithThreeActivitiesReturnsBothResults(): void
     {
-        $this->executor->register('add', static fn (array $p) => ($p['a'] ?? 0) + ($p['b'] ?? 0));
+        $this->executor->register('add', static fn(array $p) => ($p['a'] ?? 0) + ($p['b'] ?? 0));
 
         $result = $this->runner->run('parallel-test-2', static function (WorkflowEnvironment $env): array {
             return $env->parallel(
@@ -81,7 +80,7 @@ final class ParallelActivitiesTest extends TestCase
         $this->executor->register('task', static function (array $p) use (&$executed): string {
             $executed[] = $p['name'];
 
-            return 'done-'.$p['name'];
+            return 'done-' . $p['name'];
         });
 
         $result = $this->runner->run('parallel-test-3', static function (WorkflowEnvironment $env): array {
@@ -101,7 +100,7 @@ final class ParallelActivitiesTest extends TestCase
 
     public function testParallelAfterSequentialActivities(): void
     {
-        $this->executor->register('id', static fn (array $p) => $p['v'] ?? null);
+        $this->executor->register('id', static fn(array $p) => $p['v'] ?? null);
 
         $result = $this->runner->run('parallel-test-4', static function (WorkflowEnvironment $env): array {
             $first = $env->await($env->activity('id', ['v' => 'seq']));

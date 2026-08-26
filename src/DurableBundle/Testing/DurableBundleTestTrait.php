@@ -252,6 +252,7 @@ trait DurableBundleTestTrait
                     $receiver->ack($envelope);
                 } catch (\Throwable $e) {
                     $receiver->reject($envelope);
+
                     throw $e;
                 }
                 $hadMessage = true;

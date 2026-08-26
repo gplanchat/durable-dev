@@ -56,12 +56,12 @@ final class DurableProfilerEventPresentation
             $parts[] = 'Reprise Messenger (WorkflowRunMessage)';
             $parts[] = 'sans type dans le message — résolu au handler depuis les métadonnées';
         } elseif ('' !== $wt) {
-            $parts[] = 'Nouveau run « '.$wt.' » (WorkflowRunMessage)';
+            $parts[] = 'Nouveau run « ' . $wt . ' » (WorkflowRunMessage)';
         } else {
             $parts[] = 'WorkflowRunMessage (type non renseigné dans le message)';
         }
         if ('' !== $tn) {
-            $parts[] = 'transports : '.$tn;
+            $parts[] = 'transports : ' . $tn;
         }
 
         return implode(' · ', $parts);
@@ -146,7 +146,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof WorkflowContinuedAsNew) {
             return [
                 'title' => 'Continue as new',
-                'subtitle' => 'Nouvelle exécution : '.$event->nextWorkflowType(),
+                'subtitle' => 'Nouvelle exécution : ' . $event->nextWorkflowType(),
                 'category' => 'lifecycle',
                 'technical' => $technical,
             ];
@@ -155,7 +155,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof ActivityScheduled) {
             return [
                 'title' => 'Activité mise en file',
-                'subtitle' => $event->activityName().' · id '.$event->activityId(),
+                'subtitle' => $event->activityName() . ' · id ' . $event->activityId(),
                 'category' => 'scheduling',
                 'technical' => $technical,
             ];
@@ -164,7 +164,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof ActivityCompleted) {
             return [
                 'title' => 'Activité terminée avec succès',
-                'subtitle' => 'id '.$event->activityId(),
+                'subtitle' => 'id ' . $event->activityId(),
                 'category' => 'activity',
                 'technical' => $technical,
             ];
@@ -173,12 +173,12 @@ final class DurableProfilerEventPresentation
         if ($event instanceof ActivityFailed) {
             $msg = $event->failureMessage();
             if (\strlen($msg) > 120) {
-                $msg = substr($msg, 0, 117).'…';
+                $msg = substr($msg, 0, 117) . '…';
             }
 
             return [
                 'title' => 'Activité en échec',
-                'subtitle' => ('' !== $event->activityName() ? $event->activityName().' · ' : '').$msg,
+                'subtitle' => ('' !== $event->activityName() ? $event->activityName() . ' · ' : '') . $msg,
                 'category' => 'activity',
                 'technical' => $technical,
             ];
@@ -187,7 +187,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof ActivityCancelled) {
             return [
                 'title' => 'Activité annulée',
-                'subtitle' => 'id '.$event->activityId().' · '.$event->reason(),
+                'subtitle' => 'id ' . $event->activityId() . ' · ' . $event->reason(),
                 'category' => 'activity',
                 'technical' => $technical,
             ];
@@ -196,7 +196,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof TimerScheduled) {
             return [
                 'title' => 'Minuteur programmé',
-                'subtitle' => 'id '.$event->timerId().('' !== $event->summary() ? ' · '.$event->summary() : ''),
+                'subtitle' => 'id ' . $event->timerId() . ('' !== $event->summary() ? ' · ' . $event->summary() : ''),
                 'category' => 'timer',
                 'technical' => $technical,
             ];
@@ -205,7 +205,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof TimerCompleted) {
             return [
                 'title' => 'Minuteur déclenché',
-                'subtitle' => 'id '.$event->timerId(),
+                'subtitle' => 'id ' . $event->timerId(),
                 'category' => 'timer',
                 'technical' => $technical,
             ];
@@ -214,7 +214,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof SideEffectRecorded) {
             return [
                 'title' => 'Effet de bord enregistré',
-                'subtitle' => 'id '.$event->sideEffectId(),
+                'subtitle' => 'id ' . $event->sideEffectId(),
                 'category' => 'effect',
                 'technical' => $technical,
             ];
@@ -223,7 +223,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof ChildWorkflowScheduled) {
             return [
                 'title' => 'Workflow enfant planifié',
-                'subtitle' => $event->childWorkflowType().' · enfant '.$event->childExecutionId(),
+                'subtitle' => $event->childWorkflowType() . ' · enfant ' . $event->childExecutionId(),
                 'category' => 'child',
                 'technical' => $technical,
             ];
@@ -232,7 +232,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof ChildWorkflowCompleted) {
             return [
                 'title' => 'Workflow enfant terminé',
-                'subtitle' => 'enfant '.$event->childExecutionId(),
+                'subtitle' => 'enfant ' . $event->childExecutionId(),
                 'category' => 'child',
                 'technical' => $technical,
             ];
@@ -241,7 +241,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof WorkflowSignalReceived) {
             return [
                 'title' => 'Signal reçu',
-                'subtitle' => '« '.$event->signalName().' »',
+                'subtitle' => '« ' . $event->signalName() . ' »',
                 'category' => 'signal',
                 'technical' => $technical,
             ];
@@ -250,7 +250,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof WorkflowUpdateHandled) {
             return [
                 'title' => 'Update traitée',
-                'subtitle' => '« '.$event->updateName().' »',
+                'subtitle' => '« ' . $event->updateName() . ' »',
                 'category' => 'signal',
                 'technical' => $technical,
             ];

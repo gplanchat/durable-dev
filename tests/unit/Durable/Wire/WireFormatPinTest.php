@@ -11,16 +11,16 @@ use Gplanchat\Durable\ChildWorkflowOptions;
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\ActivityScheduled;
-use Gplanchat\Durable\ExecutionContext;
-use Gplanchat\Durable\Store\EventStoreCommandBuffer;
-use Gplanchat\Durable\Store\EventStoreHistorySource;
-use Gplanchat\Durable\Store\InMemoryEventStore;
-use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Event\TimerScheduled;
+use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\Mapping\EventDataMapper;
 use Gplanchat\Durable\ParentClosePolicy;
 use Gplanchat\Durable\SearchAttributes;
+use Gplanchat\Durable\Store\EventStoreCommandBuffer;
+use Gplanchat\Durable\Store\EventStoreHistorySource;
+use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\TaskQueue;
+use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\WorkflowIdReusePolicy;
 use Gplanchat\Durable\WorkflowNamespace;
 use Gplanchat\Durable\WorkflowTimeouts;
@@ -177,7 +177,7 @@ final class WireFormatPinTest extends TestCase
         $context = new ExecutionContext(
             'exec-1',
             new EventStoreHistorySource($store, 'exec-1'),
-            new EventStoreCommandBuffer($store, $transport, 'exec-1', static fn (): float => 1_700_000_000.0),
+            new EventStoreCommandBuffer($store, $transport, 'exec-1', static fn(): float => 1_700_000_000.0),
         );
 
         $context->activity('charge', ['o' => 1], new ActivityOptions(
