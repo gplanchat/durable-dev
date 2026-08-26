@@ -30,6 +30,9 @@ what runs on Temporal or In-Memory.
 | `Store\DbalEventStore` | `Gplanchat\Durable\Store\EventStoreInterface` over `durable_events` |
 | `Store\DbalWorkflowMetadataStore` | `Gplanchat\Durable\Store\WorkflowMetadataStore` over `durable_workflow_metadata` |
 | `Store\DbalChildWorkflowParentLinkStore` | `Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface` over `durable_child_workflow_parent_link` |
+| `Store\DbalWorkflowRunCatalog` | `Gplanchat\Durable\Port\WorkflowRunCatalogInterface` over `durable_workflow_runs` — what the dashboard reads |
+| `Store\DbalWorkflowRunProjection` | Writes that table: the name on start, the outcome on end |
+| `Store\ProjectingWorkflowMetadataStore`, `Store\ProjectingEventStore` | Decorators that feed the projection without touching what they wrap |
 | `Schema\DurableSchema` | Lazy table creation on first write (Messenger Doctrine transport pattern) |
 | `Messenger\SingleResumeLockMiddleware` | One resume at a time per execution |
 
@@ -74,6 +77,34 @@ provider and keep the table names in sync with the configuration above.
 
 The journal table has no `sequence` column — `readStream()` promises insertion order and the
 auto-increment primary key carries it.
+
+### `durable_workflow_runs` — the row a run leaves behind
+
+A fourth table exists so that a finished run stays describable. It holds one row per execution:
+`execution_id`, `workflow_type`, `status`, `started_at`, `ended_at`.
+
+It is needed because neither of the other tables can answer "what ran, and what became of it":
+
+- `ExecutionStarted` carries an execution id and a payload — **not** the workflow type;
+- the metadata row that does carry the type is **deleted** when a run fails, is cancelled, or
+  continues as new. Only a successful completion keeps one.
+
+So without this table a failed run has no name anywhere, which is unfortunate for a dashboard whose
+main job is to list failures. `durable_workflow_metadata` stays what it was: a registry of live
+executions, whose very presence means "still running" to `hasActiveWorkflowMetadata()`.
+
+The row is written by two hands, because neither knows the whole story. The name comes from
+`save()` on the metadata store — the only unambiguous call, and the only one carrying the workflow
+type. The outcome comes from the journal, where `ExecutionCompleted`, `WorkflowExecutionFailed`,
+`WorkflowExecutionCancelled` and `WorkflowContinuedAsNew` each arrive typed; on the metadata side
+those three endings are the same `delete()` call and cannot be told apart.
+
+A run that continues as new leaves **two independent rows** — one that ends, one that starts — and
+nothing links them. The component already mints a fresh execution id for the successor, so a link
+here would be the only place claiming they are one thing.
+
+Retention is the application's job, as for the journal. The table grows by one row per execution,
+never by one per event.
 
 ## Concurrency — read this before running two workers
 

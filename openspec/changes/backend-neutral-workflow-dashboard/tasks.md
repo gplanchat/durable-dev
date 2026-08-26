@@ -26,7 +26,7 @@
 - [x] 4.1 The run projection table, declared in `DurableSchema` so it appears on installs that already exist — `durable_workflow_runs`, indexée sur `started_at`
 - [x] 4.2 Writing the projection on every transition from 1.2, leaving the metadata lifecycle and `hasActiveWorkflowMetadata()` untouched — deux décorateurs, `ProjectingWorkflowMetadataStore` (le nom) et `ProjectingEventStore` (l'issue) ; aucune classe existante modifiée
 - [x] 4.3 The adapter: listing from the projection, history from `durable_events` — `JournalRunHistoryReader` traduit le flux du journal, une seule passe avant suffisant à nommer les activités
-- [ ] 4.4 Backend reachability reported for the database, answering the same question the Temporal adapter answers about gRPC
+- [ ] 4.4 Backend reachability reported for the database, answering the same question the Temporal adapter answers about gRPC — **non fait** : la page dit aujourd'hui si un catalogue est *enregistré*, pas si le backend *répond*. Ni l'adaptateur DBAL ni l'adaptateur Temporal ne sondent leur backend, et `design.md` promet les deux. Dernière tâche avant archivage
 
 ## 5. Temporal backend
 
@@ -42,6 +42,6 @@
 
 ## 7. Documentation
 
-- [ ] 7.1 State in the DBAL backend documentation that ending a run now leaves a projection row behind, and what it holds
-- [ ] 7.2 Rewrite the plugin README: the dashboard reads whichever backend is configured, and what it cannot show on each
-- [ ] 7.3 ADR DUR035: why run observation is a projection rather than a query over the journal, and why an absent fact is modelled as absent
+- [x] 7.1 State in the DBAL backend documentation that ending a run now leaves a projection row behind, and what it holds — `durable_workflow_runs` : pourquoi elle existe, les deux plumes qui l'écrivent, les deux lignes d'un continue-as-new, et la rétention à la charge de l'application
+- [x] 7.2 Rewrite the plugin README: the dashboard reads whichever backend is configured, and what it cannot show on each — fait avec §6.3, tableau des faits par backend inclus
+- [x] 7.3 ADR DUR035: why run observation is a projection rather than a query over the journal, and why an absent fact is modelled as absent
