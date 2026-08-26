@@ -3,6 +3,7 @@ parameters:
     paths:
         - src/Durable
         - src/DurableBundle
+        - src/DurablePlugin
         - src/Bridge/Temporal
         - src/Bridge/Dbal
     excludePaths:

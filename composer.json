@@ -11,6 +11,7 @@
     "repositories": [
         {"type": "path", "url": "src/Durable"},
         {"type": "path", "url": "src/DurableBundle"},
+        {"type": "path", "url": "src/DurablePlugin"},
         {"type": "path", "url": "src/Bridge/Temporal"},
         {"type": "path", "url": "src/Bridge/Dbal"}
     ],
@@ -18,6 +19,7 @@
         "php": ">=8.2",
         "gplanchat/durable": "@dev",
         "gplanchat/durable-bundle": "@dev",
+        "gplanchat/durable-plugin": "@dev",
         "gplanchat/durable-bridge-temporal": "@dev",
         "gplanchat/durable-bridge-dbal": "@dev"
     },
@@ -31,6 +33,7 @@
         "psr-4": {
             "Gplanchat\\Durable\\": "src/Durable/",
             "Gplanchat\\Durable\\Bundle\\": "src/DurableBundle/",
+            "Gplanchat\\Durable\\Plugin\\": "src/DurablePlugin/",
             "Gplanchat\\Bridge\\Temporal\\": "src/Bridge/Temporal/",
             "Gplanchat\\Bridge\\Dbal\\": "src/Bridge/Dbal/",
             "Temporal\\Api\\": "src/Bridge/Temporal/Api/",

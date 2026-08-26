@@ -25,6 +25,7 @@ BRANCH="${SPLITSH_TARGET_BRANCH:-main}"
 SPLITS=(
     "src/Durable/|durable"
     "src/DurableBundle/|durable-bundle"
+    "src/DurablePlugin/|durable-plugin"
     "src/Bridge/Temporal/|durable-bridge-temporal"
     "src/Bridge/Dbal/|durable-bridge-dbal"
 )
