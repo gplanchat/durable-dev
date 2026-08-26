@@ -12,6 +12,7 @@ use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionRuntime;
+use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
@@ -272,6 +273,42 @@ final class WorkflowHandlerDispatchTest extends TestCase
         self::assertNotNull($pending->failure);
         self::assertSame(\DomainException::class, $pending->failure->class);
         self::assertSame('approbation refusée', $pending->failure->message);
+    }
+
+    public function testAFailedUpdateReplayedDoesNotFailTheWorkflow(): void
+    {
+        // Le chemin que seul un vrai serveur avait révélé : au replay, le handler d'un update en
+        // échec rejoue et relève de nouveau. Sa défaillance est déjà partie chez l'appelant —
+        // la laisser remonter ferait échouer une exécution que l'original avait laissée vivante.
+        $store = new InMemoryEventStore();
+        $engine = $this->engine($store);
+
+        $store->append(new ExecutionStarted('upd-3', []));
+        $store->append(new WorkflowUpdateHandled(
+            'upd-3',
+            'refuse',
+            [],
+            null,
+            new FailureEnvelope(\DomainException::class, 'approbation refusée'),
+        ));
+        $store->append(new WorkflowSignalReceived('upd-3', 'tick', ['n' => 1]));
+
+        $result = $engine->resume('upd-3', static function (WorkflowEnvironment $wf): string {
+            $ticks = [];
+            $wf->onUpdate('refuse', static function (array $args): never {
+                throw new \DomainException('approbation refusée');
+            });
+            $wf->onSignal(DispatchSignal::Tick, static function (array $payload) use (&$ticks): void {
+                $ticks[] = $payload;
+            });
+            $wf->await(static function () use (&$ticks): bool {
+                return [] !== $ticks;
+            });
+
+            return 'toujours vivant';
+        });
+
+        self::assertSame('toujours vivant', $result);
     }
 
     // -------------------------------------------------------------------------

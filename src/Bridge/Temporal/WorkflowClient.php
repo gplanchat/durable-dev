@@ -12,6 +12,7 @@ use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
 use Gplanchat\Durable\CronSchedule;
+use Gplanchat\Durable\Exception\DurableUpdateFailedException;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowStartOptions;
 use Temporal\Api\Common\V1\Memo;
@@ -228,6 +229,11 @@ final class WorkflowClient implements WorkflowClientInterface
             $input->setArgs(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($args)));
         }
         $updateRequest = new \Temporal\Api\Update\V1\Request();
+        // Sans meta, le serveur refuse net : « Update meta is not set on request ».
+        $updateRequest->setMeta(new \Temporal\Api\Update\V1\Meta([
+            'update_id' => bin2hex(random_bytes(16)),
+            'identity' => $this->settings->identity,
+        ]));
         $updateRequest->setInput($input);
         $request->setRequest($updateRequest);
         $request->setWaitPolicy(new \Temporal\Api\Update\V1\WaitPolicy([
@@ -236,6 +242,11 @@ final class WorkflowClient implements WorkflowClientInterface
 
         $response = $this->executionRpc->updateWorkflowExecution($request);
         $outcome = $response->getOutcome();
+        if (null !== $outcome && null !== $outcome->getFailure()) {
+            // L'update a échoué, pas l'exécution : l'appelant reçoit la défaillance, et le
+            // workflow continue son chemin.
+            throw new DurableUpdateFailedException($updateName, (string) $outcome->getFailure()->getMessage());
+        }
         if (null !== $outcome && null !== $outcome->getSuccess()) {
             $payloads = $outcome->getSuccess()->getPayloads();
             if ($payloads->count() > 0) {

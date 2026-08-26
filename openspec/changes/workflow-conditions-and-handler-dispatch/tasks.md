@@ -43,7 +43,7 @@
 - [x] 5.2 Imperative registration on `WorkflowEnvironment`, mirroring `registerQueryHandler()`
 - [x] 5.3 Engine-side dispatch, interleaved with 4.2 — signaux et updates sur le même curseur, ordonnés par position de journal
 - [x] 5.4 Update responses recorded and reproduced on replay — issue déposée sur le `PendingUpdate`, consignée par l’appelant de la passe comme le serveur écrit UPDATE_COMPLETED
-- [ ] 5.5 Worker-side update acceptance and completion on the Temporal bridge, from the probe in 1.3
+- [x] 5.5 Worker-side update acceptance and completion on the Temporal bridge, from the probe in 1.3 — plus deux règles que seul le serveur enseigne : les commandes de protocole avant celles du workflow, et une commande par message
 
 ## 6. Deletions
 
@@ -57,7 +57,7 @@
 
 - [ ] 7.1 Same workflow, same handlers, same order, in-memory and Temporal, including the replay path
 - [ ] 7.2 Integration test against a real server for a condition satisfied by a signal delivered after a deadline fired — the DUR032 case, on its new foundation
-- [ ] 7.3 Integration test against a real server for an update that answers
+- [x] 7.3 Integration test against a real server for an update that answers — et un update en échec qui ne tue pas l’exécution
 
 ## 8. Documentation
 

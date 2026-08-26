@@ -189,6 +189,29 @@ That is the whole difference, and it is why updates are a separate requirement r
 parameter. An update handler's return value is the response the caller is blocking on, so it must
 survive replay: a replay reproduces the recorded response rather than recomputing it.
 
+### Ce que le serveur a corrigé dans la transcription (tâche 5.5)
+
+La sonde 1.3 avait la carte du protocole, et l'écrire n'a pourtant pas suffi. Deux règles ne se
+voient qu'en s'y frottant :
+
+- **L'ordre des commandes.** Les commandes de protocole partent *avant* celles du workflow :
+  `CompleteWorkflowExecution` doit être la dernière de la séquence, et un update qui débloque une
+  condition provoque justement la complétion sur la même tâche. Envoyées après, le serveur refuse
+  tout le lot — « invalid command sequence ».
+- **Une commande par message, pas une pour l'acceptation seule.** La sonde n'avait pas terminé le
+  workflow, et n'avait donc jamais vu que la `Response` laissée hors de la séquence n'est pas
+  délivrée : l'appelant reçoit « the Workflow completed before the Update completed ».
+
+Et un défaut du domaine que seul le serveur pouvait exposer : au replay, un update **en échec**
+relu du journal rejoue son handler, qui relève de nouveau. Le chemin hors journal attrapait la
+levée, le chemin rejoué non — une exécution que l'original avait laissée vivante mourait à la
+reprise. La défaillance est déjà partie chez l'appelant ; au replay elle est absorbée. Un test
+in-memory la couvre désormais, mais il a fallu le serveur pour savoir qu'il fallait l'écrire.
+
+Corrigé au passage : `WorkflowClient::update()` n'envoyait pas `Meta.update_id`, que le serveur
+exige, et avalait un échec d'update en rendant `null`. Il relève maintenant
+`DurableUpdateFailedException`.
+
 ## Non-goals
 
 - **Update validator methods.** Temporal separates validation from execution for updates; that is

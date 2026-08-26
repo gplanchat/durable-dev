@@ -82,6 +82,26 @@ final class IntegrationWorkflows
             return ['first' => $first, 'second' => $second];
         });
 
+        // Un update qui répond : le retour du handler *est* la réponse de l'appelant, et il
+        // débloque en même temps la condition que le corps attend.
+        $registry->registerFactory('Updatable', static fn(array $input) => static function (WorkflowEnvironment $env): array {
+            $answer = null;
+            $env->onUpdate('approve', static function (array $args) use (&$answer): array {
+                $answer = ['ok' => true, 'by' => $args['by'] ?? '?'];
+
+                return $answer;
+            });
+            $env->onUpdate('refuse', static function (array $args): never {
+                throw new \DomainException('approbation refusée');
+            });
+
+            $env->await(static function () use (&$answer): bool {
+                return null !== $answer;
+            });
+
+            return ['approved' => $answer];
+        });
+
         $registry->registerFactory('Sleeper', static fn(array $input) => static function (WorkflowEnvironment $env): array {
             $env->sleep(1.0);
 
