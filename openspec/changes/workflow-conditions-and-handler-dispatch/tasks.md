@@ -12,13 +12,13 @@
 
 ## 2. Failing tests first — conditions
 
-- [ ] 2.1 A condition that already holds does not suspend, and records nothing that would wake the execution
-- [ ] 2.2 A condition becomes true on a delivered message and the workflow resumes there
-- [ ] 2.3 Replay resumes at the same journal position and takes the same path
-- [ ] 2.4 A condition under a deadline that does not hold in time raises the timeout failure, and a message recorded afterwards does not undo it — the DUR032 guarantee, restated on conditions
-- [ ] 2.5 Two messages that each satisfy a pending condition are applied one at a time, and the workflow resumes on the first
-- [ ] 2.6 A condition that can never hold is reported as unable to advance, naming the condition, instead of spinning
-- [ ] 2.7 A non-reproducible value recorded before the condition reads it is read back identically on replay
+- [x] 2.1 A condition that already holds does not suspend, and records nothing that would wake the execution
+- [x] 2.2 A condition becomes true on a delivered message and the workflow resumes there
+- [x] 2.3 Replay resumes at the same journal position and takes the same path
+- [x] 2.4 A condition under a deadline that does not hold in time raises the timeout failure, and a message recorded afterwards does not undo it — the DUR032 guarantee, restated on conditions — plus son pendant : un message enregistré *avant* l’échéance satisfait bien la condition
+- [x] 2.5 Two messages that each satisfy a pending condition are applied one at a time, and the workflow resumes on the first
+- [x] 2.6 A condition that can never hold is reported as unable to advance, naming the condition, instead of spinning — nommée par sa position, via ReflectionFunction, sans paramètre supplémentaire
+- [x] 2.7 A non-reproducible value recorded before the condition reads it is read back identically on replay
 
 ## 3. Failing tests first — dispatch
 
