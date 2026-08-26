@@ -57,6 +57,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | ID | Title | File |
 |----|--------|------|
 | OST001 | Alternative durable execution backends (market study) | [ost/OST001-alternative-durable-execution-backends.md](ost/OST001-alternative-durable-execution-backends.md) |
+| OST002 | Durable Task / Dapr as a Durable backend: feasibility (contraindicated) | [ost/OST002-durable-task-backend-feasibility.md](ost/OST002-durable-task-backend-feasibility.md) |
 
 ## Other
 
