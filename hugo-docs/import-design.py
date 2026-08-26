@@ -282,6 +282,45 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
     print(f"écrit  {out_path}  ({out_path.stat().st_size} octets)")
     print(f"       {len(hover_rules)} règles :hover, {len(notes)} annotations, "
           f"{len(LINKS)} liens réécrits")
+    check_commands_agree(source)
+
+
+COMMANDS_REFERENCE = pathlib.Path("../documentation/user/packages/_index.md")
+
+
+def check_commands_agree(source: str) -> None:
+    """Le sélecteur et la page Packages listent les mêmes commandes.
+
+    Elles vivent aux deux endroits, et une page d'accueil qui installe autre
+    chose que sa documentation est pire qu'une page d'accueil muette : le
+    lecteur suit la première et se fait démentir par la seconde. La ligne
+    Sylius a déjà changé une fois en une journée — un lien entre les deux
+    pages signale la référence, il n'empêche pas la dérive.
+
+    Averti, pas fatal : la page Packages a le droit de documenter une commande
+    que le sélecteur ne propose pas — « aucun framework », par exemple.
+    """
+    reference = HERE / COMMANDS_REFERENCE
+    if not reference.exists():
+        print(f"       ⚠ référence introuvable : {reference}")
+        return
+
+    def commands(text: str) -> set[str]:
+        return {
+            " ".join(m.split())
+            for m in re.findall(r"composer require [a-z0-9/ -]+", text)
+        }
+
+    landing = commands(source)
+    documented = commands(reference.read_text())
+    missing = sorted(landing - documented)
+
+    if missing:
+        print("       ⚠ commandes du sélecteur absentes de la page Packages :")
+        for command in missing:
+            print(f"           {command}")
+    else:
+        print(f"       {len(landing)} commandes, toutes documentées dans Packages")
 
 
 if __name__ == "__main__":

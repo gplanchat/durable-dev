@@ -143,16 +143,22 @@ bundle rather than replacing it — install both.
 
 ## Which do I install?
 
+Every command below is the one the chooser on the [home page](/) hands you, written out in full.
+
 | Your situation | Command |
 |---|---|
 | Learning, or unit tests only | `composer require gplanchat/durable` |
-| A Symfony application, tests only | `composer require gplanchat/durable-bundle` |
-| A Symfony application, one database, no cluster | `composer require gplanchat/durable-bundle gplanchat/durable-bridge-dbal` |
-| A Symfony application, Temporal cluster | `composer require gplanchat/durable-bundle gplanchat/durable-bridge-temporal` |
-| A Sylius application, with the dashboard | add `gplanchat/durable-plugin` to either line above |
-| No framework | `composer require gplanchat/durable` plus the bridge you want; you wire the workers yourself |
+| No framework, one SQL database | `composer require gplanchat/durable gplanchat/durable-bridge-dbal` |
+| No framework, Temporal cluster | `composer require gplanchat/durable gplanchat/durable-bridge-temporal` |
+| Symfony, tests only | `composer require gplanchat/durable-bundle` |
+| Symfony, one SQL database | `composer require gplanchat/durable-bundle gplanchat/durable-bridge-dbal` |
+| Symfony, Temporal cluster | `composer require gplanchat/durable-bundle gplanchat/durable-bridge-temporal` |
+| Sylius, tests only | `composer require gplanchat/durable-bundle gplanchat/durable-plugin` |
+| Sylius, one SQL database | `composer require gplanchat/durable-bundle gplanchat/durable-plugin gplanchat/durable-bridge-dbal` |
+| Sylius, Temporal cluster | `composer require gplanchat/durable-bundle gplanchat/durable-plugin gplanchat/durable-bridge-temporal` |
 
-The bundle pulls the library in transitively, which is why the Symfony lines do not name it.
+The bundle pulls the library in transitively, which is why the Symfony and Sylius lines do not
+name it. Without a framework you name the library yourself, and you wire the workers yourself too.
 
 ---
 
