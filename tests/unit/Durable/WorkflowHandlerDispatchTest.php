@@ -311,6 +311,44 @@ final class WorkflowHandlerDispatchTest extends TestCase
         self::assertSame('toujours vivant', $result);
     }
 
+    public function testTheOutcomeIsRecordedBeforeWhatTheWorkflowDoesInResponse(): void
+    {
+        // L'ordre, et pas seulement le contenu : l'issue doit précéder ce que le workflow fait
+        // en réponse, sinon un replay les appliquerait dans l'autre sens. C'est l'ordre que
+        // Temporal produit — l'acceptation avant les commandes du workflow (ADR DUR035).
+        $store = new InMemoryEventStore();
+        $engine = $this->engine($store);
+        $store->append(new ExecutionStarted('upd-4', []));
+
+        $engine->resume('upd-4', static function (WorkflowEnvironment $wf): string {
+            $approved = false;
+            $wf->onUpdate('approve', static function (array $args) use (&$approved): string {
+                $approved = true;
+
+                return 'ok';
+            });
+            $wf->await(static function () use (&$approved): bool {
+                return $approved;
+            });
+
+            // Ce que le workflow fait *parce que* l'update est passé.
+            $wf->sideEffect(static fn(): string => 'après');
+
+            return 'terminé';
+        }, null, [new PendingUpdate('approve', ['by' => 'alice'])]);
+
+        $order = [];
+        foreach ($store->readStream('upd-4') as $event) {
+            $order[] = (new \ReflectionClass($event))->getShortName();
+        }
+
+        $update = array_search('WorkflowUpdateHandled', $order, true);
+        $effect = array_search('SideEffectRecorded', $order, true);
+        self::assertIsInt($update);
+        self::assertIsInt($effect);
+        self::assertLessThan($effect, $update, 'l’issue de l’update précède ce qu’elle a débloqué');
+    }
+
     // -------------------------------------------------------------------------
 
     /**

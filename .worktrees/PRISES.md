@@ -8,3 +8,4 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
+| `feat/update-delivery-pass` | workflow-conditions-and-handler-dispatch | 6.6 | en relecture |

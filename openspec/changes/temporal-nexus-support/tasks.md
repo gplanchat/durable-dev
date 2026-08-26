@@ -13,7 +13,7 @@
 
 ## 3. Caller-side domain plumbing
 
-- [ ] 3.1 `NexusOperationAwaitable` carrying the operation identity, so the fiber driver can cancel it
+- [x] 3.1 `NexusOperationAwaitable` carrying the operation identity, so the fiber driver can cancel it — même forme qu'`ActivityAwaitable`, `inner()` compris parce que `AwaitableCancellation` et les composites descendent par lui. L'annulation elle-même reste à câbler : elle a besoin du `cancelScheduledNexusOperation()` de §3.2
 - [ ] 3.2 `nexusOperationSlotIndex` in `ExecutionContext`, plus `scheduleNexusOperation()` on the environment
 - [ ] 3.3 `findNexusOperationSlotResult()` and `findScheduledNexusOperation()` on `WorkflowHistorySourceInterface`
 - [ ] 3.4 `scheduleNexusOperation()` and `cancelNexusOperation()` on `WorkflowCommandBufferInterface`
