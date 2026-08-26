@@ -357,6 +357,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $attrs = new \Temporal\Api\Command\V1\RecordMarkerCommandAttributes();
         $attrs->setMarkerName(TemporalExecutionHistory::MARKER_CANCELLATION_DELIVERED);
 
+        /** @psalm-suppress InvalidArgument — les stubs google/protobuf typent les constantes GPBType en `long` */
         $details = new \Google\Protobuf\Internal\MapField(
             \Google\Protobuf\Internal\GPBType::STRING,
             \Google\Protobuf\Internal\GPBType::MESSAGE,

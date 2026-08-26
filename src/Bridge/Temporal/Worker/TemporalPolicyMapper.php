@@ -103,7 +103,7 @@ final class TemporalPolicyMapper
     {
         $duration = new Duration();
         $whole = (int) floor($seconds);
-        $nanos = (int) round(($seconds - $whole) * 1_000_000_000);
+        $nanos = (int) round(($seconds - (float) $whole) * 1_000_000_000.0);
         if ($nanos >= 1_000_000_000) {
             ++$whole;
             $nanos -= 1_000_000_000;
