@@ -2,7 +2,7 @@
 
 - [x] 1.1 Probe Nexus endpoint, service and operation name rules (empty, blank, edge whitespace, control characters, length, case) against a local dev server, as was done for `TaskQueue`, `WorkflowNamespace` and `CronSchedule` — **endpoint**: server-enforced `^[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9]$`, 200 chars, refused at creation. **service and operation**: the server validates neither and records them verbatim, so they need `TaskQueue`-style strictness while the endpoint needs none. Pinned by `NexusEndpointNameRulesTest` and `NexusServiceAndOperationNameRulesTest`; the three rules are tabulated in `design.md`
 - [x] 1.2 Probe what the server does when scheduling on an unknown endpoint, and record the error shape — gRPC `INVALID_ARGUMENT`, `BadScheduleNexusOperationAttributes: endpoint "…" not found`, `WORKFLOW_TASK_FAILED` with cause `BAD_SCHEDULE_NEXUS_OPERATION_ATTRIBUTES`, and the task is retried without end. No typed failure reaches the workflow; pinned by `NexusUnknownEndpointTest`, consequence recorded in `design.md`
-- [ ] 1.3 Probe whether the three operation bounds behave like the activity ones, including any silent rewrite
+- [x] 1.3 Probe whether the three operation bounds behave like the activity ones, including any silent rewrite — **yes, and the rewrite exists**: a sub-bound larger than `scheduleToClose` is clamped down to it without an error; a negative duration is refused with the field named; `scheduleToClose = 0` means unbounded and clamps nothing; omitted bounds stay absent. Pinned by `NexusOperationBoundsTest`, table in `design.md`
 - [ ] 1.4 Record every verdict in the value-object docblocks, and write no invariant that was not observed
 
 ## 2. Domain value objects

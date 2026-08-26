@@ -117,6 +117,30 @@ logs. It does not apply to the endpoint, whose failure is loud and immediate.
 
 Pinned by `tests/integration/Temporal/NexusServiceAndOperationNameRulesTest.php`.
 
+**The three operation bounds, probed (task 1.3) — and there is a silent rewrite.** Against
+Temporal 1.31.2:
+
+| Given | Recorded in `NEXUS_OPERATION_SCHEDULED` |
+|---|---|
+| nothing | nothing — the server defaults none of the three |
+| `scheduleToClose` 60 | 60s |
+| `scheduleToClose` 10, `scheduleToStart` 60 | **10s** — silently clamped |
+| `scheduleToClose` 10, `startToClose` 60 | **10s** — silently clamped |
+| `scheduleToClose` 0, `scheduleToStart` 30 | 0s and 30s — zero means *unbounded*, and clamps nothing |
+| any of the three negative | refused, `INVALID_ARGUMENT`, message naming the field: `ScheduleNexusOperationCommandAttributes.<Field> is invalid: negative duration` |
+
+So they behave like the activity bounds: `scheduleToClose` is the envelope, and a sub-bound asking
+for more than it is cut down to it without an error. Zero is the one value that does not mean a
+duration.
+
+**What this asks of `NexusOperationTimeouts` (§2.2).** Make the rewrite visible at construction
+instead of letting it happen server-side. A value object that accepts `startToClose` 60 under
+`scheduleToClose` 10 and lets the caller believe in 60 reproduces exactly the class of mistake
+`ActivityTimeouts` exists to make impossible. Rejecting the combination and naming the envelope is
+one line; discovering the clamp in a history dump is an afternoon.
+
+Pinned by `tests/integration/Temporal/NexusOperationBoundsTest.php`.
+
 ## Decisions
 
 **Model a Nexus operation as its own awaitable family, not as an activity.**
