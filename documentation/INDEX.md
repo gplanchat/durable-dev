@@ -40,6 +40,8 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR029 | Temporal read-through event store and profiler event conversion | [adr/DUR029-temporal-profiler-read-through-event-store.md](adr/DUR029-temporal-profiler-read-through-event-store.md) |
 | DUR030 | DBAL backend: simplified durable execution on a single SQL database | [adr/DUR030-dbal-backend-simplified-durable-execution.md](adr/DUR030-dbal-backend-simplified-durable-execution.md) |
 | DUR031 | Value objects across the ports, and who owns the wire | [adr/DUR031-value-objects-across-ports-and-wire-ownership.md](adr/DUR031-value-objects-across-ports-and-wire-ownership.md) |
+| DUR032 | Workflow-side deadlines: a failure, and a verdict read from history | [adr/DUR032-workflow-side-deadlines.md](adr/DUR032-workflow-side-deadlines.md) |
+| DUR033 | Assemblers return an Awaitable, and `await()` is the only wait | [adr/DUR033-awaitable-assemblers-and-the-single-wait.md](adr/DUR033-awaitable-assemblers-and-the-single-wait.md) |
 
 ## Working agreements (WA)
 

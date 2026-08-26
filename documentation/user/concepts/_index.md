@@ -114,16 +114,19 @@ $a = $env->await($activities->stepA());
 $b = $env->await($activities->stepB($a));
 
 // Parallel (both start at once)
-[$a, $b] = $env->await($env->all([
+[$a, $b] = $env->await($env->all(
     $activities->stepA(),
     $activities->stepB(),
-]));
+));
 
 // Race (first one wins)
-$winner = $env->await($env->race([
+$winner = $env->await($env->any(
     $activities->fastPath(),
     $activities->slowPath(),
-]));
+));
+
+// Quorum (enough is enough)
+$quotes = $env->await($env->some(3, ...$providers));
 ```
 
 ---
@@ -139,6 +142,25 @@ HTTP request → dispatchSignal("approve") → workflow resumes from waitSignal
 ```
 
 Use signals for: approval flows, pause/resume, external triggers.
+
+**Name signals with a string-backed enum**, not a literal. Both ends of a signal — the sender and
+the `waitSignal()` that consumes it — take a `BackedEnum`, so one enum enumerates a workflow's
+signal surface and a typo is a type error instead of a wait that never settles:
+
+```php
+enum OrderSignal: string
+{
+    case Approve = 'approve';
+    case Cancel  = 'cancel';
+}
+
+$approval = $env->waitSignal(OrderSignal::Approve);      // workflow side
+$client->signal($workflowId, OrderSignal::Approve, []);  // sender side
+```
+
+A plain string is still accepted, and has to be: a signal can arrive from `curl`, the Temporal
+CLI, or a service written in another language. The enum types the inside; it cannot type that
+boundary.
 
 ### Query
 

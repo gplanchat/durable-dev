@@ -8,6 +8,7 @@ use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
 use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Exception\DeadlineExceededException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -58,6 +59,29 @@ final class IntegrationWorkflows
             self::options(),
         ))]);
 
+        // Le cas qu'aucun faux serveur ne peut trancher : le signal est livré *après* le tir de
+        // l'échéance, et chaque tâche de workflow rejoue tout depuis le début — si le verdict
+        // venait d'ailleurs que de l'ordre du journal, le replay lirait l'inverse (ADR DUR032).
+        $registry->registerFactory('SignalDeadline', static fn(array $input) => static function (WorkflowEnvironment $env): array {
+            try {
+                $first = ['signal', $env->waitSignal('approve', Duration::seconds(2))];
+            } catch (DeadlineExceededException) {
+                $first = ['timeout'];
+            }
+
+            // Laisse au signal en retard le temps d'être enregistré pendant que l'exécution est
+            // encore ouverte.
+            $env->sleep(Duration::seconds(5));
+
+            try {
+                $second = ['signal', $env->waitSignal('approve', Duration::seconds(10))];
+            } catch (DeadlineExceededException) {
+                $second = ['timeout'];
+            }
+
+            return ['first' => $first, 'second' => $second];
+        });
+
         $registry->registerFactory('Sleeper', static fn(array $input) => static function (WorkflowEnvironment $env): array {
             $env->sleep(1.0);
 
@@ -94,6 +118,27 @@ final class IntegrationWorkflows
 
                 throw $e;
             }
+        });
+
+        // Les deux branches doivent partir dans la MÊME workflow task : c'est ce que le passage
+        // de N suspensions de fiber à une seule ne doit pas avoir changé (ADR DUR033).
+        $registry->registerFactory('Assembled', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['both' => $env->await($env->all(
+            $env->activity('double', ['value' => $input['value'] ?? 0], self::options()),
+            $env->activity('append', ['text' => 'x'], self::options()),
+        ))]);
+
+        // Quorum atteint par les activités ; les minuteurs perdants doivent être retirés côté
+        // serveur, sans quoi l'exécution attendrait une heure.
+        $registry->registerFactory('Quorum', static fn(array $input) => static function (WorkflowEnvironment $env): array {
+            $reached = $env->await($env->some(
+                2,
+                $env->activity('double', ['value' => 1], self::options()),
+                $env->activity('double', ['value' => 2], self::options()),
+                $env->timer(Duration::hours(1), 'loser-1'),
+                $env->timer(Duration::hours(2), 'loser-2'),
+            ));
+
+            return ['keys' => array_keys($reached), 'values' => array_values($reached)];
         });
 
         $registry->registerFactory('ChildParent', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): array {

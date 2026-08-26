@@ -12,12 +12,16 @@ Per the house rule, the boundary between observed and assumed:
 - **Nothing new was probed against the server, and nothing new is encoded.** A deadline is a timer,
   and timer semantics were established when timers landed. This change adds no invariant about
   server behaviour.
-- **Assumed, and worth probing before task 4:** that cancelling an in-flight activity after a
-  deadline actually stops the attempt server-side rather than merely detaching the workflow from
-  it. The existing code documents loser cancellation as *best effort*. If the server keeps running
-  the attempt, the deadline still holds from the workflow's point of view — the spec only requires
-  that a late completion does not resume the execution — but the docblock must say which of the two
-  it is, and the user documentation must not promise more.
+- **Probed after the fact, and it held:** the signal-after-deadline case now runs against a real
+  server (`tests/integration/Temporal/WorkflowDeadlineTest.php`). The signal is sent only once
+  `TIMER_FIRED` is visible in history, every workflow task replays from the start, and the verdict
+  stayed `timeout` across those replays.
+
+- **Answered from the code, not the server (task 1.2):** cancelling an in-flight activity
+  **detaches** the workflow, it does not stop the attempt. `TemporalWorkflowCommandBuffer::cancelActivity()`
+  emits `RequestCancelActivityTask` — a *request* — and `ActivityCancellationType` already encodes
+  the try-cancel / wait-for-cancellation-completed distinction. The docblock and the user
+  documentation say exactly that: the completion no longer resumes the workflow, and nothing more.
 
 ## Decisions
 
@@ -53,13 +57,32 @@ fired does not settle the wait that timer bounded. Two ways to get there:
 2. **Journaled abandonment** — the timed-out wait records that it gave up, and the slot is closed
    from then on. Explicit in history, at the cost of a new event and its handling in both backends.
 
-Option 1 is preferred: it adds no event, and it keeps the two backends symmetric because both
-already order their history. Option 2 is the fallback if a backend turns out not to expose a usable
-ordering between a fired timer and a delivered signal — which is exactly what task 1 checks.
+**Verdict (task 1.3): option 1.** Both backends expose the ordering task 1.1 asked about — the
+in-memory backend reads one ordered stream, and Temporal's history is totally ordered by `eventId`,
+which `TemporalExecutionHistory` now records for both `TIMER_FIRED` and
+`WORKFLOW_EXECUTION_SIGNALED`. No new event, and the two backends stay symmetric.
+
+Two consequences that were not visible when this was written:
+
+- **The order that counts is the journal's, not the wall clock's.** A signal that reached the
+  server before the deadline but was recorded after `TIMER_FIRED` is late. That is the price of a
+  verdict that survives replay, and DUR032 says so out loud before someone files it as a bug.
+- **The two backends did not agree on what a signal slot means.** In-memory counted slots over
+  *all* signals and nulled out on a name mismatch; Temporal counted only signals of the matching
+  name. The slot-release rule is stated in terms of "the Nth un-consumed signal of this name", so
+  the in-memory backend was aligned onto the per-name semantics. Without that, "backends agree on
+  the verdict" would have been false the moment two signal names met in one history.
 
 The same rule protects the third scenario in the spec: the late signal is not consumed by the wait
-that timed out, so a subsequent wait for the same name still observes it. That is a consequence of
-the rule, not an extra mechanism.
+that timed out, so a subsequent wait for the same name still observes it — provided the abandoned
+wait **releases its slot**, which it does.
+
+One more trap found while implementing: reading the verdict from `any()`'s return value is the same
+mistake in a different costume. `AnyAwaitable::getResult()` returns the first branch **declared**
+that has settled, and a replayed history can hold two settled branches at once — a signal recorded
+before the deadline fired settles the wait *and* the timer, with no cancellation to separate them.
+The branches are therefore read back explicitly after the race, in order: settled work, then a
+fired deadline, then the work's own failure.
 
 ### The deadline stays a workflow-side notion
 

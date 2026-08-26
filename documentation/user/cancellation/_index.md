@@ -80,10 +80,10 @@ A race loser is cancelled with reason `race_superseded` instead, and surfaces as
 ## Race losers
 
 ```php
-$winner = $env->any(
+$winner = $env->await($env->any(
     $env->activity('slow-call', $payload),
     $env->timer(30.0),                   // an awaitable, like the activity above
-);
+));
 ```
 
 When one branch wins, the others are cancelled: pending activities are removed from the queue and

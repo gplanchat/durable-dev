@@ -77,14 +77,14 @@ Retry limits and durations are **value objects**, not numbers — see [Options a
 
 declare(strict_types=1);
 
-use Gplanchat\Durable\Activity\{ActivityOptions, ActivityTimeouts, RetryLimit};
-use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Activity\ActivityOptions;
 
-$options = new ActivityOptions(
-    RetryLimit::ofAttempts(5),
-    initialInterval: Duration::seconds(2),
-    nonRetryableExceptions: [PaymentRefusedException::class],
-    timeouts: ActivityTimeouts::attempt(Duration::seconds(120)),
+// 5 attempts, 120s each, 2s before the first retry.
+$options = ActivityOptions::of(
+    5,
+    120,
+    2,
+    [PaymentRefusedException::class],
     summary: 'Charge order payment',
 );
 
@@ -98,18 +98,27 @@ $result = $this->environment->await($activities->charge($orderId));
 > fails retries forever instead of failing the workflow. Pass `RetryLimit::once()` when a failure
 > should be final.
 
+> [!NOTE]
+> **Two timeouts, two owners.** `ActivityTimeouts` bounds an activity **attempt** and is enforced
+> by the **backend**: it survives a worker crash, and it applies to that activity only. A
+> **deadline** passed to `await()` or `waitSignal()` is enforced **workflow-side**: it bounds
+> *this* wait in *this* execution, and it covers what activity bounds cannot — a child workflow, a
+> signal, a composed group. Reach for `ActivityTimeouts` to bound a single attempt, and for a
+> deadline to bound anything else. See
+> [Bounding a wait in time](../workflows/#bounding-a-wait-in-time).
+
 Create **separate stubs** when different calls need different policies — one with aggressive
 retries for a flaky HTTP call, another with stricter timeouts for a fast path:
 
 ```php
-$this->flaky  = $env->activityStub(SearchActivities::class, new ActivityOptions(
-    RetryLimit::ofAttempts(10),
+$this->flaky  = $env->activityStub(SearchActivities::class, ActivityOptions::of(
+    10,
     initialInterval: Duration::milliseconds(200),
 ));
 
-$this->strict = $env->activityStub(PricingActivities::class, new ActivityOptions(
+$this->strict = $env->activityStub(PricingActivities::class, ActivityOptions::of(
     RetryLimit::once(),
-    timeouts: ActivityTimeouts::attempt(Duration::seconds(2)),
+    timeouts: 2,
 ));
 ```
 

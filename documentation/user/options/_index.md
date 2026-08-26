@@ -27,8 +27,14 @@ Duration::seconds(30);
 Duration::milliseconds(250);
 Duration::minutes(2.5);
 Duration::hours(1);
-Duration::zero();                       // no wait — different from "no bound", which is null
+Duration::zero();                       // no wait
+Duration::infinity();                   // no bound at all — the default deadline of await()
 ```
+
+`infinity()` is a **value**, not an absence. It compares (`shortest()`, `isLongerThan()`), travels
+through configuration, and lets code that computes a deadline stop writing a special case for "no
+bound". It is not a wire duration: `timer()` rejects it, because a timer that never fires is a
+command in history for a wake-up that never comes.
 
 It also accepts native and Carbon values, without depending on Carbon:
 
@@ -44,7 +50,8 @@ $duration->toDateInterval();
 `of()` takes a **length**, `until()` takes an **instant**. A `DateTimeInterface` only becomes a
 duration once measured against another instant, which is why they are two methods and not one.
 
-A negative duration is rejected. Calendar units (years, months) have no fixed length and are
+A negative duration is rejected, and so is a computed `INF` or `NAN` — an infinite duration is
+asked for by name. Calendar units (years, months) have no fixed length and are
 resolved against a fixed UTC anchor, so prefer days, hours and minutes for a bound.
 
 ---
@@ -109,6 +116,19 @@ is named `executionBoundOr()` rather than hidden inside command construction.
 ---
 
 ## Putting activity options together
+
+```php
+use Gplanchat\Durable\Activity\ActivityOptions;
+
+// 3 attempts, 30s each, 1s before the first retry.
+$options = ActivityOptions::of(3, 30, 1, [PaymentRefusedException::class], 'payments');
+```
+
+`of()` is the constructor written in the order you think in: how many attempts, and how long each
+one may take. It accepts the scalar equivalents — an **int** is a number of attempts, a bare
+**duration** is the `startToClose` bound of one attempt, a **float** is seconds. Nothing is magic:
+`of(0)` is rejected rather than read as "unlimited". The long form stays available and is strictly
+equivalent, for when you want every intent named:
 
 ```php
 use Gplanchat\Durable\Activity\{ActivityOptions, ActivityTimeouts, RetryLimit};

@@ -24,9 +24,9 @@ final class ParallelGreetingWorkflow
     #[WorkflowMethod]
     public function run(string $first = 'Alice', string $second = 'Bob'): array
     {
-        return $this->environment->all(
+        return $this->environment->await($this->environment->all(
             $this->greeting->composeGreeting($first),
             $this->greeting->composeGreeting($second),
-        );
+        ));
     }
 }

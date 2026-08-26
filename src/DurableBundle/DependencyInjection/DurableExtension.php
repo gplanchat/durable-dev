@@ -58,8 +58,11 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+// Et non celle de HttpKernel, qui n'en est qu'une sous-classe mince — `@internal` depuis
+// Symfony 7.1, dépréciée en 8.1 — et n'ajoute que les restes du cache de classes annotées.
+// Celle-ci existe depuis 6.4 : l'échange ne coûte aucune version supportée.
+use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
-use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 final class DurableExtension extends Extension

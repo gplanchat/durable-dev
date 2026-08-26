@@ -834,9 +834,11 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     }
 
     /**
+     * Pas de `#[\Override]` : le DataCollector de Symfony ne déclare `__serialize()` qu'à partir
+     * de 7.0, et l'attribut ferait échouer le chargement de cette classe sur 6.4 (PHP ≥ 8.3).
+     *
      * @return array<string, mixed>
      */
-    #[\Override]
     public function __serialize(): array
     {
         $d = $this->data;
@@ -847,7 +849,6 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     /**
      * @param array<array-key, mixed> $data
      */
-    #[\Override]
     public function __unserialize(array $data): void
     {
         $this->data = $data;

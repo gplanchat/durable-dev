@@ -41,11 +41,11 @@ final class CancellationScopeRaceWorkflow
     #[WorkflowMethod]
     public function run(): string
     {
-        $winner = $this->environment->any(
+        $winner = $this->environment->await($this->environment->any(
             $this->greetingA->composeGreeting('A'),
             $this->greetingB->composeGreeting('B'),
             $this->greetingC->composeGreeting('C'),
-        );
+        ));
 
         return (string) $winner;
     }

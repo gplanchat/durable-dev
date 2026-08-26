@@ -30,9 +30,9 @@ final class ParallelChildEchoWorkflow
             $this->environment->delay($pauseSeconds, 'pause avant sous-workflows en parallèle');
         }
 
-        return $this->environment->all(
+        return $this->environment->await($this->environment->all(
             $this->environment->scheduleChildWorkflow(DurableSampleWorkflows::ECHO_CHILD, ['text' => $first]),
             $this->environment->scheduleChildWorkflow(DurableSampleWorkflows::ECHO_CHILD, ['text' => $second]),
-        );
+        ));
     }
 }

@@ -53,13 +53,13 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var array<string, float> timer ID → scheduled-at */
     private array $timerScheduledAt = [];
 
-    /** @var array<string, true> timer IDs that have fired */
+    /** @var array<string, int> timer ID → eventId of its TIMER_FIRED (l'ordre du journal tranche le verdict d'une échéance) */
     private array $firedTimerIds = [];
 
     /** @var array<int, mixed> slot index → side effect result (MARKER_RECORDED events) */
     private array $sideEffects = [];
 
-    /** @var list<array{signalName: string, payload: mixed}> signals in receive order */
+    /** @var list<array{signalName: string, payload: mixed, eventId: int}> signals in receive order */
     private array $signals = [];
 
     /** @var list<array{updateName: string, result: mixed}> updates in accept order */
@@ -219,7 +219,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     $startedEventId = $attr->getStartedEventId();
                     $timerId = $this->startedEventIdToTimerId[$startedEventId] ?? null;
                     if (null !== $timerId) {
-                        $this->firedTimerIds[$timerId] = true;
+                        $this->firedTimerIds[$timerId] = (int) $eventId;
                     }
                 }
                 break;
@@ -261,7 +261,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                             $payload = JsonPlainPayload::decode($payloads[0]);
                         }
                     }
-                    $this->signals[] = ['signalName' => $attr->getSignalName(), 'payload' => $payload];
+                    $this->signals[] = ['signalName' => $attr->getSignalName(), 'payload' => $payload, 'eventId' => (int) $eventId];
                 }
                 break;
 
@@ -427,12 +427,20 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         return $this->childExecutionIds[$slot] ?? null;
     }
 
-    public function findSignalForSlot(string $signalName, int $slot): ?array
+    public function findSignalForSlot(string $signalName, int $slot, ?string $notAfterTimerId = null): ?array
     {
+        $deadlineFiredAt = null !== $notAfterTimerId ? ($this->firedTimerIds[$notAfterTimerId] ?? null) : null;
         $index = 0;
         foreach ($this->signals as $signal) {
             if ($signal['signalName'] === $signalName) {
                 if ($index === $slot) {
+                    // L'historique Temporal est totalement ordonné par eventId : un signal
+                    // d'eventId supérieur à celui du TIMER_FIRED est enregistré après le tir de
+                    // l'échéance, et ne règle pas l'attente qu'elle bornait.
+                    if (null !== $deadlineFiredAt && $signal['eventId'] > $deadlineFiredAt) {
+                        return null;
+                    }
+
                     return ['payload' => $signal['payload']];
                 }
                 ++$index;
