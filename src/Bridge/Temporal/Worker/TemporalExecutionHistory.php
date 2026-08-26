@@ -530,4 +530,22 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     {
         return $this->startInput;
     }
+
+    /**
+     * Temporal SAIT relire ces événements — les neuf `NEXUS_OPERATION_*` sont dans l'historique.
+     * Leur lecture est §4.3. Rendre null ici ferait replanifier l'opération à chaque replay, en
+     * silence : l'aveu bruyant coûte moins cher que la boucle muette.
+     *
+     * Inatteignable en l'état : rien ne planifie encore d'opération Nexus, faute du §3.2.
+     */
+    public function findNexusOperationSlotResult(int $slot): ?array
+    {
+        throw new \LogicException('Reading NEXUS_OPERATION_* events is not built yet (temporal-nexus-support §4.3).');
+    }
+
+    /** @see findNexusOperationSlotResult() */
+    public function findScheduledNexusOperation(int $slot): ?string
+    {
+        throw new \LogicException('Reading NEXUS_OPERATION_* events is not built yet (temporal-nexus-support §4.3).');
+    }
 }
