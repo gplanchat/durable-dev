@@ -92,10 +92,30 @@ of a misconfigured endpoint. That choice belongs to §3, not to the value object
 
 Pinned by `tests/integration/Temporal/NexusUnknownEndpointTest.php`.
 
-**Not probed: service and operation names.** They travel in the `ScheduleNexusOperation` command,
-so measuring them needs a workflow scheduling a real operation against a worker — the endpoint
-probe reaches them by no path. Task 1.1 covers all three names; only the endpoint half is
-established.
+**Service and operation names, probed (task 1.1, second half) — and the rule is the opposite of the
+endpoint's.** They travel in the `ScheduleNexusOperation` command, so measuring them needs a real
+endpoint and a completed workflow task. Against Temporal 1.31.2, **the server validates neither**:
+empty, a single space, edge whitespace, an inner tab, a control character, a slash, an accent, a
+thousand characters — every one accepted, and `NEXUS_OPERATION_SCHEDULED` records the name
+**verbatim** (measured: `service: ""` and `service: "sv\tc"` read back unchanged).
+
+Nothing follows. The operation sits scheduled, waiting for a handler whose service and operation
+will never match, and no error is ever written.
+
+**So the three names of one command follow three different rules, and §2.1 cannot treat them as a
+block:**
+
+| Name | Server | What the value object must do |
+|---|---|---|
+| endpoint | strict — regex, 200 chars, refused at creation | mirror the server, invent nothing |
+| service | accepts anything | be **stricter than the server**, like `TaskQueue` |
+| operation | accepts anything | be **stricter than the server**, like `TaskQueue` |
+
+The `TaskQueue` reasoning applies verbatim to the last two: the server accepts what cannot be
+anything but a mistake, and the mistake costs an execution that waits forever with nothing in the
+logs. It does not apply to the endpoint, whose failure is loud and immediate.
+
+Pinned by `tests/integration/Temporal/NexusServiceAndOperationNameRulesTest.php`.
 
 ## Decisions
 
