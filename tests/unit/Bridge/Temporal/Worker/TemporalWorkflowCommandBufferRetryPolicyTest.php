@@ -7,6 +7,9 @@ namespace unit\Gplanchat\Bridge\Temporal\Worker;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\ActivityTimeouts;
+use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Activity\RetryLimit;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
 
@@ -35,11 +38,11 @@ final class TemporalWorkflowCommandBufferRetryPolicyTest extends TestCase
 
     public function testMaxAttemptsAndNonRetryableTypesBecomeARetryPolicy(): void
     {
-        $options = (new ActivityOptions(
-            maxAttempts: 5,
+        $options = new ActivityOptions(
+            RetryLimit::ofAttempts(5),
             nonRetryableExceptions: ['App\Domain\Exception\BusinessException'],
-            startToCloseTimeoutSeconds: 30.0,
-        ))->toMetadata();
+            timeouts: ActivityTimeouts::attempt(Duration::seconds(30.0)),
+        );
 
         $buffer = $this->buffer();
         $buffer->scheduleActivity('act-1', 'delete_user', [], $options);
@@ -60,7 +63,7 @@ final class TemporalWorkflowCommandBufferRetryPolicyTest extends TestCase
     public function testUnlimitedAttemptsLeavesMaximumAttemptsUnset(): void
     {
         // maxAttempts 0 = unlimited: don't cap it, but still carry a policy.
-        $options = (new ActivityOptions(maxAttempts: 0))->toMetadata();
+        $options = new ActivityOptions(RetryLimit::unlimited());
 
         $buffer = $this->buffer();
         $buffer->scheduleActivity('act-1', 'delete_user', [], $options);
@@ -75,7 +78,7 @@ final class TemporalWorkflowCommandBufferRetryPolicyTest extends TestCase
         // Backward compatible: an activity scheduled without options keeps the
         // server default (no explicit policy sent).
         $buffer = $this->buffer();
-        $buffer->scheduleActivity('act-1', 'delete_user', [], []);
+        $buffer->scheduleActivity('act-1', 'delete_user', [], null);
 
         self::assertNull($this->scheduledAttrs($buffer)->getRetryPolicy());
     }

@@ -8,8 +8,10 @@ use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Awaitable\ActivityAwaitable;
 use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Awaitable\TimerAwaitable;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Exception\ActivitySupersededException;
-use Gplanchat\Durable\Exception\ChildWorkflowDeferredToMessenger;
+use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
+use Gplanchat\Durable\Exception\ChildWorkflowStartDeferred;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\Exception\DurableChildWorkflowFailedException;
 use Gplanchat\Durable\Exception\DurableWorkflowAlgorithmFailureException;
@@ -85,12 +87,10 @@ final class ExecutionContext
         $deferred = new \Gplanchat\Durable\Awaitable\Deferred();
         $this->pendingActivities[$activityId] = $deferred;
 
-        $metadata = null !== $options ? $options->toMetadata() : [];
         if (null === $scheduled) {
-            $now = microtime(true);
-            $metadata['queued_at'] = $now;
-            $metadata['first_queued_at'] = $now;
-            $this->commandBuffer->scheduleActivity($activityId, $name, $payload, $metadata);
+            // Les options partent telles quelles ; l'horodatage de mise en file appartient au
+            // backend, qui seul possède une horloge.
+            $this->commandBuffer->scheduleActivity($activityId, $name, $payload, $options);
         }
 
         return new ActivityAwaitable($deferred->awaitable(), $activityId);
@@ -124,9 +124,9 @@ final class ExecutionContext
     /**
      * @return Awaitable<mixed>
      */
-    public function timer(float $seconds, string $timerSummary = ''): Awaitable
+    public function timer(Duration $delay, string $timerSummary = ''): Awaitable
     {
-        return $this->delay($seconds, $timerSummary);
+        return $this->delay($delay, $timerSummary);
     }
 
     /**
@@ -173,29 +173,25 @@ final class ExecutionContext
         }
 
         if (null === $scheduledId) {
-            $this->commandBuffer->scheduleChildWorkflow(
-                $childExecutionId,
-                $childWorkflowType,
-                $input,
-                array_merge(
-                    ['parentClosePolicy' => $options->parentClosePolicy, 'workflowId' => $options->workflowId],
-                    $options->toSchedulingMetadata(),
-                ),
-            );
+            $this->commandBuffer->scheduleChildWorkflow($childExecutionId, $childWorkflowType, $input, $options);
         }
 
-        if (null !== $scheduledId && $this->childWorkflowRunner->defersChildStartToMessenger()) {
+        if (null !== $scheduledId && $this->childWorkflowRunner->defersChildStart()) {
             return $deferred->awaitable();
         }
 
         try {
             $result = $this->childWorkflowRunner->runChild($childExecutionId, $childWorkflowType, $input, $this->executionId);
-            $this->commandBuffer->completeWorkflow($result);
+            // L'issue de l'ENFANT, pas celle du run courant : completeWorkflow() ici clôturait le
+            // journal du parent avec le résultat de l'enfant, et n'écrivait jamais le
+            // ChildWorkflowCompleted que findChildWorkflowForSlot() cherche au replay — l'enfant
+            // était donc réexécuté à chaque reprise du parent.
+            $this->commandBuffer->completeChildWorkflow($childExecutionId, $result);
             $deferred->resolve($result);
-        } catch (ChildWorkflowDeferredToMessenger) {
+        } catch (ChildWorkflowStartDeferred) {
             return $deferred->awaitable();
         } catch (\Throwable $e) {
-            $this->commandBuffer->failWorkflow($e);
+            $this->commandBuffer->failChildWorkflow($childExecutionId, $e);
             $deferred->reject(new DurableChildWorkflowFailedException(
                 $childExecutionId,
                 $e->getMessage(),
@@ -256,7 +252,35 @@ final class ExecutionContext
         }
 
         $this->commandBuffer->cancelActivity($activityId, $reason);
-        $this->rejectActivity($activityId, new ActivitySupersededException($activityId, $reason));
+        $this->rejectActivity($activityId, ActivityCancellationReason::WORKFLOW_CANCELLED === $reason
+            ? new WorkflowCancelledFailure($this->executionId, $reason)
+            : new ActivitySupersededException($activityId, $reason));
+
+        return true;
+    }
+
+    /**
+     * Annule un minuteur encore en attente (best effort).
+     *
+     * Le minuteur ne sera jamais résolu : il est retiré des pending pour que
+     * {@see resolveTimer()} devienne un no-op, et le journal reçoit un
+     * {@see \Gplanchat\Durable\Event\TimerCancelled}.
+     */
+    public function cancelScheduledTimer(string $timerId, string $reason): bool
+    {
+        if (!isset($this->pendingTimers[$timerId])) {
+            return false;
+        }
+
+        $deferred = $this->pendingTimers[$timerId];
+        unset($this->pendingTimers[$timerId]);
+        $this->commandBuffer->cancelTimer($timerId, $reason);
+
+        // Un perdant de course reste simplement non résolu ; une annulation de workflow doit
+        // au contraire relever, pour que le workflow puisse compenser.
+        if (ActivityCancellationReason::WORKFLOW_CANCELLED === $reason) {
+            $deferred->reject(new WorkflowCancelledFailure($this->executionId, $reason));
+        }
 
         return true;
     }
@@ -264,15 +288,19 @@ final class ExecutionContext
     /**
      * @return Awaitable<mixed>
      */
-    public function delay(float $seconds, string $timerSummary = ''): Awaitable
+    public function delay(Duration $delay, string $timerSummary = ''): Awaitable
     {
         $slotIndex = $this->timerSlotIndex++;
         $replay = $this->historySource->findTimerSlotResult($slotIndex);
         if (null !== $replay) {
             $deferred = new \Gplanchat\Durable\Awaitable\Deferred();
-            $deferred->resolve(null);
+            if (null !== ($replay['failed'] ?? null)) {
+                $deferred->reject($replay['failed']);
+            } else {
+                $deferred->resolve(null);
+            }
 
-            return $deferred->awaitable();
+            return new TimerAwaitable($deferred->awaitable(), $replay['id']);
         }
 
         $scheduled = $this->historySource->findScheduledTimerId($slotIndex);
@@ -281,8 +309,9 @@ final class ExecutionContext
         $this->pendingTimers[$timerId] = $deferred;
 
         if (null === $scheduled) {
-            $scheduledAt = microtime(true) + $seconds;
-            $this->commandBuffer->startTimer($timerId, $scheduledAt, $timerSummary);
+            // Le délai part tel quel : transformer une durée en échéance demande une horloge, et
+            // le cœur n'en a pas — c'est une décision de backend.
+            $this->commandBuffer->startTimer($timerId, $delay, $timerSummary);
         }
 
         return new TimerAwaitable($deferred->awaitable(), $timerId);

@@ -26,23 +26,39 @@ SPLITS=(
     "src/Durable/|durable"
     "src/DurableBundle/|durable-bundle"
     "src/Bridge/Temporal/|durable-bridge-temporal"
+    "src/Bridge/Dbal/|durable-bridge-dbal"
 )
 
 # Push using Authorization: Basic so the credential helper from CI (GITHUB_TOKEN) cannot override
 # pushes to other repositories — embed-only URLs are sometimes ignored when a global helper matches github.com.
+satellite_url() {
+    printf 'https://github.com/%s/%s.git' "$ORG" "$1"
+}
+
+auth_header() {
+    local basic
+    basic="$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0 2>/dev/null || printf 'x-access-token:%s' "$TOKEN" | base64 | tr -d '\n')"
+    printf 'Authorization: Basic %s' "$basic"
+}
+
 git_push_satellite() {
     local repo="$1"
     local refspec="$2"
     shift 2
-    local url="https://github.com/${ORG}/${repo}.git"
-    local basic
     if [[ -z "$TOKEN" ]]; then
         return 0
     fi
-    basic="$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0 2>/dev/null || printf 'x-access-token:%s' "$TOKEN" | base64 | tr -d '\n')"
     GIT_TERMINAL_PROMPT=0 git \
-        -c "http.extraHeader=Authorization: Basic ${basic}" \
-        push "$@" "$url" "$refspec"
+        -c "http.extraHeader=$(auth_header)" \
+        push "$@" "$(satellite_url "$repo")" "$refspec"
+}
+
+# SHA the satellite already carries for <tag>, empty if absent. Tags are pushed lightweight,
+# so the single ls-remote line points straight at the split commit.
+remote_tag_sha() {
+    GIT_TERMINAL_PROMPT=0 git \
+        -c "http.extraHeader=$(auth_header)" \
+        ls-remote --tags "$(satellite_url "$1")" "refs/tags/$2" | head -n1 | cut -f1
 }
 
 split_sha() {
@@ -112,6 +128,13 @@ push_tag_mode() {
         sha="$(split_sha "$prefix")"
         if [[ -z "$TOKEN" ]]; then
             echo "[tag] $repo split SHA=$sha for $tag (dry-run, set SPLITSH_PUSH_TOKEN to push)"
+            continue
+        fi
+        # Already published at this SHA: skip. Without this, a re-run dies on "already exists" at the
+        # first satellite and the remaining ones are never pushed — a partial publish stays stuck.
+        # A tag pointing elsewhere still fails loudly: that is a real divergence, not a retry.
+        if [[ "$(remote_tag_sha "$repo" "$tag")" == "$sha" ]]; then
+            echo "[tag] $repo already at $sha for $tag"
             continue
         fi
         echo "[tag] Pushing $ORG/$repo $sha -> refs/tags/$tag"

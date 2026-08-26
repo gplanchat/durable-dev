@@ -1,31 +1,27 @@
 ---
-title: Durable user guide
+title: User guide
 weight: 1
+bookFlatSection: false
 ---
 
-# Durable
+# User guide
 
-**Durable** is a PHP library for **durable execution**: long-running workflows that survive restarts, coordinated with **Temporal**, with a **cursor-based event history**, **activities** for side effects, and **replay** so the same workflow code stays deterministic.
+How to think about Durable and how to use it. The [home page](/) covers what it is for; this
+section is the reference.
 
-This site is the **user guide**: how to think about the component and how to use it. It is **not** a copy of internal architecture records (ADRs) or team working agreements—those stay in the repository for contributors.
+| | |
+|---|---|
+| [Packages](packages/) | the library, the bundle, the Temporal driver — what to install and when |
+| [Getting started](getting-started/) | installation, Symfony configuration, a first workflow, worker commands |
+| [Concepts](concepts/) | workflows, activities, replay and backends in plain language |
+| [Backends](backends/) | in-memory versus Temporal, and what each one supports |
+| [Creating a workflow](workflows/) | `WorkflowEnvironment`, signals, queries, updates, child workflows |
+| [Creating activities](activities/) | activity contracts, dependency injection, the typed stub |
+| [Failures and retries](failures/) | what the journal records, and why an activity stopped retrying |
+| [Cancellation](cancellation/) | raising cancellation inside the workflow so it can compensate |
+| [Options and value objects](options/) | retry limits, timeouts, cron schedules, search attributes |
+| [Testing workflows](testing/) | unit tests with no server, and the suite that runs against a real one |
+| [Configuration reference](configuration/) | every `durable.yaml` key |
 
-## Who this guide is for
-
-- Application developers integrating durable workflows in PHP.
-- Teams running **Temporal** (or the **In-Memory** backend for tests and local runs).
-
-## Sections
-
-- [Getting started](getting-started/) — installation, Symfony bundle config, first workflow, worker commands.
-- [Backends](backends/) — In-Memory vs Temporal: Docker Compose setup, DSN format, when to use each.
-- [Concepts](concepts/) — workflows, activities, replay, and backends in plain language.
-- [Creating a workflow](workflows/) — interface, `WorkflowEnvironment`, `WorkflowMethod`, signals, queries, updates.
-- [Creating activities](activities/) — activity interfaces, `ActivityMethod`, dependency injection, `ActivityInvoker`.
-- [Testing workflows](testing/) — `DurableTestCase`, `ActivitySpy`, `WorkflowTestEnvironment`, and `DurableBundleTestTrait`.
-- [Configuration reference](configuration/) — every `durable.yaml` key explained.
-
-## Source and feedback
-
-The **source** for this guide lives in the repository under `documentation/user/`. **Architecture decisions** (prefix **DUR**) and **working agreements** (**WA**) are maintained separately under `documentation/adr/` and `documentation/wa/` for contributors.
-
-If something here is unclear or wrong, open an issue or a pull request on the project repository.
+Architecture decision records (**DUR**) and working agreements (**WA**) live in the repository for
+contributors, under `documentation/adr/` and `documentation/wa/`.

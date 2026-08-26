@@ -9,12 +9,17 @@
         <testsuite name="unit">
             <directory>tests/unit</directory>
         </testsuite>
+        <!-- Contre un vrai serveur Temporal ; voir tests/integration/Temporal/TemporalServerTestCase.php -->
+        <testsuite name="integration">
+            <directory>tests/integration</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
             <directory>src/Durable</directory>
             <directory>src/DurableBundle</directory>
             <directory>src/Bridge/Temporal</directory>
+            <directory>src/Bridge/Dbal</directory>
         </include>
         <exclude>
             <directory>src/Bridge/Temporal/Api</directory>

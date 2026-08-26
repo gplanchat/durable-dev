@@ -71,9 +71,10 @@ final class TemporalActivityScheduleInput
         /* @var array<string, mixed> $payload */
         /* @var array<string, mixed> $metadata */
 
+        // Le serveur tient le compteur de tentatives : il fait autorité sur celui du fil.
         $metadata['attempt'] = $poll->getAttempt();
 
-        return new ActivityMessage(
+        return ActivityMessage::fromWireMetadata(
             $first['executionId'],
             $first['activityId'],
             $first['activityName'],

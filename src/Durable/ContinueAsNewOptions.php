@@ -6,14 +6,28 @@ namespace Gplanchat\Durable;
 
 /**
  * Options pour {@see ExecutionContext::continueAsNew()} (équivalent {@see \Temporal\Workflow\ContinueAsNewOptions}).
+ *
+ * Un continue-as-new ouvre un nouveau run **dans** l'exécution en cours : la borne d'exécution
+ * est héritée et ne se repose pas ici.
  */
 final readonly class ContinueAsNewOptions
 {
+    /** Bornes du prochain run ; la borne d'exécution y est refusée. */
+    public WorkflowTimeouts $timeouts;
+
     public function __construct(
-        public ?string $taskQueue = null,
-        public ?float $workflowRunTimeoutSeconds = null,
-        public ?float $workflowTaskTimeoutSeconds = null,
+        public ?TaskQueue $taskQueue = null,
+        ?WorkflowTimeouts $timeouts = null,
     ) {
+        $timeouts ??= WorkflowTimeouts::none();
+        if (null !== $timeouts->execution) {
+            throw new \InvalidArgumentException(
+                'Continue-as-new cannot set an execution timeout: the new run belongs to the '
+                .'current execution and inherits it. Use WorkflowTimeouts::withoutExecutionBound().',
+            );
+        }
+
+        $this->timeouts = $timeouts;
     }
 
     public static function new(): self
@@ -21,19 +35,14 @@ final readonly class ContinueAsNewOptions
         return new self();
     }
 
-    public function withTaskQueue(?string $taskQueue): self
+    public function withTaskQueue(TaskQueue|string|null $taskQueue): self
     {
-        return new self($taskQueue, $this->workflowRunTimeoutSeconds, $this->workflowTaskTimeoutSeconds);
+        return new self(TaskQueue::fromNullable($taskQueue), $this->timeouts);
     }
 
-    public function withWorkflowRunTimeoutSeconds(?float $seconds): self
+    public function withTimeouts(WorkflowTimeouts $timeouts): self
     {
-        return new self($this->taskQueue, $seconds, $this->workflowTaskTimeoutSeconds);
-    }
-
-    public function withWorkflowTaskTimeoutSeconds(?float $seconds): self
-    {
-        return new self($this->taskQueue, $this->workflowRunTimeoutSeconds, $seconds);
+        return new self($this->taskQueue, $timeouts);
     }
 
     /**
@@ -42,17 +51,11 @@ final readonly class ContinueAsNewOptions
     public function toMetadata(): array
     {
         $m = [];
-        if (null !== $this->taskQueue && '' !== $this->taskQueue) {
-            $m['task_queue'] = $this->taskQueue;
-        }
-        if (null !== $this->workflowRunTimeoutSeconds) {
-            $m['workflow_run_timeout_seconds'] = $this->workflowRunTimeoutSeconds;
-        }
-        if (null !== $this->workflowTaskTimeoutSeconds) {
-            $m['workflow_task_timeout_seconds'] = $this->workflowTaskTimeoutSeconds;
+        if (null !== $this->taskQueue) {
+            $m['task_queue'] = $this->taskQueue->name();
         }
 
-        return $m;
+        return $m + $this->timeouts->toMetadata();
     }
 
     /**
@@ -61,9 +64,8 @@ final readonly class ContinueAsNewOptions
     public static function fromMetadata(array $metadata): self
     {
         return new self(
-            isset($metadata['task_queue']) ? (string) $metadata['task_queue'] : null,
-            isset($metadata['workflow_run_timeout_seconds']) ? (float) $metadata['workflow_run_timeout_seconds'] : null,
-            isset($metadata['workflow_task_timeout_seconds']) ? (float) $metadata['workflow_task_timeout_seconds'] : null,
+            TaskQueue::fromNullable(isset($metadata['task_queue']) ? (string) $metadata['task_queue'] : null),
+            WorkflowTimeouts::fromMetadata($metadata)->withoutExecutionBound(),
         );
     }
 }

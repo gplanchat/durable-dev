@@ -47,18 +47,40 @@ final class OrderWorkflow implements OrderWorkflowContract
 
 `WorkflowEnvironment` provides **`await`**, **`all`**, **`any`**, **`race`**, **`parallel`**, **`async`**, timers, child workflows, signals, and more — see the class in the repository for the full API.
 
+### Waiting versus composing
+
+Two methods, and the names say which is which:
+
+```php
+$env->sleep(Duration::minutes(5));            // wait, and nothing else — awaits for you
+
+$winner = $env->any(                          // compose: whichever finishes first
+    $activities->callProvider($orderId),
+    $env->timer(Duration::seconds(30)),       // an Awaitable, like an activity call
+);
+```
+
+`timer()` returns an `Awaitable` exactly like `activity()`, so both compose the same way. Both
+accept a `Duration`, a `DateInterval` (so a `CarbonInterval`), a `DateTimeInterface` deadline, or a
+plain number of seconds.
+
 ### ActivityOptions on the stub
 
 To apply **retries**, **timeouts**, **task queue**, and related scheduling metadata to every call made through a given stub, pass **`ActivityOptions`** as the second argument to **`activityStub()`**:
 
 ```php
-use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\{ActivityOptions, ActivityTimeouts, RetryLimit};
+use Gplanchat\Durable\Duration;
 
-$options = ActivityOptions::default()->withMaxAttempts(5)->withStartToCloseTimeoutSeconds(120.0);
+$options = new ActivityOptions(
+    RetryLimit::ofAttempts(5),
+    timeouts: ActivityTimeouts::attempt(Duration::seconds(120)),
+);
 $activities = $this->environment->activityStub(OrderActivities::class, $options);
 ```
 
-More patterns (constructor, `withNonRetryableExceptions`, low-level **`activity()`**) are in [Creating activities — ActivityOptions](../activities/#activityoptions-timeouts-retries-task-queue).
+More patterns are in [Creating activities — ActivityOptions](../activities/#activityoptions-timeouts-retries-task-queue),
+and every option is described in [Options and value objects](../options/).
 
 ### Naming: ActivityStub vs ActivityInvoker
 

@@ -7,6 +7,8 @@ namespace App\Samples\Workflow\LocalActivity;
 use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Activity\ActivityTimeouts;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -25,8 +27,7 @@ final class LocalActivityGreetingWorkflow
     ) {
         $this->greeting = $environment->activityStub(
             GreetingActivityInterface::class,
-            ActivityOptions::default()
-                ->withStartToCloseTimeoutSeconds(2.0)
+            new ActivityOptions(timeouts: ActivityTimeouts::attempt(Duration::seconds(2.0)))
         );
     }
 

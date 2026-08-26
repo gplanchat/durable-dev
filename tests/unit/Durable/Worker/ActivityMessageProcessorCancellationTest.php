@@ -74,7 +74,7 @@ final class ActivityMessageProcessorCancellationTest extends TestCase
             'act-1',
             'Echo',
             [],
-            ['attempt' => 1],
+            attempt: 1,
         ));
 
         $cancelled = false;
@@ -151,7 +151,7 @@ final class ActivityMessageProcessorCancellationTest extends TestCase
             'act-2',
             'Echo',
             [],
-            ['attempt' => 1],
+            attempt: 1,
         ));
 
         $completed = false;

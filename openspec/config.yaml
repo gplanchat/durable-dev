@@ -1,0 +1,56 @@
+schema: spec-driven
+
+context: |
+  PHP 8.2+ durable execution component. Two backends behind a single fiber driver:
+  an in-memory backend that journals domain events, and a Temporal backend that emits
+  protobuf commands. No official Temporal PHP SDK and no RoadRunner (ADR DUR006).
+
+  Normative documentation is English (WA001). Development is TDD, Red then Green then
+  Refactor (WA002). Architecture decisions live in documentation/adr/ as ADRs with
+  DURxxx identifiers; a change that lands should leave an ADR behind.
+
+  House rule, earned the hard way: probe the running Temporal server before encoding
+  any server rule as an invariant. It has already corrected six wrong assumptions. A
+  false invariant inside a value object is worse than a primitive, because it rejects
+  correct code.
+
+  The integration suite runs against a real server:
+    temporal server start-dev --namespace durable-test --port 7233
+    DURABLE_TEMPORAL_ADDRESS=127.0.0.1:7233 vendor/bin/phpunit --testsuite integration
+
+rules:
+  spec:
+    - Scenarios must be observable from outside the component, never internal class names
+  design:
+    - State which server behaviours were probed and which were assumed
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing

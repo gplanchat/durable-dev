@@ -4,6 +4,7 @@ parameters:
         - src/Durable
         - src/DurableBundle
         - src/Bridge/Temporal
+        - src/Bridge/Dbal
     excludePaths:
         - src/Bridge/Temporal/Api
         - src/Bridge/Temporal/Generated

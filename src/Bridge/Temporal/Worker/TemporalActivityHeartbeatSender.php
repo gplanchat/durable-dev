@@ -49,7 +49,7 @@ final class TemporalActivityHeartbeatSender implements ActivityHeartbeatSenderIn
         try {
             $req = new RecordActivityTaskHeartbeatRequest();
             $req->setTaskToken($this->taskToken);
-            $req->setNamespace($this->connection->namespace);
+            $req->setNamespace($this->connection->namespace->name());
             $req->setIdentity($this->connection->identity.'-activity');
             if (null !== $details) {
                 $req->setDetails(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($details)));

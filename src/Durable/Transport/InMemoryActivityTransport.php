@@ -13,18 +13,11 @@ final class InMemoryActivityTransport implements ActivityTransportInterface
 
     public function enqueue(ActivityMessage $message): void
     {
+        // Le transport traduit le délai dans son propre mécanisme de report, puis l'oublie.
         $at = microtime(true);
-        $meta = $message->metadata;
-        if (isset($meta['retry_delay_seconds']) && (float) $meta['retry_delay_seconds'] > 0) {
-            $at += (float) $meta['retry_delay_seconds'];
-            unset($meta['retry_delay_seconds']);
-            $message = new ActivityMessage(
-                $message->executionId,
-                $message->activityId,
-                $message->activityName,
-                $message->payload,
-                $meta,
-            );
+        if (null !== $message->retryDelay) {
+            $at += $message->retryDelay->toSeconds();
+            $message = $message->withoutRetryDelay();
         }
         $this->pending[] = ['at' => $at, 'message' => $message];
     }
@@ -70,6 +63,18 @@ final class InMemoryActivityTransport implements ActivityTransportInterface
     public function isEmpty(): bool
     {
         return null === $this->peek();
+    }
+
+    public function nextDueAt(): ?float
+    {
+        $next = null;
+        foreach ($this->pending as $row) {
+            if (null === $next || $row['at'] < $next) {
+                $next = $row['at'];
+            }
+        }
+
+        return $next;
     }
 
     public function removePendingFor(string $executionId, string $activityId): bool

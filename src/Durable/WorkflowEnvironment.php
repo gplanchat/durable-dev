@@ -11,7 +11,9 @@ use Gplanchat\Durable\Awaitable\ActivityAwaitable;
 use Gplanchat\Durable\Awaitable\AnyAwaitable;
 use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Awaitable\CancellingAnyAwaitable;
+use Gplanchat\Durable\Awaitable\TimerAwaitable;
 use Gplanchat\Durable\Awaitable\Deferred;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\Workflow\ChildWorkflowStub;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
@@ -116,7 +118,9 @@ final class WorkflowEnvironment
         $inner = new AnyAwaitable($awaitables);
         $composite = $inner;
         foreach ($awaitables as $a) {
-            if ($a instanceof ActivityAwaitable) {
+            // Activités ET minuteurs perdants sont annulables : sans le minuteur, un
+            // `any(timer, timer)` laissait une échéance morte réveiller l'exécution.
+            if ($a instanceof ActivityAwaitable || $a instanceof TimerAwaitable) {
                 $composite = new CancellingAnyAwaitable($this->context, $inner, $awaitables);
                 break;
             }
@@ -133,14 +137,27 @@ final class WorkflowEnvironment
         return $this->any(...$awaitables);
     }
 
-    public function delay(float $seconds, string $timerSummary = ''): void
+    public function sleep(Duration|\DateInterval|\DateTimeInterface|int|float $duration, string $timerSummary = ''): void
     {
-        $this->await($this->context->delay($seconds, $timerSummary));
+        $this->await($this->timer($duration, $timerSummary));
     }
 
-    public function timer(float $seconds, string $timerSummary = ''): void
+    /**
+     * Minuteur, à attendre avec {@see await()} ou à composer avec {@see any()} / {@see parallel()}.
+     *
+     * Rend un awaitable comme {@see activity()} : les deux méthodes de cette façade se
+     * comportent pareil. Pour simplement attendre une échéance, {@see sleep()} le dit dans son
+     * nom.
+     *
+     * Le minuteur perdant d'un {@see any()} est annulé
+     * ({@see \Gplanchat\Durable\Event\TimerCancelled}) pour ne pas réveiller l'exécution sur
+     * une échéance morte.
+     *
+     * @return Awaitable<mixed>
+     */
+    public function timer(Duration|\DateInterval|\DateTimeInterface|int|float $duration, string $timerSummary = ''): Awaitable
     {
-        $this->await($this->context->timer($seconds, $timerSummary));
+        return $this->context->timer(Duration::from($duration), $timerSummary);
     }
 
     /**

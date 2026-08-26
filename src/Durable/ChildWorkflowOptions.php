@@ -7,31 +7,36 @@ namespace Gplanchat\Durable;
 /**
  * Options pour {@see ExecutionContext::executeChildWorkflow()} (équivalent {@see \Temporal\Workflow\ChildWorkflowOptions}).
  *
- * Les timeouts sont en secondes. Les champs supplémentaires sont journalisés pour observabilité ;
- * le moteur inline n’applique pas encore tous les timeouts côté exécution.
+ * Les champs supplémentaires sont journalisés pour observabilité ; le moteur inline n’applique
+ * pas encore tous les timeouts côté exécution.
  */
 final readonly class ChildWorkflowOptions
 {
+    /** Les bornes temporelles de l'enfant, prises ensemble. */
+    public WorkflowTimeouts $timeouts;
+
+    /** Ce sur quoi l'enfant pourra être retrouvé. */
+    public SearchAttributes $searchAttributes;
+
     public function __construct(
         /**
          * Identifiant d’exécution enfant (clé du journal enfant). Si null, un UUID est généré.
          */
         public ?string $workflowId = null,
         public ParentClosePolicy $parentClosePolicy = ParentClosePolicy::Terminate,
-        public ?string $namespace = null,
-        public ?string $taskQueue = null,
-        public ?float $workflowExecutionTimeoutSeconds = null,
-        public ?float $workflowRunTimeoutSeconds = null,
-        public ?float $workflowTaskTimeoutSeconds = null,
-        public ?string $cronSchedule = null,
+        public ?WorkflowNamespace $namespace = null,
+        public ?TaskQueue $taskQueue = null,
+        ?WorkflowTimeouts $timeouts = null,
+        public ?CronSchedule $cronSchedule = null,
         /** @var array<string, mixed>|null */
         public ?array $memo = null,
-        /** @var array<string, mixed>|null */
-        public ?array $searchAttributes = null,
+        ?SearchAttributes $searchAttributes = null,
         public WorkflowIdReusePolicy $workflowIdReusePolicy = WorkflowIdReusePolicy::AllowDuplicateFailedOnly,
         public ?string $staticSummary = null,
         public ?string $staticDetails = null,
     ) {
+        $this->timeouts = $timeouts ?? WorkflowTimeouts::none();
+        $this->searchAttributes = $searchAttributes ?? SearchAttributes::none();
     }
 
     public static function defaults(): self
@@ -45,29 +50,21 @@ final readonly class ChildWorkflowOptions
     public function toSchedulingMetadata(): array
     {
         $m = [];
-        if (null !== $this->namespace && '' !== $this->namespace) {
-            $m['namespace'] = $this->namespace;
+        if (null !== $this->namespace) {
+            $m['namespace'] = $this->namespace->name();
         }
-        if (null !== $this->taskQueue && '' !== $this->taskQueue) {
-            $m['task_queue'] = $this->taskQueue;
+        if (null !== $this->taskQueue) {
+            $m['task_queue'] = $this->taskQueue->name();
         }
-        if (null !== $this->workflowExecutionTimeoutSeconds) {
-            $m['workflow_execution_timeout_seconds'] = $this->workflowExecutionTimeoutSeconds;
-        }
-        if (null !== $this->workflowRunTimeoutSeconds) {
-            $m['workflow_run_timeout_seconds'] = $this->workflowRunTimeoutSeconds;
-        }
-        if (null !== $this->workflowTaskTimeoutSeconds) {
-            $m['workflow_task_timeout_seconds'] = $this->workflowTaskTimeoutSeconds;
-        }
-        if (null !== $this->cronSchedule && '' !== $this->cronSchedule) {
-            $m['cron_schedule'] = $this->cronSchedule;
+        $m += $this->timeouts->toMetadata();
+        if (null !== $this->cronSchedule) {
+            $m['cron_schedule'] = $this->cronSchedule->toExpression();
         }
         if (null !== $this->memo) {
             $m['memo'] = $this->memo;
         }
-        if (null !== $this->searchAttributes) {
-            $m['search_attributes'] = $this->searchAttributes;
+        if (!$this->searchAttributes->isEmpty()) {
+            $m['search_attributes'] = $this->searchAttributes->toMetadata();
         }
         $m['workflow_id_reuse_policy'] = $this->workflowIdReusePolicy->value;
         if (null !== $this->staticSummary && '' !== $this->staticSummary) {

@@ -247,6 +247,100 @@ Symfony integration (container)
           Slightly slower; use for end-to-end "happy path" scenarios.
 
 Temporal integration (real Temporal server)
-  └── @group temporal-integration tests in PHPUnit
-       → CI only. Verifies gRPC wiring, journal polling, activity workers.
+  └── tests/integration, run against a dev server
+       → Verifies that commands are *accepted*, not merely well-formed.
 ```
+
+---
+
+## Testing against a real Temporal server
+
+Unit tests check that the bridge builds well-formed protobuf commands. Only a real server tells you
+they are **accepted**.
+
+```bash
+temporal server start-dev --namespace durable-test --port 7233
+
+DURABLE_TEMPORAL_ADDRESS=127.0.0.1:7233 vendor/bin/phpunit --testsuite integration
+```
+
+Without `DURABLE_TEMPORAL_ADDRESS` the suite is skipped, so it stays harmless in a pipeline that has
+no server.
+
+Two workers run in **separate processes**, as in production. Both roles long-poll for tens of
+seconds; alternating them in one process starves whichever is not currently polling.
+
+Some tests need namespace-level setup, documented at the top of the file that needs it:
+
+```bash
+temporal operator search-attribute create --name DurableOrderId --type Keyword
+temporal operator search-attribute create --name DurableAmount  --type Int
+```
+
+---
+
+## Time is skipped, not waited for
+
+A workflow that sleeps is testable in milliseconds. The harness runs on a **virtual clock** it
+advances to the next due timer, so `sleep(Duration::hours(24))` costs no real time:
+
+```php
+$result = $env->run(function (WorkflowEnvironment $wf): string {
+    $wf->sleep(Duration::hours(1));
+    $answer = $wf->await($wf->activity('ping', []));
+    $wf->sleep(Duration::hours(24));
+
+    return $answer;
+}, 'nightly-1');
+```
+
+The clock only moves when **nothing else can progress**. Skipping earlier would make the timer win
+every `any(activity, timer)` race that an activity was about to win — so a race behaves the same
+here as it does in production.
+
+Retry backoff is a different matter: it uses real time, because a retry is queued on the transport
+rather than recorded as a timer. Pass `initialInterval: Duration::zero()` to keep those tests fast.
+
+---
+
+## Two traps of the in-memory runner
+
+**An execution that cannot progress fails instead of hanging.** A workflow waiting on a signal you
+forgot to deliver raises `WorkflowStuckException` rather than spinning.
+
+**Attempts are unlimited by default.** An activity that always fails retries forever, so the runner
+enforces an overall budget and then reports which of the two situations you are in:
+
+```
+Workflow x did not finish within 10.0s. Activities retry indefinitely by default
+(RetryLimit::unlimited(), Temporal semantics): pass RetryLimit::ofAttempts(n) or
+RetryLimit::once(), declare the exception non-retryable, or raise the runner budget.
+```
+
+```php
+$env = WorkflowTestEnvironment::inMemory(
+    ['charge' => $spy],
+    budgetSeconds: 3.0,
+);
+```
+
+Retry backoff is honoured for real, so an activity configured with the default one-second interval
+makes the test wait. Pass `initialInterval: Duration::zero()` to keep tests fast.
+
+---
+
+## Testing child workflows
+
+The harness needs the child types registered, since it must resolve them by name:
+
+```php
+$env = WorkflowTestEnvironment::inMemory(['work' => $spy]);
+$env->registerWorkflow('Child', fn (array $input) => fn (WorkflowEnvironment $wf) => /* … */);
+
+$result = $env->run(
+    fn (WorkflowEnvironment $wf) => $wf->executeChildWorkflow('Child', ['value' => 21]),
+    'parent-1',
+);
+```
+
+`registerWorkflowClass()` takes an attribute-annotated workflow class instead.

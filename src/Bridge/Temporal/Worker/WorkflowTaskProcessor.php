@@ -80,8 +80,8 @@ final class WorkflowTaskProcessor
     private function pollOnce(): PollWorkflowTaskQueueResponse
     {
         $req = new PollWorkflowTaskQueueRequest();
-        $req->setNamespace($this->settings->namespace);
-        $req->setTaskQueue(new TaskQueue(['name' => $this->settings->workflowTaskQueue]));
+        $req->setNamespace($this->settings->namespace->name());
+        $req->setTaskQueue(new TaskQueue(['name' => $this->settings->workflowTaskQueue->name()]));
         $req->setIdentity($this->settings->identity);
 
         $call = $this->client->PollWorkflowTaskQueue($req, [], ['timeout' => TemporalGrpcTimeouts::LONG_POLL_US]);
@@ -134,7 +134,7 @@ final class WorkflowTaskProcessor
     {
         $req = new RespondWorkflowTaskCompletedRequest();
         $req->setTaskToken($taskToken);
-        $req->setNamespace($this->settings->namespace);
+        $req->setNamespace($this->settings->namespace->name());
         $req->setIdentity($this->settings->identity);
         if ($commands !== []) {
             $req->setCommands($commands);

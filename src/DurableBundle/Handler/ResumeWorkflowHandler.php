@@ -8,6 +8,7 @@ use Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator;
 use Gplanchat\Durable\Bundle\Support\AsyncChildWorkflowFailureProjector;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
+use Gplanchat\Durable\Exception\WorkflowCancelledException;
 use Gplanchat\Durable\Exception\WorkflowSuspendedException;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
@@ -88,6 +89,13 @@ final class ResumeWorkflowHandler
             $nextAlias = $this->workflowDefinitionLoader->aliasForTemporalInterop($e->workflowType);
             $this->metadataStore->save($newExecutionId, $nextAlias, $e->payload);
             $this->resumeDispatcher->dispatchNewWorkflowRun($newExecutionId, $nextAlias, $e->payload);
+
+            return;
+        } catch (WorkflowCancelledException $e) {
+            // Terminaison normale : ne pas relancer la reprise, sinon l'annulation serait
+            // redélivrée indéfiniment. Le parent est notifié comme pour un échec.
+            $this->finalizeAsyncChildOnParentIfLinked($executionId, null, $e);
+            $this->metadataStore->delete($executionId);
 
             return;
         } catch (\Throwable $e) {

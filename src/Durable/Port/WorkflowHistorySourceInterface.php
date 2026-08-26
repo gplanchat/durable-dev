@@ -7,6 +7,10 @@ namespace Gplanchat\Durable\Port;
 /**
  * Read-only access to recorded workflow history for slot-based replay.
  *
+ * Recorded timings are returned as {@see \Gplanchat\Durable\Duration}, so a value read from
+ * history and a value about to be written are the same kind of thing. Third-party implementations
+ * written against the previous `float` return must adapt. See ADR DUR031.
+ *
  * Each "slot" is a sequential index within a family of operations (activities, timers, signals, etc.).
  * The in-memory backend implements this over EventStoreInterface; the Temporal backend implements this
  * over TemporalHistoryCursor-built TemporalExecutionHistory.
@@ -26,9 +30,13 @@ interface WorkflowHistorySourceInterface
     public function findScheduledActivityId(int $slot): ?string;
 
     /**
-     * Returns the recorded result for timer slot N, or null if not yet fired.
+     * Returns the recorded outcome for timer slot N, or null if it is still pending.
      *
-     * @return array{id: string, scheduledAt: float}|null
+     * `failed` porte l'annulation du minuteur ({@see \Gplanchat\Durable\Event\TimerCancelled}) :
+     * sans ce canal, un minuteur annulé par l'annulation du workflow ne pouvait pas relever la
+     * même exception au replay.
+     *
+     * @return array{id: string, scheduledAt: float, failed: \Throwable|null}|null
      */
     public function findTimerSlotResult(int $slot): ?array;
 

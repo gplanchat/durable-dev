@@ -1,16 +1,12 @@
-name: Hugo documentation site
+# Publication historique vers GitHub Pages. Le site de référence est désormais
+# https://durable.rocks/, servi par l'hébergement OVH — voir docs-ovh.yml.
+#
+# Les déclencheurs automatiques sont retirés : ce workflow ne part plus qu'à la
+# demande, pour republier gplanchat.github.io/durable-dev si besoin. Supprimer
+# ce fichier pour abandonner Pages tout à fait.
+name: Hugo documentation site (GitHub Pages, manuel)
 
 on:
-  push:
-    branches: [main, master, refactor/core-architecture-cleanup]
-    paths:
-      - 'hugo-docs/**'
-      - 'documentation/user/**'
-      - '.github/workflows/hugo-docs.yml'
-  pull_request:
-    paths:
-      - 'hugo-docs/**'
-      - 'documentation/user/**'
   workflow_dispatch:
 
 # Allow one concurrent deployment; do not cancel in-progress runs so a deploy
