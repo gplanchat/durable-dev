@@ -39,7 +39,7 @@ final class TimerCancellationTest extends TestCase
     {
         $result = $this->runner->run('race-1', static fn (WorkflowEnvironment $env): mixed => $env->any(
             $env->activity('fast', []),
-            $env->timerAwaitable(3600.0),
+            $env->timer(3600.0),
         ));
 
         self::assertSame('winner', $result);
@@ -60,7 +60,7 @@ final class TimerCancellationTest extends TestCase
     {
         $handler = static fn (WorkflowEnvironment $env): mixed => $env->any(
             $env->activity('fast', []),
-            $env->timerAwaitable(3600.0),
+            $env->timer(3600.0),
         );
 
         $this->runner->run('race-2', $handler);

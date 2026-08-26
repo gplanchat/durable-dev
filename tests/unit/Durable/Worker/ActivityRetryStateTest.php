@@ -94,7 +94,7 @@ final class ActivityRetryStateTest extends TestCase
             2,
         );
 
-        $message = new ActivityMessage('exec-1', 'act-1', 'Boom', [], []);
+        $message = new ActivityMessage('exec-1', 'act-1', 'Boom', []);
         $processor->process($message);
         while (null !== ($next = $transport->dequeue())) {
             $processor->process($next);
@@ -215,7 +215,7 @@ final class ActivityRetryStateTest extends TestCase
 
         $runtime = new \Gplanchat\Durable\ExecutionRuntime($store, $transport, $executor, 5);
         $options = new ActivityOptions(nonRetryableExceptions: [\DomainException::class]);
-        $transport->enqueue(new ActivityMessage('exec-1', 'act-1', 'Boom', [], $options->toMetadata()));
+        $transport->enqueue(new ActivityMessage('exec-1', 'act-1', 'Boom', [], $options));
 
         $context = new \Gplanchat\Durable\ExecutionContext(
             'exec-1',
@@ -259,7 +259,7 @@ final class ActivityRetryStateTest extends TestCase
             $this->createMock(ActivityHeartbeatSenderInterface::class),
         );
 
-        $message = new ActivityMessage('exec-1', 'act-1', 'Boom', [], $options->toMetadata());
+        $message = new ActivityMessage('exec-1', 'act-1', 'Boom', [], $options);
         $processor->process($message);
 
         for ($i = 0; $i < $maxDrain; ++$i) {

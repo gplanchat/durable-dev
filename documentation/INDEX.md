@@ -48,6 +48,12 @@ This repository documents the **Durable** component (durable execution orchestra
 | WA003 | GitHub epics, tasks, and project tracking | [wa/WA003-github-epics-tasks-and-project-tracking.md](wa/WA003-github-epics-tasks-and-project-tracking.md) |
 | WA004 | MIT license for the repository and Composer packages | [wa/WA004-mit-license-distribution.md](wa/WA004-mit-license-distribution.md) |
 
+## Opportunity solution trees (OST)
+
+| ID | Title | File |
+|----|--------|------|
+| OST002 | Alternative durable execution backends (market study) | [ost/OST002-alternative-durable-execution-backends.md](ost/OST002-alternative-durable-execution-backends.md) |
+
 ## Other
 
 - [Work journal](journal/README.md)

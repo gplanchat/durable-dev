@@ -19,6 +19,10 @@ use Temporal\Api\Enums\V1\WorkflowIdReusePolicy as TemporalIdReusePolicy;
  *
  * Partagées par le buffer de commandes (workflows enfants) et le client (démarrage racine) :
  * racine et enfant décrivent les mêmes réglages, ils ne doivent pas les traduire différemment.
+ *
+ * Les signatures acceptaient `mixed` — non par souplesse, mais parce que les valeurs traversaient
+ * un tableau avant d'arriver. Depuis qu'elles franchissent le port typées, le `match` est
+ * exhaustif et le compilateur en répond.
  */
 final class TemporalPolicyMapper
 {
@@ -26,29 +30,21 @@ final class TemporalPolicyMapper
     {
     }
 
-    public static function parentClosePolicy(mixed $policy): int
+    public static function parentClosePolicy(ParentClosePolicy $policy): int
     {
-        $value = $policy instanceof ParentClosePolicy
-            ? $policy
-            : ParentClosePolicy::tryFrom((string) (\is_scalar($policy) ? $policy : ''));
-
-        return match ($value) {
+        return match ($policy) {
             ParentClosePolicy::Abandon => TemporalParentClosePolicy::PARENT_CLOSE_POLICY_ABANDON,
             ParentClosePolicy::RequestCancel => TemporalParentClosePolicy::PARENT_CLOSE_POLICY_REQUEST_CANCEL,
-            default => TemporalParentClosePolicy::PARENT_CLOSE_POLICY_TERMINATE,
+            ParentClosePolicy::Terminate => TemporalParentClosePolicy::PARENT_CLOSE_POLICY_TERMINATE,
         };
     }
 
-    public static function idReusePolicy(mixed $policy): int
+    public static function idReusePolicy(WorkflowIdReusePolicy $policy): int
     {
-        $value = $policy instanceof WorkflowIdReusePolicy
-            ? $policy
-            : WorkflowIdReusePolicy::tryFrom((string) (\is_scalar($policy) ? $policy : ''));
-
-        return match ($value) {
+        return match ($policy) {
             WorkflowIdReusePolicy::AllowDuplicate => TemporalIdReusePolicy::WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
             WorkflowIdReusePolicy::RejectDuplicate => TemporalIdReusePolicy::WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-            default => TemporalIdReusePolicy::WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
+            WorkflowIdReusePolicy::AllowDuplicateFailedOnly => TemporalIdReusePolicy::WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
         };
     }
 

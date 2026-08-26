@@ -62,7 +62,7 @@ final class TemporalActivityWorker
         }
 
         $message = TemporalActivityScheduleInput::toActivityMessage($resp);
-        $options = ActivityOptions::fromMetadata($message->metadata);
+        $options = $message->options;
 
         // Redélivrance d'une tâche déjà tranchée : répondre depuis le journal sans réexécuter.
         if ($this->respondFromJournal($resp, $message, $options)) {

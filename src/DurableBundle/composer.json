@@ -3,9 +3,10 @@
     "description": "Symfony bundle for gplanchat/durable: extension, autoconfiguration of workflows and activities.",
     "license": "MIT",
     "type": "symfony-bundle",
+    "version": "0.1.0",
     "require": {
         "php": ">=8.2",
-        "gplanchat/durable": "self.version",
+        "gplanchat/durable": "^0.1",
         "symfony/framework-bundle": "^6.4 || ^7.4",
         "symfony/http-kernel": "^6.4 || ^7.4",
         "symfony/console": "^6.4 || ^7.4",
@@ -14,7 +15,9 @@
         "symfony/messenger": "^6.4 || ^7.4"
     },
     "suggest": {
-        "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)"
+        "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)",
+        "gplanchat/durable-bridge-temporal": "Temporal gRPC backend (requires ext-grpc)",
+        "gplanchat/durable-bridge-dbal": "SQL backend: durable execution on one database, no cluster (DUR030)"
     },
     "autoload": {
         "psr-4": {

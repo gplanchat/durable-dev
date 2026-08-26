@@ -1,0 +1,114 @@
+// Surcharge du thème hugo-book. Le thème charge ce fichier depuis le projet en
+// priorité sur le sien : on ne modifie rien dans _vendor.
+//
+// Volontairement court. Un thème de documentation doit se faire oublier ; ce qui
+// suit corrige la lisibilité et donne à la page d'accueil de quoi respirer.
+
+// --- Palette -------------------------------------------------------------
+:root {
+  --durable-accent: #2f6f4f;
+  --durable-accent-soft: rgba(47, 111, 79, 0.08);
+  --durable-rule: rgba(128, 128, 128, 0.22);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --durable-accent: #6fbf95;
+    --durable-accent-soft: rgba(111, 191, 149, 0.12);
+  }
+}
+
+// --- Lisibilité du corps de texte ---------------------------------------
+.book-page {
+  // Une ligne de doc trop longue fatigue ; le thème n'impose pas de mesure.
+  .markdown {
+    p, li { line-height: 1.7; }
+
+    h1 { letter-spacing: -0.02em; }
+
+    h2 {
+      margin-top: 2.4rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid var(--durable-rule);
+    }
+
+    // Les tableaux servent surtout de matrices de décision : ils doivent se lire
+    // en diagonale.
+    table {
+      display: table;
+      width: 100%;
+      font-size: 0.94em;
+
+      th {
+        background: var(--durable-accent-soft);
+        text-align: left;
+      }
+
+      td, th { vertical-align: top; }
+    }
+
+    code:not(pre code) {
+      background: var(--durable-accent-soft);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+    }
+
+    // Les blocs d'alerte markdown (> [!NOTE]) sont rendus en citation par le
+    // thème : on les distingue d'une citation ordinaire.
+    blockquote {
+      border-left: 3px solid var(--durable-accent);
+      background: var(--durable-accent-soft);
+      padding: 0.6rem 1rem;
+      margin-left: 0;
+    }
+  }
+}
+
+// --- Page d'accueil ------------------------------------------------------
+// Reconnaissable au bookToc désactivé du front matter.
+.book-page .markdown > h1:first-child {
+  font-size: 2.1rem;
+  line-height: 1.2;
+  margin-bottom: 1.2rem;
+}
+
+.book-columns {
+  gap: 1.5rem;
+
+  > div {
+    min-width: 12rem;
+  }
+
+  h3 {
+    margin-top: 0;
+    font-size: 1.05rem;
+    color: var(--durable-accent);
+  }
+}
+
+.book-card {
+  border: 1px solid var(--durable-rule);
+  border-radius: 6px;
+  padding: 1rem 1.1rem;
+  height: 100%;
+
+  .book-card-title {
+    font-family: var(--code-font-family, monospace);
+    font-size: 0.95rem;
+    color: var(--durable-accent);
+  }
+
+  .book-card-subtitle {
+    font-size: 0.9rem;
+    line-height: 1.55;
+    opacity: 0.85;
+  }
+}
+
+// --- Navigation latérale -------------------------------------------------
+.book-menu {
+  .book-menu-content a.active {
+    color: var(--durable-accent);
+    font-weight: 600;
+  }
+}

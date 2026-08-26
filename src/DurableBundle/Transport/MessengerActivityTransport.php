@@ -30,19 +30,9 @@ final class MessengerActivityTransport implements ActivityTransportInterface
 
     public function enqueue(ActivityMessage $message): void
     {
-        $meta = $message->metadata;
-        $delayMs = 0;
-        if (isset($meta['retry_delay_seconds'])) {
-            $delayMs = (int) round((float) $meta['retry_delay_seconds'] * 1000);
-            unset($meta['retry_delay_seconds']);
-        }
-        $clean = new ActivityMessage(
-            $message->executionId,
-            $message->activityId,
-            $message->activityName,
-            $message->payload,
-            $meta,
-        );
+        // Même principe : le report devient un DelayStamp, et disparaît du message.
+        $delayMs = null !== $message->retryDelay ? (int) round($message->retryDelay->toSeconds() * 1000) : 0;
+        $clean = $message->withoutRetryDelay();
 
         $stamps = [];
         if ($delayMs > 0) {

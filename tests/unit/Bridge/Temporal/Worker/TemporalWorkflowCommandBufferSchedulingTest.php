@@ -31,27 +31,31 @@ final class TemporalWorkflowCommandBufferSchedulingTest extends TestCase
         return new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1');
     }
 
-    public function testStartTimerCarriesTheRemainingDuration(): void
+    public function testStartTimerCarriesTheDelayItWasGiven(): void
     {
+        // Le port passe un délai, plus une échéance : aucune soustraction d'horloge ici, et donc
+        // plus de dérive due à la latence de poll.
         $buffer = $this->buffer();
-        $buffer->startTimer('timer-1', microtime(true) + 42.0, '');
+        $buffer->startTimer('timer-1', Duration::seconds(42), '');
 
         $attrs = $buffer->peek()[0]->getStartTimerCommandAttributes();
         self::assertNotNull($attrs);
         self::assertSame('timer-1', $attrs->getTimerId());
         $timeout = $attrs->getStartToFireTimeout();
         self::assertNotNull($timeout);
-        self::assertEqualsWithDelta(42.0, $timeout->getSeconds() + $timeout->getNanos() / 1_000_000_000, 1.0);
+        self::assertSame(42, $timeout->getSeconds());
+        self::assertSame(0, $timeout->getNanos());
     }
 
-    public function testStartTimerInThePastStaysStrictlyPositive(): void
+    public function testSubSecondDelaysSurviveTheConversion(): void
     {
         $buffer = $this->buffer();
-        $buffer->startTimer('timer-late', microtime(true) - 10.0, '');
+        $buffer->startTimer('timer-ms', Duration::milliseconds(250), '');
 
         $timeout = $buffer->peek()[0]->getStartTimerCommandAttributes()?->getStartToFireTimeout();
         self::assertNotNull($timeout);
-        self::assertGreaterThan(0, $timeout->getSeconds() * 1_000_000_000 + $timeout->getNanos());
+        self::assertSame(0, $timeout->getSeconds());
+        self::assertSame(250_000_000, $timeout->getNanos());
     }
 
     public function testChildWorkflowCarriesParentCloseAndIdReusePolicies(): void
@@ -64,10 +68,7 @@ final class TemporalWorkflowCommandBufferSchedulingTest extends TestCase
         );
 
         $buffer = $this->buffer();
-        $buffer->scheduleChildWorkflow('child-1', 'ChildType', ['a' => 1], array_merge(
-            ['parentClosePolicy' => $options->parentClosePolicy, 'workflowId' => null],
-            $options->toSchedulingMetadata(),
-        ));
+        $buffer->scheduleChildWorkflow('child-1', 'ChildType', ['a' => 1], $options);
 
         $attrs = $buffer->peek()[0]->getStartChildWorkflowExecutionCommandAttributes();
         self::assertNotNull($attrs);
@@ -80,7 +81,7 @@ final class TemporalWorkflowCommandBufferSchedulingTest extends TestCase
     public function testChildWorkflowDefaultsToTerminateOnTheConnectionQueue(): void
     {
         $buffer = $this->buffer();
-        $buffer->scheduleChildWorkflow('child-2', 'ChildType', [], []);
+        $buffer->scheduleChildWorkflow('child-2', 'ChildType', [], ChildWorkflowOptions::defaults());
 
         $attrs = $buffer->peek()[0]->getStartChildWorkflowExecutionCommandAttributes();
         self::assertNotNull($attrs);

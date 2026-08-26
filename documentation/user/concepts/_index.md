@@ -239,7 +239,7 @@ The **replay contract** is the core constraint: any code inside `#[WorkflowMetho
 - `new \DateTime()` / `time()` / `random_int()` — non-deterministic
 - `file_get_contents()`, `curl_exec()`, database queries
 - `static` or global mutable state shared across workflow executions
-- `sleep()` — use `timer()` instead
+- `sleep()` (the PHP function) — use `$env->sleep()`, which suspends durably instead of blocking the worker
 
 ---
 

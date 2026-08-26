@@ -43,6 +43,11 @@ use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
+use Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware;
+use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
+use Gplanchat\Bridge\Dbal\Store\DbalChildWorkflowParentLinkStore;
+use Gplanchat\Bridge\Dbal\Store\DbalEventStore;
+use Gplanchat\Bridge\Dbal\Store\DbalWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
@@ -89,6 +94,75 @@ final class DurableExtension extends Extension
         $this->registerWorkflowBackend($container);
         $this->registerCommands($container, $config);
         $this->registerTemporalMirrorInfrastructure($container, $config);
+        $this->registerDbalStores($container, $config);
+    }
+
+    /**
+     * Remplace les stores in-memory par leurs équivalents SQL lorsque `type: dbal` est demandé.
+     *
+     * Appelé en dernier : les définitions in-memory sont déjà posées, on les écrase plutôt que de
+     * ramifier dans les trois méthodes qui les enregistrent.
+     *
+     * @param array<string, mixed> $config
+     *
+     * @see DUR030
+     */
+    private function registerDbalStores(ContainerBuilder $container, array $config): void
+    {
+        $eventStoreDbal = 'dbal' === ($config['event_store']['type'] ?? 'in_memory');
+        $metadataDbal = 'dbal' === ($config['workflow_metadata']['type'] ?? 'in_memory');
+        $parentLinkDbal = 'dbal' === ($config['child_workflow']['parent_link_store']['type'] ?? 'in_memory');
+
+        if (!$eventStoreDbal && !$metadataDbal && !$parentLinkDbal) {
+            return;
+        }
+
+        $temporalDsn = $config['temporal']['dsn'] ?? null;
+        if ($eventStoreDbal && \is_string($temporalDsn) && '' !== $temporalDsn) {
+            throw new \LogicException('durable: event_store.type "dbal" et temporal.dsn sont exclusifs — le journal ne peut pas avoir deux sources de vérité.');
+        }
+
+        $connection = new Reference($config['dbal']['connection']);
+
+        $container->register('durable.dbal.schema', DurableSchema::class)
+            ->setArguments([
+                $connection,
+                $config['event_store']['table_name'],
+                $config['workflow_metadata']['table_name'],
+                $config['child_workflow']['parent_link_store']['table_name'],
+            ])
+            ->setPublic(false)
+        ;
+        $schema = new Reference('durable.dbal.schema');
+
+        if ($eventStoreDbal) {
+            $container->register('durable.event_store.dbal', DbalEventStore::class)
+                ->setArguments([$connection, $schema, $config['event_store']['table_name']])
+                ->setPublic(true)
+            ;
+            $container->setAlias(EventStoreInterface::class, 'durable.event_store.dbal')->setPublic(true);
+
+            // Sans serveur pour sérialiser les tâches d'une exécution, le verrou est obligatoire.
+            $container->register('durable.dbal.single_resume_lock', SingleResumeLockMiddleware::class)
+                ->setArguments([new Reference($config['dbal']['lock_factory'])])
+                ->addTag('messenger.middleware')
+                ->setPublic(false)
+            ;
+        }
+
+        if ($metadataDbal) {
+            $container->register(WorkflowMetadataStore::class, DbalWorkflowMetadataStore::class)
+                ->setArguments([$connection, $schema, $config['workflow_metadata']['table_name']])
+                ->setPublic(true)
+            ;
+        }
+
+        if ($parentLinkDbal) {
+            $container->register('durable.child_workflow_parent_link_store', DbalChildWorkflowParentLinkStore::class)
+                ->setArguments([$connection, $schema, $config['child_workflow']['parent_link_store']['table_name']])
+                ->setPublic(true)
+            ;
+        }
     }
 
     private function registerWorkflowDefinitionLoader(ContainerBuilder $container): void

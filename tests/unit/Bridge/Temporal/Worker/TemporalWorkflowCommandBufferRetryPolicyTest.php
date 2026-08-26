@@ -38,11 +38,11 @@ final class TemporalWorkflowCommandBufferRetryPolicyTest extends TestCase
 
     public function testMaxAttemptsAndNonRetryableTypesBecomeARetryPolicy(): void
     {
-        $options = (new ActivityOptions(
+        $options = new ActivityOptions(
             RetryLimit::ofAttempts(5),
             nonRetryableExceptions: ['App\Domain\Exception\BusinessException'],
             timeouts: ActivityTimeouts::attempt(Duration::seconds(30.0)),
-        ))->toMetadata();
+        );
 
         $buffer = $this->buffer();
         $buffer->scheduleActivity('act-1', 'delete_user', [], $options);
@@ -63,7 +63,7 @@ final class TemporalWorkflowCommandBufferRetryPolicyTest extends TestCase
     public function testUnlimitedAttemptsLeavesMaximumAttemptsUnset(): void
     {
         // maxAttempts 0 = unlimited: don't cap it, but still carry a policy.
-        $options = (new ActivityOptions(RetryLimit::unlimited()))->toMetadata();
+        $options = new ActivityOptions(RetryLimit::unlimited());
 
         $buffer = $this->buffer();
         $buffer->scheduleActivity('act-1', 'delete_user', [], $options);
@@ -78,7 +78,7 @@ final class TemporalWorkflowCommandBufferRetryPolicyTest extends TestCase
         // Backward compatible: an activity scheduled without options keeps the
         // server default (no explicit policy sent).
         $buffer = $this->buffer();
-        $buffer->scheduleActivity('act-1', 'delete_user', [], []);
+        $buffer->scheduleActivity('act-1', 'delete_user', [], null);
 
         self::assertNull($this->scheduledAttrs($buffer)->getRetryPolicy());
     }
