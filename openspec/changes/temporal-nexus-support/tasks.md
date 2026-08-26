@@ -14,11 +14,11 @@
 ## 3. Caller-side domain plumbing
 
 - [x] 3.1 `NexusOperationAwaitable` carrying the operation identity, so the fiber driver can cancel it — même forme qu'`ActivityAwaitable`, `inner()` compris parce que `AwaitableCancellation` et les composites descendent par lui. L'annulation elle-même reste à câbler : elle a besoin du `cancelScheduledNexusOperation()` de §3.2
-- [ ] 3.2 `nexusOperationSlotIndex` in `ExecutionContext`, plus `scheduleNexusOperation()` on the environment
+- [x] 3.2 `nexusOperationSlotIndex` in `ExecutionContext`, plus `scheduleNexusOperation()` on the environment — `nexusOperation()` des deux côtés (même verbe que `activity()`, plutôt que `scheduleNexusOperation()` qui aurait juré avec lui) ; coercition des trois noms à la frontière de l'environnement, registre `pendingNexusOperations` en miroir de celui des activités
 - [x] 3.3 `findNexusOperationSlotResult()` and `findScheduledNexusOperation()` on `WorkflowHistorySourceInterface` — la source journal rend `null` **définitivement** (son tampon refuse d'écrire, il n'y a rien à relire) ; la source Temporal lève un `LogicException` nommant §4.3, parce que rendre `null` là ferait replanifier l'opération à chaque replay, en silence
 - [x] 3.4 `scheduleNexusOperation()` and `cancelNexusOperation()` on `WorkflowCommandBufferInterface` — le backend journal **refuse** avec `NexusUnsupportedByBackendException`, ce que la proposition exige ; le tampon Temporal lève un `LogicException` nommant §4.1 / §4.2, pas l'exception « backend sans route » qui serait un mensonge sur ce que Temporal sait faire
 - [ ] 3.5 Extend `WorkflowFiberDriver::cancelPending()` to cancel a pending Nexus operation on workflow cancellation
-- [ ] 3.6 `DurableNexusOperationFailedException` with its four kinds, and its classification in `WorkflowFailureClassifier`
+- [x] 3.6 `DurableNexusOperationFailedException` with its four kinds, and its classification in `WorkflowFailureClassifier` — natures dans `NexusOperationFailureKind`, prises mot pour mot du spec ; le triplet endpoint/service/opération voyage dans le contexte de `KIND_UNHANDLED_NEXUS_OPERATION` ; le comportement de reprise n'est porté que par `HandlerError`
 
 ## 4. Temporal backend
 
