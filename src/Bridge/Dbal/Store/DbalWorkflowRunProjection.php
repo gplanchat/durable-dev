@@ -36,13 +36,20 @@ final class DbalWorkflowRunProjection
     {
         $this->schema->ensure();
 
-        $updated = $this->connection->update(
-            $this->table,
-            ['workflow_type' => $workflowType],
-            ['execution_id' => $executionId],
+        // Même piège que dans le magasin de métadonnées : le nombre de lignes affectées par un
+        // UPDATE ne dit pas la même chose sur SQLite et sur MySQL. L'existence se demande.
+        $exists = false !== $this->connection->fetchOne(
+            \sprintf('SELECT 1 FROM %s WHERE execution_id = ?', $this->table),
+            [$executionId],
         );
 
-        if (0 === $updated) {
+        if ($exists) {
+            $this->connection->update(
+                $this->table,
+                ['workflow_type' => $workflowType],
+                ['execution_id' => $executionId],
+            );
+        } else {
             $this->connection->insert($this->table, [
                 'execution_id' => $executionId,
                 'workflow_type' => $workflowType,

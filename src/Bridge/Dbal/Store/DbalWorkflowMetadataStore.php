@@ -32,10 +32,26 @@ final class DbalWorkflowMetadataStore implements WorkflowMetadataStore
             'completed' => false,
         ];
 
+        // Le type de `completed` est déclaré à chaque écriture : sans lui, PDO lie un `false` PHP
+        // comme chaîne vide, et MySQL en mode strict refuse `''` pour une colonne entière. SQLite
+        // l'accepte, ce qui laisse la faute invisible à toute la suite unitaire.
+        $types = ['completed' => 'boolean'];
+
         // `save()` est aussi appelé pour repartir d'un continue-as-new : upsert, pas insert.
-        $updated = $this->connection->update($this->table, $row, ['execution_id' => $executionId]);
-        if (0 === $updated) {
-            $this->connection->insert($this->table, $row + ['execution_id' => $executionId]);
+        //
+        // L'existence est demandée plutôt que déduite du nombre de lignes affectées par l'UPDATE :
+        // SQLite compte les lignes *correspondantes*, MySQL les lignes *modifiées*. Ré-enregistrer
+        // des métadonnées identiques donne donc 0 sur MySQL, et l'INSERT qui suivait violait la
+        // clé primaire. Un aller-retour de plus, mais le même comportement partout.
+        $exists = false !== $this->connection->fetchOne(
+            \sprintf('SELECT 1 FROM %s WHERE execution_id = ?', $this->table),
+            [$executionId],
+        );
+
+        if ($exists) {
+            $this->connection->update($this->table, $row, ['execution_id' => $executionId], $types);
+        } else {
+            $this->connection->insert($this->table, $row + ['execution_id' => $executionId], $types);
         }
     }
 
@@ -43,7 +59,7 @@ final class DbalWorkflowMetadataStore implements WorkflowMetadataStore
     {
         $this->schema->ensure();
 
-        $this->connection->update($this->table, ['completed' => true], ['execution_id' => $executionId]);
+        $this->connection->update($this->table, ['completed' => true], ['execution_id' => $executionId], ['completed' => 'boolean']);
     }
 
     public function get(string $executionId): ?array

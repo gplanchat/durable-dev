@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "611b607716a7eefce54eaf98a25f4d82",
+    "content-hash": "908fcf996c1eaf3cfa3e11f4a464f3ec",
     "packages": [
         {
             "name": "adyen/php-api-library",
@@ -3779,6 +3779,206 @@
                 }
             ],
             "time": "2026-08-01T13:57:40+00:00"
+        },
+        {
+            "name": "gplanchat/durable",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../src/Durable",
+                "reference": "40980d4b0da8cf71c29775bdbbb30136a7d33bd2"
+            },
+            "require": {
+                "php": ">=8.2",
+                "psr/cache": "^3.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^11.0"
+            },
+            "suggest": {
+                "gplanchat/durable-phpstan": "Optional PHPStan extension (ActivityStub + Awaitable; see ADR012)",
+                "gplanchat/durable-psalm-plugin": "Optional Psalm plugin entry point; prefer durable-phpstan for stubs (ADR012)",
+                "phpunit/phpunit": "Required by the shipped test helpers (Testing\\DurableTestCase, Testing\\WorkflowTestEnvironment)"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\Durable\\": "./"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "PHP library for durable execution: workflows, activities, event journal, and transports (HttpKernel integration lives in the bundle).",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "gplanchat/durable-bridge-dbal",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../src/Bridge/Dbal",
+                "reference": "269036995865f9558eb7f59d2b73f495ddae3516"
+            },
+            "require": {
+                "doctrine/dbal": "^3.7 || ^4.0",
+                "gplanchat/durable": "self.version",
+                "php": ">=8.2",
+                "symfony/lock": "^6.4 || ^7.0 || ^8.0",
+                "symfony/messenger": "^6.4 || ^7.0 || ^8.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\Bridge\\Dbal\\": "./"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "Doctrine DBAL journal, metadata and parent-link stores for gplanchat/durable — durable execution on a single SQL database, no orchestrator cluster",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "gplanchat/durable-bundle",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../src/DurableBundle",
+                "reference": "90d53532d5a94d7a5e309127d6c6a3daaa26cf7e"
+            },
+            "require": {
+                "gplanchat/durable": "self.version",
+                "php": ">=8.2",
+                "psr/container": "^2.0",
+                "symfony/config": "^6.4 || ^7.0 || ^8.0",
+                "symfony/console": "^6.4 || ^7.0 || ^8.0",
+                "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
+                "symfony/event-dispatcher": "^6.4 || ^7.0 || ^8.0",
+                "symfony/framework-bundle": "^6.4 || ^7.0 || ^8.0",
+                "symfony/http-foundation": "^6.4 || ^7.0 || ^8.0",
+                "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
+                "symfony/messenger": "^6.4 || ^7.0 || ^8.0",
+                "symfony/service-contracts": "^3.0",
+                "symfony/uid": "^6.4 || ^7.0 || ^8.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^11.0"
+            },
+            "suggest": {
+                "gplanchat/durable-bridge-dbal": "SQL backend: durable execution on one database, no cluster (DUR030)",
+                "gplanchat/durable-bridge-temporal": "Temporal gRPC backend (requires ext-grpc)",
+                "phpunit/phpunit": "Required by the shipped test helper (Testing\\DurableBundleTestTrait)",
+                "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)"
+            },
+            "type": "symfony-bundle",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\Durable\\Bundle\\": "./"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "Symfony bundle for gplanchat/durable: extension, autoconfiguration of workflows and activities.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "gplanchat/durable-plugin",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../src/DurablePlugin",
+                "reference": "1ff51b83308ec07103fdadd23750a1ee5c5d0035"
+            },
+            "require": {
+                "gplanchat/durable": "self.version",
+                "knplabs/knp-menu": "^3.5",
+                "php": ">=8.2",
+                "symfony/config": "^6.4 || ^7.0 || ^8.0",
+                "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
+                "symfony/framework-bundle": "^6.4 || ^7.0 || ^8.0",
+                "symfony/http-foundation": "^6.4 || ^7.0 || ^8.0",
+                "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
+                "symfony/routing": "^6.4 || ^7.0 || ^8.0",
+                "symfony/security-bundle": "^6.4 || ^7.0 || ^8.0",
+                "symfony/twig-bundle": "^6.4 || ^7.0 || ^8.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^11.5",
+                "twig/twig": "^3.10"
+            },
+            "suggest": {
+                "gplanchat/durable-bundle": "Wires the run catalog the dashboard reads — one backend or another. Without it the page reports that no readable backend is configured.",
+                "sylius/admin-bundle": "Registers the dashboard entry in the Sylius admin menu (sylius.menu.admin.main)"
+            },
+            "type": "symfony-bundle",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\Durable\\Plugin\\": "./"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "Sylius-oriented dashboard plugin for durable workflow tracking.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "guzzlehttp/guzzle",
@@ -11721,6 +11921,89 @@
                 }
             ],
             "time": "2026-08-21T17:40:08+00:00"
+        },
+        {
+            "name": "symfony/lock",
+            "version": "v7.4.17",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/lock.git",
+                "reference": "f5c1e1a50075448a6d13565a3e1068ea51496cbb"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/lock/zipball/f5c1e1a50075448a6d13565a3e1068ea51496cbb",
+                "reference": "f5c1e1a50075448a6d13565a3e1068ea51496cbb",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "psr/log": "^1|^2|^3"
+            },
+            "conflict": {
+                "doctrine/dbal": "<3.6",
+                "symfony/cache": "<6.4"
+            },
+            "require-dev": {
+                "doctrine/dbal": "^3.6|^4",
+                "predis/predis": "^1.1|^2.0",
+                "symfony/serializer": "^6.4|^7.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Component\\Lock\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Jérémy Derussé",
+                    "email": "jeremy@derusse.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Creates and manages locks, a mechanism to provide exclusive access to a shared resource",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "cas",
+                "flock",
+                "locking",
+                "mutex",
+                "redlock",
+                "semaphore"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/lock/tree/v7.4.17"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-08-14T13:18:30+00:00"
         },
         {
             "name": "symfony/mailer",
@@ -21124,7 +21407,12 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "gplanchat/durable": 20,
+        "gplanchat/durable-bridge-dbal": 20,
+        "gplanchat/durable-bundle": 20,
+        "gplanchat/durable-plugin": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

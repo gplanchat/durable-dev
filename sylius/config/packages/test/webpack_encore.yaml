@@ -1,0 +1,9 @@
+# Le gabarit du tableau de bord étend la mise en page de l'admin Sylius, qui demande à Encore ses
+# points d'entrée. Sans `yarn build`, le fichier `entrypoints.json` n'existe pas et toute la page
+# meurt en 500 — y compris les parties qui n'ont rien à voir avec les assets.
+#
+# Le test fonctionnel porte sur le contenu de notre page, pas sur le pipeline d'assets de Sylius :
+# en mode non strict, un point d'entrée absent ne rend rien au lieu de lever. Une vérification
+# visuelle réelle, elle, demanderait un `yarn build` — c'est un autre besoin.
+webpack_encore:
+    strict_mode: false
