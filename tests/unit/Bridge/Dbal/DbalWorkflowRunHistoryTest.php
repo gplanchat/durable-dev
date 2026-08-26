@@ -16,7 +16,9 @@ use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\SideEffectRecorded;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
+use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEventKind;
+use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -46,7 +48,7 @@ final class DbalWorkflowRunHistoryTest extends TestCase
         $store->append(new ActivityCompleted('exec-1', 'act-1', ['ok' => true]));
         $store->append(new ExecutionCompleted('exec-1', 'done'));
 
-        $history = $this->catalog()->readHistory('exec-1');
+        $history = $this->catalog()->readHistory($this->describedRun('exec-1'));
 
         self::assertCount(4, $history);
         self::assertSame([1, 2, 3, 4], array_map(static fn($e): int => $e->sequence, $history));
@@ -63,7 +65,7 @@ final class DbalWorkflowRunHistoryTest extends TestCase
         $store->append(new WorkflowSignalReceived('exec-1', 'orderApproved', []));
         $store->append(new WorkflowUpdateHandled('exec-1', 'changeAddress', [], null));
 
-        $kinds = array_map(static fn($e): string => $e->kind->value, $this->catalog()->readHistory('exec-1'));
+        $kinds = array_map(static fn($e): string => $e->kind->value, $this->catalog()->readHistory($this->describedRun('exec-1')));
 
         self::assertSame(
             [
@@ -82,7 +84,7 @@ final class DbalWorkflowRunHistoryTest extends TestCase
         $store->append(new ActivityScheduled('exec-1', 'act-1', 'SendWelcomeEmail', []));
         $store->append(new ActivityCompleted('exec-1', 'act-1', ['ok' => true]));
 
-        $labels = array_map(static fn($e): string => $e->label, $this->catalog()->readHistory('exec-1'));
+        $labels = array_map(static fn($e): string => $e->label, $this->catalog()->readHistory($this->describedRun('exec-1')));
 
         self::assertSame(['SendWelcomeEmail', 'SendWelcomeEmail'], $labels);
     }
@@ -92,7 +94,7 @@ final class DbalWorkflowRunHistoryTest extends TestCase
         // Journal tronqué — purge, reprise partielle : la complétion n'a que l'id sous la main.
         $this->eventStore()->append(new ActivityCompleted('exec-1', 'act-orphan', null));
 
-        $history = $this->catalog()->readHistory('exec-1');
+        $history = $this->catalog()->readHistory($this->describedRun('exec-1'));
 
         self::assertSame('act-orphan', $history[0]->label);
     }
@@ -103,7 +105,7 @@ final class DbalWorkflowRunHistoryTest extends TestCase
         $store->append(new ExecutionStarted('exec-1', []));
         $store->append(new SideEffectRecorded('exec-1', 'se-1', 'roll-42'));
 
-        $history = $this->catalog()->readHistory('exec-1');
+        $history = $this->catalog()->readHistory($this->describedRun('exec-1'));
 
         self::assertCount(2, $history, 'un événement sans voie ne doit pas disparaître de la liste');
         self::assertSame(WorkflowRunEventKind::Other, $history[1]->kind);
@@ -111,7 +113,12 @@ final class DbalWorkflowRunHistoryTest extends TestCase
 
     public function testAnUnknownRunHasAnEmptyHistoryRatherThanAnError(): void
     {
-        self::assertSame([], $this->catalog()->readHistory('jamais-vue'));
+        self::assertSame([], $this->catalog()->readHistory($this->describedRun('jamais-vue')));
+    }
+
+    private function describedRun(string $runId): WorkflowRunDescription
+    {
+        return new WorkflowRunDescription($runId, 'App\\OrderWorkflow', WorkflowRunStatus::Running);
     }
 
     private function eventStore(): DbalEventStore

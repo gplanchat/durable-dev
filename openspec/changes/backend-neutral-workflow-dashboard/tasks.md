@@ -30,7 +30,7 @@
 
 ## 5. Temporal backend
 
-- [ ] 5.1 Move the dashboard's gRPC reading code out of the plugin and behind the port, unchanged in behaviour — *partiel* : le listage est derrière le port (`TemporalWorkflowRunCatalog`) ; la lecture d'historique est encore dans le plugin, et `readHistory()` y lève tant que ce n'est pas fait
+- [x] 5.1 Move the dashboard's gRPC reading code out of the plugin and behind the port, unchanged in behaviour — listage **et** historique (`TemporalRunHistoryReader`). Deux écarts assumés et épinglés : le rangement des signaux et des workflows enfants, que l'ordre des tests plaçait sur la voie de l'exécution ; et la signature de `readHistory()`, qui prend la description parce que Temporal exige le workflow id (cf. `design.md`)
 - [x] 5.2 Map its Temporal-shaped record onto the port's description, leaving no Temporal type in the port's vocabulary — le workflow id devient `groupId`, que DBAL laisse absent
 
 ## 6. Bundle and plugin
