@@ -52,7 +52,7 @@ final class DbalWorkflowRunCatalogTest extends TestCase
             new \RuntimeException('le fournisseur a refusé la charge'),
         ));
 
-        $runs = $this->catalog()->listRuns();
+        $runs = $this->catalog()->listRuns()->runs;
 
         self::assertCount(1, $runs);
         self::assertSame('exec-1', $runs[0]->runId);
@@ -71,7 +71,7 @@ final class DbalWorkflowRunCatalogTest extends TestCase
             new \RuntimeException('boum'),
         ));
 
-        $byId = $this->indexById($this->catalog()->listRuns());
+        $byId = $this->indexById($this->catalog()->listRuns()->runs);
 
         self::assertSame(WorkflowRunStatus::Cancelled, $byId['exec-cancelled']->status);
         self::assertSame(WorkflowRunStatus::Failed, $byId['exec-failed']->status);
@@ -86,7 +86,7 @@ final class DbalWorkflowRunCatalogTest extends TestCase
         // un continue-as-new comme une exécution neuve.
         $this->startRun('exec-second', 'App\\ReportWorkflow');
 
-        $byId = $this->indexById($this->catalog()->listRuns());
+        $byId = $this->indexById($this->catalog()->listRuns()->runs);
 
         self::assertCount(2, $byId);
         self::assertSame(WorkflowRunStatus::ContinuedAsNew, $byId['exec-first']->status);
