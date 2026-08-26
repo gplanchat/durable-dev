@@ -97,4 +97,17 @@ interface SuiteActivities
     /** Rend ce qu'on lui donne : sert à distinguer deux branches d'une même course. */
     #[ActivityMethod('id')]
     public function id(mixed $v): mixed;
+
+    #[ActivityMethod('validate')]
+    public function validate(string $data): mixed;
+
+    #[ActivityMethod('explode')]
+    public function explodeNow(): never;
+
+    /** Une étape d'une séquence : appelée plusieurs fois, elle rend un résultat différent. */
+    #[ActivityMethod('step')]
+    public function step(): mixed;
+
+    #[ActivityMethod('compute')]
+    public function compute(int $a, int $b): int;
 }

@@ -10,6 +10,7 @@ use Gplanchat\Durable\Testing\ActivitySpy;
 use Gplanchat\Durable\Testing\DurableTestCase;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
 use Gplanchat\Durable\WorkflowEnvironment;
+use unit\Durable\Fixtures\SuiteActivities;
 use PHPUnit\Framework\Attributes\Test;
 
 /**
@@ -33,7 +34,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
 
         $result = $env->run(
             static function (WorkflowEnvironment $wf): string {
-                return (string) $wf->await($wf->activity('greet', ['name' => 'World']));
+                return (string) $wf->await($wf->activityStub(SuiteActivities::class)->greet('World'));
             },
             $executionId = 'exec-example-001',
         );
@@ -62,8 +63,8 @@ final class WorkflowTestingExampleTest extends DurableTestCase
         $result = $env->run(
             static function (WorkflowEnvironment $wf): array {
                 return $wf->await($wf->all(
-                    $wf->activity('double', ['value' => 3]),
-                    $wf->activity('square', ['value' => 4]),
+                    $wf->activityStub(SuiteActivities::class)->double(3),
+                    $wf->activityStub(SuiteActivities::class)->square(4),
                 ));
             },
             $executionId = 'exec-parallel-001',
@@ -93,7 +94,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
         $result = $env->run(
             static function (WorkflowEnvironment $wf): string {
                 try {
-                    return (string) $wf->await($wf->activity('flaky', []));
+                    return (string) $wf->await($wf->activityStub(SuiteActivities::class)->flaky());
                 } catch (\Throwable $e) {
                     return 'caught: ' . $e->getMessage();
                 }
@@ -120,7 +121,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
             static function (WorkflowEnvironment $wf): void {
                 // RetryLimit::once() — sans borne, les tentatives sont illimitées (sémantique
                 // Temporal) et l'activité serait retentée au lieu de faire échouer le workflow.
-                $wf->await($wf->activity('validate', ['data' => 'invalid'], new ActivityOptions(RetryLimit::once())));
+                $wf->await($wf->activityStub(SuiteActivities::class, new ActivityOptions(RetryLimit::once()))->validate('invalid'));
             },
             $executionId,
         );
@@ -138,7 +139,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
         try {
             $env->run(
                 static function (WorkflowEnvironment $wf): void {
-                    $wf->await($wf->activity('explode', [], new ActivityOptions(RetryLimit::once())));
+                    $wf->await($wf->activityStub(SuiteActivities::class, new ActivityOptions(RetryLimit::once()))->explodeNow());
                 },
                 $executionId,
             );
@@ -163,9 +164,9 @@ final class WorkflowTestingExampleTest extends DurableTestCase
         $result = $env->run(
             static function (WorkflowEnvironment $wf): array {
                 return [
-                    $wf->await($wf->activity('step', [])),
-                    $wf->await($wf->activity('step', [])),
-                    $wf->await($wf->activity('step', [])),
+                    $wf->await($wf->activityStub(SuiteActivities::class)->step()),
+                    $wf->await($wf->activityStub(SuiteActivities::class)->step()),
+                    $wf->await($wf->activityStub(SuiteActivities::class)->step()),
                 ];
             },
         );
@@ -184,9 +185,9 @@ final class WorkflowTestingExampleTest extends DurableTestCase
         $result = $env->run(
             static function (WorkflowEnvironment $wf): array {
                 return [
-                    $wf->await($wf->activity('step', [])),
-                    $wf->await($wf->activity('step', [])),
-                    $wf->await($wf->activity('step', [])), // séquence épuisée : répète la dernière
+                    $wf->await($wf->activityStub(SuiteActivities::class)->step()),
+                    $wf->await($wf->activityStub(SuiteActivities::class)->step()),
+                    $wf->await($wf->activityStub(SuiteActivities::class)->step()), // séquence épuisée : répète la dernière
                 ];
             },
         );
@@ -209,7 +210,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
 
         $result = $env->run(
             static function (WorkflowEnvironment $wf): int {
-                return (int) $wf->await($wf->activity('compute', ['a' => 3, 'b' => 4]));
+                return (int) $wf->await($wf->activityStub(SuiteActivities::class)->compute(3, 4));
             },
             $executionId,
         );
@@ -241,9 +242,9 @@ final class WorkflowTestingExampleTest extends DurableTestCase
         $env->run(
             static function (WorkflowEnvironment $wf): array {
                 return $wf->await($wf->all(
-                    $wf->activity('add', ['a' => 1, 'b' => 2]),
-                    $wf->activity('add', ['a' => 3, 'b' => 4]),
-                    $wf->activity('add', ['a' => 5, 'b' => 6]),
+                    $wf->activityStub(SuiteActivities::class)->add(1, 2),
+                    $wf->activityStub(SuiteActivities::class)->add(3, 4),
+                    $wf->activityStub(SuiteActivities::class)->add(5, 6),
                 ));
             },
             $executionId = 'exec-count-001',
