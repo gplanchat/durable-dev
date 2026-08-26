@@ -189,7 +189,19 @@ def inline_logos(root: str) -> str:
 def rewrite_links(root: str) -> str:
     for dead, live in LINKS.items():
         root = root.replace(f"https://durable.rocks{dead}", live)
+
+    # L'ordre compte : la forme avec barre finale d'abord, sinon `…/docs` est
+    # remplacé par `/docs/` au milieu de `…/docs/packages/` et laisse un double
+    # slash. Il passerait sur la plupart des serveurs, et casserait la première
+    # règle de réécriture stricte rencontrée.
+    root = root.replace("https://durable.rocks/docs/", "/docs/")
     root = root.replace("https://durable.rocks/docs", "/docs/")
+    root = root.replace("https://durable.rocks/", "/")
+
+    doubled = sorted(set(re.findall(r'href="(/[^"]*//[^"]*)"', root)))
+    if doubled:
+        die(f"double barre dans un lien : {doubled}")
+
     return root
 
 
