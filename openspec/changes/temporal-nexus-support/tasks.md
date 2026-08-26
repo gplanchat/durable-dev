@@ -30,8 +30,8 @@
 
 ## 5. In-memory backend
 
-- [ ] 5.1 `EventStoreCommandBuffer::scheduleNexusOperation()` throws, naming the limitation and pointing at the Temporal backend
-- [ ] 5.2 A test asserting the harness fails fast rather than hanging
+- [x] 5.1 `EventStoreCommandBuffer::scheduleNexusOperation()` throws, naming the limitation and pointing at the Temporal backend — **livré par §3.4**, `NexusUnsupportedByBackendException::forBackend('journal')` ; la case était restée ouverte alors que le code était sur `main`
+- [x] 5.2 A test asserting the harness fails fast rather than hanging — au niveau du **harnais**, et pas seulement du tampon : le refus doit traverser le moteur. Un test épingle qu'il tombe à la planification et qu'aucun `await()` n'est atteint, ce qui distingue « échoue vite » de « échoue après un délai »
 
 ## 6. Integration against a real server
 
