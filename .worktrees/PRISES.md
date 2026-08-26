@@ -9,3 +9,4 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
 | `test/workflow-conditions-red` | workflow-conditions-and-handler-dispatch | blocs 2, 3, et 4.1 | en cours |
+| `test/nexus-service-operation-names` | temporal-nexus-support | 1.1 (moitié service/opération) | en cours |
