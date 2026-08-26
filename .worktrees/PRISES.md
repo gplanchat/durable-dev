@@ -10,3 +10,4 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 |---|---|---|---|
 | `docs/adr-dur035` | workflow-conditions-and-handler-dispatch | 8.3 (ADR) | en relecture |
 | `feat/nexus-operation-failure` | temporal-nexus-support | 3.6 (echec type + classification) | en cours |
+| `feat/nexus-profiler-events` | temporal-nexus-support | 4.4 (evenements domaine + convertisseur profiler) | en cours |
