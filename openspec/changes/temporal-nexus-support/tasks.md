@@ -2,13 +2,13 @@
 
 - [ ] 1.1 Probe Nexus endpoint, service and operation name rules (empty, blank, edge whitespace, control characters, length, case) against a local dev server, as was done for `TaskQueue`, `WorkflowNamespace` and `CronSchedule` — **endpoint names done**: server enforces `^[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9]$` and a 200-character limit, pinned by `NexusEndpointNameRulesTest`, verdicts in `design.md`. Service and operation names remain: they travel in the `ScheduleNexusOperation` command and need a workflow scheduling a real operation
 - [x] 1.2 Probe what the server does when scheduling on an unknown endpoint, and record the error shape — gRPC `INVALID_ARGUMENT`, `BadScheduleNexusOperationAttributes: endpoint "…" not found`, `WORKFLOW_TASK_FAILED` with cause `BAD_SCHEDULE_NEXUS_OPERATION_ATTRIBUTES`, and the task is retried without end. No typed failure reaches the workflow; pinned by `NexusUnknownEndpointTest`, consequence recorded in `design.md`
-- [ ] 1.3 Probe whether the three operation bounds behave like the activity ones, including any silent rewrite
+- [x] 1.3 Probe whether the three operation bounds behave like the activity ones, including any silent rewrite — **oui pour les réécritures, non pour l'obligation de borner**. Deux réécritures silencieuses : rabat sur la durée de run, et `schedule_to_start` rabattu sur `schedule_to_close`. Mais aucune borne de fermeture n'est exigée, contrairement aux activités — donc **§2.2 ne doit pas porter `executionBoundOr()`**. Épinglé par `NexusOperationBoundsTest`, verdicts dans `design.md`
 - [ ] 1.4 Record every verdict in the value-object docblocks, and write no invariant that was not observed
 
 ## 2. Domain value objects
 
 - [ ] 2.1 `NexusEndpoint`, `NexusService`, `NexusOperationName` — named constructors, boundary coercion, validation limited to probed rules — **`NexusEndpoint` fait** : motif et limite du serveur, ni plus ni moins, avec la distinction vide/malformé qu'il fait lui-même. `NexusService` et `NexusOperationName` attendent la moitié service/opération de 1.1
-- [ ] 2.2 `NexusOperationTimeouts` built on `Duration`, mirroring `ActivityTimeouts`, with `executionBoundOr()` if the server requires a closing bound
+- [ ] 2.2 `NexusOperationTimeouts` built on `Duration`, mirroring `ActivityTimeouts`, **sans `executionBoundOr()`** — 1.3 a tranché : le serveur n'exige aucune borne de fermeture
 - [ ] 2.3 Unit tests asserting the probed verdicts, one case per observation — **fait pour `NexusEndpoint`** : 20 cas, un par verdict du tableau de `design.md`, y compris la lettre seule que le motif refuse
 
 ## 3. Caller-side domain plumbing

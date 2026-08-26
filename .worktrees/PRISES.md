@@ -9,4 +9,4 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
 | `test/nexus-service-operation-names` | temporal-nexus-support | 1.1 (moitié service/opération) | en cours |
-| `feat/nexus-endpoint-value-object` | temporal-nexus-support | 2.1 (**NexusEndpoint seul**) + 2.3 pour lui — service/opération laissés à 1.1 | en cours |
+| `test/nexus-operation-bounds` | temporal-nexus-support | 1.3 (bornes d'opération) — reprise, la branche précédente avait disparu sans verdict | en cours |
