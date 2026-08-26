@@ -23,7 +23,8 @@ one place, so the shop runs on the image the skeleton ships with — never on th
 
 ```bash
 cd sylius
-docker compose up -d                 # php 8.3, MySQL 8.4, nginx, mailhog
+cp compose.override.dist.yml compose.override.yml   # monte l'app, et `../src` dont elle dépend
+docker compose up -d                                # php 8.3, MySQL 8.4, nginx, mailhog
 docker compose run --rm php composer install
 docker compose run --rm php bin/console debug:router
 ```
