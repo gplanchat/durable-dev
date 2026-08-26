@@ -170,6 +170,29 @@ that does not exist, the silent run-timeout rewrite, three system search attribu
 writable, and the ignored payload type). Nexus identifier rules MUST be probed the same way before
 `NexusEndpoint` and friends encode any rule.
 
+### Une opération Nexus n'a pas d'identité fournie par l'appelant (§4.1 à §4.3)
+
+Trouvé dans le protobuf en écrivant le pont, et cela gouverne les trois tâches :
+`NexusOperationScheduledEventAttributes` ne porte **ni `activityId` ni équivalent**. Il a un
+`RequestId`, généré par le serveur, et les noms d'endpoint, de service et d'opération. Les quatre
+événements terminaux — `COMPLETED`, `FAILED`, `CANCELED`, `TIMED_OUT` — se réfèrent tous au
+`ScheduledEventId`.
+
+L'identité d'une opération est donc **positionnelle** : le Nième `SCHEDULED` correspond au Nième
+appel, et une fois enregistrée cette identité *est* l'identifiant de l'événement. D'où deux
+conséquences :
+
+- `findScheduledNexusOperation(slot)` rend cet identifiant en chaîne, et le domaine s'en sert comme
+  identité d'opération dès le premier replay ;
+- sur la **première** passe, l'identité est un uuid local que le serveur n'a jamais vu.
+  `cancelNexusOperation()` n'émet alors rien : viser un `scheduledEventId` inexistant ferait
+  échouer la tâche de workflow. C'est la même prudence que `cancelActivity()`, pour une raison
+  différente — là c'était l'absence d'historique, ici l'absence de champ.
+
+Autre écart avec les activités, relevé en faisant échouer les tests : l'entrée d'une opération et
+le résultat d'une opération complétée sont **un `Payload`**, pas une `Payloads`. Le message est
+différent, pas seulement le nom.
+
 ## Risks / Trade-offs
 
 - **Slot ordering is load-bearing.** Adding a slot family is safe for existing workflows, but a

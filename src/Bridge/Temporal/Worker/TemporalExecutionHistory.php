@@ -11,6 +11,7 @@ use Gplanchat\Durable\Exception\ActivitySupersededException;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Failure\FailureEnvelope;
+use Gplanchat\Durable\Nexus\DurableNexusOperationFailedException;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
@@ -52,6 +53,15 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 
     /** @var array<string, float> timer ID → scheduled-at */
     private array $timerScheduledAt = [];
+
+    /** @var list<int> eventId des NEXUS_OPERATION_SCHEDULED, dans l'ordre : le rang *est* l'identité */
+    private array $scheduledNexusEventIds = [];
+
+    /** @var array<int, string> eventId de planification → nom de l'opération */
+    private array $nexusOperationNames = [];
+
+    /** @var array<int, array{result: mixed, failed: \Throwable|null}> eventId de planification → issue */
+    private array $nexusOutcomes = [];
 
     /** @var array<string, int> timer ID → eventId of its TIMER_FIRED (l'ordre du journal tranche le verdict d'une échéance) */
     private array $firedTimerIds = [];
@@ -248,6 +258,51 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     $result = null !== $resultPayload ? self::decodeMarkerDetail($resultPayload) : null;
                     $this->sideEffects[$this->sideEffectSlot++] = $result;
                 }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED:
+                $attr = $event->getNexusOperationScheduledEventAttributes();
+                if (null !== $attr) {
+                    // Aucune identité fournie par l'appelant dans ce message : le rang de
+                    // l'événement fait office d'identité, et les issues s'y réfèrent.
+                    $this->scheduledNexusEventIds[] = (int) $eventId;
+                    $this->nexusOperationNames[(int) $eventId] = (string) $attr->getOperation();
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED:
+                $attr = $event->getNexusOperationCompletedEventAttributes();
+                if (null !== $attr) {
+                    $payload = $attr->getResult();
+                    $this->nexusOutcomes[(int) $attr->getScheduledEventId()] = [
+                        'result' => null !== $payload ? JsonPlainPayload::decode($payload) : null,
+                        'failed' => null,
+                    ];
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED:
+                $this->recordNexusFailure(
+                    $event->getNexusOperationFailedEventAttributes()?->getScheduledEventId(),
+                    $event->getNexusOperationFailedEventAttributes()?->getFailure()?->getMessage(),
+                    DurableNexusOperationFailedException::KIND_OPERATION_FAILED,
+                );
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_CANCELED:
+                $this->recordNexusFailure(
+                    $event->getNexusOperationCanceledEventAttributes()?->getScheduledEventId(),
+                    $event->getNexusOperationCanceledEventAttributes()?->getFailure()?->getMessage(),
+                    DurableNexusOperationFailedException::KIND_CANCELLED,
+                );
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT:
+                $this->recordNexusFailure(
+                    $event->getNexusOperationTimedOutEventAttributes()?->getScheduledEventId(),
+                    $event->getNexusOperationTimedOutEventAttributes()?->getFailure()?->getMessage(),
+                    DurableNexusOperationFailedException::KIND_TIMED_OUT,
+                );
                 break;
 
             case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED:
@@ -466,19 +521,53 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         return $this->firedTimerIds[$timerId] ?? null;
     }
 
-    /**
-     * Toujours null pour l'instant : la lecture des neuf événements `NEXUS_OPERATION_*` est la
-     * tâche §4.3 du change temporal-nexus-support. Tant qu'elle n'est pas faite, une opération
-     * planifiée n'est jamais vue comme réglée, et le workflow suspend au lieu de conclure à tort.
-     */
     public function findNexusOperationSlotResult(int $slot): ?array
     {
-        return null;
+        $scheduledEventId = $this->scheduledNexusEventIds[$slot] ?? null;
+        if (null === $scheduledEventId) {
+            return null;
+        }
+
+        return $this->nexusOutcomes[$scheduledEventId] ?? null;
     }
 
+    /**
+     * L'identité d'une opération est celle de son événement de planification, rendue en chaîne.
+     *
+     * `NexusOperationScheduledEventAttributes` ne porte aucun identifiant fourni par l'appelant,
+     * là où une activité porte son `activityId` : le rang fait donc l'identité, et c'est cet
+     * identifiant que {@see \Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer::cancelNexusOperation()}
+     * doit viser.
+     */
     public function findScheduledNexusOperation(int $slot): ?string
     {
-        return null;
+        $scheduledEventId = $this->scheduledNexusEventIds[$slot] ?? null;
+
+        return null === $scheduledEventId ? null : (string) $scheduledEventId;
+    }
+
+    public function scheduledEventIdForNexusOperation(string $operationId): ?int
+    {
+        $candidate = (int) $operationId;
+
+        return \in_array($candidate, $this->scheduledNexusEventIds, true) ? $candidate : null;
+    }
+
+    private function recordNexusFailure(int|string|null $scheduledEventId, ?string $message, string $kind): void
+    {
+        if (null === $scheduledEventId) {
+            return;
+        }
+
+        $id = (int) $scheduledEventId;
+        $name = $this->nexusOperationNames[$id] ?? '';
+        $reason = $message ?? '';
+
+        $this->nexusOutcomes[$id] = ['result' => null, 'failed' => match ($kind) {
+            DurableNexusOperationFailedException::KIND_CANCELLED => DurableNexusOperationFailedException::cancelled((string) $id, $name, $reason),
+            DurableNexusOperationFailedException::KIND_TIMED_OUT => DurableNexusOperationFailedException::timedOut((string) $id, $name),
+            default => DurableNexusOperationFailedException::operationFailed((string) $id, $name, $reason),
+        }];
     }
 
     public function hasChildExecutionId(string $childExecutionId): bool

@@ -25,7 +25,9 @@ use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\FailWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\RequestCancelActivityTaskCommandAttributes;
+use Temporal\Api\Command\V1\RequestCancelNexusOperationCommandAttributes;
 use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
+use Temporal\Api\Command\V1\ScheduleNexusOperationCommandAttributes;
 use Temporal\Api\Command\V1\StartTimerCommandAttributes;
 use Temporal\Api\Common\V1\ActivityType;
 use Temporal\Api\Common\V1\RetryPolicy;
@@ -411,11 +413,49 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         array $payload,
         NexusOperationTimeouts $timeouts,
     ): void {
-        throw new \LogicException('ScheduleNexusOperation is not built yet on the Temporal command buffer (temporal-nexus-support §4.1).');
+        $attrs = new ScheduleNexusOperationCommandAttributes();
+        $attrs->setEndpoint($endpoint->name());
+        $attrs->setService($service->name());
+        $attrs->setOperation($operation->name());
+        // Un seul Payload, pas une liste : le message Nexus diffère de celui d'une activité.
+        $attrs->setInput(JsonPlainPayload::encode($payload));
+
+        // Aucune borne inventée : le serveur n'en exige pas pour Nexus (§1.3), contrairement à
+        // une activité. Poser un repli ferait croire à une échéance que personne n'a demandée.
+        if (null !== $timeouts->scheduleToClose) {
+            $attrs->setScheduleToCloseTimeout($this->durationSeconds($timeouts->scheduleToClose->toSeconds()));
+        }
+        if (null !== $timeouts->scheduleToStart) {
+            $attrs->setScheduleToStartTimeout($this->durationSeconds($timeouts->scheduleToStart->toSeconds()));
+        }
+        if (null !== $timeouts->startToClose) {
+            $attrs->setStartToCloseTimeout($this->durationSeconds($timeouts->startToClose->toSeconds()));
+        }
+
+        $command = new Command();
+        $command->setCommandType(CommandType::COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION);
+        $command->setScheduleNexusOperationCommandAttributes($attrs);
+        $this->commands[] = $command;
     }
 
     public function cancelNexusOperation(string $operationId, string $reason): void
     {
-        throw new \LogicException('RequestCancelNexusOperation is not built yet on the Temporal command buffer (temporal-nexus-support §4.2).');
+        // L'identité d'une opération Nexus est celle de son événement de planification : le
+        // protobuf ne prévoit aucun champ d'identité fourni par l'appelant, contrairement à une
+        // activité. Sur la première passe, la commande de planification n'est pas encore partie
+        // et l'identité est un uuid local que le serveur n'a jamais vu — viser un identifiant
+        // inexistant ferait échouer la tâche, donc on n'émet rien.
+        $scheduledEventId = $this->history?->scheduledEventIdForNexusOperation($operationId);
+        if (null === $scheduledEventId) {
+            return;
+        }
+
+        $attrs = new RequestCancelNexusOperationCommandAttributes();
+        $attrs->setScheduledEventId($scheduledEventId);
+
+        $command = new Command();
+        $command->setCommandType(CommandType::COMMAND_TYPE_REQUEST_CANCEL_NEXUS_OPERATION);
+        $command->setRequestCancelNexusOperationCommandAttributes($attrs);
+        $this->commands[] = $command;
     }
 }
