@@ -62,45 +62,29 @@ The useful axis is not "how hard is the integration" — it is **where the `if` 
 
 ## 3. Class A candidates — verdicts
 
-### Durable Task / `TaskHubSidecarService` — **implementable, with a semantic reduction** *(verified)*
+### Durable Task / `TaskHubSidecarService` — **contraindicated** *(studied separately)*
 
-Microsoft's Durable Task Framework, the engine under Azure Durable Functions and, via `dapr/durabletask-go`, under **Dapr Workflow**. The worker-facing gRPC contract ([`microsoft/durabletask-protobuf`](https://github.com/microsoft/durabletask-protobuf), `orchestrator_service.proto`, 911 lines) is three RPCs:
+Best structural match of anything surveyed: `GetWorkItems` / `CompleteOrchestratorTask` /
+`CompleteActivityTask`, with `pastEvents` + `newEvents` in and `actions` out — the contract
+`WorkflowFiberDriver` already implements. Public proto, explicitly meant for third-party SDKs, no
+PHP SDK in existence. One bridge would reach the Dapr sidecar, Azure Durable Task Scheduler and
+self-hosted `durabletask-go`.
 
-```
-rpc GetWorkItems(GetWorkItemsRequest) returns (stream WorkItem);
-rpc CompleteOrchestratorTask(OrchestratorResponse) returns (CompleteTaskResponse);
-rpc CompleteActivityTask(ActivityResponse) returns (CompleteTaskResponse);
-```
+Checked feature by feature in **[OST002](OST002-durable-task-backend-feasibility.md)**. Summary of
+what that found:
 
-`OrchestratorRequest` carries `pastEvents` + `newEvents`; `OrchestratorResponse` carries `actions` + a `completionToken`. Replay in, commands out — the same contract as `WorkflowFiberDriver`.
+- **No per-operation cancellation.** `cancelActivity()` would compile, run, and do something else —
+  the workflow sees its cancellation, the activity runs to completion anyway. Nothing fails, nothing
+  warns; the difference surfaces in the side effects of a compensation. This is the finding that
+  decides the option.
+- **No workflow updates, no activity heartbeats.** No parade for either.
+- **Two silent-corruption traps:** the ordering of self-addressed events (the only channel for
+  side-effect markers), and `carryoverEvents` dragging markers into a continue-as-new run.
+- Everything else — retries, timeouts, task queues, reuse policy — is work, not loss, and most of it
+  dissolves into passing our value objects through the protocol's `tags` maps.
 
-**Port-by-port mapping** (read from the proto, not from documentation):
-
-| `WorkflowCommandBufferInterface` | Durable Task action | |
-|---|---|---|
-| `scheduleActivity()` | `ScheduleTaskAction` | ✅ |
-| `startTimer()` | `CreateTimerAction` | ✅ |
-| `scheduleChildWorkflow()` | `CreateSubOrchestrationAction` | ✅ |
-| `completeWorkflow()` | `CompleteOrchestrationAction` | ✅ |
-| `failWorkflow()` | `CompleteOrchestrationAction` + `failureDetails` | ✅ |
-| continue-as-new | `CompleteOrchestrationAction` + `ORCHESTRATION_STATUS_CONTINUED_AS_NEW` + `carryoverEvents` | ✅ |
-| `recordSideEffect()` | **no marker action** | ⚠️ emulation |
-| `cancelActivity()` | **nothing** | ❌ |
-| `cancelTimer()` | **nothing** | ❌ |
-
-The `OrchestratorAction` oneof has exactly eight members — `scheduleTask`, `createSubOrchestration`, `createTimer`, `sendEvent`, `completeOrchestration`, `terminateOrchestration`, `sendEntityMessage`, `rewindOrchestration`. `grep -i cancel` over the whole proto returns **one** hit, and it is the `ORCHESTRATION_STATUS_CANCELED` enum value. There is no marker/side-effect event either.
-
-**Side effects — emulation works, at a price.** `SendEventAction` can target any `OrchestrationInstance`, including the instance emitting it, producing an `EventRaisedEvent` in its own history. That is a durable, replayable marker: the action commits atomically with the task, so `sideEffect()` can keep resolving synchronously in-task (`ExecutionContext::sideEffect()` runs the closure, buffers the command and resolves the `Deferred` immediately — no suspension), and read the value back from `EventRaisedEvent` on the next replay. Slot lookup survives because Durable indexes slots **per family**, not globally over the stream (`EventStoreHistorySource::findScheduledActivityId()` counts only `ActivityScheduled` events). *Residual assumption:* the backend preserves the relative order of several self-targeted events emitted in one action list. That is not a protocol guarantee — it is the one thing a spike must prove.
-
-**Cancellation — this is the real loss, and it is by design.** Durable Task has no per-operation cancellation at all; `TerminateOrchestrationAction` kills the whole instance, which is the opposite of what compensation needs. Microsoft states the design plainly: the cancellation mechanism "doesn't terminate in-progress activity function or sub-orchestration executions; rather, it simply lets the orchestrator function ignore the result and move on." So `cancelActivity()` becomes **abandon**, not cancel: the activity keeps running to completion on some worker and its result is discarded. `cancelTimer()` likewise leaves the timer armed server-side.
-
-`WorkflowLifecycleInterface::onCancellationDelivered()` requires that replay "reject **those same** operations with the same exception … otherwise compensation would diverge from one task to the next". That contract can still be honoured — but only by Durable's own bookkeeping through the `SendEventAction` marker channel, never by the server. Every saga that cancels an in-flight activity and compensates gets weaker guarantees than on Temporal.
-
-**Workflow updates have no counterpart.** `findUpdateForSlot()` needs request/response into a running instance; Durable Task offers one-way `RaiseEvent`/`EventRaisedEvent` and a `customStatus` blob. Signals map cleanly, queries can be approximated through `customStatus`, **updates cannot be built at all**.
-
-- **For:** best action/event fit of anything surveyed. `ext-grpc` is already paid for. One bridge unlocks three hosts — Dapr sidecar, Azure Durable Task Scheduler, self-hosted `durabletask-go` (SQLite/Postgres, no cluster). Proto is public and explicitly meant for third-party SDKs.
-- **Against:** no per-operation cancellation, no updates, side effects only by emulation. Entity/lock events (a third of the `HistoryEvent` oneof) have no Durable equivalent and would be ignored. Dapr Workflow authoring SDKs exist for Python, JS, .NET, Java and Go — **not PHP** — so there is no reference implementation to crib from.
-- **Verdict:** **possible, not free.** Durable would ship a Durable Task backend with a documented feature reduction: cancellation degraded to abandon-and-ignore, no workflow updates. Whether that is acceptable is a product call, not a technical one — it is the cancellation and saga story the user documentation currently promises.
+Verdict: **contraindicated**, not impossible. The one thing it silently changes is the saga and
+compensation guarantee the user documentation sells hardest.
 
 ### Restate — **the one that changes the deployment model**
 
@@ -167,22 +151,21 @@ Durable's differentiator remains: **Symfony-native, no RoadRunner, no official S
 
 ## 7. Hypotheses to validate
 
-1. ~~Does the `TaskHubSidecarService` vocabulary cover all of `WorkflowCommandBufferInterface`?~~ **Answered — no.** Continue-as-new and every scheduling command map cleanly; side effects need `SendEventAction`-to-self emulation; per-operation cancellation and workflow updates have no counterpart at all. See §3. What remains to prove is narrower: **does a backend preserve the relative order of several self-targeted `SendEventAction`s emitted in one action list?** If not, the side-effect marker channel is a determinism break and Durable Task drops below Restate.
+1. ~~Does the `TaskHubSidecarService` vocabulary cover all of `WorkflowCommandBufferInterface`?~~ **Answered, and the option closed on it** — see [OST002](OST002-durable-task-backend-feasibility.md).
 2. Does Restate's protocol churn fast enough to make a third-party SDK unsustainable? v1 → v7 across roughly 18 months is the raw signal; what matters is how many versions a given server accepts at once. (Ask upstream for the support window, or read the server's accepted-version range directly.)
 3. Is `ext-grpc` actually the adoption blocker it is assumed to be? **This hypothesis orders the whole tree and is untested.**
-4. Is a durable-execution backend without per-operation cancellation and without workflow updates worth shipping? That is what a Durable Task bridge would be.
+4. ~~Is a durable-execution backend without per-operation cancellation and without workflow updates worth shipping?~~ **Answered: no** — [OST002](OST002-durable-task-backend-feasibility.md) §6.
 
 ## 8. Decision tree
 
 ```
-Is per-operation cancellation part of Durable's promise?
-├── yes → Durable Task is out (abandon-and-ignore only). Then:
-│         is ext-grpc a real adoption blocker?
-│         ├── yes → Restate bridge        (HTTP, PHP-FPM friendly, protocol churn risk)
-│         └── no  → stay on Temporal
-└── no  → does the SendEventAction ordering assumption hold? (§7.1)
-          ├── yes → Durable Task / Dapr bridge  (best fit, reuses ext-grpc)
-          └── no  → Restate bridge
+Durable Task / Dapr — contraindicated (OST002), branch closed.
+
+Is another protocol-level backend still wanted?
+├── no  → nothing to do; DBAL (§5) already covers "no cluster"
+└── yes → is ext-grpc a real adoption blocker?
+          ├── yes → Restate bridge   (HTTP, PHP-FPM friendly, protocol churn risk)
+          └── no  → stay on Temporal — nothing else surveyed beats it on fit
 
 In every branch, the DBAL event store (§5) is orthogonal and cheaper:
 it needs no second server at all.
@@ -201,5 +184,5 @@ Nothing in §3 is actionable without §7.3. DUR005 states that a third backend r
 - [`dapr/durabletask-go`](https://github.com/dapr/durabletask-go) · [Dapr Workflow architecture](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/)
 - [Inngest SDK specification](https://github.com/inngest/inngest/blob/main/docs/SDK_SPEC.md)
 - [Cadence `WorkflowService` API](https://cadenceworkflow.io/docs/concepts/topology)
-- [Durable Task timers and cancellation semantics](https://learn.microsoft.com/en-us/azure/durable-task/common/durable-task-timers)
+- [OST002](OST002-durable-task-backend-feasibility.md) — Durable Task feasibility, feature by feature
 - [`durable-workflow/workflow`](https://github.com/durable-workflow/workflow) · [`keepsuit/laravel-temporal`](https://github.com/keepsuit/laravel-temporal)
