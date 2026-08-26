@@ -57,8 +57,8 @@
 
 ## 7. Backend parity
 
-- [ ] 7.1 Same workflow, same handlers, same order, in-memory and Temporal, including the replay path
-- [ ] 7.2 Integration test against a real server for a condition satisfied by a signal delivered after a deadline fired — the DUR032 case, on its new foundation
+- [x] 7.1 Same workflow, same handlers, same order, in-memory and Temporal, including the replay path — `HandlerDispatchParityTest` : même journal, même suite de messages, et même classement contre le tir d’une échéance
+- [x] 7.2 Integration test against a real server for a condition satisfied by a signal delivered after a deadline fired — the DUR032 case, on its new foundation : le test d’intégration a survécu à la migration sans perdre une assertion
 - [x] 7.3 Integration test against a real server for an update that answers — et un update en échec qui ne tue pas l’exécution
 
 ## 8. Documentation

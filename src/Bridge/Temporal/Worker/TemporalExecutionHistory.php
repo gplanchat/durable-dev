@@ -62,7 +62,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var list<array{signalName: string, payload: mixed, eventId: int}> signals in receive order */
     private array $signals = [];
 
-    /** @var list<array{updateName: string, result: mixed, eventId: int}> updates in accept order */
+    /** @var list<array{updateName: string, result: mixed, eventId: int, arguments: array<string, mixed>}> updates in accept order */
     private array $updates = [];
 
     /** @var list<string> child execution IDs in schedule order */
@@ -272,7 +272,15 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     if (null !== $request) {
                         $input = $request->getInput();
                         $updateName = null !== $input ? $input->getName() : '';
-                        $this->updates[] = ['updateName' => $updateName, 'result' => null, 'eventId' => (int) $eventId];
+                        // `accepted_request` réécho la requête d'origine : les arguments sont
+                        // donc relisibles au replay, comme la charge utile d'un signal.
+                        $arguments = [];
+                        $args = $input?->getArgs()?->getPayloads();
+                        if (null !== $args && $args->count() > 0) {
+                            $decoded = JsonPlainPayload::decode($args[0]);
+                            $arguments = \is_array($decoded) ? $decoded : ['value' => $decoded];
+                        }
+                        $this->updates[] = ['updateName' => $updateName, 'result' => null, 'eventId' => (int) $eventId, 'arguments' => $arguments];
                     }
                 }
                 break;
@@ -445,9 +453,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 'position' => $update['eventId'],
                 'kind' => 'update',
                 'name' => $update['updateName'],
-                // Les arguments viennent de `accepted_request`, que le protocole worker apporte
-                // avec la tâche 5.5 ; l'ordre, lui, est déjà juste.
-                'payload' => [],
+                'payload' => $update['arguments'],
             ];
         }
         usort($messages, static fn(array $a, array $b): int => $a['position'] <=> $b['position']);
