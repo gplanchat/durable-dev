@@ -14,6 +14,7 @@ use Gplanchat\Durable\ChildWorkflowOptions;
 use Gplanchat\Durable\ContinueAsNewOptions;
 use Gplanchat\Durable\Duration as DurableDuration;
 use Gplanchat\Durable\Event\ActivityScheduled;
+use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\Failure\WorkflowFailureClassifier;
 use Gplanchat\Durable\Port\WorkflowCommandBufferInterface;
 use Temporal\Api\Command\V1\Command;
@@ -242,6 +243,13 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
      * (on n'annule qu'une opération déjà en attente), et le prédire demanderait de reproduire
      * l'attribution d'identifiants du serveur à partir de `startedEventId`.
      */
+    public function recordUpdateHandled(string $updateName, array $arguments, mixed $result, ?FailureEnvelope $failure): void
+    {
+        // Volontairement vide : c'est le **serveur** qui écrit UPDATE_ACCEPTED et
+        // UPDATE_COMPLETED, à partir des messages de protocole que le worker lui renvoie
+        // ({@see UpdateProtocol}). Un worker qui journaliserait aussi ferait double emploi.
+    }
+
     public function cancelActivity(string $activityId, string $reason): void
     {
         $scheduledEventId = $this->history?->scheduledEventIdForActivity($activityId);
