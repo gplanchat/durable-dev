@@ -7,8 +7,8 @@
 
 - [x] 1.1 Write down, in journal-position terms, the interleaving of message application, handler dispatch and condition re-evaluation, and record it in `design.md` — a position is a stream rank, the wait drives the cursor, and both P and Q are stream positions or the comparison is meaningless
 - [x] 1.2 Check whether a Temporal workflow task can carry several journaled messages at once, so interleaving is an ordering question inside one task and not only across tasks — yes: three signals reach a worker in a single task when none is polling, and one per task when one is. The count is a timing artefact, so the task boundary cannot order anything
-- [ ] 1.3 Probe, against the running server, how a worker accepts and completes an update — which messages carry the acceptance and the response, and on which task they are returned. Nothing about update responses reaches the domain before this is seen
-- [ ] 1.4 Record what the probes changed, if anything, in `design.md`
+- [x] 1.3 Probe, against the running server, how a worker accepts and completes an update — which messages carry the acceptance and the response, and on which task they are returned. Nothing about update responses reaches the domain before this is seen — an update arrives as a protocol message beside the journal, and `Acceptance` + `Response` go back on the same task, one PROTOCOL_MESSAGE command carrying the acceptance
+- [x] 1.4 Record what the probes changed, if anything, in `design.md` — 1.2 confirmed the interleaving is not free, 1.3 added the rule for a message that has no journal position yet
 
 ## 2. Failing tests first — conditions
 
