@@ -6,19 +6,60 @@ namespace Gplanchat\Durable\Plugin\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 
+/**
+ * Le gabarit ne doit plus rien savoir du backend qui l'alimente.
+ *
+ * Ces assertions sont grossières — une lecture de fichier — et c'est assumé : elles gardent un
+ * contrat de vocabulaire, pas un rendu. Ce qu'elles empêchent est précis : qu'un `temporal.` ou
+ * une colonne « file de tâches » revienne par inadvertance dans une page qui doit servir deux
+ * backends dont un seul a ces notions.
+ *
+ * @see openspec/changes/backend-neutral-workflow-dashboard/tasks.md §6.3
+ */
 final class DashboardTemplateRenderTest extends TestCase
 {
-    public function testDashboardTemplateContainsTimelineBarClass(): void
-    {
-        $templatePath = dirname(__DIR__, 2) . '/Resources/views/admin/dashboard/index.html.twig';
-        self::assertFileExists($templatePath);
+    private string $template;
 
-        $template = file_get_contents($templatePath);
+    protected function setUp(): void
+    {
+        $path = \dirname(__DIR__, 2) . '/Resources/views/admin/dashboard/index.html.twig';
+        self::assertFileExists($path);
+
+        $template = file_get_contents($path);
         self::assertIsString($template);
-        self::assertStringContainsString('class="durable-bar {{ lane.kind }}"', $template);
-        self::assertStringContainsString('@SyliusAdmin/shared/layout/base.html.twig', $template);
-        self::assertStringContainsString('temporal.message', $template);
-        self::assertStringContainsString('Last successful sync', $template);
-        self::assertStringContainsString('Refresh', $template);
+        $this->template = $template;
+    }
+
+    public function testTheTemplateSpeaksOfABackendAndNotOfTemporal(): void
+    {
+        self::assertStringContainsString('backend.message', $this->template);
+        self::assertStringNotContainsString('temporal.', $this->template);
+        self::assertStringNotContainsStringIgnoringCase('namespace', $this->template);
+    }
+
+    public function testTheTemplateShowsNoFactTheBackendMayNotHave(): void
+    {
+        self::assertStringNotContainsString('taskQueue', $this->template);
+        self::assertStringNotContainsString('run.duration', $this->template);
+    }
+
+    public function testTheTemplateStillLivesInTheSyliusAdminLayout(): void
+    {
+        self::assertStringContainsString('@SyliusAdmin/shared/layout/base.html.twig', $this->template);
+    }
+
+    public function testEveryOutcomeHasItsCounterOnThePage(): void
+    {
+        foreach (['total', 'running', 'completed', 'failed', 'cancelled', 'continued_as_new'] as $counter) {
+            self::assertStringContainsString('kpis.' . $counter, $this->template, \sprintf('le compteur « %s » manque', $counter));
+        }
+    }
+
+    public function testTheTemporalOnlyProviderIsGone(): void
+    {
+        self::assertFileDoesNotExist(
+            \dirname(__DIR__, 2) . '/Dashboard/TemporalEventsDashboardDataProvider.php',
+            'le fournisseur gRPC a rejoint le pont Temporal ; le plugin ne parle plus à un backend',
+        );
     }
 }
