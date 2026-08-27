@@ -42,5 +42,5 @@
 
 ## 7. Documentation
 
-- [x] 7.1 ADR recording the caller-only scope, the backend asymmetry, and why the handler side is a separate change — **DUR036** (DUR035 est attribué deux fois sur `main`, à deux ADR distinctes : ne pas le réutiliser). L'ADR s'ouvre sur les quatre mesures serveur, parce que ce sont elles qui ont donné leur forme aux décisions
-- [ ] 7.2 Update `documentation/INDEX.md`
+- [x] 7.1 ADR recording the caller-only scope, the backend asymmetry, and why the handler side is a separate change — **DUR036** (le doublon DUR035 qui avait motivé ce saut est depuis résolu : la plus récente des deux est devenue DUR037). L'ADR s'ouvre sur les quatre mesures serveur, parce que ce sont elles qui ont donné leur forme aux décisions
+- [x] 7.2 Update `documentation/INDEX.md` — DUR036 y était déjà ; l'entrée était en revanche à réparer, `DUR035` désignant deux ADR distinctes

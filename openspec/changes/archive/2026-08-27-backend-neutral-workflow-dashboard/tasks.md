@@ -44,4 +44,4 @@
 
 - [x] 7.1 State in the DBAL backend documentation that ending a run now leaves a projection row behind, and what it holds — `durable_workflow_runs` : pourquoi elle existe, les deux plumes qui l'écrivent, les deux lignes d'un continue-as-new, et la rétention à la charge de l'application
 - [x] 7.2 Rewrite the plugin README: the dashboard reads whichever backend is configured, and what it cannot show on each — fait avec §6.3, tableau des faits par backend inclus
-- [x] 7.3 ADR DUR035: why run observation is a projection rather than a query over the journal, and why an absent fact is modelled as absent
+- [x] 7.3 ADR DUR037 (renuméroté depuis DUR035, attribué deux fois) : why run observation is a projection rather than a query over the journal, and why an absent fact is modelled as absent
