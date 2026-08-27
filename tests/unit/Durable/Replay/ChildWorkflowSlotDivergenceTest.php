@@ -52,6 +52,23 @@ final class ChildWorkflowSlotDivergenceTest extends TestCase
         self::assertStringContainsString('ReserveStockWorkflow', $message);
     }
 
+    public function testTheMessageNamesTheSlotKind(): void
+    {
+        // « activity » et « child workflow » ne se cherchent pas au même endroit dans un
+        // historique : confondre les deux coûte au lecteur le temps qu'il vient d'économiser.
+        $context = $this->contextWithChild('ChargeCardWorkflow');
+
+        try {
+            $context->executeChildWorkflow('ReserveStockWorkflow', ['sku' => 'ABC']);
+            self::fail('La divergence aurait dû être refusée.');
+        } catch (WorkflowTaskFailure $e) {
+            $message = $e->getMessage();
+        }
+
+        self::assertStringContainsString('child workflow slot 0', $message);
+        self::assertStringNotContainsString('activity slot', $message);
+    }
+
     public function testAnUnchangedChildTypeStillReplays(): void
     {
         $context = $this->contextWithChild('ChargeCardWorkflow');
