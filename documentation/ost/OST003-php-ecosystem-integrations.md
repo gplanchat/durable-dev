@@ -48,9 +48,18 @@ Tier 2 is the interesting one, and it is the tier this project has never written
 **The discipline that keeps this tier cheap:** none of these earns a CI bench until somebody runs
 one for real. A bench added speculatively is a maintenance bill with no user behind it.
 
-**And the label has to say so.** "Installs and runs, not covered by our CI" is a different claim
-from "coming soon", and the homepage must not print the two in the same style. The first is an
-invitation; the second is a promise.
+**How they are announced, and why it is not what the tier says.** The tier is a statement about
+**cost**: a Tier 0 integration is wiring and an admin view, never a runtime. It is not a statement
+about readiness, and the homepage announces all three as **coming soon** alongside Laravel and
+Magento.
+
+The reason is that the alternative was worse. "Installs and runs, not covered by our CI" reads as
+an invitation, and an invitation on the front page is a `composer require` the project then has to
+support — on a stack it has never booted. `durable-bundle` resolving against Shopware's pinned
+Symfony (`^6.4 || ^7.0 || ^8.0` against `~7.4`) says the constraint solver agrees; it says nothing
+about the plugin loader, the container compilation, or the Messenger transport under Shopware's own
+configuration. Announcing a promise the project intends to keep costs less than an instruction it
+cannot answer for.
 
 ---
 
@@ -146,7 +155,7 @@ for writing the smaller one first.
 
 | Target | Tier | What it needs | Verdict |
 |---|---|---|---|
-| Shopware 6, API Platform, Sulu | 0 | A documentation page | **Announce now**, labelled "installs and runs, not in CI". No bench until a real user appears. |
+| Shopware 6, API Platform, Sulu | 0 | Wiring and an admin view | **Planned.** Cheap — the bundle does the work — but announced as planned, not as working today (§2). |
 | Akeneo | 2 | A `BatchBundle` bundle | **Planned.** Blocked on the checkpoint-granularity decision. |
 | `php-etl/pipeline` | 2 | A durable step runner | **Strongest fit.** Shares §4's decision; internal product, so the feedback loop is short. |
 | Laravel | 1 | Service provider, queue, migrations | **Planned**, and the positioning has to answer `durable-workflow/workflow` before the package exists. |
@@ -155,9 +164,10 @@ for writing the smaller one first.
 | Drupal | 1 | Module, queue | Not now. |
 | PrestaShop 9, Ibexa | 0 | A documentation line | When somebody asks. |
 
-**Non-goals.** Nothing here commits to shipping a package. What it commits to is the tier
-distinction being visible to readers, because a roadmap that prints "works today" and "planned" in
-the same grey is a roadmap that lies in one direction or the other.
+**Non-goals.** Nothing here fixes an order of work. What the tiers buy is an estimate: three of
+these targets are a week of wiring on a stack the bundle already fits, two are a bootstrap, and two
+are the same design problem written twice. The homepage prints one word — *coming soon* — for all
+of them, and that is deliberate; this table is where the difference lives.
 
 ---
 
