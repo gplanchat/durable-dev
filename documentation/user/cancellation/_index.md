@@ -23,7 +23,8 @@ use Gplanchat\Durable\WorkflowEnvironment;
 #[Workflow(name: 'checkout')]
 final class CheckoutWorkflow
 {
-    private ActivityStub $orders;
+    /** @var ActivityStub<OrderActivities> */
+    private readonly ActivityStub $orders;
 
     public function __construct(
         private readonly WorkflowEnvironment $environment,

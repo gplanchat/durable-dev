@@ -49,7 +49,7 @@ final class OrderWorkflow implements OrderWorkflowContract
 
 ### Waiting versus assembling
 
-**`await()` is the only method that waits.** Everything else assembles: `activity()`, `timer()`,
+**`await()` is the only method that waits.** Everything else assembles: a stub call, `timer()`,
 Stub calls and the assemblers below all return an `Awaitable` and return
 immediately.
 
@@ -85,7 +85,7 @@ member to settle wins even by failing.
 Losing branches are cancelled — activities removed from the queue, timers stopped from waking the
 execution — including branches nested inside an assembly.
 
-`timer()` returns an `Awaitable` exactly like `activity()`, so both compose the same way. Both
+`timer()` returns an `Awaitable` exactly like a stub call, so both compose the same way. Both
 accept a `Duration`, a `DateInterval` (so a `CarbonInterval`), a `DateTimeInterface` deadline, or a
 plain number of seconds.
 

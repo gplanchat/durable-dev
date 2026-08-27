@@ -1,0 +1,12 @@
+# Enregistrement automatique via phpstan/extension-installer.
+#
+# Sans lui, ajouter à la main dans phpstan.neon :
+#
+#     includes:
+#         - vendor/gplanchat/durable-phpstan/extension.neon
+
+services:
+    -
+        class: Gplanchat\Durable\PHPStan\Reflection\StubMethodsExtension
+        tags:
+            - phpstan.broker.methodsClassReflectionExtension

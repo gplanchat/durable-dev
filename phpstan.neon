@@ -6,6 +6,7 @@ parameters:
         - src/DurablePlugin
         - src/Bridge/Temporal
         - src/Bridge/Dbal
+        - src/DurablePhpstan
     excludePaths:
         - src/Bridge/Temporal/Api
         - src/Bridge/Temporal/Generated
@@ -36,6 +37,14 @@ parameters:
         # PHPStan resolves the concrete NullActivityHeartbeatSender stub to always-false
         - identifier: identical.alwaysFalse
           path: src/Durable/Worker/ActivityMessageProcessor.php
+        # Implémenter ExtendedMethodReflection sort de la promesse de compatibilité de PHPStan :
+        # l'interface peut changer sur une version mineure. C'est assumé et non contournable — la
+        # seule façon de dire qu'un appel de stub rend un Awaitable plutôt que le type du contrat
+        # est de décorer la réflexion. Le prix est connu : si une mineure casse SchedulingMethod-
+        # Reflection, ce sont ses 28 méthodes de délégation qu'il faut réaligner, et les six tests
+        # de StubMethodsExtensionTest qui le diront.
+        - identifier: phpstanApi.interface
+          path: src/DurablePhpstan/Reflection/SchedulingMethodReflection.php
         # DurableBundleTestTrait is consumed by application tests, not by library code
         - identifier: trait.unused
           path: src/DurableBundle/Testing/DurableBundleTestTrait.php
