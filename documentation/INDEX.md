@@ -68,6 +68,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | OST001 | Alternative durable execution backends (market study) | [ost/OST001-alternative-durable-execution-backends.md](ost/OST001-alternative-durable-execution-backends.md) |
 | OST002 | Durable Task / Dapr as a Durable backend: feasibility (contraindicated) | [ost/OST002-durable-task-backend-feasibility.md](ost/OST002-durable-task-backend-feasibility.md) |
 | OST003 | PHP ecosystem integrations: where Durable is worth wiring | [ost/OST003-php-ecosystem-integrations.md](ost/OST003-php-ecosystem-integrations.md) |
+| OST004 | What is not built yet: cost, and what blocks it | [ost/OST004-what-is-not-built-yet.md](ost/OST004-what-is-not-built-yet.md) |
 
 ## Other
 
