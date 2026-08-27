@@ -54,7 +54,7 @@ A workflow must be **deterministic**: for the same event stream (history), the w
 `WorkflowTaskRunner` consumes history events strictly in chronological order: slot N is resolved
 before slot N+1 is encountered.
 
-> **Corrected by DUR041.** This section used to claim two more things — that the runner compared
+> **Corrected by DUR042.** This section used to claim two more things — that the runner compared
 > the awaitable type and identity at each suspension point against the history record, and raised a
 > non-determinism error on mismatch. **Neither was implemented.** The runner contained no
 > comparison and no such error, and slots resolved by position alone. Measured against a real
@@ -64,7 +64,7 @@ before slot N+1 is encountered.
 > The comparison now exists, in `ExecutionContext` rather than in the runner, and it fails the
 > workflow **task** rather than the execution. Its scope, the identity used per slot kind, and the
 > slot kind left uncovered are recorded in
-> [DUR041](DUR041-replay-divergence-guard.md).
+> [DUR042](DUR042-replay-divergence-guard.md).
 
 ### Replay loop (summary)
 

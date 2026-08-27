@@ -60,13 +60,13 @@
 
 ## 5. Say it in the documentation
 
-- [x] 5.1 **DUR041** records the guard: the identity compared per slot kind, why it rests only on
+- [x] 5.1 **DUR042** records the guard: the identity compared per slot kind, why it rests only on
       what history already holds, why the failure is the task and not the run, and that timers are
       uncovered. Written before 5.2 rather than after — this repository amends an ADR *by* a
       decision, so correcting DUR003 needed something to point at.
 - [x] 5.2 DUR003's determinism section corrected. Points 2 and 3 claimed a comparison and a
       non-determinism error that were never implemented; the section now states what the runner
-      actually does and carries a `> Corrected by DUR041` note saying what was wrong and what the
+      actually does and carries a `> Corrected by DUR042` note saying what was wrong and what the
       measurement showed.
       **Checked and deliberately left alone:** DUR035's "no non-determinism detection is promised"
       is about *conditions*, not slot identity. The two do not conflict.

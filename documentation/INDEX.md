@@ -49,7 +49,8 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR038 | A stub assembles, it does not wait | [adr/DUR038-a-stub-assembles-it-does-not-wait.md](adr/DUR038-a-stub-assembles-it-does-not-wait.md) |
 | DUR039 | The workflow authoring surface | [adr/DUR039-workflow-authoring-surface.md](adr/DUR039-workflow-authoring-surface.md) |
 | DUR040 | Query plumbing leaves the environment | [adr/DUR040-query-plumbing-leaves-the-environment.md](adr/DUR040-query-plumbing-leaves-the-environment.md) |
-| DUR041 | The replay divergence guard | [adr/DUR041-replay-divergence-guard.md](adr/DUR041-replay-divergence-guard.md) |
+| DUR041 | Store parity is a suite every adapter runs | [adr/DUR041-store-parity-is-a-suite-every-adapter-runs.md](adr/DUR041-store-parity-is-a-suite-every-adapter-runs.md) |
+| DUR042 | The replay divergence guard | [adr/DUR042-replay-divergence-guard.md](adr/DUR042-replay-divergence-guard.md) |
 
 ## Working agreements (WA)
 
@@ -66,6 +67,7 @@ This repository documents the **Durable** component (durable execution orchestra
 |----|--------|------|
 | OST001 | Alternative durable execution backends (market study) | [ost/OST001-alternative-durable-execution-backends.md](ost/OST001-alternative-durable-execution-backends.md) |
 | OST002 | Durable Task / Dapr as a Durable backend: feasibility (contraindicated) | [ost/OST002-durable-task-backend-feasibility.md](ost/OST002-durable-task-backend-feasibility.md) |
+| OST003 | PHP ecosystem integrations: where Durable is worth wiring | [ost/OST003-php-ecosystem-integrations.md](ost/OST003-php-ecosystem-integrations.md) |
 
 ## Other
 

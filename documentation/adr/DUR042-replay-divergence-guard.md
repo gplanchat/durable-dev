@@ -1,4 +1,4 @@
-# DUR041 — The replay divergence guard
+# DUR042 — The replay divergence guard
 
 ## Status
 
