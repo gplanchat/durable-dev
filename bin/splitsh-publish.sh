@@ -66,16 +66,37 @@ remote_tag_sha() {
 # A force-push rewrites refs/heads/main of an already published repository. Park the head it is
 # about to drop under refs/heads/archive/ first: the operation stays undoable, and the only copy of
 # a satellite commit the current prefix no longer reproduces is not lost.
+#
+# The head must be fetched before it can be pushed anywhere: `git push <url> <sha>:<ref>` needs the
+# object *locally*, and the heads worth archiving are exactly the ones the current prefix does not
+# reproduce — so the runner does not have them. Fetching the ref rather than the SHA also closes the
+# window between reading the head and archiving it.
+#
+# Returns non-zero when the head exists but could not be archived: the caller must then leave that
+# satellite alone rather than force it. A backup that silently does not happen is worse than none,
+# because the force proceeds as if it had.
 archive_remote_head() {
-    local repo="$1" head
-    head="$(GIT_TERMINAL_PROMPT=0 git -c "http.extraHeader=$(auth_header)" \
-        ls-remote "$(satellite_url "$repo")" "refs/heads/$BRANCH" | head -n1 | cut -f1)"
-    if [[ -z "$head" ]]; then
+    local repo="$1" url head
+    url="$(satellite_url "$repo")"
+
+    if [[ -z "$(GIT_TERMINAL_PROMPT=0 git -c "http.extraHeader=$(auth_header)" \
+        ls-remote "$url" "refs/heads/$BRANCH" | head -n1 | cut -f1)" ]]; then
+        echo "[branch] $ORG/$repo has no refs/heads/$BRANCH yet, nothing to archive"
         return 0
     fi
+
+    if ! GIT_TERMINAL_PROMPT=0 git -c "http.extraHeader=$(auth_header)" \
+        fetch --quiet --no-tags "$url" "refs/heads/$BRANCH"; then
+        echo "::error::could not fetch $ORG/$repo refs/heads/$BRANCH to archive it" >&2
+        return 1
+    fi
+    head="$(git rev-parse FETCH_HEAD)"
+
     echo "[branch] Archiving $ORG/$repo $head -> refs/heads/archive/pre-force-${head:0:12}"
-    git_push_satellite "$repo" "$head:refs/heads/archive/pre-force-${head:0:12}" || \
-        echo "::warning::could not archive $ORG/$repo $head" >&2
+    if ! git_push_satellite "$repo" "$head:refs/heads/archive/pre-force-${head:0:12}"; then
+        echo "::error::could not archive $ORG/$repo $head" >&2
+        return 1
+    fi
 }
 
 report_failures() {
@@ -129,8 +150,10 @@ push_branch_mode() {
             echo "[branch] $repo split SHA=$sha (dry-run, set SPLITSH_PUSH_TOKEN to push)"
             continue
         fi
-        if [[ ${#force_flag[@]} -gt 0 ]]; then
-            archive_remote_head "$repo"
+        if [[ ${#force_flag[@]} -gt 0 ]] && ! archive_remote_head "$repo"; then
+            echo "::error::[branch] refusing to force $ORG/$repo without an archive of its current head" >&2
+            failed+=("$repo")
+            continue
         fi
         echo "[branch] Pushing $ORG/$repo $sha -> refs/heads/$BRANCH"
         # Same reason as the "already at" skip in tag mode: the satellites are independent, so one
