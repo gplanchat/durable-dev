@@ -100,8 +100,20 @@ behaviour fails one, and recording the version after the slot instead of before 
 
 ## 5. Say it in the documentation
 
-- [ ] 5.1 A DUR: the primitive, the wire representation actually used, and the removal rule.
-- [ ] 5.2 A user page: marking a change, and how to know when an old branch can be deleted.
-- [ ] 5.3 The comparison page's versioning row stops describing a gap.
-- [ ] 5.4 Keep the workflow-type-rename strategy documented. It stays the right answer for a change
-      too large to express as a branch.
+- [x] 5.1 **DUR044** — the primitive, why an execution older than the point is *recognised* rather
+      than marked, the wire representation as it was probed, why the search-attribute upsert is part
+      of the primitive rather than decoration, and the removal rule with the backends that cannot
+      answer it.
+- [x] 5.2 The user page `documentation/user/deploying/` gains change points beside the two answers
+      it already gave: the branch, the three things to know before using it (the change id lives in
+      the journal, an older run gets `DEFAULT_VERSION`, the guard still applies elsewhere), and how
+      to know when the old branch can go — a query on Temporal, and **no equivalent** on the journal
+      backends, said plainly.
+- [x] 5.3 The comparison page's versioning row is gone from *Where the SDK is ahead*. It became
+      section 7, **Workflow versioning: no longer a gap**, with the two differences that remain and
+      are not about the primitive: worker versioning, and knowing when a branch is dead on a backend
+      with no search attributes. The *Choosing* paragraph now says **worker** versioning rather than
+      workflow versioning.
+- [x] 5.4 The workflow-type rename is kept and re-argued rather than left as a leftover: it is the
+      right answer when the change is **too large to express as a branch**, where a change point
+      would only make one workflow carry two.

@@ -59,6 +59,52 @@ lost nothing but the time between the two deployments.
 
 This is the whole reason the task fails rather than the run.
 
+### Or declare a change point
+
+When the change fits in a branch, say so in the workflow and let each execution keep the behaviour
+it started on:
+
+```php
+use Gplanchat\Durable\Versioning\ChangePoint;
+
+$version = $this->environment->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
+
+if (ChangePoint::DEFAULT_VERSION === $version) {
+    $total = $this->await($this->billing->totalWithoutDiscount($cart));   // runs already in flight
+} else {
+    $total = $this->await($this->billing->totalWithDiscount($cart));      // everything from now on
+}
+```
+
+The answer is **fixed the first time an execution reaches that point** and read back from its
+journal afterwards. Deploy what you like next: a run already past the point keeps its behaviour.
+
+Three things worth knowing before you use it:
+
+- **The change id lives in the journal.** Renaming it later makes every in-flight execution look
+  like it never reached the point. Pick a name you can live with.
+- **A run that passed this place before the point existed gets `DEFAULT_VERSION`** — it started on
+  the old behaviour, it finishes on the old behaviour. Nothing is written for it; it is recognised,
+  not marked.
+- **The divergence check still applies everywhere else.** Declaring one change point does not
+  license an undeclared change three lines below: that one still stops the run.
+
+### Deleting the old branch
+
+The branch may go once no live execution can still resolve to it. On the **Temporal backend** the
+server answers that, because each marker is accompanied by a standard search attribute:
+
+```
+temporal workflow list --query 'TemporalChangeVersion = "add-discount-1"'
+```
+
+An empty answer means nobody is on version 1 any more, and the `DEFAULT_VERSION` branch can go.
+
+**On the In-Memory and DBAL backends there is no search attribute and no equivalent answer.** There,
+knowing when a branch is dead means knowing your own executions — which in practice means keeping
+the branch until you are certain, or using the workflow-type rename below, whose drain window is
+visible.
+
 ### Or give the new shape a new name
 
 When you cannot wait for runs to drain, register the changed workflow under a **new type name** and
@@ -75,8 +121,9 @@ final class CheckoutV2Workflow { … }
 Executions resolve their handler by the type recorded when they started, so runs already in flight
 never see the new class. New runs start on `checkout-v2`.
 
-This costs two classes and a drain window, and it is currently the only way to change a workflow
-without waiting. A per-change-point versioning primitive is a separate piece of work.
+This costs two classes and a drain window. It remains the right answer when the change is **too
+large to express as a branch** — a different set of activities, a different shape entirely — where a
+change point would only make one workflow carry two workflows.
 
 ## What is not checked
 
@@ -95,5 +142,8 @@ of resolving the wrong recorded value in silence, but reverting will not bring t
 
 ---
 
-The decision behind all of this, including why the check rests only on what the journal already
-records, is [DUR042](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR042-replay-divergence-guard.md).
+The decisions behind all of this: [DUR042](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR042-replay-divergence-guard.md)
+for why the check rests only on what the journal already records, and
+[DUR044](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR044-declared-change-points.md)
+for change points — including why an execution older than the point is recognised rather than
+marked, and why the search attribute is part of the primitive rather than an extra.

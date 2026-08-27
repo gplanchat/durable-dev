@@ -396,7 +396,36 @@ Less freedom, one class of mistakes removed at analysis time. See
 
 ---
 
-## 7. Nexus: the one place Durable is ahead
+## 7. Workflow versioning: no longer a gap
+
+Both let one class carry two behaviours and let history decide which a run sees:
+
+```php
+// Temporal PHP SDK
+$v = yield Workflow::getVersion('add-discount', Workflow::DEFAULT_VERSION, 1);
+
+// Durable
+$v = $this->environment->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
+```
+
+The wire format is the same one, and not by imitation — it was read off a history the Go SDK
+produced, then emitted from the bridge and accepted by the server. A versioned Durable execution and
+a versioned Go execution record the identical `Version` marker and the identical
+`TemporalChangeVersion` search attribute, so both come back from the same query when you ask who is
+still on an old branch.
+
+Two differences remain, and neither is about the primitive:
+
+| | |
+|---|---|
+| **Worker versioning** | Build ids, deployment names, pinning a run to a worker version — the operational mechanism that lives in the worker and the task queue rather than in workflow code. The SDK has it; Durable does not. |
+| **Knowing when a branch is dead** | A query on the Temporal backend, for both. On Durable's journal backends there are no search attributes, so the question has no equivalent answer. |
+
+See [Changing a running workflow](../deploying/).
+
+---
+
+## 8. Nexus: the one place Durable is ahead
 
 [Nexus](https://docs.temporal.io/nexus) routes a call from a workflow to an operation served in
 another namespace or another cluster. **A Durable workflow can call one; a workflow written with the
@@ -439,13 +468,12 @@ The reasoning is recorded in
 
 ---
 
-## 8. Where the SDK is ahead
+## 9. Where the SDK is ahead
 
 | | |
 |---|---|
 | **Maintenance** | Official Temporal project, kept in parity with the other language SDKs |
 | **Maturity** | Long production track record. Durable is `0.1.0-alpha`, with breaking changes between alphas |
-| **Workflow versioning** | `Workflow::getVersion()` lets one class carry both behaviours and lets history decide which a run sees. **Durable has no equivalent**: changing a workflow with runs in flight means registering a new workflow type and waiting for the old ones to drain. The gap is real, and it is a gap in *convenience* rather than in safety — a divergent deploy is [caught and reported](../deploying/), the task fails, and reverting resumes the run. It used to resolve the wrong recorded value in silence |
 | **Saga** | A dedicated helper. Durable has none — the shape is a deadline and a compensation path, written out in [Creating a workflow](../workflows/#bounding-a-wait-in-time), so what is missing is the sugar rather than the capability |
 | **API coverage** | Broad. Durable covers search attributes, cron schedules, updates, deadlines and child workflows — but search attributes are **start options** here, where the SDK also lets a running workflow upsert its own; anything beyond that is worth checking against the [Configuration reference](../configuration/) before you commit |
 
@@ -457,8 +485,8 @@ particular should be weighed before choosing Durable for workflows expected to r
 ## Choosing
 
 **Use the Temporal PHP SDK** when you already operate a Temporal cluster, want the officially
-maintained client with cross-language parity, need workflow versioning or a Nexus **handler**, and
-RoadRunner is acceptable in your deployment.
+maintained client with cross-language parity, need **worker** versioning — build ids, pinning a run
+to a worker version — or a Nexus **handler**, and RoadRunner is acceptable in your deployment.
 
 **Coming from the SDK?** `gplanchat/durable-rector` does the mechanical part: the attributes and
 the failure classes, keeping the workflow and activity **type names** a running server already knows
