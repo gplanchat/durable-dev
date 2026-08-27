@@ -106,10 +106,6 @@
     </MissingOverrideAttribute>
   </file>
   <file src="src/Bridge/Temporal/Worker/TemporalWorkflowCommandBuffer.php">
-    <InvalidArgument>
-      <code><![CDATA[\Google\Protobuf\Internal\GPBType::MESSAGE]]></code>
-      <code><![CDATA[\Google\Protobuf\Internal\GPBType::STRING]]></code>
-    </InvalidArgument>
     <InvalidOperand>
       <code><![CDATA[$seconds - $whole]]></code>
       <code><![CDATA[($seconds - $whole) * 1_000_000_000]]></code>
