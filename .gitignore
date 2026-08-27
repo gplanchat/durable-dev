@@ -20,6 +20,7 @@ hugo-docs/.hugo_build.lock
 vendor/
 .phpunit.cache/
 .php-cs-fixer.cache
+__pycache__/
 
 # Cache du noyau Symfony construit par les tests d'intégration du bundle.
 /var/
