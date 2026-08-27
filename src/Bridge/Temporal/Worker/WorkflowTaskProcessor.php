@@ -8,12 +8,15 @@ use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Temporal\Api\Enums\V1\QueryResultType;
+use Temporal\Api\Failure\V1\Failure;
 use Temporal\Api\Query\V1\WorkflowQueryResult;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
+use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskFailedRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
@@ -45,7 +48,13 @@ final class WorkflowTaskProcessor
             return false;
         }
 
-        $result = $this->runner->run($poll);
+        try {
+            $result = $this->runner->run($poll);
+        } catch (WorkflowTaskFailure $e) {
+            $this->respondTaskFailed($poll->getTaskToken(), $e);
+
+            return true;
+        }
         $commands = $result->commands;
 
         $queryResults = [];
@@ -74,6 +83,29 @@ final class WorkflowTaskProcessor
                 break;
             }
         }
+    }
+
+    /**
+     * Échoue la **tâche**, pas l'exécution : aucune commande n'est émise, donc l'historique
+     * n'apprend rien de cette tentative et le serveur redonne la tâche.
+     *
+     * `cause` reste à sa valeur par défaut, `UNSPECIFIED` : les causes que le serveur énumère
+     * décrivent des fautes de protocole du worker, et une divergence de replay n'en est pas une.
+     * En inventer une dirait au serveur quelque chose de faux.
+     */
+    private function respondTaskFailed(string $taskToken, WorkflowTaskFailure $reason): void
+    {
+        $failure = new Failure();
+        $failure->setMessage($reason->getMessage());
+        $failure->setSource('DurableWorkflowWorker');
+
+        $req = new RespondWorkflowTaskFailedRequest();
+        $req->setNamespace($this->settings->namespace->name());
+        $req->setIdentity($this->settings->identity);
+        $req->setTaskToken($taskToken);
+        $req->setFailure($failure);
+
+        GrpcUnary::wait($this->client->RespondWorkflowTaskFailed($req, [], ['timeout' => TemporalGrpcTimeouts::RESPOND_WORKFLOW_TASK_US]));
     }
 
     private function pollOnce(): PollWorkflowTaskQueueResponse
