@@ -20,5 +20,4 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
-| `docs/comparison-authoring-surface` | comparatif SDK Temporal | §2 réordonnée, §4 face à face, §5 fibres vs générateurs, ordre des colonnes | en cours |
 | `change/divergence-guard-probe` | garde de divergence au replay | tâches 1.1–1.4 (sonde) | en cours |
