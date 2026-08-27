@@ -50,3 +50,10 @@ unsafe = true
 endLevel = 3
 ordered = false
 startLevel = 2
+
+# Le bloc de code de la home est fait de <div style="white-space: pre">, une
+# ligne par ligne de PHP : le minifieur HTML écrase leur indentation (il ne lit
+# pas les styles inline). On garde la minification CSS/JS, on lâche celle du
+# HTML — 150 Ko sur 5,2 Mo, sous un quota de 9 Mo.
+[minify]
+  disableHTML = true
