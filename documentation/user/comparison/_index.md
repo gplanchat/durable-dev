@@ -268,7 +268,50 @@ Less freedom, one class of mistakes removed at analysis time. See
 
 ---
 
-## 6. Where the SDK is ahead
+## 6. Nexus: the one place Durable is ahead
+
+[Nexus](https://docs.temporal.io/nexus) routes a call from a workflow to an operation served in
+another namespace or another cluster. **A Durable workflow can call one; a workflow written with the
+official PHP SDK cannot.**
+
+```php
+$order = $this->environment->await(
+    $this->environment->nexusOperation(
+        'checkout-endpoint',
+        'com.example.checkout',
+        'placeOrder',
+        ['cartId' => $cartId],
+    ),
+);
+```
+
+The three names are value objects rather than strings, because the server only guards the first: it
+refuses a malformed endpoint outright, and accepts an empty or whitespace-only service or operation
+without a word — leaving the call waiting for a handler whose name will never match.
+
+At the time of writing, "Nexus" appears in the PHP SDK only as generated gRPC plumbing — endpoint
+CRUD on the operator client, a task-slot option on the worker, history dumping — with no API a
+workflow can reach. Temporal's own documentation carries a Nexus section for Go, Java, Python,
+TypeScript and .NET, and none for PHP. On the Durable side the caller path is exercised by
+integration tests against a real Temporal server: round trips, cancellation and failure, operation
+bounds, and the endpoint, service, operation and header naming rules.
+
+Two limits come with it, and both are deliberate:
+
+- **Caller only.** Durable calls Nexus operations; it does not serve them. A handler needs its own
+  Nexus task worker, poll loop, dispatch and failure vocabulary — none of which the caller path
+  touches. That is a separate piece of work, not an oversight.
+- **Temporal backend only.** Nexus routes to an endpoint served elsewhere; a backend keeping its
+  journal in one database has no such route and no honest fallback. The DBAL backend therefore
+  **refuses immediately** with `NexusUnsupportedByBackendException`, which names the backend and
+  what to do instead, rather than leaving the workflow waiting on a result nobody will produce.
+
+The reasoning is recorded in
+[DUR036](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md).
+
+---
+
+## 7. Where the SDK is ahead
 
 | | |
 |---|---|
@@ -276,7 +319,6 @@ Less freedom, one class of mistakes removed at analysis time. See
 | **Maturity** | Long production track record. Durable is `0.1.0-alpha`, with breaking changes between alphas |
 | **Workflow versioning** | `Workflow::getVersion()`. **Durable has no equivalent** — this is the significant functional gap for long-running workflows that must evolve while runs are in flight |
 | **Time skipping in tests** | Provided by the test server. No Durable equivalent |
-| **Nexus** | Full support. Durable is **caller-only** ([DUR036](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md)) |
 | **Saga** | Dedicated helper. In Durable, written by hand |
 | **API coverage** | Broad. Durable covers search attributes, cron schedules, updates, deadlines and child workflows; anything beyond that is worth checking against the [Configuration reference](../configuration/) before you commit |
 
@@ -288,13 +330,14 @@ particular should be weighed before choosing Durable for workflows expected to r
 ## Choosing
 
 **Use the Temporal PHP SDK** when you already operate a Temporal cluster, want the officially
-maintained client with cross-language parity, need workflow versioning or full Nexus support, and
+maintained client with cross-language parity, need workflow versioning or a Nexus **handler**, and
 RoadRunner is acceptable in your deployment.
 
 **Use Durable** when you want durable execution without adding a second runtime to your Symfony
 application, when a single SQL database is the right operational footprint, when you want workflow
-logic covered by unit tests that need no infrastructure — and when an alpha with breaking changes
-between releases is a trade you can make.
+logic covered by unit tests that need no infrastructure, or when you need to **call** Nexus
+operations from PHP at all — and when an alpha with breaking changes between releases is a trade you
+can make.
 
 ---
 
