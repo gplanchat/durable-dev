@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted — **`EventStoreInterface` implemented**; the three other ports remain to be written.
 
 ## Context
 
@@ -111,14 +111,44 @@ reader from "fixing" it into the suite.
 - **Temporal's read-through store gets checked for the first time.** This is the consequence most
   likely to surface a defect rather than confirm one — DUR029 conversion is where the shapes could
   already have diverged, and the suite will say so.
-- **`phpunit/phpunit` becomes a `suggest` on the runtime package.** A real cost, taken with a
-  precedent already in the repository rather than as a new habit.
+- **The `phpunit/phpunit` cost was already paid.** This ADR listed it as a real cost; it is not one.
+  `gplanchat/durable` already carries `phpunit/phpunit` under `require-dev` and already ships
+  `Testing\DurableTestCase`, `Testing\ActivitySpy` and `Testing\WorkflowTestEnvironment`. The
+  suite joined a `Testing/` namespace that existed, and the `suggest` line was extended rather than
+  added.
 - **A conformance suite freezes the contract.** Every port change becomes a change to the suite and
   to every adapter behind it. That is the point, and it will read as friction on the first port
   change that is not a bug fix.
 - **The suite cannot prove what it does not know to ask.** It pins the shape the reference produces
   today. **Adding an event type means adding a case** — the guard is only as wide as its case list,
   and that is the follow-up rule this ADR leaves behind.
+
+## What the implementation added
+
+Three things the decision did not foresee, recorded because each is a rule rather than a detail:
+
+- **The two tiers are two classes, not a flag.**
+  `EventStoreReplayConformanceTestCase extends EventStoreConformanceTestCase`. An adapter that can
+  drive a workflow in-process extends the second and inherits both tiers; one answering to a server
+  extends the first and replays the second in the integration suite. A skipped case would have been
+  the silent omission this ADR set out to prevent — a class declaration is not skippable.
+  The reference does **not** extend the replay case: a store cannot be differenced against itself.
+- **The coverage guard compares against the directory.** `testEveryEventTypeIsCoveredOrExplicitly-
+  Excluded` globs `src/Durable/Event/*.php` and requires every class to be either a fixture or in
+  `eventTypesOutsideTheJournal()` — today the five Nexus events, which `EventDataMapper` does not
+  map and a SQL journal never sees (DUR036). Adding an event type now fails the suite until somebody
+  chooses a side.
+- **The fixtures needed hostile values, and only a mutation said so.** The first fixture set passed a
+  deliberate `JSON_NUMERIC_CHECK` mutation of `DbalEventStore` — nothing in it looked like a number.
+  A SKU with a leading zero (`'0042'`), an integer past `PHP_INT_MAX` as a string, `'1e3'`, `false`,
+  `null` and an empty list went in, and the mutation then failed as it should. **A fidelity fixture
+  made of well-behaved values proves nothing**, and that is why these are in the suite rather than in
+  a comment.
+
+One side effect worth naming: the suite lives in `src/`, so PHPStan analyses a legitimate
+`ActivityStub` call for the first time. `phpstan.neon` now `includes` the repository's own
+`src/DurablePhpstan/extension.neon` — the extension that exists precisely to resolve those calls
+(DUR038), and which the repository had never pointed at its own source. No new errors followed.
 
 ## References
 
