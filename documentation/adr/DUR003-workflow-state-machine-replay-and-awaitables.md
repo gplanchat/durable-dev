@@ -51,10 +51,20 @@ Awaitables are the synchronization primitives between workflow code and the fibe
 
 A workflow must be **deterministic**: for the same event stream (history), the workflow code must produce the same sequence of awaitables and the same commands. No dependence on wall-clock time, unlogged randomness, or I/O.
 
-`WorkflowTaskRunner` enforces determinism by:
-1. Consuming history events strictly in chronological order (slot N must be resolved before slot N+1 is encountered)
-2. Comparing the awaitable type and identity at each suspension point against the history record for that slot
-3. Raising a non-determinism error if a mismatch is detected
+`WorkflowTaskRunner` consumes history events strictly in chronological order: slot N is resolved
+before slot N+1 is encountered.
+
+> **Corrected by DUR041.** This section used to claim two more things — that the runner compared
+> the awaitable type and identity at each suspension point against the history record, and raised a
+> non-determinism error on mismatch. **Neither was implemented.** The runner contained no
+> comparison and no such error, and slots resolved by position alone. Measured against a real
+> server, swapping the activity at slot 0 between two deployments made the run resolve with the
+> other call's recorded result and **complete successfully** carrying it.
+>
+> The comparison now exists, in `ExecutionContext` rather than in the runner, and it fails the
+> workflow **task** rather than the execution. Its scope, the identity used per slot kind, and the
+> slot kind left uncovered are recorded in
+> [DUR041](DUR041-replay-divergence-guard.md).
 
 ### Replay loop (summary)
 
