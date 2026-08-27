@@ -170,10 +170,13 @@ def inline_logos(root: str) -> str:
     if not (painted or imaged):
         die("aucun logo reconnu : la mécanique du design a encore changé")
 
-    # Le tiret compte : `logo-api-platform.svg` ne correspondait à aucun des
-    # trois motifs ci-dessus, garde comprise — donc pas d'incorporation, et
-    # pas d'erreur non plus : le glyphe de repli passait en silence.
-    orphans = sorted(set(re.findall(r"logo-[a-z-]+\.svg", root)))
+    # La garde est délibérément plus large que les deux motifs ci-dessus, et c'est
+    # tout son travail : elle doit attraper les noms qu'ils ratent. Elle était aussi
+    # étroite qu'eux, donc `logo-api-platform.svg` n'était ni incorporé ni signalé —
+    # le glyphe de repli passait en production en silence. Élargir les trois de la
+    # même façon aurait refermé le tiret et laissé la classe ouverte : un chiffre,
+    # un underscore ou une capitale repassait pareil.
+    orphans = sorted(set(re.findall(r"logo-[^\"'\s>]+\.svg", root)))
     if orphans:
         die(f"logos non incorporés, le repli s'afficherait à leur place : {orphans}")
 
