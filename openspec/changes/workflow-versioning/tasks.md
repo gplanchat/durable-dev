@@ -16,18 +16,22 @@
 
 ## 2. The primitive
 
-- [ ] 2.1 RED: a run reaches the marker on old code, is replayed on new code, and still sees the
-      old version. Two workflow classes, one history.
-      **Not done, and it needs something the engine does not have.** The primitive below covers a
-      run that *recorded* a version. This scenario is the other one: a run that passed this point
-      **before the change point existed**, whose journal therefore holds no marker at all. Temporal
-      answers `DefaultVersion` there, and knows to, because its SDK tracks whether the current task
-      is replaying recorded history or producing new work. Durable has **no such signal** — there is
-      no `isReplaying` anywhere in the engine, and the history source cannot say whether a call
-      sits inside the replayed prefix or past its end.
-      Today `version()` would hand such a run the *new* behaviour, which is the opposite of what
-      versioning is for. Closing it means adding a replaying signal to the port and both history
-      sources; that is its own slice, and guessing at it here would have shipped the bug quietly.
+- [x] 2.1 A run that passed this point **before it existed** keeps the old behaviour.
+      Its journal holds no marker, and the answer is `DEFAULT_VERSION`.
+      **The signal this needed turned out to already be there.** Temporal knows because its SDK
+      tracks whether the current task is replaying; this engine has no such flag — but it does not
+      need one. The question "is this call inside the replayed prefix" is answerable from the port
+      as it stands: if the **next** slot of any kind is already recorded, there is work ahead that
+      this pass has not reached, so the call sits in the prefix. Four existing lookups, no new port
+      method.
+      Deduced rather than stored, so it is deterministic: two replays of the same history answer
+      the same, which is the only property versioning needs. And nothing is written — an old run
+      is not marked, it is recognised.
+      **The gap, stated:** side effects are not consulted. `findSideEffectForSlot()` returns
+      `mixed`, and a recorded value may legitimately be `null`, so "nothing here" and "here, the
+      value null" are indistinguishable. A workflow whose only work before a change point is a side
+      effect is therefore treated as new. Narrow, and written down rather than discovered later.
+      Checked that the tests discriminate: with the signal neutralised, three of them fail.
 - [x] 2.2 GREEN: `WorkflowEnvironment::version()`, `VersionMarked` in the journal, resolution from
       history on replay, and the `TemporalChangeVersion` upsert alongside the marker.
       Verified against a real server: a versioned Durable workflow produces a history **identical**
