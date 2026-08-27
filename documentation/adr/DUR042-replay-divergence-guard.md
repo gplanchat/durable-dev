@@ -86,8 +86,14 @@ nowhere, and every throw from workflow code became a `FailWorkflowExecution` com
 - **Backends with no notion of a task** treat `WorkflowTaskFailure` like any other exception: there,
   the guard converts silent corruption into a failed run. Better than the alternative, and not the
   revert-and-resume story.
-- **The cost on the normal path** is one lookup per slot. An unchanged workflow compares equal
-  everywhere and behaves exactly as before.
+- **The cost on the normal path** is one lookup per slot: **+26 %** on a replay of 400 completed
+  activity slots, measured on the journal backend. An unchanged workflow compares equal everywhere
+  and behaves exactly as before.
+- **Replaying a long history is quadratic in the number of slots, and was already** — every slot
+  lookup in `EventStoreHistorySource` re-reads the whole stream. Doubling the slots quadruples the
+  time with the guard and without it. The guard adds a constant factor to that, it does not create
+  it. Memoising the read is a change to the history source, not to this decision, and it would help
+  the four lookups that predate the guard more than the guard itself.
 - **DUR003 is corrected**: it described points 2 and 3 as implemented, and they were not.
 
 ## Alternatives considered
