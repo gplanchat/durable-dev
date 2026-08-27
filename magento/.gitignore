@@ -21,6 +21,9 @@
 #                                  en demande
 #   .env.example                   les variables que compose.yaml attend
 #   README.md                      comment amorcer, et sur quoi c'est épinglé
+#   probe-lock.php                 la sonde du §1.4 : le verrou est-il partagé
+#                                  entre processus ? Elle se rejoue sur un autre
+#                                  hôte, dont le `lock.provider` peut différer
 #
 # `sylius/` fait l'inverse — liste d'exclusions — parce que là-bas le squelette
 # applicatif **est** du code du projet : 220 fichiers écrits ici. Ici il y en a
@@ -35,3 +38,4 @@
 !auth.json.sample
 !.env.example
 !README.md
+!probe-lock.php

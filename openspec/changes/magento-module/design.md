@@ -24,8 +24,12 @@ probed yet**, and the design says where it is therefore guessing.
   was the bench's default ports, held by the benches beside it;
 - what a `queue_consumer.xml` consumer does when its process dies mid-message — redelivery, dead
   letter, or silence;
-- whether `LockManagerInterface`'s default implementation is shared across consumer processes, or
-  per-process the way an unconfigured Symfony lock factory is;
+- ~~whether `LockManagerInterface`'s default implementation is shared across consumer processes~~ —
+  **answered by §1.4**: it is, and the answer came with a caveat the design had not seen. The bench
+  configures `lock.provider: db`; the container hands out a `Lock\Proxy` that names nothing until
+  it has worked, and `Backend\Database` behind it refuses a second process the lock a first holds.
+  A `SIGKILL`ed holder releases it, because `GET_LOCK` dies with its connection. The caveat:
+  `Backend\Database::lock()` **returns `true` without locking** when `isDbAvailable()` is false;
 - how a Magento consumer behaves against a long-poll transport, which is what the Temporal bridge's
   workers are.
 
@@ -82,8 +86,17 @@ default `Magento\Framework\Lock\Backend\Database` is shared by construction — 
 application database — which is a better default than Symfony's, but the module must not assume the
 default is what is configured.
 
-This is the design's only real invariant, and it is inherited rather than discovered. It still gets
-probed (task 1.3) before it is trusted.
+This is the design's only real invariant, and it is inherited rather than discovered. **§1.4 probed
+it and it holds** — two processes, `magento/probe-lock.php`, the second refused while the first
+holds. A killed holder releases it too, so a crashed consumer costs a resume, not a wedged
+execution.
+
+What the probe found that reading the class would not: the container hands out a
+`Magento\Framework\Lock\Proxy`, which names no backend until it has been made to work. A startup
+refusal cannot read `get_class()` on the lock manager and conclude anything. And
+`Backend\Database::lock()` returns `true` **without taking any lock** when
+`DeploymentConfig::isDbAvailable()` is false — a lock that always says yes, which is exactly the
+failure this section exists to prevent and the shape §2.3's refusal has to recognise.
 
 ## Backends: two, and the reason is not laziness
 

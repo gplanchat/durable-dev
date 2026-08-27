@@ -30,10 +30,14 @@ unmeasured.
 - [ ] 1.3 **What a dying consumer leaves behind.** Kill `queue:consumers:start` mid-message and
       record what happens: redelivery, dead letter, or silence. This is the failure the whole
       integration exists to remove, and the design must not guess at its shape.
-- [ ] 1.4 **Whether `LockManagerInterface` is shared across processes.** The design's only invariant
-      rests on it. `Magento\Framework\Lock\Backend\Database` should be shared by construction — a
-      `GET_LOCK` on the application database — but *should* is what probing is for. Measure it with
-      two processes, not by reading the class.
+- [x] 1.4 **Whether `LockManagerInterface` is shared across processes. It is** — measured, two
+      processes, `magento/probe-lock.php`. The bench configures `lock.provider: db` explicitly;
+      `Magento\Framework\Lock\Backend\Database` sits behind a `Lock\Proxy`, and a second process
+      is refused a lock the first holds. **A killed holder releases it** — `GET_LOCK` dies with its
+      connection, so a crashed consumer does not wedge an execution.
+      **But the backend answers `true` without locking anything when `isDbAvailable()` is false**
+      (read, not measured), which is the shape the startup refusal of §2.3 has to catch: a lock that
+      always says yes is worse than none.
 - [ ] 1.5 How a Magento consumer behaves against a **long-poll** transport, which is what the
       Temporal bridge's workers are. A consumer runner that assumes short messages may starve or
       time out; if it does, the worker shape changes and task 4 changes with it.
