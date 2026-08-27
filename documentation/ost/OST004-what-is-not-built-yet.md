@@ -124,9 +124,9 @@ the two surfaces — that is what it is for. **A difference the comparison page 
 is, for most rows, a difference a Rector rule can rewrite**, and for the rest it is a difference a
 Rector rule can *report* precisely enough that a human knows what is left.
 
-The skeleton is already on disk — `src/DurableRector/config/sets/` and
-`src/DurableRector/tests/Rector/Fixture/` — and contains no file. This section is what would go in
-them.
+**Bucket 1 below is written.** `gplanchat/durable-rector` exists, ships
+`config/sets/temporal-sdk.php`, and is covered by `tests/unit/DurableRector/`. Buckets 2 and 3 are
+still what this section describes rather than what the package does.
 
 `gplanchat/durable-phpstan` is the precedent for the packaging: a first-party satellite,
 `self.version` against the core, its own `type`, published by splitsh like the rest
@@ -144,10 +144,13 @@ them.
 | `Temporal\Exception\Failure\ActivityFailure` → `DurableActivityFailedException`, and the rest of the failure hierarchy | A class rename map |
 | `Promise::all()` / `Promise::any()` → `$this->environment->all()` / `any()` | A static-method rename, plus the receiver change of bucket 2 |
 
-Rector ships configurable rules for all five shapes; **which ones, by name, gets pinned when the set
-file is written** against the version in `composer.json` rather than quoted from memory here.
+Only the last two turned out to be configuration. The three attribute rows are **name synthesis**,
+not renaming — see the caveat below — so they are two rules of the package's own,
+`ActivityContractAttributesRector` and `WorkflowClassAttributesRector`. The failure map is
+`RenameClassRector` (Rector's own; not `ClassRenameRector`, which is what memory offers and what the
+first draft of this document said).
 
-Register: **wiring**. A day of map-writing and a fixture per row.
+Register: **wiring**, and it was.
 
 **Bucket 2 — type- and scope-aware transforms.** This is where the weeks are, and each of the three
 below is its own rule with its own failure mode.
@@ -193,7 +196,9 @@ five minutes. Undecided, and cheap either way.
 **`temporal/sdk` must never enter `composer.lock`.** The comparison page states publicly that it is
 not there, and [DUR006](../adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md) is why.
 Rector matches on fully-qualified name strings and does not autoload the classes it rewrites, so the
-fixtures declare stub SDK classes in the test namespace. A `require-dev` on the SDK would be the
+fixtures declare stub SDK attributes **under the SDK's own namespace**, in this repository's test
+tree — the namespace has to be the real one for the rules to match, and only the shape they read is
+reproduced. A `require-dev` on the SDK would be the
 lazy route and it would falsify a published claim.
 
 **The type name has to survive the attribute rewrite — and it is three attributes, not one.** The
@@ -211,13 +216,14 @@ get the integration fixture.
 
 ### What the set does not promise
 
-Not a push-button migration. The deliverable is the mechanical majority, plus a report naming
+Not a push-button migration. What bucket 1 ships is the attribute half: after it runs, `yield` is
+still `yield` and `Workflow::` is still a static call. The deliverable is the mechanical majority, plus a report naming
 precisely what a human must decide — which is a smaller promise than "migrate your project", and the
 only one the buckets support.
 
 | Item | Register | Blocked on |
 |---|---|---|
-| Bucket 1 — the rename map | Wiring | — |
+| Bucket 1 — attributes and the failure map | Wiring | **Done** — `gplanchat/durable-rector` |
 | Bucket 2 — colour removal, receiver injection | A bootstrap | Nothing technical; a fixture corpus first |
 | Bucket 3 — the report | Wiring | Its home (Rector or PHPStan), and **`workflow-versioning`** for the `getVersion()` row to say anything but "you cannot" |
 
@@ -234,7 +240,7 @@ available.
 | `workflow-replay-divergence-guard` | Wiring — 11/20 | — |
 | Conformance suites, three remaining store ports | Wiring | — |
 | Saga helper | Wiring, small | — |
-| Rector bucket 1 | Wiring | — |
+| ~~Rector bucket 1~~ | Wiring | **Done** |
 | API Platform state processor | Wiring | — |
 | Shopware 6, Sulu | Wiring | A real user |
 | Rector bucket 3 | Wiring | Its home; `workflow-versioning` for one row |
