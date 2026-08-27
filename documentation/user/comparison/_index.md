@@ -28,12 +28,12 @@ and a worker is an ordinary PHP CLI consumer:
 bin/console messenger:consume durable_workflows durable_activities
 ```
 
-| | Temporal PHP SDK | Durable |
+| | Durable | Temporal PHP SDK |
 |---|---|---|
-| Worker process | RoadRunner (Go binary), supervised by RoadRunner | `messenger:consume`, supervised by whatever already supervises your workers |
-| Extra binary in the image | yes | no |
-| Worker configuration | `.rr.yaml` | `messenger.yaml` |
-| Deployment model | a second process model to learn and operate | the one your Symfony application already uses |
+| Worker process | `messenger:consume`, supervised by whatever already supervises your workers | RoadRunner (Go binary), supervised by RoadRunner |
+| Extra binary in the image | no | yes |
+| Worker configuration | `messenger.yaml` | `.rr.yaml` |
+| Deployment model | the one your Symfony application already uses | a second process model to learn and operate |
 
 ### What this does *not* claim
 
@@ -159,12 +159,12 @@ deadlines, updates, cron schedules, search attributes, Nexus. It is deliberately
 about the *bridge*, not about your business logic. Your workflows are covered by the unit tier, which
 needs nothing. With the SDK, the server-backed tier is the only tier there is.
 
-| | Temporal PHP SDK | Durable |
+| | Durable | Temporal PHP SDK |
 |---|---|---|
-| Unit tier (business logic) | none — every workflow test is out-of-process | PHPUnit, in-process, zero infrastructure |
-| Server-backed tier | mandatory, for all workflow tests | optional, scoped to wire and protocol parity |
-| What it needs | test server + RoadRunner | a Temporal dev server + `ext-grpc` |
-| Runs in CI without Docker | no | the unit tier does |
+| Unit tier (business logic) | PHPUnit, in-process, zero infrastructure | none — every workflow test is out-of-process |
+| Server-backed tier | optional, scoped to wire and protocol parity | mandatory, for all workflow tests |
+| What it needs | a Temporal dev server + `ext-grpc` | test server + RoadRunner |
+| Runs in CI without Docker | the unit tier does | no |
 
 ### The honest cost
 
@@ -188,11 +188,11 @@ complete would make the timer win every `any(activity, timer)` race. See
 
 ## 3. Backends: one, or three
 
-| | Temporal PHP SDK | Durable |
+| | Durable | Temporal PHP SDK |
 |---|---|---|
-| Execution backends | a Temporal cluster | **three**, running the same workflow code |
-| Tests | test server | In-Memory, no server |
-| Production without a cluster | not possible | **DBAL** — durable execution on one SQL database |
+| Execution backends | **three**, running the same workflow code | a Temporal cluster |
+| Tests | In-Memory, no server | test server |
+| Production without a cluster | **DBAL** — durable execution on one SQL database | not possible |
 
 The DBAL backend ([DUR030](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR030-dbal-backend-simplified-durable-execution.md))
 has no counterpart in the SDK: a journal, workflow metadata and locks on a single relational
@@ -207,51 +207,70 @@ See [Backends](../backends/).
 
 ## 4. The authoring surface
 
-**Temporal PHP SDK** — static facade, generators, promises:
-
-```php
-#[WorkflowMethod]
-public function handle(string $input)
-{
-    $activity = Workflow::newActivityStub(MyActivity::class);
-    $result = yield $activity->doWork($input);
-    yield Workflow::sleep(60);
-
-    return $result;
-}
-```
+The same workflow — charge an order, wait an hour, send the receipt — written twice.
 
 **Durable** — injected environment, fibers, plain return types:
 
 ```php
-#[Workflow('TimerThenTickWorkflow')]
-final class TimerThenTickWorkflow
+#[Workflow(name: 'order')]
+final class OrderWorkflow implements OrderWorkflowContract
 {
-    private readonly ActivityStub $tick;
-
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
-        $this->tick = $environment->activityStub(TickActivityInterface::class);
     }
 
     #[WorkflowMethod]
-    public function run(float $seconds = 0.01): string
+    public function run(string $orderId): string
     {
-        $this->environment->timer($seconds);
+        $activities = $this->environment->activityStub(OrderActivities::class);
 
-        return $this->environment->await($this->tick->tick());
+        $charge = $this->environment->await($activities->charge($orderId));
+        $this->environment->sleep(Duration::hours(1));
+
+        return $this->environment->await($activities->sendReceipt($charge));
     }
 }
 ```
 
-| | Temporal PHP SDK | Durable |
+**Temporal PHP SDK** — static facade, generators, promises:
+
+```php
+#[WorkflowInterface]
+interface OrderWorkflowContract
+{
+    #[WorkflowMethod]
+    public function run(string $orderId);
+}
+
+final class OrderWorkflow implements OrderWorkflowContract
+{
+    public function run(string $orderId)
+    {
+        $activities = Workflow::newActivityStub(OrderActivities::class);
+
+        $charge = yield $activities->charge($orderId);
+        yield Workflow::sleep(3600);
+
+        return yield $activities->sendReceipt($charge);
+    }
+}
+```
+
+Same steps, same names, same order. What differs is everything around them:
+
+| | Durable | Temporal PHP SDK |
 |---|---|---|
-| Access to the engine | static `Workflow::` facade | `WorkflowEnvironment` injected in the constructor |
-| Suspension | `yield` + `React\Promise\PromiseInterface` | fibers + `Awaitable` |
-| Function colouring | any awaiting method becomes a generator, and so does its caller | ordinary methods, declared return types |
-| Declaration | `#[WorkflowInterface]` on an interface, implemented by a class | `#[Workflow]` on the class |
-| Method attributes | `#[WorkflowMethod]`, `#[SignalMethod]`, `#[QueryMethod]`, plus workflow updates | the same four |
+| Access to the engine | `WorkflowEnvironment` injected in the constructor | static `Workflow::` facade |
+| Suspension | fibers + `Awaitable` | `yield` + `React\Promise\PromiseInterface` |
+| Function colouring | ordinary methods, declared return types | any awaiting method becomes a generator, and so does its caller |
+| Declaration | `#[Workflow]` on the class | `#[WorkflowInterface]` on an interface, implemented by a class |
+| Method attributes | `#[WorkflowMethod]`, `#[SignalMethod]`, `#[QueryMethod]`, `#[UpdateMethod]` | the same four, workflow updates included |
+
+The return type is the visible consequence: `run()` declares `string` on one side; on the other, the
+only type it could declare is `\Generator`, which says nothing about what the workflow returns. That
+is what makes the Durable class an ordinary object a PHPUnit test can build and call — see
+[Testability](#2-testability).
 
 The attribute vocabulary is deliberately close; the execution model underneath is not.
 
