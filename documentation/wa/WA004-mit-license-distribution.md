@@ -55,10 +55,24 @@ Dependencies **retain their own licenses**; this WA does not override upstream t
 
 The root **README** (and package READMEs where relevant) **should** state that the project is under the **MIT License** and point to the relevant **`LICENSE`** file (monorepo root or package directory).
 
+### The documented exception: third-party marks
+
+`hugo-docs/assets/logos/` holds eighteen SVG files, and every one reproduces a mark belonging to
+somebody else. They are used nominatively — naming the projects Durable integrates with — which is
+ordinary. Shipping them under a grant that says *do what you like with this* is not, and this
+working agreement would otherwise say exactly that by omission.
+
+[`hugo-docs/assets/logos/README.md`](../../hugo-docs/assets/logos/README.md) is that exception: it
+records each mark's provenance, states that the MIT grant does not extend to them, and lists what
+each project's published policy says. **It also records one that a notice cannot settle** — API
+Platform's policy names its "Webby" design as requiring prior approval, which has not been asked
+for. That is a decision, not an attribution.
+
 ## Consequences
 
 - New packages or directories with a `composer.json` **must** use `"license": "MIT"` and add a root **`LICENSE`** file (MIT text aligned with the monorepo canonical copy) unless a documented exception exists.
 - Pull requests that change the license or introduce copyleft/proprietary **constraints** on our code need explicit maintainer agreement and document updates **before** merge.
+- A **third-party mark** added to `hugo-docs/assets/logos/` must be added to that directory's `README.md` with its provenance, and its owner's published policy checked. A mark whose policy requires approval is a decision for a maintainer, not something a notice covers.
 
 ## References
 
