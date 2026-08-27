@@ -11,8 +11,15 @@ enableGitInfo = true
 path = 'github.com/alex-shpak/hugo-book'
 
 # Déclarer un montage remplace les montages par défaut du module projet : le
-# dossier content/ local doit donc être remonté explicitement, sinon la page
-# d'accueil du site n'est jamais lue.
+# dossier content/ local doit donc être remonté explicitement, sinon Hugo ne
+# voit plus de section locale du tout.
+#
+# Il est vide à dessein. La page d'accueil est **entièrement** dans
+# `layouts/index.html`, qui ne lit jamais `.Content` : un `content/_index.md`
+# n'y changerait rien, il ne ferait que dire autre chose que la page en ligne.
+# C'est arrivé — il annonçait « trois paquets » alors que le site en montrait
+# cinq, et quelqu'un l'a corrigé consciencieusement avant de s'apercevoir qu'il
+# n'était rendu nulle part.
 [[module.mounts]]
 source = 'content'
 target = 'content'
@@ -50,3 +57,10 @@ unsafe = true
 endLevel = 3
 ordered = false
 startLevel = 2
+
+# Le bloc de code de la home est fait de <div style="white-space: pre">, une
+# ligne par ligne de PHP : le minifieur HTML écrase leur indentation (il ne lit
+# pas les styles inline). On garde la minification CSS/JS, on lâche celle du
+# HTML — 150 Ko sur 5,2 Mo, sous un quota de 9 Mo.
+[minify]
+  disableHTML = true

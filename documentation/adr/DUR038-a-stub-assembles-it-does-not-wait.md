@@ -34,7 +34,7 @@ child is started through `childWorkflowStub()`, resolved from the child's class,
 awaits — or races, or counts towards a quorum, or bounds by a deadline.
 
 `ChildWorkflowStub` receives `ChildWorkflowSchedulerInterface` rather than the whole environment,
-mirroring what DUR037 did for activities: the adapter is built by `childWorkflowStub()` and never
+mirroring what DUR039 did for activities: the adapter is built by `childWorkflowStub()` and never
 returned, so the string form stays inside the engine.
 
 ## Consequences
@@ -65,6 +65,6 @@ returned, so the string form stays inside the engine.
 
 - **DUR033** — awaitable assemblers and the single wait. This ADR extends its rule to the stubs it
   did not reach.
-- **DUR037** — the workflow authoring surface. Same narrow-port shape, applied to child workflows;
-  DUR037 excluded them on purpose to keep two breaking changes out of one review.
+- **DUR039** — the workflow authoring surface. Same narrow-port shape, applied to child workflows;
+  DUR039 excluded them on purpose to keep two breaking changes out of one review.
 - **DUR004** — `ActivityStub`. It was already right, which is what made the asymmetry visible.
