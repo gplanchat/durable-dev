@@ -2,7 +2,22 @@ baseURL = 'https://durable.rocks/'
 languageCode = 'en-us'
 title = 'Durable'
 defaultContentLanguage = 'en'
+# L'anglais reste à la racine ; le français vit sous /fr/. Sans ce faux, Hugo
+# déplacerait aussi l'anglais dans /en/ et casserait toutes les URL en ligne.
+defaultContentLanguageInSubdir = false
 enableGitInfo = true
+
+# La page d'accueil est le seul contenu traduit : `layouts/index.fr.html`. Le
+# guide reste anglais et n'est pas remonté sous /fr/ — un second exemplaire
+# complet de l'arbre servirait de l'anglais à des URL françaises.
+[languages]
+[languages.en]
+label = 'English'
+weight = 1
+[languages.fr]
+label = 'Français'
+locale = 'fr'
+weight = 2
 
 # User-facing documentation only: ../documentation/user (not ADRs/WAs — see documentation/HUGO.md).
 
@@ -61,6 +76,6 @@ startLevel = 2
 # Le bloc de code de la home est fait de <div style="white-space: pre">, une
 # ligne par ligne de PHP : le minifieur HTML écrase leur indentation (il ne lit
 # pas les styles inline). On garde la minification CSS/JS, on lâche celle du
-# HTML — 150 Ko sur 5,2 Mo, sous un quota de 9 Mo.
+# HTML — 150 Ko sur 5,2 Mo, sous un quota de 100 Mo.
 [minify]
   disableHTML = true

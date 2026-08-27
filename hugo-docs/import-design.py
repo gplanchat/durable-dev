@@ -66,6 +66,33 @@ SCALARS = {"ts": "1", "sp": "1"}
 # Les liens de cas d'usage pointaient vers des pages qui n'ont jamais existé
 # (`/docs/use-cases/<slug>`). Chacun va vers la section qui traite réellement
 # le sujet, ancre comprise ; les ancres sont vérifiées à l'exécution.
+# Quatre chaînes que le script écrit lui-même : elles ne viennent pas du
+# canevas, donc rien ne les traduisait. Elles atterrissaient en anglais au
+# milieu de la page française — le bouton de thème disait « Dark » et le
+# panneau d'annotation « Hover any line ».
+#
+# La langue se déduit du nom du fichier source (`…-fr.dc.html`), et la sortie
+# doit la porter aussi : rien n'empêcherait autrement d'écrire la page
+# française dans `layouts/index.html`, c'est-à-dire à la racine du site.
+STRINGS = {
+    "en": {
+        "theme_dark": "Dark",
+        "theme_light": "Light",
+        "note_title": "Hover any line",
+        "note_text": "Every line of this method is either recorded in the "
+                     "journal or replayed from it. Point at one to see which.",
+    },
+    "fr": {
+        "theme_dark": "Sombre",
+        "theme_light": "Clair",
+        "note_title": "Survolez une ligne",
+        "note_text": "Chaque ligne de cette méthode est soit inscrite au "
+                     "journal, soit rejouée depuis lui. Pointez-en une pour "
+                     "voir laquelle.",
+    },
+}
+
+
 LINKS = {
     "/docs/use-cases/parallelism": "/docs/workflows/#waiting-versus-assembling",
     "/docs/use-cases/quorum": "/docs/workflows/#waiting-versus-assembling",
@@ -199,8 +226,10 @@ def rewrite_links(root: str) -> str:
     # `index.dc.html`. Le canevas sait le suivre ; le site servi rend un 404 — il l'a
     # rendu jusqu'au 2026-08-27. C'est le sixième écart entre une page de canevas et
     # une page servie, et le seul qui ne se voyait qu'en cliquant.
-    # Le retrait est délibérément étroit — ce lien-là, sous ce libellé-là.
-    root = re.sub(r'<a\s+href="[^"]*\.dc\.html"[^>]*>\s*Variants\s*</a>', "", root)
+    # Le retrait vise le lien, pas son libellé : la page française dit
+    # « Variantes », et s'accrocher au mot anglais laissait passer la version
+    # traduite — c'est la garde ci-dessous qui l'a rattrapée.
+    root = re.sub(r'<a\b[^>]*href="[^"]*\.dc\.html"[^>]*>.*?</a>', "", root, flags=re.S)
 
     # La garde compte plus que le retrait, et elle doit rester plus large que lui :
     # une planche renommée ou un libellé traduit rapporterait un `.dc.html` que le
@@ -287,9 +316,26 @@ def paint_initial_command(root: str, script: str) -> str:
         die("l'emplacement de la commande statique est introuvable")
     return root
 
+def language_of(src_path: pathlib.Path, out_path: pathlib.Path) -> str:
+    """La langue vient du nom de la source, et la sortie doit la porter."""
+    stem = src_path.name.split(".")[0]
+    lang = stem.rsplit("-", 1)[-1] if stem.rsplit("-", 1)[-1] in STRINGS else "en"
+    # Hugo choisit le gabarit par l'infixe : `index.fr.html` sert /fr/,
+    # `index.html` sert la racine. Une source française écrite dans le second
+    # publierait la page française à la racine du site, sans que rien ne le
+    # signale avant la mise en ligne.
+    parts = out_path.name.split(".")
+    out_lang = parts[1] if len(parts) > 2 else "en"
+    if out_lang != lang:
+        wanted = "index.html" if lang == "en" else f"index.{lang}.html"
+        die(f"source en « {lang} » écrite dans {out_path.name}, qui sert « {out_lang} » "
+            f"— attendu {wanted}")
+    return lang
+
 
 def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
     source = src_path.read_text()
+    words = STRINGS[language_of(src_path, out_path)]
 
     root = extract_root(source)
     # Claude Design consigne ses hypothèses en commentaire HTML au fil des
@@ -303,25 +349,16 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
     root = inline_logos(root)
     root = rewrite_links(root)
 
-    # Le pied de page du canevas renvoie vers `index.dc.html`, sa propre galerie
-    # de variantes. Ce fichier n'existe pas sur le site : le lien rendait un 404,
-    # et il revenait à chaque régénération parce qu'il vit dans le canevas. On le
-    # retire ici plutôt que dans la page engendrée, qui serait réécrite au tour
-    # suivant.
-    root, dropped = re.subn(r'<a\b[^>]*href="[^"]*\.dc\.html"[^>]*>.*?</a>', "", root, flags=re.S)
-
     notes = line_notes(source)
-    default_note = (
-        "Every line of this method is either recorded in the journal or "
-        "replayed from it. Point at one to see which."
-    )
-    root = root.replace("{{ themeLabel }}", "Dark")
+    default_note = words["note_text"]
+    root = root.replace("{{ themeLabel }}", words["theme_dark"])
 
     # Le script a besoin d'une prise sur les deux éléments d'annotation ; il
     # n'en reste aucune trace une fois l'interpolation remplacée.
     root, hooked_title = re.subn(
         r"(<div\b(?![^>]*data-dz-note-title))([^>]*>)\s*\{\{\s*noteTitle\s*\}\}",
-        r"\1 data-dz-note-title\2Hover any line", root, count=1)
+        lambda m: m.group(1) + " data-dz-note-title" + m.group(2) + words["note_title"],
+        root, count=1)
     root, hooked_text = re.subn(
         r"(<p\b(?![^>]*data-dz-note-text))([^>]*>)\s*\{\{\s*noteText\s*\}\}",
         lambda m: m.group(1) + " data-dz-note-text" + m.group(2) + default_note,
@@ -334,7 +371,7 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
         die(f"interpolations non résolues, Hugo les exécuterait : {sorted(set(leftovers))[:6]}")
     if "style-hover" in root:
         die("style-hover subsiste : des survols seraient muets")
-    for banned in ("x-dc", "support.js", "data-om-id", "DCLogic", ".dc.html"):
+    for banned in ("x-dc", "support.js", "data-om-id", "DCLogic"):
         if banned in root:
             die(f"reste du canevas dans la sortie : {banned}")
 
@@ -343,7 +380,16 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
     runtime = (HERE / "assets" / "landing.js").read_text()
     runtime = runtime.replace("__NOTES__", json.dumps(notes, ensure_ascii=False))
     runtime = runtime.replace("__DEFAULT_NOTE__", json.dumps(
-        ["Hover any line", default_note], ensure_ascii=False))
+        [words["note_title"], default_note], ensure_ascii=False))
+    # Le bouton de thème est réétiqueté au chargement : le libellé statique ne
+    # se voit jamais, c'est celui-ci qui s'affiche.
+    runtime = runtime.replace("__THEME_LABELS__", json.dumps(
+        {"dark": words["theme_dark"], "light": words["theme_light"]}, ensure_ascii=False))
+    # Les gabarits sont en capitales ; `__construct(…)`, qui vit dans les
+    # annotations PHP de la page, ne doit pas les faire passer pour oubliés.
+    left = re.findall(r"__[A-Z][A-Z_]*__", runtime)
+    if left:
+        die(f"gabarit du script de page non remplacé : {sorted(set(left))}")
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
