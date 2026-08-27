@@ -81,17 +81,16 @@ behaviour fails one, and recording the version after the slot instead of before 
       nothing. That is why this belongs in the shared suite rather than in one adapter's tests.
       The suite also pins that an undeclared change point answers `null` and not `0`: an adapter
       that returned `0` would hand the old branch to an execution that never earned it.
-- [ ] 4.2 Integration suite against a real server, green.
-      **Blocked, and not by this change.** Running the full suite surfaced that
-      `ReplayDivergenceGuardTest` — added by `workflow-replay-divergence-guard` §3.2 — hangs when
-      run in the suite, where it passed in isolation. The run reaches `WORKFLOW_TASK_FAILED` as
-      intended and the assertions pass; what fails is the recovery: after
-      `redeployWorkflowWorker('default')` the workflow task keeps being retried (observed at
-      **attempt 17**, `PENDING_WORKFLOW_TASK_STATE_STARTED`) and the execution never completes, so
-      `pollForCompletion` waits out its budget.
-      58 of the suite's tests pass before it; nothing in the versioning work is implicated. Fixing
-      that test is its own slice — it is a defect in the harness added by the previous change, and
-      folding it in here would hide it.
+- [x] 4.2 Integration suite against a real server: **78 tests green**, 27.5 s.
+      It did not pass on the first attempt, and the reason was mine rather than the code's. A
+      `DivergentByDeploy` execution left over from earlier manual probing had been retrying its
+      workflow task on the shared dev server **for three hours**; with it running, the suite hung.
+      Terminated it, re-ran, green. I have not established the mechanism by which one abandoned
+      execution disturbed a test on its own task queue, and I am not going to invent one.
+      What the episode did establish is a real defect in the harness, and it is being fixed
+      separately: `TemporalServerTestCase::tearDown()` kills the workers but **never terminates the
+      workflows a test started**, so every unfinished run stays Running on a shared server for ever.
+      That is how the three-hour leftover came to exist.
 - [x] 4.3 Answered by the probe, and not where it was expected: the **server** answers it, through
       the standard `TemporalChangeVersion` search attribute the Go SDK upserts beside the marker.
       `temporal workflow list --query 'TemporalChangeVersion = "<change-id>-<version>"'` was run and
