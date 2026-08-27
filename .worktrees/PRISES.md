@@ -20,3 +20,4 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
+| `test/nexus-header-round-trip` | nexus-operation-headers | 4.1 (aller-retour via le pont) | en cours |
