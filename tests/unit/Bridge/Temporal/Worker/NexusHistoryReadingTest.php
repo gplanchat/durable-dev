@@ -34,12 +34,12 @@ final class NexusHistoryReadingTest extends TestCase
     public function testAScheduledOperationIsFoundAtItsSlot(): void
     {
         $history = TemporalExecutionHistory::fromEvents([
-            $this->scheduled(5, 'op-un'),
-            $this->scheduled(6, 'op-deux'),
+            $this->scheduled(5),
+            $this->scheduled(6),
         ]);
 
-        self::assertSame('op-un', $history->findScheduledNexusOperation(0));
-        self::assertSame('op-deux', $history->findScheduledNexusOperation(1));
+        self::assertSame('5', $history->findScheduledNexusOperation(0));
+        self::assertSame('6', $history->findScheduledNexusOperation(1));
         self::assertNull($history->findScheduledNexusOperation(2));
     }
 
@@ -47,9 +47,9 @@ final class NexusHistoryReadingTest extends TestCase
     {
         // La distinction qui compte : « planifiée » n'est pas « réglée ». Confondre les deux
         // ferait conclure le workflow sur une opération qui n'a pas répondu.
-        $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5, 'op-un')]);
+        $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
 
-        self::assertSame('op-un', $history->findScheduledNexusOperation(0));
+        self::assertSame('5', $history->findScheduledNexusOperation(0));
         self::assertNull($history->findNexusOperationSlotResult(0));
     }
 
@@ -60,7 +60,7 @@ final class NexusHistoryReadingTest extends TestCase
         $completed->setResult((new Payload())->setData(JsonPlainPayload::encode(['montant' => 42])->getData()));
 
         $history = TemporalExecutionHistory::fromEvents([
-            $this->scheduled(5, 'op-un'),
+            $this->scheduled(5),
             $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED, 7, static fn(HistoryEvent $e) => $e->setNexusOperationCompletedEventAttributes($completed)),
         ]);
 
@@ -84,7 +84,7 @@ final class NexusHistoryReadingTest extends TestCase
     public function testEveryNonSuccessfulEndingSurfacesAsAFailure(int $type, NexusOperationFailureKind $expected): void
     {
         $history = TemporalExecutionHistory::fromEvents([
-            $this->scheduled(5, 'op-un'),
+            $this->scheduled(5),
             $this->event($type, 7, static function (HistoryEvent $e) use ($type): void {
                 match ($type) {
                     EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED => $e->setNexusOperationFailedEventAttributes((new NexusOperationFailedEventAttributes())->setScheduledEventId(5)),
@@ -105,23 +105,23 @@ final class NexusHistoryReadingTest extends TestCase
     {
         // §4.2 en dépend : `RequestCancelNexusOperation` exige l'eventId réel, et un identifiant
         // qui ne correspond à rien fait rejeter la tâche par le serveur.
-        $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5, 'op-un')]);
+        $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
 
-        self::assertSame(5, $history->scheduledEventIdForNexusOperation('op-un'));
+        self::assertSame(5, $history->scheduledEventIdForNexusOperation('5'));
         self::assertNull($history->scheduledEventIdForNexusOperation('inconnue'));
     }
 
     public function testCancellingUsesTheRealScheduledEventId(): void
     {
         // §4.2 : la commande d'annulation ne part que si l'historique connaît l'opération.
-        $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5, 'op-un')]);
+        $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
         $buffer = new \Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer(
             new \Gplanchat\Bridge\Temporal\TemporalConnection('localhost:7233', 'test'),
             'exec-1',
             $history,
         );
 
-        $buffer->cancelNexusOperation('op-un', 'race_superseded');
+        $buffer->cancelNexusOperation('5', 'race_superseded');
         $commands = $buffer->flush();
 
         self::assertCount(1, $commands);
@@ -135,7 +135,7 @@ final class NexusHistoryReadingTest extends TestCase
     public function testCancellingAnUnknownOperationEmitsNothing(): void
     {
         // Un eventId inventé ferait rejeter la tâche entière par le serveur : mieux vaut se taire.
-        $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5, 'op-un')]);
+        $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
         $buffer = new \Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer(
             new \Gplanchat\Bridge\Temporal\TemporalConnection('localhost:7233', 'test'),
             'exec-1',
@@ -158,14 +158,14 @@ final class NexusHistoryReadingTest extends TestCase
         $started->setOperationToken('jeton-asynchrone');
 
         $history = TemporalExecutionHistory::fromEvents([
-            $this->scheduled(5, 'op-un'),
+            $this->scheduled(5),
             $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED, 7, static fn(HistoryEvent $e) => $e->setNexusOperationStartedEventAttributes($started)),
         ]);
 
         $slot = $history->findNexusOperationSlotResult(0);
         self::assertNotNull($slot, "L'attente serait restée ouverte pour toujours.");
         self::assertInstanceOf(NexusAsynchronousOperationUnsupportedException::class, $slot['failed']);
-        self::assertStringContainsString('op-un', $slot['failed']->getMessage());
+        self::assertStringContainsString('5', $slot['failed']->getMessage());
         self::assertStringContainsStringIgnoringCase('asynchronous', $slot['failed']->getMessage());
     }
 
@@ -177,7 +177,7 @@ final class NexusHistoryReadingTest extends TestCase
         $started->setScheduledEventId(5);
 
         $history = TemporalExecutionHistory::fromEvents([
-            $this->scheduled(5, 'op-un'),
+            $this->scheduled(5),
             $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED, 7, static fn(HistoryEvent $e) => $e->setNexusOperationStartedEventAttributes($started)),
         ]);
 
@@ -193,7 +193,7 @@ final class NexusHistoryReadingTest extends TestCase
         $completed->setResult((new Payload())->setData(JsonPlainPayload::encode('fini')->getData()));
 
         $history = TemporalExecutionHistory::fromEvents([
-            $this->scheduled(5, 'op-un'),
+            $this->scheduled(5),
             $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED, 7, static fn(HistoryEvent $e) => $e->setNexusOperationStartedEventAttributes($started)),
             $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED, 8, static fn(HistoryEvent $e) => $e->setNexusOperationCompletedEventAttributes($completed)),
         ]);
@@ -204,7 +204,7 @@ final class NexusHistoryReadingTest extends TestCase
         self::assertSame('fini', $slot['result']);
     }
 
-    private function scheduled(int $eventId, string $operationId): HistoryEvent
+    private function scheduled(int $eventId): HistoryEvent
     {
         $attrs = new NexusOperationScheduledEventAttributes();
         $attrs->setEndpoint('paiements');
@@ -212,7 +212,9 @@ final class NexusHistoryReadingTest extends TestCase
         $attrs->setOperation('encaisser');
         // L'identité applicative voyage dans le payload d'entrée, faute de champ dédié côté
         // Temporal — c'est ce que le tampon de commandes y met.
-        $attrs->setInput(JsonPlainPayload::encode(['operationId' => $operationId, 'payload' => []]));
+        // La charge de l'appelant, nue : l'identité est l'eventId que le serveur assigne, et
+        // la charge appartient à l'utilisateur (tâche 1b.2).
+        $attrs->setInput(JsonPlainPayload::encode(['amount' => 10]));
 
         return $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED, $eventId, static fn(HistoryEvent $e) => $e->setNexusOperationScheduledEventAttributes($attrs));
     }
