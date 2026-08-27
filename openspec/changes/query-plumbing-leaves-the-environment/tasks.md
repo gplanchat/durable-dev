@@ -47,28 +47,37 @@
 - [x] 6.1 Unit suite green (528 tests).
 - [x] 6.2 PHPStan clean.
 - [x] 6.3 `php-cs-fixer` clean.
-- [ ] 6.4 ⛔ attend:auteur — Integration suite against a real Temporal server. **Run, and red for
-      reasons that predate this change.** A live server was available (`temporal server start-dev`,
-      `127.0.0.1:7233`, namespace `default`); the suite was run from the primary copy, whose
-      `symfony/vendor/gplanchat/*` are symlinks onto `src/`, so it did test this tree:
-      `Tests: 13, Assertions: 9, Errors: 8, Skipped: 1` — since reduced to **six errors, one
-      cause**, 7.2 and 7.3 having been repaired. The eight split into exactly two causes,
-      neither of them this change's: six on a class that does not exist, two on a value object
-      passed where a string is expected. Nothing in them touches the query registry — the one
-      query-shaped test dies on the namespace type before it reaches a query. See §7. The tick
-      belongs to whoever repairs those tests, not to this change.
+- [x] 6.4 Integration suite against a real Temporal server. **Green.** A live server was available
+      (`temporal server start-dev`, `127.0.0.1:7233`, namespace `default`); the suite was run from a
+      worktree whose `symfony/vendor/gplanchat/*` symlink onto `src/`, with the CI job's own command
+      (`php bin/phpunit --testdox --display-skipped tests/Integration/Temporal/`) and its DSN:
+      `Tests: 7, Assertions: 14, Skipped: 1` — the skip is a reflection test, not a server-touching one,
+      and `ext-grpc` is loaded so the rest did reach the server. The eight errors first seen here had
+      two causes, neither of them this change's; all three findings of §7 are now repaired. Nothing in
+      them ever touched the query registry.
 
 ## 7. Found while running 6.4 — not tasks of this change
 
 These are findings, not work items: they are recorded here because 6.4 is where they surfaced, and
-they are why it cannot be ticked. This change remains 23 / 24.
+they are why 6.4 stayed open so long. All three are now repaired.
 
-**7.1 — a class that exists nowhere.** `Gplanchat\Bridge\Temporal\TemporalStartingEventStore` is
-not in `src/`, not on any remote branch, and nowhere in the history (`git log --all -S`). Both
-`TemporalJournalEventStoreIntegrationTest` (five tests) and `TemporalInterpreterMirrorIntegrationTest`
-(one) construct it — **six** of the eight errors. The only copy on this machine sits in an untracked
-scratch worktree. Decide whether those tests describe work that was never merged, or work that was
-renamed: `TemporalJournalEventStore` is the only event store the bridge has today.
+**7.1 — repaired.** Not a rename: work that was never merged. Five classes were missing, not one —
+`TemporalStartingEventStore`, `TemporalWorkflowStarter`, `TemporalNativeBootstrap`,
+`JournalTemporalHistoryReader`, `JournalActivityInterpreter` — none in `src/`, on any remote branch,
+or anywhere in the history (`git log --all -S`). They describe a **native bootstrap through the
+journal**, where `append(new ExecutionStarted(...))` itself calls `StartWorkflowExecution` and the
+pre-scheduled activity travels in a memo. No class today has that shape:
+`TemporalJournalEventStore` takes `(client, connection)`, `TemporalReadThroughEventStore` takes
+`(store, cursor, workflowClient)`. Only `JournalExecutionIdResolver` survived — and `WorkflowClient`
+carries the trace, "Replaces TemporalWorkflowStarter": the starting was rebuilt elsewhere, the
+journal bootstrap did not follow.
+
+The six tests were **deleted**, their six claims recorded in the commit message for whoever revives
+the subject. The one assertion among them that bore on living code — the
+`TemporalActivityScheduleInput` round-trip, which needed no server and had never run because it sat
+behind `temporal-integration` — moved to `tests/unit`, where it does.
+`JournalExecutionIdResolver::MEMO_KEY_JOURNAL_BOOTSTRAP` is now read nowhere; it is left in place,
+removing it falls outside this change.
 
 **7.2 — repaired.** Two call sites left behind by `WorkflowNamespace`: `TemporalConnection::$namespace` is a
 value object, and two integration tests still hand it where a string is required:
@@ -85,4 +94,4 @@ tracked `symfony/.env` publishes the frontend on `7234`, to sit beside a local T
 while the job's DSN aimed at `7233`. The job now pins `TEMPORAL_FRONTEND_PORT`, waits for the
 facade before running, and drops the `--group` filters — which had been excluding
 `TemporalDashboardTimelineGroupingTest`, a test that carries no group and therefore ran nowhere.
-The job is now **red**, on 7.1 alone, and it is not a required check on `main`.
+The job was then **red** on 7.1 alone; with 7.1 repaired it is green. It is not a required check on `main`.
