@@ -52,6 +52,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR041 | Store parity is a suite every adapter runs | [adr/DUR041-store-parity-is-a-suite-every-adapter-runs.md](adr/DUR041-store-parity-is-a-suite-every-adapter-runs.md) |
 | DUR042 | The replay divergence guard | [adr/DUR042-replay-divergence-guard.md](adr/DUR042-replay-divergence-guard.md) |
 | DUR043 | The projection is a port, and the in-memory backend reads its own runs | [adr/DUR043-the-projection-is-a-port-and-in-memory-reads-itself.md](adr/DUR043-the-projection-is-a-port-and-in-memory-reads-itself.md) |
+| DUR044 | Declared change points | [adr/DUR044-declared-change-points.md](adr/DUR044-declared-change-points.md) |
 
 ## Working agreements (WA)
 
