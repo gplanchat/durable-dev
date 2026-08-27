@@ -51,10 +51,15 @@
       (`temporal server start-dev`, `127.0.0.1:7233`, namespace `default`); the suite was run from a
       worktree whose `symfony/vendor/gplanchat/*` symlink onto `src/`, with the CI job's own command
       (`php bin/phpunit --testdox --display-skipped tests/Integration/Temporal/`) and its DSN:
-      `Tests: 7, Assertions: 14, Skipped: 1` — the skip is a reflection test, not a server-touching one,
-      and `ext-grpc` is loaded so the rest did reach the server. The eight errors first seen here had
-      two causes, neither of them this change's; all three findings of §7 are now repaired. Nothing in
-      them ever touched the query registry.
+      `Tests: 7, Assertions: 14, Skipped: 1`. The counts reconcile as `13 + 1 - 7`: #161 added
+      `TemporalDashboardTimelineGroupingTest` by dropping the `--group` filters, and seven methods
+      were removed here — the six of 7.1 plus the round-trip that moved to `tests/unit`.
+      The suite does reach the server: `NativeExecutionSpikeIntegrationTest` drives a **fresh**
+      execution (`durable-native-spike-test-<uuid>`) and polls its history until
+      `WORKFLOW_EXECUTION_COMPLETED` with at least eight events, so it cannot be reading state left
+      by an earlier run. The remaining five are DI-wiring and a single RPC. The eight errors first
+      seen here had two causes, neither of them this change's; all three findings of §7 are now
+      repaired. Nothing in them ever touched the query registry.
 
 ## 7. Found while running 6.4 — not tasks of this change
 
