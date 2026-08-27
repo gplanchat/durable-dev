@@ -157,9 +157,11 @@ final class NexusOperationRoundTripTest extends TestCase
         $input = $scheduled->getInput();
         self::assertNotNull($input, 'L’entrée de l’opération n’a pas été enregistrée.');
 
+        // 1b.2 a retiré l'enveloppe : le serveur reçoit la charge de l'appelant, nue. Chercher
+        // encore une clé `payload` reviendrait à réclamer l'enveloppe que ce chantier a supprimée
+        // — et c'est exactement ce qu'un gestionnaire d'un autre SDK ne trouverait pas.
         $decoded = JsonPlainPayload::decode($input);
-        self::assertIsArray($decoded);
-        self::assertSame(['amount' => 10], $decoded['payload'] ?? null);
+        self::assertSame(['amount' => 10], $decoded);
     }
 
     public function testUnboundedStaysUnbounded(): void
