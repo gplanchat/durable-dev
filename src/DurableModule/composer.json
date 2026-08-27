@@ -1,0 +1,36 @@
+{
+    "name": "gplanchat/durable-magento",
+    "description": "Magento 2 / Mage-OS module bringing durable workflow execution to the host's own container and queue.",
+    "license": "MIT",
+    "type": "magento2-module",
+    "require": {
+        "php": ">=8.2",
+        "gplanchat/durable": "self.version",
+        "magento/framework": "^103.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5"
+    },
+    "suggest": {
+        "gplanchat/durable-bridge-temporal": "Runs executions against a Temporal cluster instead of a single process"
+    },
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "Gplanchat\\Durable\\Magento\\": "./"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    },
+    "authors": [
+        {
+            "name": "Gr\u00e9gory Planchat",
+            "email": "gregory@gyroscops.com"
+        }
+    ]
+}

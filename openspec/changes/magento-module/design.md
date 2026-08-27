@@ -14,17 +14,22 @@ probed yet**, and the design says where it is therefore guessing.
 | `magento/composer.json` | requires `mage-os/product-community-edition:2.2.0`, `gplanchat/durable-bridge-temporal:@dev`, `gplanchat/durable-module:@dev` |
 | its path repositories | `../src/DurableModule`, `../src/Bridge/Temporal`, `../src/Durable` |
 | `src/DurableModule` | **does not exist** |
-| `magento/vendor/magento/framework` | **absent** — the overlay has 61 vendor packages and no Magento framework, so `composer install` has never completed here |
+| `magento/vendor/mage-os/` | **363 packages** — the install completed. An earlier line here said the opposite, having looked under `vendor/magento/`, which Mage-OS does not use |
 | `magento/compose.yaml` | MySQL, OpenSearch, Redis, Temporal, Temporal UI |
 
 **Not measured, and therefore not encoded as invariants below:**
 
-- whether `mage-os/product-community-edition:2.2.0` installs on this PHP and reaches a working
-  `bin/magento`;
+- ~~whether `mage-os/product-community-edition:2.2.0` installs on this PHP and reaches a working
+  `bin/magento`~~ — **answered by §1.2**: it does, and it was already installed. What was broken
+  was the bench's default ports, held by the benches beside it;
 - what a `queue_consumer.xml` consumer does when its process dies mid-message — redelivery, dead
   letter, or silence;
-- whether `LockManagerInterface`'s default implementation is shared across consumer processes, or
-  per-process the way an unconfigured Symfony lock factory is;
+- ~~whether `LockManagerInterface`'s default implementation is shared across consumer processes~~ —
+  **answered by §1.4**: it is, and the answer came with a caveat the design had not seen. The bench
+  configures `lock.provider: db`; the container hands out a `Lock\Proxy` that names nothing until
+  it has worked, and `Backend\Database` behind it refuses a second process the lock a first holds.
+  A `SIGKILL`ed holder releases it, because `GET_LOCK` dies with its connection. The caveat:
+  `Backend\Database::lock()` **returns `true` without locking** when `isDbAvailable()` is false;
 - how a Magento consumer behaves against a long-poll transport, which is what the Temporal bridge's
   workers are.
 
@@ -49,6 +54,22 @@ The module's job is to provide the right-hand column and **nothing else**. Every
 ports — replay, the command buffer, the journal, failure classification — is `gplanchat/durable`
 unchanged, exactly as the DBAL bridge leaves it unchanged.
 
+## Two host constraints, found by trying
+
+Neither was in the design before the module was written, and both cost a debugging round:
+
+**Magento's container forbids `final`.** It generates an `Interceptor` subclass for every class it
+instantiates, to carry plugins. A `final` class fails compilation with *"cannot extend final
+class"*, and the message does not say the keyword is the cause. This repository writes `final`
+everywhere; inside the module, the classes the container builds cannot. The ones it does not build —
+the workflow, the runtime it assembles — stay `final`.
+
+**Mage-OS audits path repositories.** `composer-dependency-version-audit-plugin` refuses a package
+resolved from a local path when a higher version of the same name exists on packagist.org — a
+dependency-confusion guard. `gplanchat/durable` is both published and provided by path here, so it
+trips on every bench install. The bench disables the plugin for itself, which is defensible because
+the path repositories *are* its source of truth; a consumer's project should keep it on.
+
 ## The one hazard that is not a port
 
 Temporal serialises workflow tasks for one execution server-side. Magento's queue does not, and
@@ -65,8 +86,17 @@ default `Magento\Framework\Lock\Backend\Database` is shared by construction — 
 application database — which is a better default than Symfony's, but the module must not assume the
 default is what is configured.
 
-This is the design's only real invariant, and it is inherited rather than discovered. It still gets
-probed (task 1.3) before it is trusted.
+This is the design's only real invariant, and it is inherited rather than discovered. **§1.4 probed
+it and it holds** — two processes, `magento/probe-lock.php`, the second refused while the first
+holds. A killed holder releases it too, so a crashed consumer costs a resume, not a wedged
+execution.
+
+What the probe found that reading the class would not: the container hands out a
+`Magento\Framework\Lock\Proxy`, which names no backend until it has been made to work. A startup
+refusal cannot read `get_class()` on the lock manager and conclude anything. And
+`Backend\Database::lock()` returns `true` **without taking any lock** when
+`DeploymentConfig::isDbAvailable()` is false — a lock that always says yes, which is exactly the
+failure this section exists to prevent and the shape §2.3's refusal has to recognise.
 
 ## Backends: two, and the reason is not laziness
 

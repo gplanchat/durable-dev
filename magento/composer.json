@@ -1,0 +1,61 @@
+{
+    "name": "gplanchat/magento-durable-demo",
+    "description": "Magento 2.4+ demo overlay for gplanchat/durable-module.",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "mage-os/product-community-edition": "2.2.0",
+        "gplanchat/durable-bridge-temporal": "@dev",
+        "gplanchat/durable-magento": "@dev"
+    },
+    "repositories": [
+        {
+            "name": "mage-os-official",
+            "type": "composer",
+            "url": "https://repo.mage-os.org/"
+        },
+        {
+            "name": "gplanchat-durable-module",
+            "type": "path",
+            "url": "../src/DurableModule",
+            "options": {
+                "symlink": false
+            }
+        },
+        {
+            "name": "gplanchat-durable-bridge-temporal",
+            "type": "path",
+            "url": "../src/Bridge/Temporal",
+            "options": {
+                "symlink": false
+            }
+        },
+        {
+            "name": "gplanchat-durable",
+            "type": "path",
+            "url": "../src/Durable",
+            "options": {
+                "symlink": false
+            }
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "Magento\\Setup\\": "setup/src/Magento/Setup/"
+        },
+        "files": [
+            "app/etc/NonComposerComponentRegistration.php"
+        ]
+    },
+    "config": {
+        "allow-plugins": {
+            "mage-os/composer-dependency-version-audit-plugin": false,
+            "mage-os/magento-composer-installer": true,
+            "mage-os/inventory-composer-installer": true,
+            "laminas/laminas-dependency-plugin": true
+        }
+    }
+}
