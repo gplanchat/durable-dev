@@ -36,30 +36,37 @@
 
 ## 1bis. What the probe added to the work
 
-- [ ] 1b.1 **Two budgets.** `request-timeout` (~9 s) bounds the answer to one task;
-      `operation-timeout` bounds the operation. A handler cannot hold a task while it works. Decide
-      whether synchronous-only is still worth shipping given how narrow ~9 s makes it.
-- [x] 1b.2 **The envelope is gone.** The caller sends the payload as the caller wrote it, and the
-      correlation the envelope existed for comes from the `scheduledEventId` the server assigns —
-      which both the scheduled event and the terminal events already carry.
-      Verified end to end against the same Go handler as 1.1, on both sides of the change:
+- [x] 1b.1 **Two budgets — decided: both shapes ship together.** `request-timeout` (~9 s) bounds the
+      answer to one task; `operation-timeout` bounds the operation. A handler cannot hold a task
+      while it works.
+      The design reserved a synchronous-only fallback. Nine seconds is what killed it: that split
+      would only serve handlers answering almost immediately — which a plain HTTP endpoint already
+      does — while deferring the shape that is the reason to use Nexus at all.
+      Cost accepted: the asynchronous shape also carries a **caller-side** prerequisite (3.4), so
+      section 3 is larger than the milestone it belongs to. Taken knowingly rather than discovered.
+- [x] 1b.3 **Retryable versus terminal — decided: the nexus-rpc classification, verbatim.**
+      Not invented here. The rule lives in the **nexus-rpc** SDK, shared by every language, and has
+      two tiers: an explicit `RetryBehavior` wins outright; failing that, the **error type** decides.
 
-      | | handler receives | handler answers |
-      |---|---|---|
-      | before | `{"name":""}` | `hello ` |
-      | after | `{"name":"ada"}` | `hello ada` |
+      | not retryable | retryable |
+      |---|---|
+      | `BAD_REQUEST`, `UNAUTHENTICATED`, `UNAUTHORIZED` | `RESOURCE_EXHAUSTED`, `INTERNAL` |
+      | `NOT_FOUND`, `NOT_IMPLEMENTED`, `CONFLICT` | `UNAVAILABLE`, `UPSTREAM_TIMEOUT`, `REQUEST_TIMEOUT` |
 
-      **BREAKING for Nexus operations in flight.** An execution that scheduled an operation under
-      the old format holds `{operationId, payload}` in its history; replayed by this code it will
-      read that object as the user payload. Nexus is caller-only and alpha, so the blast radius is
-      an operation that has not yet completed at deploy time — but it is real and is stated rather
-      than discovered.
-      **Found on the way:** with the id now numeric, `array_search` returns an `int` key — PHP
-      coerces numeric array keys — where a `string` was expected. The full suite caught it; the cast
-      sits where the coercion happens, not at the callee.
-- [ ] 1b.3 **Retryable versus terminal handler errors.** `INTERNAL` is retried until the operation
-      times out. Establish which error types are terminal before writing the failure path, or a
-      handler that raises on bad input will retry for the whole operation budget.
+      The line is *whose fault is it*: a malformed request or a missing right will not improve by
+      retrying; an overload or an upstream timeout might.
+
+      **An ordinary exception maps to `INTERNAL`, and therefore retries** — which is what every
+      other SDK does ("Arbitrary errors from handler methods are turned into
+      `HandlerErrorTypeInternal`") and what probe 1.6 measured on the server: three redeliveries in
+      25 s. A handler that raises on invalid input without saying so retries for the whole operation
+      budget. That trap is real, it is the same everywhere, and it is **documented rather than
+      diverged from** — a handler written here behaves like its counterparts, which is the point of
+      an interoperability protocol.
+
+      **A contradiction worth recording**, found while reading the source: the SDK's own comment says
+      "`HandlerErrorTypeInternal` is not retryable by default" while its `Retryable()` classifies it
+      as retryable. The code and the measurement agree; the comment is wrong. Follow what executes.
 
 ## 2. The task worker
 
