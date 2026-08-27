@@ -191,7 +191,16 @@ AFTER,
             }
 
             $name = $node->name->toString();
-            if (\in_array($name, self::REWRITABLE, true)) {
+            if (\in_array($name, self::REWRITABLE, true) && !self::isAwaitBeyondOneCondition($node, $name)) {
+                return null;
+            }
+
+            if (self::isAwaitBeyondOneCondition($node, $name)) {
+                $findings[] = \sprintf(
+                    'Workflow::%s() with more than one condition — await() takes one condition and a deadline here, so a second condition would become a timeout; combine them by hand',
+                    $name,
+                );
+
                 return null;
             }
 
@@ -201,6 +210,19 @@ AFTER,
         });
 
         return array_values(array_unique($findings));
+    }
+
+    /**
+     * `await(...$conditions)` settles on the first of many; `await($condition, $deadline)` does not.
+     * The arities that map are one condition, or an interval plus one condition.
+     */
+    private static function isAwaitBeyondOneCondition(StaticCall $call, string $name): bool
+    {
+        return match ($name) {
+            'await' => 1 !== \count($call->args),
+            'awaitWithTimeout' => 2 !== \count($call->args),
+            default => false,
+        };
     }
 
     private static function reasonFor(string $name): string

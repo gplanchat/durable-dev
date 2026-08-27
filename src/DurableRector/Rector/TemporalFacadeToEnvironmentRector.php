@@ -305,7 +305,11 @@ AFTER,
                 return $this->environmentCall('sleep', $value->args);
             }
 
-            if (\in_array($name, ['sideEffect', 'continueAsNew', 'await'], true)) {
+            if ('await' === $name) {
+                return $this->rewriteAwait($value);
+            }
+
+            if (\in_array($name, ['sideEffect', 'continueAsNew'], true)) {
                 return $this->environmentCall(self::DIRECT[$name], $value->args);
             }
 
@@ -332,6 +336,10 @@ AFTER,
 
             if ('awaitWithTimeout' === $name) {
                 return $this->rewriteAwaitWithTimeout($call);
+            }
+
+            if ('await' === $name) {
+                return $this->rewriteAwait($call);
             }
 
             $target = self::DIRECT[$name] ?? null;
@@ -393,9 +401,25 @@ AFTER,
         return [new Arg($iterable, false, true)];
     }
 
+    /**
+     * The SDK's `await()` is **variadic over conditions** and settles on the first one; Durable's
+     * second parameter is a **deadline**. One condition maps; two do not, and rewriting them anyway
+     * would turn a second condition into a timeout without a word. Refused, and reported by
+     * {@see UnmigratableTemporalCallRector}.
+     */
+    private function rewriteAwait(StaticCall $call): ?Expr
+    {
+        if (1 !== \count($call->args)) {
+            return null;
+        }
+
+        return $this->environmentCall('await', $call->args);
+    }
+
     private function rewriteAwaitWithTimeout(StaticCall $call): ?Expr
     {
-        if (!isset($call->args[0], $call->args[1])) {
+        // Same reason, one argument along: awaitWithTimeout(interval, ...conditions).
+        if (2 !== \count($call->args)) {
             return null;
         }
 

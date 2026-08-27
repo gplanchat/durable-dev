@@ -61,6 +61,17 @@ assembles, so it becomes `timer($d)`. `yield $stub->charge()` becomes `await($st
 because a stub assembles and `await()` is the only wait. `Promise::all($p)` becomes `all(...$p)` —
 one iterable on that side, variadic on this one — and `Promise::some($p, 2)` becomes `some(2, ...$p)`.
 
+**Two arities it refuses.** The SDK's `Workflow::await(...$conditions)` is variadic and settles on
+the first condition; Durable's second parameter is a **deadline**. One condition maps —
+`awaitWithTimeout($t, $c)` becomes `await($c, $t)` — and more than one does not, because rewriting
+it would quietly turn a second condition into a timeout. Those call sites are left exactly as they
+are and reported instead.
+
+**A `callable` that is not a `\Closure`.** The SDK takes `callable` where Durable takes `\Closure`,
+so `Workflow::sideEffect([$this, 'compute'])` rewrites to a `TypeError` on first run. It fails
+loudly rather than silently, so the rule does not refuse it — but an array or string callable is
+worth grepping for before you run the workflow.
+
 **Return types are removed, never written.** A de-yielded method may not keep `\Generator`; what it
 actually returns, the SDK could not declare and this rule will not guess. An interface that declared
 `\Generator` loses it too — otherwise the class would widen its own contract, which is fatal.

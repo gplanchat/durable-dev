@@ -192,6 +192,14 @@ promise than a wrong signature.
 SDK would have surfaced that: a corpus did. The rule now qualifies a class first, by an implemented
 `#[WorkflowInterface]` or a facade call somewhere in it, and touches nothing else.
 
+**And the arity nobody would have found in a corpus.** Every `Workflow::await()` in `samples-php`
+passes exactly one condition, so the corpus had nothing to say — but the SDK's signature is
+`await(callable|Mutex|PromiseInterface ...$conditions)`, settling on the first, while Durable's
+second parameter is a **deadline**. Two conditions rewritten as-is would become a condition and a
+timeout: no error, no crash, a workflow waiting on the wrong thing. Reading the signature is what
+catches that class, and reading a corpus is what catches the interceptor above. Neither substitutes
+for the other.
+
 **Its neighbour had to grow with it.** `Workflow::newActivityStub(C::class, ActivityOptions::new()
 ->withStartToCloseTimeout(…))` rewrites cleanly to `activityStub(C::class, ActivityOptions::new()
 ->…)` — and the result is code that *reads* migrated and cannot run, because Durable's
