@@ -6,6 +6,7 @@ namespace Gplanchat\Bridge\Dbal\Store;
 
 use Doctrine\DBAL\Connection;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
+use Gplanchat\Durable\Observation\WorkflowRunProjectionInterface;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 
 /**
@@ -18,7 +19,7 @@ use Gplanchat\Durable\Observation\WorkflowRunStatus;
  * @see openspec/changes/backend-neutral-workflow-dashboard/design.md
  * @see DUR030
  */
-final class DbalWorkflowRunProjection
+final class DbalWorkflowRunProjection implements WorkflowRunProjectionInterface
 {
     public function __construct(
         private readonly Connection $connection,

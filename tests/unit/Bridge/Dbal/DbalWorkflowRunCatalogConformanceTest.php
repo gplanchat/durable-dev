@@ -11,8 +11,6 @@ use Gplanchat\Bridge\Dbal\Store\DbalEventStore;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowMetadataStore;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunCatalog;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunProjection;
-use Gplanchat\Bridge\Dbal\Store\ProjectingEventStore;
-use Gplanchat\Bridge\Dbal\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
@@ -20,6 +18,8 @@ use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
+use Gplanchat\Durable\Store\ProjectingEventStore;
+use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Testing\WorkflowRunCatalogConformanceTestCase;
 
 /**
