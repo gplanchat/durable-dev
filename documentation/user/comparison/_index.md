@@ -460,11 +460,13 @@ particular should be weighed before choosing Durable for workflows expected to r
 maintained client with cross-language parity, need workflow versioning or a Nexus **handler**, and
 RoadRunner is acceptable in your deployment.
 
-**Coming from the SDK?** `gplanchat/durable-rector` rewrites the attribute half of the migration —
-`#[WorkflowInterface]`, `#[ActivityInterface]` and the failure classes — and it does so keeping the
-workflow and activity **type names** a running server already knows, which is the part a hand
-migration silently gets wrong. The execution model (`yield`, the static `Workflow::` facade) it does
-not touch, and §5 above is why.
+**Coming from the SDK?** `gplanchat/durable-rector` does the mechanical part: the attributes and
+the failure classes, keeping the workflow and activity **type names** a running server already knows
+— the part a hand migration silently gets wrong — and the execution model, where the static
+`Workflow::` facade becomes an injected environment and `yield` goes, along with the `\Generator`
+return type it leaves behind. What it will not do is invent the return type that replaces it, or
+convert what has no counterpart here: those it comments, so you know before you start whether the
+migration is open to you at all.
 
 **Use Durable** when you want durable execution without adding a second runtime to your Symfony
 application, when a single SQL database is the right operational footprint, when you want workflow

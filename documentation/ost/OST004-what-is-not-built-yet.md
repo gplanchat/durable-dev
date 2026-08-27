@@ -124,9 +124,9 @@ the two surfaces — that is what it is for. **A difference the comparison page 
 is, for most rows, a difference a Rector rule can rewrite**, and for the rest it is a difference a
 Rector rule can *report* precisely enough that a human knows what is left.
 
-**Buckets 1 and 3 below are written.** `gplanchat/durable-rector` exists, ships
-`config/sets/temporal-sdk.php`, and is covered by `tests/unit/DurableRector/`. Bucket 2 — the
-execution model — is still what this section describes rather than what the package does.
+**The three buckets below are written.** `gplanchat/durable-rector` exists, ships
+`config/sets/temporal-sdk.php`, and is covered by `tests/unit/DurableRector/`. What each bucket
+turned out to cost, and where bucket 2's boundary was drawn, is recorded under each.
 
 `gplanchat/durable-phpstan` is the precedent for the packaging: a first-party satellite,
 `self.version` against the core, its own `type`, published by splitsh like the rest
@@ -174,8 +174,30 @@ below is its own rule with its own failure mode.
   required, so it belongs in a second opt-in set. `Workflow::awaitWithTimeout($t, $c)` → `await($c,
   $t)` is a genuine reordering, and it is the only one.
 
-Register: **a bootstrap.** Not because of volume, but because a rule that rewrites return types
-needs a fixture corpus before it needs features.
+Register: **a bootstrap** — and the estimate held for the reason it gave. The volume of code was
+never the cost; the fixture corpus was, and two of the three shapes above were *changed* by what a
+real corpus said rather than by what this section predicted.
+
+**Where the boundary was drawn, deliberately.** The rule removes a `\Generator` return type; it
+never writes one. Removing is mechanical and cannot be wrong — the method genuinely stopped being a
+generator. Writing one would be a guess with a `TypeError` behind it, and the SDK gave it nothing to
+guess from. An interface that declared `\Generator` loses it too, because a class may not widen what
+its own contract narrowed. What a migrated method returns stays undeclared, and that is a smaller
+promise than a wrong signature.
+
+**And what the corpus changed.** The first draft rewrote every `yield` in every class. Run over
+`temporalio/samples-php`, it turned an interceptor's plain iterator —
+`ActivityAttributesInterceptor::iterateOptions()`, yielding reflection attributes — into
+`await()` calls. `yield` belongs to PHP before it belongs to Temporal, and no amount of reading the
+SDK would have surfaced that: a corpus did. The rule now qualifies a class first, by an implemented
+`#[WorkflowInterface]` or a facade call somewhere in it, and touches nothing else.
+
+**Its neighbour had to grow with it.** `Workflow::newActivityStub(C::class, ActivityOptions::new()
+->withStartToCloseTimeout(…))` rewrites cleanly to `activityStub(C::class, ActivityOptions::new()
+->…)` — and the result is code that *reads* migrated and cannot run, because Durable's
+`ActivityOptions::of()` over `ActivityTimeouts` and `RetryLimit` is not that shape. The five options
+classes are now reported by bucket 3, in the same pass that rewrites the call around them. Never
+produce output that reads as done when it is not is the one invariant the whole package rests on.
 
 **Bucket 3 — detect and report, transform nothing.** Cheapest to build, the highest value, and
 **written**: `UnmigratableTemporalCallRector` comments every call the migration cannot make and
@@ -252,15 +274,17 @@ workflow types out of ten** — which is the hazard, measured rather than argued
 
 ### What the set does not promise
 
-Not a push-button migration. What bucket 1 ships is the attribute half: after it runs, `yield` is
-still `yield` and `Workflow::` is still a static call. The deliverable is the mechanical majority, plus a report naming
+Not a push-button migration. Over `temporalio/samples-php` the set changes **58 files** — 27
+workflow classes renamed and re-attributed, 23 activity contracts, 33 bodies moved off the facade,
+27 files carrying a report — and every one of those files still needs reading, because what the set
+cannot express it comments rather than converts. The deliverable is the mechanical majority, plus a report naming
 precisely what a human must decide — which is a smaller promise than "migrate your project", and the
 only one the buckets support.
 
 | Item | Register | Blocked on |
 |---|---|---|
 | Bucket 1 — attributes and the failure map | Wiring | **Done** — `gplanchat/durable-rector` |
-| Bucket 2 — colour removal, receiver injection | A bootstrap | Nothing technical; a fixture corpus first |
+| Bucket 2 — colour removal, receiver injection | A bootstrap | **Done** — return types removed, never synthesised |
 | Bucket 3 — the report | Wiring | **Done** — in the Rector set; the `getVersion()` line still says "you cannot" until **`workflow-versioning`** lands |
 
 ---
@@ -281,7 +305,7 @@ available.
 | Shopware 6, Sulu | Wiring | A real user |
 | ~~Rector bucket 3~~ | Wiring | **Done** |
 | `workflow-versioning` | A probe, then wiring | `workflow-replay-divergence-guard` |
-| Rector bucket 2 | A bootstrap | A fixture corpus |
+| ~~Rector bucket 2~~ | A bootstrap | **Done** |
 | Magento | A bootstrap | — |
 | Laravel | A bootstrap + a fourth adapter family | The three conformance suites |
 | `nexus-handler-side` | A bootstrap — 7/32, and the probe grew it | Three decisions from §1bis |

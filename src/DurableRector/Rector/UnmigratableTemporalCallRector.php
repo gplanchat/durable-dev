@@ -87,6 +87,14 @@ final class UnmigratableTemporalCallRector extends AbstractRector
     private const UNMIGRATABLE_CLASSES = [
         'Temporal\Workflow\Saga' => 'no saga helper — the shape is a deadline and a compensation path, written out by hand',
         'Temporal\Workflow\Mutex' => 'no mutex; a workflow is single-threaded here',
+        // The options objects are the same idea on both sides and not the same shape: Durable builds
+        // them with ActivityOptions::of() over ActivityTimeouts and RetryLimit, not with a fluent
+        // withStartToCloseTimeout(). Left alone, they would read as migrated and could not run.
+        'Temporal\Activity\ActivityOptions' => 'Durable\Activity\ActivityOptions is a different shape — ActivityOptions::of() with ActivityTimeouts and RetryLimit',
+        'Temporal\Activity\LocalActivityOptions' => 'no local activities; this is an ordinary activity here, with its own options',
+        'Temporal\Common\RetryOptions' => 'retry is a RetryLimit on the activity options here',
+        'Temporal\Workflow\ChildWorkflowOptions' => 'Durable\ChildWorkflowOptions is a different shape',
+        'Temporal\Workflow\ContinueAsNewOptions' => 'Durable\ContinueAsNewOptions is a different shape',
     ];
 
     public function getRuleDefinition(): RuleDefinition
@@ -164,11 +172,21 @@ AFTER,
                 return null;
             }
 
-            if (!$node instanceof StaticCall
-                || !$node->class instanceof Node\Name
-                || self::SDK_WORKFLOW_FACADE !== $node->class->toString()
-                || !$node->name instanceof Node\Identifier
-            ) {
+            if (!$node instanceof StaticCall || !$node->class instanceof Node\Name || !$node->name instanceof Node\Identifier) {
+                return null;
+            }
+
+            $class = $node->class->toString();
+
+            // An options object is reached through a static builder as often as through `new`.
+            $reason = self::UNMIGRATABLE_CLASSES[$class] ?? null;
+            if (null !== $reason) {
+                $findings[] = \sprintf('%s::%s() — %s', $node->class->getLast(), $node->name->toString(), $reason);
+
+                return null;
+            }
+
+            if (self::SDK_WORKFLOW_FACADE !== $class) {
                 return null;
             }
 
