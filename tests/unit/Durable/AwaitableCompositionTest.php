@@ -11,6 +11,7 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Les assembleurs rendent un {@see Awaitable} : c'est ce qui permet de les border par une
@@ -30,7 +31,7 @@ final class AwaitableCompositionTest extends TestCase
 
         $result = $env->run(
             static fn(WorkflowEnvironment $wf): mixed => $wf->await(
-                $wf->all($wf->activity('fast', []), $wf->activity('slow', [])),
+                $wf->all($wf->activityStub(SuiteActivities::class)->fast(), $wf->activityStub(SuiteActivities::class)->slow()),
                 Duration::hours(1),
             ),
             'compose-1',
@@ -49,8 +50,8 @@ final class AwaitableCompositionTest extends TestCase
 
         $result = $env->run(
             static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->all(
-                $wf->activity('a', []),
-                $wf->any($wf->activity('b', []), $wf->activity('c', [])),
+                $wf->activityStub(SuiteActivities::class)->a(),
+                $wf->any($wf->activityStub(SuiteActivities::class)->b(), $wf->activityStub(SuiteActivities::class)->c()),
             )),
             'compose-2',
         );
@@ -69,8 +70,8 @@ final class AwaitableCompositionTest extends TestCase
 
         $env->run(
             static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->all(
-                $wf->activity('fast', []),
-                $wf->any($wf->activity('fast', []), $wf->timer(Duration::hours(1))),
+                $wf->activityStub(SuiteActivities::class)->fast(),
+                $wf->any($wf->activityStub(SuiteActivities::class)->fast(), $wf->timer(Duration::hours(1))),
             )),
             'nested-1',
         );
@@ -86,7 +87,7 @@ final class AwaitableCompositionTest extends TestCase
         $env->run(
             static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->some(
                 1,
-                $wf->activity('fast', []),
+                $wf->activityStub(SuiteActivities::class)->fast(),
                 $wf->timer(Duration::hours(1)),
                 $wf->timer(Duration::hours(2)),
             )),
@@ -139,7 +140,7 @@ final class AwaitableCompositionTest extends TestCase
         $result = $env->run(
             static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->some(
                 3,
-                ...array_map(static fn(int $n): Awaitable => $wf->activity('price', ['n' => $n]), range(1, 8)),
+                ...array_map(static fn(int $n): Awaitable => $wf->activityStub(SuiteActivities::class)->price($n), range(1, 8)),
             )),
             'quorum-1',
         );
@@ -162,10 +163,10 @@ final class AwaitableCompositionTest extends TestCase
         $result = $env->run(
             static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->some(
                 2,
-                $wf->activity('boom', [], self::onceOnly()),
-                $wf->activity('ok', ['n' => 1]),
-                $wf->activity('boom', [], self::onceOnly()),
-                $wf->activity('ok', ['n' => 2]),
+                $wf->activityStub(SuiteActivities::class, self::onceOnly())->boom(),
+                $wf->activityStub(SuiteActivities::class)->ok(1),
+                $wf->activityStub(SuiteActivities::class, self::onceOnly())->boom(),
+                $wf->activityStub(SuiteActivities::class)->ok(2),
             )),
             'quorum-2',
         );
@@ -188,10 +189,10 @@ final class AwaitableCompositionTest extends TestCase
         $env->run(
             static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->some(
                 2,
-                $wf->activity('boom', [], self::onceOnly()),
-                $wf->activity('boom', [], self::onceOnly()),
-                $wf->activity('boom', [], self::onceOnly()),
-                $wf->activity('ok', []),
+                $wf->activityStub(SuiteActivities::class, self::onceOnly())->boom(),
+                $wf->activityStub(SuiteActivities::class, self::onceOnly())->boom(),
+                $wf->activityStub(SuiteActivities::class, self::onceOnly())->boom(),
+                $wf->activityStub(SuiteActivities::class)->ok(),
             )),
             'quorum-3',
         );
@@ -205,7 +206,7 @@ final class AwaitableCompositionTest extends TestCase
         $this->expectExceptionMessageMatches('/never settle/');
 
         $env->run(
-            static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->some(3, $wf->activity('a', []))),
+            static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->some(3, $wf->activityStub(SuiteActivities::class)->a())),
             'quorum-4',
         );
     }

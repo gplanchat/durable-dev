@@ -50,7 +50,7 @@ final class OrderWorkflow implements OrderWorkflowContract
 ### Waiting versus assembling
 
 **`await()` is the only method that waits.** Everything else assembles: `activity()`, `timer()`,
-`scheduleChildWorkflow()` and the assemblers below all return an `Awaitable` and return
+Stub calls and the assemblers below all return an `Awaitable` and return
 immediately.
 
 ```php
@@ -178,7 +178,7 @@ and every option is described in [Options and value objects](../options/).
 
 ### Naming: ActivityStub vs ActivityInvoker
 
-ADRs use the canonical term **`ActivityInvoker`** for this pattern. In the current package the type is **`ActivityStub`**, returned by **`WorkflowEnvironment::activityStub()`** — same role: typed calls that return **`Awaitable`** and delegate to the single activity scheduling primitive.
+ADRs use the canonical term **`ActivityInvoker`** for this pattern. In the current package the type is **`ActivityStub`**, returned by **`WorkflowEnvironment::activityStub()`** — same role: typed calls that return **`Awaitable`**. The stub delegates to a narrow scheduling port that a workflow never receives — which is why naming an activity as a string is not something you can do from workflow code.
 
 ## Example: two entry methods
 
@@ -219,10 +219,34 @@ Parameters and return types must be **serializable** (see project serialization 
 
 ## WorkflowEnvironment
 
-The runtime injects **`WorkflowEnvironment`**. Use it to:
+The engine injects **`WorkflowEnvironment`** into your constructor. This is its whole surface —
+everything a workflow can do, and nothing the engine keeps for itself.
 
-- Drive **replay-safe** async work: **`await`**, **`async`**, **`resolve`**, **`reject`**, **`all`**, **`race`**, **`any`** (exact semantics follow the library implementation).
-- Obtain **`ActivityInvoker`** instances for your **activity interfaces** — you call **asynchronous** methods (`Awaitable<T>`) from the workflow; the real activity class runs on a worker with dependency injection.
+| | |
+|---|---|
+| `await($awaitable, $deadline = null)` | The only wait. An elapsed deadline raises `DeadlineExceededException` — a failure, not a value, so work that legitimately returns `null` stays distinguishable. |
+| `all(...$awaitables)` | Settles when every member succeeds. One failure fails the whole. |
+| `any(...$awaitables)` | Settles on the first member to settle; the losers are cancelled. |
+| `some($count, ...$awaitables)` | Settles when `$count` members have **succeeded**, indexed by declaration position. The rest are cancelled. |
+| `timer($duration, $summary = '')` | An awaitable that settles when the duration elapses. Composes like any other. |
+| `sleep($duration, $summary = '')` | Waits, and awaits for you. Says what it does. |
+| `activityStub($contract, $options = null)` | A typed proxy over an activity contract. Build it in the constructor; every call it makes carries `$options`. |
+| `childWorkflowStub($class, $options = null)` | The same, for a child workflow: resolved from the child's class, and its calls compose like any other. |
+| `waitSignal($name, $deadline = null)` | Waits for a signal. The name takes a backed enum, so a typo is a type error rather than a wait that never settles. |
+| `waitUpdate($name)` | Waits for an update. |
+| `sideEffect($closure)` | Runs non-deterministic local work once and journals its result, so replay reproduces it. |
+| `continueAsNew($type, $payload = [], $options = null)` | Ends this run and starts the next with a fresh history. |
+| `executionId()` | This execution's identifier. |
+
+Activities are **only** reachable through a stub. Naming one as a string with a free-form payload
+is not on this surface: a typo there produces an activity that is never scheduled, instead of an
+error your IDE and your static analyser catch first.
+
+Query, signal and update handlers are declared with `#[QueryMethod]`, `#[SignalMethod]` and
+`#[UpdateMethod]`, and the engine wires them. They can also be registered imperatively —
+`registerQueryHandler()`, `onSignal()`, `onUpdate()` — which is what a workflow expressed as a
+closure has to use, since a closure cannot carry an attribute. Prefer the attribute: it is the
+form a reader can see without running anything.
 
 You never instantiate activity implementations inside the workflow body.
 
@@ -234,7 +258,7 @@ You never instantiate activity implementations inside the workflow body.
 | Contract | Interface + `#[Workflow]`; class implements it |
 | Entry | At least one `#[WorkflowMethod]`; use `default: true` if multiple |
 | I/O | None in the workflow — use activities |
-| Calls to work | Through **`ActivityInvoker`** from **`WorkflowEnvironment`** |
+| Calls to work | Through an **`ActivityStub`**, built in the constructor from an activity contract |
 
 ## See also
 

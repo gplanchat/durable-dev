@@ -6,13 +6,13 @@ update from a signal.
 
 ## ADDED Requirements
 
-### Requirement: A handler is declared by attribute or registered on the environment
+### Requirement: A handler is declared by attribute
 
-A workflow SHALL be able to declare the handler for a signal or an update as an annotated method on
-its class. A workflow SHALL also be able to register a handler imperatively, as it already can for
-a query, so that a workflow expressed as a callable can declare one.
+A workflow SHALL declare the handler for a signal or an update as an annotated method on its class,
+and the engine SHALL wire it.
 
-Both forms SHALL produce the same dispatch.
+There SHALL be no second way to declare one. A workflow SHALL NOT be able to register a handler
+imperatively on the environment it receives.
 
 #### Scenario: An annotated method handles the signal it names
 
@@ -21,12 +21,10 @@ Both forms SHALL produce the same dispatch.
 - **THEN** the method is invoked with that payload
 - **AND** the state it mutates is visible to the workflow body
 
-#### Scenario: A workflow expressed as a callable registers a handler
+#### Scenario: Reaching for imperative registration
 
-- **WHEN** a workflow that is not a class registers a handler for a signal name
-- **AND** that signal is delivered
-- **THEN** the registered handler is invoked with the payload
-- **AND** the workflow behaves exactly as the annotated form would
+- **WHEN** workflow code tries to register a signal or update handler on its environment
+- **THEN** the code does not compile
 
 #### Scenario: A message with no declared handler is recorded and ignored
 

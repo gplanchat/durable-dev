@@ -18,6 +18,7 @@ use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Worker\WorkflowFiberDriver;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Le pilotage du fiber existait en double (ExecutionEngine / WorkflowTaskRunner) avec des
@@ -39,7 +40,7 @@ final class WorkflowFiberDriverTest extends TestCase
     public function testUnsettledAwaitableReportsSuspendedNotFailed(): void
     {
         $lifecycle = $this->recorder();
-        $result = $this->drive($lifecycle, static fn(WorkflowEnvironment $env): mixed => $env->await($env->activity('never', [])));
+        $result = $this->drive($lifecycle, static fn(WorkflowEnvironment $env): mixed => $env->await($env->activityStub(SuiteActivities::class)->never()));
 
         self::assertNull($result);
         self::assertSame(['onBeforeRun', 'onSuspended'], $lifecycle->calls);
