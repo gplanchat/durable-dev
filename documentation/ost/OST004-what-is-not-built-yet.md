@@ -50,10 +50,10 @@ partly-landed change from its proposal overstates every one of them.
 | `nexus-handler-side` | 7 / 32 | A probe that already reported, then a bootstrap | — |
 
 **The one remaining task on the query change has now been run against a live Temporal server**
-(6.4), and it is red — for reasons that predate the change. Eight of thirteen tests error, none of
-them on the query registry: two test files construct a `TemporalStartingEventStore` that exists
-nowhere in the repository, and one passes a `WorkflowNamespace` where protobuf wants a string. The
-tick is not this change's to take.
+(6.4), and it is red — for reasons that predate the change. Eight of thirteen tests error, in
+exactly two causes and neither on the query registry: six construct a `TemporalStartingEventStore`
+that exists nowhere in the repository, and two hand a `WorkflowNamespace` to something that wants a
+string. The counter stays at 23 / 24; the tick is not this change's to take.
 
 **The CI job that was supposed to be watching this reports success while testing nothing**: thirteen
 tests, three assertions, ten skipped, in forty-five milliseconds — every server-touching test skips
