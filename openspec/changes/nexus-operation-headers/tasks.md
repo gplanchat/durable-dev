@@ -5,8 +5,8 @@
 
 ## 2. Domain
 
-- [ ] 2.1 A header value object built on the probed rules — **minuscule la clé** (ce que l'appelant tient doit être ce que le serveur garde) et **refuse une collision de casse** (le serveur ne sait pas la faire et ne le dit pas). Rien d'autre : être plus strict que le serveur rejetterait des en-têtes valides
-- [ ] 2.2 Unit tests asserting the probed verdicts, one case per observation
+- [x] 2.1 A header value object built on the probed rules — `NexusOperationHeaders` : minuscule la clé à la construction (coercition, pas refus : `X-Correlation` *est* `x-correlation`) et refuse une collision de casse en nommant **les deux graphies**. Rien d'autre — clé vide, valeur vide, blancs, saut de ligne et mille caractères sont acceptés parce que le serveur les accepte
+- [x] 2.2 Unit tests asserting the probed verdicts, one case per observation — 13 cas, un par ligne du tableau de `design.md`, plus la collision et son message
 
 ## 3. Port and backends
 
