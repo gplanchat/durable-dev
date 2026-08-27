@@ -24,9 +24,9 @@ permissions:
   contents: read
 
 env:
-  # Hébergement mutualisé : quota serré. Le job échoue au-delà, plutôt que de
-  # téléverser à moitié et laisser un site cassé en ligne.
-  SITE_QUOTA_KB: 9000
+  # Quota de l'hébergement mutualisé : 100 Mo. Le job échoue au-delà, plutôt que
+  # de téléverser à moitié et laisser un site cassé en ligne.
+  SITE_QUOTA_KB: 100000
 
 jobs:
   build:
