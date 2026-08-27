@@ -44,6 +44,9 @@
       does — while deferring the shape that is the reason to use Nexus at all.
       Cost accepted: the asynchronous shape also carries a **caller-side** prerequisite (3.4), so
       section 3 is larger than the milestone it belongs to. Taken knowingly rather than discovered.
+      **Order, arbitrated after the fact:** section 3 leads. Section 2 lands the synchronous answer
+      afterwards, as the special case of the same worker — the one where the handler returns a value
+      instead of a token. Nothing was removed from section 2; only its position moved.
 - [x] 1b.3 **Retryable versus terminal — decided: the nexus-rpc classification, verbatim.**
       Not invented here. The rule lives in the **nexus-rpc** SDK, shared by every language, and has
       two tiers: an explicit `RetryBehavior` wins outright; failing that, the **error type** decides.
@@ -81,14 +84,24 @@
 - [ ] 3.1 A handler that fulfils an operation with a workflow.
 - [ ] 3.2 The caller receives that workflow's result as the operation's result.
 - [ ] 3.3 The workflow fails: the caller sees an operation failure, classified.
-- [ ] 3.4 **Caller side, found by the probe.** The caller refuses an async response today. Teach it
-      to receive the completion the server delivers, so a Durable workflow can call an asynchronous
-      operation at all — without this, 3.1 and 3.2 cannot be observed end to end from PHP.
+- [x] 3.4 **Caller side, found by the probe. Done.** The caller refused an async response: on
+      `NEXUS_OPERATION_STARTED` carrying a token it recorded an *outcome*, and that outcome was a
+      failure — so a workflow died on an operation that was going to answer.
+      The refusal was removed, not replaced. Probe 1.4 measured that the server posts
+      `callback: temporal://system` and correlates the outcome itself onto the calling execution by
+      `scheduledEventId` — the key the COMPLETED / FAILED / TIMED_OUT / CANCELED branches already
+      read. `findNexusOperationSlotResult()` returns `null` when there is no entry, and `null` is
+      exactly "still in flight", so the branch now records nothing at all.
+      **BREAKING:** `NexusAsynchronousOperationUnsupportedException` is deleted; nothing raises it.
+      Proven by unit tests over synthesised histories: started-with-token stays pending, a later
+      completion resolves it, a later failure classifies like any other. **Not yet observed end to
+      end from PHP** — that needs a handler that answers with a token, which is 3.1. This task is
+      the enabler, and its own text said so.
 
 ## 4. Cancellation
 
 - [ ] 4.1 A caller that cancels reaches the handler. 1.5 established the form: a cancel task
-      arrives **only for a started operation**, so this depends on 3.4.
+      arrives **only for a started operation**, so this depends on 3.4 — **now unblocked**.
 - [ ] 4.2 A handler observes the cancellation rather than discovering it on response.
 - [ ] 4.3 Cancelling an operation already fulfilled asynchronously: what happens to the workflow.
 
@@ -113,3 +126,16 @@
 - [ ] 7.3 A user page for serving an operation.
 - [ ] 7.4 The comparison page: caller-only stops being a limitation, and the section says what it
       now means that no other PHP implementation serves Nexus.
+
+## 8. Found while doing 3.4
+
+**8.1 — 1b.2 left two integration tests behind, red on `main`.** Removing the
+`{operationId, payload}` envelope changed two things these tests still asserted the old way:
+`NexusOperationRoundTripTest::testTheInputSurvivesTheRoundTrip` looked for `$decoded['payload']` in
+an input that is now the caller's bare payload, and
+`NexusCancellationAndFailureTest::testCancellationReachesTheServerWithTheRealScheduledEventId`
+cancelled by the application-level id passed at scheduling, when the identity is now the
+`scheduledEventId` the server assigns — so the buffer found nothing and emitted no command.
+Both repaired here. The whole Nexus integration suite is now green against a real server:
+**47 tests, 193 assertions**. Neither test runs in CI, which is why they stayed red unnoticed —
+the same blind spot 7.3 of `query-plumbing-leaves-the-environment` found on the Symfony side.

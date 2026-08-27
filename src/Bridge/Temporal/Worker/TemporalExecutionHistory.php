@@ -12,7 +12,6 @@ use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Failure\FailureEnvelope;
-use Gplanchat\Durable\Nexus\NexusAsynchronousOperationUnsupportedException;
 use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use Gplanchat\Durable\Versioning\ChangePoint;
@@ -181,24 +180,12 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 break;
 
             case EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED:
-                $attr = $event->getNexusOperationStartedEventAttributes();
-                // Sans jeton, l'opération est synchrone : elle a démarré et répondra sur cette
-                // exécution, il n'y a rien à signaler. Avec un jeton, le handler annonce qu'il
-                // répondra par rappel — et rien ici ne sait le recevoir (§4.5).
-                if (null !== $attr && '' !== (string) $attr->getOperationToken()) {
-                    $scheduledEventId = (int) $attr->getScheduledEventId();
-                    // `array_search` rend la CLÉ, et PHP convertit une clé numérique en entier :
-                    // depuis que l'identité est l'eventId, cette recherche ne rend plus une chaîne.
-                    // Le cast est ici et non chez l'appelé, parce que c'est ici que la coercition
-                    // a lieu.
-                    $operationId = array_search($scheduledEventId, $this->nexusOperationToScheduledEventId, true);
-                    $this->nexusOperationOutcomes[$scheduledEventId] = [
-                        'result' => null,
-                        'failed' => NexusAsynchronousOperationUnsupportedException::forOperation(
-                            false === $operationId ? (string) $scheduledEventId : (string) $operationId,
-                        ),
-                    ];
-                }
+                // Rien à faire. Le jeton dit que le gestionnaire répondra plus tard, par rappel ;
+                // la sonde 1.4 a mesuré que le serveur pose `callback: temporal://system` et
+                // corrèle lui-même l'issue sur cette exécution, par `scheduledEventId`. L'attente
+                // reste donc ouverte jusqu'à l'événement terminal, que les branches suivantes
+                // lisent. Enregistrer une issue ici — même un échec « non supporté » — tuerait un
+                // workflow sur une opération qui allait répondre.
                 break;
 
             case EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED:
