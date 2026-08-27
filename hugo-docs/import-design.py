@@ -265,6 +265,13 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
     root = inline_logos(root)
     root = rewrite_links(root)
 
+    # Le pied de page du canevas renvoie vers `index.dc.html`, sa propre galerie
+    # de variantes. Ce fichier n'existe pas sur le site : le lien rendait un 404,
+    # et il revenait à chaque régénération parce qu'il vit dans le canevas. On le
+    # retire ici plutôt que dans la page engendrée, qui serait réécrite au tour
+    # suivant.
+    root, dropped = re.subn(r'<a\b[^>]*href="[^"]*\.dc\.html"[^>]*>.*?</a>', "", root, flags=re.S)
+
     notes = line_notes(source)
     default_note = (
         "Every line of this method is either recorded in the journal or "
@@ -289,7 +296,7 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
         die(f"interpolations non résolues, Hugo les exécuterait : {sorted(set(leftovers))[:6]}")
     if "style-hover" in root:
         die("style-hover subsiste : des survols seraient muets")
-    for banned in ("x-dc", "support.js", "data-om-id", "DCLogic"):
+    for banned in ("x-dc", "support.js", "data-om-id", "DCLogic", ".dc.html"):
         if banned in root:
             die(f"reste du canevas dans la sortie : {banned}")
 
