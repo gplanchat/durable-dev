@@ -51,6 +51,8 @@ final class UnmigratableTemporalCallRector extends AbstractRector
         'getVersion' => 'no equivalent yet — workflow versioning is an open change, and a run that reached this marker cannot migrate before it lands',
         'now' => 'sideEffect() is the equivalent, and it changes when the value is captured — a review, not a rename',
         'uuid' => 'sideEffect() is the equivalent, and it changes when the value is captured — a review, not a rename',
+        'uuid4' => 'sideEffect() is the equivalent, and it changes when the value is captured — a review, not a rename',
+        'uuid7' => 'sideEffect() is the equivalent, and it changes when the value is captured — a review, not a rename',
         'executeActivity' => 'DUR039: a typed stub is the only way to schedule an activity; the contract interface is yours to write',
         'executeChildWorkflow' => 'DUR039: a typed stub is the only way; the contract interface is yours to write',
         'newUntypedActivityStub' => 'DUR039: a typed stub is the only way; the contract interface is yours to write',
