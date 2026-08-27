@@ -14,13 +14,14 @@ probed yet**, and the design says where it is therefore guessing.
 | `magento/composer.json` | requires `mage-os/product-community-edition:2.2.0`, `gplanchat/durable-bridge-temporal:@dev`, `gplanchat/durable-module:@dev` |
 | its path repositories | `../src/DurableModule`, `../src/Bridge/Temporal`, `../src/Durable` |
 | `src/DurableModule` | **does not exist** |
-| `magento/vendor/magento/framework` | **absent** — the overlay has 61 vendor packages and no Magento framework, so `composer install` has never completed here |
+| `magento/vendor/mage-os/` | **363 packages** — the install completed. An earlier line here said the opposite, having looked under `vendor/magento/`, which Mage-OS does not use |
 | `magento/compose.yaml` | MySQL, OpenSearch, Redis, Temporal, Temporal UI |
 
 **Not measured, and therefore not encoded as invariants below:**
 
-- whether `mage-os/product-community-edition:2.2.0` installs on this PHP and reaches a working
-  `bin/magento`;
+- ~~whether `mage-os/product-community-edition:2.2.0` installs on this PHP and reaches a working
+  `bin/magento`~~ — **answered by §1.2**: it does, and it was already installed. What was broken
+  was the bench's default ports, held by the benches beside it;
 - what a `queue_consumer.xml` consumer does when its process dies mid-message — redelivery, dead
   letter, or silence;
 - whether `LockManagerInterface`'s default implementation is shared across consumer processes, or

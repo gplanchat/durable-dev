@@ -15,10 +15,18 @@ unmeasured.
       A file composer adds tomorrow stays out without anyone thinking about it, which an exclusion
       list cannot do. Verified: 8 files tracked, and three simulated distribution files change
       nothing. OST004's row corrected.
-- [ ] 1.2 `composer install` reaches a working `bin/magento` on Mage-OS
-      `product-community-edition:2.2.0`. The overlay has 61 vendor packages and no
-      `vendor/magento/framework`, so this has never completed here. Record what the host actually
-      needs — the extension list in `check-php-extensions.sh` is a claim, not a measurement.
+- [x] 1.2 `composer install` reaches a working `bin/magento`. **It already did, and the task's
+      evidence was wrong.** "No `vendor/magento/framework`" looked at the wrong path: Mage-OS ships
+      under `vendor/mage-os/`, where 363 packages sit. `bin/magento --version` answers *Mage-OS CLI
+      2.2.0 (based on Magento 2.4.8-p4)*, and `setup:db:status` answers *All modules are up to
+      date* — the application is installed, not merely downloaded.
+      What was actually broken is the bench's **ports**. Its defaults collide with the benches
+      beside it: MySQL on 3306 is held by `sylius-mysql-1`, and Temporal on 7233 by the
+      `temporal server start-dev` the integration suite runs. Magento was therefore talking to
+      Sylius's database server and being refused. Defaults moved to 33306 and 7234, the stack
+      comes up whole, and `.env.example` says why.
+      `check-php-extensions.sh` was a claim; it is now a measurement: all eighteen present on
+      PHP 8.2.33, exit 0.
 - [ ] 1.3 **What a dying consumer leaves behind.** Kill `queue:consumers:start` mid-message and
       record what happens: redelivery, dead letter, or silence. This is the failure the whole
       integration exists to remove, and the design must not guess at its shape.
