@@ -16,6 +16,7 @@ use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
 use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
+use Gplanchat\Durable\Nexus\NexusOperationHeaders;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
 use Gplanchat\Durable\Nexus\NexusService;
@@ -202,6 +203,7 @@ final class NexusCancellationAndFailureTest extends TestCase
             NexusOperationName::named('charge'),
             ['amount' => 10],
             $timeouts,
+            NexusOperationHeaders::none(),
         );
         $this->respond($task, $buffer->flush());
     }

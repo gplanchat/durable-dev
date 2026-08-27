@@ -14,6 +14,7 @@ use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
+use Gplanchat\Durable\Nexus\NexusOperationHeaders;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
 use Gplanchat\Durable\Nexus\NexusService;
@@ -200,6 +201,7 @@ final class NexusOperationRoundTripTest extends TestCase
             NexusOperationName::named('charge'),
             ['amount' => 10],
             $timeouts,
+            NexusOperationHeaders::none(),
         );
 
         $done = new RespondWorkflowTaskCompletedRequest();
