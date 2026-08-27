@@ -173,9 +173,25 @@ One side effect worth naming: the suite lives in `src/`, so PHPStan analyses a l
   in the same second. What the suite does assert is the guarantee a dashboard actually depends on —
   **paging loses nothing and repeats nothing** — and it creates its runs in one burst so that the
   same-second case is the one under test.
-- **The catalog has no in-memory implementation**, so it is the one port whose suite has no
-  reference and only one adapter running it in `unit`. Writing an in-memory catalog to close that
-  gap has not been justified by a caller; the gap is recorded rather than filled.
+- **The catalog had no in-memory implementation**, which left one port with no reference and a
+  single adapter proving anything. `InMemoryWorkflowRunCatalog` closes it, and writing it against
+  the suite rather than the other way round is what kept it honest — it passed nothing until it
+  filtered, paged and cursored correctly.
+
+  Two decisions it forced, both recorded because they are asymmetries with the SQL side rather than
+  oversights:
+
+  - **The projection and the catalog are one object.** On SQL a decorator writes a table at append
+    time and the catalog reads it; `recordStart()` and `recordOutcome()` carry the DBAL projection's
+    names so the two paths read alike. In memory there is no transaction to share and no concurrent
+    reader to serve, so splitting them would cost an interface and two decorators for nothing.
+  - **`JournalRunHistoryReader` moved into the core**, from `Gplanchat\Bridge\Dbal\Store` to
+    `Gplanchat\Durable\Observation`. It never touched a `Connection`: it reads any
+    `EventStoreInterface` and was in the bridge by accident of where it was first written. The core
+    cannot depend on a bridge, so the choice was to move it or to duplicate ninety lines and a match
+    over eighteen event types — the same fork this ADR exists to prevent, one level down. **This is
+    a breaking change for `gplanchat/durable-bridge-dbal`**, taken before 1.0 and stated here rather
+    than discovered by a consumer.
 
 Every suite was checked by mutation rather than by passing: `markCompleted()` made to delete,
 `unlink()` made a no-op, and the catalog's cursor ignored. All three failed the suite, as did the
