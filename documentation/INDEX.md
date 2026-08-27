@@ -46,6 +46,8 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR035 | The condition is the primitive, and handlers are dispatched by the engine | [adr/DUR035-conditions-are-the-primitive-and-handlers-are-dispatched.md](adr/DUR035-conditions-are-the-primitive-and-handlers-are-dispatched.md) |
 | DUR036 | Nexus is supported on the caller side only, and one backend can serve it | [adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md](adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md) |
 | DUR037 | Run observation is a projection, and an absent fact stays absent | [adr/DUR037-run-observation-as-a-projection.md](adr/DUR037-run-observation-as-a-projection.md) |
+| DUR038 | A stub assembles, it does not wait | [adr/DUR038-a-stub-assembles-it-does-not-wait.md](adr/DUR038-a-stub-assembles-it-does-not-wait.md) |
+| DUR039 | The workflow authoring surface | [adr/DUR039-workflow-authoring-surface.md](adr/DUR039-workflow-authoring-surface.md) |
 
 ## Working agreements (WA)
 
