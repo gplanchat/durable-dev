@@ -63,6 +63,29 @@ remote_tag_sha() {
         ls-remote --tags "$(satellite_url "$1")" "refs/tags/$2" | head -n1 | cut -f1
 }
 
+# A force-push rewrites refs/heads/main of an already published repository. Park the head it is
+# about to drop under refs/heads/archive/ first: the operation stays undoable, and the only copy of
+# a satellite commit the current prefix no longer reproduces is not lost.
+archive_remote_head() {
+    local repo="$1" head
+    head="$(GIT_TERMINAL_PROMPT=0 git -c "http.extraHeader=$(auth_header)" \
+        ls-remote "$(satellite_url "$repo")" "refs/heads/$BRANCH" | head -n1 | cut -f1)"
+    if [[ -z "$head" ]]; then
+        return 0
+    fi
+    echo "[branch] Archiving $ORG/$repo $head -> refs/heads/archive/pre-force-${head:0:12}"
+    git_push_satellite "$repo" "$head:refs/heads/archive/pre-force-${head:0:12}" || \
+        echo "::warning::could not archive $ORG/$repo $head" >&2
+}
+
+report_failures() {
+    if [[ $# -eq 0 ]]; then
+        return 0
+    fi
+    echo "Satellites rejected: $*" >&2
+    return 1
+}
+
 split_sha() {
     local prefix="$1"
     local out ec
@@ -94,7 +117,7 @@ require_clean_tree() {
 }
 
 push_branch_mode() {
-    local sha force_flag=()
+    local sha force_flag=() failed=()
     if [[ "${SPLITSH_FORCE:-0}" == "1" ]]; then
         force_flag=(--force)
     fi
@@ -106,14 +129,25 @@ push_branch_mode() {
             echo "[branch] $repo split SHA=$sha (dry-run, set SPLITSH_PUSH_TOKEN to push)"
             continue
         fi
+        if [[ ${#force_flag[@]} -gt 0 ]]; then
+            archive_remote_head "$repo"
+        fi
         echo "[branch] Pushing $ORG/$repo $sha -> refs/heads/$BRANCH"
-        git_push_satellite "$repo" "$sha:refs/heads/$BRANCH" "${force_flag[@]}"
+        # Same reason as the "already at" skip in tag mode: the satellites are independent, so one
+        # rejected push must not cancel the others. Before this, `durable` is entry 1 and a single
+        # non-fast-forward there left the five following repositories unpublished for a whole day.
+        if ! git_push_satellite "$repo" "$sha:refs/heads/$BRANCH" "${force_flag[@]}"; then
+            echo "::error::[branch] $ORG/$repo rejected $sha -> refs/heads/$BRANCH" >&2
+            failed+=("$repo")
+        fi
     done
+
+    report_failures "${failed[@]+"${failed[@]}"}"
 }
 
 push_tag_mode() {
     local tag="$1"
-    local sha
+    local sha failed=()
 
     if [[ -z "$tag" ]]; then
         echo "usage: $0 tag <tag>" >&2
@@ -140,8 +174,13 @@ push_tag_mode() {
             continue
         fi
         echo "[tag] Pushing $ORG/$repo $sha -> refs/tags/$tag"
-        git_push_satellite "$repo" "$sha:refs/tags/$tag"
+        if ! git_push_satellite "$repo" "$sha:refs/tags/$tag"; then
+            echo "::error::[tag] $ORG/$repo rejected $sha -> refs/tags/$tag" >&2
+            failed+=("$repo")
+        fi
     done
+
+    report_failures "${failed[@]+"${failed[@]}"}"
 }
 
 if [[ "${1:-}" == "tag" ]]; then

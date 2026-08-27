@@ -15,6 +15,11 @@ on:
         tags:
             - 'v*'
     workflow_dispatch:
+        inputs:
+            force:
+                description: "Force-push: realign satellites whose main diverged from the computed split (rewrites published history; previous heads are archived under refs/heads/archive/)"
+                type: boolean
+                default: false
 
 concurrency:
     group: splitsh-${{ github.ref }}
@@ -116,6 +121,7 @@ jobs:
             - name: Publish splits to satellite repositories
               env:
                   SPLITSH_PUSH_TOKEN: ${{ secrets.SPLITSH_PUSH_TOKEN }}
+                  SPLITSH_FORCE: ${{ inputs.force && '1' || '0' }}
               run: |
                   set -euo pipefail
                   chmod +x ./bin/splitsh-publish.sh
