@@ -1,0 +1,2 @@
+gplanchat_durable_plugin:
+    resource: '@DurablePlugin/Resources/config/routes.yaml'

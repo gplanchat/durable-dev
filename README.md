@@ -12,7 +12,7 @@ This monorepo contains:
 | `gplanchat/durable-bundle` | [`src/DurableBundle/`](src/DurableBundle/) | Symfony bundle (Messenger, configuration, profiler) |
 | `gplanchat/durable-bridge-temporal` | [`src/Bridge/Temporal/`](src/Bridge/Temporal/) | Temporal gRPC bridge (no official Temporal PHP SDK; see **DUR006**) |
 | `gplanchat/durable-bridge-dbal` | [`src/Bridge/Dbal/`](src/Bridge/Dbal/) | Doctrine DBAL journal + stores: durable execution on one SQL database, no cluster (**DUR030**) |
-| `gplanchat/durable-plugin` | [`src/DurablePlugin/`](src/DurablePlugin/) | Sylius 2 admin plugin: workflow dashboard, backend-neutral (**DUR035**) |
+| `gplanchat/durable-plugin` | [`src/DurablePlugin/`](src/DurablePlugin/) | Sylius 2 admin plugin: workflow dashboard, backend-neutral (**DUR037**) |
 | Sample app | [`symfony/`](symfony/) | Example Symfony application using the bundle + Temporal |
 | Sylius shop | [`sylius/`](sylius/) | Sylius 2.2 Standard — where the admin dashboard is rendered for real |
 
@@ -23,7 +23,8 @@ one place, so the shop runs on the image the skeleton ships with — never on th
 
 ```bash
 cd sylius
-docker compose up -d                 # php 8.3, MySQL 8.4, nginx, mailhog
+cp compose.override.dist.yml compose.override.yml   # monte l'app, et `../src` dont elle dépend
+docker compose up -d                                # php 8.3, MySQL 8.4, nginx, mailhog
 docker compose run --rm php composer install
 docker compose run --rm php bin/console debug:router
 ```

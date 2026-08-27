@@ -9,8 +9,11 @@ use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Durable\ActivityCancellationReason;
 use Gplanchat\Durable\Exception\ActivitySupersededException;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
+use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Failure\FailureEnvelope;
+use Gplanchat\Durable\Nexus\NexusAsynchronousOperationUnsupportedException;
+use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
@@ -25,6 +28,18 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 {
     /** @var list<string> activity IDs in schedule order */
     private array $scheduledActivityIds = [];
+
+    /** @var list<string> identités d'opérations Nexus, dans l'ordre de planification */
+    private array $scheduledNexusOperationIds = [];
+
+    /** @var array<string, int> identité applicative → eventId du NEXUS_OPERATION_SCHEDULED */
+    private array $nexusOperationToScheduledEventId = [];
+
+    /** @var array<int, array{operationId: string, endpoint: string, service: string, operation: string}> */
+    private array $nexusOperationCallSites = [];
+
+    /** @var array<int, array{result: mixed, failed: \Throwable|null}> eventId de planification → issue */
+    private array $nexusOperationOutcomes = [];
 
     /** @var array<string, int> activity ID → scheduled event ID */
     private array $activityIdToScheduledEventId = [];
@@ -129,6 +144,88 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                             $this->startInput = \is_array($decoded) ? $decoded : [];
                         }
                     }
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED:
+                $attr = $event->getNexusOperationScheduledEventAttributes();
+                if (null !== $attr) {
+                    // Temporal n'a pas de champ d'identité applicative pour une opération Nexus :
+                    // le tampon la glisse dans le payload d'entrée, et c'est là qu'on la relit.
+                    $decoded = null !== $attr->getInput() ? JsonPlainPayload::decode($attr->getInput()) : null;
+                    $operationId = \is_array($decoded) ? (string) ($decoded['operationId'] ?? '') : '';
+                    if ('' !== $operationId) {
+                        $this->scheduledNexusOperationIds[] = $operationId;
+                        $this->nexusOperationToScheduledEventId[$operationId] = (int) $eventId;
+                        // Le site d'appel n'est écrit qu'ici : les événements terminaux ne portent
+                        // que l'eventId. Sans le retenir, un échec ne pourrait pas dire d'où il
+                        // vient, et le spec l'exige.
+                        $this->nexusOperationCallSites[(int) $eventId] = [
+                            'operationId' => $operationId,
+                            'endpoint' => (string) $attr->getEndpoint(),
+                            'service' => (string) $attr->getService(),
+                            'operation' => (string) $attr->getOperation(),
+                        ];
+                    }
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED:
+                $attr = $event->getNexusOperationStartedEventAttributes();
+                // Sans jeton, l'opération est synchrone : elle a démarré et répondra sur cette
+                // exécution, il n'y a rien à signaler. Avec un jeton, le handler annonce qu'il
+                // répondra par rappel — et rien ici ne sait le recevoir (§4.5).
+                if (null !== $attr && '' !== (string) $attr->getOperationToken()) {
+                    $scheduledEventId = (int) $attr->getScheduledEventId();
+                    $operationId = array_search($scheduledEventId, $this->nexusOperationToScheduledEventId, true);
+                    $this->nexusOperationOutcomes[$scheduledEventId] = [
+                        'result' => null,
+                        'failed' => NexusAsynchronousOperationUnsupportedException::forOperation(
+                            false === $operationId ? (string) $scheduledEventId : $operationId,
+                        ),
+                    ];
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED:
+                $attr = $event->getNexusOperationCompletedEventAttributes();
+                if (null !== $attr) {
+                    $result = null;
+                    $payload = $attr->getResult();
+                    if (null !== $payload) {
+                        $result = JsonPlainPayload::decode($payload);
+                    }
+                    $this->nexusOperationOutcomes[(int) $attr->getScheduledEventId()] = ['result' => $result, 'failed' => null];
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED:
+                $attr = $event->getNexusOperationFailedEventAttributes();
+                if (null !== $attr) {
+                    $this->nexusOperationOutcomes[(int) $attr->getScheduledEventId()] = [
+                        'result' => null,
+                        'failed' => $this->nexusFailure((int) $attr->getScheduledEventId(), NexusOperationFailureKind::OperationFailed),
+                    ];
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT:
+                $attr = $event->getNexusOperationTimedOutEventAttributes();
+                if (null !== $attr) {
+                    $this->nexusOperationOutcomes[(int) $attr->getScheduledEventId()] = [
+                        'result' => null,
+                        'failed' => $this->nexusFailure((int) $attr->getScheduledEventId(), NexusOperationFailureKind::Timeout),
+                    ];
+                }
+                break;
+
+            case EventType::EVENT_TYPE_NEXUS_OPERATION_CANCELED:
+                $attr = $event->getNexusOperationCanceledEventAttributes();
+                if (null !== $attr) {
+                    $this->nexusOperationOutcomes[(int) $attr->getScheduledEventId()] = [
+                        'result' => null,
+                        'failed' => $this->nexusFailure((int) $attr->getScheduledEventId(), NexusOperationFailureKind::Cancellation),
+                    ];
                 }
                 break;
 
@@ -532,20 +629,66 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     }
 
     /**
-     * Temporal SAIT relire ces événements — les neuf `NEXUS_OPERATION_*` sont dans l'historique.
-     * Leur lecture est §4.3. Rendre null ici ferait replanifier l'opération à chaque replay, en
-     * silence : l'aveu bruyant coûte moins cher que la boucle muette.
+     * L'échec typé d'une opération, avec sa nature et son site d'appel.
      *
-     * Inatteignable en l'état : rien ne planifie encore d'opération Nexus, faute du §3.2.
+     * §3.6 avait construit l'exception, §4.3 lisait les événements, et rien ne reliait les deux :
+     * la lecture rendait des `RuntimeException` nues, si bien que la branche Nexus du
+     * classificateur ne pouvait jamais se déclencher. Un workflow tombé sur une opération ne
+     * disait donc pas laquelle.
+     */
+    private function nexusFailure(int $scheduledEventId, NexusOperationFailureKind $kind): DurableNexusOperationFailedException
+    {
+        $site = $this->nexusOperationCallSites[$scheduledEventId] ?? null;
+
+        return new DurableNexusOperationFailedException(
+            $site['endpoint'] ?? '',
+            $site['service'] ?? '',
+            $site['operation'] ?? '',
+            $kind,
+            new FailureEnvelope(self::class, \sprintf('Nexus operation ended as %s', $kind->value)),
+        );
+    }
+
+    /**
+     * L'issue enregistrée de l'opération au slot N, ou null tant qu'elle est en vol.
+     *
+     * « Planifiée » n'est pas « réglée », et les confondre ferait conclure le workflow sur une
+     * opération qui n'a pas répondu.
+     *
+     * @return array{result: mixed, failed: \Throwable|null}|null
      */
     public function findNexusOperationSlotResult(int $slot): ?array
     {
-        throw new \LogicException('Reading NEXUS_OPERATION_* events is not built yet (temporal-nexus-support §4.3).');
+        $operationId = $this->scheduledNexusOperationIds[$slot] ?? null;
+        if (null === $operationId) {
+            return null;
+        }
+
+        $scheduledEventId = $this->nexusOperationToScheduledEventId[$operationId] ?? null;
+
+        return null === $scheduledEventId ? null : ($this->nexusOperationOutcomes[$scheduledEventId] ?? null);
     }
 
-    /** @see findNexusOperationSlotResult() */
+    /**
+     * L'identité de l'opération planifiée au slot N, ou null si ce slot n'a rien.
+     *
+     * C'est ce qui empêche le replay de replanifier : le contexte n'émet la commande que si le
+     * slot est vide. Rendre `null` sans lire l'historique relancerait l'opération à chaque passe,
+     * en silence — et une opération Nexus qui repart est facturée à chaque fois.
+     */
     public function findScheduledNexusOperation(int $slot): ?string
     {
-        throw new \LogicException('Reading NEXUS_OPERATION_* events is not built yet (temporal-nexus-support §4.3).');
+        return $this->scheduledNexusOperationIds[$slot] ?? null;
+    }
+
+    /**
+     * L'eventId du `NEXUS_OPERATION_SCHEDULED` de cette opération, ou null.
+     *
+     * Attendu par `RequestCancelNexusOperationCommandAttributes` (§4.2) : un identifiant qui ne
+     * correspond à aucun événement fait rejeter la tâche par le serveur.
+     */
+    public function scheduledEventIdForNexusOperation(string $operationId): ?int
+    {
+        return $this->nexusOperationToScheduledEventId[$operationId] ?? null;
     }
 }

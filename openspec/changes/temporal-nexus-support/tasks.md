@@ -17,16 +17,16 @@
 - [x] 3.2 `nexusOperationSlotIndex` in `ExecutionContext`, plus `scheduleNexusOperation()` on the environment — `nexusOperation()` des deux côtés (même verbe que `activity()`, plutôt que `scheduleNexusOperation()` qui aurait juré avec lui) ; coercition des trois noms à la frontière de l'environnement, registre `pendingNexusOperations` en miroir de celui des activités
 - [x] 3.3 `findNexusOperationSlotResult()` and `findScheduledNexusOperation()` on `WorkflowHistorySourceInterface` — la source journal rend `null` **définitivement** (son tampon refuse d'écrire, il n'y a rien à relire) ; la source Temporal lève un `LogicException` nommant §4.3, parce que rendre `null` là ferait replanifier l'opération à chaque replay, en silence
 - [x] 3.4 `scheduleNexusOperation()` and `cancelNexusOperation()` on `WorkflowCommandBufferInterface` — le backend journal **refuse** avec `NexusUnsupportedByBackendException`, ce que la proposition exige ; le tampon Temporal lève un `LogicException` nommant §4.1 / §4.2, pas l'exception « backend sans route » qui serait un mensonge sur ce que Temporal sait faire
-- [ ] 3.5 Extend `WorkflowFiberDriver::cancelPending()` to cancel a pending Nexus operation on workflow cancellation
+- [x] 3.5 Extend `WorkflowFiberDriver::cancelPending()` to cancel a pending Nexus operation on workflow cancellation — rien à étendre dans le pilote : la marche unique est `AwaitableCancellation`, que le pilote et les composites partagent depuis leur consolidation, et c'est elle qui descend, composites traversés
 - [x] 3.6 `DurableNexusOperationFailedException` with its four kinds, and its classification in `WorkflowFailureClassifier` — natures dans `NexusOperationFailureKind`, prises mot pour mot du spec ; le triplet endpoint/service/opération voyage dans le contexte de `KIND_UNHANDLED_NEXUS_OPERATION` ; le comportement de reprise n'est porté que par `HandlerError`
 
 ## 4. Temporal backend
 
 - [ ] 4.1 Build `ScheduleNexusOperation` in `TemporalWorkflowCommandBuffer`, bounds and headers included — **commande et bornes faites** : les trois bornes ne partent que si le domaine en porte une (le serveur n'applique aucun défaut, §1.3), l'infini part en `0`, et l'entrée est **un** `Payload` et non un `Payloads` comme pour une activité. **Les en-têtes restent à faire** : rien côté domaine n'en porte, et c'est le port de §3.4 qui devra les transporter — les ajouter ici sans source serait un champ vide déguisé en fonctionnalité
-- [ ] 4.2 Build `RequestCancelNexusOperation` using the real scheduled event id read from history
-- [ ] 4.3 Read the nine `NEXUS_OPERATION_*` events in `TemporalExecutionHistory`, keyed by scheduled event id
-- [ ] 4.4 Convert those events in `TemporalEventConverter` so the profiler and the read-through store show them
-- [ ] 4.5 Fail clearly when an operation reports `NEXUS_OPERATION_STARTED` with a token — asynchronous operations are out of scope for this increment
+- [x] 4.2 Build `RequestCancelNexusOperation` using the real scheduled event id read from history — débloquée par 4.3 ; une opération absente de l'historique n'émet rien, un eventId inventé faisant rejeter la tâche entière
+- [x] 4.3 Read the nine `NEXUS_OPERATION_*` events in `TemporalExecutionHistory`, keyed by scheduled event id — planification (identité relue du payload d'entrée, faute de champ dédié côté Temporal) et les quatre états terminaux. Les trois événements d'annulation et `STARTED` restent hors périmètre (§4.5)
+- [x] 4.4 Convert those events in `TemporalEventConverter` so the profiler and the read-through store show them — cinq événements de domaine (`NexusOperationScheduled` et les quatre états terminaux), rattachés par l'`eventId` de la planification, qui est la clé dont Temporal se sert lui-même. `NEXUS_OPERATION_STARTED` et les trois événements d'annulation ne sont pas convertis : le premier relève de §4.5, les autres n'ajoutent rien au profil tant que l'annulation n'est pas construite (§4.2)
+- [x] 4.5 Fail clearly when an operation reports `NEXUS_OPERATION_STARTED` with a token — asynchronous operations are out of scope for this increment — `NexusAsynchronousOperationUnsupportedException`, nommant l'opération. **Le jeton seul déclenche le refus** : un `STARTED` sans jeton est une opération synchrone en vol, et la refuser rejetterait le cas nominal
 
 ## 5. In-memory backend
 
@@ -37,10 +37,10 @@
 
 - [x] 6.1 Document the endpoint prerequisite at the top of the test, as the search-attribute suite documents its two attributes — avec une différence assumée : le test **crée et supprime** son endpoint, un nom d'endpoint étant unique pour le cluster entier. L'équivalent manuel est donné pour qui veut reproduire à la main
 - [x] 6.2 Schedule an operation and assert the round trip through history — la commande est construite **par le tampon du pont**, pas à la main : c'est ce qui prouve que §4.1 est acceptée par un vrai serveur. Trois cas — les trois noms et les trois bornes reviennent inchangés, l'entrée survit, et l'absence de borne reste une absence
-- [ ] 6.3 Assert cancellation reaches the server with the real scheduled event id
-- [ ] 6.4 Assert a failed operation surfaces to the workflow with its origin named
+- [x] 6.3 Assert cancellation reaches the server with the real scheduled event id — le tampon relit l'historique de la tâche courante ; un signal force la tâche où poser l'annulation, faute de worker servant l'endpoint
+- [x] 6.4 Assert a failed operation surfaces to the workflow with its origin named — a révélé que §3.6 et §4.3 n'étaient pas reliés : la lecture rendait des `RuntimeException` nues, donc la branche Nexus du classificateur était morte. Le site d'appel est désormais retenu de `NEXUS_OPERATION_SCHEDULED`, seul événement qui le porte
 
 ## 7. Documentation
 
-- [x] 7.1 ADR recording the caller-only scope, the backend asymmetry, and why the handler side is a separate change — **DUR036** (DUR035 est attribué deux fois sur `main`, à deux ADR distinctes : ne pas le réutiliser). L'ADR s'ouvre sur les quatre mesures serveur, parce que ce sont elles qui ont donné leur forme aux décisions
-- [ ] 7.2 Update `documentation/INDEX.md`
+- [x] 7.1 ADR recording the caller-only scope, the backend asymmetry, and why the handler side is a separate change — **DUR036** (le doublon DUR035 qui avait motivé ce saut est depuis résolu : la plus récente des deux est devenue DUR037). L'ADR s'ouvre sur les quatre mesures serveur, parce que ce sont elles qui ont donné leur forme aux décisions
+- [x] 7.2 Update `documentation/INDEX.md` — DUR036 y était déjà ; l'entrée était en revanche à réparer, `DUR035` désignant deux ADR distinctes

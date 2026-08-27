@@ -31,6 +31,11 @@ services:
             - "host.docker.internal:host-gateway"
         volumes:
           - .:/srv/sylius:rw,cached
+          # Les paquets durable entrent par des dépôts `path` : `vendor/gplanchat/*` sont des liens
+          # symboliques vers `../src/*`, hors de ce montage. Sans cette ligne ils pendent dans le
+          # vide et le noyau meurt sur « Class DurableBundle not found ». Le chemin de destination
+          # n'est pas libre : les liens sont relatifs, et `/srv/src` est ce qu'ils désignent.
+          - ../src:/srv/src:ro
           # if you develop on Linux, you may use a bind-mounted host directory instead
 #          - ./var:/srv/sylius/var:rw
           - ./public:/srv/sylius/public:rw,delegated

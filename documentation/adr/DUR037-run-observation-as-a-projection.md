@@ -1,4 +1,4 @@
-# DUR035 — Run observation is a projection, and an absent fact stays absent
+# DUR037 — Run observation is a projection, and an absent fact stays absent
 
 ## Status
 
@@ -132,9 +132,26 @@ in the same change would have made a missing lane indistinguishable from a broke
 
 ## Verification
 
-Everything above is verified at the unit and static-analysis level, against SQLite for the SQL side
-and against a mocked gRPC client for the Temporal side. **The page has never been rendered in a
-running Sylius application** — the repository carries no bootable Sylius app.
+The SQL side is verified against SQLite and the Temporal side against a mocked gRPC client, both at
+the unit and static-analysis level. **The page itself is rendered by a running Sylius application**:
+`sylius/` carries a Sylius Standard 2.2 shop, and the `sylius-shop` CI job installs it, creates its
+MySQL database and requests `/admin/durable/dashboard` over HTTP on every run — asserting that a
+failed run is listed with its name, that an activity is labelled with its business name, that the
+backend is named, and that an anonymous visitor is turned away.
+
+That last part was not true when this ADR was written; it said so, and the shop was rebuilt
+afterwards to make it true.
+
+**Running against a real database immediately paid for itself**, and the two defects it caught are
+the argument for keeping that job. Both predate this change, and neither was reachable from SQLite:
+`completed` was bound without a type, which MySQL in strict mode rejects as `''` for an integer
+column; and the metadata upsert inferred existence from the number of rows an UPDATE affected —
+SQLite counts *matched* rows, MySQL counts *changed* ones, so re-saving identical metadata attempted
+a duplicate INSERT.
+
+What is still not verified: the **visual** rendering. Webpack Encore runs in non-strict mode under
+test, so a missing `entrypoints.json` no longer takes the page down, but only the HTML is asserted —
+never how it looks.
 
 No Temporal server behaviour was probed for this change, and none needed to be: the decisions are
 journal-side, and the Temporal half is a move of code already proven against a live server.

@@ -100,6 +100,59 @@ jobs:
             - name: PHPStan
               run: composer phpstan
 
+    sylius-shop:
+        # La seule vérification du dépôt qui rende vraiment une page. Tout le reste prouve que les
+        # pièces sont correctes ; celle-ci prouve qu'assemblées elles affichent quelque chose.
+        #
+        # Hors de la matrice principale, et pour deux raisons qui ne se contournent pas : Sylius
+        # Standard 2.2 exige PHP ^8.3 quand la baseline du dépôt est 8.2, et la boutique a besoin
+        # d'un vrai MySQL. C'est justement ce dernier qui a révélé deux fautes que SQLite avalait —
+        # un booléen lié sans type, et un upsert qui comptait les lignes affectées par un UPDATE.
+        name: Boutique Sylius (le tableau de bord, rendu)
+        runs-on: ubuntu-latest
+        services:
+            mysql:
+                image: mysql:8.4
+                env:
+                    MYSQL_ALLOW_EMPTY_PASSWORD: 1
+                ports:
+                    - 3306:3306
+                options: >-
+                    --health-cmd="mysqladmin ping -h 127.0.0.1"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=20
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  # 8.3 : plancher de Sylius Standard 2.2. Le plugin, lui, reste en >=8.2.
+                  php-version: '8.3'
+                  extensions: intl, gd, pdo_mysql, mbstring, zip, curl, sodium, exif, fileinfo
+                  coverage: none
+
+            # Les paquets du dépôt entrent par des dépôts `path` : la boutique lit `../src`, donc
+            # elle teste le code de ce commit et non une version publiée.
+            - name: Composer install (sylius/)
+              working-directory: sylius
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: Base de test
+              working-directory: sylius
+              env:
+                  APP_ENV: test
+              run: |
+                bin/console doctrine:database:create --if-not-exists
+                bin/console doctrine:schema:create
+
+            - name: PHPUnit — le tableau de bord est rendu
+              working-directory: sylius
+              env:
+                  APP_ENV: test
+              run: vendor/bin/phpunit tests/Functional/DurableDashboardTest.php
+
     static-analysis:
         name: Analyse statique (PHPStan + Psalm)
         runs-on: ubuntu-latest
