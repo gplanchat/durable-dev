@@ -37,25 +37,26 @@ section. That is the convention this table describes, not an addition to it.
 
 ## 2. In flight — the four open changes
 
-Task counts are `openspec/changes/*/tasks.md` at the time of writing. They are the honest measure of
-remaining scope: three of these four are **partly landed**, and estimating them from their proposals
-would overstate every one.
+Task counts are `openspec/changes/*/tasks.md` at the time of writing, and *at the time of writing*
+is doing real work in that sentence: two lines of this table moved between the first draft of this
+document and the day it landed. They are still the honest measure of remaining scope — estimating a
+partly-landed change from its proposal overstates every one of them.
 
 | Change | Done / total | Register | Blocks |
 |---|---|---|---|
+| `workflow-replay-divergence-guard` | **20 / 20** | Landed, on a design settled by [DUR042](../adr/DUR042-replay-divergence-guard.md) | — (it was `workflow-versioning`'s blocker) |
 | `query-plumbing-leaves-the-environment` | 23 / 24 | Wiring — finished bar one task | — |
-| `workflow-replay-divergence-guard` | 11 / 20 | Wiring, on a design already settled by [DUR042](../adr/DUR042-replay-divergence-guard.md) | `workflow-versioning` |
 | `workflow-versioning` | 0 / 18 | A probe, then wiring | The Rector set (§6), the comparison page's honesty (§4) |
 | `nexus-handler-side` | 7 / 32 | A probe that already reported, then a bootstrap | — |
 
 **The one remaining task on the query change needs a live Temporal server** (6.4). It is not
-unfinished work; it is work that cannot run where the rest of the suite runs. Same for 4.2 of the
-divergence guard.
+unfinished work; it is work that cannot run where the rest of the suite runs.
 
-**The divergence guard's remainder is narrower than its proposal.** Activity slots (`2f0593e`),
-Nexus and child workflows (`7ef0efa`) have landed. What remains is timers — where task 1.4 found
-there is no identity to compare, so the deliverable is a test that documents the gap rather than a
-comparison — the failure's legibility, and the documentation. That is the cheapest of the four.
+**The divergence guard is done, and its remainder was narrower than its proposal all along** —
+which is the case this table exists to make. Activity slots (`2f0593e`), then Nexus and child
+workflows (`7ef0efa`), then the cost measurement and the timer gap — where task 1.4 had found there
+is no identity to compare, so the deliverable was a test documenting the gap rather than a
+comparison. **`workflow-versioning` is therefore unblocked**, and its probe is taken.
 
 **`nexus-handler-side` is the largest single piece of unbuilt work in the repository**, and its
 probe made it larger rather than smaller: two independent timeout budgets, an envelope decision
@@ -65,21 +66,19 @@ three design questions found by running the thing, which is the probe doing its 
 
 ---
 
-## 3. The ports that are one-quarter covered
+## 3. The ports, now covered
 
 [DUR041](../adr/DUR041-store-parity-is-a-suite-every-adapter-runs.md) turned the two-store parity
-test into a suite any adapter runs. `EventStoreConformanceTestCase` and
-`EventStoreReplayConformanceTestCase` exist, and both the in-memory and DBAL adapters run them.
+test into a suite any adapter runs, and it is now **accepted for all four ports**:
+`EventStoreConformanceTestCase`, `EventStoreReplayConformanceTestCase`,
+`WorkflowMetadataStoreConformanceTestCase`, `ChildWorkflowParentLinkStoreConformanceTestCase` and
+`WorkflowRunCatalogConformanceTestCase`, each run by both the in-memory and the DBAL adapter.
 
-**Three ports have no suite:** `WorkflowMetadataStore`, `ChildWorkflowParentLinkStoreInterface`,
-`WorkflowRunCatalogInterface`.
-
-| Item | Register | Blocks |
-|---|---|---|
-| Conformance suites for the three remaining store ports | Wiring — the pattern is written, three times over | A Laravel backend (OST003 §3), any fourth adapter family |
-
-This is the cheapest item in this document with a downstream consequence, and OST003 already argues
-it is worth doing whether or not the thing it unblocks is ever written.
+An earlier draft of this section counted three ports still uncovered and called them the cheapest
+item here with a downstream consequence. They were, and they were written while it was being
+reviewed. **What that clears is the Laravel blocker**: OST003 §3 argued a fourth adapter family is
+made safe by construction only once the suite exists for every port it must satisfy, and it now
+does. A Laravel backend is a bootstrap with nothing in front of it.
 
 ---
 
@@ -107,7 +106,7 @@ Restated here only so the single table in §7 is complete. The reasoning belongs
 | API Platform state processor | Wiring — one class, two adapters | — |
 | Akeneo `BatchBundle` | **A design question**: checkpoint granularity | The decision, not the code |
 | `php-etl/pipeline` | The same design question, one level down | The same decision — whichever is written first pays for both |
-| Laravel | A bootstrap, plus a fourth adapter family | §3's three conformance suites |
+| Laravel | A bootstrap, plus a fourth adapter family | — (§3's suites have landed) |
 | Magento | A bootstrap; bench already in `magento/` | — |
 | WooCommerce, Drupal, PrestaShop 9, Ibexa | — | Not now (OST003 §6) |
 
@@ -305,17 +304,17 @@ available.
 | Item | Register | Blocked on |
 |---|---|---|
 | `query-plumbing-leaves-the-environment` | Wiring — 23/24 | A live server for the last task |
-| `workflow-replay-divergence-guard` | Wiring — 11/20 | — |
-| Conformance suites, three remaining store ports | Wiring | — |
+| ~~`workflow-replay-divergence-guard`~~ | Wiring — 20/20 | **Done** |
+| ~~Conformance suites, the three remaining store ports~~ | Wiring | **Done** — DUR041 covers all four |
 | Saga helper | Wiring, small | — |
 | ~~Rector bucket 1~~ | Wiring | **Done** |
 | API Platform state processor | Wiring | — |
 | Shopware 6, Sulu | Wiring | A real user |
 | ~~Rector bucket 3~~ | Wiring | **Done** |
-| `workflow-versioning` | A probe, then wiring | `workflow-replay-divergence-guard` |
+| `workflow-versioning` | A probe, then wiring | — (the guard has landed; the probe is taken) |
 | ~~Rector bucket 2~~ | A bootstrap | **Done** |
 | Magento | A bootstrap | — |
-| Laravel | A bootstrap + a fourth adapter family | The three conformance suites |
+| Laravel | A bootstrap + a fourth adapter family | — |
 | `nexus-handler-side` | A bootstrap — 7/32, and the probe grew it | Three decisions from §1bis |
 | Akeneo `BatchBundle` | **A design question** | Checkpoint granularity |
 | `php-etl/pipeline` | **A design question** | The same one |
@@ -323,6 +322,11 @@ available.
 **The four orderings, and they are all that this document fixes:** versioning after the divergence
 guard; a Laravel backend after the conformance suites; the Rector set complete only after versioning;
 Akeneo and `php-etl/pipeline` after one shared decision, in either order, once.
+
+**Two of the four were discharged while this document was in review** — the guard landed and the
+three remaining conformance suites were written — so versioning and a Laravel backend now have
+nothing in front of them. That is the argument for stating blockers rather than an order: an
+ordering goes stale silently, a blocker goes stale by being *met*, and the difference is visible.
 
 ---
 
