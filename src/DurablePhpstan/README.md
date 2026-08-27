@@ -29,7 +29,7 @@ Le défaut n'est donc pas le silence, c'est le **bruit**. Quatre erreurs dont de
 mettent en ligne de base ou s'ignorent d'un bloc, et les deux vraies partent avec — ce qui revient
 au même que ne rien vérifier, en plus coûteux.
 
-Depuis les décisions **DUR037** et **DUR038**, le stub typé est la *seule* façon de planifier une
+Depuis les décisions **DUR038** et **DUR039**, le stub typé est la *seule* façon de planifier une
 activité ou un workflow enfant. Cette vérification-là est donc la seule qui reste.
 
 ## Ce que l'extension apporte
