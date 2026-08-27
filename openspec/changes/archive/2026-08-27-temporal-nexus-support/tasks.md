@@ -22,7 +22,7 @@
 
 ## 4. Temporal backend
 
-- [ ] 4.1 Build `ScheduleNexusOperation` in `TemporalWorkflowCommandBuffer`, bounds and headers included — **commande et bornes faites** : les trois bornes ne partent que si le domaine en porte une (le serveur n'applique aucun défaut, §1.3), l'infini part en `0`, et l'entrée est **un** `Payload` et non un `Payloads` comme pour une activité. **Les en-têtes restent à faire** : rien côté domaine n'en porte, et c'est le port de §3.4 qui devra les transporter — les ajouter ici sans source serait un champ vide déguisé en fonctionnalité
+- [~] 4.1 Build `ScheduleNexusOperation` in `TemporalWorkflowCommandBuffer`, bounds and headers included — **commande et bornes faites et prouvées contre un vrai serveur** ; les en-têtes sont **reportées** dans le change `nexus-operation-headers`. Rien côté domaine n'en porte, et le port de §3.4 devrait les transporter : les ajouter ici sans source serait un champ vide déguisé en fonctionnalité
 - [x] 4.2 Build `RequestCancelNexusOperation` using the real scheduled event id read from history — débloquée par 4.3 ; une opération absente de l'historique n'émet rien, un eventId inventé faisant rejeter la tâche entière
 - [x] 4.3 Read the nine `NEXUS_OPERATION_*` events in `TemporalExecutionHistory`, keyed by scheduled event id — planification (identité relue du payload d'entrée, faute de champ dédié côté Temporal) et les quatre états terminaux. Les trois événements d'annulation et `STARTED` restent hors périmètre (§4.5)
 - [x] 4.4 Convert those events in `TemporalEventConverter` so the profiler and the read-through store show them — cinq événements de domaine (`NexusOperationScheduled` et les quatre états terminaux), rattachés par l'`eventId` de la planification, qui est la clé dont Temporal se sert lui-même. `NEXUS_OPERATION_STARTED` et les trois événements d'annulation ne sont pas convertis : le premier relève de §4.5, les autres n'ajoutent rien au profil tant que l'annulation n'est pas construite (§4.2)
@@ -44,3 +44,9 @@
 
 - [x] 7.1 ADR recording the caller-only scope, the backend asymmetry, and why the handler side is a separate change — **DUR036** (le doublon DUR035 qui avait motivé ce saut est depuis résolu : la plus récente des deux est devenue DUR037). L'ADR s'ouvre sur les quatre mesures serveur, parce que ce sont elles qui ont donné leur forme aux décisions
 - [x] 7.2 Update `documentation/INDEX.md` — DUR036 y était déjà ; l'entrée était en revanche à réparer, `DUR035` désignant deux ADR distinctes
+
+---
+
+**Archivé le 2026-08-27**, une entrée reportée. Les en-têtes Nexus de §4.1 sortent dans le change
+`nexus-operation-headers` : la spec publiée les dit `MAY`, et elles n'ont pas de consommateur tant
+que le côté handler n'existe pas. Tout le reste est livré et vérifié contre un serveur réel.
