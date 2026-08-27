@@ -41,22 +41,49 @@
       at all; `childWorkflowTypes` now runs alongside `childExecutionIds`. The execution id is
       deliberately not compared: it is generated, so a faithful replay would diverge every time.
       The three call sites share one rule, `refuseDivergence()`.
-- [ ] 2.6 Timers: 1.4 found no identity to compare. A test that documents the gap.
+- [x] 2.6 Timers: 1.4 found no identity to compare, and the gap is pinned rather than filled.
+      `TimerSlotHasNoIdentityTest` holds three things: the behaviour as it is — a changed duration
+      replays and nothing is reported; the reason — `scheduledAt` is an **absolute** instant, so two
+      timers of different durations scheduled at different moments can carry the same one, and
+      `summary` is optional; and what **bounds** the gap — a slot shift escapes the guard only if it
+      touches timers alone, since any activity moving with it is caught by name.
+      The third is the one that matters: without it, the gap reads as unbounded.
 
 ## 3. The failure is legible
 
-- [ ] 3.1 The exception carries execution id, slot kind, slot index, recorded identity, requested
-      identity.
-- [ ] 3.2 It surfaces as a failed workflow **task** — which depends on 2.1 — and a test asserts the
-      run is still resumable after the code is restored.
-- [ ] 3.3 The same guard fires identically on the DBAL backend — one parity test.
+- [x] 3.1 The exception carries all five, and each is asserted: slot kind, slot index (checked on a
+      *second* slot so a passing 0 cannot be an accident), execution id, recorded identity,
+      requested identity. A second test pins that the slot kind is named — `activity` and
+      `child workflow` are not looked up in the same place in a history.
+- [x] 3.2 An integration test against a real server: divergent deploy → `WORKFLOW_TASK_FAILED`, no
+      `WORKFLOW_EXECUTION_FAILED`, no `WORKFLOW_EXECUTION_COMPLETED`, then the original code is
+      redeployed and the run **completes normally**. The harness gained what this needs:
+      `spawnWorker()` takes a code variant through the environment, and `redeployWorkflowWorker()`
+      replaces the workflow worker alone — a deployment, played small.
+      **Checked that it discriminates:** with the guard neutralised, the same test fails on the run
+      ending `WORKFLOW_EXECUTION_COMPLETED` — the original defect, reproduced on demand.
+- [x] 3.3 Not a bespoke DBAL parity test: the identity accessors joined
+      `EventStoreReplayConformanceTestCase`, so **every** store adapter that extends it inherits the
+      check — DBAL today, whatever comes next tomorrow. A store can return the right result at the
+      right slot and the wrong identity, and a guard comparing the wrong identity is worse than no
+      guard: it would refuse faithful replays.
 
 ## 4. No regression on correct workflows
 
-- [ ] 4.1 The full unit suite passes unchanged: an unmodified workflow compares equal at every slot.
-- [ ] 4.2 The integration suite against a real server, green.
-- [ ] 4.3 Measure the cost of the comparison on a long history; if it forces a second pass over the
-      event stream, say so.
+- [x] 4.1 The full unit suite passes unchanged — 628 tests, none written with this guard in mind.
+      That is the proof asked for: every workflow the suite replays compares equal at every slot,
+      and the three that did not were histories carrying no activity name, which is what produced
+      the *empty is not an identity* rule in 2.3.
+- [x] 4.2 The integration suite against a real server: **78 tests green**, `start-dev` 1.31.2.
+- [x] 4.3 Measured, and the answer is not what the question implied. **Yes, the comparison forces a
+      second pass** — `EventStoreHistorySource` re-reads the stream per lookup and the guard adds
+      one lookup per slot. It costs **+26 %** on 400 slots (~45.2 ms → ~57.0 ms, three runs each).
+      **But replay was already quadratic**: without the guard, doubling the slots still quadruples
+      the time, because the pre-existing lookups re-read the stream too. The guard adds a constant
+      factor to an existing O(n²); it does not create it.
+      Recorded in `design.md` and in DUR042's consequences, and **not fixed here**: memoising the
+      read belongs to the history source, would help the four older lookups more than the guard, and
+      folding it in would hide a performance decision inside a correctness one.
 
 ## 5. Say it in the documentation
 
@@ -70,7 +97,14 @@
       measurement showed.
       **Checked and deliberately left alone:** DUR035's "no non-determinism detection is promised"
       is about *conditions*, not slot identity. The two do not conflict.
-- [ ] 5.3 A user-facing note on what a divergence looks like and what to do about it — revert,
-      or rename the workflow type.
-- [ ] 5.4 Update the comparison page: the versioning row should say the failure is loud once this
-      lands, since today it says nothing about how the gap fails.
+- [x] 5.3 A user page rather than a note: `documentation/user/deploying/` — *Changing a workflow
+      that is already running*. It starts from why a running execution is not just old code (replay
+      matches by position), shows the insertion that shifts everything after it, shows the message,
+      and gives the two answers: revert and the run finishes, or register a new workflow type and
+      let the old runs drain. It also states what is **not** checked — timers — and how narrow that
+      gap is, and that backends without workflow tasks end the run instead of retrying it.
+- [x] 5.4 The comparison page's versioning row now says how the gap **fails**, which is what it
+      was missing: the gap is one of convenience rather than safety, a divergent deploy is caught
+      and reported, the task fails, reverting resumes the run — and it used to resolve the wrong
+      recorded value in silence. It links to the new page.
+      The row that opened this whole change is the last one it corrects.

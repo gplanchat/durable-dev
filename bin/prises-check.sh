@@ -12,13 +12,21 @@
 # branche existe. Un contrôle qui rougit sur le cas normal se fait désarmer dans la semaine, et on
 # se retrouve avec moins que rien — un check mort plus la croyance qu'il surveille quelque chose.
 #
-# Une prise est périmée quand sa branche a **au moins une PR fermée et aucune PR ouverte** :
+# **La PR ne suffit pas non plus.** Une branche survit à sa PR : un chantier qui avance par tranches
+# rouvre la même branche pour la suivante, et entre les deux elle n'a que des PR fermées. Le
+# 2026-08-27, ce script a déclaré périmée `docs/roadmap-integrations-php`, qui portait trois commits
+# non fusionnés et un worktree monté. Retirer cette prise aurait libéré une branche en cours
+# d'usage — l'accident même que le registre existe pour empêcher.
 #
-#   | prises | PR de la branche        | verdict                                     |
-#   |--------|-------------------------|---------------------------------------------|
-#   | oui    | aucune                  | normal — la prise précède la PR              |
-#   | oui    | une ouverte             | normal — le travail est en cours             |
-#   | oui    | fermées seulement       | **périmée** — le retrait a été oublié        |
+# Le verdict demande donc les deux : plus aucune PR vivante, **et** plus rien à fusionner.
+#
+#   | PR de la branche  | branche distante          | verdict                                    |
+#   |-------------------|---------------------------|--------------------------------------------|
+#   | aucune            | —                         | normal — la prise précède la PR             |
+#   | une ouverte       | —                         | normal — le travail est en cours            |
+#   | fermées seulement | en avance sur `main`      | normal — réutilisée, tranche suivante       |
+#   | fermées seulement | absente                   | **périmée** — la branche a été supprimée    |
+#   | fermées seulement | rien de plus que `main`   | **périmée** — le retrait a été oublié       |
 #
 # Usage : bin/prises-check.sh [dépôt]      (défaut : gplanchat/durable-dev)
 set -uo pipefail
@@ -69,8 +77,24 @@ while IFS= read -r fichier; do
         continue
     fi
 
+    # Plus aucune PR vivante. Reste la seconde question, celle qui manquait : la branche
+    # a-t-elle encore quelque chose à donner ? `ahead_by` compte ce qu'elle porte et que `main`
+    # n'a pas. Une branche absente fait 404, et c'est un verdict, pas une panne.
+    avance="$(gh api "repos/$REPO/compare/main...$branche" --jq '.ahead_by' 2>/dev/null)"
+
+    if [ -n "$avance" ] && [ "$avance" -gt 0 ] 2>/dev/null; then
+        vivantes=$((vivantes + 1))
+        echo "  ok        $branche — PR fermée, mais $avance commit(s) non fusionné(s) : branche réutilisée"
+        continue
+    fi
+
     numeros="$(gh api "repos/$REPO/pulls?head=$OWNER:$branche&state=all&per_page=100" --jq '[.[] | "#\(.number)"] | join(", ")')"
-    echo "::error file=.worktrees/prises/$branche.md::prise périmée — $numeros fermée(s), aucune ouverte. Retirer sa prise fait partie de la fusion."
+    if [ -z "$avance" ]; then
+        motif="la branche n'existe plus sur le distant"
+    else
+        motif="$numeros fermée(s), et la branche n'a rien que \`main\` n'ait déjà"
+    fi
+    echo "::error file=.worktrees/prises/$branche.md::prise périmée — $motif. Retirer sa prise fait partie de la fusion."
     perimees=$((perimees + 1))
 done < <(find "$PRISES" -name '*.md' | sort)
 

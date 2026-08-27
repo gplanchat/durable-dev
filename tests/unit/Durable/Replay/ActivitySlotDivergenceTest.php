@@ -53,6 +53,38 @@ final class ActivitySlotDivergenceTest extends TestCase
         self::assertStringContainsString(self::EXECUTION, $message, "L'exécution manque : la première chose qu'on fait est d'ouvrir son historique.");
     }
 
+    public function testTheMessageCarriesTheFivePartsNeededToAct(): void
+    {
+        // Ce que quelqu'un fait avec ce message, dans l'ordre : il ouvre l'historique de cette
+        // exécution, va à ce slot, et compare les deux noms. Les cinq morceaux sont donc un
+        // contrat, pas une formulation — c'est pour ça qu'ils ont leur test.
+        $store = new InMemoryEventStore();
+        $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'chargeCard', ['sku' => 'ABC']));
+        $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 42));
+        $store->append(new ActivityScheduled(self::EXECUTION, 'act-2', 'shipOrder', ['sku' => 'ABC']));
+        $store->append(new ActivityCompleted(self::EXECUTION, 'act-2', 'shipped'));
+
+        $context = new ExecutionContext(
+            self::EXECUTION,
+            new EventStoreHistorySource($store, self::EXECUTION),
+            new EventStoreCommandBuffer($store, new NoopActivityTransport(), self::EXECUTION),
+        );
+        $context->activity('chargeCard', ['sku' => 'ABC']);
+
+        try {
+            $context->activity('reserveStock', ['sku' => 'ABC']);
+            self::fail('La divergence aurait dû être refusée.');
+        } catch (WorkflowTaskFailure $e) {
+            $message = $e->getMessage();
+        }
+
+        self::assertStringContainsString('activity', $message, 'le type de slot');
+        self::assertStringContainsString('slot 1', $message, "l'index, et celui du second appel — pas 0 par accident");
+        self::assertStringContainsString(self::EXECUTION, $message, "l'exécution");
+        self::assertStringContainsString('"shipOrder"', $message, 'ce que le journal tient à CE slot');
+        self::assertStringContainsString('"reserveStock"', $message, 'ce que le code a demandé');
+    }
+
     public function testAnUnchangedActivityStillResolvesFromHistory(): void
     {
         $context = $this->contextReplaying('chargeCard', 'act-1', 42);
