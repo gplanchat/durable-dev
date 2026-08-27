@@ -7,7 +7,6 @@ namespace unit\Gplanchat\Bridge\Temporal\Worker;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
-use Gplanchat\Durable\Nexus\NexusAsynchronousOperationUnsupportedException;
 use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payload;
