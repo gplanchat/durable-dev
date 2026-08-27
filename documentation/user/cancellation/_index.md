@@ -95,20 +95,27 @@ A race loser is cancelled with reason `race_superseded` instead, and surfaces as
 ## Race losers
 
 ```php
-$winner = $this->environment->await($this->environment->any(
-    $this->quotes->callProvider($orderId),
-    $this->environment->timer(Duration::seconds(30)),   // an awaitable, like the call above
-));
+$winner = $this->environment->await(
+    $this->environment->any(
+        $this->quotes->callProvider($orderId),
+        $this->quotes->callFallbackProvider($orderId),
+    ),
+    Duration::seconds(30),
+);
 ```
 
 When one branch wins, the others are cancelled: pending activities are removed from the queue and
-pending timers stop waking the execution.
+pending timers stop waking the execution. An elapsed deadline cancels them the same way, and
+raises `DeadlineExceededException`.
 
-`timer()` returns an `Awaitable`, exactly like a stub call — which is what makes the race above
-expressible. When you only want to wait, `sleep()` says so in its name and awaits for you.
+**The time bound is the deadline on `await()`, not a third branch.** A timer racing the providers
+would look like a winner: `any()` resolves to the winning *value* and nothing else, so a provider
+that legitimately answers `null` becomes indistinguishable from thirty seconds of silence — and a
+compensation path meant for the timeout runs on the empty answer too.
 
-> [!NOTE]
-> A race against a timer is how you cancel the losing branch. To bound a wait *in time*, pass the
-> deadline to `await()` instead: an elapsed deadline raises `DeadlineExceededException`, which a
-> race cannot express because `any()` returns only the winning value. See
-> [Creating a workflow](../workflows/#bounding-a-wait-in-time).
+`timer()` does return an `Awaitable`, exactly like a stub call, so it *can* be a branch — put it
+there when the timer is a real outcome (send a nudge, take the fallback path), never when it is a
+deadline in disguise. When you only want to wait, `sleep()` says so in its name and awaits for you.
+
+See [Creating a workflow](../workflows/#bounding-a-wait-in-time), where the deadline is written
+out with what the exception carries — `deadline()` and `awaited()`.
