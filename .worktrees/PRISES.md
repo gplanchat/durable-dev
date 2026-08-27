@@ -21,3 +21,4 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
 | `change/divergence-guard-probe` | garde de divergence au replay | tâches 1.1–1.4 (sonde) | en cours |
+| `test/bundle-integration-suite` | récupérer la suite d'intégration perdue en avril | `tests/integration/Durable/**` | en cours |
