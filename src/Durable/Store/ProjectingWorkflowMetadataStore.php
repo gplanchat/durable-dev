@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Bridge\Dbal\Store;
+namespace Gplanchat\Durable\Store;
 
-use Gplanchat\Durable\Store\WorkflowMetadataStore;
+use Gplanchat\Durable\Observation\WorkflowRunProjectionInterface;
 
 /**
  * Décore le magasin de métadonnées pour semer le nom dans la projection.
@@ -20,7 +20,7 @@ final class ProjectingWorkflowMetadataStore implements WorkflowMetadataStore
 {
     public function __construct(
         private readonly WorkflowMetadataStore $inner,
-        private readonly DbalWorkflowRunProjection $projection,
+        private readonly WorkflowRunProjectionInterface $projection,
     ) {}
 
     public function save(string $executionId, string $workflowType, array $payload): void

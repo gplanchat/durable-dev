@@ -6,7 +6,7 @@
 
 - Workflow runs list with an outcome filter and cursor paging.
 - Run details with recorded history grouped in lanes.
-- Backend-neutral: reads whichever catalog the bundle registers.
+- Backend-neutral: reads whichever catalog the bundle registers — Temporal, SQL, or in-memory.
 - Lane labels prioritise human-readable names and fall back to technical IDs only when needed.
 
 ### What the page does not show, and why
@@ -15,14 +15,15 @@ A fact the configured backend does not have is **absent** from the page rather t
 An empty "task queue" column would teach an operator that the run has no queue, when it is the
 backend that has no such notion.
 
-| | Temporal | SQL (DBAL) |
-| --- | --- | --- |
-| Task queue, namespace | recorded, not shown — see below | no such notion |
-| Grouping across continue-as-new | the workflow id | no such notion |
-| Query lane | recorded | never recorded; queries are answered live |
+| | Temporal | SQL (DBAL) | In-memory |
+| --- | --- | --- | --- |
+| Task queue, namespace | recorded, not shown — see below | no such notion | no such notion |
+| Grouping across continue-as-new | the workflow id | no such notion | no such notion |
+| Query lane | recorded | never recorded; queries are answered live | never recorded, same reason |
+| Runs from another process | all of them | all of them | **none — see below** |
 
 Task queue and namespace are not shown at all for now: they belong to one backend only, and the page
-is meant to read the same on both.
+is meant to read the same on all three.
 
 ## Requirements
 
@@ -32,12 +33,28 @@ is meant to read the same on both.
 - `gplanchat/durable-bundle`, which wires the run catalog the dashboard reads — pulled in as a
   dependency, so `composer require gplanchat/durable-plugin` is the whole install
 
-Whichever backend records your durable executions — a SQL database through `gplanchat/durable-bridge-dbal`, or a
-Temporal cluster through `gplanchat/durable-bridge-temporal` — the bundle registers the matching
-catalog and the dashboard reads it. Nothing here requires `ext-grpc`.
+Whichever backend records your durable executions — a SQL database through
+`gplanchat/durable-bridge-dbal`, a Temporal cluster through `gplanchat/durable-bridge-temporal`, or
+the in-memory journal the bundle ships by default — the bundle registers the matching catalog and
+the dashboard reads it. Nothing here requires `ext-grpc`.
 
-Without a readable backend the plugin still installs, the route and the menu entry still work, and
-the page says that no readable backend is configured.
+### The in-memory backend reads, and says what that is worth
+
+The in-memory catalog is wired last, only when no other backend claimed the slot. It works, and it
+carries a limit the page has to state rather than hide: **an in-memory journal lives and dies with
+its process.** Under PHP-FPM the request that renders the dashboard has never executed a workflow,
+so the list will be empty — always, on a perfectly healthy application.
+
+That is why the backend health line is not a bare "reachable": it says that this catalog only ever
+sees runs from its own process, and that an empty list means nothing ran *here*. A blank page
+without that sentence would teach an operator that nothing ran at all, which is the same mistake as
+rendering an empty "task queue" column — see above.
+
+Where it earns its keep is a long-running process: a FrankenPHP worker, a consumer command, a test.
+There the catalog sees what its process executed.
+
+If no catalog at all is registered — a backend that reads nothing — the plugin still installs, the
+route and the menu entry still work, and the page says that no readable backend is configured.
 
 ## Installation in a Sylius app
 
