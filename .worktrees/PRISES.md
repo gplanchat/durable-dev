@@ -20,4 +20,3 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
-| `docs/temporal-sdk-comparison` | comparatif SDK Temporal | `documentation/user/comparison/` | en cours |
