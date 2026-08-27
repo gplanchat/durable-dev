@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — **`EventStoreInterface` implemented**; the three other ports remain to be written.
+Accepted — **implemented for all four ports.**
 
 ## Context
 
@@ -103,9 +103,13 @@ reader from "fixing" it into the suite.
 - **A fourth adapter starts by extending a class.** OST003 §3 named a conformance suite as the
   prerequisite for a Laravel backend rather than the adapter being the hard part; this is that
   prerequisite.
-- **Three ports gain coverage they have never had.** `DbalStoresTest` and
-  `DbalWorkflowRunCatalogTest` become subclasses of the relevant suite, and the in-memory
-  implementations get their first contract test.
+- **Three ports gain coverage they have never had**, and their in-memory implementations get their
+  first contract test. This ADR expected `DbalStoresTest` and `DbalWorkflowRunCatalogTest` to
+  *become* subclasses; they do not, and the reason is structural rather than incidental —
+  `DbalStoresTest` exercises two ports in one file, and PHP has single inheritance. **One
+  conformance subclass per port per adapter** is the shape the constraint forces, and the existing
+  DBAL tests stay as they are, keeping the backend-specific coverage a neutral suite must not carry
+  (schema creation, second-resolution timestamps).
 - **`DbalBackendParityTest` is superseded by its own subclass.** Its two cases and its `scrub()`
   become suite material; nothing it proves is lost.
 - **Temporal's read-through store gets checked for the first time.** This is the consequence most
@@ -149,6 +153,33 @@ One side effect worth naming: the suite lives in `src/`, so PHPStan analyses a l
 `ActivityStub` call for the first time. `phpstan.neon` now `includes` the repository's own
 `src/DurablePhpstan/extension.neon` — the extension that exists precisely to resolve those calls
 (DUR038), and which the repository had never pointed at its own source. No new errors followed.
+
+## What the other three ports needed
+
+- **`WorkflowMetadataStore` has one subtlety worth a suite on its own.** `markCompleted()` does not
+  delete: the type and payload stay readable for the profiler, and it is
+  `hasActiveWorkflowMetadata()` — not `get()` — that decides whether a resume still applies. An
+  adapter that conflates the two makes a finished workflow eternally resumable, or erases its type
+  from a dashboard. Both directions are now cases.
+- **`ChildWorkflowParentLinkStoreInterface` required the suite to assert *less*.** The contract says
+  the children of a parent come back in no guaranteed order, so the suite sorts before comparing.
+  Pinning an order the port does not promise would fail a correct adapter, which is the surest way
+  to make a conformance suite unusable.
+- **`WorkflowRunCatalogInterface` is read-only, so the suite cannot fill itself.** It asks the
+  adapter for two seeding hooks — *make a run exist*, *bring it to an outcome* — rather than for
+  rows. That is the shape a conformance suite takes when the port has no write side.
+  It also declines to assert an order: the contract promises most-recently-started first, and a
+  backend storing `started_at` to the second has no neutral tiebreaker to offer between runs created
+  in the same second. What the suite does assert is the guarantee a dashboard actually depends on —
+  **paging loses nothing and repeats nothing** — and it creates its runs in one burst so that the
+  same-second case is the one under test.
+- **The catalog has no in-memory implementation**, so it is the one port whose suite has no
+  reference and only one adapter running it in `unit`. Writing an in-memory catalog to close that
+  gap has not been justified by a caller; the gap is recorded rather than filled.
+
+Every suite was checked by mutation rather than by passing: `markCompleted()` made to delete,
+`unlink()` made a no-op, and the catalog's cursor ignored. All three failed the suite, as did the
+`JSON_NUMERIC_CHECK` mutation once the fixtures carried hostile values.
 
 ## References
 
