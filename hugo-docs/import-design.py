@@ -195,6 +195,21 @@ def rewrite_links(root: str) -> str:
     root = root.replace("https://durable.rocks/docs", "/docs/")
     root = root.replace("https://durable.rocks/", "/")
 
+    # Le pied de page du canevas porte un lien « Variants » vers son autre planche,
+    # `index.dc.html`. Le canevas sait le suivre ; le site servi rend un 404 — il l'a
+    # rendu jusqu'au 2026-08-27. C'est le sixième écart entre une page de canevas et
+    # une page servie, et le seul qui ne se voyait qu'en cliquant.
+    # Le retrait est délibérément étroit — ce lien-là, sous ce libellé-là.
+    root = re.sub(r'<a\s+href="[^"]*\.dc\.html"[^>]*>\s*Variants\s*</a>', "", root)
+
+    # La garde compte plus que le retrait, et elle doit rester plus large que lui :
+    # une planche renommée ou un libellé traduit rapporterait un `.dc.html` que le
+    # retrait ci-dessus ne verrait pas. Le laisser passer en silence est ce qui a mis
+    # un 404 en pied de page ; s'arrêter dessus est ce qui l'empêche de revenir.
+    canvas = sorted(set(re.findall(r'href="([^"]*\.dc\.html[^"]*)"', root)))
+    if canvas:
+        die(f"lien vers une planche de canevas : {canvas}")
+
     doubled = sorted(set(re.findall(r'href="(/[^"]*//[^"]*)"', root)))
     if doubled:
         die(f"double barre dans un lien : {doubled}")
