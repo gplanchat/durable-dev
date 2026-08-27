@@ -44,10 +44,8 @@ final class ChildWorkflow
 #[Workflow(name: 'call-sites')]
 final class StubCallSites
 {
-    /** @var ActivityStub<OrderActivities> */
     private readonly ActivityStub $orders;
 
-    /** @var ChildWorkflowStub<ChildWorkflow> */
     private readonly ChildWorkflowStub $child;
 
     public function __construct(

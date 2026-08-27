@@ -131,11 +131,12 @@ $this->strict = $env->activityStub(PricingActivities::class, ActivityOptions::of
 ```
 
 > [!NOTE]
-> The `@var ActivityStub<Contract>` annotation is what lets
+> Declaring the property **`readonly`** is what lets
 > [`gplanchat/durable-phpstan`](https://github.com/gplanchat/durable-phpstan) check the calls you
-> make through the stub. PHPStan infers the contract from `activityStub()`, but loses it when the
-> value is stored in a bare property. Without the annotation the call is simply unknown to the
-> analyser — never silently accepted.
+> make through the stub: PHPStan infers the contract from `activityStub()` and can follow it to
+> the call site. A mutable property loses it, and then an explicit
+> `/** @var ActivityStub<Contract> */` is needed. Either way, a contract it cannot resolve leaves
+> the call unknown to the analyser — never silently accepted.
 
 
 ## Dependency injection

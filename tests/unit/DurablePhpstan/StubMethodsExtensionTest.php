@@ -73,6 +73,18 @@ final class StubMethodsExtensionTest extends TestCase
         self::assertNotSame([], $this->matching($errors, 'invoked with 1 parameter, 2 required'));
     }
 
+    public function testAReadonlyPropertyIsEnoughToCarryTheContract(): void
+    {
+        // La fixture déclare ses stubs `readonly` **sans** annotation `@var`. Si ce test passe,
+        // c'est que PHPStan suit le paramètre générique du constructeur au point d'appel tout
+        // seul — mesuré, parce que le README a d'abord affirmé l'inverse.
+        $errors = $this->analyse(withExtension: true);
+
+        foreach ($this->matching($errors, 'undefined method') as $message) {
+            self::assertStringNotContainsString('::charge()', $message);
+        }
+    }
+
     public function testTheStubCallIsAnAwaitableAndNotTheContractReturnType(): void
     {
         $errors = $this->analyse(withExtension: true);

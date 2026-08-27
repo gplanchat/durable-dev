@@ -49,17 +49,31 @@ les arguments à ce que le contrat déclare.
 
 ## Ce qu'elle exige de votre code
 
-Le stub porte son contrat en paramètre générique. PHPStan l'infère depuis
-`WorkflowEnvironment::activityStub()`, mais il le perd si la propriété qui le stocke est déclarée
-nue. Annotez-la :
+Le stub porte son contrat en paramètre générique, et PHPStan l'infère depuis
+`WorkflowEnvironment::activityStub()`. Encore faut-il qu'il puisse le suivre jusqu'au point
+d'appel — ce qui est le cas dès que la propriété est `readonly` et affectée une seule fois, au
+constructeur :
+
+```php
+private readonly ActivityStub $orders;   // suffit
+
+public function __construct(WorkflowEnvironment $environment)
+{
+    $this->orders = $environment->activityStub(OrderActivities::class);
+}
+```
+
+Une propriété **mutable** perd le paramètre entre le constructeur et la méthode. Annotez-la alors
+explicitement :
 
 ```php
 /** @var ActivityStub<OrderActivities> */
-private readonly ActivityStub $orders;
+private ActivityStub $orders;
 ```
 
-Sans annotation, l'appel reste inconnu de PHPStan plutôt que d'être accepté à l'aveugle : mieux
-vaut un faux positif qu'une vérification silencieusement désactivée.
+Dans les deux cas, si le contrat reste introuvable, l'appel est simplement **inconnu** de PHPStan
+plutôt qu'accepté à l'aveugle : mieux vaut un faux positif qu'une vérification silencieusement
+désactivée.
 
 ## Ce qu'elle ne fait pas
 
