@@ -15,6 +15,7 @@ use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\Nexus\NexusAsynchronousOperationUnsupportedException;
 use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
+use Gplanchat\Durable\Versioning\ChangePoint;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
 
@@ -32,6 +33,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var list<string> identités d'opérations Nexus, dans l'ordre de planification */
     /** @var list<string> */
     private array $childWorkflowTypes = [];
+
+    /** @var array<string, int> */
+    private array $versionsByChangeId = [];
 
     private array $scheduledNexusOperationIds = [];
 
@@ -337,6 +341,23 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     }
                     break;
                 }
+                // Le marqueur de version, avant celui des effets de bord et pour la raison que
+                // le commentaire suivant donne : sans branche à lui, il consommerait un slot
+                // d'effet de bord et décalerait le replay de tous les suivants.
+                if (null !== $attr && ChangePoint::MARKER_NAME === $attr->getMarkerName()) {
+                    $details = $attr->getDetails();
+                    $changeIdPayload = null !== $details && $details->offsetExists(ChangePoint::DETAIL_CHANGE_ID)
+                        ? $details->offsetGet(ChangePoint::DETAIL_CHANGE_ID)
+                        : null;
+                    $versionPayload = null !== $details && $details->offsetExists(ChangePoint::DETAIL_VERSION)
+                        ? $details->offsetGet(ChangePoint::DETAIL_VERSION)
+                        : null;
+                    if (null !== $changeIdPayload && null !== $versionPayload) {
+                        $this->versionsByChangeId[(string) self::decodeMarkerDetail($changeIdPayload)]
+                            = (int) self::decodeMarkerDetail($versionPayload);
+                    }
+                    break;
+                }
                 // Filtrer sur le nom : sans ça, TOUT marqueur consommait un slot de side effect
                 // et décalait le replay de tous les suivants.
                 if (null !== $attr && self::MARKER_SIDE_EFFECT === $attr->getMarkerName()) {
@@ -478,6 +499,11 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     public function findScheduledActivityId(int $slot): ?string
     {
         return $this->scheduledActivityIds[$slot] ?? null;
+    }
+
+    public function versionForChangeId(string $changeId): ?int
+    {
+        return $this->versionsByChangeId[$changeId] ?? null;
     }
 
     public function activityNameForSlot(int $slot): ?string

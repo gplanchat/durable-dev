@@ -11,8 +11,6 @@ use Gplanchat\Bridge\Dbal\Store\DbalEventStore;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowMetadataStore;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunCatalog;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunProjection;
-use Gplanchat\Bridge\Dbal\Store\ProjectingEventStore;
-use Gplanchat\Bridge\Dbal\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
@@ -57,6 +55,9 @@ use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
+use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
+use Gplanchat\Durable\Store\ProjectingEventStore;
+use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 // Et non celle de HttpKernel, qui n'en est qu'une sous-classe mince — `@internal` depuis
 // Symfony 7.1, dépréciée en 8.1 — et n'ajoute que les restes du cache de classes annotées.
@@ -104,6 +105,7 @@ final class DurableExtension extends Extension
         $this->registerCommands($container, $config);
         $this->registerTemporalMirrorInfrastructure($container, $config);
         $this->registerDbalStores($container, $config);
+        $this->registerInMemoryRunCatalog($container);
     }
 
     /**
@@ -226,6 +228,57 @@ final class DurableExtension extends Extension
             ->setPublic(true)
         ;
         $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.dbal')->setPublic(true);
+    }
+
+    /**
+     * Le catalogue du backend in-memory, en dernier recours.
+     *
+     * Il ne s'enregistre que si personne n'a déjà posé de catalogue : DBAL et Temporal passent
+     * avant, chacun dans son bloc, et le garde est l'alias qu'ils déposent. Un backend qui sait
+     * lire ses propres exécutions n'a rien à faire de celui-ci.
+     *
+     * Le catalogue lit le journal **non décoré** pour rendre un historique, et le décorateur
+     * l'alimente en écriture. Les deux pointent donc sur `durable.event_store.inner` plutôt que
+     * l'un sur l'autre — sans quoi le conteneur boucle.
+     *
+     * Ce que ça lève : le tableau de bord affichait « aucun backend lisible » sur in-memory, faute
+     * de catalogue, alors que le plugin se dit neutre vis-à-vis du backend. Il l'est vraiment
+     * maintenant, sur les trois.
+     *
+     * @see DUR037
+     */
+    private function registerInMemoryRunCatalog(ContainerBuilder $container): void
+    {
+        if ($container->hasAlias(WorkflowRunCatalogInterface::class)) {
+            return;
+        }
+
+        $container->register('durable.run_catalog.in_memory', InMemoryWorkflowRunCatalog::class)
+            ->setArguments([new Reference('durable.event_store.inner')])
+            ->setPublic(true)
+        ;
+        $catalog = new Reference('durable.run_catalog.in_memory');
+        $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.in_memory')->setPublic(true);
+
+        $container->register('durable.event_store.in_memory.projecting', ProjectingEventStore::class)
+            ->setArguments([new Reference('durable.event_store.inner'), $catalog])
+            ->setPublic(true)
+        ;
+        $container->setAlias(EventStoreInterface::class, 'durable.event_store.in_memory.projecting')->setPublic(true);
+
+        // Le magasin de métadonnées est enregistré sous son interface, pas sous un identifiant :
+        // il devient l'intérieur du décorateur, et l'interface pointe sur le décorateur.
+        $container->setDefinition(
+            'durable.workflow_metadata_store.inner',
+            $container->getDefinition(WorkflowMetadataStore::class),
+        );
+        $container->removeDefinition(WorkflowMetadataStore::class);
+
+        $container->register('durable.workflow_metadata_store.in_memory.projecting', ProjectingWorkflowMetadataStore::class)
+            ->setArguments([new Reference('durable.workflow_metadata_store.inner'), $catalog])
+            ->setPublic(true)
+        ;
+        $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.in_memory.projecting')->setPublic(true);
     }
 
     private function registerWorkflowDefinitionLoader(ContainerBuilder $container): void
