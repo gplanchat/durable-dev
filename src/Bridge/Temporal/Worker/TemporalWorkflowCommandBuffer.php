@@ -22,6 +22,7 @@ use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
 use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Port\WorkflowCommandBufferInterface;
+use Gplanchat\Durable\Versioning\ChangePoint;
 use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\FailWorkflowExecutionCommandAttributes;
@@ -147,11 +148,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $attrs->setMarkerName(TemporalExecutionHistory::MARKER_SIDE_EFFECT);
 
         // `details` est une map<string, Payloads> : un Payload seul y est refusé.
-        $details = new \Google\Protobuf\Internal\MapField(
-            \Google\Protobuf\Internal\GPBType::STRING,
-            \Google\Protobuf\Internal\GPBType::MESSAGE,
-            \Temporal\Api\Common\V1\Payloads::class,
-        );
+        $details = self::protobufMap(\Temporal\Api\Common\V1\Payloads::class);
         $details['result'] = JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($result));
         $attrs->setDetails($details);
 
@@ -207,6 +204,66 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $cmd->setCommandType(CommandType::COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION);
         $cmd->setCompleteWorkflowExecutionCommandAttributes($attrs);
         $this->commands[] = $cmd;
+    }
+
+    /**
+     * Le marqueur de version, dans la forme exacte que le serveur enregistre — relevée sur
+     * l'historique d'un workflow versionné du SDK Go, puis réémise d'ici et acceptée (tâches
+     * 1.1–1.2). Une exécution Durable versionnée se lit donc dans l'UI Temporal comme une Go.
+     *
+     * L'upsert de `TemporalChangeVersion` accompagne le marqueur et n'est pas décoratif : c'est
+     * lui qui rend « quelles exécutions vivantes sont encore sur la version N » interrogeable,
+     * donc lui qui dit quand une vieille branche peut disparaître. Écrire le marqueur sans lui
+     * marcherait, et coûterait cette réponse en silence.
+     */
+    public function recordVersion(string $changeId, int $version): void
+    {
+        $details = self::protobufMap(\Temporal\Api\Common\V1\Payloads::class);
+        $details[ChangePoint::DETAIL_CHANGE_ID] = JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($changeId));
+        $details[ChangePoint::DETAIL_VERSION] = JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($version));
+
+        $marker = new \Temporal\Api\Command\V1\RecordMarkerCommandAttributes();
+        $marker->setMarkerName(ChangePoint::MARKER_NAME);
+        $marker->setDetails($details);
+
+        $cmd = new Command();
+        $cmd->setCommandType(CommandType::COMMAND_TYPE_RECORD_MARKER);
+        $cmd->setRecordMarkerCommandAttributes($marker);
+        $this->commands[] = $cmd;
+
+        $fields = self::protobufMap(\Temporal\Api\Common\V1\Payload::class);
+        // Le SDK Go écrit une KeywordList : le type voyage dans les métadonnées du payload.
+        $value = JsonPlainPayload::encode([ChangePoint::searchAttributeValue($changeId, $version)]);
+        $value->setMetadata(['encoding' => 'json/plain', 'type' => 'KeywordList']);
+        $fields[ChangePoint::SEARCH_ATTRIBUTE] = $value;
+
+        $attrs = new \Temporal\Api\Command\V1\UpsertWorkflowSearchAttributesCommandAttributes();
+        $attrs->setSearchAttributes(new \Temporal\Api\Common\V1\SearchAttributes(['indexed_fields' => $fields]));
+
+        $upsert = new Command();
+        $upsert->setCommandType(CommandType::COMMAND_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES);
+        $upsert->setUpsertWorkflowSearchAttributesCommandAttributes($attrs);
+        $this->commands[] = $upsert;
+    }
+
+    /**
+     * La carte `map<string, T>` que les attributs protobuf attendent.
+     *
+     * Quatre commandes de ce fichier en construisent une, à l'identique. Une seule fabrique parce
+     * que Psalm se trompe sur les constantes `GPBType` — ce sont des entiers, il attend un `long` —
+     * et qu'un seul endroit à faire taire vaut mieux que quatre.
+     *
+     * @param class-string $valueClass
+     *
+     * @psalm-suppress InvalidArgument
+     */
+    private static function protobufMap(string $valueClass): \Google\Protobuf\Internal\MapField
+    {
+        return new \Google\Protobuf\Internal\MapField(
+            \Google\Protobuf\Internal\GPBType::STRING,
+            \Google\Protobuf\Internal\GPBType::MESSAGE,
+            $valueClass,
+        );
     }
 
     public function failWorkflow(\Throwable $reason): void
@@ -367,11 +424,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $attrs->setMarkerName(TemporalExecutionHistory::MARKER_CANCELLATION_DELIVERED);
 
         /** @psalm-suppress InvalidArgument — les stubs google/protobuf typent les constantes GPBType en `long` */
-        $details = new \Google\Protobuf\Internal\MapField(
-            \Google\Protobuf\Internal\GPBType::STRING,
-            \Google\Protobuf\Internal\GPBType::MESSAGE,
-            \Temporal\Api\Common\V1\Payloads::class,
-        );
+        $details = self::protobufMap(\Temporal\Api\Common\V1\Payloads::class);
         $details['targets'] = JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($targetIds));
         $attrs->setDetails($details);
 

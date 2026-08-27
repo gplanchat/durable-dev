@@ -18,12 +18,31 @@
 
 - [ ] 2.1 RED: a run reaches the marker on old code, is replayed on new code, and still sees the
       old version. Two workflow classes, one history.
-- [ ] 2.2 GREEN: the marker on the authoring surface, the event in the journal, resolution from
-      history on replay — **and the `TemporalChangeVersion` upsert alongside the marker**, without
-      which the only practical way to know when an old branch can be deleted is lost silently.
-- [ ] 2.3 RED/GREEN: a run reaching the marker for the first time on new code sees the new version
-      and records it.
-- [ ] 2.4 RED/GREEN: the same run replayed twice sees the same version twice.
+      **Not done, and it needs something the engine does not have.** The primitive below covers a
+      run that *recorded* a version. This scenario is the other one: a run that passed this point
+      **before the change point existed**, whose journal therefore holds no marker at all. Temporal
+      answers `DefaultVersion` there, and knows to, because its SDK tracks whether the current task
+      is replaying recorded history or producing new work. Durable has **no such signal** — there is
+      no `isReplaying` anywhere in the engine, and the history source cannot say whether a call
+      sits inside the replayed prefix or past its end.
+      Today `version()` would hand such a run the *new* behaviour, which is the opposite of what
+      versioning is for. Closing it means adding a replaying signal to the port and both history
+      sources; that is its own slice, and guessing at it here would have shipped the bug quietly.
+- [x] 2.2 GREEN: `WorkflowEnvironment::version()`, `VersionMarked` in the journal, resolution from
+      history on replay, and the `TemporalChangeVersion` upsert alongside the marker.
+      Verified against a real server: a versioned Durable workflow produces a history **identical**
+      to the Go SDK's — same events, `markerName: Version`, `change-id`/`version`, and the search
+      attribute as a `KeywordList ["ajout-remise-1"]`. Both runs come back from the same
+      `temporal workflow list --query 'TemporalChangeVersion = …'`.
+      Two things the bridge forced: the `Version` marker needs its **own branch before** the
+      side-effect one, or it consumes a side-effect slot and shifts every later replay — the file
+      already carried a comment warning of exactly that; and the four protobuf map constructions
+      became one factory, which removed a Psalm baseline entry rather than growing it.
+- [x] 2.3 RED/GREEN: a run reaching the marker for the first time sees the newest supported version
+      and records it — once, not on every call.
+- [x] 2.4 RED/GREEN: the same run replayed twice sees the same version twice, and a newer deployed
+      code does not move it. A second test pins that two change points are independent: an execution
+      can be on the old side of one and the new side of another.
 
 ## 3. The guard sanctions it
 
