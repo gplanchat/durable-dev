@@ -7,6 +7,7 @@ namespace Gplanchat\Bridge\Temporal\Worker;
 use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
+use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Gplanchat\Durable\Port\WorkflowLifecycleInterface;
 
 /**
@@ -74,6 +75,14 @@ final readonly class TemporalWorkflowLifecycle implements WorkflowLifecycleInter
 
     public function onFailed(string $executionId, \Throwable $failure): void
     {
+        // Une divergence de replay n'est pas un échec du workflow : c'est cette tentative-là qui
+        // ne peut pas aboutir. La relever la fait remonter jusqu'au processeur, qui répondra
+        // `RespondWorkflowTaskFailed` — aucune commande, donc rien dans l'historique, donc une
+        // exécution qui repart dès que le code qui l'a écrite est remis.
+        if ($failure instanceof WorkflowTaskFailure) {
+            throw $failure;
+        }
+
         $this->commandBuffer->failWorkflow($failure);
     }
 }
