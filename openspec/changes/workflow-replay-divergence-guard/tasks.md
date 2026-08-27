@@ -33,9 +33,21 @@
       divergence. Both adapters normalise it to null, and the port promises never to answer an
       empty string. Without that rule the guard fired on every slot whose journal entry carries no
       name — three existing tests said so.
-- [ ] 2.4 The same pair for `nexusOperation()` — the triple, not just the operation name.
-- [ ] 2.5 The same pair for `childWorkflow()`.
-- [ ] 2.6 Timers: 1.4 found no identity to compare. A test that documents the gap.
+- [x] 2.4 The same pair for `nexusOperation()` — the **triple**, not just the operation name.
+      Tested against `TemporalExecutionHistory` rather than the journal backend: that backend
+      refuses Nexus by construction (DUR036), so no journal of its can hold one and the guard would
+      have nothing to compare. The journal source answers null for Nexus, and says why.
+- [x] 2.5 The same pair for `childWorkflow()` — the workflow **type**. The bridge did not index it
+      at all; `childWorkflowTypes` now runs alongside `childExecutionIds`. The execution id is
+      deliberately not compared: it is generated, so a faithful replay would diverge every time.
+      The three call sites share one rule, `refuseDivergence()`.
+- [x] 2.6 Timers: 1.4 found no identity to compare, and the gap is pinned rather than filled.
+      `TimerSlotHasNoIdentityTest` holds three things: the behaviour as it is — a changed duration
+      replays and nothing is reported; the reason — `scheduledAt` is an **absolute** instant, so two
+      timers of different durations scheduled at different moments can carry the same one, and
+      `summary` is optional; and what **bounds** the gap — a slot shift escapes the guard only if it
+      touches timers alone, since any activity moving with it is caught by name.
+      The third is the one that matters: without it, the gap reads as unbounded.
 
 ## 3. The failure is legible
 
@@ -54,9 +66,16 @@
 
 ## 5. Say it in the documentation
 
-- [ ] 5.1 A DUR recording the guard, its scope, and any slot kind left uncovered.
-- [ ] 5.2 Correct DUR003's determinism section: it describes this guard as existing, and until this
-      change lands it does not.
+- [x] 5.1 **DUR042** records the guard: the identity compared per slot kind, why it rests only on
+      what history already holds, why the failure is the task and not the run, and that timers are
+      uncovered. Written before 5.2 rather than after — this repository amends an ADR *by* a
+      decision, so correcting DUR003 needed something to point at.
+- [x] 5.2 DUR003's determinism section corrected. Points 2 and 3 claimed a comparison and a
+      non-determinism error that were never implemented; the section now states what the runner
+      actually does and carries a `> Corrected by DUR042` note saying what was wrong and what the
+      measurement showed.
+      **Checked and deliberately left alone:** DUR035's "no non-determinism detection is promised"
+      is about *conditions*, not slot identity. The two do not conflict.
 - [ ] 5.3 A user-facing note on what a divergence looks like and what to do about it — revert,
       or rename the workflow type.
 - [ ] 5.4 Update the comparison page: the versioning row should say the failure is loud once this
