@@ -32,6 +32,7 @@
         "gplanchat/durable-rector": "@dev",
         "phpstan/phpstan": "^2.0",
         "rector/rector": "^2.0",
+        "symfony/polyfill-php85": "^1.33",
         "vimeo/psalm": "^6.0"
     },
     "autoload": {
@@ -56,7 +57,7 @@
     },
     "scripts": {
         "test": "vendor/bin/phpunit",
-        "test:coverage": "XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-text",
+        "test:coverage": "XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-text --exclude-testsuite rector",
         "cs:check": "vendor/bin/php-cs-fixer fix --dry-run --diff",
         "cs:fix": "vendor/bin/php-cs-fixer fix",
         "phpstan": "vendor/bin/phpstan analyse",
