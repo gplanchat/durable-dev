@@ -23,10 +23,16 @@
       still fails the execution — the distinction is the whole point.
       **Not covered:** the backends with no notion of a task. There, `WorkflowTaskFailure` behaves
       like any other exception; 2.3–2.6 will say whether that is acceptable for the guard.
-- [ ] 2.2 RED: a replay test that swaps the activity at slot 0 between two polls of the same
+- [x] 2.2 RED: a replay test that swaps the activity at slot 0 between two polls of the same
       history, and expects a failure naming both names.
-- [ ] 2.3 GREEN: identity accessor on `WorkflowHistorySourceInterface`, comparison in
-      `ExecutionContext::activity()` before it resolves.
+- [x] 2.3 GREEN: `activityNameForSlot()` on `WorkflowHistorySourceInterface`, implemented by both
+      history sources, compared in `ExecutionContext::activity()` before it resolves. Verified
+      against a real server: the scenario that used to end `WORKFLOW_EXECUTION_COMPLETED` carrying
+      the other activity's result now ends `WORKFLOW_TASK_FAILED` with the run still alive.
+      **Rule found while doing it:** an empty recorded name means *nothing recorded*, not a
+      divergence. Both adapters normalise it to null, and the port promises never to answer an
+      empty string. Without that rule the guard fired on every slot whose journal entry carries no
+      name — three existing tests said so.
 - [ ] 2.4 The same pair for `nexusOperation()` — the triple, not just the operation name.
 - [ ] 2.5 The same pair for `childWorkflow()`.
 - [ ] 2.6 Timers: 1.4 found no identity to compare. A test that documents the gap.

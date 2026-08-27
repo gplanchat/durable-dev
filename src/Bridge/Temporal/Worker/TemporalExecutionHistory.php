@@ -474,6 +474,21 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         return $this->scheduledActivityIds[$slot] ?? null;
     }
 
+    public function activityNameForSlot(int $slot): ?string
+    {
+        $activityId = $this->scheduledActivityIds[$slot] ?? null;
+        if (null === $activityId) {
+            return null;
+        }
+
+        // L'indexation ci-dessus ramène un type d'activité absent à la chaîne vide. Une chaîne
+        // vide n'est pas un nom : c'est « l'historique n'a rien dit ». La rendre telle quelle
+        // ferait diverger tout slot dont le type manque, ce qui est le contraire d'une garde.
+        $name = $this->activityNames[$activityId] ?? '';
+
+        return '' === $name ? null : $name;
+    }
+
     public function findTimerSlotResult(int $slot): ?array
     {
         $timerId = $this->scheduledTimerIds[$slot] ?? null;
