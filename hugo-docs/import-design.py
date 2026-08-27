@@ -210,7 +210,7 @@ def inline_logos(root: str) -> str:
     return root
 
 
-def rewrite_links(root: str) -> str:
+def rewrite_links(root: str, lang: str) -> str:
     for dead, live in LINKS.items():
         root = root.replace(f"https://durable.rocks{dead}", live)
 
@@ -221,6 +221,14 @@ def rewrite_links(root: str) -> str:
     root = root.replace("https://durable.rocks/docs/", "/docs/")
     root = root.replace("https://durable.rocks/docs", "/docs/")
     root = root.replace("https://durable.rocks/", "/")
+
+    # Le guide existe en français depuis la PR #147, aux mêmes ancres. Une page
+    # française qui renvoie vers `/docs/` envoie son lecteur sur l'anglais alors
+    # que la traduction est là — et les ancres qu'elle cite
+    # (`#bounding-a-wait-in-time`…) sont précisément celles qui ont été épinglées
+    # pour survivre à la traduction.
+    if lang != "en":
+        root = re.sub(r'href="/(docs/)', rf'href="/{lang}/\1', root)
 
     # Le pied de page du canevas porte un lien « Variants » vers son autre planche,
     # `index.dc.html`. Le canevas sait le suivre ; le site servi rend un 404 — il l'a
@@ -347,7 +355,7 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
     root, hover_rules = convert_hovers(root)
     root = convert_handlers(root)
     root = inline_logos(root)
-    root = rewrite_links(root)
+    root = rewrite_links(root, language_of(src_path, out_path))
 
     notes = line_notes(source)
     default_note = words["note_text"]
