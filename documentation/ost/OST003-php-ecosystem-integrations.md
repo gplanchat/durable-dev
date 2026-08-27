@@ -295,4 +295,5 @@ of them, and that is deliberate; this table is where the difference lives.
 - [OST001 — Alternative durable execution backends](OST001-alternative-durable-execution-backends.md) §6 records the PHP competitive landscape.
 - [DUR006 — No official Temporal PHP SDK or RoadRunner](../adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md)
 - [DUR030 — DBAL backend: simplified durable execution on a single SQL database](../adr/DUR030-dbal-backend-simplified-durable-execution.md)
+- Pimcore's Generic Execution Engine — [Jobs](https://docs.pimcore.com/platform/Pimcore/Development_Tools_and_Details/Generic_Execution_Engine/Jobs_and_Jobruns/Jobs/) and [Configuration](https://docs.pimcore.com/platform/next/Pimcore/Development_Tools_and_Details/Generic_Execution_Engine/Configuration/), where `max_retries: 0` and the reason given for it are stated.
 - [DUR037 — Run observation is a projection](../adr/DUR037-run-observation-as-a-projection.md) — the pattern the Akeneo `StepExecution` projection would follow.
