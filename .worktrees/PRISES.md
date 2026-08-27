@@ -21,3 +21,4 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
 | `test/bundle-integration-suite` | récupérer la suite d'intégration perdue en avril | `tests/integration/Durable/**` | en cours |
+| `change/nexus-handler-probe` | servir Nexus | tâches 1.1–1.8 (sonde) | en cours |
