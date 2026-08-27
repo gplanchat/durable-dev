@@ -20,3 +20,4 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
+| `feat/nexus-header-value-object` | nexus-operation-headers | 2.1 + 2.2 (objet-valeur d'en-tetes) | en cours |
