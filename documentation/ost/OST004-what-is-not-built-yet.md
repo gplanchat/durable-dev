@@ -19,12 +19,16 @@ estimate here.
 This repository has never costed work in days, and inventing that precision now would read as
 noise. Four registers, and the register is the estimate:
 
-| Register | What it means | What makes it wrong |
-|---|---|---|
-| **Wiring** | The shape exists and is being repeated. DI, a command, a projection, a set of rule configurations. | Nothing, usually. This is the register that behaves. |
-| **A bootstrap** | A package written from the container up: service wiring, queue, worker, migration. | The host's queue semantics, discovered late. |
-| **A design question** | The cost is dominated by a decision nobody has taken. Any number quoted before the decision is quoted about the wrong thing. | Quoting it anyway. |
-| **A probe** | The cost cannot be known until a real server, or a real host, answers. The probe is the first task, not the preamble. | Designing against an assumption, then finding the assumption wrong at task 12. |
+| Register | Magnitude | What it means | What makes it wrong |
+|---|---|---|---|
+| **Wiring** | **A week or under** | The shape exists and is being repeated. DI, a command, a projection, a set of rule configurations. | Nothing, usually. This is the register that behaves. |
+| **A bootstrap** | **Weeks** | A package written from the container up: service wiring, queue, worker, migration. | The host's queue semantics, discovered late. That is what spreads the weeks, not the volume of code. |
+| **A design question** | **Unknowable until the decision** | The cost is dominated by a decision nobody has taken. Any number quoted before the decision is quoted about the wrong thing. | Quoting it anyway. |
+| **A probe** | **Unknowable until the server answers** | The cost cannot be known until a real server, or a real host, answers. The probe is the first task, not the preamble. | Designing against an assumption, then finding the assumption wrong at task 12. |
+
+The magnitudes are OST003's, not new ones: its §6 already closes on "three of these targets are a
+week of wiring on a stack the bundle already fits, two are a bootstrap, and two are the same design
+problem written twice."
 
 `nexus-handler-side` and `workflow-versioning` both open on a probe, and both say so in their first
 section. That is the convention this table describes, not an addition to it.
@@ -132,12 +136,16 @@ them.
 
 **Bucket 1 — configuration, not code.** Rector ships the rules; the set file supplies the map.
 
-| Transformation | Rule |
+| Transformation | What does it |
 |---|---|
-| `#[WorkflowInterface]` on the interface → `#[Workflow(name: …)]` on the class | `RenameAttributeRector`, plus §6's caveat below |
-| `#[SignalMethod]`, `#[QueryMethod]`, `#[UpdateMethod]`, `#[WorkflowMethod]`, `#[ActivityInterface]`, `#[ActivityMethod]` | `RenameAttributeRector` — the vocabulary is deliberately close ([comparison §4](../user/comparison/)) |
-| `Temporal\Exception\Failure\ActivityFailure` → `DurableActivityFailedException`, and the rest of the failure hierarchy | `ClassRenameRector` |
-| `Promise::all()` / `Promise::any()` → `$this->environment->all()` / `any()` | `RenameStaticMethodRector` + the receiver change of bucket 2 |
+| `#[WorkflowInterface]` on the interface → `#[Workflow(name: …)]` on the class | An attribute rename, **plus the synthesized name** — see the caveat below |
+| `#[ActivityInterface]` → `#[Activity(name: …)]`, `#[ActivityMethod]` → `#[ActivityMethod(name: …)]` | The same rename, and the **same caveat, twice**: both attributes take a mandatory `name` |
+| `#[SignalMethod]`, `#[QueryMethod]`, `#[UpdateMethod]`, `#[WorkflowMethod]` | A plain attribute rename — the vocabulary is deliberately close ([comparison §4](../user/comparison/)) |
+| `Temporal\Exception\Failure\ActivityFailure` → `DurableActivityFailedException`, and the rest of the failure hierarchy | A class rename map |
+| `Promise::all()` / `Promise::any()` → `$this->environment->all()` / `any()` | A static-method rename, plus the receiver change of bucket 2 |
+
+Rector ships configurable rules for all five shapes; **which ones, by name, gets pinned when the set
+file is written** against the version in `composer.json` rather than quoted from memory here.
 
 Register: **wiring**. A day of map-writing and a fixture per row.
 
@@ -188,12 +196,18 @@ Rector matches on fully-qualified name strings and does not autoload the classes
 fixtures declare stub SDK classes in the test namespace. A `require-dev` on the SDK would be the
 lazy route and it would falsify a published claim.
 
-**The workflow type name has to survive the attribute rewrite.** The SDK derives the type from the
-`#[WorkflowInterface]`'s short name; `#[Workflow]` takes it explicitly. A rule that renames the
-attribute without synthesizing `name:` from the interface it came from produces a class that
-compiles, passes its tests, and **silently fails to resolve every run already in flight**. This is
-the one rule in the set whose bug is invisible until production, and it is the one that gets the
-integration fixture.
+**The type name has to survive the attribute rewrite — and it is three attributes, not one.** The
+SDK derives a workflow type from the `#[WorkflowInterface]`'s short name and an activity type from
+the interface prefix plus the method's short name. Durable's `#[Workflow]`, `#[Activity]` and
+`#[ActivityMethod]` all take `name` as a **mandatory** constructor argument, so the rename cannot
+even produce code that runs without inventing one — and a rule that invents it from the class it
+happens to be sitting on, rather than from the interface the SDK derived it from, produces a class
+that compiles, passes its tests, and **silently fails to resolve every run already in flight**. The
+activity side is the easier one to get wrong, because the name it must reconstruct is a
+concatenation of two sources rather than one short name.
+
+These are the rules in the set whose bug is invisible until production, and they are the ones that
+get the integration fixture.
 
 ### What the set does not promise
 
