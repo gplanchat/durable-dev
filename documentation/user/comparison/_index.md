@@ -453,6 +453,12 @@ TypeScript and .NET, and none for PHP. On the Durable side the caller path is ex
 integration tests against a real Temporal server: round trips, cancellation and failure, operation
 bounds, and the endpoint, service, operation and header naming rules.
 
+**And the call interoperates.** That is worth stating because it was not always true: the caller
+used to wrap the payload in an envelope of its own, so a handler written with another SDK received
+an object where it expected its own fields — and answered on empty values, without anything raising.
+The payload now travels as the caller wrote it. Measured against a handler served by the **Go SDK**,
+before and after: `{"name":""}` → `hello ` became `{"name":"ada"}` → `hello ada`.
+
 Two limits come with it, and both are deliberate:
 
 - **Caller only.** Durable calls Nexus operations; it does not serve them. A handler needs its own
