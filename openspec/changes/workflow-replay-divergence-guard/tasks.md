@@ -97,7 +97,14 @@
       measurement showed.
       **Checked and deliberately left alone:** DUR035's "no non-determinism detection is promised"
       is about *conditions*, not slot identity. The two do not conflict.
-- [ ] 5.3 A user-facing note on what a divergence looks like and what to do about it — revert,
-      or rename the workflow type.
-- [ ] 5.4 Update the comparison page: the versioning row should say the failure is loud once this
-      lands, since today it says nothing about how the gap fails.
+- [x] 5.3 A user page rather than a note: `documentation/user/deploying/` — *Changing a workflow
+      that is already running*. It starts from why a running execution is not just old code (replay
+      matches by position), shows the insertion that shifts everything after it, shows the message,
+      and gives the two answers: revert and the run finishes, or register a new workflow type and
+      let the old runs drain. It also states what is **not** checked — timers — and how narrow that
+      gap is, and that backends without workflow tasks end the run instead of retrying it.
+- [x] 5.4 The comparison page's versioning row now says how the gap **fails**, which is what it
+      was missing: the gap is one of convenience rather than safety, a divergent deploy is caught
+      and reported, the task fails, reverting resumes the run — and it used to resolve the wrong
+      recorded value in silence. It links to the new page.
+      The row that opened this whole change is the last one it corrects.

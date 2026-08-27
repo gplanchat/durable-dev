@@ -445,7 +445,7 @@ The reasoning is recorded in
 |---|---|
 | **Maintenance** | Official Temporal project, kept in parity with the other language SDKs |
 | **Maturity** | Long production track record. Durable is `0.1.0-alpha`, with breaking changes between alphas |
-| **Workflow versioning** | `Workflow::getVersion()`. **Durable has no equivalent** — this is the significant functional gap for long-running workflows that must evolve while runs are in flight |
+| **Workflow versioning** | `Workflow::getVersion()` lets one class carry both behaviours and lets history decide which a run sees. **Durable has no equivalent**: changing a workflow with runs in flight means registering a new workflow type and waiting for the old ones to drain. The gap is real, and it is a gap in *convenience* rather than in safety — a divergent deploy is [caught and reported](../deploying/), the task fails, and reverting resumes the run. It used to resolve the wrong recorded value in silence |
 | **Saga** | A dedicated helper. Durable has none — the shape is a deadline and a compensation path, written out in [Creating a workflow](../workflows/#bounding-a-wait-in-time), so what is missing is the sugar rather than the capability |
 | **API coverage** | Broad. Durable covers search attributes, cron schedules, updates, deadlines and child workflows; anything beyond that is worth checking against the [Configuration reference](../configuration/) before you commit |
 
