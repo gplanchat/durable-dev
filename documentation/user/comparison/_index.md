@@ -28,12 +28,12 @@ and a worker is an ordinary PHP CLI consumer:
 bin/console messenger:consume durable_workflows durable_activities
 ```
 
-| | Temporal PHP SDK | Durable |
+| | Durable | Temporal PHP SDK |
 |---|---|---|
-| Worker process | RoadRunner (Go binary), supervised by RoadRunner | `messenger:consume`, supervised by whatever already supervises your workers |
-| Extra binary in the image | yes | no |
-| Worker configuration | `.rr.yaml` | `messenger.yaml` |
-| Deployment model | a second process model to learn and operate | the one your Symfony application already uses |
+| Worker process | `messenger:consume`, supervised by whatever already supervises your workers | RoadRunner (Go binary), supervised by RoadRunner |
+| Extra binary in the image | no | yes |
+| Worker configuration | `messenger.yaml` | `.rr.yaml` |
+| Deployment model | the one your Symfony application already uses | a second process model to learn and operate |
 
 ### What this does *not* claim
 
@@ -57,6 +57,31 @@ recorded in [DUR006](https://github.com/gplanchat/durable-dev/blob/main/document
 
 This is where the two libraries diverge most, and the divergence is structural rather than a matter
 of tooling: it follows from how a workflow reaches the engine.
+
+### With Durable, the workflow runs in the test process
+
+`DurableTestCase` wires the In-Memory backend and runs your production class:
+
+```php
+final class GreetWorkflowTest extends DurableTestCase
+{
+    public function testWorkflowGreetsCorrectly(): void
+    {
+        $greetSpy = ActivitySpy::returns('Hello, Alice!');
+        $env = $this->createWorkflowTestEnvironment(['greet' => $greetSpy]);
+
+        $result = $env->runWorkflowClass(GreetingWorkflow::class, ['name' => 'Alice'], 'exec-1');
+
+        self::assertSame('Hello, Alice!', $result);
+        $greetSpy->assertCalledWith(['name' => 'Alice']);
+        $this->assertWorkflowCompleted('exec-1', 'Hello, Alice!');
+        $this->assertActivityExecuted('exec-1', 'greet');
+    }
+}
+```
+
+No server, no binary, no extension, no Docker. See [Testing workflows](../testing/) for the full
+toolkit.
 
 ### With the SDK, every workflow test is an integration test
 
@@ -84,32 +109,7 @@ the expectation is written on one side and read by the worker on the other. This
 *is* a real Temporal server — but there is no cheaper tier below it. Asserting that a `match` in
 your workflow picks the right branch costs two binaries and a gRPC round trip.
 
-### With Durable, the workflow runs in the test process
-
-`DurableTestCase` wires the In-Memory backend and runs your production class:
-
-```php
-final class GreetWorkflowTest extends DurableTestCase
-{
-    public function testWorkflowGreetsCorrectly(): void
-    {
-        $greetSpy = ActivitySpy::returns('Hello, Alice!');
-        $env = $this->createWorkflowTestEnvironment(['greet' => $greetSpy]);
-
-        $result = $env->runWorkflowClass(GreetingWorkflow::class, ['name' => 'Alice'], 'exec-1');
-
-        self::assertSame('Hello, Alice!', $result);
-        $greetSpy->assertCalledWith(['name' => 'Alice']);
-        $this->assertWorkflowCompleted('exec-1', 'Hello, Alice!');
-        $this->assertActivityExecuted('exec-1', 'greet');
-    }
-}
-```
-
-No server, no binary, no extension, no Docker. See [Testing workflows](../testing/) for the full
-toolkit.
-
-### Why it is possible here
+### Why Durable can do this
 
 Three properties of the authoring surface, not three test helpers:
 
@@ -159,12 +159,12 @@ deadlines, updates, cron schedules, search attributes, Nexus. It is deliberately
 about the *bridge*, not about your business logic. Your workflows are covered by the unit tier, which
 needs nothing. With the SDK, the server-backed tier is the only tier there is.
 
-| | Temporal PHP SDK | Durable |
+| | Durable | Temporal PHP SDK |
 |---|---|---|
-| Unit tier (business logic) | none — every workflow test is out-of-process | PHPUnit, in-process, zero infrastructure |
-| Server-backed tier | mandatory, for all workflow tests | optional, scoped to wire and protocol parity |
-| What it needs | test server + RoadRunner | a Temporal dev server + `ext-grpc` |
-| Runs in CI without Docker | no | the unit tier does |
+| Unit tier (business logic) | PHPUnit, in-process, zero infrastructure | none — every workflow test is out-of-process |
+| Server-backed tier | optional, scoped to wire and protocol parity | mandatory, for all workflow tests |
+| What it needs | a Temporal dev server + `ext-grpc` | test server + RoadRunner |
+| Runs in CI without Docker | the unit tier does | no |
 
 ### The honest cost
 
@@ -188,11 +188,11 @@ complete would make the timer win every `any(activity, timer)` race. See
 
 ## 3. Backends: one, or three
 
-| | Temporal PHP SDK | Durable |
+| | Durable | Temporal PHP SDK |
 |---|---|---|
-| Execution backends | a Temporal cluster | **three**, running the same workflow code |
-| Tests | test server | In-Memory, no server |
-| Production without a cluster | not possible | **DBAL** — durable execution on one SQL database |
+| Execution backends | **three**, running the same workflow code | a Temporal cluster |
+| Tests | In-Memory, no server | test server |
+| Production without a cluster | **DBAL** — durable execution on one SQL database | not possible |
 
 The DBAL backend ([DUR030](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR030-dbal-backend-simplified-durable-execution.md))
 has no counterpart in the SDK: a journal, workflow metadata and locks on a single relational
@@ -207,57 +207,182 @@ See [Backends](../backends/).
 
 ## 4. The authoring surface
 
-**Temporal PHP SDK** — static facade, generators, promises:
-
-```php
-#[WorkflowMethod]
-public function handle(string $input)
-{
-    $activity = Workflow::newActivityStub(MyActivity::class);
-    $result = yield $activity->doWork($input);
-    yield Workflow::sleep(60);
-
-    return $result;
-}
-```
+The same workflow — charge an order, wait an hour, send the receipt — written twice.
 
 **Durable** — injected environment, fibers, plain return types:
 
 ```php
-#[Workflow('TimerThenTickWorkflow')]
-final class TimerThenTickWorkflow
+#[Workflow(name: 'order')]
+final class OrderWorkflow implements OrderWorkflowContract
 {
-    private readonly ActivityStub $tick;
-
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
-        $this->tick = $environment->activityStub(TickActivityInterface::class);
     }
 
     #[WorkflowMethod]
-    public function run(float $seconds = 0.01): string
+    public function run(string $orderId): string
     {
-        $this->environment->timer($seconds);
+        $activities = $this->environment->activityStub(OrderActivities::class);
 
-        return $this->environment->await($this->tick->tick());
+        $charge = $this->environment->await($activities->charge($orderId));
+        $this->environment->sleep(Duration::hours(1));
+
+        return $this->environment->await($activities->sendReceipt($charge));
     }
 }
 ```
 
-| | Temporal PHP SDK | Durable |
+**Temporal PHP SDK** — static facade, generators, promises:
+
+```php
+#[WorkflowInterface]
+interface OrderWorkflowContract
+{
+    #[WorkflowMethod]
+    public function run(string $orderId);
+}
+
+final class OrderWorkflow implements OrderWorkflowContract
+{
+    public function run(string $orderId)
+    {
+        $activities = Workflow::newActivityStub(OrderActivities::class);
+
+        $charge = yield $activities->charge($orderId);
+        yield Workflow::sleep(3600);
+
+        return yield $activities->sendReceipt($charge);
+    }
+}
+```
+
+Same steps, same names, same order. What differs is everything around them:
+
+| | Durable | Temporal PHP SDK |
 |---|---|---|
-| Access to the engine | static `Workflow::` facade | `WorkflowEnvironment` injected in the constructor |
-| Suspension | `yield` + `React\Promise\PromiseInterface` | fibers + `Awaitable` |
-| Function colouring | any awaiting method becomes a generator, and so does its caller | ordinary methods, declared return types |
-| Declaration | `#[WorkflowInterface]` on an interface, implemented by a class | `#[Workflow]` on the class |
-| Method attributes | `#[WorkflowMethod]`, `#[SignalMethod]`, `#[QueryMethod]`, plus workflow updates | the same four |
+| Access to the engine | `WorkflowEnvironment` injected in the constructor | static `Workflow::` facade |
+| Suspension | fibers + `Awaitable` | `yield` + `React\Promise\PromiseInterface` |
+| Function colouring | ordinary methods, declared return types | any awaiting method becomes a generator, and so does its caller — see [below](#5-fibers-or-generators-the-colouring-problem) |
+| Declaration | `#[Workflow]` on the class | `#[WorkflowInterface]` on an interface, implemented by a class |
+| Method attributes | `#[WorkflowMethod]`, `#[SignalMethod]`, `#[QueryMethod]`, `#[UpdateMethod]` | the same four, workflow updates included |
+
+The return type is the visible consequence: `run()` declares `string` on one side; on the other, the
+only type it could declare is `\Generator`, which says nothing about what the workflow returns. That
+is what makes the Durable class an ordinary object a PHPUnit test can build and call — see
+[Testability](#2-testability).
 
 The attribute vocabulary is deliberately close; the execution model underneath is not.
 
 ---
 
-## 5. Scheduling activities
+## 5. Fibers or generators: the colouring problem
+
+The *function colouring* row above is the mechanism under
+[Testability](#2-testability) — it is the second of the three properties listed there, and it is
+worth its own section. The name comes from Bob Nystrom's
+[What Color Is Your Function?](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/):
+in a language where suspension is a keyword, functions come in two colours — red suspends, blue
+does not — and a red one can only be called from another red one.
+
+`yield` is that keyword. A method that yields is a **generator**: it no longer returns its value, it
+returns a `Generator` that somebody has to drive. Extract three lines of a workflow into a helper —
+the ordinary refactoring — and if those lines await, the helper turns red, and every caller up to
+the workflow method turns red with it.
+
+**Durable** — the helper is an ordinary method:
+
+```php
+#[WorkflowMethod]
+public function run(string $orderId): string
+{
+    return $this->chargeWithRetry($orderId);
+}
+
+private function chargeWithRetry(string $orderId): string
+{
+    foreach ([1, 2, 4] as $backoff) {
+        try {
+            return $this->environment->await($this->activities->charge($orderId));
+        } catch (DurableActivityFailedException) {
+            $this->environment->sleep(Duration::seconds($backoff));
+        }
+    }
+
+    throw new ChargeGaveUp($orderId);
+}
+```
+
+**Temporal PHP SDK** — the helper is a generator, and so is its caller:
+
+```php
+public function run(string $orderId)
+{
+    return yield from $this->chargeWithRetry($orderId);
+}
+
+private function chargeWithRetry(string $orderId)
+{
+    foreach ([1, 2, 4] as $backoff) {
+        try {
+            return yield $this->activities->charge($orderId);
+        } catch (ActivityFailure) {
+            yield Workflow::sleep($backoff);
+        }
+    }
+
+    throw new ChargeGaveUp($orderId);
+}
+```
+
+A retry policy would normally do this for you — `ActivityOptions` carries one on both sides, and
+[Failures and retries](../failures/) is where it belongs. What the example is about is the
+**extraction**: three lines moved out of a workflow method into a helper. Two return types
+disappear, and the call site changes to `yield from`. Neither is a detail — they are what the
+colour costs.
+
+Durable suspends with `\Fiber::suspend()`, and it does so **inside the runtime**, in
+`ExecutionRuntime::await()`, several frames below your code. A fiber suspends the whole call stack,
+not the frame that asked: the frames in between are suspended without participating, so they need
+no keyword, no return type change, and no rewrite.
+
+| | Durable (fibers) | Temporal PHP SDK (generators) |
+|---|---|---|
+| Awaiting from a helper method | ordinary private method | the helper becomes a generator |
+| Its callers | unchanged | every one of them becomes a generator too, up to `#[WorkflowMethod]` |
+| The call site | `$this->chargeWithRetry($id)` | `yield from $this->chargeWithRetry($id)` |
+| Declared return type | the method's own — `string` | none it can usefully declare |
+| Calling it from outside a workflow | an ordinary call | needs something to drive the generator |
+
+That last row is what [Testability](#2-testability) rests on: a blue workflow is an object PHPUnit
+builds and calls.
+
+### What the colour buys, and what it costs to give up
+
+Colouring is not only a tax. `yield` **marks the suspension point in the source** — reading the
+method, you know exactly where the workflow can stop for a week. Fibers take that marker away: an
+ordinary-looking call may suspend and nothing at the call site says so.
+
+Durable narrows the loss rather than denying it. **Only `await()` waits**, and `sleep()`, which is
+`await()` on a timer written short — every stub call, `timer()`, `all()`, `any()` and `some()`
+assembles and returns immediately. Inside a given method, the waiting points are exactly those
+calls. What a reader cannot see is whether a helper waits *inside*, which is the price of the
+refactoring the SDK forbids.
+
+Two limits worth knowing:
+
+- fibers are PHP **8.1+**; Durable requires 8.2 regardless;
+- a fiber **cannot suspend in a destructor** — PHP throws `FiberError: Cannot switch fibers in
+  current execution context`. Awaiting from `__destruct()` is not workflow code, so this has not
+  come up in practice, but it is the one context where the stack is not free to suspend.
+
+Neither model affects determinism: both replay the same history, and both forbid the same
+non-deterministic calls inside a workflow. The difference is where the suspension keyword lives —
+in your code, or in the runtime.
+
+---
+
+## 6. Scheduling activities
 
 The SDK accepts both a typed stub and a call by activity name with a free-form payload. Durable
 removed the second form: **the typed stub is the only way a workflow schedules an activity**
@@ -271,7 +396,7 @@ Less freedom, one class of mistakes removed at analysis time. See
 
 ---
 
-## 6. Nexus: the one place Durable is ahead
+## 7. Nexus: the one place Durable is ahead
 
 [Nexus](https://docs.temporal.io/nexus) routes a call from a workflow to an operation served in
 another namespace or another cluster. **A Durable workflow can call one; a workflow written with the
@@ -314,7 +439,7 @@ The reasoning is recorded in
 
 ---
 
-## 7. Where the SDK is ahead
+## 8. Where the SDK is ahead
 
 | | |
 |---|---|
