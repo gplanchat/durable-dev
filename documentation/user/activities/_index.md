@@ -112,6 +112,13 @@ Create **separate stubs** when different calls need different policies — one w
 retries for a flaky HTTP call, another with stricter timeouts for a fast path:
 
 ```php
+/** @var ActivityStub<SearchActivities> */
+private readonly ActivityStub $flaky;
+
+/** @var ActivityStub<PricingActivities> */
+private readonly ActivityStub $strict;
+
+// … dans le constructeur :
 $this->flaky  = $env->activityStub(SearchActivities::class, ActivityOptions::of(
     10,
     initialInterval: Duration::milliseconds(200),
@@ -123,9 +130,14 @@ $this->strict = $env->activityStub(PricingActivities::class, ActivityOptions::of
 ));
 ```
 
-### Low-level `activity()` call
+> [!NOTE]
+> Declaring the property **`readonly`** is what lets
+> [`gplanchat/durable-phpstan`](https://github.com/gplanchat/durable-phpstan) check the calls you
+> make through the stub: PHPStan infers the contract from `activityStub()` and can follow it to
+> the call site. A mutable property loses it, and then an explicit
+> `/** @var ActivityStub<Contract> */` is needed. Either way, a contract it cannot resolve leaves
+> the call unknown to the analyser — never silently accepted.
 
-If you schedule by **activity name** instead of a contract stub, **`WorkflowEnvironment::activity()`** also accepts an optional **`ActivityOptions`** argument — same metadata shape for the journal.
 
 ## Dependency injection
 

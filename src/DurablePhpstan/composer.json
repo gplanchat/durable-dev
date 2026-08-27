@@ -1,0 +1,41 @@
+{
+    "name": "gplanchat/durable-phpstan",
+    "description": "PHPStan extension for gplanchat/durable — resolves ActivityStub and ChildWorkflowStub calls from their typed contract, so a mistyped activity is an analysis error rather than a runtime failure",
+    "license": "MIT",
+    "type": "phpstan-extension",
+    "require": {
+        "php": ">=8.2",
+        "gplanchat/durable": "self.version",
+        "phpstan/phpstan": "^2.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gplanchat\\Durable\\PHPStan\\": "./"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        },
+        "phpstan": {
+            "includes": [
+                "extension.neon"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        }
+    },
+    "authors": [
+        {
+            "name": "Grégory Planchat",
+            "email": "gregory@gyroscops.com"
+        }
+    ]
+}

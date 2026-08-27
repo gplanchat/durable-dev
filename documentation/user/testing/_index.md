@@ -75,7 +75,8 @@ interface GreetingActivities
 #[Workflow(name: 'greeting')]
 final class GreetingWorkflow
 {
-    private ActivityStub $greetings;
+    /** @var ActivityStub<GreetingActivities> */
+    private readonly ActivityStub $greetings;
 
     public function __construct(
         private readonly WorkflowEnvironment $environment,
