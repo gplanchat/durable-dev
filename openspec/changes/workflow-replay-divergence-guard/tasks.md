@@ -51,11 +51,22 @@
 
 ## 3. The failure is legible
 
-- [ ] 3.1 The exception carries execution id, slot kind, slot index, recorded identity, requested
-      identity.
-- [ ] 3.2 It surfaces as a failed workflow **task** — which depends on 2.1 — and a test asserts the
-      run is still resumable after the code is restored.
-- [ ] 3.3 The same guard fires identically on the DBAL backend — one parity test.
+- [x] 3.1 The exception carries all five, and each is asserted: slot kind, slot index (checked on a
+      *second* slot so a passing 0 cannot be an accident), execution id, recorded identity,
+      requested identity. A second test pins that the slot kind is named — `activity` and
+      `child workflow` are not looked up in the same place in a history.
+- [x] 3.2 An integration test against a real server: divergent deploy → `WORKFLOW_TASK_FAILED`, no
+      `WORKFLOW_EXECUTION_FAILED`, no `WORKFLOW_EXECUTION_COMPLETED`, then the original code is
+      redeployed and the run **completes normally**. The harness gained what this needs:
+      `spawnWorker()` takes a code variant through the environment, and `redeployWorkflowWorker()`
+      replaces the workflow worker alone — a deployment, played small.
+      **Checked that it discriminates:** with the guard neutralised, the same test fails on the run
+      ending `WORKFLOW_EXECUTION_COMPLETED` — the original defect, reproduced on demand.
+- [x] 3.3 Not a bespoke DBAL parity test: the identity accessors joined
+      `EventStoreReplayConformanceTestCase`, so **every** store adapter that extends it inherits the
+      check — DBAL today, whatever comes next tomorrow. A store can return the right result at the
+      right slot and the wrong identity, and a guard comparing the wrong identity is worse than no
+      guard: it would refuse faithful replays.
 
 ## 4. No regression on correct workflows
 

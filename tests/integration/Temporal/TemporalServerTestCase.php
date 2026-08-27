@@ -185,7 +185,44 @@ abstract class TemporalServerTestCase extends TestCase
         return $out;
     }
 
-    private function spawnWorker(string $role): void
+    /**
+     * Remplace le worker de workflow par un autre, sur une variante de code différente.
+     *
+     * C'est un déploiement, joué en petit : l'ancien processus meurt, le nouveau reprend la même
+     * file et la même exécution. Le worker d'activité, lui, ne bouge pas — ce n'est pas lui qu'on
+     * redéploie.
+     */
+    protected function redeployWorkflowWorker(string $variant): void
+    {
+        foreach ($this->workers as $index => $process) {
+            if ('workflow' !== ($this->workerPipes[$index]['role'] ?? '')) {
+                continue;
+            }
+            if (\is_resource($process)) {
+                proc_terminate($process, \SIGKILL);
+                proc_close($process);
+            }
+            foreach ($this->workerPipes[$index]['pipes'] as $pipe) {
+                if (\is_resource($pipe)) {
+                    fclose($pipe);
+                }
+            }
+            unset($this->workers[$index], $this->workerPipes[$index]);
+        }
+        $this->workers = array_values($this->workers);
+        $this->workerPipes = array_values($this->workerPipes);
+
+        $this->spawnWorker('workflow', $variant);
+    }
+
+    /**
+     * Démarre un worker, éventuellement sur une **variante de code**.
+     *
+     * Une divergence de replay demande deux versions du même type de workflow, et un worker vit
+     * dans son propre processus : la variante voyage donc par l'environnement, comme un déploiement
+     * la ferait voyager par une image.
+     */
+    protected function spawnWorker(string $role, string $variant = 'default'): void
     {
         $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
         $process = proc_open(
@@ -199,6 +236,8 @@ abstract class TemporalServerTestCase extends TestCase
             ],
             $descriptors,
             $pipes,
+            null,
+            ['DURABLE_WORKER_VARIANT' => $variant] + getenv(),
         );
 
         if (!\is_resource($process)) {

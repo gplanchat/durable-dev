@@ -44,6 +44,9 @@ $client = WorkflowServiceClientFactory::create($connection);
 if ('workflow' === $role) {
     $registry = new WorkflowRegistry();
     IntegrationWorkflows::registerWorkflows($registry);
+    // Le même type de workflow, deux corps : c'est ce qu'un déploiement fait à une exécution en
+    // vol, et le seul moyen d'observer la garde de divergence contre un vrai serveur.
+    IntegrationWorkflows::registerDivergentPair($registry, getenv('DURABLE_WORKER_VARIANT') ?: 'default');
 
     $processor = new WorkflowTaskProcessor(
         $client,

@@ -182,6 +182,29 @@ final class IntegrationWorkflows
         return self::options();
     }
 
+    /**
+     * Le même type de workflow, deux corps, choisis par la variante du worker.
+     *
+     * `default` planifie `double` au slot d'activité 0 ; `divergent` y planifie `append`. Une
+     * exécution démarrée sur l'un puis reprise par l'autre est exactement ce qu'un déploiement fait
+     * à une exécution en vol — et le seul montage qui met la garde de DUR042 sous un vrai serveur.
+     *
+     * Le minuteur entre les deux ouvre la fenêtre : c'est là qu'on remplace le worker.
+     */
+    public static function registerDivergentPair(WorkflowRegistry $registry, string $variant): void
+    {
+        $registry->registerFactory('DivergentByDeploy', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input, $variant): array {
+            $stub = $env->activityStub(IntegrationActivities::class, self::options());
+            $first = 'divergent' === $variant
+                ? $env->await($stub->append('deployed-v2'))
+                : $env->await($stub->double((int) ($input['value'] ?? 21)));
+
+            $env->sleep(Duration::seconds((float) (getenv('DURABLE_DIVERGENCE_WINDOW') ?: 12)));
+
+            return ['variant' => $variant, 'slot0' => $first];
+        });
+    }
+
     private static function options(): ActivityOptions
     {
         return new ActivityOptions(timeouts: self::attemptTimeout());
