@@ -52,13 +52,16 @@ partly-landed change from its proposal overstates every one of them.
 **The one remaining task on the query change has now been run against a live Temporal server**
 (6.4), and it is red — for reasons that predate the change. Eight of thirteen tests error, in
 exactly two causes and neither on the query registry: six construct a `TemporalStartingEventStore`
-that exists nowhere in the repository, and two hand a `WorkflowNamespace` to something that wants a
-string. The counter stays at 23 / 24; the tick is not this change's to take.
+that exists nowhere in the repository, and two handed a `WorkflowNamespace` to something that wants
+a string — those two are repaired. The counter stays at 23 / 24; the tick is not this change's to
+take.
 
-**The CI job that was supposed to be watching this reports success while testing nothing**: thirteen
-tests, three assertions, ten skipped, in forty-five milliseconds — every server-touching test skips
-before a single RPC. A gate that cannot fail is not evidence, and it is what let those two defects
-sit. See the change's §7.
+**The CI job that was supposed to be watching this reported success while testing nothing** —
+thirteen tests, three assertions, ten skipped, in forty-five milliseconds. The cause was a port:
+`symfony/.env` publishes the Temporal frontend on `7234` so it can sit beside a local server on
+`7233`, and the job's DSN aimed at `7233`. Nothing answered, every server-touching test skipped, and
+the job announced success. It is fixed, and the job now runs fourteen tests and **fails** on the one
+remaining cause. A gate that cannot fail is not evidence; this one can. See the change's §7.
 
 **The divergence guard is done, and its remainder was narrower than its proposal all along** —
 which is the case this table exists to make. Activity slots (`2f0593e`), then Nexus and child
