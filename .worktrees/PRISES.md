@@ -20,4 +20,3 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
-| `docs/comparison-nexus-is-an-advantage` | comparatif SDK Temporal | ligne Nexus | en cours |
