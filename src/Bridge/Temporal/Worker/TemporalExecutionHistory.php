@@ -30,6 +30,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     private array $scheduledActivityIds = [];
 
     /** @var list<string> identités d'opérations Nexus, dans l'ordre de planification */
+    /** @var list<string> */
+    private array $childWorkflowTypes = [];
+
     private array $scheduledNexusOperationIds = [];
 
     /** @var array<string, int> identité applicative → eventId du NEXUS_OPERATION_SCHEDULED */
@@ -402,6 +405,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 $attr = $event->getStartChildWorkflowExecutionInitiatedEventAttributes();
                 if (null !== $attr) {
                     $this->childExecutionIds[] = (string) $attr->getWorkflowId();
+                    // Le type, en parallèle et au même index : c'est lui l'identité du slot,
+                    // l'identifiant d'exécution étant engendré.
+                    $this->childWorkflowTypes[] = (string) ($attr->getWorkflowType()?->getName() ?? '');
                 }
                 break;
 
@@ -545,6 +551,29 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     public function findScheduledChildExecutionId(int $slot): ?string
     {
         return $this->childExecutionIds[$slot] ?? null;
+    }
+
+    public function childWorkflowTypeForSlot(int $slot): ?string
+    {
+        $type = $this->childWorkflowTypes[$slot] ?? '';
+
+        return '' === $type ? null : $type;
+    }
+
+    public function nexusOperationSignatureForSlot(int $slot): ?string
+    {
+        $operationId = $this->scheduledNexusOperationIds[$slot] ?? null;
+        if (null === $operationId) {
+            return null;
+        }
+
+        $eventId = $this->nexusOperationToScheduledEventId[$operationId] ?? null;
+        $site = null === $eventId ? null : ($this->nexusOperationCallSites[$eventId] ?? null);
+        if (null === $site) {
+            return null;
+        }
+
+        return \sprintf('%s/%s/%s', $site['endpoint'], $site['service'], $site['operation']);
     }
 
     public function messageAt(int $index): ?array

@@ -33,8 +33,14 @@
       divergence. Both adapters normalise it to null, and the port promises never to answer an
       empty string. Without that rule the guard fired on every slot whose journal entry carries no
       name — three existing tests said so.
-- [ ] 2.4 The same pair for `nexusOperation()` — the triple, not just the operation name.
-- [ ] 2.5 The same pair for `childWorkflow()`.
+- [x] 2.4 The same pair for `nexusOperation()` — the **triple**, not just the operation name.
+      Tested against `TemporalExecutionHistory` rather than the journal backend: that backend
+      refuses Nexus by construction (DUR036), so no journal of its can hold one and the guard would
+      have nothing to compare. The journal source answers null for Nexus, and says why.
+- [x] 2.5 The same pair for `childWorkflow()` — the workflow **type**. The bridge did not index it
+      at all; `childWorkflowTypes` now runs alongside `childExecutionIds`. The execution id is
+      deliberately not compared: it is generated, so a faithful replay would diverge every time.
+      The three call sites share one rule, `refuseDivergence()`.
 - [ ] 2.6 Timers: 1.4 found no identity to compare. A test that documents the gap.
 
 ## 3. The failure is legible

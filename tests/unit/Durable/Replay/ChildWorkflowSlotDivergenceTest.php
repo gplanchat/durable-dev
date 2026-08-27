@@ -1,0 +1,81 @@
+<?php
+
+declare(strict_types=1);
+
+namespace unit\Gplanchat\Durable\Replay;
+
+use Gplanchat\Durable\Event\ChildWorkflowScheduled;
+use Gplanchat\Durable\Exception\WorkflowTaskFailure;
+use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\Port\ChildWorkflowRunnerInterface;
+use Gplanchat\Durable\Store\EventStoreCommandBuffer;
+use Gplanchat\Durable\Store\EventStoreHistorySource;
+use Gplanchat\Durable\Store\InMemoryEventStore;
+use Gplanchat\Durable\Transport\NoopActivityTransport;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * La même garde, sur les slots de workflow enfant.
+ *
+ * Un enfant s'identifie par son **type**. Son identifiant d'exécution, lui, est engendré : le
+ * comparer ferait diverger un replay parfaitement fidèle.
+ *
+ * Les opérations Nexus ont leur propre test, côté pont : le backend journal les refuse par
+ * construction (DUR036), et y éprouver la garde serait éprouver une situation impossible.
+ *
+ * @see \unit\Gplanchat\Bridge\Temporal\Worker\NexusSlotDivergenceTest
+ */
+final class ChildWorkflowSlotDivergenceTest extends TestCase
+{
+    private const EXECUTION = 'exec-2425';
+
+    public function testAChildOfAnotherTypeIsRefused(): void
+    {
+        $context = $this->contextWithChild('ChargeCardWorkflow');
+
+        $this->expectException(WorkflowTaskFailure::class);
+        $context->executeChildWorkflow('ReserveStockWorkflow', ['sku' => 'ABC']);
+    }
+
+    public function testTheChildRefusalNamesBothTypes(): void
+    {
+        $context = $this->contextWithChild('ChargeCardWorkflow');
+
+        try {
+            $context->executeChildWorkflow('ReserveStockWorkflow', ['sku' => 'ABC']);
+            self::fail('La divergence aurait dû être refusée.');
+        } catch (WorkflowTaskFailure $e) {
+            $message = $e->getMessage();
+        }
+
+        self::assertStringContainsString('ChargeCardWorkflow', $message);
+        self::assertStringContainsString('ReserveStockWorkflow', $message);
+    }
+
+    public function testAnUnchangedChildTypeStillReplays(): void
+    {
+        $context = $this->contextWithChild('ChargeCardWorkflow');
+
+        $awaitable = $context->executeChildWorkflow('ChargeCardWorkflow', ['sku' => 'ABC']);
+
+        self::assertNotNull($awaitable, "Le type inchangé ne doit pas diverger : l'identifiant d'exécution engendré n'entre pas dans la comparaison.");
+    }
+
+    private function contextWithChild(string $childType): ExecutionContext
+    {
+        $store = new InMemoryEventStore();
+        $store->append(new ChildWorkflowScheduled(self::EXECUTION, 'child-1', $childType, ['sku' => 'ABC']));
+
+        return $this->context($store);
+    }
+
+    private function context(InMemoryEventStore $store): ExecutionContext
+    {
+        return new ExecutionContext(
+            self::EXECUTION,
+            new EventStoreHistorySource($store, self::EXECUTION),
+            new EventStoreCommandBuffer($store, new NoopActivityTransport(), self::EXECUTION),
+            $this->createStub(ChildWorkflowRunnerInterface::class),
+        );
+    }
+}
