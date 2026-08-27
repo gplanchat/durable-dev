@@ -40,10 +40,12 @@ unmeasured.
 
 ## 2. The module boots
 
-- [ ] 2.1 `src/DurableModule` with `registration.php` declaring `Gplanchat_Durable`, `etc/module.xml`,
+- [x] 2.1 `src/DurableModule` with `registration.php` declaring `Gplanchat_Durable`, `etc/module.xml`,
       and a `composer.json` naming `gplanchat/durable-magento`. `bin/magento module:status` lists it.
-- [ ] 2.2 The bench's path repository resolves — it points at `../src/DurableModule` today and finds
-      nothing.
+- [x] 2.2 The bench's path repository resolves. **Two host constraints found on the way**, both
+      recorded in `design.md`: Mage-OS's `composer-dependency-version-audit-plugin` refuses a path
+      package that also exists on Packagist, and Magento's generated `Interceptor` cannot extend a
+      `final` class — which is the house style everywhere else in this repository.
 - [ ] 2.3 A configuration surface for the backend choice, refusing DBAL and Illuminate **at
       startup, by name**, the way the DBAL backend refuses Nexus. Not at the moment a workflow waits
       on a journal nobody writes.
@@ -53,9 +55,11 @@ unmeasured.
 - [ ] 3.1 A registration mechanism for `#[Workflow]` and `#[Activity]` classes, since Magento's
       container has no tag autoconfiguration. Whether it is `di.xml` over an explicit list or a
       compiler-pass equivalent is task 1's answer to make, not this task's to assume.
-- [ ] 3.2 A workflow class written once runs unmodified on the in-memory backend inside the bench.
-      This is the first slice that proves the module is a *Durable* integration rather than a
-      Magento module that happens to compile.
+- [x] 3.2 A workflow class written once runs unmodified on the in-memory backend inside the bench.
+      `bin/magento durable:demo ORD-4242` runs charge → reserve → notify in order and exits 0.
+      `PlaceOrderWorkflow` imports nothing from Magento — no `ObjectManager`, no
+      `ResourceConnection` — which is the whole point: everything under the ports is
+      `gplanchat/durable` unchanged.
 
 ## 4. The queue carries the work
 

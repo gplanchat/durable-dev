@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <!--
+        La commande entre dans la liste de `bin/magento`. C'est le seul point où
+        le module touche Magento : tout le reste est du PHP ordinaire que le
+        conteneur instancie sans rien savoir de Durable.
+    -->
+    <type name="Magento\Framework\Console\CommandListInterface">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="durable_demo" xsi:type="object">Gplanchat\Durable\Magento\Console\Command\RunDemoCommand</item>
+            </argument>
+        </arguments>
+    </type>
+
+</config>

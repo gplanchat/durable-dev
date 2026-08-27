@@ -50,6 +50,22 @@ The module's job is to provide the right-hand column and **nothing else**. Every
 ports — replay, the command buffer, the journal, failure classification — is `gplanchat/durable`
 unchanged, exactly as the DBAL bridge leaves it unchanged.
 
+## Two host constraints, found by trying
+
+Neither was in the design before the module was written, and both cost a debugging round:
+
+**Magento's container forbids `final`.** It generates an `Interceptor` subclass for every class it
+instantiates, to carry plugins. A `final` class fails compilation with *"cannot extend final
+class"*, and the message does not say the keyword is the cause. This repository writes `final`
+everywhere; inside the module, the classes the container builds cannot. The ones it does not build —
+the workflow, the runtime it assembles — stay `final`.
+
+**Mage-OS audits path repositories.** `composer-dependency-version-audit-plugin` refuses a package
+resolved from a local path when a higher version of the same name exists on packagist.org — a
+dependency-confusion guard. `gplanchat/durable` is both published and provided by path here, so it
+trips on every bench install. The bench disables the plugin for itself, which is defensible because
+the path repositories *are* its source of truth; a consumer's project should keep it on.
+
 ## The one hazard that is not a port
 
 Temporal serialises workflow tasks for one execution server-side. Magento's queue does not, and

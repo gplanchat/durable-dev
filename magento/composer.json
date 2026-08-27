@@ -7,7 +7,7 @@
         "php": "^8.2",
         "mage-os/product-community-edition": "2.2.0",
         "gplanchat/durable-bridge-temporal": "@dev",
-        "gplanchat/durable-module": "@dev"
+        "gplanchat/durable-magento": "@dev"
     },
     "repositories": [
         {
@@ -52,7 +52,7 @@
     },
     "config": {
         "allow-plugins": {
-            "mage-os/composer-dependency-version-audit-plugin": true,
+            "mage-os/composer-dependency-version-audit-plugin": false,
             "mage-os/magento-composer-installer": true,
             "mage-os/inventory-composer-installer": true,
             "laminas/laminas-dependency-plugin": true

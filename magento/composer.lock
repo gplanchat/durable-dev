@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8d55632058f69864e87d5f1fe0b36735",
+    "content-hash": "2205a8b0ebe85407b699aa060a9e98d0",
     "packages": [
         {
             "name": "2tvenom/cborencode",
@@ -2232,20 +2232,24 @@
         },
         {
             "name": "gplanchat/durable",
-            "version": "0.1.0",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "../src/Durable",
-                "reference": "6f0b7aea5b088cbff8cb6ca176a933a3f4de1001"
+                "reference": "002aa67a53c99ddaacb61a3bdcd56fd7fe120275"
             },
             "require": {
                 "php": ">=8.2",
-                "psr/clock": "^1.0",
-                "psr/log": "^3.0"
+                "psr/cache": "^3.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^11.0"
             },
             "suggest": {
-                "gplanchat/durable-phpstan": "Optional PHPStan extension (ActivityStub + Awaitable; see ADR012)",
-                "gplanchat/durable-psalm-plugin": "Optional Psalm plugin entry point; prefer durable-phpstan for stubs (ADR012)"
+                "gplanchat/durable-bridge-dbal": "SQL backend: durable execution on one database, no cluster (DUR030)",
+                "gplanchat/durable-bridge-temporal": "Temporal gRPC backend (requires ext-grpc)",
+                "gplanchat/durable-phpstan": "Optional PHPStan extension: resolves ActivityStub and ChildWorkflowStub calls from their typed contract (DUR038)",
+                "phpunit/phpunit": "Required by the shipped test helpers (Testing\\DurableTestCase, Testing\\WorkflowTestEnvironment) and the conformance suites (Testing\\EventStoreConformanceTestCase, DUR041)"
             },
             "type": "library",
             "extra": {
@@ -2325,16 +2329,23 @@
             }
         },
         {
-            "name": "gplanchat/durable-module",
-            "version": "0.1.0",
+            "name": "gplanchat/durable-magento",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "../src/DurableModule",
-                "reference": "57b59d2573f07b836d869d58010b8826a867a225"
+                "reference": "5e7561d099cfc18ed532d942a2eee4efdadb37bf"
             },
             "require": {
-                "gplanchat/durable-bridge-temporal": "^0.1",
+                "gplanchat/durable": "self.version",
+                "magento/framework": "^103.0",
                 "php": ">=8.2"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^11.5"
+            },
+            "suggest": {
+                "gplanchat/durable-bridge-temporal": "Runs executions against a Temporal cluster instead of a single process"
             },
             "type": "magento2-module",
             "extra": {
@@ -2347,7 +2358,7 @@
                     "registration.php"
                 ],
                 "psr-4": {
-                    "Gplanchat\\DurableModule\\": ""
+                    "Gplanchat\\Durable\\Magento\\": "./"
                 }
             },
             "license": [
@@ -2355,11 +2366,11 @@
             ],
             "authors": [
                 {
-                    "name": "Gregory Planchat",
+                    "name": "Grégory Planchat",
                     "email": "gregory@gyroscops.com"
                 }
             ],
-            "description": "Magento 2.4+ admin module for durable workflow tracking with Temporal.",
+            "description": "Magento 2 / Mage-OS module bringing durable workflow execution to the host's own container and queue.",
             "transport-options": {
                 "symlink": false,
                 "relative": true
@@ -25805,7 +25816,7 @@
     "minimum-stability": "dev",
     "stability-flags": {
         "gplanchat/durable-bridge-temporal": 20,
-        "gplanchat/durable-module": 20
+        "gplanchat/durable-magento": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
