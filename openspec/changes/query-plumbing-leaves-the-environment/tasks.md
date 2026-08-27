@@ -47,6 +47,37 @@
 - [x] 6.1 Unit suite green (528 tests).
 - [x] 6.2 PHPStan clean.
 - [x] 6.3 `php-cs-fixer` clean.
-- [ ] 6.4 Integration suite against a real Temporal server. **Not run here** — needs a live server.
-      `aa89793`'s twenty green integration tests were against a different `main`; they are evidence
-      about the wire format, which has not moved, and not about this tree.
+- [ ] 6.4 ⛔ attend:auteur — Integration suite against a real Temporal server. **Run, and red for
+      reasons that predate this change.** A live server was available (`temporal server start-dev`,
+      `127.0.0.1:7233`, namespace `default`); the suite was run from the primary copy, whose
+      `symfony/vendor/gplanchat/*` are symlinks onto `src/`, so it did test this tree:
+      `Tests: 13, Assertions: 9, Errors: 8, Skipped: 1`. The eight split into exactly two causes,
+      neither of them this change's: six on a class that does not exist, two on a value object
+      passed where a string is expected. Nothing in them touches the query registry — the one
+      query-shaped test dies on the namespace type before it reaches a query. See §7. The tick
+      belongs to whoever repairs those tests, not to this change.
+
+## 7. Found while running 6.4 — not tasks of this change
+
+These are findings, not work items: they are recorded here because 6.4 is where they surfaced, and
+they are why it cannot be ticked. This change remains 23 / 24.
+
+**7.1 — a class that exists nowhere.** `Gplanchat\Bridge\Temporal\TemporalStartingEventStore` is
+not in `src/`, not on any remote branch, and nowhere in the history (`git log --all -S`). Both
+`TemporalJournalEventStoreIntegrationTest` (five tests) and `TemporalInterpreterMirrorIntegrationTest`
+(one) construct it — **six** of the eight errors. The only copy on this machine sits in an untracked
+scratch worktree. Decide whether those tests describe work that was never merged, or work that was
+renamed: `TemporalJournalEventStore` is the only event store the bridge has today.
+
+**7.2 — two call sites left behind by `WorkflowNamespace`.** `TemporalConnection::$namespace` is a
+value object, and two integration tests still hand it where a string is required:
+`NativeExecutionSpikeIntegrationTest:60` (`HistoryPageMerger::__construct()`, a `TypeError`) and
+`WorkflowServiceExecutionRpcIntegrationTest:78` (protobuf's `setNamespace()`,
+`InvalidArgumentException: Expect string`). The remaining **two** errors.
+
+**7.3 — the CI job is green while testing nothing.** "Tests d'intégration Temporal (gRPC + Temporal
+auto-setup)" reports `Tests: 13, Assertions: 3, Skipped: 10` in **45 ms**: every server-touching
+test skips at `setUpBeforeClass` before a single RPC, leaving only the DI-wiring kernel tests. The
+gate has reported success through 7.1 and 7.2 for as long as they have existed. Find why the socket
+check fails there — `symfony/compose.yaml` does publish `7233` — or the suite will keep passing by
+not running.
