@@ -247,7 +247,8 @@ final class TimerThenTickWorkflow
 | Access to the engine | static `Workflow::` facade | `WorkflowEnvironment` injected in the constructor |
 | Suspension | `yield` + `React\Promise\PromiseInterface` | fibers + `Awaitable` |
 | Function colouring | any awaiting method becomes a generator, and so does its caller | ordinary methods, declared return types |
-| Attributes | `#[WorkflowInterface]`, `#[WorkflowMethod]`, `#[SignalMethod]`, `#[QueryMethod]` | `#[Workflow]`, `#[WorkflowMethod]`, `#[SignalMethod]`, `#[QueryMethod]`, `#[UpdateMethod]` |
+| Declaration | `#[WorkflowInterface]` on an interface, implemented by a class | `#[Workflow]` on the class |
+| Method attributes | `#[WorkflowMethod]`, `#[SignalMethod]`, `#[QueryMethod]`, plus workflow updates | the same four |
 
 The attribute vocabulary is deliberately close; the execution model underneath is not.
 
