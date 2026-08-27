@@ -16,10 +16,13 @@
 
 ## 2. The comparison, one slot kind at a time
 
-- [ ] 2.1 **Prerequisite, found by the probe.** Teach the bridge to respond
-      `RespondWorkflowTaskFailed` rather than emitting a failure command, so a guard can fail the
-      task and leave the run resumable. Without it the guard trades silent corruption for a dead
-      run — an improvement, but not the one this change describes.
+- [x] 2.1 **Prerequisite, found by the probe.** The bridge responds `RespondWorkflowTaskFailed`
+      when `WorkflowTaskFailure` escapes workflow code, instead of emitting a failure command.
+      Verified against a real server: `WORKFLOW_TASK_FAILED` appears, the run stays alive, and
+      restoring the code that wrote the history lets it complete normally. Any other throwable
+      still fails the execution — the distinction is the whole point.
+      **Not covered:** the backends with no notion of a task. There, `WorkflowTaskFailure` behaves
+      like any other exception; 2.3–2.6 will say whether that is acceptable for the guard.
 - [ ] 2.2 RED: a replay test that swaps the activity at slot 0 between two polls of the same
       history, and expects a failure naming both names.
 - [ ] 2.3 GREEN: identity accessor on `WorkflowHistorySourceInterface`, comparison in

@@ -95,9 +95,11 @@ A divergence is a deployment mistake, and deployment mistakes get reverted. If t
 leaves the history intact and the run resumable — put the old code back, the next poll replays
 cleanly, and nothing was lost but the time between the two deploys.
 
-**The probe showed the bridge has no way to do this today** (section 2 above). Raising fails the
-run. So this section describes the target, and reaching it means teaching the bridge to respond
-`RespondWorkflowTaskFailed` — task 2.1.
+**The probe showed the bridge had no way to do this** (section 2 above), and task 2.1 built it:
+`WorkflowTaskFailure` escaping workflow code makes the processor answer `RespondWorkflowTaskFailed`
+and emit no command at all. Re-measured against the same server, the same scenario now ends
+`WORKFLOW_TASK_FAILED` → task retried → `WORKFLOW_EXECUTION_COMPLETED` once the original code is
+back. The property this section rests on is no longer an assumption.
 
 This is why the guard belongs in `ExecutionContext` at resolution time and not in a validator over
 the finished command buffer: at resolution time nothing has been emitted yet.
