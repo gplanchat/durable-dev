@@ -222,13 +222,13 @@
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent; cursor: default;" class="dz-h8" data-dzh="8" data-dz-note="1"><span style="color: var(--ck, #a1341f);">final class</span> CheckoutWorkflow</div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent;">{</div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent; cursor: default;" class="dz-h9" data-dzh="9" data-dz-note="2">    <span style="color: var(--ck, #a1341f);">private</span> ActivityStub <span style="color: var(--cv, #1c6b8a);">$orders</span>;</div>
-            <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent;"></div>
+            <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent;"> </div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent; cursor: default;" class="dz-h10" data-dzh="10" data-dz-note="3">    <span style="color: var(--ck, #a1341f);">public function</span> __construct(</div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent; cursor: default;" class="dz-h11" data-dzh="11" data-dz-note="4">        <span style="color: var(--ck, #a1341f);">private readonly</span> WorkflowEnvironment <span style="color: var(--cv, #1c6b8a);">$env</span>,</div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent;">    ) {</div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent; cursor: default;" class="dz-h12" data-dzh="12" data-dz-note="5">        <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;orders = <span style="color: var(--cv, #1c6b8a);">$env</span>-&gt;activityStub(OrderActivities::<span style="color: var(--ck, #a1341f);">class</span>);</div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent;">    }</div>
-            <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent;"></div>
+            <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent;"> </div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent; cursor: default;" class="dz-h13" data-dzh="13" data-dz-note="6">    <span style="color: var(--cc, #9a9184);">#[WorkflowMethod]</span></div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent; cursor: default;" class="dz-h14" data-dzh="14" data-dz-note="7">    <span style="color: var(--ck, #a1341f);">public function</span> run(<span style="color: var(--ck, #a1341f);">string</span> <span style="color: var(--cv, #1c6b8a);">$orderId</span>): <span style="color: var(--ck, #a1341f);">string</span></div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent;">    {</div>
@@ -236,7 +236,7 @@
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent; cursor: default;" class="dz-h16" data-dzh="16" data-dz-note="9">        <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;await(<span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;orders-&gt;reserveStock(<span style="color: var(--cv, #1c6b8a);">$orderId</span>));</div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent; cursor: default;" class="dz-h17" data-dzh="17" data-dz-note="10">        <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;sleep(Duration::minutes(<span style="color: var(--ck, #a1341f);">5</span>));</div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent; cursor: default;" class="dz-h18" data-dzh="18" data-dz-note="11">        <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;await(<span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;orders-&gt;sendReceipt(<span style="color: var(--cv, #1c6b8a);">$payment</span>));</div>
-            <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent;"></div>
+            <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent;"> </div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent; cursor: default;" class="dz-h19" data-dzh="19" data-dz-note="12">        <span style="color: var(--ck, #a1341f);">return</span> <span style="color: var(--cv, #1c6b8a);">$payment</span>;</div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent;">    }</div>
             <div style="white-space: pre; padding: 1px 24px; border-left: 2px solid transparent;">}</div>
