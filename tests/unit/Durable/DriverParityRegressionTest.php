@@ -19,6 +19,7 @@ use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Deux régressions du passage au chemin d'activité unique et au pilote de fiber unique.
@@ -39,11 +40,10 @@ final class DriverParityRegressionTest extends TestCase
         ]);
 
         try {
-            $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activity(
-                'flaky',
-                [],
+            $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activityStub(
+                SuiteActivities::class,
                 new ActivityOptions(RetryLimit::ofAttempts(3), initialInterval: Duration::seconds(0.01)),
-            )), 'retry-1');
+            )->flaky()), 'retry-1');
         } catch (\Throwable) {
         }
 
@@ -82,7 +82,7 @@ final class DriverParityRegressionTest extends TestCase
 
         try {
             $engine->start('race-1', static fn(WorkflowEnvironment $env): mixed => $env->await($env->any(
-                $env->activity('slow', []),
+                $env->activityStub(SuiteActivities::class)->slow(),
                 $env->timer(3600.0),
             )));
             self::fail('le workflow devait suspendre');
@@ -103,7 +103,7 @@ final class DriverParityRegressionTest extends TestCase
             $composable = $wf->timer(0.0);
             $wf->sleep(0.0);
 
-            return [$composable instanceof \Gplanchat\Durable\Awaitable\Awaitable, $wf->await($wf->activity('echo', []))];
+            return [$composable instanceof \Gplanchat\Durable\Awaitable\Awaitable, $wf->await($wf->activityStub(SuiteActivities::class)->echoValue())];
         }, 'sleep-1');
 
         self::assertSame([true, 'done'], $result);
@@ -133,7 +133,7 @@ final class DriverParityRegressionTest extends TestCase
         $startedAt = microtime(true);
         $result = $env->run(static function (WorkflowEnvironment $wf): string {
             $wf->sleep(Duration::hours(1));
-            $answer = $wf->await($wf->activity('ping', []));
+            $answer = $wf->await($wf->activityStub(SuiteActivities::class)->ping());
             $wf->sleep(Duration::hours(24));
 
             return $answer;
@@ -150,7 +150,7 @@ final class DriverParityRegressionTest extends TestCase
         $env = WorkflowTestEnvironment::inMemory(['fast' => static fn(): string => 'winner']);
 
         $result = $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->any(
-            $wf->activity('fast', []),
+            $wf->activityStub(SuiteActivities::class)->fast(),
             $wf->timer(Duration::hours(1)),
         )), 'race-skip');
 
@@ -188,7 +188,7 @@ final class DriverParityRegressionTest extends TestCase
         $this->expectExceptionMessageMatches('/retry indefinitely by default/');
 
         $env->run(
-            static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activity('always', [], new ActivityOptions(initialInterval: Duration::seconds(0.05)))),
+            static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activityStub(SuiteActivities::class, new ActivityOptions(initialInterval: Duration::seconds(0.05)))->always()),
             'runaway-1',
         );
     }
@@ -198,7 +198,7 @@ final class DriverParityRegressionTest extends TestCase
         $env = WorkflowTestEnvironment::inMemory(['echo' => static fn(array $p): mixed => $p['v']]);
 
         self::assertSame(42, $env->run(
-            static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activity('echo', ['v' => 42])),
+            static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->activityStub(SuiteActivities::class)->echoValue(42)),
             'plain-1',
         ));
         $completed = null;

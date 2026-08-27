@@ -14,16 +14,30 @@ Temporal's `CanceledFailure`.
 ## Compensating
 
 ```php
+use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\Workflow;
+use Gplanchat\Durable\Attribute\WorkflowMethod;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
+use Gplanchat\Durable\WorkflowEnvironment;
 
+#[Workflow(name: 'checkout')]
 final class CheckoutWorkflow
 {
-    public function __invoke(WorkflowEnvironment $env): string
+    private ActivityStub $orders;
+
+    public function __construct(
+        private readonly WorkflowEnvironment $environment,
+    ) {
+        $this->orders = $environment->activityStub(OrderActivities::class);
+    }
+
+    #[WorkflowMethod]
+    public function run(string $orderId): string
     {
         try {
-            return $env->await($env->activity('charge', ['orderId' => $this->orderId]));
+            return $this->environment->await($this->orders->charge($orderId));
         } catch (WorkflowCancelledFailure $e) {
-            $env->await($env->activity('refund', ['orderId' => $this->orderId]));
+            $this->environment->await($this->orders->refund($orderId));
 
             throw $e;   // the execution ends cancelled
         }
@@ -80,15 +94,20 @@ A race loser is cancelled with reason `race_superseded` instead, and surfaces as
 ## Race losers
 
 ```php
-$winner = $env->await($env->any(
-    $env->activity('slow-call', $payload),
-    $env->timer(30.0),                   // an awaitable, like the activity above
+$winner = $this->environment->await($this->environment->any(
+    $this->quotes->callProvider($orderId),
+    $this->environment->timer(Duration::seconds(30)),   // an awaitable, like the call above
 ));
 ```
 
 When one branch wins, the others are cancelled: pending activities are removed from the queue and
 pending timers stop waking the execution.
 
-`timer()` returns an `Awaitable`, exactly like `activity()` — which is what makes the "activity with
-a timeout" pattern above expressible. When you only want to wait, `sleep()` says so in its name and
-awaits for you.
+`timer()` returns an `Awaitable`, exactly like a stub call — which is what makes the race above
+expressible. When you only want to wait, `sleep()` says so in its name and awaits for you.
+
+> [!NOTE]
+> A race against a timer is how you cancel the losing branch. To bound a wait *in time*, pass the
+> deadline to `await()` instead: an elapsed deadline raises `DeadlineExceededException`, which a
+> race cannot express because `any()` returns only the winning value. See
+> [Creating a workflow](../workflows/#bounding-a-wait-in-time).

@@ -30,6 +30,7 @@ use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Tests for WorkflowTaskProcessor — the poll → execute → respond loop.
@@ -224,7 +225,7 @@ final class WorkflowTaskProcessorTest extends TestCase
             'ActivityWorkflow',
             static fn(array $payload)
             => static function (WorkflowEnvironment $env): string {
-                return $env->await($env->activity('greet', ['name' => 'World']));
+                return $env->await($env->activityStub(SuiteActivities::class)->greet('World'));
             },
         );
 
@@ -260,7 +261,7 @@ final class WorkflowTaskProcessorTest extends TestCase
             'ActivityWorkflow',
             static fn(array $payload)
             => static function (WorkflowEnvironment $env): string {
-                return $env->await($env->activity('greet', ['name' => 'World']));
+                return $env->await($env->activityStub(SuiteActivities::class)->greet('World'));
             },
         );
 

@@ -19,6 +19,8 @@ final class ParentCallsEchoChildWorkflow
     #[WorkflowMethod]
     public function run(string $text = 'child'): mixed
     {
-        return $this->environment->childWorkflowStub(EchoChildWorkflow::class)->run($text);
+        return $this->environment->await(
+            $this->environment->childWorkflowStub(EchoChildWorkflow::class)->run($text),
+        );
     }
 }

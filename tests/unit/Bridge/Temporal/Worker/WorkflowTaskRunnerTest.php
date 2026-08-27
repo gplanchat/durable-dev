@@ -37,6 +37,7 @@ use Temporal\Api\Update\V1\Request as UpdateRequest;
 use Temporal\Api\Update\V1\Response as UpdateResponse;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Unit tests for WorkflowTaskRunner — fiber-based replay of Temporal workflow history.
@@ -252,7 +253,7 @@ final class WorkflowTaskRunnerTest extends TestCase
             'ActivityWorkflow',
             static fn(array $payload)
             => static function (WorkflowEnvironment $env): string {
-                $result = $env->await($env->activity('greet', ['name' => 'World']));
+                $result = $env->await($env->activityStub(SuiteActivities::class)->greet('World'));
 
                 return 'result: ' . $result;
             },
@@ -281,7 +282,7 @@ final class WorkflowTaskRunnerTest extends TestCase
             'ActivityWorkflow',
             static fn(array $payload)
             => static function (WorkflowEnvironment $env): string {
-                return $env->await($env->activity('greet', ['name' => 'World']));
+                return $env->await($env->activityStub(SuiteActivities::class)->greet('World'));
             },
         );
 
@@ -306,7 +307,7 @@ final class WorkflowTaskRunnerTest extends TestCase
             'FailingWorkflow',
             static fn(array $payload)
             => static function (WorkflowEnvironment $env): string {
-                return $env->await($env->activity('doWork', []));
+                return $env->await($env->activityStub(SuiteActivities::class)->doWork());
             },
         );
 
@@ -333,8 +334,8 @@ final class WorkflowTaskRunnerTest extends TestCase
             static fn(array $payload)
             => static function (WorkflowEnvironment $env): array {
                 return $env->await($env->all(
-                    $env->activity('task-a', []),
-                    $env->activity('task-b', []),
+                    $env->activityStub(SuiteActivities::class)->taskA(),
+                    $env->activityStub(SuiteActivities::class)->taskB(),
                 ));
             },
         );

@@ -1,0 +1,135 @@
+<?php
+
+declare(strict_types=1);
+
+namespace unit\Durable\Fixtures;
+
+use Gplanchat\Durable\Attribute\ActivityMethod;
+
+/**
+ * Les activités que la suite planifie, déclarées une fois.
+ *
+ * La suite nommait ses activités par des chaînes — `$env->activity('double', ['value' => 2])`, sans contrat —
+ * la forme que la bibliothèque n'enseigne plus. Ces noms sont des accessoires de test, pas des
+ * contrats métier, mais ce sont quand même du code de workflow : la règle vaut pour eux.
+ *
+ * **Le nom du paramètre est la clé de la charge.** `ActivityStub` construit la charge depuis les
+ * paramètres déclarés ici, donc un paramètre renommé change ce que reçoit le double. C'est le
+ * seul piège de ce fichier, et il est silencieux : la charge devient fausse, le test ne rougit
+ * pas.
+ *
+ * Le nom transmis reste celui de l'attribut, ce qui laisse `task-a` et `task-b` s'écrire
+ * `taskA()` et `taskB()` sans changer un octet de ce qui part sur le fil.
+ */
+interface SuiteActivities
+{
+    #[ActivityMethod('never')]
+    public function never(): mixed;
+
+    #[ActivityMethod('double')]
+    public function double(int $value): int;
+
+    #[ActivityMethod('append')]
+    public function append(string $text): string;
+
+    #[ActivityMethod('greet')]
+    public function greet(string $name): string;
+
+    #[ActivityMethod('echo')]
+    public function echoValue(mixed $v = null): mixed;
+
+    /** @param list<string> $lines */
+    #[ActivityMethod('quote')]
+    public function quote(array $lines): mixed;
+
+    // Accessoires d'ordonnancement : ces noms ne décrivent aucun métier, ils servent à faire
+    // gagner ou perdre une branche dans une course. Ils n'ont donc pas d'argument.
+    #[ActivityMethod('fast')]
+    public function fast(): mixed;
+
+    #[ActivityMethod('slow')]
+    public function slow(): mixed;
+
+    #[ActivityMethod('work')]
+    public function work(): mixed;
+
+    /** Rend une valeur vide : `empty` est une construction du langage, pas un nom de méthode. */
+    #[ActivityMethod('empty')]
+    public function emptyResult(): mixed;
+
+    /** Échoue puis réussit : sert aux tests de retentative. */
+    #[ActivityMethod('flaky')]
+    public function flaky(): mixed;
+
+    #[ActivityMethod('charge')]
+    public function charge(mixed $o = null): mixed;
+
+    #[ActivityMethod('refund')]
+    public function refund(mixed $order = null): mixed;
+
+    #[ActivityMethod('doWork')]
+    public function doWork(): mixed;
+
+    // Le trait d'union n'est pas un nom de méthode PHP ; l'attribut porte le nom transmis, donc
+    // rien ne bouge sur le fil.
+    #[ActivityMethod('task-a')]
+    public function taskA(): mixed;
+
+    #[ActivityMethod('task-b')]
+    public function taskB(): mixed;
+
+    #[ActivityMethod('ping')]
+    public function ping(): mixed;
+
+    /** Échoue toujours : sert aux tests de retentative sans issue. */
+    #[ActivityMethod('always')]
+    public function always(): mixed;
+
+    #[ActivityMethod('square')]
+    public function square(int $value): int;
+
+    #[ActivityMethod('add')]
+    public function add(int $a, int $b): int;
+
+    #[ActivityMethod('task')]
+    public function task(string $name): mixed;
+
+    /** Rend ce qu'on lui donne : sert à distinguer deux branches d'une même course. */
+    #[ActivityMethod('id')]
+    public function id(mixed $v): mixed;
+
+    #[ActivityMethod('validate')]
+    public function validate(string $data): mixed;
+
+    #[ActivityMethod('explode')]
+    public function explodeNow(): never;
+
+    /** Une étape d'une séquence : appelée plusieurs fois, elle rend un résultat différent. */
+    #[ActivityMethod('step')]
+    public function step(): mixed;
+
+    #[ActivityMethod('compute')]
+    public function compute(int $a, int $b): int;
+
+    // Branches nues d'une composition : `a`, `b`, `c` ne nomment rien d'autre que leur place
+    // dans un assemblage. Le contrat ne les rend pas plus expressives — il les rend seulement
+    // atteignables sans nommer une chaîne.
+    #[ActivityMethod('a')]
+    public function a(): mixed;
+
+    #[ActivityMethod('b')]
+    public function b(): mixed;
+
+    #[ActivityMethod('c')]
+    public function c(): mixed;
+
+    #[ActivityMethod('price')]
+    public function price(int $n): mixed;
+
+    #[ActivityMethod('ok')]
+    public function ok(mixed $n = null): mixed;
+
+    /** Échoue : sert aux compositions où une branche doit tomber. */
+    #[ActivityMethod('boom')]
+    public function boom(): never;
+}

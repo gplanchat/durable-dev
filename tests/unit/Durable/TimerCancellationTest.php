@@ -13,6 +13,7 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Le minuteur perdant d'un `any()` restait planifié : son échéance réveillait ensuite
@@ -38,7 +39,7 @@ final class TimerCancellationTest extends TestCase
     public function testLoserTimerIsCancelledAndNeverFires(): void
     {
         $result = $this->runner->run('race-1', static fn(WorkflowEnvironment $env): mixed => $env->await($env->any(
-            $env->activity('fast', []),
+            $env->activityStub(SuiteActivities::class)->fast(),
             $env->timer(3600.0),
         )));
 
@@ -59,7 +60,7 @@ final class TimerCancellationTest extends TestCase
     public function testCancellationIsNotDuplicatedOnReplay(): void
     {
         $handler = static fn(WorkflowEnvironment $env): mixed => $env->await($env->any(
-            $env->activity('fast', []),
+            $env->activityStub(SuiteActivities::class)->fast(),
             $env->timer(3600.0),
         ));
 

@@ -42,12 +42,16 @@ final class GreetWorkflowTest extends DurableTestCase
         // 2. Create an in-memory environment and register the spy under the activity name.
         $env = $this->createWorkflowTestEnvironment(['greet' => $greetSpy]);
 
-        // 3. Run the workflow closure — same signature as your real workflow.
-        $result = $env->run(function (WorkflowEnvironment $wf) {
-            return $wf->await($wf->activity('greet', ['name' => 'Alice']));
-        }, $executionId = 'exec-greet-001');
+        // 3. Run your workflow class, in the shape it has in production: the environment
+        //    reaches its constructor, the input reaches its #[WorkflowMethod].
+        $result = $env->runWorkflowClass(
+            GreetingWorkflow::class,
+            ['name' => 'Alice'],
+            $executionId = 'exec-greet-001',
+        );
 
-        // 4. Assert the result and verify the activity was called.
+        // 4. Assert the result and verify the activity was called. The stub rebuilds the
+        //    payload from the contract's parameter names, which is what the spy observes.
         self::assertSame('Hello, Alice!', $result);
         $greetSpy->assertCalledTimes(1);
         $greetSpy->assertCalledWith(['name' => 'Alice']);
@@ -58,6 +62,40 @@ final class GreetWorkflowTest extends DurableTestCase
     }
 }
 ```
+
+The workflow and the contract under test — the same two files you would write for production:
+
+```php
+interface GreetingActivities
+{
+    #[ActivityMethod('greet')]
+    public function greet(string $name): string;
+}
+
+#[Workflow(name: 'greeting')]
+final class GreetingWorkflow
+{
+    private ActivityStub $greetings;
+
+    public function __construct(
+        private readonly WorkflowEnvironment $environment,
+    ) {
+        $this->greetings = $environment->activityStub(GreetingActivities::class);
+    }
+
+    #[WorkflowMethod]
+    public function run(string $name): string
+    {
+        return $this->environment->await($this->greetings->greet($name));
+    }
+}
+```
+
+> [!NOTE]
+> `run()` also accepts a closure receiving the environment, and a few tests below use it for a
+> three-line workflow that is not worth a class. That form is the **harness's** shape, not a
+> workflow's: since the environment moved to the constructor, no real workflow has that
+> signature. Prefer `runWorkflowClass()` — what you test is then what you ship.
 
 ### Available assertions in `DurableTestCase`
 
@@ -123,10 +161,16 @@ $spy->assertNeverCalled();
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
 use Gplanchat\Durable\WorkflowEnvironment;
 
+interface ShoutActivities
+{
+    #[ActivityMethod('my-activity')]
+    public function shout(string $text): string;
+}
+
 $env = WorkflowTestEnvironment::inMemory(['my-activity' => fn(array $p) => strtoupper($p['text'])]);
 
 $result = $env->run(function (WorkflowEnvironment $wf) {
-    return $wf->await($wf->activity('my-activity', ['text' => 'hello']));
+    return $wf->await($wf->activityStub(ShoutActivities::class)->shout('hello'));
 }, 'exec-001');
 
 assert($result === 'HELLO');
@@ -285,9 +329,15 @@ A workflow that sleeps is testable in milliseconds. The harness runs on a **virt
 advances to the next due timer, so `sleep(Duration::hours(24))` costs no real time:
 
 ```php
+interface PingActivities
+{
+    #[ActivityMethod('ping')]
+    public function ping(): string;
+}
+
 $result = $env->run(function (WorkflowEnvironment $wf): string {
     $wf->sleep(Duration::hours(1));
-    $answer = $wf->await($wf->activity('ping', []));
+    $answer = $wf->await($wf->activityStub(PingActivities::class)->ping());
     $wf->sleep(Duration::hours(24));
 
     return $answer;
@@ -338,7 +388,7 @@ $env = WorkflowTestEnvironment::inMemory(['work' => $spy]);
 $env->registerWorkflow('Child', fn (array $input) => fn (WorkflowEnvironment $wf) => /* … */);
 
 $result = $env->run(
-    fn (WorkflowEnvironment $wf) => $wf->executeChildWorkflow('Child', ['value' => 21]),
+    fn (WorkflowEnvironment $wf) => $wf->await($wf->childWorkflowStub(ChildWorkflow::class)->run(21)),
     'parent-1',
 );
 ```

@@ -7,13 +7,13 @@ namespace Gplanchat\Durable;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Activity\ContextActivityScheduler;
 use Gplanchat\Durable\Awaitable\ActivityAwaitable;
 use Gplanchat\Durable\Awaitable\AnyAwaitable;
 use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Awaitable\AwaitableInspector;
 use Gplanchat\Durable\Awaitable\CancellingCompositeAwaitable;
 use Gplanchat\Durable\Awaitable\ConditionAwaitable;
-use Gplanchat\Durable\Awaitable\Deferred;
 use Gplanchat\Durable\Awaitable\QuorumAwaitable;
 use Gplanchat\Durable\Awaitable\TimerAwaitable;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
@@ -26,6 +26,7 @@ use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
 use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Workflow\ChildWorkflowStub;
+use Gplanchat\Durable\Workflow\ContextChildWorkflowScheduler;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 
 /**
@@ -444,25 +445,7 @@ final class WorkflowEnvironment
         return $this->await($this->context->sideEffect($closure));
     }
 
-    /**
-     * Planifie un workflow enfant sans l’attendre ; à combiner avec {@see all()} pour plusieurs enfants en parallèle.
-     *
-     * @param array<string, mixed> $input
-     *
-     * @return Awaitable<mixed>
-     */
-    public function scheduleChildWorkflow(string $childWorkflowType, array $input = [], ?ChildWorkflowOptions $options = null): Awaitable
-    {
-        return $this->context->executeChildWorkflow($childWorkflowType, $input, $options);
-    }
 
-    /**
-     * @param array<string, mixed> $input
-     */
-    public function executeChildWorkflow(string $childWorkflowType, array $input = [], ?ChildWorkflowOptions $options = null): mixed
-    {
-        return $this->await($this->scheduleChildWorkflow($childWorkflowType, $input, $options));
-    }
 
     /**
      * Retourne un stub typé pour un workflow enfant.
@@ -477,18 +460,9 @@ final class WorkflowEnvironment
     {
         $loader = $this->workflowLoader ?? new WorkflowDefinitionLoader();
 
-        return new ChildWorkflowStub($this, $workflowClass, $loader, $options);
+        return new ChildWorkflowStub(new ContextChildWorkflowScheduler($this->context), $workflowClass, $loader, $options);
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     *
-     * @return Awaitable<mixed>
-     */
-    public function activity(string $name, array $payload = [], ?ActivityOptions $options = null): Awaitable
-    {
-        return $this->context->activity($name, $payload, $options);
-    }
 
     /**
      * Appelle une opération Nexus : une opération servie par une autre équipe, un autre namespace,
@@ -534,16 +508,9 @@ final class WorkflowEnvironment
     {
         $resolver = $this->activityResolver ?? new ActivityContractResolver(null);
 
-        return new ActivityStub($this, $contractClass, $resolver, $options);
+        return new ActivityStub(new ContextActivityScheduler($this->context), $contractClass, $resolver, $options);
     }
 
-    /**
-     * @return Awaitable<mixed>
-     */
-    public function async(mixed $value): Awaitable
-    {
-        return Deferred::resolved($value);
-    }
 
     /**
      * @param array<string, mixed> $payload

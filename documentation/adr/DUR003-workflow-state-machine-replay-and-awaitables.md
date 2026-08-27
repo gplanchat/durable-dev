@@ -74,7 +74,7 @@ for each fiber suspension:
 `WorkflowEnvironment` (DUR022) is the only API surface exposed to workflow code. It provides:
 
 - `await(Awaitable $a): mixed` — suspend until the awaitable completes (replay-safe)
-- `async(callable $fn): Awaitable` — schedule async work compatible with the fiber model
+- ~~`async(callable $fn): Awaitable`~~ — **never existed in this form and has been removed.** The shipped method took a *value*, not a callable, and returned it already settled; it scheduled nothing. It had no caller and was removed by the `workflow-authoring-surface` change.
 - `all(Awaitable ...$awaitables): array` — wait for all branches; parallel activities use this
 - `race(Awaitable ...$awaitables): mixed` — first completion wins
 - `any(Awaitable ...$awaitables): mixed` — first useful result

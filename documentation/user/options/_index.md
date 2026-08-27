@@ -142,7 +142,10 @@ $options = new ActivityOptions(
     timeouts: ActivityTimeouts::attempt(Duration::seconds(30)),
 );
 
-$result = $env->await($env->activity('charge', ['orderId' => $id], $options));
+// Options are carried by the stub: every call it makes uses them.
+$orders = $this->environment->activityStub(OrderActivities::class, $options);
+
+$result = $this->environment->await($orders->charge($orderId));
 ```
 
 The retry interval grows by `backoffCoefficient` and is capped. With no explicit cap, Temporal's
