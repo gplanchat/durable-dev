@@ -39,15 +39,24 @@
 - [ ] 1b.1 **Two budgets.** `request-timeout` (~9 s) bounds the answer to one task;
       `operation-timeout` bounds the operation. A handler cannot hold a task while it works. Decide
       whether synchronous-only is still worth shipping given how narrow ~9 s makes it.
-- [ ] 1b.2 **The payload envelope — no longer a choice between two designs.** 1.1 measured what it
-      costs: a Go handler serving a Durable caller receives an empty payload and answers on it,
-      silently. Teaching handlers the envelope does not fix that — it only fixes *our* handlers, and
-      leaves every other SDK's handler quietly wrong.
-      So the envelope has to go: correlate by scheduled event id, which the history already carries,
-      and send the caller's payload as the caller wrote it. That is a caller-side change, it breaks
-      the wire format for in-flight Nexus operations, and it belongs to this review.
-      Until it lands, **a Durable Nexus call is only correct against a Durable handler**, and the
-      user documentation should say so rather than let someone find out from an empty field.
+- [x] 1b.2 **The envelope is gone.** The caller sends the payload as the caller wrote it, and the
+      correlation the envelope existed for comes from the `scheduledEventId` the server assigns —
+      which both the scheduled event and the terminal events already carry.
+      Verified end to end against the same Go handler as 1.1, on both sides of the change:
+
+      | | handler receives | handler answers |
+      |---|---|---|
+      | before | `{"name":""}` | `hello ` |
+      | after | `{"name":"ada"}` | `hello ada` |
+
+      **BREAKING for Nexus operations in flight.** An execution that scheduled an operation under
+      the old format holds `{operationId, payload}` in its history; replayed by this code it will
+      read that object as the user payload. Nexus is caller-only and alpha, so the blast radius is
+      an operation that has not yet completed at deploy time — but it is real and is stated rather
+      than discovered.
+      **Found on the way:** with the id now numeric, `array_search` returns an `int` key — PHP
+      coerces numeric array keys — where a `string` was expected. The full suite caught it; the cast
+      sits where the coercion happens, not at the callee.
 - [ ] 1b.3 **Retryable versus terminal handler errors.** `INTERNAL` is retried until the operation
       times out. Establish which error types are terminal before writing the failure path, or a
       handler that raises on bad input will retry for the whole operation budget.
