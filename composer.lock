@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0dca5deaefe05bdfeb1b9211266ae4dc",
+    "content-hash": "82b7852137c01292c34b9f1c81a3dd5f",
     "packages": [
         {
             "name": "brick/math",
@@ -574,7 +574,7 @@
             "dist": {
                 "type": "path",
                 "url": "src/Bridge/Illuminate",
-                "reference": "f03118fa6866462c1c026f0a6eb40c4bdd767930"
+                "reference": "baad4454e21bee2432eb979b539541b9dce9eba9"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -585,6 +585,11 @@
             "extra": {
                 "branch-alias": {
                     "dev-main": "0.1.x-dev"
+                },
+                "laravel": {
+                    "providers": [
+                        "Gplanchat\\Bridge\\Illuminate\\DurableIlluminateServiceProvider"
+                    ]
                 }
             },
             "autoload": {
@@ -7395,6 +7400,68 @@
             "transport-options": {
                 "relative": true
             }
+        },
+        {
+            "name": "illuminate/cache",
+            "version": "v12.68.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/illuminate/cache.git",
+                "reference": "2689356ab45bc53ffe796d1b1241babae59c69f6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/illuminate/cache/zipball/2689356ab45bc53ffe796d1b1241babae59c69f6",
+                "reference": "2689356ab45bc53ffe796d1b1241babae59c69f6",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/collections": "^12.0",
+                "illuminate/contracts": "^12.0",
+                "illuminate/macroable": "^12.0",
+                "illuminate/support": "^12.0",
+                "php": "^8.2"
+            },
+            "provide": {
+                "psr/simple-cache-implementation": "1.0|2.0|3.0"
+            },
+            "suggest": {
+                "ext-apcu": "Required to use the APC cache driver.",
+                "ext-filter": "Required to use the DynamoDb cache driver.",
+                "ext-memcached": "Required to use the memcached cache driver.",
+                "illuminate/database": "Required to use the database cache driver (^12.0).",
+                "illuminate/filesystem": "Required to use the file cache driver (^12.0).",
+                "illuminate/redis": "Required to use the redis cache driver (^12.0).",
+                "symfony/cache": "Required to use PSR-6 cache bridge (^7.2)."
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "12.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Illuminate\\Cache\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Taylor Otwell",
+                    "email": "taylor@laravel.com"
+                }
+            ],
+            "description": "The Illuminate Cache package.",
+            "homepage": "https://laravel.com",
+            "support": {
+                "issues": "https://github.com/laravel/framework/issues",
+                "source": "https://github.com/laravel/framework"
+            },
+            "time": "2026-06-15T20:47:52+00:00"
         },
         {
             "name": "kelunik/certificate",
