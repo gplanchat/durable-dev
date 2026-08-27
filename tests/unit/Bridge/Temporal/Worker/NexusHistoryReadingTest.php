@@ -147,12 +147,12 @@ final class NexusHistoryReadingTest extends TestCase
         self::assertSame([], $buffer->flush());
     }
 
-    public function testAnOperationStartedWithATokenFailsClearlyInsteadOfHanging(): void
+    public function testAnOperationStartedWithATokenIsStillInFlight(): void
     {
-        // §4.5 : un jeton signifie que le handler répondra **plus tard**, par rappel. Cet
-        // incrément ne sait pas recevoir ce rappel. Laisser l'attente ouverte suspendrait le
-        // workflow pour toujours sur un résultat que personne ne viendra livrer ici — l'aveu
-        // immédiat et nommé coûte infiniment moins cher.
+        // 1.4 a mesuré ce que fait le serveur : il enregistre NEXUS_OPERATION_STARTED, pose
+        // `callback: temporal://system`, et corrèle lui-même la complétion sur cette exécution.
+        // Le jeton dit « le gestionnaire répondra plus tard », pas « personne ne répondra ».
+        // Refuser ici, c'est refuser la forme asynchrone entière.
         $started = new NexusOperationStartedEventAttributes();
         $started->setScheduledEventId(5);
         $started->setOperationToken('jeton-asynchrone');
@@ -162,11 +162,54 @@ final class NexusHistoryReadingTest extends TestCase
             $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED, 7, static fn(HistoryEvent $e) => $e->setNexusOperationStartedEventAttributes($started)),
         ]);
 
+        self::assertNull(
+            $history->findNexusOperationSlotResult(0),
+            'Une opération asynchrone démarrée est en vol, pas en échec.',
+        );
+    }
+
+    public function testAnAsynchronousOperationRendersTheResultTheServerDelivers(): void
+    {
+        // Le serveur corrèle par `scheduledEventId` : la complétion arrive sur cette exécution,
+        // longtemps après le démarrage, et c'est elle qui règle le slot.
+        $started = new NexusOperationStartedEventAttributes();
+        $started->setScheduledEventId(5);
+        $started->setOperationToken('jeton-asynchrone');
+        $completed = new NexusOperationCompletedEventAttributes();
+        $completed->setScheduledEventId(5);
+        $completed->setResult((new Payload())->setData(JsonPlainPayload::encode(['montant' => 42])->getData()));
+
+        $history = TemporalExecutionHistory::fromEvents([
+            $this->scheduled(5),
+            $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED, 7, static fn(HistoryEvent $e) => $e->setNexusOperationStartedEventAttributes($started)),
+            $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED, 12, static fn(HistoryEvent $e) => $e->setNexusOperationCompletedEventAttributes($completed)),
+        ]);
+
         $slot = $history->findNexusOperationSlotResult(0);
-        self::assertNotNull($slot, "L'attente serait restée ouverte pour toujours.");
-        self::assertInstanceOf(NexusAsynchronousOperationUnsupportedException::class, $slot['failed']);
-        self::assertStringContainsString('5', $slot['failed']->getMessage());
-        self::assertStringContainsStringIgnoringCase('asynchronous', $slot['failed']->getMessage());
+        self::assertNotNull($slot);
+        self::assertNull($slot['failed'], "Le démarrage asynchrone ne doit plus laisser d'échec derrière lui.");
+        self::assertSame(['montant' => 42], $slot['result']);
+    }
+
+    public function testAnAsynchronousOperationThatFailsIsClassifiedLikeAnyOther(): void
+    {
+        // 3.3 : l'échec livré par rappel n'est pas d'une autre nature que l'échec synchrone.
+        $started = new NexusOperationStartedEventAttributes();
+        $started->setScheduledEventId(5);
+        $started->setOperationToken('jeton-asynchrone');
+        $failed = new NexusOperationFailedEventAttributes();
+        $failed->setScheduledEventId(5);
+
+        $history = TemporalExecutionHistory::fromEvents([
+            $this->scheduled(5),
+            $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED, 7, static fn(HistoryEvent $e) => $e->setNexusOperationStartedEventAttributes($started)),
+            $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED, 12, static fn(HistoryEvent $e) => $e->setNexusOperationFailedEventAttributes($failed)),
+        ]);
+
+        $slot = $history->findNexusOperationSlotResult(0);
+        self::assertNotNull($slot);
+        self::assertInstanceOf(DurableNexusOperationFailedException::class, $slot['failed']);
+        self::assertSame(NexusOperationFailureKind::OperationFailed, $slot['failed']->kind());
     }
 
     public function testAnOperationStartedWithoutATokenIsNotAFailure(): void
