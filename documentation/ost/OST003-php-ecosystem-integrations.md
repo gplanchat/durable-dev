@@ -28,7 +28,7 @@ tiers, and the tier — not the popularity — is what decides the order of work
 | Tier | What it means | Members |
 |---|---|---|
 | **0** | The host *is* a Symfony application. `durable-bundle` registers unchanged. Cost: wiring and an admin view. | Shopware 6, Sulu, PrestaShop 9 (partly), Ibexa |
-| **1** | Foreign container, foreign queue. A package has to be written from the bootstrap up. | Laravel, Magento, WordPress/WooCommerce, Drupal, TYPO3 (§3, and it is the cheap end by a distance) |
+| **1** | Foreign container, foreign queue. A package has to be written from the bootstrap up. | Laravel, Magento, WordPress/WooCommerce, Drupal, TYPO3 (§3, and it is the cheap end by a distance). Filament, Statamic and Bagisto ride on the Laravel one rather than adding their own (§6). |
 | **2** | The host already owns a job abstraction. The integration **substitutes** a runtime under an existing model rather than introducing a second one. | Akeneo `BatchBundle`, Pimcore Generic Execution Engine, `php-etl/pipeline` |
 | **∅** | Not a host at all — a contract two hosts implement. Belongs to no tier and cuts across two. | API Platform (§3) |
 
@@ -276,10 +276,26 @@ it:
 - **The bundle's real job** is keeping the two consistent — projecting workflow progress onto
   `StepExecution` — not replacing either.
 
-**The open question, and it is the whole design:** `BatchBundle`'s item step is per-item
-(reader → processor → writer). A durable journal entry per item on a million-row import is a
-journal nobody wants to store or replay. **Checkpoint granularity — how many items per durable
-step — is the decision to settle before any code is written.**
+**The question that was the whole design, and its answer:** `BatchBundle`'s item step is per-item
+(reader → processor → writer). A durable journal entry per item on a million-row import is a journal
+nobody wants to store or replay.
+
+**One durable step per batch of N items, N configurable.** The journal then grows as rows ÷ N rather
+than as rows, which is the only shape that stays readable at import scale, and — the reason it was
+chosen over the alternatives — **the pipeline author decides nothing**. A batch size has a default;
+a checkpoint the author must remember to place does not, and an import that forgets one is not
+resumable while nothing says so.
+
+**The price is explicit, and it is the part to design against:** a crash replays **up to N rows**.
+Those writes must therefore be idempotent, or the batch must be one transaction. That is a
+constraint on the loader, not on the journal, and it is what the first implementation has to prove
+it can state clearly to whoever writes a pipeline.
+
+The two rejected shapes are recorded because they are not wrong, only narrower. *One step per
+pipeline stage with a cursor in the journal* keeps the journal tiny, and assumes a source that can
+be re-read from a position — true of a file or an ordered query, false of a queue or an API paginated
+without a stable cursor. *Author-declared checkpoints* give the most control and are what Temporal
+assumes elsewhere; they also make "no checkpoint anywhere" a silent, valid program.
 
 ### Pimcore — the retry that was switched off on purpose
 
@@ -327,6 +343,13 @@ Akeneo, Pimcore and `php-etl/pipeline`. **Whichever is written first pays for al
 an argument for writing the smallest one first — and the count is what makes that argument worth
 acting on rather than noting.
 
+**The granularity half is now settled** (§4): one durable step per batch of N, N configurable, and a
+crash replays up to N rows. What is *not* settled, and what the first implementation still has to
+answer, is what a **rejection** does — `php-etl/pipeline` rejects lines rather than failing, and a
+rejected line inside a committed batch is neither a success the journal should record nor a failure
+that should undo the batch. That question does not exist on Akeneo or Pimcore, which is an argument
+for writing the pipeline integration first rather than second: it is the one that surfaces it.
+
 ---
 
 ## 6. What this says about the roadmap
@@ -343,6 +366,9 @@ acting on rather than noting.
 | Magento | 1 | Module, consumers | **Planned.** Bench already in the repository. |
 | WooCommerce | 1 | Everything, on a hostile platform | Not now. Right product (DBAL), wrong moment. |
 | Drupal | 1 | Module, queue | Not now. |
+| Filament, Statamic | 1 | Nothing of their own | **Behind `durable-laravel`.** Both are Laravel: an admin panel and a CMS. Neither needs a package — they need the Laravel one, and then they are configuration. Their marks are on the page because the picker names the stack a reader is on, not because either is a separate target. |
+| Bagisto | 1 | Nothing of its own | **Behind `durable-laravel`.** Laravel commerce, so the order and payment flows that make Sylius and Shopware worth doing, on a stack that already has the queue. Same shape as Filament: it is the Laravel package, applied. |
+| Aimeos | 0 / 1 | Depends on the base | **The odd one.** It ships on Symfony, on Laravel, on TYPO3 and standalone — the only target in this document whose tier is a property of the installation rather than of the project. Its picker chip carries a base selector for exactly that reason. Nothing to write that is not already written for each base. |
 | PrestaShop 9, Ibexa | 0 | A documentation line | When somebody asks. |
 
 **Non-goals.** Nothing here fixes an order of work. What the tiers buy is an estimate: three of
@@ -356,8 +382,10 @@ of them, and that is deliberate; this table is where the difference lives.
 
 This is written down because the reverse has now happened twice. Five ecosystems arrived as SVG
 assets in one commit (Aimeos, Bagisto, Filament, Pimcore, Statamic), and TYPO3 after them, each
-through the design canvas, none of them argued for anywhere. Two have since been argued for and have
-a row — Pimcore, then TYPO3, which is what this rule asks for and the order it asks for it in. Nobody did anything wrong: a canvas is
+through the design canvas, none of them argued for anywhere. All six have since been argued for and
+have a row — Pimcore first, then TYPO3, then the four remaining together. That is what this rule
+asks for; the order it asks for it in is the part that was missing, and the next mark will follow
+it. Nobody did anything wrong: a canvas is
 where a layout gets tried, and trying a row of chips means drawing chips.
 
 But a mark in the wizard is a **public claim** — it tells a reader we intend to integrate with that
@@ -375,12 +403,16 @@ what a canvas is for. The rule is only that the sketch does not ship — no asse
 on the page — until the row exists. And it does not apply retroactively to the marks that predate
 it; those are now here, and the four without a row are the backlog this rule exists to stop growing.
 
-**If it needs teeth**, the check is mechanical: every `hugo-docs/assets/logos/*.svg` should name a
-target in the table above. Seven do today — Shopware, Sulu, API Platform, Akeneo, Pimcore, Laravel,
-Magento. Six legitimately never will, and they make a short, stable exception list: the language and
-the two backends (`php`, `doctrine`, `temporal`), the two integrations that already shipped
-(`symfony`, `sylius`), and `illuminate`, which names a layer rather than a target. That leaves
-exactly the four this rule is about. Worth writing the day the rule is first forgotten, not before.
+**The backlog it was written against is now empty.** Every `hugo-docs/assets/logos/*.svg` names a
+target in the table above — twelve of them, TYPO3 and Pimcore included, and Filament, Statamic,
+Bagisto and Aimeos as of this section. Six legitimately never will, and they make a short, stable
+exception list: the language and the two backends (`php`, `doctrine`, `temporal`), the two
+integrations that already shipped (`symfony`, `sylius`), and `illuminate`, which names a layer
+rather than a target.
+
+**If it needs teeth**, the check is mechanical: compare the two lists, allow the six. Worth writing
+the day the rule is first forgotten — which, the backlog being empty, is now a question about the
+next mark rather than about a debt.
 
 ---
 
