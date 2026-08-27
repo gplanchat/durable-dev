@@ -51,7 +51,7 @@ Checked 2026-08-27. Findings, not legal advice.
 
 | Project | Published policy | What it says |
 |---|---|---|
-| **API Platform** | [Trademark policy](https://api-platform.com/trademark-policy/) | Naming the product is permitted. But: *"Use or reproduction of Les-Tilleuls.coop's original works of authorship, including the API Platform 'Webby' spider design is prohibited without prior approval."* **`api-platform.svg` is Webby.** See below. |
+| **API Platform** | [Trademark and logo policy](https://api-platform.com/trademark-policy/) | Permits *"use of our Marks on websites to name or accurately describe Les-Tilleuls.coop's products, services or technology"* — which covers the **name**. It grants nothing further for the logo, and names the drawing separately: *"Use or reproduction of Les-Tilleuls.coop's original works of authorship, including the API Platform 'Webby' spider design is prohibited without prior approval from Les-Tilleuls.coop."* **`api-platform.svg` is Webby.** See below. |
 | **TYPO3** | [Trademark Usage Policy](https://docs.typo3.org/m/typo3/guide-policy/main/en-us/Association/TrademarkUsagePolicy.html), [brand guidelines](https://typo3.com/typo3-cms/the-brand/brand-guidelines) | The shield is not a registered trademark but its use is governed by the brand guidelines; the figurative mark may be used without the wordmark as a design element. Modification is not addressed. Questions go to `trademark@typo3.org`. |
 | **Akeneo** | Brand assets and a style guide, no usage policy located | Nothing found that permits or forbids modification. |
 | **Sulu**, **Aimeos**, **Bagisto** | None located | Absence of a policy is not permission; it is absence of a policy. |
@@ -60,7 +60,20 @@ Checked 2026-08-27. Findings, not legal advice.
 ## One mark needs a decision, not a notice
 
 **`api-platform.svg` reproduces Webby**, and API Platform's policy names that design specifically as
-requiring prior approval. We have not asked. Three ways out, and only the first keeps the mark:
+requiring prior approval. We have not asked.
+
+Two things make this one different from every other row above:
+
+- **It is not a trademark question.** Nominative use — naming a project you integrate with — is the
+  defence that carries the rest of this directory, and the policy grants it in as many words. Webby
+  is claimed as an *original work of authorship*: a drawing, under copyright, where "we are only
+  naming you" is not an answer.
+- **A downloads page is not a licence.** [`/resources/logos/`](https://api-platform.com/resources/logos/)
+  offers fifteen variations in PNG and SVG, and says one thing before them: *"Before using the API
+  Platform logos, read our Trademark and Logo Policy."* Files being available to fetch is not
+  permission to reproduce them.
+
+Three ways out, and only the first keeps the mark:
 
 1. ask Les-Tilleuls.coop (`contact@les-tilleuls.coop`) and keep the file if approval comes;
 2. replace it with a non-reproducing glyph, the way `illuminate` was handled;
