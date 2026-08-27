@@ -57,12 +57,11 @@ PALETTE = {
 # canevas. Elles se figent à 1 : plus personne ne les tourne.
 SCALARS = {"ts": "1", "sp": "1"}
 
-# Le design pose 26 ou 30 px sur ses logos, ce qui les rend illisibles : à cette
-# taille ils ne portent aucune information. Plancher imposé ici plutôt que dans
-# le design, parce que c'est une valeur et non un choix de mise en page — mais
-# le conteneur doit grandir avec, sinon le logo déborde d'une pastille haute de
-# 26 px.
-LOGO_MIN_PX = 48
+# Le design a longtemps posé 26 ou 30 px sur ses logos, illisibles à cette
+# taille, et un plancher de 48 px était imposé ici. Le canevas pose maintenant
+# 48 lui-même — et 22 sur les deux marques minuscules qui servent de puce
+# « Symfony app » à côté d'un nom d'application. Un plancher les gonflerait à
+# plus du double : la taille redevient un choix du canevas, entièrement.
 
 # Les liens de cas d'usage pointaient vers des pages qui n'ont jamais existé
 # (`/docs/use-cases/<slug>`). Chacun va vers la section qui traite réellement
@@ -149,7 +148,7 @@ def inline_logos(root: str) -> str:
         # typographique, ratio 3,1:1 : lui imposer la même valeur dans les deux
         # sens l'étirerait. Il se cale sur la hauteur, sa largeur suit.
         wide = 'width="auto"' in svg
-        px = max(int(box), LOGO_MIN_PX) if box else None
+        px = int(box) if box else None
         size = f"{px}px" if px else "100%"
         sized = f'height="{size}" width="auto"' if wide else f'width="{size}" height="{size}"'
         svg = re.sub(r'width="[^"]*" height="[^"]*"', sized, svg, count=1)
@@ -160,28 +159,26 @@ def inline_logos(root: str) -> str:
     # Forme actuelle : un emplacement à peindre suivi de son glyphe de repli.
     root, painted = re.subn(
         r'<span[^>]*data-paint[^>]*data-box="(?P<box>\d+)"[^>]*'
-        r'data-src="logo-(?P<name>[a-z]+)\.svg"[^>]*>\s*</span>\s*'
+        r'data-src="logo-(?P<name>[a-z-]+)\.svg"[^>]*>\s*</span>\s*'
         r"<svg[^>]*data-glyph.*?</svg>",
         replace, root, flags=re.S)
 
     # Forme précédente, gardée le temps que plus aucun design ne la porte.
     root, imaged = re.subn(
-        r'<img[^>]*data-logo[^>]*src="logo-(?P<name>[a-z]+)\.svg"[^>]*/?>', replace, root)
+        r'<img[^>]*data-logo[^>]*src="logo-(?P<name>[a-z-]+)\.svg"[^>]*/?>', replace, root)
 
     if not (painted or imaged):
         die("aucun logo reconnu : la mécanique du design a encore changé")
 
-    orphans = sorted(set(re.findall(r"logo-[a-z]+\.svg", root)))
+    # La garde est délibérément plus large que les deux motifs ci-dessus, et c'est
+    # tout son travail : elle doit attraper les noms qu'ils ratent. Elle était aussi
+    # étroite qu'eux, donc `logo-api-platform.svg` n'était ni incorporé ni signalé —
+    # le glyphe de repli passait en production en silence. Élargir les trois de la
+    # même façon aurait refermé le tiret et laissé la classe ouverte : un chiffre,
+    # un underscore ou une capitale repassait pareil.
+    orphans = sorted(set(re.findall(r"logo-[^\"'\s>]+\.svg", root)))
     if orphans:
         die(f"logos non incorporés, le repli s'afficherait à leur place : {orphans}")
-
-    # Le conteneur suit le plancher, sinon le logo déborde de sa pastille.
-    def grow(match: re.Match[str]) -> str:
-        return match.group(0).replace(
-            match.group("h"), f"height: {max(int(match.group('px')), LOGO_MIN_PX)}px")
-
-    root = re.sub(
-        r'<span[^>]*data-mark[^>]*(?P<h>height:\s*(?P<px>\d+)px)[^>]*>', grow, root)
 
     return root
 
@@ -242,6 +239,11 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
     source = src_path.read_text()
 
     root = extract_root(source)
+    # Claude Design consigne ses hypothèses en commentaire HTML au fil des
+    # tours. Elles partiraient en production, et celle qui énumère les fichiers
+    # de logo faisait crier la garde des orphelins sur des noms qui n'étaient
+    # que cités. Une page générée n'a pas de commentaire à défendre.
+    root = re.sub(r"<!--.*?-->", "", root, flags=re.S)
     root = strip_palette_decls(root)
     root, hover_rules = convert_hovers(root)
     root = convert_handlers(root)
