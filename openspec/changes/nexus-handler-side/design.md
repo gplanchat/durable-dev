@@ -85,10 +85,28 @@ makes it more valuable, not less. **Our caller wraps the user payload**:
 `{"operationId": …, "payload": …}`, a Durable-private envelope, because
 `TemporalExecutionHistory` reads that id back to correlate the operation.
 
-A handler written with any other SDK receives that envelope, not the caller's payload. Taken
-literally, Durable today can call Nexus operations that only Durable can serve. Whether that is
-acceptable, or whether the caller should correlate by scheduled event id and stop wrapping, is a
-decision this change has to make — and a Go handler is what proves which way it went.
+A handler written with any other SDK receives that envelope, not the caller's payload.
+
+**Measured (task 1.1), and the result decides it.** A Nexus operation served by the Go SDK and
+called from a Durable workflow **completes** — and the handler receives an empty payload:
+
+```
+handler declares : Greeting{ Name string `json:"name"` }
+handler receives : {"name":""}
+handler answers  : "hello "          (expected "hello ada")
+```
+
+Nothing raises. Not the server, not the Go SDK, not us. The caller gets a well-formed reply computed
+from nothing.
+
+That settles the question the paragraph above left open. Teaching handlers our envelope would only
+fix *our* handlers and leave every other SDK's quietly wrong — and the symmetric case is just as
+bad: a Durable handler would look for an `operationId` a Go caller never sent.
+
+**The envelope has to go.** The scheduled event id, which history already carries, is the
+correlation the caller needs; the payload should travel as the caller wrote it. That is a
+caller-side change and it breaks the wire format for in-flight Nexus operations, which is why it is
+task 1b.2 and not a footnote.
 
 ## The worker is new plumbing, not an extension
 
