@@ -110,6 +110,51 @@ Two consequences, and neither is "don't go":
    skimming Packagist. The Laravel package has to lead with `gplanchat/`, and the documentation has
    to name the other one rather than hope nobody notices.
 
+### The Laravel backend is not an Eloquent one
+
+The instinct — *a Laravel application should not be told to install Doctrine* — is right, and the
+package it points at is the wrong one. What makes it right is not idiom, it is the transaction.
+
+DUR030 sells durable execution on **one** database with no cluster, and that only pays if the
+journal append and the business write land in **one** transaction. Otherwise the activity writes,
+the process dies before the journal records that it did, and replay runs it a second time — which
+is the exact failure durable execution exists to prevent. On Symfony the guarantee is free: the
+bridge is handed the same `Doctrine\DBAL\Connection` the ORM already uses. Two connections onto the
+same database are two transaction scopes, and the guarantee is gone.
+
+So the requirement is **share the host's connection**, not **speak Eloquent** — and those have very
+different prices.
+
+`durable-bridge-dbal` is 961 lines that touch `Connection` through eleven methods across 24 call
+sites, and **never open a transaction**. A DBAL `Driver` returning
+`new Doctrine\DBAL\Driver\PDO\Connection($pdo)` over `DB::connection()->getPdo()`, wired through
+`DriverManager`'s `driverClass`, puts the journal on Laravel's own handle: one PDO, one session, one
+transaction, and `DB::transaction()` closes over both. That is tens of lines in the Laravel package.
+
+An Eloquent backend is those 961 lines written again, and — the part that actually costs — **a
+second implementation of the journal's on-disk shape**. The journal format is the one thing that
+must never fork between backends: it is what replay reads, what the profiler converts (DUR029), and
+what a run projection observes (DUR037). One store, two connection adapters, is a strictly smaller
+surface than two stores.
+
+**Where the Laravel port is actually hard, and it is not storage.** `SingleResumeLockMiddleware` is
+a Symfony Messenger middleware, and `DbalEventStore`'s own docblock leans on it: without it, two
+workers replay the same execution and duplicate its commands. That mutual exclusion has to be
+re-provided on Laravel's queue — `WithoutOverlapping`, or an atomic cache lock — and no storage
+choice supplies it.
+
+Two smaller consequences, both worth doing regardless:
+
+- `durable-bridge-dbal` hard-requires `symfony/lock` and `symfony/messenger`. A Laravel application
+  installing it drags in two components it will never run. That is an argument for **lifting the
+  Messenger middleware out of the bridge**, not for a second bridge.
+- `DurableSchema::ensure()` creates tables on demand. Laravel expects `php artisan migrate`. A
+  published migration is a few lines and needs no backend behind it.
+
+**Verdict: no `gplanchat/durable-bridge-eloquent`.** The Laravel package ships a connection adapter,
+a published migration, and a queue-level resume lock. Revisit only if a real user turns up on a
+connection whose PDO cannot be handed over.
+
 ### Magento
 
 Cron plus `MessageQueue` consumers, and the failure every integrator has seen is a consumer that
@@ -186,7 +231,7 @@ for writing the smaller one first.
 | API Platform | — | One state processor, two adapters | **Planned**, and the one to write before Laravel: it is the same class on both frameworks, and it gives the Laravel package a promise nobody else is making (§3). |
 | Akeneo | 2 | A `BatchBundle` bundle | **Planned.** Blocked on the checkpoint-granularity decision. |
 | `php-etl/pipeline` | 2 | A durable step runner | **Strongest fit.** Shares §4's decision; internal product, so the feedback loop is short. |
-| Laravel | 1 | Service provider, queue, migrations | **Planned.** The positioning has to answer `durable-workflow/workflow` first, and API Platform is the cheapest answer available. |
+| Laravel | 1 | Service provider, resume lock, connection adapter, migration | **Planned.** No Eloquent backend — the DBAL store over Laravel's own PDO (§3). The positioning has to answer `durable-workflow/workflow` first, and API Platform is the cheapest answer available. |
 | Magento | 1 | Module, consumers | **Planned.** Bench already in the repository. |
 | WooCommerce | 1 | Everything, on a hostile platform | Not now. Right product (DBAL), wrong moment. |
 | Drupal | 1 | Module, queue | Not now. |
