@@ -200,7 +200,8 @@ comment. It carries a `durable-rector:` marker so a second pass does not stack a
 
 Run over the 29 workflow classes of
 [`temporalio/samples-php`](https://github.com/temporalio/samples-php) — a corpus Temporal maintains,
-not one chosen here — the rule reports **23 findings in 10 files**:
+not one chosen here — the rule reports **23 findings in 10 files**. (The whole set touches 52 files
+of that repository: 27 workflow classes, 23 activity contracts, 3 failure renames, 10 reports.)
 
 | Reported | Times |
 |---|---|
@@ -241,6 +242,13 @@ concatenation of two sources rather than one short name.
 
 These are the rules in the set whose bug is invisible until production, and they are the ones that
 get the integration fixture.
+
+**The corpus says how often it would have fired.** Over `temporalio/samples-php`, the workflow rule
+writes 27 `#[Workflow(name: …)]`, and **24 of them carry a name the class's short name would not
+have produced** — `'SimpleActivity.greet'` on a class called `GreetingWorkflow`, `'Saga.Compensate'`,
+`'MoneyTransfer'`, `'Zonk.start'`. Only three interfaces leave the type to the fallback. On
+Temporal's own samples, a migration that dropped the name would have silently renamed **nine
+workflow types out of ten** — which is the hazard, measured rather than argued.
 
 ### What the set does not promise
 

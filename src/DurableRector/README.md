@@ -36,7 +36,9 @@ Both engines derive a type name, and **they derive it differently**:
 - The SDK's workflow type is `#[WorkflowMethod(name:)]` if given, else the **interface's** short
   name. Durable's `#[Workflow]` is *optional* and falls back to the **class's** short name. A class
   migrated without an explicit name therefore compiles, passes its tests, and stops resolving every
-  run already started. The rule always writes the name out.
+  run already started. The rule always writes the name out — and over
+  [`temporalio/samples-php`](https://github.com/temporalio/samples-php), 24 of the 27 names it
+  writes are ones the fallback would have got wrong.
 - The SDK treats every public method of an `#[ActivityInterface]` as an activity; Durable only an
   annotated one. Methods that carried no `#[ActivityMethod]` get one, named after themselves.
 
@@ -60,7 +62,7 @@ static methods and `WorkflowEnvironment` answers eight; a deny-list would pass i
 nobody enumerated, the next SDK release included.
 
 Run against [`temporalio/samples-php`](https://github.com/temporalio/samples-php), it reports 23
-findings across 10 of the 29 workflow classes — coroutines (`async`, `asyncDetached`), the mutex
+findings across 10 files — coroutines (`async`, `asyncDetached`), the mutex
 (`runLocked`, `Mutex`), run introspection (`getInfo`, `getCurrentContext`, `isReplaying`), the saga
 helper, activity-by-name, and in-run search attributes.
 
