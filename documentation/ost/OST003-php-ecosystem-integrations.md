@@ -53,18 +53,32 @@ the argument it changes.
 **The discipline that keeps this tier cheap:** none of these earns a CI bench until somebody runs
 one for real. A bench added speculatively is a maintenance bill with no user behind it.
 
-**How they are announced, and why it is not what the tier says.** The tier is a statement about
+**How they are announced, and the third label that settled it.** The tier is a statement about
 **cost**: a Tier 0 integration is wiring and an admin view, never a runtime. It is not a statement
-about readiness, and the homepage announces all three as **coming soon** alongside Laravel and
-Magento.
+about readiness, and readiness is where the homepage went back and forth twice before landing.
 
-The reason is that the alternative was worse. "Installs and runs, not covered by our CI" reads as
-an invitation, and an invitation on the front page is a `composer require` the project then has to
-support — on a stack it has never booted. `durable-bundle` resolving against Shopware's pinned
-Symfony (`^6.4 || ^7.0 || ^8.0` against `~7.4`) says the constraint solver agrees; it says nothing
-about the plugin loader, the container compilation, or the Messenger transport under Shopware's own
-configuration. Announcing a promise the project intends to keep costs less than an instruction it
-cannot answer for.
+The first attempt made them selectable, labelled *"installs and runs, not covered by our CI"*. That
+was withdrawn, and the reason was sound: an invitation on the front page is a `composer require` the
+project then has to support, on a stack it has never booted. `durable-bundle` resolving against
+Shopware's pinned Symfony (`^6.4 || ^7.0 || ^8.0` against `~7.4`) says the constraint solver agrees;
+it says nothing about the plugin loader, the container compilation, or the Messenger transport under
+Shopware's own configuration.
+
+The second attempt made them **coming soon**, alongside Laravel and Magento. That was not right
+either, and it took printing it to see why: for a Tier 0 host, "coming soon" is **false**. The
+workflows run today, with `durable-bundle`, on a Symfony kernel. What is planned is the dedicated
+integration — and the label said the opposite of that.
+
+**The homepage now carries both facts at once: `bundle today · plugin planned`.** Neither earlier
+label could, because both were binary and the truth is not. The support objection stands only
+against a label that says *installs and runs* and stops there; a badge that says *the dedicated
+integration is planned* in the same breath is a description, not an invitation.
+
+**What the badge does not settle, and this document has to keep saying.** Akeneo and Pimcore are
+**Tier 2**, not Tier 0. For them "bundle today" is literally true — they are Symfony applications —
+and beside the point: the value is not that the bundle installs, it is that their job engines cannot
+resume (§4). The badge's second half carries that, and only just. If either row ever loses its
+"plugin planned", the page will be claiming something this document does not.
 
 ---
 

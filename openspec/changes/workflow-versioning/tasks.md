@@ -72,8 +72,25 @@ behaviour fails one, and recording the version after the slot instead of before 
 
 ## 4. Both backends
 
-- [ ] 4.1 The same three behaviours on the DBAL backend.
-- [ ] 4.2 Integration suite against a real server, green.
+- [x] 4.1 Not a DBAL-specific test: the conformance workflow now **declares a change point**, and
+      `EventStoreReplayConformanceTestCase` asserts the recorded version survives the round trip
+      through the store. Every adapter that extends it inherits the check — DBAL today, whatever
+      comes next tomorrow.
+      A store that lost `VersionMarked` would put an in-flight execution back on the other branch
+      **in silence** — the divergence guard would see code consistent with the new version and say
+      nothing. That is why this belongs in the shared suite rather than in one adapter's tests.
+      The suite also pins that an undeclared change point answers `null` and not `0`: an adapter
+      that returned `0` would hand the old branch to an execution that never earned it.
+- [x] 4.2 Integration suite against a real server: **78 tests green**, 27.5 s.
+      It did not pass on the first attempt, and the reason was mine rather than the code's. A
+      `DivergentByDeploy` execution left over from earlier manual probing had been retrying its
+      workflow task on the shared dev server **for three hours**; with it running, the suite hung.
+      Terminated it, re-ran, green. I have not established the mechanism by which one abandoned
+      execution disturbed a test on its own task queue, and I am not going to invent one.
+      What the episode did establish is a real defect in the harness, and it is being fixed
+      separately: `TemporalServerTestCase::tearDown()` kills the workers but **never terminates the
+      workflows a test started**, so every unfinished run stays Running on a shared server for ever.
+      That is how the three-hour leftover came to exist.
 - [x] 4.3 Answered by the probe, and not where it was expected: the **server** answers it, through
       the standard `TemporalChangeVersion` search attribute the Go SDK upserts beside the marker.
       `temporal workflow list --query 'TemporalChangeVersion = "<change-id>-<version>"'` was run and
@@ -83,8 +100,20 @@ behaviour fails one, and recording the version after the slot instead of before 
 
 ## 5. Say it in the documentation
 
-- [ ] 5.1 A DUR: the primitive, the wire representation actually used, and the removal rule.
-- [ ] 5.2 A user page: marking a change, and how to know when an old branch can be deleted.
-- [ ] 5.3 The comparison page's versioning row stops describing a gap.
-- [ ] 5.4 Keep the workflow-type-rename strategy documented. It stays the right answer for a change
-      too large to express as a branch.
+- [x] 5.1 **DUR044** — the primitive, why an execution older than the point is *recognised* rather
+      than marked, the wire representation as it was probed, why the search-attribute upsert is part
+      of the primitive rather than decoration, and the removal rule with the backends that cannot
+      answer it.
+- [x] 5.2 The user page `documentation/user/deploying/` gains change points beside the two answers
+      it already gave: the branch, the three things to know before using it (the change id lives in
+      the journal, an older run gets `DEFAULT_VERSION`, the guard still applies elsewhere), and how
+      to know when the old branch can go — a query on Temporal, and **no equivalent** on the journal
+      backends, said plainly.
+- [x] 5.3 The comparison page's versioning row is gone from *Where the SDK is ahead*. It became
+      section 7, **Workflow versioning: no longer a gap**, with the two differences that remain and
+      are not about the primitive: worker versioning, and knowing when a branch is dead on a backend
+      with no search attributes. The *Choosing* paragraph now says **worker** versioning rather than
+      workflow versioning.
+- [x] 5.4 The workflow-type rename is kept and re-argued rather than left as a leftover: it is the
+      right answer when the change is **too large to express as a branch**, where a change point
+      would only make one workflow carry two.

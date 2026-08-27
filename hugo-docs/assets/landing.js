@@ -11,6 +11,8 @@
 
   var NOTES = __NOTES__;
   var DEFAULT = __DEFAULT_NOTE__;
+  // Le libellé nomme le thème vers lequel on bascule, pas le thème courant.
+  var THEMES = __THEME_LABELS__;
 
   // --- Thème ---------------------------------------------------------------
   // Trois états, pas deux : « clair », « sombre », et l'absence de choix, qui
@@ -29,7 +31,7 @@
   }
 
   function paintThemeLabel() {
-    var label = currentTheme() === 'dark' ? 'Light' : 'Dark';
+    var label = currentTheme() === 'dark' ? THEMES.light : THEMES.dark;
     var buttons = document.querySelectorAll('[data-dz-theme-toggle]');
     for (var i = 0; i < buttons.length; i++) buttons[i].textContent = label;
   }
