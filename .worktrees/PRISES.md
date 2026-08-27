@@ -44,6 +44,25 @@ les quatre branches avaient disparu du distant depuis longtemps. Un registre pé
 registre vide : il fait renoncer à une tranche libre. **Retirer sa prise fait partie de la
 fusion**, au même titre que supprimer sa branche et démonter son worktree.
 
+## Le contrôle, et ce qu'il ne couvre pas
+
+`bin/prises-check.sh` attrape les prises périmées. Il tourne sur chaque PR qui touche au registre,
+et une fois par jour pour le reste — un retrait oublié n'apparaît dans aucune PR, par définition.
+
+**Le critère est la PR, pas la branche.** Une prise se pose *avant* que la branche existe sur le
+distant : la comparer aux branches vivantes la ferait rougir sur le cas normal, et un contrôle qui
+rougit sur le cas normal se fait désarmer dans la semaine. Une prise est périmée quand sa branche a
+au moins une PR fermée et **aucune** PR ouverte.
+
+Il vérifie aussi que le titre du fichier dit la même branche que son chemin, parce que le registre
+se lit à l'œil autant qu'avec un script.
+
+**Ce qu'il ne voit pas :** une prise vivante supprimée par mégarde. Le 2026-08-27, un rebasage plus
+vieux qu'une prise a bien failli l'emporter — la table conflictait, mais la résolution était
+devenue machinale à force d'être la même. Rien n'aurait rougi, et c'est la session qui la tenait
+qui l'a vu. Si tu supprimes une prise, regarde `main` au moment de refermer plutôt que de le
+supposer.
+
 ## La forme d'un fichier de prise
 
 ```markdown
