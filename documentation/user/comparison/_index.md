@@ -282,8 +282,8 @@ The *function colouring* row above is the mechanism under
 [Testability](#2-testability) — it is the second of the three properties listed there, and it is
 worth its own section. The name comes from Bob Nystrom's
 [What Color Is Your Function?](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/):
-in a language where suspension is a keyword, functions come in two colours, and a red one can only
-be called from another red one.
+in a language where suspension is a keyword, functions come in two colours — red suspends, blue
+does not — and a red one can only be called from another red one.
 
 `yield` is that keyword. A method that yields is a **generator**: it no longer returns its value, it
 returns a `Generator` that somebody has to drive. Extract three lines of a workflow into a helper —
