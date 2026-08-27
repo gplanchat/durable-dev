@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace integration\Gplanchat\Durable\Bundle;
+namespace integration\Durable\Bundle;
 
 use Gplanchat\Durable\Bundle\DurableBundle;
 use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
