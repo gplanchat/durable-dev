@@ -18,4 +18,3 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 | `feat/nexus-operation-failure` | temporal-nexus-support | 3.6 (echec type + classification) | en cours |
 | `feat/nexus-cancel-read-and-guard` | temporal-nexus-support | 3.5 | en relecture |
 | `docs/nexus-adr-index` | temporal-nexus-support | 7.2 | en relecture |
-| `test/nexus-header-rules` | nexus-operation-headers | 1.1 + 1.2 (sonde des regles d'en-tete) | en cours |
