@@ -210,7 +210,7 @@ def inline_logos(root: str) -> str:
     return root
 
 
-def rewrite_links(root: str) -> str:
+def rewrite_links(root: str, lang: str) -> str:
     for dead, live in LINKS.items():
         root = root.replace(f"https://durable.rocks{dead}", live)
 
@@ -221,6 +221,14 @@ def rewrite_links(root: str) -> str:
     root = root.replace("https://durable.rocks/docs/", "/docs/")
     root = root.replace("https://durable.rocks/docs", "/docs/")
     root = root.replace("https://durable.rocks/", "/")
+
+    # Le guide existe en français depuis la PR #147, aux mêmes ancres. Une page
+    # française qui renvoie vers `/docs/` envoie son lecteur sur l'anglais alors
+    # que la traduction est là — et les ancres qu'elle cite
+    # (`#bounding-a-wait-in-time`…) sont précisément celles qui ont été épinglées
+    # pour survivre à la traduction.
+    if lang != "en":
+        root = re.sub(r'href="/(docs/)', rf'href="/{lang}/\1', root)
 
     # Le pied de page du canevas porte un lien « Variants » vers son autre planche,
     # `index.dc.html`. Le canevas sait le suivre ; le site servi rend un 404 — il l'a
@@ -347,7 +355,7 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
     root, hover_rules = convert_hovers(root)
     root = convert_handlers(root)
     root = inline_logos(root)
-    root = rewrite_links(root)
+    root = rewrite_links(root, language_of(src_path, out_path))
 
     notes = line_notes(source)
     default_note = words["note_text"]
@@ -404,10 +412,99 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
     print(f"écrit  {out_path}  ({out_path.stat().st_size} octets)")
     print(f"       {len(hover_rules)} règles :hover, {len(notes)} annotations, "
           f"{len(LINKS)} liens réécrits")
+    check_packages_resolve(root, chooser_script(source))
     check_commands_agree(source)
 
 
 COMMANDS_REFERENCE = pathlib.Path("../documentation/user/packages/_index.md")
+
+
+def declared_packages() -> set[str]:
+    """Les paquets que ce dépôt publie, lus dans leurs `composer.json`.
+
+    Source de vérité plutôt que liste blanche : un paquet existe si le monorepo
+    le déclare, et le jour où `gplanchat/durable-bridge-illuminate` sera écrit,
+    la garde ci-dessous s'ouvrira toute seule.
+    """
+    names = set()
+    for manifest in sorted((HERE.parent / "src").glob("*/composer.json")) + sorted(
+            (HERE.parent / "src" / "Bridge").glob("*/composer.json")):
+        name = json.loads(manifest.read_text()).get("name")
+        if name:
+            names.add(name)
+    if not names:
+        die("aucun composer.json trouvé sous src/ : la garde des paquets serait aveugle")
+    return names
+
+
+def check_packages_resolve(root: str, script: str) -> None:
+    """Aucun chemin du sélecteur ne doit nommer un paquet que personne ne publie.
+
+    C'est la même faute que le logo non incorporé, un étage plus haut : la page
+    donne une instruction, un lecteur la copie, et elle échoue. Elle est arrivée
+    trois fois — `gplanchat/durable-laravel`, `gplanchat/durable-bridge-illuminate`,
+    et quatre noms portant un `?` de brouillon — dont une atteignable en deux clics.
+
+    La garde énumère ce que le sélecteur laisse réellement atteindre : une puce
+    `planned` est refusée par le gestionnaire de clic, donc elle ne compte pas. Ce
+    qui reste doit résoudre.
+
+    Fatal pour un chemin atteignable, **averti** pour un nom qui dort derrière une
+    puce fermée : celui-là n'est pas encore un mensonge, mais il le deviendra le
+    jour où la puce s'ouvre, et c'est ce jour-là qu'il faut être prévenu.
+    """
+    def table(name: str) -> dict:
+        match = re.search(rf"var {name} = (\{{.*?\}});", script, re.S)
+        if not match:
+            die(f"{name} introuvable : la garde des paquets ne peut pas énumérer")
+        return json.loads(re.sub(r"(\w+):", r'"\1":', match.group(1)).replace("'", '"'))
+
+    def chips(axis: str) -> dict[str, str]:
+        found = {}
+        for tag in re.findall(rf'<button[^>]*data-axis="{axis}"[^>]*>', root):
+            value = re.search(r'data-val="([^"]+)"', tag)
+            state = re.search(r'data-state="([^"]+)"', tag)
+            if value:
+                found[value.group(1)] = state.group(1) if state else "ok"
+        return found
+
+    base, dist_base, bridge = table("BASE"), table("DIST_BASE"), table("BRIDGE")
+    allowed, dist_allowed = table("ALLOWED"), table("DIST_ALLOWED")
+    eco = table("ECO_OPTIONS")
+    frameworks, distributions = chips("fw"), chips("dist")
+    if not frameworks:
+        die("aucune puce de framework : la garde des paquets ne peut pas énumérer")
+
+    published = declared_packages()
+    reachable: set[str] = set()
+    sleeping: set[str] = set()
+
+    def collect(base_name: str, backend: str, awake: bool) -> None:
+        parts = f"{base_name} {bridge.get(backend, '')}".split()
+        (reachable if awake else sleeping).update(parts)
+
+    for framework, state in frameworks.items():
+        awake = state != "planned"
+        if framework in eco:
+            for distribution in eco[framework]:
+                open_here = awake and distributions.get(distribution, "ok") != "planned"
+                for backend in dist_allowed.get(distribution, []):
+                    collect(dist_base.get(distribution, ""), backend, open_here)
+        else:
+            for backend in allowed.get(framework, []):
+                collect(base.get(framework, ""), backend, awake)
+
+    missing = sorted(p for p in reachable if p not in published)
+    if missing:
+        die("le sélecteur propose d'installer des paquets que ce dépôt ne publie pas : "
+            + ", ".join(missing))
+
+    dormant = sorted(p for p in sleeping - reachable if p not in published)
+    if dormant:
+        print("       ⚠ noms non publiés derrière une puce fermée, fatals le jour où elle s'ouvre :")
+        for name in dormant:
+            print(f"           {name}")
+    print(f"       {len(reachable)} paquets atteignables, tous publiés")
 
 
 def check_commands_agree(source: str) -> None:
