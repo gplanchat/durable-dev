@@ -10,6 +10,8 @@ documentation/journal/archive/*.md
 # Hugo : thème vendorisé pour inspection locale, la CI le récupère via go modules
 hugo-docs/_vendor/
 hugo-docs/public/
+# Build --minify servi en HTTP pour vérifier le rendu : public/ et file:// mentent.
+hugo-docs/public-check/
 hugo-docs/resources/
 hugo-docs/.hugo_build.lock
 
