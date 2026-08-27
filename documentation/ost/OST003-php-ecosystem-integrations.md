@@ -123,12 +123,19 @@ with their own constraints:
 | `EventStoreInterface` | `InMemoryEventStore` | `TemporalJournalEventStore`, `TemporalReadThroughEventStore` | `DbalEventStore` |
 | `WorkflowMetadataStore` | `InMemoryWorkflowMetadataStore` | — | `DbalWorkflowMetadataStore` |
 | `ChildWorkflowParentLinkStoreInterface` | `InMemoryChildWorkflowParentLinkStore` | — | `DbalChildWorkflowParentLinkStore` |
-| `WorkflowRunCatalogInterface` | — | yes | `DbalWorkflowRunCatalog` |
+| `WorkflowRunCatalogInterface` | `InMemoryWorkflowRunCatalog` | `TemporalWorkflowRunCatalog` | `DbalWorkflowRunCatalog` |
 
-Temporal already answers `EventStoreInterface` **twice**, and the DBAL side decorates its own
-implementations with `ProjectingEventStore` and `ProjectingWorkflowMetadataStore`. Multiple adapters
-per backend, each with its own constraints, is not a departure here — it is what the code already
-does.
+Temporal already answers `EventStoreInterface` **twice**. Multiple adapters per backend, each with
+its own constraints, is not a departure here — it is what the code already does.
+
+**One row of that table was a dash when this section was written**, and closing it is what turned
+the argument below from a plausible claim into a demonstrated one. `InMemoryWorkflowRunCatalog`
+(DUR043) was written *against* the DUR041 conformance suite rather than alongside it, and the two
+decorators that feed a projection — `ProjectingEventStore`, `ProjectingWorkflowMetadataStore` —
+moved out of the DBAL bridge into the core, typed against a `WorkflowRunProjectionInterface` the
+in-memory catalog implements by being its own projection. **A fourth family is now a described
+procedure, not a hope:** implement four interfaces, run four suites, implement two more methods to
+be observable.
 
 So a Laravel backend is **a fourth family behind the same four ports**, free to be written the way
 Laravel makes cheap: `DB::table()`, a JSON column, a published migration. Not a connection
@@ -305,7 +312,7 @@ acting on rather than noting.
 | Akeneo | 2 | A `BatchBundle` bundle | **Planned.** Blocked on the checkpoint-granularity decision. |
 | Pimcore | 2 | A bundle under the Generic Execution Engine | **Planned.** Same decision, same blocker — and its own documentation makes the case (§4). |
 | `php-etl/pipeline` | 2 | A durable step runner | **Strongest fit.** Shares §4's decision; internal product, so the feedback loop is short. |
-| Laravel | 1 | Service provider, resume lock, a fourth adapter family, migration | **Planned**, and **blocked on a conformance suite** for the four store ports (§3) — not on the adapter. The positioning has to answer `durable-workflow/workflow` first, and API Platform is the cheapest answer available. |
+| Laravel | 1 | Service provider, resume lock, a fourth adapter family, migration | **Planned, and no longer blocked.** The conformance suite this row waited on exists for all four store ports (DUR041), and a third family has since been written against it (DUR043). What remains is the positioning — it has to answer `durable-workflow/workflow` first, and API Platform is the cheapest answer available. |
 | TYPO3 | 1 | An extension that redoes the bundle's wiring | **Planned.** Messenger, Doctrine DBAL and the Symfony container are already in the install; only the kernel is missing (§3). Cheapest package in the tier. |
 | Magento | 1 | Module, consumers | **Planned.** Bench already in the repository. |
 | WooCommerce | 1 | Everything, on a hostile platform | Not now. Right product (DBAL), wrong moment. |
@@ -357,4 +364,5 @@ exactly the four this rule is about. Worth writing the day the rule is first for
 - [DUR006 — No official Temporal PHP SDK or RoadRunner](../adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md)
 - [DUR030 — DBAL backend: simplified durable execution on a single SQL database](../adr/DUR030-dbal-backend-simplified-durable-execution.md)
 - Pimcore's Generic Execution Engine — [Jobs](https://docs.pimcore.com/platform/Pimcore/Development_Tools_and_Details/Generic_Execution_Engine/Jobs_and_Jobruns/Jobs/) and [Configuration](https://docs.pimcore.com/platform/next/Pimcore/Development_Tools_and_Details/Generic_Execution_Engine/Configuration/), where `max_retries: 0` and the reason given for it are stated.
+- [DUR043 — The projection is a port, and the in-memory backend reads its own runs](../adr/DUR043-the-projection-is-a-port-and-in-memory-reads-itself.md)
 - [DUR037 — Run observation is a projection](../adr/DUR037-run-observation-as-a-projection.md) — the pattern the Akeneo `StepExecution` projection would follow.
