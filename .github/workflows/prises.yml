@@ -1,0 +1,40 @@
+name: Registre des prises
+
+# Deux déclencheurs, deux rôles distincts.
+#
+# `pull_request` **filtré sur `.worktrees/prises/**`** : une session qui pose ou retire une prise
+# est contrôlée sur-le-champ. Le filtre est essentiel — sans lui, une prise oubliée par quelqu'un
+# d'autre bloquerait des PR qui n'y sont pour rien, et un check qui punit l'innocent finit désarmé.
+#
+# `schedule` : le retrait oublié ne se voit dans aucune PR, par définition. C'est le balayage
+# quotidien qui l'attrape. Un échec de workflow planifié notifie le propriétaire du dépôt, ce qui
+# est le seul canal qui ne demande à personne d'aller regarder.
+on:
+  pull_request:
+    paths:
+      - '.worktrees/prises/**'
+      - 'bin/prises-check.sh'
+      - '.github/workflows/prises.yml'
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: prises-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  registre:
+    name: Prises périmées et titres
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Contrôler le registre
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bin/prises-check.sh "${{ github.repository }}"
