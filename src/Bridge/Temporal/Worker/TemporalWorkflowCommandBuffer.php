@@ -17,6 +17,7 @@ use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\Failure\WorkflowFailureClassifier;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
+use Gplanchat\Durable\Nexus\NexusOperationHeaders;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
 use Gplanchat\Durable\Nexus\NexusService;
@@ -415,6 +416,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         NexusOperationName $operation,
         array $payload,
         NexusOperationTimeouts $timeouts,
+        NexusOperationHeaders $headers,
     ): void {
         $attrs = new ScheduleNexusOperationCommandAttributes();
         $attrs->setEndpoint($endpoint->name());
@@ -435,6 +437,14 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         }
         if (null !== $timeouts->startToClose) {
             $attrs->setStartToCloseTimeout($this->nexusBound($timeouts->startToClose));
+        }
+
+        // Une map vide n'est pas une map absente pour qui relit un historique : on n'écrit le
+        // champ que s'il y a quelque chose à porter.
+        if (!$headers->isEmpty()) {
+            // `setNexusHeader()` accepte un tableau aussi bien qu'une MapField, et le tableau
+            // évite de manipuler un type dont les stubs statiques ne disent pas la clé.
+            $attrs->setNexusHeader($headers->toArray());
         }
 
         $cmd = new Command();

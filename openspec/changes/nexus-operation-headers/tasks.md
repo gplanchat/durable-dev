@@ -10,8 +10,8 @@
 
 ## 3. Port and backends
 
-- [ ] 3.1 `WorkflowCommandBufferInterface::scheduleNexusOperation()` carries the headers — **BREAKING**, as DUR031 was
-- [ ] 3.2 `TemporalWorkflowCommandBuffer` writes them into the command
+- [x] 3.1 `WorkflowCommandBufferInterface::scheduleNexusOperation()` carries the headers — **BREAKING**, as DUR031 was : septième paramètre **requis**, pas optionnel, pour qu'aucune implémentation ne l'oublie en silence
+- [x] 3.2 `TemporalWorkflowCommandBuffer` writes them into the command — livrée avec 3.1 : élargir le port sans que le pont n'écrive rien aurait laissé un paramètre accepté puis ignoré, pire que pas de paramètre du tout. Le champ n'est écrit que s'il y a quelque chose à porter — une map vide n'est pas une map absente pour qui relit un historique
 - [ ] 3.3 `TemporalExecutionHistory` reads them back, if anything needs them on replay
 
 ## 4. Integration

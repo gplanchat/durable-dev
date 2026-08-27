@@ -8,6 +8,7 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
+use Gplanchat\Durable\Nexus\NexusOperationHeaders;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
 use Gplanchat\Durable\Nexus\NexusService;
@@ -85,6 +86,7 @@ final class TemporalNexusScheduleCommandTest extends TestCase
             NexusOperationName::named('charge'),
             ['amount' => 10],
             $timeouts,
+            NexusOperationHeaders::none(),
         );
 
         $commands = $buffer->flush();

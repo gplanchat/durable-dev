@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Nexus;
 
 use Gplanchat\Durable\Nexus\NexusEndpoint;
+use Gplanchat\Durable\Nexus\NexusOperationHeaders;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
 use Gplanchat\Durable\Nexus\NexusService;
@@ -40,6 +41,7 @@ final class NexusUnsupportedByJournalBackendTest extends TestCase
             NexusOperationName::named('charge'),
             ['amount' => 10],
             NexusOperationTimeouts::none(),
+            NexusOperationHeaders::none(),
         );
     }
 

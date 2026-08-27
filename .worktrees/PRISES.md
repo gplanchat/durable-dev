@@ -20,4 +20,3 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
-| `feat/nexus-headers-through-the-port` | nexus-operation-headers | 3.1 (port elargi, RUPTURE) | en cours |
