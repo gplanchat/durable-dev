@@ -72,7 +72,7 @@ forty-seven tests with no replacement available — see `design.md`.
       the harness's shape, for an anonymous workflow
 - [x] 8.2 Update the `WorkflowEnvironment` table in `documentation/user/workflows/` to the surface
       that remains
-- [x] 8.3 Write DUR037 — why the scheduling primitive is not public, and why the harness had to
+- [x] 8.3 Write DUR039 — why the scheduling primitive is not public, and why the harness had to
       gain a class-based run before it could be hidden
 
 ## 9. Verification
