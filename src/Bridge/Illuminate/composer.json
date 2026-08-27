@@ -1,12 +1,13 @@
 {
     "name": "gplanchat/durable-bridge-illuminate",
-    "description": "Illuminate (Laravel) journal, metadata and run stores for gplanchat/durable — durable execution on the connection Laravel already owns",
+    "description": "Illuminate (Laravel) journal, metadata and run stores for gplanchat/durable \u2014 durable execution on the connection Laravel already owns",
     "license": "MIT",
     "type": "library",
     "require": {
         "php": ">=8.2",
         "gplanchat/durable": "self.version",
-        "illuminate/database": "^11.0 || ^12.0 || ^13.0"
+        "illuminate/database": "^11.0 || ^12.0 || ^13.0",
+        "illuminate/contracts": "^11.0 || ^12.0 || ^13.0"
     },
     "autoload": {
         "psr-4": {
@@ -16,6 +17,11 @@
     "extra": {
         "branch-alias": {
             "dev-main": "0.1.x-dev"
+        },
+        "laravel": {
+            "providers": [
+                "Gplanchat\\Bridge\\Illuminate\\DurableIlluminateServiceProvider"
+            ]
         }
     },
     "config": {
@@ -23,8 +29,11 @@
     },
     "authors": [
         {
-            "name": "Grégory Planchat",
+            "name": "Gr\u00e9gory Planchat",
             "email": "gregory@gyroscops.com"
         }
-    ]
+    ],
+    "suggest": {
+        "illuminate/cache": "Required by Queue\\ResumeLock: a cache store that implements LockProvider \u2014 array, redis, memcached, dynamodb or database, never file"
+    }
 }
