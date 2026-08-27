@@ -10,6 +10,7 @@ parameters:
         - src/Bridge/Temporal
         - src/Bridge/Dbal
         - src/DurablePhpstan
+        - src/DurableRector
     excludePaths:
         - src/Bridge/Temporal/Api
         - src/Bridge/Temporal/Generated
