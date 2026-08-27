@@ -10,7 +10,7 @@ use Temporal\Api\History\V1\History;
 
 /**
  * Lit {@code durableExecutionId} dans le memo de {@code WorkflowExecutionStarted}
- * (posé par {@see \Gplanchat\Bridge\Temporal\TemporalWorkflowStarter} via {@code StartWorkflowExecution}).
+ * (posé par {@see \Gplanchat\Bridge\Temporal\WorkflowClient} via {@code StartWorkflowExecution}).
  */
 final class JournalExecutionIdResolver
 {
@@ -37,7 +37,7 @@ final class JournalExecutionIdResolver
         }
 
         throw new \RuntimeException(
-            'Workflow history has no durableExecutionId memo on WorkflowExecutionStarted; expected StartWorkflowExecution from TemporalWorkflowStarter.',
+            'Workflow history has no durableExecutionId memo on WorkflowExecutionStarted; expected StartWorkflowExecution from WorkflowClient.',
         );
     }
 
@@ -47,13 +47,13 @@ final class JournalExecutionIdResolver
         $memo = $attr->getMemo();
         if (null === $memo) {
             throw new \RuntimeException(
-                'Workflow history has no memo on WorkflowExecutionStarted; expected TemporalWorkflowStarter.',
+                'Workflow history has no memo on WorkflowExecutionStarted; expected WorkflowClient.',
             );
         }
         $fields = $memo->getFields();
         if (!$fields->offsetExists(self::MEMO_KEY_DURABLE_EXECUTION_ID)) {
             throw new \RuntimeException(
-                'Workflow history memo has no durableExecutionId; expected StartWorkflowExecution from TemporalWorkflowStarter.',
+                'Workflow history memo has no durableExecutionId; expected StartWorkflowExecution from WorkflowClient.',
             );
         }
         $payload = $fields->offsetGet(self::MEMO_KEY_DURABLE_EXECUTION_ID);
