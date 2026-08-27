@@ -21,3 +21,17 @@
 ## 5. Documentation
 
 - [x] 5.1 Update the `nexus-operations` spec: headers move from `MAY` to a capability actually offered — l'exigence dit désormais que les en-têtes atteignent l'opération **inchangés**, et que la validation des clés a lieu là où on les écrit plutôt que par une réécriture serveur
+
+---
+
+**Archivé le 2026-08-27**, neuf entrées sur neuf, aucune reportée.
+
+Ce que le chantier aura appris, et qui ne se devinait pas : le serveur **minuscule les clés
+d'en-tête en silence**, si bien que deux clés ne différant que par la casse entrent en collision —
+deux en-têtes entrent, un seul sort, sans erreur ni trace. C'est la seule chose que
+`NexusOperationHeaders` empêche, et tout le reste — clé vide, valeur vide, blancs, saut de ligne,
+mille caractères — est accepté parce que le serveur l'accepte.
+
+§3.3 s'est close par un constat plutôt que par du code : rien n'a besoin de relire un en-tête au
+replay, puisqu'il voyage vers le handler et ne revient pas au workflow.
+
