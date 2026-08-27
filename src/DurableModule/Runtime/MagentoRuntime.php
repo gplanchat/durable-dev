@@ -28,8 +28,7 @@ final class MagentoRuntime
         private readonly RegistryActivityExecutor $activities,
         private readonly WorkflowRegistry $workflows,
         private readonly InMemoryWorkflowRunner $runner,
-    ) {
-    }
+    ) {}
 
     /**
      * @param callable(array<string, mixed>): mixed $handler
@@ -58,7 +57,7 @@ final class MagentoRuntime
         }
 
         return $this->runner->run(
-            $executionId ?? 'magento-'.bin2hex(random_bytes(6)),
+            $executionId ?? 'magento-' . bin2hex(random_bytes(6)),
             $this->workflows->getHandler($workflowClass, $input),
         );
     }

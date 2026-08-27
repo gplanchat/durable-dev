@@ -57,11 +57,11 @@ class RunDemoCommand extends Command
         $seen = [];
         foreach (['charge', 'reserve', 'notify'] as $step) {
             $runtime->registerActivity(
-                'durable.demo.'.$step,
+                'durable.demo.' . $step,
                 static function (array $payload) use ($step, &$seen): string {
                     $seen[] = $step;
 
-                    return $step.':'.reset($payload);
+                    return $step . ':' . reset($payload);
                 },
             );
         }

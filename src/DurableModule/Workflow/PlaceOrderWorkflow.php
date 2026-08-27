@@ -22,8 +22,7 @@ final class PlaceOrderWorkflow
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
-    ) {
-    }
+    ) {}
 
     #[WorkflowMethod]
     public function run(string $orderId): string

@@ -43,8 +43,7 @@ class InMemoryRuntimeFactory
     public function __construct(
         private readonly int $maxActivityRetries = 0,
         private readonly float $budgetSeconds = InMemoryWorkflowRunner::DEFAULT_BUDGET_SECONDS,
-    ) {
-    }
+    ) {}
 
     public function create(): MagentoRuntime
     {
