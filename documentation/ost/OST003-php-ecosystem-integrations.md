@@ -27,11 +27,13 @@ tiers, and the tier — not the popularity — is what decides the order of work
 
 | Tier | What it means | Members |
 |---|---|---|
-| **0** | The host *is* a Symfony application. `durable-bundle` registers unchanged. Cost: a documentation page. | Shopware 6, API Platform, Sulu, PrestaShop 9 (partly), Ibexa |
+| **0** | The host *is* a Symfony application. `durable-bundle` registers unchanged. Cost: wiring and an admin view. | Shopware 6, Sulu, PrestaShop 9 (partly), Ibexa |
 | **1** | Foreign container, foreign queue. A package has to be written from the bootstrap up. | Laravel, Magento, WordPress/WooCommerce, Drupal |
 | **2** | The host already owns a job abstraction. The integration **substitutes** a runtime under an existing model rather than introducing a second one. | Akeneo BatchBundle, `php-etl/pipeline` |
+| **∅** | Not a host at all — a contract two hosts implement. Belongs to no tier and cuts across two. | API Platform (§3) |
 
-Tier 2 is the interesting one, and it is the tier this project has never written for.
+Tier 2 is the interesting one, and it is the tier this project has never written for. The row
+with no number is the one that changes another line of this document — see §3.
 
 ---
 
@@ -40,10 +42,13 @@ Tier 2 is the interesting one, and it is the tier this project has never written
 | Target | Why it works today | Reservation |
 |---|---|---|
 | **Shopware 6** | Plugins *are* bundles; Symfony Messenger is already in the stack. Order, payment capture and ERP synchronisation are the same flows as Sylius. | Best return of the tier. An agency market that pays. |
-| **API Platform** | It is a Symfony bundle itself. A `ProcessorInterface` can hand back a workflow handle and a `202 + Location` instead of blocking on the work. | Zero code. This is a documentation page, not a package. |
 | **Sulu** | A plain Symfony application; the bundle registers unchanged. | Near-zero cost, near-zero volume. |
 | **PrestaShop 9** | Back office is Symfony. | Front controllers are legacy. "Works with the bundle" is half true, and the half matters. |
 | **Ibexa** | Symfony, enterprise, integration-heavy. | Low volume. |
+
+**API Platform is not in this table**, although it runs on Symfony. It is not an application; it
+is a contract, and the same contract runs on Laravel. §3 is where it belongs, because that is
+the argument it changes.
 
 **The discipline that keeps this tier cheap:** none of these earns a CI bench until somebody runs
 one for real. A bench added speculatively is a maintenance bill with no user behind it.
@@ -64,6 +69,28 @@ cannot answer for.
 ---
 
 ## 3. Tier 1 — a package to write
+
+### API Platform — one processor, two frameworks
+
+`api-platform/state` ships **one** `ApiPlatform\State\ProcessorInterface`, and `api-platform/laravel`
+(Laravel 11 and 12 since 4.2, Laravel 13 since 4.3) implements it against Eloquent the same way the
+Symfony package implements it against Doctrine. A processor that starts a workflow and returns a
+handle with `202 + Location` — instead of holding the request open for work that takes minutes — is
+therefore **the same class on both frameworks**.
+
+What is *not* the same is everything under it. The processor is portable; the container that builds
+it, the queue that carries the activity, and the worker that drains it are not. So this is not a
+free Laravel integration — it is a shared front end over two different backs, and the Laravel back
+is exactly the Tier 1 package below.
+
+**But it changes what that package is for.** "A durable engine for Laravel" is taken (below). "An
+API Platform operation that survives the request, written once and deployed on either framework" is
+not taken by anybody, and it is a smaller promise to keep: one interface, two adapters, no claim
+about Laravel's queue semantics in general.
+
+It is also the only target in this document whose value **grows** with a second integration rather
+than being duplicated by it. Everything else in §2 and §3 is a per-host cost. This one is written
+once and collected twice.
 
 ### Laravel — the square is occupied
 
@@ -155,10 +182,11 @@ for writing the smaller one first.
 
 | Target | Tier | What it needs | Verdict |
 |---|---|---|---|
-| Shopware 6, API Platform, Sulu | 0 | Wiring and an admin view | **Planned.** Cheap — the bundle does the work — but announced as planned, not as working today (§2). |
+| Shopware 6, Sulu | 0 | Wiring and an admin view | **Planned.** Cheap — the bundle does the work — but announced as planned, not as working today (§2). |
+| API Platform | — | One state processor, two adapters | **Planned**, and the one to write before Laravel: it is the same class on both frameworks, and it gives the Laravel package a promise nobody else is making (§3). |
 | Akeneo | 2 | A `BatchBundle` bundle | **Planned.** Blocked on the checkpoint-granularity decision. |
 | `php-etl/pipeline` | 2 | A durable step runner | **Strongest fit.** Shares §4's decision; internal product, so the feedback loop is short. |
-| Laravel | 1 | Service provider, queue, migrations | **Planned**, and the positioning has to answer `durable-workflow/workflow` before the package exists. |
+| Laravel | 1 | Service provider, queue, migrations | **Planned.** The positioning has to answer `durable-workflow/workflow` first, and API Platform is the cheapest answer available. |
 | Magento | 1 | Module, consumers | **Planned.** Bench already in the repository. |
 | WooCommerce | 1 | Everything, on a hostile platform | Not now. Right product (DBAL), wrong moment. |
 | Drupal | 1 | Module, queue | Not now. |
