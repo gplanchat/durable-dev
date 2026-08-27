@@ -288,6 +288,37 @@ these targets are a week of wiring on a stack the bundle already fits, two are a
 are the same design problem written twice. The homepage prints one word — *coming soon* — for all
 of them, and that is deliberate; this table is where the difference lives.
 
+### The rule this table earns: a mark follows a decision, it does not make one
+
+**An ecosystem gets a logo and a chip once it has a row above — not before.**
+
+This is written down because the reverse has now happened twice. Five ecosystems arrived as SVG
+assets in one commit (Aimeos, Bagisto, Filament, Pimcore, Statamic), and TYPO3 after them, each
+through the design canvas, none of them argued for anywhere. Nobody did anything wrong: a canvas is
+where a layout gets tried, and trying a row of chips means drawing chips.
+
+But a mark in the wizard is a **public claim** — it tells a reader we intend to integrate with that
+project. When the claim ships before the argument, the argument has to be reconstructed afterwards
+against an asset that is already in the repository, which is a bad order to think in.
+
+Pimcore is the case that makes it concrete rather than theoretical. It **was** worth adding — and it
+was filed in the wrong tier until somebody actually read its documentation. Tier 0 on the first
+reading ("another Symfony application"), Tier 2 once the Generic Execution Engine turned up. The
+mark had been in the repository for a day by then, and the correction cost an issue and a pull
+request. A row in this table costs a paragraph.
+
+**What the rule is not:** it is not a veto on the canvas. Sketching an ecosystem there is exactly
+what a canvas is for. The rule is only that the sketch does not ship — no asset committed, no chip
+on the page — until the row exists. And it does not apply retroactively to the marks that predate
+it; those are now here, and the four without a row are the backlog this rule exists to stop growing.
+
+**If it needs teeth**, the check is mechanical: every `hugo-docs/assets/logos/*.svg` should name a
+target in the table above. Seven do today — Shopware, Sulu, API Platform, Akeneo, Pimcore, Laravel,
+Magento. Six legitimately never will, and they make a short, stable exception list: the language and
+the two backends (`php`, `doctrine`, `temporal`), the two integrations that already shipped
+(`symfony`, `sylius`), and `illuminate`, which names a layer rather than a target. That leaves
+exactly the four this rule is about. Worth writing the day the rule is first forgotten, not before.
+
 ---
 
 ## References
