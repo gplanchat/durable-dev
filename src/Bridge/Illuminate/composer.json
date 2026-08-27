@@ -1,6 +1,6 @@
 {
     "name": "gplanchat/durable-bridge-illuminate",
-    "description": "Illuminate (Laravel) journal, metadata and run stores for gplanchat/durable — durable execution on the connection Laravel already owns",
+    "description": "Illuminate (Laravel) journal, metadata and run stores for gplanchat/durable \u2014 durable execution on the connection Laravel already owns",
     "license": "MIT",
     "type": "library",
     "require": {
@@ -16,6 +16,11 @@
     "extra": {
         "branch-alias": {
             "dev-main": "0.1.x-dev"
+        },
+        "laravel": {
+            "providers": [
+                "Gplanchat\\Bridge\\Illuminate\\DurableIlluminateServiceProvider"
+            ]
         }
     },
     "config": {
@@ -23,7 +28,7 @@
     },
     "authors": [
         {
-            "name": "Grégory Planchat",
+            "name": "Gr\u00e9gory Planchat",
             "email": "gregory@gyroscops.com"
         }
     ]

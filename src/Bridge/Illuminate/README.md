@@ -45,15 +45,31 @@ tests/unit/Bridge/Illuminate/  — 44 cases, four ports
 
 - **The resume lock.** Two workers replaying one execution duplicate its commands, and no storage
   choice prevents that. On Laravel it is `WithoutOverlapping` or an atomic `Cache::lock()`.
-- **A service provider.** That belongs to the Laravel integration package, not to a set of stores.
-- **Published migrations.** `Schema\DurableSchema` creates the four tables on demand, which suits a
-  worker starting on an empty database and a test. A Laravel application will want
-  `php artisan migrate`, and that is the next thing this package owes it.
+- **The Durable service provider.** Registering stores, binding ports, adding worker commands —
+  that belongs to the Laravel integration package. A set of stores does not decide how an
+  application wires them.
+
+  The provider this package *does* ship, `DurableIlluminateServiceProvider`, registers nothing. It
+  does the one thing no other package can do for it: tell Laravel where **its** migrations are.
 
 ## Install
 
 ```bash
 composer require gplanchat/durable gplanchat/durable-bridge-illuminate
+php artisan migrate
 ```
+
+The four tables ship as a migration, loaded straight from the package — `migrate` is enough.
+Publishing is for when you want to edit them, and from that point they are yours:
+
+```bash
+php artisan vendor:publish --tag=durable-migrations
+```
+
+`Schema\DurableSchema` still creates the tables on demand. That is what a test and a worker booting
+on an empty database use; an application uses the migration. **Two ways to create the same four
+tables is two chances to drift**, so `MigrationMatchesSchemaTest` renders the DDL of both — against
+MySQL's grammar, which carries lengths and indexes where SQLite discards them — and compares them
+statement for statement.
 
 MIT. See [`LICENSE`](LICENSE).
