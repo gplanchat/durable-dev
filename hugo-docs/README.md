@@ -47,6 +47,3 @@ le site**, pas seulement pour la page concernée.
 Le `max-age` HSTS est volontairement court (300 s) au démarrage. HSTS est difficile à défaire — le
 navigateur refuse `http://` pendant toute la durée annoncée, même si le certificat expire. Le
 passer à un an une fois le domaine stable.
-
-GitHub Pages reste disponible en publication manuelle (`hugo-docs.yml`), non déclenchée
-automatiquement.

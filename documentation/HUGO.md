@@ -20,7 +20,7 @@ The static site under **`hugo-docs/`** publishes **user documentation** only: pr
 
 ## Local build
 
-Prerequisites: **Hugo Extended** (see CI version in `.github/workflows/hugo-docs.yml`).
+Prerequisites: **Hugo Extended** (see CI version in `.github/workflows/docs-ovh.yml`).
 
 ```bash
 cd hugo-docs
