@@ -20,4 +20,3 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
-| `refactor/query-handler-surface` | `query-plumbing-leaves-the-environment` | `WorkflowEnvironment`, `ExecutionContext`, `WorkflowDefinitionLoader`, `WorkflowTaskProcessor`/`Result`/`Runner`, `WorkflowFiberDriver` | en cours |
