@@ -88,8 +88,9 @@ value, never the enum. The emitter still types its intent at the call site.
 Applied: `WorkflowEnvironment::waitSignal()`, `WorkflowClientInterface::signal()` and its
 implementation, `DeliverWorkflowSignalMessage`.
 
-Not applied, for now: `query()`, `update()`, `waitUpdate()`, `registerQueryHandler()`, and the
-`#[SignalMethod(name:)]` attribute. Queries and updates have the same shape and the same failure
+Not applied, for now: `query()`, `update()`, `waitUpdate()`, and the
+`#[SignalMethod(name:)]` attribute. (`registerQueryHandler()` was on this list; DUR040 removed the
+method, so the widening no longer has anywhere to land.) Queries and updates have the same shape and the same failure
 mode, and each would cost one parameter to widen — the same deferral DUR032 made for a deadline on
 `waitUpdate()`. The attribute is a special case worth naming: PHP does allow an enum case as an
 attribute argument, since it is a constant expression, so the obstacle is only that

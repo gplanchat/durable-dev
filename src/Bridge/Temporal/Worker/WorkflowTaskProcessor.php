@@ -49,8 +49,8 @@ final class WorkflowTaskProcessor
         $commands = $result->commands;
 
         $queryResults = [];
-        if (null !== $result->environment) {
-            $queryResults = $this->handleQueries($poll, $result->environment);
+        if (null !== $result->queryHandlers) {
+            $queryResults = $this->handleQueries($poll, $result->queryHandlers);
         }
 
         $this->respond($poll->getTaskToken(), $commands, $queryResults, $result->messages);
@@ -93,13 +93,13 @@ final class WorkflowTaskProcessor
     }
 
     /**
-     * Answers Temporal queries by calling the registered #[QueryMethod] handlers on the environment.
+     * Answers Temporal queries from the handlers the definition loader registered.
      *
      * @return array<string, WorkflowQueryResult>
      */
     private function handleQueries(
         PollWorkflowTaskQueueResponse $poll,
-        \Gplanchat\Durable\WorkflowEnvironment $environment,
+        \Gplanchat\Durable\Workflow\QueryHandlerRegistry $queries,
     ): array {
         $results = [];
 
@@ -107,9 +107,9 @@ final class WorkflowTaskProcessor
             $queryType = $query->getQueryType();
             $queryResult = new WorkflowQueryResult();
 
-            if ($environment->hasQueryHandler($queryType)) {
+            if ($queries->has($queryType)) {
                 try {
-                    $answer = $environment->callQueryHandler($queryType, []);
+                    $answer = $queries->call($queryType, []);
                     $queryResult->setResultType(QueryResultType::QUERY_RESULT_TYPE_ANSWERED);
                     $queryResult->setAnswer(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($answer)));
                 } catch (\Throwable) {

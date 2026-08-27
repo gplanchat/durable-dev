@@ -48,6 +48,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR037 | Run observation is a projection, and an absent fact stays absent | [adr/DUR037-run-observation-as-a-projection.md](adr/DUR037-run-observation-as-a-projection.md) |
 | DUR038 | A stub assembles, it does not wait | [adr/DUR038-a-stub-assembles-it-does-not-wait.md](adr/DUR038-a-stub-assembles-it-does-not-wait.md) |
 | DUR039 | The workflow authoring surface | [adr/DUR039-workflow-authoring-surface.md](adr/DUR039-workflow-authoring-surface.md) |
+| DUR040 | Query plumbing leaves the environment | [adr/DUR040-query-plumbing-leaves-the-environment.md](adr/DUR040-query-plumbing-leaves-the-environment.md) |
 
 ## Working agreements (WA)
 

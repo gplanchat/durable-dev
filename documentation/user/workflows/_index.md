@@ -243,10 +243,14 @@ is not on this surface: a typo there produces an activity that is never schedule
 error your IDE and your static analyser catch first.
 
 Query, signal and update handlers are declared with `#[QueryMethod]`, `#[SignalMethod]` and
-`#[UpdateMethod]`, and the engine wires them. They can also be registered imperatively —
-`registerQueryHandler()`, `onSignal()`, `onUpdate()` — which is what a workflow expressed as a
-closure has to use, since a closure cannot carry an attribute. Prefer the attribute: it is the
-form a reader can see without running anything.
+`#[UpdateMethod]`, and the engine wires them. Signals and updates can also be registered
+imperatively — `onSignal()`, `onUpdate()` — which is what a workflow expressed as a closure has to
+use, since a closure cannot carry an attribute. Prefer the attribute: it is the form a reader can
+see without running anything.
+
+**Queries have no imperative form.** They are read by the worker, outside the workflow's fiber, so
+their handlers live on the engine side and `#[QueryMethod]` is the only way to declare one. A
+closure-shaped workflow cannot answer a query; if it needs to, it needs to be a class.
 
 You never instantiate activity implementations inside the workflow body.
 
