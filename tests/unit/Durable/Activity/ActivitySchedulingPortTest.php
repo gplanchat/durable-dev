@@ -44,6 +44,38 @@ final class ActivitySchedulingPortTest extends TestCase
         self::assertNotContains('activity', $public);
     }
 
+    public function testTheEnvironmentExposesNoQueryPlumbing(): void
+    {
+        $reflection = new \ReflectionClass(WorkflowEnvironment::class);
+
+        $public = [];
+        foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+            $public[] = $method->getName();
+        }
+
+        // Un auteur déclare `#[QueryMethod]` et le moteur câble. Ces trois-là étaient sur
+        // l'environnement parce que c'est l'objet que le moteur avait sous la main, pas parce
+        // qu'un workflow en a besoin — les atteindre revenait à court-circuiter la déclaration.
+        self::assertNotContains('registerQueryHandler', $public);
+        self::assertNotContains('callQueryHandler', $public);
+        self::assertNotContains('hasQueryHandler', $public);
+    }
+
+    public function testSignalAndUpdateRegistrationStayOnTheSurface(): void
+    {
+        $reflection = new \ReflectionClass(WorkflowEnvironment::class);
+
+        $public = [];
+        foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+            $public[] = $method->getName();
+        }
+
+        // La dissymétrie avec les queries est voulue, et c'est ce test qui l'épingle. Un signal
+        // se distribue dans l'environnement, pendant `await()` ; une query se lit par le worker,
+        // hors de la fibre. Le verbe qui reste est celui dont le workflow se sert vraiment.
+        self::assertContains('onSignal', $public);
+        self::assertContains('onUpdate', $public);
+    }
 
     public function testTheStubStillSchedulesThroughTheNarrowPort(): void
     {
