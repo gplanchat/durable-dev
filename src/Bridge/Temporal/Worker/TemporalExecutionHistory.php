@@ -159,8 +159,11 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 if (null !== $attr) {
                     // Temporal n'a pas de champ d'identité applicative pour une opération Nexus :
                     // le tampon la glisse dans le payload d'entrée, et c'est là qu'on la relit.
-                    $decoded = null !== $attr->getInput() ? JsonPlainPayload::decode($attr->getInput()) : null;
-                    $operationId = \is_array($decoded) ? (string) ($decoded['operationId'] ?? '') : '';
+                    // L'identité d'une opération Nexus est l'eventId que le serveur assigne, et
+                    // non un identifiant que l'appelant glisserait dans la charge : celle-ci
+                    // appartient à l'utilisateur, et un gestionnaire d'un autre SDK y cherche ses
+                    // propres champs.
+                    $operationId = (string) $eventId;
                     if ('' !== $operationId) {
                         $this->scheduledNexusOperationIds[] = $operationId;
                         $this->nexusOperationToScheduledEventId[$operationId] = (int) $eventId;
@@ -184,11 +187,15 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 // répondra par rappel — et rien ici ne sait le recevoir (§4.5).
                 if (null !== $attr && '' !== (string) $attr->getOperationToken()) {
                     $scheduledEventId = (int) $attr->getScheduledEventId();
+                    // `array_search` rend la CLÉ, et PHP convertit une clé numérique en entier :
+                    // depuis que l'identité est l'eventId, cette recherche ne rend plus une chaîne.
+                    // Le cast est ici et non chez l'appelé, parce que c'est ici que la coercition
+                    // a lieu.
                     $operationId = array_search($scheduledEventId, $this->nexusOperationToScheduledEventId, true);
                     $this->nexusOperationOutcomes[$scheduledEventId] = [
                         'result' => null,
                         'failed' => NexusAsynchronousOperationUnsupportedException::forOperation(
-                            false === $operationId ? (string) $scheduledEventId : $operationId,
+                            false === $operationId ? (string) $scheduledEventId : (string) $operationId,
                         ),
                     ];
                 }

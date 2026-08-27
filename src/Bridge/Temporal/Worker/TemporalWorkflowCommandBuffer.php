@@ -477,10 +477,14 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $attrs->setOperation($operation->name());
         // Une opération Nexus porte UN payload, là où une activité en porte une liste : le
         // champ est un Payload, pas un Payloads.
-        $attrs->setInput(JsonPlainPayload::encode([
-            'operationId' => $operationId,
-            'payload' => $payload,
-        ]));
+        // La charge de l'appelant, nue. Elle portait jusqu'ici une enveloppe
+        // `{operationId, payload}` qui servait à corréler — et qu'un gestionnaire d'un autre SDK
+        // recevait à la place des champs qu'il attend. Mesuré (tâche 1.1) : un gestionnaire Go
+        // recevait `{"name":""}` et répondait sur du vide, sans que rien ne lève.
+        //
+        // La corrélation est déjà sur le fil : le serveur assigne un `scheduledEventId` que
+        // l'événement de planification et les événements terminaux portent tous les deux.
+        $attrs->setInput(JsonPlainPayload::encode($payload));
 
         if (null !== $timeouts->scheduleToClose) {
             $attrs->setScheduleToCloseTimeout($this->nexusBound($timeouts->scheduleToClose));
