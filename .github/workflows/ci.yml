@@ -284,19 +284,28 @@ jobs:
               working-directory: symfony
               run: composer install --no-interaction --prefer-dist --no-progress
 
+            # `symfony/.env` publie la façade sur 7234, pour cohabiter avec un Temporal
+            # local sur 7233. En CI il n'y a rien à côtoyer : on publie sur 7233, le port
+            # que le DSN et les docblocs des tests annoncent. Sans ce pilotage, compose
+            # écoutait 7234, le DSN visait 7233, et les neuf tests qui parlent au serveur
+            # sautaient — le job restait vert en ne testant rien.
             - name: Démarrer PostgreSQL + Temporal (symfony/compose.yaml)
               working-directory: symfony
+              env:
+                  TEMPORAL_FRONTEND_PORT: '7233'
               run: docker compose up -d --wait --wait-timeout 300 database temporal
 
-            - name: PHPUnit — tests d'intégration Temporal (temporal-integration + temporal-native-spike)
+            - name: La façade répond, sinon on ne teste rien
+              run: timeout 30 bash -c 'until nc -z 127.0.0.1 7233; do sleep 1; done'
+
+            - name: PHPUnit — tests d'intégration Temporal (tout le répertoire)
               working-directory: symfony
               env:
                   DURABLE_DSN: 'temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0'
               run: |
                   php bin/phpunit \
-                    --group temporal-integration \
-                    --group temporal-native-spike \
                     --testdox \
+                    --display-skipped \
                     tests/Integration/Temporal/
 
             - name: Arrêt des conteneurs
