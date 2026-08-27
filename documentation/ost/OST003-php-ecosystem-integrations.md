@@ -179,6 +179,18 @@ Laravel backend, and it is worth doing whether or not one is ever written.** It 
 store ports each have a conformance suite that the SQL and in-memory adapters run. A Laravel
 adapter now starts by extending four classes.
 
+**And it did.** `gplanchat/durable-bridge-illuminate` is the fourth family, written exactly that
+way: four stores on `Illuminate\Database\Connection`, four conformance subclasses, the journal one
+joining the replay tier so that what it stores is compared against the in-memory reference through
+a real workflow rather than merely against the contract. It implements
+`WorkflowRunProjectionInterface` too, which is all a backend has to do to inherit the core's two
+projecting decorators (DUR043) — no Laravel-shaped copy of the rule that says which four events end
+a run.
+
+The paragraph above was a prediction when it was written. It is now a description, and the two
+things that made it cheap are worth naming: the suite existed first, and the projection was a port
+rather than a concrete class.
+
 **One constraint no adapter may drop, and Laravel's satisfies it for free.** DUR030 sells durable
 execution on one database with no cluster, and that only pays if the journal append and the business
 write land in one transaction — otherwise the activity writes, the process dies before the journal
@@ -326,7 +338,7 @@ acting on rather than noting.
 | Akeneo | 2 | A `BatchBundle` bundle | **Planned.** Blocked on the checkpoint-granularity decision. |
 | Pimcore | 2 | A bundle under the Generic Execution Engine | **Planned.** Same decision, same blocker — and its own documentation makes the case (§4). |
 | `php-etl/pipeline` | 2 | A durable step runner | **Strongest fit.** Shares §4's decision; internal product, so the feedback loop is short. |
-| Laravel | 1 | Service provider, resume lock, a fourth adapter family, migration | **Planned, and no longer blocked.** The conformance suite this row waited on exists for all four store ports (DUR041), and a third family has since been written against it (DUR043). What remains is the positioning — it has to answer `durable-workflow/workflow` first, and API Platform is the cheapest answer available. |
+| Laravel | 1 | Service provider, resume lock, published migrations | **The store family is written** — `gplanchat/durable-bridge-illuminate`, four ports, four suites (§3). What remains is the Laravel plumbing around it, the resume lock that no storage choice supplies, and the positioning: it has to answer `durable-workflow/workflow` first, and API Platform is the cheapest answer available. |
 | TYPO3 | 1 | An extension that redoes the bundle's wiring | **Planned.** Messenger, Doctrine DBAL and the Symfony container are already in the install; only the kernel is missing (§3). Cheapest package in the tier. |
 | Magento | 1 | Module, consumers | **Planned.** Bench already in the repository. |
 | WooCommerce | 1 | Everything, on a hostile platform | Not now. Right product (DBAL), wrong moment. |
