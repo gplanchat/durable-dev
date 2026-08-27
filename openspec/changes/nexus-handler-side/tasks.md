@@ -2,11 +2,21 @@
 
 ## 1. Probe before designing anything
 
-- [ ] 1.1 Serve an operation with an official SDK (Go) and call it from a Durable workflow.
-      **Not done, and re-scoped.** A raw PHP poller read the wire directly, which answered 1.2–1.7
-      without it. Its remaining purpose is sharper: our caller wraps the payload in a private
-      `{operationId, payload}` envelope, so a Go handler is what proves whether a non-Durable
-      handler can serve a Durable caller at all.
+- [x] 1.1 A Nexus operation served by the **Go SDK**, called from a Durable workflow. The question
+      was whether a non-Durable handler can serve a Durable caller at all. The answer is worse than
+      "no".
+      **It works, and it silently corrupts the payload.** The call completed end to end — the Go
+      handler was reached, ran, and its reply came back to the workflow. But the handler, declaring
+      `Greeting{Name string \`json:"name"\`}`, received `{"name":""}` and answered `hello ` instead
+      of `hello ada`.
+      The cause is our envelope. The caller sends `{"operationId": …, "payload": {"name":"ada"}}`;
+      the handler deserialises that into its own type, finds no `name` at the top level, and gets a
+      zero value. **No error is raised anywhere** — not by the server, not by the SDK, not by us.
+      A hard failure would have been better: it would have been found the first time. This is a
+      wrong answer that looks like a right one, which is the failure mode this codebase treats as
+      the most expensive (DUR036, DUR042).
+      It also means the reverse is true and equally quiet: a **Durable handler** would receive a Go
+      caller's bare payload and look for an `operationId` that is not there.
 - [x] 1.2 `PollNexusTaskQueue` semantics. Long-poll returns after ~11 s on an idle queue with an
       **empty task token and null request** — a success, not an error.
 - [x] 1.3 `RespondNexusTaskCompleted` with a synchronous result. **Accepted, full round trip**: the
@@ -29,9 +39,15 @@
 - [ ] 1b.1 **Two budgets.** `request-timeout` (~9 s) bounds the answer to one task;
       `operation-timeout` bounds the operation. A handler cannot hold a task while it works. Decide
       whether synchronous-only is still worth shipping given how narrow ~9 s makes it.
-- [ ] 1b.2 **The payload envelope.** Decide: teach handlers our `{operationId, payload}` envelope —
-      which locks Durable into serving only Durable — or correlate by scheduled event id and stop
-      wrapping. This is a caller-side change either way and it belongs to this review.
+- [ ] 1b.2 **The payload envelope — no longer a choice between two designs.** 1.1 measured what it
+      costs: a Go handler serving a Durable caller receives an empty payload and answers on it,
+      silently. Teaching handlers the envelope does not fix that — it only fixes *our* handlers, and
+      leaves every other SDK's handler quietly wrong.
+      So the envelope has to go: correlate by scheduled event id, which the history already carries,
+      and send the caller's payload as the caller wrote it. That is a caller-side change, it breaks
+      the wire format for in-flight Nexus operations, and it belongs to this review.
+      Until it lands, **a Durable Nexus call is only correct against a Durable handler**, and the
+      user documentation should say so rather than let someone find out from an empty field.
 - [ ] 1b.3 **Retryable versus terminal handler errors.** `INTERNAL` is retried until the operation
       times out. Establish which error types are terminal before writing the failure path, or a
       handler that raises on bad input will retry for the whole operation budget.
