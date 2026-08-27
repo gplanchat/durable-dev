@@ -110,69 +110,67 @@ Two consequences, and neither is "don't go":
    skimming Packagist. The Laravel package has to lead with `gplanchat/`, and the documentation has
    to name the other one rather than hope nobody notices.
 
-### The Laravel backend: the swap is real, but Eloquent is the wrong layer
+### The Laravel backend: a fourth adapter behind the ports that already exist
 
-The port is exactly the two substitutions it looks like — Messenger out, Laravel's queue in; Doctrine
-out, Laravel's database layer in. The correction is only about *which* Laravel class is Doctrine
-DBAL's opposite number.
+The port is exactly the two substitutions it looks like — Messenger out, Laravel's queue in;
+Doctrine out, Laravel's database layer in. And the seam it hangs on is **already cut**.
 
-`illuminate/database` has the same two layers Doctrine has, and they line up one for one:
+Four interfaces make up the storage side of the hexagon, and three families already sit behind them
+with their own constraints:
 
-| Doctrine | Laravel | Does Durable touch it? |
-|---|---|---|
-| **DBAL** — `Connection`, statements over PDO, no objects | `Illuminate\Database\Connection`, `DB::table()` | **Yes.** This is the whole storage surface. |
-| **ORM** — entities, mapping, unit of work | **Eloquent** — ActiveRecord models | **No.** `grep Doctrine\\ORM src/` returns nothing, and `durable-bridge-dbal` requires `doctrine/dbal` alone. |
-
-Eloquent is Doctrine ORM's counterpart, not DBAL's, and Durable depends on neither. Journal rows are
-append-only facts — `execution_id`, `event_type`, a JSON `payload`, `recorded_at`. Giving them
-ActiveRecord identity, model events, casts and timestamps is work in the wrong direction: it adds a
-mutable object over a row whose entire contract is that it is never mutated.
-
-**What the swap actually costs, measured.** The five stores touch the connection through **eight
-methods**: `insert`, `update`, `delete`, `fetchOne`, `fetchAssociative`, `fetchAllAssociative`,
-`fetchFirstColumn`, `executeQuery`. Every one has a one-line `Illuminate\Database\Connection`
-equivalent. Schema handling — `createSchemaManager`, `getDatabasePlatform` — is confined to
-`DurableSchema` and one health probe that asks the platform for `SELECT 1`; on Laravel that is a
-published migration and a `select('select 1')`, so it is not ported at all, it is replaced.
-
-Eight methods is the number that decides between the three ways to do this:
-
-| | What it is | Cost | What it gives up |
+| Port | In-memory | Temporal | DBAL |
 |---|---|---|---|
-| **A** | Keep `DbalEventStore`; build a DBAL `Connection` over `DB::connection()->getPdo()` via a custom `driverClass` | ~40 lines, nothing existing changes | `doctrine/dbal` sits in a Laravel application's tree |
-| **B** | Re-implement the five stores against `Illuminate\Database\Connection` | 961 lines written again | **The journal shape forks.** That is the cost, not the lines. |
-| **C** | Extract the eight-method surface as a port; **one** set of stores, two connection adapters | 8 signatures + two ~50-line adapters | A refactor of `durable-bridge-dbal`, which needs an ADR |
+| `EventStoreInterface` | `InMemoryEventStore` | `TemporalJournalEventStore`, `TemporalReadThroughEventStore` | `DbalEventStore` |
+| `WorkflowMetadataStore` | `InMemoryWorkflowMetadataStore` | — | `DbalWorkflowMetadataStore` |
+| `ChildWorkflowParentLinkStoreInterface` | `InMemoryChildWorkflowParentLinkStore` | — | `DbalChildWorkflowParentLinkStore` |
+| `WorkflowRunCatalogInterface` | — | yes | `DbalWorkflowRunCatalog` |
 
-**C is what the measurement points at**, and it is the only kind of interface worth adding: two real
-implementations, both needed, neither speculative. `durable-bridge-dbal` becomes a SQL journal with a
-Doctrine adapter and a Laravel adapter, and no Laravel application installs Doctrine to get it.
+Temporal already answers `EventStoreInterface` **twice**, and the DBAL side decorates its own
+implementations with `ProjectingEventStore` and `ProjectingWorkflowMetadataStore`. Multiple adapters
+per backend, each with its own constraints, is not a departure here — it is what the code already
+does.
 
-**The one line that keeps C honest:** the port stays at the *statement* level — bindings in, rows
-out. The moment it starts abstracting SQL generation it has become DBAL, badly, and B was cheaper.
+So a Laravel backend is **a fourth family behind the same four ports**, free to be written the way
+Laravel makes cheap: `DB::table()`, a JSON column, a published migration. Not a connection
+abstraction underneath one shared set of stores — that would put a seam *below* the hexagon's
+boundary, and hand two adapters one shared query strategy and one shared dialect assumption, which
+are precisely the things an adapter is supposed to own.
 
-**B's real cost, stated plainly.** The journal format is what replay reads, what the profiler
-converts (DUR029), and what a run projection observes (DUR037). Two implementations of it is two
-places for a divergence that only shows up as a workflow replaying wrong in production, months
-later. Duplicated lines are cheap; a duplicated format is not.
+**Eloquent or the query builder is then an adapter's business, not the engine's.** Worth noting all
+the same, because it is the one place the choice has a consequence: journal rows are append-only
+facts — `execution_id`, `event_type`, a JSON `payload`, `recorded_at`. `DB::table()` writes them
+directly; an ActiveRecord model adds identity, events, casts and timestamps over a row whose entire
+contract is that it is never mutated. The adapter is free either way, and one of the two is less
+work.
 
-**And the transaction is why any of this matters.** DUR030 sells durable execution on one database
-with no cluster, and that only pays if the journal append and the business write land in one
-transaction. Otherwise the activity writes, the process dies before the journal records that it did,
-and replay runs it twice — the exact failure durable execution exists to prevent. Whichever option
-is taken, the store must end up on the **connection Laravel itself uses**, not a second one onto the
-same database. A and C both give that; B gives it too, and for free. It is the requirement none of
-them may drop.
+**What stops the journal from diverging is conformance, not shared code.** That objection —
+"two implementations of the journal shape is two places to drift" — is a testing argument dressed as
+an architecture argument, and the guard already exists: `DbalBackendParityTest` runs a real workflow
+with an activity, a timer and a side effect against `InMemoryEventStore` and `DbalEventStore`, then
+compares what replay reads from each. A payload deformed by a SQL round trip breaks replay silently,
+not at write time, and that test is what catches it.
 
-**Where the port is actually hard, and it is not storage.** `SingleResumeLockMiddleware` is a Symfony
-Messenger middleware, and `DbalEventStore`'s own docblock leans on it: without it, two workers replay
-the same execution and duplicate its commands. On Laravel that becomes `WithoutOverlapping` or an
-atomic `Cache::lock()`, and no storage choice supplies it. It is also why the middleware — and the
-hard requirement on `symfony/lock` and `symfony/messenger` in `durable-bridge-dbal`'s
-`composer.json` — should come out of the bridge regardless of which option wins.
+**It is written for two named stores, and that is the gap.** Promoting it into a reusable
+conformance suite that every `EventStoreInterface` implementation runs — Temporal's two included —
+is the work that makes a fourth adapter safe by construction. **That is the prerequisite for a
+Laravel backend, and it is worth doing whether or not one is ever written.** It needs an ADR;
+DUR030 covers what the DBAL backend promises, not what any store must prove.
 
-**Verdict: no `gplanchat/durable-bridge-eloquent`, and no second journal.** One SQL store, a port at
-the statement level, an adapter per host. Eloquent stays out of it because Durable has no ORM to
-replace.
+**One constraint no adapter may drop, and Laravel's satisfies it for free.** DUR030 sells durable
+execution on one database with no cluster, and that only pays if the journal append and the business
+write land in one transaction — otherwise the activity writes, the process dies before the journal
+records that it did, and replay runs it twice. A native Laravel adapter is on `DB::connection()` by
+construction, so `DB::transaction()` closes over both. Reaching the same guarantee by handing
+Doctrine DBAL the PDO out of `DB::connection()->getPdo()` is possible, and it is a workaround where
+the adapter is the plain answer.
+
+**Where the port is genuinely hard, and it is not storage.** `SingleResumeLockMiddleware` is a
+Symfony Messenger middleware, and `DbalEventStore`'s own docblock leans on it: without it, two
+workers replay the same execution and duplicate its commands. On Laravel that becomes
+`WithoutOverlapping` or an atomic `Cache::lock()`, and no storage choice supplies it. It is also why
+that middleware — and the hard requirement on `symfony/lock` and `symfony/messenger` in
+`durable-bridge-dbal`'s `composer.json` — belongs outside the bridge: a Laravel application should
+not install two Symfony components to get a SQL journal.
 
 ### Magento
 
@@ -250,7 +248,7 @@ for writing the smaller one first.
 | API Platform | — | One state processor, two adapters | **Planned**, and the one to write before Laravel: it is the same class on both frameworks, and it gives the Laravel package a promise nobody else is making (§3). |
 | Akeneo | 2 | A `BatchBundle` bundle | **Planned.** Blocked on the checkpoint-granularity decision. |
 | `php-etl/pipeline` | 2 | A durable step runner | **Strongest fit.** Shares §4's decision; internal product, so the feedback loop is short. |
-| Laravel | 1 | Service provider, resume lock, connection adapter, migration | **Planned.** One SQL store behind a statement-level port, adapter per host — no Eloquent, no second journal (§3). The positioning has to answer `durable-workflow/workflow` first, and API Platform is the cheapest answer available. |
+| Laravel | 1 | Service provider, resume lock, a fourth adapter family, migration | **Planned**, and **blocked on a conformance suite** for the four store ports (§3) — not on the adapter. The positioning has to answer `durable-workflow/workflow` first, and API Platform is the cheapest answer available. |
 | Magento | 1 | Module, consumers | **Planned.** Bench already in the repository. |
 | WooCommerce | 1 | Everything, on a hostile platform | Not now. Right product (DBAL), wrong moment. |
 | Drupal | 1 | Module, queue | Not now. |
