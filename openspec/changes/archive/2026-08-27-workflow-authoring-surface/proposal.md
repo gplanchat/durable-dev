@@ -70,6 +70,6 @@ Three facts make this a change rather than a deletion:
 - **Test suite**: forty-seven direct `activity()` calls are rewritten. Most are in
   `DriverParityRegressionTest`, where they are anonymous workflows by design.
 - **User documentation**: the testing guide stops teaching a shape that only the harness has.
-- **ADR**: DUR037 records why the scheduling primitive is not public, and why the test harness
+- **ADR**: DUR039 records why the scheduling primitive is not public, and why the test harness
   needed a class-based run before it could be hidden.
 - **Dependencies**: none.
