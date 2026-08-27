@@ -153,8 +153,9 @@ not at write time, and that test is what catches it.
 **It is written for two named stores, and that is the gap.** Promoting it into a reusable
 conformance suite that every `EventStoreInterface` implementation runs — Temporal's two included —
 is the work that makes a fourth adapter safe by construction. **That is the prerequisite for a
-Laravel backend, and it is worth doing whether or not one is ever written.** It needs an ADR;
-DUR030 covers what the DBAL backend promises, not what any store must prove.
+Laravel backend, and it is worth doing whether or not one is ever written.** It is now
+[DUR041](../adr/DUR041-store-parity-is-a-suite-every-adapter-runs.md), which also covers the
+three ports that have no parity test at all.
 
 **One constraint no adapter may drop, and Laravel's satisfies it for free.** DUR030 sells durable
 execution on one database with no cluster, and that only pays if the journal append and the business
