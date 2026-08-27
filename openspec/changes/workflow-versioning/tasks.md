@@ -50,12 +50,25 @@
 
 ## 3. The guard sanctions it
 
-- [ ] 3.1 Assert the replay divergence guard does **not** fire on a versioned workflow whose
-      branches differ — with the guard in place, not stubbed.
-- [ ] 3.2 Assert the version event is journaled before the slots it decides, and read before them
-      on replay. A test that fails if the ordering is inverted.
-- [ ] 3.3 Assert the guard still fires on an unversioned change in the same workflow: versioning
-      one change point does not disarm the guard for the others.
+- [x] 3.1 The guard does **not** fire on a branch the version decided — guard in place, not stubbed.
+      Both directions are held: a run on version 1 takes the new branch and its slot resolves, and a
+      run on `DEFAULT_VERSION` takes the old one and its slot resolves too. Both branches are
+      legitimate, each for the execution it concerns.
+- [x] 3.2 The version is decided and journaled **before** the slot it commands. The test reads the
+      journal back and asserts the marker's position is lower than the activity's. If the order were
+      inverted, an execution would have used an answer it did not yet have.
+- [x] 3.3 Versioning one change point does **not** disarm the guard elsewhere: with the versioned
+      branch respected and a *different* slot changed without declaring a point, the guard still
+      raises. The exception covers only what it names.
+
+**What this section found: nothing had to be built.** The design expected the guard to need teaching
+about version markers. It does not, and the reason is worth recording — the guard compares what the
+code asks for against what history recorded, and a versioned run asks for exactly what it recorded,
+*because its version came from that same history*. The sanctioned exception is not a special case in
+the guard; it falls out of both mechanisms reading the same journal.
+
+Checked that the tests discriminate rather than pass by construction: making an old run take the new
+behaviour fails one, and recording the version after the slot instead of before fails another.
 
 ## 4. Both backends
 
