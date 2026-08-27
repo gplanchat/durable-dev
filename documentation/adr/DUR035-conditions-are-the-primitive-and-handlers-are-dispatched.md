@@ -104,6 +104,12 @@ This is not a concession to convenience: nearly every workflow in this component
 closure, and a closure cannot carry an attribute. Without imperative registration the primitive
 would not be testable in the style the suite is written in.
 
+> **Amended by DUR040.** The symmetry drawn here held for signals and updates and broke for
+> queries. `registerQueryHandler()` is gone: a query is read by the worker, outside the fiber, so
+> its handlers moved to the engine side and `#[QueryMethod]` is now the only form. `onSignal()` and
+> `onUpdate()` stay, for the reason this section gives — their dispatch happens inside
+> `WorkflowEnvironment`, during `await()`, and the closure-shaped tests do depend on it.
+
 ### An update answers; a signal does not
 
 That is the whole difference, and it is why updates are a separate concern rather than a parameter.

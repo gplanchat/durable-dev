@@ -63,6 +63,10 @@ while this work was in progress and added imperative registration for signals an
 same reasoning. Removing one half of that would settle a decision someone else had just
 implemented, inside a review about something else. It gets its own change.
 
+**Decided since, in DUR040.** The three are gone, and the signal and update verbs stay. The
+distinction that settled it is one of place rather than principle: a signal is dispatched inside
+`WorkflowEnvironment` during `await()`, a query is read by the worker outside the fiber.
+
 ## Alternatives considered
 
 - **`@internal` and static analysis.** PHP has no package-private, so "not part of the surface"
