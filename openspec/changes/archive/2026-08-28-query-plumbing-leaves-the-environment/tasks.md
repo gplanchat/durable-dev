@@ -60,6 +60,10 @@
       by an earlier run. The remaining five are DI-wiring and a single RPC. The eight errors first
       seen here had two causes, neither of them this change's; all three findings of §7 are now
       repaired. Nothing in them ever touched the query registry.
+      Confirmed independently by CI on a **fresh** `temporalio/auto-setup` over an empty database
+      (run 33125639850): `Tests: 7, Assertions: 14, Skipped: 1`, identical counts, and
+      `✔ History contains activity events` among them — on an empty database there is no leftover
+      state it could have been reading.
 
 ## 7. Found while running 6.4 — not tasks of this change
 
