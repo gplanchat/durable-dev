@@ -28,7 +28,7 @@ tiers, and the tier — not the popularity — is what decides the order of work
 | Tier | What it means | Members |
 |---|---|---|
 | **0** | The host *is* a Symfony application. `durable-bundle` registers unchanged. Cost: wiring and an admin view. | Shopware 6, Sulu, PrestaShop 9 (partly), Ibexa |
-| **1** | Foreign container, foreign queue. A package has to be written from the bootstrap up. | Laravel, Magento, WordPress/WooCommerce, Drupal |
+| **1** | Foreign container, foreign queue. A package has to be written from the bootstrap up. | Laravel, Magento, WordPress/WooCommerce, Drupal, TYPO3 (§3, and it is the cheap end by a distance) |
 | **2** | The host already owns a job abstraction. The integration **substitutes** a runtime under an existing model rather than introducing a second one. | Akeneo `BatchBundle`, Pimcore Generic Execution Engine, `php-etl/pipeline` |
 | **∅** | Not a host at all — a contract two hosts implement. Belongs to no tier and cuts across two. | API Platform (§3) |
 
@@ -174,6 +174,34 @@ that middleware — and the hard requirement on `symfony/lock` and `symfony/mess
 `durable-bridge-dbal`'s `composer.json` — belongs outside the bridge: a Laravel application should
 not install two Symfony components to get a SQL journal.
 
+### TYPO3 — every hard part of Tier 1 is already solved
+
+TYPO3 sits in Tier 1 because `durable-bundle` does not install: TYPO3 is not a Symfony kernel
+application, and the bundle's extension and compiler passes have no kernel to register with. That is
+the whole of what is missing, and it is worth stating precisely, because the rest of the tier's cost
+is absent here.
+
+Read from TYPO3's own `composer.json`:
+
+- **`doctrine/dbal ~4.4.3`** — `gplanchat/durable-bridge-dbal` (`^3.7 || ^4.0`) resolves untouched,
+  and the connection is already in the install. DUR030's "one SQL database, no cluster" needs no
+  second connection here (§3, *the Laravel backend*, for why that matters).
+- **`symfony/messenger`, `symfony/dependency-injection`, `symfony/console`** — every component the
+  bundle wires is already a dependency. There is no foreign queue to adapt to and no foreign
+  container to bootstrap.
+- **No `symfony/framework-bundle`** — and that single absence is the reason a package is needed at
+  all.
+
+So the integration is a **TYPO3 extension that redoes what `DurableExtension` does**, over a
+Messenger and a DBAL connection that are already there. Compare that with Laravel (a service
+provider, a resume lock, a fourth store adapter family, a migration) or WordPress (everything, on a
+platform with no container): TYPO3 is a Tier 1 package whose expensive half does not exist.
+
+**What is still open** is the same question as everywhere else in this tier: the mutual exclusion
+that keeps two workers from replaying one execution. TYPO3 has Messenger, so the Symfony middleware
+is a candidate rather than a rewrite — but it has not been checked against TYPO3's own worker
+lifecycle, and this document should not pretend otherwise.
+
 ### Magento
 
 Cron plus `MessageQueue` consumers, and the failure every integrator has seen is a consumer that
@@ -278,6 +306,7 @@ acting on rather than noting.
 | Pimcore | 2 | A bundle under the Generic Execution Engine | **Planned.** Same decision, same blocker — and its own documentation makes the case (§4). |
 | `php-etl/pipeline` | 2 | A durable step runner | **Strongest fit.** Shares §4's decision; internal product, so the feedback loop is short. |
 | Laravel | 1 | Service provider, resume lock, a fourth adapter family, migration | **Planned**, and **blocked on a conformance suite** for the four store ports (§3) — not on the adapter. The positioning has to answer `durable-workflow/workflow` first, and API Platform is the cheapest answer available. |
+| TYPO3 | 1 | An extension that redoes the bundle's wiring | **Planned.** Messenger, Doctrine DBAL and the Symfony container are already in the install; only the kernel is missing (§3). Cheapest package in the tier. |
 | Magento | 1 | Module, consumers | **Planned.** Bench already in the repository. |
 | WooCommerce | 1 | Everything, on a hostile platform | Not now. Right product (DBAL), wrong moment. |
 | Drupal | 1 | Module, queue | Not now. |
@@ -294,7 +323,8 @@ of them, and that is deliberate; this table is where the difference lives.
 
 This is written down because the reverse has now happened twice. Five ecosystems arrived as SVG
 assets in one commit (Aimeos, Bagisto, Filament, Pimcore, Statamic), and TYPO3 after them, each
-through the design canvas, none of them argued for anywhere. Nobody did anything wrong: a canvas is
+through the design canvas, none of them argued for anywhere. Two have since been argued for and have
+a row — Pimcore, then TYPO3, which is what this rule asks for and the order it asks for it in. Nobody did anything wrong: a canvas is
 where a layout gets tried, and trying a row of chips means drawing chips.
 
 But a mark in the wizard is a **public claim** — it tells a reader we intend to integrate with that
