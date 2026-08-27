@@ -23,9 +23,7 @@
     },
     "suggest": {
         "phpunit/phpunit": "Required by the shipped test helper (Testing\\DurableBundleTestTrait)",
-        "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)",
-        "gplanchat/durable-bridge-temporal": "Temporal gRPC backend (requires ext-grpc)",
-        "gplanchat/durable-bridge-dbal": "SQL backend: durable execution on one database, no cluster (DUR030)"
+        "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)"
     },
     "autoload": {
         "psr-4": {

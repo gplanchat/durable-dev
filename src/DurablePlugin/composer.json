@@ -6,6 +6,7 @@
     "require": {
         "php": ">=8.2",
         "gplanchat/durable": "self.version",
+        "gplanchat/durable-bundle": "self.version",
         "knplabs/knp-menu": "^3.5",
         "symfony/config": "^6.4 || ^7.0 || ^8.0",
         "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
@@ -21,7 +22,6 @@
         "twig/twig": "^3.10"
     },
     "suggest": {
-        "gplanchat/durable-bundle": "Wires the run catalog the dashboard reads — one backend or another. Without it the page reports that no readable backend is configured.",
         "sylius/admin-bundle": "Registers the dashboard entry in the Sylius admin menu (sylius.menu.admin.main)"
     },
     "autoload": {

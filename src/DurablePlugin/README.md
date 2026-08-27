@@ -29,10 +29,10 @@ is meant to read the same on both.
 - PHP 8.2+
 - Symfony 6.4, 7.x or 8.x
 - Sylius 2.x (when used inside a Sylius application)
-- `gplanchat/durable-bundle`, which wires the run catalog the dashboard reads — **optional**
+- `gplanchat/durable-bundle`, which wires the run catalog the dashboard reads — pulled in as a
+  dependency, so `composer require gplanchat/durable-plugin` is the whole install
 
-The plugin depends on `gplanchat/durable` for the read port and on nothing else. Whichever backend
-records your durable executions — a SQL database through `gplanchat/durable-bridge-dbal`, or a
+Whichever backend records your durable executions — a SQL database through `gplanchat/durable-bridge-dbal`, or a
 Temporal cluster through `gplanchat/durable-bridge-temporal` — the bundle registers the matching
 catalog and the dashboard reads it. Nothing here requires `ext-grpc`.
 

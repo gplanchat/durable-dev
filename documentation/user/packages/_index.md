@@ -15,7 +15,7 @@ the workflow code — only where the execution is recorded.
 | `gplanchat/durable-bundle` | Symfony wiring, worker commands, profiler panel | the library, Symfony framework-bundle and Messenger |
 | `gplanchat/durable-bridge-temporal` | the Temporal driver, over gRPC | the library, `ext-grpc`, a Temporal cluster |
 | `gplanchat/durable-bridge-dbal` | durable execution on one SQL database | the library, Doctrine DBAL 3 or 4, `symfony/lock` |
-| `gplanchat/durable-plugin` | a Sylius admin dashboard for workflow runs | Symfony, `knplabs/knp-menu`; Sylius 2.x to appear in its menu |
+| `gplanchat/durable-plugin` | a Sylius admin dashboard for workflow runs | the bundle, `knplabs/knp-menu`; Sylius 2.x to appear in its menu |
 
 The two bridges are **alternatives**, not layers: you pick Temporal or DBAL, never both.
 
@@ -130,14 +130,14 @@ An admin dashboard for Sylius: the list of workflow runs with search and status 
 detail view with timeline lanes and recent events. Timeline labels prefer the human-readable
 `ActivityType.name` and fall back to technical IDs only when there is nothing better.
 
-It **observes**; it does not execute. It imports no class from the library core, so it adds to the
-bundle rather than replacing it — install both.
+It **observes**; it does not execute. It requires `gplanchat/durable-bundle`, which wires the run
+catalog it reads, so the command above is the whole install.
 
 > [!NOTE]
-> Live data comes from `gplanchat/durable-bridge-temporal`, which is a `suggest` rather than a
-> `require`: it needs `ext-grpc`, which most Sylius hosts do not ship, and an observation dashboard
-> is not worth forcing a PHP rebuild over. Without the bridge the plugin still installs, the route
-> and the menu entry still work, and the dashboard renders its degraded state instead of live runs.
+> Live data comes from whichever backend is installed. Neither bridge is a `require` here — the
+> backend is suggested by `gplanchat/durable`, once, for every integration. Without one the plugin
+> still installs, the route and the menu entry still work, and the dashboard renders its degraded
+> state instead of live runs.
 
 ---
 
@@ -153,12 +153,12 @@ Every command below is the one the chooser on the [home page](/) hands you, writ
 | Symfony, tests only | `composer require gplanchat/durable-bundle` |
 | Symfony, one SQL database | `composer require gplanchat/durable-bundle gplanchat/durable-bridge-dbal` |
 | Symfony, Temporal cluster | `composer require gplanchat/durable-bundle gplanchat/durable-bridge-temporal` |
-| Sylius, tests only | `composer require gplanchat/durable-bundle gplanchat/durable-plugin` |
-| Sylius, one SQL database | `composer require gplanchat/durable-bundle gplanchat/durable-plugin gplanchat/durable-bridge-dbal` |
-| Sylius, Temporal cluster | `composer require gplanchat/durable-bundle gplanchat/durable-plugin gplanchat/durable-bridge-temporal` |
+| Sylius, tests only | `composer require gplanchat/durable-plugin` |
+| Sylius, one SQL database | `composer require gplanchat/durable-plugin gplanchat/durable-bridge-dbal` |
+| Sylius, Temporal cluster | `composer require gplanchat/durable-plugin gplanchat/durable-bridge-temporal` |
 
-The bundle pulls the library in transitively, which is why the Symfony and Sylius lines do not
-name it. Without a framework you name the library yourself, and you wire the workers yourself too.
+Each line names the integration only: the bundle pulls the library in, and the plugin pulls the
+bundle in. Without a framework you name the library yourself, and you wire the workers yourself too.
 
 ---
 
