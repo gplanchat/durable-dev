@@ -6,7 +6,8 @@
     "require": {
         "php": ">=8.2",
         "gplanchat/durable": "self.version",
-        "illuminate/database": "^11.0 || ^12.0 || ^13.0"
+        "illuminate/database": "^11.0 || ^12.0 || ^13.0",
+        "illuminate/contracts": "^11.0 || ^12.0 || ^13.0"
     },
     "autoload": {
         "psr-4": {
@@ -31,5 +32,8 @@
             "name": "Gr\u00e9gory Planchat",
             "email": "gregory@gyroscops.com"
         }
-    ]
+    ],
+    "suggest": {
+        "illuminate/cache": "Required by Queue\\ResumeLock: a cache store that implements LockProvider \u2014 array, redis, memcached, dynamodb or database, never file"
+    }
 }

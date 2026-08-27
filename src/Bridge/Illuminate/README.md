@@ -43,14 +43,37 @@ tests/unit/Bridge/Illuminate/  — 44 cases, four ports
 
 ## Not in this package
 
-- **The resume lock.** Two workers replaying one execution duplicate its commands, and no storage
-  choice prevents that. On Laravel it is `WithoutOverlapping` or an atomic `Cache::lock()`.
+- **A queue, and jobs to put on it.** `Queue\ResumeLock` is the exclusion, not the plumbing: it
+  takes a closure, so a job, an artisan command or a hand-written worker can all use it. Nothing
+  here decides which.
 - **The Durable service provider.** Registering stores, binding ports, adding worker commands —
   that belongs to the Laravel integration package. A set of stores does not decide how an
   application wires them.
 
   The provider this package *does* ship, `DurableIlluminateServiceProvider`, registers nothing. It
   does the one thing no other package can do for it: tell Laravel where **its** migrations are.
+
+## One resume at a time
+
+`Queue\ResumeLock` is the one thing no storage choice can supply. Two workers resuming the **same**
+execution both replay it, both believe they are discovering the commands it produces, and those
+commands go out twice. The journal does not prevent it — it faithfully records whatever it is
+handed, twice included.
+
+```php
+$lock = new ResumeLock($cacheStore);          // any store implementing LockProvider
+$lock->around($executionId, fn() => $runner->resume($executionId));
+```
+
+**It waits on its own rather than calling `Lock::block()`**, and that is deliberate: `block()` calls
+a **global** `now()`, which only a full Laravel application defines — `illuminate/support` publishes
+it under its own namespace only. A package that relies on it works inside an application and breaks
+in a standalone worker or a test, which is the worst of both: the failure only happens where nobody
+is looking.
+
+`LockProvider` also forces the caller to pick a store that can actually lock — `array`, `redis`,
+`memcached`, `dynamodb`, `database`. The `file` store does not implement it, and a compile error
+beats a lock that locks nothing.
 
 ## Install
 
