@@ -74,7 +74,7 @@ final class ResumeLock
     public function around(string $executionId, callable $work): mixed
     {
         $lock = $this->locks->lock(self::nameFor($executionId), $this->ttlSeconds);
-        $deadline = microtime(true) + $this->waitSeconds;
+        $deadline = microtime(true) + (float) $this->waitSeconds;
 
         while (true) {
             if ($lock->get()) {
