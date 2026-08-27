@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace integration\Temporal;
 
+use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
@@ -15,6 +16,7 @@ use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
+use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
@@ -33,6 +35,9 @@ abstract class TemporalServerTestCase extends TestCase
 {
     protected TemporalConnection $connection;
     protected WorkflowServiceClient $client;
+
+    /** @var list<string> les exécutions que ce test a démarrées, à terminer en sortant */
+    private array $startedExecutionIds = [];
 
     /** @var list<resource> */
     private array $workers = [];
@@ -70,6 +75,8 @@ abstract class TemporalServerTestCase extends TestCase
             fwrite(\STDERR, $this->workerOutput());
         }
 
+        $this->terminateStartedWorkflows();
+
         foreach ($this->workerPipes as $worker) {
             foreach ($worker['pipes'] as $pipe) {
                 if (\is_resource($pipe)) {
@@ -85,6 +92,40 @@ abstract class TemporalServerTestCase extends TestCase
         }
         $this->workers = [];
         $this->workerPipes = [];
+    }
+
+    /**
+     * Termine ce que le test a démarré et n'a pas mené à son terme.
+     *
+     * Sans ça, une exécution inachevée reste `Running` **indéfiniment** sur un serveur que
+     * plusieurs sessions partagent : le worker qui la servait meurt avec le test, ses tâches ne
+     * sont donc plus prises, et le serveur les replanifie sans fin. Un test dont le sujet est
+     * précisément une tâche qui échoue en boucle laisse ainsi derrière lui une exécution qui
+     * échoue en boucle, pour toujours.
+     *
+     * Mesuré le 2026-08-27 : **plus de cent exécutions abandonnées** s'étaient accumulées, dont une
+     * qui retentait sa tâche depuis trois heures. Le nettoyage n'est pas une politesse, c'est ce
+     * qui empêche une suite de dégrader l'environnement de la suivante.
+     *
+     * Les échecs de terminaison sont avalés : une exécution déjà terminée est le cas normal, et
+     * faire échouer un `tearDown` là-dessus masquerait le vrai résultat du test.
+     */
+    private function terminateStartedWorkflows(): void
+    {
+        foreach ($this->startedExecutionIds as $executionId) {
+            $request = new TerminateWorkflowExecutionRequest();
+            $request->setNamespace($this->connection->namespace->name());
+            $request->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $this->workflowId($executionId)]));
+            $request->setReason('fin du test');
+
+            try {
+                GrpcUnary::wait($this->client->TerminateWorkflowExecution($request, [], ['timeout' => 5_000_000]));
+            } catch (\Throwable) {
+                // Déjà terminée, ou serveur indisponible : ni l'un ni l'autre n'est le sujet du test.
+            }
+        }
+
+        $this->startedExecutionIds = [];
     }
 
     protected function workflowClient(): WorkflowClient
@@ -117,6 +158,7 @@ abstract class TemporalServerTestCase extends TestCase
     {
         $executionId = strtolower($workflowType) . '-' . bin2hex(random_bytes(4));
         $this->workflowClient()->startAsync($workflowType, $input, $executionId, $options);
+        $this->startedExecutionIds[] = $executionId;
 
         return $executionId;
     }
