@@ -9,11 +9,26 @@
     "type": "project",
     "version": "0.1.0",
     "repositories": [
-        {"type": "path", "url": "src/Durable"},
-        {"type": "path", "url": "src/DurableBundle"},
-        {"type": "path", "url": "src/DurablePlugin"},
-        {"type": "path", "url": "src/Bridge/Temporal"},
-        {"type": "path", "url": "src/Bridge/Dbal"}
+        {
+            "type": "path",
+            "url": "src/Durable"
+        },
+        {
+            "type": "path",
+            "url": "src/DurableBundle"
+        },
+        {
+            "type": "path",
+            "url": "src/DurablePlugin"
+        },
+        {
+            "type": "path",
+            "url": "src/Bridge/Temporal"
+        },
+        {
+            "type": "path",
+            "url": "src/Bridge/Dbal"
+        }
     ],
     "require": {
         "php": ">=8.2",
@@ -43,7 +58,8 @@
     "autoload-dev": {
         "psr-4": {
             "unit\\": "tests/unit/",
-            "integration\\": "tests/integration/"
+            "integration\\": "tests/integration/",
+            "Gplanchat\\Tooling\\PHPStan\\": "tools/phpstan/"
         }
     },
     "scripts": {

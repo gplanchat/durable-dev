@@ -1,3 +1,12 @@
+services:
+    -
+        class: Gplanchat\Tooling\PHPStan\StubMethodsExtension
+        tags:
+            - phpstan.broker.methodsClassReflectionExtension
+
+includes:
+    - phpstan-baseline-symfony.neon
+
 parameters:
     level: 5
     paths:
@@ -6,6 +15,7 @@ parameters:
         - src/DurablePlugin
         - src/Bridge/Temporal
         - src/Bridge/Dbal
+        - symfony/src
     excludePaths:
         - src/Bridge/Temporal/Api
         - src/Bridge/Temporal/Generated

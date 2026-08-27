@@ -1,0 +1,279 @@
+# Dette de l'application d'exemple, consignée le 27 août 2026 — 52 erreurs.
+#
+# Ce n'est pas une liste d'exceptions : c'est une dette datée. `symfony/` est resté hors de
+# l'analyse statique pendant tout le développement de la bibliothèque, alors qu'il porte le code
+# le plus proche de ce qu'écrira un utilisateur. Deux défauts y avaient dormi : un appel à
+# `delay()`, méthode qui n'existe pas, et trois appels de stub dont le résultat n'était plus
+# attendu — ceux-là, seule la CI les a vus.
+#
+# La ligne de base rend le périmètre effectif immédiatement : **tout code neuf est vérifié**.
+# Elle ne corrige rien. Chaque entrée retirée d'ici est un défaut réel réparé, et le fichier est
+# censé maigrir.
+#
+# Ce qu'elle ne gèle pas : rien du cœur. Les 52 entrées sont toutes sous `symfony/`.
+
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Call to function is_array\(\) with array\<mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: symfony/src/Controller/DashboardController.php
+
+		-
+			message: '#^Offset ''name'' on array\{name\: string, arguments\?\: array\<string, mixed\>, result\?\: mixed\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: symfony/src/Controller/SamplesWorkflowController.php
+
+		-
+			message: '#^Offset ''name'' on array\{name\: string, payload\: array\<string, mixed\>\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: symfony/src/Controller/SamplesWorkflowController.php
+
+		-
+			message: '#^Offset ''payload'' on array\{name\: string, payload\: array\<string, mixed\>\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: symfony/src/Controller/SamplesWorkflowController.php
+
+		-
+			message: '#^Offset ''running'' on array\{label\: string, start\: float, end\: float\} on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 2
+			path: symfony/src/Dashboard/TemporalEventsDashboardDataProvider.php
+
+		-
+			message: '#^Parameter \#1 \$var of method Temporal\\Api\\Workflowservice\\V1\\ListWorkflowExecutionsRequest\:\:setNamespace\(\) expects string, Gplanchat\\Durable\\WorkflowNamespace given\.$#'
+			identifier: argument.type
+			count: 2
+			path: symfony/src/Dashboard/TemporalEventsDashboardDataProvider.php
+
+		-
+			message: '#^Parameter &\$timelineRaw by\-ref type of method App\\Dashboard\\TemporalEventsDashboardDataProvider\:\:collectTimelineEvent\(\) expects array\{min\: float\|null, max\: float\|null, activities\: array\<string, array\{label\: string, start\: float, end\: float, running\: bool\}\>, signals\: list\<array\{label\: string, time\: float\}\>, queries\: list\<array\{label\: string, time\: float\}\>, updates\: array\<string, array\{label\: string, start\: float, end\: float, running\: bool\}\>, updateAcceptedByEventId\: array\<int, string\>\}, array\{min\: float\|null, max\: float\|null, activities\: non\-empty\-array\<int\|string, array\{label\: string, start\: float, end\: float, running\: bool\}\>, signals\: list\<array\{label\: string, time\: float\}\>, queries\: list\<array\{label\: string, time\: float\}\>, updates\: array\<string, array\{label\: string, start\: float, end\: float, running\: bool\}\>, updateAcceptedByEventId\: array\<int, string\>\} given\.$#'
+			identifier: parameterByRef.type
+			count: 1
+			path: symfony/src/Dashboard/TemporalEventsDashboardDataProvider.php
+
+		-
+			message: '#^Parameter &\$timelineRaw by\-ref type of method App\\Dashboard\\TemporalEventsDashboardDataProvider\:\:collectTimelineEvent\(\) expects array\{min\: float\|null, max\: float\|null, activities\: array\<string, array\{label\: string, start\: float, end\: float, running\: bool\}\>, signals\: list\<array\{label\: string, time\: float\}\>, queries\: list\<array\{label\: string, time\: float\}\>, updates\: array\<string, array\{label\: string, start\: float, end\: float, running\: bool\}\>, updateAcceptedByEventId\: array\<int, string\>\}, array\{min\: float\|null, max\: float\|null, activities\: non\-empty\-array\<int\|string, array\{label\: string, start\: float, end\: float, running\: false\}\>, signals\: list\<array\{label\: string, time\: float\}\>, queries\: list\<array\{label\: string, time\: float\}\>, updates\: array\<string, array\{label\: string, start\: float, end\: float, running\: bool\}\>, updateAcceptedByEventId\: array\<int, string\>\} given\.$#'
+			identifier: parameterByRef.type
+			count: 1
+			path: symfony/src/Dashboard/TemporalEventsDashboardDataProvider.php
+
+		-
+			message: '#^Parameter &\$timelineRaw by\-ref type of method App\\Dashboard\\TemporalEventsDashboardDataProvider\:\:collectTimelineEvent\(\) expects array\{min\: float\|null, max\: float\|null, activities\: array\<string, array\{label\: string, start\: float, end\: float, running\: bool\}\>, signals\: list\<array\{label\: string, time\: float\}\>, queries\: list\<array\{label\: string, time\: float\}\>, updates\: array\<string, array\{label\: string, start\: float, end\: float, running\: bool\}\>, updateAcceptedByEventId\: array\<int, string\>\}, array\{min\: float\|null, max\: float\|null, activities\: non\-empty\-array\<int\|string, array\{label\: string, start\: float, end\: float, running\: true\}\>, signals\: list\<array\{label\: string, time\: float\}\>, queries\: list\<array\{label\: string, time\: float\}\>, updates\: array\<string, array\{label\: string, start\: float, end\: float, running\: bool\}\>, updateAcceptedByEventId\: array\<int, string\>\} given\.$#'
+			identifier: parameterByRef.type
+			count: 1
+			path: symfony/src/Dashboard/TemporalEventsDashboardDataProvider.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between '''' and '''' will always evaluate to true\.$#'
+			identifier: identical.alwaysTrue
+			count: 1
+			path: symfony/src/Dashboard/TemporalEventsDashboardDataProvider.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between '''' and non\-empty\-string will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: symfony/src/Dashboard/TemporalEventsDashboardDataProvider.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between null and null will always evaluate to false\.$#'
+			identifier: notIdentical.alwaysFalse
+			count: 2
+			path: symfony/src/Durable/DurableMessengerDrain.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between null and null will always evaluate to true\.$#'
+			identifier: identical.alwaysTrue
+			count: 1
+			path: symfony/src/Durable/DurableMessengerDrain.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Durable/Workflow/EchoChildWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Durable/Workflow/GreetingWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \.\.\.\$awaitables of method Gplanchat\\Durable\\WorkflowEnvironment\:\:all\(\) expects Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Durable/Workflow/ParallelChildEchoWorkflow.php
+
+		-
+			message: '#^Parameter \#2 \.\.\.\$awaitables of method Gplanchat\\Durable\\WorkflowEnvironment\:\:all\(\) expects Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Durable/Workflow/ParallelChildEchoWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \.\.\.\$awaitables of method Gplanchat\\Durable\\WorkflowEnvironment\:\:all\(\) expects Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Durable/Workflow/ParallelGreetingWorkflow.php
+
+		-
+			message: '#^Parameter \#2 \.\.\.\$awaitables of method Gplanchat\\Durable\\WorkflowEnvironment\:\:all\(\) expects Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Durable/Workflow/ParallelGreetingWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Durable/Workflow/ParentCallsEchoChildWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Durable/Workflow/TimerThenTickWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/ActivityRetry/ActivityRetryGreetingWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/BookingSaga/BookingSagaLightWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 2
+			path: symfony/src/Samples/Workflow/BookingSaga/BookingSagaLightWorkflow.php
+
+		-
+			message: '#^Result of method App\\Samples\\Activity\\TripBookingActivityInterface\:\:cancelFlight\(\) \(void\) is used\.$#'
+			identifier: method.void
+			count: 1
+			path: symfony/src/Samples/Workflow/BookingSaga/BookingSagaLightWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \.\.\.\$awaitables of method Gplanchat\\Durable\\WorkflowEnvironment\:\:any\(\) expects Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/CancellationScope/CancellationScopeRaceWorkflow.php
+
+		-
+			message: '#^Parameter \#2 \.\.\.\$awaitables of method Gplanchat\\Durable\\WorkflowEnvironment\:\:any\(\) expects Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/CancellationScope/CancellationScopeRaceWorkflow.php
+
+		-
+			message: '#^Parameter \#3 \.\.\.\$awaitables of method Gplanchat\\Durable\\WorkflowEnvironment\:\:any\(\) expects Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/CancellationScope/CancellationScopeRaceWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/Child/SamplesEchoChildWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/Child/SamplesParentCallsEchoChildWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/Exception/ExceptionHandledWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 3
+			path: symfony/src/Samples/Workflow/FileProcessing/FileProcessingLightWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/LocalActivity/LocalActivityGreetingWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, int given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/MoneyBatch/MoneyBatchLightWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, null given\.$#'
+			identifier: argument.type
+			count: 2
+			path: symfony/src/Samples/Workflow/MoneyTransfer/AccountTransferWorkflow.php
+
+		-
+			message: '#^Result of method App\\Samples\\Activity\\AccountTransferActivityInterface\:\:deposit\(\) \(void\) is used\.$#'
+			identifier: method.void
+			count: 1
+			path: symfony/src/Samples/Workflow/MoneyTransfer/AccountTransferWorkflow.php
+
+		-
+			message: '#^Result of method App\\Samples\\Activity\\AccountTransferActivityInterface\:\:withdraw\(\) \(void\) is used\.$#'
+			identifier: method.void
+			count: 1
+			path: symfony/src/Samples/Workflow/MoneyTransfer/AccountTransferWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/MtlsHelloWorld/MtlsHelloWorldWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/Periodic/PeriodicGreetingWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 2
+			path: symfony/src/Samples/Workflow/PolymorphicActivity/PolymorphicGreetingWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/Query/SamplesQueryWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/Signal/SamplesSignalWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/SimpleActivity/SimpleActivityGreetingWorkflow.php
+
+		-
+			message: '#^Parameter \#1 \$awaitable of method Gplanchat\\Durable\\WorkflowEnvironment\:\:await\(\) expects \(Closure\(\)\: bool\)\|Gplanchat\\Durable\\Awaitable\\Awaitable\<mixed\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: symfony/src/Samples/Workflow/Updates/SamplesUpdatesWorkflow.php
