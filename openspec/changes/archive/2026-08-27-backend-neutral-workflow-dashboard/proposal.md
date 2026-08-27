@@ -66,6 +66,6 @@ one execution. Listing is new API on a published package, not a refactor of an e
 - **Bundle** (`src/DurableBundle`): registers whichever adapter the configured backend provides.
 - **Plugin** (`src/DurablePlugin`): depends on the port instead of the Temporal bridge, and its
   template renders absent facts instead of assuming Temporal's.
-- **ADR**: DUR035 records why run observation is a projection rather than a query over the journal,
+- **ADR**: DUR037 records why run observation is a projection rather than a query over the journal,
   and why an absent fact is modelled as absent rather than as an empty string.
 - **Dependencies**: none added. The plugin loses one.
