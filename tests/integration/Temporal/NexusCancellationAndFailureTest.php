@@ -138,7 +138,11 @@ final class NexusCancellationAndFailureTest extends TestCase
             (new TemporalHistoryCursor($this->client, $this->connection))->eventsFromPoll($task),
         );
         $buffer = new TemporalWorkflowCommandBuffer($this->connection, 'exec-1', $history);
-        $buffer->cancelNexusOperation($operationId, 'race_superseded');
+        // Depuis 1b.2, l'identité d'une opération est l'eventId que le serveur assigne, et non
+        // l'identifiant applicatif passé à la planification : c'est l'historique qui la donne.
+        $identity = $history->findScheduledNexusOperation(0);
+        self::assertNotNull($identity, "L'opération planifiée est absente de l'historique de la tâche.");
+        $buffer->cancelNexusOperation($identity, 'race_superseded');
         $commands = $buffer->flush();
         self::assertCount(1, $commands, "Le tampon n'a pas retrouvé l'opération dans l'historique.");
 
