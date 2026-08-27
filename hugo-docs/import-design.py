@@ -250,6 +250,44 @@ def palette_css() -> str:
     )
 
 
+def paint_initial_command(root: str, script: str) -> str:
+    """Le balisage statique doit porter la commande de l'état initial.
+
+    Le canevas y laisse une valeur figée — `composer require gplanchat/durable-bundle`
+    — alors que l'état de départ est `Symfony · Temporal`. Avant que `paint()` ne
+    tourne, la page affichait donc la commande d'un autre choix que celui qu'elle
+    montrait comme sélectionné, et un lecteur qui copie vite emporte la mauvaise.
+
+    Elle est recalculée depuis les mêmes données que `paint()` — `state`, `BASE`,
+    `DIST_BASE`, `BRIDGE`, `TWO_ECO` — plutôt que corrigée à l'œil, pour qu'un
+    changement de défaut dans le canevas la suive tout seul.
+    """
+    def table(name: str) -> dict[str, str]:
+        match = re.search(rf"var {name} = (\{{.*?\}});", script, re.S)
+        if not match:
+            die(f"{name} introuvable dans le script du sélecteur")
+        return json.loads(re.sub(r"(\w+):", r'"\1":', match.group(1)).replace("'", '"'))
+
+    state = re.search(r"state = \{([^}]*)\}", script)
+    if not state:
+        die("l'état initial du sélecteur est introuvable")
+    initial = dict(re.findall(r"(\w+):\s*'([^']*)'", state.group(1)))
+
+    two_eco = re.search(r"var TWO_ECO = \[([^\]]*)\]", script)
+    wide = re.findall(r"'([^']+)'", two_eco.group(1)) if two_eco else []
+
+    base_table = table("DIST_BASE") if initial.get("fw") in wide else table("BASE")
+    key = initial.get("dist") if initial.get("fw") in wide else initial.get("fw")
+    parts = [base_table.get(key, "")] + [table("BRIDGE").get(initial.get("be", ""), "")]
+    command = "composer require " + " ".join(p for p in parts if p)
+
+    root, painted = re.subn(
+        r'(<code[^>]*\bdata-cmd\b[^>]*>)[^<]*', lambda m: m.group(1) + command, root, count=1)
+    if not painted:
+        die("l'emplacement de la commande statique est introuvable")
+    return root
+
+
 def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
     source = src_path.read_text()
 
@@ -299,6 +337,8 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
     for banned in ("x-dc", "support.js", "data-om-id", "DCLogic", ".dc.html"):
         if banned in root:
             die(f"reste du canevas dans la sortie : {banned}")
+
+    root = paint_initial_command(root, chooser_script(source))
 
     runtime = (HERE / "assets" / "landing.js").read_text()
     runtime = runtime.replace("__NOTES__", json.dumps(notes, ensure_ascii=False))
