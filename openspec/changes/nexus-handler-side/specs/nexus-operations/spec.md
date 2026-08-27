@@ -47,6 +47,34 @@ In both shapes the caller SHALL receive the same thing: the operation's result, 
 - **THEN** the caller's operation fails
 - **AND** the caller can classify the failure the way it classifies any other operation failure
 
+### Requirement: A caller waits for an operation that answers later
+
+When a handler answers with a token rather than a result, the server records that the operation
+started and correlates its eventual outcome onto the calling execution. The caller SHALL treat that
+operation as still in flight, and SHALL resolve it from the outcome the server later delivers.
+
+A caller that treats the start as an outcome fails a workflow on an operation that was going to
+answer.
+
+#### Scenario: A started operation is still in flight
+
+- **WHEN** the handler answers with a token
+- **AND** no outcome has been delivered yet
+- **THEN** the calling workflow is still waiting on that operation
+- **AND** the operation is not resolved, neither with a result nor with a failure
+
+#### Scenario: The outcome arrives long after the start
+
+- **WHEN** an operation started with a token
+- **AND** the server later delivers its completion onto the calling execution
+- **THEN** the caller resolves that operation with the delivered result
+
+#### Scenario: An operation that started and then failed
+
+- **WHEN** an operation started with a token
+- **AND** the server later delivers a failure
+- **THEN** the caller classifies it the way it classifies any other operation failure
+
 ### Requirement: A handler that fails says why
 
 A handler that raises SHALL fail the caller's operation, and the failure SHALL be classifiable by
