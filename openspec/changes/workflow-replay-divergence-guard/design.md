@@ -119,6 +119,35 @@ This history was written by a different version of ChargeWorkflow.
 Naming the execution matters: the first thing anyone does with this error is open that run's
 history.
 
+## What the guard costs, measured
+
+`EventStoreHistorySource` re-reads the whole event stream on every slot lookup, and the guard adds
+one lookup per slot. So **yes, the comparison forces a second pass** — the question the task asked.
+What it costs is not what that sentence suggests.
+
+Replaying N completed activity slots on the journal backend, three runs each, same machine:
+
+| slots | without the guard | with the guard |
+|---|---|---|
+| 100 | 3.3 ms | 3.6 ms |
+| 200 | 12.6 ms | 14.2 ms |
+| 400 | ~45.2 ms | ~57.0 ms |
+
+**+26 % at 400 slots**, and stable across runs.
+
+**The guard did not make replay quadratic — it already was.** Without it, doubling the slot count
+quadruples the time (3.3 → 12.6 → 45.2), because every one of the pre-existing slot lookups re-reads
+the stream too. The guard adds a constant factor to an existing O(n²), it does not change the
+complexity class.
+
+That distinction decides what to do about it, which is: **not here**. Memoising the stream read
+would help the guard and help the four lookups that were already there far more, and it is a change
+to `EventStoreHistorySource` that has nothing to do with divergence. Folding it into this change
+would hide a performance decision inside a correctness one.
+
+Recorded rather than fixed, and stated in DUR042's consequences: on the journal backend, replaying
+a long history is quadratic in the number of slots, guard or no guard.
+
 ## Alternatives considered
 
 - **Comparing the whole command buffer against history after the fiber completes.** Later, cheaper

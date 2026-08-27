@@ -70,10 +70,20 @@
 
 ## 4. No regression on correct workflows
 
-- [ ] 4.1 The full unit suite passes unchanged: an unmodified workflow compares equal at every slot.
-- [ ] 4.2 The integration suite against a real server, green.
-- [ ] 4.3 Measure the cost of the comparison on a long history; if it forces a second pass over the
-      event stream, say so.
+- [x] 4.1 The full unit suite passes unchanged — 628 tests, none written with this guard in mind.
+      That is the proof asked for: every workflow the suite replays compares equal at every slot,
+      and the three that did not were histories carrying no activity name, which is what produced
+      the *empty is not an identity* rule in 2.3.
+- [x] 4.2 The integration suite against a real server: **78 tests green**, `start-dev` 1.31.2.
+- [x] 4.3 Measured, and the answer is not what the question implied. **Yes, the comparison forces a
+      second pass** — `EventStoreHistorySource` re-reads the stream per lookup and the guard adds
+      one lookup per slot. It costs **+26 %** on 400 slots (~45.2 ms → ~57.0 ms, three runs each).
+      **But replay was already quadratic**: without the guard, doubling the slots still quadruples
+      the time, because the pre-existing lookups re-read the stream too. The guard adds a constant
+      factor to an existing O(n²); it does not create it.
+      Recorded in `design.md` and in DUR042's consequences, and **not fixed here**: memoising the
+      read belongs to the history source, would help the four older lookups more than the guard, and
+      folding it in would hide a performance decision inside a correctness one.
 
 ## 5. Say it in the documentation
 
