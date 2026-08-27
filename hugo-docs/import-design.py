@@ -160,18 +160,21 @@ def inline_logos(root: str) -> str:
     # Forme actuelle : un emplacement à peindre suivi de son glyphe de repli.
     root, painted = re.subn(
         r'<span[^>]*data-paint[^>]*data-box="(?P<box>\d+)"[^>]*'
-        r'data-src="logo-(?P<name>[a-z]+)\.svg"[^>]*>\s*</span>\s*'
+        r'data-src="logo-(?P<name>[a-z-]+)\.svg"[^>]*>\s*</span>\s*'
         r"<svg[^>]*data-glyph.*?</svg>",
         replace, root, flags=re.S)
 
     # Forme précédente, gardée le temps que plus aucun design ne la porte.
     root, imaged = re.subn(
-        r'<img[^>]*data-logo[^>]*src="logo-(?P<name>[a-z]+)\.svg"[^>]*/?>', replace, root)
+        r'<img[^>]*data-logo[^>]*src="logo-(?P<name>[a-z-]+)\.svg"[^>]*/?>', replace, root)
 
     if not (painted or imaged):
         die("aucun logo reconnu : la mécanique du design a encore changé")
 
-    orphans = sorted(set(re.findall(r"logo-[a-z]+\.svg", root)))
+    # Le tiret compte : `logo-api-platform.svg` ne correspondait à aucun des
+    # trois motifs ci-dessus, garde comprise — donc pas d'incorporation, et
+    # pas d'erreur non plus : le glyphe de repli passait en silence.
+    orphans = sorted(set(re.findall(r"logo-[a-z-]+\.svg", root)))
     if orphans:
         die(f"logos non incorporés, le repli s'afficherait à leur place : {orphans}")
 
