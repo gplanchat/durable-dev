@@ -13,6 +13,10 @@ A workflow SHALL be able to schedule an operation on a Nexus endpoint and await 
 call SHALL identify an endpoint, a service, an operation, and an input payload, and MAY carry
 schedule-to-close, schedule-to-start and start-to-close bounds and Nexus headers.
 
+Headers supplied by the caller SHALL reach the scheduled operation unchanged. Their keys SHALL be
+validated where they are written rather than rewritten by the server: the server lowercases them
+silently, so two keys differing only by case would collide and one would be lost without a word.
+
 The awaited value SHALL be the operation result decoded from the payload the handler returned.
 
 #### Scenario: A workflow awaits a Nexus operation result

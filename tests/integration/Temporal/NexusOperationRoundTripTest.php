@@ -177,7 +177,48 @@ final class NexusOperationRoundTripTest extends TestCase
      * Construit la commande par le tampon du pont, la soumet, et relit ce que l'historique en a
      * gardé.
      */
-    private function scheduleThrough(NexusOperationTimeouts $timeouts): NexusOperationScheduledEventAttributes
+    public function testAHeaderSentThroughTheBridgeComesBackUnchanged(): void
+    {
+        // §4.1. La sonde du bloc 1 a établi que le serveur accepte l'en-tête ; ce test-ci prouve
+        // que **notre commande** le porte jusque-là. Les tests unitaires du tampon vérifient la
+        // forme du champ — ils ne peuvent pas dire qu'il survit à la soumission.
+        $scheduled = $this->scheduleThrough(
+            NexusOperationTimeouts::none(),
+            NexusOperationHeaders::of(['x-correlation' => 'abc-123', 'x-tenant' => 'acme']),
+        );
+
+        $back = [];
+        foreach ($scheduled->getNexusHeader() as $key => $value) {
+            $back[(string) $key] = (string) $value;
+        }
+        ksort($back);
+
+        self::assertSame(['x-correlation' => 'abc-123', 'x-tenant' => 'acme'], $back);
+    }
+
+    public function testAKeyGivenInUpperCaseIsAlreadyLoweredBeforeItLeaves(): void
+    {
+        // La coercition appartient à l'objet-valeur. Ce que le serveur renvoie doit donc être
+        // identique à ce que l'appelant tenait — pas seulement équivalent à ce qu'il a tapé.
+        $headers = NexusOperationHeaders::of(['X-Correlation' => 'abc-123']);
+        $scheduled = $this->scheduleThrough(NexusOperationTimeouts::none(), $headers);
+
+        $back = [];
+        foreach ($scheduled->getNexusHeader() as $key => $value) {
+            $back[(string) $key] = (string) $value;
+        }
+
+        self::assertSame($headers->toArray(), $back, "Ce que l'appelant tient doit être ce que le serveur garde.");
+    }
+
+    public function testNoHeaderMeansNoHeaderInHistory(): void
+    {
+        $scheduled = $this->scheduleThrough(NexusOperationTimeouts::none());
+
+        self::assertCount(0, $scheduled->getNexusHeader());
+    }
+
+    private function scheduleThrough(NexusOperationTimeouts $timeouts, ?NexusOperationHeaders $headers = null): NexusOperationScheduledEventAttributes
     {
         $client = new WorkflowClient(
             $this->client,
@@ -201,7 +242,7 @@ final class NexusOperationRoundTripTest extends TestCase
             NexusOperationName::named('charge'),
             ['amount' => 10],
             $timeouts,
-            NexusOperationHeaders::none(),
+            $headers ?? NexusOperationHeaders::none(),
         );
 
         $done = new RespondWorkflowTaskCompletedRequest();
