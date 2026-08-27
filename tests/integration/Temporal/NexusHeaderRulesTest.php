@@ -103,6 +103,7 @@ final class NexusHeaderRulesTest extends TestCase
             $request->setNamespace($this->connection->namespace->name());
             $request->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $this->workflowId]));
             $request->setReason('fin de sonde');
+
             try {
                 GrpcUnary::wait($this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]));
             } catch (\RuntimeException) {
@@ -113,6 +114,7 @@ final class NexusHeaderRulesTest extends TestCase
             $request = new DeleteNexusEndpointRequest();
             $request->setId($this->endpointId);
             $request->setVersion($this->endpointVersion);
+
             try {
                 GrpcUnary::wait($this->operator->DeleteNexusEndpoint($request, [], ['timeout' => 10_000_000]));
             } catch (\RuntimeException) {
@@ -202,6 +204,7 @@ final class NexusHeaderRulesTest extends TestCase
         $attrs->setService('billing');
         $attrs->setOperation('charge');
         $attrs->setInput(JsonPlainPayload::encode(['operationId' => 'op-1', 'payload' => []]));
+
         try {
             $attrs->setNexusHeader($map);
         } catch (\Throwable $e) {
