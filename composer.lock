@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d3ae91f9097db37b212042c79d67d413",
+    "content-hash": "873a7f96bed2910b5e9d165f7cd4bb7c",
     "packages": [
         {
             "name": "doctrine/dbal",
@@ -458,9 +458,10 @@
             "dist": {
                 "type": "path",
                 "url": "src/DurablePlugin",
-                "reference": "59ea4251fa79ce7bc10cee61de2aa9e45ffb4af3"
+                "reference": "ff2d74ba2704a8ba3995c6a81b372c968026eb30"
             },
             "require": {
+                "gplanchat/durable": "self.version",
                 "knplabs/knp-menu": "^3.5",
                 "php": ">=8.2",
                 "symfony/config": "^6.4 || ^7.0 || ^8.0",
@@ -473,12 +474,11 @@
                 "symfony/twig-bundle": "^6.4 || ^7.0 || ^8.0"
             },
             "require-dev": {
-                "gplanchat/durable-bridge-temporal": "self.version",
                 "phpunit/phpunit": "^11.5",
                 "twig/twig": "^3.10"
             },
             "suggest": {
-                "gplanchat/durable-bridge-temporal": "Live workflow data in the dashboard. Kept optional because it requires ext-grpc, which most Sylius hosts do not ship; without it the dashboard renders a degraded state.",
+                "gplanchat/durable-bundle": "Wires the run catalog the dashboard reads — one backend or another. Without it the page reports that no readable backend is configured.",
                 "sylius/admin-bundle": "Registers the dashboard entry in the Sylius admin menu (sylius.menu.admin.main)"
             },
             "type": "symfony-bundle",
@@ -6114,6 +6114,52 @@
             "time": "2026-08-24T10:37:43+00:00"
         },
         {
+            "name": "gplanchat/durable-phpstan",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "src/DurablePhpstan",
+                "reference": "606b10d331b4b3db47e8708f442766a328889aec"
+            },
+            "require": {
+                "gplanchat/durable": "self.version",
+                "php": ">=8.2",
+                "phpstan/phpstan": "^2.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "phpstan-extension",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                },
+                "phpstan": {
+                    "includes": [
+                        "extension.neon"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\Durable\\PHPStan\\": "./"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "PHPStan extension for gplanchat/durable — resolves ActivityStub and ChildWorkflowStub calls from their typed contract, so a mistyped activity is an analysis error rather than a runtime failure",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
             "name": "kelunik/certificate",
             "version": "v1.1.3",
             "source": {
@@ -9867,6 +9913,7 @@
         "gplanchat/durable-bridge-dbal": 20,
         "gplanchat/durable-bridge-temporal": 20,
         "gplanchat/durable-bundle": 20,
+        "gplanchat/durable-phpstan": 20,
         "gplanchat/durable-plugin": 20
     },
     "prefer-stable": false,
