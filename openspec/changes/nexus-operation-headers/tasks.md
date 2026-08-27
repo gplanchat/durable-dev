@@ -1,11 +1,11 @@
 ## 1. Probe before encoding any rule
 
-- [ ] 1.1 Probe what the server accepts as a Nexus header — empty key, empty value, whitespace, control characters, length, count — as was done for endpoint, service and operation names. **Write no invariant that was not observed.**
-- [ ] 1.2 Probe whether the server rewrites or drops anything silently, and whether the header comes back unchanged in `NEXUS_OPERATION_SCHEDULED`
+- [x] 1.1 Probe what the server accepts as a Nexus header — **le serveur est permissif sur tout sauf la casse** : clé vide, valeur vide, blancs en bord, saut de ligne, espace dans la clé, 1000 caractères, tous acceptés tels quels. Verdicts dans `design.md`, épinglés par `NexusHeaderRulesTest`
+- [x] 1.2 Probe whether the server rewrites or drops anything silently — **oui, une seule fois** : la clé est minusculée en silence, et deux clés qui ne diffèrent que par la casse entrent en collision — deux en-têtes entrent, un seul sort, sans erreur ni trace. C'est la seule chose que §2.1 ait à empêcher
 
 ## 2. Domain
 
-- [ ] 2.1 A header value object built on the probed rules, refusing only what the server refuses or what can only be a mistake
+- [ ] 2.1 A header value object built on the probed rules — **minuscule la clé** (ce que l'appelant tient doit être ce que le serveur garde) et **refuse une collision de casse** (le serveur ne sait pas la faire et ne le dit pas). Rien d'autre : être plus strict que le serveur rejetterait des en-têtes valides
 - [ ] 2.2 Unit tests asserting the probed verdicts, one case per observation
 
 ## 3. Port and backends
