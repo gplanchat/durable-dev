@@ -13,9 +13,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+{{- /* Le titre et la description sont les deux seules phrases de cet en-tête ;
+     elles suivent la langue du site plutôt qu'un fichier par langue. */}}
+{{- if eq .Site.Language.Lang "fr" }}
+<title>{{ .Site.Title }} — l'exécution durable pour PHP</title>
+<meta name="description" content="Écrivez un processus métier comme une seule méthode. Durable la rejoue depuis son journal : un worker peut redémarrer en plein milieu sans que le processus s'en aperçoive.">
+{{- else }}
 <title>{{ .Site.Title }} — durable execution for PHP</title>
 <meta name="description" content="Write a business process as one method. Durable replays it from its journal, so a worker can be redeployed mid-process and the execution continues where it stopped.">
+{{- end }}
 <link rel="canonical" href="{{ .Permalink }}">
+
+{{- /* Les deux pages d'accueil sont traductions l'une de l'autre : Hugo tient
+     la liste, la coder en dur obligerait à la maintenir en double. */}}
+{{- range .AllTranslations }}
+<link rel="alternate" hreflang="{{ .Language.Lang }}" href="{{ .Permalink }}">
+{{- end }}
+{{- /* `.Site` est celui de la langue courante : sur /fr/ il désignerait la
+     page française, alors que x-default doit toujours pointer la langue par
+     défaut. `hugo.Sites` est ordonné par poids de langue, la première est
+     donc celle par défaut. */}}
+<link rel="alternate" hreflang="x-default" href="{{ (index hugo.Sites 0).Home.Permalink }}">
 
 {{- /* Seule dépendance externe de la page ; chaque fonte a une pile de repli. */}}
 <link rel="preconnect" href="https://fonts.googleapis.com">
