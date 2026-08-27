@@ -20,6 +20,5 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
-| `docs/comparison-time-skipping-and-saga` | comparatif SDK Temporal | lignes time skipping + saga | en cours |
-| `change/workflow-replay-divergence-guard` | garde de divergence au replay | proposition | en cours |
-| `change/workflow-versioning` | versioning de workflow | proposition | en cours |
+| `change/nexus-handler-side` | Nexus complet (côté gestionnaire) | proposition | en cours |
+| `docs/comparison-authoring-surface` | comparatif SDK Temporal | §2 réordonnée, §4 face à face, §5 fibres vs générateurs, ordre des colonnes | en cours |

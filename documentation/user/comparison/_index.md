@@ -81,8 +81,8 @@ $this->assertSame('world', $run->getResult('string'));
 
 The workflow never executes in the PHPUnit process. Activity mocks are an out-of-process channel:
 the expectation is written on one side and read by the worker on the other. This is faithful — it
-*is* a real Temporal server, with time skipping — but there is no cheaper tier below it. Asserting
-that a `match` in your workflow picks the right branch costs two binaries and a gRPC round trip.
+*is* a real Temporal server — but there is no cheaper tier below it. Asserting that a `match` in
+your workflow picks the right branch costs two binaries and a gRPC round trip.
 
 ### With Durable, the workflow runs in the test process
 
@@ -178,8 +178,11 @@ managed rather than denied:
   in a docblock;
 - the integration tier above is what actually checks it.
 
-Durable also has **no equivalent to Temporal's time skipping**. In-Memory timers are driven by the
-runner, which covers the common case, but not scenarios that depend on real wall-clock dates.
+Time skipping is **not** among the things you give up. The In-Memory runner holds a virtual clock
+and advances it to the next timer's due date, so `sleep(3600)` settles in a millisecond of real
+time. It only skips when nothing else can progress — skipping while an activity could still
+complete would make the timer win every `any(activity, timer)` race. See
+[Testing workflows](../testing/#time-is-skipped-not-waited-for).
 
 ---
 
@@ -318,8 +321,7 @@ The reasoning is recorded in
 | **Maintenance** | Official Temporal project, kept in parity with the other language SDKs |
 | **Maturity** | Long production track record. Durable is `0.1.0-alpha`, with breaking changes between alphas |
 | **Workflow versioning** | `Workflow::getVersion()`. **Durable has no equivalent** — this is the significant functional gap for long-running workflows that must evolve while runs are in flight |
-| **Time skipping in tests** | Provided by the test server. No Durable equivalent |
-| **Saga** | Dedicated helper. In Durable, written by hand |
+| **Saga** | A dedicated helper. Durable has none — the shape is a deadline and a compensation path, written out in [Creating a workflow](../workflows/#bounding-a-wait-in-time), so what is missing is the sugar rather than the capability |
 | **API coverage** | Broad. Durable covers search attributes, cron schedules, updates, deadlines and child workflows; anything beyond that is worth checking against the [Configuration reference](../configuration/) before you commit |
 
 A comparison with no losses column is marketing. These are real, and the versioning gap in
