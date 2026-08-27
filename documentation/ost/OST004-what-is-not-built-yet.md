@@ -45,12 +45,20 @@ partly-landed change from its proposal overstates every one of them.
 | Change | Done / total | Register | Blocks |
 |---|---|---|---|
 | `workflow-replay-divergence-guard` | **20 / 20** | Landed, on a design settled by [DUR042](../adr/DUR042-replay-divergence-guard.md) | — (it was `workflow-versioning`'s blocker) |
-| `query-plumbing-leaves-the-environment` | 23 / 24 | Wiring — finished bar one task | — |
+| `query-plumbing-leaves-the-environment` | 23 / 24 | Wiring — finished; its last task is blocked on tests it did not write | — |
 | `workflow-versioning` | 0 / 18 | A probe, then wiring | The Rector set (§6), the comparison page's honesty (§4) |
 | `nexus-handler-side` | 7 / 32 | A probe that already reported, then a bootstrap | — |
 
-**The one remaining task on the query change needs a live Temporal server** (6.4). It is not
-unfinished work; it is work that cannot run where the rest of the suite runs.
+**The one remaining task on the query change has now been run against a live Temporal server**
+(6.4), and it is red — for reasons that predate the change. Eight of thirteen tests error, none of
+them on the query registry: two test files construct a `TemporalStartingEventStore` that exists
+nowhere in the repository, and one passes a `WorkflowNamespace` where protobuf wants a string. The
+tick is not this change's to take.
+
+**The CI job that was supposed to be watching this reports success while testing nothing**: thirteen
+tests, three assertions, ten skipped, in forty-five milliseconds — every server-touching test skips
+before a single RPC. A gate that cannot fail is not evidence, and it is what let those two defects
+sit. See the change's §7.
 
 **The divergence guard is done, and its remainder was narrower than its proposal all along** —
 which is the case this table exists to make. Activity slots (`2f0593e`), then Nexus and child

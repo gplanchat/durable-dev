@@ -47,6 +47,28 @@
 - [x] 6.1 Unit suite green (528 tests).
 - [x] 6.2 PHPStan clean.
 - [x] 6.3 `php-cs-fixer` clean.
-- [ ] 6.4 Integration suite against a real Temporal server. **Not run here** — needs a live server.
-      `aa89793`'s twenty green integration tests were against a different `main`; they are evidence
-      about the wire format, which has not moved, and not about this tree.
+- [ ] 6.4 ⛔ attend:auteur — Integration suite against a real Temporal server. **Run, and red for
+      reasons that predate this change.** A live server was available (`temporal server start-dev`,
+      `127.0.0.1:7233`, namespace `default`); the suite was run from the primary copy, whose
+      `symfony/vendor/gplanchat/*` are symlinks onto `src/`, so it did test this tree:
+      `Tests: 13, Assertions: 9, Errors: 8, Skipped: 1`. None of the eight touch the query
+      registry — see §7. The tick belongs to whoever repairs those tests, not to this change.
+
+## 7. Found while running 6.4 — three defects that are not this change's
+
+- [ ] 7.1 ⛔ attend:auteur — `Gplanchat\Bridge\Temporal\TemporalStartingEventStore` **exists
+      nowhere in the repository**: not in `src/`, not on any remote branch, not anywhere in the
+      history (`git log --all -S`). `TemporalJournalEventStoreIntegrationTest` and
+      `TemporalInterpreterMirrorIntegrationTest` both construct it, so seven tests die at
+      `Error: Class ... not found`. The only copy on this machine is in an untracked scratch
+      worktree. Decide whether those two tests describe work that was never merged, or work that was
+      renamed — `TemporalJournalEventStore` is the only event store the bridge has today.
+- [ ] 7.2 `WorkflowServiceExecutionRpcIntegrationTest:78` passes `TemporalConnection::$namespace` —
+      a `WorkflowNamespace` value object — to protobuf's `setNamespace()`, which wants a string:
+      `InvalidArgumentException: Expect string`. A stale call site left by the value object's
+      introduction.
+- [ ] 7.3 The CI job **"Tests d'intégration Temporal (gRPC + Temporal auto-setup)" is green while
+      testing nothing**: `Tests: 13, Assertions: 3, Skipped: 10` in **45 ms** — every server-touching
+      test skips at `setUpBeforeClass` before a single RPC. The gate has reported success through
+      7.1 and 7.2 for as long as they have existed. Find why the socket check fails there — the
+      compose file does publish `7233` — or the suite will keep passing by not running.
