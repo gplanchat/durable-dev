@@ -72,8 +72,25 @@ behaviour fails one, and recording the version after the slot instead of before 
 
 ## 4. Both backends
 
-- [ ] 4.1 The same three behaviours on the DBAL backend.
-- [ ] 4.2 Integration suite against a real server, green.
+- [x] 4.1 Not a DBAL-specific test: the conformance workflow now **declares a change point**, and
+      `EventStoreReplayConformanceTestCase` asserts the recorded version survives the round trip
+      through the store. Every adapter that extends it inherits the check — DBAL today, whatever
+      comes next tomorrow.
+      A store that lost `VersionMarked` would put an in-flight execution back on the other branch
+      **in silence** — the divergence guard would see code consistent with the new version and say
+      nothing. That is why this belongs in the shared suite rather than in one adapter's tests.
+      The suite also pins that an undeclared change point answers `null` and not `0`: an adapter
+      that returned `0` would hand the old branch to an execution that never earned it.
+- [x] 4.2 Integration suite against a real server: **78 tests green**, 27.5 s.
+      It did not pass on the first attempt, and the reason was mine rather than the code's. A
+      `DivergentByDeploy` execution left over from earlier manual probing had been retrying its
+      workflow task on the shared dev server **for three hours**; with it running, the suite hung.
+      Terminated it, re-ran, green. I have not established the mechanism by which one abandoned
+      execution disturbed a test on its own task queue, and I am not going to invent one.
+      What the episode did establish is a real defect in the harness, and it is being fixed
+      separately: `TemporalServerTestCase::tearDown()` kills the workers but **never terminates the
+      workflows a test started**, so every unfinished run stays Running on a shared server for ever.
+      That is how the three-hour leftover came to exist.
 - [x] 4.3 Answered by the probe, and not where it was expected: the **server** answers it, through
       the standard `TemporalChangeVersion` search attribute the Go SDK upserts beside the marker.
       `temporal workflow list --query 'TemporalChangeVersion = "<change-id>-<version>"'` was run and
