@@ -154,8 +154,9 @@ not at write time, and that test is what catches it.
 conformance suite that every `EventStoreInterface` implementation runs — Temporal's two included —
 is the work that makes a fourth adapter safe by construction. **That is the prerequisite for a
 Laravel backend, and it is worth doing whether or not one is ever written.** It is now
-[DUR041](../adr/DUR041-store-parity-is-a-suite-every-adapter-runs.md). The `EventStoreInterface`
-suite is written and both SQL and in-memory adapters run it; the three other ports remain.
+[DUR041](../adr/DUR041-store-parity-is-a-suite-every-adapter-runs.md), and it is written: the four
+store ports each have a conformance suite that the SQL and in-memory adapters run. A Laravel
+adapter now starts by extending four classes.
 
 **One constraint no adapter may drop, and Laravel's satisfies it for free.** DUR030 sells durable
 execution on one database with no cluster, and that only pays if the journal append and the business

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Bridge\Dbal\Store;
+namespace Gplanchat\Durable\Observation;
 
 use Gplanchat\Durable\Event\ActivityCancelled;
 use Gplanchat\Durable\Event\ActivityCatastrophicFailure;
@@ -21,8 +21,6 @@ use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
-use Gplanchat\Durable\Observation\WorkflowRunEvent;
-use Gplanchat\Durable\Observation\WorkflowRunEventKind;
 use Gplanchat\Durable\Store\EventStoreInterface;
 
 /**
