@@ -1,32 +1,94 @@
 # Design
 
-## What was probed, and what was assumed
+## What was probed, and what was measured
 
-**Probed: nothing. Assumed: all of it.** This is the most server-dependent change proposed for this
-component so far, and it is entirely about behaviour nobody here has measured:
+**Probed: the whole task lifecycle, against `temporal server start-dev` 1.31.2.** The instrument
+was not the Go SDK the tasks called for, but something more direct: a raw PHP poller on the
+handler's task queue, built from the generated stubs already in `src/Bridge/Temporal/Api`, with a
+Durable workflow as the caller. It shows the wire itself rather than a mirror of it.
 
-- `PollNexusTaskQueue` — long-poll semantics, timeout, what an empty response looks like.
-- `RespondNexusTaskCompleted` / `RespondNexusTaskFailed` — payload shape, and which failures are
-  retryable from the server's point of view.
-- How an **asynchronous** operation reports its eventual result: whether the handler responds once
-  with an operation token and the server correlates the completion later, or something else.
-- Whether cancellation reaches a handler as a request on the task queue, or only as a state the
-  handler must poll for.
-- What the server does with a handler that never responds.
+**A full round trip works today.** A raw poller answered `RespondNexusTaskCompleted` with a sync
+payload and the calling workflow received `['greeting' => 'hello ada']`. Serving Nexus needs no new
+gRPC plumbing — `PollNexusTaskQueue`, `RespondNexusTaskCompleted` and `RespondNexusTaskFailed` are
+generated and functional. What is missing is the poll loop, the dispatch, and the declaration
+surface.
 
-The caller side got these right by probing, and DUR036 records that the probe corrected the design
-more than once — `NexusOperationTimeouts` refuses a combination the server would have clamped
-silently, and `executionBoundOr()` was dropped because the probe showed no bound is required. There
-is no reason to expect the handler side to be kinder.
-
-**Nothing in this design should be treated as decided until section 1 of `tasks.md` has run.** The
-sections below are the questions to take to the server, written as hypotheses so the probe has
-something to falsify.
+### The start task, as it actually arrives
 
 ```
-temporal server start-dev --namespace durable-test --port 7233
-DURABLE_TEMPORAL_ADDRESS=127.0.0.1:7233 vendor/bin/phpunit --testsuite integration
+variant       : start_operation
+service       : probe.service
+operation     : greet
+requestId     : c8074689-…                     (also as header nexus-request-id)
+callback      : temporal://system
+payload       : {"operationId":"01a0…","payload":{"name":"ada"}}
+links         : 1  (nexus-link back to the caller's NexusOperationScheduled event)
+capabilities  : temporalFailureResponses = true
+header        : request-timeout=8.998s , operation-timeout=89997ms
 ```
+
+**Two budgets, not one, and this is the finding that shapes the worker.** `request-timeout` (~9 s)
+bounds the response to *this task*. `operation-timeout` (90 s here — the caller's
+schedule-to-close) bounds the whole operation. A handler with real work to do cannot hold the task:
+it has roughly nine seconds to answer, whatever the operation's budget. That is what the
+asynchronous shape is for, and it means "synchronous only" is a much narrower option than it
+sounds.
+
+`callback: temporal://system` confirms the hypothesis this design was written on: the **server** is
+the callback target, so a handler that answers asynchronously is not asked to observe anything
+afterwards.
+
+### The asynchronous shape: accepted by the server, refused by our own caller
+
+Answering `RespondNexusTaskCompleted` with an `asyncSuccess` carrying an operation token **is
+accepted** — the caller's history records `NEXUS_OPERATION_STARTED`. Then the calling workflow
+failed, on purpose, with our own message:
+
+> Nexus operation … started asynchronously: the handler returned a token and will complete by
+> callback later. This increment only supports synchronous operations, and nothing here can receive
+> that callback — the wait would never end.
+
+This is the DUR036 discipline applied to the caller, and it is the right behaviour. It is also a
+**scope correction for this change**: the asynchronous shape is not only handler-side work. To call
+an asynchronous operation, the caller must learn to receive the completion. Two sides, one shape.
+
+### Failure and silence both redeliver, on the request-timeout clock
+
+| What the handler does | What the server does |
+|---|---|
+| `RespondNexusTaskFailed(INTERNAL)` | accepted; task **redelivered** — 3 times in 25 s |
+| nothing at all | redelivered at ~9.9 s, ~20.7 s, ~33.6 s |
+
+Redelivery follows the ~9 s `request-timeout`, not the operation timeout. An `INTERNAL` handler
+error is therefore **retryable** and does not fail the operation — so a handler that raises on bad
+input would be retried until the operation times out. Distinguishing retryable from terminal
+handler errors is real work, not a detail.
+
+### Cancellation reaches the handler only for a started operation
+
+Cancelling the caller wrote `NEXUS_OPERATION_CANCEL_REQUESTED` in its history and the run cancelled
+cleanly — but **no `cancel_operation` task arrived** on the handler's queue in 40 s. The operation
+had never been started: no token, nothing to cancel handler-side.
+
+So the handler's cancellation path is coupled to the asynchronous shape. No async, no cancel task.
+
+### An empty poll is a success, not an error
+
+A poll on an idle queue returned after 11.2 s with an **empty task token and a null request**. The
+loop must treat that as "nothing to do", not as a failure.
+
+### Still worth doing: the Go cross-check
+
+Task 1.1 asked for a Go handler as reference. It was not needed to read the wire — but one finding
+makes it more valuable, not less. **Our caller wraps the user payload**:
+`TemporalWorkflowCommandBuffer::scheduleNexusOperation()` sends
+`{"operationId": …, "payload": …}`, a Durable-private envelope, because
+`TemporalExecutionHistory` reads that id back to correlate the operation.
+
+A handler written with any other SDK receives that envelope, not the caller's payload. Taken
+literally, Durable today can call Nexus operations that only Durable can serve. Whether that is
+acceptable, or whether the caller should correlate by scheduled event id and stop wrapping, is a
+decision this change has to make — and a Go handler is what proves which way it went.
 
 ## The worker is new plumbing, not an extension
 
