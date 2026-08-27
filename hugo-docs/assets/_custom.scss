@@ -233,6 +233,19 @@ body {
   }
 }
 
+// Sous 640 px, une matrice à trois colonnes ne rentre pas : sans conteneur, la
+// table pousse la page entière en scroll horizontal (685 px de contenu sur
+// /docs/options/ pour 390 px d'écran). display: block rend la table elle-même
+// scrollable, le reste de la page retrouve sa largeur.
+// ponytail: pas d'ombre pour signaler qu'il reste du contenu à droite ;
+// à ajouter si les tableaux se coupent au milieu d'une colonne utile.
+@media (max-width: 640px) {
+  .book-page .markdown table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
 // --- Navigation et sommaire ----------------------------------------------
 
 .book-menu {
