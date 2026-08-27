@@ -1,0 +1,36 @@
+{
+    "name": "gplanchat/durable-rector",
+    "description": "Rector rules that migrate a project off the official Temporal PHP SDK onto gplanchat/durable — attribute rewrites that keep the workflow and activity type names a running server already knows",
+    "license": "MIT",
+    "type": "library",
+    "require": {
+        "php": ">=8.2",
+        "gplanchat/durable": "self.version",
+        "rector/rector": "^2.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gplanchat\\Durable\\Rector\\": "./"
+        },
+        "exclude-from-classmap": [
+            "/config/"
+        ]
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "authors": [
+        {
+            "name": "Grégory Planchat",
+            "email": "gregory@gyroscops.com"
+        }
+    ]
+}

@@ -29,7 +29,7 @@ tiers, and the tier — not the popularity — is what decides the order of work
 |---|---|---|
 | **0** | The host *is* a Symfony application. `durable-bundle` registers unchanged. Cost: wiring and an admin view. | Shopware 6, Sulu, PrestaShop 9 (partly), Ibexa |
 | **1** | Foreign container, foreign queue. A package has to be written from the bootstrap up. | Laravel, Magento, WordPress/WooCommerce, Drupal |
-| **2** | The host already owns a job abstraction. The integration **substitutes** a runtime under an existing model rather than introducing a second one. | Akeneo BatchBundle, `php-etl/pipeline` |
+| **2** | The host already owns a job abstraction. The integration **substitutes** a runtime under an existing model rather than introducing a second one. | Akeneo `BatchBundle`, Pimcore Generic Execution Engine, `php-etl/pipeline` |
 | **∅** | Not a host at all — a contract two hosts implement. Belongs to no tier and cuts across two. | API Platform (§3) |
 
 Tier 2 is the interesting one, and it is the tier this project has never written for. The row
@@ -194,7 +194,12 @@ Laravel, payoff below WordPress. Below WooCommerce in priority, not above it.
 
 ---
 
-## 4. Tier 2a — Akeneo, and the job model that is already there
+## 4. Tier 2a — Akeneo and Pimcore, and the job models already there
+
+Two PIM-shaped hosts, the same story twice: a job model that records what failed and cannot resume
+it. Neither needs a second runtime — both need theirs to survive a step.
+
+### Akeneo
 
 Akeneo's `BatchBundle` has `JobInstance` / `JobExecution` / `StepExecution`, persisted status, and
 an admin screen that shows them. What it does **not** have is a resume. A job that dies mid-step is
@@ -214,6 +219,26 @@ it:
 (reader → processor → writer). A durable journal entry per item on a million-row import is a
 journal nobody wants to store or replay. **Checkpoint granularity — how many items per durable
 step — is the decision to settle before any code is written.**
+
+### Pimcore — the retry that was switched off on purpose
+
+Pimcore 12 is a Symfony 7.4 application with `symfony/messenger` already in the stack, so Tier 0 is
+free and beside the point. What matters is that it owns a job model of its own: the **Generic
+Execution Engine**, where a `Job` carries named `steps` and a `JobRun` carries the execution.
+
+Three things Pimcore documents about that engine make the argument better than we could:
+
+- `stop_on_first_error` halts the job at the step that failed;
+- **`max_retries: 0`**, configured that way *"to prevent data corruption"*;
+- a single step cannot be cancelled — only the whole run.
+
+*We turned retries off because replaying a step corrupts data* is a precise statement of the
+problem durable execution solves. A journal makes a step safe to replay, because what already
+happened is **read back** rather than done again. Pimcore did not decline retries out of caution; it
+declined them because nothing underneath made them safe.
+
+The shape is Akeneo's, one host over: a `Job` whose steps *are* durable steps, `JobRun` staying what
+the admin displays, and the integration keeping the two consistent rather than replacing either.
 
 ---
 
@@ -237,8 +262,9 @@ deployment, and the row that poisons it. **Resumable** and **re-runnable** are n
 **The cost, stated honestly:** the granularity problem of §4 is the same problem here, one level
 down — a pipeline yields per item, and a journal per item is the wrong unit. Batching policy,
 checkpoint interval, and what a rejection does to the journal are one design question shared by
-Akeneo and `php-etl/pipeline`. **Whichever is written first pays for both**, which is an argument
-for writing the smaller one first.
+Akeneo, Pimcore and `php-etl/pipeline`. **Whichever is written first pays for all three**, which is
+an argument for writing the smallest one first — and the count is what makes that argument worth
+acting on rather than noting.
 
 ---
 
@@ -249,6 +275,7 @@ for writing the smaller one first.
 | Shopware 6, Sulu | 0 | Wiring and an admin view | **Planned.** Cheap — the bundle does the work — but announced as planned, not as working today (§2). |
 | API Platform | — | One state processor, two adapters | **Planned**, and the one to write before Laravel: it is the same class on both frameworks, and it gives the Laravel package a promise nobody else is making (§3). |
 | Akeneo | 2 | A `BatchBundle` bundle | **Planned.** Blocked on the checkpoint-granularity decision. |
+| Pimcore | 2 | A bundle under the Generic Execution Engine | **Planned.** Same decision, same blocker — and its own documentation makes the case (§4). |
 | `php-etl/pipeline` | 2 | A durable step runner | **Strongest fit.** Shares §4's decision; internal product, so the feedback loop is short. |
 | Laravel | 1 | Service provider, resume lock, a fourth adapter family, migration | **Planned**, and **blocked on a conformance suite** for the four store ports (§3) — not on the adapter. The positioning has to answer `durable-workflow/workflow` first, and API Platform is the cheapest answer available. |
 | Magento | 1 | Module, consumers | **Planned.** Bench already in the repository. |
@@ -268,4 +295,5 @@ of them, and that is deliberate; this table is where the difference lives.
 - [OST001 — Alternative durable execution backends](OST001-alternative-durable-execution-backends.md) §6 records the PHP competitive landscape.
 - [DUR006 — No official Temporal PHP SDK or RoadRunner](../adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md)
 - [DUR030 — DBAL backend: simplified durable execution on a single SQL database](../adr/DUR030-dbal-backend-simplified-durable-execution.md)
+- Pimcore's Generic Execution Engine — [Jobs](https://docs.pimcore.com/platform/Pimcore/Development_Tools_and_Details/Generic_Execution_Engine/Jobs_and_Jobruns/Jobs/) and [Configuration](https://docs.pimcore.com/platform/next/Pimcore/Development_Tools_and_Details/Generic_Execution_Engine/Configuration/), where `max_retries: 0` and the reason given for it are stated.
 - [DUR037 — Run observation is a projection](../adr/DUR037-run-observation-as-a-projection.md) — the pattern the Akeneo `StepExecution` projection would follow.

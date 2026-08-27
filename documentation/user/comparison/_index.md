@@ -250,7 +250,7 @@ final class OrderWorkflow implements OrderWorkflowContract
         $activities = Workflow::newActivityStub(OrderActivities::class);
 
         $charge = yield $activities->charge($orderId);
-        yield Workflow::sleep(3600);
+        yield Workflow::timer(3600);
 
         return yield $activities->sendReceipt($charge);
     }
@@ -327,7 +327,7 @@ private function chargeWithRetry(string $orderId)
         try {
             return yield $this->activities->charge($orderId);
         } catch (ActivityFailure) {
-            yield Workflow::sleep($backoff);
+            yield Workflow::timer($backoff);
         }
     }
 
@@ -447,7 +447,7 @@ The reasoning is recorded in
 | **Maturity** | Long production track record. Durable is `0.1.0-alpha`, with breaking changes between alphas |
 | **Workflow versioning** | `Workflow::getVersion()` lets one class carry both behaviours and lets history decide which a run sees. **Durable has no equivalent**: changing a workflow with runs in flight means registering a new workflow type and waiting for the old ones to drain. The gap is real, and it is a gap in *convenience* rather than in safety — a divergent deploy is [caught and reported](../deploying/), the task fails, and reverting resumes the run. It used to resolve the wrong recorded value in silence |
 | **Saga** | A dedicated helper. Durable has none — the shape is a deadline and a compensation path, written out in [Creating a workflow](../workflows/#bounding-a-wait-in-time), so what is missing is the sugar rather than the capability |
-| **API coverage** | Broad. Durable covers search attributes, cron schedules, updates, deadlines and child workflows; anything beyond that is worth checking against the [Configuration reference](../configuration/) before you commit |
+| **API coverage** | Broad. Durable covers search attributes, cron schedules, updates, deadlines and child workflows — but search attributes are **start options** here, where the SDK also lets a running workflow upsert its own; anything beyond that is worth checking against the [Configuration reference](../configuration/) before you commit |
 
 A comparison with no losses column is marketing. These are real, and the versioning gap in
 particular should be weighed before choosing Durable for workflows expected to run for months.
@@ -459,6 +459,14 @@ particular should be weighed before choosing Durable for workflows expected to r
 **Use the Temporal PHP SDK** when you already operate a Temporal cluster, want the officially
 maintained client with cross-language parity, need workflow versioning or a Nexus **handler**, and
 RoadRunner is acceptable in your deployment.
+
+**Coming from the SDK?** `gplanchat/durable-rector` does the mechanical part: the attributes and
+the failure classes, keeping the workflow and activity **type names** a running server already knows
+— the part a hand migration silently gets wrong — and the execution model, where the static
+`Workflow::` facade becomes an injected environment and `yield` goes, along with the `\Generator`
+return type it leaves behind. What it will not do is invent the return type that replaces it, or
+convert what has no counterpart here: those it comments, so you know before you start whether the
+migration is open to you at all.
 
 **Use Durable** when you want durable execution without adding a second runtime to your Symfony
 application, when a single SQL database is the right operational footprint, when you want workflow
