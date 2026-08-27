@@ -1,0 +1,37 @@
+# Ce dossier est un **banc**, pas une application : seul l'overlay est au dépôt.
+#
+# Une distribution Magento installée pèse 769 Mo, dont 626 pour `vendor/`. Une
+# fois `vendor/` exclu par le `.gitignore` de la racine, il reste encore
+# **10 178 fichiers** que composer a écrits — `dev/` en apporte 7 256 à lui
+# seul. Rien de tout cela n'est du code de ce dépôt, et le suivre reviendrait à
+# versionner Mage-OS.
+#
+# On inverse donc la règle : tout est ignoré, et l'overlay se ré-autorise
+# nommément. Un fichier que composer ajoutera demain restera dehors sans que
+# personne ait à y penser — c'est ce qu'une liste d'exclusions ne sait pas
+# faire.
+#
+# Ce que l'overlay contient, et pourquoi il est au dépôt :
+#   composer.json / composer.lock  les dépôts de chemin vers src/, et l'épingle
+#                                  Mage-OS qui rend l'installation reproductible
+#   compose.yaml                   MySQL, OpenSearch, Redis, Temporal, son UI
+#   check-php-extensions.sh        ce que l'hôte doit avoir avant d'essayer
+#   auth.json.sample               Mage-OS n'en demande pas ; l'échantillon dit
+#                                  quoi mettre pour une distribution qui, elle,
+#                                  en demande
+#   .env.example                   les variables que compose.yaml attend
+#   README.md                      comment amorcer, et sur quoi c'est épinglé
+#
+# `sylius/` fait l'inverse — liste d'exclusions — parce que là-bas le squelette
+# applicatif **est** du code du projet : 220 fichiers écrits ici. Ici il y en a
+# six, et dix mille qui ne le sont pas.
+
+*
+!.gitignore
+!composer.json
+!composer.lock
+!compose.yaml
+!check-php-extensions.sh
+!auth.json.sample
+!.env.example
+!README.md

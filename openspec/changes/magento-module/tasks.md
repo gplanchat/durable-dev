@@ -6,10 +6,15 @@ A Tier 1 bootstrap has no unit test that proves it boots. The bench **is** the t
 comes first — and while it is being built it answers the four questions `design.md` records as
 unmeasured.
 
-- [ ] 1.1 Track the `magento/` overlay the way `sylius/` is tracked: sources yes, `vendor/` no.
-      It exists on one developer machine and in no clone; `git ls-files magento` returns zero.
-      OST004's *"bench already in `magento/`"* becomes true when this lands, and OST004 is corrected
-      to say what was actually there before.
+- [x] 1.1 Track the `magento/` overlay the way `sylius/` is tracked. **The task was wrong about
+      what that means.** "Sources yes, `vendor/` no" is not enough: with `vendor/` already excluded
+      by the root `.gitignore`, `git add -An magento` still stages **10 178 files** — `dev/` alone
+      brings 7 256 — all of them written by composer. `sylius/` is 220 files because a Sylius
+      skeleton *is* project code; the Magento equivalent is eight files of overlay.
+      So `magento/.gitignore` inverts the rule: ignore everything, re-allow the overlay by name.
+      A file composer adds tomorrow stays out without anyone thinking about it, which an exclusion
+      list cannot do. Verified: 8 files tracked, and three simulated distribution files change
+      nothing. OST004's row corrected.
 - [ ] 1.2 `composer install` reaches a working `bin/magento` on Mage-OS
       `product-community-edition:2.2.0`. The overlay has 61 vendor packages and no
       `vendor/magento/framework`, so this has never completed here. Record what the host actually
