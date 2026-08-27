@@ -1,25 +1,60 @@
 # Design
 
-## What was probed, and what was assumed
+## What was probed, and what was measured
 
-**Probed: nothing. Assumed: the wire representation.** Temporal records a version marker as an event
-in workflow history, and other SDKs read it back on replay. What that event is called, what it
-carries, and whether a server accepts it from a client that is not an official SDK are three
-questions this design cannot answer from the protobuf definitions — the `Marker` machinery is
-generic, and the meaning is a convention between SDK and SDK, not a server rule.
+**Probed: the whole convention, against `temporal server start-dev` 1.31.2.** A versioned workflow
+was written with the official **Go SDK** (`workflow.GetVersion(ctx, "ajout-remise", DefaultVersion, 1)`),
+run, and its history dumped. Then the same marker was emitted from the Durable bridge and the two
+histories compared.
 
-That convention is exactly the kind of thing the house rule exists for. Six wrong assumptions have
-already been corrected by probing; this would be the seventh if written from belief.
-
-**Task 1 is the probe**, and it has a fallback the probe may force: if the server's marker
-convention cannot be reproduced faithfully, the version lives in a Durable-owned journal event
-instead. That works, and it costs the property that a Durable run reads normally in the Temporal UI.
-Which of the two we get is a finding, not a preference.
+### What the server records
 
 ```
-temporal server start-dev --namespace durable-test --port 7233
-DURABLE_TEMPORAL_ADDRESS=127.0.0.1:7233 vendor/bin/phpunit --testsuite integration
+EVENT_TYPE_MARKER_RECORDED
+  markerName : "Version"
+  details    : change-id → json/plain  "ajout-remise"
+               version   → json/plain  1
 ```
+
+That is the whole convention: a `RECORD_MARKER` command, one fixed marker name, two named payload
+lists in `details`. Nothing exotic, and nothing the server itself interprets.
+
+### The server accepts it from us — the fallback is not needed
+
+The bridge emitted exactly that marker and `RespondWorkflowTaskCompleted` was **accepted**. The
+resulting history is byte-identical to the Go SDK's on all three fields: marker name, change id,
+version.
+
+Task 1.3's fallback — a Durable-owned journal event, at the cost of Temporal UI legibility — is
+therefore **not needed**. A Durable run using this primitive will read in the Temporal UI exactly
+like a Go one.
+
+The machinery also already exists: `TemporalWorkflowCommandBuffer` emits `COMMAND_TYPE_RECORD_MARKER`
+with a `map<string, Payloads>` for side effects and for cancellation delivery. The version marker is
+the same call with a different name and two entries.
+
+### The one difference, and it settles a later task
+
+The Go SDK writes **one more event** that we did not:
+
+```
+EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES
+  TemporalChangeVersion : KeywordList  ["ajout-remise-1"]
+```
+
+`TemporalChangeVersion` is a **standard** Temporal search attribute, and it is queryable as it
+stands:
+
+```
+temporal workflow list --query 'TemporalChangeVersion = "ajout-remise-1"'
+```
+
+This is the answer to "which live executions are still bound to a given behaviour of a change
+point" — the question task 4.3 was going to investigate. **It is a query, not a feature**, provided
+the marker is accompanied by that upsert. Writing the marker without it would work and would silently
+cost the only practical way to know when an old branch can be deleted.
+
+So the upsert is part of the primitive, not an optional extra. Task 2.2 says so.
 
 ## The shape of the primitive
 
