@@ -12,12 +12,12 @@
 
 - [x] 3.1 `WorkflowCommandBufferInterface::scheduleNexusOperation()` carries the headers — **BREAKING**, as DUR031 was : septième paramètre **requis**, pas optionnel, pour qu'aucune implémentation ne l'oublie en silence
 - [x] 3.2 `TemporalWorkflowCommandBuffer` writes them into the command — livrée avec 3.1 : élargir le port sans que le pont n'écrive rien aurait laissé un paramètre accepté puis ignoré, pire que pas de paramètre du tout. Le champ n'est écrit que s'il y a quelque chose à porter — une map vide n'est pas une map absente pour qui relit un historique
-- [ ] 3.3 `TemporalExecutionHistory` reads them back, if anything needs them on replay
+- [x] 3.3 `TemporalExecutionHistory` reads them back, if anything needs them on replay — **rien n'en a besoin, et c'est le verdict de la tâche** : un en-tête voyage vers le handler, il ne revient pas au workflow. Aucun code de relecture n'est donc écrit. Le test d'aller-retour de §4.1 les lit tout de même depuis `NEXUS_OPERATION_SCHEDULED`, ce qui établit qu'ils y sont si cela devait changer
 
 ## 4. Integration
 
-- [ ] 4.1 A header sent through the bridge comes back unchanged in `NEXUS_OPERATION_SCHEDULED`, against a real server
+- [x] 4.1 A header sent through the bridge comes back unchanged in `NEXUS_OPERATION_SCHEDULED`, against a real server — trois cas ajoutés au test d'aller-retour existant plutôt qu'un second fichier : deux en-têtes reviennent inchangés, une clé donnée en majuscules revient identique à ce que l'appelant **tenait** (et non à ce qu'il avait tapé), et l'absence d'en-tête reste une absence
 
 ## 5. Documentation
 
-- [ ] 5.1 Update the `nexus-operations` spec: headers move from `MAY` to a capability actually offered
+- [x] 5.1 Update the `nexus-operations` spec: headers move from `MAY` to a capability actually offered — l'exigence dit désormais que les en-têtes atteignent l'opération **inchangés**, et que la validation des clés a lieu là où on les écrit plutôt que par une réécriture serveur
