@@ -250,7 +250,7 @@ final class OrderWorkflow implements OrderWorkflowContract
         $activities = Workflow::newActivityStub(OrderActivities::class);
 
         $charge = yield $activities->charge($orderId);
-        yield Workflow::sleep(3600);
+        yield Workflow::timer(3600);
 
         return yield $activities->sendReceipt($charge);
     }
@@ -327,7 +327,7 @@ private function chargeWithRetry(string $orderId)
         try {
             return yield $this->activities->charge($orderId);
         } catch (ActivityFailure) {
-            yield Workflow::sleep($backoff);
+            yield Workflow::timer($backoff);
         }
     }
 

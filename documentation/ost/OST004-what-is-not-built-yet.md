@@ -124,9 +124,9 @@ the two surfaces — that is what it is for. **A difference the comparison page 
 is, for most rows, a difference a Rector rule can rewrite**, and for the rest it is a difference a
 Rector rule can *report* precisely enough that a human knows what is left.
 
-**Bucket 1 below is written.** `gplanchat/durable-rector` exists, ships
-`config/sets/temporal-sdk.php`, and is covered by `tests/unit/DurableRector/`. Buckets 2 and 3 are
-still what this section describes rather than what the package does.
+**Buckets 1 and 3 below are written.** `gplanchat/durable-rector` exists, ships
+`config/sets/temporal-sdk.php`, and is covered by `tests/unit/DurableRector/`. Bucket 2 — the
+execution model — is still what this section describes rather than what the package does.
 
 `gplanchat/durable-phpstan` is the precedent for the packaging: a first-party satellite,
 `self.version` against the core, its own `type`, published by splitsh like the rest
@@ -165,31 +165,59 @@ below is its own rule with its own failure mode.
   rule has to **add** a promoted `readonly WorkflowEnvironment $environment` constructor parameter,
   and reconcile with a constructor that is already there. Mechanical, but it edits a part of the
   class the call site never mentions.
-- **Argument shapes that mostly do not change.** `Workflow::sleep(3600)` becomes
-  `$this->environment->sleep(3600)` and stops there: `sleep()` accepts `int|float` as well as
-  `Duration`. Rewriting to `Duration::seconds(3600)` is idiomatic, not required — so it belongs in a
-  second, opt-in set, not in the one a migration runs first. `Workflow::awaitWithTimeout($t, $c)`
-  → `await($c, $t)` is a genuine reordering, and it is the only one.
+- **Arguments that mostly do not change, and one that does.** There is no `Workflow::sleep()` — the
+  SDK's timer is `Workflow::timer()`, and **`yield` is what tells the two apart**: `yield
+  Workflow::timer(X)` waits, so it becomes `$this->environment->sleep(X)`; a bare `Workflow::timer(X)`
+  handed to a race assembles, so it becomes `timer(X)`. The argument itself survives either way —
+  Durable takes `Duration|\DateInterval|\DateTimeInterface|int|float`, and the samples' own
+  `CarbonInterval` is a `\DateInterval`. Rewriting to `Duration::seconds(3600)` is idiomatic, not
+  required, so it belongs in a second opt-in set. `Workflow::awaitWithTimeout($t, $c)` → `await($c,
+  $t)` is a genuine reordering, and it is the only one.
 
 Register: **a bootstrap.** Not because of volume, but because a rule that rewrites return types
 needs a fixture corpus before it needs features.
 
-**Bucket 3 — detect and report, transform nothing.** Cheapest to build, arguably the highest value,
-because it is the bucket that tells a team whether the migration is even available to them.
+**Bucket 3 — detect and report, transform nothing.** Cheapest to build, the highest value, and
+**written**: `UnmigratableTemporalCallRector` comments every call the migration cannot make and
+changes nothing else, so the answer to "is this migration available to us at all" arrives before
+anybody rewrites a line.
 
-| Detected | Why nothing is rewritten |
+**It is an allow-list, and that is the whole design.** `Workflow::` carries some forty static
+methods; `WorkflowEnvironment` answers eight. A deny-list of known-bad names passes in silence every
+method nobody enumerated — including the ones the next SDK release adds. So seven names are
+recognised as *the execution-model half will rewrite this* — `newActivityStub`,
+`newChildWorkflowStub`, `await`, `awaitWithTimeout`, `timer`, `sideEffect`, `continueAsNew` — and
+everything else is reported, with a reason where there is one worth giving.
+
+**Where bucket 3 lives, decided.** In the Rector set, not in `gplanchat/durable-phpstan`. A
+detection with no transformation is a PHPStan rule wearing a Rector costume — but a team runs the
+migration once, and the report is worth least on the day they have to install a second tool to read
+it. One command wins over the tidier taxonomy. The cost is that the report *is* a transformation: a
+comment. It carries a `durable-rector:` marker so a second pass does not stack a second copy, and
+`git checkout` undoes it.
+
+### What the official samples say about this bucket
+
+Run over the 29 workflow classes of
+[`temporalio/samples-php`](https://github.com/temporalio/samples-php) — a corpus Temporal maintains,
+not one chosen here — the rule reports **23 findings in 10 files**:
+
+| Reported | Times |
 |---|---|
-| `Workflow::getVersion()` | No target exists (§4). Until `workflow-versioning` lands, a run using it cannot migrate at all. |
-| `Workflow::newUntypedActivityStub()`, activity-by-name calls | Removed on purpose ([DUR039](../adr/DUR039-workflow-authoring-surface.md)): the typed stub is the only way. The replacement is a contract interface a rule cannot invent. |
-| `Workflow::` reached from a static helper, or from a class with no constructor to inject into | There is no `$this` to route through. |
-| `Workflow::now()`, `Workflow::uuid4()` | `sideEffect()` is the equivalent and the rewrite is mechanical — but it changes *when* the value is captured, which is a review a human owes the code. |
-| Saga helper, Nexus handler | §4. |
+| `Workflow::async()`, `Workflow::asyncDetached()` | 4 |
+| `Workflow::runLocked()`, `new Mutex` | 4 |
+| `Workflow::getInfo()`, `Workflow::getCurrentContext()` | 4 |
+| `Workflow::executeActivity()` (activity by name — [DUR039](../adr/DUR039-workflow-authoring-surface.md)) | 3 |
+| `Workflow::allHandlersFinished()` | 2 |
+| `new Saga` | 2 |
+| `upsertSearchAttributes()`, `now()`, `newContinueAsNewStub()`, `isReplaying()` | 1 each |
 
-**Whether bucket 3 is a Rector set at all** is worth one line: `gplanchat/durable-phpstan` already
-exists to report on code without changing it, and a detection with no transformation is a PHPStan
-rule wearing a Rector costume. The counter-argument is that a team runs the migration set once and
-wants one command; splitting the report across two tools they must both install is a worse first
-five minutes. Undecided, and cheap either way.
+**`Workflow::getVersion()` appears zero times**, and this document named it as the hard blocker. It
+is still the one with no target at all, but it is not what a migration actually hits. What it hits
+is the coroutine, mutex and introspection group — `async`, `runLocked`, `getInfo` — none of which
+has a Durable counterpart, and none of which is a *rewrite*: a workflow built on `async()` and
+`runLocked()` is a redesign, not a long migration. That is a better thing to learn from a corpus
+than from a list of predictions, and it is why the rule was pointed at one.
 
 ### Two constraints that decide the shape
 
@@ -225,7 +253,7 @@ only one the buckets support.
 |---|---|---|
 | Bucket 1 — attributes and the failure map | Wiring | **Done** — `gplanchat/durable-rector` |
 | Bucket 2 — colour removal, receiver injection | A bootstrap | Nothing technical; a fixture corpus first |
-| Bucket 3 — the report | Wiring | Its home (Rector or PHPStan), and **`workflow-versioning`** for the `getVersion()` row to say anything but "you cannot" |
+| Bucket 3 — the report | Wiring | **Done** — in the Rector set; the `getVersion()` line still says "you cannot" until **`workflow-versioning`** lands |
 
 ---
 
@@ -243,7 +271,7 @@ available.
 | ~~Rector bucket 1~~ | Wiring | **Done** |
 | API Platform state processor | Wiring | — |
 | Shopware 6, Sulu | Wiring | A real user |
-| Rector bucket 3 | Wiring | Its home; `workflow-versioning` for one row |
+| ~~Rector bucket 3~~ | Wiring | **Done** |
 | `workflow-versioning` | A probe, then wiring | `workflow-replay-divergence-guard` |
 | Rector bucket 2 | A bootstrap | A fixture corpus |
 | Magento | A bootstrap | — |

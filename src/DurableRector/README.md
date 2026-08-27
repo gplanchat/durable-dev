@@ -22,6 +22,7 @@ return Rector\Config\RectorConfig::configure()
 | `ActivityContractAttributesRector` | `#[ActivityInterface(prefix:)]` → `#[Activity(name:)]`, and every public method gets an explicit `#[ActivityMethod(name:)]` |
 | `WorkflowClassAttributesRector` | `#[WorkflowInterface]` and the four method attributes are **copied from the interface onto the implementing class**, where Durable reads them |
 | `RenameClassRector` (configured) | The three SDK failures with a Durable counterpart |
+| `UnmigratableTemporalCallRector` | Comments every call the migration **cannot** make, and changes nothing else |
 
 ### Why the names are the whole point
 
@@ -45,6 +46,24 @@ The SDK attributes stay on the interface. A rule cannot read an attribute anothe
 deleted in the same pass, and leaving them costs nothing — Durable ignores them, and
 `composer remove temporal/sdk` is the honest forcing function for the cleanup.
 
+### The report: what cannot be migrated at all
+
+`UnmigratableTemporalCallRector` writes a `durable-rector:` comment above any statement calling a
+`Workflow::` method Durable has no answer for, and leaves the code untouched. It answers the
+question that comes *before* the migration — a workflow built on `Workflow::async()` and
+`Workflow::runLocked()` is a redesign, not a long rewrite — and `git checkout` undoes it.
+
+It works from an **allow-list**: seven facade methods are recognised as ones the execution-model
+half will rewrite (`newActivityStub`, `newChildWorkflowStub`, `await`, `awaitWithTimeout`, `timer`,
+`sideEffect`, `continueAsNew`), and **everything else is reported**. `Workflow::` carries some forty
+static methods and `WorkflowEnvironment` answers eight; a deny-list would pass in silence every one
+nobody enumerated, the next SDK release included.
+
+Run against [`temporalio/samples-php`](https://github.com/temporalio/samples-php), it reports 23
+findings across 10 of the 29 workflow classes — coroutines (`async`, `asyncDetached`), the mutex
+(`runLocked`, `Mutex`), run introspection (`getInfo`, `getCurrentContext`, `isReplaying`), the saga
+helper, activity-by-name, and in-run search attributes.
+
 ## What it does not do
 
 **The execution model.** After this set has run, `yield` is still `yield` and `Workflow::` is still a
@@ -53,10 +72,10 @@ static call. Those two need what a rename cannot supply: a receiver the source c
 (the method returned a `Generator`). See
 [OST004 §6](../../documentation/ost/OST004-what-is-not-built-yet.md) for the shape of that work.
 
-**Anything with no counterpart.** `Workflow::getVersion()` has no target at all until workflow
-versioning lands; `Workflow::newUntypedActivityStub()` and activity-by-name calls were removed on
-purpose ([DUR039](../../documentation/adr/DUR039-workflow-authoring-surface.md)). Reporting those is
-listed in OST004 and is not in this package yet.
+**Anything with no counterpart** — it reports those rather than pretending. `Workflow::getVersion()`
+has no target at all until workflow versioning lands; `Workflow::newUntypedActivityStub()` and
+activity-by-name calls were removed on purpose
+([DUR039](../../documentation/adr/DUR039-workflow-authoring-surface.md)).
 
 ## Development
 
