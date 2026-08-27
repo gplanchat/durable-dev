@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\Exception\DurableChildWorkflowFailedException;
-use Gplanchat\Durable\Exception\WorkflowCancelledException;
+use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Rector\Rector\ActivityContractAttributesRector;
 use Gplanchat\Durable\Rector\Rector\WorkflowClassAttributesRector;
 use Rector\Config\RectorConfig;
@@ -28,5 +28,7 @@ return RectorConfig::configure()
         // neighbour would silently change which catch block wins.
         'Temporal\Exception\Failure\ActivityFailure' => DurableActivityFailedException::class,
         'Temporal\Exception\Failure\ChildWorkflowFailure' => DurableChildWorkflowFailedException::class,
-        'Temporal\Exception\Failure\CanceledFailure' => WorkflowCancelledException::class,
+        // WorkflowCancelledFailure, not WorkflowCancelledException: the second is what the engine
+        // throws at its host to stop redelivering a resume, and no workflow catches it.
+        'Temporal\Exception\Failure\CanceledFailure' => WorkflowCancelledFailure::class,
     ]);
