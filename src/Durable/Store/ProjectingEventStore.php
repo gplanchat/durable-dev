@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Bridge\Dbal\Store;
+namespace Gplanchat\Durable\Store;
 
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
+use Gplanchat\Durable\Observation\WorkflowRunProjectionInterface;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
-use Gplanchat\Durable\Store\EventStoreInterface;
 
 /**
  * Décore le journal pour y lire l'issue des exécutions.
@@ -28,7 +28,7 @@ final class ProjectingEventStore implements EventStoreInterface
 {
     public function __construct(
         private readonly EventStoreInterface $inner,
-        private readonly DbalWorkflowRunProjection $projection,
+        private readonly WorkflowRunProjectionInterface $projection,
     ) {}
 
     public function append(Event $event): void
