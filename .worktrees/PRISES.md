@@ -20,4 +20,3 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
-| `docs/fix-dur037-duplicate` | — | réparer le doublon DUR037 | en cours |
