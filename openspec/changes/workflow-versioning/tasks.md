@@ -2,20 +2,25 @@
 
 ## 1. Find out what the server already records
 
-- [ ] 1.1 Probe: run a versioned workflow against a real server using an official SDK, dump the
-      history, and record exactly which event carries the version and what it holds.
-- [ ] 1.2 Probe: emit that same event from the Durable bridge and confirm the server accepts it
-      from a client that is not an official SDK.
-- [ ] 1.3 If 1.2 fails, record the failure and fall back to a Durable-owned journal event — and
-      state in `design.md` that Temporal UI legibility was lost, and why.
-- [ ] 1.4 Replace this design's assumption section with what 1.1–1.3 found.
+- [x] 1.1 A versioned workflow written with the **Go SDK** and run against a real server. The
+      version travels in `EVENT_TYPE_MARKER_RECORDED`, `markerName: "Version"`, with `details`
+      carrying `change-id` and `version` as `json/plain` payload lists.
+- [x] 1.2 The bridge emitted exactly that marker and the server **accepted** it. The resulting
+      history is byte-identical to the Go SDK's on marker name, change id and version.
+- [x] 1.3 **Not needed.** 1.2 succeeded, so the Durable-owned fallback and its loss of Temporal UI
+      legibility do not apply. Recorded as a finding rather than a decision deferred.
+- [x] 1.4 `design.md`'s assumption section replaced by what was measured — including the difference
+      found on the way: the Go SDK also upserts the standard `TemporalChangeVersion` search
+      attribute, which is what makes "who is still on version N" a query rather than a feature.
+      That moved work **into** the primitive (2.2) and **out of** 4.3.
 
 ## 2. The primitive
 
 - [ ] 2.1 RED: a run reaches the marker on old code, is replayed on new code, and still sees the
       old version. Two workflow classes, one history.
 - [ ] 2.2 GREEN: the marker on the authoring surface, the event in the journal, resolution from
-      history on replay.
+      history on replay — **and the `TemporalChangeVersion` upsert alongside the marker**, without
+      which the only practical way to know when an old branch can be deleted is lost silently.
 - [ ] 2.3 RED/GREEN: a run reaching the marker for the first time on new code sees the new version
       and records it.
 - [ ] 2.4 RED/GREEN: the same run replayed twice sees the same version twice.
@@ -33,8 +38,12 @@
 
 - [ ] 4.1 The same three behaviours on the DBAL backend.
 - [ ] 4.2 Integration suite against a real server, green.
-- [ ] 4.3 Check whether the run observation projection can already answer "which live runs recorded
-      version N of change point X". If it can, no feature is needed — document the query.
+- [x] 4.3 Answered by the probe, and not where it was expected: the **server** answers it, through
+      the standard `TemporalChangeVersion` search attribute the Go SDK upserts beside the marker.
+      `temporal workflow list --query 'TemporalChangeVersion = "<change-id>-<version>"'` was run and
+      returns the matching executions. No feature — a query, conditional on 2.2 writing the upsert.
+      On the journal backends, which have no search attributes, this stays an open question and the
+      user page should say so.
 
 ## 5. Say it in the documentation
 
