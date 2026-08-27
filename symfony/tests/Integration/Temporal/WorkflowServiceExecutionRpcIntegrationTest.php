@@ -75,7 +75,7 @@ final class WorkflowServiceExecutionRpcIntegrationTest extends TestCase
         $rpc = new WorkflowServiceExecutionRpc(self::$client);
 
         $req = new QueryWorkflowRequest();
-        $req->setNamespace(self::$connection->namespace);
+        $req->setNamespace((string) self::$connection->namespace);
         $req->setExecution(new WorkflowExecution([
             'workflow_id' => 'durable-rpc-missing-'.uniqid('', true),
             'run_id' => '',
