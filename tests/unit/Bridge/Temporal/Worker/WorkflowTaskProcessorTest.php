@@ -9,6 +9,7 @@ use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
+use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
 use Grpc\UnaryCall;
@@ -294,21 +295,13 @@ final class WorkflowTaskProcessorTest extends TestCase
 
     public function testQueryIsAnsweredInResponse(): void
     {
+        // Une classe, et une query déclarée par attribut : c'est la seule forme désormais.
+        // L'enregistrement impératif depuis une closure court-circuitait la déclaration, et le
+        // moteur n'a plus de verbe à lui prêter pour ça.
         $registry = new WorkflowRegistry();
-        $registry->registerFactory(
-            'QueryableWorkflow',
-            static fn(array $payload)
-            => static function (WorkflowEnvironment $env): string {
-                $env->registerQueryHandler('getStatus', static fn() => 'running');
+        $registry->registerClass(QueryableWorkflow::class);
 
-                // Suspend workflow (condition nothing satisfies in this task)
-                $env->await(static fn(): bool => false);
-
-                return 'completed';
-            },
-        );
-
-        $poll = self::buildPoll('token-query', 'wf-4', 'QueryableWorkflow', [
+        $poll = self::buildPoll('token-query', 'wf-4', 'queryable', [
             self::makeStarted(1),
         ], ['q1' => 'getStatus']);
 
@@ -394,5 +387,197 @@ final class WorkflowTaskProcessorTest extends TestCase
         });
 
         self::assertSame(3, $callCount);
+    }
+
+    public function testAnsweringAQueryLeavesTheCommandsUntouched(): void
+    {
+        // Répondre à une query ne doit rien changer à l'exécution : le même poll, avec et sans
+        // query, produit les mêmes commandes. C'est ce qui rend la query rejouable — elle n'inscrit
+        // aucun fait dont un replay aurait à tenir compte.
+        //
+        // Lu dans le code, ce serait un argument. Ici c'est une assertion, et c'est la différence.
+        $registry = new WorkflowRegistry();
+        $registry->registerClass(QueryableSchedulingWorkflow::class);
+
+        $withQuery = self::buildPoll('token-q-yes', 'wf-6', 'queryable-scheduling', [
+            self::makeStarted(1),
+        ], ['q3' => 'getStatus']);
+
+        $withoutQuery = self::buildPoll('token-q-no', 'wf-6', 'queryable-scheduling', [
+            self::makeStarted(1),
+        ]);
+
+        $this->grpcClient->method('PollWorkflowTaskQueue')
+            ->willReturnOnConsecutiveCalls(
+                $this->makeUnaryCallReturning($withQuery),
+                $this->makeUnaryCallReturning($withoutQuery),
+            );
+
+        $captured = [];
+        $this->grpcClient->method('RespondWorkflowTaskCompleted')
+            ->willReturnCallback(function (RespondWorkflowTaskCompletedRequest $req) use (&$captured) {
+                $captured[] = $req;
+
+                return $this->makeUnaryCallReturning(new RespondWorkflowTaskCompletedResponse());
+            });
+
+        $processor = $this->makeProcessor($registry);
+        $processor->processOne();
+        $processor->processOne();
+
+        self::assertCount(2, $captured);
+        self::assertSame(
+            self::serializedCommands($captured[1]),
+            self::serializedCommands($captured[0]),
+        );
+
+        self::assertSame(
+            QueryResultType::QUERY_RESULT_TYPE_ANSWERED,
+            $captured[0]->getQueryResults()['q3']->getResultType(),
+        );
+        self::assertCount(0, $captured[1]->getQueryResults());
+    }
+
+    public function testAQueryHandlerThatRaisesFailsTheQueryAndNotTheExecution(): void
+    {
+        $registry = new WorkflowRegistry();
+        $registry->registerClass(RaisingQueryWorkflow::class);
+
+        $poll = self::buildPoll('token-q-raise', 'wf-8', 'queryable-raising', [
+            self::makeStarted(1),
+        ], ['q4' => 'getStatus']);
+
+        $capturedRequest = null;
+        $this->grpcClient->method('PollWorkflowTaskQueue')
+            ->willReturn($this->makeUnaryCallReturning($poll));
+        $this->grpcClient->method('RespondWorkflowTaskCompleted')
+            ->willReturnCallback(function (RespondWorkflowTaskCompletedRequest $req) use (&$capturedRequest) {
+                $capturedRequest = $req;
+
+                return $this->makeUnaryCallReturning(new RespondWorkflowTaskCompletedResponse());
+            });
+
+        $processor = $this->makeProcessor($registry);
+        $processor->processOne();
+
+        self::assertNotNull($capturedRequest);
+        self::assertSame(
+            QueryResultType::QUERY_RESULT_TYPE_FAILED,
+            $capturedRequest->getQueryResults()['q4']->getResultType(),
+        );
+
+        // L'exécution poursuit son chemin : la commande qu'elle avait à émettre part quand même.
+        self::assertCount(1, $capturedRequest->getCommands());
+        self::assertSame(
+            CommandType::COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK,
+            $capturedRequest->getCommands()[0]->getCommandType(),
+        );
+    }
+
+    /**
+     * Les commandes d'une réponse, sérialisées, identifiants d'activité neutralisés.
+     *
+     * L'identifiant est un UUIDv7 tiré à chaque exécution : deux exécutions de la même task ne
+     * peuvent pas être identiques au bit près, et ce n'est pas ce qu'on cherche à établir. Tout le
+     * reste — type de commande, nom d'activité, file, charge utile, délais — doit l'être.
+     *
+     * @return list<string>
+     */
+    private static function serializedCommands(RespondWorkflowTaskCompletedRequest $request): array
+    {
+        $serialized = [];
+        foreach ($request->getCommands() as $command) {
+            // Les charges utiles voyagent en base64 : sans les décoder, l'identifiant qu'elles
+            // répètent échapperait à la neutralisation et la comparaison ne dirait plus rien.
+            $readable = (string) preg_replace_callback(
+                '/"data":"([A-Za-z0-9+\/=]+)"/',
+                static fn(array $m): string => '"data":"' . base64_decode($m[1], true) . '"',
+                $command->serializeToJsonString(),
+            );
+
+            $serialized[] = (string) preg_replace(
+                '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/',
+                '<uuid>',
+                $readable,
+            );
+        }
+
+        return $serialized;
+    }
+}
+
+#[\Gplanchat\Durable\Attribute\Workflow(name: 'queryable')]
+final class QueryableWorkflow
+{
+    public function __construct(
+        private readonly WorkflowEnvironment $environment,
+    ) {}
+
+    #[\Gplanchat\Durable\Attribute\QueryMethod('getStatus')]
+    public function status(): string
+    {
+        return 'running';
+    }
+
+    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    public function run(): string
+    {
+        // Suspend sur une condition que rien ne satisfait dans cette task, ce qui laisse la query
+        // être posée sur une exécution encore en cours.
+        $this->environment->await(static fn(): bool => false);
+
+        return 'completed';
+    }
+}
+
+/**
+ * Une exécution qui émet une commande *et* répond à une query : sans la commande, comparer les
+ * réponses avec et sans query reviendrait à comparer deux listes vides.
+ */
+#[\Gplanchat\Durable\Attribute\Workflow(name: 'queryable-scheduling')]
+final class QueryableSchedulingWorkflow
+{
+    private readonly ActivityStub $greetings;
+
+    public function __construct(
+        private readonly WorkflowEnvironment $environment,
+    ) {
+        $this->greetings = $environment->activityStub(SuiteActivities::class);
+    }
+
+    #[\Gplanchat\Durable\Attribute\QueryMethod('getStatus')]
+    public function status(): string
+    {
+        return 'running';
+    }
+
+    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    public function run(): string
+    {
+        return $this->environment->await($this->greetings->greet('World'));
+    }
+}
+
+#[\Gplanchat\Durable\Attribute\Workflow(name: 'queryable-raising')]
+final class RaisingQueryWorkflow
+{
+    private readonly ActivityStub $greetings;
+
+    public function __construct(
+        private readonly WorkflowEnvironment $environment,
+    ) {
+        $this->greetings = $environment->activityStub(SuiteActivities::class);
+    }
+
+    #[\Gplanchat\Durable\Attribute\QueryMethod('getStatus')]
+    public function status(): string
+    {
+        throw new \RuntimeException('cette query ne sait pas répondre');
+    }
+
+    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    public function run(): string
+    {
+        return $this->environment->await($this->greetings->greet('World'));
     }
 }

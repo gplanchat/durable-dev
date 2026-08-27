@@ -112,7 +112,7 @@ final class WorkflowTaskRunner
         // dernière commande, et un update traité débloque justement souvent la complétion.
         $reply = UpdateProtocol::reply($inboundUpdates);
 
-        return new WorkflowTaskResult([...$reply['commands'], ...$commands], $environment, $reply['messages']);
+        return new WorkflowTaskResult([...$reply['commands'], ...$commands], $context->queryHandlers(), $reply['messages']);
     }
 
     private function resolveExecutionId(
