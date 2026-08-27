@@ -22,7 +22,7 @@
 
 ## 4. Temporal backend
 
-- [ ] 4.1 Build `ScheduleNexusOperation` in `TemporalWorkflowCommandBuffer`, bounds and headers included — **commande et bornes faites** : les trois bornes ne partent que si le domaine en porte une (le serveur n'applique aucun défaut, §1.3), l'infini part en `0`, et l'entrée est **un** `Payload` et non un `Payloads` comme pour une activité. **Les en-têtes restent à faire** : rien côté domaine n'en porte, et c'est le port de §3.4 qui devra les transporter — les ajouter ici sans source serait un champ vide déguisé en fonctionnalité
+- [~] 4.1 Build `ScheduleNexusOperation` in `TemporalWorkflowCommandBuffer`, bounds and headers included — **commande et bornes faites et prouvées contre un vrai serveur** ; les en-têtes sont **reportées** dans le change `nexus-operation-headers`. Rien côté domaine n'en porte, et le port de §3.4 devrait les transporter : les ajouter ici sans source serait un champ vide déguisé en fonctionnalité
 - [x] 4.2 Build `RequestCancelNexusOperation` using the real scheduled event id read from history — débloquée par 4.3 ; une opération absente de l'historique n'émet rien, un eventId inventé faisant rejeter la tâche entière
 - [x] 4.3 Read the nine `NEXUS_OPERATION_*` events in `TemporalExecutionHistory`, keyed by scheduled event id — planification (identité relue du payload d'entrée, faute de champ dédié côté Temporal) et les quatre états terminaux. Les trois événements d'annulation et `STARTED` restent hors périmètre (§4.5)
 - [x] 4.4 Convert those events in `TemporalEventConverter` so the profiler and the read-through store show them — cinq événements de domaine (`NexusOperationScheduled` et les quatre états terminaux), rattachés par l'`eventId` de la planification, qui est la clé dont Temporal se sert lui-même. `NEXUS_OPERATION_STARTED` et les trois événements d'annulation ne sont pas convertis : le premier relève de §4.5, les autres n'ajoutent rien au profil tant que l'annulation n'est pas construite (§4.2)
@@ -37,10 +37,16 @@
 
 - [x] 6.1 Document the endpoint prerequisite at the top of the test, as the search-attribute suite documents its two attributes — avec une différence assumée : le test **crée et supprime** son endpoint, un nom d'endpoint étant unique pour le cluster entier. L'équivalent manuel est donné pour qui veut reproduire à la main
 - [x] 6.2 Schedule an operation and assert the round trip through history — la commande est construite **par le tampon du pont**, pas à la main : c'est ce qui prouve que §4.1 est acceptée par un vrai serveur. Trois cas — les trois noms et les trois bornes reviennent inchangés, l'entrée survit, et l'absence de borne reste une absence
-- [ ] 6.3 Assert cancellation reaches the server with the real scheduled event id
-- [ ] 6.4 Assert a failed operation surfaces to the workflow with its origin named
+- [x] 6.3 Assert cancellation reaches the server with the real scheduled event id — le tampon relit l'historique de la tâche courante ; un signal force la tâche où poser l'annulation, faute de worker servant l'endpoint
+- [x] 6.4 Assert a failed operation surfaces to the workflow with its origin named — a révélé que §3.6 et §4.3 n'étaient pas reliés : la lecture rendait des `RuntimeException` nues, donc la branche Nexus du classificateur était morte. Le site d'appel est désormais retenu de `NEXUS_OPERATION_SCHEDULED`, seul événement qui le porte
 
 ## 7. Documentation
 
 - [x] 7.1 ADR recording the caller-only scope, the backend asymmetry, and why the handler side is a separate change — **DUR036** (le doublon DUR035 qui avait motivé ce saut est depuis résolu : la plus récente des deux est devenue DUR037). L'ADR s'ouvre sur les quatre mesures serveur, parce que ce sont elles qui ont donné leur forme aux décisions
 - [x] 7.2 Update `documentation/INDEX.md` — DUR036 y était déjà ; l'entrée était en revanche à réparer, `DUR035` désignant deux ADR distinctes
+
+---
+
+**Archivé le 2026-08-27**, une entrée reportée. Les en-têtes Nexus de §4.1 sortent dans le change
+`nexus-operation-headers` : la spec publiée les dit `MAY`, et elles n'ont pas de consommateur tant
+que le côté handler n'existe pas. Tout le reste est livré et vérifié contre un serveur réel.

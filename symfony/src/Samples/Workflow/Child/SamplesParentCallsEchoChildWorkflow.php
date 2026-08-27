@@ -19,6 +19,8 @@ final class SamplesParentCallsEchoChildWorkflow
     #[WorkflowMethod]
     public function run(string $text = 'child'): mixed
     {
-        return $this->environment->childWorkflowStub(SamplesEchoChildWorkflow::class)->run($text);
+        return $this->environment->await(
+            $this->environment->childWorkflowStub(SamplesEchoChildWorkflow::class)->run($text),
+        );
     }
 }

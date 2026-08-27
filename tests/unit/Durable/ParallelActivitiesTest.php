@@ -10,11 +10,12 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Verifies parallel activity execution via WorkflowEnvironment::all() / parallel().
  *
- * Key property under test: when a workflow calls `all($env->activity('a'), $env->activity('b'))`,
+ * Key property under test: when a workflow calls `all($a, $b)` sur deux requêtes de stub,
  * both schedule commands must be issued in the SAME workflow task (before the first fiber suspend),
  * and both results must be available when both activities have completed.
  */
@@ -44,8 +45,8 @@ final class ParallelActivitiesTest extends TestCase
 
         $result = $this->runner->run('parallel-test-1', static function (WorkflowEnvironment $env): array {
             return $env->await($env->all(
-                $env->activity('double', ['value' => 3]),
-                $env->activity('square', ['value' => 4]),
+                $env->activityStub(SuiteActivities::class)->double(3),
+                $env->activityStub(SuiteActivities::class)->square(4),
             ));
         });
 
@@ -61,9 +62,9 @@ final class ParallelActivitiesTest extends TestCase
 
         $result = $this->runner->run('parallel-test-2', static function (WorkflowEnvironment $env): array {
             return $env->await($env->all(
-                $env->activity('add', ['a' => 1, 'b' => 2]),
-                $env->activity('add', ['a' => 3, 'b' => 4]),
-                $env->activity('add', ['a' => 5, 'b' => 6]),
+                $env->activityStub(SuiteActivities::class)->add(1, 2),
+                $env->activityStub(SuiteActivities::class)->add(3, 4),
+                $env->activityStub(SuiteActivities::class)->add(5, 6),
             ));
         });
 
@@ -84,8 +85,8 @@ final class ParallelActivitiesTest extends TestCase
         });
 
         $result = $this->runner->run('parallel-test-3', static function (WorkflowEnvironment $env): array {
-            $a = $env->activity('task', ['name' => 'x']);
-            $b = $env->activity('task', ['name' => 'y']);
+            $a = $env->activityStub(SuiteActivities::class)->task('x');
+            $b = $env->activityStub(SuiteActivities::class)->task('y');
 
             return $env->await($env->all($a, $b));
         });
@@ -103,10 +104,10 @@ final class ParallelActivitiesTest extends TestCase
         $this->executor->register('id', static fn(array $p) => $p['v'] ?? null);
 
         $result = $this->runner->run('parallel-test-4', static function (WorkflowEnvironment $env): array {
-            $first = $env->await($env->activity('id', ['v' => 'seq']));
+            $first = $env->await($env->activityStub(SuiteActivities::class)->id('seq'));
             $parallel = $env->await($env->all(
-                $env->activity('id', ['v' => 'p1']),
-                $env->activity('id', ['v' => 'p2']),
+                $env->activityStub(SuiteActivities::class)->id('p1'),
+                $env->activityStub(SuiteActivities::class)->id('p2'),
             ));
 
             return ['first' => $first, 'parallel' => $parallel];
