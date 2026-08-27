@@ -20,4 +20,5 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
-| `docs/temporal-sdk-comparison` | comparatif SDK Temporal | `documentation/user/comparison/` | en cours |
+| `docs/comparison-time-skipping-and-saga` | comparatif SDK Temporal | lignes time skipping + saga | en cours |
+| `change/workflow-replay-divergence-guard` | garde de divergence au replay | proposition | en cours |
