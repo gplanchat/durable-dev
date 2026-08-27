@@ -21,8 +21,8 @@
 
 - [x] 3.1 `WorkflowTaskResult` carries the registry, keeping the protocol-messages field.
 - [x] 3.2 `WorkflowTaskProcessor::handleQueries()` takes the registry.
-- [x] 3.3 Verify both FAILED branches survive: unknown query and throwing handler.
-- [x] 3.4 Verify the query path still journals nothing.
+- [x] 3.3 Verify both FAILED branches survive: unknown query and throwing handler — each has a test.
+- [x] 3.4 Assert the query path changes nothing: the same task, polled with and without a query, produces the same commands.
 
 ## 4. Pin the decision
 
@@ -44,7 +44,7 @@
 
 ## 6. Verify
 
-- [x] 6.1 Unit suite green (526 tests).
+- [x] 6.1 Unit suite green (528 tests).
 - [x] 6.2 PHPStan clean.
 - [x] 6.3 `php-cs-fixer` clean.
 - [ ] 6.4 Integration suite against a real Temporal server. **Not run here** — needs a live server.
