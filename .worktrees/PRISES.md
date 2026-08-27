@@ -20,4 +20,3 @@ Une ligne : `<branche> — <chantier> <entrées> — <état>`
 
 | Branche | Chantier | Entrées | État |
 |---|---|---|---|
-| `docs/site-five-packages` | — | page d'accueil : cinq paquets au lieu de trois | en cours |
