@@ -41,7 +41,13 @@
       at all; `childWorkflowTypes` now runs alongside `childExecutionIds`. The execution id is
       deliberately not compared: it is generated, so a faithful replay would diverge every time.
       The three call sites share one rule, `refuseDivergence()`.
-- [ ] 2.6 Timers: 1.4 found no identity to compare. A test that documents the gap.
+- [x] 2.6 Timers: 1.4 found no identity to compare, and the gap is pinned rather than filled.
+      `TimerSlotHasNoIdentityTest` holds three things: the behaviour as it is — a changed duration
+      replays and nothing is reported; the reason — `scheduledAt` is an **absolute** instant, so two
+      timers of different durations scheduled at different moments can carry the same one, and
+      `summary` is optional; and what **bounds** the gap — a slot shift escapes the guard only if it
+      touches timers alone, since any activity moving with it is caught by name.
+      The third is the one that matters: without it, the gap reads as unbounded.
 
 ## 3. The failure is legible
 
