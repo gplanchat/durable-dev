@@ -57,7 +57,7 @@ final class NativeExecutionSpikeIntegrationTest extends TestCase
 
         self::assertNotSame('', $runId);
 
-        $merger = new HistoryPageMerger(self::$workflowClient, self::$connection->namespace);
+        $merger = new HistoryPageMerger(self::$workflowClient, (string) self::$connection->namespace);
         $exec = new WorkflowExecution();
         $exec->setWorkflowId($workflowId);
         $exec->setRunId($runId);

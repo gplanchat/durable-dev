@@ -51,7 +51,8 @@
       reasons that predate this change.** A live server was available (`temporal server start-dev`,
       `127.0.0.1:7233`, namespace `default`); the suite was run from the primary copy, whose
       `symfony/vendor/gplanchat/*` are symlinks onto `src/`, so it did test this tree:
-      `Tests: 13, Assertions: 9, Errors: 8, Skipped: 1`. The eight split into exactly two causes,
+      `Tests: 13, Assertions: 9, Errors: 8, Skipped: 1` — since reduced to **six errors, one
+      cause**, 7.2 and 7.3 having been repaired. The eight split into exactly two causes,
       neither of them this change's: six on a class that does not exist, two on a value object
       passed where a string is expected. Nothing in them touches the query registry — the one
       query-shaped test dies on the namespace type before it reaches a query. See §7. The tick
@@ -69,15 +70,19 @@ not in `src/`, not on any remote branch, and nowhere in the history (`git log --
 scratch worktree. Decide whether those tests describe work that was never merged, or work that was
 renamed: `TemporalJournalEventStore` is the only event store the bridge has today.
 
-**7.2 — two call sites left behind by `WorkflowNamespace`.** `TemporalConnection::$namespace` is a
+**7.2 — repaired.** Two call sites left behind by `WorkflowNamespace`: `TemporalConnection::$namespace` is a
 value object, and two integration tests still hand it where a string is required:
 `NativeExecutionSpikeIntegrationTest:60` (`HistoryPageMerger::__construct()`, a `TypeError`) and
 `WorkflowServiceExecutionRpcIntegrationTest:78` (protobuf's `setNamespace()`,
-`InvalidArgumentException: Expect string`). The remaining **two** errors.
+`InvalidArgumentException: Expect string`). The remaining **two** errors; both tests now pass
+against a live server.
 
-**7.3 — the CI job is green while testing nothing.** "Tests d'intégration Temporal (gRPC + Temporal
+**7.3 — repaired.** The CI job was green while testing nothing: "Tests d'intégration Temporal (gRPC + Temporal
 auto-setup)" reports `Tests: 13, Assertions: 3, Skipped: 10` in **45 ms**: every server-touching
 test skips at `setUpBeforeClass` before a single RPC, leaving only the DI-wiring kernel tests. The
-gate has reported success through 7.1 and 7.2 for as long as they have existed. Find why the socket
-check fails there — `symfony/compose.yaml` does publish `7233` — or the suite will keep passing by
-not running.
+gate had reported success through 7.1 and 7.2 for as long as they have existed. The cause was a port:
+tracked `symfony/.env` publishes the frontend on `7234`, to sit beside a local Temporal on `7233`,
+while the job's DSN aimed at `7233`. The job now pins `TEMPORAL_FRONTEND_PORT`, waits for the
+facade before running, and drops the `--group` filters — which had been excluding
+`TemporalDashboardTimelineGroupingTest`, a test that carries no group and therefore ran nowhere.
+The job is now **red**, on 7.1 alone, and it is not a required check on `main`.
