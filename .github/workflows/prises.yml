@@ -14,6 +14,7 @@ on:
     paths:
       - '.worktrees/prises/**'
       - 'bin/prises-check.sh'
+      - 'bin/prises-check-test.sh'
       - '.github/workflows/prises.yml'
   schedule:
     - cron: '17 6 * * *'
@@ -33,6 +34,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Avant d'interroger le distant : le contrôle se contrôle lui-même, hors-ligne. Sa première
+      # version déclarait périmée une prise vivante, et rien ne l'avait vu venir.
+      - name: Contrôler le contrôle
+        run: bin/prises-check-test.sh
 
       - name: Contrôler le registre
         env:
