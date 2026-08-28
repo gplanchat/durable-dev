@@ -50,7 +50,10 @@ final class ActivityMessageCodecTest extends TestCase
     public function testTheEncodedFormIsAStringMagentoCanCarry(): void
     {
         $encoded = (new ActivityMessageCodec())->encode(new ActivityMessage(
-            'e', 'a', 'n', ['nested' => ['deep' => ['x' => 1]]],
+            'e',
+            'a',
+            'n',
+            ['nested' => ['deep' => ['x' => 1]]],
         ));
 
         self::assertJson($encoded);

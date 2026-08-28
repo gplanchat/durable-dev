@@ -111,6 +111,15 @@ unmeasured.
       ⚠ **The 4.1/4.2 split moves**: `setup:upgrade` refuses a consumer whose handler method it
       cannot resolve, so a declaration cannot land inert. 4.1 carries real handlers for the roles it
       declares; 4.2 adds the remaining roles.
+      **The codec is built and gated** — `ActivityMessage` ⇄ JSON, refusing `options` and
+      `retryDelay` **by name** rather than dropping them. Measured first: a plain activity carries
+      neither.
+      ⛔ **attend:auteur — la suite de la tâche 4 est un arbitrage, pas un détail.**
+      `ResumeWorkflowHandler` is **138 lines with 15 core imports** (and `FireWorkflowTimersHandler`
+      86 more): that is the engine's resume orchestration living in the Symfony bundle, not a host
+      adapter. Magento must either duplicate those 224 lines — two copies of the resume semantics,
+      drifting on the first fix — or they move to `gplanchat/durable`, the same move already made
+      twice but an order of magnitude larger, touching a class every Symfony user runs.
 - [ ] 4.2 The five roles `DurableBundle` covers with handlers: resume, activity run, signal
       delivery, update delivery, timer fire.
 - [ ] 4.3 **One resume at a time.** The per-execution lock over `LockManagerInterface`, and a test

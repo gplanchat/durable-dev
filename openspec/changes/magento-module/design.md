@@ -221,6 +221,43 @@ The class imported nothing from Symfony — timer events and the event-store por
 files name the bundle, all in `@see` blocks that never load, and the guard tolerates those: one test
 now walks the 183 files of `src/Durable` and fails on any real `use` of a host or a bridge.
 
+### The codec, and what task 4 turns out to cost — §4.1
+
+The codec §4.1 designed is written and gated: `ActivityMessage` ⇄ JSON, with the rule the encoder
+measurement earned — **what it cannot round-trip, it names**. `options` and `retryDelay` are refused
+rather than dropped, because a message that loses its retry policy comes back looking healthy and
+behaves differently. Measured first, so the refusal costs nothing today: a plain activity carries
+`options: NULL` and `retryDelay: NULL`.
+
+**And then the rest of task 4 turned out not to be adapter work.** The five roles are not five thin
+handlers:
+
+| handler | lines | core imports |
+|---|---|---|
+| `ActivityRunHandler` | 23 | thin — a wrapper over `ActivityMessageProcessor` |
+| `DeliverWorkflowSignalHandler` | 31 | thin |
+| `DeliverWorkflowUpdateHandler` | 34 | thin |
+| `FireWorkflowTimersHandler` | 86 | orchestration |
+| `ResumeWorkflowHandler` | **138** | **15** core imports, 1 bundle, 6 Symfony |
+
+`ResumeWorkflowHandler` reads the metadata store, resolves the workflow type, rebuilds pending
+updates, calls `ExecutionEngine::resume()`, and handles suspension, cancellation, continue-as-new,
+timers and child-workflow links. Fifteen of its imports are the **core**; the Symfony ones are a
+message bus, two stamps and a UUID. This is not a host adapter — it is the engine's resume
+orchestration, wearing a Symfony jacket.
+
+So implementing the resume role on Magento means one of two things, and it is an arbitration rather
+than a detail:
+
+- **duplicate** those 224 lines in `gplanchat/durable-magento` — two copies of the engine's
+  resume semantics, drifting the day one of them is fixed;
+- **extract** them to `gplanchat/durable`, leaving the bundle a thin wrapper, which is the same
+  move as `TimerWakeDelayCalculator` and `PayloadToContractMethodInvoker` — twice already — but an
+  order of magnitude larger, and touching a class every Symfony user runs.
+
+The guard added at §5.3 says the core may not import a host. It does not say the reverse: a host may
+not be where the core's logic lives. This is where that shows.
+
 ## The one hazard that is not a port
 
 Temporal serialises workflow tasks for one execution server-side. Magento's queue does not, and
