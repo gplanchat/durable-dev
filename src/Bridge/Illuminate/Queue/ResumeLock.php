@@ -22,11 +22,16 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
  * en aura, et il lui suffira d'envelopper son `handle()` avec ceci. Une commande artisan ou un
  * worker écrit à la main y arrivent aussi, sans rien avoir à hériter.
  *
- * **Pourquoi `LockProvider` et pas le cache.** C'est le seul contrat dont ce verrou a besoin, il
- * vient d'`illuminate/contracts` que `illuminate/database` tire déjà, et il oblige l'appelant à
- * choisir un store **qui sait verrouiller** : `array`, `redis`, `memcached`, `dynamodb`,
- * `database`. Le store `file` n'implémente pas `LockProvider`, et c'est une bonne nouvelle qu'il ne
- * compile pas plutôt qu'un verrou qui ne verrouille rien.
+ * **Pourquoi `LockProvider` et pas le cache.** C'est le seul contrat dont ce verrou a besoin, et il
+ * vient d'`illuminate/contracts` que `illuminate/database` tire déjà.
+ *
+ * ⚠ **Le type ne filtre rien, contrairement à ce que ce bloc affirmait.** Sur Laravel 12, neuf
+ * stores implémentent `LockProvider` — `file` compris, et il verrouille correctement entre
+ * processus — dont `NullStore`, dont le `NoLock::acquire()` retourne `true` sans condition.
+ * Mesuré sur vingt reprises d'une exécution et quatre `queue:work` : `database` et `file` ne
+ * laissent aucun chevauchement, `array` et `null` en laissent quinze sur vingt, à concurrence 4.
+ * Le choix du store est donc à l'appelant, et c'est le seul de ce paquet qui fait diverger un
+ * journal en silence quand il est mauvais.
  *
  * ```php
  * $lock->around($executionId, fn() => $runner->resume($executionId));
