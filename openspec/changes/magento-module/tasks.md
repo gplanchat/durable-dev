@@ -82,7 +82,10 @@ unmeasured.
       the ones carrying `#[ActivityMethod]` — one declaration fewer to get wrong, and the names stay
       the attributes'. It reuses the same two core objects the bundle's compiler pass does;
       `PayloadToContractMethodInvoker` moved from `durable-bundle` to `durable` for it, since two
-      hosts now need it (**BREAKING CHANGE**, flagged on the commit).
+      hosts now need it (**BREAKING CHANGE**) — and it ships its migration procedure, as the rule
+      requires: a cumulative `durable-upgrade.php` Rector set, an `UPGRADE.md` at the repository
+      root, and the one thing Rector cannot do written out (a compiled Symfony container keeps the
+      fully-qualified name and wants its `cache:clear`).
       **The refusal is the mechanism**: `MagentoRuntime::run()` used to self-register an unknown
       workflow, which made declaration meaningless and left `Scenario: An undeclared workflow fails
       at the moment of the mistake` false since 3.2. It now throws naming the class and the `di.xml`
