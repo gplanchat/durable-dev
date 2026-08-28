@@ -6,14 +6,19 @@ namespace unit\Gplanchat\DurableBundle\DependencyInjection\Compiler;
 
 use Gplanchat\Durable\Attribute\AsNexusOperation;
 use Gplanchat\Durable\Attribute\AsNexusService;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Attribute\FulfilsNexusOperation;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\NexusHandlerPass;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
+use Gplanchat\Durable\Nexus\Serving\NexusOperationResponse;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Component\DependencyInjection\Dumper\XmlDumper;
 
 #[CoversClass(NexusHandlerPass::class)]
 final class NexusHandlerPassTest extends TestCase
@@ -28,8 +33,8 @@ final class NexusHandlerPassTest extends TestCase
 
         $calls = $container->getDefinition('durable.temporal.nexus_registry')->getMethodCalls();
         self::assertCount(1, $calls);
-        self::assertEquals(NexusService::named('billing'), $calls[0][1][0]);
-        self::assertEquals(NexusOperationName::named('verify'), $calls[0][1][1]);
+        self::assertSame('billing', self::nom($calls[0][1][0], NexusService::class));
+        self::assertSame('verify', self::nom($calls[0][1][1], NexusOperationName::class));
     }
 
     public function testAnOperationNobodyCoversIsRefusedAtStartup(): void
@@ -55,7 +60,13 @@ final class NexusHandlerPassTest extends TestCase
         $container->register('app.billing', BillingFixture::class)
             ->addTag(NexusHandlerPass::TAG, ['contract' => BillingContractFixture::class]);
         $container->register('app.charge', ChargeWorkflowFixture::class)
-            ->addTag('durable.workflow');
+            ->addTag('durable.workflow')
+            // La balise que `DurableBundle::build()` pose depuis #[FulfilsNexusOperation]. Le test
+            // la pose à la main parce qu'il n'y a pas d'autoconfiguration sur un ContainerBuilder nu.
+            ->addTag(NexusHandlerPass::FULFILMENT_TAG, [
+                'contract' => BillingContractFixture::class,
+                'operation' => 'charge',
+            ]);
 
         (new NexusHandlerPass())->process($container);
 
@@ -66,7 +77,7 @@ final class NexusHandlerPassTest extends TestCase
         self::assertContains('registerFulfilment', $methods, 'la différée se déclare, pour que le worker sache quel workflow démarrer');
 
         $fulfilment = $calls[array_search('registerFulfilment', $methods, true)];
-        self::assertEquals(NexusOperationName::named('charge'), $fulfilment[1][1]);
+        self::assertSame('charge', self::nom($fulfilment[1][1], NexusOperationName::class));
         // Le **type** de workflow, pas le FQCN : c'est ce nom que le serveur connaît.
         self::assertSame('ChargeWorkflowFixture', $fulfilment[1][2]);
     }
@@ -120,6 +131,122 @@ final class NexusHandlerPassTest extends TestCase
         self::assertFalse($container->hasDefinition('durable.temporal.nexus_registry'));
     }
 
+    /**
+     * Le trou que les autres tests laissaient : ils vérifient que l'appel est **ajouté** à la
+     * définition, jamais qu'il s'exécute. Entre les deux vivaient deux `TypeError` — la charge
+     * entière passée en argument #1, et un retour ordinaire là où `dispatch()` attend un
+     * {@see NexusOperationResponse}. Le conteneur est donc compilé, et l'opération vraiment
+     * appelée.
+     */
+    public function testTheRegisteredHandlerIsActuallyCallableWithANexusPayload(): void
+    {
+        $container = $this->containerWithRegistry();
+        $container->getDefinition('durable.temporal.nexus_registry')
+            ->setFactory([NexusOperationRegistry::class, 'routedBy'])
+            ->setArguments(['temporal'])
+            ->setPublic(true);
+        $container->register('app.billing', BillingFixture::class)
+            ->setPublic(true)
+            ->addTag(NexusHandlerPass::TAG, ['contract' => BillingServedFixture::class]);
+
+        $container->addCompilerPass(new NexusHandlerPass());
+        $container->compile();
+
+        /** @var NexusOperationRegistry $registry */
+        $registry = $container->get('durable.temporal.nexus_registry');
+        $response = $registry->dispatch(
+            NexusService::named('billing'),
+            NexusOperationName::named('verify'),
+            ['order' => 'CMD-1'],
+        );
+
+        // La charge est clée par nom de paramètre — c'est ce que `NexusStub` écrit —, et le
+        // gestionnaire rend le type que son contrat déclare. L'emballage est l'affaire de la
+        // plomberie, pas de celui qui écrit le gestionnaire.
+        self::assertTrue($response->isImmediate);
+        self::assertSame('ok:CMD-1', $response->result);
+    }
+
+    /**
+     * Le mode d'échec le plus silencieux de Nexus, et le seul que rien n'attrapait.
+     *
+     * La charge est clée par nom à l'écriture et relue par nom à l'arrivée. Un paramètre de
+     * workflow qui ne correspond à aucun paramètre du contrat n'est pas une erreur — il reçoit
+     * `null`. Le workflow démarre, s'exécute, et rend un résultat calculé sur du vide.
+     */
+    public function testAWorkflowWhoseParameterNamesDoNotMatchTheContractIsRefused(): void
+    {
+        $container = $this->containerWithRegistry();
+        $container->register('app.billing', BillingFixture::class)
+            ->addTag(NexusHandlerPass::TAG, ['contract' => BillingContractFixture::class]);
+        $container->register('app.charge', MistypedChargeWorkflowFixture::class)
+            ->addTag(NexusHandlerPass::FULFILMENT_TAG, [
+                'contract' => BillingContractFixture::class,
+                'operation' => 'charge',
+            ]);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/\$ammount/');
+        $this->expectExceptionMessageMatches('/silently receive null/');
+
+        (new NexusHandlerPass())->process($container);
+    }
+
+    /**
+     * Un paramètre que le contrat ignore mais qui a une valeur par défaut passe : l'absence est
+     * alors une décision, pas un oubli.
+     */
+    public function testAnOptionalExtraParameterIsAllowed(): void
+    {
+        $container = $this->containerWithRegistry();
+        $container->register('app.billing', BillingFixture::class)
+            ->addTag(NexusHandlerPass::TAG, ['contract' => BillingContractFixture::class]);
+        $container->register('app.charge', ChargeWithAnOptionFixture::class)
+            ->addTag(NexusHandlerPass::FULFILMENT_TAG, [
+                'contract' => BillingContractFixture::class,
+                'operation' => 'charge',
+            ]);
+
+        (new NexusHandlerPass())->process($container);
+
+        $methods = array_column($container->getDefinition('durable.temporal.nexus_registry')->getMethodCalls(), 0);
+        self::assertContains('registerFulfilment', $methods);
+    }
+
+    /**
+     * Le mode d'échec : un conteneur qui compile et une application qui ne démarre pas.
+     *
+     * En mode dev, Symfony réécrit le conteneur en XML à chaque réchauffage. Un objet-valeur passé
+     * tel quel en argument d'appel de méthode n'est pas sérialisable, et le message qui sort
+     * — « Unable to dump a service container if a parameter is an object or a resource » — ne parle
+     * ni de Nexus, ni de la passe qui l'a posé. Ce test est la seule chose qui l'attrape avant que
+     * quelqu'un ne vide son cache.
+     */
+    public function testTheContainerItLeavesBehindIsStillDumpable(): void
+    {
+        $container = $this->containerWithRegistry();
+        $container->register('app.billing', BillingFixture::class)
+            ->addTag(NexusHandlerPass::TAG, ['contract' => BillingContractFixture::class]);
+        $container->register('app.charge', ChargeWorkflowFixture::class)
+            ->addTag(NexusHandlerPass::FULFILMENT_TAG, [
+                'contract' => BillingContractFixture::class,
+                'operation' => 'charge',
+            ]);
+
+        (new NexusHandlerPass())->process($container);
+
+        $xml = (new XmlDumper($container))->dump();
+        self::assertStringContainsString('billing', $xml);
+    }
+
+    private static function nom(mixed $argument, string $classeAttendue): string
+    {
+        self::assertInstanceOf(Definition::class, $argument, 'un objet-valeur voyage en définition, pas en instance');
+        self::assertSame($classeAttendue, $argument->getClass());
+
+        return $argument->getArgument(0);
+    }
+
     private function containerWithRegistry(): ContainerBuilder
     {
         $container = new ContainerBuilder();
@@ -147,11 +274,43 @@ final class BillingFixture implements BillingServedFixture
 {
     public function verify(string $order): string
     {
-        return 'ok';
+        return 'ok:' . $order;
     }
 }
 
 final class NotAHandlerFixture {}
 
+#[AsWorkflow('ChargeWorkflowFixture')]
 #[FulfilsNexusOperation(BillingContractFixture::class, 'charge')]
-final class ChargeWorkflowFixture {}
+final class ChargeWorkflowFixture
+{
+    #[AsWorkflowMethod]
+    public function run(string $order, int $amount): string
+    {
+        return $order . ':' . $amount;
+    }
+}
+
+#[AsWorkflow('ChargeWithAnOptionFixture')]
+#[FulfilsNexusOperation(BillingContractFixture::class, 'charge')]
+final class ChargeWithAnOptionFixture
+{
+    #[AsWorkflowMethod]
+    public function run(string $order, int $amount, bool $trace = false): string
+    {
+        return $order . ':' . $amount . ':' . ($trace ? '1' : '0');
+    }
+}
+
+#[AsWorkflow('MistypedChargeWorkflowFixture')]
+#[FulfilsNexusOperation(BillingContractFixture::class, 'charge')]
+final class MistypedChargeWorkflowFixture
+{
+    // `$amount` du contrat, écrit `$ammount` ici. Rien ne le signale sans le garde : le workflow
+    // démarre et encaisse zéro.
+    #[AsWorkflowMethod]
+    public function run(string $order, int $ammount): string
+    {
+        return $order . ':' . $ammount;
+    }
+}

@@ -35,8 +35,33 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
+    # Les workflows se déclarent par une balise et non par un attribut : c'est elle que lit
+    # WorkflowPass. Sans elle, un #[AsWorkflow] est une classe que personne n'enregistre.
+    App\Durable\Workflow\:
+        resource: '../src/Durable/Workflow/'
+        tags: [durable.workflow]
+
     # Controllers are imported separately to make sure services can be injected
     # as action arguments even if you don't extend any base controller class
     App\Controller\:
         resource: '../src/Controller'
         tags: ['controller.service_arguments']
+
+# La balise Nexus est posée ici, et non par `#[AsNexusServiceHandler]` sur la classe.
+#
+# L'attribut vaudrait dans **tous** les environnements, et un gestionnaire déclaré sur un backend
+# sans route est refusé au démarrage — à raison, puisqu'il ne recevrait jamais rien. Or la boutique
+# n'a de cluster que dans son profil de démonstration. La balise dit donc ce qui est vrai : elle
+# sert `stock` en `demo`, et nulle part ailleurs.
+#
+# `symfony/` garde l'attribut, lui : son banc a un DSN en dev comme en prod.
+when@demo:
+    services:
+        # `autowire` explicitement : redéfinir un service dans un bloc `when@` **remplace** la
+        # définition venue du chargement de `App\`, et les `_defaults` du bloc principal ne s'y
+        # appliquent pas. Sans cette ligne, le constructeur ne reçoit rien.
+        App\Durable\Nexus\StockHandler:
+            autowire: true
+            tags:
+                - name: durable.nexus_handler
+                  contract: 'Gplanchat\Durable\Demo\Contracts\Stock\StockServed'

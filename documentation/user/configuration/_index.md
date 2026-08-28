@@ -17,6 +17,7 @@ durable:
         type: in_memory          # 'in_memory' (default)
     temporal:
         dsn: null                # set to temporal://… to activate the Temporal backend
+        journal: true            # false: the cluster is reachable, event_store stays the journal
     workflow_metadata:
         type: in_memory          # 'in_memory' (default)
     activity_transport:
@@ -54,6 +55,7 @@ The `in_memory` event store is still correct when `temporal.dsn` is set. `Tempor
 | Key | Values | Default | Description |
 |-----|--------|---------|-------------|
 | `dsn` | `temporal://host:port?…` or `null` | `null` | When `null`: In-Memory Messenger backend. When set: activates the Temporal gRPC backend (`ext-grpc` required). |
+| `journal` | `true` / `false` | `true` | `false` says the cluster is reachable **without** being the journal: `event_store` stays the source of truth, and the dashboard keeps reading it. That is how an application with a DBAL journal serves a Nexus operation — see [Nexus operations](../nexus/). Setting a DSN with `journal: true` alongside `event_store.type: dbal` is refused: the journal cannot have two sources of truth. |
 
 ### DSN format
 

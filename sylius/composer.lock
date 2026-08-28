@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "908fcf996c1eaf3cfa3e11f4a464f3ec",
+    "content-hash": "8f99242d2ce244a01fdba6c3cac768aa",
     "packages": [
         {
             "name": "adyen/php-api-library",
@@ -3781,12 +3781,115 @@
             "time": "2026-08-01T13:57:40+00:00"
         },
         {
+            "name": "google/common-protos",
+            "version": "4.14.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/googleapis/common-protos-php.git",
+                "reference": "4eb6813b8068653e055fc8a63dbda3446f3e8869"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/googleapis/common-protos-php/zipball/4eb6813b8068653e055fc8a63dbda3446f3e8869",
+                "reference": "4eb6813b8068653e055fc8a63dbda3446f3e8869",
+                "shasum": ""
+            },
+            "require": {
+                "google/protobuf": "^4.31||^5.0",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.6"
+            },
+            "type": "library",
+            "extra": {
+                "component": {
+                    "id": "common-protos",
+                    "path": "CommonProtos",
+                    "entry": "README.md",
+                    "target": "googleapis/common-protos-php.git"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Google\\Api\\": "src/Api",
+                    "Google\\Iam\\": "src/Iam",
+                    "Google\\Rpc\\": "src/Rpc",
+                    "Google\\Type\\": "src/Type",
+                    "Google\\Cloud\\": "src/Cloud",
+                    "GPBMetadata\\Google\\Api\\": "metadata/Api",
+                    "GPBMetadata\\Google\\Iam\\": "metadata/Iam",
+                    "GPBMetadata\\Google\\Rpc\\": "metadata/Rpc",
+                    "GPBMetadata\\Google\\Type\\": "metadata/Type",
+                    "GPBMetadata\\Google\\Cloud\\": "metadata/Cloud",
+                    "GPBMetadata\\Google\\Logging\\": "metadata/Logging"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "description": "Google API Common Protos for PHP",
+            "homepage": "https://github.com/googleapis/common-protos-php",
+            "keywords": [
+                "google"
+            ],
+            "support": {
+                "source": "https://github.com/googleapis/common-protos-php/tree/v4.14.1"
+            },
+            "time": "2026-06-17T23:07:32+00:00"
+        },
+        {
+            "name": "google/protobuf",
+            "version": "v4.33.6",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/protocolbuffers/protobuf-php.git",
+                "reference": "84b008c23915ed94536737eae46f41ba3bccfe67"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/84b008c23915ed94536737eae46f41ba3bccfe67",
+                "reference": "84b008c23915ed94536737eae46f41ba3bccfe67",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": ">=10.5.62 <11.0.0"
+            },
+            "suggest": {
+                "ext-bcmath": "Need to support JSON deserialization"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Google\\Protobuf\\": "src/Google/Protobuf",
+                    "GPBMetadata\\Google\\Protobuf\\": "src/GPBMetadata/Google/Protobuf"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "description": "proto library for PHP",
+            "homepage": "https://developers.google.com/protocol-buffers/",
+            "keywords": [
+                "proto"
+            ],
+            "support": {
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.33.6"
+            },
+            "time": "2026-03-18T17:32:05+00:00"
+        },
+        {
             "name": "gplanchat/durable",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "../src/Durable",
-                "reference": "40980d4b0da8cf71c29775bdbbb30136a7d33bd2"
+                "reference": "fbf41ee943e176704562b50cefb8bbfcc20ba2a1"
             },
             "require": {
                 "php": ">=8.2",
@@ -3796,9 +3899,10 @@
                 "phpunit/phpunit": "^11.0"
             },
             "suggest": {
-                "gplanchat/durable-phpstan": "Optional PHPStan extension (ActivityStub + Awaitable; see ADR012)",
-                "gplanchat/durable-psalm-plugin": "Optional Psalm plugin entry point; prefer durable-phpstan for stubs (ADR012)",
-                "phpunit/phpunit": "Required by the shipped test helpers (Testing\\DurableTestCase, Testing\\WorkflowTestEnvironment)"
+                "gplanchat/durable-bridge-dbal": "SQL backend: durable execution on one database, no cluster (DUR030)",
+                "gplanchat/durable-bridge-temporal": "Temporal gRPC backend (requires ext-grpc)",
+                "gplanchat/durable-phpstan": "Optional PHPStan extension: resolves ActivityStub and ChildWorkflowStub calls from their typed contract (DUR038)",
+                "phpunit/phpunit": "Required by the shipped test helpers (Testing\\DurableTestCase, Testing\\WorkflowTestEnvironment) and the conformance suites (Testing\\EventStoreConformanceTestCase, DUR041)"
             },
             "type": "library",
             "extra": {
@@ -3868,12 +3972,60 @@
             }
         },
         {
+            "name": "gplanchat/durable-bridge-temporal",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../src/Bridge/Temporal",
+                "reference": "86199f26705baaca45decac9c54daba3406e0f3d"
+            },
+            "require": {
+                "ext-grpc": "*",
+                "google/common-protos": "^4.9",
+                "google/protobuf": "^4.31",
+                "gplanchat/durable": "self.version",
+                "grpc/grpc": "^1.57",
+                "php": ">=8.2",
+                "symfony/config": "^6.4 || ^7.0 || ^8.0",
+                "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
+                "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
+                "symfony/messenger": "^6.4 || ^7.0 || ^8.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\Bridge\\Temporal\\": "./",
+                    "Temporal\\Api\\": "Api/",
+                    "GPBMetadata\\Temporal\\": "Generated/GPBMetadata/Temporal/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "Temporal journal EventStore + worker (gRPC only, no Temporal PHP SDK) for gplanchat/durable",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "gplanchat/durable-bundle",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "../src/DurableBundle",
-                "reference": "90d53532d5a94d7a5e309127d6c6a3daaa26cf7e"
+                "reference": "6fe58d8bb99c8afc5cff1d1fb098d93af725d540"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -3894,8 +4046,6 @@
                 "phpunit/phpunit": "^11.0"
             },
             "suggest": {
-                "gplanchat/durable-bridge-dbal": "SQL backend: durable execution on one database, no cluster (DUR030)",
-                "gplanchat/durable-bridge-temporal": "Temporal gRPC backend (requires ext-grpc)",
                 "phpunit/phpunit": "Required by the shipped test helper (Testing\\DurableBundleTestTrait)",
                 "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)"
             },
@@ -3926,15 +4076,49 @@
             }
         },
         {
+            "name": "gplanchat/durable-demo-contracts",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../src/DurableDemoContracts",
+                "reference": "2e8724ea978f110f6579df1a52400bbfba7c5b9c"
+            },
+            "require": {
+                "gplanchat/durable": "self.version",
+                "php": ">=8.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\Durable\\Demo\\Contracts\\": "./"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "Nexus contracts shared by the two demonstration mockups. Not published — see README.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "gplanchat/durable-plugin",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "../src/DurablePlugin",
-                "reference": "1ff51b83308ec07103fdadd23750a1ee5c5d0035"
+                "reference": "2bddbc47577c6135200778cff1f94888440a194b"
             },
             "require": {
                 "gplanchat/durable": "self.version",
+                "gplanchat/durable-bundle": "self.version",
                 "knplabs/knp-menu": "^3.5",
                 "php": ">=8.2",
                 "symfony/config": "^6.4 || ^7.0 || ^8.0",
@@ -3951,7 +4135,6 @@
                 "twig/twig": "^3.10"
             },
             "suggest": {
-                "gplanchat/durable-bundle": "Wires the run catalog the dashboard reads — one backend or another. Without it the page reports that no readable backend is configured.",
                 "sylius/admin-bundle": "Registers the dashboard entry in the Sylius admin menu (sylius.menu.admin.main)"
             },
             "type": "symfony-bundle",
@@ -3979,6 +4162,50 @@
                 "symlink": true,
                 "relative": true
             }
+        },
+        {
+            "name": "grpc/grpc",
+            "version": "1.82.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/grpc/grpc-php.git",
+                "reference": "be984cb608f21e96453b3cfe54c748cc7b192250"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/grpc/grpc-php/zipball/be984cb608f21e96453b3cfe54c748cc7b192250",
+                "reference": "be984cb608f21e96453b3cfe54c748cc7b192250",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1.0"
+            },
+            "require-dev": {
+                "google/auth": "^v1.3.0"
+            },
+            "suggest": {
+                "ext-protobuf": "For better performance, install the protobuf C extension.",
+                "google/protobuf": "To get started using grpc quickly, install the native protobuf library."
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Grpc\\": "src/lib/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "description": "gRPC library for PHP",
+            "homepage": "https://grpc.io",
+            "keywords": [
+                "rpc"
+            ],
+            "support": {
+                "source": "https://github.com/grpc/grpc-php/tree/v1.82.0"
+            },
+            "time": "2026-07-03T09:39:53+00:00"
         },
         {
             "name": "guzzlehttp/guzzle",
@@ -21410,7 +21637,9 @@
     "stability-flags": {
         "gplanchat/durable": 20,
         "gplanchat/durable-bridge-dbal": 20,
+        "gplanchat/durable-bridge-temporal": 20,
         "gplanchat/durable-bundle": 20,
+        "gplanchat/durable-demo-contracts": 20,
         "gplanchat/durable-plugin": 20
     },
     "prefer-stable": true,

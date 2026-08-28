@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "018227be0e087ffb98aec28d824be29a",
+    "content-hash": "e789f700233e48e2df173d4a3a19f3f2",
     "packages": [
         {
             "name": "doctrine/dbal",
@@ -633,7 +633,7 @@
             "dist": {
                 "type": "path",
                 "url": "../src/Durable",
-                "reference": "40980d4b0da8cf71c29775bdbbb30136a7d33bd2"
+                "reference": "fbf41ee943e176704562b50cefb8bbfcc20ba2a1"
             },
             "require": {
                 "php": ">=8.2",
@@ -643,9 +643,10 @@
                 "phpunit/phpunit": "^11.0"
             },
             "suggest": {
-                "gplanchat/durable-phpstan": "Optional PHPStan extension (ActivityStub + Awaitable; see ADR012)",
-                "gplanchat/durable-psalm-plugin": "Optional Psalm plugin entry point; prefer durable-phpstan for stubs (ADR012)",
-                "phpunit/phpunit": "Required by the shipped test helpers (Testing\\DurableTestCase, Testing\\WorkflowTestEnvironment)"
+                "gplanchat/durable-bridge-dbal": "SQL backend: durable execution on one database, no cluster (DUR030)",
+                "gplanchat/durable-bridge-temporal": "Temporal gRPC backend (requires ext-grpc)",
+                "gplanchat/durable-phpstan": "Optional PHPStan extension: resolves ActivityStub and ChildWorkflowStub calls from their typed contract (DUR038)",
+                "phpunit/phpunit": "Required by the shipped test helpers (Testing\\DurableTestCase, Testing\\WorkflowTestEnvironment) and the conformance suites (Testing\\EventStoreConformanceTestCase, DUR041)"
             },
             "type": "library",
             "extra": {
@@ -727,7 +728,7 @@
             "dist": {
                 "type": "path",
                 "url": "../src/DurableBundle",
-                "reference": "90d53532d5a94d7a5e309127d6c6a3daaa26cf7e"
+                "reference": "6fe58d8bb99c8afc5cff1d1fb098d93af725d540"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -748,8 +749,6 @@
                 "phpunit/phpunit": "^11.0"
             },
             "suggest": {
-                "gplanchat/durable-bridge-dbal": "SQL backend: durable execution on one database, no cluster (DUR030)",
-                "gplanchat/durable-bridge-temporal": "Temporal gRPC backend (requires ext-grpc)",
                 "phpunit/phpunit": "Required by the shipped test helper (Testing\\DurableBundleTestTrait)",
                 "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)"
             },
@@ -774,6 +773,39 @@
                 }
             ],
             "description": "Symfony bundle for gplanchat/durable: extension, autoconfiguration of workflows and activities.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "gplanchat/durable-demo-contracts",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../src/DurableDemoContracts",
+                "reference": "2e8724ea978f110f6579df1a52400bbfba7c5b9c"
+            },
+            "require": {
+                "gplanchat/durable": "self.version",
+                "php": ">=8.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\Durable\\Demo\\Contracts\\": "./"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "Nexus contracts shared by the two demonstration mockups. Not published — see README.",
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -6450,7 +6482,8 @@
     "stability-flags": {
         "gplanchat/durable": 20,
         "gplanchat/durable-bridge-temporal": 20,
-        "gplanchat/durable-bundle": 20
+        "gplanchat/durable-bundle": 20,
+        "gplanchat/durable-demo-contracts": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

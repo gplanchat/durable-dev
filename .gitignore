@@ -24,3 +24,6 @@ __pycache__/
 
 # Cache du noyau Symfony construit par les tests d'intégration du bundle.
 /var/
+
+# Les journaux et les PID des workers de la démonstration.
+/demo/var/

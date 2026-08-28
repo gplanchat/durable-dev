@@ -1,6 +1,6 @@
 # Le tableau de bord lit le backend configuré ici. DBAL plutôt que Temporal : une boutique Sylius
 # n'a pas de cluster, et le pont Temporal exigerait ext-grpc — c'est précisément ce que le plugin a
-# cessé d'imposer (DUR035).
+# cessé d'imposer (DUR037 ; DUR035 est `await()` et les conditions, sans rapport).
 durable:
     dbal:
         connection: doctrine.dbal.default_connection
@@ -12,3 +12,44 @@ durable:
     child_workflow:
         parent_link_store:
             type: dbal
+
+# Deux profils de démonstration, et rien dans `dev`, `prod` ni `test`.
+#
+# Ce n'est pas de la prudence : un transport Messenger `temporal://` déclaré sans DSN fait échouer
+# `doctrine:schema:create`, l'écouteur de schéma de Doctrine parcourant **tous** les transports. Le
+# message est « Invalid temporal:// DSN », loin de Nexus et loin de Messenger. Un environnement qui
+# n'a pas de cluster n'a donc ni DSN, ni transport, ni gestionnaire.
+
+# `demo` — la boutique **sert** `stock`.
+#
+# `journal: false` est la ligne qui compte. Sans elle, poser un DSN veut dire « le cluster est le
+# journal » — l'extension refuse alors le couple avec un event_store DBAL, et à raison : il n'y
+# aurait pas de source de vérité unique. Avec elle, la phrase se sépare en deux, et le tableau de
+# bord continue de lire exactement ce qu'il lisait.
+when@demo:
+    durable:
+        temporal:
+            dsn: '%env(DURABLE_TEMPORAL_DSN)%'
+            journal: false
+
+# `demo_appelant` — la boutique **appelle** `facturation`.
+#
+# Un appel Nexus part d'un workflow, et un workflow ne peut ordonnancer une opération que si son
+# journal est le cluster : `EventStoreCommandBuffer` refuse en le disant, parce qu'un journal SQL
+# n'a pas de serveur à qui adresser l'ordonnancement. Servir et appeler ne tiennent donc pas dans
+# la même configuration Durable.
+#
+# Ce n'est pas un contournement, c'est ce à quoi ressemble un vrai déploiement : le processus qui
+# rend le tableau de bord et celui qui exécute les workflows sont deux déploiements du même code.
+when@demo_appelant:
+    durable:
+        event_store:
+            type: in_memory
+        workflow_metadata:
+            type: in_memory
+        child_workflow:
+            parent_link_store:
+                type: in_memory
+        temporal:
+            dsn: '%env(DURABLE_TEMPORAL_DSN)%'
+            journal: true

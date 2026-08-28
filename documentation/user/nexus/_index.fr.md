@@ -12,6 +12,12 @@ Durable tient les deux rôles : il **appelle** des opérations, et il en **sert*
 Servir demande le **backend Temporal**. Les backends in-memory et DBAL n'ont aucune route entre
 namespaces, et ils le disent plutôt que de faire semblant — voir [Backends](../backends/).
 
+Cela n'oblige pas à renoncer à un journal SQL. `durable.temporal.journal: false` dit que le cluster
+est joignable pendant qu'`event_store` reste la source de vérité — c'est ainsi qu'une boutique dont
+le tableau de bord lit DBAL sert une opération Nexus sans que ce tableau de bord change ce qu'il
+lit. Appeler est l'inverse : une opération est ordonnancée par un workflow, et un workflow ne peut
+en ordonnancer une que si son journal **est** le cluster.
+
 ---
 
 ## Appeler une opération
@@ -21,14 +27,14 @@ namespaces, et ils le disent plutôt que de faire semblant — voir [Backends](.
 interface FacturationContract
 {
     #[AsNexusOperation('encaisser')]
-    public function encaisser(Ordre $ordre, int $montant): Recu;
+    public function encaisser(string $ordre, int $montant): array;
 }
 ```
 
 ```php
 $facturation = $env->nexusStub(FacturationContract::class, endpoint: 'paiements');
 
-$recu = $env->await($facturation->encaisser($ordre, 1200));
+$recu = $env->await($facturation->encaisser('CMD-42', 1200));
 ```
 
 Le contrat s'écrit **une fois** et se lit des deux côtés de la frontière : l'appelant en dérive un
@@ -45,6 +51,13 @@ relève du déploiement et change d'un environnement à l'autre, quand le contra
 La charge voyage **telle que vous l'avez écrite**. Aucune enveloppe Durable ne l'entoure, donc un
 gestionnaire écrit avec le SDK Go, Java ou TypeScript y lit les champs qu'il déclare.
 
+C'est aussi ce qui contraint ce qu'un contrat peut déclarer. La charge est du JSON simple, clée par
+nom de paramètre, et elle est décodée **en tableau associatif** de l'autre côté. Un paramètre typé
+objet y arriverait en tableau, et le gestionnaire lèverait un `TypeError` au moment de l'appel —
+pas à l'écriture du contrat. Les contrats portent donc des scalaires et des tableaux. Un détail PHP
+mérite d'être connu : un tableau associatif **vide** s'encode `[]` et non `{}`, si bien qu'un champ
+qui peut être vide a besoin d'un champ voisin qui dise s'il faut le lire.
+
 Que le gestionnaire réponde tout de suite ou dans deux heures ne change rien ici : le workflow
 attend l'opération, et le résultat arrive quand il arrive.
 
@@ -60,7 +73,7 @@ use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
 #[AsNexusServiceHandler(contract: FacturationServie::class)]
 final class Facturation implements FacturationServie
 {
-    public function verifier(Ordre $ordre): Verdict
+    public function verifier(string $ordre): array
     {
         return $this->regles->controler($ordre);
     }
@@ -78,14 +91,14 @@ gestionnaire **implémente**, et celle qui l'**étend** pour l'appelant.
 interface FacturationServie                            // répondu tout de suite
 {
     #[AsNexusOperation('verifier')]
-    public function verifier(Ordre $ordre): Verdict;
+    public function verifier(string $ordre): array;
 }
 
 #[AsNexusService('facturation')]
 interface FacturationContract extends FacturationServie // + ce qu'un workflow remplit
 {
     #[AsNexusOperation('encaisser')]
-    public function encaisser(Ordre $ordre, int $montant): Recu;
+    public function encaisser(string $ordre, int $montant): array;
 }
 
 #[AsWorkflow]
@@ -104,7 +117,7 @@ Il y a deux formes, et choisir entre elles est la seule décision qui compte.
 
 ```php
 // Maintenant — le gestionnaire rend le type déclaré par le contrat.
-public function verifier(Ordre $ordre): Verdict { … }
+public function verifier(string $ordre): array { … }
 
 // Plus tard — un workflow réclame l'opération, et produit le résultat.
 #[FulfilsNexusOperation(FacturationContract::class, 'encaisser')]
@@ -215,6 +228,60 @@ C'est délibéré, et ce n'est pas ainsi que se comporte le côté appelant. Un 
 route échoue à l'appel — vous l'apprenez tout de suite. Un *gestionnaire* sans route n'est pas un
 appel qui échoue, c'est un service qui ne reçoit jamais rien, en silence. Il ne reste aucune requête
 à faire échouer, alors le refus a lieu au démarrage de l'application.
+
+---
+
+## Deux applications, en vrai
+
+Le dépôt embarque une démonstration où deux applications Durable s'appellent. C'est la première fois
+que deux d'entre elles se parlent, et ce qu'elle montre se lit mieux qu'il ne se décrit.
+
+| | `sylius/` — la boutique | `symfony/` — le métier |
+|---|---|---|
+| namespace | `demo-boutique` | `demo-metier` |
+| sert | `stock` (`reserver`) | `facturation` (`verifier`, `encaisser`) |
+| appelle | `facturation` | `stock` |
+
+Les deux lisent le même paquet de contrats. Rien d'autre ne circule entre elles.
+
+Le workflow de commande de la boutique appelle les deux formes sur le même stub :
+
+```php
+$verdict = $this->environment->await($this->facturation->verifier($commande, $montant, $devise));
+
+if (true !== ($verdict['acceptee'] ?? false)) {
+    return ['verifiee' => $verdict, 'encaissement' => null];
+}
+
+return [
+    'verifiee' => $verdict,
+    'encaissement' => $this->environment->await($this->facturation->encaisser($commande, $montant, $devise)),
+];
+```
+
+`verifier` est répondue par une méthode que le métier a écrite. `encaisser` n'a aucun corps de
+gestionnaire : un workflow la réclame, dort douze secondes, appelle une activité de paiement, et son
+résultat devient celui de l'opération. **Rien dans le code ci-dessus ne distingue les deux.**
+L'historique de l'appelant, si :
+
+```
+ 5  NexusOperationScheduled     verifier
+ 6  NexusOperationCompleted     verifier      ← la même seconde
+10  NexusOperationScheduled     encaisser
+11  NexusOperationStarted       encaisser     ← un workflow l'a prise
+15  NexusOperationCompleted     encaisser     ← quatorze secondes plus tard
+19  WorkflowExecutionCompleted
+```
+
+Pendant un passage, le worker qui devait faire avancer le workflow remplissant est resté **éteint
+quatre minutes**. L'opération est restée en `NexusOperationStarted`, l'appelant n'a rien consommé,
+et tout s'est terminé normalement au retour du worker. C'est cela, « l'attente ne tient rien
+d'ouvert » — et ce n'est pas une chose qu'un schéma permet d'affirmer.
+
+Les prérequis, les processus à démarrer et les deux commandes à lancer sont dans
+[`demo/README.md`](https://github.com/gplanchat/durable-dev/blob/main/demo/README.md). Une chose à
+savoir avant de commencer : un serveur qui répond `Nexus APIs are disabled` ne convient pas —
+`temporal server start-dev`, si.
 
 ---
 
