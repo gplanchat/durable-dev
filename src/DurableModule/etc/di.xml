@@ -25,7 +25,7 @@
 
         C'est ici qu'un projet ajoute les siens.
     -->
-    <type name="Gplanchat\Durable\Magento\Runtime\InMemoryRuntimeFactory">
+    <type name="Gplanchat\Durable\Magento\Runtime\RuntimeFactory">
         <arguments>
             <argument name="workflowClasses" xsi:type="array">
                 <item name="place_order" xsi:type="string">Gplanchat\Durable\Magento\Workflow\PlaceOrderWorkflow</item>

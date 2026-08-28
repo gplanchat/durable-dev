@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Magento\Runtime;
 
+use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
+use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\WorkflowRegistry;
+use Magento\Framework\App\DeploymentConfig;
 
 /**
  * Assemble le moteur pour un processus Magento.
@@ -32,7 +37,7 @@ use Gplanchat\Durable\WorkflowRegistry;
  * pas que c'est la faute du mot-clé. C'est la maison qui écrit `final` partout ;
  * ici l'hôte l'interdit, et le dire vaut mieux que de le laisser deviner.
  */
-class InMemoryRuntimeFactory
+class RuntimeFactory
 {
     /**
      * @param list<class-string> $workflowClasses    Les classes portant `#[Workflow]`, déclarées
@@ -52,16 +57,26 @@ class InMemoryRuntimeFactory
      *                                              parce que le point précédent rend « ça ne finit
      *                                              jamais » atteignable sans erreur.
      */
+    private const TEMPORAL_DSN_CONFIG_PATH = 'durable/temporal/dsn';
+
     public function __construct(
         private readonly array $workflowClasses = [],
         private readonly array $activityHandlers = [],
+        private readonly ?string $temporalDsn = null,
+        /**
+         * Lu depuis `env.php`, à côté de `lock` et `queue` : c'est là que Magento range ce qui
+         * doit être lisible avant qu'une base réponde. Nullable et par défaut absent pour que la
+         * fabrique reste construisible **sans Magento** — c'est ce qui met la décision de backend
+         * sous la garde de la CI, là où le reste du module demande un banc.
+         */
+        private readonly ?DeploymentConfig $deploymentConfig = null,
         private readonly int $maxActivityRetries = 0,
         private readonly float $budgetSeconds = InMemoryWorkflowRunner::DEFAULT_BUDGET_SECONDS,
     ) {}
 
     public function create(): MagentoRuntime
     {
-        $eventStore = new InMemoryEventStore();
+        $eventStore = $this->eventStore();
         $transport = new InMemoryActivityTransport();
         $activities = new RegistryActivityExecutor();
         $workflows = new WorkflowRegistry();
@@ -89,6 +104,43 @@ class InMemoryRuntimeFactory
         }
 
         return $runtime;
+    }
+
+    /**
+     * Où vit le journal, et qui le décide.
+     *
+     * La 2.3 a retiré la surface de configuration du backend : ce n'est donc pas un nom recopié
+     * qui choisit, c'est **la présence d'un DSN** sous `durable/temporal/dsn` dans `env.php`.
+     * Absent, le journal vit dans ce processus et meurt avec lui — ce qui est un choix légitime
+     * pour une commande, et ruineux pour un consommateur. Présent, il vit dans le cluster, et
+     * c'est le seul journal persistant que Magento atteigne : l'hôte ne livre aucun des deux
+     * types de connexion auxquels les ponts SQL se lient.
+     */
+    private function eventStore(): EventStoreInterface
+    {
+        $dsn = $this->temporalDsn ?? $this->configuredDsn();
+
+        if ($dsn === null || $dsn === '') {
+            return new InMemoryEventStore();
+        }
+
+        if (!\class_exists(TemporalConnection::class)) {
+            throw new \RuntimeException(\sprintf(
+                'A Temporal DSN is configured under durable/temporal/dsn, but %s is not installed. Run `composer require gplanchat/durable-bridge-temporal`, or remove the DSN to keep the journal in the process.',
+                'gplanchat/durable-bridge-temporal',
+            ));
+        }
+
+        $settings = TemporalConnection::fromDsn($dsn);
+
+        return new TemporalJournalEventStore(WorkflowServiceClientFactory::create($settings), $settings);
+    }
+
+    private function configuredDsn(): ?string
+    {
+        $configured = $this->deploymentConfig?->get(self::TEMPORAL_DSN_CONFIG_PATH);
+
+        return \is_string($configured) ? $configured : null;
     }
 
     /**

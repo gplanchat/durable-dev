@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Magento;
 
-use Gplanchat\Durable\Magento\Runtime\InMemoryRuntimeFactory;
+use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
 use Gplanchat\Durable\Magento\Runtime\UndeclaredWorkflowException;
 use Gplanchat\Durable\Magento\Workflow\Activity\DemoOrderActivities;
 use Gplanchat\Durable\Magento\Workflow\PlaceOrderWorkflow;
@@ -22,7 +22,7 @@ final class DeclaredRuntimeTest extends TestCase
 {
     public function testADeclaredWorkflowRunsWithActivitiesResolvedFromTheirAttribute(): void
     {
-        $runtime = (new InMemoryRuntimeFactory(
+        $runtime = (new RuntimeFactory(
             workflowClasses: [PlaceOrderWorkflow::class],
             activityHandlers: [new DemoOrderActivities()],
         ))->create();
@@ -36,7 +36,7 @@ final class DeclaredRuntimeTest extends TestCase
      */
     public function testTheDeclaredActivityNamesAreTheOnesTheContractCarries(): void
     {
-        $runtime = (new InMemoryRuntimeFactory(activityHandlers: [new DemoOrderActivities()]))->create();
+        $runtime = (new RuntimeFactory(activityHandlers: [new DemoOrderActivities()]))->create();
 
         self::assertSame(
             ['durable.demo.charge', 'durable.demo.reserve', 'durable.demo.notify'],
@@ -50,7 +50,7 @@ final class DeclaredRuntimeTest extends TestCase
      */
     public function testAnUndeclaredWorkflowFailsNamingTheTypeAndWhereTypesAreDeclared(): void
     {
-        $runtime = (new InMemoryRuntimeFactory(activityHandlers: [new DemoOrderActivities()]))->create();
+        $runtime = (new RuntimeFactory(activityHandlers: [new DemoOrderActivities()]))->create();
 
         $this->expectException(UndeclaredWorkflowException::class);
         $this->expectExceptionMessageMatches('/PlaceOrderWorkflow/');

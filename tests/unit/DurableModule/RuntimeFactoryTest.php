@@ -47,7 +47,7 @@ final class RuntimeFactoryTest extends TestCase
      */
     public function testDeclarationIsOrthogonalToWhereTheJournalLives(): void
     {
-        $declared = static fn (?string $dsn): array => (new RuntimeFactory(
+        $declared = static fn(?string $dsn): array => (new RuntimeFactory(
             workflowClasses: [PlaceOrderWorkflow::class],
             activityHandlers: [new DemoOrderActivities()],
             temporalDsn: $dsn,
