@@ -47,6 +47,7 @@ core package:
 | `gplanchat/durable-bridge-temporal` | `ext-grpc`, `grpc/grpc`, `google/protobuf`, `symfony/messenger` |
 | `gplanchat/durable-bridge-dbal` | `doctrine/dbal`, `symfony/lock`, `symfony/messenger` |
 | `gplanchat/durable-bridge-illuminate` | `illuminate/database`, `illuminate/contracts` |
+| `gplanchat/durable-laravel` | `illuminate/support`, `illuminate/container` — no Symfony component |
 
 So: **no RoadRunner, ever; `ext-grpc` only when you talk to a Temporal cluster.** On the in-memory,
 DBAL and Illuminate backends, no PHP extension beyond a standard install is involved. The rule behind this is
