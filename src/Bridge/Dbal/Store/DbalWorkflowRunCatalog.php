@@ -106,7 +106,7 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
             new DbalEventStore($this->connection, $this->schema),
         );
 
-        return $reader->read($run->runId);
+        return $reader->read($run->runId, $run->workflowName);
     }
 
     public function checkHealth(): BackendHealth

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\DurableProbe\Observer;
 
-use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
+use Gplanchat\DurableModule\Runtime\RuntimeFactory;
 use Gplanchat\DurableProbe\Workflow\SlowOrderWorkflow;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;

@@ -7,8 +7,8 @@
                 <resource id="Magento_Backend::system">
                     <!-- Une console d'exploitation, pas un réglage de boutique : la ressource vit
                          sous System, comme le menu. -->
-                    <resource id="Gplanchat_Durable::processes" title="Durable processes" sortOrder="90">
-                        <resource id="Gplanchat_Durable::process_history" title="Process history" sortOrder="10"/>
+                    <resource id="Gplanchat_DurableModule::processes" title="Durable processes" sortOrder="90">
+                        <resource id="Gplanchat_DurableModule::process_history" title="Process history" sortOrder="10"/>
                     </resource>
                 </resource>
             </resource>

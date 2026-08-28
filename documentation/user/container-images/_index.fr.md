@@ -26,6 +26,11 @@ préférez que votre construction ne bouge pas sous vos pieds, chaque publicatio
 étiquette datée — `8.4-cli-20260828` — et l'épingler tient en un mot. Une étiquette datée n'est
 jamais reconstruite.
 
+Les étiquettes datées sont élaguées : les **huit plus récentes** sont conservées pour chaque couple
+version-et-forme, soit environ deux mois de points d'épinglage. Épinglez pour une version que vous
+êtes sur le point de livrer, pas pour une image de base dont vous partirez encore l'an prochain —
+pour cela, c'est l'étiquette glissante qui continue de fonctionner.
+
 ---
 
 ## Choisir l'étiquette : trois choses doivent correspondre
