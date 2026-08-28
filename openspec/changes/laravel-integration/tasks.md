@@ -184,9 +184,12 @@ either confirms a design or replaces it.
       `extra.laravel.providers` entry, a `LICENSE` at the prefix root, a README, and the monorepo
       wiring: path repository, `@dev` require, PSR-4 map, `phpstan.neon` **and** `psalm.xml`.
 
-      **The splitsh prefix is deliberately NOT in this slice.** The satellite repository does not
-      exist yet, and adding the line first is precisely what turned the Splitsh job red on every
-      push to `main` for `durable-bridge-illuminate`. Repository first, then the line.
+      **The splitsh prefix waited for its repository, and got it.** Adding the line first is
+      precisely what turned the Splitsh job red on every push to `main` for
+      `durable-bridge-illuminate`; `gplanchat/durable-laravel` was created before the line landed.
+      The third step of that lesson is not ours to take: the fine-grained `SPLITSH_PUSH_TOKEN` lists
+      its repositories explicitly, so a repository created after it is not in it — and the symptom
+      is a **403 on a repository that exists**, not a 404.
 
       **And wiring `psalm.xml` uncovered that PR #165 never did.** That PR reported adding
       `src/Bridge/Illuminate` to Psalm's `projectFiles`; the file on `main` has no such line, and

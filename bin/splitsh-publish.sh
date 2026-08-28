@@ -29,6 +29,7 @@ SPLITS=(
     "src/Bridge/Temporal/|durable-bridge-temporal"
     "src/Bridge/Dbal/|durable-bridge-dbal"
     "src/Bridge/Illuminate/|durable-bridge-illuminate"
+    "src/DurableLaravel/|durable-laravel"
     "src/DurablePhpstan/|durable-phpstan"
     "src/DurableRector/|durable-rector"
 )
