@@ -9,24 +9,23 @@ en cours, minuscule.
 (backend Temporal + worker + écran d'administration), le codec de file, et
 l'orchestration de reprise descendue au cœur derrière `WorkflowTimerDispatcher`.
 
-⚠ **Découverte qui remet la tâche 4 en question, à porter à l'auteur.**
-`TemporalWorkflowCommandBuffer` ordonnance les activités par
-`ScheduleActivityTaskCommandAttributes` — c'est-à-dire **sur la file de tâches de
-Temporal**, pas par un `ActivityMessage` sur la file de l'hôte. Le
-`EventStoreCommandBuffer`, qui lui met un `ActivityMessage` en file, est le
-chemin **non-Temporal**. Or Magento n'a pas de journal natif et n'en aura pas
-(`memory` et `temporal`, définitivement).
+✅ **Tâche 4 abandonnée — décision de l'auteur, PR #197.** Rien de Durable ne
+circule sur le `MessageQueue` de Magento : `TemporalWorkflowCommandBuffer`
+ordonnance les activités en commandes Temporal sur une file de tâches Temporal,
+et `EventStoreCommandBuffer` — celui qui met un `ActivityMessage` sur la file de
+l'hôte — est le chemin non-Temporal. Magento n'a pas de journal natif et n'en
+aura pas. Les tâches 4 et 5 étaient des alternatives, pas une séquence.
 
-Donc, avec Temporal, la file de Magento ne porte **rien** : ni activité, ni
-reprise (les reprises sont des tâches de workflow que `durable:worker` dépile).
-La tâche 4 et la tâche 5 ne sont pas une séquence, ce sont des **alternatives**,
-et la 4 telle qu'écrite ne s'applique qu'au backend mémoire — qui ne survit pas
-au processus. À arbitrer avant d'écrire une ligne de plus dessus.
+Parti avec : le codec d'`ActivityMessage` et ses tests, qui n'avaient plus
+d'appelant. Resté : les deux mesures sur lesquelles il était bâti (l'encodeur
+vide un objet sans lever, `string[]` perd les clés) et la §1.4 (le verrou est
+partagé entre processus). Le delta de spec a suivi — l'exigence parle désormais
+de processus qu'un exploitant supervise déjà, et interdit explicitement une
+seconde file.
 
-Ce qui manquerait de toute façon si on gardait la 4 : un magasin de métadonnées
-persistant. `ExecutionStarted` ne porte pas le type de workflow, donc il ne se
-dérive pas du journal ; il faudrait une table par `db_schema.xml` — de la
-bookkeeping d'hôte, pas un pont SQL, mais c'est une décision de plus.
+Prochaine tranche : **le worker d'activités Temporal**, qui ferme la 5.3 — c'est
+lui qui manquait quand l'exécution restait coincée sur une activité distribuée
+en mémoire.
 
 **Tâche 4, PR #190 (elle porte aussi la 5.3).** Le codec de file est écrit et
 gardé : `ActivityMessage` ⇄ JSON, refusant `options` et `retryDelay` **en les

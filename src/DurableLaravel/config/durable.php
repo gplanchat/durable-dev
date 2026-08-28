@@ -52,6 +52,18 @@ return [
         'runs' => 'durable_workflow_runs',
     ],
 
+    /*
+     * La file qui porte les activités et les reprises, au sens de config/queue.php. `null` prend
+     * la connexion et la file par défaut de l'application.
+     *
+     * Il n'y a pas de seconde file : le travail de Durable voyage sur celle que l'application
+     * draine déjà, avec `php artisan queue:work` pour seul worker.
+     */
+    'queue' => [
+        'connection' => null,
+        'name' => null,
+    ],
+
     'lock' => [
         /*
          * Le magasin de cache qui porte le verrou de reprise, au sens de config/cache.php. `null`
