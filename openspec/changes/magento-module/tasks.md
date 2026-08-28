@@ -101,6 +101,16 @@ unmeasured.
 
 - [ ] 4.1 `communication.xml`, `queue_topology.xml`, `queue_publisher.xml`, `queue_consumer.xml` for
       workflow resume and activity dispatch — Magento's own queue, not a second one beside it.
+      **The `request` type is decided and measured**: `string`, with the module encoding JSON
+      itself. A Durable transport object as the type does not throw — `encode()` returns `[]`, the
+      publisher succeeds, and the execution id is gone before the consumer fails at decode;
+      `string[]` drops the associative keys and warns `Array to string conversion`. The payloads are
+      the ports' own arguments (`WorkflowResumeDispatcher` speaks `string $executionId` and an
+      array), not the Messenger message classes. Giving the core's objects Magento-shaped getters is
+      the one thing this integration must not do.
+      ⚠ **The 4.1/4.2 split moves**: `setup:upgrade` refuses a consumer whose handler method it
+      cannot resolve, so a declaration cannot land inert. 4.1 carries real handlers for the roles it
+      declares; 4.2 adds the remaining roles.
 - [ ] 4.2 The five roles `DurableBundle` covers with handlers: resume, activity run, signal
       delivery, update delivery, timer fire.
 - [ ] 4.3 **One resume at a time.** The per-execution lock over `LockManagerInterface`, and a test

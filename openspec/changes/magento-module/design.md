@@ -80,6 +80,53 @@ a component and autoloading its classes are two different mechanisms, and only t
 automatic. The bench adds its own `psr-4` entry; anyone bootstrapping a Mage-OS bench with a local
 module will hit this and read it as a broken module.
 
+### What Magento's queue can carry — §4.1, measured before declaring
+
+The four XML files need a decided `request` type, and the design had never said which. Two
+measurements settled it, and both failed in the direction this repository keeps finding: silently.
+
+**A Durable transport object as the topic's type does not throw — it empties the message.**
+`ResumeWorkflowMessage` carries public `readonly` properties and no getters, where
+`DataObjectProcessor` walks getters:
+
+```
+objet   : Gplanchat\Durable\Transport\ResumeWorkflowMessage
+getters : []
+encode  : OK -> []
+decode  : BadMethodCallException — Missing required argument $executionId
+```
+
+The publisher **succeeds**. A message is queued whose body is `[]`, and the execution id it was
+about is gone. The consumer then fails at decode, on a payload that no longer says what it was for.
+Publishing and failing are in different processes, and nothing joins them.
+
+**`string[]` corrupts the shape instead.** The resume payload is an associative array whose
+`pendingUpdates` is a list of arrays; `string[]` is Magento's array-of-strings:
+
+```
+charge  : {"executionId":"exec-42","pendingUpdates":[{"name":"approve","arguments":{"by":"alice"}}]}
+encode  : OK -> ["exec-42",[{"name":"approve","arguments":{"by":"alice"}}]]
+decode  : Array to string conversion — TypeProcessor.php:499 — array
+```
+
+The keys are dropped, the nesting is flattened into a warning, and again nothing throws.
+
+**So the topics are `request="string"`, and the module encodes JSON itself.** Magento's encoder
+exists to move Magento service contracts, and Durable's payloads are not that. The queue is used as
+a byte pipe, which is what it can be relied on to be. The alternative — giving the core's transport
+objects Magento-shaped getters — is the one thing this integration must not do: those objects run
+unmodified on every host, and that is the whole argument.
+
+The payloads are the **ports' own arguments**, not the message classes: `WorkflowResumeDispatcher`
+already speaks `string $executionId` and an array of pending updates. The message objects are a
+Messenger detail, and Magento has no reason to learn them.
+
+**One consequence for the order of work.** `queue_consumer.xml` names a handler method, and
+`setup:upgrade` refuses a consumer whose method it cannot resolve — *"Service method specified in
+the definition of handler … is not available"*. A declaration therefore cannot land inert: §4.1
+carries real handlers for the roles it declares, and §4.2 adds the remaining roles rather than
+adding behaviour under a declaration that already shipped.
+
 ## The one hazard that is not a port
 
 Temporal serialises workflow tasks for one execution server-side. Magento's queue does not, and
