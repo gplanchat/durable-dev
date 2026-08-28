@@ -34,15 +34,20 @@ exists to answer.
    exclude an `array` store, which type-checks and locks nothing across processes — the same trap
    DUR030 names for a process-local `lock.factory`. Whether a misconfiguration can be refused at
    boot rather than discovered by a forked journal is a question for the bench.
-3. **What class discovery costs without a compiled container.** Symfony resolves `#[Workflow]` at
-   compile time, once. Laravel has no equivalent, and scanning at boot on every request is the
-   wrong answer for an application that never starts a workflow in a web request. Explicit
-   declaration in `config/durable.php` is the assumed answer; whether a cached manifest
-   (`artisan durable:cache`, in the shape of `route:cache`) is worth its own command is not decided.
-4. **Whether Laravel's queue preserves per-execution ordering.** It does not, and the package must
-   not depend on it — that is what `ResumeLock` is for. What is unmeasured is the *rate*: how often
-   two resumes of one execution actually collide under a realistic worker count, which decides
-   whether question 1 above is a micro-optimisation or the design.
+3. ~~**What class discovery costs without a compiled container.**~~ **Measured — `tasks.md` §1.4.**
+   Explicit declaration in `config/durable.php` costs 0,14 ms and does not grow with the
+   application; a reflection scan costs 15 ms at a thousand classes and, worse, **loads all of them
+   into every process** (1 334 declared classes against 334, +0,9 MB) to find five. **No
+   `artisan durable:cache`**: a cached manifest beats the explicit list by 0,11 ms, and
+   `config:cache` already caches the file it would duplicate.
+4. ~~**Whether Laravel's queue preserves per-execution ordering.**~~ It does not, and the package
+   must not depend on it — that is what `ResumeLock` is for. **The rate is measured — `tasks.md`
+   §1.5 — and it splits in two.** Spread over many executions, contention is a rounding error
+   (0,6 % at sixteen executions per worker), and question 1 would be over-engineering. On a single
+   hot execution — one long-lived workflow woken by signals, timers and activity results, which is
+   the shape durable execution attracts — 98,8 % of resumes collide, and a 1 s backoff turned 32 s
+   of work into 148 s of wall clock. **The non-blocking entry point is justified by the hot case,
+   and the backoff has to be configurable**, because at that rate the backoff *is* the latency.
 
 ## Temporal on Laravel: the question, not the answer
 
