@@ -340,6 +340,32 @@ topic.
       ⚠ Each section opens with a **warning that the package is not on Packagist**: documenting a
       `composer require` that does not resolve would be the documentation telling a lie the rest of
       this change spent its time avoiding.
+- [ ] 6.5 **Le paquet part.** Ce qui est dans le dépôt est fait : `src/DurableModule/` gagne son
+      `README.md` et sa `LICENSE` — les six paquets publiés en ont, celui-ci était le seul sans — et
+      `bin/splitsh-publish.sh` gagne sa ligne `"src/DurableModule/|durable-magento"`. `composer
+      validate --strict` passe sur le manifeste.
+      ⚠ **Le satellite existe déjà, et il n'est pas vide.** `gplanchat/durable-magento` a été créé
+      le 2026-03-29 et porte un `main` : le split de `af3e51be`, quand ce préfixe tenait un tout
+      autre module (`Api`, `Model`, une commande de consommation), depuis retiré par `e9b24e9c`.
+      Son arbre correspond exactement à `src/DurableModule/` à ce commit-là, donc c'est un vrai
+      split du même préfixe, et le split d'aujourd'hui devrait l'avoir pour ancêtre : la première
+      poussée avance sans forcer. Si elle est refusée, le `workflow_dispatch` avec `force` archive
+      la tête sous `refs/heads/archive/` avant de la remplacer — et rien n'est perdu de toute façon,
+      `af3e51be` est dans l'histoire du monorepo.
+      ⚠ **Le satellite est PRIVÉ**, seul des dix à l'être. Packagist ne lira rien tant qu'il ne sera
+      pas public.
+      **Reste, et ce sont des gestes hors du dépôt, dans cet ordre** — voir
+      `.worktrees/prises/change/magento-module.md` : rendre le dépôt public, l'ajouter à la portée
+      du PAT `SPLITSH_PUSH_TOKEN` (fine-grained, *Only select repositories*, Contents: Read and
+      write), **puis seulement** fusionner cette PR. Ensuite, soumettre à Packagist.
+      ⚠ **Un préfixe ajouté après coup ne rattrape pas les tags passés** : le paquet arrivera avec
+      `dev-main` et **zéro version**, exactement comme `durable-bridge-illuminate` l'a fait le
+      2026-08-28. Il prendra sa première version au prochain tag, pas en rejouant `v0.1.0-alpha7`,
+      qui le ferait apparaître dans une version qui ne le contenait pas. D'où la section *Release
+      state* du README, qui dit `:dev-main` plutôt que de laisser croire.
+      L'avertissement « pas sur Packagist » des pages de documentation reste tant que Packagist ne
+      l'a pas : il tombera avec la soumission, pas avec cette PR.
+
 - [x] 6.4 **OST004's Magento row has left the "not built yet" table** — struck through in both
       tables, marked settled, pointing at DUR046 and naming what is still missing (publication, a
       CI job that boots). OST003 §Magento becomes *§Magento — built*, and carries the two findings
