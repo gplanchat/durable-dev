@@ -123,7 +123,15 @@ remet tout d'aplomb.
 identique à ce que livre la #182, et le banc en a besoin pour tourner d'ici la
 fusion.
 
-Reste : les workers de la 5.1, puis 5.2 et 5.3 ; la tâche 4 (la file de Magento)
+Tranche **en cours** : **assainir `magento/README.md`**, qui décrit un module
+qui n'existe pas — `Gplanchat_DurableModule` (le module s'appelle
+`Gplanchat_Durable`), `gplanchat/durable-module` (nom abandonné), un tableau de
+bord sous *Stores > Configuration* avec des couloirs et une frise, une tranche
+« reasoning » de cinq activités, une commande `durable:sample`, et le port 7233
+là où le banc écoute sur 7234. Rien de tout ça n'existe. C'est la première chose
+que lit qui découvre le banc.
+
+Reste ensuite : les workers de la 5.1, puis 5.2 et 5.3 ; la tâche 4 (la file de Magento)
 et la 4.3 ; puis la tâche 6.
 
 ⚠ Frictions du banc, à savoir avant d'y toucher :
