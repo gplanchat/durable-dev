@@ -69,36 +69,42 @@ faire de ce côté. (La session
 `splitsh-integration-alpha8` est sur le chantier Laravel et ne touche à rien de
 tout ça — je m'étais trompé de destinataire.)
 
-**PR #179** — la conception de la 4.1, mesurée. Le type de `request` est
-tranché : **`string`, le module encode son JSON**. Deux mesures, deux pannes
-silencieuses :
-- un objet de transport de Durable ne se fait pas refuser, il se fait **vider** —
-  `encode()` rend `[]` sans lever, le publieur réussit, l'identifiant
-  d'exécution a disparu, et le consommateur échoue au décodage dans un autre
-  processus ;
-- `string[]` laisse tomber les clés associatives et rend
-  `Array to string conversion` au décodage.
+**PR #182** — verte (22/22), `CLEAN`. Elle porte **l'écran d'administration**
+demandé et la tranche **5.1** qui le rend capable de montrer autre chose que du
+vide. #179 (conception de la 4.1) est fusionnée.
 
-Les charges sont les **arguments des ports** (`WorkflowResumeDispatcher` parle
-`string $executionId` + tableau), pas les classes de message, qui sont un détail
-de Messenger. Donner aux objets du cœur des accesseurs à la forme de Magento est
-ce que cette intégration ne doit pas faire.
+`System > Durable processes > Process history`. Vérifié en HTTP, connecté, dans
+les deux états : sans DSN la page dit pourquoi une liste vide est la bonne
+réponse ; avec `durable/temporal/dsn` dans `env.php`, l'avertissement disparaît
+et la grille lit le cluster. Rien n'est réimplémenté —
+`InMemoryWorkflowRunCatalog` lit n'importe quel magasin d'événements et rend les
+mêmes `WorkflowRunDescription` que le tableau de bord Sylius.
 
-⚠ **Le découpage 4.1/4.2 bouge** : `setup:upgrade` refuse un consommateur dont il
-ne résout pas la méthode de gestionnaire, donc une déclaration ne peut pas
-atterrir inerte. La 4.1 portera de vrais gestionnaires pour les rôles qu'elle
-déclare (reprise et distribution d'activité), la 4.2 ajoutera signal, update et
-minuterie.
+Pour le voir : `cd magento && php -S 127.0.0.1:8080 -t pub/ phpserver/router.php`,
+puis `http://127.0.0.1:8080/admin` — **durable / Durable123!**
 
-Reste de la 4.1 : écrire les quatre XML et les deux gestionnaires.
+⚠ **Ce qui manque pour que la grille montre quelque chose** : aucun worker ne
+draine la file de tâches du journal. Une exécution lancée contre le cluster n'a
+personne pour l'avancer. C'est le reste de la 5.1, et la 5.2 en dépend.
 
-Après : **tâche 4** (4.2, 4.3) — `communication.xml`, `queue_topology.xml`,
-`queue_publisher.xml`, `queue_consumer.xml` pour les cinq rôles (4.1), les
-gestionnaires (4.2), et le verrou par exécution avec son test (4.3). Les quatre
-sondages de la tâche 1 l'ont dessinée : la file n'offre **aucune** exclusion
-mutuelle (1.5), le verrou de la 1.4 est donc la seule chose entre deux
-consommateurs et un journal bifurqué, et une reprise qui arrive avant la purge
-du verrou est acquittée sans être distribuée (1.3).
+⚠ Trois contraintes d'hôte de plus, trouvées en posant l'écran (toutes dans
+`design.md`) :
+- Magento résout un **contrôleur par convention depuis le nom du module**, pas
+  depuis l'autochargement — d'où une seconde entrée `psr-4` pour `Controller/`.
+  Sans elle : menu affiché, route déclarée, et un 404 dans le châssis d'admin ;
+- un **argument de constructeur optionnel n'est pas auto-câblé**, Magento prend
+  son défaut — le DSN n'était jamais lu, sans une ligne d'erreur ;
+- **renommer une classe que le conteneur instancie** laisse un intercepteur
+  périmé dans `generated/code/`, que `--keep-generated` ne retire pas ; le
+  symptôme est « There are no commands defined in the "durable" namespace ».
+
+⚠ La copie principale porte une modification locale de
+`src/DurableModule/composer.json` (la seconde entrée `psr-4`) : elle est
+identique à ce que livre la #182, et le banc en a besoin pour tourner d'ici la
+fusion.
+
+Reste : les workers de la 5.1, puis 5.2 et 5.3 ; la tâche 4 (la file de Magento)
+et la 4.3 ; puis la tâche 6.
 
 ⚠ Frictions du banc, à savoir avant d'y toucher :
 - dépôts de chemin en `"symlink": false` : recopier dans
