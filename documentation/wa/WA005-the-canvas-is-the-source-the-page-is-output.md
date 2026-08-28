@@ -74,21 +74,7 @@ The rule is unenforceable while the canvas lives outside the repository. Making 
    **What it does not catch:** an edit made and imported over in the same breath, and the canvas
    drifting away from the committed pages. Only (1) closes those.
 
-**(1) and (2) both exist now, and the drift they measured is reconciled.** The Nexus section and
-the two package rows were carried back into both canvases, the pages regenerated from them, and the
-CI check added: `docs-ovh.yml` re-runs the import and fails on any difference. Three things the
-reconciliation turned up, each a small repair rather than a transcription:
-
-- **two dead hover classes.** `dz-h64` and `dz-h65` were copied into the pages from neighbouring
-  elements without the `:hover` rules that give them meaning — the page carried the attribute and
-  no rule. The nav entry now has the `style-hover` its four siblings share; the card link has none,
-  for want of a sibling to borrow from.
-- **an unlocalised link.** The French page pointed at `/docs/nexus/`, sending a French reader to the
-  English page. `rewrite_links()` produces `/fr/docs/nexus/`, so regenerating fixed it.
-- **a stale column template.** The packages grid had drifted from the canvas since `15f6579c`; the
-  regeneration adopts the canvas's, which is what "the canvas is the source" means.
-
-This working agreement is no longer a convention with an alarm on it. It is written down
+Until (1) exists, this working agreement is a convention with an alarm on it. It is written down
 anyway, because three losses in one night were three people each reasonably believing they were
 doing the normal thing.
 

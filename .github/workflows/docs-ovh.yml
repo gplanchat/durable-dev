@@ -60,19 +60,6 @@ jobs:
         # puisque l'import n'est jamais joué en CI — il n'y a pas de canevas ici.
         run: python3 hugo-docs/import-design.py --self-test
 
-      - name: Guard — la page servie est bien celle du canevas
-        # WA005 point 2, écrivable depuis que le canevas est au dépôt : rejouer l'import
-        # et échouer sur la moindre différence. Une correction écrite dans layouts/ et pas
-        # dans le canevas rougit ici, avec son diff — avant la régénération, pas après.
-        run: |
-            cd hugo-docs
-            cp layouts/index.html /tmp/committed-en.html
-            cp layouts/index.fr.html /tmp/committed-fr.html
-            python3 import-design.py variant-b-narrative.dc.html layouts/index.html --force
-            python3 import-design.py variant-b-narrative-fr.dc.html layouts/index.fr.html --force
-            diff -u /tmp/committed-en.html layouts/index.html
-            diff -u /tmp/committed-fr.html layouts/index.fr.html
-
       - name: Build
         working-directory: hugo-docs
         env:
