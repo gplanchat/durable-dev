@@ -14,6 +14,7 @@ declare(strict_types=1);
  *   php probe-queue.php state                            l'état des messages, en clair
  *   php probe-queue.php recover                          la tâche cron qui rattrape les IN_PROGRESS
  *   php probe-queue.php unlock                           la tâche cron qui vide `queue_lock`
+ *   php probe-queue.php purge                            écarte les messages des campagnes passées
  *   php probe-queue.php config                           les réglages qui décident de la reprise
  *
  * Puis, dans un autre terminal :
@@ -87,6 +88,25 @@ switch ($argv[1] ?? 'state') {
         // un message redélivré sera traité ou acquitté sans rien faire.
         $om->get(\Magento\Framework\MessageQueue\Lock\WriterInterface::class)->releaseOutdatedLocks();
         echo "messagequeue_clean_outdated_locks exécutée\n";
+        break;
+
+    case 'purge':
+        // Les campagnes précédentes laissent des messages derrière elles, et un
+        // consommateur prend le plus ancien candidat, pas le vôtre : une file
+        // sale répond à côté de la question posée. Mesuré à mes dépens.
+        $connection = $om->get(\Magento\Framework\App\ResourceConnection::class);
+        $db = $connection->getConnection();
+        $ids = $db->fetchCol(
+            $db->select()
+                ->from(['s' => $connection->getTableName('queue_message_status')], ['id'])
+                ->join(['q' => $connection->getTableName('queue')], 's.queue_id = q.id', [])
+                ->where('q.name = ?', 'durable_probe')
+        );
+        if ($ids !== []) {
+            $om->get(\Magento\MysqlMq\Model\QueueManagement::class)
+                ->changeStatus($ids, \Magento\MysqlMq\Model\QueueManagement::MESSAGE_STATUS_COMPLETE);
+        }
+        printf("%d message(s) de sonde retiré(s) du chemin\n", count($ids));
         break;
 
     case 'config':
