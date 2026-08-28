@@ -159,7 +159,19 @@ jobs:
                       exit 0
                   fi
 
-                  gh api --paginate "/users/$OWNER/packages/container/php-grpc/versions?per_page=100" \
+                  # Deux familles d'URL cohabitent pour les paquets : celle de l'utilisateur
+                  # authentifié, et celle d'un utilisateur nommé. Un jeton appartenant au
+                  # propriétaire du paquet passe par la première ; on essaie, et on retombe sur la
+                  # seconde. Résoudre ici plutôt qu'à la suppression a son importance : la lecture a
+                  # lieu chaque semaine, la première suppression n'est due que dans deux mois.
+                  base="/user/packages/container/php-grpc"
+                  if ! gh api "$base/versions?per_page=1" >/dev/null 2>&1; then
+                      base="/users/$OWNER/packages/container/php-grpc"
+                      gh api "$base/versions?per_page=1" >/dev/null
+                  fi
+                  echo "API : $base"
+
+                  gh api --paginate "$base/versions?per_page=100" \
                       -q '.[] | {id: .id, tags: (.metadata.container.tags // [])}' \
                       | jq -s '.' > versions.json
 
@@ -171,6 +183,6 @@ jobs:
                   fi
 
                   while read -r id; do
-                      gh api -X DELETE "/users/$OWNER/packages/container/php-grpc/versions/$id"
+                      gh api -X DELETE "$base/versions/$id"
                       echo "retirée : $id"
                   done < a-retirer.txt
