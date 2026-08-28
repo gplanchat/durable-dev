@@ -1,12 +1,16 @@
 # gplanchat/durable-rector
 
-Rector rules that move a project off the official **Temporal PHP SDK** onto
-[`gplanchat/durable`](https://github.com/gplanchat/durable-dev) — and, above all, keep the
-**workflow and activity type names a running server already knows**.
+Rector rules for projects that consume [`gplanchat/durable`](https://github.com/gplanchat/durable-dev)
+and have code to migrate. Two sets, for two different migrations.
 
 ```bash
 composer require --dev gplanchat/durable-rector
 ```
+
+| Set | For |
+|---|---|
+| `temporal-sdk.php` | Coming **from the official Temporal PHP SDK**, keeping the workflow and activity type names a running server already knows |
+| `durable-upgrade.php` | Already on Durable, **moving from one version to the next** — cumulative, and detailed version by version in [`UPGRADE.md`](../../UPGRADE.md) |
 
 ```php
 // rector.php
@@ -15,7 +19,30 @@ return Rector\Config\RectorConfig::configure()
     ->withSets([__DIR__ . '/vendor/gplanchat/durable-rector/config/sets/temporal-sdk.php']);
 ```
 
-## What it does
+---
+
+## Monter de version à l'intérieur de Durable
+
+Le tableau ci-dessus fait **entrer** un projet dans Durable, une fois. `durable-upgrade.php` l'y
+fait **avancer**, à chaque montée de version :
+
+```php
+// rector.php
+return Rector\Config\RectorConfig::configure()
+    ->withImportNames()
+    ->withSets([__DIR__ . '/vendor/gplanchat/durable-rector/config/sets/durable-upgrade.php']);
+```
+
+Il est cumulatif — le passer une fois rattrape toutes les versions franchies. Ce qu'il contient, et
+surtout ce qu'il **ne peut pas** faire tout seul (un conteneur Symfony compilé garde les noms
+pleinement qualifiés, et veut son `cache:clear`), est écrit version par version dans
+[`UPGRADE.md`](../../UPGRADE.md) à la racine du dépôt.
+
+---
+
+## `temporal-sdk.php` — coming off the SDK
+
+### What it does
 
 | Rule | What moves |
 |---|---|

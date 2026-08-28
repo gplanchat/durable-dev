@@ -6,9 +6,38 @@ A Tier 1 bootstrap has no unit test that proves it boots. Before the package has
 Laravel skeleton has to answer the four questions `design.md` records as assumed — and each answer
 either confirms a design or replaces it.
 
-- [ ] 1.1 A Laravel skeleton on this machine with `gplanchat/durable` and
+- [x] 1.1 A Laravel skeleton on this machine with `gplanchat/durable` and
       `gplanchat/durable-bridge-illuminate` installed by path repository, `artisan migrate` creating
       the four tables. Throwaway by default; tracking it is §6.3's question, not this one.
+      **Done, on Laravel 12.68.0 / PHP 8.2.33, and it works unmodified**: package auto-discovery
+      finds `DurableIlluminateServiceProvider` from `extra.laravel.providers` with nothing declared
+      by hand, and `artisan migrate` creates `durable_events`, `durable_workflow_metadata`,
+      `durable_workflow_runs` and `durable_child_workflow_parent_link` with the columns the schema
+      promises. Two packages, two path repositories, `minimum-stability: dev` — no other change to
+      a stock skeleton.
+
+      **And the harness immediately paid for itself, on a claim the README makes.** "Publishing is
+      for when you want to edit them, and from that point they are yours" is **true**, and true for
+      a mechanism worth writing down rather than trusting: `Migrator::getMigrationFiles()` does
+      `->keyBy(fn ($file) => $this->getMigrationName($file))`, and `BaseCommand::getMigrationPaths()`
+      returns `array_merge($this->migrator->paths(), [$this->getMigrationPath()])` — package paths
+      first, `database/migrations` last. A duplicate key keeps the last, so the published copy
+      **shadows** the package's. Measured: a column added to the published copy appears in the
+      table, and the migration still runs exactly once.
+
+      **The corollary is a trap, and it is one keystroke away.** The shadowing holds only while the
+      two files share a basename. Renaming the published copy to a fresh timestamp —
+      `2026_08_28_000000_create_durable_tables.php`, the instinct of anyone who has written a
+      Laravel migration — makes them two different migrations, and both run:
+
+      ```
+      0001_01_01_000000_create_durable_tables ....... DONE
+      2026_08_28_000000_create_durable_tables ....... FAIL
+      SQLSTATE[HY000]: General error: 1 table "durable_events" already exists
+      ```
+
+      The database is left half migrated. The README and the Packages page said *publish to edit*
+      without saying *keep the name*; this task adds the sentence, in three files and two languages.
 - [ ] 1.2 **Measure what a waiting job costs.** Two workers, one execution, contention forced.
       Compare `ResumeLock::around()` blocking against `$this->release($delay)`: worker slots held,
       `--tries` consumed, what lands in `failed_jobs`. Record the numbers, not the preference.

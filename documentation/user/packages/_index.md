@@ -141,7 +141,9 @@ answer.
 
 The four tables ship as a migration loaded straight from the package, so `migrate` is enough.
 `vendor:publish --tag=durable-migrations` is for when you want to edit them — and from that point
-they are yours.
+they are yours. **Keep the published file's name**: Laravel keys migrations by basename
+and lets `database/migrations` win the tie, which is what makes your copy the one that runs. Rename
+it and both run, the second failing on a table that already exists.
 
 `Queue\ResumeLock` is the one thing no choice of storage supplies. Two workers resuming the **same**
 execution both replay it, both believe they are discovering the commands it produces, and those

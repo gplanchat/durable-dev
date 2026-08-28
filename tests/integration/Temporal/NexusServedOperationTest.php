@@ -132,7 +132,7 @@ final class NexusServedOperationTest extends TestCase
 
     public function testAnImmediateHandlerAnswersTheCallerThroughTheWorker(): void
     {
-        $registry = new NexusOperationRegistry();
+        $registry = NexusOperationRegistry::routedBy('temporal');
         $registry->register(
             NexusService::named('probe'),
             NexusOperationName::named('greet'),
@@ -152,7 +152,7 @@ final class NexusServedOperationTest extends TestCase
 
     public function testADeferredHandlerAnswersWhenItsWorkflowFinishes(): void
     {
-        $registry = new NexusOperationRegistry();
+        $registry = NexusOperationRegistry::routedBy('temporal');
         $registry->register(
             NexusService::named('probe'),
             NexusOperationName::named('greet'),
@@ -183,7 +183,7 @@ final class NexusServedOperationTest extends TestCase
 
         // Un registre vide : le serveur doit accepter le refus typé que le worker lui envoie.
         // Si le format était mauvais, `RespondNexusTaskFailed` lèverait ici.
-        $this->worker(new NexusOperationRegistry())->pollOnce();
+        $this->worker(NexusOperationRegistry::routedBy('temporal'))->pollOnce();
 
         self::assertNotSame('', $callerId);
     }
