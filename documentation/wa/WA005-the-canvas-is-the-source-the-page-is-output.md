@@ -31,7 +31,24 @@ stops being an event to fear, because there is nothing in the output that the so
 
 The rule is unenforceable while the canvas lives outside the repository. Making it real means:
 
-1. **Committing the canvas source** — the `.dc.html` file — next to the script that reads it.
+1. ~~**Committing the canvas source** — the `.dc.html` file — next to the script that reads it.~~
+   **Done.** `hugo-docs/variant-b-narrative.dc.html` and `…-fr.dc.html`, exported from the
+   *Durable landing design* project by `designer handoff`, which is the only export that returns the
+   canvas source rather than the served page — `designer fetch` returns the latter, and
+   `import-design.py` refuses it with *racine introuvable*.
+
+   **And committing them measured the drift for the first time.** Regenerating both pages from the
+   canvas as it stands today would delete, from each language:
+
+   - the whole **Nexus section** — the nav entry and `<section id="nexus">`, some ninety lines —
+     written straight into the pages and never into the canvas;
+   - the two package rows added by #202 and #206, `gplanchat/durable-bridge-illuminate` and
+     `gplanchat/durable-laravel`, with the badge that counts the backends.
+
+   That is the third and fourth loss the working agreement was written to stop, caught **before**
+   the regeneration instead of after it. Neither is ported yet: the canvas is committed as it is,
+   truthfully out of date, and the guard in `import-design.py` refuses to overwrite until someone
+   reconciles the two.
 2. ~~**A CI check** that re-runs `import-design.py` on the committed source and fails if the result
    differs from the committed `layouts/index.html`.~~ **Done, and not that way.** Re-running the
    import in CI needs the canvas, which (1) has not delivered — so the guard was put where the loss
@@ -56,6 +73,38 @@ The rule is unenforceable while the canvas lives outside the repository. Making 
 
    **What it does not catch:** an edit made and imported over in the same breath, and the canvas
    drifting away from the committed pages. Only (1) closes those.
+
+### The drift is bidirectional, and that is what makes it a decision
+
+Committing the canvas made the gap measurable, and measuring it found something the agreement did
+not anticipate: **the repository and the canvas are each ahead of the other, in different places.**
+Converging in either direction alone regresses something real.
+
+| where | which side is ahead | what regresses if you take the other |
+|---|---|---|
+| the Nexus section, the package rows, the six integrations removed, the Laravel chips | **the repository** | ninety lines of section, and a chooser offering packages nobody publishes |
+| `--accent2` | **the repository** — `PALETTE` lives in `import-design.py`; the canvas hard-codes `accent2: dark ? '#6bb0a6' : '#2f6f6b'` and does not follow the accent variant | dark theme falls to 2.98 contrast on `bg2`, below AA |
+| `DIST_ALLOWED.none` | **the canvas** — it offers `illuminate`, the page does not | a bridge that works standalone (its own conformance suite runs on Capsule, no framework) becomes unreachable, and the page contradicts its own `WHYNOT.none`: *"on plain PHP both SQL bridges are open"* |
+
+So "the canvas is the source" is true of **markup and layout**, and false of anything the script owns
+(the palette) or that a product decision moved (the chooser's data). A regeneration is therefore not
+a mechanical replay: it is a family-by-family arbitration, and the guard in `import-design.py` exists
+to force that arbitration to happen in daylight rather than at write time.
+
+**Both were had.** A neighbouring session held its pull request so nobody wrote in `layouts/`, and
+the arbitration was made family by family, regenerating and measuring after each — eight passes, the
+count falling 114 → 29 substantive lines. What is left is the canvas being ahead, and it is meant to
+be: the newer column template, `text-wrap: balance` on the badges, a dashed border, the API Platform
+icon, two French sentences, and `illuminate` reachable from the frameworkless option.
+
+**Two of the four commits needed nothing at all.** The palette lives in `PALETTE` inside
+`import-design.py`, not in the canvas, so the two accent commits were already in the pipeline —
+measured, the regenerated `:root` was byte-identical before a single line was ported.
+
+**The reconciliation repaired three things nobody had reported**, which is the argument for doing it
+rather than living with the drift: two dead hover classes (`dz-h64`, `dz-h65` — the attribute copied
+from a neighbour without its rule), an unlocalised link (`/docs/nexus/` on the French page, sending a
+French reader to the English one), and a chooser that contradicted its own copy.
 
 Until (1) exists, this working agreement is a convention with an alarm on it. It is written down
 anyway, because three losses in one night were three people each reasonably believing they were
