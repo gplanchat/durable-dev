@@ -194,27 +194,36 @@ Illuminate's connection, and the two SQL bridges bind to those two types. Making
 `ResourceConnection` is a fourth adapter family — a change of its own, with the wizard,
 `ALLOWED.magento` and OST003 to update behind it.
 
-Until then the module refuses a DBAL or Illuminate configuration **by name**, the way the DBAL
-backend refuses Nexus: `NexusUnsupportedByBackendException` names the backend and says what to do
-instead, rather than leaving a workflow waiting on a result nobody will produce.
+Until then the module refuses a DBAL or Illuminate configuration — **and Composer is what refuses
+it**, not code. `gplanchat/durable-magento` declares:
 
-**And "at startup" means something weaker here than it does under a bundle — §2.3, built.** Magento's
-container has no equivalent of a bundle extension, and `setup:di:compile` instantiates nothing, so
-there is no point at which a configuration error can fail the build. What the module can do, and
-does, is refuse where a process **assembles the runtime** — at the boot of a `bin/magento` command
-and at the boot of a consumer, before any workflow waits on anything. Every entry point routes
-through the one factory rather than each carrying its own guard. That satisfies what the task asks
-for; it is not compile-time validation, and the design should not be read as promising it.
+```json
+"conflict": {
+    "gplanchat/durable-bridge-dbal": "*",
+    "gplanchat/durable-bridge-illuminate": "*"
+}
+```
 
-The vocabulary is the selector's, not the bundle's: `memory` and `temporal`, because
-`ALLOWED.magento` already says `['memory', 'temporal']` and §6.2 will have to agree with it. The
-bundle's `in_memory` names the type of an *event store* — a different axis, and conflating the two
-would make the configuration and its documentation drift apart.
+Measured on the bench: `composer require gplanchat/durable-bridge-dbal` beside the module ends in
+*"Conclusion: remove gplanchat/durable-magento (conflict analysis result)"*, and nothing is written.
+The incoherent installation never exists, so no process ever boots into it — earlier and harder than
+any check the module could run, and it costs six lines of metadata instead of a value object, an
+exception, a guard and a test.
 
-A fourth refusal fell out of putting the check at the assembly point, and it is worth more than the
-three the task asked for: a configuration naming `temporal` is refused too, because the module does
-not wire it yet. Serving in-memory in its place would lose everything at process exit and announce
-nothing — the same shape as §1.4's lock that always says yes.
+This is a **decision of the author's**, taken on PR #172 after a first version had built the runtime
+refusal. It is the better mechanism, and the reasoning is worth keeping because it generalises: a
+constraint the package manager can express does not belong in a runtime that only learns about it
+after someone has already installed the wrong thing.
+
+⚠ The one thing Composer's refusal does not carry is **why**. It names the packages that cannot
+coexist, not the reason Magento cannot reach a SQL journal — that reason lives in the selector on the
+home page, in `ALLOWED.magento`, and in this design. A `conflict` entry has nowhere to put a
+sentence.
+
+And because there is no configuration surface for the backend at all, there is nothing to
+mistype and nothing to refuse at boot: the module wires what it wires. §5 is what gives it a second
+backend, and that is the point at which a choice — and therefore a way to get the choice wrong —
+starts to exist.
 
 ## Naming, and the two conventions that disagree
 
