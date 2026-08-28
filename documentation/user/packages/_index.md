@@ -199,7 +199,10 @@ workers as `bin/magento` commands, and adds a read-only admin screen under
 The screen is a standard Magento grid — paging, bookmarks, column controls, export, and a
 multi-select status filter whose options come from the status enum itself. Selecting a run opens its
 detail: a timeline with **one line per action** — an activity scheduled, started and completed is
-one line, and the line's bar is how long it took — and the journal beneath it. Each journal line unfolds onto what the backend recorded with
+one line, and the line's bar is how long it took. The run itself is the first line, named after the
+workflow and holding its workflow tasks; a child workflow keeps a line of its own. Each bar is cut
+between consecutive events, so an interval in which nothing was recorded — waiting for a worker —
+says how long it lasted rather than hiding inside a bar. The journal sits beneath it. Each journal line unfolds onto what the backend recorded with
 it — the arguments an activity was called with, what it returned, the class and message of a
 failure. Positioning by time rather than by rank is the point: it is what makes a run that spent
 twenty-two of its twenty-four seconds waiting look like one.

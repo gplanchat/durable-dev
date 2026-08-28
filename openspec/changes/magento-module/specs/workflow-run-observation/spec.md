@@ -48,6 +48,17 @@ operators have said what they look for, and a fabrication before then.
   timestamps read off two rows
 - **AND** two activities of the same name scheduled twice are two lines, not one
 
+#### Scenario: The run itself is the first line, and its children are not part of it
+
+- **WHEN** an operator selects a run that ran workflow tasks and started a child workflow
+- **THEN** the events of the run itself — its start, its workflow tasks, its end — are on a single
+  line, the first
+- **AND** that line is labelled with the name of the workflow, not with the name of an event
+- **AND** the child workflow has a line of its own, labelled with the child's workflow type
+- **AND** a signal received and an update handled are lines of their own, not folded into the run's
+- **AND** an interval during which the run recorded nothing — waiting for a worker, waiting for a
+  reply — is still readable inside its line, and says how long it lasted
+
 #### Scenario: An event that is an action on its own
 
 - **WHEN** an event has no action to belong to, such as the start of the execution or a signal

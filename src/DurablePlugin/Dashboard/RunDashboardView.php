@@ -97,7 +97,7 @@ final class RunDashboardView
             ],
             'status' => $status,
             'selectedRun' => null === $selected ? null : self::describe($selected) + [
-                'lanes' => self::lanes($this->catalog->readHistory($selected)),
+                'actions' => self::actions($this->catalog->readHistory($selected)),
             ],
         ];
     }
@@ -128,13 +128,23 @@ final class RunDashboardView
     }
 
     /**
+     * L'historique regroupé par **action**, pas par nature.
+     *
+     * Une activité planifiée, démarrée puis terminée est une action et trois événements ; les
+     * événements de l'exécution elle-même sont une action, la première. Ranger par nature obligeait
+     * l'exploitant à recoller trois lignes de l'œil pour savoir combien de temps celle-là avait
+     * duré — et noyait les quatre actions intéressantes d'une commande sous la plomberie du moteur.
+     *
+     * `kind` reste porté par l'action : la couleur de sa bordure vient de là, et une action a la
+     * nature de l'événement qui l'ouvre.
+     *
      * @param list<WorkflowRunEvent> $history
      *
-     * @return list<array{kind: string, events: list<array{sequence: int, recordedAt: \DateTimeImmutable, label: string, details?: array<string, mixed>}>}>
+     * @return list<array{kind: string, label: string, took: string, events: list<array{sequence: int, recordedAt: \DateTimeImmutable, label: string, details?: array<string, mixed>}>}>
      */
-    private static function lanes(array $history): array
+    private static function actions(array $history): array
     {
-        $lanes = [];
+        $grouped = [];
         foreach ($history as $event) {
             $described = [
                 'sequence' => $event->sequence,
@@ -149,16 +159,42 @@ final class RunDashboardView
                 $described['details'] = $event->details;
             }
 
-            $lanes[$event->kind->value][] = $described;
+            // Un événement sans action est à lui seul la sienne : sa séquence suffit à le
+            // distinguer, et il occupe son bloc comme n'importe quelle autre action.
+            $grouped[$event->actionKey ?? ('#' . $event->sequence)][] = ['event' => $event, 'described' => $described];
         }
 
-        // Aucune voie vide : une voie que le backend n'alimente jamais ne doit pas apparaître, sous
-        // peine de faire passer une notion absente pour une exécution qui n'en a pas eu.
-        return array_map(
-            static fn(string $kind, array $events): array => ['kind' => $kind, 'events' => $events],
-            array_keys($lanes),
-            $lanes,
-        );
+        $actions = [];
+        foreach ($grouped as $group) {
+            $opening = $group[0]['event'];
+            $closing = $group[\count($group) - 1]['event'];
+
+            $actions[] = [
+                'kind' => $opening->kind->value,
+                // Le nom de l'action est celui de l'événement qui l'ouvre : c'est la planification
+                // qui connaît le nom de l'activité, ses suites ne portent qu'un numéro.
+                'label' => $opening->label,
+                'took' => self::took(
+                    (float) $closing->recordedAt->format('U.u') - (float) $opening->recordedAt->format('U.u'),
+                ),
+                'events' => array_column($group, 'described'),
+            ];
+        }
+
+        return $actions;
+    }
+
+    /**
+     * Une durée n'a pas de type naturel en Twig, et l'arrondir dans le gabarit demanderait au
+     * gabarit de savoir à partir de quand une seconde vaut mieux qu'une milliseconde.
+     */
+    private static function took(float $seconds): string
+    {
+        return match (true) {
+            $seconds < 1.0 => \sprintf('%d ms', (int) round($seconds * 1000)),
+            $seconds < 90.0 => \sprintf('%.1f s', $seconds),
+            default => \sprintf('%d min %02d s', (int) ($seconds / 60), (int) fmod($seconds, 60)),
+        };
     }
 
     /**

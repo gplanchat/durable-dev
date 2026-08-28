@@ -211,8 +211,11 @@ workers en commandes `bin/magento`, et ajoute un écran d'administration en lect
 L'écran est une grille Magento standard — pagination, signets, choix des colonnes, export, et un
 filtre d'état multi-select dont les options viennent de l'énumération elle-même. Ouvrir une
 exécution mène à son détail : une frise avec **une ligne par action** — une activité planifiée,
-démarrée puis terminée est une ligne, et la barre de la ligne est sa durée — et le journal en
-dessous. Chaque ligne du journal se
+démarrée puis terminée est une ligne, et la barre de la ligne est sa durée. L'exécution elle-même
+est la première ligne, nommée d'après le workflow et portant ses tâches de workflow ; un workflow
+enfant garde sa propre ligne. Chaque barre est découpée entre événements consécutifs, de sorte
+qu'un intervalle sans rien d'enregistré — l'attente d'un worker — dit sa durée au lieu de se
+cacher dans une barre. Le journal est en dessous. Chaque ligne du journal se
 déplie sur ce que le backend a enregistré avec elle — les arguments d'appel d'une activité, ce
 qu'elle a rendu, la classe et le message d'un échec. Placer dans le temps plutôt que par rang est
 tout l'intérêt : c'est ce qui fait qu'une exécution ayant passé vingt-deux de ses vingt-quatre

@@ -137,13 +137,15 @@
                                         <p><strong>Run:</strong> <code>{{ selectedRun.runId }}</code></p>
                                         <p><strong>Outcome:</strong> {{ selectedRun.status|replace({'_': ' '})|upper }}</p>
 
-                                        {% if selectedRun.lanes is empty %}
+                                        {% if selectedRun.actions is empty %}
                                             <p class="text-secondary mb-0">No recorded history for this run.</p>
                                         {% else %}
-                                            {# Une voie que le backend n'alimente jamais n'apparaît pas : le modèle de vue ne la produit pas. #}
-                                            {% for lane in selectedRun.lanes %}
+                                            {# Un bloc par action, pas par nature : une activité planifiée, démarrée puis
+                                               terminée est une action et trois événements, et c'est sa durée que l'exploitant
+                                               vient lire. La bordure garde la couleur de la nature de l'action. #}
+                                            {% for lane in selectedRun.actions %}
                                                 <div class="durable-lane {{ lane.kind }}">
-                                                    <h4 class="h5 mb-2">{{ lane.kind|replace({'_': ' '})|title }}</h4>
+                                                    <h4 class="h5 mb-2">{{ lane.label }} <small class="text-secondary">{{ lane.took }}</small></h4>
                                                     <ul class="durable-events">
                                                         {% for event in lane.events %}
                                                             {# Un événement dont le backend n'a rien enregistré n'a pas de dépliant : le

@@ -39,6 +39,12 @@ final class TemporalRunHistoryReader
     ];
 
     /**
+     * La clé de l'action que l'exécution est pour elle-même. Une seule par historique, et la
+     * première : son événement d'ouverture porte le numéro 1.
+     */
+    private const RUN_ACTION = 'workflow';
+
+    /**
      * Les renvois vers l'événement fondateur d'une action, dans l'ordre où ils font autorité.
      *
      * @var list<string>
@@ -104,6 +110,10 @@ final class TemporalRunHistoryReader
      */
     private static function actionKeyOf(HistoryEvent $event, string $eventType): ?string
     {
+        if (self::belongsToTheRunItself($eventType)) {
+            return self::RUN_ACTION;
+        }
+
         $which = $event->getAttributes();
         if ('' === $which) {
             return null;
@@ -132,6 +142,35 @@ final class TemporalRunHistoryReader
         }
 
         return null;
+    }
+
+    /**
+     * L'exécution elle-même est **une action** : son démarrage, ses tâches de workflow, sa fin.
+     *
+     * Une tâche de workflow n'est pas un fait métier — c'est le mécanisme par lequel le moteur
+     * fait avancer l'exécution. Lui donner une ligne par occurrence noyait les quatre lignes
+     * intéressantes d'une commande sous quatre lignes de plomberie portant le même nom.
+     *
+     * ⚠ **Les exceptions sont l'essentiel de cette règle**, et le même piège que pour le rangement
+     * en voies : `WORKFLOW_EXECUTION_SIGNALED` et la famille `WORKFLOW_EXECUTION_UPDATE_*`
+     * commencent par le même préfixe et ne sont pas l'exécution — un signal reçu et une mise à jour
+     * sont des actions à part entière, avec leur propre ligne. Les workflows **enfants**
+     * (`CHILD_WORKFLOW_EXECUTION_*`, `START_CHILD_WORKFLOW_EXECUTION_*`) et les workflows
+     * **externes** (`EXTERNAL_`, `REQUEST_CANCEL_EXTERNAL_`, `SIGNAL_EXTERNAL_`) ne commencent pas
+     * par ce préfixe : c'est ce qui leur laisse leurs lignes, et c'est éprouvé type par type.
+     */
+    private static function belongsToTheRunItself(string $eventType): bool
+    {
+        if (str_starts_with($eventType, 'EVENT_TYPE_WORKFLOW_TASK_')) {
+            return true;
+        }
+
+        if (!str_starts_with($eventType, 'EVENT_TYPE_WORKFLOW_EXECUTION_')) {
+            return false;
+        }
+
+        return 'EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED' !== $eventType
+            && !str_starts_with($eventType, 'EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_');
     }
 
     /**
@@ -217,6 +256,14 @@ final class TemporalRunHistoryReader
      */
     private static function labelOf(HistoryEvent $event, string $eventType): string
     {
+        // Une ligne de frise porte le nom de son action. Les événements qui ouvrent une exécution —
+        // la sienne, celle d'un enfant — nomment leur type de workflow, et c'est ce nom-là que
+        // l'exploitant cherche, pas « WORKFLOW EXECUTION STARTED » en capitales.
+        $workflowType = self::workflowTypeOf($event);
+        if (null !== $workflowType) {
+            return $workflowType;
+        }
+
         $scheduled = $event->getActivityTaskScheduledEventAttributes();
         if (null !== $scheduled) {
             $name = (string) ($scheduled->getActivityType()?->getName() ?? '');
@@ -239,6 +286,30 @@ final class TemporalRunHistoryReader
         }
 
         return self::readableType($eventType);
+    }
+
+    /**
+     * Le type de workflow que l'événement nomme, s'il en nomme un.
+     *
+     * `getWorkflowType()` est porté par le démarrage d'une exécution comme par les événements d'un
+     * workflow enfant — une seule règle nomme donc la ligne de l'exécution et celles de ses
+     * enfants, sans table de correspondance à tenir.
+     */
+    private static function workflowTypeOf(HistoryEvent $event): ?string
+    {
+        $which = $event->getAttributes();
+        if ('' === $which) {
+            return null;
+        }
+
+        $attributes = $event->{'get' . str_replace('_', '', ucwords($which, '_'))}();
+        if (!$attributes instanceof Message || !method_exists($attributes, 'getWorkflowType')) {
+            return null;
+        }
+
+        $name = (string) ($attributes->getWorkflowType()?->getName() ?? '');
+
+        return '' === $name ? null : $name;
     }
 
     private static function readableType(string $eventType): string

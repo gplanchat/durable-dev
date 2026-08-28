@@ -7,6 +7,10 @@ namespace unit\Gplanchat\Durable\Observation;
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\ActivityTaskStarted;
+use Gplanchat\Durable\Event\ChildWorkflowCompleted;
+use Gplanchat\Durable\Event\ChildWorkflowScheduled;
+use Gplanchat\Durable\Event\ExecutionCompleted;
+use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\TimerCompleted;
 use Gplanchat\Durable\Event\TimerScheduled;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
@@ -83,18 +87,71 @@ final class TheTimelineGroupsByActionTest extends TestCase
         self::assertNull($history[0]->actionKey);
     }
 
+    public function testTheRunsOwnEventsAreTheFirstAction(): void
+    {
+        // Une tâche de workflow n'est pas un fait métier, c'est le mécanisme par lequel le moteur
+        // avance. Une ligne par occurrence noyait les actions intéressantes sous la plomberie.
+        $history = $this->read([
+            new ExecutionStarted('exec-1', []),
+            new ActivityScheduled('exec-1', 'act-1', 'charge', [], []),
+            new ActivityCompleted('exec-1', 'act-1', null),
+            new ExecutionCompleted('exec-1', null),
+        ], 'App\\OrderWorkflow');
+
+        self::assertSame('workflow', $history[0]->actionKey);
+        self::assertSame('workflow', $history[3]->actionKey, 'la fin de l\'exécution rejoint son début');
+        self::assertSame('activity:act-1', $history[1]->actionKey);
+    }
+
+    public function testASignalIsNotPartOfTheRunsOwnAction(): void
+    {
+        // Le piège est là : un signal reçu porte le même vocabulaire que l'exécution. Rangé avec
+        // elle, il disparaît dans la première ligne au lieu d'être l'attente qu'il est.
+        $history = $this->read([
+            new ExecutionStarted('exec-1', []),
+            new WorkflowSignalReceived('exec-1', 'orderApproved', []),
+        ], 'App\\OrderWorkflow');
+
+        self::assertSame('workflow', $history[0]->actionKey);
+        self::assertNull($history[1]->actionKey);
+    }
+
+    public function testTheRunsLineIsNamedByTheWorkflowAndNotByAnEventClass(): void
+    {
+        // Le journal ne connaît qu'un flux : le nom vient de l'appelant, qui tient la description
+        // de l'exécution. Sans lui, la première ligne s'appellerait « ExecutionStarted ».
+        $history = $this->read([new ExecutionStarted('exec-1', [])], 'App\\OrderWorkflow');
+
+        self::assertSame('App\\OrderWorkflow', $history[0]->label);
+    }
+
+    public function testAChildWorkflowKeepsItsOwnLineAndItsOwnName(): void
+    {
+        $history = $this->read([
+            new ExecutionStarted('exec-1', []),
+            new ChildWorkflowScheduled('exec-1', 'child-1', 'App\\ShipmentWorkflow', []),
+            new ChildWorkflowCompleted('exec-1', 'child-1', null),
+        ], 'App\\OrderWorkflow');
+
+        self::assertSame('child:child-1', $history[1]->actionKey);
+        self::assertSame($history[1]->actionKey, $history[2]->actionKey);
+        self::assertNotSame($history[0]->actionKey, $history[1]->actionKey, "l'enfant n'est pas le parent");
+        self::assertSame('App\\ShipmentWorkflow', $history[1]->label);
+        self::assertSame('App\\ShipmentWorkflow', $history[2]->label, 'la suite emprunte le nom de sa planification');
+    }
+
     /**
      * @param list<\Gplanchat\Durable\Event\Event> $events
      *
      * @return list<WorkflowRunEvent>
      */
-    private function read(array $events): array
+    private function read(array $events, string $workflowName = ''): array
     {
         $store = new InMemoryEventStore();
         foreach ($events as $event) {
             $store->append($event);
         }
 
-        return (new JournalRunHistoryReader($store))->read('exec-1');
+        return (new JournalRunHistoryReader($store))->read('exec-1', $workflowName);
     }
 }

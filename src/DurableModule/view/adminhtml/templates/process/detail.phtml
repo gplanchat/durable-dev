@@ -61,9 +61,12 @@ $events = $block->getEvents();
                     <div class="durable-frieze-row">
                         <span class="durable-frieze-name" title="<?= $escaper->escapeHtmlAttr($action['label']) ?>"><?= $escaper->escapeHtml($action['label']) ?></span>
                         <div class="durable-frieze-track">
-                            <?php /* La barre est la durée de l'action ; les repères sont ses événements. */ ?>
-                            <span class="durable-frieze-bar <?= $escaper->escapeHtmlAttr($action['kind']) ?>"
-                                  style="left: <?= $escaper->escapeHtmlAttr(number_format($action['from'], 3, '.', '')) ?>%; width: <?= $escaper->escapeHtmlAttr(number_format($action['width'], 3, '.', '')) ?>%"></span>
+                            <?php /* Un segment par intervalle : survoler la longue portion nomme l'attente. */ ?>
+                            <?php foreach ($action['segments'] as $segment): ?>
+                                <span class="durable-frieze-bar <?= $escaper->escapeHtmlAttr($action['kind']) ?>"
+                                      style="left: <?= $escaper->escapeHtmlAttr(number_format($segment['from'], 3, '.', '')) ?>%; width: <?= $escaper->escapeHtmlAttr(number_format($segment['width'], 3, '.', '')) ?>%"
+                                      title="<?= $escaper->escapeHtmlAttr($segment['title']) ?>"></span>
+                            <?php endforeach; ?>
                             <?php foreach ($action['marks'] as $mark): ?>
                                 <span class="durable-frieze-mark <?= $escaper->escapeHtmlAttr($action['kind']) ?>"
                                       style="left: <?= $escaper->escapeHtmlAttr(number_format($mark['at'], 3, '.', '')) ?>%"

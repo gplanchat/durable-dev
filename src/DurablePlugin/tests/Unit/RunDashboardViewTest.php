@@ -165,8 +165,8 @@ final class RunDashboardViewTest extends TestCase
         $view = (new RunDashboardView($catalog))->build();
 
         self::assertSame('run-1', $view['selectedRun']['runId']);
-        self::assertSame(['execution', 'activity', 'signal'], array_column($view['selectedRun']['lanes'], 'kind'));
-        self::assertSame(['SendWelcomeEmail'], array_column($view['selectedRun']['lanes'][1]['events'], 'label'));
+        self::assertSame(['execution', 'activity', 'signal'], array_column($view['selectedRun']['actions'], 'kind'));
+        self::assertSame(['SendWelcomeEmail'], array_column($view['selectedRun']['actions'][1]['events'], 'label'));
     }
 
     public function testANexusOperationGetsItsOwnLaneAndSaysWhereTheWaitHappens(): void
@@ -185,8 +185,8 @@ final class RunDashboardViewTest extends TestCase
 
         $view = (new RunDashboardView($catalog))->build();
 
-        self::assertSame(['execution', 'nexus'], array_column($view['selectedRun']['lanes'], 'kind'));
-        self::assertSame(['paiements/facturation/encaisser'], array_column($view['selectedRun']['lanes'][1]['events'], 'label'));
+        self::assertSame(['execution', 'nexus'], array_column($view['selectedRun']['actions'], 'kind'));
+        self::assertSame(['paiements/facturation/encaisser'], array_column($view['selectedRun']['actions'][1]['events'], 'label'));
     }
 
     public function testAnEventCarriesWhatTheBackendRecordedWithIt(): void
@@ -211,7 +211,7 @@ final class RunDashboardViewTest extends TestCase
 
         self::assertSame(
             ['payload' => ['customerId' => 'cus-42']],
-            $view['selectedRun']['lanes'][0]['events'][0]['details'],
+            $view['selectedRun']['actions'][0]['events'][0]['details'],
         );
     }
 
@@ -227,7 +227,7 @@ final class RunDashboardViewTest extends TestCase
 
         $view = (new RunDashboardView($catalog))->build();
 
-        self::assertArrayNotHasKey('details', $view['selectedRun']['lanes'][0]['events'][0]);
+        self::assertArrayNotHasKey('details', $view['selectedRun']['actions'][0]['events'][0]);
     }
 
     public function testALaneTheBackendNeverRecordsIsNotShownAtAll(): void
@@ -239,7 +239,7 @@ final class RunDashboardViewTest extends TestCase
 
         $view = (new RunDashboardView($catalog))->build();
 
-        self::assertSame(['execution'], array_column($view['selectedRun']['lanes'], 'kind'));
+        self::assertSame(['execution'], array_column($view['selectedRun']['actions'], 'kind'));
     }
 
     /**

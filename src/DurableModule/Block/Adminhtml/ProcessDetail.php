@@ -91,7 +91,13 @@ class ProcessDetail extends Template
      * l'exécution : une exécution en cours n'a pas de fin, et une frise qui s'arrête au dernier
      * fait connu ne prétend rien savoir de plus.
      *
-     * @return array{span: string, actions: list<array{kind: string, label: string, duration: string, from: float, width: float, marks: list<array{at: float, title: string}>}>}|null
+     * ⚠ **La barre est découpée entre événements consécutifs**, et ce n'est pas décoratif : dès que
+     * l'exécution elle-même occupe une ligne, sa barre couvre toute la durée du run, et le seul
+     * fait intéressant — les vingt-deux secondes passées à attendre un worker entre deux de ses
+     * événements — disparaîtrait dans une barre qui dit « le run a duré le temps du run ». Chaque
+     * segment porte donc son intervalle : survoler la longue portion nomme l'attente.
+     *
+     * @return array{span: string, actions: list<array{kind: string, label: string, duration: string, segments: list<array{from: float, width: float, title: string}>, marks: list<array{at: float, title: string}>}>}|null
      */
     public function getTimeline(): ?array
     {
@@ -125,8 +131,7 @@ class ProcessDetail extends Template
                 // qui connaît le nom de l'activité, ses suites ne portent qu'un numéro.
                 'label' => $opening->label,
                 'duration' => $this->formatSpan($to - $from),
-                'from' => $this->scale($from - $first, $span),
-                'width' => $this->scale($to - $from, $span),
+                'segments' => $this->segments($group, $moments, $first, $span),
                 'marks' => array_map(
                     fn(WorkflowRunEvent $event): array => [
                         'at' => $this->scale($moments[$event->sequence] - $first, $span),
@@ -143,6 +148,43 @@ class ProcessDetail extends Template
         }
 
         return ['span' => $this->formatSpan($span), 'actions' => $actions];
+    }
+
+    /**
+     * Un segment par intervalle entre deux événements consécutifs de l'action.
+     *
+     * Une action d'un seul événement n'a aucun intervalle, donc aucun segment : un repère seul dit
+     * déjà tout ce qu'il y a à dire d'un instant.
+     *
+     * @param list<WorkflowRunEvent>  $group
+     * @param array<int, float>       $moments
+     *
+     * @return list<array{from: float, width: float, title: string}>
+     */
+    private function segments(array $group, array $moments, float $first, float $span): array
+    {
+        $segments = [];
+        for ($index = 1, $count = \count($group); $index < $count; ++$index) {
+            $opening = $group[$index - 1];
+            $closing = $group[$index];
+            $from = $moments[$opening->sequence];
+            $to = $moments[$closing->sequence];
+
+            $segments[] = [
+                'from' => $this->scale($from - $first, $span),
+                'width' => $this->scale($to - $from, $span),
+                'title' => \sprintf(
+                    '%s · #%d → #%d · %s → %s',
+                    $this->formatSpan($to - $from),
+                    $opening->sequence,
+                    $closing->sequence,
+                    $opening->label,
+                    $closing->label,
+                ),
+            ];
+        }
+
+        return $segments;
     }
 
     /**

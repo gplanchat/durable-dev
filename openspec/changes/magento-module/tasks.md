@@ -212,6 +212,32 @@ topic.
       2,0 s, `durable.probe.charge` 11 ms. Rendu à travers Magento : 9 lignes, 9 barres, 23
       dépliants.
 
+- [x] 3bis.7 **La première ligne est l'exécution, les enfants gardent la leur, et les lignes portent
+      un nom.** Trois corrections d'un coup, sur demande de l'auteur. Les libellés en capitales
+      (`WORKFLOW EXECUTION STARTED`) nommaient une classe d'événement, pas ce qui tourne : côté
+      Temporal, une seule règle — *un événement qui nomme un type de workflow nomme sa ligne* —
+      couvre l'exécution **et** ses enfants sans table de correspondance, parce que
+      `getWorkflowType()` est porté par les deux ; côté journal il n'y a qu'un flux, donc le nom
+      vient de l'appelant, qui tient déjà la `WorkflowRunDescription` — `read($runId, $workflowName)`,
+      argument optionnel, les trois catalogues le passent.
+      Les tâches de workflow sont la plomberie du moteur, pas un fait métier : quatre lignes
+      `WORKFLOW TASK SCHEDULED` noyaient les quatre lignes intéressantes. Elles rejoignent la ligne
+      de l'exécution.
+      ⚠ **Les exceptions sont l'essentiel de la règle.** `WORKFLOW_EXECUTION_SIGNALED` et la famille
+      `WORKFLOW_EXECUTION_UPDATE_*` partagent le préfixe de l'exécution sans en être ; les workflows
+      enfants et externes ne le partagent pas, et c'est tout ce qui leur laisse leurs lignes. D'où
+      un test qui éprouve le partage **type par type** à partir de l'énumération du serveur, plus un
+      troisième qui échoue si un type n'est rangé nulle part — il a d'ailleurs immédiatement trouvé
+      treize types que j'avais oubliés.
+      ⚠ **Le regroupement effaçait le seul fait intéressant du banc.** Une fois les tâches de
+      workflow repliées, la barre de la première ligne couvre toute la durée du run et dit « le run
+      a duré le temps du run » : les 22 s d'attente d'un worker disparaissaient dedans. La barre est
+      donc **découpée entre événements consécutifs**, chaque segment portant son intervalle —
+      `22,0 s · #2 → #3 · WORKFLOW TASK SCHEDULED → WORKFLOW TASK STARTED`. Mesuré : 23 événements →
+      **4 actions**, 19 segments, et l'attente est nommée.
+      Le tableau de bord Sylius est aligné dans le même mouvement : `lanes` devient `actions`, un
+      bloc par action avec son nom et sa durée, la bordure gardant la couleur de la nature.
+
 ## 4bis. What the CI can see of Magento
 
 - [x] 4bis.1 **A Mage-OS × PHP matrix, the counterpart of the Symfony one.** Five entries, each an
