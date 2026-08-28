@@ -1,6 +1,6 @@
 <?php
 
-namespace unit\DurableRector\Fixture\AttributesAlpha8;
+namespace unit\DurableRector\Fixture\DurableUpgrade;
 
 use Gplanchat\Durable\Attribute\QueryMethod;
 use Gplanchat\Durable\Attribute\SignalMethod;
@@ -30,7 +30,7 @@ final class Panier
 -----
 <?php
 
-namespace unit\DurableRector\Fixture\AttributesAlpha8;
+namespace unit\DurableRector\Fixture\DurableUpgrade;
 
 use Gplanchat\Durable\Attribute\QueryMethod;
 use Gplanchat\Durable\Attribute\SignalMethod;

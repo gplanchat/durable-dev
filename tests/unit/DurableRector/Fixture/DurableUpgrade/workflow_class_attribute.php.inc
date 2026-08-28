@@ -1,6 +1,6 @@
 <?php
 
-namespace unit\DurableRector\Fixture\AttributesAlpha8;
+namespace unit\DurableRector\Fixture\DurableUpgrade;
 
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
@@ -18,7 +18,7 @@ final class Checkout
 -----
 <?php
 
-namespace unit\DurableRector\Fixture\AttributesAlpha8;
+namespace unit\DurableRector\Fixture\DurableUpgrade;
 
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;

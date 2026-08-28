@@ -1,6 +1,6 @@
 <?php
 
-namespace unit\DurableRector\Fixture\AttributesAlpha8;
+namespace unit\DurableRector\Fixture\DurableUpgrade;
 
 use Gplanchat\Durable\Attribute\Activity;
 use Gplanchat\Durable\Attribute\ActivityMethod;
@@ -26,7 +26,7 @@ final class Facturation implements FacturationInterface
 -----
 <?php
 
-namespace unit\DurableRector\Fixture\AttributesAlpha8;
+namespace unit\DurableRector\Fixture\DurableUpgrade;
 
 use Gplanchat\Durable\Attribute\Activity;
 use Gplanchat\Durable\Attribute\ActivityMethod;
