@@ -54,6 +54,12 @@ jobs:
             exit 1
           fi
 
+      - name: Guard — l'import refuserait d'écraser une correction à la main
+        # WA005 : trois correctifs écrits dans layouts/index.html et perdus, sans un bruit.
+        # La garde vit dans import-design.py ; ce pas ne vérifie que la garde elle-même,
+        # puisque l'import n'est jamais joué en CI — il n'y a pas de canevas ici.
+        run: python3 hugo-docs/import-design.py --self-test
+
       - name: Build
         working-directory: hugo-docs
         env:
