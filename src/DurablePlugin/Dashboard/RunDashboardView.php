@@ -141,7 +141,7 @@ final class RunDashboardView
      *
      * @param list<WorkflowRunEvent> $history
      *
-     * @return list<array{kind: string, label: string, took: string, events: list<array{sequence: int, recordedAt: \DateTimeImmutable, label: string, details?: array<string, mixed>}>}>
+     * @return list<array{kind: string, label: string, took: string, events: list<array{sequence: int, recordedAt: \DateTimeImmutable, label: string, failed: bool, details?: array<string, mixed>}>}>
      */
     private static function actions(array $history): array
     {
@@ -151,6 +151,9 @@ final class RunDashboardView
                 'sequence' => $event->sequence,
                 'recordedAt' => $event->recordedAt,
                 'label' => $event->label,
+                // Ce qui a mal tourné se voit sans être déplié. Une annulation n'en est pas : le
+                // port tient cette frontière, la vue s'y range.
+                'failed' => $event->failed,
             ];
 
             // Même règle que partout dans ce modèle : un fait n'entre que s'il existe. Le gabarit

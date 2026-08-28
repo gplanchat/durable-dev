@@ -15,10 +15,14 @@
             <argument name="workflowClasses" xsi:type="array">
                 <item name="probe_slow_order" xsi:type="string">Gplanchat\DurableProbe\Workflow\SlowOrderWorkflow</item>
                 <item name="demo_place_order" xsi:type="string">Gplanchat\DurableProbe\Workflow\PlaceOrderWorkflow</item>
+                <!-- Le véhicule de recette de l'écran d'observation : tous les cas dans une exécution. -->
+                <item name="probe_every_case" xsi:type="string">Gplanchat\DurableProbe\Workflow\EveryCaseWorkflow</item>
+                <item name="probe_every_case_child" xsi:type="string">Gplanchat\DurableProbe\Workflow\EveryCaseChildWorkflow</item>
             </argument>
             <argument name="activityHandlers" xsi:type="array">
                 <item name="probe_order" xsi:type="object">Gplanchat\DurableProbe\Workflow\Activity\RecordingOrderActivities</item>
                 <item name="demo_order" xsi:type="object">Gplanchat\DurableProbe\Workflow\Activity\DemoOrderActivities</item>
+                <item name="probe_every_case" xsi:type="object">Gplanchat\DurableProbe\Workflow\Activity\ProbeEveryCaseActivities</item>
             </argument>
         </arguments>
     </type>

@@ -244,6 +244,72 @@ topic.
       `Observation\ReadableDuration`, à côté du modèle dont il met en forme les faits, comme
       `WorkflowRunEvent::$label` et pour la même raison.
 
+- [x] 3bis.8 **L'attente de prise en charge est hachurée.** Une barre dit une durée, pas ce qui a
+      été fait dedans : vingt-deux secondes à attendre un worker et vingt-deux secondes à exécuter
+      dessinaient le même rectangle, alors que c'est la première question de l'exploitant devant
+      une exécution lente — mon code, ou personne au bout du fil ?
+      Le port gagne `started`, « le travail commence ici » ; ce qui précède un tel événement à
+      l'intérieur de son action est une file, pas du travail. Le segment hérite du `started` de
+      l'événement qui le **ferme**.
+      Une règle de chaque côté, et volontairement la même : Temporal nomme `_STARTED` tout
+      événement par lequel un worker prend la main, le journal maison n'en a que deux.
+      `WORKFLOW_EXECUTION_STARTED` / `ExecutionStarted` y tombent des deux côtés et c'est **inerte**
+      — premier événement, rien ne le précède ; les inclure coûte zéro et évite une divergence qui
+      aurait fini gelée dans un test.
+      ⚠ **Le rendu était le vrai risque.** Les barres sont à `opacity: .35` et une file de quelques
+      millisecondes tient dans les deux pixels du `min-width` : des hachures translucides sur deux
+      pixels ne se distinguent plus de rien. La variante passe à `.75`, pas de trame 3 px, et sa
+      règle est placée **après** celles de nature — qui posent `background` en raccourci et
+      remettraient `background-image` à zéro.
+      Mesuré à travers Magento (HTTP 200, 96 791 o) : 4 actions, 19 segments, **7 hachurés /
+      12 pleins**, et le segment de 22,0 s est bien l'un d'eux. Les six autres attentes vont de 4 à
+      14 ms, réduites au sliver : c'est l'opacité qui les distingue, pas la trame — les élargir
+      ferait passer une attente de 4 ms pour plus longue qu'un travail de 6 ms.
+
+- [x] 3bis.9 **Le journal nomme l'action, les minuteurs annoncent leur délai, et ce qui a raté est
+      rouge — mesuré sur une exécution qui contient tous les cas.** Trois demandes de l'auteur, et
+      une quatrième qui les rendait vérifiables : le banc n'avait qu'un chemin heureux, donc rien
+      n'avait jamais prouvé que la page savait montrer un échec.
+      D'où `EveryCaseWorkflow` **dans le module du banc, pas dans le paquet** (§3bis.1) : une
+      activité qui réussit, une instable, une condamnée, un minuteur de 5 s, deux workflows enfants
+      dont un qui échoue. ⚠ Deux cas manquent délibérément — un *signal* demande un émetteur que le
+      runtime de l'hôte n'expose pas, et *Nexus* demande deux applications, qui appartiennent à
+      `change/demo-nexus-deux-applications`.
+      **La colonne « Action » n'a rien demandé aux lecteurs** : c'est le libellé de l'événement qui
+      ouvre l'action, celui-là même que porte la ligne de frise — si bien qu'une ligne de l'un se
+      retrouve dans l'autre. Côté Temporal, `ACTIVITY TASK STARTED` cachait le nom que l'exploitant
+      cherchait ; le journal maison le prêtait déjà, la page ne le montrait pas.
+      **Un minuteur n'a pas de nom métier**, son délai est le seul fait qu'il porte : `TIMER STARTED`
+      devient `timer 5.0 s`. ⚠ Côté journal, `TimerScheduled::scheduledAt()` est une **échéance
+      absolue** : soustraire sans garde annoncerait un demi-siècle d'attente sur un journal sans
+      horodatage d'enregistrement.
+      **Le rouge marque l'événement, pas l'action** — une activité reprise du troisième coup porte
+      du rouge et se termine bien. ⚠ **Une annulation n'en est pas** : c'est une issue, et peindre
+      les deux pareil vide le rouge de son sens. Deux suffixes couvrent Temporal (`_FAILED`,
+      `_TIMED_OUT`) et sept classes couvrent le journal — ⚠ qui écrit `Cancelled` là où Temporal
+      écrit `CANCELED`, ce qui fait rater une règle écrite d'un seul côté. Le test piloté par
+      l'énumération du serveur a immédiatement trouvé le piège inverse :
+      `REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_FAILED` parle d'annulation et **est** une panne —
+      la demande d'arrêt n'est pas passée, l'exécution visée tourne toujours.
+      ⚠ **La combinaison hachuré + rouge est inatteignable** par construction : un type ne peut pas
+      finir à la fois en `_STARTED` et en `_FAILED`. Le `background-color` de la règle rouge reste
+      néanmoins volontaire — le raccourci `background` effacerait la trame.
+      **Et la sonde a trouvé un défaut de regroupement au passage** : la fin d'une exécution enfant
+      porte `initiatedEventId` **et** `startedEventId`, et l'ordre de recherche prenait le second —
+      qui désigne le démarrage de l'enfant, pas l'événement fondateur. Chaque enfant occupait donc
+      **deux lignes**, dont aucune ne disait sa durée. `getInitiatedEventId` passe avant
+      `getStartedEventId`. Mesuré : **9 actions → 7** sur la même exécution.
+      Le tableau de bord Sylius prend le rouge dans le même mouvement ; il n'a besoin ni de la
+      colonne — ses blocs sont déjà nommés par action — ni du délai, qui lui arrive par le libellé.
+      Recette, à travers Magento (HTTP 200, 150 325 o) : 7 lignes, 3 repères rouges, 2 lignes de
+      journal rouges, la colonne Action nommant les 3 lignes de chaque activité, les 2 du minuteur
+      et les 6 des enfants, et les deux légendes.
+      ⚠ **La sonde a aussi trouvé une panne qui ne relève pas de cet écran** et qui est rapportée
+      telle quelle : sur Temporal, `flaky` consomme ses trois tentatives en deux secondes **sans que
+      le code de l'activité soit rappelé** — `attempt: 3` côté serveur, une seule invocation côté
+      banc. Sur le backend en mémoire, la même activité se reprend et réussit. Rapportée dans
+      l'issue #218, pas corrigée ici : c'est du cœur, pas du module Magento.
+
 ## 4bis. What the CI can see of Magento
 
 - [x] 4bis.1 **A Mage-OS × PHP matrix, the counterpart of the Symfony one.** Five entries, each an

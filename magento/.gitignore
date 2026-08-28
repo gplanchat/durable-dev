@@ -30,6 +30,9 @@
 #                                  reprend-elle sans re-débiter la carte ?
 #   probe-order.php                la sonde du §5.2 : une commande passée
 #                                  démarre-t-elle une exécution sur la grappe ?
+#   probe-cases.php                la sonde de l'écran d'observation : une exécution
+#                                  qui contient tous les cas que la page doit savoir
+#                                  montrer — échec, minuteur, enfant, reprise
 #   app/code/Gplanchat/DurableProbe le module du banc. Il porte la
 #                                  **démonstration** — `PlaceOrderWorkflow`,
 #                                  `durable:demo` — et les sujets de file des
@@ -55,6 +58,7 @@
 !probe-queue.php
 !probe-resume.php
 !probe-order.php
+!probe-cases.php
 
 # Le module de sonde, et lui seul : `app/etc/env.php` et le reste de `app/`
 # restent dehors. Chaque niveau se ré-autorise, parce que `*` exclut à tous.
