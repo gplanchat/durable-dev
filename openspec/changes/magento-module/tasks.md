@@ -133,8 +133,13 @@ topic.
       entry and belongs to an integration job.
       Verified to discriminate before it was written: `2.2.0` on PHP 8.2 resolves, `3.4.0` on PHP
       8.2 fails naming the cause.
-- [ ] 4bis.2 A job that **boots** Magento — install, `durable:demo`, and the admin screen answering.
-      Until it exists, every claim about this module rests on a transcript produced by hand.
+- [x] 4bis.2 **A job that boots it.** One job, not matrixed — the distribution is ~1 GB and the
+      install takes minutes, which is exactly why there is one edge and not five. MySQL and
+      OpenSearch as services, `composer install` through the bench's tracked lock so it installs
+      **this commit** and not a published version, then `setup:install`, `module:status`,
+      `durable:demo` asserting both `notify:charge:ORD-4242` **and** `durable.demo.charge` — the
+      second is what proves the activity names come from the contract's attributes — and the admin
+      answering over HTTP.
 
 ## 5. Temporal, end to end
 
