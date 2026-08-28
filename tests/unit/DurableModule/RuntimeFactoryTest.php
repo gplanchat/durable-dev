@@ -6,7 +6,9 @@ namespace unit\Gplanchat\Durable\Magento;
 
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
+use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
 use Gplanchat\Durable\Magento\Workflow\Activity\DemoOrderActivities;
 use Gplanchat\Durable\Magento\Workflow\PlaceOrderWorkflow;
@@ -96,6 +98,49 @@ final class RuntimeFactoryTest extends TestCase
         $this->expectExceptionMessageMatches('/durable\/temporal\/dsn/');
 
         (new RuntimeFactory())->journalWorker();
+    }
+
+    /**
+     * Ce qui manquait pour que l'ordre reparte.
+     *
+     * La §5.3 avait mesuré la moitié qui compte — la carte n'est pas re-débitée — et la moitié qui
+     * manquait : l'exécution restait suspendue parce que son activité avait été distribuée dans le
+     * transport en mémoire d'un processus mort. Sur Temporal, une activité est une tâche que
+     * quelqu'un doit dépiler, et ce quelqu'un est ce worker.
+     */
+    public function testAnActivityWorkerIsAssembledWhenThereIsACluster(): void
+    {
+        $worker = (new RuntimeFactory(
+            activityHandlers: [new DemoOrderActivities()],
+            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0',
+        ))->activityWorker();
+
+        self::assertInstanceOf(TemporalActivityWorker::class, $worker);
+    }
+
+    /**
+     * Et de quoi démarrer une exécution **sur la grappe** plutôt que dans ce processus-ci :
+     * `MagentoRuntime::run()` exécute ici, donc ses activités ne quittent jamais la mémoire.
+     */
+    public function testAWorkflowCanBeStartedOnTheClusterRatherThanInThisProcess(): void
+    {
+        $client = (new RuntimeFactory(
+            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0',
+        ))->workflowClient();
+
+        self::assertInstanceOf(WorkflowClient::class, $client);
+    }
+
+    public function testNeitherIsOfferedWithoutACluster(): void
+    {
+        foreach (['activityWorker', 'workflowClient'] as $method) {
+            try {
+                (new RuntimeFactory())->{$method}();
+                self::fail(\sprintf('%s() should have been refused without a cluster.', $method));
+            } catch (\RuntimeException $exception) {
+                self::assertStringContainsString('durable/temporal/dsn', $exception->getMessage());
+            }
+        }
     }
 
     /**
