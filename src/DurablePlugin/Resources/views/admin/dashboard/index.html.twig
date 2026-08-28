@@ -17,6 +17,9 @@
         .durable-lane.signal { border-left-color: #fbcfe8; }
         .durable-lane.query { border-left-color: #fde68a; }
         .durable-lane.update { border-left-color: #c4b5fd; }
+        /* Nexus tranche sur les autres à dessein : c'est la seule voie où l'attente est servie
+           hors de cette application, et c'est celle qu'un exploitant doit repérer sans la chercher. */
+        .durable-lane.nexus { border-left-color: #fdba74; }
         .durable-events { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
         .durable-events li { border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); padding: .5rem .65rem; background: var(--tblr-bg-surface); }
     </style>

@@ -53,6 +53,9 @@ final class TemporalRunHistoryReader
     private static function kindOf(string $eventType): WorkflowRunEventKind
     {
         return match (true) {
+            // Avant tout le reste : NEXUS_OPERATION_CANCEL_REQUESTED contient CANCEL, et une
+            // règle placée plus bas laisserait passer les variantes au fil des versions du serveur.
+            str_contains($eventType, 'NEXUS_') => WorkflowRunEventKind::Nexus,
             str_contains($eventType, 'UPDATE_') => WorkflowRunEventKind::Update,
             str_contains($eventType, 'QUERY_') => WorkflowRunEventKind::Query,
             str_contains($eventType, 'SIGNAL') => WorkflowRunEventKind::Signal,
