@@ -16,12 +16,22 @@ echecs=0
 
 # $1 nom du cas · $2 états des PR (vide, "open", "closed"…) · $3 ahead_by ("" = branche absente)
 # $4 sortie attendue : "vivante" ou "perimee"
+# $5 préfixe de branche (défaut « chore ») · $6 état du chantier OpenSpec : "" | "reste" | "fini"
 cas() {
-    local nom="$1" etats="$2" avance="$3" attendu="$4"
+    local nom="$1" etats="$2" avance="$3" attendu="$4" prefixe="${5:-chore}" chantier="${6:-}"
     local bac="$TMP/$nom"
-    mkdir -p "$bac/.worktrees/prises/chore" "$bac/bin"
+    mkdir -p "$bac/.worktrees/prises/$prefixe" "$bac/bin"
 
-    printf '# chore/%s\n' "$nom" > "$bac/.worktrees/prises/chore/$nom.md"
+    printf '# %s/%s\n' "$prefixe" "$nom" > "$bac/.worktrees/prises/$prefixe/$nom.md"
+
+    if [ -n "$chantier" ]; then
+        mkdir -p "$bac/openspec/changes/$nom"
+        if [ "$chantier" = "reste" ]; then
+            printf -- '- [x] 1.1 faite\n- [ ] 1.2 pas encore\n' > "$bac/openspec/changes/$nom/tasks.md"
+        else
+            printf -- '- [x] 1.1 faite\n- [x] 1.2 faite\n' > "$bac/openspec/changes/$nom/tasks.md"
+        fi
+    fi
     cp "$RACINE/bin/prises-check.sh" "$bac/bin/"
 
     # Le faux `gh` : il ne connaît que les deux appels que le script fait.
@@ -68,9 +78,20 @@ cas pr-fermee-rien-a-fusionner "closed"     0   perimee
 cas pr-fermee-branche-absente "closed"      ""  perimee
 cas plusieurs-fermees         "closed closed" 0 perimee
 
+# Le faux positif structurel, signalé par la session Laravel. Entre la fusion d'une tranche et le
+# premier commit de la suivante, une branche de chantier réutilisée réunit les trois conditions —
+# PR fermées, rien devant `main`, parfois branche supprimée — alors que le travail continue. Le
+# chantier, lui, sait qu'il n'est pas fini.
+cas chantier-en-cours         "closed"      0   vivante  change  reste
+cas chantier-en-cours-sans-branche "closed" ""  vivante  change  reste
+
+# Et l'inverse doit rester vrai, sans quoi le correctif rendrait le contrôle inutile : un chantier
+# dont toutes les tâches sont cochées n'a plus de prise à tenir.
+cas chantier-fini             "closed"      0   perimee  change  fini
+
 echo
 if [ "$echecs" -eq 0 ]; then
-    echo "prises-check : 6 cas, tous conformes"
+    echo "prises-check : 9 cas, tous conformes"
 else
     echo "prises-check : $echecs cas en échec"
 fi
