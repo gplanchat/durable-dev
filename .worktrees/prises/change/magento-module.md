@@ -83,9 +83,29 @@ mêmes `WorkflowRunDescription` que le tableau de bord Sylius.
 Pour le voir : `cd magento && php -S 127.0.0.1:8080 -t pub/ phpserver/router.php`,
 puis `http://127.0.0.1:8080/admin` — **durable / Durable123!**
 
-⚠ **Ce qui manque pour que la grille montre quelque chose** : aucun worker ne
-draine la file de tâches du journal. Une exécution lancée contre le cluster n'a
-personne pour l'avancer. C'est le reste de la 5.1, et la 5.2 en dépend.
+**La grille rend des lignes.** Le banc a son DSN posé en permanence
+(`durable/temporal/dsn` → `temporal://127.0.0.1:7234?namespace=default&tls=0`),
+et chaque `durable:demo` y ajoute une exécution :
+
+    d81bfb25-…  DurableJournal  running  2026-08-28 09:23:45
+
+⚠ **Le défaut qui l'avait rendue vide, à ne pas rejouer** : un catalogue ne se
+dérive **pas** d'un journal. `InMemoryWorkflowRunCatalog` tient sa propre carte,
+alimentée par `recordStart()`/`recordOutcome()` dans le processus qui exécute —
+une requête d'administration n'exécute rien. Lister les exécutions d'une grappe,
+c'est demander à la grappe : `TemporalWorkflowRunCatalog`, que le pont livre déjà.
+
+⚠ Deux réserves assumées : le nom affiché est `DurableJournal`, le type Temporal
+qui *porte* le journal, pas le type métier — remonter le second appartient au
+change du tableau de bord. Et le statut reste `running` : **aucun worker ne
+draine la file de tâches**, donc rien ne clôt les journaux. C'est le reste de la
+5.1, et la 5.2 en dépend.
+
+⚠ Le banc a deux copies de `vendor/` rafraîchies à la main (`durable-magento` et
+`durable-bridge-temporal`) : `composer update` les réécrit depuis la **copie
+principale**, qui est à l'état de `main`. Après fusion de la #182, un
+`composer update gplanchat/durable-magento gplanchat/durable-bridge-temporal`
+remet tout d'aplomb.
 
 ⚠ Trois contraintes d'hôte de plus, trouvées en posant l'écran (toutes dans
 `design.md`) :
