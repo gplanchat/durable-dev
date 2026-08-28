@@ -91,8 +91,20 @@ So "the canvas is the source" is true of **markup and layout**, and false of any
 a mechanical replay: it is a family-by-family arbitration, and the guard in `import-design.py` exists
 to force that arbitration to happen in daylight rather than at write time.
 
-**What is still missing is not code.** It is a moment when nobody is editing `layouts/`, and one
-decision per family. Five commits landed on those two files during the afternoon this was measured.
+**Both were had.** A neighbouring session held its pull request so nobody wrote in `layouts/`, and
+the arbitration was made family by family, regenerating and measuring after each — eight passes, the
+count falling 114 → 29 substantive lines. What is left is the canvas being ahead, and it is meant to
+be: the newer column template, `text-wrap: balance` on the badges, a dashed border, the API Platform
+icon, two French sentences, and `illuminate` reachable from the frameworkless option.
+
+**Two of the four commits needed nothing at all.** The palette lives in `PALETTE` inside
+`import-design.py`, not in the canvas, so the two accent commits were already in the pipeline —
+measured, the regenerated `:root` was byte-identical before a single line was ported.
+
+**The reconciliation repaired three things nobody had reported**, which is the argument for doing it
+rather than living with the drift: two dead hover classes (`dz-h64`, `dz-h65` — the attribute copied
+from a neighbour without its rule), an unlocalised link (`/docs/nexus/` on the French page, sending a
+French reader to the English one), and a chooser that contradicted its own copy.
 
 Until (1) exists, this working agreement is a convention with an alarm on it. It is written down
 anyway, because three losses in one night were three people each reasonably believing they were
