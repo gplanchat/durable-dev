@@ -340,7 +340,7 @@ topic.
       ⚠ Each section opens with a **warning that the package is not on Packagist**: documenting a
       `composer require` that does not resolve would be the documentation telling a lie the rest of
       this change spent its time avoiding.
-- [ ] 6.5 **Le paquet part.** Ce qui est dans le dépôt est fait : `src/DurableModule/` gagne son
+- [x] 6.5 **Le paquet est publié — `github.com/gplanchat/durable-magento`, `main` à `edcce1c5`.** Ce qui est dans le dépôt est fait : `src/DurableModule/` gagne son
       `README.md` et sa `LICENSE` — les six paquets publiés en ont, celui-ci était le seul sans — et
       `bin/splitsh-publish.sh` gagne sa ligne `"src/DurableModule/|durable-magento"`. `composer
       validate --strict` passe sur le manifeste.
@@ -348,16 +348,23 @@ topic.
       le 2026-03-29 et porte un `main` : le split de `af3e51be`, quand ce préfixe tenait un tout
       autre module (`Api`, `Model`, une commande de consommation), depuis retiré par `e9b24e9c`.
       Son arbre correspond exactement à `src/DurableModule/` à ce commit-là, donc c'est un vrai
-      split du même préfixe, et le split d'aujourd'hui devrait l'avoir pour ancêtre : la première
-      poussée avance sans forcer. Si elle est refusée, le `workflow_dispatch` avec `force` archive
-      la tête sous `refs/heads/archive/` avant de la remplacer — et rien n'est perdu de toute façon,
-      `af3e51be` est dans l'histoire du monorepo.
+      split du même préfixe.
+      ⚠ **J'en ai déduit que le split d'aujourd'hui l'aurait pour ancêtre. C'était faux, et la
+      poussée l'a dit** : `non-fast-forward`, seul satellite refusé sur dix. La suppression du
+      préfixe par `e9b24e9c` a coupé la chaîne — un préfixe vide ne produit pas de commit, donc
+      splitsh est reparti d'une racine neuve à la re-création. **Un split d'un même préfixe n'est
+      pas un ancêtre garanti d'un split ultérieur : il ne l'est que si le préfixe n'a jamais
+      disparu entre les deux.**
+      Réparé sans forcer et sans toucher aux neuf autres : `refs/heads/archive/pre-force-f1462f17ec`
+      créé sur la tête de mars, branche par défaut basculée dessus, `main` supprimée, Splitsh
+      relancé en mode **normal** — qui crée `main` proprement — puis branche par défaut remise. Le
+      `workflow_dispatch` avec `force` aurait marché aussi, mais il force les dix et laisse neuf
+      branches d'archive sur des dépôts publics déjà alignés.
       ⚠ **Le satellite est PRIVÉ**, seul des dix à l'être. Packagist ne lira rien tant qu'il ne sera
       pas public.
-      **Reste, et ce sont des gestes hors du dépôt, dans cet ordre** — voir
-      `.worktrees/prises/change/magento-module.md` : rendre le dépôt public, l'ajouter à la portée
-      du PAT `SPLITSH_PUSH_TOKEN` (fine-grained, *Only select repositories*, Contents: Read and
-      write), **puis seulement** fusionner cette PR. Ensuite, soumettre à Packagist.
+      ✅ Dépôt rendu public et ajouté à la portée du PAT `SPLITSH_PUSH_TOKEN` par l'auteur ; la
+      portée s'est prouvée au premier essai — le refus était un refus **git**, pas un 404 ni un 403.
+      **Reste : soumettre à Packagist**, le dernier geste hors du dépôt.
       ⚠ **Un préfixe ajouté après coup ne rattrape pas les tags passés** : le paquet arrivera avec
       `dev-main` et **zéro version**, exactement comme `durable-bridge-illuminate` l'a fait le
       2026-08-28. Il prendra sa première version au prochain tag, pas en rejouant `v0.1.0-alpha7`,
