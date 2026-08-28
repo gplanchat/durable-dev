@@ -213,6 +213,86 @@ jobs:
                   APP_ENV: test
               run: vendor/bin/phpunit tests/Functional/DurableDashboardTest.php
 
+    magento-matrix:
+        # Le pendant de la matrice Symfony, pour l'autre hôte à conteneur étranger. Même principe :
+        # chaque entrée est un **bord qui a une raison**, pas un produit cartésien. Ce que le job
+        # prouve est la résolution — que la contrainte du module (`php >=8.2`,
+        # `magento/framework ^103.0`) est honnête face à ce que chaque ligne de Mage-OS exige. Ce
+        # qu'il ne prouve pas est le démarrage : installer la distribution coûte ~1 Go et plusieurs
+        # minutes par entrée, et c'est le travail du job d'intégration, pas d'une matrice.
+        #
+        # Le garde discrimine, vérifié en local avant d'être écrit ici : 2.2.0 sur PHP 8.2 résout
+        # (code 0), 3.4.0 sur PHP 8.2 échoue en nommant la cause — « requires php ~8.3.0||~8.4.0||
+        # ~8.5.0 -> your php version (8.2.33) does not satisfy that requirement ».
+        name: Module Magento (Mage-OS ${{ matrix.mageos }} / PHP ${{ matrix.php-version }})
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    # La ligne la plus ancienne qui accepte encore le plancher PHP du module.
+                    # Elle éprouve `magento/framework: ^103.0` par le bas.
+                    - { php-version: '8.2', mageos: '1.3.0' }
+                    # L'épingle du banc, au plancher PHP : le couple sur lequel toutes les mesures
+                    # de ce change ont été faites.
+                    - { php-version: '8.2', mageos: '2.2.0' }
+                    # Haut de la ligne 2 sous un PHP récent.
+                    - { php-version: '8.4', mageos: '2.3.0' }
+                    # Le bord qui mord : Mage-OS 3 refuse PHP 8.2 alors que le module l'autorise.
+                    # 8.3 est donc le plancher *atteignable* de cette ligne, pas celui du module.
+                    - { php-version: '8.3', mageos: '3.4.0' }
+                    # Le plus récent sur le plus récent.
+                    - { php-version: '8.5', mageos: '3.4.0' }
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php-version }}
+                  # Ce que le métapaquet réclame de l'hôte ; `magento/check-php-extensions.sh` en
+                  # est la liste de référence, tenue à jour par le banc.
+                  extensions: bcmath, ctype, curl, dom, gd, iconv, intl, mbstring, openssl, pdo_mysql, simplexml, soap, sodium, xsl, zip
+                  coverage: none
+
+            # Un projet jetable plutôt que le banc : `magento/` porte un lock épinglé sur une seule
+            # ligne, et une matrice qui le réutiliserait ne testerait qu'elle.
+            - name: Projet de résolution
+              run: |
+                mkdir -p /tmp/resolve
+                cat > /tmp/resolve/composer.json <<JSON
+                {
+                    "minimum-stability": "dev",
+                    "prefer-stable": true,
+                    "repositories": [
+                        { "type": "composer", "url": "https://repo.mage-os.org/" },
+                        { "type": "path", "url": "${{ github.workspace }}/src/DurableModule", "options": { "symlink": false } },
+                        { "type": "path", "url": "${{ github.workspace }}/src/Durable", "options": { "symlink": false } },
+                        { "type": "path", "url": "${{ github.workspace }}/src/Bridge/Temporal", "options": { "symlink": false } }
+                    ],
+                    "require": {
+                        "mage-os/product-community-edition": "${{ matrix.mageos }}",
+                        "gplanchat/durable-magento": "@dev"
+                    },
+                    "config": {
+                        "allow-plugins": {
+                            "mage-os/composer-dependency-version-audit-plugin": false,
+                            "mage-os/magento-composer-installer": true,
+                            "mage-os/inventory-composer-installer": true,
+                            "laminas/laminas-dependency-plugin": true
+                        }
+                    }
+                }
+                JSON
+
+            # `--dry-run` : la résolution est ce qu'on teste, le téléchargement ne l'est pas.
+            # Le plugin d'audit des dépôts de chemin est désactivé pour la même raison qu'au banc —
+            # `gplanchat/durable` est à la fois publié et fourni par chemin, et ici le chemin est la
+            # source de vérité.
+            - name: La ligne Mage-OS accepte-t-elle le module ?
+              working-directory: /tmp/resolve
+              run: composer update --dry-run --no-interaction --no-audit --no-progress
+
     static-analysis:
         name: Analyse statique (PHPStan + Psalm)
         runs-on: ubuntu-latest

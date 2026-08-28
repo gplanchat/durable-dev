@@ -24,25 +24,31 @@ run unmodified here, because everything below the ports is the same component.
 - **THEN** it fails naming the type and where types are declared
 - **AND** it does not wait for a handler that will never be registered
 
-### Requirement: Work rides Magento's own queue
+### Requirement: Work is drained by processes an operator already supervises
 
-Workflow resumes and activity dispatches SHALL travel on Magento's `MessageQueue`, declared through
-the host's own configuration, rather than on a second queue introduced beside it.
+Durable's workers SHALL be `bin/magento` commands, so that an operator supervises them with what
+already supervises every other long-running Magento process, and SHALL NOT introduce a second queue
+beside the host's.
 
-An operator SHALL supervise the Durable consumers with the commands already supervising every other
-Magento consumer.
+They are **not** Magento queue consumers, and the reason is measured: a worker holds its task by
+long poll, and Magento's retry timer never asks whether the first consumer has finished before
+handing the same message to a second.
 
-#### Scenario: The activity of a workflow reaches a consumer
+Nor does work travel on Magento's `MessageQueue`. On the only durable backend this host reaches,
+activity dispatch is a Temporal command on a Temporal task queue, and a resume is a workflow task —
+neither is a message the host could carry. A queue here would be the second queue this requirement
+forbids.
 
-- **WHEN** a workflow schedules an activity
-- **THEN** the activity is published to the module's queue topic
-- **AND** `bin/magento queue:consumers:start` on that consumer executes it
-- **AND** its result reaches the workflow's journal
+#### Scenario: A worker is supervised like any other Magento process
+
+- **WHEN** an operator runs the Durable worker
+- **THEN** it is a `bin/magento` command, bounded so a supervisor can restart it
+- **AND** no queue, topic or consumer is declared beside Magento's own
 
 #### Scenario: A consumer that dies mid-order does not lose the order
 
-- **WHEN** a consumer process is killed while an activity is running
-- **AND** the consumer is restarted
+- **WHEN** a worker process is killed while an activity is running
+- **AND** a worker is restarted
 - **THEN** the execution resumes from its journal
 - **AND** an activity whose result was already recorded is not run a second time
 
