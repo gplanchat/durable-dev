@@ -30,12 +30,16 @@ final class MagentoRuntime
         private readonly InMemoryWorkflowRunner $runner,
     ) {}
 
+    /** @var list<string> */
+    private array $declaredActivities = [];
+
     /**
      * @param callable(array<string, mixed>): mixed $handler
      */
     public function registerActivity(string $activityName, callable $handler): void
     {
         $this->activities->register($activityName, $handler);
+        $this->declaredActivities[] = $activityName;
     }
 
     /**
@@ -53,13 +57,26 @@ final class MagentoRuntime
     public function run(string $workflowClass, array $input = [], ?string $executionId = null): mixed
     {
         if (!$this->workflows->has($workflowClass)) {
-            $this->registerWorkflow($workflowClass);
+            throw UndeclaredWorkflowException::forClass($workflowClass);
         }
 
         return $this->runner->run(
             $executionId ?? 'magento-' . bin2hex(random_bytes(6)),
             $this->workflows->getHandler($workflowClass, $input),
         );
+    }
+
+    /**
+     * Les noms d'activité que la déclaration a produits, dans l'ordre où les contrats les portent.
+     *
+     * C'est ce qui permet de dire, sans lire le code, que les noms viennent de `#[ActivityMethod]`
+     * et non de chaînes recopiées à côté.
+     *
+     * @return list<string>
+     */
+    public function declaredActivities(): array
+    {
+        return $this->declaredActivities;
     }
 
     public function eventStore(): InMemoryEventStore
