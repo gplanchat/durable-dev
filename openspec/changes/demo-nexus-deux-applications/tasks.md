@@ -25,18 +25,30 @@
 
 ## 1. Le contrat partagé
 
-- [ ] 1.1 Un paquet `src/DurableDemoContracts/`, déclaré en dépôt path par les deux maquettes et
+- [x] 1.1 Un paquet `src/DurableDemoContracts/`, déclaré en dépôt path par les deux maquettes et
       **délibérément non publié** : deux applications de démonstration le consomment, en faire un
       paquet publiable traînerait la liste de contrôle SPLITS et le PAT pour rien. Son README le dit.
-- [ ] 1.2 Le contrat `stock`, en deux interfaces : `StockServed` (`reserver`, immédiate) et
+      Namespace `Gplanchat\Durable\Demo\Contracts\`, mappé par l'`autoload` de la racine — pas par
+      son `require`, ni par `bin/splitsh-publish.sh`. Les deux `composer.lock` des maquettes sont
+      remis à jour dans le même commit : la CI les installe avec `composer install`, qui refuse un
+      lock en retard sur son `composer.json`.
+- [x] 1.2 Le contrat `stock`, en deux interfaces : `StockServed` (`reserver`, immédiate) et
       `StockContract`, qui l'étend. Pour l'instant elles portent la même opération — la séparation
       existe pour ce que 2.x y ajoutera.
-- [ ] 1.3 Le contrat `facturation` : `FacturationServed` (`verifier`, immédiate) et
+- [x] 1.3 Le contrat `facturation` : `FacturationServed` (`verifier`, immédiate) et
       `FacturationContract extends FacturationServed`, qui ajoute `encaisser`, remplie par un
       workflow.
       ⚠ **Les noms de paramètres du contrat et ceux du workflow qui remplit l'opération doivent
       coïncider** — `mapInputToArguments` associe par nom. Renommer d'un seul côté donne `null`, en
-      silence.
+      silence. Le contrat le dit maintenant à l'endroit où on le lirait ; le garde exécutable
+      appartient à §3.1, où le workflow existe.
+
+      Les quatre interfaces ne portent que des scalaires et des tableaux : la charge est du JSON
+      simple, décodée en tableau associatif de l'autre côté, et un paramètre typé objet y
+      recevrait un tableau. `tests/unit/DurableDemoContracts/DemoNexusContractsTest.php` tient les
+      trois manières de les écrire faux — un nom de service qui diverge entre les deux moitiés,
+      une opération héritée invisible depuis le contrat de l'appelant, un type qui ne survit pas à
+      l'aller-retour JSON — et les trois échouent en silence sans lui.
 
 ## 2. Sens 1 — Symfony appelle, Sylius sert (la forme immédiate)
 
@@ -47,6 +59,24 @@ immédiate n'exigeant aucun workflow qui remplit l'opération.
       backend DBAL de son tableau de bord ne change de rôle.
 - [ ] 2.2 `StockHandler` dans `sylius/`, `#[AsNexusServiceHandler]`, qui répond depuis le modèle de
       la boutique.
+      ⚠ **Prérequis mesuré en §1 : la plomberie ne sait pas encore appeler un gestionnaire.**
+      `NexusHandlerPass` enregistre la méthode typée du contrat, `NexusOperationRegistry::dispatch()`
+      l'appelle en `$handler($payload)` — la charge entière en argument #1 — et exige un
+      `NexusOperationResponse` en retour. Les deux moitiés sont cassées, et la sonde le montre :
+
+      ```
+      TypeError: SondeHandler::verify(): Argument #1 ($order) must be of type string, array given
+      TypeError: NexusOperationRegistry::dispatch(): Return value must be of type
+                 NexusOperationResponse, string returned
+      ```
+
+      Rien ne l'avait attrapé parce que les tests d'intégration enregistrent des fermetures
+      `fn(mixed $payload): NexusOperationResponse` et que le test de la passe vérifie l'ajout de
+      l'appel, jamais son exécution. Il manque donc deux choses, dans le cœur : l'association de la
+      charge aux paramètres **par nom** — celle que `WorkflowDefinitionLoader::mapInputToArguments()`
+      fait déjà pour les workflows — et l'emballage du retour ordinaire dans
+      `NexusOperationResponse::completed()`. `documentation/user/nexus/_index.{md,fr.md}` montre un
+      gestionnaire qui rend un `Verdict` : la doc décrit la forme voulue, pas celle qui marche.
 - [ ] 2.3 Le DSN Temporal de `symfony/` est activé — namespace `demo-metier`. Sa configuration a
       `temporal.dsn: null` aujourd'hui : « Temporal sur les maquettes » vaut pour les deux.
 - [ ] 2.4 Un workflow appelant dans `symfony/`, qui prend le stub typé et attend le verdict.
@@ -57,6 +87,10 @@ immédiate n'exigeant aucun workflow qui remplit l'opération.
 
 - [ ] 3.1 `EncaissementWorkflow` dans `symfony/`, `#[FulfilsNexusOperation]`, avec une activité et
       un délai — pour que l'attente soit réelle et non simulée.
+      Avec lui vient le garde du ⚠ de §1.3, écrit une fois et générique : pour toute classe portant
+      `#[FulfilsNexusOperation]`, les noms de paramètres doivent être ceux de la méthode du contrat
+      qu'elle nomme. Une règle PHPStan dans `src/DurablePhpstan/` le dirait à tous les projets et
+      pas seulement à la démonstration — c'est l'endroit à préférer si le coût y est le même.
 - [ ] 3.2 Un workflow de commande dans `sylius/` qui appelle `facturation/encaisser`.
 - [ ] 3.3 L'endpoint `demo-metier-facturation`.
 - [ ] 3.4 Éprouvé : la boutique ne tient rien d'ouvert pendant que le workflow avance en face.

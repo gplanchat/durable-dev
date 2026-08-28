@@ -79,7 +79,8 @@
             "Gplanchat\\Durable\\Laravel\\": "src/DurableLaravel/",
             "Temporal\\Api\\": "src/Bridge/Temporal/Api/",
             "GPBMetadata\\Temporal\\": "src/Bridge/Temporal/Generated/GPBMetadata/Temporal/",
-            "Gplanchat\\Durable\\Magento\\": "src/DurableModule/"
+            "Gplanchat\\Durable\\Magento\\": "src/DurableModule/",
+            "Gplanchat\\Durable\\Demo\\Contracts\\": "src/DurableDemoContracts/"
         }
     },
     "autoload-dev": {

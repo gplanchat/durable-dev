@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "908fcf996c1eaf3cfa3e11f4a464f3ec",
+    "content-hash": "a41e6a3b9740014555888271e5000abb",
     "packages": [
         {
             "name": "adyen/php-api-library",
@@ -3786,7 +3786,7 @@
             "dist": {
                 "type": "path",
                 "url": "../src/Durable",
-                "reference": "40980d4b0da8cf71c29775bdbbb30136a7d33bd2"
+                "reference": "fbf41ee943e176704562b50cefb8bbfcc20ba2a1"
             },
             "require": {
                 "php": ">=8.2",
@@ -3796,9 +3796,10 @@
                 "phpunit/phpunit": "^11.0"
             },
             "suggest": {
-                "gplanchat/durable-phpstan": "Optional PHPStan extension (ActivityStub + Awaitable; see ADR012)",
-                "gplanchat/durable-psalm-plugin": "Optional Psalm plugin entry point; prefer durable-phpstan for stubs (ADR012)",
-                "phpunit/phpunit": "Required by the shipped test helpers (Testing\\DurableTestCase, Testing\\WorkflowTestEnvironment)"
+                "gplanchat/durable-bridge-dbal": "SQL backend: durable execution on one database, no cluster (DUR030)",
+                "gplanchat/durable-bridge-temporal": "Temporal gRPC backend (requires ext-grpc)",
+                "gplanchat/durable-phpstan": "Optional PHPStan extension: resolves ActivityStub and ChildWorkflowStub calls from their typed contract (DUR038)",
+                "phpunit/phpunit": "Required by the shipped test helpers (Testing\\DurableTestCase, Testing\\WorkflowTestEnvironment) and the conformance suites (Testing\\EventStoreConformanceTestCase, DUR041)"
             },
             "type": "library",
             "extra": {
@@ -3873,7 +3874,7 @@
             "dist": {
                 "type": "path",
                 "url": "../src/DurableBundle",
-                "reference": "90d53532d5a94d7a5e309127d6c6a3daaa26cf7e"
+                "reference": "6fe58d8bb99c8afc5cff1d1fb098d93af725d540"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -3894,8 +3895,6 @@
                 "phpunit/phpunit": "^11.0"
             },
             "suggest": {
-                "gplanchat/durable-bridge-dbal": "SQL backend: durable execution on one database, no cluster (DUR030)",
-                "gplanchat/durable-bridge-temporal": "Temporal gRPC backend (requires ext-grpc)",
                 "phpunit/phpunit": "Required by the shipped test helper (Testing\\DurableBundleTestTrait)",
                 "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)"
             },
@@ -3926,15 +3925,49 @@
             }
         },
         {
+            "name": "gplanchat/durable-demo-contracts",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../src/DurableDemoContracts",
+                "reference": "2e8724ea978f110f6579df1a52400bbfba7c5b9c"
+            },
+            "require": {
+                "gplanchat/durable": "self.version",
+                "php": ">=8.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\Durable\\Demo\\Contracts\\": "./"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "Nexus contracts shared by the two demonstration mockups. Not published — see README.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "gplanchat/durable-plugin",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "../src/DurablePlugin",
-                "reference": "1ff51b83308ec07103fdadd23750a1ee5c5d0035"
+                "reference": "2bddbc47577c6135200778cff1f94888440a194b"
             },
             "require": {
                 "gplanchat/durable": "self.version",
+                "gplanchat/durable-bundle": "self.version",
                 "knplabs/knp-menu": "^3.5",
                 "php": ">=8.2",
                 "symfony/config": "^6.4 || ^7.0 || ^8.0",
@@ -3951,7 +3984,6 @@
                 "twig/twig": "^3.10"
             },
             "suggest": {
-                "gplanchat/durable-bundle": "Wires the run catalog the dashboard reads — one backend or another. Without it the page reports that no readable backend is configured.",
                 "sylius/admin-bundle": "Registers the dashboard entry in the Sylius admin menu (sylius.menu.admin.main)"
             },
             "type": "symfony-bundle",
@@ -21411,6 +21443,7 @@
         "gplanchat/durable": 20,
         "gplanchat/durable-bridge-dbal": 20,
         "gplanchat/durable-bundle": 20,
+        "gplanchat/durable-demo-contracts": 20,
         "gplanchat/durable-plugin": 20
     },
     "prefer-stable": true,

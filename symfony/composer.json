@@ -24,6 +24,13 @@
             "options": {
                 "symlink": true
             }
+        },
+        {
+            "type": "path",
+            "url": "../src/DurableDemoContracts",
+            "options": {
+                "symlink": true
+            }
         }
     ],
     "require": {
@@ -34,6 +41,7 @@
         "gplanchat/durable": "@dev",
         "gplanchat/durable-bridge-temporal": "@dev",
         "gplanchat/durable-bundle": "@dev",
+        "gplanchat/durable-demo-contracts": "@dev",
         "symfony/console": "^7.4.17 || ^8.0",
         "symfony/doctrine-messenger": "^7.4.15 || ^8.0",
         "symfony/dotenv": "^7.4.15 || ^8.0",

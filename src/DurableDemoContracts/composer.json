@@ -1,0 +1,21 @@
+{
+    "name": "gplanchat/durable-demo-contracts",
+    "description": "Nexus contracts shared by the two demonstration mockups. Not published — see README.",
+    "license": "MIT",
+    "type": "library",
+    "require": {
+        "php": ">=8.2",
+        "gplanchat/durable": "self.version"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gplanchat\\Durable\\Demo\\Contracts\\": "./"
+        }
+    },
+    "authors": [
+        {
+            "name": "Grégory Planchat",
+            "email": "gregory@gyroscops.com"
+        }
+    ]
+}
