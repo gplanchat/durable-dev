@@ -285,11 +285,13 @@ activités. Ce qui diffère, c'est ce que la plateforme autour sait offrir.
 | Attributs de recherche | journalisés seulement | journalisés seulement | ✅ indexés et interrogeables |
 | Planifications cron | ❌ pas d'ordonnanceur | ❌ pas d'ordonnanceur | ✅ |
 | Rétention d'historique / API de visibilité | ❌ | votre table SQL | ✅ |
-| Opérations Nexus | ❌ | ❌ | ❌ *(prévu — côté appelant)* |
+| Opérations Nexus (appeler **et** servir) | ❌ | ❌ | ✅ |
 
 Ni le backend en mémoire ni le backend DBAL n'ont d'ordonnanceur ou de frontière entre espaces de
 noms : cron et Nexus n'y ont donc pas d'équivalent. Là où une capacité manque, elle **échoue
-explicitement** plutôt que d'être ignorée en silence.
+explicitement** plutôt que d'être ignorée en silence — pour un *appel* Nexus, à l'appel ; pour un
+*gestionnaire* Nexus, au montage du conteneur, puisqu'un gestionnaire sans route n'est pas un appel
+qui échoue mais un service qui ne reçoit jamais rien.
 
 ---
 

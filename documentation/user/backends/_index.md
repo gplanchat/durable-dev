@@ -270,11 +270,13 @@ is what the surrounding platform can offer.
 | Search attributes | journaled only | journaled only | ✅ indexed and queryable |
 | Cron schedules | ❌ no scheduler | ❌ no scheduler | ✅ |
 | History retention / visibility API | ❌ | your SQL table | ✅ |
-| Nexus operations | ❌ | ❌ | ❌ *(planned — caller side)* |
+| Nexus operations (call **and** serve) | ❌ | ❌ | ✅ |
 
 Neither the in-memory nor the DBAL backend has a scheduler or a cross-namespace boundary, so cron
 and Nexus have no equivalent there. Where a capability is missing it **fails explicitly** rather
-than being silently ignored.
+than being silently ignored — for a Nexus *call*, at the call; for a Nexus *handler*, when the
+container is built, since a handler with no route is not a call that fails but a service that never
+receives anything.
 
 ---
 
