@@ -16,6 +16,7 @@ the workflow code — only where the execution is recorded.
 | `gplanchat/durable-bridge-temporal` | the Temporal driver, over gRPC | the library, `ext-grpc`, a Temporal cluster |
 | `gplanchat/durable-bridge-dbal` | durable execution on one SQL database | the library, Doctrine DBAL 3 or 4, `symfony/lock` |
 | `gplanchat/durable-bridge-illuminate` | the same, on the connection Laravel already owns | the library, `illuminate/database` 11, 12 or 13 |
+| `gplanchat/durable-laravel` | the Laravel wiring: ports bound from config, work on the application's queue | the library, the Illuminate bridge, `illuminate/support` |
 | `gplanchat/durable-plugin` | a Sylius admin dashboard for workflow runs | the bundle, `knplabs/knp-menu`; Sylius 2.x to appear in its menu |
 
 The three bridges are **alternatives**, not layers: you pick Temporal, DBAL or Illuminate, never
@@ -200,9 +201,11 @@ Every command below is the one the chooser on the [home page](/) hands you, writ
 Each line names the integration only: the bundle pulls the library in, and the plugin pulls the
 bundle in. Without a framework you name the library yourself, and you wire the workers yourself too.
 
-The Laravel line is the exception, and it names the library: the chooser offers
-`gplanchat/durable-laravel`, which does not exist yet. Until it does, the bridge installs on its
-own and you wire it yourself.
+The Laravel line names the library rather than an integration, and that is now a *choice* rather
+than a gap: `gplanchat/durable-laravel` exists — a service provider binding the four storage ports,
+workflows declared in `config/durable.php`, work riding the queue the application already drains.
+Until it is tagged, the bridge installs on its own and you wire it yourself; see the section above
+for what the integration takes off your hands.
 
 ---
 

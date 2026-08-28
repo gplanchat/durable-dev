@@ -17,6 +17,7 @@ l'exécution est enregistrée.
 | `gplanchat/durable-bridge-temporal` | le pilote Temporal, en gRPC | la bibliothèque, `ext-grpc`, un cluster Temporal |
 | `gplanchat/durable-bridge-dbal` | l'exécution durable sur une base SQL | la bibliothèque, Doctrine DBAL 3 ou 4, `symfony/lock` |
 | `gplanchat/durable-bridge-illuminate` | la même chose, sur la connexion que Laravel possède déjà | la bibliothèque, `illuminate/database` 11, 12 ou 13 |
+| `gplanchat/durable-laravel` | le câblage Laravel : les ports liés depuis la configuration, le travail sur la file de l'application | la bibliothèque, le pont Illuminate, `illuminate/support` |
 | `gplanchat/durable-plugin` | un tableau de bord Sylius pour les exécutions | le bundle, `knplabs/knp-menu` ; Sylius 2.x pour apparaître dans son menu |
 
 Les trois ponts sont des **alternatives**, pas des couches : vous prenez Temporal, DBAL ou
@@ -214,9 +215,11 @@ Chaque ligne ne nomme que l'intégration : le bundle tire la bibliothèque, et l
 bundle. Sans framework, vous nommez la bibliothèque vous-même, et vous câblez aussi les workers
 vous-même.
 
-La ligne Laravel fait exception, et nomme la bibliothèque : le sélecteur propose
-`gplanchat/durable-laravel`, qui n'existe pas encore. En attendant, le pont s'installe seul et vous
-le câblez vous-même.
+La ligne Laravel nomme la bibliothèque plutôt qu'une intégration, et c'est désormais un *choix* et
+non un manque : `gplanchat/durable-laravel` existe — un service provider qui lie les quatre ports de
+stockage, des workflows déclarés dans `config/durable.php`, le travail sur la file que l'application
+draine déjà. Tant qu'il n'est pas tagué, le pont s'installe seul et vous le câblez vous-même ; la
+section ci-dessus dit ce que l'intégration vous retire des mains.
 
 ---
 
