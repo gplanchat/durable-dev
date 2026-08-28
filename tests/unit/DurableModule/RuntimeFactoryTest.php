@@ -1,0 +1,62 @@
+<?php
+
+declare(strict_types=1);
+
+namespace unit\Gplanchat\Durable\Magento;
+
+use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
+use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
+use Gplanchat\Durable\Magento\Workflow\Activity\DemoOrderActivities;
+use Gplanchat\Durable\Magento\Workflow\PlaceOrderWorkflow;
+use Gplanchat\Durable\Store\InMemoryEventStore;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * Où vit le journal, et qui le décide.
+ *
+ * Magento n'atteint que deux backends, et ce n'est pas une timidité : il ne livre aucun des deux
+ * types de connexion auxquels les ponts SQL se lient. Le choix entre les deux ne revient donc pas
+ * à un nom de backend recopié dans une configuration — la 2.3 a retiré cette surface — mais à la
+ * **présence d'un DSN**. Pas de DSN, pas de grappe : le journal vit dans le processus et meurt
+ * avec lui. Un DSN, et il vit dans le cluster.
+ *
+ * C'est la même règle que pour les ponts SQL, un cran plus bas : ce qui est installé et configuré
+ * décide, pas une chaîne qu'on peut écrire de travers.
+ */
+final class RuntimeFactoryTest extends TestCase
+{
+    public function testWithoutADsnTheJournalLivesInTheProcessAndDiesWithIt(): void
+    {
+        $runtime = (new RuntimeFactory(activityHandlers: [new DemoOrderActivities()]))->create();
+
+        self::assertInstanceOf(InMemoryEventStore::class, $runtime->eventStore());
+    }
+
+    public function testADsnPutsTheJournalInTheCluster(): void
+    {
+        $runtime = (new RuntimeFactory(
+            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0',
+        ))->create();
+
+        self::assertInstanceOf(TemporalJournalEventStore::class, $runtime->eventStore());
+    }
+
+    /**
+     * La déclaration de la 3.1 ne doit rien savoir du backend : c'est le même `di.xml` des deux
+     * côtés, et un workflow déclaré une fois tourne sur l'un comme sur l'autre.
+     */
+    public function testDeclarationIsOrthogonalToWhereTheJournalLives(): void
+    {
+        $declared = static fn (?string $dsn): array => (new RuntimeFactory(
+            workflowClasses: [PlaceOrderWorkflow::class],
+            activityHandlers: [new DemoOrderActivities()],
+            temporalDsn: $dsn,
+        ))->create()->declaredActivities();
+
+        self::assertSame(
+            ['durable.demo.charge', 'durable.demo.reserve', 'durable.demo.notify'],
+            $declared(null),
+        );
+        self::assertSame($declared(null), $declared('temporal://127.0.0.1:7234?namespace=default&tls=0'));
+    }
+}
