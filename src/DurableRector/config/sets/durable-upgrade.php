@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
+use Gplanchat\Durable\Timer\TimerWakeDelayCalculator;
 use Rector\Config\RectorConfig;
 use Rector\Renaming\Rector\Name\RenameClassRector;
 
@@ -30,6 +31,10 @@ return RectorConfig::configure()
         // mot. Après cette montée, vider le cache du conteneur (`bin/console cache:clear`), sans
         // quoi le conteneur compilé continue de demander l'ancien nom.
         'Gplanchat\Durable\Bundle\Activity\PayloadToContractMethodInvoker' => PayloadToContractMethodInvoker::class,
+        // 0.1.0-alpha8 — le calcul du prochain réveil de minuterie descend lui aussi au cœur, et
+        // pour une raison plus grave : `InMemoryWorkflowRunner`, qui **est** du cœur, l'appelait.
+        // Un hôte qui n'installe pas le bundle prenait une erreur fatale à la première reprise.
+        'Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator' => TimerWakeDelayCalculator::class,
 
         // 0.1.0-alpha8 — tout attribut de déclaration prend le préfixe `As`. Le dépôt en portait
         // deux conventions : le cœur nommait ses attributs sans préfixe, le bundle Symfony en avait
