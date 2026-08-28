@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Magento\Console\Command;
 
-use Gplanchat\Durable\Magento\Runtime\InMemoryRuntimeFactory;
+use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
 use Gplanchat\Durable\Magento\Workflow\PlaceOrderWorkflow;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -35,7 +35,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class RunDemoCommand extends Command
 {
     public function __construct(
-        private readonly InMemoryRuntimeFactory $runtimeFactory,
+        private readonly RuntimeFactory $runtimeFactory,
     ) {
         parent::__construct();
     }

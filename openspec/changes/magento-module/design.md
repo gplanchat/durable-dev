@@ -55,7 +55,7 @@ The module's job is to provide the right-hand column and **nothing else**. Every
 ports — replay, the command buffer, the journal, failure classification — is `gplanchat/durable`
 unchanged, exactly as the DBAL bridge leaves it unchanged.
 
-## Three host constraints, found by trying
+## Six host constraints, found by trying
 
 None was in the design before the module was written, and each cost a debugging round:
 
@@ -79,6 +79,76 @@ subject in the bench rather than in the published package. `ComponentRegistrar` 
 a component and autoloading its classes are two different mechanisms, and only the first is
 automatic. The bench adds its own `psr-4` entry; anyone bootstrapping a Mage-OS bench with a local
 module will hit this and read it as a broken module.
+
+### What Magento's queue can carry — §4.1, measured before declaring
+
+The four XML files need a decided `request` type, and the design had never said which. Two
+measurements settled it, and both failed in the direction this repository keeps finding: silently.
+
+**A Durable transport object as the topic's type does not throw — it empties the message.**
+`ResumeWorkflowMessage` carries public `readonly` properties and no getters, where
+`DataObjectProcessor` walks getters:
+
+```
+objet   : Gplanchat\Durable\Transport\ResumeWorkflowMessage
+getters : []
+encode  : OK -> []
+decode  : BadMethodCallException — Missing required argument $executionId
+```
+
+The publisher **succeeds**. A message is queued whose body is `[]`, and the execution id it was
+about is gone. The consumer then fails at decode, on a payload that no longer says what it was for.
+Publishing and failing are in different processes, and nothing joins them.
+
+**`string[]` corrupts the shape instead.** The resume payload is an associative array whose
+`pendingUpdates` is a list of arrays; `string[]` is Magento's array-of-strings:
+
+```
+charge  : {"executionId":"exec-42","pendingUpdates":[{"name":"approve","arguments":{"by":"alice"}}]}
+encode  : OK -> ["exec-42",[{"name":"approve","arguments":{"by":"alice"}}]]
+decode  : Array to string conversion — TypeProcessor.php:499 — array
+```
+
+The keys are dropped, the nesting is flattened into a warning, and again nothing throws.
+
+**So the topics are `request="string"`, and the module encodes JSON itself.** Magento's encoder
+exists to move Magento service contracts, and Durable's payloads are not that. The queue is used as
+a byte pipe, which is what it can be relied on to be. The alternative — giving the core's transport
+objects Magento-shaped getters — is the one thing this integration must not do: those objects run
+unmodified on every host, and that is the whole argument.
+
+The payloads are the **ports' own arguments**, not the message classes: `WorkflowResumeDispatcher`
+already speaks `string $executionId` and an array of pending updates. The message objects are a
+Messenger detail, and Magento has no reason to learn them.
+
+**One consequence for the order of work.** `queue_consumer.xml` names a handler method, and
+`setup:upgrade` refuses a consumer whose method it cannot resolve — *"Service method specified in
+the definition of handler … is not available"*. A declaration therefore cannot land inert: §4.1
+carries real handlers for the roles it declares, and §4.2 adds the remaining roles rather than
+adding behaviour under a declaration that already shipped.
+
+### Three more, found by putting a screen in the admin — §5.1
+
+**Magento resolves a controller by convention from the *module name*, not from the autoloader.**
+`ActionList::get()` composes `Gplanchat_Durable` + `\Controller\Adminhtml\…`, so the class must be
+`Gplanchat\Durable\Controller\…` — while the package autoloads under
+`Gplanchat\Durable\Magento\`. That is the bill for the two conventions this design chose on
+purpose (family-first package name, Magento-first module name), and it comes due in exactly one
+place. The module's `composer.json` therefore carries a second `psr-4` entry for `Controller/`
+alone. Until it did, the route was declared, `getRouteFrontName()` answered `durable`, **the menu
+rendered**, and Magento served its 404 *inside the admin chrome* — every symptom pointing at the
+declaration, which was correct.
+
+**An optional constructor argument is not auto-wired — Magento uses its default.**
+`RuntimeFactory` takes `?DeploymentConfig $deploymentConfig = null` so it stays constructible
+without Magento, which is what puts the backend decision under CI. The container obligingly passed
+`null`: the DSN was never read, and the module served an in-memory journal while `env.php` asked for
+the cluster, without one line of error. `di.xml` names the argument explicitly now.
+
+**Renaming a class the container builds leaves a stale interceptor in `generated/code/`.**
+`setup:upgrade --keep-generated` does not clear it, and the symptom names nothing:
+*"There are no commands defined in the `durable` namespace."* The module's own command had simply
+stopped existing. `rm -rf generated/code/<Vendor>/` is the fix, and it belongs in any bench note.
 
 ## The one hazard that is not a port
 

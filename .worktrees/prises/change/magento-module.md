@@ -58,17 +58,95 @@ migration de sa rupture : set Rector cumulatif `durable-upgrade.php`, `UPGRADE.m
 à la racine (le dépôt n'avait aucun endroit où documenter une montée de version),
 et ce que Rector ne peut pas faire écrit en toutes lettres — un conteneur Symfony
 compilé garde le nom pleinement qualifié et veut son `cache:clear`.
-⚠ La session `splitsh-integration-alpha8` déplace elle aussi une classe de paquet
-(`AsDurableActivity` du bundle vers le cœur, sous `AsActivityHandler`) : son
-renommage va dans le **même** set, pas dans un second. Prévenue.
+⚠ C'est **`chantier-nexus`**, pas `splitsh-integration-alpha8`, qui déplace
+`AsDurableActivity` du bundle vers le cœur sous `AsActivityHandler` : son
+renommage est **déjà** dans le même set : il a supprimé son
+`durable-attributes-alpha8.php` en doublon et fusionné ses huit entrées dans
+`durable-upgrade.php`, qui en porte neuf. Ses sept renommages d'attributs me
+concerneront le jour où le module référencera les attributs — le set les couvre,
+et Magento n'ayant pas de conteneur compilé, il n'y a pas de `cache:clear` à
+faire de ce côté. (La session
+`splitsh-integration-alpha8` est sur le chantier Laravel et ne touche à rien de
+tout ça — je m'étais trompé de destinataire.)
 
-Prochaine tranche : **tâche 4** — `communication.xml`, `queue_topology.xml`,
-`queue_publisher.xml`, `queue_consumer.xml` pour les cinq rôles (4.1), les
-gestionnaires (4.2), et le verrou par exécution avec son test (4.3). Les quatre
-sondages de la tâche 1 l'ont dessinée : la file n'offre **aucune** exclusion
-mutuelle (1.5), le verrou de la 1.4 est donc la seule chose entre deux
-consommateurs et un journal bifurqué, et une reprise qui arrive avant la purge
-du verrou est acquittée sans être distribuée (1.3).
+**PR #182** — verte (22/22), `CLEAN`. Elle porte **l'écran d'administration**
+demandé et la tranche **5.1** qui le rend capable de montrer autre chose que du
+vide. #179 (conception de la 4.1) est fusionnée.
+
+`System > Durable processes > Process history`. Vérifié en HTTP, connecté, dans
+les deux états : sans DSN la page dit pourquoi une liste vide est la bonne
+réponse ; avec `durable/temporal/dsn` dans `env.php`, l'avertissement disparaît
+et la grille lit le cluster. Rien n'est réimplémenté —
+`InMemoryWorkflowRunCatalog` lit n'importe quel magasin d'événements et rend les
+mêmes `WorkflowRunDescription` que le tableau de bord Sylius.
+
+Pour le voir : `cd magento && php -S 127.0.0.1:8080 -t pub/ phpserver/router.php`,
+puis `http://127.0.0.1:8080/admin` — **durable / Durable123!**
+
+**La grille rend des lignes.** Le banc a son DSN posé en permanence
+(`durable/temporal/dsn` → `temporal://127.0.0.1:7234?namespace=default&tls=0`),
+et chaque `durable:demo` y ajoute une exécution :
+
+    d81bfb25-…  DurableJournal  running  2026-08-28 09:23:45
+
+⚠ **Le défaut qui l'avait rendue vide, à ne pas rejouer** : un catalogue ne se
+dérive **pas** d'un journal. `InMemoryWorkflowRunCatalog` tient sa propre carte,
+alimentée par `recordStart()`/`recordOutcome()` dans le processus qui exécute —
+une requête d'administration n'exécute rien. Lister les exécutions d'une grappe,
+c'est demander à la grappe : `TemporalWorkflowRunCatalog`, que le pont livre déjà.
+
+⚠ Une réserve, et **une correction** : le nom affiché est `DurableJournal`, le
+type Temporal qui *porte* le journal, pas le type métier — remonter le second
+appartient au change du tableau de bord.
+
+Mais le statut `running` **n'était pas dû à l'absence de worker**, contrairement
+à ce que j'avais écrit. Le worker existe maintenant (PR #187), la file est
+drainée, et le cluster répond toujours `RUNNING` pour chaque `DurableJournal` :
+le workflow du journal est **long par construction**, c'est le journal lui-même,
+il ne se ferme pas parce qu'une exécution s'est terminée. La colonne « Status »
+ne peut donc lire que `running` sur cet hôte tant qu'elle reflète le statut
+Temporal. Ce qui distingue fini de en-cours vit dans les **événements** du
+journal (`TemporalRunHistoryReader` + `TemporalHistoryCursor`, désormais passé au
+catalogue). En faire une colonne honnête appartient au change du tableau de bord.
+
+⚠ Le banc a deux copies de `vendor/` rafraîchies à la main (`durable-magento` et
+`durable-bridge-temporal`) : `composer update` les réécrit depuis la **copie
+principale**, qui est à l'état de `main`. Après fusion de la #182, un
+`composer update gplanchat/durable-magento gplanchat/durable-bridge-temporal`
+remet tout d'aplomb.
+
+⚠ Trois contraintes d'hôte de plus, trouvées en posant l'écran (toutes dans
+`design.md`) :
+- Magento résout un **contrôleur par convention depuis le nom du module**, pas
+  depuis l'autochargement — d'où une seconde entrée `psr-4` pour `Controller/`.
+  Sans elle : menu affiché, route déclarée, et un 404 dans le châssis d'admin ;
+- un **argument de constructeur optionnel n'est pas auto-câblé**, Magento prend
+  son défaut — le DSN n'était jamais lu, sans une ligne d'erreur ;
+- **renommer une classe que le conteneur instancie** laisse un intercepteur
+  périmé dans `generated/code/`, que `--keep-generated` ne retire pas ; le
+  symptôme est « There are no commands defined in the "durable" namespace ».
+
+⚠ La copie principale porte une modification locale de
+`src/DurableModule/composer.json` (la seconde entrée `psr-4`) : elle est
+identique à ce que livre la #182, et le banc en a besoin pour tourner d'ici la
+fusion.
+
+**PR #185** — le README du banc décrit enfin le banc qui existe. Étaient partis :
+`Gplanchat_DurableModule`, `gplanchat/durable-module`, un tableau de bord sous
+*Stores > Configuration* avec frise et couloirs, un champ « Temporal DSN » dans
+l'administration, une tranche « reasoning » de cinq activités, une commande
+`durable:sample`, et le port 7233. Ajoutés : le tableau des ports, où vit le
+journal, les deux réserves de l'écran, les six contraintes d'hôte, comment faire
+suivre le banc quand le module change, et les sondes. Les commandes documentées
+ont été relancées avant d'être écrites.
+
+**PR #187** — `bin/magento durable:worker` draine la file du journal. Une
+commande et pas un consommateur de file : la 1.5 a mesuré ce que Magento fait
+d'un message tenu trop longtemps. ⚠ Ses bornes sont vérifiées **entre** deux
+tâches, donc le processus peut dépasser sa limite d'une longue interrogation.
+
+Reste ensuite : 5.2 et 5.3 ; la tâche 4 (la file de Magento)
+et la 4.3 ; puis la tâche 6.
 
 ⚠ Frictions du banc, à savoir avant d'y toucher :
 - dépôts de chemin en `"symlink": false` : recopier dans

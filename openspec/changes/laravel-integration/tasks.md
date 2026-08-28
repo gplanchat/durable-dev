@@ -38,18 +38,143 @@ either confirms a design or replaces it.
 
       The database is left half migrated. The README and the Packages page said *publish to edit*
       without saying *keep the name*; this task adds the sentence, in three files and two languages.
-- [ ] 1.2 **Measure what a waiting job costs.** Two workers, one execution, contention forced.
-      Compare `ResumeLock::around()` blocking against `$this->release($delay)`: worker slots held,
-      `--tries` consumed, what lands in `failed_jobs`. Record the numbers, not the preference.
-- [ ] 1.3 **Probe whether the configured store locks across processes.** Confirm `array` type-checks
-      as a `LockProvider` and fails to exclude across two worker processes. Decide whether the
-      provider can refuse it at boot, and whether that refusal can be wrong (a single-worker
-      deployment where `array` is correct).
-- [ ] 1.4 **Measure class discovery.** Boot cost of an explicit `config/durable.php` list against a
-      scan, on an application with a hundred classes and none of them workflows. Whether a cached
-      manifest earns a command depends on this number.
-- [ ] 1.5 **Measure the collision rate.** Under a realistic worker count, how often two resumes of
-      one execution are dequeued together. This decides whether 1.2 is the design or a detail.
+- [x] 1.2 **Measure what a waiting job costs.** Twenty jobs on one execution, four
+      `queue:work` processes, MySQL 8.4 for the queue and the lock store.
+
+      **First, the substrate.** The measurement cannot be run on the skeleton's default SQLite:
+      four workers popping the `jobs` table produce `SQLSTATE[HY000]: General error: 5 database is
+      locked`, and three of the four workers die on their first job — with WAL enabled and a 60 s
+      busy timeout. That is a finding in its own right, and §6 owes it a sentence: **a Laravel
+      application cannot run more than one Durable worker on the default `sqlite` driver.**
+
+      | | wall | worker-s held | `handle()` calls | failures |
+      |---|---|---|---|---|
+      | `around()`, 200 ms work | **4.47 s** | 14.98 | 20 | 0 |
+      | `release(1s)`, 200 ms work | 19.26 s | **4.20** | 210 | 0 |
+      | `release(0)`, 200 ms work | 4.07 s | 4.79 | **1 918** | 2 |
+      | `around()`, 800 ms work | 16.41 s | 59.83 | 23 | 0 — **3 `LockTimeoutException`** |
+
+      The work itself is 4 s and 16 s of critical section respectively, so the third column is the
+      cost of waiting, not of working. **The trade is real and it is symmetric:** blocking buys
+      latency with worker slots (11 s of the 15 held are pure waiting), releasing buys worker slots
+      with latency (the release delay *is* the latency floor), and releasing with no delay buys
+      both at the price of 96 queue round-trips per job.
+
+      **Two failure modes neither shape advertises, and both matter more than the numbers.**
+
+      1. **`release()` consumes an attempt.** With a finite `tries`, contention is
+         indistinguishable from a bug: at `--tries=5`, **15 of 20 jobs landed in `failed_jobs`**
+         having never run — they simply lost the draw five times. Making it work needs `tries = 0`,
+         which spends the retry budget the queue exists to give you. The table above uses
+         `tries = 0` plus `maxExceptions = 3` for the release rows; the naive version is the 15
+         failures.
+      2. **`waitSeconds` is a queue-depth ceiling, not a latency knob.** Once *depth × work*
+         exceeds it, `around()` starts throwing. At 800 ms × 20 jobs — 16 s of queued work against
+         a 10 s default — 3 jobs threw `LockTimeoutException` and were saved only by their retries.
+         Nothing in the name says the default caps a *queue*, and a shop whose activities take a
+         second will meet it.
+
+      **The conclusion, which §4.1 implements:** neither shape as written. `ResumeLock` needs a
+      **non-blocking entry point** — an `around()` that returns rather than waits when the lock is
+      held — so the job decides what to do with its turn instead of the lock deciding for it. With
+      it, `tries` goes back to meaning *crashes*, the release delay is a tuning knob rather than a
+      workaround, and the ceiling in failure mode 2 disappears because nobody waits inside a
+      worker slot.
+- [x] 1.3 **Probe whether the configured store locks across processes.** It does not, and the task
+      under-estimated the problem: the bridge's own documentation was **wrong in both directions**.
+
+      `README.md`, the `ResumeLock` docblock and the `composer.json` suggest all claimed that
+      `LockProvider` *"forces the caller to pick a store that can actually lock"*, and that
+      *"the `file` store does not implement it"*. On Laravel 12, **nine** stores implement it —
+      `ArrayStore`, `DatabaseStore`, `DynamoDbStore`, `FailoverStore`, `FileStore`,
+      `MemcachedStore`, `MemoizedStore`, `NullStore`, `RedisStore`. `file` is among them **and it
+      locks correctly across processes**. And `NullStore` is among them, whose `NoLock::acquire()`
+      is `return true;`.
+
+      Measured — twenty resumes of one execution, four `queue:work`, 200 ms of critical section:
+
+      | store | overlapping sections | max concurrency | verdict |
+      |---|---|---|---|
+      | `database` | 0 / 20 | 1 | excludes |
+      | `file` | 0 / 20 | 1 | excludes — **the documentation said it could not** |
+      | `array` | **15 / 20** | **4** | per-process only |
+      | `null` | **15 / 20** | **4** | excludes nothing, silently |
+
+      Max concurrency is the worker count in both failing rows: the lock is not slowing anything
+      down, it is absent. That is a forked journal and duplicated activities — the exact failure
+      DUR030 names — from a one-word cache setting.
+
+      **The three files are corrected in this slice.** A claim that the type system guards you is
+      worse than no claim: it is the reason nobody checks the setting.
+
+      **The decision the task asked for, and it splits in two.**
+
+      - **`null` is refused at boot, always.** There is no deployment in which a lock that always
+        grants is correct, so there is no risk of a wrong refusal.
+      - **`array` is *not* refused at boot, and is refused by the worker command.** Refusing it at
+        boot would break every application test suite, because `array` is Laravel's own default
+        cache in the testing environment and excluding correctly inside one process is exactly what
+        a test needs. What cannot be right is `array` under a command whose whole purpose is to be
+        one of several processes. The knowledge lives where the plurality does.
+- [x] 1.4 **Measure class discovery.** A thousand generated classes in `App\Domain`, five of them
+      carrying `#[Workflow]`, four strategies, PHP 8.2.33.
+
+      | strategy | 100 classes | 1 000 classes | classes loaded | peak memory |
+      |---|---|---|---|---|
+      | explicit list | 0,16 ms | **0,14 ms** | 334 | — |
+      | text scan, then reflect the hits | 0,97 ms | 9,6 ms | 334 | — |
+      | reflection scan | 1,5 ms | 15,0 ms | **1 334** | **+0,9 MB** |
+      | cached manifest | 0,02 ms | 0,03 ms | 334 | — |
+
+      **The explicit list is flat**, because it reflects only what was declared — the application's
+      size does not enter into it. The scans are linear, at roughly 15 µs per class reflected and
+      9,6 µs per class read.
+
+      **The reflection scan's real cost is not in the milliseconds column.** It loads the whole
+      application to find five classes: 1 334 declared classes against 334, and +0,9 MB, in *every*
+      process — every request, every worker. That is the argument against scanning, and it does not
+      get better with a faster machine.
+
+      **The decision: no `durable:cache` command.** The manifest is genuinely the fastest thing
+      measured and it wins **0,11 ms** over the explicit list. A command that earns a tenth of a
+      millisecond is a command to write, invalidate, document and get wrong on deploy. And the
+      framework already has one: `php artisan config:cache` caches `config/durable.php` itself, so
+      a manifest would be a second caching mechanism for a file Laravel already caches.
+- [x] 1.5 **Measure the collision rate.** 160 resumes spread over K executions, four
+      `queue:work`, 200 ms of critical section, MySQL 8.4 for the queue and the lock. A *collision*
+      is a resume that finds the lock held **on its first attempt** — later attempts are counted
+      separately, because they measure the backoff rather than the contention.
+
+      | concurrent executions | collisions | later re-queues | wall |
+      |---|---|---|---|
+      | 1 | **98,8 %** | 8 641 | **148,5 s** |
+      | 4 | 63,1 % | 459 | 21,3 s |
+      | 16 | 5,0 % | 0 | 8,9 s |
+      | 64 | 0,6 % | 1 | 8,9 s |
+
+      **A methodological correction worth keeping.** The first run of this table read 0,0 % at
+      K = 4, 16 and 64 — and it was an artefact of the harness, not a property of the queue. Seeding
+      round-robin (`$i % $executions`) makes *neighbouring* queue entries belong to different
+      executions, so four workers popping four consecutive jobs pop four different executions **by
+      construction**. Randomising the assignment is what a real queue looks like, and the zeroes
+      became 63 %, 5 % and 0,6 %. A measurement that produces exactly zero deserves suspicion
+      before it deserves a paragraph.
+
+      **The answer to the question the task asked: both, and the split is the point.**
+
+      In the shape an application usually has — many workflows in flight, a handful of workers —
+      contention is a rounding error: 0,6 % at sixteen executions per worker. If that were the whole
+      picture, §1.2's conclusion would be over-engineering.
+
+      It is not the whole picture, because **durable execution attracts the opposite shape**: one
+      long-lived execution woken again and again by signals, timers and activity results. There,
+      98,8 % of resumes collide, and the cost is not the collision — it is what waiting does with
+      it. The 1 s release backoff turned 32 s of work into **148 s of wall clock**, and blocking
+      would instead have held all four workers hostage to one execution.
+
+      So the non-blocking entry point from §1.2 is justified by the **hot-execution** case, not the
+      average one, and §4.1 inherits a second requirement from this table: the backoff has to be a
+      knob, because at 98,8 % collisions it *is* the latency.
 
 ## 2. The package boots
 

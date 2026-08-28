@@ -19,26 +19,35 @@ exists to answer.
 
 **Assumed, and to be probed by the bench:**
 
-1. **What a queued job that waits on the lock costs.** `ResumeLock::around()` blocks up to ten
-   seconds. A Laravel worker is a process, not a coroutine: a blocked job holds a worker slot for
-   the whole wait. The alternative is `$this->release($delay)` — hand the job back to the queue and
-   let another worker take something useful. The two differ in throughput under contention, in
-   `--tries` accounting, and in what `failed_jobs` ends up containing. **Nothing here is decided
-   until it is measured on a real worker pool.**
+1. ~~**What a queued job that waits on the lock costs.**~~ **Measured — see `tasks.md` §1.2, and
+   it produced a decision rather than a preference.** Blocking holds 15 worker-seconds for 4
+   seconds of work; releasing holds 4.2 and pays 19 s of wall clock for it. Neither is the answer,
+   because both shapes carry a defect the numbers made visible: `release()` **consumes an attempt**
+   (15 of 20 jobs failed at `--tries=5` having never run), and `around()`'s `waitSeconds` is a
+   **queue-depth ceiling** rather than a latency knob (3 `LockTimeoutException` at 800 ms × 20 jobs
+   against a 10 s default). **`ResumeLock` therefore gets a non-blocking entry point**, and §4.1
+   builds the job on it: the lock reports that the turn is taken, the job decides what to do about
+   it. Two consequences ride along — the SQLite driver cannot host more than one worker at all, and
+   `tries` goes back to meaning crashes.
 2. **Whether the configured cache store actually locks across processes.** `ResumeLock` takes a
    `LockProvider`, which already excludes Laravel's `file` store at the type level. It does not
    exclude an `array` store, which type-checks and locks nothing across processes — the same trap
    DUR030 names for a process-local `lock.factory`. Whether a misconfiguration can be refused at
    boot rather than discovered by a forked journal is a question for the bench.
-3. **What class discovery costs without a compiled container.** Symfony resolves `#[Workflow]` at
-   compile time, once. Laravel has no equivalent, and scanning at boot on every request is the
-   wrong answer for an application that never starts a workflow in a web request. Explicit
-   declaration in `config/durable.php` is the assumed answer; whether a cached manifest
-   (`artisan durable:cache`, in the shape of `route:cache`) is worth its own command is not decided.
-4. **Whether Laravel's queue preserves per-execution ordering.** It does not, and the package must
-   not depend on it — that is what `ResumeLock` is for. What is unmeasured is the *rate*: how often
-   two resumes of one execution actually collide under a realistic worker count, which decides
-   whether question 1 above is a micro-optimisation or the design.
+3. ~~**What class discovery costs without a compiled container.**~~ **Measured — `tasks.md` §1.4.**
+   Explicit declaration in `config/durable.php` costs 0,14 ms and does not grow with the
+   application; a reflection scan costs 15 ms at a thousand classes and, worse, **loads all of them
+   into every process** (1 334 declared classes against 334, +0,9 MB) to find five. **No
+   `artisan durable:cache`**: a cached manifest beats the explicit list by 0,11 ms, and
+   `config:cache` already caches the file it would duplicate.
+4. ~~**Whether Laravel's queue preserves per-execution ordering.**~~ It does not, and the package
+   must not depend on it — that is what `ResumeLock` is for. **The rate is measured — `tasks.md`
+   §1.5 — and it splits in two.** Spread over many executions, contention is a rounding error
+   (0,6 % at sixteen executions per worker), and question 1 would be over-engineering. On a single
+   hot execution — one long-lived workflow woken by signals, timers and activity results, which is
+   the shape durable execution attracts — 98,8 % of resumes collide, and a 1 s backoff turned 32 s
+   of work into 148 s of wall clock. **The non-blocking entry point is justified by the hot case,
+   and the backoff has to be configurable**, because at that rate the backoff *is* the latency.
 
 ## Temporal on Laravel: the question, not the answer
 
