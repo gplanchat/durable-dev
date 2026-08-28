@@ -397,7 +397,7 @@ Less freedom, one class of mistakes removed at analysis time. See
 
 ---
 
-## 7. Workflow versioning: no longer a gap
+## 7. Workflow versioning
 
 Both let one class carry two behaviours and let history decide which a run sees:
 
@@ -415,7 +415,7 @@ a versioned Go execution record the identical `Version` marker and the identical
 `TemporalChangeVersion` search attribute, so both come back from the same query when you ask who is
 still on an old branch.
 
-Two differences remain, and neither is about the primitive:
+Two differences, and neither is about the primitive:
 
 | | |
 |---|---|
@@ -451,11 +451,11 @@ integration tests against a real Temporal server: round trips, cancellation and 
 bounds, the endpoint, service, operation and header naming rules — and, on the handler side, both
 response shapes and the cancellation path, a Durable caller and a Durable handler in the same test.
 
-**And the call interoperates.** That is worth stating because it was not always true: the caller
-used to wrap the payload in an envelope of its own, so a handler written with another SDK received
-an object where it expected its own fields — and answered on empty values, without anything raising.
-The payload now travels as the caller wrote it. Measured against a handler served by the **Go SDK**,
-before and after: `{"name":""}` → `hello ` became `{"name":"ada"}` → `hello ada`.
+**And the call interoperates.** The payload travels as the caller wrote it — no wrapper, no
+envelope — so a handler written with another SDK reads the fields it declares. Measured against a
+handler served by the **Go SDK**, which declares `Greeting{Name string}`, receives `{"name":"ada"}`
+and answers `hello ada`. The reverse was measured too: a Go caller invoking an operation served by
+Durable gets its own declared type back, and the two histories are identical event for event.
 
 ### Serving, too
 
@@ -488,9 +488,9 @@ See [Nexus operations](../nexus/) for the whole surface.
 implementation reaches Nexus at all. Until now, a PHP service could not be a Nexus provider: a team
 running PHP was reachable over HTTP like any other service, but not through the boundary Temporal
 gives to Go, Java, Python, TypeScript and .NET — no durable operation, no server-side correlation,
-no cancellation that follows the call. That boundary is now open to PHP.
+no cancellation that follows the call. Durable puts PHP on both sides of that boundary.
 
-One limit remains, and it is deliberate:
+One limit, and it is deliberate:
 
 - **Temporal backend only.** Nexus routes to an endpoint served elsewhere; a backend keeping its
   journal in one database has no such route and no honest fallback. The DBAL backend therefore
@@ -514,8 +514,9 @@ and [DUR045](https://github.com/gplanchat/durable-dev/blob/main/documentation/ad
 | **Saga** | A dedicated helper. Durable has none — the shape is a deadline and a compensation path, written out in [Creating a workflow](../workflows/#bounding-a-wait-in-time), so what is missing is the sugar rather than the capability |
 | **API coverage** | Broad. Durable covers search attributes, cron schedules, updates, deadlines and child workflows — but search attributes are **start options** here, where the SDK also lets a running workflow upsert its own; anything beyond that is worth checking against the [Configuration reference](../configuration/) before you commit |
 
-A comparison with no losses column is marketing. These are real, and the versioning gap in
-particular should be weighed before choosing Durable for workflows expected to run for months.
+A comparison with no losses column is marketing. These are real — and **maturity** is the one that
+weighs most: `0.1.0-alpha` means breaking changes between versions, each shipped with its migration
+procedure, but breaking changes all the same.
 
 ---
 
