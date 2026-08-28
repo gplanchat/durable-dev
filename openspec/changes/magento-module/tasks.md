@@ -122,6 +122,16 @@ topic.
 - [x] ~~4.3 one resume at a time~~ — §1.4 measured `LockManagerInterface` shared across processes
       and that stands; what needed the lock was two consumers on one queue, and there is no queue.
       ⚠ If a host-native journal is ever added, this entry comes back with it.
+      **Et le delta de spec a suivi, le 28/08.** L'exigence *One execution is replayed by one
+      consumer at a time* et ses deux scénarios — dont *A process-local lock is refused before it
+      can cost anything*, que rien n'implémentait — sont retirés de
+      `specs/magento-host/spec.md`&nbsp;: un change ne s'archive pas sur une promesse qu'il a
+      décidé de ne pas tenir, et une exigence sans propriétaire aurait bloqué l'archivage sans dire
+      pourquoi. Le motif reste écrit à trois endroits plutôt que d'être effacé — l'exigence voisine
+      dit en deux phrases pourquoi aucune règle de verrou ne la suit, le `proposal.md` barre sa
+      puce en la datant, et le `design.md` relit son propre raisonnement d'un cran plus loin :
+      chacune de ses phrases partait de « deux consommateurs dépilent deux reprises », et cette
+      prémisse est partie avec la file.
 
 ## 3bis. What the published package must not carry
 
