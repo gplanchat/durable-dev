@@ -45,6 +45,24 @@ return [
      */
     'workflows' => [],
 
+    /*
+     * Le cluster Temporal, quand `backend` vaut « temporal ».
+     *
+     * Le DSN porte l'adresse, l'espace de noms et les deux files de tâches :
+     *   temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities
+     *
+     * Ce backend demande `gplanchat/durable-bridge-temporal`, qui est **suggéré et non exigé** :
+     * il installe un client gRPC et cinq composants Symfony qu'une application Laravel ne charge
+     * jamais. Le provider le dit par son nom si le paquet manque.
+     *
+     * Le journal et le catalogue vivent alors dans le cluster ; les activités et les reprises
+     * continuent de voyager sur la file de l'application. Les tâches de workflow, elles, se
+     * drainent avec `php artisan durable:temporal-worker`.
+     */
+    'temporal' => [
+        'dsn' => null,
+    ],
+
     'tables' => [
         'events' => 'durable_events',
         'metadata' => 'durable_workflow_metadata',

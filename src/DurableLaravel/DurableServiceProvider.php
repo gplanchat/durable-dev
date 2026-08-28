@@ -10,6 +10,16 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
+use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
+use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
+use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
+use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
+use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
+use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
+use Gplanchat\Bridge\Temporal\WorkflowClient;
+use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\ActivityExecutor;
 use Gplanchat\Durable\ExecutionEngine;
@@ -57,7 +67,7 @@ use Illuminate\Support\ServiceProvider;
  */
 final class DurableServiceProvider extends ServiceProvider
 {
-    private const BACKENDS = ['illuminate', 'memory'];
+    private const BACKENDS = ['illuminate', 'memory', 'temporal'];
 
     public function register(): void
     {
@@ -73,7 +83,11 @@ final class DurableServiceProvider extends ServiceProvider
             ));
         }
 
-        $backend === 'illuminate' ? $this->bindIlluminate($config) : $this->bindInMemory();
+        match ($backend) {
+            'illuminate' => $this->bindIlluminate($config),
+            'temporal' => $this->bindTemporal($config),
+            default => $this->bindInMemory(),
+        };
         $this->bindActivityTransport($backend, $config);
         $this->bindResumeLock($config);
         $this->bindWorkflowRegistry($config);
@@ -165,6 +179,104 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(DurableSchema::class),
             $tables['runs'] ?? 'durable_workflow_runs',
         ));
+    }
+
+    /**
+     * Le backend Temporal : le journal et le catalogue vivent dans le cluster.
+     *
+     * Les métadonnées et les liens parents restent en mémoire, comme côté Symfony — Temporal tient
+     * l'état durable, ces deux-là ne sont que du cache de processus.
+     *
+     * **Ce que ce paquet ne réplique pas, et c'est délibéré :** les transports Messenger du pont.
+     * Les activités et les reprises continuent de voyager sur la file de l'application, qui les
+     * draine déjà ; Temporal possède le journal, Laravel possède la file. Le worker de tâches de
+     * workflow, lui, a son propre tour de boucle — `durable:temporal-worker`.
+     *
+     * @param array<string, mixed> $config
+     */
+    private function bindTemporal(array $config): void
+    {
+        /** @var array<string, mixed> $temporal */
+        $temporal = $config['temporal'] ?? [];
+        $dsn = $temporal['dsn'] ?? null;
+
+        if (!\is_string($dsn) || '' === $dsn) {
+            throw new \InvalidArgumentException(
+                'Durable: the "temporal" backend needs durable.temporal.dsn — the address of the '
+                . 'cluster, its namespace and its two task queues. Nothing else can supply it.',
+            );
+        }
+
+        if (!class_exists(TemporalConnection::class)) {
+            throw new \InvalidArgumentException(
+                'Durable: the "temporal" backend needs gplanchat/durable-bridge-temporal, which is '
+                . 'suggested rather than required — it installs a gRPC client and five Symfony '
+                . 'components a Laravel application never loads. Run: composer require '
+                . 'gplanchat/durable-bridge-temporal',
+            );
+        }
+
+        $this->app->singleton(TemporalConnection::class, fn() => TemporalConnection::fromDsn($dsn));
+        $this->app->singleton(
+            'durable.temporal.client',
+            fn($app) => WorkflowServiceClientFactory::create($app->make(TemporalConnection::class)),
+        );
+        $this->app->singleton(TemporalHistoryCursor::class, fn($app) => new TemporalHistoryCursor(
+            $app->make('durable.temporal.client'),
+            $app->make(TemporalConnection::class),
+        ));
+
+        $this->app->singleton(WorkflowRunCatalogInterface::class, fn($app) => new TemporalWorkflowRunCatalog(
+            $app->make('durable.temporal.client'),
+            $app->make(TemporalConnection::class),
+            $app->make(TemporalHistoryCursor::class),
+        ));
+
+        $this->app->singleton(WorkflowTaskRunner::class, fn($app) => new WorkflowTaskRunner(
+            $app->make(TemporalHistoryCursor::class),
+            $app->make(WorkflowRegistry::class),
+            $app->make(TemporalConnection::class),
+            $app->make(WorkflowDefinitionLoader::class),
+        ));
+
+        $this->app->singleton(WorkflowTaskProcessor::class, fn($app) => new WorkflowTaskProcessor(
+            $app->make('durable.temporal.client'),
+            $app->make(TemporalConnection::class),
+            $app->make(WorkflowTaskRunner::class),
+        ));
+
+        $this->app->singleton(WorkflowServiceExecutionRpc::class, fn($app) => new WorkflowServiceExecutionRpc(
+            $app->make('durable.temporal.client'),
+        ));
+
+        $this->app->singleton(WorkflowClientInterface::class, fn($app) => new WorkflowClient(
+            $app->make('durable.temporal.client'),
+            $app->make(TemporalConnection::class),
+            $app->make(TemporalHistoryCursor::class),
+            $app->make(WorkflowServiceExecutionRpc::class),
+            $app->make(WorkflowDefinitionLoader::class),
+        ));
+
+        // Le journal lit à travers le cluster, avec un magasin en mémoire pour le tour courant.
+        $this->app->singleton(EventStoreInterface::class, fn($app) => new TemporalReadThroughEventStore(
+            new InMemoryEventStore(),
+            $app->make(TemporalHistoryCursor::class),
+            $app->make(WorkflowClientInterface::class),
+        ));
+
+        $this->app->singleton(WorkflowMetadataStore::class, fn() => new InMemoryWorkflowMetadataStore());
+        $this->app->singleton(
+            ChildWorkflowParentLinkStoreInterface::class,
+            fn() => new InMemoryChildWorkflowParentLinkStore(),
+        );
+
+        if (method_exists($this->app, 'runningInConsole') && $this->app->runningInConsole()) {
+            // Nommée par une chaîne, et pas par `::class` : la classe étend
+            // `Illuminate\Console\Command`, qui ne peut pas entrer dans le graphe de la racine
+            // sans rendre la ligne Symfony 6.4 irrésoluble — voir phpstan.neon. Une référence
+            // `::class` ferait suivre l'analyseur jusque dans une classe qu'il ne peut pas lire.
+            $this->commands(['Gplanchat\\Durable\\Laravel\\Console\\TemporalWorkerCommand']);
+        }
     }
 
     private function bindInMemory(): void

@@ -405,9 +405,24 @@ either confirms a design or replaces it.
       bundle from inside the Laravel change — two packages this change has no business touching —
       so it gets its own, with an ADR behind it.
 
-      **Until it lands, the package keeps refusing `temporal` by name.** Not because the third way
-      out was chosen, but because it is the only one that costs nothing to reverse, and the split is
-      what reverses it.
+      **Reversed, on the author's call.** The refusal was mine, not a requirement, and refusing was
+      the wrong half of the trade: it removed the entry OST003 §3 sells — *"the same workflow code
+      against a Temporal cluster or against one SQL database"* — to avoid a weight nobody had
+      complained about.
+
+      So the package **serves `temporal`**, and the bridge is a `suggest` rather than a `require`:
+      an application that does not select the backend never installs it, and one that does is told
+      by name what to install. The journal and the run catalogue come from the cluster; metadata and
+      parent links stay in memory, as they do on the Symfony side, because the cluster holds the
+      durable state. Activities and resumes keep riding the application's own queue.
+
+      Workflow tasks do not — they live in the cluster, and nobody else can take them out. That is
+      the one place where §3.2's rule (`queue:work` and nothing else) does not hold, so
+      `durable:temporal-worker` exists, and it is a thin loop around the bridge's own
+      framework-free `WorkflowTaskProcessor::run()`.
+
+      **The split is still the right shape**, and it is still its own change: 36 MB of unused
+      Symfony in a Laravel application is a real cost, just not one worth refusing a feature over.
 - [x] 5.2 Whatever is chosen, the site's chooser and the Packages page say the same thing as the
       code — and today **they do not**.
 
