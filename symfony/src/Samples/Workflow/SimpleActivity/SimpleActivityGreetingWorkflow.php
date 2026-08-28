@@ -8,15 +8,15 @@ use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Activity\RetryLimit;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
  * Port of temporalio/samples-php `app/src/SimpleActivity` (Greeting workflow + compose activity).
- * Type enregistré : premier argument de {@see Workflow} (`Samples_SimpleActivity_Greeting`).
+ * Type enregistré : premier argument de {@see AsWorkflow} (`Samples_SimpleActivity_Greeting`).
  */
-#[Workflow('Samples_SimpleActivity_Greeting')]
+#[AsWorkflow('Samples_SimpleActivity_Greeting')]
 final class SimpleActivityGreetingWorkflow
 {
     private readonly ActivityStub $greeting;
@@ -30,7 +30,7 @@ final class SimpleActivityGreetingWorkflow
         );
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $name = 'World'): string
     {
         return $this->environment->await($this->greeting->composeGreeting($name));

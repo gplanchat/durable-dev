@@ -6,15 +6,15 @@ namespace App\Samples\Workflow\Query;
 
 use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityStub;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
  * Inspiré de samples-php Query : pause durable puis salutation (les « queries » Temporal côté client
  * ne sont pas rejouées ici ; voir {@see \Gplanchat\Durable\Query\WorkflowQueryEvaluator} pour la lecture du journal).
  */
-#[Workflow('Samples_Query_Greeting')]
+#[AsWorkflow('Samples_Query_Greeting')]
 final class SamplesQueryWorkflow
 {
     private readonly ActivityStub $greeting;
@@ -27,7 +27,7 @@ final class SamplesQueryWorkflow
         );
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $name = 'World'): string
     {
         $this->environment->timer(2.0);

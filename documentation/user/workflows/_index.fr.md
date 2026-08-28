@@ -9,15 +9,15 @@ Cette page résume comment on **écrit** un workflow en Durable. Les règles nor
 
 ## Exemple : un workflow minimal
 
-On définit une **interface de contrat** (facultative, mais recommandée pour les tests et le typage) et une **classe concrète** déclarée au moteur. L'attribut **`#[Workflow]`** se pose sur la **classe** avec le chargeur actuel (voir [DUR022](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR022-workflow-class-interface-and-workflow-environment.md) pour le modèle « interface d'abord » visé à terme).
+On définit une **interface de contrat** (facultative, mais recommandée pour les tests et le typage) et une **classe concrète** déclarée au moteur. L'attribut **`#[AsWorkflow]`** se pose sur la **classe** avec le chargeur actuel (voir [DUR022](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR022-workflow-class-interface-and-workflow-environment.md) pour le modèle « interface d'abord » visé à terme).
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /** Contrat métier — aucun attribut requis sur l'interface. */
@@ -26,7 +26,7 @@ interface OrderWorkflowContract
     public function run(string $orderId): mixed;
 }
 
-#[Workflow(name: 'order')]
+#[AsWorkflow(name: 'order')]
 final class OrderWorkflow implements OrderWorkflowContract
 {
     public function __construct(
@@ -34,7 +34,7 @@ final class OrderWorkflow implements OrderWorkflowContract
     ) {
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $orderId): mixed
     {
         // Contrat d'activité : voir « Écrire des activités ». Le stub planifie le travail ; await l'exécute dans le modèle de rejeu.
@@ -187,38 +187,38 @@ Les ADR emploient le terme canonique **`ActivityInvoker`** pour ce motif. Dans l
 
 ## Exemple : deux méthodes d'entrée
 
-Si vous exposez **deux** méthodes `#[WorkflowMethod]` sur le même type de workflow, **DUR022** exige qu'**exactement une** porte **`default: true`** sur l'attribut. Quand l'attribut expose ce paramètre dans votre version, cela donne :
+Si vous exposez **deux** méthodes `#[AsWorkflowMethod]` sur le même type de workflow, **DUR022** exige qu'**exactement une** porte **`default: true`** sur l'attribut. Quand l'attribut expose ce paramètre dans votre version, cela donne :
 
 ```php
-#[WorkflowMethod]
+#[AsWorkflowMethod]
 public function runMain(Input $input): mixed { /* ... */ }
 
-#[WorkflowMethod(default: true)] // à titre d'illustration — à activer quand l'attribut le prendra en charge
+#[AsWorkflowMethod(default: true)] // à titre d'illustration — à activer quand l'attribut le prendra en charge
 public function runAlternate(Input $input): mixed { /* ... */ }
 ```
 
-Tant que **`default`** n'existe pas sur **`#[WorkflowMethod]`**, suivez les règles d'enregistrement de votre moteur pour désigner l'entrée principale.
+Tant que **`default`** n'existe pas sur **`#[AsWorkflowMethod]`**, suivez les règles d'enregistrement de votre moteur pour désigner l'entrée principale.
 
 ## Ce que vous définissez
 
-1. Une **interface de workflow** (contrat facultatif) et/ou une **classe** portant **`#[Workflow]`** (l'attribut se pose sur la **classe** avec les chargeurs actuels). C'est le contrat typé, pour l'enregistrement et pour les tests.
+1. Une **interface de workflow** (contrat facultatif) et/ou une **classe** portant **`#[AsWorkflow]`** (l'attribut se pose sur la **classe** avec les chargeurs actuels). C'est le contrat typé, pour l'enregistrement et pour les tests.
 2. Une **classe concrète** qui **implémente** votre contrat et se déclare au moteur.
 3. **Exactement un** paramètre de constructeur sur l'implémentation : **`WorkflowEnvironment $environment`**. N'injectez **pas** de services, de dépôts ni d'autres dépendances applicatives dans la classe de workflow — les effets de bord appartiennent aux [activités](../activities/).
 
 ## Registre : alias et nom pleinement qualifié
 
-Quand une classe de workflow est enregistrée, le moteur l'indexe sous **deux** chaînes : le **nom** donné à **`#[Workflow]`** (premier argument), ou le **nom court** de la classe si l'attribut est absent, et le **nom de classe pleinement qualifié** (FQCN). **`WorkflowRegistry::getHandler()`** accepte **l'une ou l'autre** clé pour l'aiguillage.
+Quand une classe de workflow est enregistrée, le moteur l'indexe sous **deux** chaînes : le **nom** donné à **`#[AsWorkflow]`** (premier argument), ou le **nom court** de la classe si l'attribut est absent, et le **nom de classe pleinement qualifié** (FQCN). **`WorkflowRegistry::getHandler()`** accepte **l'une ou l'autre** clé pour l'aiguillage.
 
 **Temporal et le journal durable** emploient l'**alias** comme nom de type de workflow, jamais le FQCN. **`WorkflowRunHandler`** et **`TemporalWorkflowStarter`** normalisent les charges utiles de **`WorkflowRunMessage`** avec **`WorkflowDefinitionLoader::aliasForTemporalInterop()`** : si vous passez un FQCN, il est résolu en alias avant que **`ExecutionStarted`** ne soit persisté et avant que le **`WorkflowType`** Temporal ne soit posé. Les métadonnées stockées emploient l'alias, par cohérence avec le serveur.
 
 ## Entrée et gestionnaires facultatifs {#entry-and-optional-handlers}
 
-- Déclarez **au moins une** méthode portant **`#[WorkflowMethod]`** — votre entrée durable principale (le démarrage du scénario).
-- Si vous exposez **plusieurs** méthodes `#[WorkflowMethod]` sur le même type de workflow, **exactement une** doit porter **`default: true`** pour que le moteur sache laquelle est l'entrée principale.
+- Déclarez **au moins une** méthode portant **`#[AsWorkflowMethod]`** — votre entrée durable principale (le démarrage du scénario).
+- Si vous exposez **plusieurs** méthodes `#[AsWorkflowMethod]` sur le même type de workflow, **exactement une** doit porter **`default: true`** pour que le moteur sache laquelle est l'entrée principale.
 - Ajoutez éventuellement :
-  - **`#[SignalMethod]`** — une entrée externe qui met à jour l'état du workflow de façon déterministe ;
-  - **`#[QueryMethod]`** — une vue en lecture seule de l'état (aucun effet de bord durable depuis le gestionnaire) ;
-  - **`#[UpdateMethod]`** — des mises à jour validées, avec sémantique de réponse quand elle est prise en charge.
+  - **`#[AsSignalMethod]`** — une entrée externe qui met à jour l'état du workflow de façon déterministe ;
+  - **`#[AsQueryMethod]`** — une vue en lecture seule de l'état (aucun effet de bord durable depuis le gestionnaire) ;
+  - **`#[AsUpdateMethod]`** — des mises à jour validées, avec sémantique de réponse quand elle est prise en charge.
 
 Paramètres et types de retour doivent être **sérialisables** (voir l'ADR de sérialisation **DUR007**).
 
@@ -247,14 +247,14 @@ Les activités ne sont joignables **qu'**à travers un stub. En désigner une pa
 charge utile libre, ne figure pas sur cette surface : une faute de frappe y produirait une activité
 jamais planifiée, au lieu d'une erreur que votre IDE et votre analyseur statique attrapent d'abord.
 
-Les gestionnaires de requête, de signal et de mise à jour se déclarent par `#[QueryMethod]`,
-`#[SignalMethod]` et `#[UpdateMethod]`, et le moteur les câble. Signaux et mises à jour peuvent
+Les gestionnaires de requête, de signal et de mise à jour se déclarent par `#[AsQueryMethod]`,
+`#[AsSignalMethod]` et `#[AsUpdateMethod]`, et le moteur les câble. Signaux et mises à jour peuvent
 aussi s'enregistrer de façon impérative — `onSignal()`, `onUpdate()` — ce qu'un workflow exprimé
 sous forme de fermeture est obligé d'employer, une fermeture ne pouvant pas porter d'attribut.
 Préférez l'attribut : c'est la forme qu'un lecteur voit sans rien exécuter.
 
 **Les requêtes n'ont pas de forme impérative.** Elles sont lues par le worker, hors de la fibre du
-workflow : leurs gestionnaires vivent côté moteur et `#[QueryMethod]` est le seul moyen d'en
+workflow : leurs gestionnaires vivent côté moteur et `#[AsQueryMethod]` est le seul moyen d'en
 déclarer un. Un workflow en forme de fermeture ne peut pas répondre à une requête ; s'il doit le
 faire, il doit être une classe.
 
@@ -265,12 +265,12 @@ Vous n'instanciez jamais d'implémentation d'activité dans le corps du workflow
 | Règle | Détail |
 |-------|--------|
 | Constructeur | `WorkflowEnvironment` et rien d'autre |
-| Contrat | Interface + `#[Workflow]` ; la classe l'implémente |
-| Entrée | Au moins une `#[WorkflowMethod]` ; `default: true` s'il y en a plusieurs |
+| Contrat | Interface + `#[AsWorkflow]` ; la classe l'implémente |
+| Entrée | Au moins une `#[AsWorkflowMethod]` ; `default: true` s'il y en a plusieurs |
 | E/S | Aucune dans le workflow — passez par des activités |
 | Appels au travail | Par un **`ActivityStub`**, construit dans le constructeur depuis un contrat d'activité |
 
 ## Voir aussi
 
 - [Concepts](../concepts/) — workflow contre activité, rejeu, backends.
-- [Écrire des activités](../activities/) — interfaces d'activité, `#[ActivityMethod]`, et **`ActivityInvoker`**.
+- [Écrire des activités](../activities/) — interfaces d'activité, `#[AsActivityMethod]`, et **`ActivityInvoker`**.

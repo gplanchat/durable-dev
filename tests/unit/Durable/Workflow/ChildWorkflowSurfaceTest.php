@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Workflow;
 
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
 use Gplanchat\Durable\Workflow\ChildWorkflowStub;
@@ -75,21 +75,21 @@ final class ChildWorkflowSurfaceTest extends TestCase
     }
 }
 
-#[Workflow(name: 'echo-child')]
+#[AsWorkflow(name: 'echo-child')]
 final class EchoChild
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {}
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $text): string
     {
         return 'child:' . $text;
     }
 }
 
-#[Workflow(name: 'awaiting-parent')]
+#[AsWorkflow(name: 'awaiting-parent')]
 final class AwaitingParent
 {
     private ChildWorkflowStub $child;
@@ -100,7 +100,7 @@ final class AwaitingParent
         $this->child = $environment->childWorkflowStub(EchoChild::class);
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $text): string
     {
         /** @var Awaitable<string> $call */
@@ -110,7 +110,7 @@ final class AwaitingParent
     }
 }
 
-#[Workflow(name: 'racing-parent')]
+#[AsWorkflow(name: 'racing-parent')]
 final class RacingParent
 {
     private ChildWorkflowStub $child;
@@ -121,7 +121,7 @@ final class RacingParent
         $this->child = $environment->childWorkflowStub(EchoChild::class);
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $first, string $second): string
     {
         return $this->environment->await($this->environment->any(
@@ -131,7 +131,7 @@ final class RacingParent
     }
 }
 
-#[Workflow(name: 'wrong-method-parent')]
+#[AsWorkflow(name: 'wrong-method-parent')]
 final class WrongMethodParent
 {
     private ChildWorkflowStub $child;
@@ -142,7 +142,7 @@ final class WrongMethodParent
         $this->child = $environment->childWorkflowStub(EchoChild::class);
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(): mixed
     {
         return $this->environment->await($this->child->notTheEntryPoint('x'));

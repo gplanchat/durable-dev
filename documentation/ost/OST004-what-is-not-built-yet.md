@@ -154,9 +154,9 @@ turned out to cost, and where bucket 2's boundary was drawn, is recorded under e
 
 | Transformation | What does it |
 |---|---|
-| `#[WorkflowInterface]` on the interface → `#[Workflow(name: …)]` on the class | An attribute rename, **plus the synthesized name** — see the caveat below |
-| `#[ActivityInterface]` → `#[Activity(name: …)]`, `#[ActivityMethod]` → `#[ActivityMethod(name: …)]` | The same rename, and the **same caveat, twice**: both attributes take a mandatory `name` |
-| `#[SignalMethod]`, `#[QueryMethod]`, `#[UpdateMethod]`, `#[WorkflowMethod]` | A plain attribute rename — the vocabulary is deliberately close ([comparison §4](../user/comparison/)) |
+| `#[WorkflowInterface]` on the interface → `#[AsWorkflow(name: …)]` on the class | An attribute rename, **plus the synthesized name** — see the caveat below |
+| `#[ActivityInterface]` → `#[AsActivity(name: …)]`, `#[AsActivityMethod]` → `#[AsActivityMethod(name: …)]` | The same rename, and the **same caveat, twice**: both attributes take a mandatory `name` |
+| `#[AsSignalMethod]`, `#[AsQueryMethod]`, `#[AsUpdateMethod]`, `#[AsWorkflowMethod]` | A plain attribute rename — the vocabulary is deliberately close ([comparison §4](../user/comparison/)) |
 | `Temporal\Exception\Failure\ActivityFailure` → `DurableActivityFailedException`, and the rest of the failure hierarchy | A class rename map |
 | `Promise::all()` / `Promise::any()` → `$this->environment->all()` / `any()` | A static-method rename, plus the receiver change of bucket 2 |
 
@@ -278,8 +278,8 @@ lazy route and it would falsify a published claim.
 
 **The type name has to survive the attribute rewrite — and it is three attributes, not one.** The
 SDK derives a workflow type from the `#[WorkflowInterface]`'s short name and an activity type from
-the interface prefix plus the method's short name. Durable's `#[Workflow]`, `#[Activity]` and
-`#[ActivityMethod]` all take `name` as a **mandatory** constructor argument, so the rename cannot
+the interface prefix plus the method's short name. Durable's `#[AsWorkflow]`, `#[AsActivity]` and
+`#[AsActivityMethod]` all take `name` as a **mandatory** constructor argument, so the rename cannot
 even produce code that runs without inventing one — and a rule that invents it from the class it
 happens to be sitting on, rather than from the interface the SDK derived it from, produces a class
 that compiles, passes its tests, and **silently fails to resolve every run already in flight**. The
@@ -290,7 +290,7 @@ These are the rules in the set whose bug is invisible until production, and they
 get the integration fixture.
 
 **The corpus says how often it would have fired.** Over `temporalio/samples-php`, the workflow rule
-writes 27 `#[Workflow(name: …)]`, and **24 of them carry a name the class's short name would not
+writes 27 `#[AsWorkflow(name: …)]`, and **24 of them carry a name the class's short name would not
 have produced** — `'SimpleActivity.greet'` on a class called `GreetingWorkflow`, `'Saga.Compensate'`,
 `'MoneyTransfer'`, `'Zonk.start'`. Only three interfaces leave the type to the fallback. On
 Temporal's own samples, a migration that dropped the name would have silently renamed **nine

@@ -772,6 +772,8 @@ final class DurableExtension extends Extension
         // sa présence que NexusHandlerPass lit pour savoir si ce backend sait router. Sans elle, la
         // passe refuse — et c'est le refus au démarrage que §5.3 demande.
         $container->register('durable.temporal.nexus_registry', NexusOperationRegistry::class)
+            ->setFactory([NexusOperationRegistry::class, 'routedBy'])
+            ->setArguments(['temporal'])
             ->setPublic(false)
         ;
 

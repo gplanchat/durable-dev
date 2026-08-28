@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Samples\Activity;
 
-use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 use RuntimeException;
 
-#[AsDurableActivity(contract: TripBookingActivityInterface::class)]
+#[AsActivityHandler(contract: TripBookingActivityInterface::class)]
 final class TripBookingActivityHandler implements TripBookingActivityInterface
 {
     public function bookFlight(): string

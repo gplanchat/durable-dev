@@ -7,15 +7,15 @@ namespace App\Samples\Workflow\CancellationScope;
 use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
  * Inspiré de samples-php CancellationScope : plusieurs salutations en parallèle, le workflow retourne
  * la première terminée (`WorkflowEnvironment::any`).
  */
-#[Workflow('Samples_CancellationScope_Race')]
+#[AsWorkflow('Samples_CancellationScope_Race')]
 final class CancellationScopeRaceWorkflow
 {
     private readonly ActivityStub $greetingA;
@@ -38,7 +38,7 @@ final class CancellationScopeRaceWorkflow
         );
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(): string
     {
         $winner = $this->environment->await($this->environment->any(

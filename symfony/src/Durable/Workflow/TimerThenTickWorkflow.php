@@ -6,11 +6,11 @@ namespace App\Durable\Workflow;
 
 use App\Durable\Activity\TickActivityInterface;
 use Gplanchat\Durable\Activity\ActivityStub;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-#[Workflow('TimerThenTickWorkflow')]
+#[AsWorkflow('TimerThenTickWorkflow')]
 final class TimerThenTickWorkflow
 {
     private readonly ActivityStub $tick;
@@ -21,7 +21,7 @@ final class TimerThenTickWorkflow
         $this->tick = $environment->activityStub(TickActivityInterface::class);
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(float $seconds = 0.01): string
     {
         $this->environment->timer($seconds);

@@ -77,7 +77,7 @@ So the handler's cancellation path is coupled to the asynchronous shape. No asyn
 A poll on an idle queue returned after 11.2 s with an **empty task token and a null request**. The
 loop must treat that as "nothing to do", not as a failure.
 
-### Still worth doing: the Go cross-check
+### The Go cross-check, done — and it closes the loop 1.1 opened
 
 Task 1.1 asked for a Go handler as reference. It was not needed to read the wire — but one finding
 makes it more valuable, not less. **Our caller wraps the user payload**:
@@ -107,6 +107,11 @@ bad: a Durable handler would look for an `operationId` a Go caller never sent.
 correlation the caller needs; the payload should travel as the caller wrote it. That is a
 caller-side change and it breaks the wire format for in-flight Nexus operations, which is why it is
 task 1b.2 and not a footnote.
+
+**And the symmetric half is now measured too (§6.2).** A Go SDK caller invoked an operation served
+by `TemporalNexusWorker`. The handler received `{"name":"ada"}` — the caller's own fields, no
+envelope — and its answer deserialised cleanly into the Go caller's declared type. The two
+histories are identical event for event. What 1.1 found broken in one direction works in both.
 
 ## The worker is new plumbing, not an extension
 

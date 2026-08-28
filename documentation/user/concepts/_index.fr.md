@@ -150,7 +150,7 @@ enum OrderSignal: string
     case Cancel  = 'cancel';
 }
 
-#[Workflow('Order')]
+#[AsWorkflow('Order')]
 final class OrderWorkflow
 {
     /** @var list<array<string, mixed>> */
@@ -158,13 +158,13 @@ final class OrderWorkflow
 
     public function __construct(private readonly WorkflowEnvironment $environment) {}
 
-    #[SignalMethod(OrderSignal::Approve)]
+    #[AsSignalMethod(OrderSignal::Approve)]
     public function onApprove(array $payload): void
     {
         $this->approvals[] = $payload;
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(): string
     {
         $this->environment->await(fn(): bool => [] !== $this->approvals);
@@ -215,7 +215,7 @@ Une chaîne nue reste acceptée, et doit l'être : un signal peut arriver de `cu
 
 ### La requête
 
-Une **requête** est une lecture synchrone de l'état du workflow. Le workflow expose une `#[QueryMethod]` qui lit une variable interne ; l'appelant obtient la valeur courante sans modifier l'état. Les requêtes ne sont **pas** enregistrées dans l'historique.
+Une **requête** est une lecture synchrone de l'état du workflow. Le workflow expose une `#[AsQueryMethod]` qui lit une variable interne ; l'appelant obtient la valeur courante sans modifier l'état. Les requêtes ne sont **pas** enregistrées dans l'historique.
 
 Les requêtes servent à suivre une progression, lire un compteur, inspecter une liste d'éléments en attente.
 
@@ -226,7 +226,7 @@ Une **mise à jour** est un message transactionnel : le workflow la traite et **
 La valeur de retour du gestionnaire *est* la réponse — c'est toute la différence avec un signal, qui n'en a pas :
 
 ```php
-#[UpdateMethod('greet')]
+#[AsUpdateMethod('greet')]
 public function greet(array $arguments): string
 {
     $this->name = (string) ($arguments['name'] ?? 'World');
@@ -313,13 +313,13 @@ Pour la configuration, voir [Premiers pas](../getting-started/) et [Référence 
 
 ## Déterminisme et contrat de rejeu
 
-Le **contrat de rejeu** est la contrainte centrale : tout code à l'intérieur d'une `#[WorkflowMethod]` doit produire la **même suite d'opérations awaitables** à historique identique.
+Le **contrat de rejeu** est la contrainte centrale : tout code à l'intérieur d'une `#[AsWorkflowMethod]` doit produire la **même suite d'opérations awaitables** à historique identique.
 
 **Autorisé dans un workflow :**
 - appeler les méthodes d'`activityStub()` → renvoie un `Awaitable` ;
 - appeler `await()`, `all()`, `race()`, `any()` → suspendre ou combiner des awaitables ;
 - appeler `timer()` → poser un minuteur ;
-- lire l'état posé par `#[SignalMethod]` / `#[UpdateMethod]` ;
+- lire l'état posé par `#[AsSignalMethod]` / `#[AsUpdateMethod]` ;
 - tout calcul pur sur des variables locales au workflow.
 
 **Interdit dans un workflow — à faire dans une activité :**

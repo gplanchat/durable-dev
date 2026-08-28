@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Samples\Activity;
 
-use Gplanchat\Durable\Attribute\ActivityMethod;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
 
 interface AccountTransferActivityInterface
 {
-    #[ActivityMethod('samples_withdraw')]
+    #[AsActivityMethod('samples_withdraw')]
     public function withdraw(string $fromAccountId, string $referenceId, int $amountCents): void;
 
-    #[ActivityMethod('samples_deposit')]
+    #[AsActivityMethod('samples_deposit')]
     public function deposit(string $toAccountId, string $referenceId, int $amountCents): void;
 }

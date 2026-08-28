@@ -1,12 +1,16 @@
 # gplanchat/durable-rector
 
-Rector rules that move a project off the official **Temporal PHP SDK** onto
-[`gplanchat/durable`](https://github.com/gplanchat/durable-dev) — and, above all, keep the
-**workflow and activity type names a running server already knows**.
+Rector rules for projects that consume [`gplanchat/durable`](https://github.com/gplanchat/durable-dev)
+and have code to migrate. Two sets, for two different migrations.
 
 ```bash
 composer require --dev gplanchat/durable-rector
 ```
+
+| Set | For |
+|---|---|
+| `temporal-sdk.php` | Coming **from the official Temporal PHP SDK**, keeping the workflow and activity type names a running server already knows |
+| `durable-upgrade.php` | Already on Durable, **moving from one version to the next** — cumulative, and detailed version by version in [`UPGRADE.md`](../../UPGRADE.md) |
 
 ```php
 // rector.php
@@ -15,15 +19,7 @@ return Rector\Config\RectorConfig::configure()
     ->withSets([__DIR__ . '/vendor/gplanchat/durable-rector/config/sets/temporal-sdk.php']);
 ```
 
-## What it does
-
-| Rule | What moves |
-|---|---|
-| `ActivityContractAttributesRector` | `#[ActivityInterface(prefix:)]` → `#[Activity(name:)]`, and every public method gets an explicit `#[ActivityMethod(name:)]` |
-| `WorkflowClassAttributesRector` | `#[WorkflowInterface]` and the four method attributes are **copied from the interface onto the implementing class**, where Durable reads them |
-| `RenameClassRector` (configured) | The three SDK failures with a Durable counterpart |
-| `TemporalFacadeToEnvironmentRector` | The static facade becomes an injected `WorkflowEnvironment`, `yield` goes, and the `\Generator` return type with it |
-| `UnmigratableTemporalCallRector` | Comments every call the migration **cannot** make, and changes nothing else |
+---
 
 ## Monter de version à l'intérieur de Durable
 
@@ -41,6 +37,20 @@ Il est cumulatif — le passer une fois rattrape toutes les versions franchies. 
 surtout ce qu'il **ne peut pas** faire tout seul (un conteneur Symfony compilé garde les noms
 pleinement qualifiés, et veut son `cache:clear`), est écrit version par version dans
 [`UPGRADE.md`](../../UPGRADE.md) à la racine du dépôt.
+
+---
+
+## `temporal-sdk.php` — coming off the SDK
+
+### What it does
+
+| Rule | What moves |
+|---|---|
+| `ActivityContractAttributesRector` | `#[ActivityInterface(prefix:)]` → `#[Activity(name:)]`, and every public method gets an explicit `#[ActivityMethod(name:)]` |
+| `WorkflowClassAttributesRector` | `#[WorkflowInterface]` and the four method attributes are **copied from the interface onto the implementing class**, where Durable reads them |
+| `RenameClassRector` (configured) | The three SDK failures with a Durable counterpart |
+| `TemporalFacadeToEnvironmentRector` | The static facade becomes an injected `WorkflowEnvironment`, `yield` goes, and the `\Generator` return type with it |
+| `UnmigratableTemporalCallRector` | Comments every call the migration **cannot** make, and changes nothing else |
 
 ### Why the names are the whole point
 

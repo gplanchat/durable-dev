@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Durable\Activity;
 
-use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 
-#[AsDurableActivity(contract: EchoActivityInterface::class)]
+#[AsActivityHandler(contract: EchoActivityInterface::class)]
 final class EchoActivityHandler implements EchoActivityInterface
 {
     public function echoUpper(string $text = ''): string

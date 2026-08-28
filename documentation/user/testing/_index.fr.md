@@ -45,7 +45,7 @@ final class GreetWorkflowTest extends DurableTestCase
         $env = $this->createWorkflowTestEnvironment(['greet' => $greetSpy]);
 
         // 3. On fait tourner la classe de workflow, dans la forme qu'elle a en production :
-        //    l'environnement arrive à son constructeur, l'entrée à sa #[WorkflowMethod].
+        //    l'environnement arrive à son constructeur, l'entrée à sa #[AsWorkflowMethod].
         $result = $env->runWorkflowClass(
             GreetingWorkflow::class,
             ['name' => 'Alice'],
@@ -70,11 +70,11 @@ Le workflow et le contrat sous test — les deux mêmes fichiers que vous écrir
 ```php
 interface GreetingActivities
 {
-    #[ActivityMethod('greet')]
+    #[AsActivityMethod('greet')]
     public function greet(string $name): string;
 }
 
-#[Workflow(name: 'greeting')]
+#[AsWorkflow(name: 'greeting')]
 final class GreetingWorkflow
 {
     /** @var ActivityStub<GreetingActivities> */
@@ -86,7 +86,7 @@ final class GreetingWorkflow
         $this->greetings = $environment->activityStub(GreetingActivities::class);
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $name): string
     {
         return $this->environment->await($this->greetings->greet($name));
@@ -170,7 +170,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
 
 interface ShoutActivities
 {
-    #[ActivityMethod('my-activity')]
+    #[AsActivityMethod('my-activity')]
     public function shout(string $text): string;
 }
 
@@ -346,7 +346,7 @@ temps réel.
 ```php
 interface PingActivities
 {
-    #[ActivityMethod('ping')]
+    #[AsActivityMethod('ping')]
     public function ping(): string;
 }
 
