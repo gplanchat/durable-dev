@@ -145,7 +145,29 @@ commande et pas un consommateur de file : la 1.5 a mesuré ce que Magento fait
 d'un message tenu trop longtemps. ⚠ Ses bornes sont vérifiées **entre** deux
 tâches, donc le processus peut dépasser sa limite d'une longue interrogation.
 
-Reste ensuite : 5.2 et 5.3 ; la tâche 4 (la file de Magento)
+**PR #190** — le §5.3 lancé pour de vrai, et un défaut du **cœur** trouvé en le
+lançant.
+
+**5.3, moitié verte, et c'est la bonne moitié.** Commande débitée, `kill -9`
+pendant la réservation, trois relances sous le même identifiant : **un seul
+débit**. Le journal rejoue au lieu de refaire (mesuré aussi à part : une
+exécution terminée relancée sous son identifiant grandit d'**un** événement, pas
+de treize). Ce qui ne se produit pas encore : l'exécution ne repart pas jusqu'au
+bout — `WorkflowStuckException`, parce que `reserve` avait été distribuée dans le
+transport en mémoire du processus mort. **Reprendre demande une distribution
+d'activité durable : c'est la tâche 4.** La case 5.3 reste ouverte et dit
+maintenant ce qui la ferme.
+
+⚠ **Le cœur importait le bundle Symfony.** `InMemoryWorkflowRunner` appelait
+`Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator` alors que
+`gplanchat/durable` ne requiert ni bundle ni pont : erreur fatale à la première
+reprise sur tout hôte sans Symfony. Descendu dans `Gplanchat\Durable\Timer\`,
+avec Rector et `UPGRADE.md`. Une **garde** parcourt désormais les 183 fichiers de
+`src/Durable` et échoue sur tout `use` d'un hôte ou d'un pont — les sept `@see`
+en commentaire sont tolérés.
+
+Reste ensuite : **la tâche 4** (elle débloque la 5.3), puis 5.2 (une commande
+passée depuis la boutique), puis la tâche 6. ; la tâche 4 (la file de Magento)
 et la 4.3 ; puis la tâche 6.
 
 ⚠ Frictions du banc, à savoir avant d'y toucher :
