@@ -15,12 +15,12 @@ Temporal's `CanceledFailure`.
 
 ```php
 use Gplanchat\Durable\Activity\ActivityStub;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-#[Workflow(name: 'checkout')]
+#[AsWorkflow(name: 'checkout')]
 final class CheckoutWorkflow
 {
     /** @var ActivityStub<OrderActivities> */
@@ -32,7 +32,7 @@ final class CheckoutWorkflow
         $this->orders = $environment->activityStub(OrderActivities::class);
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $orderId): string
     {
         try {

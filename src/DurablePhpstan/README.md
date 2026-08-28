@@ -1,7 +1,11 @@
 # `gplanchat/durable-phpstan`
 
 Extension PHPStan pour [`gplanchat/durable`](https://github.com/gplanchat/durable). Elle résout les
-appels de `ActivityStub` et `ChildWorkflowStub` depuis leur contrat typé.
+appels de `ActivityStub`, `ChildWorkflowStub` et `NexusStub` depuis leur contrat typé.
+
+Pour `NexusStub`, elle suit en plus l'**héritage** : un contrat Nexus se sépare en deux interfaces —
+celle que le gestionnaire implémente et celle qui l'étend pour l'appelant —, et le stub appelle les
+deux.
 
 ```bash
 composer require --dev gplanchat/durable-phpstan

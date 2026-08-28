@@ -8,8 +8,8 @@ use App\Samples\Activity\ByeActivityInterface;
 use App\Samples\Activity\HelloActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
@@ -17,7 +17,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
  *
  * @return list<string>
  */
-#[Workflow('Samples_Polymorphic_Greeting')]
+#[AsWorkflow('Samples_Polymorphic_Greeting')]
 final class PolymorphicGreetingWorkflow
 {
     private readonly ActivityStub $hello;
@@ -35,7 +35,7 @@ final class PolymorphicGreetingWorkflow
         );
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $name = 'World'): array
     {
         return [

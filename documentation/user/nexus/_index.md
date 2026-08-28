@@ -17,16 +17,28 @@ route, and they say so rather than pretending — see [Backends](../backends/).
 ## Calling an operation
 
 ```php
-$result = $env->await($env->nexusOperation(
-    endpoint: 'paiements',
-    service: 'facturation',
-    operation: 'encaisser',
-    payload: ['amount' => 1200, 'currency' => 'EUR'],
-    timeouts: new NexusOperationTimeouts(scheduleToClose: Duration::minutes(5)),
-));
+#[AsNexusService('billing')]
+interface BillingContract
+{
+    #[AsNexusOperation('charge')]
+    public function charge(Order $order, int $amount): Receipt;
+}
 ```
 
-`nexusOperation()` assembles; `await()` waits. That is the same rule as everywhere else — see
+```php
+$billing = $env->nexusStub(BillingContract::class, endpoint: 'payments');
+
+$receipt = $env->await($billing->charge($order, 1200));
+```
+
+The contract is written **once** and read from both sides of the boundary: the caller derives a
+typed stub from it, the handler implements it. No operation name is retyped as a string, so a typo
+is a type error rather than an operation waiting for a handler whose name will never match.
+
+The endpoint is a parameter of the stub, not of the contract: it says *where* the service is served,
+which is a deployment concern and changes between environments, while the contract does not.
+
+`nexusStub()` assembles; `await()` waits. Same rule as everywhere else — see
 [Creating a workflow](../workflows/).
 
 The payload travels **as you wrote it**. There is no Durable envelope around it, so a handler
@@ -39,36 +51,62 @@ the operation, and the result arrives when it arrives.
 
 ## Serving an operation
 
-Declare the service and the operation on a handler:
+A handler implements the contract — or the part of it that it answers immediately:
 
 ```php
-use Gplanchat\Durable\Bundle\Attribute\AsNexusOperationHandler;
-use Gplanchat\Durable\Nexus\Serving\NexusOperationResponse;
+use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
 
-#[AsNexusOperationHandler(service: 'facturation', operation: 'encaisser')]
-final class Encaisser
+#[AsNexusServiceHandler(contract: BillingServed::class)]
+final class Billing implements BillingServed
 {
-    public function __invoke(mixed $payload): NexusOperationResponse
+    public function verify(Order $order): Verdict
     {
-        return NexusOperationResponse::completed(['receipt' => 'r-1234']);
+        return $this->rules->check($order);
     }
 }
 ```
 
-The pair `(service, operation)` is the whole address: an incoming task is routed by it and nothing
-else. Both names are checked when the container is built, because a typo produces a handler that
-nothing ever reaches — and the server has nothing to complain about.
+### Why the contract comes in two pieces
+
+An operation fulfilled by a workflow has no handler body — the plumbing starts the workflow, and the
+server delivers its result. So the contract splits: the interface a handler **implements**, and the
+one that **extends** it for the caller.
+
+```php
+#[AsNexusService('billing')]
+interface BillingServed                        // answered immediately
+{
+    #[AsNexusOperation('verify')]
+    public function verify(Order $order): Verdict;
+}
+
+#[AsNexusService('billing')]
+interface BillingContract extends BillingServed // + what a workflow fulfils
+{
+    #[AsNexusOperation('charge')]
+    public function charge(Order $order, int $amount): Receipt;
+}
+
+#[AsWorkflow]
+#[FulfilsNexusOperation(BillingContract::class, 'charge')]
+final class Charge { /* … */ }
+```
+
+Without the split, PHP would demand a body for `charge()` on the handler — an empty method whose only
+job is to say there is nothing to write. The workflow claims the operation instead, where its code
+actually lives, and the caller's contract still declares everything so the stub can call it all.
 
 ### Answering now, or answering later
 
 `NexusOperationResponse` has two forms, and choosing between them is the one decision that matters.
 
 ```php
-// Now — you have the answer.
-return NexusOperationResponse::completed(['receipt' => 'r-1234']);
+// Now — the handler returns the contract's own type.
+public function verify(Order $order): Verdict { … }
 
-// Later — a workflow will produce it.
-return NexusOperationResponse::fulfilledByWorkflow('Encaissement', $payload);
+// Later — a workflow claims the operation, and produces the result.
+#[FulfilsNexusOperation(BillingContract::class, 'charge')]
+final class Charge { … }
 ```
 
 **A handler has roughly nine seconds.** That is not the operation's budget, it is the budget for
@@ -76,9 +114,9 @@ answering *this task*: the caller's `scheduleToClose` may be five minutes, but t
 carries a `request-timeout` of about nine seconds. A handler still working when it expires has its
 task redelivered — and starts over. Measured redeliveries: ~9.9 s, ~20.7 s, ~33.6 s.
 
-So `completed()` is for a lookup, a validation, a computation you already know is fast. Anything
-that talks to a payment provider, waits on a human, or retries for a day belongs in a workflow, and
-that is what `fulfilledByWorkflow()` is for.
+So an implemented method is for a lookup, a validation, a computation you already know is fast.
+Anything that talks to a payment provider, waits on a human, or retries for a day belongs in a
+workflow — and that is what `#[FulfilsNexusOperation]` declares.
 
 When you name a workflow, Durable starts it with the caller's callback attached, and the server
 delivers that workflow's result to the caller when it finishes. Your handler is not called again.

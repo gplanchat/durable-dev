@@ -66,10 +66,10 @@ sous un **nouveau nom de type** et gardez l'ancienne classe enregistrée jusqu'�
 exécutions se terminent :
 
 ```php
-#[Workflow('checkout')]      // à garder, jusqu'à la fin de la dernière ancienne exécution
+#[AsWorkflow('checkout')]      // à garder, jusqu'à la fin de la dernière ancienne exécution
 final class CheckoutWorkflow { … }
 
-#[Workflow('checkout-v2')]   // les nouveaux démarrages passent ici
+#[AsWorkflow('checkout-v2')]   // les nouveaux démarrages passent ici
 final class CheckoutV2Workflow { … }
 ```
 

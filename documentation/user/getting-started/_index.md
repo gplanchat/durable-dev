@@ -131,7 +131,7 @@ when@dev:
 
 ### Tag workflows
 
-Any class annotated with `#[Workflow]` in your workflow namespace is auto-registered when you tag the folder:
+Any class annotated with `#[AsWorkflow]` in your workflow namespace is auto-registered when you tag the folder:
 
 ```yaml
 # config/services.yaml
@@ -142,7 +142,7 @@ App\Workflow\:
 
 ### Register activity implementations
 
-Activity implementation classes are registered as normal Symfony services (autowiring applies). If you use `#[AsDurableActivity]` on the class, the bundle picks them up automatically when the service is tagged.
+Activity implementation classes are registered as normal Symfony services (autowiring applies). If you use `#[AsActivityHandler]` on the class, the bundle picks them up automatically when the service is tagged.
 
 ---
 
@@ -157,11 +157,11 @@ declare(strict_types=1);
 
 namespace App\Workflow\Activity;
 
-use Gplanchat\Durable\Attribute\ActivityMethod;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
 
 interface GreetingActivities
 {
-    #[ActivityMethod(name: 'greet')]
+    #[AsActivityMethod(name: 'greet')]
     public function greet(string $name): string;
 }
 ```
@@ -175,9 +175,9 @@ declare(strict_types=1);
 
 namespace App\Workflow\Activity;
 
-use Gplanchat\Durable\Attribute\Activity;
+use Gplanchat\Durable\Attribute\AsActivity;
 
-#[Activity(name: 'greeting-activities')]
+#[AsActivity(name: 'greeting-activities')]
 final class GreetingActivitiesHandler implements GreetingActivities
 {
     public function greet(string $name): string
@@ -197,16 +197,16 @@ declare(strict_types=1);
 namespace App\Workflow;
 
 use App\Workflow\Activity\GreetingActivities;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-#[Workflow(name: 'greet')]
+#[AsWorkflow(name: 'greet')]
 final class GreetWorkflow
 {
     public function __construct(private readonly WorkflowEnvironment $environment) {}
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $name): string
     {
         $activities = $this->environment->activityStub(GreetingActivities::class);

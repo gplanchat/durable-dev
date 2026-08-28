@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Magento\Workflow\Activity;
 
-use Gplanchat\Durable\Attribute\ActivityMethod;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
 
 /**
  * Le contrat de la démonstration : la panne que l'intégration existe pour retirer,
@@ -15,12 +15,12 @@ use Gplanchat\Durable\Attribute\ActivityMethod;
  */
 interface OrderActivities
 {
-    #[ActivityMethod(name: 'durable.demo.charge')]
+    #[AsActivityMethod(name: 'durable.demo.charge')]
     public function charge(string $orderId): string;
 
-    #[ActivityMethod(name: 'durable.demo.reserve')]
+    #[AsActivityMethod(name: 'durable.demo.reserve')]
     public function reserveStock(string $orderId): string;
 
-    #[ActivityMethod(name: 'durable.demo.notify')]
+    #[AsActivityMethod(name: 'durable.demo.notify')]
     public function notifyCustomer(string $orderId): string;
 }

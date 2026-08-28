@@ -216,7 +216,7 @@ final class IntegrationWorkflows
     }
 }
 
-#[\Gplanchat\Durable\Attribute\Workflow(name: 'Doubler')]
+#[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'Doubler')]
 final class DoublerWorkflow
 {
     public function __construct(
@@ -226,7 +226,7 @@ final class DoublerWorkflow
     /**
      * @return array{doubled: mixed}
      */
-    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]
     public function run(int $value = 0): array
     {
         return ['doubled' => $this->environment->await(

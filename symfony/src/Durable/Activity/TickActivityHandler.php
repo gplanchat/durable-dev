@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Durable\Activity;
 
-use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 
-#[AsDurableActivity(contract: TickActivityInterface::class)]
+#[AsActivityHandler(contract: TickActivityInterface::class)]
 final class TickActivityHandler implements TickActivityInterface
 {
     public function tick(): string

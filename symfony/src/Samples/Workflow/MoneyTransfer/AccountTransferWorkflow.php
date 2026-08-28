@@ -10,11 +10,11 @@ use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
 use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Duration;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-#[Workflow('Samples_MoneyTransfer_Account')]
+#[AsWorkflow('Samples_MoneyTransfer_Account')]
 final class AccountTransferWorkflow
 {
     private readonly ActivityStub $withdraw;
@@ -34,7 +34,7 @@ final class AccountTransferWorkflow
         );
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(
         string $fromAccountId = 'from',
         string $toAccountId = 'to',

@@ -9,15 +9,15 @@ This page summarizes how you **author** a workflow in Durable. The normative rul
 
 ## Example: minimal workflow
 
-Define a **contract interface** (optional but recommended for tests and typing) and a **concrete class** registered with the runtime. The **`#[Workflow]`** attribute is placed on the **class** in today’s loader (see [DUR022](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR022-workflow-class-interface-and-workflow-environment.md) for the long-term interface-first model).
+Define a **contract interface** (optional but recommended for tests and typing) and a **concrete class** registered with the runtime. The **`#[AsWorkflow]`** attribute is placed on the **class** in today’s loader (see [DUR022](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR022-workflow-class-interface-and-workflow-environment.md) for the long-term interface-first model).
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /** Domain contract — no attributes required on the interface. */
@@ -26,7 +26,7 @@ interface OrderWorkflowContract
     public function run(string $orderId): mixed;
 }
 
-#[Workflow(name: 'order')]
+#[AsWorkflow(name: 'order')]
 final class OrderWorkflow implements OrderWorkflowContract
 {
     public function __construct(
@@ -34,7 +34,7 @@ final class OrderWorkflow implements OrderWorkflowContract
     ) {
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $orderId): mixed
     {
         // Activity contract: see Creating activities. The stub schedules work; await runs it in the replay model.
@@ -182,38 +182,38 @@ ADRs use the canonical term **`ActivityInvoker`** for this pattern. In the curre
 
 ## Example: two entry methods
 
-If you expose **two** `#[WorkflowMethod]` methods on the same workflow type, **DUR022** requires **exactly one** to set **`default: true`** on the attribute. When the attribute exposes that parameter in your version, it looks like:
+If you expose **two** `#[AsWorkflowMethod]` methods on the same workflow type, **DUR022** requires **exactly one** to set **`default: true`** on the attribute. When the attribute exposes that parameter in your version, it looks like:
 
 ```php
-#[WorkflowMethod]
+#[AsWorkflowMethod]
 public function runMain(Input $input): mixed { /* ... */ }
 
-#[WorkflowMethod(default: true)] // illustrative — enable when supported by the attribute
+#[AsWorkflowMethod(default: true)] // illustrative — enable when supported by the attribute
 public function runAlternate(Input $input): mixed { /* ... */ }
 ```
 
-Until **`default`** exists on **`#[WorkflowMethod]`**, follow your runtime’s registration rules for which method is the primary entry.
+Until **`default`** exists on **`#[AsWorkflowMethod]`**, follow your runtime’s registration rules for which method is the primary entry.
 
 ## What you define
 
-1. A **workflow interface** (optional contract) and/or a **class** annotated with **`#[Workflow]`** (attribute on the **class** with current loaders). It is the typed contract for registration and tests.
+1. A **workflow interface** (optional contract) and/or a **class** annotated with **`#[AsWorkflow]`** (attribute on the **class** with current loaders). It is the typed contract for registration and tests.
 2. A **concrete class** that **implements** your contract and is registered with the runtime.
 3. **Exactly one** constructor parameter on the implementation: **`WorkflowEnvironment $environment`**. Do **not** inject services, repositories, or other application dependencies into the workflow class—side effects belong in [activities](../activities/).
 
 ## Registry: alias and FQCN
 
-When a workflow class is registered, the runtime indexes it under **two** strings: the **name** from **`#[Workflow]`** (first argument), or the class **short name** if that attribute is missing, and the **fully qualified class name (FQCN)**. **`WorkflowRegistry::getHandler()`** accepts **either** key for dispatch.
+When a workflow class is registered, the runtime indexes it under **two** strings: the **name** from **`#[AsWorkflow]`** (first argument), or the class **short name** if that attribute is missing, and the **fully qualified class name (FQCN)**. **`WorkflowRegistry::getHandler()`** accepts **either** key for dispatch.
 
 **Temporal and the durable journal** use the **alias** as the workflow type name (never the FQCN). **`WorkflowRunHandler`** and **`TemporalWorkflowStarter`** normalize **`WorkflowRunMessage`** payloads with **`WorkflowDefinitionLoader::aliasForTemporalInterop()`**: if you pass a FQCN, it is resolved to the alias before **`ExecutionStarted`** is persisted and before the Temporal **`WorkflowType`** is set. Stored metadata uses the alias for consistency with the server.
 
 ## Entry and optional handlers
 
-- Declare **at least one** method with **`#[WorkflowMethod]`** — your main durable entry (scenario start).
-- If you expose **several** `#[WorkflowMethod]` methods on the same workflow type, **exactly one** must set **`default: true`** so the runtime knows the primary entry.
+- Declare **at least one** method with **`#[AsWorkflowMethod]`** — your main durable entry (scenario start).
+- If you expose **several** `#[AsWorkflowMethod]` methods on the same workflow type, **exactly one** must set **`default: true`** so the runtime knows the primary entry.
 - Optionally add:
-  - **`#[SignalMethod]`** — external input that updates workflow state deterministically.
-  - **`#[QueryMethod]`** — read-only view of state (no durable side effects from the handler).
-  - **`#[UpdateMethod]`** — validated updates with response semantics when supported.
+  - **`#[AsSignalMethod]`** — external input that updates workflow state deterministically.
+  - **`#[AsQueryMethod]`** — read-only view of state (no durable side effects from the handler).
+  - **`#[AsUpdateMethod]`** — validated updates with response semantics when supported.
 
 Parameters and return types must be **serializable** (see project serialization ADR **DUR007**).
 
@@ -242,14 +242,14 @@ Activities are **only** reachable through a stub. Naming one as a string with a 
 is not on this surface: a typo there produces an activity that is never scheduled, instead of an
 error your IDE and your static analyser catch first.
 
-Query, signal and update handlers are declared with `#[QueryMethod]`, `#[SignalMethod]` and
-`#[UpdateMethod]`, and the engine wires them. Signals and updates can also be registered
+Query, signal and update handlers are declared with `#[AsQueryMethod]`, `#[AsSignalMethod]` and
+`#[AsUpdateMethod]`, and the engine wires them. Signals and updates can also be registered
 imperatively — `onSignal()`, `onUpdate()` — which is what a workflow expressed as a closure has to
 use, since a closure cannot carry an attribute. Prefer the attribute: it is the form a reader can
 see without running anything.
 
 **Queries have no imperative form.** They are read by the worker, outside the workflow's fiber, so
-their handlers live on the engine side and `#[QueryMethod]` is the only way to declare one. A
+their handlers live on the engine side and `#[AsQueryMethod]` is the only way to declare one. A
 closure-shaped workflow cannot answer a query; if it needs to, it needs to be a class.
 
 You never instantiate activity implementations inside the workflow body.
@@ -259,12 +259,12 @@ You never instantiate activity implementations inside the workflow body.
 | Rule | Detail |
 |------|--------|
 | Constructor | Only `WorkflowEnvironment` |
-| Contract | Interface + `#[Workflow]`; class implements it |
-| Entry | At least one `#[WorkflowMethod]`; use `default: true` if multiple |
+| Contract | Interface + `#[AsWorkflow]`; class implements it |
+| Entry | At least one `#[AsWorkflowMethod]`; use `default: true` if multiple |
 | I/O | None in the workflow — use activities |
 | Calls to work | Through an **`ActivityStub`**, built in the constructor from an activity contract |
 
 ## See also
 
 - [Concepts](../concepts/) — workflow vs activity, replay, backends.
-- [Creating activities](../activities/) — activity interfaces, `#[ActivityMethod]`, and **`ActivityInvoker`**.
+- [Creating activities](../activities/) — activity interfaces, `#[AsActivityMethod]`, and **`ActivityInvoker`**.

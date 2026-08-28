@@ -54,7 +54,7 @@ composer require gplanchat/durable-bundle
 
 What it does that you would otherwise write by hand:
 
-- **Autoconfiguration.** Classes carrying `#[Workflow]` and `#[Activity]` are registered on their
+- **Autoconfiguration.** Classes carrying `#[AsWorkflow]` and `#[AsActivity]` are registered on their
   own; you do not list them in a container file.
 - **Messenger wiring.** Workflow resumes and activity dispatches are routed to the transports you
   name in `durable.yaml`, so a workflow that suspends resumes through your existing queues.

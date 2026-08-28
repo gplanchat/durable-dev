@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable;
 
-use Gplanchat\Durable\Attribute\SignalMethod;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsSignalMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
@@ -28,10 +28,10 @@ enum DispatchSignal: string
 }
 
 /**
- * Workflow de classe : le handler est déclaré par attribut, et l'état qu'il mute est celui que
+ * AsWorkflow de classe : le handler est déclaré par attribut, et l'état qu'il mute est celui que
  * le corps observe.
  */
-#[Workflow('Approval')]
+#[AsWorkflow('Approval')]
 final class ApprovalWorkflow
 {
     /** @var list<array<string, mixed>> */
@@ -41,7 +41,7 @@ final class ApprovalWorkflow
         private readonly WorkflowEnvironment $environment,
     ) {}
 
-    #[SignalMethod(DispatchSignal::Approve)]
+    #[AsSignalMethod(DispatchSignal::Approve)]
     public function onApprove(array $payload): void
     {
         $this->approvals[] = $payload;
@@ -50,7 +50,7 @@ final class ApprovalWorkflow
     /**
      * @return list<array<string, mixed>>
      */
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(): array
     {
         $this->environment->await(fn(): bool => [] !== $this->approvals);
@@ -64,7 +64,7 @@ final class ApprovalWorkflow
  * workflow-conditions-and-handler-dispatch.
  *
  * Note aux relectures : ce fichier est ROUGE par construction, `onSignal()` et le dispatch de
- * `#[SignalMethod]` arrivant au bloc 5. Deux exceptions assumées : le cas 3.3 passe au vert sans
+ * `#[AsSignalMethod]` arrivant au bloc 5. Deux exceptions assumées : le cas 3.3 passe au vert sans
  * une ligne de code neuve — un signal que personne ne consomme dort déjà dans l'historique — et
  * les deux cas d'update sont explicitement incomplets, faute d'une décision de transport qui
  * appartient au bloc 5.

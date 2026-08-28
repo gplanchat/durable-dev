@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace integration\Durable\Bundle\Support;
 
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-#[Workflow('OrderWait')]
+#[AsWorkflow('OrderWait')]
 final class OrderWaitWorkflow
 {
     /** @var array<string, mixed>|null la charge du signal, posée par son handler */
@@ -21,7 +21,7 @@ final class OrderWaitWorkflow
     /**
      * @return array<string, mixed>
      */
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(): array
     {
         // `waitSignal()` a disparu avec le modèle des conditions : le handler mute l'état, une

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Samples\Activity;
 
-use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 
-#[AsDurableActivity(contract: BatchSumActivityInterface::class)]
+#[AsActivityHandler(contract: BatchSumActivityInterface::class)]
 final class BatchSumActivityHandler implements BatchSumActivityInterface
 {
     public function sumParts(array $cents): int

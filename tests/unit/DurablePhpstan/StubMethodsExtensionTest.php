@@ -64,6 +64,41 @@ final class StubMethodsExtensionTest extends TestCase
         self::assertNotSame([], $this->matching($errors, 'helper'));
     }
 
+    public function testANexusOperationStopsBeingFlagged(): void
+    {
+        $errors = $this->analyse(withExtension: true);
+
+        foreach ($this->matching($errors, 'undefined method') as $message) {
+            self::assertStringNotContainsString('::encaisser()', $message);
+        }
+    }
+
+    public function testAnInheritedNexusOperationIsCallableThroughTheStub(): void
+    {
+        // Le contrat de l'appelant **étend** celui que le gestionnaire implémente. L'extension
+        // doit suivre l'héritage comme le résolveur le suit, sans quoi PHPStan refuserait les
+        // opérations que le gestionnaire sert vraiment.
+        $errors = $this->analyse(withExtension: true);
+
+        foreach ($this->matching($errors, 'undefined method') as $message) {
+            self::assertStringNotContainsString('::verifier()', $message);
+        }
+    }
+
+    public function testANexusTypoIsStillReported(): void
+    {
+        $errors = $this->analyse(withExtension: true);
+
+        self::assertNotSame([], $this->matching($errors, 'encasser'), 'la faute de frappe doit rester signalée');
+    }
+
+    public function testANexusContractMethodWithoutTheAttributeIsNotCallable(): void
+    {
+        $errors = $this->analyse(withExtension: true);
+
+        self::assertNotSame([], $this->matching($errors, 'bareme'));
+    }
+
     public function testTheArgumentCountIsCheckedOnceTheMethodIsKnown(): void
     {
         $errors = $this->analyse(withExtension: true);
