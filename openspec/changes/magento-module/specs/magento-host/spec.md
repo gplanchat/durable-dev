@@ -39,6 +39,11 @@ activity dispatch is a Temporal command on a Temporal task queue, and a resume i
 neither is a message the host could carry. A queue here would be the second queue this requirement
 forbids.
 
+Nothing follows from this about two consumers replaying one execution concurrently. That collision
+needs two resumes of the same execution to be two queue messages, and here a resume is never a
+message at all — so the capability carries no locking requirement, not because the hazard is
+tolerated but because this host cannot reach it. ⚠ It returns the day a host-native journal does.
+
 #### Scenario: A worker is supervised like any other Magento process
 
 - **WHEN** an operator runs the Durable worker
@@ -51,25 +56,6 @@ forbids.
 - **AND** a worker is restarted
 - **THEN** the execution resumes from its journal
 - **AND** an activity whose result was already recorded is not run a second time
-
-### Requirement: One execution is replayed by one consumer at a time
-
-Magento's queue does not serialise messages per execution, so two consumers CAN dequeue two resumes
-of the same execution. The module SHALL prevent them from replaying it concurrently.
-
-The lock SHALL be shared across consumer processes. A configuration whose lock provider is
-process-local SHALL be refused at startup, not discovered when two journals have already forked.
-
-#### Scenario: Two consumers, one journal
-
-- **WHEN** two resumes of the same execution are dequeued by two consumer processes at once
-- **THEN** one replays and the other waits
-- **AND** the execution's journal records each scheduled step once
-
-#### Scenario: A process-local lock is refused before it can cost anything
-
-- **WHEN** the module is configured with a lock provider that is not shared across processes
-- **THEN** startup fails naming the provider and what it must be replaced with
 
 ### Requirement: Only the backends Magento can actually reach are accepted
 

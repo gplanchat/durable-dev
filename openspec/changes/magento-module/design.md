@@ -368,11 +368,25 @@ The same sentence has to be true here, and the same failure is available: two `q
 processes dequeue two resumes of one execution, replay the same fiber in parallel, and each appends
 its own commands. Duplicated activities, forked journal.
 
-So the module carries a per-execution lock over `LockManagerInterface`, and it **fails at startup**
-rather than at the moment of the collision if the configured lock provider is not shared. Magento's
+So the module was to carry a per-execution lock over `LockManagerInterface`, failing at startup
+rather than at the moment of the collision if the configured provider were not shared. Magento's
 default `Magento\Framework\Lock\Backend\Database` is shared by construction — a `GET_LOCK` on the
-application database — which is a better default than Symfony's, but the module must not assume the
-default is what is configured.
+application database — which is a better default than Symfony's, but the module would not have
+assumed the default is what is configured.
+
+⚠ **It carries none, and the reason is the paragraph above read one step further.** Every sentence
+of it starts from *two `queue:consumers:start` processes dequeue two resumes*. Once task 4 was
+abandoned — nothing of Durable rides Magento's `MessageQueue`, because on the only durable backend
+this host reaches there is nothing for it to carry — that premise is gone: a resume is a Temporal
+workflow task, and Temporal serialises workflow tasks for one execution server-side, which is the
+very first sentence of this section. The hazard was the queue's, and the queue left.
+
+What §1.4 measured stands and is worth keeping: `LockManagerInterface` **is** shared across
+processes, a holder killed releases because `GET_LOCK` dies with its connection, and the container
+hands out a `Lock\Proxy` that names no backend — so a startup refusal could not have been founded on
+`get_class()`. ⚠ That is the note to re-read the day a host-native journal arrives; the requirement
+and its two scenarios left the spec delta with the queue, not because the hazard became acceptable
+but because this host cannot reach it.
 
 ### What a dying consumer leaves — §1.3, measured
 
