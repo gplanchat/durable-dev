@@ -24,6 +24,61 @@ ne contient que ce que Rector sait faire sans deviner ; tout le reste est écrit
 
 ## 0.1.0-alpha8
 
+### Un workflow qui remplit une opération Nexus doit porter sa balise
+
+`NexusHandlerPass` lisait les `#[FulfilsNexusOperation]` en **balayant toutes les définitions du
+conteneur** et en appelant `class_exists()` sur chacune. Il lit désormais la balise
+`durable.nexus_fulfilment`, que `DurableBundle::build()` pose depuis l'attribut.
+
+**Pourquoi** — le balayage chargeait chaque classe du conteneur pour lire ses attributs. Il suffit
+qu'une seule étende un parent absent — un bundle de développement à moitié installé, et
+`Symfony\Bundle\MakerBundle\Maker\AbstractMaker` est le cas réel qui l'a montré — pour que le
+chargement fasse une **erreur fatale** dans une passe de compilation qui n'avait rien à y voir. La
+balise dit exactement ce qu'on cherche, et elle existait déjà pour ça.
+
+**Ce que Rector ne peut pas faire** — rien à renommer : la rupture est de configuration.
+
+⚠ **Ce que vous avez à faire, si et seulement si** un de vos workflows portant
+`#[FulfilsNexusOperation]` est déclaré avec `autoconfigure: false`, ou monté à la main comme
+`Definition`. L'ancien balayage le voyait quand même ; la balise, non. Le symptôme est un refus au
+démarrage, et il vous nomme l'opération :
+
+```
+durable.nexus_handler: operation "encaisser" of contract … is served by nobody
+```
+
+Deux façons de le rattraper, selon ce que vous vouliez :
+
+```yaml
+services:
+    App\Workflow\Encaissement:
+        autoconfigure: true          # la balise revient toute seule
+```
+
+```yaml
+services:
+    App\Workflow\Encaissement:
+        tags:
+            - name: durable.nexus_fulfilment
+              contract: 'App\Contract\FacturationContract'
+              operation: 'encaisser'
+```
+
+### Les noms de paramètres d'un workflow qui remplit une opération sont vérifiés
+
+Un workflow portant `#[FulfilsNexusOperation]` dont un paramètre **sans valeur par défaut** ne
+correspond à aucun paramètre de la méthode de contrat fait maintenant échouer la compilation du
+conteneur.
+
+**Pourquoi** — c'est le mode d'échec le plus silencieux de Nexus. La charge est clée par nom à
+l'écriture et relue par nom à l'arrivée : un paramètre qui ne correspond à rien recevait `null`, et
+le workflow démarrait, s'exécutait et rendait un résultat calculé sur du vide.
+
+**Ce que vous avez à faire** — si le refus se déclenche, un des deux côtés a une faute de frappe.
+Le message donne les deux signatures. Un paramètre que le contrat ignore volontairement passe s'il
+a une valeur par défaut : l'absence est alors une décision, pas un oubli.
+
+
 ### L'orchestration de reprise descend du bundle vers le cœur
 
 - `Gplanchat\Durable\Bundle\Handler\ResumeWorkflowHandler` → `Gplanchat\Durable\Handler\ResumeWorkflowHandler`

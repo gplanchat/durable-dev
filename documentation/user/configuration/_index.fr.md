@@ -17,6 +17,7 @@ durable:
         type: in_memory          # 'in_memory' (défaut)
     temporal:
         dsn: null                # mettre temporal://… pour activer le backend Temporal
+        journal: true            # false : le cluster est joignable, event_store reste le journal
     workflow_metadata:
         type: in_memory          # 'in_memory' (défaut)
     activity_transport:
@@ -57,6 +58,7 @@ profileur Symfony fonctionne d'un processus à l'autre.
 | Clé | Valeurs | Défaut | Description |
 |-----|---------|--------|-------------|
 | `dsn` | `temporal://hôte:port?…` ou `null` | `null` | À `null` : backend Messenger en mémoire. Défini : active le backend gRPC Temporal (`ext-grpc` requis). |
+| `journal` | `true` / `false` | `true` | `false` dit que le cluster est joignable **sans** être le journal : `event_store` reste la source de vérité, et le tableau de bord continue de la lire. C'est ainsi qu'une application dont le journal est DBAL sert une opération Nexus — voir [Opérations Nexus](../nexus/). Poser un DSN avec `journal: true` à côté d'`event_store.type: dbal` est refusé : le journal ne peut pas avoir deux sources de vérité. |
 
 ### Format du DSN
 
