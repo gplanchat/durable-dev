@@ -171,7 +171,7 @@ gardé : `ActivityMessage` ⇄ JSON, refusant `options` et `retryDelay` **en les
 nommant** plutôt qu'en les perdant. Mesuré d'abord — une activité ordinaire n'en
 porte aucun des deux.
 
-✅ **Arbitré le 28/08 : les 279 lignes descendent au cœur.** Les cinq rôles ne
+✅ **Fait — PR #193.** Les 279 lignes sont au cœur, derrière un port. Les cinq rôles ne
 sont pas cinq gestionnaires minces : `ResumeWorkflowHandler` fait **138 lignes
 avec 15 imports du cœur**, `FireWorkflowTimersHandler` 86 de plus. C'est
 l'orchestration de reprise du moteur en veste Symfony, pas un adaptateur d'hôte.
@@ -184,10 +184,22 @@ courante », qui demande **un port**, de la forme de `WorkflowResumeDispatcher`.
 Six hôtes du sélecteur ne passent pas par le bundle : le coût de l'alternative
 n'est pas 279 lignes, c'est 279 × 6 plus la divergence.
 
-⚠ Le seul endroit qui pourrait n'être pas mécanique : `DispatchAfterCurrentBusStamp`,
-la seule ligne portant une garantie propre à Messenger — « ne redistribue pas
-tant que le message courant n'est pas fini ». Le port doit décider ce que ça veut
-dire sans bus.
+Le seul endroit qui risquait de n'être pas mécanique, `DispatchAfterCurrentBusStamp`,
+s'est réglé en le mettant **dans le contrat du port** : « après l'unité de travail
+courante » y est écrit, parce que sans lui le réveil se délivre au milieu de la
+passe en cours, qui relit un journal à moitié écrit. Un hôte qui publie dans une
+file l'obtient gratuitement, mais il doit le savoir.
+
+Ce qui a bougé : `ResumeWorkflowHandler` et `FireWorkflowTimersHandler` vers
+`Gplanchat\Durable\Handler\`, `AsyncChildWorkflowFailureProjector` vers
+`Gplanchat\Durable\Workflow\`. Nouveau port `WorkflowTimerDispatcher` + son
+implémentation Messenger dans le bundle (quinze lignes). `Uuid::v7()` remplacé
+par `ExecutionId::generate()`. Trois renommages dans `durable-upgrade.php`, une
+section d'`UPGRADE.md`, et un avertissement pour qui décorait ces gestionnaires :
+leur argument de bus est devenu un `WorkflowTimerDispatcher`.
+
+Preuve : 654 tests verts en local, 22/22 en CI — les tests d'intégration du
+bundle compris, qui éprouvent le câblage DI.
 
 Note : `main` a apporté les sept renommages d'attributs de la session Nexus
 (`Workflow` → `AsWorkflow`, etc.). Le module a été migré **par le set
