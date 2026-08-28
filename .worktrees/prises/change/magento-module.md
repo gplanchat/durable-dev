@@ -16,9 +16,18 @@ Ce que `conflict` ne porte pas : la raison. Elle reste dans `ALLOWED.magento`,
 le sélecteur et `design.md`. Le delta de spec a suivi — le `Scenario:` dit
 « the installation is refused », plus « startup fails ».
 
-Prochaine tranche : **3.1** — la déclaration des `#[Workflow]` et `#[Activity]`,
-le conteneur de Magento n'ayant pas les tags de Symfony. La 3.2 tourne
-aujourd'hui sur un enregistrement à la main dans la commande de démo.
+Tranche **en cours** : **3.1** — la déclaration des `#[Workflow]` et
+`#[Activity]`, le conteneur de Magento n'ayant pas les tags de Symfony. La 3.2
+tourne aujourd'hui sur trois fermetures écrites à la main dans la commande de
+démo, qui contournent le mécanisme au lieu de le prouver.
+
+Forme visée : `di.xml` porte deux tableaux — les classes de workflow, et les
+objets gestionnaires d'activités. Le contrat ne se déclare pas : on lit les
+interfaces du gestionnaire et on garde celles qui portent `#[ActivityMethod]`,
+via l'`ActivityContractResolver` du cœur. Le pendant Symfony est
+`ActivityHandlerPass`, et son `PayloadToContractMethodInvoker` est du PHP pur
+posé dans le paquet du bundle : deux hôtes en ont besoin, donc il descend au
+cœur plutôt que d'être recopié.
 
 ⚠ Frictions du banc, à savoir avant d'y toucher :
 - dépôts de chemin en `"symlink": false` : éditer `src/DurableModule` ne change
