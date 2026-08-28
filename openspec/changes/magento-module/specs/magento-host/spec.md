@@ -71,13 +71,16 @@ The module SHALL support the in-memory and Temporal backends. It SHALL refuse th
 because Magento ships neither of the connection types they bind to: state lives in a Temporal
 cluster, or it lives in one process.
 
-The refusal SHALL name the backend and say what to use instead, at startup.
+The refusal SHALL happen at **installation**, through the package manager: the module SHALL declare
+the SQL bridge packages as Composer conflicts, so a project cannot assemble the incoherent
+combination in the first place. A refusal a process discovers at boot arrives after someone has
+already installed the wrong thing; this one arrives before.
 
-#### Scenario: A SQL backend is refused by name
+#### Scenario: A SQL bridge cannot be installed beside the module
 
-- **WHEN** the module is configured with the DBAL or the Illuminate backend
-- **THEN** startup fails naming that backend
-- **AND** the message says which backends this host reaches
+- **WHEN** a project requires the module and a SQL bridge package together
+- **THEN** the installation is refused, naming the packages that cannot coexist
+- **AND** nothing is written to the project
 
 #### Scenario: Temporal carries an execution across a restart
 
