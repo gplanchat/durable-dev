@@ -151,10 +151,26 @@
 
 ## 5. Registration and refusal
 
-- [ ] 5.1 Declaring a served operation; the bundle wires it.
-- [ ] 5.2 A worker command for the Nexus task queue.
-- [ ] 5.3 Registering a handler on a backend that cannot route refuses **at startup**, naming the
-      backend — not at request time, since no request will come.
+- [x] 5.1 **Declaring a served operation.** `#[AsNexusOperationHandler(service: …, operation: …)]`
+      on a service, autoconfigured into the `durable.nexus_handler` tag, read by `NexusHandlerPass`
+      and registered on `NexusOperationRegistry`. Both names are validated at compile time, not on
+      the first task: a typo in either produces a handler nothing ever reaches, and the server has
+      nothing to complain about.
+- [x] 5.2 **A worker for the Nexus task queue** — a Messenger transport, `purpose=nexus_worker`,
+      exactly as the activity worker is. `messenger:consume` already knows how to hold a loop,
+      restart it, bound it in time and supervise it; a dedicated console command would say all of
+      that again, less well. The queue comes from the connection: `nexus_task_queue` in the DSN,
+      **defaulting to the workflow task queue** rather than to a name of its own — a Nexus endpoint
+      targets a queue, and a default queue nobody polls is an endpoint that never answers, silently.
+- [x] 5.3 **Refusal at startup, naming what is missing.** `NexusHandlerPass` throws at container
+      compile time when a handler is declared and `durable.temporal.nexus_registry` is absent — the
+      service the Temporal backend registers as soon as a DSN is configured. The message names the
+      backend, the missing key, and the services that declared a handler.
+      This is the asymmetry the design called out: the caller refuses at call time because that is
+      when the mistake shows, while a handler with no route is not a call that fails but a service
+      that never receives anything. There is no request to fail later.
+      A container with no handler at all is left alone — refusing there would break every
+      application that does not use Nexus.
 
 ## 6. End to end
 

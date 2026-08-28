@@ -34,6 +34,16 @@ final class TemporalConnection
     /** File des tâches d'activité applicatives. */
     public readonly TaskQueue $activityTaskQueue;
 
+    /**
+     * File des tâches Nexus servies par ce composant.
+     *
+     * Elle n'a pas de défaut à elle : elle **suit la file de workflow**. Un endpoint Nexus vise une
+     * file, et le serveur n'y livre que si quelqu'un y poll — une file par défaut que personne ne
+     * sert donnerait un endpoint qui ne répond jamais, sans la moindre erreur. Suivre la file de
+     * workflow fait tomber juste le montage le plus courant : un worker, une file.
+     */
+    public readonly TaskQueue $nexusTaskQueue;
+
     /** Frontière d'isolation : exécutions, files et attributs de recherche y vivent. */
     public readonly WorkflowNamespace $namespace;
 
@@ -48,6 +58,7 @@ final class TemporalConnection
         public readonly bool $tls = false,
         TaskQueue|string|null $workflowTaskQueue = null,
         TaskQueue|string|null $activityTaskQueue = null,
+        TaskQueue|string|null $nexusTaskQueue = null,
         /**
          * DSN Messenger délégué tant que le transport applicatif n’est pas entièrement gRPC.
          * Null pour le transport journal (receive-only) ; requis pour purpose=application.
@@ -60,6 +71,7 @@ final class TemporalConnection
         $this->journalTaskQueue = TaskQueue::from($journalTaskQueue ?? self::DEFAULT_JOURNAL_TASK_QUEUE);
         $this->workflowTaskQueue = TaskQueue::from($workflowTaskQueue ?? self::DEFAULT_WORKFLOW_TASK_QUEUE);
         $this->activityTaskQueue = TaskQueue::from($activityTaskQueue ?? self::DEFAULT_ACTIVITY_TASK_QUEUE);
+        $this->nexusTaskQueue = TaskQueue::from($nexusTaskQueue ?? $this->workflowTaskQueue);
     }
 
     public function journalWorkflowId(string $executionId): string
@@ -103,6 +115,7 @@ final class TemporalConnection
 
         $workflowTaskQueue = \is_string($q['workflow_task_queue'] ?? null) ? $q['workflow_task_queue'] : self::DEFAULT_WORKFLOW_TASK_QUEUE;
         $activityTaskQueue = \is_string($q['activity_task_queue'] ?? null) ? $q['activity_task_queue'] : self::DEFAULT_ACTIVITY_TASK_QUEUE;
+        $nexusTaskQueue = \is_string($q['nexus_task_queue'] ?? null) ? $q['nexus_task_queue'] : null;
 
         $inner = \is_string($q['inner'] ?? null) ? $q['inner'] : null;
         if (null !== $inner && str_starts_with($inner, 'temporal://')) {
@@ -120,6 +133,7 @@ final class TemporalConnection
             tls: $tls,
             workflowTaskQueue: $workflowTaskQueue,
             activityTaskQueue: $activityTaskQueue,
+            nexusTaskQueue: $nexusTaskQueue,
             innerMessengerDsn: $inner,
         );
     }
