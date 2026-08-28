@@ -40,16 +40,24 @@ HERE = pathlib.Path(__file__).parent
 # Résolues depuis le composant du canevas. L'accent est recalculé par son
 # propre algorithme : il part de la teinte choisie et descend en luminosité
 # jusqu'à passer un contraste de 4,6 sur le fond du thème visé.
+#
+# La teinte choisie est l'émeraude `#1f6f5c`, un des quatre accents que propose
+# le canevas (`#b4552f` terracotta, `#1f6f5c` émeraude, `#2d5bb9` bleu,
+# `#8a3f7a` prune). Le canevas en tire `#207460` en clair et `#68d5bb` en
+# sombre ; ce sont ces deux valeurs-là, pas la graine, qui s'écrivent ici.
+# Changer de variante, c'est rejouer `themeAccent(graine, dark)` du canevas sur
+# la nouvelle graine — et penser au `--dz-accent` de `assets/_custom.scss`, qui
+# porte la même paire pour les pages de documentation.
 PALETTE = {
     "light": {
         "bg": "#f7f4ef", "bg2": "#efe9df", "fg": "#1d1a16", "fg2": "#6c6459",
-        "line": "#ddd6ca", "accent": "#9e488b", "accent-fg": "#fdfaf6",
+        "line": "#ddd6ca", "accent": "#207460", "accent-fg": "#fdfaf6",
         "code-bg": "#ffffff", "code-fg": "#1d1a16",
         "ck": "#a1341f", "cs": "#6b7d1f", "cc": "#9a9184", "cv": "#1c6b8a",
     },
     "dark": {
         "bg": "#141310", "bg2": "#1c1a17", "fg": "#eae5dc", "fg2": "#a09a90",
-        "line": "#2c2925", "accent": "#c27ab2", "accent-fg": "#170f0a",
+        "line": "#2c2925", "accent": "#68d5bb", "accent-fg": "#170f0a",
         "code-bg": "#100f0d", "code-fg": "#eae5dc",
         "ck": "#e58a6a", "cs": "#a8bf62", "cc": "#6b665e", "cv": "#79b6cf",
     },
