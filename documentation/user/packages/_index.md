@@ -17,6 +17,7 @@ the workflow code — only where the execution is recorded.
 | `gplanchat/durable-bridge-dbal` | durable execution on one SQL database | the library, Doctrine DBAL 3 or 4, `symfony/lock` |
 | `gplanchat/durable-bridge-illuminate` | the same, on the connection Laravel already owns | the library, `illuminate/database` 11, 12 or 13 |
 | `gplanchat/durable-laravel` | the Laravel wiring: ports bound from config, work on the application's queue | the library, the Illuminate bridge, `illuminate/support` |
+| `gplanchat/durable-magento` | a Magento 2.4 / Mage-OS module: declaration, workers, admin screen | the library; Temporal for anything that must outlive a process |
 | `gplanchat/durable-plugin` | a Sylius admin dashboard for workflow runs | the bundle, `knplabs/knp-menu`; Sylius 2.x to appear in its menu |
 
 The three bridges are **alternatives**, not layers: you pick Temporal, DBAL or Illuminate, never
@@ -179,6 +180,75 @@ catalog it reads, so the command above is the whole install.
 > still installs, the route and the menu entry still work, and the dashboard renders its degraded
 > state instead of live runs.
 
+## `gplanchat/durable-magento` — the Magento integration
+
+```bash
+composer require gplanchat/durable-magento
+```
+
+> [!WARNING]
+> **Not published yet.** The package exists in the repository and runs on the bench; it is not on
+> Packagist, so the command above does not resolve today. Everything below describes what is built,
+> not what you can install.
+
+A Magento 2.4 / Mage-OS module — `Gplanchat_Durable` in `bin/magento module:status`. It declares
+workflow and activity classes to the runtime, assembles the engine for a Magento process, ships the
+workers as `bin/magento` commands, and adds a read-only admin screen under
+**System > Durable processes > Process history**.
+
+Magento's container has no equivalent of Symfony's tag autoconfiguration, so declaration is
+explicit — two arrays in `di.xml`:
+
+```xml
+<type name="Gplanchat\Durable\Magento\Runtime\RuntimeFactory">
+    <arguments>
+        <argument name="workflowClasses" xsi:type="array">
+            <item name="place_order" xsi:type="string">Acme\Shop\Workflow\PlaceOrder</item>
+        </argument>
+        <argument name="activityHandlers" xsi:type="array">
+            <item name="order" xsi:type="object">Acme\Shop\Activity\OrderActivities</item>
+        </argument>
+    </arguments>
+</type>
+```
+
+The *contract* is not declared: the factory reads each handler's interfaces and keeps those carrying
+`#[AsActivityMethod]`. One declaration fewer to get wrong, and the activity names stay the
+attributes'.
+
+**Two backends, and Composer enforces it.** Magento reaches in-memory and Temporal, and the module
+declares `conflict` on both SQL bridges — `Magento\Framework\App\ResourceConnection` is neither
+Doctrine DBAL nor Illuminate's connection. Which one you get is decided by a DSN in
+`app/etc/env.php`, not by a setting:
+
+```php
+'durable' => [
+    'temporal' => ['dsn' => 'temporal://temporal:7233?namespace=default&tls=0'],
+],
+```
+
+Without it the journal lives in the process that writes it, and dies with it — fine for a console
+command, ruinous for anything else.
+
+**Workers are commands, not queue consumers**, and an operator supervises them like any other
+long-running process:
+
+```bash
+bin/magento durable:worker --role=journal   --time-limit=3600
+bin/magento durable:worker --role=activity  --time-limit=3600
+```
+
+One process, one queue, one role: they are two distinct Temporal queues, and their concurrency is
+tuned apart. Nothing rides Magento's own `MessageQueue` — on Temporal an activity is a Temporal
+command and a resume is a workflow task, so a topic here would be a second queue for an operator to
+supervise, for nothing.
+
+> [!NOTE]
+> Start executions **on the cluster**, not in the request that triggers them. An observer on
+> `sales_order_place_after` that calls `RuntimeFactory::workflowClient()->startAsync()` hands the
+> execution to Temporal and returns; starting it inline would kill it with the request, which is the
+> very failure this integration exists to remove.
+
 ---
 
 ## Which do I install?
@@ -197,6 +267,7 @@ Every command below is the one the chooser on the [home page](/) hands you, writ
 | Sylius, one SQL database | `composer require gplanchat/durable-plugin gplanchat/durable-bridge-dbal` |
 | Sylius, Temporal cluster | `composer require gplanchat/durable-plugin gplanchat/durable-bridge-temporal` |
 | Laravel, one SQL database | `composer require gplanchat/durable gplanchat/durable-bridge-illuminate` |
+| Magento, Temporal cluster | `composer require gplanchat/durable-magento gplanchat/durable-bridge-temporal` |
 
 Each line names the integration only: the bundle pulls the library in, and the plugin pulls the
 bundle in. Without a framework you name the library yourself, and you wire the workers yourself too.

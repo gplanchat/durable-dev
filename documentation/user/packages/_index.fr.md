@@ -18,6 +18,7 @@ l'exécution est enregistrée.
 | `gplanchat/durable-bridge-dbal` | l'exécution durable sur une base SQL | la bibliothèque, Doctrine DBAL 3 ou 4, `symfony/lock` |
 | `gplanchat/durable-bridge-illuminate` | la même chose, sur la connexion que Laravel possède déjà | la bibliothèque, `illuminate/database` 11, 12 ou 13 |
 | `gplanchat/durable-laravel` | le câblage Laravel : les ports liés depuis la configuration, le travail sur la file de l'application | la bibliothèque, le pont Illuminate, `illuminate/support` |
+| `gplanchat/durable-magento` | un module Magento 2.4 / Mage-OS : déclaration, workers, écran d'administration | la bibliothèque ; Temporal pour tout ce qui doit survivre à un processus |
 | `gplanchat/durable-plugin` | un tableau de bord Sylius pour les exécutions | le bundle, `knplabs/knp-menu` ; Sylius 2.x pour apparaître dans son menu |
 
 Les trois ponts sont des **alternatives**, pas des couches : vous prenez Temporal, DBAL ou
@@ -191,6 +192,62 @@ d'exécutions qu'il lit : la commande ci-dessus est donc toute l'installation.
 > intégrations. Sans backend, le plugin s'installe quand même, la route et l'entrée de menu
 > fonctionnent, et le tableau de bord affiche son état dégradé au lieu d'exécutions vivantes.
 
+## `gplanchat/durable-magento` — l'intégration Magento
+
+```bash
+composer require gplanchat/durable-magento
+```
+
+> [!WARNING]
+> **Pas encore publié.** Le paquet existe dans le dépôt et tourne sur le banc ; il n'est pas sur
+> Packagist, donc la commande ci-dessus ne résout pas aujourd'hui. Ce qui suit décrit ce qui est
+> construit, pas ce que vous pouvez installer.
+
+Un module Magento 2.4 / Mage-OS — `Gplanchat_Durable` dans `bin/magento module:status`. Il déclare
+les classes de workflow et d'activité au moteur, l'assemble pour un processus Magento, livre les
+workers en commandes `bin/magento`, et ajoute un écran d'administration en lecture seule sous
+**System > Durable processes > Process history**.
+
+Le conteneur de Magento n'a pas d'équivalent de l'autoconfiguration par tag de Symfony : la
+déclaration est explicite, deux tableaux dans `di.xml`.
+
+Ce qui ne se déclare **pas**, c'est le contrat : la fabrique lit les interfaces de chaque
+gestionnaire et garde celles qui portent `#[AsActivityMethod]`. Une déclaration de moins à écrire de
+travers, et les noms d'activité restent ceux des attributs.
+
+**Deux backends, et c'est Composer qui l'impose.** Magento atteint la mémoire et Temporal, et le
+module déclare un `conflict` sur les deux ponts SQL — `Magento\Framework\App\ResourceConnection`
+n'est ni une connexion Doctrine DBAL ni celle d'Illuminate. Lequel des deux vous obtenez se décide
+par un DSN dans `app/etc/env.php`, pas par un réglage :
+
+```php
+'durable' => [
+    'temporal' => ['dsn' => 'temporal://temporal:7233?namespace=default&tls=0'],
+],
+```
+
+Sans lui, le journal vit dans le processus qui l'écrit et meurt avec lui — acceptable pour une
+commande en ligne, ruineux pour le reste.
+
+**Les workers sont des commandes, pas des consommateurs de file**, et un exploitant les supervise
+comme n'importe quel processus long :
+
+```bash
+bin/magento durable:worker --role=journal   --time-limit=3600
+bin/magento durable:worker --role=activity  --time-limit=3600
+```
+
+Un processus, une file, un rôle : ce sont deux files Temporal distinctes, dont le parallélisme se
+règle séparément. Rien ne circule sur le `MessageQueue` de Magento — sur Temporal une activité est
+une commande Temporal et une reprise une tâche de workflow, donc un topic ici serait une seconde
+file à superviser, pour rien.
+
+> [!NOTE]
+> Démarrez les exécutions **sur la grappe**, pas dans la requête qui les déclenche. Un observateur
+> sur `sales_order_place_after` qui appelle `RuntimeFactory::workflowClient()->startAsync()` confie
+> l'exécution à Temporal et rend la main ; la démarrer en ligne la tuerait avec la requête, ce qui
+> est précisément la panne que cette intégration existe pour retirer.
+
 ---
 
 ## Qu'est-ce que j'installe ?
@@ -210,6 +267,7 @@ Chaque commande ci-dessous est celle que le sélecteur de la [page d'accueil](/f
 | Sylius, une base SQL | `composer require gplanchat/durable-plugin gplanchat/durable-bridge-dbal` |
 | Sylius, un cluster Temporal | `composer require gplanchat/durable-plugin gplanchat/durable-bridge-temporal` |
 | Laravel, une base SQL | `composer require gplanchat/durable gplanchat/durable-bridge-illuminate` |
+| Magento, grappe Temporal | `composer require gplanchat/durable-magento gplanchat/durable-bridge-temporal` |
 
 Chaque ligne ne nomme que l'intégration : le bundle tire la bibliothèque, et le plugin tire le
 bundle. Sans framework, vous nommez la bibliothèque vous-même, et vous câblez aussi les workers

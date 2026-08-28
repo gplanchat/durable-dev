@@ -235,11 +235,30 @@ that keeps two workers from replaying one execution. TYPO3 has Messenger, so the
 is a candidate rather than a rewrite — but it has not been checked against TYPO3's own worker
 lifecycle, and this document should not pretend otherwise.
 
-### Magento
+### Magento — built
 
 Cron plus `MessageQueue` consumers, and the failure every integrator has seen is a consumer that
 dies half way through an order. Conservative community, enterprise budgets, slow adoption — and
 the bench is already in this repository (`magento/`).
+
+**That failure is gone, and it was measured rather than argued.** An order placed on the bench
+starts an execution on the Temporal cluster; both workers are killed with `kill -9` during the stock
+reservation; both are restarted; the order completes and the card is charged **exactly once**.
+
+Two things about the shape are worth carrying to the next host, because neither was in the plan:
+
+- **nothing rides Magento's own queue.** On the only durable backend Magento reaches, an activity is
+  a Temporal command and a resume is a workflow task. Its `MessageQueue` would be a second queue for
+  an operator to supervise, for nothing. The workers are `bin/magento` commands — measured
+  necessary: Magento's retry timer redistributes a message held too long without asking whether the
+  first consumer finished, and a worker holds its task by long poll;
+- **this integration corrected the core three times**, once fatally: `InMemoryWorkflowRunner`
+  imported the Symfony bundle, invisible under Symfony and a *class not found* everywhere else. Six
+  hosts on the selector do not ride the bundle. A host that is genuinely foreign is worth more than
+  a host that is convenient.
+
+See [DUR046](../adr/DUR046-magento-a-tier-1-host-that-improved-the-core.md). Not published on
+Packagist yet, and CI resolves the module against five Mage-OS × PHP pairs without booting it.
 
 ### WooCommerce / WordPress
 
