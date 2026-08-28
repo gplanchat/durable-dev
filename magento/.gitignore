@@ -24,6 +24,8 @@
 #   probe-lock.php                 la sonde du §1.4 : le verrou est-il partagé
 #                                  entre processus ? Elle se rejoue sur un autre
 #                                  hôte, dont le `lock.provider` peut différer
+#   probe-queue.php                la sonde du §1.3 : que laisse un consommateur
+#                                  qui meurt au milieu d'un message ?
 #
 # `sylius/` fait l'inverse — liste d'exclusions — parce que là-bas le squelette
 # applicatif **est** du code du projet : 220 fichiers écrits ici. Ici il y en a
@@ -39,3 +41,4 @@
 !.env.example
 !README.md
 !probe-lock.php
+!probe-queue.php
