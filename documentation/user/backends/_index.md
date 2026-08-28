@@ -232,6 +232,17 @@ lock exists to prevent. Configure a shared one.
 Not for: search-attribute queries, cron schedules, or the throughput and visibility a Temporal
 cluster gives you. See the capability matrix below.
 
+### The same trade, on Laravel's connection
+
+The same four stores exist on `Illuminate\Database\Connection`, as
+[`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate--the-laravel-backend)
+— same journal, same trade against Temporal.
+
+It is **not a fourth value of `event_store.type`**, and this page's configuration does not reach it:
+it is the storage half only. Nothing binds the ports, and the transport that carries resumes and
+timers is yours until a Laravel integration package exists. `Queue\ResumeLock` gives you the
+per-execution exclusion the section above describes — a closure to wrap, not a middleware.
+
 ---
 
 ## Choosing a backend per environment

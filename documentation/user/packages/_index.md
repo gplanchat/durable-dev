@@ -15,9 +15,11 @@ the workflow code — only where the execution is recorded.
 | `gplanchat/durable-bundle` | Symfony wiring, worker commands, profiler panel | the library, Symfony framework-bundle and Messenger |
 | `gplanchat/durable-bridge-temporal` | the Temporal driver, over gRPC | the library, `ext-grpc`, a Temporal cluster |
 | `gplanchat/durable-bridge-dbal` | durable execution on one SQL database | the library, Doctrine DBAL 3 or 4, `symfony/lock` |
+| `gplanchat/durable-bridge-illuminate` | the same, on the connection Laravel already owns | the library, `illuminate/database` 11, 12 or 13 |
 | `gplanchat/durable-plugin` | a Sylius admin dashboard for workflow runs | the bundle, `knplabs/knp-menu`; Sylius 2.x to appear in its menu |
 
-The two bridges are **alternatives**, not layers: you pick Temporal or DBAL, never both.
+The three bridges are **alternatives**, not layers: you pick Temporal, DBAL or Illuminate, never
+two of them.
 
 ---
 
@@ -120,6 +122,41 @@ up, one migration, and no extension to compile.
 
 ---
 
+## `gplanchat/durable-bridge-illuminate` — the Laravel backend
+
+```bash
+composer require gplanchat/durable gplanchat/durable-bridge-illuminate
+php artisan migrate
+```
+
+The same four stores as the DBAL bridge, and the same trade against Temporal — read that table
+above, it applies here word for word. What changes is the connection: these are written against
+`Illuminate\Database\Connection`, the query builder rather than Eloquent.
+
+That is the whole reason the package exists. **DUR030** only pays if the journal append and the
+business write land in **one transaction**, and a store on `DB::connection()` is inside
+`DB::transaction()` by construction. Handing Doctrine DBAL the PDO out of
+`DB::connection()->getPdo()` reaches the same guarantee and is a workaround; this is the plain
+answer.
+
+The four tables ship as a migration loaded straight from the package, so `migrate` is enough.
+`vendor:publish --tag=durable-migrations` is for when you want to edit them — and from that point
+they are yours.
+
+`Queue\ResumeLock` is the one thing no choice of storage supplies. Two workers resuming the **same**
+execution both replay it, both believe they are discovering the commands it produces, and those
+commands go out twice; the journal does not prevent it, since it faithfully records whatever it is
+handed, twice included. It takes a closure, so a queued job, an artisan command or a hand-written
+worker can all use it.
+
+> [!NOTE]
+> **There is no Laravel integration package yet.** This is a set of stores, not a wiring: nothing
+> binds the ports, no worker command, no jobs. `DurableIlluminateServiceProvider` registers exactly
+> one thing — where the migrations live. Until an integration package exists you wire the stores
+> yourself, the way a framework-less application does.
+
+---
+
 ## `gplanchat/durable-plugin` — the Sylius dashboard
 
 ```bash
@@ -134,7 +171,7 @@ It **observes**; it does not execute. It requires `gplanchat/durable-bundle`, wh
 catalog it reads, so the command above is the whole install.
 
 > [!NOTE]
-> Live data comes from whichever backend is installed. Neither bridge is a `require` here — the
+> Live data comes from whichever backend is installed. No bridge is a `require` here — the
 > backend is suggested by `gplanchat/durable`, once, for every integration. Without one the plugin
 > still installs, the route and the menu entry still work, and the dashboard renders its degraded
 > state instead of live runs.
@@ -156,9 +193,14 @@ Every command below is the one the chooser on the [home page](/) hands you, writ
 | Sylius, tests only | `composer require gplanchat/durable-plugin` |
 | Sylius, one SQL database | `composer require gplanchat/durable-plugin gplanchat/durable-bridge-dbal` |
 | Sylius, Temporal cluster | `composer require gplanchat/durable-plugin gplanchat/durable-bridge-temporal` |
+| Laravel, one SQL database | `composer require gplanchat/durable gplanchat/durable-bridge-illuminate` |
 
 Each line names the integration only: the bundle pulls the library in, and the plugin pulls the
 bundle in. Without a framework you name the library yourself, and you wire the workers yourself too.
+
+The Laravel line is the exception, and it names the library: the chooser offers
+`gplanchat/durable-laravel`, which does not exist yet. Until it does, the bridge installs on its
+own and you wire it yourself.
 
 ---
 

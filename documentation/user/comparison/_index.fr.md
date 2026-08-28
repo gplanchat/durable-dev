@@ -46,10 +46,11 @@ cœur :
 | `gplanchat/durable` | `php >= 8.2`, `psr/cache` — rien d'autre |
 | `gplanchat/durable-bridge-temporal` | `ext-grpc`, `grpc/grpc`, `google/protobuf`, `symfony/messenger` |
 | `gplanchat/durable-bridge-dbal` | `doctrine/dbal`, `symfony/lock`, `symfony/messenger` |
+| `gplanchat/durable-bridge-illuminate` | `illuminate/database`, `illuminate/contracts` |
 
 Donc : **jamais de RoadRunner ; `ext-grpc` seulement quand vous parlez à un cluster Temporal.** Sur
-les backends en mémoire et DBAL, aucune extension PHP au-delà d'une installation standard n'entre en
-jeu. La règle est consignée dans
+les backends en mémoire, DBAL et Illuminate, aucune extension PHP au-delà d'une installation
+standard n'entre en jeu. La règle est consignée dans
 [DUR006](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md).
 
 ---

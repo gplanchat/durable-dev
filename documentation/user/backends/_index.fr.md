@@ -246,6 +246,18 @@ vous redonne exactement la panne que le verrou existe pour empêcher. Configurez
 Pas pour : les requêtes par attributs de recherche, les planifications cron, ni le débit et la
 visibilité qu'apporte un cluster Temporal. Voir la matrice de capacités plus bas.
 
+### Le même échange, sur la connexion de Laravel
+
+Les mêmes quatre stockages existent sur `Illuminate\Database\Connection`, sous le nom
+[`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate--le-backend-laravel)
+— même journal, même échange face à Temporal.
+
+Ce n'est **pas une quatrième valeur d'`event_store.type`**, et la configuration de cette page ne
+l'atteint pas : c'est la moitié stockage, seulement. Rien ne lie les ports, et le transport qui
+porte les reprises et les minuteurs est à vous tant qu'il n'existe pas de paquet d'intégration
+Laravel. `Queue\ResumeLock` fournit l'exclusion par exécution que décrit la section ci-dessus —
+une fermeture à envelopper, pas un middleware.
+
 ---
 
 ## Choisir un backend par environnement
