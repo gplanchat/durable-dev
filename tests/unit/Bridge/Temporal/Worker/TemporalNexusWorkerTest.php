@@ -16,9 +16,12 @@ use Gplanchat\Durable\Nexus\Serving\NexusOperationResponse;
 use Grpc\UnaryCall;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
+use Temporal\Api\Nexus\V1\CancelOperationRequest;
 use Temporal\Api\Nexus\V1\Request as NexusRequest;
 use Temporal\Api\Nexus\V1\StartOperationRequest;
 use Temporal\Api\Workflowservice\V1\PollNexusTaskQueueResponse;
+use Temporal\Api\Workflowservice\V1\RequestCancelWorkflowExecutionRequest;
+use Temporal\Api\Workflowservice\V1\RequestCancelWorkflowExecutionResponse;
 use Temporal\Api\Workflowservice\V1\RespondNexusTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\RespondNexusTaskCompletedResponse;
 use Temporal\Api\Workflowservice\V1\RespondNexusTaskFailedRequest;
@@ -188,6 +191,87 @@ final class TemporalNexusWorkerTest extends TestCase
         self::assertStringContainsString('la base est tombée', (string) $sent?->getError()?->getFailure()?->getMessage());
     }
 
+    public function testACancellationCancelsTheWorkflowNamedByTheToken(): void
+    {
+        // Sonde §4 : la tâche d'annulation nomme le jeton rendu au démarrage, et ce jeton est le
+        // workflow que ce worker a démarré. Annuler l'opération, c'est annuler ce workflow.
+        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call($this->cancelTask('charge-1')));
+
+        $cancelled = null;
+        $this->grpc->expects($this->once())->method('RequestCancelWorkflowExecution')
+            ->willReturnCallback(function (RequestCancelWorkflowExecutionRequest $request) use (&$cancelled): UnaryCall {
+                $cancelled = $request;
+
+                return $this->call(new RequestCancelWorkflowExecutionResponse());
+            });
+
+        $answered = null;
+        $this->grpc->expects($this->once())->method('RespondNexusTaskCompleted')
+            ->willReturnCallback(function (RespondNexusTaskCompletedRequest $request) use (&$answered): UnaryCall {
+                $answered = $request;
+
+                return $this->call(new RespondNexusTaskCompletedResponse());
+            });
+
+        $this->worker(new NexusOperationRegistry())->pollOnce();
+
+        self::assertSame('charge-1', $cancelled?->getWorkflowExecution()?->getWorkflowId());
+        self::assertNotNull(
+            $answered?->getResponse()?->getCancelOperation(),
+            "L'annulation doit être acquittée, sinon la tâche revient toutes les ~9 s.",
+        );
+    }
+
+    public function testAWorkflowThatAlreadyEndedStillAcknowledgesTheCancellation(): void
+    {
+        // Le workflow a pu se terminer entre la demande et nous. L'opération est déjà réglée :
+        // insister ferait redemander la tâche pendant tout le budget, pour rien.
+        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call($this->cancelTask('charge-1')));
+        $this->grpc->method('RequestCancelWorkflowExecution')
+            ->willReturn($this->call(null, \Grpc\STATUS_NOT_FOUND));
+
+        $this->grpc->expects($this->once())->method('RespondNexusTaskCompleted')
+            ->willReturn($this->call(new RespondNexusTaskCompletedResponse()));
+        $this->grpc->expects($this->never())->method('RespondNexusTaskFailed');
+
+        $this->worker(new NexusOperationRegistry())->pollOnce();
+    }
+
+    public function testACancellationWithoutATokenIsRefusedTerminally(): void
+    {
+        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call($this->cancelTask('')));
+        $this->grpc->expects($this->never())->method('RequestCancelWorkflowExecution');
+
+        $sent = null;
+        $this->grpc->expects($this->once())->method('RespondNexusTaskFailed')
+            ->willReturnCallback(function (RespondNexusTaskFailedRequest $request) use (&$sent): UnaryCall {
+                $sent = $request;
+
+                return $this->call(new RespondNexusTaskFailedResponse());
+            });
+
+        $this->worker(new NexusOperationRegistry())->pollOnce();
+
+        self::assertSame(NexusHandlerErrorType::BadRequest->value, $sent?->getError()?->getErrorType());
+    }
+
+    private function cancelTask(string $token): PollNexusTaskQueueResponse
+    {
+        $cancel = new CancelOperationRequest();
+        $cancel->setService('billing');
+        $cancel->setOperation('charge');
+        $cancel->setOperationToken($token);
+
+        $request = new NexusRequest();
+        $request->setCancelOperation($cancel);
+
+        $task = new PollNexusTaskQueueResponse();
+        $task->setTaskToken('jeton-de-tache');
+        $task->setRequest($request);
+
+        return $task;
+    }
+
     private function worker(NexusOperationRegistry $registry): TemporalNexusWorker
     {
         return new TemporalNexusWorker(
@@ -219,11 +303,11 @@ final class TemporalNexusWorkerTest extends TestCase
         return $task;
     }
 
-    private function call(mixed $response): UnaryCall
+    private function call(mixed $response, int $code = \Grpc\STATUS_OK): UnaryCall
     {
         $call = $this->createMock(UnaryCall::class);
         $status = new \stdClass();
-        $status->code = \Grpc\STATUS_OK;
+        $status->code = $code;
         $status->details = '';
         $call->method('wait')->willReturn([$response, $status]);
 

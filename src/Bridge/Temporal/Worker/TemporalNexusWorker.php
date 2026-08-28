@@ -16,7 +16,10 @@ use Gplanchat\Durable\Nexus\Serving\NexusOperationResponse;
 use Temporal\Api\Common\V1\Callback;
 use Temporal\Api\Common\V1\Callback\Nexus as NexusCallback;
 use Temporal\Api\Common\V1\Payloads;
+use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
+use Temporal\Api\Nexus\V1\CancelOperationRequest;
+use Temporal\Api\Nexus\V1\CancelOperationResponse;
 use Temporal\Api\Nexus\V1\Failure as NexusFailure;
 use Temporal\Api\Nexus\V1\HandlerError;
 use Temporal\Api\Nexus\V1\Response as NexusResponse;
@@ -26,6 +29,7 @@ use Temporal\Api\Nexus\V1\StartOperationResponse\Async as StartOperationAsync;
 use Temporal\Api\Nexus\V1\StartOperationResponse\Sync as StartOperationSync;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
 use Temporal\Api\Workflowservice\V1\PollNexusTaskQueueRequest;
+use Temporal\Api\Workflowservice\V1\RequestCancelWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\RespondNexusTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\RespondNexusTaskFailedRequest;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
@@ -76,11 +80,18 @@ final readonly class TemporalNexusWorker
             return;
         }
 
+        $cancel = $task->getRequest()?->getCancelOperation();
+        if (null !== $cancel) {
+            $this->cancelTheWorkflowCarryingTheOperation($taskToken, $cancel);
+
+            return;
+        }
+
         $start = $task->getRequest()?->getStartOperation();
         if (null === $start) {
-            // Une variante que ce worker ne sert pas encore — l'annulation, §4. La refuser
-            // nommément vaut mieux que de laisser la tâche expirer en silence.
-            $this->respondFailed($taskToken, NexusHandlerErrorType::NotImplemented, 'This worker only serves start_operation tasks.');
+            // Une variante que ce worker ne sert pas. La refuser nommément vaut mieux que de
+            // laisser la tâche expirer en silence.
+            $this->respondFailed($taskToken, NexusHandlerErrorType::NotImplemented, 'This worker serves start_operation and cancel_operation tasks only.');
 
             return;
         }
@@ -114,6 +125,63 @@ final readonly class TemporalNexusWorker
         }
 
         $this->respondFulfilledByWorkflow($taskToken, $start, $response);
+    }
+
+    /**
+     * Annuler l'opération, c'est annuler le workflow qui la porte.
+     *
+     * La sonde §4 l'a mesuré dans les deux moitiés. §1.5 avait vu la négative : tant que
+     * l'opération n'a pas démarré, aucune tâche n'arrive ici — il n'y a rien à annuler. La
+     * positive se lit maintenant qu'une opération peut démarrer en asynchrone : la tâche arrive,
+     * et elle **nomme le jeton rendu au démarrage**. Ce jeton est l'identifiant du workflow que ce
+     * worker a démarré, donc la tâche nous rend exactement la prise dont on a besoin.
+     *
+     * Le gestionnaire n'est pas resollicité, et ce n'est pas un manque : ce qui porte l'opération
+     * est un workflow, et un workflow observe déjà son annulation — avec ses compensations. Un
+     * crochet de gestionnaire dupliquerait ce chemin sans rien y ajouter.
+     */
+    private function cancelTheWorkflowCarryingTheOperation(string $taskToken, CancelOperationRequest $cancel): void
+    {
+        $token = (string) $cancel->getOperationToken();
+        if ('' === $token) {
+            $this->respondFailed($taskToken, NexusHandlerErrorType::BadRequest, 'A cancellation task carried no operation token.');
+
+            return;
+        }
+
+        $request = new RequestCancelWorkflowExecutionRequest();
+        $request->setNamespace($this->connection->namespace->name());
+        $request->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $token]));
+        $request->setIdentity($this->connection->identity . '-nexus');
+        $request->setRequestId(bin2hex(random_bytes(8)));
+        $request->setReason('Nexus operation cancelled by its caller.');
+
+        try {
+            $this->nexusRpc->requestCancelWorkflowExecution($request);
+        } catch (\RuntimeException $error) {
+            // Le workflow a pu se terminer entre la demande et nous. Ce n'est pas une erreur du
+            // gestionnaire : l'opération est déjà réglée, et insister la ferait redemander toutes
+            // les ~9 s pour rien.
+            $this->respondCancelled($taskToken);
+
+            return;
+        }
+
+        $this->respondCancelled($taskToken);
+    }
+
+    private function respondCancelled(string $taskToken): void
+    {
+        $response = new NexusResponse();
+        $response->setCancelOperation(new CancelOperationResponse());
+
+        $request = new RespondNexusTaskCompletedRequest();
+        $request->setNamespace($this->connection->namespace->name());
+        $request->setIdentity($this->connection->identity . '-nexus');
+        $request->setTaskToken($taskToken);
+        $request->setResponse($response);
+
+        $this->nexusRpc->respondNexusTaskCompleted($request);
     }
 
     private function decodePayload(StartOperationRequest $start): mixed
