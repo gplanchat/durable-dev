@@ -203,8 +203,29 @@
 
 - [x] 6.1 Caller and handler in the same integration test, against a real server, both shapes —
       `NexusServedOperationTest`, three cases: immediate, deferred, and unserved.
-- [ ] 6.2 Cross-check against the Go reference trace from 1.1: same messages, same order.
-- [ ] 6.3 Full unit and integration suites green.
+- [x] 6.2 **Cross-check against the Go SDK — in the direction nobody had measured.** Probe 1.1 ran
+      Durable calling a Go handler and found the envelope corrupting the payload. The symmetric
+      half — a **Go caller against a Durable handler** — had never been run, and it is the half the
+      comparison page and the home page now claim.
+      Measured against a live server, Go SDK v1.48.0: a `CallerWorkflow` declaring
+      `Greeting{Name string \`json:"name"\`}` invoked `probe/greet` on an endpoint served by
+      `TemporalNexusWorker`. The handler **received `{"name":"ada"}`** — its own fields, no envelope
+      — answered `{"greeting":"hello ada"}`, and the Go caller deserialised that into its own
+      `Answer{Greeting string}` and printed it. Both directions now interoperate.
+      **Same messages, same order.** The Go caller's history and a Durable caller's history for the
+      same operation are identical event for event: `WORKFLOW_EXECUTION_STARTED`, three
+      `WORKFLOW_TASK` events, `NEXUS_OPERATION_SCHEDULED`, `NEXUS_OPERATION_COMPLETED`,
+      `WORKFLOW_TASK_SCHEDULED`. They diverge only at the end, where the integration test terminates
+      its caller in `tearDown` and the Go one runs to `WORKFLOW_EXECUTION_COMPLETED` — a harness
+      difference, not a behaviour one.
+      **The Go program is not committed**, as probe 1.1's was not: the repository has no Go
+      toolchain and CI could not run it. Its shape is recorded here — a `worker.New` on its own task
+      queue, `workflow.NewNexusClient(endpoint, "probe").ExecuteOperation(ctx, "greet", …)`, and a
+      PHP script that creates the endpoint, serves one task through the registry, and deletes the
+      endpoint on the way out.
+- [x] 6.3 **Full suites green.** Unit: 882 tests, 2294 assertions. Nexus integration against a live
+      server: 54 tests, 238 assertions. PHPStan and php-cs-fixer clean. The example application's
+      container builds in all three environments — the check that catches what no unit test does.
 
 ## 7. Say it in the documentation
 
