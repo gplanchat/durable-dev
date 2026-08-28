@@ -35,7 +35,7 @@ return RectorConfig::configure()
         'Gplanchat\Durable\Attribute\Activity' => 'Gplanchat\Durable\Attribute\AsActivity',
 
         // Et l'isolé du bundle rejoint le cœur, sous le nom qui le met en paire avec
-        // `AsNexusHandler` : les deux déclarent une implémentation par son contrat.
+        // `AsNexusServiceHandler` : les deux déclarent une implémentation par son contrat.
         'Gplanchat\Durable\Bundle\Attribute\AsDurableActivity' => 'Gplanchat\Durable\Attribute\AsActivityHandler',
 
         // Déclaration de méthode : le préfixe entre aussi.
