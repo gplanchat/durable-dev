@@ -38,6 +38,7 @@
         "gplanchat/durable-bundle": "@dev",
         "gplanchat/durable-plugin": "@dev",
         "gplanchat/durable-bridge-dbal": "@dev",
+        "gplanchat/durable-bridge-temporal": "@dev",
         "gplanchat/durable-demo-contracts": "@dev"
     },
     "require-dev": {

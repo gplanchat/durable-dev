@@ -55,10 +55,37 @@
 Le sens le plus simple d'abord : il isole le risque d'infrastructure de celui des workers, la forme
 immédiate n'exigeant aucun workflow qui remplit l'opération.
 
-- [ ] 2.1 La maquette Sylius gagne son profil Temporal — namespace `demo-boutique` — sans que le
+- [x] 2.1 La maquette Sylius gagne son profil Temporal — namespace `demo-boutique` — sans que le
       backend DBAL de son tableau de bord ne change de rôle.
-- [ ] 2.2 `StockHandler` dans `sylius/`, `#[AsNexusServiceHandler]`, qui répond depuis le modèle de
-      la boutique.
+      Les deux étaient déclarés **exclusifs** : `event_store.type: dbal` et `temporal.dsn` levaient
+      une `LogicException`, « le journal ne peut pas avoir deux sources de vérité ». L'exclusion
+      était juste tant que « DSN » voulait dire « le cluster est le journal ». `temporal.journal:
+      false` sépare les deux phrases — le cluster est joignable pour ce qui en a besoin, et servir
+      une opération Nexus en a besoin, mais c'est `event_store` qui nomme la source de vérité.
+      Le refus reste, et nomme désormais la sortie.
+- [x] 2.2 `StockHandler` dans `sylius/`, `#[AsNexusServiceHandler]`, qui répond depuis le modèle de
+      la boutique — les `ProductVariant` de Sylius, `onHand` moins `onHold`. Une tâche Nexus étant
+      redélivrée, la réponse est écrite dans `app_durable_stock_reservation`, clée par
+      l'identifiant de commande : la seconde livraison relit ce que la première a décidé au lieu de
+      retenir du stock deux fois.
+
+      **Trois pannes trouvées en chemin, toutes au-delà du prérequis annoncé, toutes gardées par un
+      test :**
+
+      1. L'invocateur manquant, décrit ci-dessous. `NexusHandlerInvoker` le comble dans le cœur, en
+         réutilisant `PayloadToContractMethodInvoker` — une activité et une opération servie posent
+         le même problème, une charge clée par nom et une méthode de contrat à appeler.
+      2. `operationsClaimedByWorkflows()` balayait **toutes** les définitions du conteneur et
+         appelait `class_exists()` sur chacune, donc chargeait chaque classe pour lire ses
+         attributs. Il suffit qu'une seule étende un parent absent pour que la passe fasse une
+         erreur fatale : `Symfony\Bundle\MakerBundle\Maker\AbstractMaker` est le cas réel qui l'a
+         montré. La balise `durable.nexus_fulfilment` existait déjà pour ça — la passe la lit.
+      3. La passe passait `NexusService` et `NexusOperationName` en **instances** comme arguments
+         d'appel de méthode. Le conteneur compilait, et l'application ne démarrait pas : Symfony
+         réécrit le conteneur en XML à chaque réchauffage en mode dev, et « Unable to dump a service
+         container if a parameter is an object or a resource » ne parle ni de Nexus ni de la passe.
+         Les objets-valeurs voyagent maintenant en `Definition`.
+
       ⚠ **Prérequis mesuré en §1 : la plomberie ne sait pas encore appeler un gestionnaire.**
       `NexusHandlerPass` enregistre la méthode typée du contrat, `NexusOperationRegistry::dispatch()`
       l'appelle en `$handler($payload)` — la charge entière en argument #1 — et exige un

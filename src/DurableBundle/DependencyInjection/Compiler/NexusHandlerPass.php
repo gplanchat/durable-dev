@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\DependencyInjection\Compiler;
 
-use Gplanchat\Durable\Attribute\FulfilsNexusOperation;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Nexus\Serving\NexusContractResolver;
+use Gplanchat\Durable\Nexus\Serving\NexusHandlerInvoker;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
 
 /**
@@ -86,14 +87,29 @@ final class NexusHandlerPass implements CompilerPassInterface
                 // pas dire « implémente partiellement ». La couverture se vérifie donc opération par
                 // opération, plus bas — et une classe qui n'en sert aucune s'y fait prendre.
 
-                $service = NexusService::named($resolver->serviceName($contract));
+                $serviceName = $resolver->serviceName($contract);
 
                 foreach ($resolver->operations($contract) as $method => $operation) {
                     if (method_exists($handlerClass, $method)) {
+                        // Pas la méthode elle-même : le registre appelle son gestionnaire avec la
+                        // charge entière en argument #1 et attend un `NexusOperationResponse`,
+                        // quand le gestionnaire a écrit la signature de son contrat. L'invocateur
+                        // est ce qui tient entre les deux, et il tient dans le cœur pour que
+                        // Magento et le pont Illuminate en héritent le jour où ils routent.
+                        $invokerId = 'durable.nexus_invoker.' . hash('xxh128', $serviceId . $contract . $method);
+                        $container->register($invokerId, NexusHandlerInvoker::class)
+                            ->setArguments([
+                                new Reference($serviceId),
+                                $contract,
+                                $method,
+                            ])
+                            ->setPublic(false)
+                        ;
+
                         $registry->addMethodCall('register', [
-                            $service,
-                            NexusOperationName::named($operation),
-                            [new Reference($serviceId), $method],
+                            self::named(NexusService::class, $serviceName),
+                            self::named(NexusOperationName::class, $operation),
+                            [new Reference($invokerId), '__invoke'],
                         ]);
 
                         continue;
@@ -105,8 +121,8 @@ final class NexusHandlerPass implements CompilerPassInterface
                         // le **type** et non le FQCN — c'est le nom que le serveur connaît, et
                         // celui que le journal enregistre.
                         $registry->addMethodCall('registerFulfilment', [
-                            $service,
-                            NexusOperationName::named($operation),
+                            self::named(NexusService::class, $serviceName),
+                            self::named(NexusOperationName::class, $operation),
                             (new WorkflowDefinitionLoader())->workflowTypeForClass($workflowClass),
                         ]);
 
@@ -130,11 +146,41 @@ final class NexusHandlerPass implements CompilerPassInterface
     }
 
     /**
-     * Les opérations qu'un workflow réclame, lues sur les workflows du conteneur.
+     * Un objet-valeur passé comme **définition**, et non comme instance.
+     *
+     * Le conteneur d'un projet Symfony en mode dev est écrit en XML à chaque réchauffage, par
+     * `ContainerBuilderDebugDumpPass`. Un argument d'appel de méthode qui est un objet déjà
+     * construit n'est pas sérialisable : « Unable to dump a service container if a parameter is an
+     * object or a resource ». La passe compilait donc parfaitement, et l'application ne démarrait
+     * pas — pour un nom de service Nexus.
+     *
+     * Une {@see Definition} en ligne dit la même chose sans instancier : le dumper l'écrit comme un
+     * service anonyme, et l'objet naît au moment de l'appel.
+     *
+     * @param class-string $class
+     */
+    private static function named(string $class, string $name): Definition
+    {
+        return (new Definition($class))
+            ->setFactory([$class, 'named'])
+            ->setArguments([$name])
+        ;
+    }
+
+    /**
+     * Les opérations qu'un workflow réclame, lues sur la balise que l'autoconfiguration a posée.
      *
      * La déclaration vit sur le workflow et non sur le contrat : le contrat est lu par l'appelant,
      * qui n'a pas à connaître la classe qui le sert — l'y nommer ferait fuir l'implémentation à
      * travers la frontière que Nexus existe pour poser.
+     *
+     * **Par la balise, et non en balayant le conteneur.** La version qui parcourait toutes les
+     * définitions appelait `class_exists()` sur chacune, donc chargeait chaque classe du conteneur
+     * pour lire ses attributs. Il suffit qu'une seule d'entre elles étende un parent absent — un
+     * bundle de développement à moitié installé, et `Symfony\Bundle\MakerBundle\Maker\AbstractMaker`
+     * est le cas réel qui l'a montré — pour que le chargement fasse une erreur fatale, dans une
+     * passe de compilation qui n'avait rien à voir. La balise dit exactement ce qu'on cherche, et
+     * `DurableBundle::build()` la pose déjà pour ça.
      *
      * @return array<string, array<string, class-string>> contrat => opération => classe du workflow
      */
@@ -142,15 +188,24 @@ final class NexusHandlerPass implements CompilerPassInterface
     {
         $claimed = [];
 
-        foreach ($container->getDefinitions() as $definition) {
-            $class = $definition->getClass();
-            if (null === $class || !class_exists($class)) {
+        foreach ($container->findTaggedServiceIds(self::FULFILMENT_TAG) as $serviceId => $tags) {
+            $class = $container->findDefinition($serviceId)->getClass();
+            if (null === $class) {
                 continue;
             }
 
-            foreach ((new \ReflectionClass($class))->getAttributes(FulfilsNexusOperation::class) as $attribute) {
-                $fulfilment = $attribute->newInstance();
-                $claimed[$fulfilment->contract][$fulfilment->operation] = $class;
+            foreach ($tags as $tag) {
+                $contract = $tag['contract'] ?? null;
+                $operation = $tag['operation'] ?? null;
+                if (!\is_string($contract) || !\is_string($operation)) {
+                    throw new \LogicException(\sprintf(
+                        '%s: service "%s" must declare both a "contract" and an "operation" — #[FulfilsNexusOperation] carries them, and the autoconfiguration copies them onto the tag.',
+                        self::FULFILMENT_TAG,
+                        $serviceId,
+                    ));
+                }
+
+                $claimed[$contract][$operation] = $class;
             }
         }
 

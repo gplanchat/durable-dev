@@ -12,3 +12,16 @@ durable:
     child_workflow:
         parent_link_store:
             type: dbal
+
+    # Le profil Temporal de la boutique : joignable pour servir Nexus, et rien de plus.
+    #
+    # `journal: false` est la ligne qui compte. Sans elle, poser un DSN veut dire « le cluster est
+    # le journal » — l'extension refuse alors le couple avec un event_store DBAL, et à raison : il
+    # n'y aurait pas de source de vérité unique. Avec elle, la phrase se sépare en deux, et le
+    # tableau de bord ci-dessus continue de lire exactement ce qu'il lisait.
+    #
+    # Sans `DURABLE_TEMPORAL_DSN`, rien de tout cela n'est monté : la boutique reste ce qu'elle
+    # était, et n'exige toujours pas ext-grpc.
+    temporal:
+        dsn: '%env(DURABLE_TEMPORAL_DSN)%'
+        journal: false

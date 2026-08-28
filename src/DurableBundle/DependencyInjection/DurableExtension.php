@@ -133,9 +133,8 @@ final class DurableExtension extends Extension
             return;
         }
 
-        $temporalDsn = $config['temporal']['dsn'] ?? null;
-        if ($eventStoreDbal && \is_string($temporalDsn) && '' !== $temporalDsn) {
-            throw new \LogicException('durable: event_store.type "dbal" et temporal.dsn sont exclusifs — le journal ne peut pas avoir deux sources de vérité.');
+        if ($eventStoreDbal && self::isTemporalNative($config)) {
+            throw new \LogicException('durable: event_store.type "dbal" et temporal.dsn sont exclusifs — le journal ne peut pas avoir deux sources de vérité. Une application qui a besoin du cluster sans lui confier son journal — servir une opération Nexus, par exemple — pose temporal.journal: false.');
         }
 
         $connection = new Reference($config['dbal']['connection']);
@@ -309,6 +308,23 @@ final class DurableExtension extends Extension
     }
 
     /**
+     * Temporal « natif » : le cluster **est** le journal.
+     *
+     * Un DSN sans journal dit autre chose — le cluster est joignable pour ce qui en a besoin, et
+     * servir une opération Nexus en a besoin, mais la source de vérité reste celle d'`event_store`.
+     * Les deux ne peuvent pas partager le même drapeau : c'est lui qui débranche le transport
+     * d'activités, le répartiteur de reprise et les alias de lecture du tableau de bord.
+     *
+     * @param array<string, mixed> $config
+     */
+    private static function isTemporalNative(array $config): bool
+    {
+        $dsn = $config['temporal']['dsn'] ?? null;
+
+        return \is_string($dsn) && '' !== $dsn && false !== ($config['temporal']['journal'] ?? true);
+    }
+
+    /**
      * @param array<string, mixed> $config
      */
     private function registerEventStore(ContainerBuilder $container, array $config): void
@@ -317,6 +333,7 @@ final class DurableExtension extends Extension
 
         $temporalConfig = $config['temporal'] ?? [];
         $dsn = $temporalConfig['dsn'] ?? null;
+        $journal = false !== ($temporalConfig['journal'] ?? true);
         if (\is_string($dsn) && '' !== $dsn) {
             $container->register('durable.temporal.connection', TemporalConnection::class)
                 ->setFactory([TemporalConnection::class, 'fromDsn'])
@@ -362,7 +379,9 @@ final class DurableExtension extends Extension
                 ])
                 ->setPublic(true)
             ;
-            $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.temporal')->setPublic(true);
+            if ($journal) {
+                $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.temporal')->setPublic(true);
+            }
 
             $container->register(\Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor::class)
                 ->setArguments([
@@ -400,8 +419,12 @@ final class DurableExtension extends Extension
                 ->setPublic(true)
             ;
 
-            $container->setAlias(EventStoreInterface::class, 'durable.event_store.temporal')->setPublic(true);
+            if ($journal) {
+                $container->setAlias(EventStoreInterface::class, 'durable.event_store.temporal')->setPublic(true);
+            }
 
+            // Sans journal, on sort sans alias : `registerDbalStores` ou `registerInMemoryRunCatalog`
+            // poseront le leur, plus loin dans `load()`. C'est `event_store` qui dit lequel.
             return;
         }
 
@@ -415,8 +438,7 @@ final class DurableExtension extends Extension
     {
         $transportConfig = $config['activity_transport'] ?? [];
         $type = $transportConfig['type'] ?? 'in_memory';
-        $temporalDsn = $config['temporal']['dsn'] ?? null;
-        $isTemporalNative = \is_string($temporalDsn) && '' !== $temporalDsn;
+        $isTemporalNative = self::isTemporalNative($config);
 
         if ($isTemporalNative) {
             $container->register(ActivityTransportInterface::class, NoopActivityTransport::class)->setPublic(true);
@@ -602,8 +624,7 @@ final class DurableExtension extends Extension
      */
     private function registerWorkflowMessengerServices(ContainerBuilder $container, array $config): void
     {
-        $temporalDsn = $config['temporal']['dsn'] ?? null;
-        $isTemporalNative = \is_string($temporalDsn) && '' !== $temporalDsn;
+        $isTemporalNative = self::isTemporalNative($config);
 
         $container->register(WorkflowMetadataStore::class, InMemoryWorkflowMetadataStore::class)
             ->setPublic(true)
@@ -668,8 +689,7 @@ final class DurableExtension extends Extension
      */
     private function registerCommands(ContainerBuilder $container, array $config): void
     {
-        $temporalDsn = $config['temporal']['dsn'] ?? null;
-        $isTemporalNative = \is_string($temporalDsn) && '' !== $temporalDsn;
+        $isTemporalNative = self::isTemporalNative($config);
 
         if ($isTemporalNative) {
             $container->register(TemporalActivityHeartbeatSender::class)
