@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace unit\DurableLaravel\Fixtures;
 
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
@@ -15,14 +15,14 @@ use Gplanchat\Durable\WorkflowEnvironment;
  * au bundle Symfony et à ce paquet sans une ligne de différence. Ce que l'hôte change, c'est où le
  * journal atterrit et qui draine la file, jamais la classe.
  */
-#[Workflow('Greeting')]
+#[AsWorkflow('Greeting')]
 final class GreetingWorkflow
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {}
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $who = 'world'): string
     {
         return 'hello ' . $who;

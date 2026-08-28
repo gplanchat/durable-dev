@@ -232,7 +232,7 @@ either confirms a design or replaces it.
 
       The `workflows` key of `config/durable.php` names the classes, and the provider feeds them to
       the core's `WorkflowRegistry` — which already indexes each class **twice**, under the alias its
-      `#[Workflow]` attribute declares and under its FQCN, so a resume carrying either resolves.
+      `#[AsWorkflow]` attribute declares and under its FQCN, so a resume carrying either resolves.
       Nothing had to be written for that half; it is what §1.4 measured as the cheap answer, and it
       is why the fixture in this slice imports nothing but `Gplanchat\Durable\`. *"Runs unmodified"*
       is checkable rather than promised: the class has no Laravel and no Symfony symbol in it.

@@ -38,7 +38,7 @@ php artisan vendor:publish --tag=durable-config
 
 Laravel's container has no equivalent of Symfony's attribute autoconfiguration, so the `workflows`
 key names the classes. **What that does not change is the class**: one written for
-`gplanchat/durable-bundle` runs here unmodified, and resolves both by the name its `#[Workflow]`
+`gplanchat/durable-bundle` runs here unmodified, and resolves both by the name its `#[AsWorkflow]`
 attribute declares and by its FQCN.
 
 The list is also the cheap answer. Measured on a thousand classes: naming them costs 0,14 ms and
