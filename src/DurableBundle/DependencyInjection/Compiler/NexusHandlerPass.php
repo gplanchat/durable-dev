@@ -9,6 +9,7 @@ use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Nexus\Serving\NexusContractResolver;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
+use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
@@ -98,18 +99,30 @@ final class NexusHandlerPass implements CompilerPassInterface
                         continue;
                     }
 
+                    $workflowClass = $claimed[$contract][$operation] ?? null;
+                    if (null !== $workflowClass) {
+                        // Déclarée : rien à appeler, le worker démarrera ce workflow. On lui passe
+                        // le **type** et non le FQCN — c'est le nom que le serveur connaît, et
+                        // celui que le journal enregistre.
+                        $registry->addMethodCall('registerFulfilment', [
+                            $service,
+                            NexusOperationName::named($operation),
+                            (new WorkflowDefinitionLoader())->workflowTypeForClass($workflowClass),
+                        ]);
+
+                        continue;
+                    }
+
                     // Ni implémentée, ni réclamée : personne ne la sert. L'appelant attendrait un
                     // résultat que rien ne produit, et le serveur n'a rien à en dire.
-                    if (!isset($claimed[$contract][$operation])) {
-                        throw new \LogicException(\sprintf(
-                            '%s: operation "%s" of contract %s is served by nobody — handler "%s" does not implement %s() and no workflow claims it with #[FulfilsNexusOperation]. A caller would wait on a result nothing produces.',
-                            self::TAG,
-                            $operation,
-                            $contract,
-                            $handlerClass,
-                            $method,
-                        ));
-                    }
+                    throw new \LogicException(\sprintf(
+                        '%s: operation "%s" of contract %s is served by nobody — handler "%s" does not implement %s() and no workflow claims it with #[FulfilsNexusOperation]. A caller would wait on a result nothing produces.',
+                        self::TAG,
+                        $operation,
+                        $contract,
+                        $handlerClass,
+                        $method,
+                    ));
                 }
 
             }
@@ -123,7 +136,7 @@ final class NexusHandlerPass implements CompilerPassInterface
      * qui n'a pas à connaître la classe qui le sert — l'y nommer ferait fuir l'implémentation à
      * travers la frontière que Nexus existe pour poser.
      *
-     * @return array<string, array<string, true>> contrat => opération => true
+     * @return array<string, array<string, class-string>> contrat => opération => classe du workflow
      */
     private function operationsClaimedByWorkflows(ContainerBuilder $container): array
     {
@@ -137,7 +150,7 @@ final class NexusHandlerPass implements CompilerPassInterface
 
             foreach ((new \ReflectionClass($class))->getAttributes(FulfilsNexusOperation::class) as $attribute) {
                 $fulfilment = $attribute->newInstance();
-                $claimed[$fulfilment->contract][$fulfilment->operation] = true;
+                $claimed[$fulfilment->contract][$fulfilment->operation] = $class;
             }
         }
 

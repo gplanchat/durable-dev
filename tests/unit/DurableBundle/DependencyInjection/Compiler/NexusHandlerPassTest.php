@@ -60,7 +60,15 @@ final class NexusHandlerPassTest extends TestCase
         (new NexusHandlerPass())->process($container);
 
         $calls = $container->getDefinition('durable.temporal.nexus_registry')->getMethodCalls();
-        self::assertCount(1, $calls, 'seule l’opération implémentée s’enregistre ; la différée est portée par le workflow');
+        $methods = array_column($calls, 0);
+
+        self::assertContains('register', $methods, 'l’opération implémentée s’enregistre normalement');
+        self::assertContains('registerFulfilment', $methods, 'la différée se déclare, pour que le worker sache quel workflow démarrer');
+
+        $fulfilment = $calls[array_search('registerFulfilment', $methods, true)];
+        self::assertEquals(NexusOperationName::named('charge'), $fulfilment[1][1]);
+        // Le **type** de workflow, pas le FQCN : c'est ce nom que le serveur connaît.
+        self::assertSame('ChargeWorkflowFixture', $fulfilment[1][2]);
     }
 
     public function testAHandlerThatServesNothingIsRefused(): void

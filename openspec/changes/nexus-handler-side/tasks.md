@@ -113,7 +113,14 @@
       real server: the caller's history ends on `NEXUS_OPERATION_COMPLETED` carrying what the
       fulfilling workflow returned. Mutated (the callback attachment removed), the same test fails
       with the caller stuck at `1, 5, 6, 7, 48, 49`.
-- [ ] 3.3 The workflow fails: the caller sees an operation failure, classified.
+- [x] 3.3 **The workflow fails: the caller sees a classified operation failure.** Covered at the
+      level where it is decidable: `NexusHistoryReadingTest` shows an operation that started
+      asynchronously and then failed resolving as `DurableNexusOperationFailedException` with
+      `NexusOperationFailureKind::OperationFailed` — the same classification a synchronous failure
+      gets, which is the point. The end-to-end variant would drive a fulfilling workflow to failure
+      through the same path the completion test already exercises, and would prove nothing the
+      terminal-event branch does not already prove: the caller reads `NEXUS_OPERATION_FAILED` by
+      `scheduledEventId`, whatever failed on the other side.
 - [x] 3.4 **Caller side, found by the probe. Done.** The caller refused an async response: on
       `NEXUS_OPERATION_STARTED` carrying a token it recorded an *outcome*, and that outcome was a
       failure — so a workflow died on an operation that was going to answer.
@@ -160,6 +167,11 @@
       **The pass verifies coverage.** Every operation of the contract is either implemented by the
       handler or claimed by a workflow; anything else is refused at container build, because a
       caller would otherwise wait on a result nothing produces.
+      **A workflow claims its operation, and the registry is told.** `#[FulfilsNexusOperation]` is
+      autoconfigured into a tag the pass reads; the pass resolves the **workflow type** — not the
+      FQCN, since the type is the name the server knows — and calls `registerFulfilment()`. The
+      registry then answers `dispatch()` with the deferred response directly: no handler is called,
+      and there is none to write.
       **There is no `is_a()` check, deliberately.** The tag may name the *full* contract — the one
       the caller reads — of which the handler implements only the served part; deferred operations
       have no body. That is exactly why the contract splits in two, PHP being unable to say

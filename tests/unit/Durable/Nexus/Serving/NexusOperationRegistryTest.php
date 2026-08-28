@@ -74,6 +74,56 @@ final class NexusOperationRegistryTest extends TestCase
         self::assertSame(['ok' => true], $response->result);
     }
 
+    public function testAnOperationFulfilledByAWorkflowNeedsNoHandler(): void
+    {
+        // La forme différée déclarée : aucun gestionnaire n'est appelé, et il n'y en a pas à
+        // écrire. Le registre rend directement la réponse que le worker sait traiter — démarrer
+        // le workflow avec le callback de la tâche attaché.
+        $registry = NexusOperationRegistry::routedBy('temporal');
+        $registry->registerFulfilment(
+            NexusService::named('billing'),
+            NexusOperationName::named('charge'),
+            'ChargeWorkflow',
+        );
+
+        $response = $registry->dispatch(
+            NexusService::named('billing'),
+            NexusOperationName::named('charge'),
+            ['order' => 'o-1'],
+        );
+
+        self::assertFalse($response->isImmediate);
+        self::assertSame('ChargeWorkflow', $response->workflowType);
+        self::assertSame(['order' => 'o-1'], $response->workflowInput, "la charge de l'appelant devient l'entrée du workflow");
+    }
+
+    public function testAFulfilledOperationIsServed(): void
+    {
+        $registry = NexusOperationRegistry::routedBy('temporal');
+        $registry->registerFulfilment(
+            NexusService::named('billing'),
+            NexusOperationName::named('charge'),
+            'ChargeWorkflow',
+        );
+
+        self::assertTrue($registry->serves(NexusService::named('billing'), NexusOperationName::named('charge')));
+    }
+
+    public function testAFulfilmentOnABackendThatCannotRouteIsRefusedToo(): void
+    {
+        // Même garde que pour un gestionnaire : sans route, ce workflow ne sera jamais démarré
+        // par personne, et rien ne le dirait.
+        $registry = NexusOperationRegistry::unavailableOn('memory');
+
+        $this->expectException(NexusUnsupportedByBackendException::class);
+
+        $registry->registerFulfilment(
+            NexusService::named('billing'),
+            NexusOperationName::named('charge'),
+            'ChargeWorkflow',
+        );
+    }
+
     public function testAnOperationNobodyServesIsRefusedTerminally(): void
     {
         // 1b.3 : NOT_IMPLEMENTED est du côté non réessayable. Le dire réessayable ferait

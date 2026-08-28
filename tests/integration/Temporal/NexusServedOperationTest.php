@@ -177,6 +177,32 @@ final class NexusServedOperationTest extends TestCase
         self::assertSame(['greeting' => 'hello ada, plus tard'], $outcome['result']);
     }
 
+    public function testAnOperationDeclaredAsFulfilledByAWorkflowNeedsNoHandlerAtAll(): void
+    {
+        // La forme déclarée, de bout en bout : le registre ne connaît **aucun** gestionnaire pour
+        // cette opération, seulement le workflow qui la remplit. Personne n'écrit de corps, et le
+        // worker démarre pourtant le workflow avec le callback attaché.
+        $fulfillerId = 'served-fulfiller-' . bin2hex(random_bytes(4));
+
+        $registry = NexusOperationRegistry::routedBy('temporal');
+        $registry->registerFulfilment(
+            NexusService::named('probe'),
+            NexusOperationName::named('greet'),
+            'SlowGreeting',
+        );
+
+        $callerId = $this->scheduleOperation('greet', ['name' => 'ada']);
+        $this->worker($registry)->pollOnce();
+
+        $fulfillerId = $this->completeAnyFulfillingWorkflow(['greeting' => 'hello ada, déclaré']);
+        self::assertNotSame('', $fulfillerId, 'le worker n’a démarré aucun workflow');
+
+        $outcome = $this->awaitTerminalNexusEvent($callerId);
+
+        self::assertSame(EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED, $outcome['type'], $outcome['names']);
+        self::assertSame(['greeting' => 'hello ada, déclaré'], $outcome['result']);
+    }
+
     public function testAnOperationNobodyServesIsRefusedAndTheServerAcceptsTheRefusal(): void
     {
         $callerId = $this->scheduleOperation('greet', []);
@@ -228,14 +254,32 @@ final class NexusServedOperationTest extends TestCase
     }
 
     /**
+     * Termine le workflow que le **worker** a démarré, dont l'identifiant est engendré.
+     *
+     * @param array<string, mixed> $result
+     */
+    private function completeAnyFulfillingWorkflow(array $result): string
+    {
+        return $this->completeFulfillingWorkflowMatching('nexus-', $result);
+    }
+
+    /**
      * @param array<string, mixed> $result
      */
     private function completeTheFulfillingWorkflow(array $result): string
     {
+        return $this->completeFulfillingWorkflowMatching('served-fulfiller-', $result);
+    }
+
+    /**
+     * @param array<string, mixed> $result
+     */
+    private function completeFulfillingWorkflowMatching(string $prefix, array $result): string
+    {
         for ($attempt = 0; $attempt < 20; ++$attempt) {
             $task = $this->pollWorkflowTask();
             $workflowId = (string) $task->getWorkflowExecution()?->getWorkflowId();
-            if (!str_starts_with($workflowId, 'served-fulfiller-')) {
+            if (!str_starts_with($workflowId, $prefix)) {
                 continue;
             }
             $this->started[] = $workflowId;
