@@ -6,7 +6,7 @@ namespace Gplanchat\Durable\Magento\Runtime;
 
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
-use Gplanchat\Durable\Store\InMemoryEventStore;
+use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\WorkflowRegistry;
 
 /**
@@ -24,7 +24,7 @@ use Gplanchat\Durable\WorkflowRegistry;
 final class MagentoRuntime
 {
     public function __construct(
-        private readonly InMemoryEventStore $eventStore,
+        private readonly EventStoreInterface $eventStore,
         private readonly RegistryActivityExecutor $activities,
         private readonly WorkflowRegistry $workflows,
         private readonly InMemoryWorkflowRunner $runner,
@@ -79,7 +79,7 @@ final class MagentoRuntime
         return $this->declaredActivities;
     }
 
-    public function eventStore(): InMemoryEventStore
+    public function eventStore(): EventStoreInterface
     {
         return $this->eventStore;
     }

@@ -119,7 +119,25 @@ unmeasured.
 
 ## 5. Temporal, end to end
 
-- [ ] 5.1 The workers as `bin/magento` commands, drained by what an operator already supervises.
+- [x] 5.1 **Where the journal lives is decided by the presence of a DSN.** `RuntimeFactory`
+      (renamed from `InMemoryRuntimeFactory`) assembles an `InMemoryEventStore` without one and a
+      `TemporalJournalEventStore` with `durable/temporal/dsn` in `env.php` — a connection string,
+      not the backend-name surface §2.3 removed. It stays constructible without Magento, which puts
+      the decision under CI. ⚠ **The workers themselves are not built**: nothing polls the journal
+      task queue yet, so an execution started against the cluster has no worker to advance it.
+      That part stays open and 5.2/5.3 need it.
+- [x] 5.1b **An admin screen: `System > Durable processes > Process history`.** Route, ACL, menu,
+      controller, block and template, reading `InMemoryWorkflowRunCatalog` over whatever event store
+      the factory assembled — the same core observation the Sylius dashboard renders, so nothing is
+      reimplemented. Verified over HTTP in both states: without a DSN it says so and explains why an
+      empty list is the correct answer; with one, the warning goes and it reads the cluster.
+      *Landed here on the author's instruction rather than in the separate dashboard change; that
+      change remains the home for run detail, filters and backend health.*
+      ⚠ **A catalog is not derivable from a journal**, and the first version got this wrong:
+      `InMemoryWorkflowRunCatalog` keeps its own map, fed by `recordStart()`/`recordOutcome()` in
+      the process that executes. An admin request executes nothing, so the grid was empty while a
+      run had just completed against the cluster. Listing a cluster's executions means asking the
+      cluster — `TemporalWorkflowRunCatalog`, which the bridge already ships.
 - [ ] 5.2 The bench's `compose.yaml` Temporal stack runs a workflow from an order placed in the
       storefront to a completed execution visible in the Temporal UI.
 - [ ] 5.3 The failure OST003 names: a consumer killed half way through an order resumes where it

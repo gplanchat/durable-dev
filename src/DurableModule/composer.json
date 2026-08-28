@@ -23,7 +23,8 @@
             "registration.php"
         ],
         "psr-4": {
-            "Gplanchat\\Durable\\Magento\\": "./"
+            "Gplanchat\\Durable\\Magento\\": "./",
+            "Gplanchat\\Durable\\Controller\\": "Controller/"
         }
     },
     "extra": {
