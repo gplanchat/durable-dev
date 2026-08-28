@@ -433,19 +433,15 @@ another namespace or another cluster. **A Durable workflow can call one, and can
 workflow written with the official PHP SDK can do neither.**
 
 ```php
-$order = $this->environment->await(
-    $this->environment->nexusOperation(
-        'checkout-endpoint',
-        'com.example.checkout',
-        'placeOrder',
-        ['cartId' => $cartId],
-    ),
-);
+$checkout = $env->nexusStub(CheckoutContract::class, endpoint: 'checkout-endpoint');
+
+$order = $env->await($checkout->placeOrder($cartId));
 ```
 
-The three names are value objects rather than strings, because the server only guards the first: it
-refuses a malformed endpoint outright, and accepts an empty or whitespace-only service or operation
-without a word — leaving the call waiting for a handler whose name will never match.
+The contract is written once and read from both sides, so no operation name is retyped as a string.
+That matters because the server only guards the endpoint: it refuses a malformed one outright, and
+accepts an empty or whitespace-only service or operation without a word — leaving the call waiting
+for a handler whose name will never match.
 
 At the time of writing, "Nexus" appears in the PHP SDK only as generated gRPC plumbing — endpoint
 CRUD on the operator client, a task-slot option on the worker, history dumping — with no API a
@@ -466,18 +462,17 @@ before and after: `{"name":""}` → `hello ` became `{"name":"ada"}` → `hello 
 A handler declares the operation it serves, and answers now or later:
 
 ```php
-#[AsNexusOperationHandler(service: 'facturation', operation: 'encaisser')]
-final class Encaisser
+#[AsNexusServiceHandler(contract: BillingServed::class)]
+final class Billing implements BillingServed
 {
-    public function __invoke(mixed $payload): NexusOperationResponse
-    {
-        // Now, if you already have the answer — you have about nine seconds.
-        return NexusOperationResponse::completed(['receipt' => 'r-1234']);
-
-        // Later, for anything real: a workflow produces the result.
-        return NexusOperationResponse::fulfilledByWorkflow('Encaissement', $payload);
-    }
+    // Now, if you already have the answer — you have about nine seconds.
+    public function verify(Order $order): Verdict { /* … */ }
 }
+
+// Later, for anything real: a workflow claims the operation and produces the result.
+#[AsWorkflow]
+#[FulfilsNexusOperation(BillingContract::class, 'charge')]
+final class Charge { /* … */ }
 ```
 
 The nine seconds are not a Durable limit but the task's own `request-timeout`, measured: a handler

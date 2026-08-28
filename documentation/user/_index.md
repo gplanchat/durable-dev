@@ -19,6 +19,7 @@ section is the reference.
 | [Creating activities](activities/) | activity contracts, dependency injection, the typed stub |
 | [Failures and retries](failures/) | what the journal records, and why an activity stopped retrying |
 | [Cancellation](cancellation/) | raising cancellation inside the workflow so it can compensate |
+| [Nexus operations](nexus/) | calling an operation another team serves — and serving one |
 | [Options and value objects](options/) | retry limits, timeouts, cron schedules, search attributes |
 | [Testing workflows](testing/) | unit tests with no server, and the suite that runs against a real one |
 | [Configuration reference](configuration/) | every `durable.yaml` key |

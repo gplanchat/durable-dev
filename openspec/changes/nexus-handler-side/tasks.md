@@ -222,3 +222,19 @@ suite as sufficient.
 on an idle queue it returns after the long-poll deadline without a word (§1.2), and the cancellation
 task does not always present itself on the first call. The test therefore loops, and pays the
 long-poll wait. Worth knowing before this suite is ever added to CI — which, per 8.1, it is not.
+
+## 9. Announce it
+
+- [x] 9.1 **The home page says Nexus works.** A dedicated section between the capability stories and
+      the package table, in both languages, with the two halves side by side — calling through a
+      typed stub, serving through a contract. Plus an entry in the header nav and a highlighted chip
+      in the capability list.
+      The claim it makes is the measured one and no more: *a PHP service can now be on both ends of a
+      Nexus operation*, where Temporal documents Nexus for Go, Java, Python, TypeScript and .NET and
+      not for PHP. It ships in the same pull request as the feature, so the page cannot announce
+      something `main` does not have.
+- [x] 9.2 **The site stops contradicting itself.** The authoring surface changed mid-change, and the
+      user page, the comparison page and DUR045 still showed the string form. All three now show the
+      typed contract, in both languages, and `documentation/user/` lists the Nexus page.
+      DUR045 is rewritten rather than annotated: it records a decision that has **not shipped yet**,
+      so leaving a superseded contract in it would document a design nobody chose.
