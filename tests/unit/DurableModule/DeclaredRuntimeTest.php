@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace unit\Gplanchat\Durable\Magento;
+namespace unit\DurableModule;
 
-use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
-use Gplanchat\Durable\Magento\Runtime\UndeclaredWorkflowException;
-use Gplanchat\Durable\Magento\Workflow\Activity\DemoOrderActivities;
-use Gplanchat\Durable\Magento\Workflow\PlaceOrderWorkflow;
+use Gplanchat\DurableModule\Runtime\RuntimeFactory;
+use Gplanchat\DurableModule\Runtime\UndeclaredWorkflowException;
 use PHPUnit\Framework\TestCase;
+use unit\DurableModule\Fixture\OrderWorkflow;
+use unit\DurableModule\Fixture\RecordingOrderActivities;
 
 /**
  * La déclaration, puisque le conteneur de Magento n'a pas les tags de Symfony.
@@ -23,11 +23,11 @@ final class DeclaredRuntimeTest extends TestCase
     public function testADeclaredWorkflowRunsWithActivitiesResolvedFromTheirAttribute(): void
     {
         $runtime = (new RuntimeFactory(
-            workflowClasses: [PlaceOrderWorkflow::class],
-            activityHandlers: [new DemoOrderActivities()],
+            workflowClasses: [OrderWorkflow::class],
+            activityHandlers: [new RecordingOrderActivities()],
         ))->create();
 
-        self::assertSame('notify:charge:ORD-4242', $runtime->run(PlaceOrderWorkflow::class, ['orderId' => 'ORD-4242']));
+        self::assertSame('notify:charge:ORD-4242', $runtime->run(OrderWorkflow::class, ['orderId' => 'ORD-4242']));
     }
 
     /**
@@ -36,10 +36,10 @@ final class DeclaredRuntimeTest extends TestCase
      */
     public function testTheDeclaredActivityNamesAreTheOnesTheContractCarries(): void
     {
-        $runtime = (new RuntimeFactory(activityHandlers: [new DemoOrderActivities()]))->create();
+        $runtime = (new RuntimeFactory(activityHandlers: [new RecordingOrderActivities()]))->create();
 
         self::assertSame(
-            ['durable.demo.charge', 'durable.demo.reserve', 'durable.demo.notify'],
+            ['test.order.charge', 'test.order.reserve', 'test.order.notify'],
             $runtime->declaredActivities(),
         );
     }
@@ -50,12 +50,12 @@ final class DeclaredRuntimeTest extends TestCase
      */
     public function testAnUndeclaredWorkflowFailsNamingTheTypeAndWhereTypesAreDeclared(): void
     {
-        $runtime = (new RuntimeFactory(activityHandlers: [new DemoOrderActivities()]))->create();
+        $runtime = (new RuntimeFactory(activityHandlers: [new RecordingOrderActivities()]))->create();
 
         $this->expectException(UndeclaredWorkflowException::class);
-        $this->expectExceptionMessageMatches('/PlaceOrderWorkflow/');
+        $this->expectExceptionMessageMatches('/OrderWorkflow/');
         $this->expectExceptionMessageMatches('/di\.xml/');
 
-        $runtime->run(PlaceOrderWorkflow::class, ['orderId' => 'ORD-4242']);
+        $runtime->run(OrderWorkflow::class, ['orderId' => 'ORD-4242']);
     }
 }

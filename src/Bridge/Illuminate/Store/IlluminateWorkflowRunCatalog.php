@@ -142,7 +142,7 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
             new IlluminateEventStore($this->connection, $this->schema),
         );
 
-        return $reader->read($run->runId);
+        return $reader->read($run->runId, $run->workflowName);
     }
 
     public function checkHealth(): BackendHealth

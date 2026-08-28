@@ -165,8 +165,8 @@ final class RunDashboardViewTest extends TestCase
         $view = (new RunDashboardView($catalog))->build();
 
         self::assertSame('run-1', $view['selectedRun']['runId']);
-        self::assertSame(['execution', 'activity', 'signal'], array_column($view['selectedRun']['lanes'], 'kind'));
-        self::assertSame(['SendWelcomeEmail'], array_column($view['selectedRun']['lanes'][1]['events'], 'label'));
+        self::assertSame(['execution', 'activity', 'signal'], array_column($view['selectedRun']['actions'], 'kind'));
+        self::assertSame(['SendWelcomeEmail'], array_column($view['selectedRun']['actions'][1]['events'], 'label'));
     }
 
     public function testANexusOperationGetsItsOwnLaneAndSaysWhereTheWaitHappens(): void
@@ -185,8 +185,49 @@ final class RunDashboardViewTest extends TestCase
 
         $view = (new RunDashboardView($catalog))->build();
 
-        self::assertSame(['execution', 'nexus'], array_column($view['selectedRun']['lanes'], 'kind'));
-        self::assertSame(['paiements/facturation/encaisser'], array_column($view['selectedRun']['lanes'][1]['events'], 'label'));
+        self::assertSame(['execution', 'nexus'], array_column($view['selectedRun']['actions'], 'kind'));
+        self::assertSame(['paiements/facturation/encaisser'], array_column($view['selectedRun']['actions'][1]['events'], 'label'));
+    }
+
+    public function testAnEventCarriesWhatTheBackendRecordedWithIt(): void
+    {
+        // La frise répond « quoi ». « Avec quoi » est la question suivante, à chaque fois : les
+        // arguments d'appel d'une activité, ce qu'elle a rendu. Sans ce fait dans le modèle, le
+        // dépliant du gabarit s'ouvrirait sur du vide.
+        $catalog = new FakeRunCatalog(
+            [$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)],
+            [
+                new WorkflowRunEvent(
+                    1,
+                    new \DateTimeImmutable('@1700000000'),
+                    WorkflowRunEventKind::Activity,
+                    'SendWelcomeEmail',
+                    ['payload' => ['customerId' => 'cus-42']],
+                ),
+            ],
+        );
+
+        $view = (new RunDashboardView($catalog))->build();
+
+        self::assertSame(
+            ['payload' => ['customerId' => 'cus-42']],
+            $view['selectedRun']['actions'][0]['events'][0]['details'],
+        );
+    }
+
+    public function testAnEventWithNothingRecordedHasNoDetailsKeyAtAll(): void
+    {
+        // Même règle que le reste du modèle : un fait absent est absent, pas vide. C'est ce qui
+        // permet au gabarit de laisser une ligne simple plutôt qu'un dépliant qui ne s'ouvre
+        // sur rien.
+        $catalog = new FakeRunCatalog(
+            [$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)],
+            [new WorkflowRunEvent(1, new \DateTimeImmutable('@1700000000'), WorkflowRunEventKind::Execution, 'Started')],
+        );
+
+        $view = (new RunDashboardView($catalog))->build();
+
+        self::assertArrayNotHasKey('details', $view['selectedRun']['actions'][0]['events'][0]);
     }
 
     public function testALaneTheBackendNeverRecordsIsNotShownAtAll(): void
@@ -198,7 +239,7 @@ final class RunDashboardViewTest extends TestCase
 
         $view = (new RunDashboardView($catalog))->build();
 
-        self::assertSame(['execution'], array_column($view['selectedRun']['lanes'], 'kind'));
+        self::assertSame(['execution'], array_column($view['selectedRun']['actions'], 'kind'));
     }
 
     /**

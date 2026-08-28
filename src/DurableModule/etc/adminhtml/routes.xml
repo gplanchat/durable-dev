@@ -3,7 +3,7 @@
         xsi:noNamespaceSchemaLocation="urn:magento:framework:App/etc/routes.xsd">
     <router id="admin">
         <route id="durable" frontName="durable">
-            <module name="Gplanchat_Durable"/>
+            <module name="Gplanchat_DurableModule"/>
         </route>
     </router>
 </config>

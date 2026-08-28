@@ -296,6 +296,128 @@ jobs:
               working-directory: /tmp/resolve
               run: composer update --dry-run --no-interaction --no-audit --no-progress
 
+    magento-boot:
+        # Le pendant de « Boutique Sylius » pour l'autre hôte : un seul job, non matricé, qui
+        # **démarre** vraiment Magento. Il existe parce que jusqu'ici toute affirmation sur ce
+        # module reposait sur un transcript produit à la main sur le banc d'un poste — et la
+        # matrice Mage-OS × PHP, elle, ne prouve que la résolution.
+        #
+        # Il est cher : la distribution pèse ~1 Go et l'installation prend des minutes. C'est
+        # justement pourquoi il n'est pas matricé — un bord, celui du banc, épinglé par le lock
+        # suivi de `magento/`.
+        name: Module Magento (il démarre pour de vrai)
+        runs-on: ubuntu-latest
+        services:
+            mysql:
+                image: mysql:8.4
+                env:
+                    MYSQL_ROOT_PASSWORD: magento
+                    MYSQL_DATABASE: magento
+                    MYSQL_USER: magento
+                    MYSQL_PASSWORD: magento
+                ports:
+                    - 3306:3306
+                # `log_bin_trust_function_creators` : sans lui l'installation meurt sur
+                # « You do not have the SUPER privilege … CREATE TRIGGER ». Le banc le règle pareil.
+                options: >-
+                    --health-cmd="mysqladmin ping -h 127.0.0.1"
+                    --health-interval=5s --health-timeout=5s --health-retries=20
+            opensearch:
+                image: opensearchproject/opensearch:2.12.0
+                env:
+                    discovery.type: single-node
+                    # Le nom que 2.12 comprend — le banc l'a réglé ainsi, et c'est le réglage
+                    # dont on sait qu'il marche. `plugins.security.disabled` est ignoré ici.
+                    DISABLE_SECURITY_PLUGIN: 'true'
+                    OPENSEARCH_JAVA_OPTS: '-Xms512m -Xmx512m'
+                ports:
+                    - 9200:9200
+                options: >-
+                    --health-cmd="curl -sf http://localhost:9200/_cluster/health || exit 1"
+                    --health-interval=10s --health-timeout=5s --health-retries=30
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  # Le plancher du banc, et celui sur lequel toutes ses mesures ont été faites.
+                  php-version: '8.2'
+                  extensions: bcmath, ctype, curl, dom, gd, iconv, intl, mbstring, openssl, pdo_mysql, simplexml, soap, sodium, xsl, zip
+                  ini-values: memory_limit=-1
+                  coverage: none
+
+            # Sans ce cache, chaque exécution retélécharge la distribution.
+            - name: Cache Composer
+              uses: actions/cache@v4
+              with:
+                  path: ~/.composer/cache
+                  key: magento-boot-${{ hashFiles('magento/composer.lock') }}
+                  restore-keys: magento-boot-
+
+            - name: MySQL accepte les déclencheurs
+              run: mysql -h 127.0.0.1 -uroot -pmagento -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+
+            # Les dépôts `path` de `magento/` lisent `../src` : le banc installe **ce commit**, pas
+            # une version publiée. C'est ce qui rend ce job capable de dire quelque chose du module.
+            - name: Composer install (magento/)
+              working-directory: magento
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            # ⚠ Le squelette n'est pas au dépôt — `magento/.gitignore` n'y garde que l'overlay, et
+            # le poste de développement l'avait obtenu une fois par `create-project`. Après un
+            # `composer install` nu, `bin/magento` n'existe donc pas. `mage-os/magento2-base` porte
+            # ces fichiers ; on les déploie comme le ferait le plugin d'installation, sans écraser
+            # ce que l'overlay a déjà posé (`-n`).
+            - name: Déployer le squelette Magento
+              working-directory: magento
+              run: |
+                cp -Rn vendor/mage-os/magento2-base/. . || true
+                test -f bin/magento
+                chmod +x bin/magento
+
+            - name: Installation de Magento
+              working-directory: magento
+              run: |
+                bin/magento setup:install \
+                  --base-url=http://127.0.0.1:8080/ \
+                  --db-host=127.0.0.1 --db-name=magento --db-user=magento --db-password=magento \
+                  --admin-firstname=Durable --admin-lastname=Ops --admin-email=durable@example.com \
+                  --admin-user=durable --admin-password='Durable123!' \
+                  --language=en_US --currency=USD --timezone=UTC --use-rewrites=1 \
+                  --search-engine=opensearch --opensearch-host=127.0.0.1 --opensearch-port=9200 \
+                  --backend-frontname=admin --no-interaction
+
+            - name: Le module est là
+              working-directory: magento
+              run: |
+                # Deux modules, et la distinction est le sujet : `Gplanchat_DurableModule` est le paquet
+                # publié — il ne déclare aucun workflow. `Gplanchat_DurableProbe` est le module du
+                # **banc**, qui porte la démonstration et les sondes, et qui n'ira jamais chez un
+                # utilisateur. C'est lui qui fournit `durable:demo` à l'étape suivante.
+                bin/magento module:enable Gplanchat_DurableModule Gplanchat_DurableProbe
+                bin/magento setup:upgrade --keep-generated
+                bin/magento module:status Gplanchat_DurableModule | tee /tmp/status.txt
+                grep -q 'Module is enabled' /tmp/status.txt
+
+            # L'assertion qui vaut le prix du job : un workflow écrit une fois tourne dans Magento,
+            # et ses activités viennent des attributs de son contrat, pas de chaînes recopiées.
+            - name: Un workflow tourne dedans
+              working-directory: magento
+              run: |
+                bin/magento durable:demo ORD-4242 | tee /tmp/demo.txt
+                grep -q "notify:charge:ORD-4242" /tmp/demo.txt
+                grep -q "durable.demo.charge" /tmp/demo.txt
+
+            # Sans DSN, l'écran doit **dire** pourquoi il est vide plutôt que d'avoir l'air en panne.
+            - name: L'écran d'administration répond
+              working-directory: magento
+              run: |
+                php -S 127.0.0.1:8080 -t pub/ phpserver/router.php > /tmp/httpd.log 2>&1 &
+                php -r 'usleep(5000000);'
+                curl -sf --max-time 120 http://127.0.0.1:8080/admin -o /tmp/login.html
+                grep -qi 'Magento Admin' /tmp/login.html
+
     static-analysis:
         name: Analyse statique (PHPStan + Psalm)
         runs-on: ubuntu-latest

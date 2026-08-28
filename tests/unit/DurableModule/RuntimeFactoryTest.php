@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace unit\Gplanchat\Durable\Magento;
+namespace unit\DurableModule;
 
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
-use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
-use Gplanchat\Durable\Magento\Workflow\Activity\DemoOrderActivities;
-use Gplanchat\Durable\Magento\Workflow\PlaceOrderWorkflow;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
+use Gplanchat\DurableModule\Runtime\RuntimeFactory;
 use PHPUnit\Framework\TestCase;
+use unit\DurableModule\Fixture\OrderWorkflow;
+use unit\DurableModule\Fixture\RecordingOrderActivities;
 
 /**
  * Où vit le journal, et qui le décide.
@@ -32,7 +32,7 @@ final class RuntimeFactoryTest extends TestCase
 {
     public function testWithoutADsnTheJournalLivesInTheProcessAndDiesWithIt(): void
     {
-        $runtime = (new RuntimeFactory(activityHandlers: [new DemoOrderActivities()]))->create();
+        $runtime = (new RuntimeFactory(activityHandlers: [new RecordingOrderActivities()]))->create();
 
         self::assertInstanceOf(InMemoryEventStore::class, $runtime->eventStore());
     }
@@ -81,7 +81,7 @@ final class RuntimeFactoryTest extends TestCase
     public function testAJournalWorkerIsAssembledWhenThereIsACluster(): void
     {
         $worker = (new RuntimeFactory(
-            workflowClasses: [PlaceOrderWorkflow::class],
+            workflowClasses: [OrderWorkflow::class],
             temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0',
         ))->journalWorker();
 
@@ -111,7 +111,7 @@ final class RuntimeFactoryTest extends TestCase
     public function testAnActivityWorkerIsAssembledWhenThereIsACluster(): void
     {
         $worker = (new RuntimeFactory(
-            activityHandlers: [new DemoOrderActivities()],
+            activityHandlers: [new RecordingOrderActivities()],
             temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0',
         ))->activityWorker();
 
@@ -150,13 +150,13 @@ final class RuntimeFactoryTest extends TestCase
     public function testDeclarationIsOrthogonalToWhereTheJournalLives(): void
     {
         $declared = static fn(?string $dsn): array => (new RuntimeFactory(
-            workflowClasses: [PlaceOrderWorkflow::class],
-            activityHandlers: [new DemoOrderActivities()],
+            workflowClasses: [OrderWorkflow::class],
+            activityHandlers: [new RecordingOrderActivities()],
             temporalDsn: $dsn,
         ))->create()->declaredActivities();
 
         self::assertSame(
-            ['durable.demo.charge', 'durable.demo.reserve', 'durable.demo.notify'],
+            ['test.order.charge', 'test.order.reserve', 'test.order.notify'],
             $declared(null),
         );
         self::assertSame($declared(null), $declared('temporal://127.0.0.1:7234?namespace=default&tls=0'));

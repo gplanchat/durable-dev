@@ -24,6 +24,10 @@ own patch releases and their base's security updates. If you would rather your b
 you, every publication also lays a dated tag — `8.4-cli-20260828` — and pinning it is a one-word
 change. A dated tag is never rebuilt.
 
+Dated tags are pruned: the **eight most recent** are kept for each PHP-and-flavour pair, roughly two
+months of pinning points. Pin for a release you are about to cut, not for a base image you will
+still be building from next year — for that, the rolling tag is the one that keeps working.
+
 ---
 
 ## Picking the tag: three things have to match
