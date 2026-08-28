@@ -22,6 +22,8 @@
         .durable-lane.nexus { border-left-color: #fdba74; }
         .durable-events { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
         .durable-events li { border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); padding: .5rem .65rem; background: var(--tblr-bg-surface); }
+        .durable-events summary { cursor: pointer; }
+        .durable-events pre { margin: .5rem 0 0; padding: .5rem; font-size: .8em; white-space: pre-wrap; word-break: break-word; background: var(--tblr-bg-surface-secondary); border-radius: var(--tblr-border-radius); }
     </style>
 {% endblock %}
 
@@ -144,7 +146,18 @@
                                                     <h4 class="h5 mb-2">{{ lane.kind|replace({'_': ' '})|title }}</h4>
                                                     <ul class="durable-events">
                                                         {% for event in lane.events %}
-                                                            <li><strong>#{{ event.sequence }}</strong> {{ event.recordedAt|date('H:i:s') }} — {{ event.label }}</li>
+                                                            {# Un événement dont le backend n'a rien enregistré n'a pas de dépliant : le
+                                                               modèle de vue ne pose la clé que lorsqu'il y a de quoi l'ouvrir. #}
+                                                            <li>
+                                                                {% if event.details is defined %}
+                                                                    <details>
+                                                                        <summary><strong>#{{ event.sequence }}</strong> {{ event.recordedAt|date('H:i:s.v') }} — {{ event.label }}</summary>
+                                                                        <pre>{{ event.details|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
+                                                                    </details>
+                                                                {% else %}
+                                                                    <strong>#{{ event.sequence }}</strong> {{ event.recordedAt|date('H:i:s.v') }} — {{ event.label }}
+                                                                {% endif %}
+                                                            </li>
                                                         {% endfor %}
                                                     </ul>
                                                 </div>

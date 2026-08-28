@@ -130,17 +130,26 @@ final class RunDashboardView
     /**
      * @param list<WorkflowRunEvent> $history
      *
-     * @return list<array{kind: string, events: list<array{sequence: int, recordedAt: \DateTimeImmutable, label: string}>}>
+     * @return list<array{kind: string, events: list<array{sequence: int, recordedAt: \DateTimeImmutable, label: string, details?: array<string, mixed>}>}>
      */
     private static function lanes(array $history): array
     {
         $lanes = [];
         foreach ($history as $event) {
-            $lanes[$event->kind->value][] = [
+            $described = [
                 'sequence' => $event->sequence,
                 'recordedAt' => $event->recordedAt,
                 'label' => $event->label,
             ];
+
+            // Même règle que partout dans ce modèle : un fait n'entre que s'il existe. Le gabarit
+            // n'a donc pas à distinguer « rien enregistré » de « tableau vide », et un événement
+            // sans contenu garde une ligne simple plutôt qu'un dépliant qui s'ouvre sur du vide.
+            if ([] !== $event->details) {
+                $described['details'] = $event->details;
+            }
+
+            $lanes[$event->kind->value][] = $described;
         }
 
         // Aucune voie vide : une voie que le backend n'alimente jamais ne doit pas apparaître, sous
