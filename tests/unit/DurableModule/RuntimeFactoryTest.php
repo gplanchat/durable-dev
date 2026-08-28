@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Magento;
 
+use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
 use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
 use Gplanchat\Durable\Magento\Workflow\Activity\DemoOrderActivities;
 use Gplanchat\Durable\Magento\Workflow\PlaceOrderWorkflow;
 use Gplanchat\Durable\Store\InMemoryEventStore;
+use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -39,6 +41,31 @@ final class RuntimeFactoryTest extends TestCase
         ))->create();
 
         self::assertInstanceOf(TemporalJournalEventStore::class, $runtime->eventStore());
+    }
+
+    /**
+     * Ce que l'écran d'administration interroge.
+     *
+     * Le catalogue n'est **pas** dérivable du magasin d'événements : `InMemoryWorkflowRunCatalog`
+     * tient sa propre liste, alimentée par `recordStart()`/`recordOutcome()` dans le processus qui
+     * exécute. Une requête d'administration n'exécute rien, donc elle n'a rien à y lire. Lister les
+     * exécutions d'une grappe, c'est demander à la grappe — et le pont livre déjà la classe qui
+     * sait le faire.
+     */
+    public function testTheCatalogAsksTheClusterWhenThereIsOne(): void
+    {
+        $catalog = (new RuntimeFactory(
+            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0',
+        ))->catalog();
+
+        self::assertInstanceOf(TemporalWorkflowRunCatalog::class, $catalog);
+    }
+
+    public function testWithoutAClusterTheCatalogIsTheProcessItself(): void
+    {
+        $catalog = (new RuntimeFactory())->catalog();
+
+        self::assertInstanceOf(InMemoryWorkflowRunCatalog::class, $catalog);
     }
 
     /**
