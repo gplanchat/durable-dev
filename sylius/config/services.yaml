@@ -35,8 +35,25 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
+    # Les workflows se déclarent par une balise et non par un attribut : c'est elle que lit
+    # WorkflowPass. Sans elle, un #[AsWorkflow] est une classe que personne n'enregistre.
+    App\Durable\Workflow\:
+        resource: '../src/Durable/Workflow/'
+        tags: [durable.workflow]
+
     # Controllers are imported separately to make sure services can be injected
     # as action arguments even if you don't extend any base controller class
     App\Controller\:
         resource: '../src/Controller'
         tags: ['controller.service_arguments']
+
+# Le banc de test n'a pas de cluster : `temporal.dsn` y est nul, et un gestionnaire Nexus déclaré
+# sur un backend sans route est refusé au démarrage — à raison, puisqu'il ne recevrait jamais rien.
+#
+# `autoconfigure: false` retire la balise sans retirer la classe : c'est l'attribut
+# `#[AsNexusServiceHandler]` qui la posait. Le service reste, personne ne le sert, et le refus n'a
+# plus de raison de se déclencher.
+when@test:
+    services:
+        App\Durable\Nexus\StockHandler:
+            autoconfigure: false

@@ -28,7 +28,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 final class DemoNexusStockCommand extends Command
 {
     public function __construct(
-        private readonly WorkflowClientInterface $client,
+        // Optionnel : sans DSN Temporal, ce service n'existe pas, et la commande doit pouvoir se
+        // charger quand même — sinon le conteneur du banc de test refuse de compiler.
+        private readonly ?WorkflowClientInterface $client = null,
     ) {
         parent::__construct();
     }
@@ -45,6 +47,15 @@ final class DemoNexusStockCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+
+        if (null === $this->client) {
+            $io->error([
+                'Aucun client de workflow : ce profil n\'a pas de DSN Temporal.',
+                'Un appel Nexus part d\'un workflow, et un workflow a besoin du cluster pour l\'ordonnancer.',
+            ]);
+
+            return Command::FAILURE;
+        }
 
         $commande = (string) $input->getArgument('commande');
         $lignes = [];

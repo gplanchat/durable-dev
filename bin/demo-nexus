@@ -18,11 +18,13 @@ set -euo pipefail
 ADRESSE="${TEMPORAL_ADDRESS:-127.0.0.1:7233}"
 BOUTIQUE="demo-boutique"
 METIER="demo-metier"
-ENDPOINT="demo-boutique-stock"
+ENDPOINT_STOCK="demo-boutique-stock"
+ENDPOINT_FACTURATION="demo-metier-facturation"
 # La file que le worker Nexus de la boutique poll. Elle est nommée dans son DSN
 # (`nexus_task_queue=`), et l'endpoint doit désigner la même : c'est le seul endroit où les deux
 # moitiés se rencontrent, et une faute de frappe y donne un appelant qui attend pour rien.
-FILE="demo-boutique-nexus"
+FILE_BOUTIQUE="demo-boutique-nexus"
+FILE_METIER="demo-metier-nexus"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -54,35 +56,62 @@ echo "cluster $ADRESSE"
 creer_namespace "$BOUTIQUE"
 creer_namespace "$METIER"
 
-if tctl operator nexus endpoint describe "$ENDPOINT" >/dev/null 2>&1; then
-    echo "  = endpoint $ENDPOINT"
-else
+creer_endpoint() {
+    local nom="$1" namespace="$2" file="$3"
+
+    if tctl operator nexus endpoint get --name "$nom" >/dev/null 2>&1; then
+        echo "  = endpoint $nom"
+        return
+    fi
+
     # La création échoue tant que le namespace cible n'est pas encore propagé ; quelques secondes
     # suffisent, et réessayer vaut mieux que d'exiger de l'opérateur qu'il relance le script.
+    local tentative
     for tentative in 1 2 3 4 5; do
         if tctl operator nexus endpoint create \
-            --name "$ENDPOINT" \
-            --target-namespace "$BOUTIQUE" \
-            --target-task-queue "$FILE" >/dev/null 2>&1; then
-            echo "  + endpoint $ENDPOINT -> $BOUTIQUE / $FILE"
-            break
+            --name "$nom" \
+            --target-namespace "$namespace" \
+            --target-task-queue "$file" >/dev/null 2>&1; then
+            echo "  + endpoint $nom -> $namespace / $file"
+            return
         fi
-        [ "$tentative" = 5 ] && { echo "échec de la création de l'endpoint $ENDPOINT" >&2; exit 1; }
         sleep 2
     done
-fi
+
+    echo "échec de la création de l'endpoint $nom" >&2
+    echo "un serveur qui répond « Nexus APIs are disabled » ne suffit pas — voir demo/README.md" >&2
+    exit 1
+}
+
+creer_endpoint "$ENDPOINT_STOCK" "$BOUTIQUE" "$FILE_BOUTIQUE"
+creer_endpoint "$ENDPOINT_FACTURATION" "$METIER" "$FILE_METIER"
 
 cat <<FIN
 
-Deux processus, deux namespaces.
+Six processus, deux namespaces. Chaque maquette sert et appelle.
 
-  # la boutique sert « stock » — elle poll $FILE dans $BOUTIQUE
+  # la boutique sert « stock » — journal DBAL, tableau de bord inchangé
   cd sylius
-  DURABLE_TEMPORAL_DSN='temporal://$ADRESSE?namespace=$BOUTIQUE&nexus_task_queue=$FILE&tls=0' \\
-    bin/console messenger:consume durable_temporal_nexus -vv
+  export DURABLE_TEMPORAL_DSN='temporal://$ADRESSE?namespace=$BOUTIQUE&nexus_task_queue=$FILE_BOUTIQUE&tls=0'
+  bin/console messenger:consume durable_temporal_nexus
 
-  # le métier appelle — depuis $METIER
+  # la boutique appelle « facturation » — profil demo, journal sur le cluster
+  cd sylius
+  export APP_ENV=demo
+  export DURABLE_TEMPORAL_DSN='temporal://$ADRESSE?namespace=$BOUTIQUE&tls=0'
+  bin/console messenger:consume durable_temporal_journal
+  bin/console durable:demo:facturer CMD-1 1200
+
+  # le métier sert « facturation », dont « encaisser » qu'un workflow remplit
   cd symfony
-  DURABLE_DSN='temporal://$ADRESSE?namespace=$METIER&journal_task_queue=durable-journal&tls=0' \\
-    bin/console durable:demo:nexus CMD-1 MUG_BLUE=2
+  export DURABLE_DSN='temporal://$ADRESSE?namespace=$METIER&nexus_task_queue=$FILE_METIER&tls=0'
+  bin/console messenger:consume durable_temporal_nexus
+  bin/console messenger:consume durable_temporal_journal
+  bin/console messenger:consume durable_temporal_activity
+
+  # le métier appelle « stock »
+  cd symfony
+  bin/console durable:demo:nexus CMD-1 MUG_BLUE=2
+
+\`demo/lancer.sh\` fait tout cela d'un coup.
 FIN

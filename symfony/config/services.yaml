@@ -43,3 +43,14 @@ services:
 
 # Journal Temporal en dev/prod : durable.yaml when@dev / when@prod + DURABLE_DSN (temporal://…).
 # Prérequis : ext-grpc, stack docker compose, workers messenger durable_temporal_journal + durable_temporal_activity.
+
+# Le banc de test n'a pas de cluster : `temporal.dsn` y est nul, et un gestionnaire Nexus déclaré
+# sur un backend sans route est refusé au démarrage — à raison, puisqu'il ne recevrait jamais rien.
+#
+# `autoconfigure: false` retire la balise sans retirer la classe : c'est l'attribut
+# `#[AsNexusServiceHandler]` qui la posait. Le service reste, personne ne le sert, et le refus n'a
+# plus de raison de se déclencher.
+when@test:
+    services:
+        App\Durable\Nexus\FacturationHandler:
+            autoconfigure: false

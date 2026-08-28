@@ -140,26 +140,70 @@ immédiate n'exigeant aucun workflow qui remplit l'opération.
 
 ## 3. Sens 2 — Sylius appelle, Symfony sert (la forme différée)
 
-- [ ] 3.1 `EncaissementWorkflow` dans `symfony/`, `#[FulfilsNexusOperation]`, avec une activité et
-      un délai — pour que l'attente soit réelle et non simulée.
-      Avec lui vient le garde du ⚠ de §1.3, écrit une fois et générique : pour toute classe portant
-      `#[FulfilsNexusOperation]`, les noms de paramètres doivent être ceux de la méthode du contrat
-      qu'elle nomme. Une règle PHPStan dans `src/DurablePhpstan/` le dirait à tous les projets et
-      pas seulement à la démonstration — c'est l'endroit à préférer si le coût y est le même.
-- [ ] 3.2 Un workflow de commande dans `sylius/` qui appelle `facturation/encaisser`.
-- [ ] 3.3 L'endpoint `demo-metier-facturation`.
-- [ ] 3.4 Éprouvé : la boutique ne tient rien d'ouvert pendant que le workflow avance en face.
+- [x] 3.1 `EncaissementWorkflow` dans `symfony/`, `#[FulfilsNexusOperation]`, avec une activité de
+      paiement et un délai de 12 s — au-delà des ~9 s d'une tâche Nexus, pour qu'une opération qui
+      tiendrait dans ce budget n'ait visiblement pas besoin d'un workflow. Mesuré :
+      `TimerStarted` 21:14:32 → `TimerFired` 21:14:44 → activité → terminé 21:14:46.
+
+      Le garde du ⚠ de §1.3 est dans **la passe de compilation** et non dans une règle PHPStan :
+      elle a déjà les deux côtés sous la main, et le refus au démarrage vaut pour tous les hôtes,
+      y compris ceux qui ne lancent pas d'analyse statique. La règle est celle-ci — tout paramètre
+      de workflow **sans valeur par défaut** doit être un paramètre du contrat ; un paramètre
+      facultatif passe, l'absence étant alors une décision. Éprouvé par mutation sur
+      l'application réelle : `$montan` au lieu de `$montant` refuse le conteneur en nommant les
+      deux signatures.
+
+      Une panne d'à côté, trouvée en lisant l'historique : `EncaissementWorkflow` appelait
+      `timer()` sans l'attendre. `timer()` **rend** un awaitable ; `sleep()` est celui qui attend.
+      L'historique portait un `TimerStarted` sans `TimerFired` et le workflow enchaînait.
+      `TimerThenTickWorkflow`, l'exemple du banc, avait le même défaut depuis toujours — son nom
+      promet l'inverse de ce qu'il faisait. Corrigé aussi.
+- [x] 3.2 `CommandeWorkflow` dans `sylius/` appelle `verifier` **puis** `encaisser`, sur le même
+      stub. C'est ce voisinage qui montre le point : l'immédiate et la différée s'écrivent pareil,
+      et l'appelant ignore laquelle a coûté douze secondes à quelqu'un d'autre.
+
+      La boutique a donc besoin d'un second profil, `APP_ENV=demo`, dont le journal est le cluster.
+      Un appel Nexus part d'un workflow, et `EventStoreCommandBuffer` refuse d'ordonnancer une
+      opération depuis un journal SQL — il n'a pas de serveur à qui l'adresser. Servir et appeler
+      ne tiennent pas dans la même configuration Durable, et c'est à cela que ressemble un vrai
+      déploiement : le processus qui rend le tableau de bord et celui qui exécute les workflows
+      sont deux déploiements du même code.
+- [x] 3.3 L'endpoint `demo-metier-facturation`, créé par le même `bin/demo-nexus`.
+- [x] 3.4 Éprouvé, et mieux que prévu : pendant une mise au point, le worker qui devait faire
+      avancer l'encaissement est resté **éteint quatre minutes**. L'opération est restée en
+      `NEXUS_OPERATION_STARTED`, l'appelant n'a rien consommé, et tout s'est terminé normalement au
+      retour du worker. C'est la preuve que l'attente ne tient rien d'ouvert — une preuve qu'un
+      passage nominal n'aurait pas donnée.
+
+      | appel | réponse | durée |
+      |---|---|---|
+      | `FACT-10 1200` | `verifiee.acceptee: true`, `encaissement.recu: RECU-EUR-FACT-10` | 14,0 s |
+      | `FACT-11 4200 USD` | `verifiee.acceptee: false`, `motif: devise USD non prise en charge`, `encaissement: null` | 0,4 s |
+
+      Deux pannes de configuration en chemin, toutes deux à la charge des maquettes : les
+      gestionnaires Nexus étaient déclarés aussi en `APP_ENV=test`, où il n'y a pas de cluster — le
+      garde de démarrage refusait alors toute la suite. `autoconfigure: false` sous `when@test`
+      retire la balise sans retirer la classe. Et les deux commandes autowiraient
+      `WorkflowClientInterface`, qui n'existe pas sans DSN : elles le prennent maintenant en
+      optionnel et le disent.
 
 ## 4. Faire tourner la démonstration
 
-- [ ] 4.1 **Compter les processus avant de promettre.** La forme différée n'avance que si un worker
+- [x] 4.1 **Compter les processus avant de promettre.** Il y en a **cinq**, pas six : la boutique
+      n'a pas de worker d'activité, parce que `CommandeWorkflow` n'a pas d'activité — il n'appelle
+      que des opérations Nexus. Un sixième processus ne ferait que poller une file vide, et la
+      démonstration mentirait sur ce qu'elle demande.
+
+      L'énoncé initial, gardé parce que sa moitié qui compte tient toujours :
+      **Compter les processus avant de promettre.** La forme différée n'avance que si un worker
       de tâches de workflow poll du côté servant — les tests d'intégration les pilotaient à la main.
       La démonstration en demande donc, par maquette : un worker Nexus, un worker de workflow, un
       worker d'activité. **Six processus.** C'est la différence entre une démonstration qui tourne
       et une qui reste suspendue sans rien dire.
-- [ ] 4.2 Un script unique qui démarre ce qu'il faut et raconte ce qui se passe, plutôt que six
-      terminaux et un ordre à deviner.
-- [ ] 4.3 Un README de la démonstration : les prérequis mesurés en 0.1 — PHP 8.3,
+- [x] 4.2 `demo/lancer.sh` : les cinq workers, `--etat` pour savoir qui tourne, `--arreter` pour
+      tout éteindre, et les deux commandes d'appel imprimées avec les bonnes valeurs. Il refuse de
+      démarrer si l'endpoint n'existe pas, en nommant `bin/demo-nexus`.
+- [x] 4.3 `demo/README.md` : les prérequis mesurés en 0.1 — PHP 8.3,
       `--ignore-platform-req=ext-curl` — et **le fait que les deux endpoints ne sont pas des
       résidus de test**. La suite d'intégration en crée d'éphémères sur le même cluster et les
       supprime ; ceux-ci sont stables, nommés `demo-*`, et personne ne doit les « nettoyer ».

@@ -34,3 +34,13 @@ framework:
 #                # replace with your transport name here (e.g., my_transport: 'in-memory://')
 #                # For more Messenger testing tools, see https://github.com/zenstruck/messenger-test
 #                async: 'in-memory://'
+
+when@demo:
+    framework:
+        messenger:
+            transports:
+                # Le worker de tâches de workflow du profil appelant. C'est lui qui fait avancer
+                # `CommandeWorkflow` entre ses deux appels — et qui le reprend après l'attente,
+                # sans que ce soit forcément le même processus qui l'avait démarré.
+                durable_temporal_journal:
+                    dsn: '%env(DURABLE_TEMPORAL_DSN)%'

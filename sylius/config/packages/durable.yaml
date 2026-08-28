@@ -25,3 +25,26 @@ durable:
     temporal:
         dsn: '%env(DURABLE_TEMPORAL_DSN)%'
         journal: false
+
+# Le second profil de la boutique : celui qui **appelle**.
+#
+# Un appel Nexus part d'un workflow, et un workflow ne peut ordonnancer une opération que si son
+# journal est le cluster : `EventStoreCommandBuffer` refuse en le disant, parce qu'un journal SQL
+# n'a pas de serveur à qui adresser l'ordonnancement. Servir et appeler ne tiennent donc pas dans
+# la même configuration Durable.
+#
+# Ce n'est pas un contournement, c'est ce à quoi ressemble un vrai déploiement : le processus qui
+# rend le tableau de bord et celui qui exécute les workflows sont deux déploiements du même code,
+# avec deux profils. `APP_ENV=demo` en est un.
+when@demo:
+    durable:
+        event_store:
+            type: in_memory
+        workflow_metadata:
+            type: in_memory
+        child_workflow:
+            parent_link_store:
+                type: in_memory
+        temporal:
+            dsn: '%env(DURABLE_TEMPORAL_DSN)%'
+            journal: true

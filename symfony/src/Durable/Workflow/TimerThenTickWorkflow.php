@@ -24,7 +24,10 @@ final class TimerThenTickWorkflow
     #[AsWorkflowMethod]
     public function run(float $seconds = 0.01): string
     {
-        $this->environment->timer($seconds);
+        // `sleep()` et non `timer()` : le second rend un awaitable. L'appeler sans l'attendre
+        // démarre un minuteur que personne ne regarde, et le workflow enchaîne — l'historique
+        // porte alors un `TimerStarted` sans `TimerFired`. Le nom de ce workflow promet l'inverse.
+        $this->environment->sleep($seconds);
 
         return $this->environment->await($this->tick->tick());
     }

@@ -32,6 +32,12 @@ when@dev:
                     dsn: '%env(DURABLE_DSN)%'
                     options:
                         purpose: activity_worker
+                # La boucle qui sert Nexus : receive-only, chaque `get()` long-poll une tâche
+                # entrante. Le métier sert `facturation` — dont `encaisser`, qu'un workflow remplit.
+                durable_temporal_nexus:
+                    dsn: '%env(DURABLE_DSN)%'
+                    options:
+                        purpose: nexus_worker
             routing:
                 Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows
 
@@ -46,6 +52,12 @@ when@prod:
                     dsn: '%env(DURABLE_DSN)%'
                     options:
                         purpose: activity_worker
+                # La boucle qui sert Nexus : receive-only, chaque `get()` long-poll une tâche
+                # entrante. Le métier sert `facturation` — dont `encaisser`, qu'un workflow remplit.
+                durable_temporal_nexus:
+                    dsn: '%env(DURABLE_DSN)%'
+                    options:
+                        purpose: nexus_worker
             routing:
                 Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows
 
