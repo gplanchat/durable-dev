@@ -6,8 +6,8 @@ namespace integration\Durable\Bundle;
 
 use Gplanchat\Durable\Bundle\DurableBundle;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler;
-use Gplanchat\Durable\Bundle\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Event\ExecutionCompleted;
+use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;

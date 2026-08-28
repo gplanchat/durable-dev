@@ -24,6 +24,29 @@ ne contient que ce que Rector sait faire sans deviner ; tout le reste est écrit
 
 ## 0.1.0-alpha8
 
+### L'orchestration de reprise descend du bundle vers le cœur
+
+- `Gplanchat\Durable\Bundle\Handler\ResumeWorkflowHandler` → `Gplanchat\Durable\Handler\ResumeWorkflowHandler`
+- `Gplanchat\Durable\Bundle\Handler\FireWorkflowTimersHandler` → `Gplanchat\Durable\Handler\FireWorkflowTimersHandler`
+- `Gplanchat\Durable\Bundle\Support\AsyncChildWorkflowFailureProjector` → `Gplanchat\Durable\Workflow\AsyncChildWorkflowFailureProjector`
+
+**Pourquoi** — ce n'était pas un adaptateur d'hôte. Sur **279 lignes, 21 touchaient Symfony**
+(imports compris), et ces 21 ne servaient qu'à deux choses : un identifiant v7, que
+`ExecutionId::generate()` fabrique déjà dans le cœur, et « publier le réveil des minuteries après
+l'unité de travail courante ». La seconde est devenue le port
+`Gplanchat\Durable\Port\WorkflowTimerDispatcher`, dont le bundle fournit l'implémentation
+Messenger. Six hôtes du sélecteur ne passent pas par le bundle : les y laisser aurait voulu dire
+autant de copies de la sémantique de reprise, divergentes à la première correction.
+
+**Ce que Rector fait** — les trois renommages. **Ce que vous avez à faire** — rien de plus, si vous
+utilisiez ces classes indirectement : le bundle les câble toujours, aux mêmes identifiants de
+service. Le `cache:clear` reste nécessaire, pour la raison ci-dessous.
+
+⚠ **Si vous aviez votre propre implémentation** de `WorkflowTimerDispatcher` avant qu'il existe —
+c'est impossible, il est neuf — rien à faire. Mais si vous injectiez un `MessageBusInterface` dans
+un décorateur de ces gestionnaires, le septième argument de `ResumeWorkflowHandler` et le quatrième
+de `FireWorkflowTimersHandler` sont désormais un `WorkflowTimerDispatcher`, pas un bus.
+
 ### `TimerWakeDelayCalculator` descend du bundle vers le cœur
 
 `Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator` devient

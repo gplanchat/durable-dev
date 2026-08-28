@@ -36,13 +36,14 @@ use Gplanchat\Durable\Bundle\EventListener\ResetDurableProfilerListener;
 use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler;
-use Gplanchat\Durable\Bundle\Handler\FireWorkflowTimersHandler;
-use Gplanchat\Durable\Bundle\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Bundle\Messenger\MessengerWorkflowResumeDispatcher;
 use Gplanchat\Durable\Bundle\Messenger\WorkflowRunDispatchProfilerMiddleware;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
 use Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport;
+use Gplanchat\Durable\Bundle\Transport\MessengerWorkflowTimerDispatcher;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
+use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
+use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\ParentChildWorkflowCoordinator;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
@@ -51,6 +52,7 @@ use Gplanchat\Durable\Port\ParentChildWorkflowCoordinatorInterface;
 use Gplanchat\Durable\Port\WorkflowBackendInterface;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
+use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
 use Gplanchat\Durable\Query\WorkflowQueryRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
@@ -546,12 +548,17 @@ final class DurableExtension extends Extension
             ->addTag('messenger.message_handler')
         ;
 
+        $container->register(MessengerWorkflowTimerDispatcher::class)
+            ->setArguments([new Reference('messenger.default_bus')])
+        ;
+        $container->setAlias(WorkflowTimerDispatcher::class, MessengerWorkflowTimerDispatcher::class);
+
         $container->register(FireWorkflowTimersHandler::class)
             ->setArguments([
                 new Reference(EventStoreInterface::class),
                 new Reference(\Gplanchat\Durable\ExecutionRuntime::class),
                 new Reference(WorkflowResumeDispatcher::class),
-                new Reference('messenger.routable_message_bus'),
+                new Reference(WorkflowTimerDispatcher::class),
             ])
             ->addTag('messenger.message_handler')
         ;
@@ -648,7 +655,7 @@ final class DurableExtension extends Extension
                     new Reference(WorkflowResumeDispatcher::class),
                     new Reference(EventStoreInterface::class),
                     new Reference(ChildWorkflowParentLinkStoreInterface::class),
-                    new Reference('messenger.default_bus'),
+                    new Reference(WorkflowTimerDispatcher::class),
                     new Reference(WorkflowDefinitionLoader::class),
                 ])
                 ->addTag('messenger.message_handler')

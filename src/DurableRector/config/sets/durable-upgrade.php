@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
+use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
+use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Timer\TimerWakeDelayCalculator;
+use Gplanchat\Durable\Workflow\AsyncChildWorkflowFailureProjector;
 use Rector\Config\RectorConfig;
 use Rector\Renaming\Rector\Name\RenameClassRector;
 
@@ -35,6 +38,14 @@ return RectorConfig::configure()
         // pour une raison plus grave : `InMemoryWorkflowRunner`, qui **est** du cœur, l'appelait.
         // Un hôte qui n'installe pas le bundle prenait une erreur fatale à la première reprise.
         'Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator' => TimerWakeDelayCalculator::class,
+
+        // 0.1.0-alpha8 — l'orchestration de reprise descend au cœur. Sur 279 lignes, 21 touchaient
+        // Symfony, et elles ne servaient qu'à deux choses : un identifiant v7 et le réveil des
+        // minuteries. La première est déjà dans le cœur, la seconde est devenue un port. Six hôtes
+        // du sélecteur ne passent pas par le bundle et auraient dû en porter chacun une copie.
+        'Gplanchat\Durable\Bundle\Handler\ResumeWorkflowHandler' => ResumeWorkflowHandler::class,
+        'Gplanchat\Durable\Bundle\Handler\FireWorkflowTimersHandler' => FireWorkflowTimersHandler::class,
+        'Gplanchat\Durable\Bundle\Support\AsyncChildWorkflowFailureProjector' => AsyncChildWorkflowFailureProjector::class,
 
         // 0.1.0-alpha8 — tout attribut de déclaration prend le préfixe `As`. Le dépôt en portait
         // deux conventions : le cœur nommait ses attributs sans préfixe, le bundle Symfony en avait
