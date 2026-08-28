@@ -137,7 +137,10 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   php-version: ${{ matrix.php-version }}
-                  extensions: mbstring, sqlite3, pdo_sqlite
+                  # grpc comme la matrice Symfony : la racine requiert le pont Temporal, qui exige
+                  # ext-grpc. Sans elle, `composer update` échoue avant d'avoir résolu quoi que ce
+                  # soit d'Illuminate — la matrice mesurerait l'absence d'une extension.
+                  extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
 
             # Mise à jour partielle, même raison que côté Symfony : seule la dimension Laravel
