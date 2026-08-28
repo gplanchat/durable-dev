@@ -50,9 +50,18 @@ class History extends Action implements HttpGetActionInterface
 
     public function execute(): ResultInterface
     {
+        /*
+         * ⚠ `Magento\Framework\View\Result\PageFactory` ne rend pas une page de framework dans
+         * l'aire d'administration : `module-backend/etc/adminhtml/di.xml` lui passe
+         * `instanceName = Magento\Backend\Model\View\Result\Page`, et c'est cette page-là qui
+         * porte `setActiveMenu()`. L'annotation dit à l'analyse ce que le conteneur fait, plutôt
+         * que de faire taire l'erreur : c'est vérifiable dans le `di.xml` cité.
+         */
+        /** @var \Magento\Backend\Model\View\Result\Page $page */
         $page = $this->pageFactory->create();
         $page->setActiveMenu('Gplanchat_DurableModule::process_history');
-        $page->getConfig()->getTitle()->prepend(__('Process history'));
+        // `Title::prepend()` déclare `string` ; `__()` rend une `Phrase`, rendue ici de toute façon.
+        $page->getConfig()->getTitle()->prepend((string) __('Process history'));
 
         return $page;
     }

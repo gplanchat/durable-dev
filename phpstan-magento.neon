@@ -1,0 +1,22 @@
+# L'analyse du module Magento, à part.
+#
+# ⚠ Elle ne peut pas rejoindre `phpstan.neon` : le module parle à des classes que ce dépôt
+# n'installe pas — la distribution pèse près d'un gigaoctet et n'a rien à faire dans les
+# dépendances du composant. Elle tourne donc dans le job qui l'installe déjà, celui qui démarre le
+# banc, et lit les classes réelles plutôt que des bouchons écrits à la main. Un bouchon approximatif
+# ne fait pas d'erreur : il en cache.
+#
+# `scanDirectories` et non `paths` pour tout le reste : les classes sont découvertes, pas analysées.
+# Le cœur y est aussi, parce que le module en lit les modèles d'observation.
+includes:
+    - src/DurablePhpstan/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - src/DurableModule
+    scanDirectories:
+        - src/Durable
+        - src/Bridge/Temporal
+        - magento/vendor/mage-os
+        - magento/vendor/laminas
