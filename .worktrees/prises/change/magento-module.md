@@ -23,7 +23,26 @@ partagé entre processus). Le delta de spec a suivi — l'exigence parle désorm
 de processus qu'un exploitant supervise déjà, et interdit explicitement une
 seconde file.
 
-Prochaine tranche : **le worker d'activités Temporal**, qui ferme la 5.3 — c'est
+Tranche **en cours** : **5.3, le worker d'activités Temporal**, celle qui ferme
+l'acceptation du change.
+
+Ce que la 5.3 a mesuré et qui dit quoi construire : la carte n'est pas
+re-débitée (trois relances, un débit), mais l'exécution ne repart pas —
+`WorkflowStuckException`, parce que `reserve` avait été distribuée dans le
+transport en mémoire du processus mort. Il manque donc **deux** choses, pas une :
+
+1. un **worker d'activités** (`TemporalActivityWorker`), sur le modèle du worker
+   de journal déjà livré — la recette tient en dix lignes dans
+   `tests/integration/Temporal/worker.php`, et son journal y est un
+   `InMemoryEventStore` de travail : sur Temporal, le résultat d'une activité
+   repart par le RPC, pas par le journal ;
+2. un chemin pour **démarrer une exécution sur la grappe** plutôt que dans le
+   processus courant. `MagentoRuntime::run()` exécute ici, donc ses activités
+   partent dans le transport en mémoire quoi qu'il arrive. Le pont a ce qu'il
+   faut : `WorkflowClient::startAsync()` et `pollForCompletion()`.
+
+`durable:worker` gagnera `--role=journal|activity` — « un processus, une file,
+un rôle », ce que le worker d'intégration dit déjà de lui-même.
 lui qui manquait quand l'exécution restait coincée sur une activité distribuée
 en mémoire.
 
