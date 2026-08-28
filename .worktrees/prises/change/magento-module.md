@@ -171,15 +171,23 @@ gardé : `ActivityMessage` ⇄ JSON, refusant `options` et `retryDelay` **en les
 nommant** plutôt qu'en les perdant. Mesuré d'abord — une activité ordinaire n'en
 porte aucun des deux.
 
-⛔ **attend:auteur — la suite de la tâche 4 est un arbitrage.** Les cinq rôles ne
+✅ **Arbitré le 28/08 : les 279 lignes descendent au cœur.** Les cinq rôles ne
 sont pas cinq gestionnaires minces : `ResumeWorkflowHandler` fait **138 lignes
 avec 15 imports du cœur**, `FireWorkflowTimersHandler` 86 de plus. C'est
 l'orchestration de reprise du moteur en veste Symfony, pas un adaptateur d'hôte.
-Magento doit soit **dupliquer** ces 224 lignes — deux copies de la sémantique de
-reprise, qui divergeront à la première correction — soit les faire **descendre
-au cœur**, même geste que pour `TimerWakeDelayCalculator` et
-`PayloadToContractMethodInvoker`, mais d'un ordre de grandeur au-dessus et
-touchant une classe que tout utilisateur Symfony exécute.
+Chiffré avant d'arbitrer : **279 lignes, dont 21 touchent Symfony** (imports
+compris), et les 21 se réduisent à deux choses — `Uuid::v7()`, que
+`ExecutionId::generate()` remplace déjà dans le cœur, et « publier
+`FireWorkflowTimersMessage`, éventuellement différé, après l'unité de travail
+courante », qui demande **un port**, de la forme de `WorkflowResumeDispatcher`.
+`AsyncChildWorkflowFailureProjector` (55 lignes) n'a aucun import Symfony.
+Six hôtes du sélecteur ne passent pas par le bundle : le coût de l'alternative
+n'est pas 279 lignes, c'est 279 × 6 plus la divergence.
+
+⚠ Le seul endroit qui pourrait n'être pas mécanique : `DispatchAfterCurrentBusStamp`,
+la seule ligne portant une garantie propre à Messenger — « ne redistribue pas
+tant que le message courant n'est pas fini ». Le port doit décider ce que ça veut
+dire sans bus.
 
 Note : `main` a apporté les sept renommages d'attributs de la session Nexus
 (`Workflow` → `AsWorkflow`, etc.). Le module a été migré **par le set
