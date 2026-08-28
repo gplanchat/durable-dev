@@ -80,10 +80,42 @@ either confirms a design or replaces it.
       it, `tries` goes back to meaning *crashes*, the release delay is a tuning knob rather than a
       workaround, and the ceiling in failure mode 2 disappears because nobody waits inside a
       worker slot.
-- [ ] 1.3 **Probe whether the configured store locks across processes.** Confirm `array` type-checks
-      as a `LockProvider` and fails to exclude across two worker processes. Decide whether the
-      provider can refuse it at boot, and whether that refusal can be wrong (a single-worker
-      deployment where `array` is correct).
+- [x] 1.3 **Probe whether the configured store locks across processes.** It does not, and the task
+      under-estimated the problem: the bridge's own documentation was **wrong in both directions**.
+
+      `README.md`, the `ResumeLock` docblock and the `composer.json` suggest all claimed that
+      `LockProvider` *"forces the caller to pick a store that can actually lock"*, and that
+      *"the `file` store does not implement it"*. On Laravel 12, **nine** stores implement it —
+      `ArrayStore`, `DatabaseStore`, `DynamoDbStore`, `FailoverStore`, `FileStore`,
+      `MemcachedStore`, `MemoizedStore`, `NullStore`, `RedisStore`. `file` is among them **and it
+      locks correctly across processes**. And `NullStore` is among them, whose `NoLock::acquire()`
+      is `return true;`.
+
+      Measured — twenty resumes of one execution, four `queue:work`, 200 ms of critical section:
+
+      | store | overlapping sections | max concurrency | verdict |
+      |---|---|---|---|
+      | `database` | 0 / 20 | 1 | excludes |
+      | `file` | 0 / 20 | 1 | excludes — **the documentation said it could not** |
+      | `array` | **15 / 20** | **4** | per-process only |
+      | `null` | **15 / 20** | **4** | excludes nothing, silently |
+
+      Max concurrency is the worker count in both failing rows: the lock is not slowing anything
+      down, it is absent. That is a forked journal and duplicated activities — the exact failure
+      DUR030 names — from a one-word cache setting.
+
+      **The three files are corrected in this slice.** A claim that the type system guards you is
+      worse than no claim: it is the reason nobody checks the setting.
+
+      **The decision the task asked for, and it splits in two.**
+
+      - **`null` is refused at boot, always.** There is no deployment in which a lock that always
+        grants is correct, so there is no risk of a wrong refusal.
+      - **`array` is *not* refused at boot, and is refused by the worker command.** Refusing it at
+        boot would break every application test suite, because `array` is Laravel's own default
+        cache in the testing environment and excluding correctly inside one process is exactly what
+        a test needs. What cannot be right is `array` under a command whose whole purpose is to be
+        one of several processes. The knowledge lives where the plurality does.
 - [ ] 1.4 **Measure class discovery.** Boot cost of an explicit `config/durable.php` list against a
       scan, on an application with a hundred classes and none of them workflows. Whether a cached
       manifest earns a command depends on this number.
