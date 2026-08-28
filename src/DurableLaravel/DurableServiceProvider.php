@@ -10,7 +10,11 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
+use Gplanchat\Durable\Laravel\Queue\LaravelActivityTransport;
+use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowResumeDispatcher;
 use Gplanchat\Durable\Laravel\Workflow\DeclaredWorkflowTypes;
+use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
+use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
@@ -19,9 +23,13 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
+use Gplanchat\Durable\Transport\ActivityTransportInterface;
+use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\WorkflowRegistry;
 use Illuminate\Cache\NullStore;
+use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Database\Connection;
+use Illuminate\Queue\SyncQueue;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -54,6 +62,7 @@ final class DurableServiceProvider extends ServiceProvider
         }
 
         $backend === 'illuminate' ? $this->bindIlluminate($config) : $this->bindInMemory();
+        $this->bindActivityTransport($backend, $config);
         $this->bindResumeLock($config);
         $this->bindWorkflowRegistry($config);
     }
@@ -75,6 +84,13 @@ final class DurableServiceProvider extends ServiceProvider
         // l'environnement de test — ne peut être jugé que par la commande de worker.
         if ($this->app->bound('cache')) {
             $this->refuseALockStoreThatCannotLock();
+        }
+
+        // Et `sync` exécute le job sur place : une reprise qui en dispatche une autre récurserait
+        // dans le même processus. Le pendant Symfony s'en protège par un
+        // DispatchAfterCurrentBusStamp ; ici, c'est la connexion qui doit être une vraie file.
+        if ($this->app->bound('queue')) {
+            $this->refuseAQueueThatRunsInline();
         }
     }
 
@@ -150,6 +166,38 @@ final class DurableServiceProvider extends ServiceProvider
         );
     }
 
+    /**
+     * Le transport suit le backend, comme les quatre magasins : « memory » ne sort pas du
+     * processus, « illuminate » voyage sur la file que l'application draine déjà.
+     *
+     * @param array<string, mixed> $config
+     */
+    private function bindActivityTransport(string $backend, array $config): void
+    {
+        if ($backend !== 'illuminate') {
+            $this->app->singleton(ActivityTransportInterface::class, fn() => new InMemoryActivityTransport());
+            $this->app->singleton(WorkflowResumeDispatcher::class, fn() => new NullWorkflowResumeDispatcher());
+
+            return;
+        }
+
+        /** @var array<string, mixed> $queue */
+        $queue = $config['queue'] ?? [];
+
+        $this->app->singleton(ActivityTransportInterface::class, fn($app) => new LaravelActivityTransport(
+            $app->make(QueueFactory::class),
+            $queue['connection'] ?? null,
+            $queue['name'] ?? null,
+        ));
+
+        $this->app->singleton(WorkflowResumeDispatcher::class, fn($app) => new LaravelWorkflowResumeDispatcher(
+            $app->make(QueueFactory::class),
+            $app->make(WorkflowMetadataStore::class),
+            $queue['connection'] ?? null,
+            $queue['name'] ?? null,
+        ));
+    }
+
     /** @param array<string, mixed> $config */
     private function bindWorkflowRegistry(array $config): void
     {
@@ -185,6 +233,27 @@ final class DurableServiceProvider extends ServiceProvider
             (int) ($lock['ttl'] ?? 300),
             (int) ($lock['wait'] ?? 10),
         ));
+    }
+
+    private function refuseAQueueThatRunsInline(): void
+    {
+        $config = $this->durableConfig();
+        if (($config['backend'] ?? 'illuminate') !== 'illuminate') {
+            return;
+        }
+
+        /** @var array<string, mixed> $queue */
+        $queue = $config['queue'] ?? [];
+        $name = $queue['connection'] ?? null;
+
+        if ($this->app->make('queue')->connection($name) instanceof SyncQueue) {
+            throw new \InvalidArgumentException(\sprintf(
+                'Durable: the "%s" queue connection runs jobs inline, so a resume that dispatches '
+                . 'another resume recurses in the same process until the stack ends. Use a real '
+                . 'queue connection — database, redis, sqs, beanstalkd.',
+                $name ?? 'default',
+            ));
+        }
     }
 
     private function refuseALockStoreThatCannotLock(): void
