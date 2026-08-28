@@ -189,9 +189,28 @@ topic.
       `(t - t₀) / durée`. Sur une commande du banc, 23 événements sur 24 secondes : **91 % de la
       frise est un trou** entre la planification de la tâche et son démarrage — un fait que la liste
       de 23 lignes régulièrement espacées cachait activement.
-      ponytail: des repères, pas des barres. Une barre relierait la planification d'une activité à
-      sa complétion, or le port ne porte pas de quoi les corréler ; ce sera le port qu'il faudra
-      ouvrir, pas le gabarit.
+      *La suite a ouvert ce port : voir 3bis.6.*
+
+- [x] 3bis.6 **Une ligne par action, pas par nature — et la barre est la durée.** La première frise
+      rangeait par voie (« les activités », « les signaux »), ce qui obligeait l'exploitant à
+      recoller trois repères de l'œil pour savoir combien de temps *celle-là* avait duré. Une
+      activité planifiée, démarrée puis terminée est **une action et trois événements** ; le port
+      gagne donc un `actionKey`, et `null` y est une réponse — « cet événement est à lui seul son
+      action » — et non une absence.
+      Le lien existait déjà des deux côtés, c'est la traduction qui le jetait : le journal corrèle
+      par `activityId` / `timerId` / `scheduledEventId` ; Temporal corrèle par **numéro
+      d'événement**, tout ce qui suit une planification la désignant par `scheduledEventId`,
+      `startedEventId` ou `initiatedEventId` — trois accesseurs cherchés dans cet ordre, et
+      l'événement fondateur qui ne désigne personne se désigne lui-même.
+      ⚠ `getParentInitiatedEventId` est **volontairement hors de la liste** : il pointe vers
+      l'histoire du parent, et le confondre rattacherait le démarrage d'une exécution enfant à un
+      numéro d'un autre journal.
+      Au passage, un minuteur porte enfin son résumé : `TimerScheduled` nommait la classe, pas
+      l'attente.
+      Mesuré sur la commande du banc : 23 événements → **9 actions**, dont
+      `WORKFLOW TASK SCHEDULED` **22,0 s** (le worker n'était pas là), `durable.probe.reserve`
+      2,0 s, `durable.probe.charge` 11 ms. Rendu à travers Magento : 9 lignes, 9 barres, 23
+      dépliants.
 
 ## 4bis. What the CI can see of Magento
 

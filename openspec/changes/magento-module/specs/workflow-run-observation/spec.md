@@ -5,8 +5,15 @@
 ### Requirement: Reading a run's recorded history
 
 An operator SHALL be able to select a run and see the history recorded for it: its events in
-recorded order, a timeline of the operations the run performed, and — for each event — what the
+recorded order, a timeline of the **actions** the run performed, and — for each event — what the
 backend recorded with it.
+
+An action is not an event. An activity scheduled, started and completed is one action and three
+events; so is a timer, so is a Nexus operation. A timeline that ranks events by kind makes the
+operator recompose an action from three rows to answer the question they came with — how long did
+*that one* take. The observation model SHALL therefore carry, for each event, the action it belongs
+to, and SHALL say plainly when an event is an action on its own rather than leaving the surface to
+guess.
 
 A line answers *what happened*. The next question an operator asks, every time, is *with what* —
 the input an activity was called with, the value it returned, the class and message of a failure.
@@ -31,12 +38,21 @@ operators have said what they look for, and a fabrication before then.
 - **AND** an event the backend recorded nothing with stays a single line rather than an empty
   expander
 
-#### Scenario: The timeline separates kinds of operation
+#### Scenario: The timeline has one line per action, not per kind
 
-- **WHEN** an operator selects a run that scheduled activities and received signals
-- **THEN** the timeline shows the activities and the signals on distinct lanes
-- **AND** an activity lane is labelled with the name of the activity, not with an internal
-  identifier
+- **WHEN** an operator selects a run that scheduled an activity, which was then started and
+  completed
+- **THEN** the timeline shows those three events on a single line
+- **AND** that line is labelled with the name of the activity, not with an internal identifier
+- **AND** the line shows how long the action took, so the operator does not have to subtract two
+  timestamps read off two rows
+- **AND** two activities of the same name scheduled twice are two lines, not one
+
+#### Scenario: An event that is an action on its own
+
+- **WHEN** an event has no action to belong to, such as the start of the execution or a signal
+- **THEN** it occupies a line of its own
+- **AND** it is not merged into a line with events it has nothing to do with
 
 #### Scenario: The timeline shows waiting, not just order
 

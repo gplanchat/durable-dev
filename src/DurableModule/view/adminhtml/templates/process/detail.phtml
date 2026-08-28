@@ -38,33 +38,39 @@ $events = $block->getEvents();
             <div class="admin__page-section-title">
                 <span class="title"><?= $escaper->escapeHtml(__('Timeline')) ?></span>
             </div>
-            <?php /* Une feuille de style à déployer pour six règles coûterait plus cher à
+            <?php /* Une feuille de style à déployer pour quelques règles coûterait plus cher à
                      l'exploitant qu'elle ne rapporte : un `<style>` ici suit le gabarit. */ ?>
             <style>
                 .durable-frieze { margin: 0 0 1rem; }
-                .durable-frieze-lane { display: flex; align-items: center; gap: .75rem; margin-bottom: .35rem; }
-                .durable-frieze-name { flex: 0 0 7rem; text-align: right; font-size: 1.2rem; text-transform: capitalize; color: #575757; }
-                .durable-frieze-track { position: relative; flex: 1 1 auto; height: 1.6rem; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: .3rem; }
-                .durable-frieze-mark { position: absolute; top: .3rem; width: .9rem; height: .9rem; margin-left: -.45rem; border-radius: 50%; background: #007bdb; }
-                .durable-frieze-mark.execution { background: #514943; }
-                .durable-frieze-mark.activity { background: #007bdb; }
-                .durable-frieze-mark.signal { background: #eb5202; }
-                .durable-frieze-mark.update { background: #7c5ac1; }
-                .durable-frieze-mark.nexus { background: #008000; }
-                .durable-frieze-mark.other { background: #a79d95; }
-                .durable-frieze-scale { display: flex; justify-content: space-between; font-size: 1.1rem; color: #757575; padding-left: 7.75rem; }
+                .durable-frieze-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .3rem; }
+                .durable-frieze-name { flex: 0 0 16rem; text-align: right; font-size: 1.2rem; color: #303030; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                .durable-frieze-track { position: relative; flex: 1 1 auto; height: 1.8rem; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: .3rem; }
+                .durable-frieze-bar { position: absolute; top: .4rem; height: 1rem; min-width: .2rem; border-radius: .5rem; opacity: .35; background: #007bdb; }
+                .durable-frieze-mark { position: absolute; top: .55rem; width: .7rem; height: .7rem; margin-left: -.35rem; border-radius: 50%; background: #007bdb; }
+                .durable-frieze-bar.execution, .durable-frieze-mark.execution { background: #514943; }
+                .durable-frieze-bar.activity, .durable-frieze-mark.activity { background: #007bdb; }
+                .durable-frieze-bar.signal, .durable-frieze-mark.signal { background: #eb5202; }
+                .durable-frieze-bar.update, .durable-frieze-mark.update { background: #7c5ac1; }
+                .durable-frieze-bar.nexus, .durable-frieze-mark.nexus { background: #008000; }
+                .durable-frieze-bar.other, .durable-frieze-mark.other { background: #a79d95; }
+                .durable-frieze-took { flex: 0 0 6rem; font-size: 1.1rem; color: #757575; }
+                .durable-frieze-scale { display: flex; justify-content: space-between; font-size: 1.1rem; color: #757575; padding: 0 6.75rem 0 16.75rem; }
             </style>
             <div class="durable-frieze">
-                <?php foreach ($timeline['lanes'] as $lane): ?>
-                    <div class="durable-frieze-lane">
-                        <span class="durable-frieze-name"><?= $escaper->escapeHtml($lane['kind']) ?></span>
+                <?php foreach ($timeline['actions'] as $action): ?>
+                    <div class="durable-frieze-row">
+                        <span class="durable-frieze-name" title="<?= $escaper->escapeHtmlAttr($action['label']) ?>"><?= $escaper->escapeHtml($action['label']) ?></span>
                         <div class="durable-frieze-track">
-                            <?php foreach ($lane['marks'] as $mark): ?>
-                                <span class="durable-frieze-mark <?= $escaper->escapeHtmlAttr($lane['kind']) ?>"
+                            <?php /* La barre est la durée de l'action ; les repères sont ses événements. */ ?>
+                            <span class="durable-frieze-bar <?= $escaper->escapeHtmlAttr($action['kind']) ?>"
+                                  style="left: <?= $escaper->escapeHtmlAttr(number_format($action['from'], 3, '.', '')) ?>%; width: <?= $escaper->escapeHtmlAttr(number_format($action['width'], 3, '.', '')) ?>%"></span>
+                            <?php foreach ($action['marks'] as $mark): ?>
+                                <span class="durable-frieze-mark <?= $escaper->escapeHtmlAttr($action['kind']) ?>"
                                       style="left: <?= $escaper->escapeHtmlAttr(number_format($mark['at'], 3, '.', '')) ?>%"
                                       title="<?= $escaper->escapeHtmlAttr($mark['title']) ?>"></span>
                             <?php endforeach; ?>
                         </div>
+                        <span class="durable-frieze-took"><?= $escaper->escapeHtml($action['duration']) ?></span>
                     </div>
                 <?php endforeach; ?>
                 <div class="durable-frieze-scale">

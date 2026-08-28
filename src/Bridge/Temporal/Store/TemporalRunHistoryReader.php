@@ -38,6 +38,24 @@ final class TemporalRunHistoryReader
         'lastCompletionResult' => 'getLastCompletionResult',
     ];
 
+    /**
+     * Les renvois vers l'événement fondateur d'une action, dans l'ordre où ils font autorité.
+     *
+     * @var list<string>
+     */
+    private const CORRELATION_GETTERS = [
+        'getScheduledEventId',
+        'getStartedEventId',
+        'getInitiatedEventId',
+    ];
+
+    /**
+     * Ce qui ouvre une action sans désigner personne : un minuteur démarré, une activité planifiée.
+     *
+     * @var list<string>
+     */
+    private const FOUNDING_SUFFIXES = ['_SCHEDULED', '_STARTED', '_INITIATED'];
+
     public function __construct(
         private readonly TemporalHistoryCursor $cursor,
     ) {}
@@ -61,10 +79,59 @@ final class TemporalRunHistoryReader
                 self::kindOf($type),
                 self::labelOf($event, $type),
                 self::detailsOf($event),
+                self::actionKeyOf($event, $type),
             );
         }
 
         return $history;
+    }
+
+    /**
+     * L'action dont l'événement fait partie — celle dont il est le troisième acte, ou le premier.
+     *
+     * Temporal corrèle par **numéro d'événement** : tout ce qui arrive après une planification la
+     * désigne par `scheduledEventId`, `startedEventId` ou `initiatedEventId` selon la famille. La
+     * clé est donc l'événement fondateur, et les trois accesseurs se cherchent dans cet ordre —
+     * une tâche de workflow terminée porte les deux premiers, et c'est la planification qui ouvre
+     * l'action.
+     *
+     * Un événement fondateur qui ne désigne personne se désigne lui-même : sans quoi une activité
+     * planifiée n'appartiendrait pas à l'action qu'elle ouvre.
+     *
+     * ⚠ `getParentInitiatedEventId` — que porte le démarrage d'une exécution enfant — n'est
+     * volontairement pas dans la liste : il pointe vers l'histoire du **parent**, pas vers une
+     * action de celle-ci. Le confondre rattacherait le démarrage à un numéro d'un autre journal.
+     */
+    private static function actionKeyOf(HistoryEvent $event, string $eventType): ?string
+    {
+        $which = $event->getAttributes();
+        if ('' === $which) {
+            return null;
+        }
+
+        $attributes = $event->{'get' . str_replace('_', '', ucwords($which, '_'))}();
+        if (!$attributes instanceof Message) {
+            return null;
+        }
+
+        foreach (self::CORRELATION_GETTERS as $getter) {
+            if (!method_exists($attributes, $getter)) {
+                continue;
+            }
+
+            $founder = (int) $attributes->{$getter}();
+            if ($founder > 0) {
+                return 'event:' . $founder;
+            }
+        }
+
+        foreach (self::FOUNDING_SUFFIXES as $suffix) {
+            if (str_ends_with($eventType, $suffix)) {
+                return 'event:' . $event->getEventId();
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -80,22 +80,18 @@ class ProcessDetail extends Template
     }
 
     /**
-     * La frise : les événements placés dans le temps, une voie par nature.
+     * La frise : une ligne par **action**, placée dans le temps.
      *
-     * Le tableau répond « dans quel ordre », la frise répond « quand, et pendant combien de temps
-     * il ne s'est rien passé ». C'est la deuxième qui montre l'attente — le trou de vingt secondes
-     * entre la planification d'une activité et son résultat est un fait qu'une liste de lignes
-     * régulièrement espacées cache activement.
+     * Une activité planifiée, démarrée puis terminée est une action et trois événements. Ranger par
+     * nature — « les activités », « les signaux » — obligeait l'exploitant à recoller trois repères
+     * de l'œil pour savoir combien de temps *celle-là* avait duré. Une ligne par action répond à la
+     * question directement : la barre est la durée.
      *
      * L'échelle va du premier au dernier événement enregistré, pas du début à la fin de
      * l'exécution : une exécution en cours n'a pas de fin, et une frise qui s'arrête au dernier
      * fait connu ne prétend rien savoir de plus.
      *
-     * ponytail: repères ponctuels, pas de barres. Une barre demanderait de relier la planification
-     * d'une activité à sa complétion, or `WorkflowRunEvent` ne porte pas de quoi les corréler — le
-     * jour où ça manquera, c'est le port qu'il faudra ouvrir, pas ce gabarit.
-     *
-     * @return array{span: string, lanes: list<array{kind: string, marks: list<array{at: float, title: string}>}>}|null
+     * @return array{span: string, actions: list<array{kind: string, label: string, duration: string, from: float, width: float, marks: list<array{at: float, title: string}>}>}|null
      */
     public function getTimeline(): ?array
     {
@@ -104,38 +100,58 @@ class ProcessDetail extends Template
             return null;
         }
 
-        $moments = array_map(
-            static fn(WorkflowRunEvent $event): float => (float) $event->recordedAt->format('U.u'),
-            $events,
-        );
+        $moments = [];
+        $grouped = [];
+        foreach ($events as $event) {
+            $moments[$event->sequence] = (float) $event->recordedAt->format('U.u');
+            // Un événement sans action est à lui seul la sienne : sa séquence suffit à le
+            // distinguer, et il occupe sa ligne comme n'importe quelle autre action.
+            $grouped[$event->actionKey ?? ('#' . $event->sequence)][] = $event;
+        }
+
         $first = min($moments);
         $span = max($moments) - $first;
 
-        $lanes = [];
-        foreach ($events as $index => $event) {
-            // Sans durée — un seul événement, ou tous dans la même microseconde — tout se pose à
-            // gauche. Étaler par rang ferait passer un ordre pour une durée.
-            $lanes[$event->kind->value][] = [
-                'at' => $span > 0.0 ? ($moments[$index] - $first) / $span * 100.0 : 0.0,
-                'title' => \sprintf(
-                    '#%d · %s · %s',
-                    $event->sequence,
-                    $event->recordedAt->format('H:i:s.v'),
-                    $event->label,
+        $actions = [];
+        foreach ($grouped as $group) {
+            $opening = $group[0];
+            $closing = $group[\count($group) - 1];
+            $from = $moments[$opening->sequence];
+            $to = $moments[$closing->sequence];
+
+            $actions[] = [
+                'kind' => $opening->kind->value,
+                // Le nom de l'action est celui de l'événement qui l'ouvre : c'est la planification
+                // qui connaît le nom de l'activité, ses suites ne portent qu'un numéro.
+                'label' => $opening->label,
+                'duration' => $this->formatSpan($to - $from),
+                'from' => $this->scale($from - $first, $span),
+                'width' => $this->scale($to - $from, $span),
+                'marks' => array_map(
+                    fn(WorkflowRunEvent $event): array => [
+                        'at' => $this->scale($moments[$event->sequence] - $first, $span),
+                        'title' => \sprintf(
+                            '#%d · %s · %s',
+                            $event->sequence,
+                            $event->recordedAt->format('H:i:s.v'),
+                            $event->label,
+                        ),
+                    ],
+                    $group,
                 ),
             ];
         }
 
-        return [
-            'span' => $this->formatSpan($span),
-            // Une voie que le backend n'alimente jamais n'apparaît pas : la faire figurer vide
-            // ferait passer une notion absente pour une exécution qui n'en a pas eu.
-            'lanes' => array_map(
-                static fn(string $kind, array $marks): array => ['kind' => $kind, 'marks' => $marks],
-                array_keys($lanes),
-                $lanes,
-            ),
-        ];
+        return ['span' => $this->formatSpan($span), 'actions' => $actions];
+    }
+
+    /**
+     * Sans durée — une seule action, ou tout dans la même microseconde — tout se pose à gauche.
+     * Étaler par rang ferait passer un ordre pour une durée.
+     */
+    private function scale(float $seconds, float $span): float
+    {
+        return $span > 0.0 ? $seconds / $span * 100.0 : 0.0;
     }
 
     private function formatSpan(float $seconds): string
