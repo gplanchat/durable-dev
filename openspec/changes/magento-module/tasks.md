@@ -45,9 +45,15 @@ unmeasured.
       **But the backend answers `true` without locking anything when `isDbAvailable()` is false**
       (read, not measured), which is the shape the startup refusal of §2.3 has to catch: a lock that
       always says yes is worse than none.
-- [ ] 1.5 How a Magento consumer behaves against a **long-poll** transport, which is what the
-      Temporal bridge's workers are. A consumer runner that assumes short messages may starve or
-      time out; if it does, the worker shape changes and task 4 changes with it.
+- [x] 1.5 **A long-poll transport does not starve the consumer — it duplicates the message.**
+      Measured. A handler held a message 200 s and finished normally: the runner sets no deadline,
+      and the bench's MySQL `wait_timeout` is 28800 s. But the retry timer looks only at
+      `updated_at`, never at whether the first consumer is done: with the delay shortened to a
+      minute, **two live processes ran the same message at once** (pids 442111 and 445235). A
+      worker holds its message by construction and outlives any delay, so **the worker cannot be a
+      queue message** — §5.1's `bin/magento` commands stop being a preference. And Magento's queue
+      offers no mutual exclusion at all, which makes §1.4's lock the only thing between two
+      consumers and a forked journal.
 
 ## 2. The module boots
 
@@ -57,9 +63,17 @@ unmeasured.
       recorded in `design.md`: Mage-OS's `composer-dependency-version-audit-plugin` refuses a path
       package that also exists on Packagist, and Magento's generated `Interceptor` cannot extend a
       `final` class — which is the house style everywhere else in this repository.
-- [ ] 2.3 A configuration surface for the backend choice, refusing DBAL and Illuminate **at
-      startup, by name**, the way the DBAL backend refuses Nexus. Not at the moment a workflow waits
-      on a journal nobody writes.
+- [x] 2.3 **Composer refuses the SQL bridges; no code does.** `gplanchat/durable-magento` declares
+      `conflict` on `gplanchat/durable-bridge-dbal` and `gplanchat/durable-bridge-illuminate`.
+      Measured on the bench: `composer require gplanchat/durable-bridge-dbal` ends in *"Conclusion:
+      remove gplanchat/durable-magento (conflict analysis result)"* and writes nothing. The
+      incoherent installation never exists, so no process boots into it.
+      **Author's decision on PR #172**, replacing a first version that had built the refusal in
+      code — a constraint the package manager can express does not belong in a runtime that only
+      learns of it after the wrong thing is installed. Consequence: the module has **no backend
+      configuration surface**, so there is nothing to mistype; §5 is where a second backend, and
+      therefore a choice, starts to exist. What `conflict` cannot carry is the *reason* — that stays
+      in `ALLOWED.magento`, the selector, and `design.md`.
 
 ## 3. Workflows and activities are discoverable
 

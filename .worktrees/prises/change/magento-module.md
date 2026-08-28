@@ -1,34 +1,50 @@
 # change/magento-module
 
-Worktree : `.claude/worktrees/magento`. PR **#168** — tranche **1.3**, verte
-(22/22), `CLEAN / MERGEABLE`, en attente de fusion par l'auteur.
+Worktree : `.claude/worktrees/magento`. PR **#175** — tranche **3.1**, verte
+(22/22), `CLEAN / MERGEABLE`, en attente de fusion. Tâche 1 finie (#168, #170) ;
+2.1, 2.2, 2.3 (#172), 3.1, 3.2.
 
-Ce qu'elle établit : un consommateur tué au milieu d'un message laisse la ligne
-`IN_PROGRESS` avec zéro essai et un verrou dans `queue_lock`, sans lettre morte
-ni trace. Le rattrapage demande deux tâches cron, et **leur ordre décide** : une
-reprise qui arrive avant la purge du verrou fait acquitter le message *sans le
-distribuer*. Les défauts livrés (un jour de reprise, purge horaire) sauvent la
-mise ; les raccourcir ne le fait plus.
+3.1 : `di.xml` porte deux tableaux — les classes de workflow et les objets
+gestionnaires d'activités. **Le contrat ne se déclare pas** : la fabrique lit
+les interfaces du gestionnaire et garde celles qui portent `#[ActivityMethod]`.
+Les noms d'activité viennent donc des attributs, et les trois fermetures
+écrites à la main dans la commande de démo ont disparu.
 
-L'instrument vit au **banc** (`magento/app/code/Gplanchat/DurableProbe`), pas
-dans le paquet publié : un sujet dont le gestionnaire ne fait que dormir n'est
-aucun des cinq rôles de la 4.1.
+**Le refus est le mécanisme.** `MagentoRuntime::run()` enregistrait au vol un
+workflow inconnu, ce qui rendait la déclaration vide de sens et laissait le
+`Scenario: An undeclared workflow fails at the moment of the mistake` faux
+depuis la 3.2. Il lève maintenant, en nommant la classe et l'argument de
+`di.xml`.
 
-Prochaine tranche : **1.5** — un consommateur face à un transport en longue
-interrogation. Le sujet de sonde de la #168 est déjà l'instrument.
+⚠ **Un point attend l'avis de l'auteur sur la #175** :
+`PayloadToContractMethodInvoker` est descendu de `durable-bundle` à `durable`
+parce que deux hôtes en ont besoin et qu'il n'importe rien de Symfony.
+`BREAKING CHANGE` traversant deux paquets — son nom pleinement qualifié est
+écrit dans le conteneur **compilé** des consommateurs. Le garder dans le bundle
+et faire porter au module ses ~30 lignes reste possible.
 
-⚠ Trois frictions du banc, à savoir avant d'y toucher :
-- les dépôts de chemin sont en `"symlink": false`, donc éditer `src/DurableModule`
-  ne change rien à `magento/vendor/gplanchat/durable-magento` tant qu'on n'y a
-  pas recopié les fichiers ;
-- un module d'`app/code` ne s'autocharge pas sur Mage-OS : son entrée `psr-4`
-  est dans `magento/composer.json`, et le message d'erreur ne désigne pas sa
-  cause ;
-- la copie principale portait des copies **non suivies** de l'overlay `magento/`
-  et de `src/DurableModule` qui bloquaient `git merge` — écartées vers un
-  scratchpad, le merge les a réécrites à l'identique.
+Prochaine tranche : **tâche 4** — `communication.xml`, `queue_topology.xml`,
+`queue_publisher.xml`, `queue_consumer.xml` pour les cinq rôles (4.1), les
+gestionnaires (4.2), et le verrou par exécution avec son test (4.3). Les quatre
+sondages de la tâche 1 l'ont dessinée : la file n'offre **aucune** exclusion
+mutuelle (1.5), le verrou de la 1.4 est donc la seule chose entre deux
+consommateurs et un journal bifurqué, et une reprise qui arrive avant la purge
+du verrou est acquittée sans être distribuée (1.3).
 
-Débris de banc laissés par la campagne, sans conséquence : des messages de sonde
-dans `queue_message`, deux lignes dans `queue_lock`, et une ligne
-`core_config_data` pour `retry_inprogress_after` (remise à `1440`, sa valeur
-livrée, mais la ligne n'existait pas avant).
+⚠ Frictions du banc, à savoir avant d'y toucher :
+- dépôts de chemin en `"symlink": false` : recopier dans
+  `magento/vendor/gplanchat/durable-magento` après chaque édition ; un
+  changement de **métadonnées** demande en plus
+  `composer update gplanchat/durable-magento`, qui lit la **copie principale** ;
+- un module d'`app/code` ne s'autocharge pas sur Mage-OS, son entrée `psr-4` est
+  dans `magento/composer.json` ;
+- **mesurer sur une file sale répond à côté** : `php probe-queue.php purge`
+  avant toute campagne ;
+- le worktree n'a pas de `vendor`. Pour PHPUnit sur son code, un `--bootstrap`
+  qui reprend l'autoloader de la copie principale et rebranche
+  `Gplanchat\\Durable\\`, `…\\Durable\\Bundle\\` et `…\\Durable\\Magento\\`
+  vers le worktree. Rebrancher le seul espace du module ne suffit pas dès que la
+  tranche touche le cœur — vécu sur celle-ci.
+
+Banc laissé propre : sonde purgée, `queue_lock` vide, `retry_inprogress_after`
+à 1440, `env.php` sans clef `durable`, `di.xml` restauré.
