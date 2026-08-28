@@ -514,8 +514,9 @@ and [DUR045](https://github.com/gplanchat/durable-dev/blob/main/documentation/ad
 | **Saga** | A dedicated helper. Durable has none — the shape is a deadline and a compensation path, written out in [Creating a workflow](../workflows/#bounding-a-wait-in-time), so what is missing is the sugar rather than the capability |
 | **API coverage** | Broad. Durable covers search attributes, cron schedules, updates, deadlines and child workflows — but search attributes are **start options** here, where the SDK also lets a running workflow upsert its own; anything beyond that is worth checking against the [Configuration reference](../configuration/) before you commit |
 
-A comparison with no losses column is marketing. These are real, and the versioning gap in
-particular should be weighed before choosing Durable for workflows expected to run for months.
+A comparison with no losses column is marketing. These are real — and **maturity** is the one that
+weighs most: `0.1.0-alpha` means breaking changes between versions, each shipped with its migration
+procedure, but breaking changes all the same.
 
 ---
 

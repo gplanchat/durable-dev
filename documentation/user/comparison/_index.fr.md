@@ -404,7 +404,37 @@ Moins de liberté, une classe d'erreurs éliminée au moment de l'analyse. Voir
 
 ---
 
-## 7. Nexus : le seul endroit où Durable est devant
+## 7. Le versionnage de workflow : ce n'est plus un manque
+
+Les deux laissent une même classe porter deux comportements, et laissent l'historique décider lequel
+une exécution voit :
+
+```php
+// SDK PHP Temporal
+$v = yield Workflow::getVersion('add-discount', Workflow::DEFAULT_VERSION, 1);
+
+// Durable
+$v = $this->environment->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
+```
+
+Le format sur le fil est le même, et pas par imitation : il a été lu dans un historique produit par
+le SDK Go, puis émis depuis le pont et accepté par le serveur. Une exécution Durable versionnée et
+une exécution Go versionnée enregistrent le **même** marqueur `Version` et le **même** attribut de
+recherche `TemporalChangeVersion` — les deux reviennent donc de la même requête quand on demande qui
+est encore sur une ancienne branche.
+
+Deux différences demeurent, et aucune ne porte sur la primitive :
+
+| | |
+|---|---|
+| **Versionnage des workers** | Identifiants de build, noms de déploiement, épinglage d'une exécution à une version de worker — le mécanisme d'exploitation qui vit dans le worker et la file, non dans le code du workflow. Le SDK l'a ; Durable non. |
+| **Savoir qu'une branche est morte** | Une requête, sur le backend Temporal, pour les deux. Sur les backends à journal de Durable il n'y a pas d'attributs de recherche : la question n'y a pas de réponse équivalente. |
+
+Voir [Changer un workflow qui tourne](../deploying/).
+
+---
+
+## 8. Nexus : le seul endroit où Durable est devant
 
 [Nexus](https://docs.temporal.io/nexus) achemine un appel d'un workflow vers une opération servie
 dans un autre espace de noms ou un autre cluster. **Un workflow Durable peut en appeler une, et
@@ -482,7 +512,7 @@ et [DUR045](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr
 
 ---
 
-## 8. Là où le SDK est devant
+## 9. Là où le SDK est devant
 
 | | |
 |---|---|
@@ -492,9 +522,9 @@ et [DUR045](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr
 | **Saga** | Un utilitaire dédié. Durable n'en a pas — la forme est une échéance et un chemin de compensation, écrits en toutes lettres dans [Écrire un workflow](../workflows/#bounding-a-wait-in-time) : ce qui manque est le sucre, pas la capacité |
 | **Couverture de l'API** | Large. Durable couvre les attributs de recherche, les planifications cron, les mises à jour, les échéances et les workflows enfants — mais les attributs de recherche sont ici des **options de démarrage**, là où le SDK laisse aussi un workflow en cours mettre à jour les siens ; au-delà, cela vaut d'être vérifié dans la [référence de configuration](../configuration/) avant de s'engager |
 
-Une comparaison sans colonne de pertes est du marketing. Celles-ci sont réelles, et le manque de
-versionnage en particulier mérite d'être pesé avant de choisir Durable pour des workflows censés
-tourner des mois.
+Une comparaison sans colonne de pertes est du marketing. Celles-ci sont réelles — et la maturité
+est celle qui pèse le plus lourd : `0.1.0-alpha` veut dire des ruptures entre versions, chacune
+livrée avec sa procédure de migration, mais des ruptures tout de même.
 
 ---
 
