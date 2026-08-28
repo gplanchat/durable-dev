@@ -193,7 +193,10 @@ jobs:
               with:
                   # 8.3 : plancher de Sylius Standard 2.2. Le plugin, lui, reste en >=8.2.
                   php-version: '8.3'
-                  extensions: intl, gd, pdo_mysql, mbstring, zip, curl, sodium, exif, fileinfo
+                  # grpc : la boutique sert une opération Nexus, et le pont Temporal en dépend.
+                  # Son tableau de bord, lui, n'en a toujours pas besoin — c'est DUR037, et
+                  # `temporal.journal: false` est ce qui garde les deux séparés.
+                  extensions: intl, gd, pdo_mysql, mbstring, zip, curl, sodium, exif, fileinfo, grpc
                   coverage: none
 
             # Les paquets du dépôt entrent par des dépôts `path` : la boutique lit `../src`, donc
