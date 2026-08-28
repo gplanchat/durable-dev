@@ -106,6 +106,12 @@ Vérification :
 php -m | grep grpc
 ```
 
+**Dans une image de conteneur, ne la recompilez pas.** `pecl install grpc` prend environ sept
+minutes, et votre construction d'image les paie sur chaque branche. Des extensions préconstruites
+sont publiées pour PHP 8.2 à 8.5, en versions thread-safe et non thread-safe — voir
+[gRPC dans votre image de conteneur](../container-images/) pour les recettes
+`COPY --from`, php-fpm, mod_php et FrankenPHP compris.
+
 ### Mise en place Docker Compose (local / intégration continue)
 
 Le dépôt fournit un `compose.yaml` prêt à l'emploi sous `symfony/`, qui démarre :

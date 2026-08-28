@@ -40,16 +40,35 @@ HERE = pathlib.Path(__file__).parent
 # Résolues depuis le composant du canevas. L'accent est recalculé par son
 # propre algorithme : il part de la teinte choisie et descend en luminosité
 # jusqu'à passer un contraste de 4,6 sur le fond du thème visé.
+#
+# La teinte choisie est l'émeraude `#1f6f5c`, un des quatre accents que propose
+# le canevas (`#b4552f` terracotta, `#1f6f5c` émeraude, `#2d5bb9` bleu,
+# `#8a3f7a` prune). Le canevas en tire `#207460` en clair et `#68d5bb` en
+# sombre ; ce sont ces deux valeurs-là, pas la graine, qui s'écrivent ici.
+# Changer de variante, c'est rejouer `themeAccent(graine, dark)` du canevas sur
+# la nouvelle graine — et penser au `--dz-accent` de `assets/_custom.scss`, qui
+# porte la même paire pour les pages de documentation.
+#
+# `accent2` est le second accent : les pastilles « Nexus · works today »,
+# « bundle today · plugin planned », le bord de l'encadré « With it ». Le canevas
+# le fige — il ne suit pas la variante d'accent — et il ne passait pas par cette
+# table : les 24 `var(--accent2, #2f6f6b)` du balisage tombaient donc tous sur
+# leur valeur de repli, y compris en thème sombre, où ce vert-bleu ne tenait que
+# 2,98 de contraste sur `bg2`. Il entre ici, donc il a maintenant ses deux
+# valeurs. La teinte vient du bleu du canevas (`#2d5bb9`) : l'émeraude est à
+# 166°, l'ancien vert-bleu à 176°, les deux se confondaient.
 PALETTE = {
     "light": {
         "bg": "#f7f4ef", "bg2": "#efe9df", "fg": "#1d1a16", "fg2": "#6c6459",
-        "line": "#ddd6ca", "accent": "#9e488b", "accent-fg": "#fdfaf6",
+        "line": "#ddd6ca", "accent": "#207460", "accent-fg": "#fdfaf6",
+        "accent2": "#2e5dbd",
         "code-bg": "#ffffff", "code-fg": "#1d1a16",
         "ck": "#a1341f", "cs": "#6b7d1f", "cc": "#9a9184", "cv": "#1c6b8a",
     },
     "dark": {
         "bg": "#141310", "bg2": "#1c1a17", "fg": "#eae5dc", "fg2": "#a09a90",
-        "line": "#2c2925", "accent": "#c27ab2", "accent-fg": "#170f0a",
+        "line": "#2c2925", "accent": "#68d5bb", "accent-fg": "#170f0a",
+        "accent2": "#638ad9",
         "code-bg": "#100f0d", "code-fg": "#eae5dc",
         "ck": "#e58a6a", "cs": "#a8bf62", "cc": "#6b665e", "cv": "#79b6cf",
     },
