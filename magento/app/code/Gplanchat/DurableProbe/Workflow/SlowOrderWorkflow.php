@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\DurableProbe\Workflow;
 
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\DurableProbe\Workflow\Activity\SlowOrderActivities;
 use Gplanchat\Durable\WorkflowEnvironment;
 
@@ -19,7 +18,7 @@ final class SlowOrderWorkflow
         private readonly WorkflowEnvironment $environment,
     ) {}
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $orderId, int $pauseSeconds = 0): string
     {
         $activities = $this->environment->activityStub(SlowOrderActivities::class);
