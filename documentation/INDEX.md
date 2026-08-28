@@ -62,6 +62,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR043 | The projection is a port, and the in-memory backend reads its own runs | [adr/DUR043-the-projection-is-a-port-and-in-memory-reads-itself.md](adr/DUR043-the-projection-is-a-port-and-in-memory-reads-itself.md) |
 | DUR044 | Declared change points | [adr/DUR044-declared-change-points.md](adr/DUR044-declared-change-points.md) |
 | DUR045 | Serving a Nexus operation: one worker, two shapes, and a refusal at startup | [adr/DUR045-serving-a-nexus-operation.md](adr/DUR045-serving-a-nexus-operation.md) |
+| DUR046 | Magento: a Tier 1 host, and the four things it changed about the core | [adr/DUR046-magento-a-tier-1-host-that-improved-the-core.md](adr/DUR046-magento-a-tier-1-host-that-improved-the-core.md) |
 
 ## Working agreements (WA)
 
