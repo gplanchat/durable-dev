@@ -123,13 +123,14 @@ remet tout d'aplomb.
 identique à ce que livre la #182, et le banc en a besoin pour tourner d'ici la
 fusion.
 
-Tranche **en cours** : **assainir `magento/README.md`**, qui décrit un module
-qui n'existe pas — `Gplanchat_DurableModule` (le module s'appelle
-`Gplanchat_Durable`), `gplanchat/durable-module` (nom abandonné), un tableau de
-bord sous *Stores > Configuration* avec des couloirs et une frise, une tranche
-« reasoning » de cinq activités, une commande `durable:sample`, et le port 7233
-là où le banc écoute sur 7234. Rien de tout ça n'existe. C'est la première chose
-que lit qui découvre le banc.
+**PR #185** — le README du banc décrit enfin le banc qui existe. Étaient partis :
+`Gplanchat_DurableModule`, `gplanchat/durable-module`, un tableau de bord sous
+*Stores > Configuration* avec frise et couloirs, un champ « Temporal DSN » dans
+l'administration, une tranche « reasoning » de cinq activités, une commande
+`durable:sample`, et le port 7233. Ajoutés : le tableau des ports, où vit le
+journal, les deux réserves de l'écran, les six contraintes d'hôte, comment faire
+suivre le banc quand le module change, et les sondes. Les commandes documentées
+ont été relancées avant d'être écrites.
 
 Reste ensuite : les workers de la 5.1, puis 5.2 et 5.3 ; la tâche 4 (la file de Magento)
 et la 4.3 ; puis la tâche 6.
