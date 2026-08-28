@@ -333,9 +333,45 @@ either confirms a design or replaces it.
 
 ## 4. One execution, one replay
 
-- [ ] 4.1 Wrap the resume job in `Queue\ResumeLock`, in whichever shape §1.2 measured to be right.
-- [ ] 4.2 A misconfigured lock store is refused or reported, per §1.3's answer.
-- [ ] 4.3 Two workers, one execution, one journal — proved by a test, not by the lock's existence.
+- [x] 4.1 Wrap the resume job in `Queue\ResumeLock`, in the shape §1.2 measured to be right:
+      **`tryAround()`**, which runs the work if the turn is free and returns `false` without waiting
+      if it is not. `around()` stays for callers that want to block; a queue worker is not one.
+
+      The lock now says only that the turn is taken. What the caller does about it — defer, give up,
+      log — is the caller's decision, which is the whole difference §1.2 measured: `around()` held
+      **fifteen worker-seconds for four seconds of work**, and its wait window is a queue-depth
+      ceiling dressed as a latency knob.
+
+      **The job re-dispatches itself rather than calling `release()`, and both reasons matter.**
+      `release()` needs the `InteractsWithQueue` trait — Laravel checks for the trait itself, not
+      for a `setJob()` method — so it needs `illuminate/queue`, which pulls `symfony/process ^7.2`
+      and makes this package irreconcilable with the Symfony 6.4 line the neighbouring matrix still
+      tests. But the packaging is the smaller half: §1.2 measured that **`release()` consumes an
+      attempt**, so at `--tries=5` fifteen resumes out of twenty landed in `failed_jobs` having
+      never run — contention became indistinguishable from a bug. A fresh job carries a fresh
+      budget, and `tries` goes back to counting crashes.
+
+      The price is real and named: nothing bounds the deferral on the queue's side any more.
+      `ResumeDeferral` bounds it, with `lock.backoff` and `lock.max_deferrals` — §1.5's reading,
+      since on a hot execution the backoff *is* the latency — and giving up **throws**, because an
+      endless deferral looks exactly like an execution that is progressing.
+- [x] 4.2 A misconfigured lock store is refused, and §1.3's answer gained its second half.
+
+      `null` was already refused at boot: it grants every lock, in every deployment. What §1.3 left
+      open was `array`, which it declined to refuse because it is Laravel's own testing default and
+      excluding inside one process is exactly what a test wants.
+
+      **That reasoning holds for the in-memory backend and collapses for `illuminate`.** A resume
+      runs in a worker process separate from whatever dispatched it, so two `array` locks never see
+      each other — 15 overlapping critical sections out of 20, measured in §1.3. It is therefore
+      refused at boot **when the backend is `illuminate`**, and still accepted under `memory`. Two
+      tests hold both halves.
+- [x] 4.3 Two workers, one execution, one journal — proved by a test, not by the lock's existence.
+      A turn already held by another worker: the resume **replays nothing**, the execution stays
+      incomplete, and the job comes back on the queue carrying its deferral count. A free turn
+      replays and queues nothing. And the lock is **released** afterwards, so the next resume gets
+      its turn instead of waiting out the five-minute TTL — the one failure a lock that works can
+      still cause.
 
 ## 5. Temporal, decided rather than deferred twice
 

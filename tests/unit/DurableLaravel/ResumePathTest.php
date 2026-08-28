@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Laravel;
 
+use Gplanchat\Bridge\Illuminate\Queue\ResumeLock;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
 use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowTimerDispatcher;
+use Gplanchat\Durable\Laravel\Queue\ResumeDeferral;
 use Gplanchat\Durable\Laravel\Queue\ResumeWorkflowJob;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
+use Illuminate\Cache\ArrayStore;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Database\Capsule\Manager;
@@ -46,8 +49,12 @@ final class ResumePathTest extends TestCase
         $metadata = $app->make(WorkflowMetadataStore::class);
         $metadata->save('exec-9', GreetingWorkflow::class, ['who' => 'Ada']);
 
-        (new ResumeWorkflowJob(new ResumeWorkflowMessage('exec-9')))
-            ->handle($app->make(ResumeWorkflowHandler::class));
+        (new ResumeWorkflowJob(new ResumeWorkflowMessage('exec-9')))->handle(
+            $app->make(ResumeWorkflowHandler::class),
+            new ResumeLock(new ArrayStore()),
+            new FakeQueueFactory(new FakeQueue()),
+            new ResumeDeferral(),
+        );
 
         self::assertTrue($metadata->get('exec-9')['completed'] ?? false);
     }

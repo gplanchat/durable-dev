@@ -18,6 +18,7 @@ use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Laravel\Queue\LaravelActivityTransport;
 use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowResumeDispatcher;
 use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowTimerDispatcher;
+use Gplanchat\Durable\Laravel\Queue\ResumeDeferral;
 use Gplanchat\Durable\Laravel\Workflow\DeclaredWorkflowTypes;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\NullWorkflowTimerDispatcher;
@@ -37,6 +38,7 @@ use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
+use Illuminate\Cache\ArrayStore;
 use Illuminate\Cache\NullStore;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Database\Connection;
@@ -76,6 +78,7 @@ final class DurableServiceProvider extends ServiceProvider
         $this->bindResumeLock($config);
         $this->bindWorkflowRegistry($config);
         $this->bindResumePath($config);
+        $this->bindResumeDeferral($config);
     }
 
     public function boot(): void
@@ -318,6 +321,22 @@ final class DurableServiceProvider extends ServiceProvider
         ));
     }
 
+    /** @param array<string, mixed> $config */
+    private function bindResumeDeferral(array $config): void
+    {
+        /** @var array<string, mixed> $lock */
+        $lock = $config['lock'] ?? [];
+        /** @var array<string, mixed> $queue */
+        $queue = $config['queue'] ?? [];
+
+        $this->app->singleton(ResumeDeferral::class, fn() => new ResumeDeferral(
+            (int) ($lock['backoff'] ?? 1),
+            (int) ($lock['max_deferrals'] ?? 50),
+            $queue['connection'] ?? null,
+            $queue['name'] ?? null,
+        ));
+    }
+
     private function refuseAQueueThatRunsInline(): void
     {
         $config = $this->durableConfig();
@@ -366,7 +385,22 @@ final class DurableServiceProvider extends ServiceProvider
         $lock = $this->durableConfig()['lock'] ?? [];
         $name = $lock['store'] ?? null;
 
-        if ($this->app->make('cache')->store($name)->getStore() instanceof NullStore) {
+        $store = $this->app->make('cache')->store($name)->getStore();
+
+        // §1.3 laissait passer `array` au démarrage parce que c'est le cache de test par défaut de
+        // Laravel, et qu'exclure dans un seul processus est ce qu'un test veut. Sous le backend
+        // `illuminate`, ça ne peut plus être vrai : la reprise tourne dans un worker séparé du
+        // processus qui l'a dispatchée, donc deux verrous « array » ne se voient jamais.
+        if ($store instanceof ArrayStore && ($this->durableConfig()['backend'] ?? 'illuminate') === 'illuminate') {
+            throw new \InvalidArgumentException(\sprintf(
+                'Durable: the "%s" cache store only excludes inside one process, and a resume runs '
+                . 'in a worker separate from whatever dispatched it — two workers would replay the '
+                . 'same execution. Use database, redis, memcached, dynamodb or file.',
+                $name ?? 'default',
+            ));
+        }
+
+        if ($store instanceof NullStore) {
             throw new \InvalidArgumentException(\sprintf(
                 'Durable: the "%s" cache store grants every lock, so two workers would replay the '
                 . 'same execution and its activities would run twice. Use database, redis, '
