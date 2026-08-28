@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "82b7852137c01292c34b9f1c81a3dd5f",
+    "content-hash": "0074ed06ea8592b370ac5f0dfee546b2",
     "packages": [
         {
             "name": "brick/math",
@@ -574,12 +574,16 @@
             "dist": {
                 "type": "path",
                 "url": "src/Bridge/Illuminate",
-                "reference": "baad4454e21bee2432eb979b539541b9dce9eba9"
+                "reference": "6946428d1fa3a241e1d907d36666a4c35bdec332"
             },
             "require": {
                 "gplanchat/durable": "self.version",
+                "illuminate/contracts": "^11.0 || ^12.0 || ^13.0",
                 "illuminate/database": "^11.0 || ^12.0 || ^13.0",
                 "php": ">=8.2"
+            },
+            "suggest": {
+                "illuminate/cache": "Required by Queue\\ResumeLock: a cache store that locks across processes — database, redis, memcached, dynamodb or file. Never array (per-process) or null (locks nothing): both implement LockProvider and neither excludes."
             },
             "type": "library",
             "extra": {
@@ -714,6 +718,54 @@
             }
         },
         {
+            "name": "gplanchat/durable-laravel",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "src/DurableLaravel",
+                "reference": "b16fe8996da96e5a28a3e80e04fc1ffa374a7303"
+            },
+            "require": {
+                "gplanchat/durable": "self.version",
+                "gplanchat/durable-bridge-illuminate": "self.version",
+                "illuminate/cache": "^11.0 || ^12.0 || ^13.0",
+                "illuminate/container": "^11.0 || ^12.0 || ^13.0",
+                "illuminate/contracts": "^11.0 || ^12.0 || ^13.0",
+                "illuminate/database": "^11.0 || ^12.0 || ^13.0",
+                "illuminate/support": "^11.0 || ^12.0 || ^13.0",
+                "php": ">=8.2"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                },
+                "laravel": {
+                    "providers": [
+                        "Gplanchat\\Durable\\Laravel\\DurableServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\Durable\\Laravel\\": "./"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "Laravel integration for gplanchat/durable — binds the four storage ports from one published config file",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
             "name": "gplanchat/durable-plugin",
             "version": "dev-main",
             "dist": {
@@ -810,6 +862,68 @@
                 "source": "https://github.com/grpc/grpc-php/tree/v1.82.0"
             },
             "time": "2026-07-03T09:39:53+00:00"
+        },
+        {
+            "name": "illuminate/cache",
+            "version": "v12.68.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/illuminate/cache.git",
+                "reference": "2689356ab45bc53ffe796d1b1241babae59c69f6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/illuminate/cache/zipball/2689356ab45bc53ffe796d1b1241babae59c69f6",
+                "reference": "2689356ab45bc53ffe796d1b1241babae59c69f6",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/collections": "^12.0",
+                "illuminate/contracts": "^12.0",
+                "illuminate/macroable": "^12.0",
+                "illuminate/support": "^12.0",
+                "php": "^8.2"
+            },
+            "provide": {
+                "psr/simple-cache-implementation": "1.0|2.0|3.0"
+            },
+            "suggest": {
+                "ext-apcu": "Required to use the APC cache driver.",
+                "ext-filter": "Required to use the DynamoDb cache driver.",
+                "ext-memcached": "Required to use the memcached cache driver.",
+                "illuminate/database": "Required to use the database cache driver (^12.0).",
+                "illuminate/filesystem": "Required to use the file cache driver (^12.0).",
+                "illuminate/redis": "Required to use the redis cache driver (^12.0).",
+                "symfony/cache": "Required to use PSR-6 cache bridge (^7.2)."
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "12.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Illuminate\\Cache\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Taylor Otwell",
+                    "email": "taylor@laravel.com"
+                }
+            ],
+            "description": "The Illuminate Cache package.",
+            "homepage": "https://laravel.com",
+            "support": {
+                "issues": "https://github.com/laravel/framework/issues",
+                "source": "https://github.com/laravel/framework"
+            },
+            "time": "2026-06-15T20:47:52+00:00"
         },
         {
             "name": "illuminate/collections",
@@ -7402,68 +7516,6 @@
             }
         },
         {
-            "name": "illuminate/cache",
-            "version": "v12.68.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/illuminate/cache.git",
-                "reference": "2689356ab45bc53ffe796d1b1241babae59c69f6"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/illuminate/cache/zipball/2689356ab45bc53ffe796d1b1241babae59c69f6",
-                "reference": "2689356ab45bc53ffe796d1b1241babae59c69f6",
-                "shasum": ""
-            },
-            "require": {
-                "illuminate/collections": "^12.0",
-                "illuminate/contracts": "^12.0",
-                "illuminate/macroable": "^12.0",
-                "illuminate/support": "^12.0",
-                "php": "^8.2"
-            },
-            "provide": {
-                "psr/simple-cache-implementation": "1.0|2.0|3.0"
-            },
-            "suggest": {
-                "ext-apcu": "Required to use the APC cache driver.",
-                "ext-filter": "Required to use the DynamoDb cache driver.",
-                "ext-memcached": "Required to use the memcached cache driver.",
-                "illuminate/database": "Required to use the database cache driver (^12.0).",
-                "illuminate/filesystem": "Required to use the file cache driver (^12.0).",
-                "illuminate/redis": "Required to use the redis cache driver (^12.0).",
-                "symfony/cache": "Required to use PSR-6 cache bridge (^7.2)."
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "12.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Illuminate\\Cache\\": ""
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Taylor Otwell",
-                    "email": "taylor@laravel.com"
-                }
-            ],
-            "description": "The Illuminate Cache package.",
-            "homepage": "https://laravel.com",
-            "support": {
-                "issues": "https://github.com/laravel/framework/issues",
-                "source": "https://github.com/laravel/framework"
-            },
-            "time": "2026-06-15T20:47:52+00:00"
-        },
-        {
             "name": "kelunik/certificate",
             "version": "v1.1.3",
             "source": {
@@ -11198,6 +11250,7 @@
         "gplanchat/durable-bridge-illuminate": 20,
         "gplanchat/durable-bridge-temporal": 20,
         "gplanchat/durable-bundle": 20,
+        "gplanchat/durable-laravel": 20,
         "gplanchat/durable-phpstan": 20,
         "gplanchat/durable-plugin": 20,
         "gplanchat/durable-rector": 20
