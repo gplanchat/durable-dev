@@ -26,6 +26,18 @@ is which of the two they are looking at — their own code, or nobody at the oth
 observation model SHALL therefore say, for each event, whether the work begins there, so that an
 interval ending on such an event can be shown as a queue rather than as work.
 
+Not every event names what it belongs to. Only the event that opens an action carries the name of
+the activity, the child workflow or the operation; the ones that follow carry a number. A history
+that shows each event's own label therefore hides, on two rows out of three, the very name the
+operator is looking for. Each event SHALL be presented alongside the name of the action it belongs
+to. A timer has no business name at all — its delay is the only fact it carries, and that delay
+SHALL be what names it, rather than the class of the event that started it.
+
+What went wrong SHALL be distinguishable at a glance, on the event and not on the action: an
+activity that failed twice and succeeded on the third try both carries a failure and ends well. A
+cancellation and a termination SHALL NOT be presented as failures — they are outcomes somebody
+asked for, and presenting both alike leaves the distinction meaning nothing.
+
 What the event carries SHALL be the backend's own vocabulary. Normalising it would mean deciding,
 for every backend, which of its facts deserve a common name — a decision worth making once
 operators have said what they look for, and a fabrication before then.
@@ -88,6 +100,26 @@ operators have said what they look for, and a fabrication before then.
 - **AND** it says how long the wait lasted, and that it was a wait
 - **AND** an interval is not exaggerated to make it visible: a four-millisecond queue does not draw
   wider than six milliseconds of work
+
+#### Scenario: Every row of an action names the action
+
+- **WHEN** an operator reads the recorded history of a run that scheduled, started and completed an
+  activity
+- **THEN** all three rows name that activity, and not the class of each event
+- **AND** the name shown is the same string that labels the action in the timeline, so a row of one
+  is findable in the other
+- **AND** a timer announces the delay it was set for, without the operator subtracting two
+  timestamps read off two rows
+
+#### Scenario: What failed is told apart from what was cancelled
+
+- **WHEN** an operator reads the history of a run in which an activity failed and another was
+  cancelled
+- **THEN** the failure is distinguished from the events that went well
+- **AND** the cancellation is not distinguished as a failure
+- **AND** a failure inside an action that ended well is still shown as a failure, on its own event
+- **AND** a cancellation that could not be delivered is a failure, because the run it targeted is
+  still going
 
 #### Scenario: A run whose history cannot be read
 

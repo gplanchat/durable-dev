@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Observation;
 
+use Gplanchat\Durable\Event\ActivityCancelled;
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityScheduled;
+use Gplanchat\Durable\Event\ActivityTaskFailed;
 use Gplanchat\Durable\Event\ActivityTaskStarted;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
 use Gplanchat\Durable\Event\ChildWorkflowScheduled;
@@ -155,6 +157,45 @@ final class TheTimelineGroupsByActionTest extends TestCase
         self::assertFalse($history[0]->started, 'planifier, ce n\'est pas commencer');
         self::assertTrue($history[1]->started);
         self::assertFalse($history[2]->started, 'terminer non plus');
+    }
+
+    public function testATimerAnnouncesItsDelay(): void
+    {
+        // Un résumé dit pourquoi on attend sans dire combien de temps, et c'est le combien que
+        // l'exploitant vient lire. Le déduire lui demanderait de soustraire deux horodatages de
+        // deux lignes.
+        $history = $this->read([
+            new TimerScheduled('exec-1', 'tim-1', microtime(true) + 30.0, 'avant relance'),
+        ]);
+
+        self::assertSame('avant relance (30.0 s)', $history[0]->label);
+    }
+
+    public function testATimerWhoseDeadlineHasPassedAnnouncesNoDelayRatherThanFiftyYears(): void
+    {
+        // `scheduledAt()` est une **échéance absolue**, pas un délai : soustraire sans garde ferait
+        // annoncer un demi-siècle d'attente à un minuteur dont l'échéance est derrière nous — et
+        // c'est la même garde qui couvre le journal sans horodatage d'enregistrement.
+        $history = $this->read([
+            new TimerScheduled('exec-1', 'tim-1', 1735689630.0, 'avant relance'),
+        ]);
+
+        self::assertSame('avant relance', $history[0]->label);
+    }
+
+    public function testAFailureIsMarkedAndACancellationIsNot(): void
+    {
+        // Le rouge ne veut plus rien dire dès qu'il couvre les deux : un échec est une panne, une
+        // annulation est une issue que quelqu'un a demandée.
+        $history = $this->read([
+            new ActivityScheduled('exec-1', 'act-1', 'charge', [], []),
+            new ActivityTaskFailed('exec-1', 'act-1', 'charge', 1, 'RuntimeException', 'boom'),
+            new ActivityCancelled('exec-1', 'act-1', 'cancellation_requested'),
+        ]);
+
+        self::assertFalse($history[0]->failed, 'planifier ne rate rien');
+        self::assertTrue($history[1]->failed);
+        self::assertFalse($history[2]->failed, 'une annulation est une issue, pas une panne');
     }
 
     /**
