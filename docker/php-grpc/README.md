@@ -25,15 +25,33 @@ ou de source dans un montage multi-étapes :
 FROM ghcr.io/gplanchat/php-grpc:8.3-cli-alpine AS ext
 
 FROM ghcr.io/sylius/sylius-php:8.3-alpine
-COPY --from=ext /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
 COPY --from=ext /usr/local/etc/php/conf.d/docker-php-ext-grpc.ini /usr/local/etc/php/conf.d/
 COPY --from=ext /usr/local/etc/php/conf.d/docker-php-ext-protobuf.ini /usr/local/etc/php/conf.d/
+COPY --from=ext /usr/local/lib/php/extensions/no-debug-non-zts-20230831/grpc.so /usr/local/lib/php/extensions/no-debug-non-zts-20230831/
+COPY --from=ext /usr/local/lib/php/extensions/no-debug-non-zts-20230831/protobuf.so /usr/local/lib/php/extensions/no-debug-non-zts-20230831/
+
+RUN php -m | grep -qx grpc && php -m | grep -qx protobuf
 ```
 
-Le `COPY --from` demande que les deux images partagent la même version de PHP **et** la même
-distribution : une extension compilée pour Alpine ne se charge pas sur une base Debian, et une
-extension de PHP 8.3 ne se charge pas sous 8.4. C'est la contrainte de tout partage de binaire, pas
-une particularité d'ici.
+Le chemin est nommé en entier plutôt que copié en bloc, à dessein : `COPY` du dossier
+`extensions/` réussit même quand le nom du dossier de la base est différent — le `.so` atterrit dans
+un dossier que PHP ne lit pas, et la panne attend l'exécution. Le chemin explicite échoue au
+`docker build`.
+
+Trois choses doivent correspondre entre les deux images : la **version mineure** de PHP, la
+**thread-safety**, et la **libc**. Les deux premières sont dans le nom du dossier, donc un écart
+casse la construction. La troisième n'y est pas : Debian et Alpine partagent le même chemin, un
+`.so` musl se copie sans un mot dans une base glibc et refuse de se charger ensuite. D'où le
+`RUN php -m` final, qui rattrape ce cas-là et lui seul.
+
+Une quatrième condition ne se voit nulle part dans les chemins : grpc est du C++ et réclame
+`libstdc++`. Les bases Debian l'embarquent toutes ; les bases Alpine, pas toutes — l'image Sylius
+ci-dessus l'a, `php:8.3-fpm-alpine` ne l'a pas et demande un `apk add --no-cache libstdc++`. Là
+encore, c'est le `RUN php -m` qui le dit.
+
+**Le guide utilisateur détaille tout cela** — recettes pour php-fpm derrière Nginx ou Caddy, pour
+Apache avec mod_php, et pour FrankenPHP (qui est thread-safe, donc `zts`) :
+<https://durable.rocks/docs/container-images/>.
 
 ## Ce que ces images ne servent pas à résoudre
 
