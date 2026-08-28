@@ -18,7 +18,7 @@
 <!-- assumed: FR is a full port of the EN page (fun pass, 48px marks, 14 chips, six release* switches, mobile guards, shortened copy); only visible prose is translated — data-* attrs, logo filenames, release* names, table keys, package names and composer commands are byte-identical to EN. The Aimeos second-level Symfony/Laravel choice was never applied to EN, so it is absent here too. -->
 <!-- assumed: hero keeps only the headline + one line + one CTA; the verbatim incident moves down into the story section, which now opens the page's argument. the code section is four use-case rows with full-width samples, each linking to a per-use-case docs page at durable.rocks/docs/use-cases/<slug> that does not exist yet. Durations are written in the idiomatic Duration:: form throughout, never bare floats. -->
 <!-- assumed: some() belongs in cas d’usage 01 as a third panel (the row's copy already frames "three answers out of eight"), and the timeout panel's caption changed from "a timeout is a race" to the deadline framing because the race it named no longer exists. -->
-<!-- assumed: four packages read as core + Symfony integration + two mutually exclusive backends, so the section premise line names that shape instead of an install order, and the two bridges share the label "un des deux backends" inside the existing 120px column. The enum-vs-string point on waitSignal() is carried by the code comment rather than new prose, since the copy was to stay as it is. -->
+<!-- assumed: four packages read as core + Symfony integration + two mutually exclusive backends, so the section premise line names that shape instead of an install order, and the two bridges share the label "un des trois backends" inside the existing 120px column. The enum-vs-string point on waitSignal() is carried by the code comment rather than new prose, since the copy was to stay as it is. -->
 <!-- assumed: the install command became a two-axis chooser (framework × backend) driven by a plain inline script over data-attributes, so the block lifts into a Hugo template unchanged; it defaults to Symfony + en mémoire. -->
 <!-- assumed: the option marks are ORIGINAL neutral glyphs (angle brackets, bundle shell, dashed box, clock, database), not the Symfony / Temporal / Doctrine trademarks — drop each project's official SVG into the [data-mark] slot when you have clearance to redistribute it. -->
 <!-- assumed: the story now opens on a two-column consequence panel (without Durable / with Durable, same redeploy) so the risk is legible before the timeline, and each use case carries exactly one code sample — the old cas d’usage 01 split into three, renumbering the rest to 04-06. -->
@@ -348,6 +348,7 @@
       <a href="#story" style="text-decoration: none; color: var(--fg2, #6c6459);" style-hover="color: var(--accent, #b4552f);">L’incident</a>
       <a href="#code" style="text-decoration: none; color: var(--fg2, #6c6459);" style-hover="color: var(--accent, #b4552f);">La méthode</a>
       <a href="#library" style="text-decoration: none; color: var(--fg2, #6c6459);" style-hover="color: var(--accent, #b4552f);">La bibliothèque</a>
+      <a href="#nexus" style="text-decoration: none; color: var(--accent2, #2f6f6b);" style-hover="color: var(--accent, #b4552f);">Nexus</a>
       <a href="#packages" style="text-decoration: none; color: var(--fg2, #6c6459);" style-hover="color: var(--accent, #b4552f);">Paquets</a>
       <a href="https://durable.rocks/docs" style="text-decoration: none; color: var(--fg2, #6c6459);" style-hover="color: var(--accent, #b4552f);">Docs</a>
       <a href="https://packagist.org/packages/gplanchat/durable" style="text-decoration: none; color: var(--fg2, #6c6459);" style-hover="color: var(--accent, #b4552f);">Packagist</a>
@@ -797,6 +798,52 @@
     </div>
   </section>
 
+  <section id="nexus" style="border-top: 1px solid var(--line, #ddd6ca);">
+    <div style="max-width: 1140px; margin: 0 auto; padding: calc(76px * var(--sp, 1)) 40px;">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent2, #2f6f6b);">Nexus · fonctionnel</span>
+      <h2 style="font-family: 'Newsreader', serif; font-weight: 400; font-size: calc(40px * var(--ts, 1)); line-height: 1.1; letter-spacing: -0.02em; margin: 14px 0 18px; max-width: 760px; text-wrap: balance;">Votre service PHP peut être aux <em style="font-style: italic; color: var(--accent, #b4552f);">deux bouts</em> d'une opération Nexus</h2>
+      <p style="font-size: calc(16.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459); margin: 0 0 12px; max-width: 720px;">Nexus achemine l'appel d'un workflow vers une opération qui appartient à une autre équipe, un autre espace de noms, un autre cluster — sans qu'aucun des deux côtés connaisse les workflows de l'autre. Durable <strong style="color: var(--fg, #2c2822); font-weight: 500;">appelle</strong> ces opérations, et il en <strong style="color: var(--fg, #2c2822); font-weight: 500;">sert</strong>.</p>
+      <p style="font-size: calc(16.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459); margin: 0 0 40px; max-width: 720px;">Temporal documente Nexus pour Go, Java, Python, TypeScript et .NET. Aucune documentation pour PHP. Un service PHP s'appelle bien sûr en HTTP, comme n'importe quel service — mais un appel HTTP n'est pas une opération : rien n'enregistre qu'il a eu lieu, rien n'en ramène l'échec typé, et rien ne l'annule quand l'appelant renonce.</p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 0 0 40px;">
+        <div style="border: 1px solid var(--line, #ddd6ca); border-left: 3px solid var(--ck, #a1341f); border-radius: 0 6px 6px 0; padding: 20px 24px 22px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ck, #a1341f); margin-bottom: 12px;">Sans lui — la frontière est un appel HTTP</div>
+          <p style="margin: 0; font-size: calc(15.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459);">Commande appelle Facturation et attend. La connexion abandonne au bout de trente secondes ; l'encaissement en prend quatre minutes. Commande réessaie donc, et Facturation encaisse deux fois. Les deux équipes écrivent alors les mêmes trois choses à la main, chacune de son côté : une clé d'idempotence, un travail de rapprochement, et une colonne d'état qui veut dire <em>peut-être</em>.</p>
+        </div>
+        <div style="border: 1px solid var(--line, #ddd6ca); border-left: 3px solid var(--accent2, #2f6f6b); border-radius: 0 6px 6px 0; padding: 20px 24px 22px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent2, #2f6f6b); margin-bottom: 12px;">Avec lui — le même appel, rendu durable</div>
+          <p style="margin: 0; font-size: calc(15.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459);">L'appelant attend sans rien tenir d'ouvert — quatre minutes ou six heures, cela ne change rien. Un échec revient <strong style="color: var(--fg, #2c2822); font-weight: 500;">typé</strong>, donc une compensation peut décider de ce qu'il signifie. Annuler l'appelant annule le travail en face. Et aucune des deux équipes ne voit jamais les workflows de l'autre.</p>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 40px;">
+        <div>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2, #6c6459);">Appeler</span>
+          <pre style="margin: 14px 0 0; padding: 22px; background: var(--bg2, #efe9df); border: 1px solid var(--line, #ddd6ca); border-radius: 6px; overflow-x: auto;"><code style="font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.75;">$billing = $env-&gt;nexusStub(
+    BillingContract::class,
+    endpoint: 'payments',
+);
+
+$receipt = $env-&gt;await(
+    $billing-&gt;charge($order, 1200),
+);</code></pre>
+        </div>
+        <div>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2, #6c6459);">Servir</span>
+          <pre style="margin: 14px 0 0; padding: 22px; background: var(--bg2, #efe9df); border: 1px solid var(--line, #ddd6ca); border-radius: 6px; overflow-x: auto;"><code style="font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.75;">#[AsNexusServiceHandler(
+    contract: BillingServed::class,
+)]
+final class Billing implements BillingServed
+{
+    public function verify(Order $o): Verdict
+    { /* … */ }
+}</code></pre>
+        </div>
+      </div>
+      <p style="font-size: calc(16px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459); margin: 34px 0 0; max-width: 720px;">Un contrat, écrit une fois, typé des deux côtés — aucun nom d'opération recopié en chaîne. Répondez tout de suite, ou laissez un workflow répondre deux heures plus tard : l'appelant attend de la même façon, et annuler l'appel annule le workflow qui le porte.</p>
+      <div style="padding: 26px 0 0;">
+        <a href="/docs/nexus/" style="text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent, #b4552f); border-bottom: 1px solid var(--line, #ddd6ca); padding-bottom: 3px;">Appeler et servir des opérations Nexus, de bout en bout →</a>
+      </div>
+    </div>
+  </section>
   <section id="packages" style="border-top: 1px solid var(--line, #ddd6ca); border-bottom: 1px solid var(--line, #ddd6ca); background: var(--bg2, #efe9df);">
     <div style="max-width: 1140px; margin: 0 auto; padding: calc(76px * var(--sp, 1)) 40px;">
       <h2 style="font-family: 'Newsreader', serif; font-weight: 400; font-size: calc(40px * var(--ts, 1)); letter-spacing: -0.02em; margin: 0 0 10px;">Changez de backend, gardez le workflow</h2>
@@ -813,10 +860,16 @@
         <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2, #6c6459); text-wrap: balance; padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">optionnel</span>
         <code style="font-family: 'JetBrains Mono', monospace; font-size: calc(16px * var(--ts, 1)); color: var(--accent, #b4552f); white-space: nowrap; padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">gplanchat/durable-bridge-temporal</code>
         <p style="margin: 0; font-size: calc(16px * var(--ts, 1)); line-height: 1.65; color: var(--fg2, #6c6459); padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">Le driver Temporal. Parle gRPC directement à un cluster Temporal ; pas de SDK PHP officiel, pas de RoadRunner. Requiert ext-grpc.</p>
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2, #6c6459); text-wrap: balance; padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">un des deux backends</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2, #6c6459); text-wrap: balance; padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">un des trois backends</span>
         <code style="font-family: 'JetBrains Mono', monospace; font-size: calc(16px * var(--ts, 1)); color: var(--accent, #b4552f); white-space: nowrap; padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">gplanchat/durable-bridge-dbal</code>
         <p style="margin: 0; font-size: calc(16px * var(--ts, 1)); line-height: 1.65; color: var(--fg2, #6c6459); padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">Le backend SQL. Exécution durable sur une seule base, sans cluster d’orchestration. Doctrine DBAL 3 ou 4.</p>
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2, #6c6459); text-wrap: balance; padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">un des deux backends</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2, #6c6459); text-wrap: balance; padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">un des trois backends</span>
+        <code style="font-family: 'JetBrains Mono', monospace; font-size: calc(16px * var(--ts, 1)); color: var(--accent, #b4552f); white-space: nowrap; padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">gplanchat/durable-bridge-illuminate</code>
+        <p style="margin: 0; font-size: calc(16px * var(--ts, 1)); line-height: 1.65; color: var(--fg2, #6c6459); padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">La même histoire SQL, par la couche de base de données de Laravel. L’ajout au journal et l’écriture métier tiennent dans une seule transaction parce que c’est la même connexion. Illuminate 11, 12 ou 13.</p>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2, #6c6459); white-space: nowrap; padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">un des trois backends</span>
+        <code style="font-family: 'JetBrains Mono', monospace; font-size: calc(16px * var(--ts, 1)); color: var(--accent, #b4552f); white-space: nowrap; padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">gplanchat/durable-laravel</code>
+        <p style="margin: 0; font-size: calc(16px * var(--ts, 1)); line-height: 1.65; color: var(--fg2, #6c6459); padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">L’intégration Laravel. Un service provider qui lie les quatre ports de stockage depuis un seul fichier de configuration publié, des workflows déclarés plutôt que scannés, et le travail qui voyage sur la file que l’application draine déjà.</p>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2, #6c6459); white-space: nowrap; padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">optionnel</span>
         <code style="font-family: 'JetBrains Mono', monospace; font-size: calc(16px * var(--ts, 1)); color: var(--accent, #b4552f); white-space: nowrap; padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">Intégration Akeneo</code>
         <p style="margin: 0; font-size: calc(16px * var(--ts, 1)); line-height: 1.65; color: var(--fg2, #6c6459); padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">Une intégration à BatchBundle : un import qui meurt à l’étape quatre reprend à l’étape quatre, pas depuis le début.</p>
         <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent2, #2f6f6b); text-wrap: balance; padding: 26px 0; border-top: 1px solid var(--line, #ddd6ca);">bundle aujourd’hui · plugin prévu</span>
