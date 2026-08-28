@@ -12,6 +12,7 @@ This monorepo contains:
 | `gplanchat/durable-bundle` | [`src/DurableBundle/`](src/DurableBundle/) | Symfony bundle (Messenger, configuration, profiler) |
 | `gplanchat/durable-bridge-temporal` | [`src/Bridge/Temporal/`](src/Bridge/Temporal/) | Temporal gRPC bridge (no official Temporal PHP SDK; see **DUR006**) |
 | `gplanchat/durable-bridge-dbal` | [`src/Bridge/Dbal/`](src/Bridge/Dbal/) | Doctrine DBAL journal + stores: durable execution on one SQL database, no cluster (**DUR030**) |
+| `gplanchat/durable-bridge-illuminate` | [`src/Bridge/Illuminate/`](src/Bridge/Illuminate/) | Illuminate (Laravel) journal + stores on the connection Laravel already owns (**DUR030**) |
 | `gplanchat/durable-plugin` | [`src/DurablePlugin/`](src/DurablePlugin/) | Sylius 2 admin plugin: workflow dashboard, backend-neutral (**DUR037**) |
 | `gplanchat/durable-phpstan` | [`src/DurablePhpstan/`](src/DurablePhpstan/) | PHPStan extension: resolves stub calls against their typed contract |
 | `gplanchat/durable-rector` | [`src/DurableRector/`](src/DurableRector/) | Rector rules migrating a project off the official Temporal PHP SDK |

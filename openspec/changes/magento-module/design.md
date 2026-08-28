@@ -22,8 +22,8 @@ probed yet**, and the design says where it is therefore guessing.
 - ~~whether `mage-os/product-community-edition:2.2.0` installs on this PHP and reaches a working
   `bin/magento`~~ — **answered by §1.2**: it does, and it was already installed. What was broken
   was the bench's default ports, held by the benches beside it;
-- what a `queue_consumer.xml` consumer does when its process dies mid-message — redelivery, dead
-  letter, or silence;
+- ~~what a `queue_consumer.xml` consumer does when its process dies mid-message~~ — **answered by
+  §1.3**: *silence*, then a redelivery that takes a day and can swallow the message whole. Below;
 - ~~whether `LockManagerInterface`'s default implementation is shared across consumer processes~~ —
   **answered by §1.4**: it is, and the answer came with a caveat the design had not seen. The bench
   configures `lock.provider: db`; the container hands out a `Lock\Proxy` that names nothing until
@@ -54,9 +54,9 @@ The module's job is to provide the right-hand column and **nothing else**. Every
 ports — replay, the command buffer, the journal, failure classification — is `gplanchat/durable`
 unchanged, exactly as the DBAL bridge leaves it unchanged.
 
-## Two host constraints, found by trying
+## Three host constraints, found by trying
 
-Neither was in the design before the module was written, and both cost a debugging round:
+None was in the design before the module was written, and each cost a debugging round:
 
 **Magento's container forbids `final`.** It generates an `Interceptor` subclass for every class it
 instantiates, to carry plugins. A `final` class fails compilation with *"cannot extend final
@@ -69,6 +69,15 @@ resolved from a local path when a higher version of the same name exists on pack
 dependency-confusion guard. `gplanchat/durable` is both published and provided by path here, so it
 trips on every bench install. The bench disables the plugin for itself, which is defensible because
 the path repositories *are* its source of truth; a consumer's project should keep it on.
+
+**A module in `app/code` does not autoload on this distribution.** Found while putting §1.3's probe
+subject in the bench rather than in the published package. `ComponentRegistrar` registers it —
+`module:status` says *enabled* — and the classes still do not resolve: Mage-OS's root
+`composer.json` declares `Magento\Setup\` and nothing else, where a classic Magento install carried
+`psr-0: {"": ["app/code/"]}` and made every vendor under `app/code` resolvable for free. Registering
+a component and autoloading its classes are two different mechanisms, and only the first is
+automatic. The bench adds its own `psr-4` entry; anyone bootstrapping a Mage-OS bench with a local
+module will hit this and read it as a broken module.
 
 ## The one hazard that is not a port
 
@@ -85,6 +94,47 @@ rather than at the moment of the collision if the configured lock provider is no
 default `Magento\Framework\Lock\Backend\Database` is shared by construction — a `GET_LOCK` on the
 application database — which is a better default than Symfony's, but the module must not assume the
 default is what is configured.
+
+### What a dying consumer leaves — §1.3, measured
+
+The bench has no AMQP, so this is `Magento\MysqlMq`, and none of it reads like AMQP.
+
+The instrument is a bench-local module, `magento/app/code/Gplanchat/DurableProbe` — a topic whose
+handler does nothing but sleep. It stays out of `gplanchat/durable-magento` on purpose: §4.1's five
+roles will be written in the published module, and this is not one of them.
+
+A consumer killed mid-message leaves the row at **`IN_PROGRESS`, `number_of_trials = 0`**, and a row
+in **`queue_lock`**. No dead letter, no error in any log, and no other consumer takes it: a fresh
+`queue:consumers:start` waited 25 s beside it and picked up nothing. Silence is the answer.
+
+Getting it back needs **two** cron jobs, and they are not the same job:
+
+| | schedule | what it does |
+|---|---|---|
+| `mysqlmq_clean_messages` | `30 6,15 * * *` | `IN_PROGRESS` → `RETRY_REQUIRED`, once `retry_inprogress_after` has passed — **1440 minutes**, a day |
+| `messagequeue_clean_outdated_locks` | hourly | empties `queue_lock` |
+
+**And their order decides whether the message is run or silently swallowed.** If the retry lands
+while the lock is still there, `MessageController::lock()` throws `MessageLockException`, and
+`Consumer` catches it by **acknowledging the message without dispatching it** — the row goes
+`COMPLETE`, the handler never runs, nothing is logged. Measured: with `retry_inprogress_after`
+lowered to one minute, the redelivered message went `COMPLETE` in about a second and the handler's
+trace stayed shut. The lock row was `md5('durable.probe-1')` to the character.
+
+Purge the lock first and redelivery works as advertised: the handler restarted **from the
+beginning**, `number_of_trials` at 1. Nothing resumes mid-handler — which is exactly why the journal
+has to be what resumes, and not the message.
+
+So the shipped configuration is saved by its own sloth: a day of retry delay outlives an hourly lock
+purge. **A shop that shortens `retry_inprogress_after` to recover faster walks straight into the
+silent drop** — and the message it would drop is a workflow resume. The module cannot leave that to
+chance, and §4.3's test is where it gets pinned.
+
+*(Read, not measured: `releaseOutdatedLocks()` computes its cutoff with `$date->add()` where `sub()`
+would be the sane reading, so the hourly job deletes **every** lock rather than the outdated ones.
+Consistent with what the run did — it removed a four-minute-old lock.)*
+
+## The one hazard that is not a port — inherited, and now with a second one under it
 
 This is the design's only real invariant, and it is inherited rather than discovered. **§1.4 probed
 it and it holds** — two processes, `magento/probe-lock.php`, the second refused while the first

@@ -27,9 +27,16 @@ unmeasured.
       comes up whole, and `.env.example` says why.
       `check-php-extensions.sh` was a claim; it is now a measurement: all eighteen present on
       PHP 8.2.33, exit 0.
-- [ ] 1.3 **What a dying consumer leaves behind.** Kill `queue:consumers:start` mid-message and
-      record what happens: redelivery, dead letter, or silence. This is the failure the whole
-      integration exists to remove, and the design must not guess at its shape.
+- [x] 1.3 **What a dying consumer leaves behind: silence** — measured, `magento/probe-queue.php`
+      plus a bench-local probe module — it stays out of the published package. The row stays `IN_PROGRESS` with `number_of_trials = 0`, a
+      `queue_lock` row survives the dead process, no dead letter, nothing logged, and a fresh
+      consumer waits 25 s beside it without taking it. Recovery needs **two** cron jobs —
+      `mysqlmq_clean_messages` (twice a day, after a **24 h** `retry_inprogress_after`) and
+      `messagequeue_clean_outdated_locks` (hourly) — and **their order decides whether the message
+      runs or is swallowed**: a retry that lands while the lock stands makes `Consumer` acknowledge
+      it *without dispatching*, `COMPLETE`, handler never called. Redelivery restarts the handler
+      **from the beginning**. The shipped defaults are saved by their own sloth; a shop that
+      shortens the retry delay is not. §4.3 is where this gets pinned.
 - [x] 1.4 **Whether `LockManagerInterface` is shared across processes. It is** — measured, two
       processes, `magento/probe-lock.php`. The bench configures `lock.provider: db` explicitly;
       `Magento\Framework\Lock\Backend\Database` sits behind a `Lock\Proxy`, and a second process
