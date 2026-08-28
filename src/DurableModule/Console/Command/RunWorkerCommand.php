@@ -99,7 +99,10 @@ class RunWorkerCommand extends Command
                 self::ROLE_ACTIVITY,
             )),
         };
-        $deadline = $timeLimit > 0 ? microtime(true) + $timeLimit : null;
+        // La borne est une option de console, donc un entier de secondes ; `microtime()` rend un
+        // flottant. Le cast est explicite parce que mélanger les deux en silence est exactement ce
+        // qu'une analyse stricte refuse de laisser passer.
+        $deadline = $timeLimit > 0 ? microtime(true) + (float) $timeLimit : null;
 
         $output->writeln(sprintf(
             '<info>durable:worker</info> polling the %s task queue%s%s',

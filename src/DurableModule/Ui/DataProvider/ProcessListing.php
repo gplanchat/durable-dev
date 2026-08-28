@@ -79,9 +79,12 @@ class ProcessListing extends AbstractDataProvider
      */
     public function addFilter(Filter $filter): void
     {
+        // ⚠ `Filter::getValue()` est annoté `@return string` en amont, et c'est faux : le filtre
+        // d'état est un `ui-select`, qui rend un **tableau** dès que l'exploitant coche plus d'une
+        // case, et une chaîne quand il n'en coche qu'une. Les deux formes ont été mesurées ici.
+        // L'annotation dit ce qui arrive vraiment, plutôt que de faire taire l'analyse.
+        /** @var mixed $value */
         $value = $filter->getValue();
-        // Le filtre d'état est un `ui-select` : il rend un tableau dès que l'exploitant en coche
-        // plus d'un, et une chaîne quand il n'en coche qu'un. Les deux formes arrivent ici.
         $this->filters[$filter->getField()] = \is_array($value)
             ? array_values(array_map('strval', $value))
             : (string) $value;
