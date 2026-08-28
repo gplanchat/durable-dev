@@ -59,6 +59,57 @@ exactement là où elle en était, n'ayant rien perdu que le temps écoulé entr
 
 C'est toute la raison pour laquelle c'est la tâche qui échoue, et non l'exécution.
 
+### Ou déclarer un point de changement
+
+Quand le changement tient dans une branche, dites-le dans le workflow et laissez chaque exécution
+garder le comportement sur lequel elle a commencé :
+
+```php
+use Gplanchat\Durable\Versioning\ChangePoint;
+
+$version = $this->environment->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
+
+if (ChangePoint::DEFAULT_VERSION === $version) {
+    $total = $this->await($this->billing->totalWithoutDiscount($cart));   // les exécutions déjà en vol
+} else {
+    $total = $this->await($this->billing->totalWithDiscount($cart));      // tout ce qui part à partir de maintenant
+}
+```
+
+La réponse est **fixée la première fois qu'une exécution atteint ce point**, puis relue dans son
+journal. Déployez ensuite ce que vous voulez : une exécution qui a dépassé le point garde son
+comportement.
+
+Trois choses à savoir avant de s'en servir :
+
+- **L'identifiant de changement vit dans le journal.** Le renommer plus tard fait paraître toutes
+  les exécutions en vol comme n'ayant jamais atteint le point. Choisissez un nom avec lequel vous
+  pourrez vivre.
+- **Une exécution passée par cet endroit avant que le point n'existe reçoit `DEFAULT_VERSION`** —
+  elle a commencé sur l'ancien comportement, elle finira dessus. Rien n'est écrit pour elle : elle
+  est reconnue, pas marquée.
+- **La garde de divergence s'applique toujours partout ailleurs.** Déclarer un point de changement
+  n'autorise pas un changement non déclaré trois lignes plus bas : celui-là arrête toujours
+  l'exécution.
+
+### Supprimer l'ancienne branche
+
+La branche peut partir dès qu'aucune exécution vivante ne peut plus s'y résoudre. Sur le **backend
+Temporal**, c'est le serveur qui répond, chaque marqueur étant accompagné d'un attribut de recherche
+standard :
+
+```
+temporal workflow list --query 'TemporalChangeVersion = "add-discount-1"'
+```
+
+Une réponse vide signifie que plus personne n'est en version 1, et que la branche `DEFAULT_VERSION`
+peut disparaître.
+
+**Sur les backends In-Memory et DBAL, il n'y a pas d'attribut de recherche et donc pas de réponse
+équivalente.** Y savoir qu'une branche est morte revient à connaître ses propres exécutions — en
+pratique, garder la branche jusqu'à en être sûr, ou passer par le renommage de type ci-dessous, dont
+la fenêtre d'écoulement est visible.
+
 ### Ou donner un nouveau nom à la nouvelle forme
 
 Quand vous ne pouvez pas attendre que les exécutions s'écoulent, enregistrez le workflow modifié
