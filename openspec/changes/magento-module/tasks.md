@@ -161,8 +161,18 @@ topic.
       the process that executes. An admin request executes nothing, so the grid was empty while a
       run had just completed against the cluster. Listing a cluster's executions means asking the
       cluster — `TemporalWorkflowRunCatalog`, which the bridge already ships.
-- [ ] 5.2 The bench's `compose.yaml` Temporal stack runs a workflow from an order placed in the
-      storefront to a completed execution visible in the Temporal UI.
+- [x] 5.2 **An order placed starts an execution on the cluster, and it completes.** An observer on
+      `sales_order_place_after` — the event Magento actually emits, the same from checkout, REST or
+      admin — calls `startAsync()` and returns; starting the workflow in the request would kill it
+      with the request, which is OST003's failure exactly. Order `000000001` produced
+      `durable-order-000000001` on the cluster, the workers drove it to
+      `'notify:charge:000000001'`, one charge.
+      The observer never throws: a placed order stays placed. It lives in the bench, because which
+      workflow starts on which order is a project's decision; the module ships the door.
+      ⚠ The order is created through Magento's own order API rather than clicked through checkout —
+      the *event* is the real one, the click is not simulated. And the grid now reads the business
+      workflow type with a `completed` status, which corrects what this change said twice: the
+      `DurableJournal`/`running` reservation belongs to the in-process path only.
 - [x] 5.3 **The failure OST003 names is gone, measured end to end.** An execution started on the
       cluster, both workers killed with `kill -9` during the stock reservation, both restarted:
       the order completes — `'notify:charge:ORD-acceptation-…'` — and the card is charged

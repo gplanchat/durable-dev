@@ -178,6 +178,45 @@ in the journal's **events**, which `TemporalRunHistoryReader` reads through a `T
 work, not this one's, but the reason is written here so nobody hunts a worker bug that does not
 exist.
 
+### An order starts an execution — §5.2, and a correction to what this design said twice
+
+```
+12:01:29 000000001 -> exécution order-000000001 démarrée sur la grappe
+durable-order-000000001 | WORKFLOW_EXECUTION_STATUS_RUNNING
+order-000000001 -> 'notify:charge:000000001'      (débits : 1)
+```
+
+`sales_order_place_after` — the event `Magento\Sales\Model\Order::place()` actually emits, the same
+one whether the order comes from the checkout, the REST API or the admin — starts the execution
+**on the cluster** and returns. Starting it in the request would kill it with the request, which is
+precisely OST003's failure: the customer paid, the process stopped, nobody resumed.
+
+The observer never throws. A placed order stays placed: a workflow that fails to start is an
+operations incident, not a reason to refuse a sale that is already paid.
+
+It lives in the **bench**, not the published package: which workflow starts on which order is a
+project's decision. What the module ships is the door — `RuntimeFactory::workflowClient()`.
+
+**And the correction.** This design said twice that the admin grid could only ever read `running`,
+because a `DurableJournal` workflow is long-lived. That is true of the **in-process** path, where the
+journal is a container workflow — and false of the cluster path. Executions started with
+`startAsync()` *are* the business workflow, so the grid now reads what one wants it to read:
+
+```
+Run                                   | Workflow                                        | Status    | Ended
+1a17fed1-796a-4b12-83b2-7e33a295c591  | Gplanchat\DurableProbe\Workflow\SlowOrderWorkflow | completed | 12:01:53
+```
+
+The business type, and a real end time. Nothing in the grid changed — what changed is how the
+executions were started. The reservation stands only for anything still started in-process, and
+§5.2 is the reason to stop doing that.
+
+⚠ What the bench needed before an order could exist at all, and what no message said: a product is
+not *salable* without both a website assignment and an inventory source item, and Magento answers
+*"Product that you are trying to add is not available"* without saying which of the two is missing —
+or that either is. Reindexing `inventory` was needed on top. It is in `probe-order.php`, commented,
+so nobody pays for it twice.
+
 ### The acceptance test, green — §5.3
 
 ```
