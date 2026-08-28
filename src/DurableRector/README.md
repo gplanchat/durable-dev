@@ -1,12 +1,16 @@
 # gplanchat/durable-rector
 
-Rector rules that move a project off the official **Temporal PHP SDK** onto
-[`gplanchat/durable`](https://github.com/gplanchat/durable-dev) — and, above all, keep the
-**workflow and activity type names a running server already knows**.
+Rector rules for projects that consume [`gplanchat/durable`](https://github.com/gplanchat/durable-dev)
+and have code to migrate. Two sets, for two different migrations.
 
 ```bash
 composer require --dev gplanchat/durable-rector
 ```
+
+| Set | For |
+|---|---|
+| `temporal-sdk.php` | Coming **from the official Temporal PHP SDK**, keeping the workflow and activity type names a running server already knows |
+| `durable-attributes-alpha8.php` | Already on Durable, upgrading **to v0.1.0-alpha8**, whose declaration attributes were renamed |
 
 ```php
 // rector.php
@@ -15,7 +19,52 @@ return Rector\Config\RectorConfig::configure()
     ->withSets([__DIR__ . '/vendor/gplanchat/durable-rector/config/sets/temporal-sdk.php']);
 ```
 
-## What it does
+---
+
+## `durable-attributes-alpha8.php` — the attribute rename
+
+Every declaration attribute now carries the `As` prefix. Before alpha8 the repository had two
+conventions: the core named its class attributes without a prefix (`#[Workflow]`, `#[Activity]`),
+while the Symfony bundle had a single prefixed one (`#[AsDurableActivity]`), and neither the
+Illuminate bridge nor the Magento module had any. Serving Nexus meant adding more, so it meant
+choosing. `As*` won, and it says what it says: *this is registered as an X*.
+
+Method attributes follow the same rule, so there is one convention to remember rather than a rule
+and its exception.
+
+| before | after |
+|---|---|
+| `#[Workflow]` | `#[AsWorkflow]` |
+| `#[Activity]` | `#[AsActivity]` |
+| `#[AsDurableActivity]` *(bundle)* | `#[AsActivityHandler]` *(core)* |
+| `#[WorkflowMethod]` | `#[AsWorkflowMethod]` |
+| `#[ActivityMethod]` | `#[AsActivityMethod]` |
+| `#[QueryMethod]` | `#[AsQueryMethod]` |
+| `#[SignalMethod]` | `#[AsSignalMethod]` |
+| `#[UpdateMethod]` | `#[AsUpdateMethod]` |
+
+`AsDurableActivity` also leaves the Symfony bundle for the core. It declared an implementation,
+which no framework makes specific — and leaving it bundle-side would have forced the Illuminate
+bridge to invent a second attribute saying the same thing.
+
+```php
+// rector.php
+return Rector\Config\RectorConfig::configure()
+    ->withImportNames()
+    ->withSets([__DIR__ . '/vendor/gplanchat/durable-rector/config/sets/durable-attributes-alpha8.php']);
+```
+
+**Nothing else changes.** The attributes keep their arguments, their targets and their meaning; only
+the class names move. Which also means the set is safe to run twice.
+
+**`withImportNames()` is not optional in practice.** Without it, `RenameClassRector` writes the
+fully-qualified name and leaves your original `use` behind — correct code, unpleasant to read.
+
+---
+
+## `temporal-sdk.php` — coming off the SDK
+
+### What it does
 
 | Rule | What moves |
 |---|---|
