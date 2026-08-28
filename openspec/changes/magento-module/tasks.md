@@ -63,9 +63,17 @@ unmeasured.
       recorded in `design.md`: Mage-OS's `composer-dependency-version-audit-plugin` refuses a path
       package that also exists on Packagist, and Magento's generated `Interceptor` cannot extend a
       `final` class — which is the house style everywhere else in this repository.
-- [ ] 2.3 A configuration surface for the backend choice, refusing DBAL and Illuminate **at
-      startup, by name**, the way the DBAL backend refuses Nexus. Not at the moment a workflow waits
-      on a journal nobody writes.
+- [x] 2.3 **Composer refuses the SQL bridges; no code does.** `gplanchat/durable-magento` declares
+      `conflict` on `gplanchat/durable-bridge-dbal` and `gplanchat/durable-bridge-illuminate`.
+      Measured on the bench: `composer require gplanchat/durable-bridge-dbal` ends in *"Conclusion:
+      remove gplanchat/durable-magento (conflict analysis result)"* and writes nothing. The
+      incoherent installation never exists, so no process boots into it.
+      **Author's decision on PR #172**, replacing a first version that had built the refusal in
+      code — a constraint the package manager can express does not belong in a runtime that only
+      learns of it after the wrong thing is installed. Consequence: the module has **no backend
+      configuration surface**, so there is nothing to mistype; §5 is where a second backend, and
+      therefore a choice, starts to exist. What `conflict` cannot carry is the *reason* — that stays
+      in `ALLOWED.magento`, the selector, and `design.md`.
 
 ## 3. Workflows and activities are discoverable
 
