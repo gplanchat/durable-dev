@@ -47,13 +47,21 @@ services:
         resource: '../src/Controller'
         tags: ['controller.service_arguments']
 
-# Le banc de test n'a pas de cluster : `temporal.dsn` y est nul, et un gestionnaire Nexus déclaré
-# sur un backend sans route est refusé au démarrage — à raison, puisqu'il ne recevrait jamais rien.
+# La balise Nexus est posée ici, et non par `#[AsNexusServiceHandler]` sur la classe.
 #
-# `autoconfigure: false` retire la balise sans retirer la classe : c'est l'attribut
-# `#[AsNexusServiceHandler]` qui la posait. Le service reste, personne ne le sert, et le refus n'a
-# plus de raison de se déclencher.
-when@test:
+# L'attribut vaudrait dans **tous** les environnements, et un gestionnaire déclaré sur un backend
+# sans route est refusé au démarrage — à raison, puisqu'il ne recevrait jamais rien. Or la boutique
+# n'a de cluster que dans son profil de démonstration. La balise dit donc ce qui est vrai : elle
+# sert `stock` en `demo`, et nulle part ailleurs.
+#
+# `symfony/` garde l'attribut, lui : son banc a un DSN en dev comme en prod.
+when@demo:
     services:
+        # `autowire` explicitement : redéfinir un service dans un bloc `when@` **remplace** la
+        # définition venue du chargement de `App\`, et les `_defaults` du bloc principal ne s'y
+        # appliquent pas. Sans cette ligne, le constructeur ne reçoit rien.
         App\Durable\Nexus\StockHandler:
-            autoconfigure: false
+            autowire: true
+            tags:
+                - name: durable.nexus_handler
+                  contract: 'Gplanchat\Durable\Demo\Contracts\Stock\StockServed'

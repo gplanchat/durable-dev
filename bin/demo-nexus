@@ -90,14 +90,15 @@ cat <<FIN
 
 Six processus, deux namespaces. Chaque maquette sert et appelle.
 
-  # la boutique sert « stock » — journal DBAL, tableau de bord inchangé
+  # la boutique sert « stock » — profil demo, journal DBAL, tableau de bord inchangé
   cd sylius
+  export APP_ENV=demo
   export DURABLE_TEMPORAL_DSN='temporal://$ADRESSE?namespace=$BOUTIQUE&nexus_task_queue=$FILE_BOUTIQUE&tls=0'
   bin/console messenger:consume durable_temporal_nexus
 
-  # la boutique appelle « facturation » — profil demo, journal sur le cluster
+  # la boutique appelle « facturation » — profil demo_appelant, journal sur le cluster
   cd sylius
-  export APP_ENV=demo
+  export APP_ENV=demo_appelant
   export DURABLE_TEMPORAL_DSN='temporal://$ADRESSE?namespace=$BOUTIQUE&tls=0'
   bin/console messenger:consume durable_temporal_journal
   bin/console durable:demo:facturer CMD-1 1200

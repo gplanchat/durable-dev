@@ -63,6 +63,15 @@ immédiate n'exigeant aucun workflow qui remplit l'opération.
       false` sépare les deux phrases — le cluster est joignable pour ce qui en a besoin, et servir
       une opération Nexus en a besoin, mais c'est `event_store` qui nomme la source de vérité.
       Le refus reste, et nomme désormais la sortie.
+
+      **La CI a montré ce qu'aucun essai local n'aurait montré :** un transport Messenger
+      `temporal://` déclaré sans DSN fait échouer `doctrine:schema:create`. L'écouteur de schéma de
+      Doctrine parcourt **tous** les transports, et le message qui sort est « Invalid temporal://
+      DSN » — loin de Nexus, loin de Messenger, dans une commande qui crée une base. La boutique a
+      donc deux profils de démonstration, `demo` et `demo_appelant`, et `dev`, `prod` et `test`
+      n'ont ni DSN, ni transport, ni gestionnaire Nexus. La balise du gestionnaire est posée en
+      YAML sous `when@demo` plutôt que par `#[AsNexusServiceHandler]`, l'attribut valant dans tous
+      les environnements ; `symfony/` garde l'attribut, son banc ayant un DSN partout.
 - [x] 2.2 `StockHandler` dans `sylius/`, `#[AsNexusServiceHandler]`, qui répond depuis le modèle de
       la boutique — les `ProductVariant` de Sylius, `onHand` moins `onHold`. Une tâche Nexus étant
       redélivrée, la réponse est écrite dans `app_durable_stock_reservation`, clée par

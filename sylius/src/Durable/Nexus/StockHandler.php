@@ -7,7 +7,6 @@ namespace App\Durable\Nexus;
 use App\Entity\Durable\StockReservation;
 use App\Entity\Product\ProductVariant;
 use Doctrine\ORM\EntityManagerInterface;
-use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
 use Gplanchat\Durable\Demo\Contracts\Stock\StockServed;
 
 /**
@@ -18,11 +17,15 @@ use Gplanchat\Durable\Demo\Contracts\Stock\StockServed;
  * ligne est déjà à sa place pour le jour où l'appelant verra une opération que la boutique remplira
  * par un workflow.
  *
+ * La balise `durable.nexus_handler` est posée par `config/services.yaml`, sous `when@demo`, et non
+ * par `#[AsNexusServiceHandler]`. L'attribut vaudrait dans tous les environnements, et la boutique
+ * n'a de cluster que dans son profil de démonstration : un gestionnaire déclaré sans route est
+ * refusé au démarrage, à raison. `symfony/` garde l'attribut, son banc ayant un DSN partout.
+ *
  * Le budget est d'environ neuf secondes — celui de la tâche, pas celui de l'opération. Deux lectures
  * indexées et une écriture y tiennent ; un appel à un prestataire, non, et c'est ce que
  * `#[FulfilsNexusOperation]` existe pour porter.
  */
-#[AsNexusServiceHandler(contract: StockServed::class)]
 final readonly class StockHandler implements StockServed
 {
     public function __construct(

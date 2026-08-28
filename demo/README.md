@@ -7,8 +7,8 @@ Deux applications, deux namespaces Temporal, et chacune appelle l'autre.
 | namespace | `demo-boutique` | `demo-metier` |
 | sert | `stock` (`reserver`) | `facturation` (`verifier`, `encaisser`) |
 | appelle | `facturation` | `stock` |
-| journal du profil qui **sert** | DBAL — son tableau de bord ne bouge pas | Temporal |
-| journal du profil qui **appelle** | Temporal (`APP_ENV=demo`) | Temporal |
+| profil qui **sert** | `APP_ENV=demo` — journal DBAL, tableau de bord inchangé | `APP_ENV=dev` — journal Temporal |
+| profil qui **appelle** | `APP_ENV=demo_appelant` — journal Temporal | `APP_ENV=dev` |
 
 Les deux lisent le même paquet de contrats, `src/DurableDemoContracts/`. Rien d'autre ne circule
 entre elles.
@@ -95,13 +95,13 @@ la démonstration mentirait sur ce qu'elle demande.
 
 | processus | maquette | profil | ce qu'il fait |
 |---|---|---|---|
-| `boutique-sert-stock` | `sylius/` | `dev` | poll les tâches Nexus de `demo-boutique` |
-| `boutique-workflows` | `sylius/` | `demo` | fait avancer `CommandeWorkflow` |
+| `boutique-sert-stock` | `sylius/` | `demo` | poll les tâches Nexus de `demo-boutique` |
+| `boutique-workflows` | `sylius/` | `demo_appelant` | fait avancer `CommandeWorkflow` |
 | `metier-sert-facturation` | `symfony/` | `dev` | poll les tâches Nexus de `demo-metier` |
 | `metier-workflows` | `symfony/` | `dev` | `ReserverStockWorkflow`, `EncaissementWorkflow` |
 | `metier-activites` | `symfony/` | `dev` | l'activité de paiement |
 
-## Pourquoi la boutique a deux profils
+## Pourquoi la boutique a deux profils, et pourquoi `dev` n'en est pas un
 
 Servir et appeler ne tiennent pas dans la même configuration Durable, et ce n'est pas un
 contournement.
@@ -113,3 +113,9 @@ puisque c'est ce que lit le tableau de bord de la boutique.
 
 Deux profils, donc, et c'est à cela que ressemble un vrai déploiement : le processus qui rend le
 tableau de bord et celui qui exécute les workflows sont deux déploiements du même code.
+
+Ni l'un ni l'autre n'est `dev`, et cela aussi a une raison mesurée. Un transport Messenger
+`temporal://` déclaré sans DSN fait échouer `doctrine:schema:create` : l'écouteur de schéma de
+Doctrine parcourt **tous** les transports, et le message qui sort est « Invalid temporal:// DSN »,
+loin de Nexus et loin de Messenger. Un environnement sans cluster n'a donc ni DSN, ni transport, ni
+gestionnaire — et `dev`, `prod` et `test` restent exactement ce qu'ils étaient.

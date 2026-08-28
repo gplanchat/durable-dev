@@ -9,20 +9,6 @@ framework:
             # failed: 'doctrine://default?queue_name=failed'
             sync: 'sync://'
 
-            # La boucle qui sert Nexus. Le transport est *receive-only* : chaque `get()` long-poll
-            # une tâche entrante et la sert par `TemporalNexusWorker`. Il n'y a donc pas de file
-            # Sylius derrière — le nom `durable_temporal_nexus` désigne une boucle de poll, pas une
-            # file de messages.
-            #
-            #   bin/console messenger:consume durable_temporal_nexus
-            #
-            # Sans `DURABLE_TEMPORAL_DSN`, le transport est déclaré et jamais instancié : le reste
-            # de la boutique ne le touche pas.
-            durable_temporal_nexus:
-                dsn: '%env(DURABLE_TEMPORAL_DSN)%'
-                options:
-                    purpose: nexus_worker
-
         routing:
             # Route your messages to the transports
             # 'App\Message\YourMessage': async
@@ -35,12 +21,29 @@ framework:
 #                # For more Messenger testing tools, see https://github.com/zenstruck/messenger-test
 #                async: 'in-memory://'
 
+# Le transport Nexus vit dans le profil qui sert, et le transport de journal dans celui qui appelle.
+# Les deux sont `temporal://` : les déclarer ailleurs ferait échouer `doctrine:schema:create`, faute
+# de DSN (voir `durable.yaml`).
 when@demo:
     framework:
         messenger:
             transports:
+                # Receive-only : chaque `get()` long-poll une tâche Nexus entrante et la sert par
+                # `TemporalNexusWorker`. Il n'y a pas de file Sylius derrière — le nom désigne une
+                # boucle de poll, pas une file de messages.
+                #
+                #   bin/console messenger:consume durable_temporal_nexus
+                durable_temporal_nexus:
+                    dsn: '%env(DURABLE_TEMPORAL_DSN)%'
+                    options:
+                        purpose: nexus_worker
+
+when@demo_appelant:
+    framework:
+        messenger:
+            transports:
                 # Le worker de tâches de workflow du profil appelant. C'est lui qui fait avancer
-                # `CommandeWorkflow` entre ses deux appels — et qui le reprend après l'attente,
-                # sans que ce soit forcément le même processus qui l'avait démarré.
+                # `CommandeWorkflow` entre ses deux appels — et qui le reprend après l'attente, sans
+                # que ce soit forcément le même processus qui l'avait démarré.
                 durable_temporal_journal:
                     dsn: '%env(DURABLE_TEMPORAL_DSN)%'
