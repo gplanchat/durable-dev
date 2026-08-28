@@ -30,11 +30,13 @@
 #                                  reprend-elle sans re-débiter la carte ?
 #   probe-order.php                la sonde du §5.2 : une commande passée
 #                                  démarre-t-elle une exécution sur la grappe ?
-#   app/code/Gplanchat/DurableProbe le sujet de file que cette sonde pilote.
-#                                  Magento ne résout un gestionnaire de file que
-#                                  depuis un module enregistré, et un sujet dont
-#                                  le gestionnaire ne fait que dormir n'a rien à
-#                                  faire dans le paquet publié : il reste ici.
+#   app/code/Gplanchat/DurableProbe le module du banc. Il porte la
+#                                  **démonstration** — `PlaceOrderWorkflow`,
+#                                  `durable:demo` — et les sujets de file des
+#                                  sondes. Rien de tout cela n'a sa place dans le
+#                                  paquet publié : un module d'intégration ne
+#                                  doit pas faire porter à un projet des
+#                                  workflows qui ne sont pas les siens.
 #
 # `sylius/` fait l'inverse — liste d'exclusions — parce que là-bas le squelette
 # applicatif **est** du code du projet : 220 fichiers écrits ici. Ici il y en a

@@ -23,6 +23,24 @@ partagé entre processus). Le delta de spec a suivi — l'exigence parle désorm
 de processus qu'un exploitant supervise déjà, et interdit explicitement une
 seconde file.
 
+Tranche **en cours** : **l'écran d'administration repris sur les grilles
+standard de Magento**, et un **écran de détail** d'exécution.
+
+Pourquoi ce n'était pas déjà le cas : je ne l'ai pas décidé, j'ai écrit le plus
+court qui s'affichait — un `<table class="admin__table-primary">` dans un phtml.
+La grille standard est faisable : `Magento\Ui\DataProvider\AbstractDataProvider`
+est l'échappatoire documentée pour une source qui n'est pas une collection SQL,
+et `getData()`, `addFilter()`, `setLimit()` s'y redéfinissent.
+
+⚠ Le point de friction à mesurer : la grille pagine par **offset**
+(`setLimit($offset, $size)`) tandis que `listRuns()` pagine par **curseur** de
+continuation. Il faudra soit marcher les curseurs, soit borner une fenêtre et
+paginer dedans — et dire lequel, avec son plafond.
+
+Le détail a déjà tout ce qu'il faut côté port : `readHistory(WorkflowRunDescription)`
+rend la liste des événements, et `checkHealth()` existe aussi, que l'écran actuel
+n'utilise pas non plus.
+
 ✅ **Tâche 6 aux trois quarts — PR #205 fusionnée.** DUR046 (6.1), les pages
 paquets et la page Backends dans les deux langues (6.3), et les deux OST (6.4).
 La ligne Magento d'OST004 a quitté le tableau de ce qui n'est pas construit.
@@ -118,3 +136,43 @@ et la 4.3 ; puis la tâche 6.
 
 Banc laissé propre : sonde purgée, `queue_lock` vide, `retry_inprogress_after`
 à 1440, `env.php` sans clef `durable`, `di.xml` restauré.
+
+
+## Publication du paquet — 2026-08-28
+
+Fait dans le dépôt : `src/DurableModule/README.md` et `LICENSE` (les six paquets
+publiés en ont, celui-ci était le seul sans), et la ligne
+`"src/DurableModule/|durable-magento"` dans `bin/splitsh-publish.sh`.
+`composer validate --strict` passe.
+
+⚠ **Le satellite `gplanchat/durable-magento` existe déjà**, créé le 2026-03-29,
+et il **n'est pas vide** : son `main` est le split de `af3e51be`, quand ce
+préfixe tenait un tout autre module (`Api`, `Model`, une commande de
+consommation), retiré depuis par `e9b24e9c`. Son arbre correspond exactement à
+`src/DurableModule/` à ce commit-là — c'est donc un vrai split du même préfixe,
+et le split d'aujourd'hui devrait l'avoir pour ancêtre : la première poussée
+avance **sans forcer**. Si elle est refusée, le `workflow_dispatch` avec `force`
+archive la tête sous `refs/heads/archive/` avant de la remplacer. Ne pas
+supprimer le dépôt : la portée du PAT est par dépôt, et un dépôt recréé n'y est
+plus.
+
+⚠ **Le satellite est PRIVÉ**, seul des dix. Packagist ne lira rien tant qu'il ne
+sera pas public.
+
+Gestes hors dépôt restants, **dans cet ordre** ([[splitsh-nouveau-satellite]]) :
+1. rendre `gplanchat/durable-magento` public ;
+2. l'ajouter à la portée du PAT `SPLITSH_PUSH_TOKEN` (fine-grained, *Only select
+   repositories*, Contents: Read and write) ;
+3. **puis seulement** fusionner la PR #209 — c'est elle qui porte à la fois le
+   préfixe et sa ligne dans `SPLITS`. L'inverse (la ligne sans le préfixe) ne
+   rougirait pas un satellite mais **tuerait le job entier** : `split_sha` fait
+   `exit 1` quand splitsh-lite ne rend rien pour un préfixe absent ;
+4. soumettre à Packagist.
+
+Le paquet arrivera en `dev-main` avec **zéro version** — un préfixe ajouté après
+coup ne rattrape pas les tags passés, exactement comme
+`durable-bridge-illuminate`. Première version au prochain tag, pas en rejouant
+`v0.1.0-alpha7`. La section *Release state* du README le dit.
+
+L'avertissement « pas sur Packagist » des pages de documentation reste jusqu'à la
+soumission.

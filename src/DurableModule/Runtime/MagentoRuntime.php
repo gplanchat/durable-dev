@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Magento\Runtime;
+namespace Gplanchat\DurableModule\Runtime;
 
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;

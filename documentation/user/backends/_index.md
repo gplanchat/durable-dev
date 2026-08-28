@@ -99,6 +99,11 @@ Verify:
 php -m | grep grpc
 ```
 
+**In a container image, don't compile it again.** `pecl install grpc` takes about seven minutes, and
+your image build pays it on every branch. Prebuilt extensions are published for PHP 8.2 to 8.5, in
+thread-safe and non-thread-safe forms — see [gRPC in your container image](../container-images/)
+for the `COPY --from` recipes, including php-fpm, mod_php and FrankenPHP.
+
 ### Docker Compose setup (local / CI)
 
 The repository includes a ready-to-use `compose.yaml` under `symfony/` that starts:
@@ -246,9 +251,11 @@ The same four stores exist on `Illuminate\Database\Connection`, as
 — same journal, same trade against Temporal.
 
 It is **not a fourth value of `event_store.type`**, and this page's configuration does not reach it:
-it is the storage half only. Nothing binds the ports, and the transport that carries resumes and
-timers is yours until a Laravel integration package exists. `Queue\ResumeLock` gives you the
-per-execution exclusion the section above describes — a closure to wrap, not a middleware.
+the bridge is the storage half only, and it binds nothing. **What binds it is
+`gplanchat/durable-laravel`**, through its own `config/durable.php` rather than through
+`durable.event_store.type` — a Laravel application does not read this page's YAML. That package
+also carries the queue side: activities and resumes as jobs, timers on the queue's own delay, and
+`Queue\ResumeLock` for the per-execution exclusion the section above describes.
 
 ---
 

@@ -17,6 +17,7 @@ l'exécution est enregistrée.
 | `gplanchat/durable-bridge-temporal` | le pilote Temporal, en gRPC | la bibliothèque, `ext-grpc`, un cluster Temporal |
 | `gplanchat/durable-bridge-dbal` | l'exécution durable sur une base SQL | la bibliothèque, Doctrine DBAL 3 ou 4, `symfony/lock` |
 | `gplanchat/durable-bridge-illuminate` | la même chose, sur la connexion que Laravel possède déjà | la bibliothèque, `illuminate/database` 11, 12 ou 13 |
+| `gplanchat/durable-laravel` | le câblage Laravel : les ports liés depuis la configuration, le travail sur la file de l'application | la bibliothèque, le pont Illuminate, `illuminate/support` |
 | `gplanchat/durable-magento` | un module Magento 2.4 / Mage-OS : déclaration, workers, écran d'administration | la bibliothèque ; Temporal pour tout ce qui doit survivre à un processus |
 | `gplanchat/durable-plugin` | un tableau de bord Sylius pour les exécutions | le bundle, `knplabs/knp-menu` ; Sylius 2.x pour apparaître dans son menu |
 
@@ -202,10 +203,23 @@ composer require gplanchat/durable-magento
 > Packagist, donc la commande ci-dessus ne résout pas aujourd'hui. Ce qui suit décrit ce qui est
 > construit, pas ce que vous pouvez installer.
 
-Un module Magento 2.4 / Mage-OS — `Gplanchat_Durable` dans `bin/magento module:status`. Il déclare
+Un module Magento 2.4 / Mage-OS — `Gplanchat_DurableModule` dans `bin/magento module:status`. Il déclare
 les classes de workflow et d'activité au moteur, l'assemble pour un processus Magento, livre les
 workers en commandes `bin/magento`, et ajoute un écran d'administration en lecture seule sous
 **System > Durable processes > Process history**.
+
+L'écran est une grille Magento standard — pagination, signets, choix des colonnes, export, et un
+filtre d'état multi-select dont les options viennent de l'énumération elle-même. Ouvrir une
+exécution mène à son détail : une frise avec **une ligne par action** — une activité planifiée,
+démarrée puis terminée est une ligne, et la barre de la ligne est sa durée. L'exécution elle-même
+est la première ligne, nommée d'après le workflow et portant ses tâches de workflow ; un workflow
+enfant garde sa propre ligne. Chaque barre est découpée entre événements consécutifs, de sorte
+qu'un intervalle sans rien d'enregistré — l'attente d'un worker — dit sa durée au lieu de se
+cacher dans une barre. Le journal est en dessous. Chaque ligne du journal se
+déplie sur ce que le backend a enregistré avec elle — les arguments d'appel d'une activité, ce
+qu'elle a rendu, la classe et le message d'un échec. Placer dans le temps plutôt que par rang est
+tout l'intérêt : c'est ce qui fait qu'une exécution ayant passé vingt-deux de ses vingt-quatre
+secondes à attendre en a l'air.
 
 Le conteneur de Magento n'a pas d'équivalent de l'autoconfiguration par tag de Symfony : la
 déclaration est explicite, deux tableaux dans `di.xml`.
@@ -272,9 +286,11 @@ Chaque ligne ne nomme que l'intégration : le bundle tire la bibliothèque, et l
 bundle. Sans framework, vous nommez la bibliothèque vous-même, et vous câblez aussi les workers
 vous-même.
 
-La ligne Laravel fait exception, et nomme la bibliothèque : le sélecteur propose
-`gplanchat/durable-laravel`, qui n'existe pas encore. En attendant, le pont s'installe seul et vous
-le câblez vous-même.
+La ligne Laravel nomme la bibliothèque plutôt qu'une intégration, et c'est désormais un *choix* et
+non un manque : `gplanchat/durable-laravel` existe — un service provider qui lie les quatre ports de
+stockage, des workflows déclarés dans `config/durable.php`, le travail sur la file que l'application
+draine déjà. Tant qu'il n'est pas tagué, le pont s'installe seul et vous le câblez vous-même ; la
+section ci-dessus dit ce que l'intégration vous retire des mains.
 
 ---
 

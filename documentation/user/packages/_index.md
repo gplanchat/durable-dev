@@ -16,6 +16,7 @@ the workflow code — only where the execution is recorded.
 | `gplanchat/durable-bridge-temporal` | the Temporal driver, over gRPC | the library, `ext-grpc`, a Temporal cluster |
 | `gplanchat/durable-bridge-dbal` | durable execution on one SQL database | the library, Doctrine DBAL 3 or 4, `symfony/lock` |
 | `gplanchat/durable-bridge-illuminate` | the same, on the connection Laravel already owns | the library, `illuminate/database` 11, 12 or 13 |
+| `gplanchat/durable-laravel` | the Laravel wiring: ports bound from config, work on the application's queue | the library, the Illuminate bridge, `illuminate/support` |
 | `gplanchat/durable-magento` | a Magento 2.4 / Mage-OS module: declaration, workers, admin screen | the library; Temporal for anything that must outlive a process |
 | `gplanchat/durable-plugin` | a Sylius admin dashboard for workflow runs | the bundle, `knplabs/knp-menu`; Sylius 2.x to appear in its menu |
 
@@ -190,16 +191,27 @@ composer require gplanchat/durable-magento
 > Packagist, so the command above does not resolve today. Everything below describes what is built,
 > not what you can install.
 
-A Magento 2.4 / Mage-OS module — `Gplanchat_Durable` in `bin/magento module:status`. It declares
+A Magento 2.4 / Mage-OS module — `Gplanchat_DurableModule` in `bin/magento module:status`. It declares
 workflow and activity classes to the runtime, assembles the engine for a Magento process, ships the
 workers as `bin/magento` commands, and adds a read-only admin screen under
 **System > Durable processes > Process history**.
+
+The screen is a standard Magento grid — paging, bookmarks, column controls, export, and a
+multi-select status filter whose options come from the status enum itself. Selecting a run opens its
+detail: a timeline with **one line per action** — an activity scheduled, started and completed is
+one line, and the line's bar is how long it took. The run itself is the first line, named after the
+workflow and holding its workflow tasks; a child workflow keeps a line of its own. Each bar is cut
+between consecutive events, so an interval in which nothing was recorded — waiting for a worker —
+says how long it lasted rather than hiding inside a bar. The journal sits beneath it. Each journal line unfolds onto what the backend recorded with
+it — the arguments an activity was called with, what it returned, the class and message of a
+failure. Positioning by time rather than by rank is the point: it is what makes a run that spent
+twenty-two of its twenty-four seconds waiting look like one.
 
 Magento's container has no equivalent of Symfony's tag autoconfiguration, so declaration is
 explicit — two arrays in `di.xml`:
 
 ```xml
-<type name="Gplanchat\Durable\Magento\Runtime\RuntimeFactory">
+<type name="Gplanchat\DurableModule\Runtime\RuntimeFactory">
     <arguments>
         <argument name="workflowClasses" xsi:type="array">
             <item name="place_order" xsi:type="string">Acme\Shop\Workflow\PlaceOrder</item>
@@ -271,9 +283,11 @@ Every command below is the one the chooser on the [home page](/) hands you, writ
 Each line names the integration only: the bundle pulls the library in, and the plugin pulls the
 bundle in. Without a framework you name the library yourself, and you wire the workers yourself too.
 
-The Laravel line is the exception, and it names the library: the chooser offers
-`gplanchat/durable-laravel`, which does not exist yet. Until it does, the bridge installs on its
-own and you wire it yourself.
+The Laravel line names the library rather than an integration, and that is now a *choice* rather
+than a gap: `gplanchat/durable-laravel` exists — a service provider binding the four storage ports,
+workflows declared in `config/durable.php`, work riding the queue the application already drains.
+Until it is tagged, the bridge installs on its own and you wire it yourself; see the section above
+for what the integration takes off your hands.
 
 ---
 

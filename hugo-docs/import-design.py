@@ -28,6 +28,8 @@ Cinq choses séparent une page du canevas d'une page servie par Hugo :
 
 from __future__ import annotations
 
+import difflib
+import hashlib
 import json
 import pathlib
 import re
@@ -38,16 +40,35 @@ HERE = pathlib.Path(__file__).parent
 # Résolues depuis le composant du canevas. L'accent est recalculé par son
 # propre algorithme : il part de la teinte choisie et descend en luminosité
 # jusqu'à passer un contraste de 4,6 sur le fond du thème visé.
+#
+# La teinte choisie est l'émeraude `#1f6f5c`, un des quatre accents que propose
+# le canevas (`#b4552f` terracotta, `#1f6f5c` émeraude, `#2d5bb9` bleu,
+# `#8a3f7a` prune). Le canevas en tire `#207460` en clair et `#68d5bb` en
+# sombre ; ce sont ces deux valeurs-là, pas la graine, qui s'écrivent ici.
+# Changer de variante, c'est rejouer `themeAccent(graine, dark)` du canevas sur
+# la nouvelle graine — et penser au `--dz-accent` de `assets/_custom.scss`, qui
+# porte la même paire pour les pages de documentation.
+#
+# `accent2` est le second accent : les pastilles « Nexus · works today »,
+# « bundle today · plugin planned », le bord de l'encadré « With it ». Le canevas
+# le fige — il ne suit pas la variante d'accent — et il ne passait pas par cette
+# table : les 24 `var(--accent2, #2f6f6b)` du balisage tombaient donc tous sur
+# leur valeur de repli, y compris en thème sombre, où ce vert-bleu ne tenait que
+# 2,98 de contraste sur `bg2`. Il entre ici, donc il a maintenant ses deux
+# valeurs. La teinte vient du bleu du canevas (`#2d5bb9`) : l'émeraude est à
+# 166°, l'ancien vert-bleu à 176°, les deux se confondaient.
 PALETTE = {
     "light": {
         "bg": "#f7f4ef", "bg2": "#efe9df", "fg": "#1d1a16", "fg2": "#6c6459",
-        "line": "#ddd6ca", "accent": "#9e488b", "accent-fg": "#fdfaf6",
+        "line": "#ddd6ca", "accent": "#207460", "accent-fg": "#fdfaf6",
+        "accent2": "#2e5dbd",
         "code-bg": "#ffffff", "code-fg": "#1d1a16",
         "ck": "#a1341f", "cs": "#6b7d1f", "cc": "#9a9184", "cv": "#1c6b8a",
     },
     "dark": {
         "bg": "#141310", "bg2": "#1c1a17", "fg": "#eae5dc", "fg2": "#a09a90",
-        "line": "#2c2925", "accent": "#c27ab2", "accent-fg": "#170f0a",
+        "line": "#2c2925", "accent": "#68d5bb", "accent-fg": "#170f0a",
+        "accent2": "#638ad9",
         "code-bg": "#100f0d", "code-fg": "#eae5dc",
         "ck": "#e58a6a", "cs": "#a8bf62", "cc": "#6b665e", "cv": "#79b6cf",
     },
@@ -341,7 +362,7 @@ def language_of(src_path: pathlib.Path, out_path: pathlib.Path) -> str:
     return lang
 
 
-def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
+def build(src_path: pathlib.Path, out_path: pathlib.Path, force: bool = False) -> None:
     source = src_path.read_text()
     words = STRINGS[language_of(src_path, out_path)]
 
@@ -399,8 +420,7 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
     if left:
         die(f"gabarit du script de page non remplacé : {sorted(set(left))}")
 
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(
+    page = (
         (HERE / "layout-head.html").read_text()
         + "<style>\n" + palette_css() + "\n".join(hover_rules) + "\n</style>\n"
         + root + "\n"
@@ -408,6 +428,11 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
         + "<script>\n" + chooser_script(source) + "\n</script>\n"
         + "</body>\n</html>\n"
     )
+
+    guard_hand_edits(out_path, page, force)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(page)
+    remember_import(out_path)
 
     print(f"écrit  {out_path}  ({out_path.stat().st_size} octets)")
     print(f"       {len(hover_rules)} règles :hover, {len(notes)} annotations, "
@@ -417,6 +442,136 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path) -> None:
 
 
 COMMANDS_REFERENCE = pathlib.Path("../documentation/user/packages/_index.md")
+
+
+
+# Le manifeste des sorties : pour chaque gabarit engendré, l'empreinte de ce que
+# le dernier import y a écrit.
+IMPORTED = HERE / "imported.json"
+
+
+def imported_hashes() -> dict[str, str]:
+    if not IMPORTED.exists():
+        return {}
+    return json.loads(IMPORTED.read_text())
+
+
+def remember_import(out_path: pathlib.Path) -> None:
+    known = imported_hashes()
+    known[out_path.name] = hashlib.sha256(out_path.read_bytes()).hexdigest()
+    IMPORTED.write_text(json.dumps(dict(sorted(known.items())), indent=2) + "\n")
+
+
+def guard_hand_edits(out_path: pathlib.Path, new_text: str, force: bool) -> None:
+    """Refuse d'écraser une sortie modifiée à la main depuis le dernier import.
+
+    C'est la panne que WA005 raconte : trois correctifs écrits dans
+    `layouts/index.html` et perdus, deux à une régénération qui ne les
+    connaissait pas, un à un rebasage. Aucun n'a fait de bruit — c'est tout le
+    problème. Une régénération qui ne sait pas ce qu'elle détruit le détruit en
+    silence.
+
+    La garde ne demande pas que le canevas soit dans le dépôt ; elle demande
+    seulement de savoir ce que le dernier import avait écrit. Si le fichier ne
+    porte plus cette empreinte, quelqu'un l'a corrigé à la main, et cette
+    correction n'est pas dans le canevas — sinon elle serait dans la sortie.
+
+    ponytail: une empreinte plutôt qu'une copie de l'ancienne sortie. Le diff
+    montré compare l'état courant à ce qui va être écrit, ce qui est exactement
+    ce que la régénération changerait — les corrections perdues comprises.
+    """
+    if not out_path.exists():
+        return
+
+    known = imported_hashes().get(out_path.name)
+    current = hashlib.sha256(out_path.read_bytes()).hexdigest()
+    if known == current:
+        return
+
+    if known is None:
+        if force:
+            return
+        die(
+            f"aucune empreinte connue pour {out_path.name} : ce fichier existe, et rien ne dit\n"
+            "ce que le dernier import y avait écrit. Il peut donc porter des corrections faites à\n"
+            "la main, absentes du canevas — c'est l'état dans lequel WA005 a trouvé le dépôt.\n"
+            "Relisez-le, reportez ce qui manque dans le canevas, puis `--force` une fois : "
+            "l'empreinte\nsera enregistrée et les imports suivants sauront quoi comparer."
+        )
+
+    diff = list(difflib.unified_diff(
+        out_path.read_text().splitlines(keepends=True),
+        new_text.splitlines(keepends=True),
+        fromfile=f"{out_path.name} (dépôt, modifié à la main)",
+        tofile=f"{out_path.name} (ce que l'import écrirait)",
+        n=1,
+    ))
+
+    if force:
+        print(f"⚠ {out_path.name} a été modifié à la main depuis le dernier import — "
+              f"{sum(1 for l in diff if l.startswith(('+', '-')) and not l.startswith(('+++', '---')))} "
+              f"lignes écrasées, --force donné.")
+        return
+
+    sys.stderr.write("".join(diff[:400]))
+    die(
+        f"{out_path.name} a été modifié à la main depuis le dernier import.\n"
+        "Ces lignes ne sont pas dans le canevas : les écraser les perdrait, comme les\n"
+        "trois correctifs de WA005. Reportez-les dans le canevas, puis relancez — ou\n"
+        "`--force` si vous savez qu'elles sont déjà dedans."
+    )
+
+
+def self_test() -> None:
+    """Un aller-retour complet de la garde, sans canevas ni réseau."""
+    import tempfile
+
+    global IMPORTED
+    original = IMPORTED
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpdir = pathlib.Path(tmp)
+        IMPORTED = tmpdir / "imported.json"
+        out = tmpdir / "index.html"
+
+        # 1. Une sortie qui n'existe pas encore ne déclenche rien : rien à perdre.
+        guard_hand_edits(out, "un\ndeux\n", force=False)
+
+        # 1bis. Une sortie qui existe sans empreinte connue est refusée : c'est
+        #       exactement l'état du dépôt le jour où cette garde est écrite.
+        out.write_text("un\ndeux\n")
+        try:
+            guard_hand_edits(out, "un\ndeux\n", force=False)
+        except SystemExit:
+            pass
+        else:
+            raise AssertionError("la garde a jugé un fichier dont elle ignore l'origine")
+        guard_hand_edits(out, "un\ndeux\n", force=True)
+
+        # 2. Après un import, la sortie porte son empreinte : réimporter la même
+        #    chose ne dérange personne.
+        out.write_text("un\ndeux\n")
+        remember_import(out)
+        guard_hand_edits(out, "un\ndeux\ntrois\n", force=False)
+
+        # 3. Une correction à la main, et l'import suivant refuse.
+        out.write_text("un\ndeux corrigé à la main\n")
+        try:
+            guard_hand_edits(out, "un\ndeux\n", force=False)
+        except SystemExit:
+            pass
+        else:
+            raise AssertionError("la garde a laissé passer une correction à la main")
+
+        # 4. `--force` passe outre, délibérément.
+        guard_hand_edits(out, "un\ndeux\n", force=True)
+
+        # 5. Et la garde ne juge jamais un fichier qui n'existe pas encore : la
+        #    refuser serait bloquer le premier import d'une nouvelle langue.
+        jamais_ecrit = tmpdir / "index.de.html"
+        guard_hand_edits(jamais_ecrit, "neu\n", force=False)
+
+    IMPORTED = original
+    print("garde de l'import : 6 cas, tous verts")
 
 
 def declared_packages() -> set[str]:
@@ -543,6 +698,12 @@ def check_commands_agree(source: str) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    args = sys.argv[1:]
+    if args == ["--self-test"]:
+        self_test()
+        sys.exit(0)
+    force = "--force" in args
+    args = [a for a in args if a != "--force"]
+    if len(args) != 2:
         sys.exit(__doc__)
-    build(pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]))
+    build(pathlib.Path(args[0]), pathlib.Path(args[1]), force)

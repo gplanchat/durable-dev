@@ -106,6 +106,12 @@ Vérification :
 php -m | grep grpc
 ```
 
+**Dans une image de conteneur, ne la recompilez pas.** `pecl install grpc` prend environ sept
+minutes, et votre construction d'image les paie sur chaque branche. Des extensions préconstruites
+sont publiées pour PHP 8.2 à 8.5, en versions thread-safe et non thread-safe — voir
+[gRPC dans votre image de conteneur](../container-images/) pour les recettes
+`COPY --from`, php-fpm, mod_php et FrankenPHP compris.
+
 ### Mise en place Docker Compose (local / intégration continue)
 
 Le dépôt fournit un `compose.yaml` prêt à l'emploi sous `symfony/`, qui démarre :
@@ -260,10 +266,11 @@ Les mêmes quatre stockages existent sur `Illuminate\Database\Connection`, sous 
 — même journal, même échange face à Temporal.
 
 Ce n'est **pas une quatrième valeur d'`event_store.type`**, et la configuration de cette page ne
-l'atteint pas : c'est la moitié stockage, seulement. Rien ne lie les ports, et le transport qui
-porte les reprises et les minuteurs est à vous tant qu'il n'existe pas de paquet d'intégration
-Laravel. `Queue\ResumeLock` fournit l'exclusion par exécution que décrit la section ci-dessus —
-une fermeture à envelopper, pas un middleware.
+l'atteint pas : le pont est la moitié stockage, seulement, et il ne lie rien. **Ce qui le lie, c'est
+`gplanchat/durable-laravel`**, par son propre `config/durable.php` et non par
+`durable.event_store.type` — une application Laravel ne lit pas le YAML de cette page. Ce paquet
+porte aussi le côté file : activités et reprises en jobs, minuteurs sur le délai natif de la file,
+et `Queue\ResumeLock` pour l'exclusion par exécution que décrit la section ci-dessus.
 
 ---
 

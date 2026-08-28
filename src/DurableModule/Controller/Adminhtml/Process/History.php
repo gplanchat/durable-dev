@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Controller\Adminhtml\Process;
+namespace Gplanchat\DurableModule\Controller\Adminhtml\Process;
 
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
@@ -18,14 +18,16 @@ use Magento\Framework\View\Result\PageFactory;
  * navigateur contournerait le verrou par exécution — ce que la 1.5 a montré coûter deux
  * gestionnaires en parallèle sur un même message.
  *
- * ⚠⚠ **L'espace de noms de ce fichier n'est pas celui du reste du module, et ce n'est pas une
- * inadvertance.** Magento résout une action par **convention depuis le nom du module**, pas depuis
- * l'autochargement : `ActionList::get()` compose `Gplanchat_Durable` + `\Controller\Adminhtml\…`,
- * donc `Gplanchat\Durable\Controller\…`. Le paquet, lui, s'autocharge sous
- * `Gplanchat\Durable\Magento\` — c'est le prix des deux conventions que le design a choisies
- * (nom de paquet côté famille, nom de module côté Magento). Le `composer.json` du module ajoute donc
- * une seconde entrée `psr-4` pour ce seul dossier. Sans elle, la route est déclarée, le menu
- * s'affiche, et Magento rend un **404 dans le châssis d'admin** : tout a l'air juste sauf la page.
+ * L'espace de noms suit PSR-4, et ce n'est pas un détail : Magento résout une action **par
+ * convention depuis le nom du module** — `ActionList::get()` compose `Gplanchat_DurableModule` +
+ * `\Controller\Adminhtml\…`. Tant que le nom du module et la racine PSR-4 du paquet se
+ * correspondent, il n'y a rien à déclarer de plus.
+ *
+ * Ils ne se correspondaient pas : le module s'appelait `Gplanchat_Durable` et le paquet
+ * s'autochargeait sous `Gplanchat\DurableModule\`, ce qui obligeait à une **seconde** entrée
+ * `psr-4` pour ce seul dossier. Le symptôme était trompeur — route déclarée, menu affiché, et un
+ * 404 rendu dans le châssis d'admin. La cause n'était pas Magento, c'était deux noms qui ne
+ * s'accordaient pas ; les accorder l'a fait disparaître.
  *
  * ⚠ `HttpGetActionInterface` n'est pas décoratif : depuis 2.3, le routeur **ignore** une action qui
  * n'implémente aucune des interfaces de verbe, et Magento rend son 404 dans le châssis d'admin —
@@ -37,7 +39,7 @@ use Magento\Framework\View\Result\PageFactory;
  */
 class History extends Action implements HttpGetActionInterface
 {
-    public const ADMIN_RESOURCE = 'Gplanchat_Durable::process_history';
+    public const ADMIN_RESOURCE = 'Gplanchat_DurableModule::process_history';
 
     public function __construct(
         Context $context,
@@ -49,7 +51,7 @@ class History extends Action implements HttpGetActionInterface
     public function execute(): ResultInterface
     {
         $page = $this->pageFactory->create();
-        $page->setActiveMenu('Gplanchat_Durable::process_history');
+        $page->setActiveMenu('Gplanchat_DurableModule::process_history');
         $page->getConfig()->getTitle()->prepend(__('Process history'));
 
         return $page;

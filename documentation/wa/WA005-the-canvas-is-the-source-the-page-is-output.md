@@ -32,14 +32,34 @@ stops being an event to fear, because there is nothing in the output that the so
 The rule is unenforceable while the canvas lives outside the repository. Making it real means:
 
 1. **Committing the canvas source** — the `.dc.html` file — next to the script that reads it.
-2. **A CI check** that re-runs `import-design.py` on the committed source and fails if the result
-   differs from the committed `layouts/index.html`. A hand edit then shows up as a red build with
-   the diff attached, which is the whole point: the loss becomes visible *before* the regeneration
-   rather than after it.
+2. ~~**A CI check** that re-runs `import-design.py` on the committed source and fails if the result
+   differs from the committed `layouts/index.html`.~~ **Done, and not that way.** Re-running the
+   import in CI needs the canvas, which (1) has not delivered — so the guard was put where the loss
+   actually happens instead: **inside `import-design.py`, at the moment it is about to write.**
 
-Until (1) and (2) exist, this working agreement is a convention. It is written down anyway, because
-three losses in one night were three people each reasonably believing they were doing the normal
-thing.
+   The script now records the fingerprint of every page it writes, in `hugo-docs/imported.json`.
+   Before overwriting, it compares. Three outcomes:
+
+   - the file still carries the fingerprint of the last import → write, silently;
+   - the file has drifted → **refuse**, and print the diff between what is on disk and what the
+     import would write. Those lines are, by construction, edits the canvas does not have;
+   - no fingerprint at all → **refuse**, because nothing distinguishes "never imported" from
+     "imported before this guard existed, and edited since". That is the repository's state today.
+
+   `--force` passes, and records the fingerprint, so the refusal is a one-time confirmation rather
+   than a wall. `python3 hugo-docs/import-design.py --self-test` exercises the six cases without a
+   canvas or a network, and the docs workflow runs it.
+
+   **What this catches that a CI diff would not:** a loss to a *rebase*, which is how the third of
+   the three happened. The fingerprint is committed, so a rebase that drops a hand edit leaves the
+   file no longer matching it.
+
+   **What it does not catch:** an edit made and imported over in the same breath, and the canvas
+   drifting away from the committed pages. Only (1) closes those.
+
+Until (1) exists, this working agreement is a convention with an alarm on it. It is written down
+anyway, because three losses in one night were three people each reasonably believing they were
+doing the normal thing.
 
 ### What stays hand-written
 
