@@ -98,7 +98,7 @@ actually lives, and the caller's contract still declares everything so the stub 
 
 ### Answering now, or answering later
 
-`NexusOperationResponse` has two forms, and choosing between them is the one decision that matters.
+There are two forms, and choosing between them is the one decision that matters.
 
 ```php
 // Now — the handler returns the contract's own type.
