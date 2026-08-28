@@ -9,7 +9,6 @@ use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowResumeDispatcher;
 use Gplanchat\Durable\Laravel\Queue\ResumeWorkflowJob;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Illuminate\Container\Container;
-use Illuminate\Queue\SyncQueue;
 use PHPUnit\Framework\TestCase;
 use unit\DurableLaravel\Fixtures\FakeQueue;
 use unit\DurableLaravel\Fixtures\FakeQueueFactory;
@@ -54,16 +53,15 @@ final class LaravelWorkflowResumeDispatcherTest extends TestCase
     public function testAQueueThatRunsInlineIsRefusedAtBoot(): void
     {
         $app = new Container();
+        // La garde lit le **driver configuré**, pas la classe de la connexion : `SyncQueue` vit
+        // dans `illuminate/queue`, que ce paquet n'exige pas — voir la matrice Laravel de la CI.
         $app->instance('config', new \ArrayObject(
-            ['durable' => ['backend' => 'illuminate']],
+            [
+                'durable' => ['backend' => 'illuminate'],
+                'queue' => ['default' => 'sync', 'connections' => ['sync' => ['driver' => 'sync']]],
+            ],
             \ArrayObject::ARRAY_AS_PROPS,
         ));
-        $app->instance('queue', new class {
-            public function connection(?string $name = null): SyncQueue
-            {
-                return new SyncQueue();
-            }
-        });
 
         $provider = new DurableServiceProvider($app);
 

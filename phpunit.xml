@@ -13,9 +13,20 @@
                  class PhpParser\Node\Scalar\Float_ ». D'où une suite à part, écartée de la
                  couverture — src/DurableRector n'est de toute façon pas dans <source>. -->
             <exclude>tests/unit/DurableRector</exclude>
+            <!-- Et le paquet Laravel, qui a sa propre suite pour que la matrice « Laravel x /
+                 PHP y » puisse l'exercer contre une ligne d'illuminate/* épinglée. PHPUnit refuse
+                 le même fichier dans deux suites : « Cannot add file … to test suite "laravel" as
+                 it was already added to test suite "unit" ». `composer test` les lance toutes,
+                 donc la QA le voit toujours. -->
+            <exclude>tests/unit/DurableLaravel</exclude>
         </testsuite>
         <testsuite name="rector">
             <directory>tests/unit/DurableRector</directory>
+        </testsuite>
+        <!-- Le paquet d'intégration Laravel, isolé pour que la matrice « Laravel x / PHP y »
+             puisse l'exercer seule contre une ligne d'illuminate/* épinglée. -->
+        <testsuite name="laravel">
+            <directory>tests/unit/DurableLaravel</directory>
         </testsuite>
         <testsuite name="plugin">
             <directory>src/DurablePlugin/tests</directory>

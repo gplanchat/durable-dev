@@ -29,7 +29,6 @@ use Gplanchat\Durable\WorkflowRegistry;
 use Illuminate\Cache\NullStore;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Database\Connection;
-use Illuminate\Queue\SyncQueue;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -89,9 +88,7 @@ final class DurableServiceProvider extends ServiceProvider
         // Et `sync` exécute le job sur place : une reprise qui en dispatche une autre récurserait
         // dans le même processus. Le pendant Symfony s'en protège par un
         // DispatchAfterCurrentBusStamp ; ici, c'est la connexion qui doit être une vraie file.
-        if ($this->app->bound('queue')) {
-            $this->refuseAQueueThatRunsInline();
-        }
+        $this->refuseAQueueThatRunsInline();
     }
 
     /** @return array<string, mixed> */
@@ -246,7 +243,12 @@ final class DurableServiceProvider extends ServiceProvider
         $queue = $config['queue'] ?? [];
         $name = $queue['connection'] ?? null;
 
-        if ($this->app->make('queue')->connection($name) instanceof SyncQueue) {
+        // Le **nom du driver**, pas la classe de la connexion : `SyncQueue` vit dans
+        // `illuminate/queue`, dont Laravel 11+ tire `symfony/process ^7.2` — l'exiger rendrait ce
+        // paquet irréconciliable avec la ligne Symfony 6.4 que la matrice du dépôt teste encore.
+        // Lire la configuration dit la même chose, sans la dépendance, et sans avoir à résoudre la
+        // connexion pour la juger.
+        if ($this->driverOf($name) === 'sync') {
             throw new \InvalidArgumentException(\sprintf(
                 'Durable: the "%s" queue connection runs jobs inline, so a resume that dispatches '
                 . 'another resume recurses in the same process until the stack ends. Use a real '
@@ -254,6 +256,22 @@ final class DurableServiceProvider extends ServiceProvider
                 $name ?? 'default',
             ));
         }
+    }
+
+    private function driverOf(?string $connection): ?string
+    {
+        if (!$this->app->bound('config')) {
+            return null;
+        }
+
+        /** @var array<string, mixed> $queueConfig */
+        $queueConfig = $this->app['config']['queue'] ?? [];
+        $name = $connection ?? ($queueConfig['default'] ?? null);
+        /** @var array<string, array<string, mixed>> $connections */
+        $connections = $queueConfig['connections'] ?? [];
+        $driver = $connections[$name]['driver'] ?? null;
+
+        return \is_string($driver) ? $driver : null;
     }
 
     private function refuseALockStoreThatCannotLock(): void

@@ -100,6 +100,69 @@ jobs:
             - name: PHPStan
               run: composer phpstan
 
+    laravel:
+        # Le pendant de la matrice Symfony, pour l'autre famille d'hôtes. Même principe : une
+        # entrée par *bord* qui a une raison d'exister, pas un produit cartésien.
+        #
+        # Ce que cette matrice mesure et qu'aucune autre ne peut : `gplanchat/durable-laravel`
+        # s'appuie sur `illuminate/*`, dont les lignes 11, 12 et 13 ne demandent pas le même PHP —
+        # 13 exige ^8.3 quand la baseline du dépôt est 8.2 — et dont les contrats bougent d'une
+        # ligne à l'autre. La suite `unit` ne prouve que la ligne du lock.
+        #
+        # ⚠ Ce paquet ne requiert **pas** `illuminate/queue`, et ce n'est pas un oubli : Laravel 11+
+        # en tire `symfony/process ^7.2`, ce qui le rendrait irréconciliable avec la ligne
+        # Symfony 6.4 que la matrice voisine teste encore. La garde contre la file `sync` lit donc
+        # le nom du driver dans la configuration plutôt que la classe de la connexion.
+        name: Laravel ${{ matrix.laravel }} / PHP ${{ matrix.php-version }}
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    # 11 au plancher PHP commun aux deux.
+                    - { php-version: '8.2', laravel: '11.*', deps: 'lowest' }
+                    # 11 sous un PHP récent : le croisement qui mord, comme pour Symfony 6.4.
+                    - { php-version: '8.4', laravel: '11.*', deps: 'highest' }
+                    # 12 au plancher.
+                    - { php-version: '8.2', laravel: '12.*', deps: 'lowest' }
+                    # 12 sous PHP récent : ce que le lock résout aujourd'hui.
+                    - { php-version: '8.4', laravel: '12.*', deps: 'highest' }
+                    # 13 exige PHP ^8.3 : jamais atteignable au plancher du dépôt.
+                    - { php-version: '8.4', laravel: '13.*', deps: 'lowest' }
+                    - { php-version: '8.5', laravel: '13.*', deps: 'highest' }
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php-version }}
+                  # grpc comme la matrice Symfony : la racine requiert le pont Temporal, qui exige
+                  # ext-grpc. Sans elle, `composer update` échoue avant d'avoir résolu quoi que ce
+                  # soit d'Illuminate — la matrice mesurerait l'absence d'une extension.
+                  extensions: mbstring, sqlite3, pdo_sqlite, grpc
+                  coverage: none
+
+            # Mise à jour partielle, même raison que côté Symfony : seule la dimension Laravel
+            # bouge. Un `--prefer-lowest` non filtré abaisserait phpunit et phpstan, et la matrice
+            # échouerait sur autre chose que ce qu'elle mesure.
+            - name: Résoudre la ligne Laravel demandée
+              run: |
+                  composer require --no-update --no-interaction --dev \
+                    "illuminate/cache:${{ matrix.laravel }}" \
+                    "illuminate/database:${{ matrix.laravel }}"
+                  composer update --no-interaction --prefer-dist --no-progress \
+                    ${{ matrix.deps == 'lowest' && '--prefer-lowest' || '' }} 'illuminate/*'
+
+            - name: Ligne Laravel effectivement installée
+              run: composer show illuminate/database --no-ansi | head -n 3
+
+            - name: PHPUnit (le paquet d'intégration et le pont Illuminate)
+              run: vendor/bin/phpunit --testsuite laravel
+
+            - name: PHPStan
+              run: composer phpstan
+
     sylius-shop:
         # La seule vérification du dépôt qui rende vraiment une page. Tout le reste prouve que les
         # pièces sont correctes ; celle-ci prouve qu'assemblées elles affichent quelque chose.
