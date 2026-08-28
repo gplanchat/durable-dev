@@ -2334,12 +2334,16 @@
             "dist": {
                 "type": "path",
                 "url": "../src/DurableModule",
-                "reference": "5e7561d099cfc18ed532d942a2eee4efdadb37bf"
+                "reference": "7ea5f727c799b7ed0e73fdf55bed23d1c44558af"
             },
             "require": {
                 "gplanchat/durable": "self.version",
                 "magento/framework": "^103.0",
                 "php": ">=8.2"
+            },
+            "conflict": {
+                "gplanchat/durable-bridge-dbal": "*",
+                "gplanchat/durable-bridge-illuminate": "*"
             },
             "require-dev": {
                 "phpunit/phpunit": "^11.5"

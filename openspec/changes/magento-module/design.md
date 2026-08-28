@@ -194,9 +194,36 @@ Illuminate's connection, and the two SQL bridges bind to those two types. Making
 `ResourceConnection` is a fourth adapter family — a change of its own, with the wizard,
 `ALLOWED.magento` and OST003 to update behind it.
 
-Until then the module refuses a DBAL or Illuminate configuration **at startup, by name**, the way
-the DBAL backend refuses Nexus: `NexusUnsupportedByBackendException` names the backend and says what
-to do instead, rather than leaving a workflow waiting on a result nobody will produce.
+Until then the module refuses a DBAL or Illuminate configuration — **and Composer is what refuses
+it**, not code. `gplanchat/durable-magento` declares:
+
+```json
+"conflict": {
+    "gplanchat/durable-bridge-dbal": "*",
+    "gplanchat/durable-bridge-illuminate": "*"
+}
+```
+
+Measured on the bench: `composer require gplanchat/durable-bridge-dbal` beside the module ends in
+*"Conclusion: remove gplanchat/durable-magento (conflict analysis result)"*, and nothing is written.
+The incoherent installation never exists, so no process ever boots into it — earlier and harder than
+any check the module could run, and it costs six lines of metadata instead of a value object, an
+exception, a guard and a test.
+
+This is a **decision of the author's**, taken on PR #172 after a first version had built the runtime
+refusal. It is the better mechanism, and the reasoning is worth keeping because it generalises: a
+constraint the package manager can express does not belong in a runtime that only learns about it
+after someone has already installed the wrong thing.
+
+⚠ The one thing Composer's refusal does not carry is **why**. It names the packages that cannot
+coexist, not the reason Magento cannot reach a SQL journal — that reason lives in the selector on the
+home page, in `ALLOWED.magento`, and in this design. A `conflict` entry has nowhere to put a
+sentence.
+
+And because there is no configuration surface for the backend at all, there is nothing to
+mistype and nothing to refuse at boot: the module wires what it wires. §5 is what gives it a second
+backend, and that is the point at which a choice — and therefore a way to get the choice wrong —
+starts to exist.
 
 ## Naming, and the two conventions that disagree
 
