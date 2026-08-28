@@ -1,20 +1,14 @@
 # change/magento-module
 
-Worktree : `.claude/worktrees/magento` (déplacé depuis le scratchpad d'une
-session morte). PR **#157**, verte, en attente de fusion.
+Worktree : `.claude/worktrees/magento`. PR #157 fusionnée — 1.1, 1.2, 1.4, 2.1,
+2.2, 3.2 sont livrées.
 
-Livré depuis la reprise :
+Tranche en cours : **1.3** — ce qu'un consommateur mourant laisse derrière lui.
+Le banc n'a pas d'AMQP (`compose.yaml` : MySQL, OpenSearch, Redis, Temporal),
+donc c'est la file en base : `Magento\MysqlMq`. Redélivrance, lettre morte ou
+silence, c'est à mesurer, pas à déduire de la documentation d'AMQP.
 
-- **CI remise au vert** — deux causes sans rapport avec la branche : le style
-  PER-CS3.0 sur les quatre fichiers du module, et deux tests d'intégration
-  Temporal construisant `TemporalStartingEventStore` (classe retirée par
-  DUR002/DUR019), que le merge de `main` supprime.
-- **Tranche 1.4** — le verrou *est* partagé entre processus. Mesuré à deux
-  processus par `magento/probe-lock.php`, gardé au dépôt. Deux trouvailles qui
-  changent la 2.3 : le conteneur rend une `Lock\Proxy` qui ne nomme rien, et
-  `Backend\Database::lock()` rend `true` sans verrouiller quand
-  `isDbAvailable()` est faux.
-
-Prochaine tranche : **1.3** (ce qu'un consommateur mourant laisse) ou **1.5**
-(long-poll). Note pour la 1.3 : pas de RabbitMQ dans `compose.yaml`, donc file
-en base — la redélivrance n'a pas les règles d'AMQP.
+L'instrument est un sujet de sonde dans le module — topic, publisher, topology,
+consumer, et un gestionnaire qu'on peut faire traîner assez longtemps pour le
+tuer au milieu d'un message. C'est la plus petite instance de ce que la 4.1
+écrira en vrai, pas du jetable.
