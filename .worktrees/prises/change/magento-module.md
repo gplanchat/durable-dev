@@ -23,14 +23,17 @@ partagé entre processus). Le delta de spec a suivi — l'exigence parle désorm
 de processus qu'un exploitant supervise déjà, et interdit explicitement une
 seconde file.
 
-Tranche **en cours** : **6.1, l'ADR**. Un change qui atterrit laisse un ADR
-derrière lui, et celui-ci a des décisions à porter : le nom du paquet et son
-prix (Magento résout un contrôleur depuis le **nom du module**, pas depuis
-l'autochargement), les deux backends et le refus par Composer plutôt que par du
-code, l'absence de file et pourquoi la tâche 4 a été abandonnée, le verrou dont
-le cas d'usage s'est évaporé avec elle, les six contraintes d'hôte, et ce que
-cette intégration a fait descendre au cœur — deux classes puis 279 lignes
-d'orchestration de reprise.
+✅ **6.1 — DUR046, PR #205.** L'ADR porte le nom du paquet et son unique prix
+(le contrôleur résolu depuis le nom du module), les deux backends refusés par
+Composer, l'abandon de la file avec sa mesure, le verrou dont le cas d'usage
+s'est évaporé, et surtout les **trois corrections que cette intégration a
+apportées au cœur** — dont la panne fatale invisible sous Symfony. Il dit aussi
+ce qu'il ne prétend pas : paquet non publié, CI qui résout sans démarrer,
+distribution d'Adobe non éprouvée.
+
+Reste de la tâche 6 : **6.2** (le sélecteur sort de `planned`, par le canevas et
+non par le fichier généré), **6.3** (pages paquets et page Backends, dans les
+deux langues), **6.4** (OST003 §Magento et OST004 §5).
 
 ✅ **5.3 VERTE — PR #203.** Le test d'acceptation du change entier passe :
 commande partie sur la grappe, les **deux** workers tués en pleine réservation,
