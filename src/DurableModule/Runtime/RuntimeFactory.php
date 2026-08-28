@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Magento\Runtime;
 
+use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
+use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
+use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
@@ -141,9 +144,60 @@ class RuntimeFactory
     {
         $settings = $this->temporalSettings();
 
-        return $settings === null
-            ? new InMemoryWorkflowRunCatalog(new InMemoryEventStore())
-            : new TemporalWorkflowRunCatalog(WorkflowServiceClientFactory::create($settings), $settings);
+        if ($settings === null) {
+            return new InMemoryWorkflowRunCatalog(new InMemoryEventStore());
+        }
+
+        $client = WorkflowServiceClientFactory::create($settings);
+
+        // Le curseur d'historique n'est pas décoratif : `listRuns()` ne rend que le statut du
+        // workflow Temporal — celui du journal, qui est **long par construction** et donc
+        // éternellement `running`. Ce qui distingue une exécution finie d'une exécution en cours se
+        // lit dans ses événements, et c'est le curseur qui les donne.
+        return new TemporalWorkflowRunCatalog(
+            $client,
+            $settings,
+            new TemporalHistoryCursor($client, $settings->namespace->name()),
+        );
+    }
+
+    /**
+     * Le worker qui répond aux tâches de la file du journal.
+     *
+     * Sans lui, une exécution appendue au cluster y reste `running` pour toujours : le journal
+     * existe, son historique se remplit, et personne ne le fait avancer. C'est exactement ce que
+     * la grille du back-office montrait — et elle avait raison de le montrer.
+     *
+     * Les quatre objets viennent du pont, et l'assemblage est le même que celui du transport
+     * Messenger côté Symfony. Ce qui change ici, c'est seulement qui tourne la boucle : une
+     * commande `bin/magento`, drainée par ce qu'un exploitant supervise déjà, plutôt qu'un
+     * `messenger:consume`.
+     */
+    public function journalWorker(): WorkflowTaskProcessor
+    {
+        $settings = $this->temporalSettings();
+
+        if ($settings === null) {
+            throw new \RuntimeException(
+                'A journal worker needs a cluster to poll. Set durable/temporal/dsn in app/etc/env.php first — without it the journal lives in the process that writes it, and a worker would poll a queue that does not exist while looking perfectly healthy.',
+            );
+        }
+
+        $client = WorkflowServiceClientFactory::create($settings);
+        $registry = new WorkflowRegistry();
+        foreach ($this->workflowClasses as $workflowClass) {
+            $registry->registerClass($workflowClass);
+        }
+
+        return new WorkflowTaskProcessor(
+            $client,
+            $settings,
+            new WorkflowTaskRunner(
+                new TemporalHistoryCursor($client, $settings->namespace->name()),
+                $registry,
+                $settings,
+            ),
+        );
     }
 
     /**
