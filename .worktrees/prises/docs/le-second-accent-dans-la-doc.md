@@ -1,5 +1,5 @@
 # docs/le-second-accent-dans-la-doc
 
-- **Chantier** : les pages de doc n'ont pas de second accent — ajouter `--dz-accent2` à la palette et le brancher sur l'encadré NOTE, qui emprunte la couleur des liens
-- **Entrées** : `hugo-docs/assets/_custom.scss`
+- **Chantier** : deux retouches du site — `--dz-accent2` pour les pages de doc, branché sur l'encadré NOTE ; et Statamic retiré du sélecteur de la page d'accueil
+- **Entrées** : `hugo-docs/assets/_custom.scss`, `hugo-docs/layouts/index.html`, `hugo-docs/layouts/index.fr.html`
 - **État** : en cours
