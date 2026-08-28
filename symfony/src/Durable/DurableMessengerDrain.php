@@ -14,7 +14,7 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
 
 /**
  * Vide les transports workflow / activités jusqu’à {@see ExecutionCompleted}.
- * Les réveils minuteur sont planifiés par le bundle ({@see \Gplanchat\Durable\Bundle\Handler\ResumeWorkflowHandler}),
+ * Les réveils minuteur sont planifiés par le cœur ({@see \Gplanchat\Durable\Handler\ResumeWorkflowHandler}),
  * pas par une boucle qui spamme {@see \Gplanchat\Durable\Transport\FireWorkflowTimersMessage}.
  *
  * Chaque enveloppe retournée par {@see TransportInterface::get()} doit être {@see TransportInterface::ack() ackée}
