@@ -144,8 +144,18 @@ unmeasured.
       cluster — `TemporalWorkflowRunCatalog`, which the bridge already ships.
 - [ ] 5.2 The bench's `compose.yaml` Temporal stack runs a workflow from an order placed in the
       storefront to a completed execution visible in the Temporal UI.
-- [ ] 5.3 The failure OST003 names: a consumer killed half way through an order resumes where it
-      stopped, and does not re-charge the card. This is the acceptance test of the whole change.
+- [ ] 5.3 The failure OST003 names — **half measured, and the half that holds is the one that
+      matters**. Killed with `kill -9` mid-reservation and restarted under the same execution id,
+      three times: **the card is charged exactly once**. The journal replays what it recorded. What
+      does *not* yet happen is the execution running to completion — `WorkflowStuckException`,
+      because `reserve` was dispatched into the dead process's in-memory activity transport and
+      nothing in the new process will settle it. ⚠ **Resuming needs durable activity dispatch**,
+      which is task 4. This entry stays open, and it now says exactly what closes it.
+      Instrument: `magento/probe-resume.php` plus a slow, charge-recording workflow in the bench
+      probe module — the §3.1 declaration mechanism used by a third party, which proves it too.
+      Found on the way: **the core imported the Symfony bundle** (`TimerWakeDelayCalculator`), a
+      fatal error on any host without it. Moved to `Gplanchat\Durable\Timer\`, with its migration
+      procedure, and a guard over the 183 files of `src/Durable` so it cannot come back.
 
 ## 6. Say it landed
 

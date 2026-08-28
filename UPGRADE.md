@@ -24,6 +24,24 @@ ne contient que ce que Rector sait faire sans deviner ; tout le reste est écrit
 
 ## 0.1.0-alpha8
 
+### `TimerWakeDelayCalculator` descend du bundle vers le cœur
+
+`Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator` devient
+`Gplanchat\Durable\Timer\TimerWakeDelayCalculator`.
+
+**Pourquoi, et pourquoi ça compte plus que le déplacement suivant** — cette classe n'importait rien
+de Symfony (des événements de minuterie et le port du magasin d'événements), et
+`InMemoryWorkflowRunner`, qui **est** du cœur, l'appelait. `gplanchat/durable` ne requiert pas
+`gplanchat/durable-bundle` : sur tout hôte qui n'installe pas le bundle, une reprise qui devait
+sauter au prochain minuteur levait une **erreur fatale de classe introuvable**. Sous Symfony rien ne
+se voyait, le bundle étant toujours là.
+
+Trouvé en rejouant sur Magento une commande tuée pendant sa réservation. Une garde le tient
+désormais : aucun fichier de `src/Durable` n'importe un hôte ni un pont.
+
+**Ce que Rector fait** — le renommage. **Ce qu'il ne peut pas faire** — le même `cache:clear` que
+ci-dessous, pour la même raison.
+
 ### `PayloadToContractMethodInvoker` descend du bundle vers le cœur
 
 `Gplanchat\Durable\Bundle\Activity\PayloadToContractMethodInvoker` devient

@@ -48,7 +48,7 @@ final class CoreDependsOnNoHostTest extends TestCase
         }
 
         self::assertSame([], $forbidden, sprintf(
-            "%s imports a host package. gplanchat/durable requires neither the Symfony bundle nor any bridge, so this is a fatal error on every host that does not install it — and it looks perfectly healthy under Symfony.",
+            '%s imports a host package. gplanchat/durable requires neither the Symfony bundle nor any bridge, so this is a fatal error on every host that does not install it — and it looks perfectly healthy under Symfony.',
             basename($path),
         ));
     }

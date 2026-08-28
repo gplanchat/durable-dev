@@ -178,6 +178,49 @@ in the journal's **events**, which `TemporalRunHistoryReader` reads through a `T
 work, not this one's, but the reason is written here so nobody hunts a worker bug that does not
 exist.
 
+### The acceptance test, half green — §5.3
+
+OST003's failure, run for real: an order is charged, the process is `kill -9`ed while the stock
+reservation sleeps, and the same execution id is started again.
+
+```
+09:57:58 ORD-acceptation-1787911076 pid=1770672      ← la carte est débitée, une fois
+        [kill -9 pendant reserveStock]
+        [3 relances sous le même identifiant]
+débits enregistrés : 1
+```
+
+**The safety property holds, and it is the one the integration exists for: the card is not charged
+twice.** Three resumes, one charge. The journal replays what it recorded instead of re-running it —
+measured separately too: a completed execution re-run under its own id grows its stream by **one**
+event, not by another full set of thirteen.
+
+**The liveness property does not hold yet, and the runner says so rather than hanging:**
+
+```
+WorkflowStuckException: Workflow … is suspended on something the in-memory runner cannot settle
+```
+
+The reason is precise. `charge` was recorded, `reserve` was *scheduled* — and dispatched into the
+dead process's `InMemoryActivityTransport`. The journal knows an activity is pending; nothing in the
+new process will ever settle it. **Resuming needs the activity dispatch to be durable too**, which
+is task 4 — Magento's own queue carrying activity dispatch — or a Temporal activity worker. This
+result is therefore not a defect to fix here; it is the measurement that says why task 4 exists.
+
+### The core depended on the Symfony bundle, and only a non-Symfony host could see it
+
+Found on the way. `src/Durable/InMemoryWorkflowRunner.php` imported
+`Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator`, and `gplanchat/durable` requires
+neither the bundle nor any bridge. Under Symfony the class is always there, so nothing showed. On
+Magento, the first resume that had to skip to the next timer died on **class not found** — a fatal
+error on a core code path, on every host that does not install the bundle. Laravel would have been
+next.
+
+The class imported nothing from Symfony — timer events and the event-store port — so it moved to
+`Gplanchat\Durable\Timer\`, with its Rector entry and its `UPGRADE.md` section. Seven other core
+files name the bundle, all in `@see` blocks that never load, and the guard tolerates those: one test
+now walks the 183 files of `src/Durable` and fails on any real `use` of a host or a bridge.
+
 ## The one hazard that is not a port
 
 Temporal serialises workflow tasks for one execution server-side. Magento's queue does not, and
