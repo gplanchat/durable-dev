@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Magento;
 
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
-use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
+use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
 use Gplanchat\Durable\Magento\Workflow\Activity\DemoOrderActivities;
 use Gplanchat\Durable\Magento\Workflow\PlaceOrderWorkflow;

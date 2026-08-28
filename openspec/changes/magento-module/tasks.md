@@ -123,9 +123,13 @@ unmeasured.
       (renamed from `InMemoryRuntimeFactory`) assembles an `InMemoryEventStore` without one and a
       `TemporalJournalEventStore` with `durable/temporal/dsn` in `env.php` — a connection string,
       not the backend-name surface §2.3 removed. It stays constructible without Magento, which puts
-      the decision under CI. ⚠ **The workers themselves are not built**: nothing polls the journal
-      task queue yet, so an execution started against the cluster has no worker to advance it.
-      That part stays open and 5.2/5.3 need it.
+      the decision under CI. **The worker is built**: `bin/magento durable:worker` polls the journal
+      task queue and completes workflow tasks, bounded by `--max-tasks` and `--time-limit` for the
+      supervisor that restarts it. A command and not a queue consumer, because §1.5 measured what
+      Magento does to a message held too long. ⚠ **The grid still reads `running` for every run,
+      and the worker is not the reason**: a `DurableJournal` workflow is long-lived by construction.
+      A truthful status must come from the journal's events, not from the Temporal workflow status —
+      the history cursor is wired for it, and the dashboard change owns the rest.
 - [x] 5.1b **An admin screen: `System > Durable processes > Process history`.** Route, ACL, menu,
       controller, block and template, reading `InMemoryWorkflowRunCatalog` over whatever event store
       the factory assembled — the same core observation the Sylius dashboard renders, so nothing is

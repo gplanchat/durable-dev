@@ -150,6 +150,34 @@ the cluster, without one line of error. `di.xml` names the argument explicitly n
 *"There are no commands defined in the `durable` namespace."* The module's own command had simply
 stopped existing. `rm -rf generated/code/<Vendor>/` is the fix, and it belongs in any bench note.
 
+### The worker, and a status that is not the one you want — §5.1
+
+`bin/magento durable:worker` polls the journal task queue and completes workflow tasks. Four objects
+from the bridge, assembled exactly as the Symfony Messenger transport assembles them; what differs
+is only who turns the loop — a console command an operator supervises like anything else, rather
+than `messenger:consume`.
+
+It is a **command and not a queue consumer**, and §1.5 is the reason: a worker holds its task by
+long poll, therefore longer than an ordinary message, and Magento's retry timer never asks whether
+the first consumer has finished before handing the message to a second. A worker cannot be a queue
+message. Two bounds — `--max-tasks`, `--time-limit` — exist for the supervisor that will restart it.
+⚠ They are checked **between** tasks, so a poll already in flight runs to its own timeout; the
+process can outlive its limit by one long poll.
+
+**And a correction worth keeping.** The admin grid shows every run as `running`, and this design
+first said the cause was the missing worker. It is not. With the worker draining the queue —
+measured: it completes the pending task, then finds nothing for twenty seconds — the cluster still
+answers `WORKFLOW_EXECUTION_STATUS_RUNNING` for every `DurableJournal`. That is correct: the journal
+workflow is **long-lived by construction**, it is the durable log itself, and it does not close
+because an execution finished.
+
+The consequence is that `listRuns()`'s status column, which maps the Temporal workflow status, can
+only ever read `running` on this host. What separates a finished execution from a running one lives
+in the journal's **events**, which `TemporalRunHistoryReader` reads through a `TemporalHistoryCursor`
+— now passed to the catalog. Turning that into a truthful Status column is the dashboard change's
+work, not this one's, but the reason is written here so nobody hunts a worker bug that does not
+exist.
+
 ## The one hazard that is not a port
 
 Temporal serialises workflow tasks for one execution server-side. Magento's queue does not, and
