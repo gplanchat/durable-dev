@@ -77,14 +77,14 @@ Which tag for which base:
 
 ## Five stacks, three recipes
 
-**Nginx + php-fpm, Caddy + php-fpm and Apache + `mod_proxy_fcgi` are one recipe, not three.** In all
-three, PHP runs in its own `php:X-fpm` container and the web server runs in another one that never
+**Nginx + php-fpm, Caddy + php-fpm and Apache over FastCGI (`mod_proxy_fcgi`) are one recipe, not
+three.** In all three, PHP runs in its own `php:X-fpm` container and the web server runs in another one that never
 loads a PHP extension. Nothing in your `nginx.conf`, your `Caddyfile` or your virtual host changes.
 
 The two setups that genuinely differ are the ones where PHP lives *inside* the server image:
 `mod_php`, which is NTS, and FrankenPHP, which is ZTS.
 
-### php-fpm, behind Nginx, Caddy or Apache
+### php-fpm, behind Nginx, Caddy or Apache-over-FastCGI
 
 ```dockerfile
 FROM ghcr.io/gplanchat/php-grpc:8.4-cli AS ext

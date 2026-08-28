@@ -80,15 +80,15 @@ Quelle étiquette pour quelle base :
 
 ## Cinq montages, trois recettes
 
-**Nginx + php-fpm, Caddy + php-fpm et Apache + `mod_proxy_fcgi` sont une seule recette, pas trois.**
-Dans les trois cas, PHP tourne dans son propre conteneur `php:X-fpm` et le serveur web dans un
+**Nginx + php-fpm, Caddy + php-fpm et Apache en FastCGI (`mod_proxy_fcgi`) sont une seule recette,
+pas trois.** Dans les trois cas, PHP tourne dans son propre conteneur `php:X-fpm` et le serveur web dans un
 autre, qui ne charge jamais la moindre extension PHP. Rien ne change dans votre `nginx.conf`, votre
 `Caddyfile` ou votre hôte virtuel.
 
 Les deux montages qui diffèrent réellement sont ceux où PHP vit *dans* l'image du serveur :
 `mod_php`, qui est NTS, et FrankenPHP, qui est ZTS.
 
-### php-fpm, derrière Nginx, Caddy ou Apache
+### php-fpm, derrière Nginx, Caddy ou Apache en FastCGI
 
 ```dockerfile
 FROM ghcr.io/gplanchat/php-grpc:8.4-cli AS ext
