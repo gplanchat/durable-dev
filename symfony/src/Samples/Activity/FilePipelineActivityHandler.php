@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Samples\Activity;
 
-use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 
-#[AsDurableActivity(contract: FilePipelineActivityInterface::class)]
+#[AsActivityHandler(contract: FilePipelineActivityInterface::class)]
 final class FilePipelineActivityHandler implements FilePipelineActivityInterface
 {
     public function download(string $sourceUrl): string

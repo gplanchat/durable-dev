@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace integration\Temporal\Fixtures;
 
-use Gplanchat\Durable\Attribute\ActivityMethod;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
 
 /**
  * Les activités que la suite d'intégration planifie contre un vrai serveur.
@@ -19,16 +19,16 @@ use Gplanchat\Durable\Attribute\ActivityMethod;
  */
 interface IntegrationActivities
 {
-    #[ActivityMethod('double')]
+    #[AsActivityMethod('double')]
     public function double(int $value): int;
 
-    #[ActivityMethod('append')]
+    #[AsActivityMethod('append')]
     public function append(string $text): string;
 
-    #[ActivityMethod('refund')]
+    #[AsActivityMethod('refund')]
     public function refund(string $order): string;
 
     /** Échoue toujours : c'est le sujet des workflows FailsOnActivity, UnboundedRetry et NonRetryable. */
-    #[ActivityMethod('boom')]
+    #[AsActivityMethod('boom')]
     public function boom(): never;
 }

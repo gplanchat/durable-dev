@@ -17,16 +17,29 @@ namespaces, et ils le disent plutôt que de faire semblant — voir [Backends](.
 ## Appeler une opération
 
 ```php
-$result = $env->await($env->nexusOperation(
-    endpoint: 'paiements',
-    service: 'facturation',
-    operation: 'encaisser',
-    payload: ['amount' => 1200, 'currency' => 'EUR'],
-    timeouts: new NexusOperationTimeouts(scheduleToClose: Duration::minutes(5)),
-));
+#[AsNexusService('facturation')]
+interface FacturationContract
+{
+    #[AsNexusOperation('encaisser')]
+    public function encaisser(Ordre $ordre, int $montant): Recu;
+}
 ```
 
-`nexusOperation()` assemble ; `await()` attend. C'est la règle partout ailleurs — voir
+```php
+$facturation = $env->nexusStub(FacturationContract::class, endpoint: 'paiements');
+
+$recu = $env->await($facturation->encaisser($ordre, 1200));
+```
+
+Le contrat s'écrit **une fois** et se lit des deux côtés de la frontière : l'appelant en dérive un
+stub typé, le gestionnaire l'implémente. Aucun nom d'opération n'est recopié en chaîne, si bien
+qu'une faute de frappe est une erreur de type et non une opération qui attend un gestionnaire dont
+le nom ne correspondra jamais.
+
+L'endpoint est un paramètre du stub, pas du contrat : il dit *où* le service est servi, ce qui
+relève du déploiement et change d'un environnement à l'autre, quand le contrat ne change pas.
+
+`nexusStub()` assemble ; `await()` attend. C'est la règle partout ailleurs — voir
 [Créer un workflow](../workflows/).
 
 La charge voyage **telle que vous l'avez écrite**. Aucune enveloppe Durable ne l'entoure, donc un
@@ -39,36 +52,63 @@ attend l'opération, et le résultat arrive quand il arrive.
 
 ## Servir une opération
 
-Déclarez le service et l'opération sur un gestionnaire :
+Un gestionnaire implémente le contrat — ou la part de celui-ci à laquelle il répond tout de suite :
 
 ```php
-use Gplanchat\Durable\Bundle\Attribute\AsNexusOperationHandler;
-use Gplanchat\Durable\Nexus\Serving\NexusOperationResponse;
+use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
 
-#[AsNexusOperationHandler(service: 'facturation', operation: 'encaisser')]
-final class Encaisser
+#[AsNexusServiceHandler(contract: FacturationServie::class)]
+final class Facturation implements FacturationServie
 {
-    public function __invoke(mixed $payload): NexusOperationResponse
+    public function verifier(Ordre $ordre): Verdict
     {
-        return NexusOperationResponse::completed(['receipt' => 'r-1234']);
+        return $this->regles->controler($ordre);
     }
 }
 ```
 
-Le couple `(service, opération)` est toute l'adresse : une tâche entrante est routée par lui et par
-rien d'autre. Les deux noms sont vérifiés au montage du conteneur, parce qu'une faute de frappe
-donne un gestionnaire que rien n'atteint jamais — et le serveur n'a rien à en dire.
+### Pourquoi le contrat vient en deux morceaux
+
+Une opération remplie par un workflow n'a pas de corps de gestionnaire — la plomberie démarre le
+workflow, et le serveur en livre le résultat. Le contrat se sépare donc : l'interface qu'un
+gestionnaire **implémente**, et celle qui l'**étend** pour l'appelant.
+
+```php
+#[AsNexusService('facturation')]
+interface FacturationServie                            // répondu tout de suite
+{
+    #[AsNexusOperation('verifier')]
+    public function verifier(Ordre $ordre): Verdict;
+}
+
+#[AsNexusService('facturation')]
+interface FacturationContract extends FacturationServie // + ce qu'un workflow remplit
+{
+    #[AsNexusOperation('encaisser')]
+    public function encaisser(Ordre $ordre, int $montant): Recu;
+}
+
+#[AsWorkflow]
+#[FulfilsNexusOperation(FacturationContract::class, 'encaisser')]
+final class Encaissement { /* … */ }
+```
+
+Sans cette séparation, PHP exigerait un corps pour `encaisser()` sur le gestionnaire — une méthode
+vide dont le seul rôle serait de dire qu'il n'y a rien à écrire. C'est le workflow qui réclame
+l'opération, là où son code vit, et le contrat de l'appelant déclare quand même tout, pour que le
+stub puisse tout appeler.
 
 ### Répondre maintenant, ou répondre plus tard
 
-`NexusOperationResponse` a deux formes, et choisir entre elles est la seule décision qui compte.
+Il y a deux formes, et choisir entre elles est la seule décision qui compte.
 
 ```php
-// Maintenant — vous avez la réponse.
-return NexusOperationResponse::completed(['receipt' => 'r-1234']);
+// Maintenant — le gestionnaire rend le type déclaré par le contrat.
+public function verifier(Ordre $ordre): Verdict { … }
 
-// Plus tard — un workflow la produira.
-return NexusOperationResponse::fulfilledByWorkflow('Encaissement', $payload);
+// Plus tard — un workflow réclame l'opération, et produit le résultat.
+#[FulfilsNexusOperation(FacturationContract::class, 'encaisser')]
+final class Encaissement { … }
 ```
 
 **Un gestionnaire dispose d'environ neuf secondes.** Ce n'est pas le budget de l'opération, c'est
@@ -77,9 +117,9 @@ la tâche elle-même porte un `request-timeout` d'environ neuf secondes. Un gest
 travail quand il expire voit sa tâche redélivrée — et recommence. Redélivrances mesurées : ~9,9 s,
 ~20,7 s, ~33,6 s.
 
-`completed()` est donc pour une lecture, une validation, un calcul dont vous savez qu'il est
-rapide. Tout ce qui parle à un prestataire de paiement, attend un humain ou réessaie pendant une
-journée appartient à un workflow — et c'est à quoi sert `fulfilledByWorkflow()`.
+Une méthode implémentée est donc pour une lecture, une validation, un calcul dont vous savez qu'il
+est rapide. Tout ce qui parle à un prestataire de paiement, attend un humain ou réessaie pendant une
+journée appartient à un workflow — et c'est ce que déclare `#[FulfilsNexusOperation]`.
 
 Quand vous nommez un workflow, Durable le démarre avec le callback de l'appelant attaché, et le
 serveur livre le résultat de ce workflow à l'appelant quand il se termine. Votre gestionnaire n'est

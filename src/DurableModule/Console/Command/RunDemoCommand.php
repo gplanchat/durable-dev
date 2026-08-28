@@ -52,7 +52,7 @@ class RunDemoCommand extends Command
         $orderId = (string) $input->getArgument('order-id');
 
         // Plus une seule activité écrite ici : la fabrique les a enregistrées depuis les
-        // `#[ActivityMethod]` des contrats que ses gestionnaires implémentent, et le workflow
+        // `#[AsActivityMethod]` des contrats que ses gestionnaires implémentent, et le workflow
         // depuis la liste de `di.xml`. La commande ne fait plus que lancer et rendre compte.
         $runtime = $this->runtimeFactory->create();
         $declared = $runtime->declaredActivities();

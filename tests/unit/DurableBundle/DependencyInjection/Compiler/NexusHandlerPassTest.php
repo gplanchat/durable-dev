@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\DurableBundle\DependencyInjection\Compiler;
 
+use Gplanchat\Durable\Attribute\AsNexusOperation;
+use Gplanchat\Durable\Attribute\AsNexusService;
+use Gplanchat\Durable\Attribute\FulfilsNexusOperation;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\NexusHandlerPass;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
-use Gplanchat\Durable\Nexus\Serving\NexusOperationResponse;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -16,85 +18,106 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 #[CoversClass(NexusHandlerPass::class)]
 final class NexusHandlerPassTest extends TestCase
 {
-    public function testADeclaredHandlerIsRegisteredOnTheRegistry(): void
+    public function testEachOperationOfTheContractIsRegistered(): void
     {
         $container = $this->containerWithRegistry();
-        $container->register('app.greeting', GreetingHandlerFixture::class)
-            ->addTag(NexusHandlerPass::TAG, ['service' => 'probe', 'operation' => 'greet']);
+        $container->register('app.billing', BillingFixture::class)
+            ->addTag(NexusHandlerPass::TAG, ['contract' => BillingServedFixture::class]);
 
         (new NexusHandlerPass())->process($container);
 
         $calls = $container->getDefinition('durable.temporal.nexus_registry')->getMethodCalls();
         self::assertCount(1, $calls);
-        self::assertSame('register', $calls[0][0]);
-        self::assertEquals(NexusService::named('probe'), $calls[0][1][0]);
-        self::assertEquals(NexusOperationName::named('greet'), $calls[0][1][1]);
+        self::assertEquals(NexusService::named('billing'), $calls[0][1][0]);
+        self::assertEquals(NexusOperationName::named('verify'), $calls[0][1][1]);
+    }
+
+    public function testAnOperationNobodyCoversIsRefusedAtStartup(): void
+    {
+        // Le cœur de cette passe. `charge` est déclarée par le contrat de l'appelant, aucun
+        // gestionnaire ne l'implémente et aucun workflow ne la réclame : elle serait servie par
+        // personne, et l'appelant attendrait un résultat que rien ne produira. Comme il n'y a
+        // aucune requête à faire échouer plus tard, le refus a lieu au montage ou nulle part.
+        $container = $this->containerWithRegistry();
+        $container->register('app.billing', BillingFixture::class)
+            ->addTag(NexusHandlerPass::TAG, ['contract' => BillingContractFixture::class]);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/charge/');
+        $this->expectExceptionMessageMatches('/no workflow claims it/');
+
+        (new NexusHandlerPass())->process($container);
+    }
+
+    public function testAWorkflowThatClaimsTheOperationCoversIt(): void
+    {
+        $container = $this->containerWithRegistry();
+        $container->register('app.billing', BillingFixture::class)
+            ->addTag(NexusHandlerPass::TAG, ['contract' => BillingContractFixture::class]);
+        $container->register('app.charge', ChargeWorkflowFixture::class)
+            ->addTag('durable.workflow');
+
+        (new NexusHandlerPass())->process($container);
+
+        $calls = $container->getDefinition('durable.temporal.nexus_registry')->getMethodCalls();
+        $methods = array_column($calls, 0);
+
+        self::assertContains('register', $methods, 'l’opération implémentée s’enregistre normalement');
+        self::assertContains('registerFulfilment', $methods, 'la différée se déclare, pour que le worker sache quel workflow démarrer');
+
+        $fulfilment = $calls[array_search('registerFulfilment', $methods, true)];
+        self::assertEquals(NexusOperationName::named('charge'), $fulfilment[1][1]);
+        // Le **type** de workflow, pas le FQCN : c'est ce nom que le serveur connaît.
+        self::assertSame('ChargeWorkflowFixture', $fulfilment[1][2]);
+    }
+
+    public function testAHandlerThatServesNothingIsRefused(): void
+    {
+        // Une classe qui n'implémente aucune opération du contrat se fait prendre par la
+        // couverture, opération par opération. Il n'y a pas de contrôle `is_a` : la balise peut
+        // nommer le contrat complet, dont le gestionnaire n'implémente que la part servie.
+        $container = $this->containerWithRegistry();
+        $container->register('app.billing', NotAHandlerFixture::class)
+            ->addTag(NexusHandlerPass::TAG, ['contract' => BillingServedFixture::class]);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/does not implement verify\(\)/');
+
+        (new NexusHandlerPass())->process($container);
+    }
+
+    public function testATagWithoutItsContractIsRefused(): void
+    {
+        $container = $this->containerWithRegistry();
+        $container->register('app.billing', BillingFixture::class)
+            ->addTag(NexusHandlerPass::TAG, []);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/contract/');
+
+        (new NexusHandlerPass())->process($container);
     }
 
     public function testAHandlerOnABackendThatCannotRouteIsRefusedAtStartup(): void
     {
-        // §5.3, et c'est la raison d'être de cette passe. Côté appelant, un appel sur un backend
-        // sans route échoue à l'appel. Servir n'a pas d'appel à faire échouer : un gestionnaire
-        // déclaré sans route est un service qui ne reçoit jamais rien, en silence. Alors on
-        // refuse au montage du conteneur, en nommant ce qui manque.
         $container = new ContainerBuilder();
-        $container->register('app.greeting', GreetingHandlerFixture::class)
-            ->addTag(NexusHandlerPass::TAG, ['service' => 'probe', 'operation' => 'greet']);
+        $container->register('app.billing', BillingFixture::class)
+            ->addTag(NexusHandlerPass::TAG, ['contract' => BillingServedFixture::class]);
 
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessageMatches('/cannot route Nexus operations/');
-        $this->expectExceptionMessageMatches('/durable\.temporal\.dsn/');
-        $this->expectExceptionMessageMatches('/app\.greeting/');
+        $this->expectExceptionMessageMatches('/app\.billing/');
 
         (new NexusHandlerPass())->process($container);
     }
 
     public function testAContainerWithNoHandlerAtAllIsLeftAlone(): void
     {
-        // Sans gestionnaire déclaré, la passe n'a rien à dire — y compris sur un backend sans
-        // route. Refuser ici casserait toute application qui n'utilise pas Nexus.
         $container = new ContainerBuilder();
 
         (new NexusHandlerPass())->process($container);
 
         self::assertFalse($container->hasDefinition('durable.temporal.nexus_registry'));
-    }
-
-    public function testATagMissingItsNamesIsRefused(): void
-    {
-        $container = $this->containerWithRegistry();
-        $container->register('app.greeting', GreetingHandlerFixture::class)
-            ->addTag(NexusHandlerPass::TAG, ['service' => 'probe']);
-
-        $this->expectException(\LogicException::class);
-        $this->expectExceptionMessageMatches('/must declare both "service" and "operation"/');
-
-        (new NexusHandlerPass())->process($container);
-    }
-
-    public function testAHandlerMissingItsMethodIsRefused(): void
-    {
-        $container = $this->containerWithRegistry();
-        $container->register('app.greeting', GreetingHandlerFixture::class)
-            ->addTag(NexusHandlerPass::TAG, ['service' => 'probe', 'operation' => 'greet', 'method' => 'inexistante']);
-
-        $this->expectException(\LogicException::class);
-        $this->expectExceptionMessageMatches('/must implement inexistante\(\)/');
-
-        (new NexusHandlerPass())->process($container);
-    }
-
-    public function testAnInvalidServiceNameIsRefusedAtStartupToo(): void
-    {
-        // Une faute dans un nom donne un gestionnaire que rien n'atteint jamais. Le serveur ne
-        // dira rien : il n'y a pas d'erreur à lever plus tard.
-        $container = $this->containerWithRegistry();
-        $container->register('app.greeting', GreetingHandlerFixture::class)
-            ->addTag(NexusHandlerPass::TAG, ['service' => '   ', 'operation' => 'greet']);
-
-        $this->expectException(\LogicException::class);
-
-        (new NexusHandlerPass())->process($container);
     }
 
     private function containerWithRegistry(): ContainerBuilder
@@ -106,10 +129,29 @@ final class NexusHandlerPassTest extends TestCase
     }
 }
 
-final class GreetingHandlerFixture
+#[AsNexusService('billing')]
+interface BillingServedFixture
 {
-    public function __invoke(mixed $payload): NexusOperationResponse
+    #[AsNexusOperation('verify')]
+    public function verify(string $order): string;
+}
+
+#[AsNexusService('billing')]
+interface BillingContractFixture extends BillingServedFixture
+{
+    #[AsNexusOperation('charge')]
+    public function charge(string $order, int $amount): string;
+}
+
+final class BillingFixture implements BillingServedFixture
+{
+    public function verify(string $order): string
     {
-        return NexusOperationResponse::completed(['greeting' => 'hello']);
+        return 'ok';
     }
 }
+
+final class NotAHandlerFixture {}
+
+#[FulfilsNexusOperation(BillingContractFixture::class, 'charge')]
+final class ChargeWorkflowFixture {}

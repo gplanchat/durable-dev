@@ -6,9 +6,9 @@ namespace unit\Gplanchat\Durable\Activity;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
-use Gplanchat\Durable\Attribute\ActivityMethod;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Testing\ActivitySpy;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
@@ -53,7 +53,7 @@ final class ActivitySchedulingPortTest extends TestCase
             $public[] = $method->getName();
         }
 
-        // Un auteur déclare `#[QueryMethod]` et le moteur câble. Ces trois-là étaient sur
+        // Un auteur déclare `#[AsQueryMethod]` et le moteur câble. Ces trois-là étaient sur
         // l'environnement parce que c'est l'objet que le moteur avait sous la main, pas parce
         // qu'un workflow en a besoin — les atteindre revenait à court-circuiter la déclaration.
         self::assertNotContains('registerQueryHandler', $public);
@@ -138,11 +138,11 @@ final class ActivitySchedulingPortTest extends TestCase
 
 interface PortActivities
 {
-    #[ActivityMethod('charge')]
+    #[AsActivityMethod('charge')]
     public function charge(string $orderId): string;
 }
 
-#[Workflow(name: 'port')]
+#[AsWorkflow(name: 'port')]
 final class PortWorkflow
 {
     private ActivityStub $orders;
@@ -153,14 +153,14 @@ final class PortWorkflow
         $this->orders = $environment->activityStub(PortActivities::class);
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $orderId): string
     {
         return $this->environment->await($this->orders->charge($orderId));
     }
 }
 
-#[Workflow(name: 'port-twice')]
+#[AsWorkflow(name: 'port-twice')]
 final class TwiceCallingWorkflow
 {
     private ActivityStub $orders;
@@ -174,7 +174,7 @@ final class TwiceCallingWorkflow
         );
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $orderId): string
     {
         $this->environment->await($this->orders->charge($orderId));

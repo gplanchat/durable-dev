@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace integration\Durable\Support\Workflow;
 
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-#[Workflow('ParentOfAsyncChild')]
+#[AsWorkflow('ParentOfAsyncChild')]
 final class ParentOfAsyncChildWorkflow
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {}
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(): int
     {
         // `executeChildWorkflow()` a quitté la surface : un enfant se démarre par un stub typé, et

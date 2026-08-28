@@ -131,7 +131,7 @@ final class NexusServedCancellationTest extends TestCase
     {
         $fulfillerId = 'cancel-fulfiller-' . bin2hex(random_bytes(4));
 
-        $registry = new NexusOperationRegistry();
+        $registry = NexusOperationRegistry::routedBy('temporal');
         $registry->register(
             NexusService::named('probe'),
             NexusOperationName::named('slow'),
@@ -168,7 +168,7 @@ final class NexusServedCancellationTest extends TestCase
     {
         $fulfillerId = 'cancel-fulfiller-' . bin2hex(random_bytes(4));
 
-        $registry = new NexusOperationRegistry();
+        $registry = NexusOperationRegistry::routedBy('temporal');
         $registry->register(
             NexusService::named('probe'),
             NexusOperationName::named('slow'),

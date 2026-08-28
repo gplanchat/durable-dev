@@ -58,18 +58,53 @@ replay engine through a path that never replays.
 It is exposed as a Messenger transport, `purpose=nexus_worker`, exactly as the activity worker is.
 `messenger:consume` already knows how to hold a loop, restart it, bound it in time and supervise it.
 
-### A handler says "fulfil this with workflow X", not "here is a token"
+### One typed contract, and the deferred form is declared rather than returned
+
+A Nexus operation is declared on a contract interface, exactly as an activity is, and both sides of
+the boundary read the same object: the caller derives a typed stub from it, the handler implements
+it.
 
 ```php
-NexusOperationResponse::completed(['greeting' => 'hello ada']);
-NexusOperationResponse::fulfilledByWorkflow('Encaissement', $payload);
+#[AsNexusService('billing')]
+interface BillingServed                          // answered immediately
+{
+    #[AsNexusOperation('verify')]
+    public function verify(Order $order): Verdict;
+}
+
+#[AsNexusService('billing')]
+interface BillingContract extends BillingServed  // + what a workflow fulfils
+{
+    #[AsNexusOperation('charge')]
+    public function charge(Order $order, int $amount): Receipt;
+}
+
+#[AsNexusServiceHandler(contract: BillingServed::class)]
+final class Billing implements BillingServed { /* … */ }
+
+#[AsWorkflow]
+#[FulfilsNexusOperation(BillingContract::class, 'charge')]
+final class Charge { /* … */ }
 ```
 
-The deferred form names a workflow because that is what the measurement dictates. A contract shaped
-as `startedAsynchronously(string $token)` would hand the handler the one piece that correlates
-nothing — and hand it too late, the start it needed to influence having already happened.
+**The contract splits in two, and that is what removes the empty methods.** An operation fulfilled
+by a workflow has no handler body; without the split, PHP would demand one whose only job is to say
+there is nothing to write. The handler implements the served interface, the caller reads the one
+that extends it.
 
-The worker therefore **starts the workflow before it answers**. The order is not cosmetic.
+**The workflow claims the operation, not the contract.** Naming a server-side class inside an
+interface the caller reads would leak the implementation across the very boundary Nexus exists to
+draw — and the declaration belongs where the code is.
+
+A contract shaped as `startedAsynchronously(string $token)` was rejected for a different reason: it
+would hand the handler the one piece that correlates nothing, and hand it too late — the start it
+needed to influence having already happened. The worker therefore **starts the workflow before it
+answers**. The order is not cosmetic.
+
+This is DUR039 applied to Nexus. That record removed `activity(string $name, array $payload)` from
+the authoring surface because a typo there produces an activity that is never scheduled rather than
+a type error; the Nexus caller had kept exactly that shape, with the same name written twice — once
+by the caller, once by the handler — and nothing tying the two.
 
 ### Cancelling an operation is cancelling the workflow that carries it
 

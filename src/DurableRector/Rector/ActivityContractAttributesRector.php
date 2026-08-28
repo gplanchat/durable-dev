@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Rector\Rector;
 
-use Gplanchat\Durable\Attribute\Activity;
-use Gplanchat\Durable\Attribute\ActivityMethod;
+use Gplanchat\Durable\Attribute\AsActivity;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Attribute;
@@ -25,14 +25,14 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  * Rewrites a Temporal SDK activity contract onto Durable's attributes, **keeping the activity type
  * names the server already knows**.
  *
- * The SDK's type is `prefix . (ActivityMethod::$name ?? methodName)` — one concatenation, no
+ * The SDK's type is `prefix . (AsActivityMethod::$name ?? methodName)` — one concatenation, no
  * separator inserted (`Temporal\Internal\Declaration\Reader\ActivityReader::activityName()`).
- * Durable's is `Activity::$name . '.' . ActivityMethod::$name`, and the dot is not optional
+ * Durable's is `AsActivity::$name . '.' . AsActivityMethod::$name`, and the dot is not optional
  * ({@see \Gplanchat\Durable\Activity\ActivityContractResolver}). The two agree on exactly two
  * prefixes — the empty one, and one ending in a dot — and this rule refuses the rest rather than
  * rename an activity in flight.
  *
- * It also adds `#[ActivityMethod]` to methods that carry none: every public method of an
+ * It also adds `#[AsActivityMethod]` to methods that carry none: every public method of an
  * `#[ActivityInterface]` is an activity for the SDK, and only an annotated one is for Durable.
  */
 final class ActivityContractAttributesRector extends AbstractRector
@@ -53,10 +53,10 @@ interface OrderActivities
 }
 BEFORE,
                 <<<'AFTER'
-#[\Gplanchat\Durable\Attribute\Activity(name: 'Order')]
+#[\Gplanchat\Durable\Attribute\AsActivity(name: 'Order')]
 interface OrderActivities
 {
-    #[\Gplanchat\Durable\Attribute\ActivityMethod(name: 'charge')]
+    #[\Gplanchat\Durable\Attribute\AsActivityMethod(name: 'charge')]
     public function charge(string $orderId): string;
 }
 AFTER,
@@ -107,10 +107,10 @@ AFTER,
             $methodNames[] = [$method, $name];
         }
 
-        $this->replaceAttribute($node, self::SDK_ACTIVITY_INTERFACE, Activity::class, $contractName);
+        $this->replaceAttribute($node, self::SDK_ACTIVITY_INTERFACE, AsActivity::class, $contractName);
 
         foreach ($methodNames as [$method, $name]) {
-            $this->replaceAttribute($method, self::SDK_ACTIVITY_METHOD, ActivityMethod::class, $name);
+            $this->replaceAttribute($method, self::SDK_ACTIVITY_METHOD, AsActivityMethod::class, $name);
         }
 
         return $node;

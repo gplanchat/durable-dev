@@ -35,4 +35,23 @@ return RectorConfig::configure()
         // pour une raison plus grave : `InMemoryWorkflowRunner`, qui **est** du cœur, l'appelait.
         // Un hôte qui n'installe pas le bundle prenait une erreur fatale à la première reprise.
         'Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator' => TimerWakeDelayCalculator::class,
+
+        // 0.1.0-alpha8 — tout attribut de déclaration prend le préfixe `As`. Le dépôt en portait
+        // deux conventions : le cœur nommait ses attributs sans préfixe, le bundle Symfony en avait
+        // un seul, préfixé, et ni le pont Illuminate ni le module Magento n'en avaient. Servir Nexus
+        // demandait d'en ajouter, donc de choisir. Les attributs de méthode suivent, pour qu'il n'y
+        // ait qu'une règle à retenir plutôt qu'une règle et son exception.
+        'Gplanchat\Durable\Attribute\Workflow' => 'Gplanchat\Durable\Attribute\AsWorkflow',
+        'Gplanchat\Durable\Attribute\Activity' => 'Gplanchat\Durable\Attribute\AsActivity',
+        'Gplanchat\Durable\Attribute\WorkflowMethod' => 'Gplanchat\Durable\Attribute\AsWorkflowMethod',
+        'Gplanchat\Durable\Attribute\ActivityMethod' => 'Gplanchat\Durable\Attribute\AsActivityMethod',
+        'Gplanchat\Durable\Attribute\QueryMethod' => 'Gplanchat\Durable\Attribute\AsQueryMethod',
+        'Gplanchat\Durable\Attribute\SignalMethod' => 'Gplanchat\Durable\Attribute\AsSignalMethod',
+        'Gplanchat\Durable\Attribute\UpdateMethod' => 'Gplanchat\Durable\Attribute\AsUpdateMethod',
+
+        // Et le second déplacement entre paquets de cette version, exactement le même piège que
+        // celui du dessus : l'attribut de déclaration d'une implémentation d'activité quitte le
+        // bundle pour le cœur, sous le nom qui le met en paire avec `AsNexusServiceHandler`.
+        // Il est **lu par une passe de compilation**, donc le conteneur compilé le garde.
+        'Gplanchat\Durable\Bundle\Attribute\AsDurableActivity' => 'Gplanchat\Durable\Attribute\AsActivityHandler',
     ]);

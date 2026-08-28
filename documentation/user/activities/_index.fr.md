@@ -9,28 +9,28 @@ Cette page résume comment on **écrit** des activités en Durable. Le détail n
 
 ## Deux pièces
 
-1. **L'interface de contrat d'activité** — les méthodes que le workflow a le droit d'appeler, chacune marquée d'un **`#[ActivityMethod]`**. Depuis le workflow, on passe par un **`ActivityStub`** (**ActivityInvoker** dans les ADR).
-2. **La classe d'implémentation** — une classe concrète (souvent annotée d'un **`#[Activity]`** pour son nom) qui **implémente** le contrat et fait le vrai travail.
+1. **L'interface de contrat d'activité** — les méthodes que le workflow a le droit d'appeler, chacune marquée d'un **`#[AsActivityMethod]`**. Depuis le workflow, on passe par un **`ActivityStub`** (**ActivityInvoker** dans les ADR).
+2. **La classe d'implémentation** — une classe concrète (souvent annotée d'un **`#[AsActivity]`** pour son nom) qui **implémente** le contrat et fait le vrai travail.
 
 ## Exemple : contrat et implémentation
 
-L'**interface** énumère les méthodes que le workflow peut planifier. Chaque méthode exposée porte **`#[ActivityMethod]`** avec un **nom d'activité stable** pour l'orchestrateur. La classe d'**implémentation** fait les E/S et peut recourir à l'**injection par constructeur**.
+L'**interface** énumère les méthodes que le workflow peut planifier. Chaque méthode exposée porte **`#[AsActivityMethod]`** avec un **nom d'activité stable** pour l'orchestrateur. La classe d'**implémentation** fait les E/S et peut recourir à l'**injection par constructeur**.
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-use Gplanchat\Durable\Attribute\Activity;
-use Gplanchat\Durable\Attribute\ActivityMethod;
+use Gplanchat\Durable\Attribute\AsActivity;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
 
 interface OrderActivities
 {
-    #[ActivityMethod(name: 'charge-order')]
+    #[AsActivityMethod(name: 'charge-order')]
     public function charge(string $orderId): string; // type de retour synchrone, côté worker
 }
 
-#[Activity(name: 'order-activities')]
+#[AsActivity(name: 'order-activities')]
 final class OrderActivitiesHandler implements OrderActivities
 {
     public function __construct(
@@ -58,13 +58,13 @@ declare(strict_types=1);
 
 use Gplanchat\Durable\WorkflowEnvironment;
 
-// À l'intérieur d'une #[WorkflowMethod] de votre classe de workflow :
+// À l'intérieur d'une #[AsWorkflowMethod] de votre classe de workflow :
 $activities = $this->environment->activityStub(OrderActivities::class);
 
 $receipt = $this->environment->await($activities->charge($orderId));
 ```
 
-Le type **`ActivityStub`** (voir [Écrire un workflow](../workflows/) pour la note de nommage sur **ActivityInvoker**) résout les noms de méthode par réflexion sur **`OrderActivities`** et construit les charges utiles **`#[ActivityMethod]`**.
+Le type **`ActivityStub`** (voir [Écrire un workflow](../workflows/) pour la note de nommage sur **ActivityInvoker**) résout les noms de méthode par réflexion sur **`OrderActivities`** et construit les charges utiles **`#[AsActivityMethod]`**.
 
 ## `ActivityOptions` : délais, réessais, file de tâches {#activityoptions-timeouts-retries-task-queue}
 
@@ -147,7 +147,7 @@ Contrairement aux workflows, l'**implémentation d'activité** **peut** avoir un
 
 Depuis **`WorkflowEnvironment`** (voir [Écrire un workflow](../workflows/)), vous appelez **`activityStub(VotreInterfaceDActivité::class)`** et vous obtenez un **`ActivityStub`** (même notion que l'**`ActivityInvoker`** des ADR).
 
-- Pour chaque **`#[ActivityMethod]`** de l'interface, le stub expose **le même nom de méthode et les mêmes paramètres** ; chaque appel renvoie un **`Awaitable`** que vous passez à **`$environment->await(...)`** (le type de retour synchrone **`T`** de l'interface est ce que vous obtenez après l'**`await`**).
+- Pour chaque **`#[AsActivityMethod]`** de l'interface, le stub expose **le même nom de méthode et les mêmes paramètres** ; chaque appel renvoie un **`Awaitable`** que vous passez à **`$environment->await(...)`** (le type de retour synchrone **`T`** de l'interface est ce que vous obtenez après l'**`await`**).
 - L'invocateur **n'exécute pas** d'E/S dans le processus du workflow : il **planifie** une étape durable et rattache le résultat à l'historique et au rejeu.
 
 C'est cette séparation qui garde le code de workflow déterministe pendant que les activités font le travail non déterministe.
@@ -160,7 +160,7 @@ Arguments et valeurs de retour doivent être **sérialisables** au passage de la
 
 | Pièce | Responsabilité |
 |-------|----------------|
-| Interface | `#[ActivityMethod]` sur les méthodes appelables ; des types sérialisables |
+| Interface | `#[AsActivityMethod]` sur les méthodes appelables ; des types sérialisables |
 | Implémentation | E/S et injection de dépendances ; implémente l'interface |
 | Workflow | N'emploie qu'**`activityStub()`** / **`ActivityStub`** depuis **`WorkflowEnvironment`** — jamais un `new` sur la classe d'activité pour un effet durable ; second argument facultatif **`ActivityOptions`** |
 

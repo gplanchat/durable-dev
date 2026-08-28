@@ -4,6 +4,14 @@ This repository documents the **Durable** component (durable execution orchestra
 
 **Language:** All normative documents in `documentation/adr/`, `documentation/wa/`, tracking, and Cursor rules are **English** — see [WA001](wa/WA001-english-language-documentation.md). **Development** follows **TDD** (Red → Green → Refactor) — see [WA002](wa/WA002-test-driven-development.md). **GitHub** epics, tasks, stories, and project usage follow **[WA003](wa/WA003-github-epics-tasks-and-project-tracking.md)**. **Licensing:** the repository and first-party Composer packages are **MIT** — see [WA004](wa/WA004-mit-license-distribution.md) and the root [`LICENSE`](../LICENSE) file.
 
+> **Attribute names in the records below predate v0.1.0-alpha8.** Every declaration attribute
+> gained the `As` prefix in that version — `#[Workflow]` became `#[AsWorkflow]`, `#[ActivityMethod]`
+> became `#[AsActivityMethod]`, and `#[AsDurableActivity]` left the Symfony bundle for the core as
+> `#[AsActivityHandler]`. The records are **not** rewritten: an ADR states what was decided when it
+> was written, and editing the code samples inside one would falsify that. The mapping, and the
+> Rector set that applies it, are in [`UPGRADE.md`](../UPGRADE.md). The user documentation, which
+> teaches current usage rather than recording a decision, does use the new names.
+
 ## Architecture Decision Records (ADR)
 
 | ID | Title | File |

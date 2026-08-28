@@ -123,7 +123,7 @@ Trois propriétés de la surface d'écriture, et non trois utilitaires de test :
 - **Des fibres au lieu de générateurs.** Une méthode de workflow rend son type déclaré. PHPUnit
   compare une valeur ; il ne pilote pas de générateur et ne résout pas de promesse.
 - **Le test fait tourner la classe de production.** `runWorkflowClass()` passe par le même
-  constructeur, les mêmes attributs, la même `#[WorkflowMethod]` — voir
+  constructeur, les mêmes attributs, la même `#[AsWorkflowMethod]` — voir
   [DUR039](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR039-workflow-authoring-surface.md).
 
 ### Ce que vous pouvez vérifier
@@ -217,7 +217,7 @@ Le même workflow — encaisser une commande, attendre une heure, envoyer le re�
 **Durable** — environnement injecté, fibres, types de retour ordinaires :
 
 ```php
-#[Workflow(name: 'order')]
+#[AsWorkflow(name: 'order')]
 final class OrderWorkflow implements OrderWorkflowContract
 {
     public function __construct(
@@ -225,7 +225,7 @@ final class OrderWorkflow implements OrderWorkflowContract
     ) {
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $orderId): string
     {
         $activities = $this->environment->activityStub(OrderActivities::class);
@@ -244,7 +244,7 @@ final class OrderWorkflow implements OrderWorkflowContract
 #[WorkflowInterface]
 interface OrderWorkflowContract
 {
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $orderId);
 }
 
@@ -269,8 +269,8 @@ Mêmes étapes, mêmes noms, même ordre. Ce qui diffère, c'est tout ce qui les
 | Accès au moteur | `WorkflowEnvironment` injecté au constructeur | façade statique `Workflow::` |
 | Suspension | fibres + `Awaitable` | `yield` + `React\Promise\PromiseInterface` |
 | Coloration des fonctions | méthodes ordinaires, types de retour déclarés | toute méthode qui attend devient un générateur, et son appelant aussi — voir [plus bas](#5-fibers-or-generators-the-colouring-problem) |
-| Déclaration | `#[Workflow]` sur la classe | `#[WorkflowInterface]` sur une interface, implémentée par une classe |
-| Attributs de méthode | `#[WorkflowMethod]`, `#[SignalMethod]`, `#[QueryMethod]`, `#[UpdateMethod]` | les mêmes quatre, mises à jour comprises |
+| Déclaration | `#[AsWorkflow]` sur la classe | `#[WorkflowInterface]` sur une interface, implémentée par une classe |
+| Attributs de méthode | `#[AsWorkflowMethod]`, `#[AsSignalMethod]`, `#[AsQueryMethod]`, `#[AsUpdateMethod]` | les mêmes quatre, mises à jour comprises |
 
 Le type de retour en est la conséquence visible : `run()` déclare `string` d'un côté ; de l'autre, le
 seul type qu'elle pourrait déclarer est `\Generator`, qui ne dit rien de ce que le workflow rend.
@@ -298,7 +298,7 @@ rouge, et tous ses appelants jusqu'à la méthode du workflow deviennent rouges 
 **Durable** — l'aide est une méthode ordinaire :
 
 ```php
-#[WorkflowMethod]
+#[AsWorkflowMethod]
 public function run(string $orderId): string
 {
     return $this->chargeWithRetry($orderId);
@@ -354,7 +354,7 @@ ils n'ont donc besoin d'aucun mot-clé, d'aucun changement de type de retour, et
 | | Durable (fibres) | SDK PHP de Temporal (générateurs) |
 |---|---|---|
 | Attendre depuis une méthode d'aide | une méthode privée ordinaire | l'aide devient un générateur |
-| Ses appelants | inchangés | tous deviennent des générateurs aussi, jusqu'à `#[WorkflowMethod]` |
+| Ses appelants | inchangés | tous deviennent des générateurs aussi, jusqu'à `#[AsWorkflowMethod]` |
 | Le site d'appel | `$this->chargeWithRetry($id)` | `yield from $this->chargeWithRetry($id)` |
 | Type de retour déclaré | le sien — `string` | aucun qu'elle puisse utilement déclarer |
 | L'appeler hors d'un workflow | un appel ordinaire | il faut de quoi piloter le générateur |
@@ -411,20 +411,15 @@ dans un autre espace de noms ou un autre cluster. **Un workflow Durable peut en 
 peut en servir une. Un workflow écrit avec le SDK PHP officiel ne peut ni l'un ni l'autre.**
 
 ```php
-$order = $this->environment->await(
-    $this->environment->nexusOperation(
-        'checkout-endpoint',
-        'com.example.checkout',
-        'placeOrder',
-        ['cartId' => $cartId],
-    ),
-);
+$checkout = $env->nexusStub(CheckoutContract::class, endpoint: 'checkout-endpoint');
+
+$order = $env->await($checkout->placeOrder($cartId));
 ```
 
-Les trois noms sont des objets valeur plutôt que des chaînes, parce que le serveur ne garde que le
-premier : il refuse d'emblée un point d'entrée malformé, et accepte sans un mot un service ou une
-opération vide ou faite d'espaces — laissant l'appel attendre un gestionnaire dont le nom ne
-correspondra jamais.
+Le contrat s'écrit une fois et se lit des deux côtés, donc aucun nom d'opération n'est recopié en
+chaîne. Cela compte parce que le serveur ne garde que le point d'entrée : il refuse d'emblée un nom
+malformé, et accepte sans un mot un service ou une opération vide ou faite d'espaces — laissant
+l'appel attendre un gestionnaire dont le nom ne correspondra jamais.
 
 À l'heure où ces lignes sont écrites, « Nexus » n'apparaît dans le SDK PHP que comme de la plomberie
 gRPC engendrée — CRUD de points d'entrée sur le client opérateur, une option d'emplacement de tâche
@@ -441,18 +436,17 @@ dans le même test.
 Un gestionnaire déclare l'opération qu'il sert, et répond maintenant ou plus tard :
 
 ```php
-#[AsNexusOperationHandler(service: 'facturation', operation: 'encaisser')]
-final class Encaisser
+#[AsNexusServiceHandler(contract: FacturationServie::class)]
+final class Facturation implements FacturationServie
 {
-    public function __invoke(mixed $payload): NexusOperationResponse
-    {
-        // Maintenant, si vous avez déjà la réponse — vous avez environ neuf secondes.
-        return NexusOperationResponse::completed(['receipt' => 'r-1234']);
-
-        // Plus tard, pour tout ce qui est réel : un workflow produit le résultat.
-        return NexusOperationResponse::fulfilledByWorkflow('Encaissement', $payload);
-    }
+    // Maintenant, si vous avez déjà la réponse — vous avez environ neuf secondes.
+    public function verifier(Ordre $ordre): Verdict { /* … */ }
 }
+
+// Plus tard, pour tout ce qui est réel : un workflow réclame l'opération et produit le résultat.
+#[AsWorkflow]
+#[FulfilsNexusOperation(FacturationContract::class, 'encaisser')]
+final class Encaissement { /* … */ }
 ```
 
 Les neuf secondes ne sont pas une limite de Durable mais le `request-timeout` de la tâche, mesuré :

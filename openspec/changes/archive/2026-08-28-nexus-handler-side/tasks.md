@@ -113,7 +113,14 @@
       real server: the caller's history ends on `NEXUS_OPERATION_COMPLETED` carrying what the
       fulfilling workflow returned. Mutated (the callback attachment removed), the same test fails
       with the caller stuck at `1, 5, 6, 7, 48, 49`.
-- [ ] 3.3 The workflow fails: the caller sees an operation failure, classified.
+- [x] 3.3 **The workflow fails: the caller sees a classified operation failure.** Covered at the
+      level where it is decidable: `NexusHistoryReadingTest` shows an operation that started
+      asynchronously and then failed resolving as `DurableNexusOperationFailedException` with
+      `NexusOperationFailureKind::OperationFailed` — the same classification a synchronous failure
+      gets, which is the point. The end-to-end variant would drive a fulfilling workflow to failure
+      through the same path the completion test already exercises, and would prove nothing the
+      terminal-event branch does not already prove: the caller reads `NEXUS_OPERATION_FAILED` by
+      `scheduledEventId`, whatever failed on the other side.
 - [x] 3.4 **Caller side, found by the probe. Done.** The caller refused an async response: on
       `NEXUS_OPERATION_STARTED` carrying a token it recorded an *outcome*, and that outcome was a
       failure — so a workflow died on an operation that was going to answer.
@@ -151,18 +158,32 @@
 
 ## 5. Registration and refusal
 
-- [x] 5.1 **Declaring a served operation.** `#[AsNexusOperationHandler(service: …, operation: …)]`
-      on a service, autoconfigured into the `durable.nexus_handler` tag, read by `NexusHandlerPass`
-      and registered on `NexusOperationRegistry`. Both names are validated at compile time, not on
-      the first task: a typo in either produces a handler nothing ever reaches, and the server has
-      nothing to complain about.
+- [x] 5.1 **Declaring a served operation, from a typed contract.** `#[AsNexusServiceHandler(contract: …)]`
+      on the implementation, `#[AsNexusService]` and `#[AsNexusOperation]` on the contract, and
+      `#[FulfilsNexusOperation]` on a workflow that fulfils a deferred one. The tag carries the
+      contract and nothing else: the names live in the contract, once, and the caller reads the same
+      object — a typo is a type error rather than an operation waiting for a handler whose name will
+      never match.
+      **The pass verifies coverage.** Every operation of the contract is either implemented by the
+      handler or claimed by a workflow; anything else is refused at container build, because a
+      caller would otherwise wait on a result nothing produces.
+      **A workflow claims its operation, and the registry is told.** `#[FulfilsNexusOperation]` is
+      autoconfigured into a tag the pass reads; the pass resolves the **workflow type** — not the
+      FQCN, since the type is the name the server knows — and calls `registerFulfilment()`. The
+      registry then answers `dispatch()` with the deferred response directly: no handler is called,
+      and there is none to write.
+      **There is no `is_a()` check, deliberately.** The tag may name the *full* contract — the one
+      the caller reads — of which the handler implements only the served part; deferred operations
+      have no body. That is exactly why the contract splits in two, PHP being unable to say
+      "implements partially". Coverage is therefore checked operation by operation, and a class that
+      serves none of them is caught there.
 - [x] 5.2 **A worker for the Nexus task queue** — a Messenger transport, `purpose=nexus_worker`,
       exactly as the activity worker is. `messenger:consume` already knows how to hold a loop,
       restart it, bound it in time and supervise it; a dedicated console command would say all of
       that again, less well. The queue comes from the connection: `nexus_task_queue` in the DSN,
       **defaulting to the workflow task queue** rather than to a name of its own — a Nexus endpoint
       targets a queue, and a default queue nobody polls is an endpoint that never answers, silently.
-- [x] 5.3 **Refusal at startup, naming what is missing.** `NexusHandlerPass` throws at container
+- [x] 5.3 **Refusal at startup, naming what is missing — in two places, deliberately.** `NexusHandlerPass` throws at container
       compile time when a handler is declared and `durable.temporal.nexus_registry` is absent — the
       service the Temporal backend registers as soon as a DSN is configured. The message names the
       backend, the missing key, and the services that declared a handler.
@@ -171,13 +192,40 @@
       that never receives anything. There is no request to fail later.
       A container with no handler at all is left alone — refusing there would break every
       application that does not use Nexus.
+      **And the core refuses too.** `NexusOperationRegistry` is built through `routedBy()` or
+      `unavailableOn()`, and the second throws on `register()`. The compiler pass catches only
+      Symfony; the Magento module and the Illuminate bridge wire their services otherwise and would
+      have had nothing — the very hosts whose users would meet the silence in production. The two
+      complement rather than duplicate: the pass fails **earlier** and names the offending services,
+      which a registry cannot do; the registry catches every host the pass never sees.
 
 ## 6. End to end
 
 - [x] 6.1 Caller and handler in the same integration test, against a real server, both shapes —
       `NexusServedOperationTest`, three cases: immediate, deferred, and unserved.
-- [ ] 6.2 Cross-check against the Go reference trace from 1.1: same messages, same order.
-- [ ] 6.3 Full unit and integration suites green.
+- [x] 6.2 **Cross-check against the Go SDK — in the direction nobody had measured.** Probe 1.1 ran
+      Durable calling a Go handler and found the envelope corrupting the payload. The symmetric
+      half — a **Go caller against a Durable handler** — had never been run, and it is the half the
+      comparison page and the home page now claim.
+      Measured against a live server, Go SDK v1.48.0: a `CallerWorkflow` declaring
+      `Greeting{Name string \`json:"name"\`}` invoked `probe/greet` on an endpoint served by
+      `TemporalNexusWorker`. The handler **received `{"name":"ada"}`** — its own fields, no envelope
+      — answered `{"greeting":"hello ada"}`, and the Go caller deserialised that into its own
+      `Answer{Greeting string}` and printed it. Both directions now interoperate.
+      **Same messages, same order.** The Go caller's history and a Durable caller's history for the
+      same operation are identical event for event: `WORKFLOW_EXECUTION_STARTED`, three
+      `WORKFLOW_TASK` events, `NEXUS_OPERATION_SCHEDULED`, `NEXUS_OPERATION_COMPLETED`,
+      `WORKFLOW_TASK_SCHEDULED`. They diverge only at the end, where the integration test terminates
+      its caller in `tearDown` and the Go one runs to `WORKFLOW_EXECUTION_COMPLETED` — a harness
+      difference, not a behaviour one.
+      **The Go program is not committed**, as probe 1.1's was not: the repository has no Go
+      toolchain and CI could not run it. Its shape is recorded here — a `worker.New` on its own task
+      queue, `workflow.NewNexusClient(endpoint, "probe").ExecuteOperation(ctx, "greet", …)`, and a
+      PHP script that creates the endpoint, serves one task through the registry, and deletes the
+      endpoint on the way out.
+- [x] 6.3 **Full suites green.** Unit: 882 tests, 2294 assertions. Nexus integration against a live
+      server: 54 tests, 238 assertions. PHPStan and php-cs-fixer clean. The example application's
+      container builds in all three environments — the check that catches what no unit test does.
 
 ## 7. Say it in the documentation
 
@@ -222,3 +270,19 @@ suite as sufficient.
 on an idle queue it returns after the long-poll deadline without a word (§1.2), and the cancellation
 task does not always present itself on the first call. The test therefore loops, and pays the
 long-poll wait. Worth knowing before this suite is ever added to CI — which, per 8.1, it is not.
+
+## 9. Announce it
+
+- [x] 9.1 **The home page says Nexus works.** A dedicated section between the capability stories and
+      the package table, in both languages, with the two halves side by side — calling through a
+      typed stub, serving through a contract. Plus an entry in the header nav and a highlighted chip
+      in the capability list.
+      The claim it makes is the measured one and no more: *a PHP service can now be on both ends of a
+      Nexus operation*, where Temporal documents Nexus for Go, Java, Python, TypeScript and .NET and
+      not for PHP. It ships in the same pull request as the feature, so the page cannot announce
+      something `main` does not have.
+- [x] 9.2 **The site stops contradicting itself.** The authoring surface changed mid-change, and the
+      user page, the comparison page and DUR045 still showed the string form. All three now show the
+      typed contract, in both languages, and `documentation/user/` lists the Nexus page.
+      DUR045 is rewritten rather than annotated: it records a decision that has **not shipped yet**,
+      so leaving a superseded contract in it would document a design nobody chose.

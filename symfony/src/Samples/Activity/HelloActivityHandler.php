@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Samples\Activity;
 
-use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 
-#[AsDurableActivity(contract: HelloActivityInterface::class)]
+#[AsActivityHandler(contract: HelloActivityInterface::class)]
 final class HelloActivityHandler implements HelloActivityInterface
 {
     public function hello(string $name = 'World'): string

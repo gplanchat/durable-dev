@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Durable\Activity;
 
-use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 
-#[AsDurableActivity(contract: GreetingActivityInterface::class)]
+#[AsActivityHandler(contract: GreetingActivityInterface::class)]
 final class GreetingActivityHandler implements GreetingActivityInterface
 {
     public function composeGreeting(string $name = 'World'): string

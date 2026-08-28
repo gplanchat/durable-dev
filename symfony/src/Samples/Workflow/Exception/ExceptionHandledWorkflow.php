@@ -8,15 +8,15 @@ use App\Samples\Activity\FlakyActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Activity\RetryLimit;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
  * Inspiré de samples-php Exception : l’échec d’activité est intercepté dans le workflow.
  */
-#[Workflow('Samples_Exception_Handled')]
+#[AsWorkflow('Samples_Exception_Handled')]
 final class ExceptionHandledWorkflow
 {
     private readonly ActivityStub $flaky;
@@ -30,7 +30,7 @@ final class ExceptionHandledWorkflow
         );
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(bool $shouldFail = true): string
     {
         try {

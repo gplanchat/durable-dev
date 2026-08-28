@@ -19,6 +19,7 @@ bibliothèque sert ; cette section est la référence.
 | [Écrire des activités](activities/) | contrats d'activité, injection de dépendances, le stub typé |
 | [Échecs et réessais](failures/) | ce que le journal enregistre, et pourquoi une activité a cessé de réessayer |
 | [Annulation](cancellation/) | lever l'annulation dans le workflow pour qu'il puisse compenser |
+| [Opérations Nexus](nexus/) | appeler une opération servie par une autre équipe — et en servir |
 | [Options et objets valeur](options/) | limites de réessai, délais, planifications cron, attributs de recherche |
 | [Tester des workflows](testing/) | des tests unitaires sans serveur, et la suite qui tourne contre un vrai |
 | [Référence de configuration](configuration/) | chaque clé de `durable.yaml` |

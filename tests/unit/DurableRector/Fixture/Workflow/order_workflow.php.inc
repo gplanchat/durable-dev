@@ -33,21 +33,21 @@ namespace unit\DurableRector\Fixture\Workflow;
 
 use unit\DurableRector\Source\OrderWorkflowContract;
 
-#[\Gplanchat\Durable\Attribute\Workflow(name: 'OrderWorkflowContract')]
+#[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'OrderWorkflowContract')]
 final class OrderWorkflow implements OrderWorkflowContract
 {
-    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]
     public function run(string $orderId)
     {
         return $orderId;
     }
 
-    #[\Gplanchat\Durable\Attribute\SignalMethod(name: 'cancel')]
+    #[\Gplanchat\Durable\Attribute\AsSignalMethod(name: 'cancel')]
     public function cancelOrder(): void
     {
     }
 
-    #[\Gplanchat\Durable\Attribute\QueryMethod(name: 'status')]
+    #[\Gplanchat\Durable\Attribute\AsQueryMethod(name: 'status')]
     public function status(): string
     {
         return 'pending';

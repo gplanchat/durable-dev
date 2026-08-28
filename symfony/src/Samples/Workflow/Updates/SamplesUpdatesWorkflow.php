@@ -6,9 +6,9 @@ namespace App\Samples\Workflow\Updates;
 
 use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityStub;
-use Gplanchat\Durable\Attribute\UpdateMethod;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsUpdateMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
@@ -16,7 +16,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
  * l'état que le corps attend. La valeur de retour est la réponse — c'est toute la différence
  * avec un signal.
  */
-#[Workflow('Samples_Updates_Greeting')]
+#[AsWorkflow('Samples_Updates_Greeting')]
 final class SamplesUpdatesWorkflow
 {
     private readonly ActivityStub $greeting;
@@ -34,7 +34,7 @@ final class SamplesUpdatesWorkflow
     /**
      * @param array<string, mixed> $arguments
      */
-    #[UpdateMethod('greet')]
+    #[AsUpdateMethod('greet')]
     public function greet(array $arguments): string
     {
         $this->name = (string) ($arguments['name'] ?? 'World');
@@ -42,7 +42,7 @@ final class SamplesUpdatesWorkflow
         return $this->name;
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(): string
     {
         $this->environment->await(fn(): bool => null !== $this->name);

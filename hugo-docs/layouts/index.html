@@ -145,6 +145,7 @@
       <a href="#story" style="text-decoration: none; color: var(--fg2, #6c6459);" class="dz-h0" data-dzh="0">The incident</a>
       <a href="#code" style="text-decoration: none; color: var(--fg2, #6c6459);" class="dz-h1" data-dzh="1">The method</a>
       <a href="#library" style="text-decoration: none; color: var(--fg2, #6c6459);" class="dz-h2" data-dzh="2">The library</a>
+      <a href="#nexus" style="text-decoration: none; color: var(--accent2, #2f6f6b);" class="dz-h65" data-dzh="65">Nexus</a>
       <a href="#packages" style="text-decoration: none; color: var(--fg2, #6c6459);" class="dz-h3" data-dzh="3">Packages</a>
       <a href="/docs/" style="text-decoration: none; color: var(--fg2, #6c6459);" class="dz-h4" data-dzh="4">Docs</a>
       <a href="https://packagist.org/packages/gplanchat/durable" style="text-decoration: none; color: var(--fg2, #6c6459);" class="dz-h5" data-dzh="5">Packagist</a>
@@ -594,6 +595,43 @@
     </div>
   </section>
 
+  <section id="nexus" style="border-top: 1px solid var(--line, #ddd6ca);">
+    <div style="max-width: 1140px; margin: 0 auto; padding: calc(76px * var(--sp, 1)) 40px;">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent2, #2f6f6b);">Nexus · works today</span>
+      <h2 style="font-family: 'Newsreader', serif; font-weight: 400; font-size: calc(40px * var(--ts, 1)); line-height: 1.1; letter-spacing: -0.02em; margin: 14px 0 18px; max-width: 760px; text-wrap: balance;">Your PHP service can be on <em style="font-style: italic; color: var(--accent, #b4552f);">both ends</em> of a Nexus operation</h2>
+      <p style="font-size: calc(16.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459); margin: 0 0 12px; max-width: 720px;">Nexus routes a call from one workflow to an operation owned by another team, another namespace, another cluster — neither side knowing the other's workflows. Durable <strong style="color: var(--fg, #2c2822); font-weight: 500;">calls</strong> those operations, and <strong style="color: var(--fg, #2c2822); font-weight: 500;">serves</strong> them.</p>
+      <p style="font-size: calc(16.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459); margin: 0 0 40px; max-width: 720px;">Until now a PHP team was reachable over HTTP like any other service, but not across that boundary. Temporal documents Nexus for Go, Java, Python, TypeScript and .NET — and not for PHP.</p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 40px;">
+        <div>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2, #6c6459);">Calling</span>
+          <pre style="margin: 14px 0 0; padding: 22px; background: var(--bg2, #efe9df); border: 1px solid var(--line, #ddd6ca); border-radius: 6px; overflow-x: auto;"><code style="font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.75;">$billing = $env-&gt;nexusStub(
+    BillingContract::class,
+    endpoint: 'payments',
+);
+
+$receipt = $env-&gt;await(
+    $billing-&gt;charge($order, 1200),
+);</code></pre>
+        </div>
+        <div>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2, #6c6459);">Serving</span>
+          <pre style="margin: 14px 0 0; padding: 22px; background: var(--bg2, #efe9df); border: 1px solid var(--line, #ddd6ca); border-radius: 6px; overflow-x: auto;"><code style="font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.75;">#[AsNexusServiceHandler(
+    contract: BillingServed::class,
+)]
+final class Billing implements BillingServed
+{
+    public function verify(Order $o): Verdict
+    { /* … */ }
+}</code></pre>
+        </div>
+      </div>
+      <p style="font-size: calc(16px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459); margin: 34px 0 0; max-width: 720px;">One contract, written once, typed on both sides — no operation name retyped as a string. Answer immediately, or let a workflow answer hours later: the caller waits the same way, and cancelling the call cancels the workflow that carries it.</p>
+      <div style="padding: 26px 0 0;">
+        <a href="/docs/nexus/" style="text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent, #b4552f); border-bottom: 1px solid var(--line, #ddd6ca); padding-bottom: 3px;" class="dz-h64" data-dzh="64">Calling and serving Nexus operations, end to end →</a>
+      </div>
+    </div>
+  </section>
+
   <section id="packages" style="border-top: 1px solid var(--line, #ddd6ca); border-bottom: 1px solid var(--line, #ddd6ca); background: var(--bg2, #efe9df);">
     <div style="max-width: 1140px; margin: 0 auto; padding: calc(76px * var(--sp, 1)) 40px;">
       <h2 style="font-family: 'Newsreader', serif; font-weight: 400; font-size: calc(40px * var(--ts, 1)); letter-spacing: -0.02em; margin: 0 0 10px;">Swap the backend, keep the workflow</h2>
@@ -658,6 +696,7 @@
         <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; border: 1px solid var(--line, #ddd6ca); border-radius: 999px; padding: 8px 15px; rotate: -0.9deg; transition: rotate 0.3s cubic-bezier(.2,.7,.2,1), border-color 0.3s, color 0.3s;" class="dz-h57" data-dzh="57">cron schedules</span>
         <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; border: 1px solid var(--line, #ddd6ca); border-radius: 999px; padding: 8px 15px; rotate: 1.4deg; transition: rotate 0.3s cubic-bezier(.2,.7,.2,1), border-color 0.3s, color 0.3s;" class="dz-h58" data-dzh="58">search attributes</span>
         <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; border: 1px solid var(--accent, #b4552f); color: var(--accent, #b4552f); border-radius: 999px; padding: 8px 15px;">replayable event journal</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; border: 1px solid var(--accent2, #2f6f6b); color: var(--accent2, #2f6f6b); border-radius: 999px; padding: 8px 15px;">Nexus, called <em style="font-style: normal; opacity: 0.7;">and</em> served</span>
       </div>
       <div style="padding: 30px 0 0;">
         <a href="/docs/packages/" style="text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent, #b4552f); border-bottom: 1px solid var(--line, #ddd6ca); padding-bottom: 3px;" class="dz-h59" data-dzh="59">The reference for these packages: what each one brings, what it needs, and the commands by situation →</a>

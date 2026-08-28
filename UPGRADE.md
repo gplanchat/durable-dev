@@ -70,3 +70,52 @@ disparaît simplement.
 **Si vous ne l'utilisiez pas directement**, vous n'aviez rien à faire dans votre code : la classe
 n'était référencée que par la passe de compilation du bundle. Le vidage de cache, lui, reste
 nécessaire.
+
+### Tout attribut de déclaration prend le préfixe `As`
+
+Le dépôt portait deux conventions. Le cœur nommait ses attributs sans préfixe (`#[Workflow]`,
+`#[Activity]`) ; le bundle Symfony en avait un seul, préfixé (`#[AsDurableActivity]`) ; ni le pont
+Illuminate ni le module Magento n'en avaient. Servir des opérations Nexus demandait d'en ajouter,
+donc de choisir. `As*` l'emporte, et il dit ce qu'il dit : *cette déclaration enregistre un X*.
+
+Les attributs de **méthode** suivent la même règle, pour qu'il n'y en ait qu'une à retenir plutôt
+qu'une règle et son exception.
+
+| avant | après |
+|---|---|
+| `#[Workflow]` | `#[AsWorkflow]` |
+| `#[Activity]` | `#[AsActivity]` |
+| `#[WorkflowMethod]` | `#[AsWorkflowMethod]` |
+| `#[ActivityMethod]` | `#[AsActivityMethod]` |
+| `#[QueryMethod]` | `#[AsQueryMethod]` |
+| `#[SignalMethod]` | `#[AsSignalMethod]` |
+| `#[UpdateMethod]` | `#[AsUpdateMethod]` |
+
+**Ce que Rector fait** — le renommage, partout où l'attribut apparaît. Rien d'autre ne bouge : les
+arguments, les cibles et le sens de chaque attribut sont inchangés. Le set est donc rejouable sans
+dommage.
+
+### `AsDurableActivity` descend du bundle vers le cœur, sous le nom `AsActivityHandler`
+
+`Gplanchat\Durable\Bundle\Attribute\AsDurableActivity` devient
+`Gplanchat\Durable\Attribute\AsActivityHandler`.
+
+Deux changements en un, et ils se justifient ensemble. Le déplacement d'abord : cet attribut
+déclarait qu'une classe implémente un contrat d'activité, ce qu'aucun framework ne rend spécifique.
+Le laisser côté Symfony aurait obligé le pont Illuminate et le module Magento à en inventer chacun
+un autre pour dire la même chose. Le nom ensuite : `AsActivityHandler` le met en paire avec
+`AsNexusServiceHandler`, les deux déclarant une implémentation par son contrat.
+
+**⚠ Ce que Rector ne peut pas faire, et qu'il faut faire à la main** — vider le cache du conteneur :
+
+```bash
+bin/console cache:clear
+```
+
+C'est le même piège que pour `PayloadToContractMethodInvoker`, en pire : cet attribut est **lu par
+une passe de compilation**. Le conteneur compilé garde le nom pleinement qualifié, et une
+application qui monte de version sans vider son cache continue de chercher un attribut qui n'existe
+plus — sans que rien ne désigne le déplacement.
+
+**Si vous n'utilisiez pas `#[AsDurableActivity]`**, vous n'avez rien à faire ; le vidage de cache
+reste néanmoins recommandé, l'autre entrée de cette version l'exigeant.
