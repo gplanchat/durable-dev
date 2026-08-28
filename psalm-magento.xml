@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<!--
+    L'analyse du module Magento, à part.
+
+    ⚠ Elle ne peut pas rejoindre `psalm.xml` : le module parle à des classes que ce dépôt
+    n'installe pas — la distribution pèse près d'un gigaoctet et n'a rien à faire dans les
+    dépendances du composant. Elle tourne donc dans le job qui l'installe déjà, celui qui démarre
+    le banc, et lit les classes réelles par l'autoloader du banc plutôt que par des bouchons écrits
+    à la main. Un bouchon approximatif ne fait pas d'erreur : il en cache.
+
+    Le reste — niveau, gestion des cas, code mort — est copié de `psalm.xml` à l'identique : deux
+    sévérités pour un même dépôt feraient de la propreté d'un paquet une affaire de configuration.
+-->
+<psalm
+    errorLevel="4"
+    resolveFromConfigFile="true"
+    autoloader="magento/vendor/autoload.php"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://getpsalm.org/schema/config"
+    xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
+    findUnusedBaselineEntry="false"
+    findUnusedCode="false"
+>
+    <projectFiles>
+        <directory name="src/DurableModule" />
+        <ignoreFiles allowMissingFiles="true">
+            <directory name="vendor" />
+            <!-- ⚠ Seule la **copie** du module est écartée, pas tout le vendor du banc : ce que
+                 `ignoreFiles` écarte n'est pas seulement analysé, c'est ignoré au scan — et le
+                 reste du banc est précisément ce qui porte les classes de Magento.
+                 `allowMissingFiles` parce qu'une disposition d'installation qui change ne doit pas
+                 se solder par un échec de lecture de configuration.
+                 ⚠ Deux copies du cœur restent joignables — l'autoloader racine mène à
+                 `src/Durable`, celui du banc à `magento/vendor/gplanchat/durable` — et c'est sans
+                 danger **uniquement parce que les deux viennent du même commit** : le dépôt `path`
+                 du banc lit `../src`. Un banc installé plus tôt fait dire à l'analyse que des
+                 propriétés ajoutées depuis n'existent pas, ce qui a été vérifié à la dure. -->
+            <directory name="magento/vendor/gplanchat/durable-magento" />
+        </ignoreFiles>
+    </projectFiles>
+
+    <issueHandlers>
+        <!-- Mêmes suppressions que `psalm.xml`, pour les mêmes raisons. -->
+        <UndefinedMethod errorLevel="suppress" />
+        <DocblockTypeContradiction errorLevel="suppress" />
+        <RedundantConditionGivenDocblockType errorLevel="suppress" />
+        <PossiblyInvalidMethodCall errorLevel="suppress" />
+        <UnusedClass errorLevel="suppress" />
+        <MissingOverrideAttribute errorLevel="suppress" />
+        <!-- ⚠ Signalé **dans le code de Magento**, pas dans le nôtre : `AbstractDataProvider`
+             annote `@return null` sur une méthode dont l'interface promet un
+             `SearchCriteriaInterface`. Ce dépôt ne corrige pas l'amont, et le laisser rouge ferait
+             échouer l'analyse du module sur une ligne que personne ici ne peut toucher. La
+             suppression est donc **bornée au vendor du banc** : la même règle reste active sur
+             `src/DurableModule`. -->
+        <ImplementedReturnTypeMismatch>
+            <errorLevel type="suppress">
+                <directory name="magento/vendor" />
+            </errorLevel>
+        </ImplementedReturnTypeMismatch>
+    </issueHandlers>
+</psalm>

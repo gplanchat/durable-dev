@@ -32,10 +32,21 @@ class View extends Action implements HttpGetActionInterface
 
     public function execute(): ResultInterface
     {
+        /*
+         * ⚠ `Magento\Framework\View\Result\PageFactory` ne rend pas une page de framework dans
+         * l'aire d'administration : `module-backend/etc/adminhtml/di.xml` lui passe
+         * `instanceName = Magento\Backend\Model\View\Result\Page`, et c'est cette page-là qui
+         * porte `setActiveMenu()`. L'annotation dit à l'analyse ce que le conteneur fait, plutôt
+         * que de faire taire l'erreur : c'est vérifiable dans le `di.xml` cité.
+         */
+        /** @var \Magento\Backend\Model\View\Result\Page $page */
         $page = $this->pageFactory->create();
         $page->setActiveMenu('Gplanchat_DurableModule::process_history');
+        // `Title::prepend()` déclare `string` ; `__()` rend une `Phrase`. Le rendu a lieu ici de
+        // toute façon — le titre part dans la page — donc la conversion ne coûte aucune traduction
+        // tardive et respecte le contrat écrit.
         $page->getConfig()->getTitle()->prepend(
-            __('Execution %1', (string) $this->getRequest()->getParam('run_id')),
+            (string) __('Execution %1', (string) $this->getRequest()->getParam('run_id')),
         );
 
         return $page;

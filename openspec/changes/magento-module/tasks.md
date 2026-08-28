@@ -338,6 +338,44 @@ topic.
       second is what proves the activity names come from the contract's attributes — and the admin
       answering over HTTP.
 
+- [x] 4bis.3 **L'analyse statique entre dans le module, contre les vraies classes de Magento.**
+      `src/DurableModule` était le seul paquet publié hors des chemins de PHPStan et de Psalm : les
+      jobs prouvaient qu'il démarre, rien ne relisait son code — et c'est là que vivent le bloc
+      d'administration et la frise.
+      ⚠ **Il ne pouvait pas rejoindre `phpstan.neon`** : le module touche seize classes de Magento
+      que ce dépôt n'installe pas, et les y ajouter nu donnait 47 `class.notFound`. Deux issues se
+      présentaient. Écrire des bouchons pour ces seize classes — **écartée** : un bouchon
+      approximatif ne fait pas d'erreur, il en cache, parce qu'il rend l'analyse d'accord avec
+      lui-même. Ou faire tourner l'analyse là où la distribution est déjà installée : le job qui
+      démarre le banc, qui vient précisément de payer le gigaoctet. D'où `phpstan-magento.neon` et
+      `psalm-magento.xml`, mêmes niveau et mêmes suppressions que les configurations principales —
+      deux sévérités pour un même dépôt feraient de la propreté d'un paquet une affaire de
+      configuration.
+      Le cœur est en `scanDirectories` et non en `paths` : découvert, pas analysé — il l'est déjà
+      ailleurs.
+      **Six trouvailles, toutes réelles**, aucune faite taire :
+      — `Result\Page::setActiveMenu()` sur deux contrôleurs. Le conteneur réécrit la fabrique :
+      `module-backend/etc/adminhtml/di.xml` passe `instanceName = Backend\Model\View\Result\Page`
+      à `Framework\View\Result\PageFactory`. Une annotation `@var` dit à l'analyse ce que le
+      `di.xml` fait, plutôt que d'ignorer l'erreur ;
+      — `Title::prepend()` déclare `string`, `__()` rend une `Phrase`, deux fois. Le titre est rendu
+      là de toute façon : la conversion respecte le contrat sans coûter de traduction tardive ;
+      — `Filter::getValue()` est annoté `@return string` **et c'est faux** : le `ui-select` du
+      filtre d'état rend un tableau dès la deuxième case cochée, mesuré en §3bis.4. La garde reste,
+      l'annotation dit ce qui arrive vraiment ;
+      — `microtime(true) + $timeLimit` mélangeait flottant et entier sous l'œil strict de Psalm.
+      ⚠ Une septième erreur vient **du code de Magento** — `AbstractDataProvider` annote
+      `@return null` là où l'interface promet un `SearchCriteriaInterface`. La suppression est
+      bornée au vendor du banc : la même règle reste active sur `src/DurableModule`.
+      ⚠ **Et un piège du même genre que celui des splits**, payé en six essais : deux copies du cœur
+      sont joignables — l'autoloader racine mène à `src/Durable`, celui du banc à
+      `magento/vendor/gplanchat/durable` — et c'est sans danger *uniquement parce que le dépôt
+      `path` du banc lit `../src`, donc le même commit*. Un banc installé plus tôt fait dire à
+      l'analyse que des propriétés ajoutées depuis n'existent pas.
+      Vérifié après coup sur le banc et pas seulement par l'analyse : les deux écrans
+      d'administration rendent toujours en HTTP 200, titres compris — ce sont exactement les deux
+      fichiers dont une casse serait invisible aux deux outils.
+
 ## 5. Temporal, end to end
 
 - [x] 5.1 **Where the journal lives is decided by the presence of a DSN.** `RuntimeFactory`

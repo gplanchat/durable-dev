@@ -367,6 +367,26 @@ jobs:
               working-directory: magento
               run: composer install --no-interaction --prefer-dist --no-progress
 
+            # L'analyse statique du module vit **ici**, et pas dans le job qui la porte pour les
+            # autres paquets. La raison est celle qui a fait exister ce job : le module parle à des
+            # classes que le dépôt n'installe pas, et la seule machine qui les a est celle qui vient
+            # de payer l'installation de la distribution. L'alternative — des bouchons écrits à la
+            # main pour les seize classes de Magento que le module touche — n'aurait pas fait
+            # d'erreur : elle en aurait caché, parce qu'un bouchon approximatif rend l'analyse
+            # d'accord avec lui-même.
+            #
+            # ⚠ `--ignore-platform-req=ext-grpc` : le pont Temporal exige l'extension en dur, et ce
+            # job ne l'installe pas. Analyser n'en a pas besoin — les classes `Grpc\` viennent du
+            # paquet Composer, et le pont n'est ici que *scanné*, jamais exécuté ni analysé.
+            - name: Composer install (racine, pour les outils d'analyse)
+              run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req=ext-grpc
+
+            - name: PHPStan (src/DurableModule, contre les vraies classes de Magento)
+              run: composer phpstan-magento
+
+            - name: Psalm (src/DurableModule, contre les vraies classes de Magento)
+              run: composer psalm-magento
+
             # ⚠ Le squelette n'est pas au dépôt — `magento/.gitignore` n'y garde que l'overlay, et
             # le poste de développement l'avait obtenu une fois par `create-project`. Après un
             # `composer install` nu, `bin/magento` n'existe donc pas. `mage-os/magento2-base` porte

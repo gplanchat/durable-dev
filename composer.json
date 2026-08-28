@@ -98,7 +98,9 @@
         "cs:check": "vendor/bin/php-cs-fixer fix --dry-run --diff",
         "cs:fix": "vendor/bin/php-cs-fixer fix",
         "phpstan": "vendor/bin/phpstan analyse",
-        "psalm": "vendor/bin/psalm"
+        "phpstan-magento": "vendor/bin/phpstan analyse -c phpstan-magento.neon --memory-limit=2G",
+        "psalm": "vendor/bin/psalm",
+        "psalm-magento": "vendor/bin/psalm -c psalm-magento.xml"
     },
     "config": {
         "sort-packages": true,
