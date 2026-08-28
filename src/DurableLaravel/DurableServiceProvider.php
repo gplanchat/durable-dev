@@ -10,12 +10,32 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
+use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
+use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
+use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
+use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
+use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
+use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
+use Gplanchat\Bridge\Temporal\WorkflowClient;
+use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
+use Gplanchat\Durable\ActivityExecutor;
+use Gplanchat\Durable\ExecutionEngine;
+use Gplanchat\Durable\ExecutionRuntime;
+use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Laravel\Queue\LaravelActivityTransport;
 use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowResumeDispatcher;
+use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowTimerDispatcher;
+use Gplanchat\Durable\Laravel\Queue\ResumeDeferral;
 use Gplanchat\Durable\Laravel\Workflow\DeclaredWorkflowTypes;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
+use Gplanchat\Durable\Port\NullWorkflowTimerDispatcher;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
+use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
+use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
@@ -25,7 +45,10 @@ use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
+use Gplanchat\Durable\Worker\ActivityMessageProcessor;
+use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
+use Illuminate\Cache\ArrayStore;
 use Illuminate\Cache\NullStore;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Database\Connection;
@@ -44,7 +67,7 @@ use Illuminate\Support\ServiceProvider;
  */
 final class DurableServiceProvider extends ServiceProvider
 {
-    private const BACKENDS = ['illuminate', 'memory'];
+    private const BACKENDS = ['illuminate', 'memory', 'temporal'];
 
     public function register(): void
     {
@@ -60,10 +83,16 @@ final class DurableServiceProvider extends ServiceProvider
             ));
         }
 
-        $backend === 'illuminate' ? $this->bindIlluminate($config) : $this->bindInMemory();
+        match ($backend) {
+            'illuminate' => $this->bindIlluminate($config),
+            'temporal' => $this->bindTemporal($config),
+            default => $this->bindInMemory(),
+        };
         $this->bindActivityTransport($backend, $config);
         $this->bindResumeLock($config);
         $this->bindWorkflowRegistry($config);
+        $this->bindResumePath($config);
+        $this->bindResumeDeferral($config);
     }
 
     public function boot(): void
@@ -152,6 +181,104 @@ final class DurableServiceProvider extends ServiceProvider
         ));
     }
 
+    /**
+     * Le backend Temporal : le journal et le catalogue vivent dans le cluster.
+     *
+     * Les métadonnées et les liens parents restent en mémoire, comme côté Symfony — Temporal tient
+     * l'état durable, ces deux-là ne sont que du cache de processus.
+     *
+     * **Ce que ce paquet ne réplique pas, et c'est délibéré :** les transports Messenger du pont.
+     * Les activités et les reprises continuent de voyager sur la file de l'application, qui les
+     * draine déjà ; Temporal possède le journal, Laravel possède la file. Le worker de tâches de
+     * workflow, lui, a son propre tour de boucle — `durable:temporal-worker`.
+     *
+     * @param array<string, mixed> $config
+     */
+    private function bindTemporal(array $config): void
+    {
+        /** @var array<string, mixed> $temporal */
+        $temporal = $config['temporal'] ?? [];
+        $dsn = $temporal['dsn'] ?? null;
+
+        if (!\is_string($dsn) || '' === $dsn) {
+            throw new \InvalidArgumentException(
+                'Durable: the "temporal" backend needs durable.temporal.dsn — the address of the '
+                . 'cluster, its namespace and its two task queues. Nothing else can supply it.',
+            );
+        }
+
+        if (!class_exists(TemporalConnection::class)) {
+            throw new \InvalidArgumentException(
+                'Durable: the "temporal" backend needs gplanchat/durable-bridge-temporal, which is '
+                . 'suggested rather than required — it installs a gRPC client and five Symfony '
+                . 'components a Laravel application never loads. Run: composer require '
+                . 'gplanchat/durable-bridge-temporal',
+            );
+        }
+
+        $this->app->singleton(TemporalConnection::class, fn() => TemporalConnection::fromDsn($dsn));
+        $this->app->singleton(
+            'durable.temporal.client',
+            fn($app) => WorkflowServiceClientFactory::create($app->make(TemporalConnection::class)),
+        );
+        $this->app->singleton(TemporalHistoryCursor::class, fn($app) => new TemporalHistoryCursor(
+            $app->make('durable.temporal.client'),
+            $app->make(TemporalConnection::class),
+        ));
+
+        $this->app->singleton(WorkflowRunCatalogInterface::class, fn($app) => new TemporalWorkflowRunCatalog(
+            $app->make('durable.temporal.client'),
+            $app->make(TemporalConnection::class),
+            $app->make(TemporalHistoryCursor::class),
+        ));
+
+        $this->app->singleton(WorkflowTaskRunner::class, fn($app) => new WorkflowTaskRunner(
+            $app->make(TemporalHistoryCursor::class),
+            $app->make(WorkflowRegistry::class),
+            $app->make(TemporalConnection::class),
+            $app->make(WorkflowDefinitionLoader::class),
+        ));
+
+        $this->app->singleton(WorkflowTaskProcessor::class, fn($app) => new WorkflowTaskProcessor(
+            $app->make('durable.temporal.client'),
+            $app->make(TemporalConnection::class),
+            $app->make(WorkflowTaskRunner::class),
+        ));
+
+        $this->app->singleton(WorkflowServiceExecutionRpc::class, fn($app) => new WorkflowServiceExecutionRpc(
+            $app->make('durable.temporal.client'),
+        ));
+
+        $this->app->singleton(WorkflowClientInterface::class, fn($app) => new WorkflowClient(
+            $app->make('durable.temporal.client'),
+            $app->make(TemporalConnection::class),
+            $app->make(TemporalHistoryCursor::class),
+            $app->make(WorkflowServiceExecutionRpc::class),
+            $app->make(WorkflowDefinitionLoader::class),
+        ));
+
+        // Le journal lit à travers le cluster, avec un magasin en mémoire pour le tour courant.
+        $this->app->singleton(EventStoreInterface::class, fn($app) => new TemporalReadThroughEventStore(
+            new InMemoryEventStore(),
+            $app->make(TemporalHistoryCursor::class),
+            $app->make(WorkflowClientInterface::class),
+        ));
+
+        $this->app->singleton(WorkflowMetadataStore::class, fn() => new InMemoryWorkflowMetadataStore());
+        $this->app->singleton(
+            ChildWorkflowParentLinkStoreInterface::class,
+            fn() => new InMemoryChildWorkflowParentLinkStore(),
+        );
+
+        if (method_exists($this->app, 'runningInConsole') && $this->app->runningInConsole()) {
+            // Nommée par une chaîne, et pas par `::class` : la classe étend
+            // `Illuminate\Console\Command`, qui ne peut pas entrer dans le graphe de la racine
+            // sans rendre la ligne Symfony 6.4 irrésoluble — voir phpstan.neon. Une référence
+            // `::class` ferait suivre l'analyseur jusque dans une classe qu'il ne peut pas lire.
+            $this->commands(['Gplanchat\\Durable\\Laravel\\Console\\TemporalWorkerCommand']);
+        }
+    }
+
     private function bindInMemory(): void
     {
         $this->app->singleton(EventStoreInterface::class, fn() => new InMemoryEventStore());
@@ -219,6 +346,80 @@ final class DurableServiceProvider extends ServiceProvider
         ));
     }
 
+    /**
+     * Ce qui rejoue une exécution, et c'est le cœur qui le fait.
+     *
+     * `ResumeWorkflowHandler` a quitté le bundle Symfony pour le cœur pour qu'un hôte sans bus
+     * puisse le rendre : ce paquet n'a donc qu'à l'assembler, pas à le réécrire. Un minuteur, lui,
+     * est une reprise différée — la file porte le délai, comme le `DelayStamp` de Messenger.
+     *
+     * @param array<string, mixed> $config
+     */
+    private function bindResumePath(array $config): void
+    {
+        /** @var array<string, mixed> $queue */
+        $queue = $config['queue'] ?? [];
+
+        $this->app->singleton(RegistryActivityExecutor::class, fn() => new RegistryActivityExecutor());
+        // Le port, pas seulement la classe : `RunActivityJob` demande un
+        // `ActivityMessageProcessor`, qui demande un `ActivityExecutor`. Sans cette ligne le
+        // conteneur essaie d'instancier une interface, et l'activité échoue au premier essai.
+        $this->app->singleton(ActivityExecutor::class, fn($app) => $app->make(RegistryActivityExecutor::class));
+        $this->app->singleton(WorkflowDefinitionLoader::class, fn() => new WorkflowDefinitionLoader());
+
+        // Le minuteur suit le backend, comme le transport et le dispatcher de reprise : en
+        // mémoire, le drain est dans le processus et n'a personne à réveiller.
+        $this->app->singleton(
+            WorkflowTimerDispatcher::class,
+            ($config['backend'] ?? 'illuminate') === 'illuminate'
+                ? fn($app) => new LaravelWorkflowTimerDispatcher(
+                    $app->make(QueueFactory::class),
+                    $queue['connection'] ?? null,
+                    $queue['name'] ?? null,
+                )
+                : fn() => new NullWorkflowTimerDispatcher(),
+        );
+
+        $this->app->singleton(ExecutionRuntime::class, fn($app) => new ExecutionRuntime(
+            $app->make(EventStoreInterface::class),
+            $app->make(ActivityTransportInterface::class),
+            $app->make(RegistryActivityExecutor::class),
+            // Les tentatives sont illimitées par défaut, sémantique Temporal ; `distributed: true`
+            // parce qu'ici le drain n'est pas dans le processus, c'est `queue:work`.
+            0,
+            null,
+            true,
+        ));
+
+        $this->app->singleton(ExecutionEngine::class, fn($app) => new ExecutionEngine(
+            $app->make(EventStoreInterface::class),
+            $app->make(ExecutionRuntime::class),
+        ));
+
+        $this->app->singleton(ActivityMessageProcessor::class, fn($app) => new ActivityMessageProcessor(
+            $app->make(EventStoreInterface::class),
+            $app->make(ActivityTransportInterface::class),
+            $app->make(ActivityExecutor::class),
+            $app->make(WorkflowResumeDispatcher::class),
+            // Pas de battement de cœur : c'est une capacité de Temporal, et rien ici ne la sert.
+            new NullActivityHeartbeatSender(),
+            // Tentatives illimitées par défaut, sémantique Temporal. La politique de chaque
+            // activité l'emporte quand elle en déclare une.
+            0,
+        ));
+
+        $this->app->singleton(ResumeWorkflowHandler::class, fn($app) => new ResumeWorkflowHandler(
+            $app->make(ExecutionEngine::class),
+            $app->make(WorkflowRegistry::class),
+            $app->make(WorkflowMetadataStore::class),
+            $app->make(WorkflowResumeDispatcher::class),
+            $app->make(EventStoreInterface::class),
+            $app->make(ChildWorkflowParentLinkStoreInterface::class),
+            $app->make(WorkflowTimerDispatcher::class),
+            $app->make(WorkflowDefinitionLoader::class),
+        ));
+    }
+
     /** @param array<string, mixed> $config */
     private function bindResumeLock(array $config): void
     {
@@ -229,6 +430,22 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make('cache')->store($lock['store'] ?? null)->getStore(),
             (int) ($lock['ttl'] ?? 300),
             (int) ($lock['wait'] ?? 10),
+        ));
+    }
+
+    /** @param array<string, mixed> $config */
+    private function bindResumeDeferral(array $config): void
+    {
+        /** @var array<string, mixed> $lock */
+        $lock = $config['lock'] ?? [];
+        /** @var array<string, mixed> $queue */
+        $queue = $config['queue'] ?? [];
+
+        $this->app->singleton(ResumeDeferral::class, fn() => new ResumeDeferral(
+            (int) ($lock['backoff'] ?? 1),
+            (int) ($lock['max_deferrals'] ?? 50),
+            $queue['connection'] ?? null,
+            $queue['name'] ?? null,
         ));
     }
 
@@ -280,7 +497,22 @@ final class DurableServiceProvider extends ServiceProvider
         $lock = $this->durableConfig()['lock'] ?? [];
         $name = $lock['store'] ?? null;
 
-        if ($this->app->make('cache')->store($name)->getStore() instanceof NullStore) {
+        $store = $this->app->make('cache')->store($name)->getStore();
+
+        // §1.3 laissait passer `array` au démarrage parce que c'est le cache de test par défaut de
+        // Laravel, et qu'exclure dans un seul processus est ce qu'un test veut. Sous le backend
+        // `illuminate`, ça ne peut plus être vrai : la reprise tourne dans un worker séparé du
+        // processus qui l'a dispatchée, donc deux verrous « array » ne se voient jamais.
+        if ($store instanceof ArrayStore && ($this->durableConfig()['backend'] ?? 'illuminate') === 'illuminate') {
+            throw new \InvalidArgumentException(\sprintf(
+                'Durable: the "%s" cache store only excludes inside one process, and a resume runs '
+                . 'in a worker separate from whatever dispatched it — two workers would replay the '
+                . 'same execution. Use database, redis, memcached, dynamodb or file.',
+                $name ?? 'default',
+            ));
+        }
+
+        if ($store instanceof NullStore) {
             throw new \InvalidArgumentException(\sprintf(
                 'Durable: the "%s" cache store grants every lock, so two workers would replay the '
                 . 'same execution and its activities would run twice. Use database, redis, '

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal\Store;
 
+use Google\Protobuf\Duration;
 use Google\Protobuf\Internal\Message;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
+use Gplanchat\Durable\Observation\ReadableDuration;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunEventKind;
 use Temporal\Api\Common\V1\Payloads;
@@ -47,12 +49,19 @@ final class TemporalRunHistoryReader
     /**
      * Les renvois vers l'événement fondateur d'une action, dans l'ordre où ils font autorité.
      *
+     * ⚠ **`getInitiatedEventId` passe avant `getStartedEventId`**, et ce n'est pas cosmétique : la
+     * fin d'une exécution enfant porte les deux, et `startedEventId` désigne le *démarrage* de
+     * l'enfant, pas l'événement qui l'a fondée. Dans l'ordre inverse, chaque workflow enfant
+     * occupait **deux lignes** de frise — sa demande et son démarrage sur l'une, sa fin sur
+     * l'autre — et aucune des deux ne disait sa durée. Mesuré sur la sonde de tous les cas :
+     * 9 actions pour 2 enfants là où il en fallait 7.
+     *
      * @var list<string>
      */
     private const CORRELATION_GETTERS = [
         'getScheduledEventId',
-        'getStartedEventId',
         'getInitiatedEventId',
+        'getStartedEventId',
     ];
 
     /**
@@ -86,6 +95,14 @@ final class TemporalRunHistoryReader
                 self::labelOf($event, $type),
                 self::detailsOf($event),
                 self::actionKeyOf($event, $type),
+                // Un suffixe suffit : Temporal nomme `_STARTED` tout événement par lequel un
+                // worker prend la main. `WORKFLOW_EXECUTION_STARTED` y tombe aussi, et c'est
+                // inerte — c'est l'événement 1, rien ne le précède, donc aucun intervalle ne peut
+                // être compté comme attente devant lui. Le journal maison retient ici la même
+                // règle, `ExecutionStarted` compris, pour que les deux backends ne divergent pas
+                // sur un cas qui ne change rien.
+                str_ends_with($type, '_STARTED'),
+                self::isFailure($type),
             );
         }
 
@@ -142,6 +159,24 @@ final class TemporalRunHistoryReader
         }
 
         return null;
+    }
+
+    /**
+     * Ce qui a mal tourné, et rien d'autre.
+     *
+     * Temporal suffixe `_FAILED` tout échec et `_TIMED_OUT` toute échéance dépassée, à tous les
+     * niveaux — activité, minuteur, enfant, workflow externe, tâche de workflow. Deux suffixes
+     * couvrent donc le jeu entier sans table à tenir.
+     *
+     * ⚠ **`_CANCELED` et `_TERMINATED` n'en sont pas**, et c'est une décision : ce sont des issues,
+     * demandées par quelqu'un. Les peindre comme des pannes enverrait un exploitant chercher un
+     * incident là où il n'y a qu'une annulation — et le rouge ne veut plus rien dire dès qu'il
+     * couvre les deux. ⚠ Temporal écrit `CANCELED` à un seul « l » là où le journal maison écrit
+     * `Cancelled` : une règle écrite d'un seul côté rate l'autre en silence.
+     */
+    private static function isFailure(string $eventType): bool
+    {
+        return str_ends_with($eventType, '_FAILED') || str_ends_with($eventType, '_TIMED_OUT');
     }
 
     /**
@@ -277,6 +312,14 @@ final class TemporalRunHistoryReader
             }
         }
 
+        // Un minuteur ne porte aucun nom métier : « TIMER STARTED » nomme la classe d'événement,
+        // et l'exploitant qui regarde une frise veut savoir **combien de temps** on attend, pas
+        // qu'on attend. Le délai est le seul fait que le minuteur ait, donc c'est son nom.
+        $timer = $event->getTimerStartedEventAttributes();
+        if (null !== $timer) {
+            return 'timer ' . ReadableDuration::of(self::secondsOf($timer->getStartToFireTimeout()));
+        }
+
         $signalled = $event->getWorkflowExecutionSignaledEventAttributes();
         if (null !== $signalled) {
             $name = (string) $signalled->getSignalName();
@@ -310,6 +353,20 @@ final class TemporalRunHistoryReader
         $name = (string) ($attributes->getWorkflowType()?->getName() ?? '');
 
         return '' === $name ? null : $name;
+    }
+
+    /**
+     * Une durée protobuf en secondes. Les deux champs sont castés explicitement : ce sont des
+     * entiers 64 bits que la bibliothèque rend parfois en chaîne, et `strictBinaryOperands` refuse
+     * de les mélanger à un flottant sans le dire.
+     */
+    private static function secondsOf(?Duration $duration): float
+    {
+        if (null === $duration) {
+            return 0.0;
+        }
+
+        return (float) $duration->getSeconds() + (float) $duration->getNanos() / 1_000_000_000.0;
     }
 
     private static function readableType(string $eventType): string

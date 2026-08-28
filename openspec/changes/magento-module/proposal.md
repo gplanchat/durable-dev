@@ -38,10 +38,13 @@ So the bootstrap has two halves: **write the module**, and **land the bench that
   than a second queue introduced beside it.
 - Workers SHALL be `bin/magento` console commands, drained by the consumer runner an operator
   already supervises — `magento cron:run` and `queue:consumers:start`, not a process model to learn.
-- Two consumers SHALL NOT replay the same execution at once. The hazard is the one
+- ~~Two consumers SHALL NOT replay the same execution at once, over `LockManagerInterface`.~~
+  **Withdrawn 28/08**, with the queue it protected. The hazard
   [DUR030](../../../documentation/adr/DUR030-dbal-backend-simplified-durable-execution.md) names for
-  the DBAL backend — a forked journal and duplicated activities — and Magento's answer is
-  `LockManagerInterface` over a lock store shared by every consumer process.
+  the DBAL backend — a forked journal, duplicated activities — needs two resumes of one execution to
+  be two queue messages. On the only durable backend this host reaches, a resume is a Temporal
+  workflow task the server already serialises, and nothing of Durable rides Magento's queue. ⚠ The
+  bullet returns with a host-native journal, if one is ever added.
 - The module SHALL support the **in-memory** and **Temporal** backends, and no other. This is the
   promise the published site already makes, with its reason: Magento ships neither Doctrine DBAL nor
   Illuminate's connection, so neither SQL bridge has anything to bind to. State lives in the

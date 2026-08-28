@@ -45,6 +45,24 @@ return [
      */
     'workflows' => [],
 
+    /*
+     * Le cluster Temporal, quand `backend` vaut « temporal ».
+     *
+     * Le DSN porte l'adresse, l'espace de noms et les deux files de tâches :
+     *   temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities
+     *
+     * Ce backend demande `gplanchat/durable-bridge-temporal`, qui est **suggéré et non exigé** :
+     * il installe un client gRPC et cinq composants Symfony qu'une application Laravel ne charge
+     * jamais. Le provider le dit par son nom si le paquet manque.
+     *
+     * Le journal et le catalogue vivent alors dans le cluster ; les activités et les reprises
+     * continuent de voyager sur la file de l'application. Les tâches de workflow, elles, se
+     * drainent avec `php artisan durable:temporal-worker`.
+     */
+    'temporal' => [
+        'dsn' => null,
+    ],
+
     'tables' => [
         'events' => 'durable_events',
         'metadata' => 'durable_workflow_metadata',
@@ -79,6 +97,22 @@ return [
 
         /* Ce qui libère le verrou quand le processus qui le tient meurt. */
         'ttl' => 300,
+
+        /*
+         * Le report d'une reprise dont le tour est pris, en secondes.
+         *
+         * Mesuré (§1.5) : sur une exécution chaude — réveillée sans cesse par des signaux ou des
+         * minuteurs — 98,8 % des reprises entrent en collision, et ce délai **est** alors la
+         * latence : une seconde a transformé 32 s de travail en 148 s d'horloge. Sur un parc de
+         * beaucoup d'exécutions, les collisions tombent à 0,6 % et le réglage n'a plus d'effet.
+         */
+        'backoff' => 1,
+
+        /*
+         * Combien de fois de suite une reprise accepte de trouver le tour pris avant d'abandonner
+         * bruyamment. Un report sans fin ressemble à une exécution qui avance.
+         */
+        'max_deferrals' => 50,
 
         /*
          * Combien de temps une reprise accepte d'attendre son tour.

@@ -299,30 +299,188 @@ either confirms a design or replaces it.
       That last half is the contract the in-memory and Messenger transports already keep, and it is
       not decoration: a delay that survived being queued would be waited a second time, by the
       worker that receives it.
-- [ ] 3.4 A worker killed mid-activity resumes from the journal, and an activity whose result was
-      already recorded does not run twice.
+- [x] 3.4 A worker killed mid-activity resumes from the journal, and an activity whose result was
+      already recorded does not run twice. Measured on the harness — a real queue, a real
+      `kill -9`, a three-second activity that writes to disk on every actual run.
+
+      **The wiring this needed first.** `ResumeWorkflowJob` carried its message and did nothing
+      with it, so no execution could advance. It now hands it to `ResumeWorkflowHandler` — the
+      core's, which left the Symfony bundle for `Gplanchat\Durable\Handler\` precisely so a host
+      without a message bus could serve it. This package assembles it; it does not write a second
+      one. A timer became a deferred resume on the queue's own delay, and `ActivityExecutor` and
+      `ActivityMessageProcessor` had to be bound too — without them the first activity died on
+      *Target [ActivityExecutor] is not instantiable*.
+
+      | | journal | execution | disk witness |
+      |---|---|---|---|
+      | killed mid-activity | `ActivityScheduled`, `ActivityTaskStarted` | not complete, 1 job held | 1 start, 0 finish |
+      | after a worker returns | + `ActivityTaskCompleted`, `ActivityCompleted`, `ExecutionCompleted` | **complete** | 2 starts, 1 finish |
+      | the same activity re-delivered | unchanged, still five events | complete | **unchanged** |
+
+      **The activity re-ran, and that is the correct answer.** Its result was never recorded — the
+      process died between the start and the finish — so replay has nothing to skip. The claim the
+      task makes is about an activity whose result *was* recorded, and that is the third row: the
+      re-delivered job returned in **7.76 ms** against three seconds for a real run, wrote nothing,
+      and left the journal at five events. `ActivityMessageProcessor`'s first gesture is to ask the
+      journal whether this activity already has a terminal outcome.
+
+      **And one operational finding that cost the first run.** A job whose worker was killed stays
+      **reserved** until `retry_after` — 90 seconds by default. A worker started with
+      `--stop-when-empty` inside that window sees an empty queue and exits **having done nothing**,
+      which reads exactly like a resume that failed. It is not: it is a resume that has not been
+      offered the job yet. A supervised worker, which outlives the window, picks it up. §6 owes
+      this a sentence, because the symptom is indistinguishable from a bug.
 
 ## 4. One execution, one replay
 
-- [ ] 4.1 Wrap the resume job in `Queue\ResumeLock`, in whichever shape §1.2 measured to be right.
-- [ ] 4.2 A misconfigured lock store is refused or reported, per §1.3's answer.
-- [ ] 4.3 Two workers, one execution, one journal — proved by a test, not by the lock's existence.
+- [x] 4.1 Wrap the resume job in `Queue\ResumeLock`, in the shape §1.2 measured to be right:
+      **`tryAround()`**, which runs the work if the turn is free and returns `false` without waiting
+      if it is not. `around()` stays for callers that want to block; a queue worker is not one.
+
+      The lock now says only that the turn is taken. What the caller does about it — defer, give up,
+      log — is the caller's decision, which is the whole difference §1.2 measured: `around()` held
+      **fifteen worker-seconds for four seconds of work**, and its wait window is a queue-depth
+      ceiling dressed as a latency knob.
+
+      **The job re-dispatches itself rather than calling `release()`, and both reasons matter.**
+      `release()` needs the `InteractsWithQueue` trait — Laravel checks for the trait itself, not
+      for a `setJob()` method — so it needs `illuminate/queue`, which pulls `symfony/process ^7.2`
+      and makes this package irreconcilable with the Symfony 6.4 line the neighbouring matrix still
+      tests. But the packaging is the smaller half: §1.2 measured that **`release()` consumes an
+      attempt**, so at `--tries=5` fifteen resumes out of twenty landed in `failed_jobs` having
+      never run — contention became indistinguishable from a bug. A fresh job carries a fresh
+      budget, and `tries` goes back to counting crashes.
+
+      The price is real and named: nothing bounds the deferral on the queue's side any more.
+      `ResumeDeferral` bounds it, with `lock.backoff` and `lock.max_deferrals` — §1.5's reading,
+      since on a hot execution the backoff *is* the latency — and giving up **throws**, because an
+      endless deferral looks exactly like an execution that is progressing.
+- [x] 4.2 A misconfigured lock store is refused, and §1.3's answer gained its second half.
+
+      `null` was already refused at boot: it grants every lock, in every deployment. What §1.3 left
+      open was `array`, which it declined to refuse because it is Laravel's own testing default and
+      excluding inside one process is exactly what a test wants.
+
+      **That reasoning holds for the in-memory backend and collapses for `illuminate`.** A resume
+      runs in a worker process separate from whatever dispatched it, so two `array` locks never see
+      each other — 15 overlapping critical sections out of 20, measured in §1.3. It is therefore
+      refused at boot **when the backend is `illuminate`**, and still accepted under `memory`. Two
+      tests hold both halves.
+- [x] 4.3 Two workers, one execution, one journal — proved by a test, not by the lock's existence.
+      A turn already held by another worker: the resume **replays nothing**, the execution stays
+      incomplete, and the job comes back on the queue carrying its deferral count. A free turn
+      replays and queues nothing. And the lock is **released** afterwards, so the next resume gets
+      its turn instead of waiting out the five-minute TTL — the one failure a lock that works can
+      still cause.
 
 ## 5. Temporal, decided rather than deferred twice
 
-- [ ] 5.1 Take `design.md`'s three ways out to a decision with a number behind it: what
-      `durable-bridge-temporal` actually installs into a Laravel application, and what a split would
-      break for those already on it.
-- [ ] 5.2 Whatever is chosen, the site's chooser and the Packages page say the same thing as the
-      code. Today they cannot, because the code does not exist.
+- [x] 5.1 Take `design.md`'s three ways out to a decision with a number behind it. **The decision is
+      to split**, and it is its own change — not this one.
+
+      **What it installs into a Laravel application.** Measured with `composer require --dry-run` on
+      the harness, which already carries the library, the Illuminate bridge and this package: **8
+      packages, 5 of them Symfony** — `messenger`, `var-exporter`, `dependency-injection`,
+      `filesystem`, `config` — for **~36 MB on disk**, of which `dependency-injection` alone is 23.
+      The other three, `grpc`, `protobuf` and `common-protos`, are the gRPC client and are earned.
+
+      A Laravel application loads none of the five. There is no service provider, no bundle, no
+      Messenger: they sit in `vendor/` so that four Messenger transports and a DI extension can
+      exist for somebody else.
+
+      **How small the coupled part actually is.** The bridge is 759 PHP files. The Symfony-coupled
+      ones are `Messenger/` (5), `DependencyInjection/` (1), `Resources/` (1) and the bundle at the
+      root — **8 files, one percent of the package, carrying 36 MB for the other 99 %.**
+
+      **What a split would break, and the answer is: less than it looks.** `durable-bundle` already
+      reaches into the bridge's Symfony classes — `DurableTemporalTransportFactoryPass` and
+      `DurableExtension` both name `Gplanchat\Bridge\Temporal` — without requiring the package. The
+      Symfony wiring is therefore *already* spread across the two, and moving the eight files into
+      `durable-bundle` consolidates rather than divides. For a Symfony user who has both packages,
+      the visible change is one line out of `bundles.php`.
+
+      That is a breaking change, and the repository has the machinery for one: `durable-upgrade.php`
+      renames what Rector can rename, `UPGRADE.md` documents what it cannot, and nothing is tagged
+      past `v0.1.0-alpha7`. Doing it here would mean editing the Temporal bridge and the Symfony
+      bundle from inside the Laravel change — two packages this change has no business touching —
+      so it gets its own, with an ADR behind it.
+
+      **Reversed, on the author's call.** The refusal was mine, not a requirement, and refusing was
+      the wrong half of the trade: it removed the entry OST003 §3 sells — *"the same workflow code
+      against a Temporal cluster or against one SQL database"* — to avoid a weight nobody had
+      complained about.
+
+      So the package **serves `temporal`**, and the bridge is a `suggest` rather than a `require`:
+      an application that does not select the backend never installs it, and one that does is told
+      by name what to install. The journal and the run catalogue come from the cluster; metadata and
+      parent links stay in memory, as they do on the Symfony side, because the cluster holds the
+      durable state. Activities and resumes keep riding the application's own queue.
+
+      Workflow tasks do not — they live in the cluster, and nobody else can take them out. That is
+      the one place where §3.2's rule (`queue:work` and nothing else) does not hold, so
+      `durable:temporal-worker` exists, and it is a thin loop around the bridge's own
+      framework-free `WorkflowTaskProcessor::run()`.
+
+      **The split is still the right shape**, and it is still its own change: 36 MB of unused
+      Symfony in a Laravel application is a real cost, just not one worth refusing a feature over.
+- [x] 5.2 Whatever is chosen, the site's chooser and the Packages page say the same thing as the
+      code — and today **they do not**.
+
+      `ALLOWED.laravel` offers `['memory', 'temporal', 'illuminate']`. The package serves
+      `['illuminate', 'memory']` and refuses the third by name at registration. A visitor who picks
+      Laravel + Temporal is handed a command that installs a combination the provider rejects on the
+      first boot.
+
+      The Packages page is clean — its Laravel line names the library and the Illuminate bridge, and
+      no sentence there claims Temporal on Laravel.
+
+      **The chooser is the canvas's, and the canvas is under an open pull request (#211).** Removing
+      `temporal` from `ALLOWED.laravel` is one entry in one table, but it must be made in the canvas
+      and regenerated, or the guard added by that same pull request turns the build red. It is
+      therefore recorded here and made in the canvas as soon as #211 is merged — one line, in the
+      change that owns the file.
 
 ## 6. What the documentation owes
 
-- [ ] 6.1 Name `durable-workflow/workflow`. OST003 §3 makes this a duty, not a courtesy: a reader
-      who wants an engine-on-queues should be sent to it, and the comparison should be one this
-      project would accept if it were written about it.
-- [ ] 6.2 Packages, Backends and the home page chooser carry the package — and the Backends page
-      gets the section it was refused while only the stores existed, because by then
-      `event_store.type` is not the only way in.
-- [ ] 6.3 Correct OST004 §5: *"a bootstrap, plus a fourth adapter family"* was already half stale
-      when this change opened, and fully so when it lands. Leave an ADR behind, per the house rule.
+- [x] 6.1 Name `durable-workflow/workflow`, in both languages, inside the package's own section —
+      not in a footnote. It is described as what it is: durable execution on Laravel queues, `yield`
+      as the checkpoint, its own storage, no server, a thousand stars, **good at what it does**, and
+      *"if an engine on your existing queue is what you want, take it."*
+
+      Then the difference, which is the only thing worth saying next to it: this package sells the
+      **backend choice**, and a workflow class written for `durable-bundle` runs here unmodified.
+      That is the claim the other package does not make.
+
+      Two neighbouring names on Packagist deserve the sentence rather than the hope that nobody
+      notices.
+- [x] 6.2 Packages and Backends carry the package, in both languages.
+
+      **The Packages page gains a full section** — install, configuration, one choice of backend
+      binding every port, workflows declared rather than scanned with the measurement behind it, and
+      two tables that had nowhere to live before: the three settings refused rather than tolerated
+      (`null` always, `array` under `illuminate`, the `sync` connection), and the two behaviours that
+      read like bugs and are not (the `sqlite` driver hosting one worker, and a killed worker's job
+      reserved until `retry_after`).
+
+      **The Backends page gets the section it was refused**, and for the reason the refusal
+      predicted: while only the stores existed there was no way in, because that page is organised
+      around `durable.event_store.type`. There still is not — and now that is the point rather than
+      the objection. A Laravel application does not read that YAML; `gplanchat/durable-laravel` binds
+      the ports through its own published config, and the page says so and links to it.
+
+      **The chooser is not done, and cannot be here.** `ALLOWED.laravel` still offers `temporal`,
+      which §5.2 recorded; the table lives in the canvas, and the canvas is under an open pull
+      request (#211). One entry, in the change that owns the file, as soon as it merges.
+- [x] 6.3 OST004's two Laravel rows — §5 and the summary in §7 — are struck through and marked
+      done, pointing at the ADR.
+
+      **[DUR047](../../../documentation/adr/DUR047-laravel-the-host-that-measured-before-it-wired.md)**
+      is the ADR, and it is indexed. It records the five measurements that preceded the first line of
+      the package, the three of them that *replaced* a design rather than confirming it, each refusal
+      with its number, and the Temporal decision.
+
+      It also records a non-event worth naming: unlike DUR046, where a Tier 1 host improved the core
+      three times, this one needed **one** addition — `ResumeLock::tryAround()`, in the bridge — and
+      no change to `Gplanchat\Durable\` at all. `ResumeWorkflowHandler` had already moved to the
+      core so a host without a message bus could serve it. That is the conformance suites and the
+      ports doing their job.

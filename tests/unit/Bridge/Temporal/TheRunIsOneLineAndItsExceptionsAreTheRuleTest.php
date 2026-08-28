@@ -117,6 +117,69 @@ final class TheRunIsOneLineAndItsExceptionsAreTheRuleTest extends TestCase
         self::assertSame([], array_values($missing), 'types non rangés : ' . implode(', ', $missing));
     }
 
+    public function testEveryFamilyOfFailureIsMarked(): void
+    {
+        // Un échec par niveau : si un seul suffixe manquait à la règle, une famille entière
+        // sortirait de la page en noir alors qu'elle a mal tourné.
+        $failures = [
+            'EVENT_TYPE_ACTIVITY_TASK_FAILED',
+            'EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT',
+            'EVENT_TYPE_WORKFLOW_EXECUTION_FAILED',
+            'EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT',
+            'EVENT_TYPE_WORKFLOW_TASK_FAILED',
+            'EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT',
+            'EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED',
+            'EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT',
+            'EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_FAILED',
+            'EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED',
+            'EVENT_TYPE_NEXUS_OPERATION_FAILED',
+            'EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT',
+        ];
+
+        foreach ($failures as $eventType) {
+            self::assertTrue($this->isFailure($eventType), $eventType . ' a mal tourné');
+        }
+    }
+
+    public function testNoCancellationIsPaintedAsAFailure(): void
+    {
+        // Une annulation est une issue, pas une panne. La liste vient de l'énumération du serveur
+        // et non de mémoire : un type d'annulation ajouté plus tard tombe dans ce test tout seul,
+        // et c'est le seul moyen que le rouge continue de vouloir dire quelque chose.
+        $outcomes = array_values(array_filter(
+            $this->everyEventTypeTheServerDeclares(),
+            static fn(string $type): bool => str_ends_with($type, '_CANCELED')
+                || str_ends_with($type, '_CANCEL_REQUESTED')
+                || str_ends_with($type, '_CANCEL_REQUEST_COMPLETED')
+                || str_ends_with($type, '_TERMINATED'),
+        ));
+
+        self::assertNotSame([], $outcomes, "l'énumération du serveur doit en déclarer");
+
+        foreach ($outcomes as $eventType) {
+            self::assertFalse($this->isFailure($eventType), $eventType . ' est une issue, pas une panne');
+        }
+    }
+
+    public function testACancellationThatCouldNotBeDeliveredIsAFailure(): void
+    {
+        // Le piège que le test précédent a trouvé : ces deux types-là parlent d'annulation et
+        // finissent pourtant en `_FAILED`. Ce n'est pas l'annulation qui est une panne, c'est la
+        // demande d'annulation qui n'est **pas passée** — l'exécution visée continue de tourner
+        // alors que quelqu'un a demandé son arrêt, et c'est exactement le genre de fait qu'on ne
+        // veut pas voir sortir en noir.
+        self::assertTrue($this->isFailure('EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_FAILED'));
+        self::assertTrue($this->isFailure('EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUEST_FAILED'));
+    }
+
+    private function isFailure(string $eventType): bool
+    {
+        $rule = new \ReflectionMethod(TemporalRunHistoryReader::class, 'isFailure');
+        $rule->setAccessible(true);
+
+        return (bool) $rule->invoke(null, $eventType);
+    }
+
     private function belongs(string $eventType): bool
     {
         $rule = new \ReflectionMethod(TemporalRunHistoryReader::class, 'belongsToTheRunItself');

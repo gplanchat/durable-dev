@@ -172,6 +172,87 @@ commande artisan ou un worker écrit à la main peuvent tous s'en servir.
 
 ---
 
+## `gplanchat/durable-laravel` — l'intégration Laravel
+
+```bash
+composer require gplanchat/durable-laravel
+php artisan migrate
+php artisan vendor:publish --tag=durable-config
+```
+
+L'auto-discovery enregistre le provider. Il lie les quatre ports de stockage, les jobs d'activité et
+de reprise, et le verrou par exécution, depuis un seul `config/durable.php` publié.
+
+**Un choix de backend lie tous les ports.** Un journal sur un backend sous un catalogue sur un autre
+n'est pas une configuration, c'est une panne : `backend` est une seule valeur, et un backend que ce
+paquet ne sert pas est refusé **par son nom** à l'enregistrement, en nommant les deux qu'il sert —
+`illuminate` et `memory`.
+
+**Les workflows sont déclarés, pas scannés.** Laravel n'a pas d'équivalent de l'autoconfiguration
+par attribut de Symfony, donc la clé `workflows` nomme les classes. Mesuré : les nommer coûte
+0,14 ms et ne grandit pas avec l'application, là où un scan par réflexion coûte 15 ms à mille classes
+**et les charge toutes dans chaque processus** pour en trouver cinq. Pas de `durable:cache` pour la
+même raison — `config:cache` met déjà en cache le fichier qu'il dupliquerait.
+
+**Le travail voyage sur la file que l'application draine déjà**, avec `php artisan queue:work` pour
+seul worker. Activités et reprises sont des jobs ; un minuteur est une reprise différée sur le délai
+natif de la file.
+
+### Ce n'est pas un moteur durable pour Laravel, et ce carré est pris
+
+[`durable-workflow/workflow`](https://github.com/durable-workflow/workflow) — anciennement
+`laravel-workflow/laravel-workflow` — c'est de l'exécution durable **sur les files de Laravel** :
+`yield` comme point de reprise, son propre stockage, aucun serveur, explicitement inspiré de Temporal
+et d'Azure Durable Functions, mille étoiles et plus. Il est bon à ce qu'il fait, et si un moteur sur
+votre file existante est ce que vous cherchez, prenez-le.
+
+Ce que ce paquet vend, c'est le **choix du backend** : le même code de workflow contre un cluster
+Temporal *ou* contre une seule base SQL, et un parc mixte Symfony / Sylius / Laravel partageant un
+seul moteur. Une classe de workflow écrite pour `gplanchat/durable-bundle` tourne ici sans
+modification — c'est toute la promesse, et c'est celle que l'autre paquet ne fait pas.
+
+Deux noms voisins sur Packagist méritent la phrase plutôt que l'espoir que personne ne remarque.
+
+### Trois réglages refusés plutôt que tolérés
+
+| réglage | refusé | pourquoi |
+|---|---|---|
+| `lock.store: null` | toujours | il accorde tous les verrous, dans tous les déploiements |
+| `lock.store: array` | sous `illuminate` | une reprise tourne dans un worker séparé de celui qui l'a dispatchée, donc deux verrous `array` ne se voient jamais — quinze sections critiques chevauchées sur vingt, mesurées |
+| la connexion de file `sync` | sous `illuminate` | elle exécute les jobs sur place : une reprise qui en dispatche une autre récurse jusqu'à la pile |
+
+`array` reste accepté sous `memory` : c'est le cache de test par défaut de Laravel, et exclure dans
+un seul processus est exactement ce qu'un test veut.
+
+### Deux choses qui ressemblent à des bugs et n'en sont pas
+
+**Le driver `sqlite` ne peut pas héberger plus d'un worker.** Quatre workers qui dépilent la table
+`jobs` donnent `SQLSTATE[HY000]: General error: 5 database is locked`, et trois sur quatre meurent à
+leur premier job — WAL activé et `busy_timeout` à 60 s. Passez à MySQL, PostgreSQL ou Redis dès qu'il
+y a un second worker.
+
+**Le job d'un worker tué reste réservé jusqu'à `retry_after`** — 90 secondes par défaut. Un worker
+lancé avec `--stop-when-empty` dans cette fenêtre voit une file vide et sort **sans rien faire**, ce
+qui ressemble trait pour trait à une reprise qui a échoué. C'en est une qui n'a pas encore reçu le
+job : un worker supervisé, qui survit à la fenêtre, le reprend et l'exécution se termine.
+
+### Pas dans ce paquet
+
+**Rien concernant Temporal** — il est servi. `backend: 'temporal'` met le journal et le catalogue
+d'exécutions dans le cluster, et `php artisan durable:temporal-worker` draine les tâches de workflow,
+la seule chose que la file de l'application ne peut pas porter.
+
+`gplanchat/durable-bridge-temporal` est **suggéré et non exigé** : il installe huit paquets, dont cinq
+composants Symfony qu'une application Laravel ne charge jamais, pour quelque 36 Mo. Une application
+qui ne choisit pas ce backend ne le paie jamais, et celle qui le choisit s'entend nommer le paquet à
+installer. Scinder le pont — sa partie couplée à Symfony fait huit fichiers sur 759 — retirerait le
+poids, et c'est un change à part.
+
+**Un tableau de bord.** `gplanchat/durable-filament` exigera ce paquet, et ce paquet n'exigera, ne
+suggérera ni ne détectera jamais Filament.
+
+---
+
 ## `gplanchat/durable-plugin` — le tableau de bord Sylius
 
 ```bash

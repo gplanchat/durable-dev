@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Temporal;
 
+use Google\Protobuf\Duration;
 use Google\Protobuf\Timestamp;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
@@ -15,10 +16,15 @@ use Grpc\UnaryCall;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\ActivityType;
+use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\ActivityTaskScheduledEventAttributes;
+use Temporal\Api\History\V1\ChildWorkflowExecutionCompletedEventAttributes;
+use Temporal\Api\History\V1\ChildWorkflowExecutionStartedEventAttributes;
 use Temporal\Api\History\V1\History;
 use Temporal\Api\History\V1\HistoryEvent;
+use Temporal\Api\History\V1\StartChildWorkflowExecutionInitiatedEventAttributes;
+use Temporal\Api\History\V1\TimerStartedEventAttributes;
 use Temporal\Api\History\V1\WorkflowExecutionSignaledEventAttributes;
 use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
@@ -103,6 +109,83 @@ final class TemporalWorkflowRunHistoryTest extends TestCase
     /**
      * @return list<\Gplanchat\Durable\Observation\WorkflowRunEvent>
      */
+    public function testAChildWorkflowIsOneActionAndNotTwo(): void
+    {
+        // La fin d'une exécution enfant porte `initiatedEventId` **et** `startedEventId`. Cherché
+        // dans le mauvais ordre, `startedEventId` désigne le démarrage de l'enfant et non
+        // l'événement qui l'a fondée : l'enfant occupait alors deux lignes de frise, dont aucune
+        // ne disait sa durée. Mesuré sur la sonde de tous les cas avant d'être corrigé ici.
+        $history = $this->readHistory(
+            $this->childInitiated(1, 'App\\ShipmentWorkflow'),
+            $this->childStarted(2, initiatedEventId: 1),
+            $this->childCompleted(3, initiatedEventId: 1, startedEventId: 2),
+        );
+
+        self::assertSame($history[0]->actionKey, $history[1]->actionKey);
+        self::assertSame($history[0]->actionKey, $history[2]->actionKey, "la fin de l'enfant rejoint sa demande");
+    }
+
+    public function testATimerIsNamedByItsDelay(): void
+    {
+        // « TIMER STARTED » nomme la classe d'événement. Un minuteur n'a pas de nom métier : son
+        // délai est le seul fait qu'il porte, donc c'est son nom.
+        $history = $this->readHistory($this->timerStarted(1, 5));
+
+        self::assertSame('timer 5.0 s', $history[0]->label);
+    }
+
+    private function childInitiated(int $eventId, string $workflowType): HistoryEvent
+    {
+        $type = new WorkflowType();
+        $type->setName($workflowType);
+
+        $attributes = new StartChildWorkflowExecutionInitiatedEventAttributes();
+        $attributes->setWorkflowType($type);
+
+        $event = $this->event($eventId, EventType::EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED);
+        $event->setStartChildWorkflowExecutionInitiatedEventAttributes($attributes);
+
+        return $event;
+    }
+
+    private function childStarted(int $eventId, int $initiatedEventId): HistoryEvent
+    {
+        $attributes = new ChildWorkflowExecutionStartedEventAttributes();
+        $attributes->setInitiatedEventId($initiatedEventId);
+
+        $event = $this->event($eventId, EventType::EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED);
+        $event->setChildWorkflowExecutionStartedEventAttributes($attributes);
+
+        return $event;
+    }
+
+    private function childCompleted(int $eventId, int $initiatedEventId, int $startedEventId): HistoryEvent
+    {
+        $attributes = new ChildWorkflowExecutionCompletedEventAttributes();
+        $attributes->setInitiatedEventId($initiatedEventId);
+        $attributes->setStartedEventId($startedEventId);
+
+        $event = $this->event($eventId, EventType::EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED);
+        $event->setChildWorkflowExecutionCompletedEventAttributes($attributes);
+
+        return $event;
+    }
+
+    private function timerStarted(int $eventId, int $seconds): HistoryEvent
+    {
+        $delay = new Duration();
+        $delay->setSeconds($seconds);
+
+        $attributes = new TimerStartedEventAttributes();
+        $attributes->setTimerId('tim-1');
+        $attributes->setStartToFireTimeout($delay);
+
+        $event = $this->event($eventId, EventType::EVENT_TYPE_TIMER_STARTED);
+        $event->setTimerStartedEventAttributes($attributes);
+
+        return $event;
+    }
+
     private function readHistory(HistoryEvent ...$events): array
     {
         $client = $this->client($this->historyResponse(...$events));
