@@ -251,9 +251,30 @@ either confirms a design or replaces it.
 
 ## 3. Work rides Laravel's queue
 
-- [ ] 3.1 Activity dispatch as an `illuminate/queue` job on the application's own connection.
+- [x] 3.1 Activity dispatch as an `illuminate/queue` job on the application's own connection.
+      `LaravelActivityTransport` implements the same port `MessengerActivityTransport` does, with
+      the same shape — `enqueue` pushes, `dequeue` pops and acknowledges — and a different
+      vocabulary: `later()` for a `DelayStamp`, `pop()` for a `ReceiverInterface`. Five tests.
+
+      **The pull half is implemented rather than stubbed.** In production nobody calls it —
+      `queue:work` pushes the job into `handle()` — but a synchronous drain (a test, a command that
+      empties the queue by hand) has the right to exist, and an `isEmpty()` that answered *true*
+      over a full queue would make its caller conclude there is nothing left to do. It also has to
+      **keep what it popped to answer**: the first version dropped the job it had just taken, which
+      answers correctly once and loses work on every call after.
+
+      **No queue traits on the job.** `Queueable` and `InteractsWithQueue` exist for `dispatch()`
+      and `release()`; this job is pushed by the transport and never re-queues itself, so the
+      package still needs nothing but `illuminate/contracts`. The resume job will need them — that
+      is where `illuminate/queue` enters, in §4.
 - [ ] 3.2 Workflow resume as a job, drained by `php artisan queue:work` and nothing else.
-- [ ] 3.3 Timers on the queue's own delay, the way the DBAL backend rides Messenger's `DelayStamp`.
+- [x] 3.3 Timers on the queue's own delay, the way the DBAL backend rides Messenger's `DelayStamp`.
+      A `retryDelay` becomes `later((int) ceil($seconds))` — rounded **up**, because waiting less
+      than asked is the only error that counts here — and is then stripped from the message.
+
+      That last half is the contract the in-memory and Messenger transports already keep, and it is
+      not decoration: a delay that survived being queued would be waited a second time, by the
+      worker that receives it.
 - [ ] 3.4 A worker killed mid-activity resumes from the journal, and an activity whose result was
       already recorded does not run twice.
 

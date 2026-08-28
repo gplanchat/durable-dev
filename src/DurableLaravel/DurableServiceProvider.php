@@ -10,6 +10,7 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
+use Gplanchat\Durable\Laravel\Queue\LaravelActivityTransport;
 use Gplanchat\Durable\Laravel\Workflow\DeclaredWorkflowTypes;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
@@ -19,8 +20,11 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
+use Gplanchat\Durable\Transport\ActivityTransportInterface;
+use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\WorkflowRegistry;
 use Illuminate\Cache\NullStore;
+use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Database\Connection;
 use Illuminate\Support\ServiceProvider;
 
@@ -54,6 +58,7 @@ final class DurableServiceProvider extends ServiceProvider
         }
 
         $backend === 'illuminate' ? $this->bindIlluminate($config) : $this->bindInMemory();
+        $this->bindActivityTransport($backend, $config);
         $this->bindResumeLock($config);
         $this->bindWorkflowRegistry($config);
     }
@@ -148,6 +153,30 @@ final class DurableServiceProvider extends ServiceProvider
             WorkflowRunCatalogInterface::class,
             fn($app) => new InMemoryWorkflowRunCatalog($app->make(EventStoreInterface::class)),
         );
+    }
+
+    /**
+     * Le transport suit le backend, comme les quatre magasins : « memory » ne sort pas du
+     * processus, « illuminate » voyage sur la file que l'application draine déjà.
+     *
+     * @param array<string, mixed> $config
+     */
+    private function bindActivityTransport(string $backend, array $config): void
+    {
+        if ($backend !== 'illuminate') {
+            $this->app->singleton(ActivityTransportInterface::class, fn() => new InMemoryActivityTransport());
+
+            return;
+        }
+
+        /** @var array<string, mixed> $queue */
+        $queue = $config['queue'] ?? [];
+
+        $this->app->singleton(ActivityTransportInterface::class, fn($app) => new LaravelActivityTransport(
+            $app->make(QueueFactory::class),
+            $queue['connection'] ?? null,
+            $queue['name'] ?? null,
+        ));
     }
 
     /** @param array<string, mixed> $config */
