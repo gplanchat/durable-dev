@@ -23,6 +23,15 @@ partagé entre processus). Le delta de spec a suivi — l'exigence parle désorm
 de processus qu'un exploitant supervise déjà, et interdit explicitement une
 seconde file.
 
+Tranche **en cours** : **6.1, l'ADR**. Un change qui atterrit laisse un ADR
+derrière lui, et celui-ci a des décisions à porter : le nom du paquet et son
+prix (Magento résout un contrôleur depuis le **nom du module**, pas depuis
+l'autochargement), les deux backends et le refus par Composer plutôt que par du
+code, l'absence de file et pourquoi la tâche 4 a été abandonnée, le verrou dont
+le cas d'usage s'est évaporé avec elle, les six contraintes d'hôte, et ce que
+cette intégration a fait descendre au cœur — deux classes puis 279 lignes
+d'orchestration de reprise.
+
 ✅ **5.3 VERTE — PR #203.** Le test d'acceptation du change entier passe :
 commande partie sur la grappe, les **deux** workers tués en pleine réservation,
 relancés, et l'ordre se termine — `'notify:charge:ORD-acceptation-…'` — avec

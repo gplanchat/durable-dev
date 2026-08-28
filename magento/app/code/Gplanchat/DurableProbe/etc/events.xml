@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!--
+    Le §5.2 : une commande passée déclenche une exécution durable.
+
+    `sales_order_place_after` est l'événement que `Magento\Sales\Model\Order::place()` émet — celui
+    que Magento émet pour de vrai, pas un point d'accroche inventé pour la démonstration. C'est le
+    même que la commande vienne du tunnel de commande, de l'API REST ou de l'admin.
+
+    L'observateur vit au **banc**, pas dans le paquet publié : quel workflow démarre sur quelle
+    commande est une décision de projet, et le module n'a pas à en imposer une. Ce qu'il fournit,
+    c'est `RuntimeFactory::workflowClient()` — la porte.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    <event name="sales_order_place_after">
+        <observer name="durable_probe_start_workflow"
+                  instance="Gplanchat\DurableProbe\Observer\StartOrderWorkflow"/>
+    </event>
+</config>
