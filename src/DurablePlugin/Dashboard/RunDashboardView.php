@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Plugin\Dashboard;
 
+use Gplanchat\Durable\Observation\ReadableDuration;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
@@ -97,7 +98,7 @@ final class RunDashboardView
             ],
             'status' => $status,
             'selectedRun' => null === $selected ? null : self::describe($selected) + [
-                'lanes' => self::lanes($this->catalog->readHistory($selected)),
+                'actions' => self::actions($this->catalog->readHistory($selected)),
             ],
         ];
     }
@@ -128,28 +129,60 @@ final class RunDashboardView
     }
 
     /**
+     * L'historique regroupé par **action**, pas par nature.
+     *
+     * Une activité planifiée, démarrée puis terminée est une action et trois événements ; les
+     * événements de l'exécution elle-même sont une action, la première. Ranger par nature obligeait
+     * l'exploitant à recoller trois lignes de l'œil pour savoir combien de temps celle-là avait
+     * duré — et noyait les quatre actions intéressantes d'une commande sous la plomberie du moteur.
+     *
+     * `kind` reste porté par l'action : la couleur de sa bordure vient de là, et une action a la
+     * nature de l'événement qui l'ouvre.
+     *
      * @param list<WorkflowRunEvent> $history
      *
-     * @return list<array{kind: string, events: list<array{sequence: int, recordedAt: \DateTimeImmutable, label: string}>}>
+     * @return list<array{kind: string, label: string, took: string, events: list<array{sequence: int, recordedAt: \DateTimeImmutable, label: string, details?: array<string, mixed>}>}>
      */
-    private static function lanes(array $history): array
+    private static function actions(array $history): array
     {
-        $lanes = [];
+        $grouped = [];
         foreach ($history as $event) {
-            $lanes[$event->kind->value][] = [
+            $described = [
                 'sequence' => $event->sequence,
                 'recordedAt' => $event->recordedAt,
                 'label' => $event->label,
             ];
+
+            // Même règle que partout dans ce modèle : un fait n'entre que s'il existe. Le gabarit
+            // n'a donc pas à distinguer « rien enregistré » de « tableau vide », et un événement
+            // sans contenu garde une ligne simple plutôt qu'un dépliant qui s'ouvre sur du vide.
+            if ([] !== $event->details) {
+                $described['details'] = $event->details;
+            }
+
+            // Un événement sans action est à lui seul la sienne : sa séquence suffit à le
+            // distinguer, et il occupe son bloc comme n'importe quelle autre action.
+            $grouped[$event->actionKey ?? ('#' . $event->sequence)][] = ['event' => $event, 'described' => $described];
         }
 
-        // Aucune voie vide : une voie que le backend n'alimente jamais ne doit pas apparaître, sous
-        // peine de faire passer une notion absente pour une exécution qui n'en a pas eu.
-        return array_map(
-            static fn(string $kind, array $events): array => ['kind' => $kind, 'events' => $events],
-            array_keys($lanes),
-            $lanes,
-        );
+        $actions = [];
+        foreach ($grouped as $group) {
+            $opening = $group[0]['event'];
+            $closing = $group[\count($group) - 1]['event'];
+
+            $actions[] = [
+                'kind' => $opening->kind->value,
+                // Le nom de l'action est celui de l'événement qui l'ouvre : c'est la planification
+                // qui connaît le nom de l'activité, ses suites ne portent qu'un numéro.
+                'label' => $opening->label,
+                'took' => ReadableDuration::of(
+                    (float) $closing->recordedAt->format('U.u') - (float) $opening->recordedAt->format('U.u'),
+                ),
+                'events' => array_column($group, 'described'),
+            ];
+        }
+
+        return $actions;
     }
 
     /**

@@ -123,6 +123,127 @@ topic.
       and that stands; what needed the lock was two consumers on one queue, and there is no queue.
       ⚠ If a host-native journal is ever added, this entry comes back with it.
 
+## 3bis. What the published package must not carry
+
+- [x] 3bis.1 **The demo left the package.** `PlaceOrderWorkflow`, `OrderActivities`,
+      `DemoOrderActivities` and `durable:demo` moved to the bench module; the published `di.xml`
+      declares **no workflow at all**, its two arrays empty with a commented example of where a
+      project adds its own. An integration module has no business making every consumer carry
+      workflows that are not theirs.
+      The module's unit tests got their own fixtures under `tests/unit/DurableModule/Fixture/`,
+      which is where test material belonged in the first place — they exercise the declaration
+      mechanism, not any particular workflow.
+
+- [x] 3bis.2 **One PSR-4 root, and the special case disappears.** The module is
+      `Gplanchat_DurableModule`, the package autoloads under `Gplanchat\DurableModule\`, and the
+      second `psr-4` entry that existed only for `Controller/` is gone. Magento composes an admin
+      action from the *module name*; once that name and the PSR-4 root agree there is nothing extra
+      to declare. Author's decision — the earlier shape treated the symptom.
+
+- [x] 3bis.3 **The admin screen uses Magento's standard grid, and gained a detail view.**
+      The first version was a hand-written `<table>` in a template — not a decision, just the
+      shortest thing that rendered. It is now a `ui_component` listing over a custom
+      `AbstractDataProvider`, which is the documented way to feed a grid from something that is not
+      an SQL collection: the operator gets the paging, bookmarks, column controls and export they
+      know, and none of it is reimplemented.
+      ⚠ **Paging is the friction, and it is bounded rather than hidden**: the grid pages by offset,
+      the cluster by continuation cursor, and the two do not translate without state. The provider
+      reads a **200-run window** and pages inside it; the way out, when it bites, is to remember
+      cursors per page in the admin session — not a bigger window. Filtering says the same thing:
+      it filters the window, not the cluster, whose visibility query is a surface of its own.
+      The detail view (`durable/process/view`) reads `readHistory()` — the same port the Sylius
+      dashboard renders — and shows the run's journal: 23 events for a completed order on the bench.
+
+- [x] 3bis.4 **The status filter is a multi-select, and the filters actually filter.** `status`
+      becomes a `select` column whose options come from `WorkflowRunStatus::cases()` — the enum is
+      the source, so an added status appears in the filter without anyone remembering to add it —
+      and `listing_filters` carries the core's `ui/grid/filters/elements/ui-select` template, which
+      is what turns one choice into several. `addFilter()` therefore accepts both shapes the widget
+      sends: a string for one box ticked, an array for several.
+      ⚠ **Two bugs, both found by measuring rather than by reading.** The action column rendered
+      empty cells without raising, because `foreach ($x['data']['items'] ?? [] as &$item)` takes a
+      reference into a *temporary* — the `??` has to go, replaced by an `isset()` guard. And every
+      filter was a no-op because `getData()` still ran the first version's single `workflowName`
+      branch and never called the new `applyFilters()`: dead code that looked like live code.
+      Measured on the bench, 18 runs: `completed` → 5, `running` → 13, `completed,running` → 18,
+      `failed` → 0, `failed,cancelled` → 0, `workflow_name ~ slow` → 5.
+
+- [x] 3bis.5 **Chaque ligne du journal se déplie, et la frise dit l'attente.** L'écran de détail
+      répondait « quoi » et jamais « avec quoi », parce que le port ne portait pas la réponse :
+      `WorkflowRunEvent` n'avait que séquence, horodatage, voie et libellé. Il gagne un
+      `details` en fin de constructeur — additif, la classe est `final readonly`, aucun appelant
+      existant ne bouge. Le journal le remplit avec `Event::payload()`, qui est **sur l'interface**
+      et n'a donc rien coûté ; le pont Temporal sérialise les attributs de l'événement d'historique,
+      qui sont un `oneof` — le nom du champ renseigné se lit sur `getAttributes()`, ce qui évite
+      d'énumérer cinquante formes.
+      ⚠ **Les charges utiles seraient arrivées en base64** (`Payload.data` est un champ `bytes`) :
+      elles sont relues par-dessus avec `Codec/JsonPlainPayload`, celui-là même qui les a écrites.
+      Mesuré sur la grappe : 16 événements sur 16 dépliables, et le `durableAppend` montre
+      l'événement métier qu'il transporte — `ActivityScheduled`, `durable.demo.charge`,
+      `{"orderId": "ORD-4242"}` — au lieu d'un bloc opaque.
+      ⚠ **La frise a fait tomber un défaut du pont** : `recordedAt` ne gardait que
+      `getSeconds()` de l'horodatage Temporal. Seize événements séparés de quelques millisecondes se
+      lisaient au même instant, et une frise construite là-dessus empile tous ses repères au même
+      endroit. Les nanosecondes sont désormais tronquées à la microseconde, là où PHP s'arrête.
+      La frise elle-même est du CSS : une voie par nature, un repère par événement placé à
+      `(t - t₀) / durée`. Sur une commande du banc, 23 événements sur 24 secondes : **91 % de la
+      frise est un trou** entre la planification de la tâche et son démarrage — un fait que la liste
+      de 23 lignes régulièrement espacées cachait activement.
+      *La suite a ouvert ce port : voir 3bis.6.*
+
+- [x] 3bis.6 **Une ligne par action, pas par nature — et la barre est la durée.** La première frise
+      rangeait par voie (« les activités », « les signaux »), ce qui obligeait l'exploitant à
+      recoller trois repères de l'œil pour savoir combien de temps *celle-là* avait duré. Une
+      activité planifiée, démarrée puis terminée est **une action et trois événements** ; le port
+      gagne donc un `actionKey`, et `null` y est une réponse — « cet événement est à lui seul son
+      action » — et non une absence.
+      Le lien existait déjà des deux côtés, c'est la traduction qui le jetait : le journal corrèle
+      par `activityId` / `timerId` / `scheduledEventId` ; Temporal corrèle par **numéro
+      d'événement**, tout ce qui suit une planification la désignant par `scheduledEventId`,
+      `startedEventId` ou `initiatedEventId` — trois accesseurs cherchés dans cet ordre, et
+      l'événement fondateur qui ne désigne personne se désigne lui-même.
+      ⚠ `getParentInitiatedEventId` est **volontairement hors de la liste** : il pointe vers
+      l'histoire du parent, et le confondre rattacherait le démarrage d'une exécution enfant à un
+      numéro d'un autre journal.
+      Au passage, un minuteur porte enfin son résumé : `TimerScheduled` nommait la classe, pas
+      l'attente.
+      Mesuré sur la commande du banc : 23 événements → **9 actions**, dont
+      `WORKFLOW TASK SCHEDULED` **22,0 s** (le worker n'était pas là), `durable.probe.reserve`
+      2,0 s, `durable.probe.charge` 11 ms. Rendu à travers Magento : 9 lignes, 9 barres, 23
+      dépliants.
+
+- [x] 3bis.7 **La première ligne est l'exécution, les enfants gardent la leur, et les lignes portent
+      un nom.** Trois corrections d'un coup, sur demande de l'auteur. Les libellés en capitales
+      (`WORKFLOW EXECUTION STARTED`) nommaient une classe d'événement, pas ce qui tourne : côté
+      Temporal, une seule règle — *un événement qui nomme un type de workflow nomme sa ligne* —
+      couvre l'exécution **et** ses enfants sans table de correspondance, parce que
+      `getWorkflowType()` est porté par les deux ; côté journal il n'y a qu'un flux, donc le nom
+      vient de l'appelant, qui tient déjà la `WorkflowRunDescription` — `read($runId, $workflowName)`,
+      argument optionnel, les trois catalogues le passent.
+      Les tâches de workflow sont la plomberie du moteur, pas un fait métier : quatre lignes
+      `WORKFLOW TASK SCHEDULED` noyaient les quatre lignes intéressantes. Elles rejoignent la ligne
+      de l'exécution.
+      ⚠ **Les exceptions sont l'essentiel de la règle.** `WORKFLOW_EXECUTION_SIGNALED` et la famille
+      `WORKFLOW_EXECUTION_UPDATE_*` partagent le préfixe de l'exécution sans en être ; les workflows
+      enfants et externes ne le partagent pas, et c'est tout ce qui leur laisse leurs lignes. D'où
+      un test qui éprouve le partage **type par type** à partir de l'énumération du serveur, plus un
+      troisième qui échoue si un type n'est rangé nulle part — il a d'ailleurs immédiatement trouvé
+      treize types que j'avais oubliés.
+      ⚠ **Le regroupement effaçait le seul fait intéressant du banc.** Une fois les tâches de
+      workflow repliées, la barre de la première ligne couvre toute la durée du run et dit « le run
+      a duré le temps du run » : les 22 s d'attente d'un worker disparaissaient dedans. La barre est
+      donc **découpée entre événements consécutifs**, chaque segment portant son intervalle —
+      `22,0 s · #2 → #3 · WORKFLOW TASK SCHEDULED → WORKFLOW TASK STARTED`. Mesuré : 23 événements →
+      **4 actions**, 19 segments, et l'attente est nommée.
+      Le tableau de bord Sylius est aligné dans le même mouvement : `lanes` devient `actions`, un
+      bloc par action avec son nom et sa durée, la bordure gardant la couleur de la nature.
+      C'est **Psalm qui a trouvé la duplication** : deux `match` identiques, un par hôte, tombant
+      tous les deux sur `strictBinaryOperands`. Le seuil à partir duquel une seconde vaut mieux
+      qu'une milliseconde est une décision, pas un détail de gabarit — pris deux fois, la même
+      exécution se lit « 2.0 s » sur un hôte et « 2004 ms » sur l'autre. D'où
+      `Observation\ReadableDuration`, à côté du modèle dont il met en forme les faits, comme
+      `WorkflowRunEvent::$label` et pour la même raison.
+
 ## 4bis. What the CI can see of Magento
 
 - [x] 4bis.1 **A Mage-OS × PHP matrix, the counterpart of the Symfony one.** Five entries, each an
@@ -133,8 +254,13 @@ topic.
       entry and belongs to an integration job.
       Verified to discriminate before it was written: `2.2.0` on PHP 8.2 resolves, `3.4.0` on PHP
       8.2 fails naming the cause.
-- [ ] 4bis.2 A job that **boots** Magento — install, `durable:demo`, and the admin screen answering.
-      Until it exists, every claim about this module rests on a transcript produced by hand.
+- [x] 4bis.2 **A job that boots it.** One job, not matrixed — the distribution is ~1 GB and the
+      install takes minutes, which is exactly why there is one edge and not five. MySQL and
+      OpenSearch as services, `composer install` through the bench's tracked lock so it installs
+      **this commit** and not a published version, then `setup:install`, `module:status`,
+      `durable:demo` asserting both `notify:charge:ORD-4242` **and** `durable.demo.charge` — the
+      second is what proves the activity names come from the contract's attributes — and the admin
+      answering over HTTP.
 
 ## 5. Temporal, end to end
 
@@ -214,6 +340,32 @@ topic.
       ⚠ Each section opens with a **warning that the package is not on Packagist**: documenting a
       `composer require` that does not resolve would be the documentation telling a lie the rest of
       this change spent its time avoiding.
+- [ ] 6.5 **Le paquet part.** Ce qui est dans le dépôt est fait : `src/DurableModule/` gagne son
+      `README.md` et sa `LICENSE` — les six paquets publiés en ont, celui-ci était le seul sans — et
+      `bin/splitsh-publish.sh` gagne sa ligne `"src/DurableModule/|durable-magento"`. `composer
+      validate --strict` passe sur le manifeste.
+      ⚠ **Le satellite existe déjà, et il n'est pas vide.** `gplanchat/durable-magento` a été créé
+      le 2026-03-29 et porte un `main` : le split de `af3e51be`, quand ce préfixe tenait un tout
+      autre module (`Api`, `Model`, une commande de consommation), depuis retiré par `e9b24e9c`.
+      Son arbre correspond exactement à `src/DurableModule/` à ce commit-là, donc c'est un vrai
+      split du même préfixe, et le split d'aujourd'hui devrait l'avoir pour ancêtre : la première
+      poussée avance sans forcer. Si elle est refusée, le `workflow_dispatch` avec `force` archive
+      la tête sous `refs/heads/archive/` avant de la remplacer — et rien n'est perdu de toute façon,
+      `af3e51be` est dans l'histoire du monorepo.
+      ⚠ **Le satellite est PRIVÉ**, seul des dix à l'être. Packagist ne lira rien tant qu'il ne sera
+      pas public.
+      **Reste, et ce sont des gestes hors du dépôt, dans cet ordre** — voir
+      `.worktrees/prises/change/magento-module.md` : rendre le dépôt public, l'ajouter à la portée
+      du PAT `SPLITSH_PUSH_TOKEN` (fine-grained, *Only select repositories*, Contents: Read and
+      write), **puis seulement** fusionner cette PR. Ensuite, soumettre à Packagist.
+      ⚠ **Un préfixe ajouté après coup ne rattrape pas les tags passés** : le paquet arrivera avec
+      `dev-main` et **zéro version**, exactement comme `durable-bridge-illuminate` l'a fait le
+      2026-08-28. Il prendra sa première version au prochain tag, pas en rejouant `v0.1.0-alpha7`,
+      qui le ferait apparaître dans une version qui ne le contenait pas. D'où la section *Release
+      state* du README, qui dit `:dev-main` plutôt que de laisser croire.
+      L'avertissement « pas sur Packagist » des pages de documentation reste tant que Packagist ne
+      l'a pas : il tombera avec la soumission, pas avec cette PR.
+
 - [x] 6.4 **OST004's Magento row has left the "not built yet" table** — struck through in both
       tables, marked settled, pointing at DUR046 and naming what is still missing (publication, a
       CI job that boots). OST003 §Magento becomes *§Magento — built*, and carries the two findings

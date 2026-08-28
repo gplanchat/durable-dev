@@ -19,6 +19,7 @@
   --dz-fg2: #6c6459;
   --dz-line: #ddd6ca;
   --dz-accent: #207460;
+  --dz-accent2: #2e5dbd;
   --dz-code-bg: #ffffff;
   --dz-ck: #a1341f;
   --dz-cs: #6b7d1f;
@@ -33,6 +34,7 @@
   --dz-fg2: #a09a90;
   --dz-line: #2c2925;
   --dz-accent: #68d5bb;
+  --dz-accent2: #638ad9;
   --dz-code-bg: #100f0d;
   --dz-ck: #e58a6a;
   --dz-cs: #a8bf62;
@@ -178,6 +180,12 @@ body {
 // Trois sortes en usage dans la doc : NOTE, WARNING, CAUTION. Le thème les
 // rend en blockquote ; sans distinction, un avertissement se lit comme un
 // aparté.
+//
+// La NOTE prend le second accent, pas le premier. Elle portait `--dz-accent`,
+// c'est-à-dire la couleur des liens : dans une page qui en contient trente, un
+// aparté bordé de la même teinte se lit comme un lien de plus. C'est le rôle
+// qu'`accent2` tient déjà sur la page d'accueil — « Nexus · works today », le
+// panneau « With it » : ce qui s'ajoute au propos sans être le propos.
 
 .book-page .markdown blockquote {
   border-left: 3px solid var(--dz-line);
@@ -188,7 +196,7 @@ body {
 
   &.book-hint.info,
   &:has(> p > strong:first-child) {
-    border-left-color: var(--dz-accent);
+    border-left-color: var(--dz-accent2);
   }
 
   &.book-hint.warning {

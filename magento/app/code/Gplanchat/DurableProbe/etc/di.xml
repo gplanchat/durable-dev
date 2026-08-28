@@ -1,18 +1,33 @@
 <?xml version="1.0"?>
 <!--
-    Le module de sonde ajoute son workflow et son gestionnaire d'activités aux tableaux que le
-    module publié déclare. C'est le mécanisme de la 3.1 employé par un tiers, ce qui le prouve au
-    passage : un projet ajoute les siens exactement ainsi.
+    Le module du banc ajoute ses workflows et ses gestionnaires d'activités aux tableaux que le
+    module publié laisse **vides**. C'est le mécanisme de la 3.1 employé par un tiers, ce qui le
+    prouve au passage : un projet ajoute les siens exactement ainsi.
+
+    Il porte la démonstration (`PlaceOrderWorkflow`, `durable:demo`) et les sondes. Rien de tout
+    cela n'est dans le paquet publié : un module d'intégration n'a pas à faire porter à un projet
+    consommateur des workflows qui ne sont pas les siens.
 -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
-    <type name="Gplanchat\Durable\Magento\Runtime\RuntimeFactory">
+    <type name="Gplanchat\DurableModule\Runtime\RuntimeFactory">
         <arguments>
             <argument name="workflowClasses" xsi:type="array">
                 <item name="probe_slow_order" xsi:type="string">Gplanchat\DurableProbe\Workflow\SlowOrderWorkflow</item>
+                <item name="demo_place_order" xsi:type="string">Gplanchat\DurableProbe\Workflow\PlaceOrderWorkflow</item>
             </argument>
             <argument name="activityHandlers" xsi:type="array">
                 <item name="probe_order" xsi:type="object">Gplanchat\DurableProbe\Workflow\Activity\RecordingOrderActivities</item>
+                <item name="demo_order" xsi:type="object">Gplanchat\DurableProbe\Workflow\Activity\DemoOrderActivities</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <!-- `durable:demo` est une commande du **banc**, pas du paquet publié. -->
+    <type name="Magento\Framework\Console\CommandListInterface">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="durable_demo" xsi:type="object">Gplanchat\DurableProbe\Console\Command\RunDemoCommand</item>
             </argument>
         </arguments>
     </type>

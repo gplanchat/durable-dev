@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Magento\Runtime;
+namespace Gplanchat\DurableModule\Runtime;
 
 /**
  * Une exécution a été lancée pour un type de workflow que le module n'a jamais reçu.
