@@ -10,7 +10,7 @@ weight: 10
 - **PHP 8.2+**
 - **Composer**
 - For tests and local development without Temporal: no additional infrastructure — the **In-Memory** backend runs fully inside PHP.
-- For production or realistic integration tests: a **Temporal** cluster (Docker image available) and the **`ext-grpc`** PHP extension.
+- For production or realistic integration tests: a **Temporal** cluster (Docker image available) and the **`ext-grpc`** PHP extension — in a container image, copy it from a [prebuilt image](../container-images/) rather than compiling it.
 
 ---
 
