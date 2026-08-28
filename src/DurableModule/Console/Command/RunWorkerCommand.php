@@ -11,11 +11,17 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * `bin/magento durable:worker` — la boucle qui fait avancer les journaux.
+ * `bin/magento durable:worker` — la boucle qui fait avancer les exécutions.
  *
- * Sans elle, une exécution appendue au cluster y reste `running` pour toujours : son historique se
- * remplit, et personne ne répond aux tâches de sa file. C'est la moitié manquante du backend
- * Temporal sur cet hôte.
+ * **Un processus, une file, un rôle.** `--role=journal` répond aux tâches de workflow, `--role=activity`
+ * dépile les tâches d'activité. Les séparer n'est pas une préférence : ce sont deux files distinctes
+ * côté Temporal, et un exploitant règle leur parallélisme séparément — une activité lente ne doit pas
+ * retarder la reprise d'un journal.
+ *
+ * Sans le rôle `journal`, une exécution appendue au cluster n'avance pas : son historique se
+ * remplit et personne ne répond à ses tâches. Sans le rôle `activity`, elle avance jusqu'à sa
+ * première activité et s'y arrête — c'est exactement ce que le §5.3 avait mesuré, une commande
+ * débitée dont le stock n'était jamais réservé.
  *
  * **Pourquoi une commande, et pas un consommateur de la file de Magento.** Un worker tient sa tâche
  * par une longue interrogation, donc par construction plus longtemps qu'un message ordinaire — et
@@ -33,6 +39,9 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class RunWorkerCommand extends Command
 {
+    private const OPTION_ROLE = 'role';
+    private const ROLE_JOURNAL = 'journal';
+    private const ROLE_ACTIVITY = 'activity';
     private const OPTION_MAX_TASKS = 'max-tasks';
     private const OPTION_TIME_LIMIT = 'time-limit';
 
@@ -45,7 +54,14 @@ class RunWorkerCommand extends Command
     protected function configure(): void
     {
         $this->setName('durable:worker')
-            ->setDescription('Polls the Temporal journal task queue and advances durable executions')
+            ->setDescription('Polls a Temporal task queue and advances durable executions')
+            ->addOption(
+                self::OPTION_ROLE,
+                null,
+                InputOption::VALUE_REQUIRED,
+                sprintf('Which queue to drain: %s or %s.', self::ROLE_JOURNAL, self::ROLE_ACTIVITY),
+                self::ROLE_JOURNAL,
+            )
             ->addOption(
                 self::OPTION_MAX_TASKS,
                 null,
@@ -69,11 +85,25 @@ class RunWorkerCommand extends Command
 
         // Le refus tombe ici plutôt qu'à la première itération : un worker sans grappe tournerait,
         // ne trouverait jamais rien, et aurait l'air parfaitement sain.
-        $worker = $this->runtimeFactory->journalWorker();
+        $role = (string) $input->getOption(self::OPTION_ROLE);
+        // Les deux workers du pont ne nomment pas leur tour de la même façon — `processOne()` pour
+        // le journal, `pollOnce()` pour les activités — et ce n'est pas à cette commande de leur
+        // imposer un nom commun. Elle prend un tour, quel qu'il s'appelle.
+        $tick = match ($role) {
+            self::ROLE_JOURNAL => $this->runtimeFactory->journalWorker()->processOne(...),
+            self::ROLE_ACTIVITY => $this->runtimeFactory->activityWorker()->pollOnce(...),
+            default => throw new \InvalidArgumentException(sprintf(
+                'Unknown worker role "%s". One process, one queue, one role: %s or %s.',
+                $role,
+                self::ROLE_JOURNAL,
+                self::ROLE_ACTIVITY,
+            )),
+        };
         $deadline = $timeLimit > 0 ? microtime(true) + $timeLimit : null;
 
         $output->writeln(sprintf(
-            '<info>durable:worker</info> polling the journal task queue%s%s',
+            '<info>durable:worker</info> polling the %s task queue%s%s',
+            $role,
             $maxTasks > 0 ? sprintf(', %d task(s) max', $maxTasks) : '',
             $deadline !== null ? sprintf(', %ds max', $timeLimit) : '',
         ));
@@ -83,7 +113,7 @@ class RunWorkerCommand extends Command
                 break;
             }
 
-            $worker->processOne();
+            $tick();
         }
 
         $output->writeln(sprintf('<info>%d task(s) processed.</info>', $processed));

@@ -5,21 +5,29 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Magento\Runtime;
 
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
+use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
+use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
+use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
+use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
+use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
+use Gplanchat\Durable\Transport\NoopActivityTransport;
+use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\WorkflowRegistry;
 use Magento\Framework\App\DeploymentConfig;
 
@@ -105,8 +113,10 @@ class RuntimeFactory
             $runtime->registerWorkflow($workflowClass);
         }
 
-        foreach ($this->activityHandlers as $handler) {
-            $this->registerContractsOf($runtime, $handler);
+        // Par le runtime et non par l'exécuteur : c'est lui qui tient la liste que l'écran et la
+        // commande de démonstration rendent.
+        foreach ($this->activityBindings() as $activityName => $invoker) {
+            $runtime->registerActivity($activityName, $invoker);
         }
 
         return $runtime;
@@ -201,6 +211,73 @@ class RuntimeFactory
     }
 
     /**
+     * Le worker qui dépile les tâches d'activité.
+     *
+     * Sur Temporal, ordonnancer une activité produit une **tâche** que quelqu'un doit prendre.
+     * Personne ne le faisait, et c'est ce que le §5.3 avait mesuré sans le nommer : la carte
+     * n'était pas re-débitée, mais l'ordre ne repartait pas non plus.
+     *
+     * Son journal est un `InMemoryEventStore` de travail, et ce n'est pas un raccourci : sur cette
+     * voie le résultat d'une activité repart par le RPC de Temporal, pas par le journal. Le worker
+     * d'intégration du dépôt fait exactement le même choix, pour la même raison.
+     */
+    public function activityWorker(): TemporalActivityWorker
+    {
+        $settings = $this->requireCluster('An activity worker');
+        $client = WorkflowServiceClientFactory::create($settings);
+        $scratch = new InMemoryEventStore();
+
+        return new TemporalActivityWorker(
+            new WorkflowServiceActivityRpc($client),
+            $settings,
+            new ActivityMessageProcessor(
+                $scratch,
+                new NoopActivityTransport(),
+                $this->activityExecutor(),
+                new NullWorkflowResumeDispatcher(),
+                new NullActivityHeartbeatSender(),
+            ),
+            $scratch,
+            new NullActivityHeartbeatSender(),
+        );
+    }
+
+    /**
+     * De quoi démarrer une exécution **sur la grappe**, plutôt que dans ce processus-ci.
+     *
+     * `MagentoRuntime::run()` exécute ici et maintenant : ses activités partent dans le transport
+     * en mémoire quel que soit le journal en dessous, et meurent avec le processus. Pour qu'une
+     * activité devienne une tâche Temporal, l'exécution doit être lancée sur la grappe et menée
+     * par les workers — c'est le partage que la tâche 5 décrit, et ce client en est la porte.
+     */
+    public function workflowClient(): WorkflowClient
+    {
+        $settings = $this->requireCluster('Starting a workflow on the cluster');
+        $client = WorkflowServiceClientFactory::create($settings);
+
+        return new WorkflowClient(
+            $client,
+            $settings,
+            new TemporalHistoryCursor($client, $settings->namespace->name()),
+            new WorkflowServiceExecutionRpc($client),
+        );
+    }
+
+    private function requireCluster(string $what): TemporalConnection
+    {
+        $settings = $this->temporalSettings();
+
+        if ($settings === null) {
+            throw new \RuntimeException(\sprintf(
+                '%s needs a cluster. Set durable/temporal/dsn in app/etc/env.php first — without it the journal lives in the process that writes it, and a worker would poll a queue that does not exist while looking perfectly healthy.',
+                $what,
+            ));
+        }
+
+        return $settings;
+    }
+
+    /**
      * Le journal de cet hôte vit-il dans une grappe ?
      */
     public function hasCluster(): bool
@@ -240,18 +317,41 @@ class RuntimeFactory
      * Le pendant Magento de la passe de compilation du bundle : mêmes deux objets du cœur,
      * `ActivityContractResolver` pour les noms et `PayloadToContractMethodInvoker` pour l'appel.
      * Ce qui change est seulement d'où vient la liste — un argument de `di.xml` plutôt qu'un tag.
+     *
+     * Le même exécuteur sert au moteur en processus et au worker d'activités : ce sont les mêmes
+     * activités, résolues une fois, quel que soit qui les appelle. C'est ce qui garantit qu'un
+     * worker exécute exactement ce que le module a déclaré, et rien d'autre.
      */
-    private function registerContractsOf(MagentoRuntime $runtime, object $handler): void
+    private function activityExecutor(): RegistryActivityExecutor
+    {
+        $activities = new RegistryActivityExecutor();
+
+        foreach ($this->activityBindings() as $activityName => $invoker) {
+            $activities->register($activityName, $invoker);
+        }
+
+        return $activities;
+    }
+
+    /**
+     * Les activités déclarées, résolues une seule fois : le moteur en processus et le worker les
+     * lisent toutes deux d'ici, donc ils exécutent forcément la même chose.
+     *
+     * @return array<string, callable(array<string, mixed>): mixed>
+     */
+    private function activityBindings(): array
     {
         $resolver = new ActivityContractResolver();
+        $bindings = [];
 
-        foreach (\class_implements($handler) ?: [] as $contract) {
-            foreach ($resolver->resolveActivityMethods($contract) as $method => $activityName) {
-                $runtime->registerActivity(
-                    $activityName,
-                    new PayloadToContractMethodInvoker($handler, $contract, $method),
-                );
+        foreach ($this->activityHandlers as $handler) {
+            foreach (\class_implements($handler) ?: [] as $contract) {
+                foreach ($resolver->resolveActivityMethods($contract) as $method => $activityName) {
+                    $bindings[$activityName] = new PayloadToContractMethodInvoker($handler, $contract, $method);
+                }
             }
         }
+
+        return $bindings;
     }
 }
