@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!--
+    Le module de sonde ajoute son workflow et son gestionnaire d'activités aux tableaux que le
+    module publié déclare. C'est le mécanisme de la 3.1 employé par un tiers, ce qui le prouve au
+    passage : un projet ajoute les siens exactement ainsi.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="Gplanchat\Durable\Magento\Runtime\RuntimeFactory">
+        <arguments>
+            <argument name="workflowClasses" xsi:type="array">
+                <item name="probe_slow_order" xsi:type="string">Gplanchat\DurableProbe\Workflow\SlowOrderWorkflow</item>
+            </argument>
+            <argument name="activityHandlers" xsi:type="array">
+                <item name="probe_order" xsi:type="object">Gplanchat\DurableProbe\Workflow\Activity\RecordingOrderActivities</item>
+            </argument>
+        </arguments>
+    </type>
+</config>
