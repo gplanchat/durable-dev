@@ -46,11 +46,23 @@ Temporal des deux côtés, donc la tâche 5 est le préalable absolu ; et **ils 
 jamais fait tourner deux processus OS** — Magento serait leur premier, ce qui lève
 leur plus grosse hypothèse non vérifiée. Le worker n'a que trois arguments et
 aucune dépendance framework : côté Magento on l'instancie et on boucle sur
-`pollOnce()`. Un endpoint se crée à la main
+`pollOnce()`. **Nouveau (28/08)** : `NexusOperationRegistry` se construit
+désormais par `routedBy('temporal')` ou `unavailableOn('<backend>')`, et le
+second refuse à `register()` — la tâche 5 devra le construire selon le backend
+assemblé, et rien d'autre à écrire pour bénéficier de la garde. Un endpoint se crée à la main
 (`temporal operator nexus endpoint create`), et une file que personne ne poll est
 un endpoint qui ne répond jamais, sans erreur nulle part.
 
-Prochaine tranche : **tâche 4** — `communication.xml`, `queue_topology.xml`,
+Tranche **en cours** : la **procédure de migration de la rupture de #175**.
+`PayloadToContractMethodInvoker` est descendu de `durable-bundle` à `durable`
+sans procédure, ce que la règle arbitrée interdit — Rector d'abord, script
+sinon, documentation dans tous les cas. Un set `durable-upgrade.php` à côté de
+`temporal-sdk.php`, testé par fixture comme les quatre règles existantes.
+⚠ La session `splitsh-integration-alpha8` déplace elle aussi une classe de
+paquet (`AsDurableActivity` du bundle vers le cœur, sous `AsActivityHandler`) :
+son renommage a vocation à rejoindre le **même** set, pas un second.
+
+Après : **tâche 4** — `communication.xml`, `queue_topology.xml`,
 `queue_publisher.xml`, `queue_consumer.xml` pour les cinq rôles (4.1), les
 gestionnaires (4.2), et le verrou par exécution avec son test (4.3). Les quatre
 sondages de la tâche 1 l'ont dessinée : la file n'offre **aucune** exclusion
