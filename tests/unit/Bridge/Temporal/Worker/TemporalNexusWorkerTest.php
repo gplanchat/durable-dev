@@ -57,12 +57,12 @@ final class TemporalNexusWorkerTest extends TestCase
         $this->grpc->expects($this->never())->method('RespondNexusTaskFailed');
         $this->grpc->expects($this->never())->method('StartWorkflowExecution');
 
-        $this->worker(new NexusOperationRegistry())->pollOnce();
+        $this->worker(NexusOperationRegistry::routedBy('temporal'))->pollOnce();
     }
 
     public function testAnImmediateAnswerIsSentAsASyncSuccess(): void
     {
-        $registry = new NexusOperationRegistry();
+        $registry = NexusOperationRegistry::routedBy('temporal');
         $registry->register(
             NexusService::named('billing'),
             NexusOperationName::named('charge'),
@@ -93,7 +93,7 @@ final class TemporalNexusWorkerTest extends TestCase
         // §3.1, mesuré : c'est le callback attaché au workflow qui règle l'opération, et
         // `completion_callbacks` ne se pose qu'au démarrage. Répondre d'abord laisserait
         // l'appelant attendre une issue qui n'arriverait jamais.
-        $registry = new NexusOperationRegistry();
+        $registry = NexusOperationRegistry::routedBy('temporal');
         $registry->register(
             NexusService::named('billing'),
             NexusOperationName::named('charge'),
@@ -151,7 +151,7 @@ final class TemporalNexusWorkerTest extends TestCase
                 return $this->call(new RespondNexusTaskFailedResponse());
             });
 
-        $this->worker(new NexusOperationRegistry())->pollOnce();
+        $this->worker(NexusOperationRegistry::routedBy('temporal'))->pollOnce();
 
         self::assertSame(NexusHandlerErrorType::NotImplemented->value, $sent?->getError()?->getErrorType());
         self::assertSame(
@@ -164,7 +164,7 @@ final class TemporalNexusWorkerTest extends TestCase
     {
         // Ce que font tous les autres SDK : une exception ordinaire vaut INTERNAL. Un
         // gestionnaire qui veut un refus définitif doit le dire avec son type.
-        $registry = new NexusOperationRegistry();
+        $registry = NexusOperationRegistry::routedBy('temporal');
         $registry->register(
             NexusService::named('billing'),
             NexusOperationName::named('charge'),
@@ -213,7 +213,7 @@ final class TemporalNexusWorkerTest extends TestCase
                 return $this->call(new RespondNexusTaskCompletedResponse());
             });
 
-        $this->worker(new NexusOperationRegistry())->pollOnce();
+        $this->worker(NexusOperationRegistry::routedBy('temporal'))->pollOnce();
 
         self::assertSame('charge-1', $cancelled?->getWorkflowExecution()?->getWorkflowId());
         self::assertNotNull(
@@ -234,7 +234,7 @@ final class TemporalNexusWorkerTest extends TestCase
             ->willReturn($this->call(new RespondNexusTaskCompletedResponse()));
         $this->grpc->expects($this->never())->method('RespondNexusTaskFailed');
 
-        $this->worker(new NexusOperationRegistry())->pollOnce();
+        $this->worker(NexusOperationRegistry::routedBy('temporal'))->pollOnce();
     }
 
     public function testACancellationWithoutATokenIsRefusedTerminally(): void
@@ -250,7 +250,7 @@ final class TemporalNexusWorkerTest extends TestCase
                 return $this->call(new RespondNexusTaskFailedResponse());
             });
 
-        $this->worker(new NexusOperationRegistry())->pollOnce();
+        $this->worker(NexusOperationRegistry::routedBy('temporal'))->pollOnce();
 
         self::assertSame(NexusHandlerErrorType::BadRequest->value, $sent?->getError()?->getErrorType());
     }

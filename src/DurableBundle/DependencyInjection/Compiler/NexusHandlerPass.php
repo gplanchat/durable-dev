@@ -21,6 +21,12 @@ use Symfony\Component\DependencyInjection\Reference;
  * pas un appel qui échoue, c'est un service qui **ne reçoit jamais rien**, sans une ligne de log.
  * Il n'y a pas de requête à faire échouer plus tard. Alors on échoue à la compilation du conteneur,
  * en nommant le backend, plutôt que de laisser une application démarrer sur un silence.
+ *
+ * **Cette passe n'est pas le seul garde, et ne doit pas l'être.** {@see NexusOperationRegistry}
+ * refuse de son côté, dans le cœur : celui-ci n'attrape que Symfony, alors que le module Magento et
+ * le pont Illuminate montent leurs services autrement. Les deux se complètent plutôt qu'ils ne se
+ * doublent — la passe échoue **plus tôt** et nomme les services fautifs, ce qu'un registre n'a pas
+ * les moyens de faire ; le registre rattrape tous les hôtes que la passe ne voit pas.
  */
 final class NexusHandlerPass implements CompilerPassInterface
 {

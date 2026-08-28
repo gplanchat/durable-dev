@@ -162,7 +162,7 @@
       that again, less well. The queue comes from the connection: `nexus_task_queue` in the DSN,
       **defaulting to the workflow task queue** rather than to a name of its own — a Nexus endpoint
       targets a queue, and a default queue nobody polls is an endpoint that never answers, silently.
-- [x] 5.3 **Refusal at startup, naming what is missing.** `NexusHandlerPass` throws at container
+- [x] 5.3 **Refusal at startup, naming what is missing — in two places, deliberately.** `NexusHandlerPass` throws at container
       compile time when a handler is declared and `durable.temporal.nexus_registry` is absent — the
       service the Temporal backend registers as soon as a DSN is configured. The message names the
       backend, the missing key, and the services that declared a handler.
@@ -171,6 +171,12 @@
       that never receives anything. There is no request to fail later.
       A container with no handler at all is left alone — refusing there would break every
       application that does not use Nexus.
+      **And the core refuses too.** `NexusOperationRegistry` is built through `routedBy()` or
+      `unavailableOn()`, and the second throws on `register()`. The compiler pass catches only
+      Symfony; the Magento module and the Illuminate bridge wire their services otherwise and would
+      have had nothing — the very hosts whose users would meet the silence in production. The two
+      complement rather than duplicate: the pass fails **earlier** and names the offending services,
+      which a registry cannot do; the registry catches every host the pass never sees.
 
 ## 6. End to end
 
