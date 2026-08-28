@@ -404,7 +404,7 @@ Moins de liberté, une classe d'erreurs éliminée au moment de l'analyse. Voir
 
 ---
 
-## 7. Le versionnage de workflow : ce n'est plus un manque
+## 7. Le versionnage de workflow
 
 Les deux laissent une même classe porter deux comportements, et laissent l'historique décider lequel
 une exécution voit :
@@ -423,7 +423,7 @@ une exécution Go versionnée enregistrent le **même** marqueur `Version` et le
 recherche `TemporalChangeVersion` — les deux reviennent donc de la même requête quand on demande qui
 est encore sur une ancienne branche.
 
-Deux différences demeurent, et aucune ne porte sur la primitive :
+Deux différences, et aucune ne porte sur la primitive :
 
 | | |
 |---|---|
@@ -461,6 +461,13 @@ nommage du point d'entrée, du service, de l'opération et des en-têtes — et,
 deux formes de réponse et le chemin d'annulation, un appelant Durable et un gestionnaire Durable
 dans le même test.
 
+**Et l'appel interopère.** La charge voyage telle que l'appelant l'a écrite — sans emballage, sans
+enveloppe —, si bien qu'un gestionnaire écrit avec un autre SDK y lit les champs qu'il déclare.
+Mesuré contre un gestionnaire servi par le **SDK Go**, qui déclare `Greeting{Name string}`, reçoit
+`{"name":"ada"}` et répond `hello ada`. Le sens inverse a été mesuré aussi : un appelant Go qui
+invoque une opération servie par Durable récupère son propre type déclaré, et les deux historiques
+sont identiques événement par événement.
+
 ### Servir, aussi
 
 Un gestionnaire déclare l'opération qu'il sert, et répond maintenant ou plus tard :
@@ -494,9 +501,9 @@ implémentation PHP n'atteint Nexus tout court. Jusqu'ici, un service PHP ne pou
 fournisseur Nexus : une équipe qui tourne en PHP était joignable en HTTP comme n'importe quel
 service, mais pas à travers la frontière que Temporal donne à Go, Java, Python, TypeScript et .NET —
 pas d'opération durable, pas de corrélation côté serveur, pas d'annulation qui suive l'appel. Cette
-frontière est désormais ouverte à PHP.
+frontière, Durable met PHP des deux côtés.
 
-Une limite demeure, et elle est délibérée :
+Une limite, et elle est délibérée :
 
 - **Backend Temporal seulement.** Nexus achemine vers un point d'entrée servi ailleurs ; un backend
   qui garde son journal dans une seule base n'a ni cette route ni de repli honnête. Le backend DBAL
