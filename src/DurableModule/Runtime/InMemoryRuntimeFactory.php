@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Magento\Runtime;
 
+use Gplanchat\Durable\Activity\ActivityContractResolver;
+use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -33,14 +35,26 @@ use Gplanchat\Durable\WorkflowRegistry;
 class InMemoryRuntimeFactory
 {
     /**
-     * @param int   $maxActivityRetries Plafond quand une activité n'en fixe pas. `0` ne plafonne
-     *                                  rien — et une activité sans `RetryLimit` réessaie
-     *                                  indéfiniment, ce qui est le défaut de Temporal.
-     * @param float $budgetSeconds      Borne globale d'une exécution. Elle existe parce que le
-     *                                  point précédent rend « ça ne finit jamais » atteignable
-     *                                  sans erreur.
+     * @param list<class-string> $workflowClasses    Les classes portant `#[Workflow]`, déclarées
+     *                                              nommément : le conteneur de Magento n'a pas les
+     *                                              tags de Symfony, donc rien ne les ramasse seul.
+     * @param list<object>       $activityHandlers   Les gestionnaires d'activités. **Leur contrat
+     *                                              ne se déclare pas** : on lit leurs interfaces et
+     *                                              on garde celles qui portent des
+     *                                              `#[ActivityMethod]`. Une déclaration de moins
+     *                                              est une déclaration qu'on ne peut pas écrire de
+     *                                              travers.
+     * @param int                $maxActivityRetries Plafond quand une activité n'en fixe pas. `0`
+     *                                              ne plafonne rien — et une activité sans
+     *                                              `RetryLimit` réessaie indéfiniment, ce qui est
+     *                                              le défaut de Temporal.
+     * @param float              $budgetSeconds      Borne globale d'une exécution. Elle existe
+     *                                              parce que le point précédent rend « ça ne finit
+     *                                              jamais » atteignable sans erreur.
      */
     public function __construct(
+        private readonly array $workflowClasses = [],
+        private readonly array $activityHandlers = [],
         private readonly int $maxActivityRetries = 0,
         private readonly float $budgetSeconds = InMemoryWorkflowRunner::DEFAULT_BUDGET_SECONDS,
     ) {}
@@ -52,7 +66,7 @@ class InMemoryRuntimeFactory
         $activities = new RegistryActivityExecutor();
         $workflows = new WorkflowRegistry();
 
-        return new MagentoRuntime(
+        $runtime = new MagentoRuntime(
             $eventStore,
             $activities,
             $workflows,
@@ -65,5 +79,34 @@ class InMemoryRuntimeFactory
                 $this->budgetSeconds,
             ),
         );
+
+        foreach ($this->workflowClasses as $workflowClass) {
+            $runtime->registerWorkflow($workflowClass);
+        }
+
+        foreach ($this->activityHandlers as $handler) {
+            $this->registerContractsOf($runtime, $handler);
+        }
+
+        return $runtime;
+    }
+
+    /**
+     * Le pendant Magento de la passe de compilation du bundle : mêmes deux objets du cœur,
+     * `ActivityContractResolver` pour les noms et `PayloadToContractMethodInvoker` pour l'appel.
+     * Ce qui change est seulement d'où vient la liste — un argument de `di.xml` plutôt qu'un tag.
+     */
+    private function registerContractsOf(MagentoRuntime $runtime, object $handler): void
+    {
+        $resolver = new ActivityContractResolver();
+
+        foreach (\class_implements($handler) ?: [] as $contract) {
+            foreach ($resolver->resolveActivityMethods($contract) as $method => $activityName) {
+                $runtime->registerActivity(
+                    $activityName,
+                    new PayloadToContractMethodInvoker($handler, $contract, $method),
+                );
+            }
+        }
     }
 }

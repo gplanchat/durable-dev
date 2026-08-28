@@ -225,6 +225,25 @@ mistype and nothing to refuse at boot: the module wires what it wires. §5 is wh
 backend, and that is the point at which a choice — and therefore a way to get the choice wrong —
 starts to exist.
 
+## Declaration, since there are no tags — §3.1, built
+
+Symfony's `ActivityHandlerPass` walks tagged services and registers what their contracts declare.
+Magento has no tags, so the list comes from `di.xml`: one array of workflow class names, one array
+of activity handler objects. **The contract is deliberately not in it** — the factory reads each
+handler's interfaces and keeps those carrying `#[ActivityMethod]`. A declaration that cannot be
+written is a declaration that cannot be written wrong, and the activity names stay the attributes'
+rather than becoming strings repeated in two places.
+
+Below the list, the two hosts are the same code: `ActivityContractResolver` for the names and
+`PayloadToContractMethodInvoker` for the call. The second lived in the bundle's package while
+importing nothing from Symfony; it moved down to `gplanchat/durable` rather than being copied.
+
+**And the refusal is the mechanism, not a nicety.** `MagentoRuntime::run()` registered an unknown
+workflow on the fly, so any class ran whether or not `di.xml` named it — the declaration declared
+nothing, and the spec's *"an undeclared workflow fails at the moment of the mistake"* had been false
+since §3.2 without anyone noticing. It now throws, naming the class and the argument where classes
+are named. The forgotten deployment fails on the machine that forgot it, not in production.
+
 ## Naming, and the two conventions that disagree
 
 `gplanchat/durable-magento` on Packagist; `Gplanchat_Durable` in `registration.php`, under
