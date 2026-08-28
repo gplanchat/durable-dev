@@ -86,6 +86,13 @@ final class TemporalRunHistoryReader
                 self::labelOf($event, $type),
                 self::detailsOf($event),
                 self::actionKeyOf($event, $type),
+                // Un suffixe suffit : Temporal nomme `_STARTED` tout événement par lequel un
+                // worker prend la main. `WORKFLOW_EXECUTION_STARTED` y tombe aussi, et c'est
+                // inerte — c'est l'événement 1, rien ne le précède, donc aucun intervalle ne peut
+                // être compté comme attente devant lui. Le journal maison retient ici la même
+                // règle, `ExecutionStarted` compris, pour que les deux backends ne divergent pas
+                // sur un cas qui ne change rien.
+                str_ends_with($type, '_STARTED'),
             );
         }
 

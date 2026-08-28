@@ -140,6 +140,23 @@ final class TheTimelineGroupsByActionTest extends TestCase
         self::assertSame('App\\ShipmentWorkflow', $history[2]->label, 'la suite emprunte le nom de sa planification');
     }
 
+    public function testTheStartOfTheWorkIsMarked(): void
+    {
+        // Ce qui précède une prise en charge n'est pas du travail, c'est une file. Sans ce fait,
+        // la frise dessine deux barres identiques pour « le worker a mis vingt secondes à
+        // répondre » et « l'activité a mis vingt secondes à s'exécuter », et l'exploitant devant
+        // une exécution lente ne sait pas s'il doit regarder son code ou ses workers.
+        $history = $this->read([
+            new ActivityScheduled('exec-1', 'act-1', 'charge', [], []),
+            new ActivityTaskStarted('exec-1', 'act-1', 'charge', 1),
+            new ActivityCompleted('exec-1', 'act-1', ['receipt' => 'r-1']),
+        ]);
+
+        self::assertFalse($history[0]->started, 'planifier, ce n\'est pas commencer');
+        self::assertTrue($history[1]->started);
+        self::assertFalse($history[2]->started, 'terminer non plus');
+    }
+
     /**
      * @param list<\Gplanchat\Durable\Event\Event> $events
      *

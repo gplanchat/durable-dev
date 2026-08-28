@@ -20,6 +20,12 @@ the input an activity was called with, the value it returned, the class and mess
 An event model that carries only a label cannot answer it, and a surface built over such a model
 offers an expander that opens onto nothing.
 
+A duration is not one fact but two. Time spent waiting for someone to pick the work up and time
+spent doing the work draw the same rectangle, and the first question an operator asks of a slow run
+is which of the two they are looking at — their own code, or nobody at the other end. The
+observation model SHALL therefore say, for each event, whether the work begins there, so that an
+interval ending on such an event can be shown as a queue rather than as work.
+
 What the event carries SHALL be the backend's own vocabulary. Normalising it would mean deciding,
 for every backend, which of its facts deserve a common name — a decision worth making once
 operators have said what they look for, and a fabrication before then.
@@ -72,6 +78,16 @@ operators have said what they look for, and a fabrication before then.
 - **AND** the interval during which nothing was recorded is visible as such
 - **AND** events recorded within the same second are told apart, so a run shorter than a second
   is a timeline rather than a single stack
+
+#### Scenario: Waiting to be picked up is not shown as work
+
+- **WHEN** an operator selects a run in which a task was scheduled and only picked up by a worker
+  twenty seconds later
+- **THEN** the interval between the scheduling and the pick-up is distinguished from the intervals
+  during which the work was actually running
+- **AND** it says how long the wait lasted, and that it was a wait
+- **AND** an interval is not exaggerated to make it visible: a four-millisecond queue does not draw
+  wider than six milliseconds of work
 
 #### Scenario: A run whose history cannot be read
 

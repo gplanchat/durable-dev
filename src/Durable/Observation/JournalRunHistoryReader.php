@@ -109,6 +109,10 @@ final class JournalRunHistoryReader
                 // ce qui mérite d'être vu le jour où quelque chose ne va pas.
                 $event->payload(),
                 self::actionKeyOf($event),
+                // Même règle que le pont Temporal : l'événement par lequel le travail commence
+                // pour de bon. Ici il n'y en a que deux, et `ExecutionStarted` est inerte — il
+                // ouvre l'exécution, donc aucun intervalle ne le précède.
+                $event instanceof ActivityTaskStarted || $event instanceof ExecutionStarted,
             );
         }
 

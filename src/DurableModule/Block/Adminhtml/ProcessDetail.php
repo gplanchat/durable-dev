@@ -98,7 +98,7 @@ class ProcessDetail extends Template
      * événements — disparaîtrait dans une barre qui dit « le run a duré le temps du run ». Chaque
      * segment porte donc son intervalle : survoler la longue portion nomme l'attente.
      *
-     * @return array{span: string, actions: list<array{kind: string, label: string, duration: string, segments: list<array{from: float, width: float, title: string}>, marks: list<array{at: float, title: string}>}>}|null
+     * @return array{span: string, actions: list<array{kind: string, label: string, duration: string, segments: list<array{from: float, width: float, waiting: bool, title: string}>, marks: list<array{at: float, title: string}>}>}|null
      */
     public function getTimeline(): ?array
     {
@@ -157,10 +157,17 @@ class ProcessDetail extends Template
      * Une action d'un seul événement n'a aucun intervalle, donc aucun segment : un repère seul dit
      * déjà tout ce qu'il y a à dire d'un instant.
      *
+     * ⚠ **Un segment qui débouche sur un démarrage n'est pas du travail, c'est une file.** Le
+     * segment hérite donc du `started` de l'événement qui le **ferme** : ce qui précède la prise en
+     * charge est le temps passé à attendre qu'on veuille bien commencer. Deux barres de même
+     * longueur ne racontent pas la même chose, et l'exploitant devant une exécution lente cherche
+     * précisément à savoir laquelle des deux il regarde — son code, ou personne au bout du fil. Le
+     * gabarit hachure celle-là.
+     *
      * @param list<WorkflowRunEvent>  $group
      * @param array<int, float>       $moments
      *
-     * @return list<array{from: float, width: float, title: string}>
+     * @return list<array{from: float, width: float, waiting: bool, title: string}>
      */
     private function segments(array $group, array $moments, float $first, float $span): array
     {
@@ -174,8 +181,13 @@ class ProcessDetail extends Template
             $segments[] = [
                 'from' => $this->scale($from - $first, $span),
                 'width' => $this->scale($to - $from, $span),
+                'waiting' => $closing->started,
+                // La nature de l'intervalle est nommée dans l'infobulle : une hachure sans légende
+                // est une devinette, et celui qui survole la barre est justement celui qui veut
+                // savoir.
                 'title' => \sprintf(
-                    '%s · #%d → #%d · %s → %s',
+                    '%s%s · #%d → #%d · %s → %s',
+                    $closing->started ? 'waiting to be picked up · ' : '',
                     ReadableDuration::of($to - $from),
                     $opening->sequence,
                     $closing->sequence,

@@ -244,6 +244,28 @@ topic.
       `Observation\ReadableDuration`, à côté du modèle dont il met en forme les faits, comme
       `WorkflowRunEvent::$label` et pour la même raison.
 
+- [x] 3bis.8 **L'attente de prise en charge est hachurée.** Une barre dit une durée, pas ce qui a
+      été fait dedans : vingt-deux secondes à attendre un worker et vingt-deux secondes à exécuter
+      dessinaient le même rectangle, alors que c'est la première question de l'exploitant devant
+      une exécution lente — mon code, ou personne au bout du fil ?
+      Le port gagne `started`, « le travail commence ici » ; ce qui précède un tel événement à
+      l'intérieur de son action est une file, pas du travail. Le segment hérite du `started` de
+      l'événement qui le **ferme**.
+      Une règle de chaque côté, et volontairement la même : Temporal nomme `_STARTED` tout
+      événement par lequel un worker prend la main, le journal maison n'en a que deux.
+      `WORKFLOW_EXECUTION_STARTED` / `ExecutionStarted` y tombent des deux côtés et c'est **inerte**
+      — premier événement, rien ne le précède ; les inclure coûte zéro et évite une divergence qui
+      aurait fini gelée dans un test.
+      ⚠ **Le rendu était le vrai risque.** Les barres sont à `opacity: .35` et une file de quelques
+      millisecondes tient dans les deux pixels du `min-width` : des hachures translucides sur deux
+      pixels ne se distinguent plus de rien. La variante passe à `.75`, pas de trame 3 px, et sa
+      règle est placée **après** celles de nature — qui posent `background` en raccourci et
+      remettraient `background-image` à zéro.
+      Mesuré à travers Magento (HTTP 200, 96 791 o) : 4 actions, 19 segments, **7 hachurés /
+      12 pleins**, et le segment de 22,0 s est bien l'un d'eux. Les six autres attentes vont de 4 à
+      14 ms, réduites au sliver : c'est l'opacité qui les distingue, pas la trame — les élargir
+      ferait passer une attente de 4 ms pour plus longue qu'un travail de 6 ms.
+
 ## 4bis. What the CI can see of Magento
 
 - [x] 4bis.1 **A Mage-OS × PHP matrix, the counterpart of the Symfony one.** Five entries, each an
