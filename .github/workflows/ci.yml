@@ -364,6 +364,18 @@ jobs:
               working-directory: magento
               run: composer install --no-interaction --prefer-dist --no-progress
 
+            # ⚠ Le squelette n'est pas au dépôt — `magento/.gitignore` n'y garde que l'overlay, et
+            # le poste de développement l'avait obtenu une fois par `create-project`. Après un
+            # `composer install` nu, `bin/magento` n'existe donc pas. `mage-os/magento2-base` porte
+            # ces fichiers ; on les déploie comme le ferait le plugin d'installation, sans écraser
+            # ce que l'overlay a déjà posé (`-n`).
+            - name: Déployer le squelette Magento
+              working-directory: magento
+              run: |
+                cp -Rn vendor/mage-os/magento2-base/. . || true
+                test -f bin/magento
+                chmod +x bin/magento
+
             - name: Installation de Magento
               working-directory: magento
               run: |
