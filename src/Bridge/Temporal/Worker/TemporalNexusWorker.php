@@ -213,10 +213,10 @@ final readonly class TemporalNexusWorker
         // jamais, sans que rien ne le signale.
         $nexusCallback = new NexusCallback();
         $nexusCallback->setUrl((string) $task->getCallback());
-        $header = $task->getCallbackHeader();
-        if (null !== $header) {
-            $nexusCallback->setHeader($header);
-        }
+        // `getCallbackHeader()` rend toujours une MapField, vide au besoin : il n'y a pas de cas
+        // « pas d'en-tête » à distinguer, et le recopier tel quel est ce qui préserve ce que le
+        // serveur a mis dedans.
+        $nexusCallback->setHeader($task->getCallbackHeader());
         $callback = new Callback();
         $callback->setNexus($nexusCallback);
 
