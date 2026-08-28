@@ -163,8 +163,16 @@ topic.
       cluster — `TemporalWorkflowRunCatalog`, which the bridge already ships.
 - [ ] 5.2 The bench's `compose.yaml` Temporal stack runs a workflow from an order placed in the
       storefront to a completed execution visible in the Temporal UI.
-- [ ] 5.3 The failure OST003 names — **half measured, and the half that holds is the one that
-      matters**. Killed with `kill -9` mid-reservation and restarted under the same execution id,
+- [x] 5.3 **The failure OST003 names is gone, measured end to end.** An execution started on the
+      cluster, both workers killed with `kill -9` during the stock reservation, both restarted:
+      the order completes — `'notify:charge:ORD-acceptation-…'` — and the card is charged
+      **exactly once**.
+      It needed two things, not one: an activity worker (`--role=activity`), because on Temporal an
+      activity is a task somebody must take; and a way to start an execution **on the cluster**
+      (`WorkflowClient::startAsync()`), because `MagentoRuntime::run()` executes in-process and its
+      activities die with it whatever journal sits underneath. The first alone would have changed
+      nothing.
+      *Previously, and kept for the record:* Killed with `kill -9` mid-reservation and restarted under the same execution id,
       three times: **the card is charged exactly once**. The journal replays what it recorded. What
       does *not* yet happen is the execution running to completion — `WorkflowStuckException`,
       because `reserve` was dispatched into the dead process's in-memory activity transport and
