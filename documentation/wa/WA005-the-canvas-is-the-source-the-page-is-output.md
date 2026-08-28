@@ -31,7 +31,24 @@ stops being an event to fear, because there is nothing in the output that the so
 
 The rule is unenforceable while the canvas lives outside the repository. Making it real means:
 
-1. **Committing the canvas source** — the `.dc.html` file — next to the script that reads it.
+1. ~~**Committing the canvas source** — the `.dc.html` file — next to the script that reads it.~~
+   **Done.** `hugo-docs/variant-b-narrative.dc.html` and `…-fr.dc.html`, exported from the
+   *Durable landing design* project by `designer handoff`, which is the only export that returns the
+   canvas source rather than the served page — `designer fetch` returns the latter, and
+   `import-design.py` refuses it with *racine introuvable*.
+
+   **And committing them measured the drift for the first time.** Regenerating both pages from the
+   canvas as it stands today would delete, from each language:
+
+   - the whole **Nexus section** — the nav entry and `<section id="nexus">`, some ninety lines —
+     written straight into the pages and never into the canvas;
+   - the two package rows added by #202 and #206, `gplanchat/durable-bridge-illuminate` and
+     `gplanchat/durable-laravel`, with the badge that counts the backends.
+
+   That is the third and fourth loss the working agreement was written to stop, caught **before**
+   the regeneration instead of after it. Neither is ported yet: the canvas is committed as it is,
+   truthfully out of date, and the guard in `import-design.py` refuses to overwrite until someone
+   reconciles the two.
 2. ~~**A CI check** that re-runs `import-design.py` on the committed source and fails if the result
    differs from the committed `layouts/index.html`.~~ **Done, and not that way.** Re-running the
    import in CI needs the canvas, which (1) has not delivered — so the guard was put where the loss
