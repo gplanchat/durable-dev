@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!--
+    Sujet de sonde du §1.3 : mesurer ce qu'un consommateur laisse derrière lui
+    quand son processus meurt au milieu d'un message. Le banc n'a pas d'AMQP,
+    donc c'est `Magento\MysqlMq` qui répond — et sa redélivrance n'a pas les
+    règles d'AMQP.
+
+    Il vit au banc et n'entre pas dans `gplanchat/durable-magento` : un sujet
+    dont le gestionnaire ne fait que dormir n'a rien à faire dans un paquet
+    publié. Les quatre fichiers de la 4.1 (reprise, activité, signal, update,
+    minuterie) s'écriront dans le module, pas ici.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Communication/etc/communication.xsd">
+    <topic name="gplanchat.durable.probe" request="string">
+        <handler name="durableProbe" type="Gplanchat\DurableProbe\Queue\ProbeHandler" method="process"/>
+    </topic>
+</config>

@@ -73,7 +73,18 @@
 
 ## 2. The task worker
 
-- [ ] 2.1 RED: a poll returning a task routes to a registered handler.
+- [x] 2.1 **Routing exists, and it has no I/O.** `NexusOperationRegistry` declares a handler for a
+      (service, operation) pair and dispatches a payload to it; `NexusOperationResponse` carries the
+      two shapes; `NexusOperationNotHandledException` refuses an operation nobody serves, typed
+      `NOT_IMPLEMENTED` — the **terminal** side of 1b.3's table, so an unserved operation is not
+      re-asked every ~9 s for the whole operation budget.
+      The response contract is `fulfilledByWorkflow()`, not `startedAsynchronously($token)`, on the
+      probe's evidence — see §3.
+      **Pulled forward out of order**, because 3.1 cannot exist without a dispatch surface. Section
+      2's *synchronous response over gRPC* still lands after section 3, as 1b.1 arbitrated. The
+      half of this task that says "a poll returning a task" belongs to the worker, 2.2.
+      Spec note: the scenario *"and the component keeps serving its other operations"* is a poll-loop
+      property and is **not covered** by this tranche.
 - [ ] 2.2 GREEN: poll loop, dispatch, `RespondNexusTaskCompleted` for the synchronous shape.
 - [ ] 2.3 Failure path: a throwing handler responds `RespondNexusTaskFailed`, classified the way
       the caller side already classifies.
@@ -81,7 +92,13 @@
 
 ## 3. The asynchronous shape — both sides
 
-- [ ] 3.1 A handler that fulfils an operation with a workflow.
+- [ ] 3.1 A handler that fulfils an operation with a workflow. **The hypothesis is now measured,
+      the build is not.** `NexusAsynchronousFulfilmentTest` proves against a real server that a
+      workflow started with the task's `callback` in `completion_callbacks` completes the caller's
+      operation with its own result, and that removing that attachment — nothing else — leaves the
+      caller stuck at `NEXUS_OPERATION_STARTED` forever. What remains is the worker doing it: read
+      `callback` and `callbackHeader` off the start task, attach them to the workflow it starts,
+      and answer `RespondNexusTaskCompleted` with an async token derived from that workflow.
 - [ ] 3.2 The caller receives that workflow's result as the operation's result.
 - [ ] 3.3 The workflow fails: the caller sees an operation failure, classified.
 - [x] 3.4 **Caller side, found by the probe. Done.** The caller refused an async response: on
