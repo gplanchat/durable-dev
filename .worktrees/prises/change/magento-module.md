@@ -1,34 +1,17 @@
 # change/magento-module
 
-Worktree : `.claude/worktrees/magento`. PR **#168** — tranche **1.3**, verte
-(22/22), `CLEAN / MERGEABLE`, en attente de fusion par l'auteur.
+Worktree : `.claude/worktrees/magento`. PR #168 fusionnée — 1.1 à 1.4, 2.1, 2.2,
+3.2 sont livrées.
 
-Ce qu'elle établit : un consommateur tué au milieu d'un message laisse la ligne
-`IN_PROGRESS` avec zéro essai et un verrou dans `queue_lock`, sans lettre morte
-ni trace. Le rattrapage demande deux tâches cron, et **leur ordre décide** : une
-reprise qui arrive avant la purge du verrou fait acquitter le message *sans le
-distribuer*. Les défauts livrés (un jour de reprise, purge horaire) sauvent la
-mise ; les raccourcir ne le fait plus.
+Tranche en cours : **1.5** — un consommateur Magento face à un transport en
+longue interrogation. L'instrument existe déjà (le module de sonde du banc, dont
+le gestionnaire tient un message aussi longtemps qu'on lui dit).
 
-L'instrument vit au **banc** (`magento/app/code/Gplanchat/DurableProbe`), pas
-dans le paquet publié : un sujet dont le gestionnaire ne fait que dormir n'est
-aucun des cinq rôles de la 4.1.
-
-Prochaine tranche : **1.5** — un consommateur face à un transport en longue
-interrogation. Le sujet de sonde de la #168 est déjà l'instrument.
-
-⚠ Trois frictions du banc, à savoir avant d'y toucher :
-- les dépôts de chemin sont en `"symlink": false`, donc éditer `src/DurableModule`
-  ne change rien à `magento/vendor/gplanchat/durable-magento` tant qu'on n'y a
-  pas recopié les fichiers ;
-- un module d'`app/code` ne s'autocharge pas sur Mage-OS : son entrée `psr-4`
-  est dans `magento/composer.json`, et le message d'erreur ne désigne pas sa
-  cause ;
-- la copie principale portait des copies **non suivies** de l'overlay `magento/`
-  et de `src/DurableModule` qui bloquaient `git merge` — écartées vers un
-  scratchpad, le merge les a réécrites à l'identique.
-
-Débris de banc laissés par la campagne, sans conséquence : des messages de sonde
-dans `queue_message`, deux lignes dans `queue_lock`, et une ligne
-`core_config_data` pour `retry_inprogress_after` (remise à `1440`, sa valeur
-livrée, mais la ligne n'existait pas avant).
+Trois questions, dans l'ordre où elles mordent :
+1. `queue:consumers:start` supporte-t-il un gestionnaire qui tient des minutes,
+   ou impose-t-il sa propre limite ?
+2. la connexion MySQL survit-elle ? (`wait_timeout` du banc : 28800 s)
+3. **la minuterie de reprise redistribue-t-elle le message pendant qu'il est
+   encore traité ?** C'est la question qui compte : un worker en longue
+   interrogation tient un message par construction, et la 1.3 a montré que la
+   reprise ne demande à personne si le premier a fini.
