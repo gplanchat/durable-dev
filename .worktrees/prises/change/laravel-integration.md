@@ -1,5 +1,5 @@
 # change/laravel-integration
 
-- **Chantier** : paquet d'intégration Laravel — phases 1 et 2 livrées (PR #178, #180, #184, #186, #189, #191), §3 en cours : le travail passe par la file de Laravel
+- **Chantier** : paquet d'intégration Laravel — §1 et §2 livrées, §3.1/3.2/3.3 aussi ; tranche 3.4 en cours : un worker tué en pleine activité reprend sans rejouer ce qui était journalisé
 - **Entrées** : `openspec/changes/laravel-integration/`, `src/DurableLaravel/`, `tests/unit/DurableLaravel/`
 - **État** : en cours
