@@ -4,12 +4,17 @@ Des images PHP qui portent déjà **`grpc`** et **`protobuf`**, construites une 
 qu'à chaque `docker build` d'un projet.
 
 ```
-ghcr.io/gplanchat/php-grpc:8.3-cli
-ghcr.io/gplanchat/php-grpc:8.3-cli-alpine
+ghcr.io/gplanchat/php-grpc:8.3-cli          ghcr.io/gplanchat/php-grpc:8.3-zts
+ghcr.io/gplanchat/php-grpc:8.3-cli-alpine   ghcr.io/gplanchat/php-grpc:8.3-zts-alpine
 ```
 
-PHP 8.2, 8.3 et 8.4, en `cli` et `cli-alpine`. Chaque publication pose aussi une étiquette datée
-(`8.3-cli-alpine-20260828`) pour qui veut épingler.
+PHP 8.2, 8.3, 8.4 et 8.5, en Debian et en Alpine, **avec et sans thread-safety**. Chaque
+publication pose aussi une étiquette datée (`8.3-cli-alpine-20260828`) pour qui veut épingler.
+
+Les variantes `zts` ne sont pas un raffinement : une extension compilée pour un PHP non thread-safe
+refuse de se charger dans un PHP thread-safe, et réciproquement. Un runtime qui exécute plusieurs
+workers dans un même processus réclame `zts` ; le reste du monde PHP tourne en `cli`. Aucune des
+deux ne couvre l'autre, d'où les quatre déclinaisons.
 
 ## Ce que ces images ne sont pas
 
@@ -67,9 +72,23 @@ n'est pas chargeable **dans la couche construite** ; le workflow relance ensuite
 
 ## Reconstruire
 
-Le workflow part à la main (`workflow_dispatch`), sur modification du `Dockerfile`, et **une fois
-par mois**. Ce dernier déclencheur n'est pas du zèle : ces images embarquent les paquets système de
-leur base, et une image figée six mois accumule des correctifs de sécurité qu'elle n'a pas.
+Quatre façons de le déclencher :
+
+| Déclencheur | Quand |
+| --- | --- |
+| `workflow_dispatch` | à la main, depuis l'onglet Actions |
+| `repository_dispatch` | par webhook : `gh api repos/:owner/:repo/dispatches -f event_type=php-grpc-images` |
+| `push` sur `main` | le `Dockerfile` ou le workflow ont changé |
+| `schedule` | tous les lundis |
+
+La cadence hebdomadaire n'est pas du zèle. Deux choses vieillissent dans ces images, et pas au même
+rythme : les paquets système de la base, et PHP lui-même, dont les versions correctives sortent
+chaque mois. Reconstruire chaque semaine garde l'écart avec `php:8.4-cli` à quelques jours, et le
+cache Buildx rend la reconstruction bon marché quand rien n'a bougé en amont.
+
+La publication n'a lieu que depuis `main`. Sur une pull request, le workflow construit sans pousser :
+c'est la compilation qu'on veut vérifier, et une étiquette glissante ne doit pas désigner un essai
+non relu.
 
 `arm64` est proposé en option et pas par défaut : il passe par QEMU, et émuler une compilation C++
 coûte bien plus que de la compiler.

@@ -28,6 +28,14 @@ RUN install-php-extensions grpc protobuf
 # consommateur.
 RUN php -m | grep -qx grpc && php -m | grep -qx protobuf
 
+# Et la thread-safety doit correspondre à l'étiquette qu'on s'apprête à poser. Une extension
+# compilée pour un PHP non thread-safe refuse de se charger dans un PHP thread-safe : publier un
+# binaire NTS sous `…-zts` parce que la base a été mal résolue donnerait une image verte et
+# inutilisable. `php -m` ne dit rien de cet axe-là, il faut le demander séparément.
+ARG FLAVOUR
+RUN attendu="$(case "$FLAVOUR" in zts*) echo enabled;; *) echo disabled;; esac)" \
+ && php -i | grep -q "Thread Safety => $attendu"
+
 LABEL org.opencontainers.image.title="php-grpc" \
       org.opencontainers.image.description="PHP with the grpc and protobuf extensions, built once so nobody rebuilds them." \
       org.opencontainers.image.source="https://github.com/gplanchat/durable-dev" \
