@@ -2,32 +2,33 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Bundle\Handler;
+namespace Gplanchat\Durable\Handler;
 
-use Gplanchat\Durable\Bundle\Support\AsyncChildWorkflowFailureProjector;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\Exception\WorkflowCancelledException;
 use Gplanchat\Durable\Exception\WorkflowSuspendedException;
 use Gplanchat\Durable\ExecutionEngine;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
+use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Timer\TimerWakeDelayCalculator;
-use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
+use Gplanchat\Durable\Workflow\AsyncChildWorkflowFailureProjector;
 use Gplanchat\Durable\Workflow\PendingUpdate;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
-use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Messenger\Envelope;
-use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\Messenger\Stamp\DelayStamp;
-use Symfony\Component\Messenger\Stamp\DispatchAfterCurrentBusStamp;
-use Symfony\Component\Uid\Uuid;
 
-#[AsMessageHandler]
+/*
+ * Descendu du paquet du bundle vers le cœur. Ce n'était pas un adaptateur d'hôte : sur 138 lignes,
+ * quinze imports venaient du cœur et six de Symfony, ces six-là ne servant qu'à deux choses — un
+ * identifiant v7, que `ExecutionId` fabrique déjà, et le réveil des minuteries, qui est désormais
+ * un port. Six hôtes du sélecteur ne passent pas par le bundle ; les y laisser aurait voulu dire
+ * autant de copies de la sémantique de reprise, divergentes à la première correction.
+ */
 final class ResumeWorkflowHandler
 {
     public function __construct(
@@ -37,7 +38,7 @@ final class ResumeWorkflowHandler
         private readonly WorkflowResumeDispatcher $resumeDispatcher,
         private readonly EventStoreInterface $eventStore,
         private readonly ChildWorkflowParentLinkStoreInterface $childWorkflowParentLinkStore,
-        private readonly MessageBusInterface $messageBus,
+        private readonly WorkflowTimerDispatcher $timerDispatcher,
         private readonly WorkflowDefinitionLoader $workflowDefinitionLoader,
     ) {}
 
@@ -79,18 +80,14 @@ final class ResumeWorkflowHandler
                     if (null === $ms) {
                         $ms = 0;
                     }
-                    $stamps = [new DispatchAfterCurrentBusStamp()];
-                    if ($ms > 0) {
-                        $stamps[] = new DelayStamp($ms);
-                    }
-                    $this->messageBus->dispatch(new Envelope(new FireWorkflowTimersMessage($executionId), $stamps));
+                    $this->timerDispatcher->dispatchTimerFire($executionId, max(0, $ms));
                 }
             }
 
             return;
         } catch (ContinueAsNewRequested $e) {
             $this->metadataStore->delete($executionId);
-            $newExecutionId = (string) Uuid::v7();
+            $newExecutionId = ExecutionId::generate()->toString();
             $nextAlias = $this->workflowDefinitionLoader->aliasForTemporalInterop($e->workflowType);
             $this->metadataStore->save($newExecutionId, $nextAlias, $e->payload);
             $this->resumeDispatcher->dispatchNewWorkflowRun($newExecutionId, $nextAlias, $e->payload);

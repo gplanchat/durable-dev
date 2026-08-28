@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Bundle\Support;
+namespace Gplanchat\Durable\Workflow;
 
 use Gplanchat\Durable\Event\ChildWorkflowFailed;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
