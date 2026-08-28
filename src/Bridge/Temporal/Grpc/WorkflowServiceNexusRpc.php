@@ -6,6 +6,8 @@ namespace Gplanchat\Bridge\Temporal\Grpc;
 
 use Temporal\Api\Workflowservice\V1\PollNexusTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollNexusTaskQueueResponse;
+use Temporal\Api\Workflowservice\V1\RequestCancelWorkflowExecutionRequest;
+use Temporal\Api\Workflowservice\V1\RequestCancelWorkflowExecutionResponse;
 use Temporal\Api\Workflowservice\V1\RespondNexusTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\RespondNexusTaskCompletedResponse;
 use Temporal\Api\Workflowservice\V1\RespondNexusTaskFailedRequest;
@@ -21,6 +23,10 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * sonde 3.1 a montré que ce qui règle une opération différée est le `callback` de la tâche attaché
  * au workflow qui la remplit, via `completion_callbacks` — un champ qui ne se pose qu'au démarrage.
  * Démarrer ce workflow fait donc partie du geste de réponse, pas d'un autre.
+ *
+ * `RequestCancelWorkflowExecution` y figure pour la même raison : la sonde §4 a montré que la
+ * tâche d'annulation nomme le jeton rendu au démarrage, et que ce jeton est le workflow qui porte
+ * l'opération. Annuler l'opération, c'est annuler ce workflow.
  *
  * @see \Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker
  */
@@ -90,6 +96,22 @@ final readonly class WorkflowServiceNexusRpc
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
         $r = GrpcUnary::wait($this->client->StartWorkflowExecution($request, $metadata, $opts));
         \assert($r instanceof StartWorkflowExecutionResponse);
+
+        return $r;
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     * @param array<string, mixed> $callOptions
+     */
+    public function requestCancelWorkflowExecution(
+        RequestCancelWorkflowExecutionRequest $request,
+        array $metadata = [],
+        array $callOptions = [],
+    ): RequestCancelWorkflowExecutionResponse {
+        $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
+        $r = GrpcUnary::wait($this->client->RequestCancelWorkflowExecution($request, $metadata, $opts));
+        \assert($r instanceof RequestCancelWorkflowExecutionResponse);
 
         return $r;
     }
