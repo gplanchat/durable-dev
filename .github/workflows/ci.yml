@@ -379,13 +379,13 @@ jobs:
             - name: Le module est là
               working-directory: magento
               run: |
-                # Deux modules, et la distinction est le sujet : `Gplanchat_Durable` est le paquet
+                # Deux modules, et la distinction est le sujet : `Gplanchat_DurableModule` est le paquet
                 # publié — il ne déclare aucun workflow. `Gplanchat_DurableProbe` est le module du
                 # **banc**, qui porte la démonstration et les sondes, et qui n'ira jamais chez un
                 # utilisateur. C'est lui qui fournit `durable:demo` à l'étape suivante.
-                bin/magento module:enable Gplanchat_Durable Gplanchat_DurableProbe
+                bin/magento module:enable Gplanchat_DurableModule Gplanchat_DurableProbe
                 bin/magento setup:upgrade --keep-generated
-                bin/magento module:status Gplanchat_Durable | tee /tmp/status.txt
+                bin/magento module:status Gplanchat_DurableModule | tee /tmp/status.txt
                 grep -q 'Module is enabled' /tmp/status.txt
 
             # L'assertion qui vaut le prix du job : un workflow écrit une fois tourne dans Magento,

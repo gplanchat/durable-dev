@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\DurableProbe\Console\Command;
 
-use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
+use Gplanchat\DurableModule\Runtime\RuntimeFactory;
 use Gplanchat\DurableProbe\Workflow\PlaceOrderWorkflow;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;

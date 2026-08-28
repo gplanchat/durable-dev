@@ -134,6 +134,12 @@ topic.
       which is where test material belonged in the first place — they exercise the declaration
       mechanism, not any particular workflow.
 
+- [x] 3bis.2 **One PSR-4 root, and the special case disappears.** The module is
+      `Gplanchat_DurableModule`, the package autoloads under `Gplanchat\DurableModule\`, and the
+      second `psr-4` entry that existed only for `Controller/` is gone. Magento composes an admin
+      action from the *module name*; once that name and the PSR-4 root agree there is nothing extra
+      to declare. Author's decision — the earlier shape treated the symptom.
+
 ## 4bis. What the CI can see of Magento
 
 - [x] 4bis.1 **A Mage-OS × PHP matrix, the counterpart of the Symfony one.** Five entries, each an

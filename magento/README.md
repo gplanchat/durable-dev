@@ -53,12 +53,12 @@ bin/magento setup:install \
   --search-engine=opensearch --opensearch-host=127.0.0.1 --opensearch-port=9201 \
   --backend-frontname=admin
 
-bin/magento module:enable Gplanchat_Durable
+bin/magento module:enable Gplanchat_DurableModule
 bin/magento setup:upgrade
 bin/magento cache:flush
 ```
 
-Le module s'appelle **`Gplanchat_Durable`** et son paquet Composer
+Le module s'appelle **`Gplanchat_DurableModule`** et son paquet Composer
 **`gplanchat/durable-magento`** — les deux conventions ne se croisent pas, et le
 `registration.php` du module explique pourquoi.
 
@@ -69,7 +69,7 @@ module d'intégration n'a pas à faire porter à un projet des workflows qui ne 
 pas les siens.
 
 ```bash
-bin/magento module:enable Gplanchat_Durable Gplanchat_DurableProbe
+bin/magento module:enable Gplanchat_DurableModule Gplanchat_DurableProbe
 ```
 
 ## Le voir tourner
@@ -167,7 +167,7 @@ se manifeste là où elle est commise.
   composant et autocharger ses classes sont deux mécanismes distincts, et seul le premier est
   automatique.
 - **Un contrôleur se résout par convention depuis le nom du module**, pas depuis l'autochargement :
-  `Gplanchat_Durable` + `\Controller\Adminhtml\…`. Le module ajoute donc une seconde entrée `psr-4`
+  `Gplanchat_DurableModule` + `\Controller\Adminhtml\…`. Le module ajoute donc une seconde entrée `psr-4`
   pour ce seul dossier. Sans elle, la route est déclarée, **le menu s'affiche**, et Magento sert son
   404 dans le châssis d'admin — tous les symptômes désignent la déclaration, qui est juste.
 - **Un argument de constructeur optionnel n'est pas auto-câblé** : Magento prend son défaut. Il faut

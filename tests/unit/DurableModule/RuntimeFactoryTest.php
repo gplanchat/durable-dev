@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace unit\Gplanchat\Durable\Magento;
+namespace unit\DurableModule;
 
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
-use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
+use Gplanchat\DurableModule\Runtime\RuntimeFactory;
 use PHPUnit\Framework\TestCase;
 use unit\DurableModule\Fixture\OrderWorkflow;
 use unit\DurableModule\Fixture\RecordingOrderActivities;

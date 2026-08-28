@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace unit\Gplanchat\Durable\Magento;
+namespace unit\DurableModule;
 
-use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
-use Gplanchat\Durable\Magento\Runtime\UndeclaredWorkflowException;
+use Gplanchat\DurableModule\Runtime\RuntimeFactory;
+use Gplanchat\DurableModule\Runtime\UndeclaredWorkflowException;
 use PHPUnit\Framework\TestCase;
 use unit\DurableModule\Fixture\OrderWorkflow;
 use unit\DurableModule\Fixture\RecordingOrderActivities;

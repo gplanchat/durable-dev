@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Magento\Block\Adminhtml;
+namespace Gplanchat\DurableModule\Block\Adminhtml;
 
-use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
+use Gplanchat\DurableModule\Runtime\RuntimeFactory;
 use Magento\Backend\Block\Template;
 use Magento\Backend\Block\Template\Context;
 

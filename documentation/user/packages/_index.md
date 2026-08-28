@@ -191,7 +191,7 @@ composer require gplanchat/durable-magento
 > Packagist, so the command above does not resolve today. Everything below describes what is built,
 > not what you can install.
 
-A Magento 2.4 / Mage-OS module — `Gplanchat_Durable` in `bin/magento module:status`. It declares
+A Magento 2.4 / Mage-OS module — `Gplanchat_DurableModule` in `bin/magento module:status`. It declares
 workflow and activity classes to the runtime, assembles the engine for a Magento process, ships the
 workers as `bin/magento` commands, and adds a read-only admin screen under
 **System > Durable processes > Process history**.
@@ -200,7 +200,7 @@ Magento's container has no equivalent of Symfony's tag autoconfiguration, so dec
 explicit — two arrays in `di.xml`:
 
 ```xml
-<type name="Gplanchat\Durable\Magento\Runtime\RuntimeFactory">
+<type name="Gplanchat\DurableModule\Runtime\RuntimeFactory">
     <arguments>
         <argument name="workflowClasses" xsi:type="array">
             <item name="place_order" xsi:type="string">Acme\Shop\Workflow\PlaceOrder</item>

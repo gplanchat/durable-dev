@@ -3,9 +3,9 @@
       xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <body>
         <referenceContainer name="content">
-            <block class="Gplanchat\Durable\Magento\Block\Adminhtml\ProcessHistory"
+            <block class="Gplanchat\DurableModule\Block\Adminhtml\ProcessHistory"
                    name="durable.process.history"
-                   template="Gplanchat_Durable::process/history.phtml"/>
+                   template="Gplanchat_DurableModule::process/history.phtml"/>
         </referenceContainer>
     </body>
 </page>

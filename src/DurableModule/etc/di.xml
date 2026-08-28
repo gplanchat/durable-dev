@@ -10,7 +10,7 @@
     <type name="Magento\Framework\Console\CommandListInterface">
         <arguments>
             <argument name="commands" xsi:type="array">
-                <item name="durable_worker" xsi:type="object">Gplanchat\Durable\Magento\Console\Command\RunWorkerCommand</item>
+                <item name="durable_worker" xsi:type="object">Gplanchat\DurableModule\Console\Command\RunWorkerCommand</item>
             </argument>
         </arguments>
     </type>
@@ -33,7 +33,7 @@
             <item name="place_order" xsi:type="string">Acme\Shop\Workflow\PlaceOrder</item>
             <item name="order" xsi:type="object">Acme\Shop\Activity\OrderActivities</item>
     -->
-    <type name="Gplanchat\Durable\Magento\Runtime\RuntimeFactory">
+    <type name="Gplanchat\DurableModule\Runtime\RuntimeFactory">
         <arguments>
             <argument name="workflowClasses" xsi:type="array">
             </argument>
