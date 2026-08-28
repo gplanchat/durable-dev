@@ -10,6 +10,7 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
+use Gplanchat\Durable\Laravel\Workflow\DeclaredWorkflowTypes;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
@@ -18,6 +19,7 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
+use Gplanchat\Durable\WorkflowRegistry;
 use Illuminate\Cache\NullStore;
 use Illuminate\Database\Connection;
 use Illuminate\Support\ServiceProvider;
@@ -53,6 +55,7 @@ final class DurableServiceProvider extends ServiceProvider
 
         $backend === 'illuminate' ? $this->bindIlluminate($config) : $this->bindInMemory();
         $this->bindResumeLock($config);
+        $this->bindWorkflowRegistry($config);
     }
 
     public function boot(): void
@@ -145,6 +148,30 @@ final class DurableServiceProvider extends ServiceProvider
             WorkflowRunCatalogInterface::class,
             fn($app) => new InMemoryWorkflowRunCatalog($app->make(EventStoreInterface::class)),
         );
+    }
+
+    /** @param array<string, mixed> $config */
+    private function bindWorkflowRegistry(array $config): void
+    {
+        /** @var list<class-string> $declared */
+        $declared = $config['workflows'] ?? [];
+
+        $this->app->singleton(WorkflowRegistry::class, static function () use ($declared): WorkflowRegistry {
+            $registry = new WorkflowRegistry();
+
+            foreach ($declared as $workflowClass) {
+                // Le registre indexe chaque classe deux fois : sous le nom que son attribut déclare
+                // et sous son FQCN. Une reprise qui n'a que l'un des deux résout quand même.
+                $registry->registerClass($workflowClass);
+            }
+
+            return $registry;
+        });
+
+        $this->app->singleton(DeclaredWorkflowTypes::class, fn($app) => new DeclaredWorkflowTypes(
+            $app->make(WorkflowRegistry::class),
+            $declared,
+        ));
     }
 
     /** @param array<string, mixed> $config */
