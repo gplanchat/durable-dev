@@ -74,6 +74,26 @@ The rule is unenforceable while the canvas lives outside the repository. Making 
    **What it does not catch:** an edit made and imported over in the same breath, and the canvas
    drifting away from the committed pages. Only (1) closes those.
 
+### The drift is bidirectional, and that is what makes it a decision
+
+Committing the canvas made the gap measurable, and measuring it found something the agreement did
+not anticipate: **the repository and the canvas are each ahead of the other, in different places.**
+Converging in either direction alone regresses something real.
+
+| where | which side is ahead | what regresses if you take the other |
+|---|---|---|
+| the Nexus section, the package rows, the six integrations removed, the Laravel chips | **the repository** | ninety lines of section, and a chooser offering packages nobody publishes |
+| `--accent2` | **the repository** — `PALETTE` lives in `import-design.py`; the canvas hard-codes `accent2: dark ? '#6bb0a6' : '#2f6f6b'` and does not follow the accent variant | dark theme falls to 2.98 contrast on `bg2`, below AA |
+| `DIST_ALLOWED.none` | **the canvas** — it offers `illuminate`, the page does not | a bridge that works standalone (its own conformance suite runs on Capsule, no framework) becomes unreachable, and the page contradicts its own `WHYNOT.none`: *"on plain PHP both SQL bridges are open"* |
+
+So "the canvas is the source" is true of **markup and layout**, and false of anything the script owns
+(the palette) or that a product decision moved (the chooser's data). A regeneration is therefore not
+a mechanical replay: it is a family-by-family arbitration, and the guard in `import-design.py` exists
+to force that arbitration to happen in daylight rather than at write time.
+
+**What is still missing is not code.** It is a moment when nobody is editing `layouts/`, and one
+decision per family. Five commits landed on those two files during the afternoon this was measured.
+
 Until (1) exists, this working agreement is a convention with an alarm on it. It is written down
 anyway, because three losses in one night were three people each reasonably believing they were
 doing the normal thing.
