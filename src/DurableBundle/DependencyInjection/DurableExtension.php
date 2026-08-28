@@ -334,6 +334,10 @@ final class DurableExtension extends Extension
                 ->setArguments([new Reference('durable.temporal.workflow_service_client')])
             ;
 
+            $container->register(WorkflowServiceNexusRpc::class)
+                ->setArguments([new Reference('durable.temporal.workflow_service_client')])
+            ;
+
             $container->register(WorkflowClient::class)
                 ->setArguments([
                     new Reference('durable.temporal.workflow_service_client'),
