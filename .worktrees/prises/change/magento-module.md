@@ -58,11 +58,30 @@ migration de sa rupture : set Rector cumulatif `durable-upgrade.php`, `UPGRADE.m
 à la racine (le dépôt n'avait aucun endroit où documenter une montée de version),
 et ce que Rector ne peut pas faire écrit en toutes lettres — un conteneur Symfony
 compilé garde le nom pleinement qualifié et veut son `cache:clear`.
-⚠ La session `splitsh-integration-alpha8` déplace elle aussi une classe de paquet
-(`AsDurableActivity` du bundle vers le cœur, sous `AsActivityHandler`) : son
-renommage va dans le **même** set, pas dans un second. Prévenue.
+⚠ C'est **`chantier-nexus`**, pas `splitsh-integration-alpha8`, qui déplace
+`AsDurableActivity` du bundle vers le cœur sous `AsActivityHandler` : son
+renommage va dans le **même** set, pas dans un second. Prévenu. (La session
+`splitsh-integration-alpha8` est sur le chantier Laravel et ne touche à rien de
+tout ça — je m'étais trompé de destinataire.)
 
-Prochaine tranche : **tâche 4** — `communication.xml`, `queue_topology.xml`,
+Tranche **en cours** : **4.1**, les quatre XML de file.
+
+Conception, avant d'écrire : les cinq rôles ont des formes différentes côté cœur.
+La reprise a un vrai port host-neutre — `WorkflowResumeDispatcher`, qui ne prend
+que des scalaires et des tableaux. L'activité passe par `ActivityTransportInterface`,
+qui manipule des `ActivityMessage`. Signal, update et minuterie n'ont pas de port :
+ce sont des messages Messenger que des gestionnaires du bundle traitent.
+
+Question à **mesurer avant de déclarer** : l'encodeur de Magento accepte-t-il un
+objet de transport de Durable comme type de `request` dans `communication.xml` ?
+Ces objets ont des propriétés publiques `readonly` et aucun accesseur, là où
+`DataObjectProcessor` attend des getters — donc probablement non, et il faudra
+des `string[]` portant les arguments du port. Mais « probablement » est ce qu'une
+sonde existe pour lever, et l'instrument est déjà là
+(`app/code/Gplanchat/DurableProbe`). Les objets du cœur ne doivent en aucun cas
+gagner des accesseurs à la forme de Magento.
+
+Après : **tâche 4** (4.2, 4.3) — `communication.xml`, `queue_topology.xml`,
 `queue_publisher.xml`, `queue_consumer.xml` pour les cinq rôles (4.1), les
 gestionnaires (4.2), et le verrou par exécution avec son test (4.3). Les quatre
 sondages de la tâche 1 l'ont dessinée : la file n'offre **aucune** exclusion
