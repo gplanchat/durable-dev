@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+    <menu>
+        <add id="Gplanchat_Durable::processes" title="Durable processes" module="Gplanchat_Durable"
+             sortOrder="90" parent="Magento_Backend::system" resource="Gplanchat_Durable::processes"/>
+        <add id="Gplanchat_Durable::process_history" title="Process history" module="Gplanchat_Durable"
+             sortOrder="10" parent="Gplanchat_Durable::processes"
+             action="durable/process/history" resource="Gplanchat_Durable::process_history"/>
+    </menu>
+</config>

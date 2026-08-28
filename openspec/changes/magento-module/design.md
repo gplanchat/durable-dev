@@ -55,7 +55,7 @@ The module's job is to provide the right-hand column and **nothing else**. Every
 ports — replay, the command buffer, the journal, failure classification — is `gplanchat/durable`
 unchanged, exactly as the DBAL bridge leaves it unchanged.
 
-## Three host constraints, found by trying
+## Six host constraints, found by trying
 
 None was in the design before the module was written, and each cost a debugging round:
 
@@ -126,6 +126,29 @@ Messenger detail, and Magento has no reason to learn them.
 the definition of handler … is not available"*. A declaration therefore cannot land inert: §4.1
 carries real handlers for the roles it declares, and §4.2 adds the remaining roles rather than
 adding behaviour under a declaration that already shipped.
+
+### Three more, found by putting a screen in the admin — §5.1
+
+**Magento resolves a controller by convention from the *module name*, not from the autoloader.**
+`ActionList::get()` composes `Gplanchat_Durable` + `\Controller\Adminhtml\…`, so the class must be
+`Gplanchat\Durable\Controller\…` — while the package autoloads under
+`Gplanchat\Durable\Magento\`. That is the bill for the two conventions this design chose on
+purpose (family-first package name, Magento-first module name), and it comes due in exactly one
+place. The module's `composer.json` therefore carries a second `psr-4` entry for `Controller/`
+alone. Until it did, the route was declared, `getRouteFrontName()` answered `durable`, **the menu
+rendered**, and Magento served its 404 *inside the admin chrome* — every symptom pointing at the
+declaration, which was correct.
+
+**An optional constructor argument is not auto-wired — Magento uses its default.**
+`RuntimeFactory` takes `?DeploymentConfig $deploymentConfig = null` so it stays constructible
+without Magento, which is what puts the backend decision under CI. The container obligingly passed
+`null`: the DSN was never read, and the module served an in-memory journal while `env.php` asked for
+the cluster, without one line of error. `di.xml` names the argument explicitly now.
+
+**Renaming a class the container builds leaves a stale interceptor in `generated/code/`.**
+`setup:upgrade --keep-generated` does not clear it, and the symptom names nothing:
+*"There are no commands defined in the `durable` namespace."* The module's own command had simply
+stopped existing. `rm -rf generated/code/<Vendor>/` is the fix, and it belongs in any bench note.
 
 ## The one hazard that is not a port
 
