@@ -123,6 +123,17 @@ topic.
       and that stands; what needed the lock was two consumers on one queue, and there is no queue.
       ⚠ If a host-native journal is ever added, this entry comes back with it.
 
+## 3bis. What the published package must not carry
+
+- [x] 3bis.1 **The demo left the package.** `PlaceOrderWorkflow`, `OrderActivities`,
+      `DemoOrderActivities` and `durable:demo` moved to the bench module; the published `di.xml`
+      declares **no workflow at all**, its two arrays empty with a commented example of where a
+      project adds its own. An integration module has no business making every consumer carry
+      workflows that are not theirs.
+      The module's unit tests got their own fixtures under `tests/unit/DurableModule/Fixture/`,
+      which is where test material belonged in the first place — they exercise the declaration
+      mechanism, not any particular workflow.
+
 ## 4bis. What the CI can see of Magento
 
 - [x] 4bis.1 **A Mage-OS × PHP matrix, the counterpart of the Symfony one.** Five entries, each an

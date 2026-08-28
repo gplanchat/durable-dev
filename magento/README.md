@@ -62,6 +62,16 @@ Le module s'appelle **`Gplanchat_Durable`** et son paquet Composer
 **`gplanchat/durable-magento`** — les deux conventions ne se croisent pas, et le
 `registration.php` du module explique pourquoi.
 
+Le banc en active un second, **`Gplanchat_DurableProbe`**, qui vit dans
+`app/code`. C'est lui qui porte la démonstration et les sondes : le paquet publié
+ne déclare **aucun** workflow, et ses deux tableaux de `di.xml` sont vides. Un
+module d'intégration n'a pas à faire porter à un projet des workflows qui ne sont
+pas les siens.
+
+```bash
+bin/magento module:enable Gplanchat_Durable Gplanchat_DurableProbe
+```
+
 ## Le voir tourner
 
 **En ligne de commande**, le chemin le plus court :

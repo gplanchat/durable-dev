@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Magento\Workflow\Activity;
+namespace Gplanchat\DurableProbe\Workflow\Activity;
 
 use Gplanchat\Durable\Attribute\AsActivityMethod;
 

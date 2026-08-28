@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Magento\Console\Command;
+namespace Gplanchat\DurableProbe\Console\Command;
 
 use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
-use Gplanchat\Durable\Magento\Workflow\PlaceOrderWorkflow;
+use Gplanchat\DurableProbe\Workflow\PlaceOrderWorkflow;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;

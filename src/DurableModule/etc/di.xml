@@ -10,7 +10,6 @@
     <type name="Magento\Framework\Console\CommandListInterface">
         <arguments>
             <argument name="commands" xsi:type="array">
-                <item name="durable_demo" xsi:type="object">Gplanchat\Durable\Magento\Console\Command\RunDemoCommand</item>
                 <item name="durable_worker" xsi:type="object">Gplanchat\Durable\Magento\Console\Command\RunWorkerCommand</item>
             </argument>
         </arguments>
@@ -24,12 +23,19 @@
         `#[ActivityMethod]`. Une déclaration de moins est une déclaration qu'on ne peut pas écrire
         de travers, et les noms restent ceux des attributs.
 
-        C'est ici qu'un projet ajoute les siens.
+        Les deux tableaux sont **vides** dans le paquet publié, et c'est délibéré : un module
+        d'intégration n'a pas à livrer des workflows de démonstration que tout projet consommateur
+        porterait ensuite pour rien. La démonstration vit dans le banc de ce dépôt
+        (`magento/app/code/Gplanchat/DurableProbe`), qui montre exactement ces deux déclarations.
+
+        C'est ici qu'un projet ajoute les siens :
+
+            <item name="place_order" xsi:type="string">Acme\Shop\Workflow\PlaceOrder</item>
+            <item name="order" xsi:type="object">Acme\Shop\Activity\OrderActivities</item>
     -->
     <type name="Gplanchat\Durable\Magento\Runtime\RuntimeFactory">
         <arguments>
             <argument name="workflowClasses" xsi:type="array">
-                <item name="place_order" xsi:type="string">Gplanchat\Durable\Magento\Workflow\PlaceOrderWorkflow</item>
             </argument>
             <!--
                 ⚠ Un argument de constructeur **optionnel** n'est pas auto-câblé : Magento prend
@@ -40,7 +46,6 @@
             -->
             <argument name="deploymentConfig" xsi:type="object">Magento\Framework\App\DeploymentConfig</argument>
             <argument name="activityHandlers" xsi:type="array">
-                <item name="order" xsi:type="object">Gplanchat\Durable\Magento\Workflow\Activity\DemoOrderActivities</item>
             </argument>
         </arguments>
     </type>
