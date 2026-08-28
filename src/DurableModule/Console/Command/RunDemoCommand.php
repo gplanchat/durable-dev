@@ -50,30 +50,21 @@ class RunDemoCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $orderId = (string) $input->getArgument('order-id');
+
+        // Plus une seule activité écrite ici : la fabrique les a enregistrées depuis les
+        // `#[ActivityMethod]` des contrats que ses gestionnaires implémentent, et le workflow
+        // depuis la liste de `di.xml`. La commande ne fait plus que lancer et rendre compte.
         $runtime = $this->runtimeFactory->create();
+        $declared = $runtime->declaredActivities();
 
-        // Les activités se déclarent : le conteneur de Magento n'a pas les tags
-        // de Symfony, donc rien ne les ramasse tout seul. C'est le coût du palier 1.
-        $seen = [];
-        foreach (['charge', 'reserve', 'notify'] as $step) {
-            $runtime->registerActivity(
-                'durable.demo.' . $step,
-                static function (array $payload) use ($step, &$seen): string {
-                    $seen[] = $step;
-
-                    return $step . ':' . reset($payload);
-                },
-            );
+        foreach ($declared as $index => $activityName) {
+            $output->writeln(sprintf('  %d. %s', $index + 1, $activityName));
         }
 
         $result = $runtime->run(PlaceOrderWorkflow::class, ['orderId' => $orderId]);
-
-        foreach ($seen as $index => $step) {
-            $output->writeln(sprintf('  %d. %s', $index + 1, $step));
-        }
         $output->writeln(sprintf('  → %s', var_export($result, true)));
 
-        if (['charge', 'reserve', 'notify'] !== $seen) {
+        if ('notify:charge:' . $orderId !== $result) {
             $output->writeln('<error>The three steps did not run in order.</error>');
 
             return Command::FAILURE;

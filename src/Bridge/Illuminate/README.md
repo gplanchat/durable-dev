@@ -89,6 +89,11 @@ Publishing is for when you want to edit them, and from that point they are yours
 php artisan vendor:publish --tag=durable-migrations
 ```
 
+**Keep the published file's name.** Laravel keys migrations by basename and lets
+`database/migrations` win the tie — that shadowing is exactly what makes your copy the one that
+runs. Rename it and the two become two migrations, both run, and the second fails on
+`table "durable_events" already exists` with the database half migrated.
+
 `Schema\DurableSchema` still creates the tables on demand. That is what a test and a worker booting
 on an empty database use; an application uses the migration. **Two ways to create the same four
 tables is two chances to drift**, so `MigrationMatchesSchemaTest` renders the DDL of both — against

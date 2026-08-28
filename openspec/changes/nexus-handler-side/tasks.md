@@ -187,14 +187,25 @@
 
 ## 7. Say it in the documentation
 
-- [ ] 7.1 A DUR: the worker, the two shapes, the cancellation form, the registration-time refusal.
-- [ ] 7.2 DUR036's "separate change" gains a forward pointer, and its caller-only framing is
-      corrected.
-- [ ] 7.3 A user page for serving an operation.
-- [ ] 7.4 The comparison page: caller-only stops being a limitation, and the section says what it
-      now means that no other PHP implementation serves Nexus.
-
-## 8. Found while doing 3.4
+- [x] 7.1 **DUR045 — Serving a Nexus operation: one worker, two shapes, and a refusal at startup.**
+      Written from what was measured, including the three probes that overturned a hypothesis: the
+      two budgets, what actually correlates a deferred answer, and the cancellation form.
+- [x] 7.2 **DUR036 corrected.** A superseded-on-one-point banner at the top, a forward pointer where
+      it said "serving is a separate change" — that change landed, and the split it predicted held.
+      Its backend asymmetry and value-object rules stand unchanged. The INDEX row is retitled so the
+      table does not keep announcing a caller-only component.
+- [x] 7.3 **A user page**, `documentation/user/nexus/`, in both languages. Calling and serving on one
+      page, because a serving-only page with no caller context would read oddly. The nine-second
+      budget is stated as the thing that decides which response shape to use, since that is the one
+      decision a handler author actually makes.
+- [x] 7.4 **The comparison page**, both languages: "caller only" is gone, a serving example is in,
+      and the section says what it now means that no other PHP implementation serves Nexus — a PHP
+      team was reachable over HTTP but not through the boundary Temporal gives to Go, Java, Python,
+      TypeScript and .NET.
+      **Found on the way, and repaired:** the backends capability matrix still read
+      `Nexus operations | ❌ | ❌ | ❌ (planned — caller side)` in both languages — stale twice over,
+      the caller side having shipped with DUR036. And `OST004` still carried `nexus-handler-side`
+      at 7/32 as "the largest single piece of unbuilt work in the repository".
 
 **8.1 — 1b.2 left two integration tests behind, red on `main`.** Removing the
 `{operationId, payload}` envelope changed two things these tests still asserted the old way:

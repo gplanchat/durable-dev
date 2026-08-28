@@ -77,9 +77,20 @@ unmeasured.
 
 ## 3. Workflows and activities are discoverable
 
-- [ ] 3.1 A registration mechanism for `#[Workflow]` and `#[Activity]` classes, since Magento's
-      container has no tag autoconfiguration. Whether it is `di.xml` over an explicit list or a
-      compiler-pass equivalent is task 1's answer to make, not this task's to assume.
+- [x] 3.1 **`di.xml` carries two arrays; the contract is not one of them.** Workflow classes are
+      named, activity handlers are placed, and the factory reads each handler's interfaces and keeps
+      the ones carrying `#[ActivityMethod]` — one declaration fewer to get wrong, and the names stay
+      the attributes'. It reuses the same two core objects the bundle's compiler pass does;
+      `PayloadToContractMethodInvoker` moved from `durable-bundle` to `durable` for it, since two
+      hosts now need it (**BREAKING CHANGE**) — and it ships its migration procedure, as the rule
+      requires: a cumulative `durable-upgrade.php` Rector set, an `UPGRADE.md` at the repository
+      root, and the one thing Rector cannot do written out (a compiled Symfony container keeps the
+      fully-qualified name and wants its `cache:clear`).
+      **The refusal is the mechanism**: `MagentoRuntime::run()` used to self-register an unknown
+      workflow, which made declaration meaningless and left `Scenario: An undeclared workflow fails
+      at the moment of the mistake` false since 3.2. It now throws naming the class and the `di.xml`
+      argument — the scenario is discharged at the bench, and the demo command's three hand-written
+      closures are gone.
 - [x] 3.2 A workflow class written once runs unmodified on the in-memory backend inside the bench.
       `bin/magento durable:demo ORD-4242` runs charge → reserve → notify in order and exits 0.
       `PlaceOrderWorkflow` imports nothing from Magento — no `ObjectManager`, no

@@ -407,8 +407,8 @@ Moins de liberté, une classe d'erreurs éliminée au moment de l'analyse. Voir
 ## 7. Nexus : le seul endroit où Durable est devant
 
 [Nexus](https://docs.temporal.io/nexus) achemine un appel d'un workflow vers une opération servie
-dans un autre espace de noms ou un autre cluster. **Un workflow Durable peut en appeler une ; un
-workflow écrit avec le SDK PHP officiel ne le peut pas.**
+dans un autre espace de noms ou un autre cluster. **Un workflow Durable peut en appeler une, et
+peut en servir une. Un workflow écrit avec le SDK PHP officiel ne peut ni l'un ni l'autre.**
 
 ```php
 $order = $this->environment->await(
@@ -431,23 +431,60 @@ gRPC engendrée — CRUD de points d'entrée sur le client opérateur, une optio
 sur le worker, un vidage d'historique — sans aucune API qu'un workflow puisse atteindre. La
 documentation de Temporal porte une section Nexus pour Go, Java, Python, TypeScript et .NET, et
 aucune pour PHP. Côté Durable, le chemin appelant est éprouvé par des tests d'intégration contre un
-vrai serveur Temporal : aller-retours, annulation et échec, bornes d'opération, et les règles de
-nommage du point d'entrée, du service, de l'opération et des en-têtes.
+vrai serveur Temporal : aller-retours, annulation et échec, bornes d'opération, les règles de
+nommage du point d'entrée, du service, de l'opération et des en-têtes — et, côté gestionnaire, les
+deux formes de réponse et le chemin d'annulation, un appelant Durable et un gestionnaire Durable
+dans le même test.
 
-Deux limites l'accompagnent, et les deux sont délibérées :
+### Servir, aussi
 
-- **Appelant seulement.** Durable appelle des opérations Nexus ; il n'en sert pas. Un gestionnaire
-  demanderait son propre worker de tâches Nexus, sa boucle d'interrogation, son aiguillage et son
-  vocabulaire d'échec — rien de quoi le chemin appelant ne touche. C'est un chantier à part, pas un
-  oubli.
+Un gestionnaire déclare l'opération qu'il sert, et répond maintenant ou plus tard :
+
+```php
+#[AsNexusOperationHandler(service: 'facturation', operation: 'encaisser')]
+final class Encaisser
+{
+    public function __invoke(mixed $payload): NexusOperationResponse
+    {
+        // Maintenant, si vous avez déjà la réponse — vous avez environ neuf secondes.
+        return NexusOperationResponse::completed(['receipt' => 'r-1234']);
+
+        // Plus tard, pour tout ce qui est réel : un workflow produit le résultat.
+        return NexusOperationResponse::fulfilledByWorkflow('Encaissement', $payload);
+    }
+}
+```
+
+Les neuf secondes ne sont pas une limite de Durable mais le `request-timeout` de la tâche, mesuré :
+un gestionnaire encore au travail quand il expire voit sa tâche redélivrée et recommence. C'est
+exactement ce budget qui justifie la forme différée, et pourquoi elle a été construite avant
+l'immédiate.
+
+L'annulation ne demande aucun crochet : Durable annule le workflow qui remplit l'opération, et un
+workflow observe déjà son annulation avec ses compensations.
+
+Voir [Opérations Nexus](../nexus/) pour toute la surface.
+
+**Ce que ça change pour PHP.** Aucune autre implémentation PHP ne sert Nexus, parce qu'aucune autre
+implémentation PHP n'atteint Nexus tout court. Jusqu'ici, un service PHP ne pouvait pas être
+fournisseur Nexus : une équipe qui tourne en PHP était joignable en HTTP comme n'importe quel
+service, mais pas à travers la frontière que Temporal donne à Go, Java, Python, TypeScript et .NET —
+pas d'opération durable, pas de corrélation côté serveur, pas d'annulation qui suive l'appel. Cette
+frontière est désormais ouverte à PHP.
+
+Une limite demeure, et elle est délibérée :
+
 - **Backend Temporal seulement.** Nexus achemine vers un point d'entrée servi ailleurs ; un backend
   qui garde son journal dans une seule base n'a ni cette route ni de repli honnête. Le backend DBAL
   **refuse donc immédiatement**, par `NexusUnsupportedByBackendException`, qui nomme le backend et
   dit quoi faire à la place, plutôt que de laisser le workflow attendre un résultat que personne ne
-  produira.
+  produira. Côté gestionnaire, le même refus a lieu **au montage du conteneur**, et non à la
+  requête — un gestionnaire sans route n'est pas un appel qui échoue, c'est un service qui ne
+  reçoit jamais rien.
 
 Le raisonnement est consigné dans
-[DUR036](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md).
+[DUR036](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md)
+et [DUR045](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR045-serving-a-nexus-operation.md).
 
 ---
 

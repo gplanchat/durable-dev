@@ -23,6 +23,45 @@ parce que deux hôtes en ont besoin et qu'il n'importe rien de Symfony.
 écrit dans le conteneur **compilé** des consommateurs. Le garder dans le bundle
 et faire porter au module ses ~30 lignes reste possible.
 
+**Décisions de l'auteur du 28/08 :**
+- on suit **l'ordre du change** — tâche 4, puis tâche 5. La 4 n'est pourtant pas
+  sur le chemin critique de Nexus (Nexus passe par le cluster Temporal, donc par
+  la 5) ; c'est un choix assumé.
+- le **tableau de bord admin** est un change à part, après la 5. Le README du
+  banc en décrit déjà la forme — route `/admin/durable_dashboard/dashboard/index`,
+  champ « Temporal DSN » — pour un module qui n'a ni contrôleur ni `adminhtml` :
+  c'est un cahier des charges, pas un état.
+- Magento ne sera compatible qu'avec `memory` et `temporal`, **définitivement**.
+  Le journal SQL sur `ResourceConnection` n'est pas reporté, il n'est pas prévu.
+
+**Servir le banc en HTTP, mesuré :** `php -S 127.0.0.1:8080 -t pub/ phpserver/router.php`
+depuis `magento/` — boutique HTTP 200 (1,0 s), admin HTTP 200 (0,4 s), utilisateur
+`admin`. L'URL de base est déjà réglée sur ce port. Rien à construire.
+
+**Sync avec chantier-nexus (28/08) :** leur chantier est à 28/31, pas 12.
+`TemporalNexusWorker` poll, route et répond, immédiat comme différé, annulation
+comprise. Trois choses pour nous : ne pas écrire de code Nexus tant que la surface
+n'est pas stabilisée (elle passe à un contrat typé) ; tout passe par le cluster
+Temporal des deux côtés, donc la tâche 5 est le préalable absolu ; et **ils n'ont
+jamais fait tourner deux processus OS** — Magento serait leur premier, ce qui lève
+leur plus grosse hypothèse non vérifiée. Le worker n'a que trois arguments et
+aucune dépendance framework : côté Magento on l'instancie et on boucle sur
+`pollOnce()`. **Nouveau (28/08)** : `NexusOperationRegistry` se construit
+désormais par `routedBy('temporal')` ou `unavailableOn('<backend>')`, et le
+second refuse à `register()` — la tâche 5 devra le construire selon le backend
+assemblé, et rien d'autre à écrire pour bénéficier de la garde. Un endpoint se crée à la main
+(`temporal operator nexus endpoint create`), et une file que personne ne poll est
+un endpoint qui ne répond jamais, sans erreur nulle part.
+
+**PR #175 fusionnée** — elle a emporté la tranche 3.1 *et* la procédure de
+migration de sa rupture : set Rector cumulatif `durable-upgrade.php`, `UPGRADE.md`
+à la racine (le dépôt n'avait aucun endroit où documenter une montée de version),
+et ce que Rector ne peut pas faire écrit en toutes lettres — un conteneur Symfony
+compilé garde le nom pleinement qualifié et veut son `cache:clear`.
+⚠ La session `splitsh-integration-alpha8` déplace elle aussi une classe de paquet
+(`AsDurableActivity` du bundle vers le cœur, sous `AsActivityHandler`) : son
+renommage va dans le **même** set, pas dans un second. Prévenue.
+
 Prochaine tranche : **tâche 4** — `communication.xml`, `queue_topology.xml`,
 `queue_publisher.xml`, `queue_consumer.xml` pour les cinq rôles (4.1), les
 gestionnaires (4.2), et le verrou par exécution avec son test (4.3). Les quatre

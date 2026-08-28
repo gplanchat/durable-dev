@@ -15,4 +15,25 @@
         </arguments>
     </type>
 
+    <!--
+        La déclaration, faute de tags. Le conteneur de Magento n'a pas d'équivalent de
+        l'autoconfiguration par attribut de Symfony : une classe de workflow se nomme, un
+        gestionnaire d'activités se pose. Ce qui ne se déclare **pas**, c'est le contrat d'un
+        gestionnaire — la fabrique lit ses interfaces et garde celles qui portent des
+        `#[ActivityMethod]`. Une déclaration de moins est une déclaration qu'on ne peut pas écrire
+        de travers, et les noms restent ceux des attributs.
+
+        C'est ici qu'un projet ajoute les siens.
+    -->
+    <type name="Gplanchat\Durable\Magento\Runtime\InMemoryRuntimeFactory">
+        <arguments>
+            <argument name="workflowClasses" xsi:type="array">
+                <item name="place_order" xsi:type="string">Gplanchat\Durable\Magento\Workflow\PlaceOrderWorkflow</item>
+            </argument>
+            <argument name="activityHandlers" xsi:type="array">
+                <item name="order" xsi:type="object">Gplanchat\Durable\Magento\Workflow\Activity\DemoOrderActivities</item>
+            </argument>
+        </arguments>
+    </type>
+
 </config>

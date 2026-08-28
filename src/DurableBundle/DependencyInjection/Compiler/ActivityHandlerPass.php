@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Bundle\DependencyInjection\Compiler;
 
 use Gplanchat\Durable\Activity\ActivityContractResolver;
+use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\ActivityExecutor;
-use Gplanchat\Durable\Bundle\Activity\PayloadToContractMethodInvoker;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;

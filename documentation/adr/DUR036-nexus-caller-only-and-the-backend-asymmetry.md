@@ -1,5 +1,10 @@
 # DUR036 — Nexus is supported on the caller side only, and one backend can serve it
 
+> **Superseded on one point by [DUR045](DUR045-serving-a-nexus-operation.md).** The handler side is
+> built: this component now serves Nexus operations as well as calling them. The title's "caller
+> side only" was true when written and is no longer. Everything else here — the backend asymmetry,
+> the value-object rules, the failure classification — stands.
+
 ## Status
 
 Accepted
@@ -44,6 +49,12 @@ contract.
 A handler needs a Nexus task worker, its own poll loop, its own dispatch and its own failure
 vocabulary — `PollNexusTaskQueue`, `RespondNexusTaskCompleted`, `RespondNexusTaskFailed`, none of
 which the caller path touches. Bundling them would double the surface and halve the review.
+
+> **That separate change is [DUR045](DUR045-serving-a-nexus-operation.md), and it landed.** The
+> split held: the handler side needed its own worker, its own two response shapes, its own
+> cancellation form and a refusal that fires at registration rather than at request time — none of
+> which the caller path suggested. Reading this section as a statement of what exists today would
+> be wrong; reading it as why the two were separated is still right.
 
 ### One backend can serve Nexus, and the other says so out loud.
 

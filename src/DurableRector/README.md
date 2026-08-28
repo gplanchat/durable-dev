@@ -74,6 +74,23 @@ fully-qualified name and leaves your original `use` behind — correct code, unp
 | `TemporalFacadeToEnvironmentRector` | The static facade becomes an injected `WorkflowEnvironment`, `yield` goes, and the `\Generator` return type with it |
 | `UnmigratableTemporalCallRector` | Comments every call the migration **cannot** make, and changes nothing else |
 
+## Monter de version à l'intérieur de Durable
+
+Le tableau ci-dessus fait **entrer** un projet dans Durable, une fois. `durable-upgrade.php` l'y
+fait **avancer**, à chaque montée de version :
+
+```php
+// rector.php
+return Rector\Config\RectorConfig::configure()
+    ->withImportNames()
+    ->withSets([__DIR__ . '/vendor/gplanchat/durable-rector/config/sets/durable-upgrade.php']);
+```
+
+Il est cumulatif — le passer une fois rattrape toutes les versions franchies. Ce qu'il contient, et
+surtout ce qu'il **ne peut pas** faire tout seul (un conteneur Symfony compilé garde les noms
+pleinement qualifiés, et veut son `cache:clear`), est écrit version par version dans
+[`UPGRADE.md`](../../UPGRADE.md) à la racine du dépôt.
+
 ### Why the names are the whole point
 
 Both engines derive a type name, and **they derive it differently**:
