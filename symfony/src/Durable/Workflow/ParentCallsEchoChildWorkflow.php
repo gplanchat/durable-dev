@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Durable\Workflow;
 
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-#[Workflow('ParentCallsEchoChildWorkflow')]
+#[AsWorkflow('ParentCallsEchoChildWorkflow')]
 final class ParentCallsEchoChildWorkflow
 {
     public function __construct(
@@ -16,7 +16,7 @@ final class ParentCallsEchoChildWorkflow
     ) {
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $text = 'child'): mixed
     {
         return $this->environment->await(

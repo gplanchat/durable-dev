@@ -6,9 +6,9 @@ namespace unit\Gplanchat\Durable\Testing;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
-use Gplanchat\Durable\Attribute\ActivityMethod;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Exception\DurableWorkflowAlgorithmFailureException;
 use Gplanchat\Durable\Testing\ActivitySpy;
@@ -67,7 +67,7 @@ final class WorkflowClassUnderTestTest extends TestCase
         // d'algorithme, et le message nomme la cause — c'est ce qui rend le test lisible quand il
         // casse, et ça vaut d'être épinglé.
         $this->expectException(DurableWorkflowAlgorithmFailureException::class);
-        $this->expectExceptionMessage('Workflow did not handle activity failure');
+        $this->expectExceptionMessage('AsWorkflow did not handle activity failure');
         $this->expectExceptionMessage('DomainException: greeting refused');
 
         $env->runWorkflowClass(GreetingWorkflow::class, ['name' => 'Carol']);
@@ -104,11 +104,11 @@ final class WorkflowClassUnderTestTest extends TestCase
 
 interface GreetingActivities
 {
-    #[ActivityMethod('greet')]
+    #[AsActivityMethod('greet')]
     public function greet(string $name): string;
 }
 
-#[Workflow(name: 'greeting')]
+#[AsWorkflow(name: 'greeting')]
 final class GreetingWorkflow
 {
     private ActivityStub $greetings;
@@ -124,7 +124,7 @@ final class GreetingWorkflow
         );
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $name): string
     {
         /** @var Awaitable<string> $call */
@@ -134,14 +134,14 @@ final class GreetingWorkflow
     }
 }
 
-#[Workflow(name: 'echo')]
+#[AsWorkflow(name: 'echo')]
 final class EchoWorkflow
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {}
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $text): string
     {
         return $text;

@@ -8,15 +8,15 @@ use App\Samples\Activity\TripBookingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Activity\RetryLimit;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
  * Port léger de samples-php BookingSaga : réserve vol puis hôtel ; en cas d’échec hôtel, compensation sur le vol.
  */
-#[Workflow('Samples_BookingSaga_Light')]
+#[AsWorkflow('Samples_BookingSaga_Light')]
 final class BookingSagaLightWorkflow
 {
     private readonly ActivityStub $trip;
@@ -32,7 +32,7 @@ final class BookingSagaLightWorkflow
         );
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(bool $failHotel = false): string
     {
         $flightId = $this->environment->await($this->trip->bookFlight());

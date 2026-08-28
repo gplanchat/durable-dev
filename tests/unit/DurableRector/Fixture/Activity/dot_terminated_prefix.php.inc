@@ -17,13 +17,13 @@ interface OrderActivities
 
 namespace unit\DurableRector\Fixture\Activity;
 
-#[\Gplanchat\Durable\Attribute\Activity(name: 'Order')]
+#[\Gplanchat\Durable\Attribute\AsActivity(name: 'Order')]
 interface OrderActivities
 {
-    #[\Gplanchat\Durable\Attribute\ActivityMethod(name: 'chargeCard')]
+    #[\Gplanchat\Durable\Attribute\AsActivityMethod(name: 'chargeCard')]
     public function charge(string $orderId): string;
 
-    #[\Gplanchat\Durable\Attribute\ActivityMethod(name: 'sendReceipt')]
+    #[\Gplanchat\Durable\Attribute\AsActivityMethod(name: 'sendReceipt')]
     public function sendReceipt(string $charge): string;
 }
 

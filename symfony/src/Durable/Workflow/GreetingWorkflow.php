@@ -8,11 +8,11 @@ use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Activity\RetryLimit;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-#[Workflow('GreetingWorkflow')]
+#[AsWorkflow('GreetingWorkflow')]
 final class GreetingWorkflow
 {
     private readonly ActivityStub $greeting;
@@ -27,7 +27,7 @@ final class GreetingWorkflow
         );
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $name = 'World'): string
     {
         return $this->environment->await($this->greeting->composeGreeting($name));

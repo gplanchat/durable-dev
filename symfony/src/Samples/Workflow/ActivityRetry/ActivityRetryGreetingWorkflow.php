@@ -10,15 +10,15 @@ use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
 use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Duration;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 use InvalidArgumentException;
 
 /**
  * Port de samples-php ActivityRetry : politique de retry sur l’activité (max attempts, backoff, non-retryable).
  */
-#[Workflow('Samples_ActivityRetry_Greeting')]
+#[AsWorkflow('Samples_ActivityRetry_Greeting')]
 final class ActivityRetryGreetingWorkflow
 {
     private readonly ActivityStub $greeting;
@@ -37,7 +37,7 @@ final class ActivityRetryGreetingWorkflow
         );
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $name = 'World'): string
     {
         return $this->environment->await($this->greeting->composeGreeting($name));

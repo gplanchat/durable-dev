@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Samples\Activity;
 
-use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 use RuntimeException;
 
-#[AsDurableActivity(contract: FlakyActivityInterface::class)]
+#[AsActivityHandler(contract: FlakyActivityInterface::class)]
 final class FlakyActivityHandler implements FlakyActivityInterface
 {
     public function maybeFail(bool $shouldFail = true): string

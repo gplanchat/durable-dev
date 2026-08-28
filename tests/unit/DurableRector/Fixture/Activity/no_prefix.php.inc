@@ -14,10 +14,10 @@ interface GreetActivities
 
 namespace unit\DurableRector\Fixture\Activity;
 
-#[\Gplanchat\Durable\Attribute\Activity(name: '')]
+#[\Gplanchat\Durable\Attribute\AsActivity(name: '')]
 interface GreetActivities
 {
-    #[\Gplanchat\Durable\Attribute\ActivityMethod(name: 'greet')]
+    #[\Gplanchat\Durable\Attribute\AsActivityMethod(name: 'greet')]
     public function greet(string $name): string;
 }
 

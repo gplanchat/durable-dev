@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Magento\Workflow;
 
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Magento\Workflow\Activity\OrderActivities;
 use Gplanchat\Durable\WorkflowEnvironment;
 
@@ -17,14 +17,14 @@ use Gplanchat\Durable\WorkflowEnvironment;
  * bundle Symfony sans être touchée, parce que tout ce qui est sous les ports est
  * `gplanchat/durable` inchangé.
  */
-#[Workflow(name: 'durable.demo.place-order')]
+#[AsWorkflow(name: 'durable.demo.place-order')]
 final class PlaceOrderWorkflow
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {}
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $orderId): string
     {
         $activities = $this->environment->activityStub(OrderActivities::class);

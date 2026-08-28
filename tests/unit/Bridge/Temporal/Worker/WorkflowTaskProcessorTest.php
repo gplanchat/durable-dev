@@ -506,20 +506,20 @@ final class WorkflowTaskProcessorTest extends TestCase
     }
 }
 
-#[\Gplanchat\Durable\Attribute\Workflow(name: 'queryable')]
+#[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'queryable')]
 final class QueryableWorkflow
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {}
 
-    #[\Gplanchat\Durable\Attribute\QueryMethod('getStatus')]
+    #[\Gplanchat\Durable\Attribute\AsQueryMethod('getStatus')]
     public function status(): string
     {
         return 'running';
     }
 
-    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]
     public function run(): string
     {
         // Suspend sur une condition que rien ne satisfait dans cette task, ce qui laisse la query
@@ -534,7 +534,7 @@ final class QueryableWorkflow
  * Une exécution qui émet une commande *et* répond à une query : sans la commande, comparer les
  * réponses avec et sans query reviendrait à comparer deux listes vides.
  */
-#[\Gplanchat\Durable\Attribute\Workflow(name: 'queryable-scheduling')]
+#[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'queryable-scheduling')]
 final class QueryableSchedulingWorkflow
 {
     private readonly ActivityStub $greetings;
@@ -545,20 +545,20 @@ final class QueryableSchedulingWorkflow
         $this->greetings = $environment->activityStub(SuiteActivities::class);
     }
 
-    #[\Gplanchat\Durable\Attribute\QueryMethod('getStatus')]
+    #[\Gplanchat\Durable\Attribute\AsQueryMethod('getStatus')]
     public function status(): string
     {
         return 'running';
     }
 
-    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]
     public function run(): string
     {
         return $this->environment->await($this->greetings->greet('World'));
     }
 }
 
-#[\Gplanchat\Durable\Attribute\Workflow(name: 'queryable-raising')]
+#[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'queryable-raising')]
 final class RaisingQueryWorkflow
 {
     private readonly ActivityStub $greetings;
@@ -569,13 +569,13 @@ final class RaisingQueryWorkflow
         $this->greetings = $environment->activityStub(SuiteActivities::class);
     }
 
-    #[\Gplanchat\Durable\Attribute\QueryMethod('getStatus')]
+    #[\Gplanchat\Durable\Attribute\AsQueryMethod('getStatus')]
     public function status(): string
     {
         throw new \RuntimeException('cette query ne sait pas répondre');
     }
 
-    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]
     public function run(): string
     {
         return $this->environment->await($this->greetings->greet('World'));

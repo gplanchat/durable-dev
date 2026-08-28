@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace unit\DurablePhpstan\Fixtures;
 
 use Gplanchat\Durable\Activity\ActivityStub;
-use Gplanchat\Durable\Attribute\ActivityMethod;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
 use Gplanchat\Durable\Attribute\AsNexusOperation;
 use Gplanchat\Durable\Attribute\AsNexusService;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Nexus\NexusStub;
 use Gplanchat\Durable\Workflow\ChildWorkflowStub;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -23,7 +23,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
  */
 interface OrderActivities
 {
-    #[ActivityMethod('charge')]
+    #[AsActivityMethod('charge')]
     public function charge(string $orderId, int $amount): string;
 
     /** Sans attribut : du code de contrat, pas une opération planifiable. */
@@ -47,21 +47,21 @@ interface Facturation extends FacturationServed
     public function bareme(): string;
 }
 
-#[Workflow(name: 'child')]
+#[AsWorkflow(name: 'child')]
 final class ChildWorkflow
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {}
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $text): string
     {
         return $text;
     }
 }
 
-#[Workflow(name: 'call-sites')]
+#[AsWorkflow(name: 'call-sites')]
 final class StubCallSites
 {
     private readonly ActivityStub $orders;
@@ -78,7 +78,7 @@ final class StubCallSites
         $this->facturation = $environment->nexusStub(Facturation::class, 'paiements');
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $orderId): mixed
     {
         // Correct : déclaré par le contrat et marqué.
@@ -91,7 +91,7 @@ final class StubCallSites
         // erreur d'analyse, et un BadMethodCallException à l'exécution.
         $this->environment->await($this->orders->chrage($orderId, 100));
 
-        // FAUTIF — déclarée par le contrat, mais sans #[ActivityMethod] : ce n'est pas une
+        // FAUTIF — déclarée par le contrat, mais sans #[AsActivityMethod] : ce n'est pas une
         // activité, et le stub la refuse.
         $this->environment->await($this->orders->helper());
 

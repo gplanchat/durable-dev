@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Samples\Activity;
 
-use Gplanchat\Durable\Attribute\ActivityMethod;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
 
 interface FilePipelineActivityInterface
 {
-    #[ActivityMethod('samples_download')]
+    #[AsActivityMethod('samples_download')]
     public function download(string $sourceUrl): string;
 
-    #[ActivityMethod('samples_process')]
+    #[AsActivityMethod('samples_process')]
     public function process(string $filename): string;
 
-    #[ActivityMethod('samples_upload')]
+    #[AsActivityMethod('samples_upload')]
     public function upload(string $processed, string $destinationUrl): string;
 }

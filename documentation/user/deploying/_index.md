@@ -111,10 +111,10 @@ When you cannot wait for runs to drain, register the changed workflow under a **
 keep the old class registered until the old executions finish:
 
 ```php
-#[Workflow('checkout')]      // keep, until the last old run ends
+#[AsWorkflow('checkout')]      // keep, until the last old run ends
 final class CheckoutWorkflow { … }
 
-#[Workflow('checkout-v2')]   // new starts go here
+#[AsWorkflow('checkout-v2')]   // new starts go here
 final class CheckoutV2Workflow { … }
 ```
 

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\PHPStan\Reflection;
 
 use Gplanchat\Durable\Activity\ActivityStub;
-use Gplanchat\Durable\Attribute\ActivityMethod;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
 use Gplanchat\Durable\Attribute\AsNexusOperation;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Nexus\NexusStub;
 use Gplanchat\Durable\Workflow\ChildWorkflowStub;
 use PHPStan\Reflection\ClassReflection;
@@ -36,8 +36,8 @@ use PHPStan\Reflection\MethodsClassReflectionExtension;
  *
  * Le stub porte son contrat en paramètre générique, `ActivityStub<OrderActivities>`, et PHPStan
  * l'infère déjà depuis la signature de `WorkflowEnvironment::activityStub()`. Il suffit donc de lui
- * dire quelles méthodes ce contrat déclare : celles marquées {@see ActivityMethod} pour une
- * activité, {@see WorkflowMethod} pour un enfant, {@see AsNexusOperation} pour une opération Nexus.
+ * dire quelles méthodes ce contrat déclare : celles marquées {@see AsActivityMethod} pour une
+ * activité, {@see AsWorkflowMethod} pour un enfant, {@see AsNexusOperation} pour une opération Nexus.
  *
  * Le cas Nexus ajoute l'héritage. Un contrat Nexus se sépare en deux interfaces — celle que le
  * gestionnaire implémente, et celle qui l'étend pour l'appelant — et le stub appelle les deux.
@@ -57,8 +57,8 @@ final class StubMethodsExtension implements MethodsClassReflectionExtension
      * @var array<class-string, class-string>
      */
     private const STUBS = [
-        ActivityStub::class => ActivityMethod::class,
-        ChildWorkflowStub::class => WorkflowMethod::class,
+        ActivityStub::class => AsActivityMethod::class,
+        ChildWorkflowStub::class => AsWorkflowMethod::class,
         NexusStub::class => AsNexusOperation::class,
     ];
 

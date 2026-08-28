@@ -6,8 +6,8 @@ namespace App\Samples\Workflow\Periodic;
 
 use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityStub;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
@@ -17,7 +17,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
  *
  * @return list<string>
  */
-#[Workflow('Samples_Periodic_Greeting')]
+#[AsWorkflow('Samples_Periodic_Greeting')]
 final class PeriodicGreetingWorkflow
 {
     private readonly ActivityStub $greeting;
@@ -28,7 +28,7 @@ final class PeriodicGreetingWorkflow
         $this->greeting = $environment->activityStub(GreetingActivityInterface::class);
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $name = 'World', int $iterations = 3): array
     {
         $out = [];

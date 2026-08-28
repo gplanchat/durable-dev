@@ -144,28 +144,28 @@ final class SyncChildWorkflowTest extends TestCase
     }
 }
 
-#[\Gplanchat\Durable\Attribute\Workflow(name: 'Child')]
+#[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'Child')]
 final class EchoingChild
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {}
 
-    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]
     public function run(): string
     {
         return 'child-result';
     }
 }
 
-#[\Gplanchat\Durable\Attribute\Workflow(name: 'ExplodingChild')]
+#[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'ExplodingChild')]
 final class ExplodingChild
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {}
 
-    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]
     public function run(): never
     {
         throw new \DomainException('child exploded');

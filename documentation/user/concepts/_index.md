@@ -153,7 +153,7 @@ enum OrderSignal: string
     case Cancel  = 'cancel';
 }
 
-#[Workflow('Order')]
+#[AsWorkflow('Order')]
 final class OrderWorkflow
 {
     /** @var list<array<string, mixed>> */
@@ -161,13 +161,13 @@ final class OrderWorkflow
 
     public function __construct(private readonly WorkflowEnvironment $environment) {}
 
-    #[SignalMethod(OrderSignal::Approve)]
+    #[AsSignalMethod(OrderSignal::Approve)]
     public function onApprove(array $payload): void
     {
         $this->approvals[] = $payload;
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(): string
     {
         $this->environment->await(fn(): bool => [] !== $this->approvals);
@@ -221,7 +221,7 @@ or a service written in another language. The enum types the inside; it cannot t
 
 ### Query
 
-A **query** is a synchronous read of workflow state. The workflow exposes a `#[QueryMethod]` that reads an internal variable; the caller gets the current value without changing workflow state. Queries are **not** recorded in history.
+A **query** is a synchronous read of workflow state. The workflow exposes a `#[AsQueryMethod]` that reads an internal variable; the caller gets the current value without changing workflow state. Queries are **not** recorded in history.
 
 Use queries for: checking progress, reading a counter, inspecting a list of pending items.
 
@@ -235,7 +235,7 @@ The handler's return value *is* the response — that is the whole difference fr
 has none:
 
 ```php
-#[UpdateMethod('greet')]
+#[AsUpdateMethod('greet')]
 public function greet(array $arguments): string
 {
     $this->name = (string) ($arguments['name'] ?? 'World');
@@ -325,13 +325,13 @@ For configuration, see [Getting started](../getting-started/) and [Configuration
 
 ## Determinism and the replay contract
 
-The **replay contract** is the core constraint: any code inside `#[WorkflowMethod]` must produce the **same sequence of awaitable operations** given the same history.
+The **replay contract** is the core constraint: any code inside `#[AsWorkflowMethod]` must produce the **same sequence of awaitable operations** given the same history.
 
 **Allowed in a workflow:**
 - Calling `activityStub()` methods → returns `Awaitable`
 - Calling `await()`, `all()`, `race()`, `any()` → suspend/combine awaitables
 - Calling `timer()` → set a timer
-- Reading signal/update state set in `#[SignalMethod]` / `#[UpdateMethod]`
+- Reading signal/update state set in `#[AsSignalMethod]` / `#[AsUpdateMethod]`
 - Pure computation on workflow-local variables
 
 **Not allowed in a workflow (do in activities instead):**

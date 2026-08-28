@@ -182,14 +182,14 @@ final class HarnessParityTest extends TestCase
     }
 }
 
-#[\Gplanchat\Durable\Attribute\Workflow(name: 'Child')]
+#[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'Child')]
 final class WorkingChild
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {}
 
-    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]
     public function run(): string
     {
         return 'child(' . $this->environment->await(
@@ -202,14 +202,14 @@ final class WorkingChild
  * Reste bloqué sur une condition que rien ne peut satisfaire : son journal n'a pas d'issue
  * terminale, il est donc encore actif à la clôture du parent.
  */
-#[\Gplanchat\Durable\Attribute\Workflow(name: 'Pending')]
+#[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'Pending')]
 final class PendingChild
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {}
 
-    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]
     public function run(): mixed
     {
         return $this->environment->await(static fn(): bool => false);
