@@ -9,14 +9,38 @@
     "type": "project",
     "version": "0.1.0",
     "repositories": [
-        {"type": "path", "url": "src/Durable"},
-        {"type": "path", "url": "src/DurableBundle"},
-        {"type": "path", "url": "src/DurablePlugin"},
-        {"type": "path", "url": "src/Bridge/Temporal"},
-        {"type": "path", "url": "src/Bridge/Dbal"},
-        {"type": "path", "url": "src/Bridge/Illuminate"},
-        {"type": "path", "url": "src/DurablePhpstan"},
-        {"type": "path", "url": "src/DurableRector"}
+        {
+            "type": "path",
+            "url": "src/Durable"
+        },
+        {
+            "type": "path",
+            "url": "src/DurableBundle"
+        },
+        {
+            "type": "path",
+            "url": "src/DurablePlugin"
+        },
+        {
+            "type": "path",
+            "url": "src/Bridge/Temporal"
+        },
+        {
+            "type": "path",
+            "url": "src/Bridge/Dbal"
+        },
+        {
+            "type": "path",
+            "url": "src/Bridge/Illuminate"
+        },
+        {
+            "type": "path",
+            "url": "src/DurablePhpstan"
+        },
+        {
+            "type": "path",
+            "url": "src/DurableRector"
+        }
     ],
     "require": {
         "php": ">=8.2",
@@ -31,6 +55,7 @@
         "friendsofphp/php-cs-fixer": "^3.0",
         "gplanchat/durable-phpstan": "@dev",
         "gplanchat/durable-rector": "@dev",
+        "illuminate/cache": "^11.0 || ^12.0 || ^13.0",
         "illuminate/database": "^11.0 || ^12.0 || ^13.0",
         "phpstan/phpstan": "^2.0",
         "phpunit/phpunit": "^11.0",
@@ -47,7 +72,8 @@
             "Gplanchat\\Bridge\\Dbal\\": "src/Bridge/Dbal/",
             "Gplanchat\\Bridge\\Illuminate\\": "src/Bridge/Illuminate/",
             "Temporal\\Api\\": "src/Bridge/Temporal/Api/",
-            "GPBMetadata\\Temporal\\": "src/Bridge/Temporal/Generated/GPBMetadata/Temporal/"
+            "GPBMetadata\\Temporal\\": "src/Bridge/Temporal/Generated/GPBMetadata/Temporal/",
+            "Gplanchat\\Durable\\Magento\\": "src/DurableModule/"
         }
     },
     "autoload-dev": {
@@ -76,7 +102,7 @@
     },
     "authors": [
         {
-            "name": "Grégory Planchat",
+            "name": "Gr\u00e9gory Planchat",
             "email": "gregory@gyroscops.com"
         }
     ]

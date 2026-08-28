@@ -118,7 +118,7 @@ Restated here only so the single table in §7 is complete. The reasoning belongs
 | Akeneo `BatchBundle` | **A design question**: checkpoint granularity | The decision, not the code |
 | `php-etl/pipeline` | The same design question, one level down | The same decision — whichever is written first pays for both |
 | Laravel | A bootstrap, plus a fourth adapter family | — (§3's suites have landed) |
-| Magento | A bootstrap; bench already in `magento/` | — |
+| Magento | A bootstrap. The `magento/` bench is now tracked — it was untracked until `change/magento-module` §1.1, so it existed on one machine and in no clone | — |
 | WooCommerce, Drupal, PrestaShop 9, Ibexa | — | Not now (OST003 §6) |
 
 ---

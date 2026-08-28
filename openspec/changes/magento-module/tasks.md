@@ -6,31 +6,50 @@ A Tier 1 bootstrap has no unit test that proves it boots. The bench **is** the t
 comes first — and while it is being built it answers the four questions `design.md` records as
 unmeasured.
 
-- [ ] 1.1 Track the `magento/` overlay the way `sylius/` is tracked: sources yes, `vendor/` no.
-      It exists on one developer machine and in no clone; `git ls-files magento` returns zero.
-      OST004's *"bench already in `magento/`"* becomes true when this lands, and OST004 is corrected
-      to say what was actually there before.
-- [ ] 1.2 `composer install` reaches a working `bin/magento` on Mage-OS
-      `product-community-edition:2.2.0`. The overlay has 61 vendor packages and no
-      `vendor/magento/framework`, so this has never completed here. Record what the host actually
-      needs — the extension list in `check-php-extensions.sh` is a claim, not a measurement.
+- [x] 1.1 Track the `magento/` overlay the way `sylius/` is tracked. **The task was wrong about
+      what that means.** "Sources yes, `vendor/` no" is not enough: with `vendor/` already excluded
+      by the root `.gitignore`, `git add -An magento` still stages **10 178 files** — `dev/` alone
+      brings 7 256 — all of them written by composer. `sylius/` is 220 files because a Sylius
+      skeleton *is* project code; the Magento equivalent is eight files of overlay.
+      So `magento/.gitignore` inverts the rule: ignore everything, re-allow the overlay by name.
+      A file composer adds tomorrow stays out without anyone thinking about it, which an exclusion
+      list cannot do. Verified: 8 files tracked, and three simulated distribution files change
+      nothing. OST004's row corrected.
+- [x] 1.2 `composer install` reaches a working `bin/magento`. **It already did, and the task's
+      evidence was wrong.** "No `vendor/magento/framework`" looked at the wrong path: Mage-OS ships
+      under `vendor/mage-os/`, where 363 packages sit. `bin/magento --version` answers *Mage-OS CLI
+      2.2.0 (based on Magento 2.4.8-p4)*, and `setup:db:status` answers *All modules are up to
+      date* — the application is installed, not merely downloaded.
+      What was actually broken is the bench's **ports**. Its defaults collide with the benches
+      beside it: MySQL on 3306 is held by `sylius-mysql-1`, and Temporal on 7233 by the
+      `temporal server start-dev` the integration suite runs. Magento was therefore talking to
+      Sylius's database server and being refused. Defaults moved to 33306 and 7234, the stack
+      comes up whole, and `.env.example` says why.
+      `check-php-extensions.sh` was a claim; it is now a measurement: all eighteen present on
+      PHP 8.2.33, exit 0.
 - [ ] 1.3 **What a dying consumer leaves behind.** Kill `queue:consumers:start` mid-message and
       record what happens: redelivery, dead letter, or silence. This is the failure the whole
       integration exists to remove, and the design must not guess at its shape.
-- [ ] 1.4 **Whether `LockManagerInterface` is shared across processes.** The design's only invariant
-      rests on it. `Magento\Framework\Lock\Backend\Database` should be shared by construction — a
-      `GET_LOCK` on the application database — but *should* is what probing is for. Measure it with
-      two processes, not by reading the class.
+- [x] 1.4 **Whether `LockManagerInterface` is shared across processes. It is** — measured, two
+      processes, `magento/probe-lock.php`. The bench configures `lock.provider: db` explicitly;
+      `Magento\Framework\Lock\Backend\Database` sits behind a `Lock\Proxy`, and a second process
+      is refused a lock the first holds. **A killed holder releases it** — `GET_LOCK` dies with its
+      connection, so a crashed consumer does not wedge an execution.
+      **But the backend answers `true` without locking anything when `isDbAvailable()` is false**
+      (read, not measured), which is the shape the startup refusal of §2.3 has to catch: a lock that
+      always says yes is worse than none.
 - [ ] 1.5 How a Magento consumer behaves against a **long-poll** transport, which is what the
       Temporal bridge's workers are. A consumer runner that assumes short messages may starve or
       time out; if it does, the worker shape changes and task 4 changes with it.
 
 ## 2. The module boots
 
-- [ ] 2.1 `src/DurableModule` with `registration.php` declaring `Gplanchat_Durable`, `etc/module.xml`,
+- [x] 2.1 `src/DurableModule` with `registration.php` declaring `Gplanchat_Durable`, `etc/module.xml`,
       and a `composer.json` naming `gplanchat/durable-magento`. `bin/magento module:status` lists it.
-- [ ] 2.2 The bench's path repository resolves — it points at `../src/DurableModule` today and finds
-      nothing.
+- [x] 2.2 The bench's path repository resolves. **Two host constraints found on the way**, both
+      recorded in `design.md`: Mage-OS's `composer-dependency-version-audit-plugin` refuses a path
+      package that also exists on Packagist, and Magento's generated `Interceptor` cannot extend a
+      `final` class — which is the house style everywhere else in this repository.
 - [ ] 2.3 A configuration surface for the backend choice, refusing DBAL and Illuminate **at
       startup, by name**, the way the DBAL backend refuses Nexus. Not at the moment a workflow waits
       on a journal nobody writes.
@@ -40,9 +59,11 @@ unmeasured.
 - [ ] 3.1 A registration mechanism for `#[Workflow]` and `#[Activity]` classes, since Magento's
       container has no tag autoconfiguration. Whether it is `di.xml` over an explicit list or a
       compiler-pass equivalent is task 1's answer to make, not this task's to assume.
-- [ ] 3.2 A workflow class written once runs unmodified on the in-memory backend inside the bench.
-      This is the first slice that proves the module is a *Durable* integration rather than a
-      Magento module that happens to compile.
+- [x] 3.2 A workflow class written once runs unmodified on the in-memory backend inside the bench.
+      `bin/magento durable:demo ORD-4242` runs charge → reserve → notify in order and exits 0.
+      `PlaceOrderWorkflow` imports nothing from Magento — no `ObjectManager`, no
+      `ResourceConnection` — which is the whole point: everything under the ports is
+      `gplanchat/durable` unchanged.
 
 ## 4. The queue carries the work
 
