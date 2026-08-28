@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Bundle;
 
 use Gplanchat\Durable\Attribute\AsActivityHandler;
-use Gplanchat\Durable\Bundle\Attribute\AsNexusOperationHandler;
+use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
+use Gplanchat\Durable\Attribute\FulfilsNexusOperation;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\ActivityHandlerPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\DurableTemporalTransportFactoryPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\NexusHandlerPass;
@@ -28,12 +29,21 @@ final class DurableBundle extends Bundle
         );
 
         $container->registerAttributeForAutoconfiguration(
-            AsNexusOperationHandler::class,
-            static function (ChildDefinition $definition, AsNexusOperationHandler $attribute, \Reflector $_reflector): void {
-                $definition->addTag(NexusHandlerPass::TAG, [
-                    'service' => $attribute->service,
+            AsNexusServiceHandler::class,
+            static function (ChildDefinition $definition, AsNexusServiceHandler $attribute, \Reflector $_reflector): void {
+                $definition->addTag(NexusHandlerPass::TAG, ['contract' => $attribute->contract]);
+            },
+        );
+
+        // Un workflow qui réclame une opération différée n'a rien à enregistrer sur le registre :
+        // la plomberie le démarre. La balise sert à ce que la passe le **voie** — sans quoi elle
+        // conclurait que l'opération n'est servie par personne et refuserait au démarrage.
+        $container->registerAttributeForAutoconfiguration(
+            FulfilsNexusOperation::class,
+            static function (ChildDefinition $definition, FulfilsNexusOperation $attribute, \Reflector $_reflector): void {
+                $definition->addTag(NexusHandlerPass::FULFILMENT_TAG, [
+                    'contract' => $attribute->contract,
                     'operation' => $attribute->operation,
-                    'method' => $attribute->method,
                 ]);
             },
         );

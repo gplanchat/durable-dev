@@ -151,11 +151,20 @@
 
 ## 5. Registration and refusal
 
-- [x] 5.1 **Declaring a served operation.** `#[AsNexusOperationHandler(service: …, operation: …)]`
-      on a service, autoconfigured into the `durable.nexus_handler` tag, read by `NexusHandlerPass`
-      and registered on `NexusOperationRegistry`. Both names are validated at compile time, not on
-      the first task: a typo in either produces a handler nothing ever reaches, and the server has
-      nothing to complain about.
+- [x] 5.1 **Declaring a served operation, from a typed contract.** `#[AsNexusServiceHandler(contract: …)]`
+      on the implementation, `#[AsNexusService]` and `#[AsNexusOperation]` on the contract, and
+      `#[FulfilsNexusOperation]` on a workflow that fulfils a deferred one. The tag carries the
+      contract and nothing else: the names live in the contract, once, and the caller reads the same
+      object — a typo is a type error rather than an operation waiting for a handler whose name will
+      never match.
+      **The pass verifies coverage.** Every operation of the contract is either implemented by the
+      handler or claimed by a workflow; anything else is refused at container build, because a
+      caller would otherwise wait on a result nothing produces.
+      **There is no `is_a()` check, deliberately.** The tag may name the *full* contract — the one
+      the caller reads — of which the handler implements only the served part; deferred operations
+      have no body. That is exactly why the contract splits in two, PHP being unable to say
+      "implements partially". Coverage is therefore checked operation by operation, and a class that
+      serves none of them is caught there.
 - [x] 5.2 **A worker for the Nexus task queue** — a Messenger transport, `purpose=nexus_worker`,
       exactly as the activity worker is. `messenger:consume` already knows how to hold a loop,
       restart it, bound it in time and supervise it; a dedicated console command would say all of
