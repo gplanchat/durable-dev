@@ -601,6 +601,16 @@
       <h2 style="font-family: 'Newsreader', serif; font-weight: 400; font-size: calc(40px * var(--ts, 1)); line-height: 1.1; letter-spacing: -0.02em; margin: 14px 0 18px; max-width: 760px; text-wrap: balance;">Your PHP service can be on <em style="font-style: italic; color: var(--accent, #b4552f);">both ends</em> of a Nexus operation</h2>
       <p style="font-size: calc(16.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459); margin: 0 0 12px; max-width: 720px;">Nexus routes a call from one workflow to an operation owned by another team, another namespace, another cluster — neither side knowing the other's workflows. Durable <strong style="color: var(--fg, #2c2822); font-weight: 500;">calls</strong> those operations, and <strong style="color: var(--fg, #2c2822); font-weight: 500;">serves</strong> them.</p>
       <p style="font-size: calc(16.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459); margin: 0 0 40px; max-width: 720px;">Until now a PHP team was reachable over HTTP like any other service, but not across that boundary. Temporal documents Nexus for Go, Java, Python, TypeScript and .NET — and not for PHP.</p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 0 0 40px;">
+        <div style="border: 1px solid var(--line, #ddd6ca); border-left: 3px solid var(--ck, #a1341f); border-radius: 0 6px 6px 0; padding: 20px 24px 22px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ck, #a1341f); margin-bottom: 12px;">Without it — the boundary is an HTTP call</div>
+          <p style="margin: 0; font-size: calc(15.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459);">Checkout calls Billing and waits. The connection gives up at thirty seconds; the charge takes four minutes. So Checkout retries, and Billing charges twice. Both teams then write the same three things by hand, each on their own side: an idempotency key, a reconciliation job, and a status column that means <em>maybe</em>.</p>
+        </div>
+        <div style="border: 1px solid var(--line, #ddd6ca); border-left: 3px solid var(--accent2, #2f6f6b); border-radius: 0 6px 6px 0; padding: 20px 24px 22px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent2, #2f6f6b); margin-bottom: 12px;">With it — the same call, made durable</div>
+          <p style="margin: 0; font-size: calc(15.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459);">The caller waits without holding anything open — four minutes or six hours, it makes no difference. A failure comes back <strong style="color: var(--fg, #2c2822); font-weight: 500;">typed</strong>, so a compensation can decide what it means. Cancelling the caller cancels the work on the other side. And neither team ever sees the other's workflows.</p>
+        </div>
+      </div>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 40px;">
         <div>
           <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2, #6c6459);">Calling</span>
