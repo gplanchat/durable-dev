@@ -9,6 +9,20 @@ framework:
             # failed: 'doctrine://default?queue_name=failed'
             sync: 'sync://'
 
+            # La boucle qui sert Nexus. Le transport est *receive-only* : chaque `get()` long-poll
+            # une tâche entrante et la sert par `TemporalNexusWorker`. Il n'y a donc pas de file
+            # Sylius derrière — le nom `durable_temporal_nexus` désigne une boucle de poll, pas une
+            # file de messages.
+            #
+            #   bin/console messenger:consume durable_temporal_nexus
+            #
+            # Sans `DURABLE_TEMPORAL_DSN`, le transport est déclaré et jamais instancié : le reste
+            # de la boutique ne le touche pas.
+            durable_temporal_nexus:
+                dsn: '%env(DURABLE_TEMPORAL_DSN)%'
+                options:
+                    purpose: nexus_worker
+
         routing:
             # Route your messages to the transports
             # 'App\Message\YourMessage': async

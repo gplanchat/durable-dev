@@ -701,6 +701,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  *     temporal?: array{
  *         dsn?: scalar|Param|null, // DSN temporal://… (ex. %env(DURABLE_DSN)%). Si défini : active le backend natif Temporal (gRPC) ; requiert ext-grpc. Pas de SQL/PDO. // Default: null
+ *         journal?: bool|Param, // false : le cluster est joignable, mais le journal reste celui d'event_store. Une application qui sert une opération Nexus depuis un journal DBAL a besoin des deux — et il n'y a pas deux sources de vérité, puisque event_store dit laquelle. // Default: true
  *     },
  *     activity_transport?: array{
  *         type?: "in_memory"|"messenger"|Param, // Default: "in_memory"

@@ -104,11 +104,39 @@ immédiate n'exigeant aucun workflow qui remplit l'opération.
       fait déjà pour les workflows — et l'emballage du retour ordinaire dans
       `NexusOperationResponse::completed()`. `documentation/user/nexus/_index.{md,fr.md}` montre un
       gestionnaire qui rend un `Verdict` : la doc décrit la forme voulue, pas celle qui marche.
-- [ ] 2.3 Le DSN Temporal de `symfony/` est activé — namespace `demo-metier`. Sa configuration a
-      `temporal.dsn: null` aujourd'hui : « Temporal sur les maquettes » vaut pour les deux.
-- [ ] 2.4 Un workflow appelant dans `symfony/`, qui prend le stub typé et attend le verdict.
-- [ ] 2.5 L'endpoint `demo-boutique-stock`, créé par un script d'opérateur.
-- [ ] 2.6 Éprouvé pour de vrai : deux processus, deux namespaces, le verdict revient.
+- [x] 2.3 Le DSN Temporal de `symfony/` est activé — namespace `demo-metier`. Le bloc par défaut
+      garde `dsn: null` : ce sont `when@dev` et `when@prod` qui posent `%env(DURABLE_DSN)%`, et la
+      démonstration passe son namespace par la variable, sans toucher aux fichiers `.env` du banc.
+      `bin/demo-nexus` imprime les deux commandes avec les bonnes valeurs.
+      Côté boutique, il a fallu une ligne de plus que prévu : `TemporalBridgeBundle` dans
+      `config/bundles.php`. C'est lui qui enregistre la fabrique Messenger `temporal://` ; sans lui
+      Messenger répond « No transport supports Messenger DSN "temporal://…" », un message qui ne
+      nomme ni Nexus ni le bundle manquant.
+- [x] 2.4 `ReserverStockWorkflow` dans `symfony/`, qui prend le stub typé et attend le verdict. Il
+      lit `StockContract` — le contrat de l'appelant — et non `StockServed`, et rien en lui ne sait
+      si l'opération est servie tout de suite ou par un workflow. `durable:demo:nexus` le démarre.
+- [x] 2.5 `bin/demo-nexus` : les deux namespaces et l'endpoint `demo-boutique-stock`, idempotent,
+      qui imprime ensuite les deux commandes à lancer. L'endpoint désigne le namespace **et** la
+      file que le worker de la boutique poll — c'est le seul endroit où les deux moitiés se
+      rencontrent, et une faute de frappe y donne un appelant qui attend pour rien.
+- [x] 2.6 Éprouvé pour de vrai : deux processus, deux namespaces, le verdict revient.
+
+      | appel | réponse | effet dans la boutique |
+      |---|---|---|
+      | `CMD-1 MUG_BLUE=2` | `{reserve: true, manquants: []}` | `on_hold` 0 → 2 |
+      | `CMD-2 MUG_RED=3` | `{reserve: false, manquants: {MUG_RED: 2}}` | rien |
+      | `CMD-3 CAFETIERE=1 MUG_BLUE=1` | `{reserve: false, manquants: {CAFETIERE: 1}}` | rien — tout ou rien |
+      | `CMD-1` rejoué | verdict identique | `on_hold` **reste** à 2 |
+
+      Le banc : un `temporal server start-dev` (Nexus activé, contrairement à
+      `temporalio/auto-setup:1.25.2` qui répond « Nexus APIs are disabled »), PostgreSQL pour la
+      boutique — PHP 8.3 est la seule version de l'hôte qui ait `grpc`, et elle n'a pas
+      `pdo_mysql` —, deux `messenger:consume`, une commande.
+
+      Une note pour §5 : `manquants` est un tableau associatif, et PHP encode un tableau associatif
+      **vide** en `[]` et non en `{}`. Un gestionnaire écrit en Go y lirait une liste là où il
+      attend un objet. Le contrat s'en sort parce qu'il dit déjà que `manquants` n'a de sens que si
+      `reserve` vaut `false` — mais la documentation doit le dire, puisqu'elle promet l'interop.
 
 ## 3. Sens 2 — Sylius appelle, Symfony sert (la forme différée)
 

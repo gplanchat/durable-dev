@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+#
+# Prépare le cluster pour la démonstration Nexus à deux applications.
+#
+# Trois choses n'existent pas tant que personne ne les crée, et aucune n'appartient au code : deux
+# namespaces, et l'endpoint qui dit où le service `stock` est servi. C'est du déploiement, et c'est
+# pourquoi cela vit dans un script d'opérateur plutôt que dans une classe.
+#
+# L'endpoint est la pièce que l'on oublie. Sans lui, le workflow appelant part, le serveur ne sait
+# pas où router l'opération, et l'historique de l'appelant s'arrête sur un échec qui nomme un
+# endpoint introuvable — pas le contrat, pas le gestionnaire.
+#
+#   bin/demo-nexus                     # crée ce qui manque, ne touche pas à ce qui existe
+#   bin/demo-nexus --address host:port # sur un autre cluster que 127.0.0.1:7233
+#
+set -euo pipefail
+
+ADRESSE="${TEMPORAL_ADDRESS:-127.0.0.1:7233}"
+BOUTIQUE="demo-boutique"
+METIER="demo-metier"
+ENDPOINT="demo-boutique-stock"
+# La file que le worker Nexus de la boutique poll. Elle est nommée dans son DSN
+# (`nexus_task_queue=`), et l'endpoint doit désigner la même : c'est le seul endroit où les deux
+# moitiés se rencontrent, et une faute de frappe y donne un appelant qui attend pour rien.
+FILE="demo-boutique-nexus"
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --address) ADRESSE="$2"; shift 2 ;;
+        --address=*) ADRESSE="${1#*=}"; shift ;;
+        -h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        *) echo "option inconnue : $1" >&2; exit 2 ;;
+    esac
+done
+
+if ! command -v temporal >/dev/null 2>&1; then
+    echo "temporal (le CLI) est introuvable — https://docs.temporal.io/cli" >&2
+    exit 1
+fi
+
+tctl() { temporal --address "$ADRESSE" "$@"; }
+
+creer_namespace() {
+    local nom="$1"
+    if tctl operator namespace describe "$nom" >/dev/null 2>&1; then
+        echo "  = namespace $nom"
+        return
+    fi
+    tctl operator namespace create "$nom" >/dev/null
+    echo "  + namespace $nom"
+}
+
+echo "cluster $ADRESSE"
+creer_namespace "$BOUTIQUE"
+creer_namespace "$METIER"
+
+if tctl operator nexus endpoint describe "$ENDPOINT" >/dev/null 2>&1; then
+    echo "  = endpoint $ENDPOINT"
+else
+    # La création échoue tant que le namespace cible n'est pas encore propagé ; quelques secondes
+    # suffisent, et réessayer vaut mieux que d'exiger de l'opérateur qu'il relance le script.
+    for tentative in 1 2 3 4 5; do
+        if tctl operator nexus endpoint create \
+            --name "$ENDPOINT" \
+            --target-namespace "$BOUTIQUE" \
+            --target-task-queue "$FILE" >/dev/null 2>&1; then
+            echo "  + endpoint $ENDPOINT -> $BOUTIQUE / $FILE"
+            break
+        fi
+        [ "$tentative" = 5 ] && { echo "échec de la création de l'endpoint $ENDPOINT" >&2; exit 1; }
+        sleep 2
+    done
+fi
+
+cat <<FIN
+
+Deux processus, deux namespaces.
+
+  # la boutique sert « stock » — elle poll $FILE dans $BOUTIQUE
+  cd sylius
+  DURABLE_TEMPORAL_DSN='temporal://$ADRESSE?namespace=$BOUTIQUE&nexus_task_queue=$FILE&tls=0' \\
+    bin/console messenger:consume durable_temporal_nexus -vv
+
+  # le métier appelle — depuis $METIER
+  cd symfony
+  DURABLE_DSN='temporal://$ADRESSE?namespace=$METIER&journal_task_queue=durable-journal&tls=0' \\
+    bin/console durable:demo:nexus CMD-1 MUG_BLUE=2
+FIN
