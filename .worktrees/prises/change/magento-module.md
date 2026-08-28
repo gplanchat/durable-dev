@@ -166,8 +166,28 @@ avec Rector et `UPGRADE.md`. Une **garde** parcourt désormais les 183 fichiers 
 `src/Durable` et échoue sur tout `use` d'un hôte ou d'un pont — les sept `@see`
 en commentaire sont tolérés.
 
-Reste ensuite : **la tâche 4** (elle débloque la 5.3), puis 5.2 (une commande
-passée depuis la boutique), puis la tâche 6. ; la tâche 4 (la file de Magento)
+**Tâche 4, PR #190 (elle porte aussi la 5.3).** Le codec de file est écrit et
+gardé : `ActivityMessage` ⇄ JSON, refusant `options` et `retryDelay` **en les
+nommant** plutôt qu'en les perdant. Mesuré d'abord — une activité ordinaire n'en
+porte aucun des deux.
+
+⛔ **attend:auteur — la suite de la tâche 4 est un arbitrage.** Les cinq rôles ne
+sont pas cinq gestionnaires minces : `ResumeWorkflowHandler` fait **138 lignes
+avec 15 imports du cœur**, `FireWorkflowTimersHandler` 86 de plus. C'est
+l'orchestration de reprise du moteur en veste Symfony, pas un adaptateur d'hôte.
+Magento doit soit **dupliquer** ces 224 lignes — deux copies de la sémantique de
+reprise, qui divergeront à la première correction — soit les faire **descendre
+au cœur**, même geste que pour `TimerWakeDelayCalculator` et
+`PayloadToContractMethodInvoker`, mais d'un ordre de grandeur au-dessus et
+touchant une classe que tout utilisateur Symfony exécute.
+
+Note : `main` a apporté les sept renommages d'attributs de la session Nexus
+(`Workflow` → `AsWorkflow`, etc.). Le module a été migré **par le set
+`durable-upgrade.php` lui-même**, ce qui l'éprouve pour de vrai : six fichiers
+réécrits, plus un seul ancien nom.
+
+Reste ensuite : la 5.2 (une commande passée depuis la boutique), puis la
+tâche 6. ; la tâche 4 (la file de Magento)
 et la 4.3 ; puis la tâche 6.
 
 ⚠ Frictions du banc, à savoir avant d'y toucher :
