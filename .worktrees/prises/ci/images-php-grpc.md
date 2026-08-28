@@ -1,0 +1,6 @@
+# ci/images-php-grpc
+
+- chantier : outillage — images PHP avec grpc et protobuf
+- tranche : la chaîne de construction et sa publication sur GHCR
+- worktree : /tmp/claude-1000/.../scratchpad/wt-img
+- pris le : 2026-08-28
