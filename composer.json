@@ -35,6 +35,10 @@
         },
         {
             "type": "path",
+            "url": "src/DurableLaravel"
+        },
+        {
+            "type": "path",
             "url": "src/DurablePhpstan"
         },
         {
@@ -49,7 +53,8 @@
         "gplanchat/durable-plugin": "@dev",
         "gplanchat/durable-bridge-temporal": "@dev",
         "gplanchat/durable-bridge-dbal": "@dev",
-        "gplanchat/durable-bridge-illuminate": "@dev"
+        "gplanchat/durable-bridge-illuminate": "@dev",
+        "gplanchat/durable-laravel": "@dev"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.0",
@@ -71,6 +76,7 @@
             "Gplanchat\\Bridge\\Temporal\\": "src/Bridge/Temporal/",
             "Gplanchat\\Bridge\\Dbal\\": "src/Bridge/Dbal/",
             "Gplanchat\\Bridge\\Illuminate\\": "src/Bridge/Illuminate/",
+            "Gplanchat\\Durable\\Laravel\\": "src/DurableLaravel/",
             "Temporal\\Api\\": "src/Bridge/Temporal/Api/",
             "GPBMetadata\\Temporal\\": "src/Bridge/Temporal/Generated/GPBMetadata/Temporal/",
             "Gplanchat\\Durable\\Magento\\": "src/DurableModule/"
