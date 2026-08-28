@@ -17,23 +17,26 @@ it** before it was written down. Four of them overturned what the design had ass
 
 ## Decision
 
-### The package is `gplanchat/durable-magento`, the module is `Gplanchat_Durable`, and that costs
-### exactly one thing
+### The names line up, because PSR-4 is what keeps them from drifting
 
-Packagist gets the family prefix, because that is what a reader of the site and of the four shipped
-packages has already learned. Magento's convention governs the directory under `app/code` and the
-name in `registration.php` — what a Magento developer's eye expects.
+`gplanchat/durable-magento` on Packagist; the module is **`Gplanchat_DurableModule`** and the
+package autoloads under **`Gplanchat\DurableModule\`** — one root, matching the directory it lives
+in.
 
-The two disagree only where nobody has to choose, **except in one place**: Magento resolves a
-controller **by convention from the module name**, not from the autoloader.
-`ActionList::get()` composes `Gplanchat_Durable` + `\Controller\Adminhtml\…`, so the class must live
-under `Gplanchat\Durable\Controller\` while the package autoloads under `Gplanchat\Durable\Magento\`.
-The module carries a second `psr-4` entry for that one directory.
+That correspondence is not cosmetic. Magento resolves an admin action **by convention from the
+module name**: `ActionList::get()` composes `Gplanchat_DurableModule` + `\Controller\Adminhtml\…`
+and never consults the autoloader's map. As long as the module name and the package's PSR-4 root
+agree, there is nothing extra to declare.
 
-Until it did, the route was declared, `getRouteFrontName()` answered `durable`, **the menu
-rendered** — and Magento served its 404 inside the admin chrome. Every symptom pointed at the
-declaration, which was correct.
+They did not agree at first. The module was `Gplanchat_Durable` while the package autoloaded under
+`Gplanchat\Durable\Magento\`, which forced a **second** `psr-4` entry for the controller
+directory alone. The symptom was thoroughly misleading: the route was declared,
+`getRouteFrontName()` answered, **the menu rendered** — and Magento served its 404 inside the admin
+chrome, so every sign pointed at a declaration that was in fact correct.
 
+The lesson is not about Magento. Two names for one thing drift, and the special case that papers
+over the drift is how the drift becomes permanent. PSR-4 exists to make it impossible; the fix was
+to let it.
 ### Two backends, and **Composer** refuses the others
 
 Magento reaches `memory` and `temporal`, and this is final rather than provisional:

@@ -2,23 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Magento\Workflow;
+namespace unit\DurableModule\Fixture;
 
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
-use Gplanchat\Durable\Magento\Workflow\Activity\OrderActivities;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-/**
- * Un workflow ordinaire — et c'est tout l'argument.
- *
- * Rien ici ne sait qu'il tourne dans Magento : pas d'import du framework, pas de
- * `ObjectManager`, pas de `ResourceConnection`. La même classe tourne sous le
- * bundle Symfony sans être touchée, parce que tout ce qui est sous les ports est
- * `gplanchat/durable` inchangé.
- */
-#[AsWorkflow(name: 'durable.demo.place-order')]
-final class PlaceOrderWorkflow
+#[AsWorkflow(name: 'test.order.place')]
+final class OrderWorkflow
 {
     public function __construct(
         private readonly WorkflowEnvironment $environment,

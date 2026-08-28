@@ -27,7 +27,7 @@ $mode = $argv[1] ?? 'here';
 $executionId = $argv[2] ?? 'probe-resume';
 $pauseSeconds = (int) ($argv[3] ?? 0);
 
-$factory = $om->get(\Gplanchat\Durable\Magento\Runtime\RuntimeFactory::class);
+$factory = $om->get(\Gplanchat\DurableModule\Runtime\RuntimeFactory::class);
 $workflow = \Gplanchat\DurableProbe\Workflow\SlowOrderWorkflow::class;
 $input = ['orderId' => 'ORD-' . $executionId, 'pauseSeconds' => $pauseSeconds];
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Magento\Workflow\Activity;
+namespace Gplanchat\DurableProbe\Workflow\Activity;
 
 /**
  * L'implémentation de la démonstration : trois étapes qui ne font que se nommer.
