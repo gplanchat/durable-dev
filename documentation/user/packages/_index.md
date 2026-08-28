@@ -226,10 +226,15 @@ completes.
 
 ### Not in this package
 
-**Temporal**, for now. `gplanchat/durable-bridge-temporal` installs eight packages into a Laravel
-application, five of them Symfony components it never loads, for some 36 MB. The answer is to split
-the bridge — its Symfony-coupled part is eight files out of 759 — and that is its own change. Until
-it lands, the combination is refused by name.
+**Nothing about Temporal** — it is served. `backend: 'temporal'` puts the journal and the run
+catalogue in the cluster, and `php artisan durable:temporal-worker` drains the workflow tasks, which
+are the one thing the application's own queue cannot carry.
+
+`gplanchat/durable-bridge-temporal` is **suggested rather than required**: it installs eight packages,
+five of them Symfony components a Laravel application never loads, for some 36 MB. An application
+that does not select the backend never pays for it, and one that does is told by name what to
+install. Splitting the bridge — its Symfony-coupled part is eight files out of 759 — would remove
+the weight, and that is its own change.
 
 **A dashboard.** `gplanchat/durable-filament` will require this package, and this package will never
 require, suggest or detect Filament.

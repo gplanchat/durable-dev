@@ -28,6 +28,10 @@
             ]
         }
     },
+    "suggest": {
+        "illuminate/console": "Required by durable:temporal-worker, the only command this package adds. Every Laravel application already has it; it is suggested so that it stays out of a monorepo graph that still tests the Symfony 6.4 line.",
+        "gplanchat/durable-bridge-temporal": "Required by the \"temporal\" backend: the gRPC driver for a Temporal cluster. Suggested rather than required because it installs five Symfony components a Laravel application never loads."
+    },
     "config": {
         "sort-packages": true
     },
