@@ -23,17 +23,20 @@ partagé entre processus). Le delta de spec a suivi — l'exigence parle désorm
 de processus qu'un exploitant supervise déjà, et interdit explicitement une
 seconde file.
 
-✅ **6.1 — DUR046, PR #205.** L'ADR porte le nom du paquet et son unique prix
-(le contrôleur résolu depuis le nom du module), les deux backends refusés par
-Composer, l'abandon de la file avec sa mesure, le verrou dont le cas d'usage
-s'est évaporé, et surtout les **trois corrections que cette intégration a
-apportées au cœur** — dont la panne fatale invisible sous Symfony. Il dit aussi
-ce qu'il ne prétend pas : paquet non publié, CI qui résout sans démarrer,
-distribution d'Adobe non éprouvée.
+✅ **Tâche 6 aux trois quarts — PR #205 fusionnée.** DUR046 (6.1), les pages
+paquets et la page Backends dans les deux langues (6.3), et les deux OST (6.4).
+La ligne Magento d'OST004 a quitté le tableau de ce qui n'est pas construit.
 
-Reste de la tâche 6 : **6.2** (le sélecteur sort de `planned`, par le canevas et
-non par le fichier généré), **6.3** (pages paquets et page Backends, dans les
-deux langues), **6.4** (OST003 §Magento et OST004 §5).
+⚠ Les sections de documentation s'ouvrent sur un **avertissement : le paquet
+n'est pas sur Packagist**. Il partira avec la publication, pas avant — documenter
+un `composer require` qui ne résout pas serait la documentation qui ment.
+
+Reste : **6.2**, le sélecteur qui sort de `planned` — *par le canevas*, pas par
+le fichier généré, donc ça demande la main de l'auteur ou la boucle designer.
+Puis, hors cases : la **publication** (dépôt satellite + portée du jeton avant la
+ligne dans SPLITS), le **job de CI qui démarre** Magento (4bis.2), et le
+**manuel de l'exploitant** (les défauts de Magento sont porteurs : les deux
+tâches cron et le délai de reprise sont des pièces de la garantie).
 
 ✅ **5.3 VERTE — PR #203.** Le test d'acceptation du change entier passe :
 commande partie sur la grappe, les **deux** workers tués en pleine réservation,
