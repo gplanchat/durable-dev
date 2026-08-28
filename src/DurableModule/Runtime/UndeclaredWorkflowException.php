@@ -21,7 +21,7 @@ final class UndeclaredWorkflowException extends \RuntimeException
         return new self(\sprintf(
             'The workflow %s was never declared to the module. Add it to the workflowClasses argument of %s in your di.xml, beside the ones already there.',
             $workflowClass,
-            InMemoryRuntimeFactory::class,
+            RuntimeFactory::class,
         ));
     }
 }
