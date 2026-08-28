@@ -267,7 +267,20 @@ either confirms a design or replaces it.
       and `release()`; this job is pushed by the transport and never re-queues itself, so the
       package still needs nothing but `illuminate/contracts`. The resume job will need them — that
       is where `illuminate/queue` enters, in §4.
-- [ ] 3.2 Workflow resume as a job, drained by `php artisan queue:work` and nothing else.
+- [x] 3.2 Workflow resume as a job, drained by `php artisan queue:work` and nothing else.
+      `LaravelWorkflowResumeDispatcher` has the same shape as its Messenger counterpart: a resume is
+      a message, a new run saves its metadata **first** and then becomes one — a resume that arrived
+      before them would not know what to replay.
+
+      **What the Symfony side gets from a `DispatchAfterCurrentBusStamp`, this one gets from the
+      queue — and that is a condition, not a given.** On the `sync` connection `push()` runs the job
+      on the spot, so a resume that dispatches another resume recurses in the same process until the
+      stack ends. `ExecutionRuntime` already names this hazard in a docblock; here it is one `.env`
+      value away.
+
+      So `sync` is **refused at boot**, beside the `null` lock store, and for the same reason: there
+      is no deployment in which it is right for this backend, so the refusal cannot be wrong. Three
+      tests, one of them the refusal.
 - [x] 3.3 Timers on the queue's own delay, the way the DBAL backend rides Messenger's `DelayStamp`.
       A `retryDelay` becomes `later((int) ceil($seconds))` — rounded **up**, because waiting less
       than asked is the only error that counts here — and is then stripped from the message.
