@@ -42,8 +42,18 @@ qui demande l'extension, démarre PHP aussi vite que celui de Sylius, qui ne la 
 | Boutique Sylius | 6 s | non |
 
 Dans un workflow, écrivez donc `extensions: …, grpc` et n'y pensez plus. Ces images sont pour
-**Docker**, où `install-php-extensions` compile depuis les sources à chaque construction — grpc
-étant un arbre C++ qui prend plusieurs minutes.
+**Docker**, où `install-php-extensions` compile depuis les sources à chaque construction.
+
+**Combien de temps, exactement.** Mesuré en construisant `8.3-cli-alpine` sur une machine de
+développement ordinaire :
+
+```
+real    6m58s      image finale : 126 Mo
+```
+
+Sept minutes par construction, par version de PHP, par distribution, sur chaque machine et dans
+chaque pipeline qui en a besoin. C'est ce que publier l'image supprime — grpc 1.83 traînant derrière
+lui abseil, boringssl, re2 et upb, et se compilant en C++17.
 
 ## Comment elles sont construites
 
