@@ -6,8 +6,11 @@ namespace unit\DurablePhpstan\Fixtures;
 
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Attribute\ActivityMethod;
+use Gplanchat\Durable\Attribute\AsNexusOperation;
+use Gplanchat\Durable\Attribute\AsNexusService;
 use Gplanchat\Durable\Attribute\Workflow;
 use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Nexus\NexusStub;
 use Gplanchat\Durable\Workflow\ChildWorkflowStub;
 use Gplanchat\Durable\WorkflowEnvironment;
 
@@ -25,6 +28,23 @@ interface OrderActivities
 
     /** Sans attribut : du code de contrat, pas une opération planifiable. */
     public function helper(): string;
+}
+
+#[AsNexusService('facturation')]
+interface FacturationServed
+{
+    #[AsNexusOperation('verifier')]
+    public function verifier(string $ordre): string;
+}
+
+#[AsNexusService('facturation')]
+interface Facturation extends FacturationServed
+{
+    #[AsNexusOperation('encaisser')]
+    public function encaisser(string $ordre, int $montant): string;
+
+    /** Sans attribut : du code de contrat, pas une opération appelable. */
+    public function bareme(): string;
 }
 
 #[Workflow(name: 'child')]
@@ -48,11 +68,14 @@ final class StubCallSites
 
     private readonly ChildWorkflowStub $child;
 
+    private readonly NexusStub $facturation;
+
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
         $this->orders = $environment->activityStub(OrderActivities::class);
         $this->child = $environment->childWorkflowStub(ChildWorkflow::class);
+        $this->facturation = $environment->nexusStub(Facturation::class, 'paiements');
     }
 
     #[WorkflowMethod]
@@ -71,6 +94,19 @@ final class StubCallSites
         // FAUTIF — déclarée par le contrat, mais sans #[ActivityMethod] : ce n'est pas une
         // activité, et le stub la refuse.
         $this->environment->await($this->orders->helper());
+
+        // Correct : déclarée par le contrat Nexus et marquée.
+        $this->environment->await($this->facturation->encaisser($orderId, 1200));
+
+        // Correct : **héritée** du contrat servi. C'est la séparation en deux interfaces qui rend
+        // ce cas possible, et l'extension doit la suivre comme le résolveur la suit.
+        $this->environment->await($this->facturation->verifier($orderId));
+
+        // FAUTIF — déclarée par le contrat Nexus, mais sans #[AsNexusOperation].
+        $this->environment->await($this->facturation->bareme());
+
+        // FAUTIF — faute de frappe sur une opération Nexus.
+        $this->environment->await($this->facturation->encasser($orderId, 1200));
 
         // FAUTIF — mauvais nombre d'arguments. Ne devient visible que parce que l'extension a
         // rendu la méthode connue : c'est le gain de second ordre.
