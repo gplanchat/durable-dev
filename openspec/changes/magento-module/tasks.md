@@ -123,6 +123,19 @@ topic.
       and that stands; what needed the lock was two consumers on one queue, and there is no queue.
       ⚠ If a host-native journal is ever added, this entry comes back with it.
 
+## 4bis. What the CI can see of Magento
+
+- [x] 4bis.1 **A Mage-OS × PHP matrix, the counterpart of the Symfony one.** Five entries, each an
+      edge with a reason: the oldest line that still accepts the module's PHP floor, the bench's
+      pin at that floor, the top of the 2.x line under a recent PHP, the 3.x floor — where Mage-OS
+      refuses PHP 8.2 while the module allows it — and newest on newest. It proves the module's
+      constraints are honest against each line; it does not prove boot, which costs ~1 GB per
+      entry and belongs to an integration job.
+      Verified to discriminate before it was written: `2.2.0` on PHP 8.2 resolves, `3.4.0` on PHP
+      8.2 fails naming the cause.
+- [ ] 4bis.2 A job that **boots** Magento — install, `durable:demo`, and the admin screen answering.
+      Until it exists, every claim about this module rests on a transcript produced by hand.
+
 ## 5. Temporal, end to end
 
 - [x] 5.1 **Where the journal lives is decided by the presence of a DSN.** `RuntimeFactory`
