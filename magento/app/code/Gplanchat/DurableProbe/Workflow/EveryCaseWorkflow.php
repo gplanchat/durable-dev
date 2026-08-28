@@ -25,7 +25,7 @@ use Gplanchat\DurableProbe\Workflow\Activity\EveryCaseActivities;
  *   se termine bien, ce qui prouve que la couleur marque l'événement et non l'action entière ;
  *   ⚠ **elle ne se reprend que sur le backend en mémoire** — sur Temporal les trois tentatives
  *   sont consommées en deux secondes sans que le code de l'activité soit rappelé. C'est cette
- *   sonde qui l'a trouvé, et le fait est rapporté ailleurs : ici il n'est pas contourné ;
+ *   sonde qui l'a trouvé, et le fait est rapporté dans l'issue #218 : ici il n'est pas contourné ;
  * - un **minuteur** de cinq secondes, qui doit annoncer sa durée sans qu'on ait à soustraire deux
  *   horodatages ;
  * - un **workflow enfant** qui réussit et un autre qui échoue, sur des lignes séparées ;

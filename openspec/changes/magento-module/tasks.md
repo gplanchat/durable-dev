@@ -307,7 +307,8 @@ topic.
       ⚠ **La sonde a aussi trouvé une panne qui ne relève pas de cet écran** et qui est rapportée
       telle quelle : sur Temporal, `flaky` consomme ses trois tentatives en deux secondes **sans que
       le code de l'activité soit rappelé** — `attempt: 3` côté serveur, une seule invocation côté
-      banc. Sur le backend en mémoire, la même activité se reprend et réussit.
+      banc. Sur le backend en mémoire, la même activité se reprend et réussit. Rapportée dans
+      l'issue #218, pas corrigée ici : c'est du cœur, pas du module Magento.
 
 ## 4bis. What the CI can see of Magento
 
