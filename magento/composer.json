@@ -44,7 +44,8 @@
     "prefer-stable": true,
     "autoload": {
         "psr-4": {
-            "Magento\\Setup\\": "setup/src/Magento/Setup/"
+            "Magento\\Setup\\": "setup/src/Magento/Setup/",
+            "Gplanchat\\DurableProbe\\": "app/code/Gplanchat/DurableProbe/"
         },
         "files": [
             "app/etc/NonComposerComponentRegistration.php"
