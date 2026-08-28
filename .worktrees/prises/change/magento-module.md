@@ -53,16 +53,46 @@ assemblé, et rien d'autre à écrire pour bénéficier de la garde. Un endpoint
 (`temporal operator nexus endpoint create`), et une file que personne ne poll est
 un endpoint qui ne répond jamais, sans erreur nulle part.
 
-Tranche **en cours** : la **procédure de migration de la rupture de #175**.
-`PayloadToContractMethodInvoker` est descendu de `durable-bundle` à `durable`
-sans procédure, ce que la règle arbitrée interdit — Rector d'abord, script
-sinon, documentation dans tous les cas. Un set `durable-upgrade.php` à côté de
-`temporal-sdk.php`, testé par fixture comme les quatre règles existantes.
-⚠ La session `splitsh-integration-alpha8` déplace elle aussi une classe de
-paquet (`AsDurableActivity` du bundle vers le cœur, sous `AsActivityHandler`) :
-son renommage a vocation à rejoindre le **même** set, pas un second.
+**PR #175 fusionnée** — elle a emporté la tranche 3.1 *et* la procédure de
+migration de sa rupture : set Rector cumulatif `durable-upgrade.php`, `UPGRADE.md`
+à la racine (le dépôt n'avait aucun endroit où documenter une montée de version),
+et ce que Rector ne peut pas faire écrit en toutes lettres — un conteneur Symfony
+compilé garde le nom pleinement qualifié et veut son `cache:clear`.
+⚠ C'est **`chantier-nexus`**, pas `splitsh-integration-alpha8`, qui déplace
+`AsDurableActivity` du bundle vers le cœur sous `AsActivityHandler` : son
+renommage est **déjà** dans le même set : il a supprimé son
+`durable-attributes-alpha8.php` en doublon et fusionné ses huit entrées dans
+`durable-upgrade.php`, qui en porte neuf. Ses sept renommages d'attributs me
+concerneront le jour où le module référencera les attributs — le set les couvre,
+et Magento n'ayant pas de conteneur compilé, il n'y a pas de `cache:clear` à
+faire de ce côté. (La session
+`splitsh-integration-alpha8` est sur le chantier Laravel et ne touche à rien de
+tout ça — je m'étais trompé de destinataire.)
 
-Après : **tâche 4** — `communication.xml`, `queue_topology.xml`,
+**PR #179** — la conception de la 4.1, mesurée. Le type de `request` est
+tranché : **`string`, le module encode son JSON**. Deux mesures, deux pannes
+silencieuses :
+- un objet de transport de Durable ne se fait pas refuser, il se fait **vider** —
+  `encode()` rend `[]` sans lever, le publieur réussit, l'identifiant
+  d'exécution a disparu, et le consommateur échoue au décodage dans un autre
+  processus ;
+- `string[]` laisse tomber les clés associatives et rend
+  `Array to string conversion` au décodage.
+
+Les charges sont les **arguments des ports** (`WorkflowResumeDispatcher` parle
+`string $executionId` + tableau), pas les classes de message, qui sont un détail
+de Messenger. Donner aux objets du cœur des accesseurs à la forme de Magento est
+ce que cette intégration ne doit pas faire.
+
+⚠ **Le découpage 4.1/4.2 bouge** : `setup:upgrade` refuse un consommateur dont il
+ne résout pas la méthode de gestionnaire, donc une déclaration ne peut pas
+atterrir inerte. La 4.1 portera de vrais gestionnaires pour les rôles qu'elle
+déclare (reprise et distribution d'activité), la 4.2 ajoutera signal, update et
+minuterie.
+
+Reste de la 4.1 : écrire les quatre XML et les deux gestionnaires.
+
+Après : **tâche 4** (4.2, 4.3) — `communication.xml`, `queue_topology.xml`,
 `queue_publisher.xml`, `queue_consumer.xml` pour les cinq rôles (4.1), les
 gestionnaires (4.2), et le verrou par exécution avec son test (4.3). Les quatre
 sondages de la tâche 1 l'ont dessinée : la file n'offre **aucune** exclusion
