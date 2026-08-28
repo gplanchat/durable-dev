@@ -30,6 +30,21 @@ return [
      */
     'connection' => null,
 
+    /*
+     * Les classes de workflow que cette application déclare.
+     *
+     * Le conteneur de Laravel n'a pas d'équivalent de l'autoconfiguration par attribut de Symfony,
+     * donc la déclaration est explicite. Ce que ça ne change pas, c'est la classe : celle qui tourne
+     * sur `durable-bundle` tourne ici sans une ligne de différence.
+     *
+     * Mesuré (§1.4) : cette liste coûte 0,14 ms et ne grandit pas avec l'application, là où un scan
+     * par réflexion coûte 15 ms à mille classes et les charge toutes, dans chaque processus, pour en
+     * trouver cinq.
+     *
+     * @var list<class-string>
+     */
+    'workflows' => [],
+
     'tables' => [
         'events' => 'durable_events',
         'metadata' => 'durable_workflow_metadata',
