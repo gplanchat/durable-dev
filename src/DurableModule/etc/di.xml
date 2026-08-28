@@ -11,6 +11,7 @@
         <arguments>
             <argument name="commands" xsi:type="array">
                 <item name="durable_demo" xsi:type="object">Gplanchat\Durable\Magento\Console\Command\RunDemoCommand</item>
+                <item name="durable_worker" xsi:type="object">Gplanchat\Durable\Magento\Console\Command\RunWorkerCommand</item>
             </argument>
         </arguments>
     </type>
