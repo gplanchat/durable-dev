@@ -126,9 +126,22 @@ just remote. It is also where the correlation between the operation and the work
 it lives, which is the thing this design knows least about.
 
 Hypothesis, to be falsified: the handler responds once, naming a workflow, and the server correlates
-that workflow's completion to the operation without the handler being involved again. If that is
-wrong — if the handler must observe the workflow and report — the change grows a component nobody
-has budgeted, and it should be said before the work starts rather than discovered in week two.
+that workflow's completion to the operation without the handler being involved again.
+
+**Measured (§3.1 probe), and it holds — but the mechanism is not the one the wording suggests.**
+A raw poller answered a start task asynchronously, having first started a second workflow carrying
+the task's `callback` and `callbackHeader` in `StartWorkflowExecutionRequest.completion_callbacks`.
+Completing that workflow wrote `NEXUS_OPERATION_COMPLETED` into the *caller's* history with the
+workflow's result. The handler was never polled again.
+
+Run with the callback attachment removed and nothing else changed, the caller's history stops at
+`NEXUS_OPERATION_STARTED` and no outcome ever arrives, however valid the token.
+
+**So the token is not the mechanism, only the identifier.** What correlates is the callback, and
+`completion_callbacks` can only be set at start. This decides the handler's contract: a handler
+says *"fulfil this with workflow X"*, and the plumbing attaches the callback and derives the token.
+A contract shaped as "return a token" would hand the handler the one piece that correlates nothing,
+and by the time it returned, the start it needed to influence would already have happened.
 
 ## Failures reuse the caller's classification, or the mismatch is a finding
 
