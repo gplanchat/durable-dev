@@ -102,6 +102,40 @@ final class ResumeLock
     }
 
     /**
+     * Exécute `$work` si le tour est libre, et rend `false` sans attendre s'il ne l'est pas.
+     *
+     * **C'est l'entrée que §1.2 a mesurée, et `around()` est celle qu'elle disqualifie pour un
+     * worker.** Un worker Laravel est un processus, pas une coroutine : `around()` y tient un
+     * créneau pendant toute son attente — quinze secondes-worker pour quatre secondes de travail,
+     * sur vingt reprises d'une même exécution. Et sa fenêtre d'attente est un plafond de
+     * *profondeur de file* déguisé en réglage de latence : dès que profondeur × durée la dépasse,
+     * elle lève.
+     *
+     * Ici le verrou dit seulement que le tour est pris. Ce que l'appelant en fait — se remettre en
+     * file plus tard, abandonner, journaliser — est sa décision, pas celle du verrou.
+     *
+     * @template T
+     *
+     * @param callable(): T $work
+     */
+    public function tryAround(string $executionId, callable $work): bool
+    {
+        $lock = $this->locks->lock(self::nameFor($executionId), $this->ttlSeconds);
+
+        if (!$lock->get()) {
+            return false;
+        }
+
+        try {
+            $work();
+        } finally {
+            $lock->release();
+        }
+
+        return true;
+    }
+
+    /**
      * Le nom du verrou d'une exécution.
      *
      * Exposé parce qu'un appelant peut vouloir le poser lui-même — une commande qui reprend une

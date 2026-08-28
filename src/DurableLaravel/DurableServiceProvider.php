@@ -10,12 +10,22 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
+use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
+use Gplanchat\Durable\ActivityExecutor;
+use Gplanchat\Durable\ExecutionEngine;
+use Gplanchat\Durable\ExecutionRuntime;
+use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Laravel\Queue\LaravelActivityTransport;
 use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowResumeDispatcher;
+use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowTimerDispatcher;
+use Gplanchat\Durable\Laravel\Queue\ResumeDeferral;
 use Gplanchat\Durable\Laravel\Workflow\DeclaredWorkflowTypes;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
+use Gplanchat\Durable\Port\NullWorkflowTimerDispatcher;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
+use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
+use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
@@ -25,7 +35,10 @@ use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
+use Gplanchat\Durable\Worker\ActivityMessageProcessor;
+use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
+use Illuminate\Cache\ArrayStore;
 use Illuminate\Cache\NullStore;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Database\Connection;
@@ -64,6 +77,8 @@ final class DurableServiceProvider extends ServiceProvider
         $this->bindActivityTransport($backend, $config);
         $this->bindResumeLock($config);
         $this->bindWorkflowRegistry($config);
+        $this->bindResumePath($config);
+        $this->bindResumeDeferral($config);
     }
 
     public function boot(): void
@@ -219,6 +234,80 @@ final class DurableServiceProvider extends ServiceProvider
         ));
     }
 
+    /**
+     * Ce qui rejoue une exécution, et c'est le cœur qui le fait.
+     *
+     * `ResumeWorkflowHandler` a quitté le bundle Symfony pour le cœur pour qu'un hôte sans bus
+     * puisse le rendre : ce paquet n'a donc qu'à l'assembler, pas à le réécrire. Un minuteur, lui,
+     * est une reprise différée — la file porte le délai, comme le `DelayStamp` de Messenger.
+     *
+     * @param array<string, mixed> $config
+     */
+    private function bindResumePath(array $config): void
+    {
+        /** @var array<string, mixed> $queue */
+        $queue = $config['queue'] ?? [];
+
+        $this->app->singleton(RegistryActivityExecutor::class, fn() => new RegistryActivityExecutor());
+        // Le port, pas seulement la classe : `RunActivityJob` demande un
+        // `ActivityMessageProcessor`, qui demande un `ActivityExecutor`. Sans cette ligne le
+        // conteneur essaie d'instancier une interface, et l'activité échoue au premier essai.
+        $this->app->singleton(ActivityExecutor::class, fn($app) => $app->make(RegistryActivityExecutor::class));
+        $this->app->singleton(WorkflowDefinitionLoader::class, fn() => new WorkflowDefinitionLoader());
+
+        // Le minuteur suit le backend, comme le transport et le dispatcher de reprise : en
+        // mémoire, le drain est dans le processus et n'a personne à réveiller.
+        $this->app->singleton(
+            WorkflowTimerDispatcher::class,
+            ($config['backend'] ?? 'illuminate') === 'illuminate'
+                ? fn($app) => new LaravelWorkflowTimerDispatcher(
+                    $app->make(QueueFactory::class),
+                    $queue['connection'] ?? null,
+                    $queue['name'] ?? null,
+                )
+                : fn() => new NullWorkflowTimerDispatcher(),
+        );
+
+        $this->app->singleton(ExecutionRuntime::class, fn($app) => new ExecutionRuntime(
+            $app->make(EventStoreInterface::class),
+            $app->make(ActivityTransportInterface::class),
+            $app->make(RegistryActivityExecutor::class),
+            // Les tentatives sont illimitées par défaut, sémantique Temporal ; `distributed: true`
+            // parce qu'ici le drain n'est pas dans le processus, c'est `queue:work`.
+            0,
+            null,
+            true,
+        ));
+
+        $this->app->singleton(ExecutionEngine::class, fn($app) => new ExecutionEngine(
+            $app->make(EventStoreInterface::class),
+            $app->make(ExecutionRuntime::class),
+        ));
+
+        $this->app->singleton(ActivityMessageProcessor::class, fn($app) => new ActivityMessageProcessor(
+            $app->make(EventStoreInterface::class),
+            $app->make(ActivityTransportInterface::class),
+            $app->make(ActivityExecutor::class),
+            $app->make(WorkflowResumeDispatcher::class),
+            // Pas de battement de cœur : c'est une capacité de Temporal, et rien ici ne la sert.
+            new NullActivityHeartbeatSender(),
+            // Tentatives illimitées par défaut, sémantique Temporal. La politique de chaque
+            // activité l'emporte quand elle en déclare une.
+            0,
+        ));
+
+        $this->app->singleton(ResumeWorkflowHandler::class, fn($app) => new ResumeWorkflowHandler(
+            $app->make(ExecutionEngine::class),
+            $app->make(WorkflowRegistry::class),
+            $app->make(WorkflowMetadataStore::class),
+            $app->make(WorkflowResumeDispatcher::class),
+            $app->make(EventStoreInterface::class),
+            $app->make(ChildWorkflowParentLinkStoreInterface::class),
+            $app->make(WorkflowTimerDispatcher::class),
+            $app->make(WorkflowDefinitionLoader::class),
+        ));
+    }
+
     /** @param array<string, mixed> $config */
     private function bindResumeLock(array $config): void
     {
@@ -229,6 +318,22 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make('cache')->store($lock['store'] ?? null)->getStore(),
             (int) ($lock['ttl'] ?? 300),
             (int) ($lock['wait'] ?? 10),
+        ));
+    }
+
+    /** @param array<string, mixed> $config */
+    private function bindResumeDeferral(array $config): void
+    {
+        /** @var array<string, mixed> $lock */
+        $lock = $config['lock'] ?? [];
+        /** @var array<string, mixed> $queue */
+        $queue = $config['queue'] ?? [];
+
+        $this->app->singleton(ResumeDeferral::class, fn() => new ResumeDeferral(
+            (int) ($lock['backoff'] ?? 1),
+            (int) ($lock['max_deferrals'] ?? 50),
+            $queue['connection'] ?? null,
+            $queue['name'] ?? null,
         ));
     }
 
@@ -280,7 +385,22 @@ final class DurableServiceProvider extends ServiceProvider
         $lock = $this->durableConfig()['lock'] ?? [];
         $name = $lock['store'] ?? null;
 
-        if ($this->app->make('cache')->store($name)->getStore() instanceof NullStore) {
+        $store = $this->app->make('cache')->store($name)->getStore();
+
+        // §1.3 laissait passer `array` au démarrage parce que c'est le cache de test par défaut de
+        // Laravel, et qu'exclure dans un seul processus est ce qu'un test veut. Sous le backend
+        // `illuminate`, ça ne peut plus être vrai : la reprise tourne dans un worker séparé du
+        // processus qui l'a dispatchée, donc deux verrous « array » ne se voient jamais.
+        if ($store instanceof ArrayStore && ($this->durableConfig()['backend'] ?? 'illuminate') === 'illuminate') {
+            throw new \InvalidArgumentException(\sprintf(
+                'Durable: the "%s" cache store only excludes inside one process, and a resume runs '
+                . 'in a worker separate from whatever dispatched it — two workers would replay the '
+                . 'same execution. Use database, redis, memcached, dynamodb or file.',
+                $name ?? 'default',
+            ));
+        }
+
+        if ($store instanceof NullStore) {
             throw new \InvalidArgumentException(\sprintf(
                 'Durable: the "%s" cache store grants every lock, so two workers would replay the '
                 . 'same execution and its activities would run twice. Use database, redis, '

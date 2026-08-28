@@ -81,6 +81,22 @@ return [
         'ttl' => 300,
 
         /*
+         * Le report d'une reprise dont le tour est pris, en secondes.
+         *
+         * Mesuré (§1.5) : sur une exécution chaude — réveillée sans cesse par des signaux ou des
+         * minuteurs — 98,8 % des reprises entrent en collision, et ce délai **est** alors la
+         * latence : une seconde a transformé 32 s de travail en 148 s d'horloge. Sur un parc de
+         * beaucoup d'exécutions, les collisions tombent à 0,6 % et le réglage n'a plus d'effet.
+         */
+        'backoff' => 1,
+
+        /*
+         * Combien de fois de suite une reprise accepte de trouver le tour pris avant d'abandonner
+         * bruyamment. Un report sans fin ressemble à une exécution qui avance.
+         */
+        'max_deferrals' => 50,
+
+        /*
          * Combien de temps une reprise accepte d'attendre son tour.
          *
          * ⚠ C'est un plafond de **profondeur de file**, pas un réglage de latence : dès que
