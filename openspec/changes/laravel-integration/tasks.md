@@ -281,6 +281,17 @@ either confirms a design or replaces it.
       So `sync` is **refused at boot**, beside the `null` lock store, and for the same reason: there
       is no deployment in which it is right for this backend, so the refusal cannot be wrong. Three
       tests, one of them the refusal.
+
+      **The refusal reads the configured driver name, not the connection's class, and that is a CI
+      constraint made visible.** The first version tested `instanceof SyncQueue`, which meant
+      requiring `illuminate/queue` — and Laravel 11+ pulls `symfony/process ^7.2` through it. The
+      `Symfony 6.4.* / PHP 8.4` matrix job died on the spot: *"illuminate/queue v12.68.0 requires
+      symfony/process ^7.2.0 … not loaded, likely because it conflicts with another require"*.
+
+      **The Laravel integration and the Symfony 6.4 line cannot share one dependency graph.** That
+      is a fact about Laravel, not a CI quirk. Reading `queue.connections.<name>.driver` says the
+      same thing without the dependency, and says it without having to resolve the connection to
+      judge it — so the package still needs nothing beyond `illuminate/contracts` on that path.
 - [x] 3.3 Timers on the queue's own delay, the way the DBAL backend rides Messenger's `DelayStamp`.
       A `retryDelay` becomes `later((int) ceil($seconds))` — rounded **up**, because waiting less
       than asked is the only error that counts here — and is then stripped from the message.
