@@ -19,12 +19,16 @@ exists to answer.
 
 **Assumed, and to be probed by the bench:**
 
-1. **What a queued job that waits on the lock costs.** `ResumeLock::around()` blocks up to ten
-   seconds. A Laravel worker is a process, not a coroutine: a blocked job holds a worker slot for
-   the whole wait. The alternative is `$this->release($delay)` — hand the job back to the queue and
-   let another worker take something useful. The two differ in throughput under contention, in
-   `--tries` accounting, and in what `failed_jobs` ends up containing. **Nothing here is decided
-   until it is measured on a real worker pool.**
+1. ~~**What a queued job that waits on the lock costs.**~~ **Measured — see `tasks.md` §1.2, and
+   it produced a decision rather than a preference.** Blocking holds 15 worker-seconds for 4
+   seconds of work; releasing holds 4.2 and pays 19 s of wall clock for it. Neither is the answer,
+   because both shapes carry a defect the numbers made visible: `release()` **consumes an attempt**
+   (15 of 20 jobs failed at `--tries=5` having never run), and `around()`'s `waitSeconds` is a
+   **queue-depth ceiling** rather than a latency knob (3 `LockTimeoutException` at 800 ms × 20 jobs
+   against a 10 s default). **`ResumeLock` therefore gets a non-blocking entry point**, and §4.1
+   builds the job on it: the lock reports that the turn is taken, the job decides what to do about
+   it. Two consequences ride along — the SQLite driver cannot host more than one worker at all, and
+   `tries` goes back to meaning crashes.
 2. **Whether the configured cache store actually locks across processes.** `ResumeLock` takes a
    `LockProvider`, which already excludes Laravel's `file` store at the type level. It does not
    exclude an `array` store, which type-checks and locks nothing across processes — the same trap
