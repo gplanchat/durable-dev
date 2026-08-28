@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Samples\Activity;
 
-use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 
-#[AsDurableActivity(contract: ByeActivityInterface::class)]
+#[AsActivityHandler(contract: ByeActivityInterface::class)]
 final class ByeActivityHandler implements ByeActivityInterface
 {
     public function bye(string $name = 'World'): string

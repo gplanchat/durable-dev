@@ -123,7 +123,7 @@ Trois propriétés de la surface d'écriture, et non trois utilitaires de test :
 - **Des fibres au lieu de générateurs.** Une méthode de workflow rend son type déclaré. PHPUnit
   compare une valeur ; il ne pilote pas de générateur et ne résout pas de promesse.
 - **Le test fait tourner la classe de production.** `runWorkflowClass()` passe par le même
-  constructeur, les mêmes attributs, la même `#[WorkflowMethod]` — voir
+  constructeur, les mêmes attributs, la même `#[AsWorkflowMethod]` — voir
   [DUR039](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR039-workflow-authoring-surface.md).
 
 ### Ce que vous pouvez vérifier
@@ -217,7 +217,7 @@ Le même workflow — encaisser une commande, attendre une heure, envoyer le re�
 **Durable** — environnement injecté, fibres, types de retour ordinaires :
 
 ```php
-#[Workflow(name: 'order')]
+#[AsWorkflow(name: 'order')]
 final class OrderWorkflow implements OrderWorkflowContract
 {
     public function __construct(
@@ -225,7 +225,7 @@ final class OrderWorkflow implements OrderWorkflowContract
     ) {
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $orderId): string
     {
         $activities = $this->environment->activityStub(OrderActivities::class);
@@ -244,7 +244,7 @@ final class OrderWorkflow implements OrderWorkflowContract
 #[WorkflowInterface]
 interface OrderWorkflowContract
 {
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $orderId);
 }
 
@@ -269,8 +269,8 @@ Mêmes étapes, mêmes noms, même ordre. Ce qui diffère, c'est tout ce qui les
 | Accès au moteur | `WorkflowEnvironment` injecté au constructeur | façade statique `Workflow::` |
 | Suspension | fibres + `Awaitable` | `yield` + `React\Promise\PromiseInterface` |
 | Coloration des fonctions | méthodes ordinaires, types de retour déclarés | toute méthode qui attend devient un générateur, et son appelant aussi — voir [plus bas](#5-fibers-or-generators-the-colouring-problem) |
-| Déclaration | `#[Workflow]` sur la classe | `#[WorkflowInterface]` sur une interface, implémentée par une classe |
-| Attributs de méthode | `#[WorkflowMethod]`, `#[SignalMethod]`, `#[QueryMethod]`, `#[UpdateMethod]` | les mêmes quatre, mises à jour comprises |
+| Déclaration | `#[AsWorkflow]` sur la classe | `#[WorkflowInterface]` sur une interface, implémentée par une classe |
+| Attributs de méthode | `#[AsWorkflowMethod]`, `#[AsSignalMethod]`, `#[AsQueryMethod]`, `#[AsUpdateMethod]` | les mêmes quatre, mises à jour comprises |
 
 Le type de retour en est la conséquence visible : `run()` déclare `string` d'un côté ; de l'autre, le
 seul type qu'elle pourrait déclarer est `\Generator`, qui ne dit rien de ce que le workflow rend.
@@ -298,7 +298,7 @@ rouge, et tous ses appelants jusqu'à la méthode du workflow deviennent rouges 
 **Durable** — l'aide est une méthode ordinaire :
 
 ```php
-#[WorkflowMethod]
+#[AsWorkflowMethod]
 public function run(string $orderId): string
 {
     return $this->chargeWithRetry($orderId);
@@ -354,7 +354,7 @@ ils n'ont donc besoin d'aucun mot-clé, d'aucun changement de type de retour, et
 | | Durable (fibres) | SDK PHP de Temporal (générateurs) |
 |---|---|---|
 | Attendre depuis une méthode d'aide | une méthode privée ordinaire | l'aide devient un générateur |
-| Ses appelants | inchangés | tous deviennent des générateurs aussi, jusqu'à `#[WorkflowMethod]` |
+| Ses appelants | inchangés | tous deviennent des générateurs aussi, jusqu'à `#[AsWorkflowMethod]` |
 | Le site d'appel | `$this->chargeWithRetry($id)` | `yield from $this->chargeWithRetry($id)` |
 | Type de retour déclaré | le sien — `string` | aucun qu'elle puisse utilement déclarer |
 | L'appeler hors d'un workflow | un appel ordinaire | il faut de quoi piloter le générateur |

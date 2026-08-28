@@ -35,13 +35,13 @@ use Gplanchat\Durable\WorkflowRegistry;
 class InMemoryRuntimeFactory
 {
     /**
-     * @param list<class-string> $workflowClasses    Les classes portant `#[Workflow]`, déclarées
+     * @param list<class-string> $workflowClasses    Les classes portant `#[AsWorkflow]`, déclarées
      *                                              nommément : le conteneur de Magento n'a pas les
      *                                              tags de Symfony, donc rien ne les ramasse seul.
      * @param list<object>       $activityHandlers   Les gestionnaires d'activités. **Leur contrat
      *                                              ne se déclare pas** : on lit leurs interfaces et
      *                                              on garde celles qui portent des
-     *                                              `#[ActivityMethod]`. Une déclaration de moins
+     *                                              `#[AsActivityMethod]`. Une déclaration de moins
      *                                              est une déclaration qu'on ne peut pas écrire de
      *                                              travers.
      * @param int                $maxActivityRetries Plafond quand une activité n'en fixe pas. `0`

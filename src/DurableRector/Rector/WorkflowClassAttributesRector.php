@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Rector\Rector;
 
-use Gplanchat\Durable\Attribute\QueryMethod;
-use Gplanchat\Durable\Attribute\SignalMethod;
-use Gplanchat\Durable\Attribute\UpdateMethod;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsQueryMethod;
+use Gplanchat\Durable\Attribute\AsSignalMethod;
+use Gplanchat\Durable\Attribute\AsUpdateMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Attribute;
@@ -32,8 +32,8 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  * ({@see \Gplanchat\Durable\Workflow\WorkflowDefinitionLoader::resolveWorkflowMethod()}), so a
  * rename in place would leave a class the registry cannot see.
  *
- * The workflow type travels with it. The SDK's is `WorkflowMethod::$name ?? interfaceShortName`
- * ({@see \Temporal\Internal\Declaration\Reader\WorkflowReader}); Durable's `#[Workflow]` is
+ * The workflow type travels with it. The SDK's is `AsWorkflowMethod::$name ?? interfaceShortName`
+ * ({@see \Temporal\Internal\Declaration\Reader\WorkflowReader}); Durable's `#[AsWorkflow]` is
  * **optional** and falls back to the class's short name — so a class migrated without an explicit
  * name compiles, passes its tests, and stops resolving every run already in flight. That fallback
  * is why this rule always writes the name out.
@@ -47,10 +47,10 @@ final class WorkflowClassAttributesRector extends AbstractRector
 
     /** SDK method attribute => the Durable attribute it becomes. */
     private const METHOD_ATTRIBUTES = [
-        'Temporal\Workflow\WorkflowMethod' => WorkflowMethod::class,
-        'Temporal\Workflow\SignalMethod' => SignalMethod::class,
-        'Temporal\Workflow\QueryMethod' => QueryMethod::class,
-        'Temporal\Workflow\UpdateMethod' => UpdateMethod::class,
+        'Temporal\Workflow\WorkflowMethod' => AsWorkflowMethod::class,
+        'Temporal\Workflow\SignalMethod' => AsSignalMethod::class,
+        'Temporal\Workflow\QueryMethod' => AsQueryMethod::class,
+        'Temporal\Workflow\UpdateMethod' => AsUpdateMethod::class,
     ];
 
     public function __construct(
@@ -71,10 +71,10 @@ final class OrderWorkflow implements OrderWorkflowContract
 }
 BEFORE,
                 <<<'AFTER'
-#[\Gplanchat\Durable\Attribute\Workflow(name: 'OrderWorkflowContract')]
+#[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'OrderWorkflowContract')]
 final class OrderWorkflow implements OrderWorkflowContract
 {
-    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]
     public function run(string $orderId)
     {
     }
@@ -109,8 +109,8 @@ AFTER,
 
         $changed = false;
 
-        if (null === $this->findAttribute($node->attrGroups, Workflow::class)) {
-            $this->prependAttribute($node, Workflow::class, $this->workflowType($contract));
+        if (null === $this->findAttribute($node->attrGroups, AsWorkflow::class)) {
+            $this->prependAttribute($node, AsWorkflow::class, $this->workflowType($contract));
             $changed = true;
         }
 
@@ -126,7 +126,7 @@ AFTER,
                 continue;
             }
 
-            $this->prependAttribute($method, $durableClass, WorkflowMethod::class === $durableClass ? null : $name);
+            $this->prependAttribute($method, $durableClass, AsWorkflowMethod::class === $durableClass ? null : $name);
             $changed = true;
         }
 

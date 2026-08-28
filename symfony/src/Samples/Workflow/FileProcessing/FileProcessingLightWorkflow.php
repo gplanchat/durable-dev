@@ -9,14 +9,14 @@ use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
 use Gplanchat\Durable\Duration;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
  * Chaîne download → process → upload (sans routage de file d’attente dynamique comme samples-php).
  */
-#[Workflow('Samples_FileProcessing_Light')]
+#[AsWorkflow('Samples_FileProcessing_Light')]
 final class FileProcessingLightWorkflow
 {
     private readonly ActivityStub $download;
@@ -43,7 +43,7 @@ final class FileProcessingLightWorkflow
         );
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(
         string $sourceUrl = 'https://example.com/in/data.bin',
         string $destinationUrl = 'https://example.com/out/data.bin',

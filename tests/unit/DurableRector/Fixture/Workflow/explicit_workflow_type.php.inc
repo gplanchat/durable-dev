@@ -19,10 +19,10 @@ namespace unit\DurableRector\Fixture\Workflow;
 
 use unit\DurableRector\Source\RenamedWorkflowContract;
 
-#[\Gplanchat\Durable\Attribute\Workflow(name: 'checkout-v2')]
+#[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'checkout-v2')]
 final class RenamedWorkflow implements RenamedWorkflowContract
 {
-    #[\Gplanchat\Durable\Attribute\WorkflowMethod]
+    #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]
     public function run()
     {
     }

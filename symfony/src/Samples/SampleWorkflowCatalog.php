@@ -25,7 +25,7 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 /**
  * Scenarios ported from temporalio/samples-php — metadata for the Symfony samples UI.
  *
- * `workflowType` est l’**alias** Temporal (1er argument de `#[Workflow]`, sinon nom court de classe) :
+ * `workflowType` est l’**alias** Temporal (1er argument de `#[AsWorkflow]`, sinon nom court de classe) :
  * c’est ce qui est envoyé au serveur Temporal et stocké dans le journal ; le {@see WorkflowRegistry}
  * accepte aussi le FQCN pour le dispatch.
  *
@@ -183,9 +183,9 @@ final class SampleWorkflowCatalog
             [
                 'id' => 'updates',
                 'sourceFolder' => 'Updates',
-                'label' => 'Updates (#[UpdateMethod] + greeting)',
+                'label' => 'Updates (#[AsUpdateMethod] + greeting)',
                 'workflowType' => self::workflowAlias(SamplesUpdatesWorkflow::class),
-                'description' => 'Un #[UpdateMethod] « greet » répond et débloque le corps, puis composeGreeting ; l’UI livre l’update automatiquement après suspension.',
+                'description' => 'Un #[AsUpdateMethod] « greet » répond et débloque le corps, puis composeGreeting ; l’UI livre l’update automatiquement après suspension.',
                 'defaultPayload' => [],
                 'autoUpdate' => [
                     'name' => 'greet',

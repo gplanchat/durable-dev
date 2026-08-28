@@ -69,7 +69,7 @@ final class MagentoRuntime
     /**
      * Les noms d'activité que la déclaration a produits, dans l'ordre où les contrats les portent.
      *
-     * C'est ce qui permet de dire, sans lire le code, que les noms viennent de `#[ActivityMethod]`
+     * C'est ce qui permet de dire, sans lire le code, que les noms viennent de `#[AsActivityMethod]`
      * et non de chaînes recopiées à côté.
      *
      * @return list<string>

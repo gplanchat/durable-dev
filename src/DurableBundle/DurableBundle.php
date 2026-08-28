@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle;
 
-use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 use Gplanchat\Durable\Bundle\Attribute\AsNexusOperationHandler;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\ActivityHandlerPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\DurableTemporalTransportFactoryPass;
@@ -21,8 +21,8 @@ final class DurableBundle extends Bundle
     public function build(ContainerBuilder $container): void
     {
         $container->registerAttributeForAutoconfiguration(
-            AsDurableActivity::class,
-            static function (ChildDefinition $definition, AsDurableActivity $attribute, \Reflector $_reflector): void {
+            AsActivityHandler::class,
+            static function (ChildDefinition $definition, AsActivityHandler $attribute, \Reflector $_reflector): void {
                 $definition->addTag('durable.activity_handler', ['contract' => $attribute->contract]);
             },
         );

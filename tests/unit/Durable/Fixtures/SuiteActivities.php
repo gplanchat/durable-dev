@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace unit\Durable\Fixtures;
 
-use Gplanchat\Durable\Attribute\ActivityMethod;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
 
 /**
  * Les activités que la suite planifie, déclarées une fois.
@@ -23,113 +23,113 @@ use Gplanchat\Durable\Attribute\ActivityMethod;
  */
 interface SuiteActivities
 {
-    #[ActivityMethod('never')]
+    #[AsActivityMethod('never')]
     public function never(): mixed;
 
-    #[ActivityMethod('double')]
+    #[AsActivityMethod('double')]
     public function double(int $value): int;
 
-    #[ActivityMethod('append')]
+    #[AsActivityMethod('append')]
     public function append(string $text): string;
 
-    #[ActivityMethod('greet')]
+    #[AsActivityMethod('greet')]
     public function greet(string $name): string;
 
-    #[ActivityMethod('echo')]
+    #[AsActivityMethod('echo')]
     public function echoValue(mixed $v = null): mixed;
 
     /** @param list<string> $lines */
-    #[ActivityMethod('quote')]
+    #[AsActivityMethod('quote')]
     public function quote(array $lines): mixed;
 
     // Accessoires d'ordonnancement : ces noms ne décrivent aucun métier, ils servent à faire
     // gagner ou perdre une branche dans une course. Ils n'ont donc pas d'argument.
-    #[ActivityMethod('fast')]
+    #[AsActivityMethod('fast')]
     public function fast(): mixed;
 
-    #[ActivityMethod('slow')]
+    #[AsActivityMethod('slow')]
     public function slow(): mixed;
 
-    #[ActivityMethod('work')]
+    #[AsActivityMethod('work')]
     public function work(): mixed;
 
     /** Rend une valeur vide : `empty` est une construction du langage, pas un nom de méthode. */
-    #[ActivityMethod('empty')]
+    #[AsActivityMethod('empty')]
     public function emptyResult(): mixed;
 
     /** Échoue puis réussit : sert aux tests de retentative. */
-    #[ActivityMethod('flaky')]
+    #[AsActivityMethod('flaky')]
     public function flaky(): mixed;
 
-    #[ActivityMethod('charge')]
+    #[AsActivityMethod('charge')]
     public function charge(mixed $o = null): mixed;
 
-    #[ActivityMethod('refund')]
+    #[AsActivityMethod('refund')]
     public function refund(mixed $order = null): mixed;
 
-    #[ActivityMethod('doWork')]
+    #[AsActivityMethod('doWork')]
     public function doWork(): mixed;
 
     // Le trait d'union n'est pas un nom de méthode PHP ; l'attribut porte le nom transmis, donc
     // rien ne bouge sur le fil.
-    #[ActivityMethod('task-a')]
+    #[AsActivityMethod('task-a')]
     public function taskA(): mixed;
 
-    #[ActivityMethod('task-b')]
+    #[AsActivityMethod('task-b')]
     public function taskB(): mixed;
 
-    #[ActivityMethod('ping')]
+    #[AsActivityMethod('ping')]
     public function ping(): mixed;
 
     /** Échoue toujours : sert aux tests de retentative sans issue. */
-    #[ActivityMethod('always')]
+    #[AsActivityMethod('always')]
     public function always(): mixed;
 
-    #[ActivityMethod('square')]
+    #[AsActivityMethod('square')]
     public function square(int $value): int;
 
-    #[ActivityMethod('add')]
+    #[AsActivityMethod('add')]
     public function add(int $a, int $b): int;
 
-    #[ActivityMethod('task')]
+    #[AsActivityMethod('task')]
     public function task(string $name): mixed;
 
     /** Rend ce qu'on lui donne : sert à distinguer deux branches d'une même course. */
-    #[ActivityMethod('id')]
+    #[AsActivityMethod('id')]
     public function id(mixed $v): mixed;
 
-    #[ActivityMethod('validate')]
+    #[AsActivityMethod('validate')]
     public function validate(string $data): mixed;
 
-    #[ActivityMethod('explode')]
+    #[AsActivityMethod('explode')]
     public function explodeNow(): never;
 
     /** Une étape d'une séquence : appelée plusieurs fois, elle rend un résultat différent. */
-    #[ActivityMethod('step')]
+    #[AsActivityMethod('step')]
     public function step(): mixed;
 
-    #[ActivityMethod('compute')]
+    #[AsActivityMethod('compute')]
     public function compute(int $a, int $b): int;
 
     // Branches nues d'une composition : `a`, `b`, `c` ne nomment rien d'autre que leur place
     // dans un assemblage. Le contrat ne les rend pas plus expressives — il les rend seulement
     // atteignables sans nommer une chaîne.
-    #[ActivityMethod('a')]
+    #[AsActivityMethod('a')]
     public function a(): mixed;
 
-    #[ActivityMethod('b')]
+    #[AsActivityMethod('b')]
     public function b(): mixed;
 
-    #[ActivityMethod('c')]
+    #[AsActivityMethod('c')]
     public function c(): mixed;
 
-    #[ActivityMethod('price')]
+    #[AsActivityMethod('price')]
     public function price(int $n): mixed;
 
-    #[ActivityMethod('ok')]
+    #[AsActivityMethod('ok')]
     public function ok(mixed $n = null): mixed;
 
     /** Échoue : sert aux compositions où une branche doit tomber. */
-    #[ActivityMethod('boom')]
+    #[AsActivityMethod('boom')]
     public function boom(): never;
 }

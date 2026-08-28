@@ -6,11 +6,11 @@ namespace App\Durable\Workflow;
 
 use App\Durable\Activity\EchoActivityInterface;
 use Gplanchat\Durable\Activity\ActivityStub;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-#[Workflow('EchoChildWorkflow')]
+#[AsWorkflow('EchoChildWorkflow')]
 final class EchoChildWorkflow
 {
     private readonly ActivityStub $echo;
@@ -21,7 +21,7 @@ final class EchoChildWorkflow
         $this->echo = $environment->activityStub(EchoActivityInterface::class);
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $text = ''): string
     {
         return $this->environment->await($this->echo->echoUpper($text));

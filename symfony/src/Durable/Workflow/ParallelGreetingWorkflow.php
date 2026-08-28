@@ -6,11 +6,11 @@ namespace App\Durable\Workflow;
 
 use App\Durable\Activity\GreetingActivityInterface;
 use Gplanchat\Durable\Activity\ActivityStub;
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-#[Workflow('ParallelGreetingWorkflow')]
+#[AsWorkflow('ParallelGreetingWorkflow')]
 final class ParallelGreetingWorkflow
 {
     private readonly ActivityStub $greeting;
@@ -21,7 +21,7 @@ final class ParallelGreetingWorkflow
         $this->greeting = $environment->activityStub(GreetingActivityInterface::class);
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $first = 'Alice', string $second = 'Bob'): array
     {
         return $this->environment->await($this->environment->all(

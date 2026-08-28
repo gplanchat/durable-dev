@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Durable\Workflow;
 
-use Gplanchat\Durable\Attribute\Workflow;
-use Gplanchat\Durable\Attribute\WorkflowMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
@@ -14,7 +14,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
  *
  * Optionnellement, une pause durable ({@see WorkflowEnvironment::delay}) avant les enfants (ex. 10 s en démo HTTP).
  */
-#[Workflow('ParallelChildEchoWorkflow')]
+#[AsWorkflow('ParallelChildEchoWorkflow')]
 final class ParallelChildEchoWorkflow
 {
     public function __construct(
@@ -22,7 +22,7 @@ final class ParallelChildEchoWorkflow
     ) {
     }
 
-    #[WorkflowMethod]
+    #[AsWorkflowMethod]
     public function run(string $first = 'alpha', string $second = 'beta', float $pauseSeconds = 0.0): array
     {
         if ($pauseSeconds > 0.0) {
