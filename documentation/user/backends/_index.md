@@ -250,12 +250,19 @@ The same four stores exist on `Illuminate\Database\Connection`, as
 [`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate--the-laravel-backend)
 — same journal, same trade against Temporal.
 
-It is **not a fourth value of `event_store.type`**, and this page's configuration does not reach it:
-the bridge is the storage half only, and it binds nothing. **What binds it is
-`gplanchat/durable-laravel`**, through its own `config/durable.php` rather than through
-`durable.event_store.type` — a Laravel application does not read this page's YAML. That package
-also carries the queue side: activities and resumes as jobs, timers on the queue's own delay, and
-`Queue\ResumeLock` for the per-execution exclusion the section above describes.
+It is **not a fourth value of `event_store.type`**, and it never will be: a Laravel application does
+not read this page's YAML. The bridge is the storage half, and **what binds it is
+`gplanchat/durable-laravel`**, through its own published `config/durable.php`.
+
+That package carries the queue side too — activities and resumes as jobs, a timer as a deferred
+resume on the queue's own delay, and the per-execution exclusion the section above describes. Its
+own [Packages entry](../packages/#gplanchatdurable-laravel--the-laravel-integration) has the
+configuration, the three settings it refuses rather than tolerates, and the two behaviours that read
+like bugs and are not.
+
+**The trade against Temporal is the DBAL one, word for word.** What changes is the connection, and
+why: a store on `DB::connection()` is inside `DB::transaction()` by construction, which is what
+DUR030 needs. See [DUR047](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR047-laravel-the-host-that-measured-before-it-wired.md).
 
 ---
 

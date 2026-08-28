@@ -427,11 +427,45 @@ either confirms a design or replaces it.
 
 ## 6. What the documentation owes
 
-- [ ] 6.1 Name `durable-workflow/workflow`. OST003 §3 makes this a duty, not a courtesy: a reader
-      who wants an engine-on-queues should be sent to it, and the comparison should be one this
-      project would accept if it were written about it.
-- [ ] 6.2 Packages, Backends and the home page chooser carry the package — and the Backends page
-      gets the section it was refused while only the stores existed, because by then
-      `event_store.type` is not the only way in.
-- [ ] 6.3 Correct OST004 §5: *"a bootstrap, plus a fourth adapter family"* was already half stale
-      when this change opened, and fully so when it lands. Leave an ADR behind, per the house rule.
+- [x] 6.1 Name `durable-workflow/workflow`, in both languages, inside the package's own section —
+      not in a footnote. It is described as what it is: durable execution on Laravel queues, `yield`
+      as the checkpoint, its own storage, no server, a thousand stars, **good at what it does**, and
+      *"if an engine on your existing queue is what you want, take it."*
+
+      Then the difference, which is the only thing worth saying next to it: this package sells the
+      **backend choice**, and a workflow class written for `durable-bundle` runs here unmodified.
+      That is the claim the other package does not make.
+
+      Two neighbouring names on Packagist deserve the sentence rather than the hope that nobody
+      notices.
+- [x] 6.2 Packages and Backends carry the package, in both languages.
+
+      **The Packages page gains a full section** — install, configuration, one choice of backend
+      binding every port, workflows declared rather than scanned with the measurement behind it, and
+      two tables that had nowhere to live before: the three settings refused rather than tolerated
+      (`null` always, `array` under `illuminate`, the `sync` connection), and the two behaviours that
+      read like bugs and are not (the `sqlite` driver hosting one worker, and a killed worker's job
+      reserved until `retry_after`).
+
+      **The Backends page gets the section it was refused**, and for the reason the refusal
+      predicted: while only the stores existed there was no way in, because that page is organised
+      around `durable.event_store.type`. There still is not — and now that is the point rather than
+      the objection. A Laravel application does not read that YAML; `gplanchat/durable-laravel` binds
+      the ports through its own published config, and the page says so and links to it.
+
+      **The chooser is not done, and cannot be here.** `ALLOWED.laravel` still offers `temporal`,
+      which §5.2 recorded; the table lives in the canvas, and the canvas is under an open pull
+      request (#211). One entry, in the change that owns the file, as soon as it merges.
+- [x] 6.3 OST004's two Laravel rows — §5 and the summary in §7 — are struck through and marked
+      done, pointing at the ADR.
+
+      **[DUR047](../../../documentation/adr/DUR047-laravel-the-host-that-measured-before-it-wired.md)**
+      is the ADR, and it is indexed. It records the five measurements that preceded the first line of
+      the package, the three of them that *replaced* a design rather than confirming it, each refusal
+      with its number, and the Temporal decision.
+
+      It also records a non-event worth naming: unlike DUR046, where a Tier 1 host improved the core
+      three times, this one needed **one** addition — `ResumeLock::tryAround()`, in the bridge — and
+      no change to `Gplanchat\Durable\` at all. `ResumeWorkflowHandler` had already moved to the
+      core so a host without a message bus could serve it. That is the conformance suites and the
+      ports doing their job.

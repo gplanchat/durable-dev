@@ -265,12 +265,19 @@ Les mêmes quatre stockages existent sur `Illuminate\Database\Connection`, sous 
 [`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate--le-backend-laravel)
 — même journal, même échange face à Temporal.
 
-Ce n'est **pas une quatrième valeur d'`event_store.type`**, et la configuration de cette page ne
-l'atteint pas : le pont est la moitié stockage, seulement, et il ne lie rien. **Ce qui le lie, c'est
-`gplanchat/durable-laravel`**, par son propre `config/durable.php` et non par
-`durable.event_store.type` — une application Laravel ne lit pas le YAML de cette page. Ce paquet
-porte aussi le côté file : activités et reprises en jobs, minuteurs sur le délai natif de la file,
-et `Queue\ResumeLock` pour l'exclusion par exécution que décrit la section ci-dessus.
+Ce n'est **pas une quatrième valeur d'`event_store.type`**, et ça ne le sera jamais : une
+application Laravel ne lit pas le YAML de cette page. Le pont est la moitié stockage, et **ce qui le
+lie, c'est `gplanchat/durable-laravel`**, par son propre `config/durable.php` publié.
+
+Ce paquet porte aussi le côté file — activités et reprises en jobs, un minuteur comme reprise
+différée sur le délai natif de la file, et l'exclusion par exécution que décrit la section
+ci-dessus. Son [entrée dans la page Paquets](../packages/#gplanchatdurable-laravel--lintégration-laravel)
+donne la configuration, les trois réglages qu'il refuse plutôt que de les tolérer, et les deux
+comportements qui ressemblent à des bugs sans en être.
+
+**L'échange face à Temporal est celui du pont DBAL, mot pour mot.** Ce qui change est la connexion,
+et pourquoi : un stockage sur `DB::connection()` est dans `DB::transaction()` par construction, ce
+qu'exige DUR030. Voir [DUR047](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR047-laravel-the-host-that-measured-before-it-wired.md).
 
 ---
 
