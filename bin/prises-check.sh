@@ -20,13 +20,24 @@
 #
 # Le verdict demande donc les deux : plus aucune PR vivante, **et** plus rien à fusionner.
 #
-#   | PR de la branche  | branche distante          | verdict                                    |
-#   |-------------------|---------------------------|--------------------------------------------|
-#   | aucune            | —                         | normal — la prise précède la PR             |
-#   | une ouverte       | —                         | normal — le travail est en cours            |
-#   | fermées seulement | en avance sur `main`      | normal — réutilisée, tranche suivante       |
-#   | fermées seulement | absente                   | **périmée** — la branche a été supprimée    |
-#   | fermées seulement | rien de plus que `main`   | **périmée** — le retrait a été oublié       |
+# **Les deux ne suffisaient toujours pas.** Le 2026-08-28, une session voisine a montré que ce
+# critère est vrai *par intermittence* pour toute branche de chantier réutilisée : entre la fusion
+# d'une tranche et le premier commit de la suivante, les PR sont toutes fermées, la branche n'a rien
+# de plus que `main` — GitHub l'a parfois même supprimée — et le travail continue. La fenêtre
+# s'ouvre à **chaque** frontière de tranche, et une prise vivante y a été retirée puis reposée.
+#
+# Alors le chantier fait foi avant la branche : pour une prise `change/<nom>`, une tâche non cochée
+# dans `openspec/changes/<nom>/tasks.md` suffit à la tenir vivante. Le registre n'a pas à deviner
+# ce que le chantier écrit noir sur blanc.
+#
+#   | PR de la branche  | chantier / branche              | verdict                                  |
+#   |-------------------|---------------------------------|------------------------------------------|
+#   | aucune            | —                               | normal — la prise précède la PR           |
+#   | une ouverte       | —                               | normal — le travail est en cours          |
+#   | fermées seulement | chantier avec tâches à faire    | normal — entre deux tranches              |
+#   | fermées seulement | branche en avance sur `main`    | normal — réutilisée, tranche suivante     |
+#   | fermées seulement | branche absente                 | **périmée** — la branche a été supprimée  |
+#   | fermées seulement | rien de plus que `main`         | **périmée** — le retrait a été oublié     |
 #
 # Usage : bin/prises-check.sh [dépôt]      (défaut : gplanchat/durable-dev)
 set -uo pipefail
@@ -75,6 +86,26 @@ while IFS= read -r fichier; do
         vivantes=$((vivantes + 1))
         echo "  ok        $branche — PR ouverte"
         continue
+    fi
+
+    # Le chantier fait foi avant la branche, et c'est le cœur de ce contrôle.
+    #
+    # Une branche `change/<nom>` vit plusieurs tranches. Entre la fusion de l'une et le premier
+    # commit de la suivante, les trois conditions du verdict « périmée » sont réunies — plus aucune
+    # PR ouverte, rien devant `main`, la branche parfois même supprimée — alors que le travail
+    # continue. La fenêtre n'est pas rare : elle s'ouvre à **chaque** frontière de tranche, et une
+    # session a déjà retiré une prise vivante à cause d'elle.
+    #
+    # Le registre n'a pas à deviner : l'état du chantier est écrit dans son `tasks.md`. Une tâche
+    # non cochée est une prise à tenir, quoi que raconte la branche.
+    if [[ "$branche" == change/* ]]; then
+        taches="$RACINE/openspec/changes/${branche#change/}/tasks.md"
+        if [ -f "$taches" ] && grep -q '^- \[ \]' "$taches"; then
+            reste="$(grep -c '^- \[ \]' "$taches")"
+            vivantes=$((vivantes + 1))
+            echo "  ok        $branche — PR fermée, mais le chantier a $reste tâche(s) à faire"
+            continue
+        fi
     fi
 
     # Plus aucune PR vivante. Reste la seconde question, celle qui manquait : la branche
