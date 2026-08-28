@@ -30,6 +30,14 @@
             <argument name="workflowClasses" xsi:type="array">
                 <item name="place_order" xsi:type="string">Gplanchat\Durable\Magento\Workflow\PlaceOrderWorkflow</item>
             </argument>
+            <!--
+                ⚠ Un argument de constructeur **optionnel** n'est pas auto-câblé : Magento prend
+                son défaut. Sans cette ligne, `deploymentConfig` reste `null`, le DSN n'est jamais
+                lu, et le module sert un journal en mémoire alors qu'`env.php` demande le cluster —
+                sans une ligne d'erreur nulle part. Le nullable existe pour que la fabrique reste
+                construisible hors Magento, sous test unitaire ; le conteneur, lui, doit le dire.
+            -->
+            <argument name="deploymentConfig" xsi:type="object">Magento\Framework\App\DeploymentConfig</argument>
             <argument name="activityHandlers" xsi:type="array">
                 <item name="order" xsi:type="object">Gplanchat\Durable\Magento\Workflow\Activity\DemoOrderActivities</item>
             </argument>

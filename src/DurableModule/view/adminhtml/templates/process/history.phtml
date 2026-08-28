@@ -1,0 +1,43 @@
+<?php
+/**
+ * @var \Gplanchat\Durable\Magento\Block\Adminhtml\ProcessHistory $block
+ * @var \Magento\Framework\Escaper $escaper
+ */
+$runs = $block->getRuns();
+?>
+<?php if ($block->isEphemeral()): ?>
+    <div class="message message-warning">
+        <span><?= $escaper->escapeHtml(__(
+            'No Temporal DSN is configured, so the journal lives in the process that writes it — and this admin request opened a fresh one. An empty list here is the correct answer, not a failure. Set durable/temporal/dsn in app/etc/env.php to read the cluster.'
+        )) ?></span>
+    </div>
+<?php endif; ?>
+
+<?php if ($runs === []): ?>
+    <div class="message message-notice">
+        <span><?= $escaper->escapeHtml(__('No durable process has been recorded yet.')) ?></span>
+    </div>
+<?php else: ?>
+    <table class="admin__table-primary">
+        <thead>
+            <tr>
+                <th><?= $escaper->escapeHtml(__('Run')) ?></th>
+                <th><?= $escaper->escapeHtml(__('Workflow')) ?></th>
+                <th><?= $escaper->escapeHtml(__('Status')) ?></th>
+                <th><?= $escaper->escapeHtml(__('Started')) ?></th>
+                <th><?= $escaper->escapeHtml(__('Ended')) ?></th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($runs as $run): ?>
+            <tr>
+                <td><?= $escaper->escapeHtml($run->runId) ?></td>
+                <td><?= $escaper->escapeHtml($run->workflowName) ?></td>
+                <td><?= $escaper->escapeHtml($run->status->value) ?></td>
+                <td><?= $escaper->escapeHtml($block->formatMoment($run->startedAt)) ?></td>
+                <td><?= $escaper->escapeHtml($block->formatMoment($run->endedAt)) ?></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+<?php endif; ?>
