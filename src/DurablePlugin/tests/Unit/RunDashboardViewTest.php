@@ -169,6 +169,26 @@ final class RunDashboardViewTest extends TestCase
         self::assertSame(['SendWelcomeEmail'], array_column($view['selectedRun']['lanes'][1]['events'], 'label'));
     }
 
+    public function testANexusOperationGetsItsOwnLaneAndSaysWhereTheWaitHappens(): void
+    {
+        // Une opération Nexus est le seul point d'une exécution où l'attente est servie **ailleurs**.
+        // Rangée avec le reste, elle laisse un exploitant chercher la panne dans son propre système
+        // alors qu'elle est chez quelqu'un d'autre — d'où sa voie, et d'où une étiquette qui nomme
+        // l'endpoint plutôt que le type d'événement.
+        $catalog = new FakeRunCatalog(
+            [$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)],
+            [
+                new WorkflowRunEvent(1, new \DateTimeImmutable('@1700000000'), WorkflowRunEventKind::Execution, 'Started'),
+                new WorkflowRunEvent(2, new \DateTimeImmutable('@1700000010'), WorkflowRunEventKind::Nexus, 'paiements/facturation/encaisser'),
+            ],
+        );
+
+        $view = (new RunDashboardView($catalog))->build();
+
+        self::assertSame(['execution', 'nexus'], array_column($view['selectedRun']['lanes'], 'kind'));
+        self::assertSame(['paiements/facturation/encaisser'], array_column($view['selectedRun']['lanes'][1]['events'], 'label'));
+    }
+
     public function testALaneTheBackendNeverRecordsIsNotShownAtAll(): void
     {
         $catalog = new FakeRunCatalog(
