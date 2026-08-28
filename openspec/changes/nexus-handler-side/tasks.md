@@ -130,10 +130,24 @@
 
 ## 4. Cancellation
 
-- [ ] 4.1 A caller that cancels reaches the handler. 1.5 established the form: a cancel task
-      arrives **only for a started operation**, so this depends on 3.4 — **now unblocked**.
-- [ ] 4.2 A handler observes the cancellation rather than discovering it on response.
-- [ ] 4.3 Cancelling an operation already fulfilled asynchronously: what happens to the workflow.
+- [x] 4.1 **A caller that cancels reaches the handler — measured.** 1.5 had only the negative half:
+      with the start task still pending, cancelling the caller wrote `NEXUS_OPERATION_CANCEL_REQUESTED`
+      and **no handler task arrived**, the operation never having started. The positive half could
+      not be observed until an operation could start asynchronously. It can now:
+      `NexusServedCancellationTest` shows a `cancel_operation` task arriving for a started
+      operation, and **naming the operation token returned at start**.
+- [x] 4.2 **A handler observes the cancellation — through the workflow, not a hook.** The token this
+      worker returns *is* the workflow it started, so the cancellation task hands back exactly the
+      handle needed: the worker cancels that workflow and acknowledges the task. The handler
+      function is not called again, and that is not a gap — what carries the operation is a
+      workflow, and a workflow already observes its own cancellation, with its compensations. A
+      handler-side hook would duplicate that path without adding to it.
+      A cancellation carrying no token is refused `BAD_REQUEST`, terminal.
+- [x] 4.3 **Cancelling an operation already fulfilled asynchronously.** The workflow carrying it is
+      cancel-requested; the end-to-end test asserts `WORKFLOW_EXECUTION_CANCEL_REQUESTED` lands on
+      it. If that workflow finished between the caller's request and the worker's poll, the
+      cancellation is **still acknowledged** rather than failed: the operation is already settled,
+      and answering with an error would have the task re-delivered every ~9 s for nothing.
 
 ## 5. Registration and refusal
 
@@ -176,3 +190,8 @@ against a mocked gRPC client. Whether the server **accepts** it is a different q
 `syncSuccess` or a badly attached callback passes a mock assertion and is rejected on the wire. That
 is why every branch of the worker also has an integration case. Said here so nobody reads the unit
 suite as sufficient.
+
+**8.3 — the served-cancellation test costs a minute.** `pollOnce()` is one poll and one poll only:
+on an idle queue it returns after the long-poll deadline without a word (§1.2), and the cancellation
+task does not always present itself on the first call. The test therefore loops, and pays the
+long-poll wait. Worth knowing before this suite is ever added to CI — which, per 8.1, it is not.
