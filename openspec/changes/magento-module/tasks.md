@@ -237,6 +237,12 @@ topic.
       **4 actions**, 19 segments, et l'attente est nommée.
       Le tableau de bord Sylius est aligné dans le même mouvement : `lanes` devient `actions`, un
       bloc par action avec son nom et sa durée, la bordure gardant la couleur de la nature.
+      C'est **Psalm qui a trouvé la duplication** : deux `match` identiques, un par hôte, tombant
+      tous les deux sur `strictBinaryOperands`. Le seuil à partir duquel une seconde vaut mieux
+      qu'une milliseconde est une décision, pas un détail de gabarit — pris deux fois, la même
+      exécution se lit « 2.0 s » sur un hôte et « 2004 ms » sur l'autre. D'où
+      `Observation\ReadableDuration`, à côté du modèle dont il met en forme les faits, comme
+      `WorkflowRunEvent::$label` et pour la même raison.
 
 ## 4bis. What the CI can see of Magento
 

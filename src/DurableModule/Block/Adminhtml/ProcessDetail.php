@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\DurableModule\Block\Adminhtml;
 
+use Gplanchat\Durable\Observation\ReadableDuration;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
@@ -130,7 +131,7 @@ class ProcessDetail extends Template
                 // Le nom de l'action est celui de l'événement qui l'ouvre : c'est la planification
                 // qui connaît le nom de l'activité, ses suites ne portent qu'un numéro.
                 'label' => $opening->label,
-                'duration' => $this->formatSpan($to - $from),
+                'duration' => ReadableDuration::of($to - $from),
                 'segments' => $this->segments($group, $moments, $first, $span),
                 'marks' => array_map(
                     fn(WorkflowRunEvent $event): array => [
@@ -147,7 +148,7 @@ class ProcessDetail extends Template
             ];
         }
 
-        return ['span' => $this->formatSpan($span), 'actions' => $actions];
+        return ['span' => ReadableDuration::of($span), 'actions' => $actions];
     }
 
     /**
@@ -175,7 +176,7 @@ class ProcessDetail extends Template
                 'width' => $this->scale($to - $from, $span),
                 'title' => \sprintf(
                     '%s · #%d → #%d · %s → %s',
-                    $this->formatSpan($to - $from),
+                    ReadableDuration::of($to - $from),
                     $opening->sequence,
                     $closing->sequence,
                     $opening->label,
@@ -194,15 +195,6 @@ class ProcessDetail extends Template
     private function scale(float $seconds, float $span): float
     {
         return $span > 0.0 ? $seconds / $span * 100.0 : 0.0;
-    }
-
-    private function formatSpan(float $seconds): string
-    {
-        return match (true) {
-            $seconds < 1.0 => \sprintf('%d ms', (int) round($seconds * 1000)),
-            $seconds < 90.0 => \sprintf('%.1f s', $seconds),
-            default => \sprintf('%d min %02d s', (int) ($seconds / 60), (int) fmod($seconds, 60)),
-        };
     }
 
     /**

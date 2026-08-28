@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Plugin\Dashboard;
 
+use Gplanchat\Durable\Observation\ReadableDuration;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
@@ -174,7 +175,7 @@ final class RunDashboardView
                 // Le nom de l'action est celui de l'événement qui l'ouvre : c'est la planification
                 // qui connaît le nom de l'activité, ses suites ne portent qu'un numéro.
                 'label' => $opening->label,
-                'took' => self::took(
+                'took' => ReadableDuration::of(
                     (float) $closing->recordedAt->format('U.u') - (float) $opening->recordedAt->format('U.u'),
                 ),
                 'events' => array_column($group, 'described'),
@@ -182,19 +183,6 @@ final class RunDashboardView
         }
 
         return $actions;
-    }
-
-    /**
-     * Une durée n'a pas de type naturel en Twig, et l'arrondir dans le gabarit demanderait au
-     * gabarit de savoir à partir de quand une seconde vaut mieux qu'une milliseconde.
-     */
-    private static function took(float $seconds): string
-    {
-        return match (true) {
-            $seconds < 1.0 => \sprintf('%d ms', (int) round($seconds * 1000)),
-            $seconds < 90.0 => \sprintf('%.1f s', $seconds),
-            default => \sprintf('%d min %02d s', (int) ($seconds / 60), (int) fmod($seconds, 60)),
-        };
     }
 
     /**
