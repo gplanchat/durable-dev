@@ -16,11 +16,6 @@ final class JournalExecutionIdResolver
 {
     public const MEMO_KEY_DURABLE_EXECUTION_ID = 'durableExecutionId';
 
-    /**
-     * JSON object: {@code workflowType} (workflow type name for Temporal interop — DUR019).
-     * (not duplicated in workflow input — DUR019).
-     */
-    public const MEMO_KEY_JOURNAL_BOOTSTRAP = 'durableJournalBootstrap';
 
     public static function durableExecutionIdFromHistory(History $history): string
     {

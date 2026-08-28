@@ -142,3 +142,19 @@ plus — sans que rien ne désigne le déplacement.
 
 **Si vous n'utilisiez pas `#[AsDurableActivity]`**, vous n'avez rien à faire ; le vidage de cache
 reste néanmoins recommandé, l'autre entrée de cette version l'exigeant.
+
+### `JournalExecutionIdResolver::MEMO_KEY_JOURNAL_BOOTSTRAP` est retirée
+
+La constante nommait un mémo qu'un **bootstrap natif par le journal** aurait posé — un pan de code
+qui n'a jamais atteint `main`. Six tests d'intégration le décrivaient, quatre des cinq classes qu'ils
+appelaient n'ont jamais existé, et ces tests ont été supprimés avec leur constat consigné. La
+constante leur avait survécu : plus rien ne la lisait, et son docblock décrivait `workflowType`,
+qui n'a jamais été son contenu.
+
+**Ce que Rector fait** — rien. Il n'y a pas de nom de remplacement : ce n'est pas un renommage mais
+une suppression, et inventer une cible serait pire que se taire.
+
+**Ce que vous avez à faire** — presque certainement rien. Cette constante n'était lue par aucun code
+du dépôt. Si vous la référencez, c'est que vous parliez à un mémo que Durable n'a jamais écrit :
+`MEMO_KEY_DURABLE_EXECUTION_ID`, elle, reste et est bien celle que `WorkflowClient` pose au
+démarrage.
