@@ -124,7 +124,7 @@ Restated here only so the single table in §7 is complete. The reasoning belongs
 | Akeneo `BatchBundle` | **A design question**: checkpoint granularity | The decision, not the code |
 | `php-etl/pipeline` | The same design question, one level down | The same decision — whichever is written first pays for both |
 | Laravel | A bootstrap, plus a fourth adapter family | — (§3's suites have landed) |
-| Magento | A bootstrap. The `magento/` bench is now tracked — it was untracked until `change/magento-module` §1.1, so it existed on one machine and in no clone | — |
+| ~~Magento~~ | **Built** — the module boots, declares, runs on Temporal, has an admin screen, and the acceptance test passes: a consumer killed mid-order resumes and does not charge twice. See DUR046. Not published, and CI resolves it without booting it | Settled |
 | WooCommerce, Drupal, PrestaShop 9, Ibexa | — | Not now (OST003 §6) |
 
 ---
@@ -330,7 +330,7 @@ available.
 | ~~Rector bucket 3~~ | Wiring | **Done** |
 | `workflow-versioning` | A probe, then wiring | — (the guard has landed; the probe is taken) |
 | ~~Rector bucket 2~~ | A bootstrap | **Done** |
-| Magento | A bootstrap | — |
+| ~~Magento~~ | A bootstrap | **Done** — see DUR046 |
 | Laravel | A bootstrap + a fourth adapter family | — |
 | `nexus-handler-side` | **Built** — 28/31; the probe grew it, then answered it | Settled; see DUR045 |
 | Akeneo `BatchBundle` | **A design question** | Checkpoint granularity |

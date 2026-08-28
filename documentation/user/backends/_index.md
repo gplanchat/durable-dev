@@ -13,6 +13,13 @@ Durable supports three execution backends.
 | **DBAL** | Production without an orchestration cluster — one SQL database, no `ext-grpc`. |
 | **Temporal** | Production and staging at scale, realistic integration tests — `ext-grpc` + a Temporal cluster required. |
 
+> [!NOTE]
+> **On Magento, the SQL row does not exist.** `gplanchat/durable-magento` declares a Composer
+> `conflict` on both SQL bridges: `Magento\Framework\App\ResourceConnection` is neither Doctrine
+> DBAL nor Illuminate's connection, so neither bridge has anything to bind to. The state lives in a
+> Temporal cluster, or it lives in one process — and the choice is made by the presence of
+> `durable/temporal/dsn` in `app/etc/env.php`, not by a setting.
+
 All three run the **same fiber driver** and the same workflow and activity code. You choose with
 `durable.event_store.type` (and `DURABLE_DSN` for Temporal).
 

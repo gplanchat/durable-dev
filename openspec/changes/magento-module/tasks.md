@@ -206,7 +206,16 @@ topic.
       boot, and Adobe's distribution is untested.
 - [ ] 6.2 The home page selector drops the `?` from `gplanchat/durable-magento`, and its state stops
       being `planned`. Through the canvas, not the generated file.
-- [ ] 6.3 `documentation/user/packages/` and the guide's Backends page carry Magento, in both
-      languages.
-- [ ] 6.4 OST003 §Magento and OST004 §5 record what was actually built, and OST004's Magento row
-      leaves the *"not built yet"* table.
+- [x] 6.3 **Both languages carry Magento.** `documentation/user/packages/` gains a
+      `gplanchat/durable-magento` section — declaration by `di.xml`, the contract that is *not*
+      declared, the two backends Composer enforces, the DSN that decides, workers as commands, and
+      the note that executions start on the cluster and not in the request. The Backends page says
+      why the SQL row does not exist on this host.
+      ⚠ Each section opens with a **warning that the package is not on Packagist**: documenting a
+      `composer require` that does not resolve would be the documentation telling a lie the rest of
+      this change spent its time avoiding.
+- [x] 6.4 **OST004's Magento row has left the "not built yet" table** — struck through in both
+      tables, marked settled, pointing at DUR046 and naming what is still missing (publication, a
+      CI job that boots). OST003 §Magento becomes *§Magento — built*, and carries the two findings
+      worth taking to the next host: nothing rides the host's queue when the backend is a cluster,
+      and a genuinely foreign host corrected the core three times, once fatally.
