@@ -168,6 +168,31 @@ topic.
       Measured on the bench, 18 runs: `completed` → 5, `running` → 13, `completed,running` → 18,
       `failed` → 0, `failed,cancelled` → 0, `workflow_name ~ slow` → 5.
 
+- [x] 3bis.5 **Chaque ligne du journal se déplie, et la frise dit l'attente.** L'écran de détail
+      répondait « quoi » et jamais « avec quoi », parce que le port ne portait pas la réponse :
+      `WorkflowRunEvent` n'avait que séquence, horodatage, voie et libellé. Il gagne un
+      `details` en fin de constructeur — additif, la classe est `final readonly`, aucun appelant
+      existant ne bouge. Le journal le remplit avec `Event::payload()`, qui est **sur l'interface**
+      et n'a donc rien coûté ; le pont Temporal sérialise les attributs de l'événement d'historique,
+      qui sont un `oneof` — le nom du champ renseigné se lit sur `getAttributes()`, ce qui évite
+      d'énumérer cinquante formes.
+      ⚠ **Les charges utiles seraient arrivées en base64** (`Payload.data` est un champ `bytes`) :
+      elles sont relues par-dessus avec `Codec/JsonPlainPayload`, celui-là même qui les a écrites.
+      Mesuré sur la grappe : 16 événements sur 16 dépliables, et le `durableAppend` montre
+      l'événement métier qu'il transporte — `ActivityScheduled`, `durable.demo.charge`,
+      `{"orderId": "ORD-4242"}` — au lieu d'un bloc opaque.
+      ⚠ **La frise a fait tomber un défaut du pont** : `recordedAt` ne gardait que
+      `getSeconds()` de l'horodatage Temporal. Seize événements séparés de quelques millisecondes se
+      lisaient au même instant, et une frise construite là-dessus empile tous ses repères au même
+      endroit. Les nanosecondes sont désormais tronquées à la microseconde, là où PHP s'arrête.
+      La frise elle-même est du CSS : une voie par nature, un repère par événement placé à
+      `(t - t₀) / durée`. Sur une commande du banc, 23 événements sur 24 secondes : **91 % de la
+      frise est un trou** entre la planification de la tâche et son démarrage — un fait que la liste
+      de 23 lignes régulièrement espacées cachait activement.
+      ponytail: des repères, pas des barres. Une barre relierait la planification d'une activité à
+      sa complétion, or le port ne porte pas de quoi les corréler ; ce sera le port qu'il faudra
+      ouvrir, pas le gabarit.
+
 ## 4bis. What the CI can see of Magento
 
 - [x] 4bis.1 **A Mage-OS × PHP matrix, the counterpart of the Symfony one.** Five entries, each an

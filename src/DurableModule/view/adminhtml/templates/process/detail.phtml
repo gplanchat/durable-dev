@@ -32,6 +32,49 @@ $events = $block->getEvents();
         </table>
     </div>
 
+    <?php $timeline = $block->getTimeline(); ?>
+    <?php if ($timeline !== null): ?>
+        <div class="admin__page-section">
+            <div class="admin__page-section-title">
+                <span class="title"><?= $escaper->escapeHtml(__('Timeline')) ?></span>
+            </div>
+            <?php /* Une feuille de style à déployer pour six règles coûterait plus cher à
+                     l'exploitant qu'elle ne rapporte : un `<style>` ici suit le gabarit. */ ?>
+            <style>
+                .durable-frieze { margin: 0 0 1rem; }
+                .durable-frieze-lane { display: flex; align-items: center; gap: .75rem; margin-bottom: .35rem; }
+                .durable-frieze-name { flex: 0 0 7rem; text-align: right; font-size: 1.2rem; text-transform: capitalize; color: #575757; }
+                .durable-frieze-track { position: relative; flex: 1 1 auto; height: 1.6rem; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: .3rem; }
+                .durable-frieze-mark { position: absolute; top: .3rem; width: .9rem; height: .9rem; margin-left: -.45rem; border-radius: 50%; background: #007bdb; }
+                .durable-frieze-mark.execution { background: #514943; }
+                .durable-frieze-mark.activity { background: #007bdb; }
+                .durable-frieze-mark.signal { background: #eb5202; }
+                .durable-frieze-mark.update { background: #7c5ac1; }
+                .durable-frieze-mark.nexus { background: #008000; }
+                .durable-frieze-mark.other { background: #a79d95; }
+                .durable-frieze-scale { display: flex; justify-content: space-between; font-size: 1.1rem; color: #757575; padding-left: 7.75rem; }
+            </style>
+            <div class="durable-frieze">
+                <?php foreach ($timeline['lanes'] as $lane): ?>
+                    <div class="durable-frieze-lane">
+                        <span class="durable-frieze-name"><?= $escaper->escapeHtml($lane['kind']) ?></span>
+                        <div class="durable-frieze-track">
+                            <?php foreach ($lane['marks'] as $mark): ?>
+                                <span class="durable-frieze-mark <?= $escaper->escapeHtmlAttr($lane['kind']) ?>"
+                                      style="left: <?= $escaper->escapeHtmlAttr(number_format($mark['at'], 3, '.', '')) ?>%"
+                                      title="<?= $escaper->escapeHtmlAttr($mark['title']) ?>"></span>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+                <div class="durable-frieze-scale">
+                    <span>0</span>
+                    <span><?= $escaper->escapeHtml($timeline['span']) ?></span>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="admin__page-section">
         <div class="admin__page-section-title">
             <span class="title"><?= $escaper->escapeHtml(__('Journal')) ?></span>
@@ -56,7 +99,19 @@ $events = $block->getEvents();
                         <td><?= (int) $event->sequence ?></td>
                         <td><?= $escaper->escapeHtml($event->recordedAt->format('Y-m-d H:i:s')) ?></td>
                         <td><?= $escaper->escapeHtml($event->kind->value) ?></td>
-                        <td><?= $escaper->escapeHtml($event->label) ?></td>
+                        <td>
+                            <?php $details = $block->formatDetails($event); ?>
+                            <?php if ($details === null): ?>
+                                <?= $escaper->escapeHtml($event->label) ?>
+                            <?php else: ?>
+                                <?php /* `<details>` natif : le navigateur sait replier, et un écran
+                                        d'exploitation n'a pas besoin d'un composant pour ça. */ ?>
+                                <details>
+                                    <summary style="cursor: pointer;"><?= $escaper->escapeHtml($event->label) ?></summary>
+                                    <pre style="margin: .5rem 0 0; white-space: pre-wrap; word-break: break-word;"><?= $escaper->escapeHtml($details) ?></pre>
+                                </details>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

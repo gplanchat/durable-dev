@@ -208,6 +208,15 @@ les classes de workflow et d'activité au moteur, l'assemble pour un processus M
 workers en commandes `bin/magento`, et ajoute un écran d'administration en lecture seule sous
 **System > Durable processes > Process history**.
 
+L'écran est une grille Magento standard — pagination, signets, choix des colonnes, export, et un
+filtre d'état multi-select dont les options viennent de l'énumération elle-même. Ouvrir une
+exécution mène à son détail : une frise qui place chaque événement à l'instant où il a été
+enregistré, une voie par nature d'opération, et le journal en dessous. Chaque ligne du journal se
+déplie sur ce que le backend a enregistré avec elle — les arguments d'appel d'une activité, ce
+qu'elle a rendu, la classe et le message d'un échec. Placer dans le temps plutôt que par rang est
+tout l'intérêt : c'est ce qui fait qu'une exécution ayant passé vingt-deux de ses vingt-quatre
+secondes à attendre en a l'air.
+
 Le conteneur de Magento n'a pas d'équivalent de l'autoconfiguration par tag de Symfony : la
 déclaration est explicite, deux tableaux dans `di.xml`.
 
