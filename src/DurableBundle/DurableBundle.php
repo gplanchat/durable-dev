@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Bundle;
 
 use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
+use Gplanchat\Durable\Bundle\Attribute\AsNexusOperationHandler;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\ActivityHandlerPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\DurableTemporalTransportFactoryPass;
+use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\NexusHandlerPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterWorkflowDispatchProfilerMiddlewarePass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\WorkflowPass;
 use Symfony\Component\DependencyInjection\ChildDefinition;
@@ -25,12 +27,25 @@ final class DurableBundle extends Bundle
             },
         );
 
+        $container->registerAttributeForAutoconfiguration(
+            AsNexusOperationHandler::class,
+            static function (ChildDefinition $definition, AsNexusOperationHandler $attribute, \Reflector $_reflector): void {
+                $definition->addTag(NexusHandlerPass::TAG, [
+                    'service' => $attribute->service,
+                    'operation' => $attribute->operation,
+                    'method' => $attribute->method,
+                ]);
+            },
+        );
+
         // Avant MessengerPass du FrameworkBundle : enrichit messenger.bus.*.middleware.
         $container->addCompilerPass(new RegisterWorkflowDispatchProfilerMiddlewarePass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 10);
 
         $container->addCompilerPass(new WorkflowPass());
         // Priorité 50 : après AttributeAutoconfigurationPass (100), avant les passes à 0 (WorkflowPass, etc.).
         $container->addCompilerPass(new ActivityHandlerPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 50);
+        // Même priorité, même raison : après l'autoconfiguration par attribut, avant les passes à 0.
+        $container->addCompilerPass(new NexusHandlerPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 50);
         // Après tous les passes d'autowiring : injecte TemporalActivityWorker dans TemporalTransportFactory.
         $container->addCompilerPass(new DurableTemporalTransportFactoryPass(), PassConfig::TYPE_BEFORE_REMOVING);
     }

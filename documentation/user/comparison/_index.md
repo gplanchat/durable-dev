@@ -46,9 +46,10 @@ core package:
 | `gplanchat/durable` | `php >= 8.2`, `psr/cache` — nothing else |
 | `gplanchat/durable-bridge-temporal` | `ext-grpc`, `grpc/grpc`, `google/protobuf`, `symfony/messenger` |
 | `gplanchat/durable-bridge-dbal` | `doctrine/dbal`, `symfony/lock`, `symfony/messenger` |
+| `gplanchat/durable-bridge-illuminate` | `illuminate/database`, `illuminate/contracts` |
 
-So: **no RoadRunner, ever; `ext-grpc` only when you talk to a Temporal cluster.** On the In-Memory
-and DBAL backends, no PHP extension beyond a standard install is involved. The rule behind this is
+So: **no RoadRunner, ever; `ext-grpc` only when you talk to a Temporal cluster.** On the in-memory,
+DBAL and Illuminate backends, no PHP extension beyond a standard install is involved. The rule behind this is
 recorded in [DUR006](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md).
 
 ---
@@ -428,8 +429,8 @@ See [Changing a running workflow](../deploying/).
 ## 8. Nexus: the one place Durable is ahead
 
 [Nexus](https://docs.temporal.io/nexus) routes a call from a workflow to an operation served in
-another namespace or another cluster. **A Durable workflow can call one; a workflow written with the
-official PHP SDK cannot.**
+another namespace or another cluster. **A Durable workflow can call one, and can serve one. A
+workflow written with the official PHP SDK can do neither.**
 
 ```php
 $order = $this->environment->await(
@@ -451,7 +452,8 @@ CRUD on the operator client, a task-slot option on the worker, history dumping �
 workflow can reach. Temporal's own documentation carries a Nexus section for Go, Java, Python,
 TypeScript and .NET, and none for PHP. On the Durable side the caller path is exercised by
 integration tests against a real Temporal server: round trips, cancellation and failure, operation
-bounds, and the endpoint, service, operation and header naming rules.
+bounds, the endpoint, service, operation and header naming rules — and, on the handler side, both
+response shapes and the cancellation path, a Durable caller and a Durable handler in the same test.
 
 **And the call interoperates.** That is worth stating because it was not always true: the caller
 used to wrap the payload in an envelope of its own, so a handler written with another SDK received
@@ -459,18 +461,52 @@ an object where it expected its own fields — and answered on empty values, wit
 The payload now travels as the caller wrote it. Measured against a handler served by the **Go SDK**,
 before and after: `{"name":""}` → `hello ` became `{"name":"ada"}` → `hello ada`.
 
-Two limits come with it, and both are deliberate:
+### Serving, too
 
-- **Caller only.** Durable calls Nexus operations; it does not serve them. A handler needs its own
-  Nexus task worker, poll loop, dispatch and failure vocabulary — none of which the caller path
-  touches. That is a separate piece of work, not an oversight.
+A handler declares the operation it serves, and answers now or later:
+
+```php
+#[AsNexusOperationHandler(service: 'facturation', operation: 'encaisser')]
+final class Encaisser
+{
+    public function __invoke(mixed $payload): NexusOperationResponse
+    {
+        // Now, if you already have the answer — you have about nine seconds.
+        return NexusOperationResponse::completed(['receipt' => 'r-1234']);
+
+        // Later, for anything real: a workflow produces the result.
+        return NexusOperationResponse::fulfilledByWorkflow('Encaissement', $payload);
+    }
+}
+```
+
+The nine seconds are not a Durable limit but the task's own `request-timeout`, measured: a handler
+still working when it expires has its task redelivered and starts over. That budget is exactly why
+the deferred form exists, and why it was built before the immediate one.
+
+Cancellation needs no hook: Durable cancels the workflow fulfilling the operation, and a workflow
+already observes its own cancellation with its compensations.
+
+See [Nexus operations](../nexus/) for the whole surface.
+
+**What this means for PHP.** No other PHP implementation serves Nexus, because no other PHP
+implementation reaches Nexus at all. Until now, a PHP service could not be a Nexus provider: a team
+running PHP was reachable over HTTP like any other service, but not through the boundary Temporal
+gives to Go, Java, Python, TypeScript and .NET — no durable operation, no server-side correlation,
+no cancellation that follows the call. That boundary is now open to PHP.
+
+One limit remains, and it is deliberate:
+
 - **Temporal backend only.** Nexus routes to an endpoint served elsewhere; a backend keeping its
   journal in one database has no such route and no honest fallback. The DBAL backend therefore
   **refuses immediately** with `NexusUnsupportedByBackendException`, which names the backend and
   what to do instead, rather than leaving the workflow waiting on a result nobody will produce.
+  On the handler side the same refusal fires **when the container is built**, not at request time —
+  a handler with no route is not a call that fails, it is a service that never receives anything.
 
 The reasoning is recorded in
-[DUR036](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md).
+[DUR036](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md)
+and [DUR045](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR045-serving-a-nexus-operation.md).
 
 ---
 

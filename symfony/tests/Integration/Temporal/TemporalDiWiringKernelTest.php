@@ -6,6 +6,7 @@ namespace App\Tests\Integration\Temporal;
 
 use Gplanchat\Bridge\Temporal\Messenger\TemporalTransportFactory;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
+use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
@@ -80,6 +81,30 @@ final class TemporalDiWiringKernelTest extends KernelTestCase
             TemporalActivityWorker::class,
             $worker,
             'durable.temporal.activity_worker doit être une instance de TemporalActivityWorker.',
+        );
+    }
+
+    /**
+     * Régression couverte, et elle a coûté une CI rouge : `durable.temporal.nexus_worker` était
+     * enregistré avec une référence à `WorkflowServiceNexusRpc`, service que rien n'enregistrait.
+     * Le conteneur ne se construisait plus du tout — `cache:clear` échouait avant le moindre test,
+     * dans toutes les versions de la matrice à la fois.
+     *
+     * Les tests unitaires de la passe de compilation ne pouvaient pas l'attraper : ils montent un
+     * ContainerBuilder nu, où l'extension n'a jamais tourné. Seul un vrai noyau le voit.
+     */
+    public function testTemporalNexusWorkerServiceIsAvailableInDevContainer(): void
+    {
+        self::bootKernel();
+        $container = self::$kernel->getContainer();
+
+        self::assertTrue(
+            $container->has('durable.temporal.nexus_worker'),
+            'Le service public durable.temporal.nexus_worker doit être enregistré en env dev.',
+        );
+        self::assertInstanceOf(
+            TemporalNexusWorker::class,
+            $container->get('durable.temporal.nexus_worker'),
         );
     }
 

@@ -16,10 +16,11 @@ l'exécution est enregistrée.
 | `gplanchat/durable-bundle` | câblage Symfony, commandes de worker, panneau du profileur | la bibliothèque, framework-bundle et Messenger |
 | `gplanchat/durable-bridge-temporal` | le pilote Temporal, en gRPC | la bibliothèque, `ext-grpc`, un cluster Temporal |
 | `gplanchat/durable-bridge-dbal` | l'exécution durable sur une base SQL | la bibliothèque, Doctrine DBAL 3 ou 4, `symfony/lock` |
+| `gplanchat/durable-bridge-illuminate` | la même chose, sur la connexion que Laravel possède déjà | la bibliothèque, `illuminate/database` 11, 12 ou 13 |
 | `gplanchat/durable-plugin` | un tableau de bord Sylius pour les exécutions | le bundle, `knplabs/knp-menu` ; Sylius 2.x pour apparaître dans son menu |
 
-Les deux ponts sont des **alternatives**, pas des couches : vous prenez Temporal ou DBAL, jamais les
-deux.
+Les trois ponts sont des **alternatives**, pas des couches : vous prenez Temporal, DBAL ou
+Illuminate, jamais deux d'entre eux.
 
 ---
 
@@ -130,6 +131,42 @@ sauvegardez déjà, une migration, et aucune extension à compiler.
 
 ---
 
+## `gplanchat/durable-bridge-illuminate` — le backend Laravel
+
+```bash
+composer require gplanchat/durable gplanchat/durable-bridge-illuminate
+php artisan migrate
+```
+
+Les mêmes quatre stockages que le pont DBAL, et le même échange face à Temporal — le tableau
+ci-dessus s'applique mot pour mot. Ce qui change, c'est la connexion : ceux-ci sont écrits contre
+`Illuminate\Database\Connection`, le constructeur de requêtes plutôt qu'Eloquent.
+
+C'est toute la raison d'être du paquet. **DUR030** ne paie que si l'ajout au journal et l'écriture
+métier atterrissent dans **une seule transaction**, et un stockage sur `DB::connection()` est dans
+`DB::transaction()` par construction. Passer à Doctrine DBAL le PDO tiré de
+`DB::connection()->getPdo()` atteint la même garantie et reste un contournement ; ceci est la
+réponse simple.
+
+Les quatre tables sont livrées en migration, chargée depuis le paquet : `migrate` suffit.
+`vendor:publish --tag=durable-migrations` sert à les modifier — et à partir de là, elles sont à
+vous.
+
+`Queue\ResumeLock` est la seule chose qu'aucun choix de stockage ne fournit. Deux workers qui
+reprennent la **même** exécution la rejouent tous les deux, chacun croit découvrir les commandes
+qu'elle produit, et ces commandes partent en double ; le journal ne l'empêche pas, il enregistre
+fidèlement ce qu'on lui donne, deux fois comprises. Il prend une fermeture : un job en file, une
+commande artisan ou un worker écrit à la main peuvent tous s'en servir.
+
+> [!NOTE]
+> **Il n'y a pas encore de paquet d'intégration Laravel.** Ceci est un jeu de stockages, pas un
+> câblage : rien ne lie les ports, aucune commande de worker, aucun job.
+> `DurableIlluminateServiceProvider` enregistre exactement une chose — où sont ses migrations. Tant
+> qu'un paquet d'intégration n'existe pas, vous câblez les stockages vous-même, comme le fait une
+> application sans framework.
+
+---
+
 ## `gplanchat/durable-plugin` — le tableau de bord Sylius
 
 ```bash
@@ -145,7 +182,7 @@ Il **observe** ; il n'exécute pas. Il exige `gplanchat/durable-bundle`, qui câ
 d'exécutions qu'il lit : la commande ci-dessus est donc toute l'installation.
 
 > [!NOTE]
-> Les données vivantes viennent du backend installé, quel qu'il soit. Aucun des deux ponts n'est un
+> Les données vivantes viennent du backend installé, quel qu'il soit. Aucun des trois ponts n'est un
 > `require` ici — le backend est suggéré par `gplanchat/durable`, une fois, pour toutes les
 > intégrations. Sans backend, le plugin s'installe quand même, la route et l'entrée de menu
 > fonctionnent, et le tableau de bord affiche son état dégradé au lieu d'exécutions vivantes.
@@ -168,10 +205,15 @@ Chaque commande ci-dessous est celle que le sélecteur de la [page d'accueil](/f
 | Sylius, tests seulement | `composer require gplanchat/durable-plugin` |
 | Sylius, une base SQL | `composer require gplanchat/durable-plugin gplanchat/durable-bridge-dbal` |
 | Sylius, un cluster Temporal | `composer require gplanchat/durable-plugin gplanchat/durable-bridge-temporal` |
+| Laravel, une base SQL | `composer require gplanchat/durable gplanchat/durable-bridge-illuminate` |
 
 Chaque ligne ne nomme que l'intégration : le bundle tire la bibliothèque, et le plugin tire le
 bundle. Sans framework, vous nommez la bibliothèque vous-même, et vous câblez aussi les workers
 vous-même.
+
+La ligne Laravel fait exception, et nomme la bibliothèque : le sélecteur propose
+`gplanchat/durable-laravel`, qui n'existe pas encore. En attendant, le pont s'installe seul et vous
+le câblez vous-même.
 
 ---
 

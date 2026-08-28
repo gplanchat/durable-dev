@@ -47,7 +47,7 @@ partly-landed change from its proposal overstates every one of them.
 | `workflow-replay-divergence-guard` | **20 / 20** | Landed, on a design settled by [DUR042](../adr/DUR042-replay-divergence-guard.md) | — (it was `workflow-versioning`'s blocker) |
 | `query-plumbing-leaves-the-environment` | 23 / 24 | Wiring — finished; its last task is blocked on tests it did not write | — |
 | `workflow-versioning` | 0 / 18 | A probe, then wiring | The Rector set (§6), the comparison page's honesty (§4) |
-| `nexus-handler-side` | 7 / 32 | A probe that already reported, then a bootstrap | — |
+| `nexus-handler-side` | 28 / 31 | Built. The probe reported, and the build followed it | — |
 
 **The one remaining task on the query change has now been run against a live Temporal server**
 (6.4), and it is red — for reasons that predate the change. Eight of thirteen tests error, in
@@ -69,11 +69,17 @@ workflows (`7ef0efa`), then the cost measurement and the timer gap — where tas
 is no identity to compare, so the deliverable was a test documenting the gap rather than a
 comparison. **`workflow-versioning` is therefore unblocked**, and its probe is taken.
 
-**`nexus-handler-side` is the largest single piece of unbuilt work in the repository**, and its
+**`nexus-handler-side` was the largest single piece of unbuilt work in the repository**, and its
 probe made it larger rather than smaller: two independent timeout budgets, an envelope decision
 (`{operationId, payload}` taught to handlers, or dropped in favour of the raw payload), and a
 retryable-versus-terminal error classification the caller path never had to make. Section 1bis is
 three design questions found by running the thing, which is the probe doing its job.
+
+> **Since built** — the worker, both response shapes, cancellation, registration and the docs, at
+> 28/31. Every one of those three questions was answered by measurement rather than argument, and
+> one of them overturned the design's own wording: what correlates a deferred answer is the
+> **callback attached to the fulfilling workflow**, not the token the handler returns. See
+> [DUR045](../adr/DUR045-serving-a-nexus-operation.md).
 
 ---
 
@@ -101,7 +107,7 @@ backlog someone else keeps.
 | Gap | Register | Note |
 |---|---|---|
 | **Workflow versioning** (`Workflow::getVersion()`) | A probe, then wiring | The significant one. Second behind the divergence guard, because a version marker is the sanctioned exception to that guard, and an exception needs a rule to except. |
-| **Nexus handler side** | A bootstrap | §2. No PHP implementation offers it today, the SDK included. |
+| **Nexus handler side** | **Built** — see [DUR045](../adr/DUR045-serving-a-nexus-operation.md) | §2. No other PHP implementation offers it, the SDK included. |
 | **Saga helper** | Wiring, small | The capability exists — a deadline and a compensation path, written out in [Creating a workflow](../user/workflows/). What is missing is the sugar. |
 | **`Workflow::now()`, `Workflow::uuid4()`** | Nothing to build | Both are `sideEffect()` on this side, recorded once and replayed. Not a gap; a different spelling. It matters in §6. |
 
@@ -326,7 +332,7 @@ available.
 | ~~Rector bucket 2~~ | A bootstrap | **Done** |
 | Magento | A bootstrap | — |
 | Laravel | A bootstrap + a fourth adapter family | — |
-| `nexus-handler-side` | A bootstrap — 7/32, and the probe grew it | Three decisions from §1bis |
+| `nexus-handler-side` | **Built** — 28/31; the probe grew it, then answered it | Settled; see DUR045 |
 | Akeneo `BatchBundle` | **A design question** | Checkpoint granularity |
 | `php-etl/pipeline` | **A design question** | The same one |
 

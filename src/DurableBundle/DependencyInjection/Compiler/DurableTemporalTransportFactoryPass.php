@@ -33,5 +33,9 @@ final class DurableTemporalTransportFactoryPass implements CompilerPassInterface
         if ($container->hasDefinition('durable.temporal.activity_worker')) {
             $def->setArgument(1, new Reference('durable.temporal.activity_worker'));
         }
+
+        if ($container->hasDefinition('durable.temporal.nexus_worker')) {
+            $def->setArgument(4, new Reference('durable.temporal.nexus_worker'));
+        }
     }
 }

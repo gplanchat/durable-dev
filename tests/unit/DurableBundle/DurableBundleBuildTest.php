@@ -6,6 +6,7 @@ namespace unit\Gplanchat\DurableBundle;
 
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\ActivityHandlerPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\DurableTemporalTransportFactoryPass;
+use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\NexusHandlerPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterWorkflowDispatchProfilerMiddlewarePass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\WorkflowPass;
 use Gplanchat\Durable\Bundle\DurableBundle;
@@ -70,6 +71,14 @@ final class DurableBundleBuildTest extends TestCase
     public function testActivityHandlerPassIsRegistered(): void
     {
         self::assertContains(ActivityHandlerPass::class, $this->registeredPassClasses());
+    }
+
+    public function testNexusHandlerPassIsRegistered(): void
+    {
+        // Sans elle, un #[AsNexusOperationHandler] pose sa balise et rien ne la lit : le
+        // gestionnaire n'est jamais enregistré, et le worker poll une file où personne ne sert
+        // l'opération. Le silence est exactement ce que §5.3 cherche à rendre impossible.
+        self::assertContains(NexusHandlerPass::class, $this->registeredPassClasses());
     }
 
     public function testRegisterWorkflowDispatchProfilerMiddlewarePassIsRegistered(): void

@@ -246,6 +246,18 @@ vous redonne exactement la panne que le verrou existe pour empêcher. Configurez
 Pas pour : les requêtes par attributs de recherche, les planifications cron, ni le débit et la
 visibilité qu'apporte un cluster Temporal. Voir la matrice de capacités plus bas.
 
+### Le même échange, sur la connexion de Laravel
+
+Les mêmes quatre stockages existent sur `Illuminate\Database\Connection`, sous le nom
+[`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate--le-backend-laravel)
+— même journal, même échange face à Temporal.
+
+Ce n'est **pas une quatrième valeur d'`event_store.type`**, et la configuration de cette page ne
+l'atteint pas : c'est la moitié stockage, seulement. Rien ne lie les ports, et le transport qui
+porte les reprises et les minuteurs est à vous tant qu'il n'existe pas de paquet d'intégration
+Laravel. `Queue\ResumeLock` fournit l'exclusion par exécution que décrit la section ci-dessus —
+une fermeture à envelopper, pas un middleware.
+
 ---
 
 ## Choisir un backend par environnement
@@ -285,11 +297,13 @@ activités. Ce qui diffère, c'est ce que la plateforme autour sait offrir.
 | Attributs de recherche | journalisés seulement | journalisés seulement | ✅ indexés et interrogeables |
 | Planifications cron | ❌ pas d'ordonnanceur | ❌ pas d'ordonnanceur | ✅ |
 | Rétention d'historique / API de visibilité | ❌ | votre table SQL | ✅ |
-| Opérations Nexus | ❌ | ❌ | ❌ *(prévu — côté appelant)* |
+| Opérations Nexus (appeler **et** servir) | ❌ | ❌ | ✅ |
 
 Ni le backend en mémoire ni le backend DBAL n'ont d'ordonnanceur ou de frontière entre espaces de
 noms : cron et Nexus n'y ont donc pas d'équivalent. Là où une capacité manque, elle **échoue
-explicitement** plutôt que d'être ignorée en silence.
+explicitement** plutôt que d'être ignorée en silence — pour un *appel* Nexus, à l'appel ; pour un
+*gestionnaire* Nexus, au montage du conteneur, puisqu'un gestionnaire sans route n'est pas un appel
+qui échoue mais un service qui ne reçoit jamais rien.
 
 ---
 

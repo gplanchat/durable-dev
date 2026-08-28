@@ -44,7 +44,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR033 | Assemblers return an Awaitable, and `await()` is the only wait | [adr/DUR033-awaitable-assemblers-and-the-single-wait.md](adr/DUR033-awaitable-assemblers-and-the-single-wait.md) |
 | DUR034 | A signal name is a backed enum, and the wire keeps the string | [adr/DUR034-signal-names-as-backed-enums.md](adr/DUR034-signal-names-as-backed-enums.md) |
 | DUR035 | The condition is the primitive, and handlers are dispatched by the engine | [adr/DUR035-conditions-are-the-primitive-and-handlers-are-dispatched.md](adr/DUR035-conditions-are-the-primitive-and-handlers-are-dispatched.md) |
-| DUR036 | Nexus is supported on the caller side only, and one backend can serve it | [adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md](adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md) |
+| DUR036 | Nexus and the backend asymmetry (caller-only framing superseded by DUR045) | [adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md](adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md) |
 | DUR037 | Run observation is a projection, and an absent fact stays absent | [adr/DUR037-run-observation-as-a-projection.md](adr/DUR037-run-observation-as-a-projection.md) |
 | DUR038 | A stub assembles, it does not wait | [adr/DUR038-a-stub-assembles-it-does-not-wait.md](adr/DUR038-a-stub-assembles-it-does-not-wait.md) |
 | DUR039 | The workflow authoring surface | [adr/DUR039-workflow-authoring-surface.md](adr/DUR039-workflow-authoring-surface.md) |
@@ -53,6 +53,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR042 | The replay divergence guard | [adr/DUR042-replay-divergence-guard.md](adr/DUR042-replay-divergence-guard.md) |
 | DUR043 | The projection is a port, and the in-memory backend reads its own runs | [adr/DUR043-the-projection-is-a-port-and-in-memory-reads-itself.md](adr/DUR043-the-projection-is-a-port-and-in-memory-reads-itself.md) |
 | DUR044 | Declared change points | [adr/DUR044-declared-change-points.md](adr/DUR044-declared-change-points.md) |
+| DUR045 | Serving a Nexus operation: one worker, two shapes, and a refusal at startup | [adr/DUR045-serving-a-nexus-operation.md](adr/DUR045-serving-a-nexus-operation.md) |
 
 ## Working agreements (WA)
 
