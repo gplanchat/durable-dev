@@ -375,11 +375,55 @@ either confirms a design or replaces it.
 
 ## 5. Temporal, decided rather than deferred twice
 
-- [ ] 5.1 Take `design.md`'s three ways out to a decision with a number behind it: what
-      `durable-bridge-temporal` actually installs into a Laravel application, and what a split would
-      break for those already on it.
-- [ ] 5.2 Whatever is chosen, the site's chooser and the Packages page say the same thing as the
-      code. Today they cannot, because the code does not exist.
+- [x] 5.1 Take `design.md`'s three ways out to a decision with a number behind it. **The decision is
+      to split**, and it is its own change — not this one.
+
+      **What it installs into a Laravel application.** Measured with `composer require --dry-run` on
+      the harness, which already carries the library, the Illuminate bridge and this package: **8
+      packages, 5 of them Symfony** — `messenger`, `var-exporter`, `dependency-injection`,
+      `filesystem`, `config` — for **~36 MB on disk**, of which `dependency-injection` alone is 23.
+      The other three, `grpc`, `protobuf` and `common-protos`, are the gRPC client and are earned.
+
+      A Laravel application loads none of the five. There is no service provider, no bundle, no
+      Messenger: they sit in `vendor/` so that four Messenger transports and a DI extension can
+      exist for somebody else.
+
+      **How small the coupled part actually is.** The bridge is 759 PHP files. The Symfony-coupled
+      ones are `Messenger/` (5), `DependencyInjection/` (1), `Resources/` (1) and the bundle at the
+      root — **8 files, one percent of the package, carrying 36 MB for the other 99 %.**
+
+      **What a split would break, and the answer is: less than it looks.** `durable-bundle` already
+      reaches into the bridge's Symfony classes — `DurableTemporalTransportFactoryPass` and
+      `DurableExtension` both name `Gplanchat\Bridge\Temporal` — without requiring the package. The
+      Symfony wiring is therefore *already* spread across the two, and moving the eight files into
+      `durable-bundle` consolidates rather than divides. For a Symfony user who has both packages,
+      the visible change is one line out of `bundles.php`.
+
+      That is a breaking change, and the repository has the machinery for one: `durable-upgrade.php`
+      renames what Rector can rename, `UPGRADE.md` documents what it cannot, and nothing is tagged
+      past `v0.1.0-alpha7`. Doing it here would mean editing the Temporal bridge and the Symfony
+      bundle from inside the Laravel change — two packages this change has no business touching —
+      so it gets its own, with an ADR behind it.
+
+      **Until it lands, the package keeps refusing `temporal` by name.** Not because the third way
+      out was chosen, but because it is the only one that costs nothing to reverse, and the split is
+      what reverses it.
+- [x] 5.2 Whatever is chosen, the site's chooser and the Packages page say the same thing as the
+      code — and today **they do not**.
+
+      `ALLOWED.laravel` offers `['memory', 'temporal', 'illuminate']`. The package serves
+      `['illuminate', 'memory']` and refuses the third by name at registration. A visitor who picks
+      Laravel + Temporal is handed a command that installs a combination the provider rejects on the
+      first boot.
+
+      The Packages page is clean — its Laravel line names the library and the Illuminate bridge, and
+      no sentence there claims Temporal on Laravel.
+
+      **The chooser is the canvas's, and the canvas is under an open pull request (#211).** Removing
+      `temporal` from `ALLOWED.laravel` is one entry in one table, but it must be made in the canvas
+      and regenerated, or the guard added by that same pull request turns the build red. It is
+      therefore recorded here and made in the canvas as soon as #211 is merged — one line, in the
+      change that owns the file.
 
 ## 6. What the documentation owes
 
