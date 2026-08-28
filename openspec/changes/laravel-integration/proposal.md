@@ -89,6 +89,28 @@ OST003's second consequence is a documentation duty, not a naming one: the docs 
 
 - **A Filament dashboard.** `durable-plugin` observes Sylius runs; the Laravel equivalent rides
   Filament, and it is a separate change that needs this one to exist first.
+
+  **And it is a separate *package*, decided here.** `gplanchat/durable-filament` SHALL require
+  `gplanchat/durable-laravel`, and this package SHALL NOT require, suggest or detect Filament. The
+  precedent is exact and one-directional — `durable-plugin` requires `durable-bundle`, and
+  `durable-bundle` names the plugin nowhere — so a Laravel application without Filament never hears
+  of it. Laravel makes it cleaner still: package auto-discovery registers the dashboard's provider
+  on install, and not installing it leaves no trace, where Symfony needs a line in `bundles.php`.
+
+  What this rules out is the shape the shortcut suggests: **one package with
+  `suggest: filament/filament` and a `class_exists(\Filament\Panel::class)` guard**. That puts dead
+  code in every application and makes this package's test suite depend on a Filament install.
+
+- **A Telescope watcher, and a Pulse card.** Named here because the previous point does not cover
+  them, and because they are the *other* pattern this repository uses. `durable-bundle` carries the
+  Symfony profiler panel **inside itself**, activated by `suggest: symfony/web-profiler-bundle` —
+  a panel that grafts onto a tool the application already has does not earn its own package, where
+  a whole interface does. So a Telescope watcher would live **in** `gplanchat/durable-laravel`
+  under `suggest: laravel/telescope`, and Pulse recorders likewise. Neither is in this change:
+  Telescope is the better vehicle than the Symfony panel it would mirror — it records from requests,
+  queued jobs *and* artisan commands, so an execution's timeline is continuous instead of stitched
+  back together from requests — and that is a reason to give it its own slice, not a corner of this
+  one.
 - **The API Platform state processor.** OST003 §3 makes it *"written once and collected twice"* —
   one processor over Symfony and Laravel. It is worth more as its own change than as a corner of
   this one, and it needs this package's wiring underneath before it can be collected the second time.

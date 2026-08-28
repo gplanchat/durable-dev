@@ -71,9 +71,25 @@ it under its own namespace only. A package that relies on it works inside an app
 in a standalone worker or a test, which is the worst of both: the failure only happens where nobody
 is looking.
 
-`LockProvider` also forces the caller to pick a store that can actually lock — `array`, `redis`,
-`memcached`, `dynamodb`, `database`. The `file` store does not implement it, and a compile error
-beats a lock that locks nothing.
+**`LockProvider` is the only contract this lock needs, and it filters nothing.** An earlier version
+of this file claimed it forced the caller to pick a store that can actually lock, and that the
+`file` store did not implement it. **Both halves are wrong on Laravel 12**, and measuring said so:
+nine stores implement `LockProvider`, `file` among them — and it locks correctly across processes —
+while `NullStore` implements it too and its `NoLock::acquire()` returns `true` unconditionally.
+
+Measured, twenty resumes of one execution across four `queue:work` processes:
+
+| store | overlapping critical sections | max concurrency |
+|---|---|---|
+| `database` | 0 | 1 |
+| `file` | 0 | 1 |
+| `array` | **15 of 20** | **4** |
+| `null` | **15 of 20** | **4** |
+
+`array` excludes inside one process and not between two; `null` excludes nothing at all and says so
+to nobody. Both type-check. **So the type is not the guard — the choice is yours, and it is the one
+choice in this package that silently forks a journal when it is wrong.** Use `database`, `redis`,
+`memcached`, `dynamodb` or `file`.
 
 ## Install
 

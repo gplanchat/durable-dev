@@ -34,6 +34,6 @@
         }
     ],
     "suggest": {
-        "illuminate/cache": "Required by Queue\\ResumeLock: a cache store that implements LockProvider \u2014 array, redis, memcached, dynamodb or database, never file"
+        "illuminate/cache": "Required by Queue\\ResumeLock: a cache store that locks across processes \u2014 database, redis, memcached, dynamodb or file. Never array (per-process) or null (locks nothing): both implement LockProvider and neither excludes."
     }
 }
