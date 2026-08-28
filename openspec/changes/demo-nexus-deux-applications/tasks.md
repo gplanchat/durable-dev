@@ -210,7 +210,18 @@ immédiate n'exigeant aucun workflow qui remplit l'opération.
 
 ## 5. Le dire
 
-- [ ] 5.1 Une page de documentation, ou une section, qui montre la démonstration plutôt que de la
-      décrire — c'est la première fois que deux applications Durable se parlent.
-- [ ] 5.2 Corriger au passage la citation de `sylius/config/packages/durable.yaml`, qui invoque
-      DUR035 (`await()` et les conditions) là où la décision est DUR037.
+- [x] 5.1 Une section « Deux applications, en vrai » à la fin de la page Nexus, dans les deux
+      langues : le tableau des deux maquettes, les deux appels côte à côte sur le même stub, et
+      l'historique de l'appelant qui, lui, les distingue. Vérifié sur un build `--minify` servi en
+      HTTP — 8 `h2`, 2 tableaux, 12 blocs de code de chaque côté.
+
+      Deux corrections que la démonstration a rendues nécessaires :
+
+      1. **Les exemples de la page étaient faux.** `verify(Order $order): Verdict` — un paramètre
+         typé objet arrive en tableau associatif et lève un `TypeError` à l'appel, pas à l'écriture
+         du contrat. Les signatures portent maintenant des scalaires et des tableaux, et un
+         paragraphe dit pourquoi, avec le détail PHP du tableau associatif vide encodé `[]`.
+      2. **`temporal.journal: false` n'était nulle part.** La clé est née en §2.1 ; sans elle, un
+         lecteur dont le tableau de bord lit DBAL conclut de la page qu'il ne peut pas servir Nexus.
+- [x] 5.2 La citation de `sylius/config/packages/durable.yaml` nomme DUR037, et dit en passant ce
+      qu'est DUR035 — pour que la prochaine lecture n'ait pas à aller vérifier.
