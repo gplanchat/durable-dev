@@ -60,26 +60,37 @@ et ce que Rector ne peut pas faire écrit en toutes lettres — un conteneur Sym
 compilé garde le nom pleinement qualifié et veut son `cache:clear`.
 ⚠ C'est **`chantier-nexus`**, pas `splitsh-integration-alpha8`, qui déplace
 `AsDurableActivity` du bundle vers le cœur sous `AsActivityHandler` : son
-renommage va dans le **même** set, pas dans un second. Prévenu. (La session
+renommage est **déjà** dans le même set : il a supprimé son
+`durable-attributes-alpha8.php` en doublon et fusionné ses huit entrées dans
+`durable-upgrade.php`, qui en porte neuf. Ses sept renommages d'attributs me
+concerneront le jour où le module référencera les attributs — le set les couvre,
+et Magento n'ayant pas de conteneur compilé, il n'y a pas de `cache:clear` à
+faire de ce côté. (La session
 `splitsh-integration-alpha8` est sur le chantier Laravel et ne touche à rien de
 tout ça — je m'étais trompé de destinataire.)
 
-Tranche **en cours** : **4.1**, les quatre XML de file.
+**PR #179** — la conception de la 4.1, mesurée. Le type de `request` est
+tranché : **`string`, le module encode son JSON**. Deux mesures, deux pannes
+silencieuses :
+- un objet de transport de Durable ne se fait pas refuser, il se fait **vider** —
+  `encode()` rend `[]` sans lever, le publieur réussit, l'identifiant
+  d'exécution a disparu, et le consommateur échoue au décodage dans un autre
+  processus ;
+- `string[]` laisse tomber les clés associatives et rend
+  `Array to string conversion` au décodage.
 
-Conception, avant d'écrire : les cinq rôles ont des formes différentes côté cœur.
-La reprise a un vrai port host-neutre — `WorkflowResumeDispatcher`, qui ne prend
-que des scalaires et des tableaux. L'activité passe par `ActivityTransportInterface`,
-qui manipule des `ActivityMessage`. Signal, update et minuterie n'ont pas de port :
-ce sont des messages Messenger que des gestionnaires du bundle traitent.
+Les charges sont les **arguments des ports** (`WorkflowResumeDispatcher` parle
+`string $executionId` + tableau), pas les classes de message, qui sont un détail
+de Messenger. Donner aux objets du cœur des accesseurs à la forme de Magento est
+ce que cette intégration ne doit pas faire.
 
-Question à **mesurer avant de déclarer** : l'encodeur de Magento accepte-t-il un
-objet de transport de Durable comme type de `request` dans `communication.xml` ?
-Ces objets ont des propriétés publiques `readonly` et aucun accesseur, là où
-`DataObjectProcessor` attend des getters — donc probablement non, et il faudra
-des `string[]` portant les arguments du port. Mais « probablement » est ce qu'une
-sonde existe pour lever, et l'instrument est déjà là
-(`app/code/Gplanchat/DurableProbe`). Les objets du cœur ne doivent en aucun cas
-gagner des accesseurs à la forme de Magento.
+⚠ **Le découpage 4.1/4.2 bouge** : `setup:upgrade` refuse un consommateur dont il
+ne résout pas la méthode de gestionnaire, donc une déclaration ne peut pas
+atterrir inerte. La 4.1 portera de vrais gestionnaires pour les rôles qu'elle
+déclare (reprise et distribution d'activité), la 4.2 ajoutera signal, update et
+minuterie.
+
+Reste de la 4.1 : écrire les quatre XML et les deux gestionnaires.
 
 Après : **tâche 4** (4.2, 4.3) — `communication.xml`, `queue_topology.xml`,
 `queue_publisher.xml`, `queue_consumer.xml` pour les cinq rôles (4.1), les

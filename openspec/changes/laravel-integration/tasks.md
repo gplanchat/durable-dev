@@ -38,9 +38,48 @@ either confirms a design or replaces it.
 
       The database is left half migrated. The README and the Packages page said *publish to edit*
       without saying *keep the name*; this task adds the sentence, in three files and two languages.
-- [ ] 1.2 **Measure what a waiting job costs.** Two workers, one execution, contention forced.
-      Compare `ResumeLock::around()` blocking against `$this->release($delay)`: worker slots held,
-      `--tries` consumed, what lands in `failed_jobs`. Record the numbers, not the preference.
+- [x] 1.2 **Measure what a waiting job costs.** Twenty jobs on one execution, four
+      `queue:work` processes, MySQL 8.4 for the queue and the lock store.
+
+      **First, the substrate.** The measurement cannot be run on the skeleton's default SQLite:
+      four workers popping the `jobs` table produce `SQLSTATE[HY000]: General error: 5 database is
+      locked`, and three of the four workers die on their first job — with WAL enabled and a 60 s
+      busy timeout. That is a finding in its own right, and §6 owes it a sentence: **a Laravel
+      application cannot run more than one Durable worker on the default `sqlite` driver.**
+
+      | | wall | worker-s held | `handle()` calls | failures |
+      |---|---|---|---|---|
+      | `around()`, 200 ms work | **4.47 s** | 14.98 | 20 | 0 |
+      | `release(1s)`, 200 ms work | 19.26 s | **4.20** | 210 | 0 |
+      | `release(0)`, 200 ms work | 4.07 s | 4.79 | **1 918** | 2 |
+      | `around()`, 800 ms work | 16.41 s | 59.83 | 23 | 0 — **3 `LockTimeoutException`** |
+
+      The work itself is 4 s and 16 s of critical section respectively, so the third column is the
+      cost of waiting, not of working. **The trade is real and it is symmetric:** blocking buys
+      latency with worker slots (11 s of the 15 held are pure waiting), releasing buys worker slots
+      with latency (the release delay *is* the latency floor), and releasing with no delay buys
+      both at the price of 96 queue round-trips per job.
+
+      **Two failure modes neither shape advertises, and both matter more than the numbers.**
+
+      1. **`release()` consumes an attempt.** With a finite `tries`, contention is
+         indistinguishable from a bug: at `--tries=5`, **15 of 20 jobs landed in `failed_jobs`**
+         having never run — they simply lost the draw five times. Making it work needs `tries = 0`,
+         which spends the retry budget the queue exists to give you. The table above uses
+         `tries = 0` plus `maxExceptions = 3` for the release rows; the naive version is the 15
+         failures.
+      2. **`waitSeconds` is a queue-depth ceiling, not a latency knob.** Once *depth × work*
+         exceeds it, `around()` starts throwing. At 800 ms × 20 jobs — 16 s of queued work against
+         a 10 s default — 3 jobs threw `LockTimeoutException` and were saved only by their retries.
+         Nothing in the name says the default caps a *queue*, and a shop whose activities take a
+         second will meet it.
+
+      **The conclusion, which §4.1 implements:** neither shape as written. `ResumeLock` needs a
+      **non-blocking entry point** — an `around()` that returns rather than waits when the lock is
+      held — so the job decides what to do with its turn instead of the lock deciding for it. With
+      it, `tries` goes back to meaning *crashes*, the release delay is a tuning knob rather than a
+      workaround, and the ceiling in failure mode 2 disappears because nobody waits inside a
+      worker slot.
 - [ ] 1.3 **Probe whether the configured store locks across processes.** Confirm `array` type-checks
       as a `LockProvider` and fails to exclude across two worker processes. Decide whether the
       provider can refuse it at boot, and whether that refusal can be wrong (a single-worker
