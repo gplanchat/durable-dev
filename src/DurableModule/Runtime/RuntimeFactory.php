@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Magento\Runtime;
 
+use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
+use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryEventStore;
+use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\WorkflowRegistry;
 use Magento\Framework\App\DeploymentConfig;
@@ -118,10 +121,48 @@ class RuntimeFactory
      */
     private function eventStore(): EventStoreInterface
     {
+        $settings = $this->temporalSettings();
+
+        return $settings === null
+            ? new InMemoryEventStore()
+            : new TemporalJournalEventStore(WorkflowServiceClientFactory::create($settings), $settings);
+    }
+
+    /**
+     * Ce que l'écran d'administration interroge, et pourquoi ce n'est pas le magasin d'événements.
+     *
+     * Un catalogue ne se **dérive pas** d'un journal : `InMemoryWorkflowRunCatalog` tient sa propre
+     * carte, alimentée par `recordStart()`/`recordOutcome()` dans le processus qui exécute. Une
+     * requête d'administration n'exécute rien — elle n'a donc rien à y lire, et une grille bâtie
+     * dessus est vide sans être en panne. Lister les exécutions d'une grappe, c'est demander à la
+     * grappe, et le pont livre déjà la classe qui sait le faire.
+     */
+    public function catalog(): WorkflowRunCatalogInterface
+    {
+        $settings = $this->temporalSettings();
+
+        return $settings === null
+            ? new InMemoryWorkflowRunCatalog(new InMemoryEventStore())
+            : new TemporalWorkflowRunCatalog(WorkflowServiceClientFactory::create($settings), $settings);
+    }
+
+    /**
+     * Le journal de cet hôte vit-il dans une grappe ?
+     */
+    public function hasCluster(): bool
+    {
+        return $this->temporalSettings() !== null;
+    }
+
+    /**
+     * `null` quand aucun DSN n'est configuré : le journal vit alors dans ce processus.
+     */
+    private function temporalSettings(): ?TemporalConnection
+    {
         $dsn = $this->temporalDsn ?? $this->configuredDsn();
 
         if ($dsn === null || $dsn === '') {
-            return new InMemoryEventStore();
+            return null;
         }
 
         if (!\class_exists(TemporalConnection::class)) {
@@ -131,9 +172,7 @@ class RuntimeFactory
             ));
         }
 
-        $settings = TemporalConnection::fromDsn($dsn);
-
-        return new TemporalJournalEventStore(WorkflowServiceClientFactory::create($settings), $settings);
+        return TemporalConnection::fromDsn($dsn);
     }
 
     private function configuredDsn(): ?string

@@ -6,8 +6,6 @@ namespace Gplanchat\Durable\Magento\Block\Adminhtml;
 
 use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
-use Gplanchat\Durable\Store\InMemoryEventStore;
-use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Magento\Backend\Block\Template;
 use Magento\Backend\Block\Template\Context;
 
@@ -48,9 +46,9 @@ class ProcessHistory extends Template
     public function getRuns(): array
     {
         if ($this->runs === null) {
-            $store = $this->runtimeFactory->create()->eventStore();
-            $this->ephemeral = $store instanceof InMemoryEventStore;
-            $this->runs = (new InMemoryWorkflowRunCatalog($store))->listRuns(limit: 50)->runs;
+            $catalog = $this->runtimeFactory->catalog();
+            $this->ephemeral = !$this->runtimeFactory->hasCluster();
+            $this->runs = $catalog->listRuns(limit: 50)->runs;
         }
 
         return $this->runs;

@@ -133,6 +133,11 @@ unmeasured.
       empty list is the correct answer; with one, the warning goes and it reads the cluster.
       *Landed here on the author's instruction rather than in the separate dashboard change; that
       change remains the home for run detail, filters and backend health.*
+      ⚠ **A catalog is not derivable from a journal**, and the first version got this wrong:
+      `InMemoryWorkflowRunCatalog` keeps its own map, fed by `recordStart()`/`recordOutcome()` in
+      the process that executes. An admin request executes nothing, so the grid was empty while a
+      run had just completed against the cluster. Listing a cluster's executions means asking the
+      cluster — `TemporalWorkflowRunCatalog`, which the bridge already ships.
 - [ ] 5.2 The bench's `compose.yaml` Temporal stack runs a workflow from an order placed in the
       storefront to a completed execution visible in the Temporal UI.
 - [ ] 5.3 The failure OST003 names: a consumer killed half way through an order resumes where it
