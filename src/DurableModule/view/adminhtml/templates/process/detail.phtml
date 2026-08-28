@@ -53,8 +53,24 @@ $events = $block->getEvents();
                 .durable-frieze-bar.update, .durable-frieze-mark.update { background: #7c5ac1; }
                 .durable-frieze-bar.nexus, .durable-frieze-mark.nexus { background: #008000; }
                 .durable-frieze-bar.other, .durable-frieze-mark.other { background: #a79d95; }
+                /* Après les règles de nature, et pas avant : celles-ci posent `background` en
+                   raccourci, qui remet `background-image` à zéro. L'opacité est relevée parce
+                   qu'une file d'attente de quelques millisecondes tient dans deux pixels, et que
+                   des hachures translucides sur deux pixels ne se distinguent plus de rien. */
+                .durable-frieze-bar.waiting {
+                    opacity: .75;
+                    background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, .9) 0 1px, rgba(255, 255, 255, 0) 1px 3px);
+                }
+                /* `background-color` et non `background` : le raccourci effacerait la trame, et une
+                   attente qui finit en échec est les deux à la fois. */
+                .durable-frieze-bar.failed { background-color: #e02b27; opacity: .75; }
+                .durable-frieze-mark.failed { background-color: #e02b27; }
+                .durable-journal-failed td { color: #e02b27; }
                 .durable-frieze-took { flex: 0 0 6rem; font-size: 1.1rem; color: #757575; }
                 .durable-frieze-scale { display: flex; justify-content: space-between; font-size: 1.1rem; color: #757575; padding: 0 6.75rem 0 16.75rem; }
+                .durable-frieze-key { display: flex; align-items: center; gap: .5rem; margin-top: .6rem; padding-left: 16.75rem; font-size: 1.1rem; color: #757575; }
+                /* La pastille de légende sort du positionnement absolu des barres de la frise. */
+                .durable-frieze-key .durable-frieze-bar { position: static; top: auto; flex: 0 0 3rem; }
             </style>
             <div class="durable-frieze">
                 <?php foreach ($timeline['actions'] as $action): ?>
@@ -63,12 +79,12 @@ $events = $block->getEvents();
                         <div class="durable-frieze-track">
                             <?php /* Un segment par intervalle : survoler la longue portion nomme l'attente. */ ?>
                             <?php foreach ($action['segments'] as $segment): ?>
-                                <span class="durable-frieze-bar <?= $escaper->escapeHtmlAttr($action['kind']) ?>"
+                                <span class="durable-frieze-bar <?= $escaper->escapeHtmlAttr($action['kind']) ?><?= $segment['waiting'] ? ' waiting' : '' ?><?= $segment['failed'] ? ' failed' : '' ?>"
                                       style="left: <?= $escaper->escapeHtmlAttr(number_format($segment['from'], 3, '.', '')) ?>%; width: <?= $escaper->escapeHtmlAttr(number_format($segment['width'], 3, '.', '')) ?>%"
                                       title="<?= $escaper->escapeHtmlAttr($segment['title']) ?>"></span>
                             <?php endforeach; ?>
                             <?php foreach ($action['marks'] as $mark): ?>
-                                <span class="durable-frieze-mark <?= $escaper->escapeHtmlAttr($action['kind']) ?>"
+                                <span class="durable-frieze-mark <?= $escaper->escapeHtmlAttr($action['kind']) ?><?= $mark['failed'] ? ' failed' : '' ?>"
                                       style="left: <?= $escaper->escapeHtmlAttr(number_format($mark['at'], 3, '.', '')) ?>%"
                                       title="<?= $escaper->escapeHtmlAttr($mark['title']) ?>"></span>
                             <?php endforeach; ?>
@@ -79,6 +95,15 @@ $events = $block->getEvents();
                 <div class="durable-frieze-scale">
                     <span>0</span>
                     <span><?= $escaper->escapeHtml($timeline['span']) ?></span>
+                </div>
+                <?php /* Une hachure sans légende est une devinette. */ ?>
+                <div class="durable-frieze-key">
+                    <span class="durable-frieze-bar waiting other"></span>
+                    <?= $escaper->escapeHtml(__('Hatched: waiting to be picked up — the work had been asked for, but nobody had started it yet.')) ?>
+                </div>
+                <div class="durable-frieze-key">
+                    <span class="durable-frieze-bar failed"></span>
+                    <?= $escaper->escapeHtml(__('Red: what failed. A cancellation is not painted red — it is an outcome, not a breakdown.')) ?>
                 </div>
             </div>
         </div>
@@ -99,15 +124,19 @@ $events = $block->getEvents();
                         <th><?= $escaper->escapeHtml(__('#')) ?></th>
                         <th><?= $escaper->escapeHtml(__('Recorded')) ?></th>
                         <th><?= $escaper->escapeHtml(__('Kind')) ?></th>
+                        <th><?= $escaper->escapeHtml(__('Action')) ?></th>
                         <th><?= $escaper->escapeHtml(__('What happened')) ?></th>
                     </tr>
                 </thead>
                 <tbody>
                 <?php foreach ($events as $event): ?>
-                    <tr>
+                    <tr<?= $event->failed ? ' class="durable-journal-failed"' : '' ?>>
                         <td><?= (int) $event->sequence ?></td>
                         <td><?= $escaper->escapeHtml($event->recordedAt->format('Y-m-d H:i:s')) ?></td>
                         <td><?= $escaper->escapeHtml($event->kind->value) ?></td>
+                        <?php /* Le nom de l'action, pas celui de l'événement : les suites d'une
+                                activité ne portent qu'un numéro, et l'exploitant cherche le nom. */ ?>
+                        <td><?= $escaper->escapeHtml($block->actionLabel($event)) ?></td>
                         <td>
                             <?php $details = $block->formatDetails($event); ?>
                             <?php if ($details === null): ?>
