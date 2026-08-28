@@ -79,7 +79,7 @@
             "Gplanchat\\Durable\\Laravel\\": "src/DurableLaravel/",
             "Temporal\\Api\\": "src/Bridge/Temporal/Api/",
             "GPBMetadata\\Temporal\\": "src/Bridge/Temporal/Generated/GPBMetadata/Temporal/",
-            "Gplanchat\\Durable\\Magento\\": "src/DurableModule/"
+            "Gplanchat\\DurableModule\\": "src/DurableModule/"
         }
     },
     "autoload-dev": {
@@ -108,7 +108,7 @@
     },
     "authors": [
         {
-            "name": "Gr\u00e9gory Planchat",
+            "name": "Grégory Planchat",
             "email": "gregory@gyroscops.com"
         }
     ]

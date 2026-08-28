@@ -108,5 +108,34 @@ La publication n'a lieu que depuis `main`. Sur une pull request, le workflow con
 c'est la compilation qu'on veut vérifier, et une étiquette glissante ne doit pas désigner un essai
 non relu.
 
+## Élaguer les étiquettes datées
+
+Seize images × une étiquette datée × chaque lundi, cela fait environ **huit cents étiquettes par
+an**. Le stockage est gratuit sur un paquet public, mais la liste des versions devient illisible
+bien avant de coûter quoi que ce soit.
+
+Le job `retention` s'exécute après chaque publication réussie et garde, **par série**
+(`8.4-zts`, `8.2-cli-alpine`, …), les **huit étiquettes datées les plus récentes** en plus de
+l'image courante — soit deux mois de points d'épinglage. Simulé sur soixante semaines : 144 versions
+et 160 étiquettes au régime permanent, contre 960 et 976 sans rien faire.
+
+Ce que le script protège, et qui n'est pas évident : **une version est épargnée dès qu'elle porte
+une étiquette non datée.** Le lundi de la publication, `8.4-zts` et `8.4-zts-20260828` désignent le
+même manifeste ; « supprimer l'étiquette datée » retirerait l'image que l'étiquette glissante
+désigne. La règle porte donc sur la version, jamais sur l'étiquette. Les versions **sans aucune
+étiquette** sont épargnées aussi : ce ne sont pas des orphelines mais les attestations de provenance
+de buildx, référencées par l'index qui, lui, est étiqueté.
+
+`retention.py --self-test` vérifie ces deux cas, et le job le lance avant d'appeler quoi que ce soit
+qui supprime.
+
+> **Un secret est nécessaire.** L'API de suppression de paquets n'accepte pas le `GITHUB_TOKEN` :
+> elle demande un jeton personnel *classique* portant `read:packages` et `delete:packages`, à
+> déposer dans le secret `GHCR_RETENTION_TOKEN`. Sans lui, le job pose un avertissement et s'arrête
+> sans échouer — un échec hebdomadaire finirait par être ignoré, et les vrais avec lui.
+
+Un essai à blanc est disponible : `workflow_dispatch` avec `dry_run` (activé par défaut) liste ce
+qui serait retiré sans rien retirer.
+
 `arm64` est proposé en option et pas par défaut : il passe par QEMU, et émuler une compilation C++
 coûte bien plus que de la compiler.

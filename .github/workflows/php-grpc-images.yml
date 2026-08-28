@@ -27,6 +27,10 @@ on:
                 options:
                     - linux/amd64
                     - linux/amd64,linux/arm64
+            dry_run:
+                description: "Élagage : montrer ce qui serait retiré, sans le retirer."
+                default: true
+                type: boolean
     # Déclenchement externe, pour qui veut rafraîchir sans passer par l'interface :
     #     gh api repos/:owner/:repo/dispatches -f event_type=php-grpc-images
     repository_dispatch:
@@ -119,3 +123,66 @@ jobs:
                   attendu="$(case '${{ matrix.flavour }}' in zts*) echo enabled;; *) echo disabled;; esac)"
                   docker run --rm "$image" php -i | grep -q "Thread Safety => $attendu"
                   docker run --rm "$image" php -v | head -n 1
+
+    # Seize images reconstruites chaque lundi, chacune posant une étiquette datée : environ huit
+    # cents étiquettes par an, et rien ne les élague. La liste des versions devient illisible bien
+    # avant que le stockage ne pose problème.
+    retention:
+        name: Élaguer les étiquettes datées
+        needs: build
+        # Jamais sur une pull request : rien n'y est publié, il n'y a donc rien à élaguer, et un job
+        # qui supprime des images publiées n'a pas sa place dans la validation d'une proposition.
+        if: github.event_name != 'pull_request'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            # Ce qui décide tient dans une fonction, et elle est vérifiée avant d'être appliquée.
+            # Le cas qui compte : le lundi de la publication, `8.4-zts` et `8.4-zts-20260828`
+            # désignent le même manifeste — retirer « l'étiquette datée » retirerait l'image que
+            # l'étiquette glissante désigne.
+            - name: La règle se vérifie avant de s'appliquer
+              run: python3 docker/php-grpc/retention.py --self-test
+
+            - name: Élaguer
+              env:
+                  # L'API de suppression de paquets n'accepte pas le `GITHUB_TOKEN` : elle demande
+                  # un jeton personnel classique portant `read:packages` et `delete:packages`. Sans
+                  # le secret, le job avertit et s'arrête — un échec hebdomadaire finirait par être
+                  # ignoré, et avec lui les vrais.
+                  GH_TOKEN: ${{ secrets.GHCR_RETENTION_TOKEN }}
+                  OWNER: ${{ github.repository_owner }}
+                  DRY_RUN: ${{ inputs.dry_run || 'false' }}
+              run: |
+                  if [ -z "$GH_TOKEN" ]; then
+                      echo "::warning title=Élagage non configuré::Le secret GHCR_RETENTION_TOKEN est absent. Les étiquettes datées continuent de s'accumuler. Créez un jeton personnel classique avec read:packages et delete:packages."
+                      exit 0
+                  fi
+
+                  # Deux familles d'URL cohabitent pour les paquets : celle de l'utilisateur
+                  # authentifié, et celle d'un utilisateur nommé. Un jeton appartenant au
+                  # propriétaire du paquet passe par la première ; on essaie, et on retombe sur la
+                  # seconde. Résoudre ici plutôt qu'à la suppression a son importance : la lecture a
+                  # lieu chaque semaine, la première suppression n'est due que dans deux mois.
+                  base="/user/packages/container/php-grpc"
+                  if ! gh api "$base/versions?per_page=1" >/dev/null 2>&1; then
+                      base="/users/$OWNER/packages/container/php-grpc"
+                      gh api "$base/versions?per_page=1" >/dev/null
+                  fi
+                  echo "API : $base"
+
+                  gh api --paginate "$base/versions?per_page=100" \
+                      -q '.[] | {id: .id, tags: (.metadata.container.tags // [])}' \
+                      | jq -s '.' > versions.json
+
+                  python3 docker/php-grpc/retention.py --keep 8 < versions.json > a-retirer.txt
+
+                  if [ "$DRY_RUN" = "true" ]; then
+                      echo "::notice::Essai à blanc : $(wc -l < a-retirer.txt) version(s) auraient été retirées."
+                      exit 0
+                  fi
+
+                  while read -r id; do
+                      gh api -X DELETE "$base/versions/$id"
+                      echo "retirée : $id"
+                  done < a-retirer.txt

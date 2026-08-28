@@ -203,10 +203,23 @@ composer require gplanchat/durable-magento
 > Packagist, donc la commande ci-dessus ne résout pas aujourd'hui. Ce qui suit décrit ce qui est
 > construit, pas ce que vous pouvez installer.
 
-Un module Magento 2.4 / Mage-OS — `Gplanchat_Durable` dans `bin/magento module:status`. Il déclare
+Un module Magento 2.4 / Mage-OS — `Gplanchat_DurableModule` dans `bin/magento module:status`. Il déclare
 les classes de workflow et d'activité au moteur, l'assemble pour un processus Magento, livre les
 workers en commandes `bin/magento`, et ajoute un écran d'administration en lecture seule sous
 **System > Durable processes > Process history**.
+
+L'écran est une grille Magento standard — pagination, signets, choix des colonnes, export, et un
+filtre d'état multi-select dont les options viennent de l'énumération elle-même. Ouvrir une
+exécution mène à son détail : une frise avec **une ligne par action** — une activité planifiée,
+démarrée puis terminée est une ligne, et la barre de la ligne est sa durée. L'exécution elle-même
+est la première ligne, nommée d'après le workflow et portant ses tâches de workflow ; un workflow
+enfant garde sa propre ligne. Chaque barre est découpée entre événements consécutifs, de sorte
+qu'un intervalle sans rien d'enregistré — l'attente d'un worker — dit sa durée au lieu de se
+cacher dans une barre. Le journal est en dessous. Chaque ligne du journal se
+déplie sur ce que le backend a enregistré avec elle — les arguments d'appel d'une activité, ce
+qu'elle a rendu, la classe et le message d'un échec. Placer dans le temps plutôt que par rang est
+tout l'intérêt : c'est ce qui fait qu'une exécution ayant passé vingt-deux de ses vingt-quatre
+secondes à attendre en a l'air.
 
 Le conteneur de Magento n'a pas d'équivalent de l'autoconfiguration par tag de Symfony : la
 déclaration est explicite, deux tableaux dans `di.xml`.

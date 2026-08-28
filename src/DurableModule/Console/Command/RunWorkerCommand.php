@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Magento\Console\Command;
+namespace Gplanchat\DurableModule\Console\Command;
 
-use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
+use Gplanchat\DurableModule\Runtime\RuntimeFactory;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
