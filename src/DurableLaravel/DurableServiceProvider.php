@@ -10,6 +10,8 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
+use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
+use Gplanchat\Durable\ActivityExecutor;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
@@ -32,6 +34,7 @@ use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
+use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
 use Illuminate\Cache\NullStore;
@@ -243,6 +246,10 @@ final class DurableServiceProvider extends ServiceProvider
         $queue = $config['queue'] ?? [];
 
         $this->app->singleton(RegistryActivityExecutor::class, fn() => new RegistryActivityExecutor());
+        // Le port, pas seulement la classe : `RunActivityJob` demande un
+        // `ActivityMessageProcessor`, qui demande un `ActivityExecutor`. Sans cette ligne le
+        // conteneur essaie d'instancier une interface, et l'activité échoue au premier essai.
+        $this->app->singleton(ActivityExecutor::class, fn($app) => $app->make(RegistryActivityExecutor::class));
         $this->app->singleton(WorkflowDefinitionLoader::class, fn() => new WorkflowDefinitionLoader());
 
         // Le minuteur suit le backend, comme le transport et le dispatcher de reprise : en
@@ -272,6 +279,18 @@ final class DurableServiceProvider extends ServiceProvider
         $this->app->singleton(ExecutionEngine::class, fn($app) => new ExecutionEngine(
             $app->make(EventStoreInterface::class),
             $app->make(ExecutionRuntime::class),
+        ));
+
+        $this->app->singleton(ActivityMessageProcessor::class, fn($app) => new ActivityMessageProcessor(
+            $app->make(EventStoreInterface::class),
+            $app->make(ActivityTransportInterface::class),
+            $app->make(ActivityExecutor::class),
+            $app->make(WorkflowResumeDispatcher::class),
+            // Pas de battement de cœur : c'est une capacité de Temporal, et rien ici ne la sert.
+            new NullActivityHeartbeatSender(),
+            // Tentatives illimitées par défaut, sémantique Temporal. La politique de chaque
+            // activité l'emporte quand elle en déclare une.
+            0,
         ));
 
         $this->app->singleton(ResumeWorkflowHandler::class, fn($app) => new ResumeWorkflowHandler(

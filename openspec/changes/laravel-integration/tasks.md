@@ -299,8 +299,37 @@ either confirms a design or replaces it.
       That last half is the contract the in-memory and Messenger transports already keep, and it is
       not decoration: a delay that survived being queued would be waited a second time, by the
       worker that receives it.
-- [ ] 3.4 A worker killed mid-activity resumes from the journal, and an activity whose result was
-      already recorded does not run twice.
+- [x] 3.4 A worker killed mid-activity resumes from the journal, and an activity whose result was
+      already recorded does not run twice. Measured on the harness — a real queue, a real
+      `kill -9`, a three-second activity that writes to disk on every actual run.
+
+      **The wiring this needed first.** `ResumeWorkflowJob` carried its message and did nothing
+      with it, so no execution could advance. It now hands it to `ResumeWorkflowHandler` — the
+      core's, which left the Symfony bundle for `Gplanchat\Durable\Handler\` precisely so a host
+      without a message bus could serve it. This package assembles it; it does not write a second
+      one. A timer became a deferred resume on the queue's own delay, and `ActivityExecutor` and
+      `ActivityMessageProcessor` had to be bound too — without them the first activity died on
+      *Target [ActivityExecutor] is not instantiable*.
+
+      | | journal | execution | disk witness |
+      |---|---|---|---|
+      | killed mid-activity | `ActivityScheduled`, `ActivityTaskStarted` | not complete, 1 job held | 1 start, 0 finish |
+      | after a worker returns | + `ActivityTaskCompleted`, `ActivityCompleted`, `ExecutionCompleted` | **complete** | 2 starts, 1 finish |
+      | the same activity re-delivered | unchanged, still five events | complete | **unchanged** |
+
+      **The activity re-ran, and that is the correct answer.** Its result was never recorded — the
+      process died between the start and the finish — so replay has nothing to skip. The claim the
+      task makes is about an activity whose result *was* recorded, and that is the third row: the
+      re-delivered job returned in **7.76 ms** against three seconds for a real run, wrote nothing,
+      and left the journal at five events. `ActivityMessageProcessor`'s first gesture is to ask the
+      journal whether this activity already has a terminal outcome.
+
+      **And one operational finding that cost the first run.** A job whose worker was killed stays
+      **reserved** until `retry_after` — 90 seconds by default. A worker started with
+      `--stop-when-empty` inside that window sees an empty queue and exits **having done nothing**,
+      which reads exactly like a resume that failed. It is not: it is a resume that has not been
+      offered the job yet. A supervised worker, which outlives the window, picks it up. §6 owes
+      this a sentence, because the symptom is indistinguishable from a bug.
 
 ## 4. One execution, one replay
 
