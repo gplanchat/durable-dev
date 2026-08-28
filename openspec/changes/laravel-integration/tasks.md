@@ -178,12 +178,52 @@ either confirms a design or replaces it.
 
 ## 2. The package boots
 
-- [ ] 2.1 `src/DurableLaravel/` with a `composer.json` naming `gplanchat/durable-laravel`, its
-      `extra.laravel.providers` entry, a `LICENSE` at the prefix root (DUR020 requires it of every
-      split), and the prefix added to `bin/splitsh-publish.sh` — with its satellite repository
-      created *before* the line lands, the lesson of `durable-bridge-illuminate`.
-- [ ] 2.2 A `DurableServiceProvider` found by package auto-discovery that binds the four storage
-      ports from `config/durable.php`, publishable under `--tag=durable-config`.
+- [x] 2.1 `src/DurableLaravel/` exists: `composer.json` naming `gplanchat/durable-laravel` under
+      `Gplanchat\Durable\Laravel\` — the family shape of `durable-bundle` and `durable-plugin`,
+      not the `Bridge\` shape, because this is an integration and not a store — its
+      `extra.laravel.providers` entry, a `LICENSE` at the prefix root, a README, and the monorepo
+      wiring: path repository, `@dev` require, PSR-4 map, `phpstan.neon` **and** `psalm.xml`.
+
+      **The splitsh prefix is deliberately NOT in this slice.** The satellite repository does not
+      exist yet, and adding the line first is precisely what turned the Splitsh job red on every
+      push to `main` for `durable-bridge-illuminate`. Repository first, then the line.
+
+      **And wiring `psalm.xml` uncovered that PR #165 never did.** That PR reported adding
+      `src/Bridge/Illuminate` to Psalm's `projectFiles`; the file on `main` has no such line, and
+      `git log -S` finds it was never there. The `sed` that was supposed to insert it did not match
+      the file's indentation, the commit carried only the `InvalidOperand` cast, and CI stayed green
+      because nothing had entered the analysed set. **The bridge has never been Psalm-analysed until
+      this slice.** Both directories are added here, and Psalm reports no errors on either.
+- [x] 2.2 `DurableServiceProvider` binds the four ports from `config/durable.php`, publishable
+      under `--tag=durable-config`, found by package auto-discovery. Six tests, and the provider
+      registers into a **bare container** — no Laravel application around it — which is the same
+      discipline `ResumeLock` follows for the same reason.
+
+      **One choice of backend binds all four ports**, by a single `match` rather than four
+      independent settings: a journal on one backend under a catalogue on another is not a
+      configuration, it is a fault. A backend this package does not serve is refused **by name**, at
+      registration, naming both of the two it does.
+
+      **§1.3's decision is now code.** `null` is refused at `boot()` — it grants every lock, in every
+      deployment — while `array` passes, because it is Laravel's own testing default and excluding
+      inside one process is what a test wants. The worker command will be the one to refuse it.
+
+      **Two bugs the slice found, both worth their line.**
+
+      1. **The defaults file cannot call `env()`.** `illuminate/support` ships the helper, but it
+         resolves through `PhpOption\Option`, which only `vlucas/phpdotenv` provides — present in an
+         application, absent in a standalone worker or a test. The first version of
+         `config/durable.php` used `env()` for all five settings and every test died on
+         `Class "PhpOption\Option" not found`. **This is the failure the `ResumeLock` docblock
+         already describes about `Lock::block()`**, met a second time in the same package, from the
+         other direction. The published copy may use `env()` freely; the package's own defaults may
+         not, and the file now says so.
+      2. **A container binding does not need its interface to exist.** The provider bound
+         `WorkflowRunCatalogInterface` from `Gplanchat\Durable\Store\`, where it is not — it lives
+         in `Gplanchat\Durable\Port\`. Six tests passed anyway: `::class` does not autoload, and
+         `$app->make()` on a registered string key never resolves the name. **Psalm caught it, and
+         no test could have.** The slice that put Psalm on this code found a bug in the same slice's
+         code, which is the argument for §2.1's second paragraph.
 - [ ] 2.3 A workflow class written for `durable-bundle` runs unmodified, resolved by the name its
       attribute declares. An undeclared type fails naming itself and where types are declared.
 

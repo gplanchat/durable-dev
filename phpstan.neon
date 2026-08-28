@@ -10,6 +10,7 @@ parameters:
         - src/Bridge/Temporal
         - src/Bridge/Dbal
         - src/Bridge/Illuminate
+        - src/DurableLaravel
         - src/DurablePhpstan
         - src/DurableRector
     excludePaths:
@@ -18,6 +19,12 @@ parameters:
         - src/Bridge/Temporal/Spike
     reportUnmatchedIgnoredErrors: false
     ignoreErrors:
+        # ServiceProvider::$app est typé par PHPDoc comme l'application complète. Ce paquet tient à
+        # ce que ce soit faux : ses liaisons s'enregistrent aussi dans un conteneur nu — worker
+        # autonome, test — où configPath() n'existe pas. La garde est réelle, c'est le PHPDoc amont
+        # qui est optimiste.
+        - identifier: function.alreadyNarrowedType
+          path: src/DurableLaravel/DurableServiceProvider.php
         # google/protobuf stubs type MapField incorrectly — constructor expects "long" but GPBType constants are int
         - identifier: argument.type
           path: src/Bridge/Temporal/Worker/TemporalWorkflowCommandBuffer.php
