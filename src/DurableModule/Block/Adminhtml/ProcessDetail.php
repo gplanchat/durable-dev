@@ -30,6 +30,9 @@ class ProcessDetail extends Template
     /** @var list<WorkflowRunEvent>|null */
     private ?array $events = null;
 
+    /** @var array<string, string>|null */
+    private ?array $actionLabels = null;
+
     public function __construct(
         Context $context,
         private readonly RuntimeFactory $runtimeFactory,
@@ -98,7 +101,7 @@ class ProcessDetail extends Template
      * événements — disparaîtrait dans une barre qui dit « le run a duré le temps du run ». Chaque
      * segment porte donc son intervalle : survoler la longue portion nomme l'attente.
      *
-     * @return array{span: string, actions: list<array{kind: string, label: string, duration: string, segments: list<array{from: float, width: float, title: string}>, marks: list<array{at: float, title: string}>}>}|null
+     * @return array{span: string, actions: list<array{kind: string, label: string, duration: string, segments: list<array{from: float, width: float, waiting: bool, failed: bool, title: string}>, marks: list<array{at: float, failed: bool, title: string}>}>}|null
      */
     public function getTimeline(): ?array
     {
@@ -136,6 +139,7 @@ class ProcessDetail extends Template
                 'marks' => array_map(
                     fn(WorkflowRunEvent $event): array => [
                         'at' => $this->scale($moments[$event->sequence] - $first, $span),
+                        'failed' => $event->failed,
                         'title' => \sprintf(
                             '#%d · %s · %s',
                             $event->sequence,
@@ -157,10 +161,17 @@ class ProcessDetail extends Template
      * Une action d'un seul événement n'a aucun intervalle, donc aucun segment : un repère seul dit
      * déjà tout ce qu'il y a à dire d'un instant.
      *
+     * ⚠ **Un segment qui débouche sur un démarrage n'est pas du travail, c'est une file.** Le
+     * segment hérite donc du `started` de l'événement qui le **ferme** : ce qui précède la prise en
+     * charge est le temps passé à attendre qu'on veuille bien commencer. Deux barres de même
+     * longueur ne racontent pas la même chose, et l'exploitant devant une exécution lente cherche
+     * précisément à savoir laquelle des deux il regarde — son code, ou personne au bout du fil. Le
+     * gabarit hachure celle-là.
+     *
      * @param list<WorkflowRunEvent>  $group
      * @param array<int, float>       $moments
      *
-     * @return list<array{from: float, width: float, title: string}>
+     * @return list<array{from: float, width: float, waiting: bool, failed: bool, title: string}>
      */
     private function segments(array $group, array $moments, float $first, float $span): array
     {
@@ -174,8 +185,17 @@ class ProcessDetail extends Template
             $segments[] = [
                 'from' => $this->scale($from - $first, $span),
                 'width' => $this->scale($to - $from, $span),
+                'waiting' => $closing->started,
+                // Un segment est rouge quand il **débouche** sur un échec : c'est le temps qui a
+                // été passé à échouer. Peindre l'action entière ferait passer une activité reprise
+                // du deuxième coup pour une activité perdue.
+                'failed' => $closing->failed,
+                // La nature de l'intervalle est nommée dans l'infobulle : une hachure sans légende
+                // est une devinette, et celui qui survole la barre est justement celui qui veut
+                // savoir.
                 'title' => \sprintf(
-                    '%s · #%d → #%d · %s → %s',
+                    '%s%s · #%d → #%d · %s → %s',
+                    $closing->started ? 'waiting to be picked up · ' : '',
                     ReadableDuration::of($to - $from),
                     $opening->sequence,
                     $closing->sequence,
@@ -216,6 +236,33 @@ class ProcessDetail extends Template
         // maison peut contenir ; `false` reste possible, et une ligne sans dépliant vaut mieux
         // qu'un écran de diagnostic qui tombe sur l'événement qu'on était venu regarder.
         return $rendered === false ? null : $rendered;
+    }
+
+    /**
+     * Le nom de l'action à laquelle l'événement appartient.
+     *
+     * C'est le nom que porte l'événement qui **ouvre** l'action : seule la planification connaît le
+     * nom de l'activité, ses suites ne portent qu'un numéro — le journal affichait donc
+     * `ACTIVITY TASK STARTED` là où l'exploitant cherchait `durable.probe.charge`. Rien à demander
+     * aux lecteurs : la colonne est la même chaîne que le libellé de la ligne de frise, si bien
+     * qu'une ligne de l'un se retrouve dans l'autre.
+     */
+    public function actionLabel(WorkflowRunEvent $event): string
+    {
+        if ($this->actionLabels === null) {
+            $this->actionLabels = [];
+            foreach ($this->getEvents() as $candidate) {
+                if ($candidate->actionKey !== null && !isset($this->actionLabels[$candidate->actionKey])) {
+                    $this->actionLabels[$candidate->actionKey] = $candidate->label;
+                }
+            }
+        }
+
+        // Un événement qui est à lui seul son action se nomme lui-même : répéter son libellé dans
+        // les deux colonnes n'apprendrait rien, mais laisser la case vide ferait croire à un trou.
+        return $event->actionKey === null
+            ? $event->label
+            : ($this->actionLabels[$event->actionKey] ?? $event->label);
     }
 
     public function formatMoment(?\DateTimeImmutable $moment): string
