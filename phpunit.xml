@@ -17,6 +17,12 @@
         <testsuite name="rector">
             <directory>tests/unit/DurableRector</directory>
         </testsuite>
+        <!-- Le paquet d'intégration Laravel, isolé pour que la matrice « Laravel x / PHP y »
+             puisse l'exercer seule contre une ligne d'illuminate/* épinglée. Il reste dans la
+             suite `unit`, donc la QA et la couverture le voient toujours. -->
+        <testsuite name="laravel">
+            <directory>tests/unit/DurableLaravel</directory>
+        </testsuite>
         <testsuite name="plugin">
             <directory>src/DurablePlugin/tests</directory>
         </testsuite>
