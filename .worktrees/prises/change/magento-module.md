@@ -95,11 +95,19 @@ alimentée par `recordStart()`/`recordOutcome()` dans le processus qui exécute 
 une requête d'administration n'exécute rien. Lister les exécutions d'une grappe,
 c'est demander à la grappe : `TemporalWorkflowRunCatalog`, que le pont livre déjà.
 
-⚠ Deux réserves assumées : le nom affiché est `DurableJournal`, le type Temporal
-qui *porte* le journal, pas le type métier — remonter le second appartient au
-change du tableau de bord. Et le statut reste `running` : **aucun worker ne
-draine la file de tâches**, donc rien ne clôt les journaux. C'est le reste de la
-5.1, et la 5.2 en dépend.
+⚠ Une réserve, et **une correction** : le nom affiché est `DurableJournal`, le
+type Temporal qui *porte* le journal, pas le type métier — remonter le second
+appartient au change du tableau de bord.
+
+Mais le statut `running` **n'était pas dû à l'absence de worker**, contrairement
+à ce que j'avais écrit. Le worker existe maintenant (PR #187), la file est
+drainée, et le cluster répond toujours `RUNNING` pour chaque `DurableJournal` :
+le workflow du journal est **long par construction**, c'est le journal lui-même,
+il ne se ferme pas parce qu'une exécution s'est terminée. La colonne « Status »
+ne peut donc lire que `running` sur cet hôte tant qu'elle reflète le statut
+Temporal. Ce qui distingue fini de en-cours vit dans les **événements** du
+journal (`TemporalRunHistoryReader` + `TemporalHistoryCursor`, désormais passé au
+catalogue). En faire une colonne honnête appartient au change du tableau de bord.
 
 ⚠ Le banc a deux copies de `vendor/` rafraîchies à la main (`durable-magento` et
 `durable-bridge-temporal`) : `composer update` les réécrit depuis la **copie
@@ -132,7 +140,12 @@ journal, les deux réserves de l'écran, les six contraintes d'hôte, comment fa
 suivre le banc quand le module change, et les sondes. Les commandes documentées
 ont été relancées avant d'être écrites.
 
-Reste ensuite : les workers de la 5.1, puis 5.2 et 5.3 ; la tâche 4 (la file de Magento)
+**PR #187** — `bin/magento durable:worker` draine la file du journal. Une
+commande et pas un consommateur de file : la 1.5 a mesuré ce que Magento fait
+d'un message tenu trop longtemps. ⚠ Ses bornes sont vérifiées **entre** deux
+tâches, donc le processus peut dépasser sa limite d'une longue interrogation.
+
+Reste ensuite : 5.2 et 5.3 ; la tâche 4 (la file de Magento)
 et la 4.3 ; puis la tâche 6.
 
 ⚠ Frictions du banc, à savoir avant d'y toucher :
