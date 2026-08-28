@@ -178,7 +178,86 @@ in the journal's **events**, which `TemporalRunHistoryReader` reads through a `T
 work, not this one's, but the reason is written here so nobody hunts a worker bug that does not
 exist.
 
-### The acceptance test, half green — §5.3
+### An order starts an execution — §5.2, and a correction to what this design said twice
+
+```
+12:01:29 000000001 -> exécution order-000000001 démarrée sur la grappe
+durable-order-000000001 | WORKFLOW_EXECUTION_STATUS_RUNNING
+order-000000001 -> 'notify:charge:000000001'      (débits : 1)
+```
+
+`sales_order_place_after` — the event `Magento\Sales\Model\Order::place()` actually emits, the same
+one whether the order comes from the checkout, the REST API or the admin — starts the execution
+**on the cluster** and returns. Starting it in the request would kill it with the request, which is
+precisely OST003's failure: the customer paid, the process stopped, nobody resumed.
+
+The observer never throws. A placed order stays placed: a workflow that fails to start is an
+operations incident, not a reason to refuse a sale that is already paid.
+
+It lives in the **bench**, not the published package: which workflow starts on which order is a
+project's decision. What the module ships is the door — `RuntimeFactory::workflowClient()`.
+
+**And the correction.** This design said twice that the admin grid could only ever read `running`,
+because a `DurableJournal` workflow is long-lived. That is true of the **in-process** path, where the
+journal is a container workflow — and false of the cluster path. Executions started with
+`startAsync()` *are* the business workflow, so the grid now reads what one wants it to read:
+
+```
+Run                                   | Workflow                                        | Status    | Ended
+1a17fed1-796a-4b12-83b2-7e33a295c591  | Gplanchat\DurableProbe\Workflow\SlowOrderWorkflow | completed | 12:01:53
+```
+
+The business type, and a real end time. Nothing in the grid changed — what changed is how the
+executions were started. The reservation stands only for anything still started in-process, and
+§5.2 is the reason to stop doing that.
+
+⚠ What the bench needed before an order could exist at all, and what no message said: a product is
+not *salable* without both a website assignment and an inventory source item, and Magento answers
+*"Product that you are trying to add is not available"* without saying which of the two is missing —
+or that either is. Reindexing `inventory` was needed on top. It is in `probe-order.php`, commented,
+so nobody pays for it twice.
+
+### The acceptance test, green — §5.3
+
+```
+=== 1. la commande part sur la grappe, réservation de 45 s
+acceptation-1787917138 démarré sur la grappe
+
+--- la carte est débitée :
+11:38:58 ORD-acceptation-1787917138 pid=2061295
+
+=== 3. on tue les DEUX workers, en pleine réservation
+--- débits pour cette commande : 1
+
+=== 4. on relance les workers
+=== 5. l'ordre repart-il ?
+acceptation-1787917138 -> 'notify:charge:ORD-acceptation-1787917138'
+
+=== VERDICT
+débits pour acceptation-1787917138 : 1  (1 attendu)
+```
+
+**The failure OST003 names is gone.** A consumer dies half way through an order; the order is not
+charged twice, and it finishes.
+
+**What the half-green run was missing was two things, not one.** An activity worker, obviously — on
+Temporal an activity is a *task* somebody must take, and nobody was taking it. But also a way to
+**start an execution on the cluster**: `MagentoRuntime::run()` executes here and now, so its
+activities go into the in-process transport whatever journal sits underneath, and they die with the
+process. The first fix alone would have changed nothing. `WorkflowClient::startAsync()` is the door,
+and the workers do the rest.
+
+`durable:worker` therefore takes a `--role`: `journal` answers workflow tasks, `activity` drains
+activity tasks. One process, one queue, one role — and not a preference: they are two distinct
+Temporal queues, and an operator tunes their concurrency apart, so that a slow activity never delays
+a journal's resume.
+
+*(Method, paid for a second time: the first cluster run recorded three charges, which looked like a
+duplicate until the log was read rather than counted — three **different** orders, leftovers of
+earlier attempts still queued. The §1.5 lesson, in another costume: a dirty queue answers a
+different question.)*
+
+### The half-green run that preceded it — §5.3, for the record
 
 OST003's failure, run for real: an order is charged, the process is `kill -9`ed while the stock
 reservation sleeps, and the same execution id is started again.
