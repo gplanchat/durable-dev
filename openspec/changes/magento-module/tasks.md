@@ -140,6 +140,20 @@ topic.
       action from the *module name*; once that name and the PSR-4 root agree there is nothing extra
       to declare. Author's decision — the earlier shape treated the symptom.
 
+- [x] 3bis.3 **The admin screen uses Magento's standard grid, and gained a detail view.**
+      The first version was a hand-written `<table>` in a template — not a decision, just the
+      shortest thing that rendered. It is now a `ui_component` listing over a custom
+      `AbstractDataProvider`, which is the documented way to feed a grid from something that is not
+      an SQL collection: the operator gets the paging, bookmarks, column controls and export they
+      know, and none of it is reimplemented.
+      ⚠ **Paging is the friction, and it is bounded rather than hidden**: the grid pages by offset,
+      the cluster by continuation cursor, and the two do not translate without state. The provider
+      reads a **200-run window** and pages inside it; the way out, when it bites, is to remember
+      cursors per page in the admin session — not a bigger window. Filtering says the same thing:
+      it filters the window, not the cluster, whose visibility query is a surface of its own.
+      The detail view (`durable/process/view`) reads `readHistory()` — the same port the Sylius
+      dashboard renders — and shows the run's journal: 23 events for a completed order on the bench.
+
 ## 4bis. What the CI can see of Magento
 
 - [x] 4bis.1 **A Mage-OS × PHP matrix, the counterpart of the Symfony one.** Five entries, each an

@@ -3,9 +3,15 @@
       xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <body>
         <referenceContainer name="content">
+            <!--
+                L'avertissement d'abord, la grille ensuite. Sans DSN, une liste vide est la bonne
+                réponse et non une panne — mais seule cette bannière peut le dire, une grille n'a
+                pas d'endroit pour l'expliquer.
+            -->
             <block class="Gplanchat\DurableModule\Block\Adminhtml\ProcessHistory"
-                   name="durable.process.history"
-                   template="Gplanchat_DurableModule::process/history.phtml"/>
+                   name="durable.process.notice"
+                   template="Gplanchat_DurableModule::process/notice.phtml"/>
+            <uiComponent name="durable_process_listing"/>
         </referenceContainer>
     </body>
 </page>

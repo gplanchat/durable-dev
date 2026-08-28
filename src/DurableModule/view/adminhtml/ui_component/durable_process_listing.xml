@@ -1,0 +1,101 @@
+<?xml version="1.0"?>
+<!--
+    La grille standard de Magento, pas un tableau écrit à la main : l'exploitant y retrouve la
+    pagination, les signets, la sélection de colonnes et l'export qu'il connaît de toutes les autres
+    grilles, et nous n'en réimplémentons aucun.
+
+    La source n'est pas une collection SQL — elle interroge la grappe — d'où un fournisseur de
+    données maison. Voir `Ui\DataProvider\ProcessListing` pour ce que ça coûte : la grille pagine
+    par décalage, la grappe par curseur, donc la fenêtre est bornée et le dit.
+-->
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <argument name="data" xsi:type="array">
+        <item name="js_config" xsi:type="array">
+            <item name="provider" xsi:type="string">durable_process_listing.durable_process_listing_data_source</item>
+        </item>
+    </argument>
+    <settings>
+        <spinner>durable_process_columns</spinner>
+        <deps>
+            <dep>durable_process_listing.durable_process_listing_data_source</dep>
+        </deps>
+    </settings>
+
+    <dataSource name="durable_process_listing_data_source" component="Magento_Ui/js/grid/provider">
+        <settings>
+            <storageConfig>
+                <param name="indexField" xsi:type="string">run_id</param>
+            </storageConfig>
+            <updateUrl path="mui/index/render"/>
+        </settings>
+        <aclResource>Gplanchat_DurableModule::process_history</aclResource>
+        <dataProvider class="Gplanchat\DurableModule\Ui\DataProvider\ProcessListing"
+                      name="durable_process_listing_data_source">
+            <settings>
+                <requestFieldName>run_id</requestFieldName>
+                <primaryFieldName>run_id</primaryFieldName>
+            </settings>
+        </dataProvider>
+    </dataSource>
+
+    <listingToolbar name="listing_top">
+        <settings>
+            <sticky>true</sticky>
+        </settings>
+        <paging name="listing_paging"/>
+        <filters name="listing_filters"/>
+        <columnsControls name="columns_controls"/>
+    </listingToolbar>
+
+    <columns name="durable_process_columns">
+        <settings>
+            <childDefaults>
+                <param name="fieldAction" xsi:type="array">
+                    <item name="provider" xsi:type="string">durable_process_listing.durable_process_listing.durable_process_columns_editor</item>
+                </param>
+            </childDefaults>
+        </settings>
+
+        <column name="run_id">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Run</label>
+                <sortable>false</sortable>
+            </settings>
+        </column>
+        <column name="workflow_name">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Workflow</label>
+                <sortable>false</sortable>
+            </settings>
+        </column>
+        <column name="status">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Status</label>
+                <sortable>false</sortable>
+            </settings>
+        </column>
+        <column name="started_at">
+            <settings>
+                <label translate="true">Started</label>
+                <sortable>false</sortable>
+            </settings>
+        </column>
+        <column name="ended_at">
+            <settings>
+                <label translate="true">Ended</label>
+                <sortable>false</sortable>
+            </settings>
+        </column>
+
+        <actionsColumn name="actions" class="Gplanchat\DurableModule\Ui\Component\Listing\Column\ProcessActions">
+            <settings>
+                <indexField>run_id</indexField>
+                <label translate="true">Action</label>
+            </settings>
+        </actionsColumn>
+    </columns>
+</listing>

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Gplanchat\DurableModule\Block\Adminhtml;
 
-use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
 use Magento\Backend\Block\Template;
 use Magento\Backend\Block\Template\Context;
@@ -27,11 +26,6 @@ use Magento\Backend\Block\Template\Context;
  */
 class ProcessHistory extends Template
 {
-    /** @var list<WorkflowRunDescription>|null */
-    private ?array $runs = null;
-
-    private bool $ephemeral = true;
-
     public function __construct(
         Context $context,
         private readonly RuntimeFactory $runtimeFactory,
@@ -41,31 +35,13 @@ class ProcessHistory extends Template
     }
 
     /**
-     * @return list<WorkflowRunDescription>
-     */
-    public function getRuns(): array
-    {
-        if ($this->runs === null) {
-            $catalog = $this->runtimeFactory->catalog();
-            $this->ephemeral = !$this->runtimeFactory->hasCluster();
-            $this->runs = $catalog->listRuns(limit: 50)->runs;
-        }
-
-        return $this->runs;
-    }
-
-    /**
-     * Le journal vit-il dans ce processus ? Alors il est né avec cette requête et mourra avec elle.
+     * Le journal de cet hôte vit-il dans ce processus ? Alors il est né avec cette requête et
+     * mourra avec elle, et la grille sera vide — ce qui est la bonne réponse. Ce bloc ne rend plus
+     * que cette phrase : les exécutions, elles, passent par la grille standard.
      */
     public function isEphemeral(): bool
     {
-        $this->getRuns();
-
-        return $this->ephemeral;
+        return !$this->runtimeFactory->hasCluster();
     }
 
-    public function formatMoment(?\DateTimeImmutable $moment): string
-    {
-        return $moment === null ? '—' : $moment->format('Y-m-d H:i:s');
-    }
 }

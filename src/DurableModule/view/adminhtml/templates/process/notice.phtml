@@ -1,0 +1,13 @@
+<?php
+/**
+ * @var \Gplanchat\DurableModule\Block\Adminhtml\ProcessHistory $block
+ * @var \Magento\Framework\Escaper $escaper
+ */
+?>
+<?php if ($block->isEphemeral()): ?>
+    <div class="message message-warning">
+        <span><?= $escaper->escapeHtml(__(
+            'No Temporal DSN is configured, so the journal lives in the process that writes it — and this admin request opened a fresh one. An empty list here is the correct answer, not a failure. Set durable/temporal/dsn in app/etc/env.php to read the cluster.'
+        )) ?></span>
+    </div>
+<?php endif; ?>
