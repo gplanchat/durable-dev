@@ -53,16 +53,16 @@ assemblé, et rien d'autre à écrire pour bénéficier de la garde. Un endpoint
 (`temporal operator nexus endpoint create`), et une file que personne ne poll est
 un endpoint qui ne répond jamais, sans erreur nulle part.
 
-Tranche **en cours** : la **procédure de migration de la rupture de #175**.
-`PayloadToContractMethodInvoker` est descendu de `durable-bundle` à `durable`
-sans procédure, ce que la règle arbitrée interdit — Rector d'abord, script
-sinon, documentation dans tous les cas. Un set `durable-upgrade.php` à côté de
-`temporal-sdk.php`, testé par fixture comme les quatre règles existantes.
-⚠ La session `splitsh-integration-alpha8` déplace elle aussi une classe de
-paquet (`AsDurableActivity` du bundle vers le cœur, sous `AsActivityHandler`) :
-son renommage a vocation à rejoindre le **même** set, pas un second.
+**PR #175 fusionnée** — elle a emporté la tranche 3.1 *et* la procédure de
+migration de sa rupture : set Rector cumulatif `durable-upgrade.php`, `UPGRADE.md`
+à la racine (le dépôt n'avait aucun endroit où documenter une montée de version),
+et ce que Rector ne peut pas faire écrit en toutes lettres — un conteneur Symfony
+compilé garde le nom pleinement qualifié et veut son `cache:clear`.
+⚠ La session `splitsh-integration-alpha8` déplace elle aussi une classe de paquet
+(`AsDurableActivity` du bundle vers le cœur, sous `AsActivityHandler`) : son
+renommage va dans le **même** set, pas dans un second. Prévenue.
 
-Après : **tâche 4** — `communication.xml`, `queue_topology.xml`,
+Prochaine tranche : **tâche 4** — `communication.xml`, `queue_topology.xml`,
 `queue_publisher.xml`, `queue_consumer.xml` pour les cinq rôles (4.1), les
 gestionnaires (4.2), et le verrou par exécution avec son test (4.3). Les quatre
 sondages de la tâche 1 l'ont dessinée : la file n'offre **aucune** exclusion
