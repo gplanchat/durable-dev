@@ -238,10 +238,15 @@ job : un worker supervisé, qui survit à la fenêtre, le reprend et l'exécutio
 
 ### Pas dans ce paquet
 
-**Temporal**, pour l'instant. `gplanchat/durable-bridge-temporal` installe huit paquets dans une
-application Laravel, dont cinq composants Symfony qu'elle ne charge jamais, pour quelque 36 Mo. La
-réponse est de scinder le pont — sa partie couplée à Symfony fait huit fichiers sur 759 — et c'est un
-change à part. En attendant, la combinaison est refusée par son nom.
+**Rien concernant Temporal** — il est servi. `backend: 'temporal'` met le journal et le catalogue
+d'exécutions dans le cluster, et `php artisan durable:temporal-worker` draine les tâches de workflow,
+la seule chose que la file de l'application ne peut pas porter.
+
+`gplanchat/durable-bridge-temporal` est **suggéré et non exigé** : il installe huit paquets, dont cinq
+composants Symfony qu'une application Laravel ne charge jamais, pour quelque 36 Mo. Une application
+qui ne choisit pas ce backend ne le paie jamais, et celle qui le choisit s'entend nommer le paquet à
+installer. Scinder le pont — sa partie couplée à Symfony fait huit fichiers sur 759 — retirerait le
+poids, et c'est un change à part.
 
 **Un tableau de bord.** `gplanchat/durable-filament` exigera ce paquet, et ce paquet n'exigera, ne
 suggérera ni ne détectera jamais Filament.

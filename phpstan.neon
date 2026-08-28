@@ -14,6 +14,12 @@ parameters:
         - src/DurablePhpstan
         - src/DurableRector
     excludePaths:
+        # `illuminate/console` exige `symfony/console ^7.x` sur ses trois lignes, donc le faire
+        # entrer dans le graphe de la racine rendrait la ligne Symfony 6.4 irrésoluble — la même
+        # panne qu'`illuminate/queue` avait causée. La commande est réelle et tourne dans une
+        # application Laravel, qui embarque toujours illuminate/console ; c'est ici, et ici
+        # seulement, qu'elle ne peut pas être analysée.
+        - src/DurableLaravel/Console
         - src/Bridge/Temporal/Api
         - src/Bridge/Temporal/Generated
         - src/Bridge/Temporal/Spike

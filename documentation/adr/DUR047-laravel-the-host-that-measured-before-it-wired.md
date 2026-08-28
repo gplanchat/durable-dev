@@ -63,19 +63,23 @@ at registration, naming the two it does.
 - **The `sync` queue connection**: it runs jobs inline, so a resume that dispatches another resume
   recurses in the same process until the stack ends. The Symfony side is protected by a
   `DispatchAfterCurrentBusStamp`; here it is the connection that must be a real queue.
-- **Temporal**, for now, and see below.
+- Nothing else. `temporal` is served; see below for what it costs and who pays.
 
-### Temporal is refused by name until the bridge is split
+### Temporal is served, and the bridge is suggested rather than required
 
 `gplanchat/durable-bridge-temporal` installs **8 packages into a Laravel application, 5 of them
 Symfony**, for ~36 MB — 23 of them `dependency-injection` alone — and the application loads none of
 the five. The coupled part of the bridge is **8 files out of 759**: one percent carrying 36 MB for
 the other 99 %.
 
-The answer is to split it, and the split is smaller than it looks: `durable-bundle` already names
+**Refusing the combination was the wrong half of the trade**, and it was reversed: it removed the
+entry OST003 §3 sells — the same workflow code against a cluster *or* one database — to avoid a
+weight nobody had complained about. The bridge is therefore a `suggest`: an application that does not
+select the backend never installs it, and one that does is told by name what to install.
+
+The split is still the right shape, and still its own change: `durable-bundle` already names
 `Gplanchat\Bridge\Temporal` in two of its own classes without requiring the package, so the Symfony
-wiring is already spread across both. **That is its own change, with its own ADR.** Until it lands,
-refusing the combination by name is the only position that costs nothing to reverse.
+wiring is already spread across both and moving the eight files consolidates it.
 
 ## Consequences
 
