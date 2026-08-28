@@ -2,21 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Bundle\Handler;
+namespace Gplanchat\Durable\Handler;
 
 use Gplanchat\Durable\Event\TimerCompleted;
 use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
+use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
 use Gplanchat\Durable\Store\EventStoreCommandBuffer;
 use Gplanchat\Durable\Store\EventStoreHistorySource;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Timer\TimerWakeDelayCalculator;
 use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
-use Symfony\Component\Messenger\Envelope;
-use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\Messenger\Stamp\DelayStamp;
-use Symfony\Component\Messenger\Stamp\DispatchAfterCurrentBusStamp;
 
 /**
  * Cron / message : fait progresser les timers d'un run puis relance si besoin.
@@ -32,7 +29,7 @@ final class FireWorkflowTimersHandler
         private readonly EventStoreInterface $eventStore,
         private readonly ExecutionRuntime $runtime,
         private readonly WorkflowResumeDispatcher $resumeDispatcher,
-        private readonly MessageBusInterface $messageBus,
+        private readonly WorkflowTimerDispatcher $timerDispatcher,
     ) {}
 
     public function __invoke(FireWorkflowTimersMessage $message): void
@@ -64,11 +61,7 @@ final class FireWorkflowTimersHandler
         );
 
         if (null !== $ms) {
-            $stamps = [new DispatchAfterCurrentBusStamp()];
-            if ($ms > 0) {
-                $stamps[] = new DelayStamp($ms);
-            }
-            $this->messageBus->dispatch(new Envelope(new FireWorkflowTimersMessage($message->executionId), $stamps));
+            $this->timerDispatcher->dispatchTimerFire($message->executionId, max(0, $ms));
         }
     }
 

@@ -2334,7 +2334,7 @@
             "dist": {
                 "type": "path",
                 "url": "../src/DurableModule",
-                "reference": "7ea5f727c799b7ed0e73fdf55bed23d1c44558af"
+                "reference": "1b4c9dd6c1da4b2f0e5d81418282dfd591b71bb3"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -2362,7 +2362,8 @@
                     "registration.php"
                 ],
                 "psr-4": {
-                    "Gplanchat\\Durable\\Magento\\": "./"
+                    "Gplanchat\\Durable\\Magento\\": "./",
+                    "Gplanchat\\Durable\\Controller\\": "Controller/"
                 }
             },
             "license": [

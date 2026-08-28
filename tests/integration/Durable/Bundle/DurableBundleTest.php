@@ -52,7 +52,7 @@ final class DurableBundleTest extends KernelTestCase
         self::assertTrue($container->has(\Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector::class), 'DurableDataCollector');
         self::assertTrue($container->has(\Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler::class), 'DeliverWorkflowSignalHandler');
         self::assertTrue($container->has(\Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler::class), 'DeliverWorkflowUpdateHandler');
-        self::assertTrue($container->has(\Gplanchat\Durable\Bundle\Handler\FireWorkflowTimersHandler::class), 'FireWorkflowTimersHandler');
+        self::assertTrue($container->has(\Gplanchat\Durable\Handler\FireWorkflowTimersHandler::class), 'FireWorkflowTimersHandler');
         self::assertTrue($container->has('durable.child_workflow_parent_link_store'), 'durable.child_workflow_parent_link_store');
         self::assertInstanceOf(
             \Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface::class,
