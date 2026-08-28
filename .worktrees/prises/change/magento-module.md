@@ -23,28 +23,24 @@ partagé entre processus). Le delta de spec a suivi — l'exigence parle désorm
 de processus qu'un exploitant supervise déjà, et interdit explicitement une
 seconde file.
 
-Tranche **en cours** : **5.3, le worker d'activités Temporal**, celle qui ferme
-l'acceptation du change.
+✅ **5.3 VERTE — PR #203.** Le test d'acceptation du change entier passe :
+commande partie sur la grappe, les **deux** workers tués en pleine réservation,
+relancés, et l'ordre se termine — `'notify:charge:ORD-acceptation-…'` — avec
+**un seul débit**.
 
-Ce que la 5.3 a mesuré et qui dit quoi construire : la carte n'est pas
-re-débitée (trois relances, un débit), mais l'exécution ne repart pas —
-`WorkflowStuckException`, parce que `reserve` avait été distribuée dans le
-transport en mémoire du processus mort. Il manque donc **deux** choses, pas une :
+Il manquait deux choses et non une. Le worker d'activités, oui. Mais aussi de
+quoi **démarrer sur la grappe** : `MagentoRuntime::run()` exécute ici et
+maintenant, donc ses activités partaient dans le transport en mémoire quel que
+soit le journal dessous. Le worker seul n'aurait rien eu à dépiler.
+`WorkflowClient::startAsync()` est la porte.
 
-1. un **worker d'activités** (`TemporalActivityWorker`), sur le modèle du worker
-   de journal déjà livré — la recette tient en dix lignes dans
-   `tests/integration/Temporal/worker.php`, et son journal y est un
-   `InMemoryEventStore` de travail : sur Temporal, le résultat d'une activité
-   repart par le RPC, pas par le journal ;
-2. un chemin pour **démarrer une exécution sur la grappe** plutôt que dans le
-   processus courant. `MagentoRuntime::run()` exécute ici, donc ses activités
-   partent dans le transport en mémoire quoi qu'il arrive. Le pont a ce qu'il
-   faut : `WorkflowClient::startAsync()` et `pollForCompletion()`.
+`durable:worker --role=journal|activity` — deux files distinctes côté Temporal,
+dont un exploitant règle le parallélisme séparément.
 
-`durable:worker` gagnera `--role=journal|activity` — « un processus, une file,
-un rôle », ce que le worker d'intégration dit déjà de lui-même.
-lui qui manquait quand l'exécution restait coincée sur une activité distribuée
-en mémoire.
+⚠ Méthode payée une deuxième fois : la première campagne a compté **trois**
+débits, ce qui ressemblait à un doublon jusqu'à ce que je lise le journal au lieu
+de le compter — trois commandes **différentes**, restes d'essais précédents en
+file. Le test d'acceptation draine les files avant de mesurer.
 
 **Tâche 4, PR #190 (elle porte aussi la 5.3).** Le codec de file est écrit et
 gardé : `ActivityMessage` ⇄ JSON, refusant `options` et `retryDelay` **en les
