@@ -221,7 +221,28 @@ The class imported nothing from Symfony — timer events and the event-store por
 files name the bundle, all in `@see` blocks that never load, and the guard tolerates those: one test
 now walks the 183 files of `src/Durable` and fails on any real `use` of a host or a bridge.
 
-### The codec, and what task 4 turns out to cost — §4.1
+### Task 4 is abandoned, and the measurement that ended it
+
+**Author's decision, 28/08.** Nothing of Durable rides Magento's `MessageQueue`.
+
+`TemporalWorkflowCommandBuffer` schedules an activity as a `ScheduleActivityTaskCommandAttributes`:
+a Temporal command, on a Temporal task queue. `EventStoreCommandBuffer` — the one that puts an
+`ActivityMessage` on the host's queue — is the **non-Temporal** path. And Magento has no native
+journal, nor will it: `memory` and `temporal`, decided.
+
+So with Temporal the host's queue carries neither activities nor resumes, and with `memory`
+everything is one process, where a queue carries nothing that outlives it. Tasks 4 and 5 were never
+a sequence; they were alternatives, and only one is reachable here. §5.3 had measured the
+consequence a day before anyone named it — the execution stuck because its activity had been
+dispatched in-process, and the answer is a Temporal activity worker, not a Magento topic.
+
+**What is deleted with it.** The `ActivityMessage` codec, its exception and its four tests. They
+worked, and they had no caller left; keeping tested code that nothing calls is how a codebase starts
+lying about what it does. What the codec was *built on* stays, because it is a measurement and not
+code: Magento's encoder empties a transport object **without throwing**, and `string[]` drops
+associative keys. Both are below, and both remain true of this host.
+
+### What the encoder measurement found — §4.1, kept for the record
 
 The codec §4.1 designed is written and gated: `ActivityMessage` ⇄ JSON, with the rule the encoder
 measurement earned — **what it cannot round-trip, it names**. `options` and `retryDelay` are refused

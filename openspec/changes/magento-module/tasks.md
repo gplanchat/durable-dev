@@ -97,34 +97,31 @@ unmeasured.
       `ResourceConnection` — which is the whole point: everything under the ports is
       `gplanchat/durable` unchanged.
 
-## 4. The queue carries the work
+## 4. ~~The queue carries the work~~ — abandoned, and here is what measured it
 
-- [ ] 4.1 `communication.xml`, `queue_topology.xml`, `queue_publisher.xml`, `queue_consumer.xml` for
-      workflow resume and activity dispatch — Magento's own queue, not a second one beside it.
-      **The `request` type is decided and measured**: `string`, with the module encoding JSON
-      itself. A Durable transport object as the type does not throw — `encode()` returns `[]`, the
-      publisher succeeds, and the execution id is gone before the consumer fails at decode;
-      `string[]` drops the associative keys and warns `Array to string conversion`. The payloads are
-      the ports' own arguments (`WorkflowResumeDispatcher` speaks `string $executionId` and an
-      array), not the Messenger message classes. Giving the core's objects Magento-shaped getters is
-      the one thing this integration must not do.
-      ⚠ **The 4.1/4.2 split moves**: `setup:upgrade` refuses a consumer whose handler method it
-      cannot resolve, so a declaration cannot land inert. 4.1 carries real handlers for the roles it
-      declares; 4.2 adds the remaining roles.
-      **The codec is built and gated** — `ActivityMessage` ⇄ JSON, refusing `options` and
-      `retryDelay` **by name** rather than dropping them. Measured first: a plain activity carries
-      neither.
-      ⛔ **attend:auteur — la suite de la tâche 4 est un arbitrage, pas un détail.**
-      `ResumeWorkflowHandler` is **138 lines with 15 core imports** (and `FireWorkflowTimersHandler`
-      86 more): that is the engine's resume orchestration living in the Symfony bundle, not a host
-      adapter. Magento must either duplicate those 224 lines — two copies of the resume semantics,
-      drifting on the first fix — or they move to `gplanchat/durable`, the same move already made
-      twice but an order of magnitude larger, touching a class every Symfony user runs.
-- [ ] 4.2 The five roles `DurableBundle` covers with handlers: resume, activity run, signal
-      delivery, update delivery, timer fire.
-- [ ] 4.3 **One resume at a time.** The per-execution lock over `LockManagerInterface`, and a test
-      that two consumers replaying one execution produce one journal rather than two. The test is
-      the point; the lock without it is a claim.
+**Author's decision, 28/08.** Nothing of Durable rides Magento's `MessageQueue`, because on the only
+durable backend this host reaches there is nothing for it to carry.
+
+`TemporalWorkflowCommandBuffer` schedules an activity as a
+`ScheduleActivityTaskCommandAttributes` — a Temporal command on a Temporal task queue.
+`EventStoreCommandBuffer`, which puts an `ActivityMessage` on the host's queue, is the
+**non-Temporal** path. Magento has no native journal and will not get one (`memory` and `temporal`,
+decided). So with Temporal the host's queue carries neither activities nor resumes; and with
+`memory` everything is one process, where a queue serves nothing that survives it.
+
+Task 4 and task 5 were never a sequence — they were alternatives, and only one of them is reachable
+here. §5.3 had already measured the consequence without naming it: the execution stuck because its
+activity had been dispatched in-process, and the answer is a Temporal activity worker, not a Magento
+topic.
+
+- [x] ~~4.1 the four XML files~~ — the `request` type was measured first and the finding stands on
+      its own (`design.md`): Magento's encoder **empties** a transport object without throwing, and
+      `string[]` drops associative keys. Both are recorded; the XML is not written.
+- [x] ~~4.2 the five roles as handlers~~ — the resume orchestration went to `gplanchat/durable`
+      instead, behind `WorkflowTimerDispatcher`, where six non-Symfony hosts share it.
+- [x] ~~4.3 one resume at a time~~ — §1.4 measured `LockManagerInterface` shared across processes
+      and that stands; what needed the lock was two consumers on one queue, and there is no queue.
+      ⚠ If a host-native journal is ever added, this entry comes back with it.
 
 ## 5. Temporal, end to end
 
