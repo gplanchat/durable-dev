@@ -23,6 +23,24 @@ partagé entre processus). Le delta de spec a suivi — l'exigence parle désorm
 de processus qu'un exploitant supervise déjà, et interdit explicitement une
 seconde file.
 
+Tranche **en cours** : **l'écran d'administration repris sur les grilles
+standard de Magento**, et un **écran de détail** d'exécution.
+
+Pourquoi ce n'était pas déjà le cas : je ne l'ai pas décidé, j'ai écrit le plus
+court qui s'affichait — un `<table class="admin__table-primary">` dans un phtml.
+La grille standard est faisable : `Magento\Ui\DataProvider\AbstractDataProvider`
+est l'échappatoire documentée pour une source qui n'est pas une collection SQL,
+et `getData()`, `addFilter()`, `setLimit()` s'y redéfinissent.
+
+⚠ Le point de friction à mesurer : la grille pagine par **offset**
+(`setLimit($offset, $size)`) tandis que `listRuns()` pagine par **curseur** de
+continuation. Il faudra soit marcher les curseurs, soit borner une fenêtre et
+paginer dedans — et dire lequel, avec son plafond.
+
+Le détail a déjà tout ce qu'il faut côté port : `readHistory(WorkflowRunDescription)`
+rend la liste des événements, et `checkHealth()` existe aussi, que l'écran actuel
+n'utilise pas non plus.
+
 ✅ **Tâche 6 aux trois quarts — PR #205 fusionnée.** DUR046 (6.1), les pages
 paquets et la page Backends dans les deux langues (6.3), et les deux OST (6.4).
 La ligne Magento d'OST004 a quitté le tableau de ce qui n'est pas construit.
