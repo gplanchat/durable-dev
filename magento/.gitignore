@@ -26,6 +26,8 @@
 #                                  hôte, dont le `lock.provider` peut différer
 #   probe-queue.php                la sonde du §1.3 : que laisse un consommateur
 #                                  qui meurt au milieu d'un message ?
+#   probe-resume.php               la sonde du §5.3 : une commande tuée au milieu
+#                                  reprend-elle sans re-débiter la carte ?
 #   app/code/Gplanchat/DurableProbe le sujet de file que cette sonde pilote.
 #                                  Magento ne résout un gestionnaire de file que
 #                                  depuis un module enregistré, et un sujet dont
@@ -47,6 +49,7 @@
 !README.md
 !probe-lock.php
 !probe-queue.php
+!probe-resume.php
 
 # Le module de sonde, et lui seul : `app/etc/env.php` et le reste de `app/`
 # restent dehors. Chaque niveau se ré-autorise, parce que `*` exclut à tous.

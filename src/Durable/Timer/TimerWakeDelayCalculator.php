@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Bundle\Messenger;
+namespace Gplanchat\Durable\Timer;
 
 use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\TimerCompleted;
@@ -11,6 +11,12 @@ use Gplanchat\Durable\Store\EventStoreInterface;
 
 /**
  * Délai jusqu’au prochain minuteur non complété (pour {@see \Symfony\Component\Messenger\Stamp\DelayStamp}).
+ */
+/*
+ * Descendu du paquet du bundle vers le cœur : il n'importait rien de Symfony — seulement les
+ * événements de minuterie et le port du magasin d'événements — et `InMemoryWorkflowRunner`, qui est
+ * du cœur, l'appelait. Un hôte sans le bundle prenait donc une erreur fatale à la première reprise
+ * qui devait sauter au prochain minuteur, et sous Symfony rien ne se voyait.
  */
 final class TimerWakeDelayCalculator
 {

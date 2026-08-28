@@ -111,6 +111,15 @@ unmeasured.
       ⚠ **The 4.1/4.2 split moves**: `setup:upgrade` refuses a consumer whose handler method it
       cannot resolve, so a declaration cannot land inert. 4.1 carries real handlers for the roles it
       declares; 4.2 adds the remaining roles.
+      **The codec is built and gated** — `ActivityMessage` ⇄ JSON, refusing `options` and
+      `retryDelay` **by name** rather than dropping them. Measured first: a plain activity carries
+      neither.
+      ⛔ **attend:auteur — la suite de la tâche 4 est un arbitrage, pas un détail.**
+      `ResumeWorkflowHandler` is **138 lines with 15 core imports** (and `FireWorkflowTimersHandler`
+      86 more): that is the engine's resume orchestration living in the Symfony bundle, not a host
+      adapter. Magento must either duplicate those 224 lines — two copies of the resume semantics,
+      drifting on the first fix — or they move to `gplanchat/durable`, the same move already made
+      twice but an order of magnitude larger, touching a class every Symfony user runs.
 - [ ] 4.2 The five roles `DurableBundle` covers with handlers: resume, activity run, signal
       delivery, update delivery, timer fire.
 - [ ] 4.3 **One resume at a time.** The per-execution lock over `LockManagerInterface`, and a test
@@ -144,8 +153,18 @@ unmeasured.
       cluster — `TemporalWorkflowRunCatalog`, which the bridge already ships.
 - [ ] 5.2 The bench's `compose.yaml` Temporal stack runs a workflow from an order placed in the
       storefront to a completed execution visible in the Temporal UI.
-- [ ] 5.3 The failure OST003 names: a consumer killed half way through an order resumes where it
-      stopped, and does not re-charge the card. This is the acceptance test of the whole change.
+- [ ] 5.3 The failure OST003 names — **half measured, and the half that holds is the one that
+      matters**. Killed with `kill -9` mid-reservation and restarted under the same execution id,
+      three times: **the card is charged exactly once**. The journal replays what it recorded. What
+      does *not* yet happen is the execution running to completion — `WorkflowStuckException`,
+      because `reserve` was dispatched into the dead process's in-memory activity transport and
+      nothing in the new process will settle it. ⚠ **Resuming needs durable activity dispatch**,
+      which is task 4. This entry stays open, and it now says exactly what closes it.
+      Instrument: `magento/probe-resume.php` plus a slow, charge-recording workflow in the bench
+      probe module — the §3.1 declaration mechanism used by a third party, which proves it too.
+      Found on the way: **the core imported the Symfony bundle** (`TimerWakeDelayCalculator`), a
+      fatal error on any host without it. Moved to `Gplanchat\Durable\Timer\`, with its migration
+      procedure, and a guard over the 183 files of `src/Durable` so it cannot come back.
 
 ## 6. Say it landed
 

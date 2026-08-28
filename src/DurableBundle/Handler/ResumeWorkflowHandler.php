@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\Handler;
 
-use Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator;
 use Gplanchat\Durable\Bundle\Support\AsyncChildWorkflowFailureProjector;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
@@ -15,6 +14,7 @@ use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
+use Gplanchat\Durable\Timer\TimerWakeDelayCalculator;
 use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use Gplanchat\Durable\Workflow\PendingUpdate;
