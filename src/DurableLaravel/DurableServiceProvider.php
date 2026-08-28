@@ -10,12 +10,19 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
+use Gplanchat\Durable\ExecutionEngine;
+use Gplanchat\Durable\ExecutionRuntime;
+use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Laravel\Queue\LaravelActivityTransport;
 use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowResumeDispatcher;
+use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowTimerDispatcher;
 use Gplanchat\Durable\Laravel\Workflow\DeclaredWorkflowTypes;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
+use Gplanchat\Durable\Port\NullWorkflowTimerDispatcher;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
+use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
+use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
@@ -25,6 +32,7 @@ use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
+use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
 use Illuminate\Cache\NullStore;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
@@ -64,6 +72,7 @@ final class DurableServiceProvider extends ServiceProvider
         $this->bindActivityTransport($backend, $config);
         $this->bindResumeLock($config);
         $this->bindWorkflowRegistry($config);
+        $this->bindResumePath($config);
     }
 
     public function boot(): void
@@ -216,6 +225,64 @@ final class DurableServiceProvider extends ServiceProvider
         $this->app->singleton(DeclaredWorkflowTypes::class, fn($app) => new DeclaredWorkflowTypes(
             $app->make(WorkflowRegistry::class),
             $declared,
+        ));
+    }
+
+    /**
+     * Ce qui rejoue une exécution, et c'est le cœur qui le fait.
+     *
+     * `ResumeWorkflowHandler` a quitté le bundle Symfony pour le cœur pour qu'un hôte sans bus
+     * puisse le rendre : ce paquet n'a donc qu'à l'assembler, pas à le réécrire. Un minuteur, lui,
+     * est une reprise différée — la file porte le délai, comme le `DelayStamp` de Messenger.
+     *
+     * @param array<string, mixed> $config
+     */
+    private function bindResumePath(array $config): void
+    {
+        /** @var array<string, mixed> $queue */
+        $queue = $config['queue'] ?? [];
+
+        $this->app->singleton(RegistryActivityExecutor::class, fn() => new RegistryActivityExecutor());
+        $this->app->singleton(WorkflowDefinitionLoader::class, fn() => new WorkflowDefinitionLoader());
+
+        // Le minuteur suit le backend, comme le transport et le dispatcher de reprise : en
+        // mémoire, le drain est dans le processus et n'a personne à réveiller.
+        $this->app->singleton(
+            WorkflowTimerDispatcher::class,
+            ($config['backend'] ?? 'illuminate') === 'illuminate'
+                ? fn($app) => new LaravelWorkflowTimerDispatcher(
+                    $app->make(QueueFactory::class),
+                    $queue['connection'] ?? null,
+                    $queue['name'] ?? null,
+                )
+                : fn() => new NullWorkflowTimerDispatcher(),
+        );
+
+        $this->app->singleton(ExecutionRuntime::class, fn($app) => new ExecutionRuntime(
+            $app->make(EventStoreInterface::class),
+            $app->make(ActivityTransportInterface::class),
+            $app->make(RegistryActivityExecutor::class),
+            // Les tentatives sont illimitées par défaut, sémantique Temporal ; `distributed: true`
+            // parce qu'ici le drain n'est pas dans le processus, c'est `queue:work`.
+            0,
+            null,
+            true,
+        ));
+
+        $this->app->singleton(ExecutionEngine::class, fn($app) => new ExecutionEngine(
+            $app->make(EventStoreInterface::class),
+            $app->make(ExecutionRuntime::class),
+        ));
+
+        $this->app->singleton(ResumeWorkflowHandler::class, fn($app) => new ResumeWorkflowHandler(
+            $app->make(ExecutionEngine::class),
+            $app->make(WorkflowRegistry::class),
+            $app->make(WorkflowMetadataStore::class),
+            $app->make(WorkflowResumeDispatcher::class),
+            $app->make(EventStoreInterface::class),
+            $app->make(ChildWorkflowParentLinkStoreInterface::class),
+            $app->make(WorkflowTimerDispatcher::class),
+            $app->make(WorkflowDefinitionLoader::class),
         ));
     }
 
