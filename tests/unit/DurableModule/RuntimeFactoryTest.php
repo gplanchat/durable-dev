@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Magento;
 
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
+use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
 use Gplanchat\Durable\Magento\Runtime\RuntimeFactory;
 use Gplanchat\Durable\Magento\Workflow\Activity\DemoOrderActivities;
@@ -66,6 +67,35 @@ final class RuntimeFactoryTest extends TestCase
         $catalog = (new RuntimeFactory())->catalog();
 
         self::assertInstanceOf(InMemoryWorkflowRunCatalog::class, $catalog);
+    }
+
+    /**
+     * Ce qui manquait pour que les journaux se closent.
+     *
+     * Sans worker, une exécution appendue au cluster y reste `running` pour toujours : personne ne
+     * répond aux tâches de sa file. Le pont livre les quatre objets ; le module n'a qu'à les
+     * assembler et à boucler.
+     */
+    public function testAJournalWorkerIsAssembledWhenThereIsACluster(): void
+    {
+        $worker = (new RuntimeFactory(
+            workflowClasses: [PlaceOrderWorkflow::class],
+            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0',
+        ))->journalWorker();
+
+        self::assertInstanceOf(WorkflowTaskProcessor::class, $worker);
+    }
+
+    /**
+     * Un worker de journal sans grappe ne serait pas inutile, il serait trompeur : il tournerait,
+     * ne trouverait jamais rien, et l'exploitant croirait avoir un worker.
+     */
+    public function testAskingForAJournalWorkerWithoutAClusterFailsSayingSo(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/durable\/temporal\/dsn/');
+
+        (new RuntimeFactory())->journalWorker();
     }
 
     /**
