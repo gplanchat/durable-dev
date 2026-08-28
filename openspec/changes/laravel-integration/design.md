@@ -68,8 +68,22 @@ Three ways out, none free, and this change does not pick one:
   OST003 §3 sells "the same workflow code against a Temporal cluster **or** one SQL database", and
   refusing removes the first half.
 
-The third is the default this change ships under, because it is the only one that costs nothing to
-reverse. It is a starting position, not a verdict, and the proposal says so.
+**The verdict is the second, and §5.1 has the numbers.** `composer require --dry-run` on a Laravel
+application already carrying this package installs **8 packages, 5 of them Symfony**, for ~36 MB —
+23 of them `dependency-injection` alone — and the application loads none of the five. The coupled
+part of the bridge is **8 files out of 759**: one percent of the package carrying 36 MB for the
+other 99 %.
+
+And the split breaks less than it looks. `durable-bundle` already names `Gplanchat\Bridge\Temporal`
+in two of its own classes without requiring the package, so the Symfony wiring is already spread
+across the two; moving the eight files consolidates it. A Symfony user drops one line from
+`bundles.php`, which `UPGRADE.md` can carry.
+
+**It is its own change, not this one** — it edits the Temporal bridge and the Symfony bundle, two
+packages a Laravel integration has no business touching, and a breaking change deserves its own ADR.
+Until it lands, this package keeps refusing the combination by name: not because the third way was
+chosen, but because it is the only one that costs nothing to reverse, and the split is what reverses
+it.
 
 ## Backends: what the package binds
 

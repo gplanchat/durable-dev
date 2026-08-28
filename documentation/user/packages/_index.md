@@ -161,6 +161,81 @@ worker can all use it.
 
 ---
 
+## `gplanchat/durable-laravel` — the Laravel integration
+
+```bash
+composer require gplanchat/durable-laravel
+php artisan migrate
+php artisan vendor:publish --tag=durable-config
+```
+
+Package auto-discovery registers the provider. It binds the four storage ports, the activity and
+resume jobs, and the per-execution lock, from one published `config/durable.php`.
+
+**One choice of backend binds every port.** A journal on one backend under a catalogue on another is
+not a configuration, it is a fault, so `backend` is a single value and one this package does not
+serve is refused **by name** at registration, naming the two it does — `illuminate` and `memory`.
+
+**Workflows are declared, not scanned.** Laravel has no equivalent of Symfony's attribute
+autoconfiguration, so the `workflows` key names the classes. Measured: naming them costs 0,14 ms and
+does not grow with the application, while a reflection scan costs 15 ms at a thousand classes **and
+loads all of them into every process** to find five. There is no `durable:cache` for the same
+reason — `config:cache` already caches the file it would duplicate.
+
+**Work rides the queue the application already drains**, with `php artisan queue:work` as the only
+worker. Activities and resumes are jobs; a timer is a deferred resume on the queue's own delay.
+
+### It is not a durable engine for Laravel, and that square is taken
+
+[`durable-workflow/workflow`](https://github.com/durable-workflow/workflow) — formerly
+`laravel-workflow/laravel-workflow` — is durable execution **on Laravel queues**: `yield` as the
+checkpoint, its own storage, no server, explicitly inspired by Temporal and Azure Durable Functions,
+a thousand stars and more. It is good at what it does, and if an engine on your existing queue is
+what you want, take it.
+
+What this package sells is the **backend choice**: the same workflow code against a Temporal cluster
+*or* against one SQL database, and a mixed Symfony / Sylius / Laravel estate sharing a single engine.
+A workflow class written for `gplanchat/durable-bundle` runs here unmodified — that is the whole
+claim, and it is the one the other package does not make.
+
+Two neighbouring names on Packagist deserve the sentence rather than the hope that nobody notices.
+
+### Three settings that are refused rather than tolerated
+
+| setting | refused | why |
+|---|---|---|
+| `lock.store: null` | always | it grants every lock, in every deployment |
+| `lock.store: array` | under `illuminate` | a resume runs in a worker separate from whatever dispatched it, so two `array` locks never see each other — 15 overlapping critical sections out of 20, measured |
+| the `sync` queue connection | under `illuminate` | it runs jobs inline, so a resume that dispatches another resume recurses until the stack ends |
+
+`array` stays allowed under `memory`: it is Laravel's own testing default, and excluding inside one
+process is exactly what a test wants.
+
+### Two things that read like bugs and are not
+
+**The `sqlite` driver cannot host more than one worker.** Four workers popping the `jobs` table
+produce `SQLSTATE[HY000]: General error: 5 database is locked`, and three of the four die on their
+first job — with WAL enabled and a 60 s busy timeout. Use MySQL, PostgreSQL or Redis for the queue
+as soon as there is a second worker.
+
+**A killed worker's job stays reserved until `retry_after`** — 90 seconds by default. A worker
+started with `--stop-when-empty` inside that window sees an empty queue and exits **having done
+nothing**, which looks exactly like a resume that failed. It is a resume that has not been offered
+the job yet; a supervised worker, which outlives the window, picks it up and the execution
+completes.
+
+### Not in this package
+
+**Temporal**, for now. `gplanchat/durable-bridge-temporal` installs eight packages into a Laravel
+application, five of them Symfony components it never loads, for some 36 MB. The answer is to split
+the bridge — its Symfony-coupled part is eight files out of 759 — and that is its own change. Until
+it lands, the combination is refused by name.
+
+**A dashboard.** `gplanchat/durable-filament` will require this package, and this package will never
+require, suggest or detect Filament.
+
+---
+
 ## `gplanchat/durable-plugin` — the Sylius dashboard
 
 ```bash

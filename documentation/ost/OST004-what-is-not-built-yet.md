@@ -123,7 +123,7 @@ Restated here only so the single table in §7 is complete. The reasoning belongs
 | API Platform state processor | Wiring — one class, two adapters | — |
 | Akeneo `BatchBundle` | **A design question**: checkpoint granularity | The decision, not the code |
 | `php-etl/pipeline` | The same design question, one level down | The same decision — whichever is written first pays for both |
-| Laravel | A bootstrap, plus a fourth adapter family | — (§3's suites have landed) |
+| ~~Laravel~~ | ~~A bootstrap, plus a fourth adapter family~~ | **Done** — `gplanchat/durable-bridge-illuminate` was the adapter family, `gplanchat/durable-laravel` the bootstrap ([DUR047](../adr/DUR047-laravel-the-host-that-measured-before-it-wired.md)) |
 | ~~Magento~~ | **Built** — the module boots, declares, runs on Temporal, has an admin screen, and the acceptance test passes: a consumer killed mid-order resumes and does not charge twice. See DUR046. Not published, and CI resolves it without booting it | Settled |
 | WooCommerce, Drupal, PrestaShop 9, Ibexa | — | Not now (OST003 §6) |
 
@@ -331,7 +331,7 @@ available.
 | `workflow-versioning` | A probe, then wiring | — (the guard has landed; the probe is taken) |
 | ~~Rector bucket 2~~ | A bootstrap | **Done** |
 | ~~Magento~~ | A bootstrap | **Done** — see DUR046 |
-| Laravel | A bootstrap + a fourth adapter family | — |
+| ~~Laravel~~ | ~~A bootstrap + a fourth adapter family~~ | **Done** (DUR047) |
 | `nexus-handler-side` | **Built** — 28/31; the probe grew it, then answered it | Settled; see DUR045 |
 | Akeneo `BatchBundle` | **A design question** | Checkpoint granularity |
 | `php-etl/pipeline` | **A design question** | The same one |
