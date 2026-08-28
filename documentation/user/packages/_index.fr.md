@@ -150,7 +150,10 @@ réponse simple.
 
 Les quatre tables sont livrées en migration, chargée depuis le paquet : `migrate` suffit.
 `vendor:publish --tag=durable-migrations` sert à les modifier — et à partir de là, elles sont à
-vous.
+vous. **Gardez le nom du fichier publié** : Laravel indexe les migrations par
+leur nom de base et fait gagner `database/migrations` en cas d'égalité, et c'est ce qui fait que
+votre copie est celle qui tourne. Renommez-la et les deux tournent, la seconde échouant sur une
+table qui existe déjà.
 
 `Queue\ResumeLock` est la seule chose qu'aucun choix de stockage ne fournit. Deux workers qui
 reprennent la **même** exécution la rejouent tous les deux, chacun croit découvrir les commandes
