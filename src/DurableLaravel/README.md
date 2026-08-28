@@ -30,8 +30,25 @@ php artisan vendor:publish --tag=durable-config
 // config/durable.php
 'backend' => 'illuminate',   // or 'memory'
 'connection' => null,        // the application's default
+'workflows' => [App\Workflows\Onboarding::class],
 'lock' => ['store' => null, 'ttl' => 300, 'wait' => 10],
 ```
+
+### Workflows are declared, not scanned
+
+Laravel's container has no equivalent of Symfony's attribute autoconfiguration, so the `workflows`
+key names the classes. **What that does not change is the class**: one written for
+`gplanchat/durable-bundle` runs here unmodified, and resolves both by the name its `#[Workflow]`
+attribute declares and by its FQCN.
+
+The list is also the cheap answer. Measured on a thousand classes: naming them costs 0,14 ms and
+does not grow with the application, while a reflection scan costs 15 ms **and loads all thousand
+into every process** to find five. There is no `durable:cache` for the same reason — a cached
+manifest beats the list by 0,11 ms, and `config:cache` already caches the file.
+
+A resume for a type nobody declared fails naming the type, the config key, and what *is* declared.
+`WorkflowRegistry` alone would say `Unknown workflow type: X` and stop, because the core has never
+heard of a `config/durable.php`.
 
 **One choice of backend binds all four ports.** A journal on one backend and metadata on another is
 not a configuration, it is a fault, so the choice is a single value and a backend this package does

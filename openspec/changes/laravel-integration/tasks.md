@@ -227,8 +227,27 @@ either confirms a design or replaces it.
          `$app->make()` on a registered string key never resolves the name. **Psalm caught it, and
          no test could have.** The slice that put Psalm on this code found a bug in the same slice's
          code, which is the argument for §2.1's second paragraph.
-- [ ] 2.3 A workflow class written for `durable-bundle` runs unmodified, resolved by the name its
-      attribute declares. An undeclared type fails naming itself and where types are declared.
+- [x] 2.3 A workflow class written for `durable-bundle` runs unmodified, resolved by the name its
+      attribute declares. Four tests.
+
+      The `workflows` key of `config/durable.php` names the classes, and the provider feeds them to
+      the core's `WorkflowRegistry` — which already indexes each class **twice**, under the alias its
+      `#[Workflow]` attribute declares and under its FQCN, so a resume carrying either resolves.
+      Nothing had to be written for that half; it is what §1.4 measured as the cheap answer, and it
+      is why the fixture in this slice imports nothing but `Gplanchat\Durable\`. *"Runs unmodified"*
+      is checkable rather than promised: the class has no Laravel and no Symfony symbol in it.
+
+      **The half the core cannot supply is the error message.**
+      `WorkflowRegistry::getHandler()` throws `Unknown workflow type: X` — it names the type and
+      stops, because the core has never heard of a `config/durable.php`. `DeclaredWorkflowTypes`
+      wraps it and names the type, the config key, the publish command and what *is* declared.
+
+      A message that names the failure without naming the remedy makes a reader open the source of
+      an installed package, and that is the whole distance between the two throws.
+
+      **It keeps its own list rather than asking the registry**, which would have needed a
+      `registeredTypes()` accessor on a core class — a change to the Symfony path to improve a
+      Laravel message. The list is the configured array the provider already holds.
 
 ## 3. Work rides Laravel's queue
 
