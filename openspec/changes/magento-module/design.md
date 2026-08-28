@@ -194,9 +194,27 @@ Illuminate's connection, and the two SQL bridges bind to those two types. Making
 `ResourceConnection` is a fourth adapter family — a change of its own, with the wizard,
 `ALLOWED.magento` and OST003 to update behind it.
 
-Until then the module refuses a DBAL or Illuminate configuration **at startup, by name**, the way
-the DBAL backend refuses Nexus: `NexusUnsupportedByBackendException` names the backend and says what
-to do instead, rather than leaving a workflow waiting on a result nobody will produce.
+Until then the module refuses a DBAL or Illuminate configuration **by name**, the way the DBAL
+backend refuses Nexus: `NexusUnsupportedByBackendException` names the backend and says what to do
+instead, rather than leaving a workflow waiting on a result nobody will produce.
+
+**And "at startup" means something weaker here than it does under a bundle — §2.3, built.** Magento's
+container has no equivalent of a bundle extension, and `setup:di:compile` instantiates nothing, so
+there is no point at which a configuration error can fail the build. What the module can do, and
+does, is refuse where a process **assembles the runtime** — at the boot of a `bin/magento` command
+and at the boot of a consumer, before any workflow waits on anything. Every entry point routes
+through the one factory rather than each carrying its own guard. That satisfies what the task asks
+for; it is not compile-time validation, and the design should not be read as promising it.
+
+The vocabulary is the selector's, not the bundle's: `memory` and `temporal`, because
+`ALLOWED.magento` already says `['memory', 'temporal']` and §6.2 will have to agree with it. The
+bundle's `in_memory` names the type of an *event store* — a different axis, and conflating the two
+would make the configuration and its documentation drift apart.
+
+A fourth refusal fell out of putting the check at the assembly point, and it is worth more than the
+three the task asked for: a configuration naming `temporal` is refused too, because the module does
+not wire it yet. Serving in-memory in its place would lose everything at process exit and announce
+nothing — the same shape as §1.4's lock that always says yes.
 
 ## Naming, and the two conventions that disagree
 

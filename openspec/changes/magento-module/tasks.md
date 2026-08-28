@@ -63,9 +63,17 @@ unmeasured.
       recorded in `design.md`: Mage-OS's `composer-dependency-version-audit-plugin` refuses a path
       package that also exists on Packagist, and Magento's generated `Interceptor` cannot extend a
       `final` class — which is the house style everywhere else in this repository.
-- [ ] 2.3 A configuration surface for the backend choice, refusing DBAL and Illuminate **at
-      startup, by name**, the way the DBAL backend refuses Nexus. Not at the moment a workflow waits
-      on a journal nobody writes.
+- [x] 2.3 **The backend choice lives in `env.php` under `durable/backend`, and names its refusals.**
+      `Backend::fromConfiguredName()` accepts `memory` and `temporal` — the selector's vocabulary,
+      since `ALLOWED.magento` already says so and §6.2 must agree — refuses `dbal` and `illuminate`
+      with the host reason, and refuses an unknown name with the list. A fourth refusal fell out:
+      `temporal` is refused too, because the module does not wire it yet, and serving memory in its
+      place would lose everything at process exit in silence.
+      ⚠ **"At startup" is weaker on Magento than under a bundle**: the container has no bundle
+      extension and `setup:di:compile` instantiates nothing, so the refusal fires where a process
+      *assembles the runtime* — at `bin/magento` command boot and consumer boot. Not compile time.
+      `tests/unit/DurableModule/BackendTest.php` gates the decision in CI (level 2);
+      `Scenario: A SQL backend is refused by name` is discharged at the bench, transcript in the PR.
 
 ## 3. Workflows and activities are discoverable
 
