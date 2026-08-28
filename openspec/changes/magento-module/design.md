@@ -30,8 +30,9 @@ probed yet**, and the design says where it is therefore guessing.
   it has worked, and `Backend\Database` behind it refuses a second process the lock a first holds.
   A `SIGKILL`ed holder releases it, because `GET_LOCK` dies with its connection. The caveat:
   `Backend\Database::lock()` **returns `true` without locking** when `isDbAvailable()` is false;
-- how a Magento consumer behaves against a long-poll transport, which is what the Temporal bridge's
-  workers are.
+- ~~how a Magento consumer behaves against a long-poll transport~~ — **answered by §1.5**: it holds
+  the message fine, and the queue hands the same message to a second consumer while it is still
+  working it. Below.
 
 Task 1 exists to answer these before task 2 writes anything that depends on them. A false invariant
 inside this module would be worse than a primitive, for the reason `openspec/config.yaml` already
@@ -133,6 +134,39 @@ chance, and §4.3's test is where it gets pinned.
 *(Read, not measured: `releaseOutdatedLocks()` computes its cutoff with `$date->add()` where `sub()`
 would be the sane reading, so the hourly job deletes **every** lock rather than the outdated ones.
 Consistent with what the run did — it removed a four-minute-old lock.)*
+
+### What a long message costs — §1.5, measured
+
+Two of the three worries were unfounded, and the third is worse than the worry.
+
+**The runner does not mind.** A handler holding a message for 200 s ran to completion, `FIN` in the
+trace, row `COMPLETE`. `queue:consumers:start` imposes no deadline of its own. **Nor does MySQL**:
+the bench's `wait_timeout` is `28800` — eight hours, against a long poll measured in seconds.
+
+**But the retry timer never asks whether the first consumer finished.** It looks at `updated_at` and
+nothing else. With `retry_inprogress_after` shortened to a minute, one message produced this:
+
+```
+01:00:48 worker-longue-poll DÉBUT   pid=442111 tient=200s
+01:02:03 worker-longue-poll DÉBUT   pid=445235 tient=200s     ← 442111 travaille toujours
+```
+
+Two live processes, one message body, both handlers running. Not a redelivery after a failure — a
+**duplication during a success**.
+
+The consequence names the worker's shape. A long-poll worker holds its message by construction, and
+it outlives a day the way any worker does; the shipped 1440-minute delay is therefore not a floor
+that saves it, only the hour at which the duplicate arrives. **So the worker cannot be a queue
+message.** §5.1 already says the workers are `bin/magento` commands drained by the operator's own
+supervisor — that was a preference before this measurement, and it is a constraint after it.
+
+And for task 4: **Magento's queue offers no mutual exclusion whatsoever**, not even one delivery at a
+time for one message. §1.4's per-execution lock is not a refinement on top of the queue's guarantees;
+it is the only thing standing between two consumers and a forked journal.
+
+*(Method, paid for once: a dirty queue answers a different question. The first run's second consumer
+picked up an older leftover message instead of the one under test, and the trace looked like a
+non-result. `probe-queue.php purge` exists because of it.)*
 
 ## The one hazard that is not a port — inherited, and now with a second one under it
 
