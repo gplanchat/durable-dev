@@ -99,6 +99,11 @@ Verify:
 php -m | grep grpc
 ```
 
+**In a container image, don't compile it again.** `pecl install grpc` takes about seven minutes, and
+your image build pays it on every branch. Prebuilt extensions are published for PHP 8.2 to 8.5, in
+thread-safe and non-thread-safe forms — see [gRPC in your container image](../container-images/)
+for the `COPY --from` recipes, including php-fpm, mod_php and FrankenPHP.
+
 ### Docker Compose setup (local / CI)
 
 The repository includes a ready-to-use `compose.yaml` under `symfony/` that starts:
