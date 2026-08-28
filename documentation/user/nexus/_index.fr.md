@@ -218,6 +218,205 @@ appel qui échoue, c'est un service qui ne reçoit jamais rien, en silence. Il n
 
 ---
 
+---
+
+## Un exemple complet, des deux côtés
+
+Deux équipes. **Facturation** sert les opérations ; **Commande** les appelle. Aucune ne connaît les
+workflows de l'autre — c'est à cela que sert Nexus. Chaque classe ci-dessous est complète.
+
+### Le contrat, partagé par les deux côtés
+
+Un fichier, publié comme une petite bibliothèque dont les deux équipes dépendent. C'est la seule
+chose qu'elles partagent.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Acme\Billing\Contract;
+
+use Gplanchat\Durable\Attribute\AsNexusOperation;
+use Gplanchat\Durable\Attribute\AsNexusService;
+
+/** Ce que Facturation répond tout de suite. C'est celle-ci qu'un gestionnaire implémente. */
+#[AsNexusService('billing')]
+interface BillingServed
+{
+    #[AsNexusOperation('quote')]
+    public function quote(string $sku, int $quantity): int;
+}
+
+/** Tout ce que Facturation sert. C'est celle-ci qu'un appelant lit. */
+#[AsNexusService('billing')]
+interface BillingContract extends BillingServed
+{
+    #[AsNexusOperation('charge')]
+    public function charge(string $orderId, int $amountInCents): string;
+}
+```
+
+`charge` n'a de corps nulle part : un workflow la remplit. `quote` est une lecture, elle est donc
+implémentée. Cette séparation est ce qui évite à l'une comme à l'autre d'avoir une méthode vide.
+
+### Facturation — le gestionnaire
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Acme\Billing\Nexus;
+
+use Acme\Billing\Contract\BillingServed;
+use Acme\Billing\PriceList;
+use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
+
+#[AsNexusServiceHandler(contract: BillingServed::class)]
+final class BillingHandler implements BillingServed
+{
+    public function __construct(
+        private readonly PriceList $prices,
+    ) {}
+
+    /**
+     * Répond sur la tâche elle-même : il lui faut donc rendre bien avant neuf secondes.
+     * Une lecture de tarif le fait ; un prestataire de paiement, non.
+     */
+    public function quote(string $sku, int $quantity): int
+    {
+        return $this->prices->unitPriceOf($sku) * $quantity;
+    }
+}
+```
+
+### Facturation — le workflow qui remplit `charge`
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Acme\Billing\Workflow;
+
+use Acme\Billing\Contract\BillingContract;
+use Acme\Billing\Contract\PaymentActivities;
+use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\Attribute\FulfilsNexusOperation;
+use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\WorkflowEnvironment;
+
+#[AsWorkflow('Charge')]
+#[FulfilsNexusOperation(BillingContract::class, 'charge')]
+final class ChargeWorkflow
+{
+    /** @var ActivityStub<PaymentActivities> */
+    private readonly ActivityStub $payments;
+
+    public function __construct(
+        private readonly WorkflowEnvironment $env,
+    ) {
+        $this->payments = $env->activityStub(PaymentActivities::class);
+    }
+
+    /**
+     * La charge de l'appelant arrive comme arguments de cette méthode, et ce qu'elle
+     * rend devient le résultat de l'opération — quel que soit le temps que ça prend.
+     */
+    #[AsWorkflowMethod]
+    public function run(string $orderId, int $amountInCents): string
+    {
+        $authorisation = $this->env->await(
+            $this->payments->authorise($orderId, $amountInCents),
+        );
+
+        // Des heures peuvent passer ici. L'appelant ne tient rien d'ouvert.
+        $this->env->await($this->env->timer(Duration::hours(2)));
+
+        return $this->env->await($this->payments->capture($authorisation));
+    }
+}
+```
+
+### Commande — l'appelant
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Acme\Checkout\Workflow;
+
+use Acme\Billing\Contract\BillingContract;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
+use Gplanchat\Durable\Nexus\NexusStub;
+use Gplanchat\Durable\WorkflowEnvironment;
+
+#[AsWorkflow('Checkout')]
+final class CheckoutWorkflow
+{
+    /** @var NexusStub<BillingContract> */
+    private readonly NexusStub $billing;
+
+    public function __construct(
+        private readonly WorkflowEnvironment $env,
+    ) {
+        $this->billing = $env->nexusStub(
+            BillingContract::class,
+            endpoint: 'billing-endpoint',
+            timeouts: new NexusOperationTimeouts(scheduleToClose: Duration::hours(6)),
+        );
+    }
+
+    #[AsWorkflowMethod]
+    public function run(string $orderId, string $sku, int $quantity): string
+    {
+        // Immédiate : Facturation l'implémente.
+        $total = $this->env->await($this->billing->quote($sku, $quantity));
+
+        // Différée : un workflow de Facturation la produit, des heures plus tard.
+        // Rien ici ne dit laquelle est laquelle — et rien n'a à le dire.
+        return $this->env->await($this->billing->charge($orderId, $total));
+    }
+}
+```
+
+**L'appelant ne peut pas distinguer les deux, et c'est tout l'intérêt.** Que Facturation réponde sur
+la tâche ou confie le travail à un workflow est sa décision, modifiable sans toucher à Commande.
+
+> **Les noms de paramètres doivent coïncider.** Le stub de l'appelant construit la charge à partir
+> des noms de paramètres de la *méthode du contrat* — `charge(string $orderId, int $amountInCents)`
+> envoie `{"orderId": …, "amountInCents": …}` —, et la méthode du workflow qui remplit l'opération
+> est garnie par ces mêmes noms. Renommez d'un seul côté et le workflow reçoit `null`, en silence :
+> une clé absente ne se distingue pas d'un argument qu'on n'a pas envoyé. C'est le contrat qui tient
+> les deux honnêtes — changez-le une fois, et les deux côtés cessent de compiler plutôt que de
+> défaillir à l'exécution.
+
+### Le faire tourner
+
+Facturation a besoin du worker Nexus sur sa file :
+
+```bash
+php bin/console messenger:consume durable_temporal_nexus --time-limit=3600
+```
+
+Et un opérateur crée l'endpoint une fois, en visant la file que ce worker interroge :
+
+```bash
+temporal operator nexus endpoint create \
+    --name billing-endpoint \
+    --target-namespace billing-prod \
+    --target-task-queue durable-workflows
+```
+
+---
+
 ## Voir aussi
 
 - [Backends](../backends/) — quel backend sait router Nexus, et pourquoi les autres refusent.

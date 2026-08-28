@@ -214,6 +214,203 @@ refusal happens when the application starts.
 
 ---
 
+---
+
+## A complete example, both sides
+
+Two teams. **Billing** serves the operations; **Checkout** calls them. Neither knows the other's
+workflows — that is what Nexus is for. Every class below is complete.
+
+### The contract, shared by both sides
+
+One file, published as a small library both teams depend on. It is the only thing they share.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Acme\Billing\Contract;
+
+use Gplanchat\Durable\Attribute\AsNexusOperation;
+use Gplanchat\Durable\Attribute\AsNexusService;
+
+/** What Billing answers immediately. A handler implements this one. */
+#[AsNexusService('billing')]
+interface BillingServed
+{
+    #[AsNexusOperation('quote')]
+    public function quote(string $sku, int $quantity): int;
+}
+
+/** Everything Billing serves. A caller reads this one. */
+#[AsNexusService('billing')]
+interface BillingContract extends BillingServed
+{
+    #[AsNexusOperation('charge')]
+    public function charge(string $orderId, int $amountInCents): string;
+}
+```
+
+`charge` has no body anywhere: a workflow fulfils it. `quote` is a lookup, so it is implemented.
+That split is why neither interface ever needs an empty method.
+
+### Billing — the handler
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Acme\Billing\Nexus;
+
+use Acme\Billing\Contract\BillingServed;
+use Acme\Billing\PriceList;
+use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
+
+#[AsNexusServiceHandler(contract: BillingServed::class)]
+final class BillingHandler implements BillingServed
+{
+    public function __construct(
+        private readonly PriceList $prices,
+    ) {}
+
+    /**
+     * Answers on the task itself, so it must return in well under nine seconds.
+     * A price lookup does; a payment provider would not.
+     */
+    public function quote(string $sku, int $quantity): int
+    {
+        return $this->prices->unitPriceOf($sku) * $quantity;
+    }
+}
+```
+
+### Billing — the workflow that fulfils `charge`
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Acme\Billing\Workflow;
+
+use Acme\Billing\Contract\BillingContract;
+use Acme\Billing\Contract\PaymentActivities;
+use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\Attribute\FulfilsNexusOperation;
+use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\WorkflowEnvironment;
+
+#[AsWorkflow('Charge')]
+#[FulfilsNexusOperation(BillingContract::class, 'charge')]
+final class ChargeWorkflow
+{
+    /** @var ActivityStub<PaymentActivities> */
+    private readonly ActivityStub $payments;
+
+    public function __construct(
+        private readonly WorkflowEnvironment $env,
+    ) {
+        $this->payments = $env->activityStub(PaymentActivities::class);
+    }
+
+    /**
+     * The caller's payload arrives as this method's arguments, and what this
+     * method returns becomes the operation's result — however long it takes.
+     */
+    #[AsWorkflowMethod]
+    public function run(string $orderId, int $amountInCents): string
+    {
+        $authorisation = $this->env->await(
+            $this->payments->authorise($orderId, $amountInCents),
+        );
+
+        // Hours may pass here. The caller is not holding anything open.
+        $this->env->await($this->env->timer(Duration::hours(2)));
+
+        return $this->env->await($this->payments->capture($authorisation));
+    }
+}
+```
+
+### Checkout — the caller
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Acme\Checkout\Workflow;
+
+use Acme\Billing\Contract\BillingContract;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
+use Gplanchat\Durable\Nexus\NexusStub;
+use Gplanchat\Durable\WorkflowEnvironment;
+
+#[AsWorkflow('Checkout')]
+final class CheckoutWorkflow
+{
+    /** @var NexusStub<BillingContract> */
+    private readonly NexusStub $billing;
+
+    public function __construct(
+        private readonly WorkflowEnvironment $env,
+    ) {
+        $this->billing = $env->nexusStub(
+            BillingContract::class,
+            endpoint: 'billing-endpoint',
+            timeouts: new NexusOperationTimeouts(scheduleToClose: Duration::hours(6)),
+        );
+    }
+
+    #[AsWorkflowMethod]
+    public function run(string $orderId, string $sku, int $quantity): string
+    {
+        // Immediate: Billing implements this one.
+        $total = $this->env->await($this->billing->quote($sku, $quantity));
+
+        // Deferred: a Billing workflow produces this one, hours later.
+        // Nothing here says which is which — and nothing has to.
+        return $this->env->await($this->billing->charge($orderId, $total));
+    }
+}
+```
+
+**The caller cannot tell the two apart, and that is the point.** Whether Billing answers on the task
+or hands the work to a workflow is Billing's decision, changeable without touching Checkout.
+
+> **The parameter names must match.** The caller's stub builds the payload from the *contract
+> method's* parameter names — `charge(string $orderId, int $amountInCents)` sends
+> `{"orderId": …, "amountInCents": …}` — and the fulfilling workflow's method is filled by the same
+> names. Rename one side only and the workflow receives `null`, silently, because a missing key is
+> indistinguishable from an argument that was not sent. The contract is what keeps the two honest:
+> change it once, and both sides fail to compile rather than fail at runtime.
+
+### Running it
+
+Billing needs the Nexus worker consuming its queue:
+
+```bash
+php bin/console messenger:consume durable_temporal_nexus --time-limit=3600
+```
+
+And an operator creates the endpoint once, pointing at the queue that worker polls:
+
+```bash
+temporal operator nexus endpoint create \
+    --name billing-endpoint \
+    --target-namespace billing-prod \
+    --target-task-queue durable-workflows
+```
+
+---
+
 ## See also
 
 - [Backends](../backends/) — which backend can route Nexus, and why the others refuse.
