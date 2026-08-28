@@ -196,8 +196,14 @@ topic.
 
 ## 6. Say it landed
 
-- [ ] 6.1 An ADR for the decisions this change makes — the package name, the two-backend scope, the
-      lock. A change that lands leaves an ADR behind.
+- [x] 6.1 **DUR046** — the package name and the one thing it costs (Magento resolves a controller
+      from the *module name*, not the autoloader); two backends refused by **Composer** rather than
+      by code, and a first version of that refusal deleted; why nothing rides Magento's queue and
+      why the workers are commands; the lock, shared, whose use case evaporated with the queue; and
+      the three things this host integration moved into the core — including a **fatal** dependency
+      of the core on the Symfony bundle that only a non-Symfony host could see.
+      It also says what it does not claim: the package is unpublished, CI resolves but does not
+      boot, and Adobe's distribution is untested.
 - [ ] 6.2 The home page selector drops the `?` from `gplanchat/durable-magento`, and its state stops
       being `planned`. Through the canvas, not the generated file.
 - [ ] 6.3 `documentation/user/packages/` and the guide's Backends page carry Magento, in both
