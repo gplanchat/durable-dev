@@ -6,6 +6,7 @@ namespace Gplanchat\Bridge\Temporal\Messenger;
 
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
+use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
 use Gplanchat\Durable\WorkflowRegistry;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
 use Symfony\Component\Messenger\Transport\TransportFactoryInterface;
@@ -30,6 +31,9 @@ final class TemporalTransportFactory implements TransportFactoryInterface
         private readonly ?TemporalActivityWorker $activityWorker = null,
         private readonly ?TemporalConnection $temporalConnection = null,
         private readonly ?WorkflowRegistry $workflowRegistry = null,
+        // En queue, et pas à côté du worker d'activité : les indices d'arguments sont écrits en
+        // dur dans DurableTemporalTransportFactoryPass, et intercaler les décalerait en silence.
+        private readonly ?TemporalNexusWorker $nexusWorker = null,
     ) {}
 
     /**
@@ -73,7 +77,17 @@ final class TemporalTransportFactory implements TransportFactoryInterface
             return new TemporalActivityWorkerTransport($this->activityWorker);
         }
 
-        throw new \InvalidArgumentException(\sprintf('Unknown temporal purpose "%s", expected journal, application, or activity_worker.', $purpose));
+        if ('nexus_worker' === $purpose) {
+            if (null === $this->nexusWorker) {
+                throw new \InvalidArgumentException(
+                    'Temporal Messenger transport purpose=nexus_worker requires TemporalNexusWorker (declare at least one durable.nexus_handler, or wire TemporalNexusWorkerTransport manually).',
+                );
+            }
+
+            return new TemporalNexusWorkerTransport($this->nexusWorker);
+        }
+
+        throw new \InvalidArgumentException(\sprintf('Unknown temporal purpose "%s", expected journal, application, activity_worker, or nexus_worker.', $purpose));
     }
 
     /**

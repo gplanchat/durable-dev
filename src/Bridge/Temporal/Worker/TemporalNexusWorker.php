@@ -59,7 +59,6 @@ final readonly class TemporalNexusWorker
         private WorkflowServiceNexusRpc $nexusRpc,
         private TemporalConnection $connection,
         private NexusOperationRegistry $registry,
-        private string $taskQueue,
     ) {}
 
     /**
@@ -69,7 +68,7 @@ final readonly class TemporalNexusWorker
     {
         $request = new PollNexusTaskQueueRequest();
         $request->setNamespace($this->connection->namespace->name());
-        $request->setTaskQueue(new TaskQueue(['name' => $this->taskQueue]));
+        $request->setTaskQueue(new TaskQueue(['name' => $this->connection->nexusTaskQueue->name()]));
         $request->setIdentity($this->connection->identity . '-nexus');
 
         $task = $this->nexusRpc->pollNexusTaskQueue($request);

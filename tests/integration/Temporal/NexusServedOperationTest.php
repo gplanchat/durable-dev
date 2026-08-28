@@ -194,7 +194,6 @@ final class NexusServedOperationTest extends TestCase
             new WorkflowServiceNexusRpc($this->client),
             $this->connection,
             $registry,
-            $this->queue,
         );
     }
 

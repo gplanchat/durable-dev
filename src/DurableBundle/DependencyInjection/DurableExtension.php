@@ -14,12 +14,14 @@ use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunProjection;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
+use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
 use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowResumeDispatcher;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
+use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
@@ -41,6 +43,7 @@ use Gplanchat\Durable\Bundle\Messenger\WorkflowRunDispatchProfilerMiddleware;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
 use Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
+use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\ParentChildWorkflowCoordinator;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\LocalWorkflowBackend;
@@ -757,6 +760,22 @@ final class DurableExtension extends Extension
                 new Reference(ActivityMessageProcessor::class),
                 new Reference(EventStoreInterface::class),
                 new Reference(ActivityHeartbeatSenderInterface::class),
+            ])
+            ->setPublic(true)
+        ;
+
+        // Le registre existe dès que Temporal est configuré, même sans gestionnaire déclaré : c'est
+        // sa présence que NexusHandlerPass lit pour savoir si ce backend sait router. Sans elle, la
+        // passe refuse — et c'est le refus au démarrage que §5.3 demande.
+        $container->register('durable.temporal.nexus_registry', NexusOperationRegistry::class)
+            ->setPublic(false)
+        ;
+
+        $container->register('durable.temporal.nexus_worker', TemporalNexusWorker::class)
+            ->setArguments([
+                new Reference(WorkflowServiceNexusRpc::class),
+                new Reference('durable.temporal.connection'),
+                new Reference('durable.temporal.nexus_registry'),
             ])
             ->setPublic(true)
         ;

@@ -278,7 +278,6 @@ final class TemporalNexusWorkerTest extends TestCase
             new WorkflowServiceNexusRpc($this->grpc),
             new TemporalConnection(target: 'localhost:7233', namespace: 'test'),
             $registry,
-            'nexus-queue',
         );
     }
 

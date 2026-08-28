@@ -213,7 +213,6 @@ final class NexusServedCancellationTest extends TestCase
             new WorkflowServiceNexusRpc($this->client),
             $this->connection,
             $registry,
-            $this->queue,
         );
     }
 
