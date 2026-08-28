@@ -44,19 +44,27 @@
             <sticky>true</sticky>
         </settings>
         <paging name="listing_paging"/>
-        <filters name="listing_filters"/>
+        <!--
+            Les filtres `select` deviennent des `ui-select` : plusieurs états à la fois plutôt qu'un
+            seul. C'est le gabarit que le cœur de Magento emploie pour la même chose, pas un
+            composant maison.
+        -->
+        <filters name="listing_filters">
+            <settings>
+                <templates>
+                    <filters>
+                        <select>
+                            <param name="template" xsi:type="string">ui/grid/filters/elements/ui-select</param>
+                            <param name="component" xsi:type="string">Magento_Ui/js/form/element/ui-select</param>
+                        </select>
+                    </filters>
+                </templates>
+            </settings>
+        </filters>
         <columnsControls name="columns_controls"/>
     </listingToolbar>
 
     <columns name="durable_process_columns">
-        <settings>
-            <childDefaults>
-                <param name="fieldAction" xsi:type="array">
-                    <item name="provider" xsi:type="string">durable_process_listing.durable_process_listing.durable_process_columns_editor</item>
-                </param>
-            </childDefaults>
-        </settings>
-
         <column name="run_id">
             <settings>
                 <filter>text</filter>
@@ -71,9 +79,11 @@
                 <sortable>false</sortable>
             </settings>
         </column>
-        <column name="status">
+        <column name="status" component="Magento_Ui/js/grid/columns/select">
             <settings>
-                <filter>text</filter>
+                <options class="Gplanchat\DurableModule\Ui\Component\Listing\Column\StatusOptions"/>
+                <filter>select</filter>
+                <dataType>select</dataType>
                 <label translate="true">Status</label>
                 <sortable>false</sortable>
             </settings>

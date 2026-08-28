@@ -154,6 +154,20 @@ topic.
       The detail view (`durable/process/view`) reads `readHistory()` — the same port the Sylius
       dashboard renders — and shows the run's journal: 23 events for a completed order on the bench.
 
+- [x] 3bis.4 **The status filter is a multi-select, and the filters actually filter.** `status`
+      becomes a `select` column whose options come from `WorkflowRunStatus::cases()` — the enum is
+      the source, so an added status appears in the filter without anyone remembering to add it —
+      and `listing_filters` carries the core's `ui/grid/filters/elements/ui-select` template, which
+      is what turns one choice into several. `addFilter()` therefore accepts both shapes the widget
+      sends: a string for one box ticked, an array for several.
+      ⚠ **Two bugs, both found by measuring rather than by reading.** The action column rendered
+      empty cells without raising, because `foreach ($x['data']['items'] ?? [] as &$item)` takes a
+      reference into a *temporary* — the `??` has to go, replaced by an `isset()` guard. And every
+      filter was a no-op because `getData()` still ran the first version's single `workflowName`
+      branch and never called the new `applyFilters()`: dead code that looked like live code.
+      Measured on the bench, 18 runs: `completed` → 5, `running` → 13, `completed,running` → 18,
+      `failed` → 0, `failed,cancelled` → 0, `workflow_name ~ slow` → 5.
+
 ## 4bis. What the CI can see of Magento
 
 - [x] 4bis.1 **A Mage-OS × PHP matrix, the counterpart of the Symfony one.** Five entries, each an

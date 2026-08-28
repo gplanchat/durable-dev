@@ -32,7 +32,13 @@ class ProcessActions extends Column
 
     public function prepareDataSource(array $dataSource): array
     {
-        foreach ($dataSource['data']['items'] ?? [] as &$item) {
+        // ⚠ Pas `?? []` ici : `foreach` sur un temporaire prend une référence qui ne mène nulle
+        // part, et la colonne rend alors des cellules vides sans lever. Mesuré.
+        if (!isset($dataSource['data']['items'])) {
+            return $dataSource;
+        }
+
+        foreach ($dataSource['data']['items'] as &$item) {
             if (($item['run_id'] ?? '') === '') {
                 continue;
             }

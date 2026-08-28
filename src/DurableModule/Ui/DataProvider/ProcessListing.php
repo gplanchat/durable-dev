@@ -33,7 +33,7 @@ class ProcessListing extends AbstractDataProvider
 {
     private const WINDOW = 200;
 
-    /** @var array<string, string> */
+    /** @var array<string, list<string>|string> */
     private array $filters = [];
 
     private int $offset = 0;
@@ -55,13 +55,7 @@ class ProcessListing extends AbstractDataProvider
     {
         $runs = $this->runtimeFactory->catalog()->listRuns(limit: self::WINDOW)->runs;
 
-        if (isset($this->filters['workflowName'])) {
-            $needle = mb_strtolower($this->filters['workflowName']);
-            $runs = array_values(array_filter(
-                $runs,
-                static fn(WorkflowRunDescription $run): bool => str_contains(mb_strtolower($run->workflowName), $needle),
-            ));
-        }
+        $runs = $this->applyFilters($runs);
 
         $total = \count($runs);
         $window = \array_slice($runs, $this->offset, $this->size);
@@ -85,7 +79,47 @@ class ProcessListing extends AbstractDataProvider
      */
     public function addFilter(Filter $filter): void
     {
-        $this->filters[$filter->getField()] = (string) $filter->getValue();
+        $value = $filter->getValue();
+        // Le filtre d'état est un `ui-select` : il rend un tableau dès que l'exploitant en coche
+        // plus d'un, et une chaîne quand il n'en coche qu'un. Les deux formes arrivent ici.
+        $this->filters[$filter->getField()] = \is_array($value)
+            ? array_values(array_map('strval', $value))
+            : (string) $value;
+    }
+
+    /**
+     * @param list<WorkflowRunDescription> $runs
+     *
+     * @return list<WorkflowRunDescription>
+     */
+    private function applyFilters(array $runs): array
+    {
+        foreach ($this->filters as $field => $value) {
+            $runs = match ($field) {
+                'workflow_name' => array_values(array_filter(
+                    $runs,
+                    static fn(WorkflowRunDescription $run): bool => str_contains(
+                        mb_strtolower($run->workflowName),
+                        mb_strtolower((string) $value),
+                    ),
+                )),
+                'run_id' => array_values(array_filter(
+                    $runs,
+                    static fn(WorkflowRunDescription $run): bool => str_contains($run->runId, (string) $value),
+                )),
+                'status' => array_values(array_filter(
+                    $runs,
+                    static fn(WorkflowRunDescription $run): bool => \in_array(
+                        $run->status->value,
+                        (array) $value,
+                        true,
+                    ),
+                )),
+                default => $runs,
+            };
+        }
+
+        return $runs;
     }
 
     public function addOrder($field, $direction): void
