@@ -200,6 +200,25 @@ claim, and it is the one the other package does not make.
 
 Two neighbouring names on Packagist deserve the sentence rather than the hope that nobody notices.
 
+### Nexus, on the backend that can route it
+
+Serving a Nexus operation means answering a call that arrives from another namespace, and only the
+cluster routes those. The `nexus.handlers` key names the handlers and the contracts they serve:
+
+```php
+'nexus' => ['handlers' => [App\Nexus\BillingHandler::class => App\Contracts\BillingService::class]],
+```
+
+What a handler does not serve, a workflow fulfils — it carries `#[FulfilsNexusOperation]`, and being
+in the `workflows` list above is enough. A contract splits into two interfaces because PHP cannot
+say *"implements partially"*, and the registry is what puts the halves back together.
+
+**Declaring one under a backend that cannot route is refused at registration**, not at the first
+call — with the backend named. Calling a Nexus operation declares nothing here: that is the
+workflow's business, and it is the common case.
+
+`php artisan durable:nexus-worker` drains the operations the cluster routes to this application.
+
 ### Three settings that are refused rather than tolerated
 
 | setting | refused | why |
