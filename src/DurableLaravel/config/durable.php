@@ -82,6 +82,25 @@ return [
         'name' => null,
     ],
 
+    /*
+     * Les opérations Nexus que cette application **sert** — appeler une opération n'a rien à
+     * déclarer ici, c'est le workflow qui la demande.
+     *
+     * La clé est la classe du gestionnaire, la valeur le contrat qu'il sert :
+     *
+     *     'handlers' => [App\Nexus\BillingHandler::class => App\Contracts\BillingService::class],
+     *
+     * Ce qu'un gestionnaire ne sert pas, un workflow le remplit — il porte alors
+     * `#[FulfilsNexusOperation]`, et il suffit qu'il soit dans la liste `workflows` ci-dessus.
+     *
+     * ⚠ Servir du Nexus exige le backend « temporal » : c'est le cluster qui route. Sous un autre
+     * backend, le registre refuse à l'enregistrement et dit pourquoi, plutôt que d'échouer au
+     * premier appel.
+     */
+    'nexus' => [
+        'handlers' => [],
+    ],
+
     'lock' => [
         /*
          * Le magasin de cache qui porte le verrou de reprise, au sens de config/cache.php. `null`

@@ -213,6 +213,28 @@ modification — c'est toute la promesse, et c'est celle que l'autre paquet ne f
 
 Deux noms voisins sur Packagist méritent la phrase plutôt que l'espoir que personne ne remarque.
 
+### Nexus, sur le backend qui sait le router
+
+Servir une opération Nexus, c'est répondre à un appel venu d'un autre espace de noms, et seul le
+cluster route ces appels-là. La clé `nexus.handlers` nomme les gestionnaires et les contrats qu'ils
+servent :
+
+```php
+'nexus' => ['handlers' => [App\Nexus\BillingHandler::class => App\Contracts\BillingService::class]],
+```
+
+Ce qu'un gestionnaire ne sert pas, un workflow le remplit — il porte `#[FulfilsNexusOperation]`, et
+il suffit qu'il soit dans la liste `workflows` ci-dessus. Un contrat se sépare en deux interfaces
+parce que PHP ne sait pas dire « implémente partiellement », et le registre est ce qui recolle les
+deux moitiés.
+
+**En déclarer un sous un backend qui ne route pas est refusé à l'enregistrement**, pas au premier
+appel — et le backend est nommé. Appeler une opération Nexus ne déclare rien ici : c'est l'affaire
+du workflow, et c'est le cas le plus courant.
+
+`php artisan durable:nexus-worker` draine les opérations que le cluster route vers cette
+application.
+
 ### Trois réglages refusés plutôt que tolérés
 
 | réglage | refusé | pourquoi |
