@@ -9,9 +9,7 @@ process, ships the workers as `bin/magento` commands, and adds a read-only admin
 
 ## Release state
 
-The package is on Packagist, and **no tagged release carries it yet**: a prefix added to the split
-list after the fact does not retro-fit past tags, so its first version comes from the next one.
-Until then, require it as `:dev-main`.
+No tagged release carries this package yet. Until one does, require it as `:dev-main`.
 
 ## Requirements
 
@@ -110,43 +108,6 @@ recorded with it.
 continuation cursor, and the two do not translate without state. Beyond the window the grid tells
 the truth about what it shows, but does not show everything. The filters filter the window, not the
 cluster, whose visibility query is a surface of its own.
-
-## Operating it
-
-Two processes, and the failure of forgetting one is not symmetric.
-
-| Missing | What you see |
-|---|---|
-| `--role=journal` | Nothing advances at all. Executions start, their history fills, and no one answers their workflow tasks. |
-| `--role=activity` | Worse, because it looks like it works. An execution advances **up to its first activity** and stops there — the order is charged, the stock is not, and you learn it from the customer. |
-
-That second line is the failure this integration exists to remove, put back by hand. Supervise both,
-or supervise neither.
-
-**The bounds are for the supervisor, not for you.** `--time-limit` and `--max-tasks` make the
-process end so that whatever restarts it can restart it. A worker without them is an immortal
-process holding a week-old gRPC connection; a supervisor that never gets to do its job is a
-supervisor you are not really running.
-
-**Concurrency is tuned per role.** They are two distinct Temporal task queues on purpose: a slow
-activity must not delay the resume of a journal. Scale the activity role with your slowest activity
-in mind, the journal role with your execution count.
-
-**Retries are the server's business, and they need a worker.** On Temporal an activity's retry
-policy is enforced by the cluster: the attempts are scheduled whether or not anything is listening,
-and they are consumed by the *absence* of an activity worker as surely as by a failing activity.
-A run whose activity "failed after 3 attempts" in seconds is the sign of a worker that was not
-there, not of code that is wrong three times over.
-
-**Magento's own queue settings are not part of this.** `retry_inprogress_after`, the
-`messagequeue_*` cron jobs, `queue_lock` — none of them carries anything of Durable's, because
-nothing of Durable's rides `MessageQueue`. Tune them for your own consumers; they cannot break a
-workflow here.
-
-**What "no DSN" looks like from the outside.** The admin screen states that the backend is
-in-memory and why it has nothing to show, rather than displaying an empty grid that looks like an
-outage. If an operator reports "the screen is empty", check `app/etc/env.php` before checking the
-cluster.
 
 ## What this module does not do, and why
 

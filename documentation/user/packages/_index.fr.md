@@ -353,23 +353,6 @@ règle séparément. Rien ne circule sur le `MessageQueue` de Magento — sur Te
 une commande Temporal et une reprise une tâche de workflow, donc un topic ici serait une seconde
 file à superviser, pour rien.
 
-**Deux processus, et en oublier un ne coûte pas la même chose des deux côtés.** Sans
-`--role=journal`, rien n'avance : les exécutions démarrent, leur historique se remplit, et personne
-ne répond à leurs tâches de workflow. Sans `--role=activity`, c'est pire, parce que ça a l'air de
-marcher — une exécution avance **jusqu'à sa première activité** et s'y arrête, la commande débitée
-et le stock non, et c'est le client qui vous l'apprend. C'est la panne que cette intégration existe
-pour supprimer, remise en place à la main.
-
-Les bornes `--time-limit` et `--max-tasks` sont pour le superviseur : elles font finir le processus
-pour que ce qui le relance puisse le relancer. Et les reprises sont l'affaire de la grappe — les
-tentatives d'une activité sont ordonnancées que quelqu'un écoute ou non, donc une exécution dont
-l'activité « a échoué après 3 tentatives » en quelques secondes signale un worker absent, pas un
-code qui se trompe trois fois de suite.
-
-⚠ **Les réglages de file de Magento n'entrent pas là-dedans.** `retry_inprogress_after`, les tâches
-cron `messagequeue_*`, `queue_lock` — aucun ne porte quoi que ce soit de Durable, puisque rien de
-Durable ne circule sur `MessageQueue`. Réglez-les pour vos propres consommateurs.
-
 > [!NOTE]
 > Démarrez les exécutions **sur la grappe**, pas dans la requête qui les déclenche. Un observateur
 > sur `sales_order_place_after` qui appelle `RuntimeFactory::workflowClient()->startAsync()` confie
