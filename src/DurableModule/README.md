@@ -9,9 +9,12 @@ process, ships the workers as `bin/magento` commands, and adds a read-only admin
 
 ## Release state
 
-The package is on Packagist, and **no tagged release carries it yet**: a prefix added to the split
-list after the fact does not retro-fit past tags, so its first version comes from the next one.
-Until then, require it as `:dev-main`.
+`v0.1.0-alpha8` is the first tagged release of this package, and it is the whole suite's version —
+the monorepo tags once and every satellite receives the same tag.
+
+⚠ **It is an alpha, and Composer's default stability will refuse it.** A project on
+`minimum-stability: stable` needs either the constraint spelled out on the line, as below, or
+`"minimum-stability": "alpha"` with `"prefer-stable": true` in its own `composer.json`.
 
 ## Requirements
 
@@ -41,7 +44,7 @@ command, ruinous for anything served by PHP-FPM.
 ## Installation
 
 ```bash
-composer require gplanchat/durable-magento:dev-main gplanchat/durable-bridge-temporal
+composer require gplanchat/durable-magento:^0.1.0@alpha gplanchat/durable-bridge-temporal:^0.1.0@alpha
 bin/magento module:enable Gplanchat_DurableModule
 bin/magento setup:upgrade
 ```
