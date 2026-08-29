@@ -16,7 +16,6 @@ use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Store\ActivityEventJournal;
 use Gplanchat\Durable\Store\EventStoreInterface;
-use Gplanchat\Durable\Transport\ActivityMessage;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Temporal\Api\Failure\V1\ApplicationFailureInfo;
 use Temporal\Api\Failure\V1\Failure;
@@ -66,8 +65,22 @@ final class TemporalActivityWorker
         $message = TemporalActivityScheduleInput::toActivityMessage($resp);
         $options = $message->options;
 
-        // Redélivrance d'une tâche déjà tranchée : répondre depuis le journal sans réexécuter.
-        if ($this->respondFromJournal($resp, $message, $options)) {
+        // ⚠ **Redélivrance** d'une tâche déjà tranchée : répondre depuis le journal sans
+        // réexécuter — mais une *reprise* n'est pas une redélivrance, et la question posée ici
+        // doit porter sur cette livraison-ci. Interroger la dernière issue tout court faisait
+        // répondre l'échec de la tentative 1 aux tentatives suivantes, sans jamais rappeler le
+        // code de l'activité : trois tentatives consommées en deux secondes et une panne
+        // passagère devenue définitive.
+        if ($this->respondIfSettled(
+            ActivityEventJournal::settledOutcomeForDelivery(
+                $this->eventStore,
+                $message->executionId,
+                $message->activityId,
+                $message->attempt,
+            ),
+            $resp,
+            $options,
+        )) {
             return;
         }
 
@@ -83,7 +96,14 @@ final class TemporalActivityWorker
             // Nothing to teardown in the cooperative model
         }
 
-        if ($this->respondFromJournal($resp, $message, $options)) {
+        // Après traitement, la question est l'autre : **qu'est-ce que le processeur vient
+        // d'écrire ?** Un échec en cours de reprise en fait partie — c'est lui qu'il faut rendre
+        // au serveur pour qu'il ordonnance la tentative suivante.
+        if ($this->respondIfSettled(
+            ActivityEventJournal::lastTerminalOutcome($this->eventStore, $message->executionId, $message->activityId),
+            $resp,
+            $options,
+        )) {
             return;
         }
 
@@ -91,17 +111,20 @@ final class TemporalActivityWorker
     }
 
     /**
-     * Répond au serveur à partir de l'issue terminale journalisée, si elle existe.
+     * Répond au serveur à partir d'une issue journalisée, si on lui en donne une.
      *
-     * @return bool false si l'activité n'a pas encore d'issue terminale
+     * ⚠ L'issue est **passée en argument** plutôt que lue ici, et ce n'est pas un détail de
+     * plomberie : les deux appels de `pollOnce()` ne posent pas la même question. Avant traitement,
+     * « cette livraison a-t-elle déjà été tranchée ? » ; après, « qu'est-ce que le processeur vient
+     * d'écrire ? ». Les confondre est précisément ce qui empêchait toute reprise d'activité.
+     *
+     * @return bool false quand il n'y a rien à répondre
      */
-    private function respondFromJournal(
+    private function respondIfSettled(
+        ActivityCompleted|ActivityFailed|ActivityCatastrophicFailure|ActivityCancelled|null $terminal,
         PollActivityTaskQueueResponse $resp,
-        ActivityMessage $message,
         ?ActivityOptions $options,
     ): bool {
-        $terminal = ActivityEventJournal::lastTerminalOutcome($this->eventStore, $message->executionId, $message->activityId);
-
         switch (true) {
             case $terminal instanceof ActivityCompleted:
                 $this->respondCompleted($resp, $terminal->result());
