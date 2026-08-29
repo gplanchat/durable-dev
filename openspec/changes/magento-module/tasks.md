@@ -461,7 +461,13 @@ topic.
       canvases changed **four lines in total**, two per page, and they are the two edits. The canvas
       and the pages were genuinely in sync; the guard had nothing to refuse.
 
-      ⚠ **This must not be merged before `gplanchat/durable-magento` is on Packagist.**
+      **Packagist has it since 2026-08-29**, and the selector is now on the same footing as its two
+      peers: `durable-magento`, `durable-laravel` and `durable-bridge-illuminate` are all registered
+      with `dev-main` and **no tagged version**, and the Packages page writes a plain
+      `composer require` for all three. The **Not published yet** warning came out of both languages
+      in the same commit, which is the second half of this task.
+
+      What was true while the pull request waited, kept because it is the reason it waited:
       `check_packages_resolve()` passes, and it is right to: it reads `src/*/composer.json`, which
       answers "does this repository declare the package". Packagist answers a different question,
       and today it answers 404. Merging first would put a `composer require` on the home page that
