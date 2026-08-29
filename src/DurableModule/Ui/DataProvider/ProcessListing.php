@@ -32,6 +32,12 @@ use Magento\Ui\DataProvider\AbstractDataProvider;
  */
 class ProcessListing extends AbstractDataProvider
 {
+    /**
+     * Le rendu d'un fait que **cette exécution** n'a pas, dans une grille à colonnes fixes. Le même
+     * que celui de l'écran de détail, et c'est tout l'intérêt de le nommer.
+     */
+    private const ABSENT = '—';
+
     /** @var array<string, list<string>|string> */
     private array $filters = [];
 
@@ -65,8 +71,12 @@ class ProcessListing extends AbstractDataProvider
                 'run_id' => $run->runId,
                 'workflow_name' => $run->workflowName,
                 'status' => $run->status->value,
-                'started_at' => $run->startedAt?->format('Y-m-d H:i:s') ?? '',
-                'ended_at' => $run->endedAt?->format('Y-m-d H:i:s') ?? '',
+                // ⚠ Un tiret cadratin, pas une chaîne vide. Une exécution en cours n'a pas de date
+                // de fin, et la colonne existe pour toutes les autres : une case vide se lit comme
+                // un rendu qui a échoué, là où le tiret dit « rien ici ». C'est l'inverse du fait
+                // dont le backend n'a **pas la notion** — celui-là n'a pas de colonne du tout.
+                'started_at' => $run->startedAt?->format('Y-m-d H:i:s') ?? self::ABSENT,
+                'ended_at' => $run->endedAt?->format('Y-m-d H:i:s') ?? self::ABSENT,
             ], $window),
         ];
     }

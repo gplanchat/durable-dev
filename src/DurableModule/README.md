@@ -100,9 +100,34 @@ give the money back either.
 ## The admin screen
 
 A standard Magento grid — paging, bookmarks, column controls, export, and a multi-select status
-filter whose options come from the status enum itself. Selecting a run opens its detail: a timeline
-with one line per action, and the journal beneath it, each line unfolding onto what the backend
-recorded with it.
+filter whose options come from the status enum itself. Above it, the state of the backend and the
+outcome counters; selecting a run opens its detail.
+
+## The panels, and why they are the same everywhere
+
+Every Durable dashboard shows the same four panels, whichever host renders them. They are not a
+matter of chrome: a panel one surface has and another lacks is a question one application can answer
+about a run and another cannot, about the same run, recorded by the same backend.
+
+1. **The state of the backend.** Three states, and an empty list means something different under
+   each: no readable backend is configured; a backend is configured and cannot be reached, named and
+   dated so an operator knows what to restart; or a backend answers and its journal does not outlive
+   the request that renders the page — where an empty list is the correct answer, not a failure.
+2. **The runs**, filterable by outcome and paged.
+3. **Counters per outcome**, over the set the list is paging through — and labelled as covering that
+   set, never as a total over the application's history.
+4. **A selected run's recorded history**: one line per *action*, placed in time, with an interval
+   spent waiting to be picked up told apart from one spent working; each event unfolds onto what the
+   backend recorded with it.
+
+Grouping into actions, measuring, telling a queue apart from work and wording a duration are decided
+**once**, in `gplanchat/durable` beside the observation model. What each host decides is how to draw
+it — scaling seconds to a column width is the only thing a surface owns, because a surface that
+renders no markup has no column.
+
+The chrome is Magento's, the panels are Durable's. The same run opened on the Sylius dashboard is
+grouped into the same actions, labelled with the same strings, and its waits are worded the same way
+— an operator moving between two applications of the same house has nothing to translate.
 
 ⚠ **The grid reads a 200-run window and pages inside it.** The grid pages by offset, the cluster by
 continuation cursor, and the two do not translate without state. Beyond the window the grid tells

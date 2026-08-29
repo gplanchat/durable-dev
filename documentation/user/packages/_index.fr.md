@@ -282,9 +282,14 @@ composer require gplanchat/durable-plugin
 ```
 
 Un tableau de bord d'administration pour Sylius : la liste des exécutions avec recherche et filtres
-par statut, et une vue de détail avec les couloirs de la chronologie et les événements récents. Les
-libellés de chronologie privilégient l'`ActivityType.name` lisible et ne retombent sur les
-identifiants techniques que faute de mieux.
+par statut, et une vue de détail dont la frise montre **une ligne par action**, placée dans le temps
+— une activité planifiée, démarrée puis terminée est une ligne et trois événements — l'attente d'une
+prise en charge étant distinguée du travail lui-même. Les libellés privilégient l'`ActivityType.name`
+lisible et ne retombent sur les identifiants techniques que faute de mieux.
+
+Les panneaux, le regroupement et les mots viennent de `gplanchat/durable` lui-même : la même
+exécution se lit donc pareil ici et sur l'écran Magento. Ce que ce paquet possède, c'est l'habillage
+Sylius autour d'eux.
 
 Il **observe** ; il n'exécute pas. Il exige `gplanchat/durable-bundle`, qui câble le catalogue
 d'exécutions qu'il lit : la commande ci-dessus est donc toute l'installation.

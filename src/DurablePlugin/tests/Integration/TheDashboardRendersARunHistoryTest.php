@@ -120,6 +120,18 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertSame(['22:13:20.000', '22:13:30.000', '22:13:40.000'], $readings);
     }
 
+    public function testTheCountersNameTheirScopeRatherThanClaimingATotal(): void
+    {
+        // Un intitulé « Total » sous lequel on lit vingt apprend à l'exploitant qu'une application
+        // qui a enregistré cinq cents exécutions en a vingt. Ce que ces compteurs couvrent est la
+        // page, parce que c'est ce que le catalogue a été interrogé de rendre.
+        $page = $this->render();
+
+        self::assertStringContainsString('runs on this page', $page);
+        self::assertStringContainsString('On this page', $page);
+        self::assertStringNotContainsString('>Total<', $page);
+    }
+
     private function render(bool $ephemeral = false, bool $badPayload = false): string
     {
         $catalog = new RenderingCatalog($ephemeral, $badPayload);

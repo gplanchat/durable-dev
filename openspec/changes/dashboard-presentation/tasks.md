@@ -56,17 +56,25 @@
 
 ## 4. Counters and absences say what they mean
 
-- [ ] 4.1 The `Total` heading becomes a heading that names the page — fait côté Magento avec la
-      §3.3, reste Sylius
-- [ ] 4.2 A fact absent for this run renders as an em dash where columns are fixed; a fact the
-      backend has no notion of still shows no column at all
+- [x] 4.1 L'intitulé nomme la portée sur les deux surfaces : « Outcomes across the N runs on this
+      page » chez Sylius, « across the N most recent runs this screen reads » chez Magento — la
+      portée diffère parce que la pagination diffère, et chacune le dit
+- [x] 4.2 La grille Magento rendait `''` pour une date absente — une case vide se lit comme un rendu
+      qui a échoué. Un tiret cadratin nommé, le même que celui de l'écran de détail. La liste Sylius
+      n'a pas de colonnes fixes : ce sont des cartes, et un fait absent y est omis, ce qui reste le
+      bon rendu — la règle du tiret porte sur les tableaux
 
 ## 5. Sweep the drift lanes left behind
 
-- [ ] 5.1 `WorkflowRunEventKind`'s documentation stops describing lanes — actions replaced them
-- [ ] 5.2 `src/DurablePlugin/README.md` stops advertising history "grouped in lanes" and its lane
-      source table
-- [ ] 5.3 `src/DurableModule/README.md` and `magento/README.md` describe the same panels
+- [x] 5.1 `WorkflowRunEventKind` ne décrit plus une voie mais une **nature** : la ligne vient de
+      l'action, et l'énumération n'y sert plus qu'à colorer. Balayé aussi dans les deux lecteurs
+      d'historique et dans les classes CSS du gabarit Sylius (`durable-lane` → `durable-action`)
+- [x] 5.2 Le README du greffon décrit la frise par actions, et sa table « Lane kind » devient
+      « Event kind »
+- [x] 5.3 Les deux README portent la **même section** « The panels, and why they are the same
+      everywhere » — quatre panneaux, les trois états du backend, la portée des compteurs, la frise
+      par actions. Les pages paquets du site suivent, dans les deux langues ; le site monte
+      `documentation/user` directement, il n'y a donc pas de copie à tenir
 
 ## 6. Leave the decision behind
 
@@ -125,3 +133,17 @@ base, donc ils tournent dans la suite ordinaire. Vérifié par mutation.
 Deux appels à `listRuns()` par affichage de la grille — la bannière compte, le fournisseur liste.
 Assumé et commenté : l'alternative serait un couplage entre la bannière et le fournisseur de la
 grille, ou un cache de requête autour du catalogue. Le second est la sortie si ça pèse.
+
+## Notes des tranches 4 et 5
+
+La règle du tiret cadratin ne s'applique qu'aux **tableaux**. La liste Sylius est faite de cartes :
+un fait absent y est omis, et c'est le bon rendu — il n'y a pas de colonne à laisser vide. C'est la
+grille Magento qui rendait `''`, et une case vide s'y lit comme un rendu qui a échoué.
+
+Une section identique dans les deux README plutôt qu'un renvoi de l'un vers l'autre : ils sont
+publiés dans deux paquets satellites distincts, et un lecteur de `durable-magento` sur Packagist n'a
+pas celui de `durable-plugin` sous la main.
+
+Ce qui restait de « voies » ailleurs était du français ordinaire — « se voient », « deux voies »
+— et n'a pas été touché. `DUR037` en garde aussi : c'est un ADR, il dit ce qui a été décidé à sa
+date, et c'est la §6.1 qui le complète plutôt que de le réécrire.

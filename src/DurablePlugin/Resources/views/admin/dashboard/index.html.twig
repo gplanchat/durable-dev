@@ -11,15 +11,15 @@
         .durable-run-row.active { border-color: var(--tblr-primary); box-shadow: inset 0 0 0 1px var(--tblr-primary); }
         .durable-status { font-size: .7rem; text-transform: uppercase; letter-spacing: .02em; }
         .durable-meta { color: var(--tblr-secondary-color); font-size: .82rem; display: flex; gap: .35rem .65rem; flex-wrap: wrap; }
-        .durable-lane { border-left: 3px solid var(--tblr-border-color); padding-left: .65rem; margin-bottom: 1rem; }
-        .durable-lane.execution { border-left-color: #93c5fd; }
-        .durable-lane.activity { border-left-color: #a7f3d0; }
-        .durable-lane.signal { border-left-color: #fbcfe8; }
-        .durable-lane.query { border-left-color: #fde68a; }
-        .durable-lane.update { border-left-color: #c4b5fd; }
+        .durable-action { border-left: 3px solid var(--tblr-border-color); padding-left: .65rem; margin-bottom: 1rem; }
+        .durable-action.execution { border-left-color: #93c5fd; }
+        .durable-action.activity { border-left-color: #a7f3d0; }
+        .durable-action.signal { border-left-color: #fbcfe8; }
+        .durable-action.query { border-left-color: #fde68a; }
+        .durable-action.update { border-left-color: #c4b5fd; }
         /* Nexus tranche sur les autres à dessein : c'est la seule voie où l'attente est servie
            hors de cette application, et c'est celle qu'un exploitant doit repérer sans la chercher. */
-        .durable-lane.nexus { border-left-color: #fdba74; }
+        .durable-action.nexus { border-left-color: #fdba74; }
         /* Ce qui a mal tourné se lit sans être déplié — une annulation, elle, reste noire. */
         .durable-failed, .durable-failed > details > summary { color: #d63939; }
         .durable-events { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
@@ -83,9 +83,14 @@
                 </div>
 
                 {% if backend.available %}
+                    {# La portée est dite, et c'est le sujet : un intitulé « Total » sous lequel on lit
+                       vingt apprend à l'exploitant qu'une application qui a enregistré cinq cents
+                       exécutions en a vingt. Ces compteurs couvrent la page affichée, parce que
+                       c'est ce que le catalogue a été interrogé de rendre. #}
+                    <h2 class="h4 mb-0">Outcomes across the {{ kpis.total }} runs on this page</h2>
                     <div class="row row-cards">
                         {% for label, counter in {
-                            'Total': 'total',
+                            'On this page': 'total',
                             'Running': 'running',
                             'Completed': 'completed',
                             'Failed': 'failed',
@@ -222,7 +227,7 @@
                                                vient lire. Le groupement, les durées et la distinction file/travail viennent
                                                du cœur — cette page les rend, elle ne les calcule pas. #}
                                             {% for action in selectedRun.timeline.actions %}
-                                                <div class="durable-lane {{ action.kind.value }}">
+                                                <div class="durable-action {{ action.kind.value }}">
                                                     <h4 class="h5 mb-2">{{ action.label }} <small class="text-secondary">{{ action.durationLabel }}</small></h4>
                                                     <ul class="durable-events">
                                                         {% for mark in action.events %}

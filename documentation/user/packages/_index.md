@@ -267,8 +267,13 @@ composer require gplanchat/durable-plugin
 ```
 
 An admin dashboard for Sylius: the list of workflow runs with search and status filters, and a run
-detail view with timeline lanes and recent events. Timeline labels prefer the human-readable
-`ActivityType.name` and fall back to technical IDs only when there is nothing better.
+detail view whose timeline shows **one line per action** placed in time — an activity scheduled,
+started and completed is one line and three events — with the wait for someone to pick the work up
+told apart from the work itself. Labels prefer the human-readable `ActivityType.name` and fall back
+to technical IDs only when there is nothing better.
+
+The panels, the grouping and the wording come from `gplanchat/durable` itself, so the same run reads
+the same here and on the Magento screen. What this package owns is the Sylius chrome around them.
 
 It **observes**; it does not execute. It requires `gplanchat/durable-bundle`, which wires the run
 catalog it reads, so the command above is the whole install.
