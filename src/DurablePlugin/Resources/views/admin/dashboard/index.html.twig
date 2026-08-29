@@ -24,6 +24,35 @@
         .durable-failed, .durable-failed > details > summary { color: #d63939; }
         .durable-events { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
         .durable-events li { border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); padding: .5rem .65rem; background: var(--tblr-bg-surface); }
+        .durable-frieze { margin-bottom: 1.25rem; }
+        .durable-frieze-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .3rem; }
+        .durable-frieze-name { flex: 0 0 12rem; text-align: right; font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .durable-frieze-track { position: relative; flex: 1 1 auto; height: 1.4rem; background: var(--tblr-bg-surface-secondary); border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); }
+        /* `min-width` uniforme, et c'est ce qui tient la règle : quatre millisecondes de file ne
+           doivent pas dessiner plus large que six millisecondes de travail. Un minimum appliqué
+           aux deux les rend égales sous le seuil, jamais inversées. */
+        .durable-frieze-bar { position: absolute; top: .3rem; height: .8rem; min-width: .2rem; border-radius: .4rem; opacity: .35; background: #206bc4; }
+        .durable-frieze-mark { position: absolute; top: .4rem; width: .6rem; height: .6rem; margin-left: -.3rem; border-radius: 50%; background: #206bc4; }
+        .durable-frieze-bar.execution, .durable-frieze-mark.execution { background: #4b5563; }
+        .durable-frieze-bar.activity, .durable-frieze-mark.activity { background: #206bc4; }
+        .durable-frieze-bar.signal, .durable-frieze-mark.signal { background: #d63939; }
+        .durable-frieze-bar.update, .durable-frieze-mark.update { background: #7048e8; }
+        /* Nexus tranche sur les autres à dessein, ici comme sur les blocs plus bas. */
+        .durable-frieze-bar.nexus, .durable-frieze-mark.nexus { background: #f76707; }
+        .durable-frieze-bar.other, .durable-frieze-mark.other { background: #868e96; }
+        /* Après les règles de nature, et pas avant : celles-ci posent `background` en raccourci,
+           qui remet `background-image` à zéro. L'opacité est relevée parce qu'une file de quelques
+           millisecondes tient dans deux pixels, où des hachures translucides ne se voient plus. */
+        .durable-frieze-bar.waiting { opacity: .75; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.9) 0 1px, rgba(255,255,255,0) 1px 3px); }
+        /* `background-color` et non `background` : le raccourci effacerait la trame, et une attente
+           qui finit en échec est les deux à la fois. */
+        .durable-frieze-bar.failed { background-color: #d63939; opacity: .75; }
+        .durable-frieze-mark.failed { background-color: #d63939; }
+        .durable-frieze-took { flex: 0 0 5rem; font-size: .8rem; color: var(--tblr-secondary-color); }
+        .durable-frieze-scale { display: flex; justify-content: space-between; font-size: .8rem; color: var(--tblr-secondary-color); padding: 0 5.75rem 0 12.75rem; }
+        .durable-frieze-key { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; padding-left: 12.75rem; font-size: .8rem; color: var(--tblr-secondary-color); }
+        .durable-frieze-key .durable-frieze-bar { position: static; top: auto; flex: 0 0 2.5rem; height: .8rem; }
+        .durable-failed { color: #d63939; }
         .durable-events summary { cursor: pointer; }
         .durable-events pre { margin: .5rem 0 0; padding: .5rem; font-size: .8em; white-space: pre-wrap; word-break: break-word; background: var(--tblr-bg-surface-secondary); border-radius: var(--tblr-border-radius); }
     </style>
@@ -145,6 +174,49 @@
                                         {% if selectedRun.timeline.actions is empty %}
                                             <p class="text-secondary mb-0">No recorded history for this run.</p>
                                         {% else %}
+                                            {# La frise : une ligne par action, **placée dans le temps**. Empiler des
+                                               blocs répond « dans quel ordre », jamais « pendant combien de temps » —
+                                               et la seconde est la question qu'un exploitant devant une exécution
+                                               lente vient poser. Les secondes viennent du cœur ; la seule chose qui se
+                                               décide ici est leur mise à l'échelle, parce qu'elle demande de connaître
+                                               une largeur de colonne. #}
+                                            {% set scale = selectedRun.timeline.span > 0 ? 100 / selectedRun.timeline.span : 0 %}
+                                            <div class="durable-frieze">
+                                                {% for action in selectedRun.timeline.actions %}
+                                                    <div class="durable-frieze-row">
+                                                        <span class="durable-frieze-name" title="{{ action.label }}">{{ action.label }}</span>
+                                                        <div class="durable-frieze-track">
+                                                            {# Un segment par intervalle, et non une barre par action : dès que
+                                                               l'exécution elle-même occupe une ligne, une barre unique dirait
+                                                               « le run a duré le temps du run » et masquerait l'attente. #}
+                                                            {% for segment in action.segments %}
+                                                                <span class="durable-frieze-bar {{ action.kind.value }}{{ segment.waiting ? ' waiting' }}{{ segment.failed ? ' failed' }}"
+                                                                      style="left: {{ (segment.offset * scale)|number_format(3, '.', '') }}%; width: {{ (segment.duration * scale)|number_format(3, '.', '') }}%"
+                                                                      title="{{ segment.title }}"></span>
+                                                            {% endfor %}
+                                                            {% for mark in action.events %}
+                                                                <span class="durable-frieze-mark {{ action.kind.value }}{{ mark.event.failed ? ' failed' }}"
+                                                                      style="left: {{ (mark.offset * scale)|number_format(3, '.', '') }}%"
+                                                                      title="{{ mark.title }}"></span>
+                                                            {% endfor %}
+                                                        </div>
+                                                        <span class="durable-frieze-took">{{ action.durationLabel }}</span>
+                                                    </div>
+                                                {% endfor %}
+                                                <div class="durable-frieze-scale">
+                                                    <span>0</span>
+                                                    <span>{{ selectedRun.timeline.spanLabel }}</span>
+                                                </div>
+                                                {# Survoler suppose de savoir qu'il y a quelque chose à survoler. #}
+                                                <div class="durable-frieze-key">
+                                                    <span class="durable-frieze-bar waiting other"></span>
+                                                    Hatched: waiting to be picked up — the work had been asked for, but nobody had started it yet.
+                                                </div>
+                                                <div class="durable-frieze-key">
+                                                    <span class="durable-frieze-bar failed"></span>
+                                                    Red: what failed. A cancellation is not painted red — it is an outcome, not a breakdown.
+                                                </div>
+                                            </div>
                                             {# Un bloc par action, pas par nature : une activité planifiée, démarrée puis
                                                terminée est une action et trois événements, et c'est sa durée que l'exploitant
                                                vient lire. Le groupement, les durées et la distinction file/travail viennent
@@ -157,10 +229,14 @@
                                                             {# Un événement dont le backend n'a rien enregistré garde une ligne simple :
                                                                un dépliant qui s'ouvre sur du vide se rouvre à chaque fois. #}
                                                             <li{% if mark.event.failed %} class="durable-failed"{% endif %}>
-                                                                {% if mark.event.details is not empty %}
+                                                                {# `renderedDetails` vaut `null` quand il n'y a rien à ouvrir. La mise
+                                                                   en forme se décide dans le cœur : ce gabarit appelait `json_encode`
+                                                                   sans tolérance et rendait un dépliant **vide** dès qu'un octet
+                                                                   n'était pas de l'UTF-8. #}
+                                                                {% if mark.renderedDetails is not null %}
                                                                     <details>
                                                                         <summary><strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v') }} — {{ mark.event.label }}</summary>
-                                                                        <pre>{{ mark.event.details|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
+                                                                        <pre>{{ mark.renderedDetails }}</pre>
                                                                     </details>
                                                                 {% else %}
                                                                     <strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v') }} — {{ mark.event.label }}

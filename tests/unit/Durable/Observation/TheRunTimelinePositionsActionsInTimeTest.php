@@ -175,6 +175,61 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
         self::assertSame('charge', $marks[1]->event->label);
     }
 
+    public function testASegmentSaysWhatItIsInWordsBothHostsShare(): void
+    {
+        // Une hachure sans légende est une devinette, et celui qui survole la barre est justement
+        // celui qui veut savoir. Que les deux surfaces le disent avec les mêmes mots n'est pas de
+        // la coquetterie : un exploitant qui passe de l'une à l'autre ne doit rien avoir à traduire.
+        $timeline = RunTimeline::of([
+            $this->event(1, '12:00:00.000', 'charge', actionKey: 'activity:act-1'),
+            $this->event(2, '12:00:20.000', 'charge', actionKey: 'activity:act-1', started: true),
+        ]);
+
+        $title = $timeline->actions[0]->segments[0]->title;
+        self::assertStringContainsString('waiting to be picked up', $title);
+        self::assertStringContainsString('20.0 s', $title);
+        self::assertStringContainsString('#1', $title);
+        self::assertStringContainsString('#2', $title);
+    }
+
+    public function testAWorkingIntervalDoesNotClaimToBeAWait(): void
+    {
+        $timeline = RunTimeline::of([
+            $this->event(1, '12:00:00.000', 'charge', actionKey: 'activity:act-1'),
+            $this->event(2, '12:00:01.000', 'charge', actionKey: 'activity:act-1'),
+        ]);
+
+        self::assertStringNotContainsString('waiting', $timeline->actions[0]->segments[0]->title);
+    }
+
+    public function testAMarkNamesItsRankItsMomentAndItsEvent(): void
+    {
+        $timeline = RunTimeline::of([
+            $this->event(1, '12:00:00.000', 'start'),
+            $this->event(2, '12:00:03.250', 'charge', actionKey: 'activity:act-1'),
+        ]);
+
+        $title = $timeline->actions[1]->events[0]->title;
+        self::assertStringContainsString('#2', $title);
+        self::assertStringContainsString('12:00:03.250', $title);
+        self::assertStringContainsString('charge', $title);
+    }
+
+    public function testWhatTheBackendRecordedIsRenderedOnceForEverySurface(): void
+    {
+        // Sylius passait la charge utile à `json_encode` sans tolérance et rendait un dépliant
+        // vide dès qu'un octet n'était pas de l'UTF-8. La mise en forme se décide ici, une fois.
+        $timeline = RunTimeline::of([
+            $this->event(1, '12:00:00.000', 'charge', actionKey: 'activity:act-1', details: ['orderId' => 'ORD-7']),
+            $this->event(2, '12:00:01.000', 'charge', actionKey: 'activity:act-1'),
+        ]);
+
+        $marks = $timeline->actions[0]->events;
+        self::assertIsString($marks[0]->renderedDetails);
+        self::assertStringContainsString('ORD-7', $marks[0]->renderedDetails);
+        self::assertNull($marks[1]->renderedDetails, 'rien d\'enregistré, rien à déplier');
+    }
+
     private function event(
         int $sequence,
         string $at,
@@ -183,13 +238,14 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
         ?string $actionKey = null,
         bool $started = false,
         bool $failed = false,
+        array $details = [],
     ): WorkflowRunEvent {
         return new WorkflowRunEvent(
             $sequence,
             new \DateTimeImmutable('2026-08-29 ' . $at, new \DateTimeZone('UTC')),
             $kind,
             $label,
-            [],
+            $details,
             $actionKey,
             $started,
             $failed,

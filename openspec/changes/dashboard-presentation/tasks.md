@@ -21,14 +21,19 @@
 - [x] 2.1 `RunDashboardView` builds on the promoted projection; its private `actions()` goes —
       fait avec 1.4 : la classe a été **déplacée**, pas recopiée, et laisser deux exemplaires dans
       l'arbre le temps d'une tranche aurait coûté plus que de recâbler trois lignes
-- [ ] 2.2 The detail panel positions actions in time and hatches a wait, which it does not do today
-- [ ] 2.3 An unrenderable detail degrades to a plain line, as Magento's already does — the Twig
-      `json_encode` has no partial-output tolerance
+- [x] 2.2 The detail panel positions actions in time and hatches a wait, which it does not do today
+- [x] 2.3 `RecordedDetails` dans le cœur : le gabarit Sylius appelait `json_encode` **sans**
+      tolérance et rendait un dépliant vide dès qu'un octet n'était pas de l'UTF-8. Mesuré avant
+      d'écrire, et le scénario corrigé avec : la sortie partielle ne rend **jamais** `false` — ni
+      sur un octet invalide, ni sur une ressource, ni sur six cents niveaux d'imbrication. La bonne
+      dégradation n'est donc pas la ligne simple mais la charge utile entière avec la seule valeur
+      fautive en `null`, ce qui est mieux que ce que la spec demandait. La garde `false` reste,
+      défensive
 - [x] 2.4 Un rendu **réel** du gabarit, et non une lecture de son texte : les autres assertions du
       dossier lisent le fichier, et aucune n'éprouvait `action.events` → `mark.event.label`. Une
       propriété mal nommée dans cette chaîne rend une page vide sur l'écran qu'on est venu regarder.
-      Vérifié par mutation. Reste à couvrir quand 2.2 arrivera : une attente et une charge utile
-      irrendable
+      Vérifié par mutation. Couvre depuis 2.2/2.3 une attente hachurée, le placement dans le temps
+      et une charge utile à l'octet invalide
 
 ## 3. Magento renders the projection instead of deriving its own
 
@@ -70,3 +75,15 @@ microseconde, run encore en cours) sont ceux que la §1.3 réclamait et qu'aucun
 Le troisième état de backend n'a coûté qu'un paramètre à défaut : `BackendHealth::$ephemeral`, à
 `false`. Les trois catalogues qui écrivent hors du processus — SQL, Illuminate, Temporal — n'ont rien
 à déclarer, seul `InMemoryWorkflowRunCatalog` passe `true`.
+
+## Notes de la tranche 2
+
+Deux choses sont montées dans la projection plutôt que d'être écrites deux fois : les **infobulles**
+(`TimelineSegment::$title`, `TimelineEvent::$title`) et la **mise en forme de la charge utile**
+(`TimelineEvent::$renderedDetails`). Magento les composait en PHP, Sylius ne les avait pas ; les
+laisser à l'hôte aurait fait diverger les mots que deux surfaces disent de la même seconde. Le fait
+brut reste sur `$event->details` pour une surface qui sert des données plutôt qu'une page.
+
+La règle « une attente de quatre millisecondes ne dessine pas plus large que six millisecondes de
+travail » est tenue par un `min-width` **uniforme** : sous le seuil les deux barres sont égales,
+jamais inversées. Elle vit chez l'hôte, avec les pourcentages, comme la §1.2 l'a décidé.

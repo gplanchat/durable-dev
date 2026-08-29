@@ -60,9 +60,47 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertStringNotContainsString('alert-success', $page);
     }
 
-    private function render(bool $ephemeral = false): string
+    public function testTheActionsArePlacedInTimeAndNotMerelyStacked(): void
     {
-        $catalog = new RenderingCatalog($ephemeral);
+        // Empiler des blocs répond « dans quel ordre », jamais « pendant combien de temps » — et la
+        // seconde est la question qu'un exploitant devant une exécution lente vient poser.
+        $page = $this->render();
+
+        self::assertStringContainsString('durable-frieze', $page);
+        // L'activité ouvre à 0 s et le signal tombe à 20 s sur une portée de 20 s : le repère du
+        // signal est donc tout à droite. Un étalement par rang l'aurait mis au milieu.
+        self::assertMatchesRegularExpression('/left: 100\.000%/', $page);
+    }
+
+    public function testWaitingToBePickedUpIsHatchedAndSaysSoOnHover(): void
+    {
+        $page = $this->render();
+
+        self::assertStringContainsString('waiting', $page);
+        self::assertStringContainsString('waiting to be picked up', $page, 'une hachure sans légende est une devinette');
+    }
+
+    public function testTheHatchingIsExplainedOnThePageAndNotOnlyOnHover(): void
+    {
+        // Survoler suppose de savoir qu'il y a quelque chose à survoler.
+        $page = $this->render();
+
+        self::assertStringContainsString('durable-frieze-key', $page);
+    }
+
+    public function testAPayloadWithABadByteStillUnfoldsOnWhatIsReadable(): void
+    {
+        // Sans tolérance, `json_encode` rendait `false` : le dépliant s'ouvrait sur du vide, et
+        // c'est l'écran qu'un exploitant ouvre en dernier recours.
+        $page = $this->render(badPayload: true);
+
+        self::assertStringContainsString('<details>', $page);
+        self::assertStringContainsString('ORD-7', $page);
+    }
+
+    private function render(bool $ephemeral = false, bool $badPayload = false): string
+    {
+        $catalog = new RenderingCatalog($ephemeral, $badPayload);
         $model = (new RunDashboard($catalog))->build();
 
         return $this->twig()->render('@DurablePlugin/admin/dashboard/index.html.twig', $model);
@@ -92,6 +130,7 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface
 {
     public function __construct(
         private readonly bool $ephemeral = false,
+        private readonly bool $badPayload = false,
     ) {}
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
@@ -113,12 +152,25 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface
                 new \DateTimeImmutable('@1700000000'),
                 WorkflowRunEventKind::Activity,
                 'SendWelcomeEmail',
-                ['payload' => ['customerId' => 'cus-42']],
+                $this->badPayload
+                    ? ['orderId' => 'ORD-7', 'blob' => "\xB1\x31"]
+                    : ['payload' => ['customerId' => 'cus-42']],
                 'activity:act-1',
             ),
+            // Prise en charge dix secondes après la planification : les dix premières secondes sont
+            // une file, pas du travail.
             new WorkflowRunEvent(
                 2,
                 new \DateTimeImmutable('@1700000010'),
+                WorkflowRunEventKind::Activity,
+                'SendWelcomeEmail',
+                [],
+                'activity:act-1',
+                started: true,
+            ),
+            new WorkflowRunEvent(
+                3,
+                new \DateTimeImmutable('@1700000020'),
                 WorkflowRunEventKind::Signal,
                 'orderApproved',
             ),

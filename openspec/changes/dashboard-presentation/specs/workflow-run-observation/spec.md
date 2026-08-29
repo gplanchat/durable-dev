@@ -126,22 +126,31 @@ be stated to the operator rather than left to be discovered by a run that will n
 - **THEN** the operator is told that older runs are beyond what this screen reads
 - **AND** the list does not offer a run it cannot open
 
-### Requirement: A recorded detail that cannot be rendered degrades on every surface
+### Requirement: One bad value does not take a recorded payload down with it
 
 What a backend recorded with an event is the backend's own vocabulary, and a journal CAN hold a
-payload that does not survive being rendered — a byte string that is not valid text, a value the
-surface's encoder rejects. A surface SHALL degrade to the line it would have shown without the
-detail, on every host.
+value that does not survive being rendered — a byte string that is not valid text, a handle, a
+structure deeper than the encoder walks. What surrounds that value is ordinary and is what the
+operator came for. A surface SHALL therefore show the payload it can render and present the value it
+cannot as absent, rather than losing the whole payload to it.
 
-An event whose detail cannot be rendered SHALL NOT prevent the rest of the history from being read.
-It is the event the operator came to look at that is most likely to hold the unusual payload.
+Every host SHALL degrade the same way. Where a payload cannot be rendered at all, the event SHALL be
+shown as a line without an expander — an expander that opens onto nothing sends the operator to open
+it again.
 
-#### Scenario: An unrenderable payload does not break the screen
+#### Scenario: A payload holding one bad value still opens
 
-- **WHEN** an operator opens a run in which one event carries a payload the surface cannot render
-- **THEN** the remaining events are shown with their details
-- **AND** the offending event is shown as a line, without an expander
+- **WHEN** an operator opens a run in which one event carries a payload holding a value the encoder
+  cannot represent
+- **THEN** the rest of that payload is shown
+- **AND** the value that could not be rendered is shown as absent
 - **AND** the screen is not replaced by an error
+
+#### Scenario: An event with nothing recorded offers nothing to open
+
+- **WHEN** an operator reads a history in which some events carry nothing
+- **THEN** those events are shown as plain lines
+- **AND** they offer no expander to open
 
 ## MODIFIED Requirements
 
