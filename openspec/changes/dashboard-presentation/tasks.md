@@ -78,9 +78,11 @@
 
 ## 6. Leave the decision behind
 
-- [ ] 6.1 An ADR: why the timeline projection lives in the component beside the observation model
-      rather than in each surface or in a shared dashboard package, with `ReadableDuration` as the
-      precedent it follows
+- [x] 6.1 `DUR048 — One projection, two chromes`, indexé dans `documentation/INDEX.md`. Il porte les
+      quatre défauts **mesurés** plutôt que supposés (la santé jamais sondée, le dépliant vide sur un
+      octet invalide, les deux heures du même événement sur une page, la frise sans aucun test) et
+      les quatre alternatives écartées — dont « promouvoir le modèle Sylius », qui aurait uniformisé
+      par le bas
 - [ ] 6.2 The documentation site's dashboard pages describe one dashboard with several chromes,
       rather than one per host
 

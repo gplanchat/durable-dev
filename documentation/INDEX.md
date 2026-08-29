@@ -64,6 +64,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR045 | Serving a Nexus operation: one worker, two shapes, and a refusal at startup | [adr/DUR045-serving-a-nexus-operation.md](adr/DUR045-serving-a-nexus-operation.md) |
 | DUR046 | Magento: a Tier 1 host, and the four things it changed about the core | [adr/DUR046-magento-a-tier-1-host-that-improved-the-core.md](adr/DUR046-magento-a-tier-1-host-that-improved-the-core.md) |
 | DUR047 | Laravel: a Tier 1 host that measured before it wired | [adr/DUR047-laravel-the-host-that-measured-before-it-wired.md](adr/DUR047-laravel-the-host-that-measured-before-it-wired.md) |
+| DUR048 | One projection, two chromes: presentation is decided beside the model | [adr/DUR048-one-projection-two-chromes.md](adr/DUR048-one-projection-two-chromes.md) |
 
 ## Working agreements (WA)
 
