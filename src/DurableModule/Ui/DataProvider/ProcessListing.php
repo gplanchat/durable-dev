@@ -22,17 +22,16 @@ use Magento\Ui\DataProvider\AbstractDataProvider;
  * deux ne se traduisent pas l'un dans l'autre sans état. Ce fournisseur lit donc une **fenêtre**
  * bornée et pagine dedans.
  *
- * ponytail: fenêtre de 200 exécutions. Au-delà, la grille dit la vérité sur ce qu'elle montre mais
- * ne montre pas tout. Le jour où ça gêne, la sortie est de mémoriser les curseurs par page dans la
- * session de l'administrateur — pas d'agrandir la fenêtre.
+ * La taille de cette fenêtre vit sur {@see RuntimeFactory::OBSERVATION_WINDOW}, et pas ici : l'écran
+ * de détail lit la même, et deux littéraux distincts rendaient possible d'être listé ici et
+ * introuvable là. Elle est **dite à l'exploitant** par la bannière au-dessus de la grille — une
+ * fenêtre bornée qui ne s'annonce pas se découvre par une exécution qui manque.
  */
 /*
  * Pas `final` : le conteneur l'instancie, donc il engendre un `Interceptor` qui l'étend.
  */
 class ProcessListing extends AbstractDataProvider
 {
-    private const WINDOW = 200;
-
     /** @var array<string, list<string>|string> */
     private array $filters = [];
 
@@ -53,7 +52,7 @@ class ProcessListing extends AbstractDataProvider
 
     public function getData(): array
     {
-        $runs = $this->runtimeFactory->catalog()->listRuns(limit: self::WINDOW)->runs;
+        $runs = $this->runtimeFactory->catalog()->listRuns(limit: RuntimeFactory::OBSERVATION_WINDOW)->runs;
 
         $runs = $this->applyFilters($runs);
 

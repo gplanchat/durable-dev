@@ -156,6 +156,7 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
         $timeline = RunTimeline::of([]);
 
         self::assertSame([], $timeline->actions);
+        self::assertSame([], $timeline->journal(), 'array_merge() sans argument, et non une erreur');
         self::assertSame(0.0, $timeline->span);
     }
 
@@ -228,6 +229,46 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
         self::assertIsString($marks[0]->renderedDetails);
         self::assertStringContainsString('ORD-7', $marks[0]->renderedDetails);
         self::assertNull($marks[1]->renderedDetails, 'rien d\'enregistré, rien à déplier');
+    }
+
+    public function testEveryRowOfTheJournalNamesItsActionAndNotItsEvent(): void
+    {
+        // Seule la planification connaît le nom de l'activité : ses suites ne portent qu'un numéro,
+        // et une surface en tableau affichait donc `ACTIVITY TASK STARTED` sur deux lignes sur
+        // trois, là où l'exploitant cherchait `charge`.
+        $timeline = RunTimeline::of([
+            $this->event(1, '12:00:00.000', 'charge', actionKey: 'activity:act-1'),
+            $this->event(2, '12:00:01.000', 'ActivityTaskStarted', actionKey: 'activity:act-1', started: true),
+        ]);
+
+        $rows = $timeline->journal();
+        self::assertSame(['charge', 'charge'], array_map(static fn($row): string => $row->actionLabel, $rows));
+        self::assertSame(['charge', 'ActivityTaskStarted'], array_map(static fn($row): string => $row->event->label, $rows));
+    }
+
+    public function testAnEventThatIsItsOwnActionNamesItself(): void
+    {
+        // Laisser la case vide ferait croire à un trou ; répéter son libellé dans les deux colonnes
+        // n'apprend rien, mais c'est la vérité et non un trou.
+        $timeline = RunTimeline::of([
+            $this->event(1, '12:00:00.000', 'orderApproved', kind: WorkflowRunEventKind::Signal),
+        ]);
+
+        self::assertSame('orderApproved', $timeline->journal()[0]->actionLabel);
+    }
+
+    public function testTheJournalComesBackInRecordedOrderAndNotGroupedByAction(): void
+    {
+        // La frise groupe pour répondre « combien de temps » ; le journal déroule pour répondre
+        // « dans quel ordre ». Rendre le second dans l'ordre du premier ferait mentir l'ordre, qui
+        // est ce qu'un exploitant vient lire en premier.
+        $timeline = RunTimeline::of([
+            $this->event(1, '12:00:00.000', 'charge', actionKey: 'activity:act-1'),
+            $this->event(2, '12:00:01.000', 'orderApproved', kind: WorkflowRunEventKind::Signal),
+            $this->event(3, '12:00:02.000', 'charge', actionKey: 'activity:act-1'),
+        ]);
+
+        self::assertSame([1, 2, 3], array_map(static fn($row): int => $row->event->sequence, $timeline->journal()));
     }
 
     private function event(

@@ -4,7 +4,7 @@
  * @var \Magento\Framework\Escaper $escaper
  */
 $run = $block->getRun();
-$events = $block->getEvents();
+$timeline = $block->getTimeline();
 ?>
 <div class="page-actions">
     <a class="action-default" href="<?= $escaper->escapeUrl($block->getBackUrl()) ?>">
@@ -32,8 +32,7 @@ $events = $block->getEvents();
         </table>
     </div>
 
-    <?php $timeline = $block->getTimeline(); ?>
-    <?php if ($timeline !== null): ?>
+    <?php if ($timeline->actions !== []): ?>
         <div class="admin__page-section">
             <div class="admin__page-section-title">
                 <span class="title"><?= $escaper->escapeHtml(__('Timeline')) ?></span>
@@ -45,6 +44,9 @@ $events = $block->getEvents();
                 .durable-frieze-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .3rem; }
                 .durable-frieze-name { flex: 0 0 16rem; text-align: right; font-size: 1.2rem; color: #303030; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                 .durable-frieze-track { position: relative; flex: 1 1 auto; height: 1.8rem; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: .3rem; }
+                /* `min-width` uniforme, et c'est ce qui tient la règle : quatre millisecondes de
+                   file ne doivent pas dessiner plus large que six millisecondes de travail. Un
+                   minimum appliqué aux deux les rend égales sous le seuil, jamais inversées. */
                 .durable-frieze-bar { position: absolute; top: .4rem; height: 1rem; min-width: .2rem; border-radius: .5rem; opacity: .35; background: #007bdb; }
                 .durable-frieze-mark { position: absolute; top: .55rem; width: .7rem; height: .7rem; margin-left: -.35rem; border-radius: 50%; background: #007bdb; }
                 .durable-frieze-bar.execution, .durable-frieze-mark.execution { background: #514943; }
@@ -73,28 +75,28 @@ $events = $block->getEvents();
                 .durable-frieze-key .durable-frieze-bar { position: static; top: auto; flex: 0 0 3rem; }
             </style>
             <div class="durable-frieze">
-                <?php foreach ($timeline['actions'] as $action): ?>
+                <?php foreach ($timeline->actions as $action): ?>
                     <div class="durable-frieze-row">
-                        <span class="durable-frieze-name" title="<?= $escaper->escapeHtmlAttr($action['label']) ?>"><?= $escaper->escapeHtml($action['label']) ?></span>
+                        <span class="durable-frieze-name" title="<?= $escaper->escapeHtmlAttr($action->label) ?>"><?= $escaper->escapeHtml($action->label) ?></span>
                         <div class="durable-frieze-track">
                             <?php /* Un segment par intervalle : survoler la longue portion nomme l'attente. */ ?>
-                            <?php foreach ($action['segments'] as $segment): ?>
-                                <span class="durable-frieze-bar <?= $escaper->escapeHtmlAttr($action['kind']) ?><?= $segment['waiting'] ? ' waiting' : '' ?><?= $segment['failed'] ? ' failed' : '' ?>"
-                                      style="left: <?= $escaper->escapeHtmlAttr(number_format($segment['from'], 3, '.', '')) ?>%; width: <?= $escaper->escapeHtmlAttr(number_format($segment['width'], 3, '.', '')) ?>%"
-                                      title="<?= $escaper->escapeHtmlAttr($segment['title']) ?>"></span>
+                            <?php foreach ($action->segments as $segment): ?>
+                                <span class="durable-frieze-bar <?= $escaper->escapeHtmlAttr($action->kind->value) ?><?= $segment->waiting ? ' waiting' : '' ?><?= $segment->failed ? ' failed' : '' ?>"
+                                      style="left: <?= $escaper->escapeHtmlAttr($block->scale($segment->offset)) ?>%; width: <?= $escaper->escapeHtmlAttr($block->scale($segment->duration)) ?>%"
+                                      title="<?= $escaper->escapeHtmlAttr($segment->title) ?>"></span>
                             <?php endforeach; ?>
-                            <?php foreach ($action['marks'] as $mark): ?>
-                                <span class="durable-frieze-mark <?= $escaper->escapeHtmlAttr($action['kind']) ?><?= $mark['failed'] ? ' failed' : '' ?>"
-                                      style="left: <?= $escaper->escapeHtmlAttr(number_format($mark['at'], 3, '.', '')) ?>%"
-                                      title="<?= $escaper->escapeHtmlAttr($mark['title']) ?>"></span>
+                            <?php foreach ($action->events as $mark): ?>
+                                <span class="durable-frieze-mark <?= $escaper->escapeHtmlAttr($action->kind->value) ?><?= $mark->event->failed ? ' failed' : '' ?>"
+                                      style="left: <?= $escaper->escapeHtmlAttr($block->scale($mark->offset)) ?>%"
+                                      title="<?= $escaper->escapeHtmlAttr($mark->title) ?>"></span>
                             <?php endforeach; ?>
                         </div>
-                        <span class="durable-frieze-took"><?= $escaper->escapeHtml($action['duration']) ?></span>
+                        <span class="durable-frieze-took"><?= $escaper->escapeHtml($action->durationLabel) ?></span>
                     </div>
                 <?php endforeach; ?>
                 <div class="durable-frieze-scale">
                     <span>0</span>
-                    <span><?= $escaper->escapeHtml($timeline['span']) ?></span>
+                    <span><?= $escaper->escapeHtml($timeline->spanLabel) ?></span>
                 </div>
                 <?php /* Une hachure sans légende est une devinette. */ ?>
                 <div class="durable-frieze-key">
@@ -113,7 +115,8 @@ $events = $block->getEvents();
         <div class="admin__page-section-title">
             <span class="title"><?= $escaper->escapeHtml(__('Journal')) ?></span>
         </div>
-        <?php if ($events === []): ?>
+        <?php $journal = $timeline->journal(); ?>
+        <?php if ($journal === []): ?>
             <div class="message message-notice">
                 <span><?= $escaper->escapeHtml(__('This execution has no recorded event yet.')) ?></span>
             </div>
@@ -129,24 +132,25 @@ $events = $block->getEvents();
                     </tr>
                 </thead>
                 <tbody>
-                <?php foreach ($events as $event): ?>
+                <?php foreach ($journal as $row): ?>
+                    <?php $event = $row->event; ?>
                     <tr<?= $event->failed ? ' class="durable-journal-failed"' : '' ?>>
                         <td><?= (int) $event->sequence ?></td>
                         <td><?= $escaper->escapeHtml($event->recordedAt->format('Y-m-d H:i:s')) ?></td>
                         <td><?= $escaper->escapeHtml($event->kind->value) ?></td>
                         <?php /* Le nom de l'action, pas celui de l'événement : les suites d'une
-                                activité ne portent qu'un numéro, et l'exploitant cherche le nom. */ ?>
-                        <td><?= $escaper->escapeHtml($block->actionLabel($event)) ?></td>
+                                activité ne portent qu'un numéro, et l'exploitant cherche le nom.
+                                C'est la même chaîne que le libellé de la ligne de frise. */ ?>
+                        <td><?= $escaper->escapeHtml($row->actionLabel) ?></td>
                         <td>
-                            <?php $details = $block->formatDetails($event); ?>
-                            <?php if ($details === null): ?>
+                            <?php if ($row->renderedDetails === null): ?>
                                 <?= $escaper->escapeHtml($event->label) ?>
                             <?php else: ?>
                                 <?php /* `<details>` natif : le navigateur sait replier, et un écran
                                         d'exploitation n'a pas besoin d'un composant pour ça. */ ?>
                                 <details>
                                     <summary style="cursor: pointer;"><?= $escaper->escapeHtml($event->label) ?></summary>
-                                    <pre style="margin: .5rem 0 0; white-space: pre-wrap; word-break: break-word;"><?= $escaper->escapeHtml($details) ?></pre>
+                                    <pre style="margin: .5rem 0 0; white-space: pre-wrap; word-break: break-word;"><?= $escaper->escapeHtml($row->renderedDetails) ?></pre>
                                 </details>
                             <?php endif; ?>
                         </td>

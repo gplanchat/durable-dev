@@ -37,19 +37,27 @@
 
 ## 3. Magento renders the projection instead of deriving its own
 
-- [ ] 3.1 `ProcessDetail` consumes the promoted projection. Ce qui doit **disparaître**, et pas
+- [x] 3.1 `ProcessDetail` consumes the promoted projection. Ce qui doit **disparaître**, et pas
       seulement cohabiter : `getTimeline()`, `segments()`, `scale()`, la composition des infobulles
       de segment et de repère (doublon de `TimelineSegment::$title` / `TimelineEvent::$title`) et
       `formatDetails()` (doublon de `RecordedDetails::of()`). Les laisser côte à côte remettrait
       exactement la divergence que la tranche 1 est allée chercher
-- [ ] 3.2 The listing reports backend health, which it never probes today
-- [ ] 3.3 The listing shows counters over the page it displays
-- [ ] 3.4 The window ceiling is stated on screen, and the detail screen resolves a run without
-      re-scanning a second, differently sized window
+- [x] 3.2 The listing reports backend health, which it never probes today
+- [x] 3.3 Les compteurs portent sur **la fenêtre que l'écran lit**, et le disent. Pas « la page » :
+      la grille de Magento pagine par décalage *dans* cette fenêtre, donc l'ensemble que
+      l'exploitant parcourt est la fenêtre, pas la page courante. La décision de l'auteur — portée
+      assumée et nommée — vaut pour les deux ; c'est la portée qui diffère, parce que la pagination
+      diffère. `RunDashboard::outcomeCounters()` devient publique : compter à la main chez l'hôte
+      recreuserait le trou d'un seau oublié
+- [x] 3.4 Le plafond est annoncé dès que la fenêtre est pleine, et la fenêtre est **une seule
+      constante** — `RuntimeFactory::OBSERVATION_WINDOW`. Elles étaient deux littéraux de même
+      valeur, ce qui rendait possible d'être listé d'un côté et introuvable de l'autre au premier
+      qui bougerait
 
 ## 4. Counters and absences say what they mean
 
-- [ ] 4.1 The `Total` heading becomes a heading that names the page, on both surfaces
+- [ ] 4.1 The `Total` heading becomes a heading that names the page — fait côté Magento avec la
+      §3.3, reste Sylius
 - [ ] 4.2 A fact absent for this run renders as an em dash where columns are fixed; a fact the
       backend has no notion of still shows no column at all
 
@@ -98,3 +106,22 @@ machine à Paris, le même événement se lisait 22:13:20 au survol et 23:13:20 
 dessous — dans une page dont toute la raison d'être est qu'un exploitant n'ait rien à convertir de
 tête. `date(..., false)` garde le fuseau de la date. Le test tourne sous `Europe/Paris` : sous UTC,
 la divergence est invisible, et c'est sous UTC que tourne la CI.
+
+## Notes de la tranche 3
+
+Ce qui a **disparu** de `ProcessDetail`, et c'était le but : `getTimeline()`, `segments()`,
+`getEvents()`, `actionLabel()`, `formatDetails()`, et les deux compositions d'infobulle. Reste
+`scale()` — des secondes vers un pourcentage de piste — qui appartient bien à l'hôte : mettre à
+l'échelle demande de connaître une largeur de colonne. `RuntimeFactory::hasCluster()` part aussi :
+l'éphémérité vient du port, c'est le catalogue in-memory qui sait qu'il l'est, pas l'hôte qui le
+devine à l'absence d'un DSN.
+
+⚠ **Aucun outil de la CI n'analyse un `.phtml`.** PHPStan et Psalm tournent contre les vraies classes
+de Magento dans le job qui installe la distribution, mais les gabarits leur échappent — et ces deux-là
+venaient d'être réécrits sur une API d'objets là où ils lisaient des tableaux. Deux tests de rendu
+les couvrent désormais, avec un double de bloc et un `__()` global ; ils ne demandent ni Magento ni
+base, donc ils tournent dans la suite ordinaire. Vérifié par mutation.
+
+Deux appels à `listRuns()` par affichage de la grille — la bannière compte, le fournisseur liste.
+Assumé et commenté : l'alternative serait un couplage entre la bannière et le fournisseur de la
+grille, ou un cache de requête autour du catalogue. Le second est la sortie si ça pèse.

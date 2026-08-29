@@ -3,11 +3,70 @@
  * @var \Gplanchat\DurableModule\Block\Adminhtml\ProcessHistory $block
  * @var \Magento\Framework\Escaper $escaper
  */
+$health = $block->getHealth();
 ?>
-<?php if ($block->isEphemeral()): ?>
+<?php if (!$block->isReachable()): ?>
+    <?php /* Une grille vide sous une grappe morte apprend à l'exploitant qu'il n'y a rien à voir.
+             Le backend est nommé pour qu'il sache quoi aller rallumer, et daté pour qu'il sache de
+             quand date la réponse. */ ?>
+    <div class="message message-error">
+        <span><?= $escaper->escapeHtml($health->message) ?></span>
+        <span><?= $escaper->escapeHtml(__(
+            '%1 · checked at %2',
+            $health->backend,
+            $health->checkedAt->format('Y-m-d H:i:s')
+        )) ?></span>
+    </div>
+<?php elseif ($block->isEphemeral()): ?>
+    <?php /* Le troisième état : il répond, et sa réponse est vide par construction. Ni une panne,
+             ni un fonctionnement dont il n'y aurait rien à dire. */ ?>
     <div class="message message-warning">
         <span><?= $escaper->escapeHtml(__(
             'No Temporal DSN is configured, so the journal lives in the process that writes it — and this admin request opened a fresh one. An empty list here is the correct answer, not a failure. Set durable/temporal/dsn in app/etc/env.php to read the cluster.'
         )) ?></span>
     </div>
+<?php else: ?>
+    <div class="message message-notice">
+        <span><?= $escaper->escapeHtml(__(
+            '%1 answers · checked at %2',
+            $health->backend,
+            $health->checkedAt->format('Y-m-d H:i:s')
+        )) ?></span>
+    </div>
+<?php endif; ?>
+
+<?php if ($block->isReachable()): ?>
+    <?php $counters = $block->getCounters(); ?>
+    <div class="admin__page-section">
+        <?php /* La portée est dite : ces compteurs couvrent ce que cet écran lit, pas l'historique
+                 de la boutique. Un « total » sous lequel on lit vingt ferait croire qu'une boutique
+                 qui a enregistré cinq cents exécutions en a vingt. */ ?>
+        <div class="admin__page-section-title">
+            <span class="title"><?= $escaper->escapeHtml(__(
+                'Outcomes across the %1 most recent runs this screen reads',
+                $block->getWindow()
+            )) ?></span>
+        </div>
+        <table class="admin__table-secondary">
+            <tr>
+                <?php foreach ($counters as $outcome => $count): ?>
+                    <th><?= $escaper->escapeHtml(ucfirst(str_replace('_', ' ', (string) $outcome))) ?></th>
+                <?php endforeach; ?>
+            </tr>
+            <tr>
+                <?php foreach ($counters as $count): ?>
+                    <td><?= (int) $count ?></td>
+                <?php endforeach; ?>
+            </tr>
+        </table>
+    </div>
+    <?php if ($counters['total'] >= $block->getWindow()): ?>
+        <?php /* Une fenêtre bornée qui ne s'annonce pas se découvre par une exécution qui manque. */ ?>
+        <div class="message message-notice">
+            <span><?= $escaper->escapeHtml(__(
+                'This screen reads the %1 most recent runs. Older ones are beyond what it can list or open.',
+                $block->getWindow()
+            )) ?></span>
+        </div>
+    <?php endif; ?>
 <?php endif; ?>

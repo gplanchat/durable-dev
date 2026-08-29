@@ -73,6 +73,21 @@ class RuntimeFactory
      */
     private const TEMPORAL_DSN_CONFIG_PATH = 'durable/temporal/dsn';
 
+    /**
+     * Combien d'exécutions les écrans d'administration lisent d'un coup.
+     *
+     * ⚠ **Une seule fenêtre, pour la grille comme pour le détail.** Elles étaient deux littéraux
+     * distincts, et deux fenêtres de tailles différentes rendent possible d'être listé d'un côté et
+     * introuvable de l'autre — un lien qui mène à « exécution inconnue » depuis la ligne qui vient
+     * de la nommer.
+     *
+     * ponytail: fenêtre bornée parce que la grille pagine par décalage et le backend par curseur de
+     * continuation, et que les deux ne se traduisent pas sans état. Le jour où ça gêne, la sortie
+     * est de mémoriser les curseurs par page dans la session de l'administrateur — pas d'agrandir
+     * la fenêtre.
+     */
+    public const OBSERVATION_WINDOW = 200;
+
     public function __construct(
         private readonly array $workflowClasses = [],
         private readonly array $activityHandlers = [],
@@ -275,14 +290,6 @@ class RuntimeFactory
         }
 
         return $settings;
-    }
-
-    /**
-     * Le journal de cet hôte vit-il dans une grappe ?
-     */
-    public function hasCluster(): bool
-    {
-        return $this->temporalSettings() !== null;
     }
 
     /**
