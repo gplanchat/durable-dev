@@ -367,7 +367,8 @@
       <p style="font-size: calc(21px * var(--ts, 1)); line-height: 1.6; color: var(--fg2, #6c6459); margin: 0 0 36px; max-width: none; white-space: nowrap;" data-heroline>Exécution durable pour PHP : une méthode, reprise par rejeu.</p>
       <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px;">
         <a href="#install" style="text-decoration: none; display: inline-block; background: var(--accent, #b4552f); color: var(--accent-fg, #fff); font-weight: 600; font-size: 15.5px; padding: 15px 26px; border-radius: 4px;" style-hover="filter: brightness(1.08);">Commencer</a>
-        <a href="https://github.com/gplanchat/durable-skill" style="text-decoration: none; display: inline-block; border: 1px solid var(--line, #ddd6ca); font-weight: 500; font-size: 15.5px; padding: 14px 26px; border-radius: 4px; color: var(--fg, #1d1a16);" style-hover="border-color: var(--accent, #b4552f); color: var(--accent, #b4552f);">Installer le skill IA</a>
+        <a href="#install" style="text-decoration: none; display: inline-block; border: 1px solid var(--line, #ddd6ca); font-weight: 500; font-size: 15.5px; padding: 14px 26px; border-radius: 4px; color: var(--fg, #1d1a16);" style-hover="border-color: var(--accent, #b4552f); color: var(--accent, #b4552f);">Installer maintenant</a>
+        <a href="#install-skill" style="text-decoration: none; display: inline-block; border: 1px solid var(--line, #ddd6ca); font-weight: 500; font-size: 15.5px; padding: 14px 26px; border-radius: 4px; color: var(--fg, #1d1a16);" style-hover="border-color: var(--accent, #b4552f); color: var(--accent, #b4552f);">Installer le skill IA</a>
       </div>
     </div>
   </section>
@@ -986,18 +987,33 @@ final class Billing implements BillingServed
         <a href="https://durable.rocks/docs" style="text-decoration: none; background: var(--accent, #b4552f); color: var(--accent-fg, #fff); font-weight: 600; font-size: 15.5px; padding: 15px 26px; border-radius: 4px;" style-hover="filter: brightness(1.08);">Documentation</a>
         <a href="https://github.com/gplanchat/durable" style="text-decoration: none; border: 1px solid var(--line, #ddd6ca); font-weight: 500; font-size: 15.5px; padding: 14px 26px; border-radius: 4px;" style-hover="border-color: var(--accent, #b4552f); color: var(--accent, #b4552f);">Le code sur GitHub</a>
       </div>
-      <div style="margin-top: 34px; border: 1px solid var(--line, #ddd6ca); border-radius: 4px; background: var(--bg, #f7f4ef); text-align: left;">
-        <div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line, #ddd6ca);">
-          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg2, #6c6459);">L'écrire avec un agent</span>
-          <span style="font-size: 14px; color: var(--fg2, #6c6459);">Un skill Claude Code, deux lignes à installer.</span>
+      <div id="install-skill" style="max-width: 980px; margin: 48px auto 0; text-align: left;">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 34px;">
+          <span style="flex: 1; height: 1px; background: var(--line, #ddd6ca);"></span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg2, #6c6459);">ou ne le tapez pas vous-même</span>
+          <span style="flex: 1; height: 1px; background: var(--line, #ddd6ca);"></span>
         </div>
-        <div style="padding: 14px 18px 4px;">
-          <div style="display: flex; gap: 12px; align-items: baseline;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 14.5px; color: var(--accent, #b4552f); flex: none;">/</span><code style="flex: 1 1 auto; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: 14.5px; color: var(--fg, #1d1a16);">plugin marketplace add gplanchat/durable-skill</code></div>
-          <div style="display: flex; gap: 12px; align-items: baseline; margin-top: 8px;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 14.5px; color: var(--accent, #b4552f); flex: none;">/</span><code style="flex: 1 1 auto; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: 14.5px; color: var(--fg, #1d1a16);">plugin install durable@durable-skill</code></div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 36px; align-items: start;">
+          <div>
+            <h3 style="font-family: 'Newsreader', serif; font-weight: 400; font-size: calc(27px * var(--ts, 1)); line-height: 1.2; letter-spacing: -0.015em; margin: 0 0 12px; text-wrap: balance;">Installez plutôt la skill, et laissez l’agent écrire le workflow</h3>
+            <p style="font-size: calc(16.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459); font-size: calc(16px * var(--ts, 1)); margin: 0 0 20px;">Deux commandes dans Claude Code. Elle enseigne les trois formes — classe de workflow, contrat d’activité et son handler, contrat Nexus —, la règle de déterminisme qu’un corps rejoué doit respecter, et une migration Rector pour le code déjà écrit : elle réécrit ce qu’elle peut et refuse d’en deviner cinq choses.</p>
+            <div><a href="https://github.com/gplanchat/durable-skill" style="text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent, #b4552f); border-bottom: 1px solid var(--line, #ddd6ca); padding-bottom: 3px;" style-hover="border-bottom-color: var(--accent, #b4552f);">gplanchat/durable-skill →</a></div>
+          </div>
+          <div>
+        <div data-skill-panel style="border: 1px dashed var(--line, #ddd6ca); border-radius: 6px; padding: 18px 20px; display: grid; gap: 10px;">
+          <div style="display: flex; gap: 10px; align-items: baseline; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.5;"><span style="color: var(--fg2, #6c6459); user-select: none;">$</span><span style="color: var(--fg, #2c2822); overflow-wrap: anywhere;">/plugin marketplace add gplanchat/durable-skill</span></div>
+          <div style="display: flex; gap: 10px; align-items: baseline; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.5;"><span style="color: var(--fg2, #6c6459); user-select: none;">$</span><span style="color: var(--fg, #2c2822); overflow-wrap: anywhere;">/plugin install durable@durable-skill</span></div>
         </div>
-        <div style="padding: 13px 18px; margin-top: 10px; border-top: 1px solid var(--line, #ddd6ca);">
-          <p style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.55; color: var(--fg2, #6c6459);">Il enseigne les trois formes — workflow, contrat d'activité, contrat Nexus — et les pièges qui coûtent un incident : un nom d'activité écrit en chaîne, un minuteur sans résumé, un paramètre Nexus renommé d'un seul côté.</p>
-          <a href="https://github.com/gplanchat/durable-skill" style="display: inline-block; margin-top: 12px; text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--accent, #b4552f); border-bottom: 1px solid var(--line, #ddd6ca); padding-bottom: 2px;" style-hover="border-color: var(--accent, #b4552f);">Ce que porte le skill, et comment l'installer à la main →</a>
+            <div data-skill-traps style="margin: 22px 0 0;">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg2, #6c6459);">Quatre erreurs silencieuses qu’elle ne commet pas</span>
+              <ul style="margin: 12px 0 0; padding: 0 0 0 18px; font-size: calc(14.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459);">
+                <li>un nom d’activité écrit en chaîne littérale, au lieu d’être lu sur l’attribut de son contrat</li>
+                <li>un timer sans résumé, introuvable parmi dix mille exécutions</li>
+                <li>un paramètre Nexus renommé d’un seul côté — la charge est indexée par nom, donc l’autre reçoit null sans un bruit</li>
+                <li>une exécution lancée en ligne dans une requête web, qui meurt avec elle</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
     </div>
