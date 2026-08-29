@@ -1,14 +1,19 @@
 ## 1. The projection moves to the component
 
-- [ ] 1.1 A timeline projection beside the observation model: actions grouped by `actionKey`, each
-      positioned in the run's span, one segment per interval between consecutive events, a segment
-      marked as a wait when the event that closes it starts the work, a mark per event. It is
-      Magento's `ProcessDetail::getTimeline()` — the richer of the two — moved, not rewritten
-- [ ] 1.2 Its unit tests move with it, plus the three cases neither surface covers today: a single
+- [ ] 1.1 A timeline projection beside the observation model: actions grouped by `actionKey`, one
+      segment per interval between consecutive events, a segment marked as a wait when the event
+      that closes it starts the work, a mark per event. It is Magento's
+      `ProcessDetail::getTimeline()` — the richer of the two — moved
+- [ ] 1.2 **Not moved as-is: the percentages.** `scale()` returns 0–100 floats, which is a drawing,
+      and the component would then be emitting CSS widths to a surface that renders no CSS. The
+      projection carries an offset from the run's first event and a length, both in seconds; each
+      host scales them, and the rule that a four-millisecond wait does not draw wider than six
+      milliseconds of work binds whoever scales
+- [ ] 1.3 Its unit tests move with it, plus the three cases neither surface covers today: a single
       event action, a run whose events all fall in the same microsecond, and a run still going
-- [ ] 1.3 A run-list projection beside it: description, outcome counters over the page, paging state
+- [ ] 1.4 A run-list projection beside it: description, outcome counters over the page, paging state
       and the backend state — `RunDashboardView` minus everything Sylius-shaped, which is nothing
-- [ ] 1.4 The backend state becomes three cases rather than a boolean; the ephemeral case carries
+- [ ] 1.5 The backend state becomes three cases rather than a boolean; the ephemeral case carries
       what to configure, without the host having to word it
 
 ## 2. Sylius renders the projection instead of deriving its own

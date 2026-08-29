@@ -17,10 +17,17 @@ How a panel is drawn is the host's business. A surface with no markup at all SHA
 the same panels as structured data, so the contract SHALL NOT require a layout, a stylesheet or a
 templating language.
 
-Positioning, grouping into actions, telling a queue apart from work, and saying how long something
-took are **not** the host's business. They are decided once, from the recorded history, and every
-surface SHALL render that same result — otherwise the same run reads as two different runs to an
-operator who works on two applications of the same house.
+Grouping events into actions, ordering them, telling a queue interval apart from a working one, and
+saying how long something took are **not** the host's business. They are decided once, from the
+recorded history, and every surface SHALL render that same result — otherwise the same run reads as
+two different runs to an operator who works on two applications of the same house.
+
+What is decided once SHALL be expressed as **times and durations**, not as a drawing: an offset from
+the run's first recorded event and a length, in seconds. Turning those into a width, a column or a
+row is the host's business, and a surface that draws nothing at all SHALL still be able to use them.
+The rule that a very short interval is not exaggerated to make it visible therefore binds whoever
+turns a duration into a length, and does not oblige the shared projection to know about lengths at
+all.
 
 #### Scenario: The same run reads the same on two hosts
 
@@ -137,6 +144,40 @@ It is the event the operator came to look at that is most likely to hold the unu
 - **AND** the screen is not replaced by an error
 
 ## MODIFIED Requirements
+
+### Requirement: A run stays describable after it ends badly
+
+A run SHALL remain describable — named, dated, and carrying its outcome — after it has failed,
+after it has been cancelled, and after it has continued as new. Its description SHALL NOT depend on
+records that the end of the run removes.
+
+#### Scenario: A failed run is named
+
+- **WHEN** a workflow fails on a DBAL-backed application
+- **AND** an operator opens the dashboard
+- **THEN** the run appears with the name of the workflow that failed
+- **AND** its status reads as failed
+
+#### Scenario: A cancelled run is named
+
+- **WHEN** a workflow is cancelled on a DBAL-backed application
+- **AND** an operator opens the dashboard
+- **THEN** the run appears with the name of the workflow that was cancelled
+- **AND** its status distinguishes cancellation from failure
+
+#### Scenario: A run that continued as new leaves both runs visible
+
+- **WHEN** a workflow continues as new on a DBAL-backed application
+- **THEN** the run that ended and the run that took over both appear in the list
+- **AND** the run that ended is not reported as failed
+- **AND** on a backend that does not record the link between them, they appear as two independent
+  runs rather than one presented as a continuation of the other
+
+#### Scenario: Filtering by status finds the failures
+
+- **WHEN** an operator filters the run list by failed status
+- **THEN** the list shows the runs that failed and no others
+
 
 ### Requirement: A fact a backend does not have is shown as absent
 
