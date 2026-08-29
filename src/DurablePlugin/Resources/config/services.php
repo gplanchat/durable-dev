@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use Gplanchat\Durable\Observation\RunDashboard;
 use Gplanchat\Durable\Plugin\Controller\AdminDashboardController;
-use Gplanchat\Durable\Plugin\Dashboard\RunDashboardView;
 use Gplanchat\Durable\Plugin\EventListener\AdminMenuListener;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
@@ -16,7 +16,7 @@ return static function (ContainerConfigurator $container): void {
     // Le catalogue est absent quand aucun backend n'est lisible : le bundle n'en enregistre alors
     // aucun, et la page doit le dire plutôt que d'échouer au montage.
     $services
-        ->set(RunDashboardView::class)
+        ->set(RunDashboard::class)
         ->arg('$catalog', service(WorkflowRunCatalogInterface::class)->nullOnInvalid())
     ;
 

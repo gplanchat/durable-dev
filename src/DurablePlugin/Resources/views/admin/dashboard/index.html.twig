@@ -41,7 +41,10 @@
                     <p class="text-secondary mb-0">Observe workflow runs, outcomes and recorded history from the Sylius back-office.</p>
                 </div>
 
-                <div class="alert {% if backend.available %}alert-success{% else %}alert-warning{% endif %}" role="alert">
+                {# Trois états, pas deux : sans backend lisible, injoignable, ou joignable dont le
+                   journal ne survit pas à la requête. Le troisième répond, et sa réponse est vide —
+                   le peindre en succès apprendrait que rien n'a tourné, ce qui est faux. #}
+                <div class="alert {% if not backend.available %}alert-warning{% elseif backend.ephemeral %}alert-info{% else %}alert-success{% endif %}" role="alert">
                     <div>{{ backend.message }}</div>
                     {# Le backend n'est nommé que s'il y en a un : sans catalogue, nommer un serveur
                        enverrait l'exploitant sur une fausse piste. #}
@@ -139,27 +142,28 @@
                                         <p><strong>Run:</strong> <code>{{ selectedRun.runId }}</code></p>
                                         <p><strong>Outcome:</strong> {{ selectedRun.status|replace({'_': ' '})|upper }}</p>
 
-                                        {% if selectedRun.actions is empty %}
+                                        {% if selectedRun.timeline.actions is empty %}
                                             <p class="text-secondary mb-0">No recorded history for this run.</p>
                                         {% else %}
                                             {# Un bloc par action, pas par nature : une activité planifiée, démarrée puis
                                                terminée est une action et trois événements, et c'est sa durée que l'exploitant
-                                               vient lire. La bordure garde la couleur de la nature de l'action. #}
-                                            {% for lane in selectedRun.actions %}
-                                                <div class="durable-lane {{ lane.kind }}">
-                                                    <h4 class="h5 mb-2">{{ lane.label }} <small class="text-secondary">{{ lane.took }}</small></h4>
+                                               vient lire. Le groupement, les durées et la distinction file/travail viennent
+                                               du cœur — cette page les rend, elle ne les calcule pas. #}
+                                            {% for action in selectedRun.timeline.actions %}
+                                                <div class="durable-lane {{ action.kind.value }}">
+                                                    <h4 class="h5 mb-2">{{ action.label }} <small class="text-secondary">{{ action.durationLabel }}</small></h4>
                                                     <ul class="durable-events">
-                                                        {% for event in lane.events %}
-                                                            {# Un événement dont le backend n'a rien enregistré n'a pas de dépliant : le
-                                                               modèle de vue ne pose la clé que lorsqu'il y a de quoi l'ouvrir. #}
-                                                            <li{% if event.failed %} class="durable-failed"{% endif %}>
-                                                                {% if event.details is defined %}
+                                                        {% for mark in action.events %}
+                                                            {# Un événement dont le backend n'a rien enregistré garde une ligne simple :
+                                                               un dépliant qui s'ouvre sur du vide se rouvre à chaque fois. #}
+                                                            <li{% if mark.event.failed %} class="durable-failed"{% endif %}>
+                                                                {% if mark.event.details is not empty %}
                                                                     <details>
-                                                                        <summary><strong>#{{ event.sequence }}</strong> {{ event.recordedAt|date('H:i:s.v') }} — {{ event.label }}</summary>
-                                                                        <pre>{{ event.details|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
+                                                                        <summary><strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v') }} — {{ mark.event.label }}</summary>
+                                                                        <pre>{{ mark.event.details|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
                                                                     </details>
                                                                 {% else %}
-                                                                    <strong>#{{ event.sequence }}</strong> {{ event.recordedAt|date('H:i:s.v') }} — {{ event.label }}
+                                                                    <strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v') }} — {{ mark.event.label }}
                                                                 {% endif %}
                                                             </li>
                                                         {% endfor %}

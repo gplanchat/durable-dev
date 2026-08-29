@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Plugin\Tests\Unit;
+namespace unit\Gplanchat\Durable\Observation;
 
 use Gplanchat\Durable\Observation\BackendHealth;
+use Gplanchat\Durable\Observation\RunDashboard;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunEventKind;
 use Gplanchat\Durable\Observation\WorkflowRunPage;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
-use Gplanchat\Durable\Plugin\Dashboard\RunDashboardView;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -21,13 +21,13 @@ use PHPUnit\Framework\TestCase;
  * est **absent** du modèle, pas rendu en chaîne vide ; et sans backend lisible, la page le dit sans
  * nommer Temporal, qui peut n'avoir jamais été de la partie.
  *
- * @see openspec/changes/backend-neutral-workflow-dashboard/specs/workflow-run-observation/spec.md
+ * @see openspec/specs/workflow-run-observation/spec.md
  */
-final class RunDashboardViewTest extends TestCase
+final class RunDashboardTest extends TestCase
 {
     public function testWithoutAReadableBackendThePageSaysSoWithoutNamingTemporal(): void
     {
-        $view = (new RunDashboardView(null))->build();
+        $view = (new RunDashboard(null))->build();
 
         self::assertFalse($view['backend']['available']);
         self::assertNotSame('', $view['backend']['message']);
@@ -105,7 +105,7 @@ final class RunDashboardViewTest extends TestCase
     public function testTheStatusFilterAndTheCursorReachTheCatalog(): void
     {
         $catalog = new FakeRunCatalog([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Failed)], [], 'jeton-suivant');
-        $view = (new RunDashboardView($catalog))->build('failed', 'jeton-courant');
+        $view = (new RunDashboard($catalog))->build('failed', 'jeton-courant');
 
         self::assertSame(WorkflowRunStatus::Failed, $catalog->askedStatus);
         self::assertSame('jeton-courant', $catalog->askedCursor);
@@ -116,7 +116,7 @@ final class RunDashboardViewTest extends TestCase
     public function testAnUnknownStatusFilterIsIgnoredRatherThanRefused(): void
     {
         $catalog = new FakeRunCatalog([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)]);
-        (new RunDashboardView($catalog))->build('sarcastique');
+        (new RunDashboard($catalog))->build('sarcastique');
 
         self::assertNull($catalog->askedStatus);
     }
@@ -135,7 +135,7 @@ final class RunDashboardViewTest extends TestCase
             reachable: false,
         );
 
-        $view = (new RunDashboardView($catalog))->build();
+        $view = (new RunDashboard($catalog))->build();
 
         self::assertFalse($view['backend']['available']);
         self::assertSame([], $view['runs'], 'ne rien lister vaut mieux que lister le vide d\'une base muette');
@@ -151,7 +151,7 @@ final class RunDashboardViewTest extends TestCase
         self::assertInstanceOf(\DateTimeImmutable::class, $view['backend']['checkedAt']);
     }
 
-    public function testTheSelectedRunHistoryIsGroupedInDistinctLanes(): void
+    public function testTheSelectedRunHistoryIsGroupedIntoActions(): void
     {
         $catalog = new FakeRunCatalog(
             [$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)],
@@ -162,18 +162,18 @@ final class RunDashboardViewTest extends TestCase
             ],
         );
 
-        $view = (new RunDashboardView($catalog))->build();
+        $view = (new RunDashboard($catalog))->build();
 
         self::assertSame('run-1', $view['selectedRun']['runId']);
-        self::assertSame(['execution', 'activity', 'signal'], array_column($view['selectedRun']['actions'], 'kind'));
-        self::assertSame(['SendWelcomeEmail'], array_column($view['selectedRun']['actions'][1]['events'], 'label'));
+        self::assertSame(['execution', 'activity', 'signal'], self::kinds($view));
+        self::assertSame(['SendWelcomeEmail'], self::labels($view, 1));
     }
 
-    public function testANexusOperationGetsItsOwnLaneAndSaysWhereTheWaitHappens(): void
+    public function testANexusOperationGetsItsOwnLineAndSaysWhereTheWaitHappens(): void
     {
         // Une opération Nexus est le seul point d'une exécution où l'attente est servie **ailleurs**.
-        // Rangée avec le reste, elle laisse un exploitant chercher la panne dans son propre système
-        // alors qu'elle est chez quelqu'un d'autre — d'où sa voie, et d'où une étiquette qui nomme
+        // Fondue dans le reste, elle laisse un exploitant chercher la panne dans son propre système
+        // alors qu'elle est chez quelqu'un d'autre — d'où sa ligne, et d'où une étiquette qui nomme
         // l'endpoint plutôt que le type d'événement.
         $catalog = new FakeRunCatalog(
             [$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)],
@@ -183,10 +183,10 @@ final class RunDashboardViewTest extends TestCase
             ],
         );
 
-        $view = (new RunDashboardView($catalog))->build();
+        $view = (new RunDashboard($catalog))->build();
 
-        self::assertSame(['execution', 'nexus'], array_column($view['selectedRun']['actions'], 'kind'));
-        self::assertSame(['paiements/facturation/encaisser'], array_column($view['selectedRun']['actions'][1]['events'], 'label'));
+        self::assertSame(['execution', 'nexus'], self::kinds($view));
+        self::assertSame(['paiements/facturation/encaisser'], self::labels($view, 1));
     }
 
     public function testAnEventCarriesWhatTheBackendRecordedWithIt(): void
@@ -207,11 +207,11 @@ final class RunDashboardViewTest extends TestCase
             ],
         );
 
-        $view = (new RunDashboardView($catalog))->build();
+        $view = (new RunDashboard($catalog))->build();
 
         self::assertSame(
             ['payload' => ['customerId' => 'cus-42']],
-            $view['selectedRun']['actions'][0]['events'][0]['details'],
+            $view['selectedRun']['timeline']->actions[0]->events[0]->event->details,
         );
     }
 
@@ -225,29 +225,72 @@ final class RunDashboardViewTest extends TestCase
             [new WorkflowRunEvent(1, new \DateTimeImmutable('@1700000000'), WorkflowRunEventKind::Execution, 'Started')],
         );
 
-        $view = (new RunDashboardView($catalog))->build();
+        $view = (new RunDashboard($catalog))->build();
 
-        self::assertArrayNotHasKey('details', $view['selectedRun']['actions'][0]['events'][0]);
+        self::assertSame([], $view['selectedRun']['timeline']->actions[0]->events[0]->event->details);
     }
 
-    public function testALaneTheBackendNeverRecordsIsNotShownAtAll(): void
+    public function testWhatTheBackendNeverRecordsIsNotShownAtAll(): void
     {
         $catalog = new FakeRunCatalog(
             [$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)],
             [new WorkflowRunEvent(1, new \DateTimeImmutable('@1700000000'), WorkflowRunEventKind::Execution, 'Started')],
         );
 
-        $view = (new RunDashboardView($catalog))->build();
+        $view = (new RunDashboard($catalog))->build();
 
-        self::assertSame(['execution'], array_column($view['selectedRun']['actions'], 'kind'));
+        self::assertSame(['execution'], self::kinds($view));
+    }
+
+    public function testAJournalThatCannotOutliveTheRequestIsAThirdStateAndNotAFailure(): void
+    {
+        // Ni « injoignable » — il répond — ni « joignable » tout court, sous lequel une liste vide
+        // apprend à l'exploitant qu'aucun workflow n'a tourné, ce qui est faux.
+        $view = (new RunDashboard(new FakeRunCatalog([], [], null, ephemeral: true)))->build();
+
+        self::assertTrue($view['backend']['available']);
+        self::assertTrue($view['backend']['ephemeral']);
+    }
+
+    public function testABackendThatOutlivesTheRequestSaysSoToo(): void
+    {
+        $view = $this->viewOver([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)])->build();
+
+        self::assertFalse($view['backend']['ephemeral']);
+    }
+
+    /**
+     * @param array{selectedRun: array<string, mixed>|null, ...} $view
+     *
+     * @return list<string>
+     */
+    private static function kinds(array $view): array
+    {
+        return array_map(
+            static fn($action): string => $action->kind->value,
+            $view['selectedRun']['timeline']->actions,
+        );
+    }
+
+    /**
+     * @param array{selectedRun: array<string, mixed>|null, ...} $view
+     *
+     * @return list<string>
+     */
+    private static function labels(array $view, int $action): array
+    {
+        return array_map(
+            static fn($event): string => $event->event->label,
+            $view['selectedRun']['timeline']->actions[$action]->events,
+        );
     }
 
     /**
      * @param list<WorkflowRunDescription> $runs
      */
-    private function viewOver(array $runs): RunDashboardView
+    private function viewOver(array $runs): RunDashboard
     {
-        return new RunDashboardView(new FakeRunCatalog($runs));
+        return new RunDashboard(new FakeRunCatalog($runs));
     }
 
     private function describedRun(string $runId, string $name, WorkflowRunStatus $status): WorkflowRunDescription
@@ -270,6 +313,7 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
         private readonly array $history = [],
         private readonly ?string $nextCursor = null,
         private readonly bool $reachable = true,
+        private readonly bool $ephemeral = false,
     ) {}
 
     public function checkHealth(): BackendHealth
@@ -279,6 +323,7 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
             $this->reachable,
             $this->reachable ? 'The fake backend answers.' : 'The fake backend is unreachable.',
             new \DateTimeImmutable('@1700000000'),
+            $this->ephemeral,
         );
     }
 

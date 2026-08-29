@@ -2,16 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Durable\Plugin\Dashboard;
+namespace Gplanchat\Durable\Observation;
 
-use Gplanchat\Durable\Observation\ReadableDuration;
-use Gplanchat\Durable\Observation\WorkflowRunDescription;
-use Gplanchat\Durable\Observation\WorkflowRunEvent;
-use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 
 /**
- * Ce que la page a besoin de savoir, tiré du port et de rien d'autre.
+ * Ce que la page a besoin de savoir, tiré du port et de rien d'autre — **pour toutes les surfaces**.
+ *
+ * Ce modèle vivait dans le greffon Sylius, et Magento en dérivait sa propre moitié : la santé du
+ * backend d'un côté, la frise placée dans le temps de l'autre, et le même run se lisait donc
+ * différemment selon l'application ouverte. Il n'a rien de Sylius, et n'en avait déjà rien — il ne
+ * dépend que du port et des faits d'observation. C'est un contrat de **données** : une surface qui
+ * ne rend aucun balisage sert les mêmes panneaux.
  *
  * Le catalogue est nullable, et c'est le cas normal : le conteneur n'en enregistre aucun quand
  * aucun backend n'est lisible. La page dit alors qu'aucun backend n'est configuré — **sans nommer
@@ -21,7 +23,7 @@ use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
  * « file de tâches » vide apprend à l'exploitant que l'exécution n'a pas de file, alors que c'est le
  * backend qui n'a pas la notion. Une clé absente ne raconte rien de faux.
  */
-final class RunDashboardView
+final class RunDashboard
 {
     public const PAGE_SIZE = 20;
 
@@ -85,6 +87,10 @@ final class RunDashboardView
         return [
             'backend' => [
                 'available' => true,
+                // Le troisième état : il répond, et sa réponse est vide par construction parce que
+                // son journal ne survit pas au processus. Vide est alors la bonne réponse, pas une
+                // panne — et une surface a besoin de le **lire** pour le dire.
+                'ephemeral' => $health->ephemeral,
                 'message' => $health->message,
                 'name' => $health->backend,
                 'checkedAt' => $health->checkedAt,
@@ -98,7 +104,10 @@ final class RunDashboardView
             ],
             'status' => $status,
             'selectedRun' => null === $selected ? null : self::describe($selected) + [
-                'actions' => self::actions($this->catalog->readHistory($selected)),
+                // La frise se calcule dans le cœur, à côté des faits qu'elle projette : grouper en
+                // actions, placer dans le temps et distinguer la file du travail ne sont pas
+                // l'affaire de l'hôte, sans quoi le même run se lit différemment selon la surface.
+                'timeline' => RunTimeline::of($this->catalog->readHistory($selected)),
             ],
         ];
     }
@@ -129,66 +138,6 @@ final class RunDashboardView
     }
 
     /**
-     * L'historique regroupé par **action**, pas par nature.
-     *
-     * Une activité planifiée, démarrée puis terminée est une action et trois événements ; les
-     * événements de l'exécution elle-même sont une action, la première. Ranger par nature obligeait
-     * l'exploitant à recoller trois lignes de l'œil pour savoir combien de temps celle-là avait
-     * duré — et noyait les quatre actions intéressantes d'une commande sous la plomberie du moteur.
-     *
-     * `kind` reste porté par l'action : la couleur de sa bordure vient de là, et une action a la
-     * nature de l'événement qui l'ouvre.
-     *
-     * @param list<WorkflowRunEvent> $history
-     *
-     * @return list<array{kind: string, label: string, took: string, events: list<array{sequence: int, recordedAt: \DateTimeImmutable, label: string, failed: bool, details?: array<string, mixed>}>}>
-     */
-    private static function actions(array $history): array
-    {
-        $grouped = [];
-        foreach ($history as $event) {
-            $described = [
-                'sequence' => $event->sequence,
-                'recordedAt' => $event->recordedAt,
-                'label' => $event->label,
-                // Ce qui a mal tourné se voit sans être déplié. Une annulation n'en est pas : le
-                // port tient cette frontière, la vue s'y range.
-                'failed' => $event->failed,
-            ];
-
-            // Même règle que partout dans ce modèle : un fait n'entre que s'il existe. Le gabarit
-            // n'a donc pas à distinguer « rien enregistré » de « tableau vide », et un événement
-            // sans contenu garde une ligne simple plutôt qu'un dépliant qui s'ouvre sur du vide.
-            if ([] !== $event->details) {
-                $described['details'] = $event->details;
-            }
-
-            // Un événement sans action est à lui seul la sienne : sa séquence suffit à le
-            // distinguer, et il occupe son bloc comme n'importe quelle autre action.
-            $grouped[$event->actionKey ?? ('#' . $event->sequence)][] = ['event' => $event, 'described' => $described];
-        }
-
-        $actions = [];
-        foreach ($grouped as $group) {
-            $opening = $group[0]['event'];
-            $closing = $group[\count($group) - 1]['event'];
-
-            $actions[] = [
-                'kind' => $opening->kind->value,
-                // Le nom de l'action est celui de l'événement qui l'ouvre : c'est la planification
-                // qui connaît le nom de l'activité, ses suites ne portent qu'un numéro.
-                'label' => $opening->label,
-                'took' => ReadableDuration::of(
-                    (float) $closing->recordedAt->format('U.u') - (float) $opening->recordedAt->format('U.u'),
-                ),
-                'events' => array_column($group, 'described'),
-            ];
-        }
-
-        return $actions;
-    }
-
-    /**
      * @param list<WorkflowRunDescription> $runs
      */
     private static function pick(array $runs, ?string $selectedRunId): ?WorkflowRunDescription
@@ -203,7 +152,13 @@ final class RunDashboardView
     }
 
     /**
-     * Un compteur par issue, toutes les issues.
+     * Un compteur par issue, toutes les issues, **sur la page affichée**.
+     *
+     * La portée est assumée et doit être dite : compter la page est cohérent avec l'exigence que
+     * les compteurs concordent avec ce que la liste montre, mais un intitulé « total » sous lequel
+     * on lit vingt apprend à l'exploitant qu'une application qui a enregistré cinq cents exécutions
+     * en a vingt. La clé `total` est donc le total **de la page**, et les surfaces l'intitulent
+     * ainsi.
      *
      * Énumérer les cas plutôt que les écrire à la main évite le trou qu'une liste figée creuse
      * fatalement : `continued_as_new` comptait dans le total et dans aucun seau, si bien qu'une
