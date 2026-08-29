@@ -24,7 +24,11 @@
 - [ ] 2.2 The detail panel positions actions in time and hatches a wait, which it does not do today
 - [ ] 2.3 An unrenderable detail degrades to a plain line, as Magento's already does — the Twig
       `json_encode` has no partial-output tolerance
-- [ ] 2.4 The template render test covers a run with a wait and a run with an unrenderable payload
+- [x] 2.4 Un rendu **réel** du gabarit, et non une lecture de son texte : les autres assertions du
+      dossier lisent le fichier, et aucune n'éprouvait `action.events` → `mark.event.label`. Une
+      propriété mal nommée dans cette chaîne rend une page vide sur l'écran qu'on est venu regarder.
+      Vérifié par mutation. Reste à couvrir quand 2.2 arrivera : une attente et une charge utile
+      irrendable
 
 ## 3. Magento renders the projection instead of deriving its own
 
