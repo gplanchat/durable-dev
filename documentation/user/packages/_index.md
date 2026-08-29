@@ -285,11 +285,6 @@ catalog it reads, so the command above is the whole install.
 composer require gplanchat/durable-magento
 ```
 
-> [!WARNING]
-> **Not published yet.** The package exists in the repository and runs on the bench; it is not on
-> Packagist, so the command above does not resolve today. Everything below describes what is built,
-> not what you can install.
-
 A Magento 2.4 / Mage-OS module — `Gplanchat_DurableModule` in `bin/magento module:status`. It declares
 workflow and activity classes to the runtime, assembles the engine for a Magento process, ships the
 workers as `bin/magento` commands, and adds a read-only admin screen under

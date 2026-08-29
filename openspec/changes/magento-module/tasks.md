@@ -444,8 +444,36 @@ topic.
       of the core on the Symfony bundle that only a non-Symfony host could see.
       It also says what it does not claim: the package is unpublished, CI resolves but does not
       boot, and Adobe's distribution is untested.
-- [ ] 6.2 The home page selector drops the `?` from `gplanchat/durable-magento`, and its state stops
+- [x] 6.2 The home page selector drops the `?` from `gplanchat/durable-magento`, and its state stops
       being `planned`. Through the canvas, not the generated file.
+
+      Two attributes in each of the two committed `.dc.html` canvases, and nothing else. The chip's
+      inline style and its "Coming soon…" badge are **repainted at runtime** from `data-state`
+      (`CHIP_DIS` / `CHIP_ON` / `CHIP_OFF`), so `data-state="ok"` is the whole edit — copying
+      Sylius's solid border by hand would have been a second source of truth for the same fact.
+
+      `data-family="Magento"` stays. It is a canvas control, not markup: `syncIntegrations()` reads
+      a `releaseMagento` prop every 1.2 s and writes `data-state` from it. That component does not
+      survive the import, so only the static attribute reaches the served page — but removing the
+      hook would break the toggle for whoever opens the canvas next.
+
+      **The regeneration is the proof WA005 was written for.** Re-running `import-design.py` on both
+      canvases changed **four lines in total**, two per page, and they are the two edits. The canvas
+      and the pages were genuinely in sync; the guard had nothing to refuse.
+
+      **Packagist has it since 2026-08-29**, and the selector is now on the same footing as its two
+      peers: `durable-magento`, `durable-laravel` and `durable-bridge-illuminate` are all registered
+      with `dev-main` and **no tagged version**, and the Packages page writes a plain
+      `composer require` for all three. The **Not published yet** warning came out of both languages
+      in the same commit, which is the second half of this task.
+
+      What was true while the pull request waited, kept because it is the reason it waited:
+      `check_packages_resolve()` passes, and it is right to: it reads `src/*/composer.json`, which
+      answers "does this repository declare the package". Packagist answers a different question,
+      and today it answers 404. Merging first would put a `composer require` on the home page that
+      does not resolve — the exact failure that guard exists for, in the one place it cannot see —
+      and would make the home page contradict `documentation/user/packages/`, which still carries
+      its **Pas encore publié** warning.
 - [x] 6.3 **Both languages carry Magento.** `documentation/user/packages/` gains a
       `gplanchat/durable-magento` section — declaration by `di.xml`, the contract that is *not*
       declared, the two backends Composer enforces, the DSN that decides, workers as commands, and

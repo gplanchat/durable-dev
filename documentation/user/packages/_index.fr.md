@@ -301,11 +301,6 @@ d'exécutions qu'il lit : la commande ci-dessus est donc toute l'installation.
 composer require gplanchat/durable-magento
 ```
 
-> [!WARNING]
-> **Pas encore publié.** Le paquet existe dans le dépôt et tourne sur le banc ; il n'est pas sur
-> Packagist, donc la commande ci-dessus ne résout pas aujourd'hui. Ce qui suit décrit ce qui est
-> construit, pas ce que vous pouvez installer.
-
 Un module Magento 2.4 / Mage-OS — `Gplanchat_DurableModule` dans `bin/magento module:status`. Il déclare
 les classes de workflow et d'activité au moteur, l'assemble pour un processus Magento, livre les
 workers en commandes `bin/magento`, et ajoute un écran d'administration en lecture seule sous
