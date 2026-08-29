@@ -81,6 +81,20 @@ The split is still the right shape, and still its own change: `durable-bundle` a
 `Gplanchat\Bridge\Temporal` in two of its own classes without requiring the package, so the Symfony
 wiring is already spread across both and moving the eight files consolidates it.
 
+### Nexus is served, and the refusal lives in the core
+
+Serving a Nexus operation means answering a call from another namespace, and only the cluster routes
+those. `NexusOperationRegistry::routedBy('temporal')` under the Temporal backend,
+`::unavailableOn($backend)` everywhere else — and the second refuses **at registration**, naming the
+backend, rather than at the first call with a caller waiting.
+
+That refusal is in the core rather than in each host, which is the point:
+`NexusHandlerPass` only catches Symfony. `DeclaredNexusOperations` is the Laravel counterpart of that
+pass, and it walks the same path — `NexusContractResolver` to read the contract,
+`NexusHandlerInvoker` to sit between the handler's own signature and what the registry calls. What
+changes is the source: Symfony reads tags an autoconfiguration wrote, Laravel reads
+`config/durable.php`, for the same reason workflows are declared there.
+
 ## Consequences
 
 ### The core did not have to change
