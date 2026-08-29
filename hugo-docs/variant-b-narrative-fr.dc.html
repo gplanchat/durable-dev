@@ -236,6 +236,7 @@
         state.be = v;
       }
       paint();
+      shareable();
       return;
     }
     var cp = el.closest('[data-copy]');
@@ -273,8 +274,34 @@
       })(marks[i]);
     }
   }
+
+  // Un lien peut arriver avec la solution déjà choisie : ?fw=magento&dist=none&be=temporal
+  // On rejoue des clics au lieu d'écrire dans `state` — le gestionnaire porte déjà les
+  // refus (une puce `planned`, un backend qu'`allowed()` interdit), donc un lien périmé
+  // retombe sur le choix par défaut plutôt que de composer une combinaison impossible.
+  // L'ordre compte : `fw` d'abord, puisque c'est lui qui décide ce qui est permis ensuite.
+  function fromLink() {
+    var q = location.search;
+    if (!q) return;
+    var axes = ['fw', 'dist', 'be'];
+    for (var i = 0; i < axes.length; i++) {
+      var m = q.match(new RegExp('[?&]' + axes[i] + '=([a-z0-9]+)'));
+      if (!m) continue;
+      var chip = document.querySelector('[data-axis="' + axes[i] + '"][data-val="' + m[1] + '"]');
+      if (chip) chip.click();
+    }
+  }
+  // Et réciproquement : après chaque choix, la barre d'adresse porte le lien à partager.
+  // `replaceState` plutôt que `pushState` — cliquer trois puces ne doit pas remplir
+  // l'historique de trois entrées que le bouton Retour devrait défaire une par une.
+  function shareable() {
+    if (!window.history || !history.replaceState) return;
+    history.replaceState(null, '',
+      location.pathname + '?fw=' + state.fw + '&dist=' + state.dist + '&be=' + state.be + location.hash);
+  }
   logos();
   paint();
+  fromLink();
   document.addEventListener('DOMContentLoaded', function () { paint(); logos(); });
   window.__durablePaint = paint;
   setTimeout(function () { paint(); logos(); }, 300);
