@@ -98,6 +98,28 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertStringContainsString('ORD-7', $page);
     }
 
+    public function testAnEventReadsAtTheSameMomentInTheFriezeAndInTheList(): void
+    {
+        // La frise compose son infobulle dans le cœur, avec le fuseau de l'événement ; le filtre
+        // `date` de Twig, lui, applique celui du serveur. Sur une machine à Paris, le même
+        // événement se lisait 22:13:20 au survol et 23:13:20 dans la ligne juste dessous — dans une
+        // page dont toute la raison d'être est qu'un exploitant n'ait rien à convertir de tête.
+        $was = date_default_timezone_get();
+        date_default_timezone_set('Europe/Paris');
+
+        try {
+            $page = $this->render();
+        } finally {
+            date_default_timezone_set($was);
+        }
+
+        preg_match_all('/(\d{2}:\d{2}:\d{2}\.\d{3})/', $page, $found);
+        $readings = array_values(array_unique($found[1]));
+        sort($readings);
+
+        self::assertSame(['22:13:20.000', '22:13:30.000', '22:13:40.000'], $readings);
+    }
+
     private function render(bool $ephemeral = false, bool $badPayload = false): string
     {
         $catalog = new RenderingCatalog($ephemeral, $badPayload);

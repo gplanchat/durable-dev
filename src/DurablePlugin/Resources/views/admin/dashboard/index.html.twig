@@ -78,7 +78,7 @@
                     {# Le backend n'est nommé que s'il y en a un : sans catalogue, nommer un serveur
                        enverrait l'exploitant sur une fausse piste. #}
                     {% if backend.name is defined %}
-                        <small class="text-secondary">{{ backend.name }} · checked at {{ backend.checkedAt|date('Y-m-d H:i:s') }}</small>
+                        <small class="text-secondary">{{ backend.name }} · checked at {{ backend.checkedAt|date('Y-m-d H:i:s', false) }}</small>
                     {% endif %}
                 </div>
 
@@ -146,7 +146,7 @@
                                                 <div class="durable-meta mt-1">
                                                     <code>{{ run.runId }}</code>
                                                     {# Chaque fait n'apparaît que s'il existe : le modèle de vue omet la clé plutôt que de rendre une valeur vide. #}
-                                                    {% if run.startedAt is defined %}<span>{{ run.startedAt|date('Y-m-d H:i:s') }}</span>{% endif %}
+                                                    {% if run.startedAt is defined %}<span>{{ run.startedAt|date('Y-m-d H:i:s', false) }}</span>{% endif %}
                                                     {% if run.groupId is defined %}<span>Group: <code>{{ run.groupId }}</code></span>{% endif %}
                                                 </div>
                                             </a>
@@ -229,17 +229,21 @@
                                                             {# Un événement dont le backend n'a rien enregistré garde une ligne simple :
                                                                un dépliant qui s'ouvre sur du vide se rouvre à chaque fois. #}
                                                             <li{% if mark.event.failed %} class="durable-failed"{% endif %}>
+                                                                {# ⚠ `date(..., false)` garde le fuseau que **porte** la date. Sans lui,
+                                                                   Twig applique celui du serveur, et le même événement se lisait
+                                                                   22:13:20 dans l'infobulle de la frise — composée dans le cœur — et
+                                                                   23:13:20 dans cette ligne-ci, sur une machine à Paris. #}
                                                                 {# `renderedDetails` vaut `null` quand il n'y a rien à ouvrir. La mise
                                                                    en forme se décide dans le cœur : ce gabarit appelait `json_encode`
                                                                    sans tolérance et rendait un dépliant **vide** dès qu'un octet
                                                                    n'était pas de l'UTF-8. #}
                                                                 {% if mark.renderedDetails is not null %}
                                                                     <details>
-                                                                        <summary><strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v') }} — {{ mark.event.label }}</summary>
+                                                                        <summary><strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v', false) }} — {{ mark.event.label }}</summary>
                                                                         <pre>{{ mark.renderedDetails }}</pre>
                                                                     </details>
                                                                 {% else %}
-                                                                    <strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v') }} — {{ mark.event.label }}
+                                                                    <strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v', false) }} — {{ mark.event.label }}
                                                                 {% endif %}
                                                             </li>
                                                         {% endfor %}

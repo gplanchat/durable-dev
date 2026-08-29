@@ -37,7 +37,11 @@
 
 ## 3. Magento renders the projection instead of deriving its own
 
-- [ ] 3.1 `ProcessDetail` consumes the promoted projection; its `getTimeline()` and `segments()` go
+- [ ] 3.1 `ProcessDetail` consumes the promoted projection. Ce qui doit **disparaître**, et pas
+      seulement cohabiter : `getTimeline()`, `segments()`, `scale()`, la composition des infobulles
+      de segment et de repère (doublon de `TimelineSegment::$title` / `TimelineEvent::$title`) et
+      `formatDetails()` (doublon de `RecordedDetails::of()`). Les laisser côte à côte remettrait
+      exactement la divergence que la tranche 1 est allée chercher
 - [ ] 3.2 The listing reports backend health, which it never probes today
 - [ ] 3.3 The listing shows counters over the page it displays
 - [ ] 3.4 The window ceiling is stated on screen, and the detail screen resolves a run without
@@ -87,3 +91,10 @@ brut reste sur `$event->details` pour une surface qui sert des données plutôt 
 La règle « une attente de quatre millisecondes ne dessine pas plus large que six millisecondes de
 travail » est tenue par un `min-width` **uniforme** : sous le seuil les deux barres sont égales,
 jamais inversées. Elle vit chez l'hôte, avec les pourcentages, comme la §1.2 l'a décidé.
+
+⚠ **Un fuseau attrapé au passage.** L'infobulle de la frise est composée dans le cœur, avec le
+fuseau que porte l'événement ; le filtre `date` de Twig applique celui du **serveur**. Sur une
+machine à Paris, le même événement se lisait 22:13:20 au survol et 23:13:20 dans la ligne juste
+dessous — dans une page dont toute la raison d'être est qu'un exploitant n'ait rien à convertir de
+tête. `date(..., false)` garde le fuseau de la date. Le test tourne sous `Europe/Paris` : sous UTC,
+la divergence est invisible, et c'est sous UTC que tourne la CI.
