@@ -348,6 +348,21 @@ tuned apart. Nothing rides Magento's own `MessageQueue` — on Temporal an activ
 command and a resume is a workflow task, so a topic here would be a second queue for an operator to
 supervise, for nothing.
 
+**Two processes, and forgetting one is not symmetric.** Without `--role=journal` nothing advances
+at all: executions start, their history fills, and no one answers their workflow tasks. Without
+`--role=activity` it is worse, because it looks like it works — an execution advances **up to its
+first activity** and stops there, the order charged and the stock not, and you learn it from the
+customer. That is the failure this integration exists to remove, put back by hand.
+
+The `--time-limit` and `--max-tasks` bounds are for the supervisor: they make the process end so
+that whatever restarts it can. And retries are the cluster's business — an activity's attempts are
+scheduled whether or not anything is listening, so a run whose activity "failed after 3 attempts" in
+seconds is the sign of a worker that was not there, not of code that is wrong three times over.
+
+⚠ **Magento's own queue settings are not part of this.** `retry_inprogress_after`, the
+`messagequeue_*` cron jobs, `queue_lock` — none of them carries anything of Durable's, because
+nothing of Durable's rides `MessageQueue`. Tune them for your own consumers.
+
 > [!NOTE]
 > Start executions **on the cluster**, not in the request that triggers them. An observer on
 > `sales_order_place_after` that calls `RuntimeFactory::workflowClient()->startAsync()` hands the
