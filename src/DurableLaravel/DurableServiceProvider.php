@@ -12,9 +12,11 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
+use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
@@ -25,11 +27,13 @@ use Gplanchat\Durable\ActivityExecutor;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
+use Gplanchat\Durable\Laravel\Nexus\DeclaredNexusOperations;
 use Gplanchat\Durable\Laravel\Queue\LaravelActivityTransport;
 use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowResumeDispatcher;
 use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowTimerDispatcher;
 use Gplanchat\Durable\Laravel\Queue\ResumeDeferral;
 use Gplanchat\Durable\Laravel\Workflow\DeclaredWorkflowTypes;
+use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\NullWorkflowTimerDispatcher;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
@@ -93,6 +97,7 @@ final class DurableServiceProvider extends ServiceProvider
         $this->bindWorkflowRegistry($config);
         $this->bindResumePath($config);
         $this->bindResumeDeferral($config);
+        $this->bindNexus($backend, $config);
     }
 
     public function boot(): void
@@ -249,6 +254,10 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make('durable.temporal.client'),
         ));
 
+        $this->app->singleton(WorkflowServiceNexusRpc::class, fn($app) => new WorkflowServiceNexusRpc(
+            $app->make('durable.temporal.client'),
+        ));
+
         $this->app->singleton(WorkflowClientInterface::class, fn($app) => new WorkflowClient(
             $app->make('durable.temporal.client'),
             $app->make(TemporalConnection::class),
@@ -275,7 +284,10 @@ final class DurableServiceProvider extends ServiceProvider
             // `Illuminate\Console\Command`, qui ne peut pas entrer dans le graphe de la racine
             // sans rendre la ligne Symfony 6.4 irrésoluble — voir phpstan.neon. Une référence
             // `::class` ferait suivre l'analyseur jusque dans une classe qu'il ne peut pas lire.
-            $this->commands(['Gplanchat\\Durable\\Laravel\\Console\\TemporalWorkerCommand']);
+            $this->commands([
+                'Gplanchat\\Durable\\Laravel\\Console\\TemporalWorkerCommand',
+                'Gplanchat\\Durable\\Laravel\\Console\\NexusWorkerCommand',
+            ]);
         }
     }
 
@@ -430,6 +442,46 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make('cache')->store($lock['store'] ?? null)->getStore(),
             (int) ($lock['ttl'] ?? 300),
             (int) ($lock['wait'] ?? 10),
+        ));
+    }
+
+    /**
+     * Nexus : le registre existe toujours, et il sait dire pourquoi il ne peut pas router.
+     *
+     * `routedBy('temporal')` sous Temporal, `unavailableOn($backend)` ailleurs — et le second refuse
+     * **à l'enregistrement**, pas au premier appel. C'est le cœur qui porte ce refus, précisément
+     * parce que la passe de compilation de Symfony n'attrape que Symfony : un hôte qui déclare un
+     * gestionnaire sur un backend qui ne route pas doit s'en entendre dire la raison, où qu'il soit.
+     *
+     * @param array<string, mixed> $config
+     */
+    private function bindNexus(string $backend, array $config): void
+    {
+        /** @var array<string, mixed> $nexus */
+        $nexus = $config['nexus'] ?? [];
+        /** @var array<class-string, class-string> $handlers */
+        $handlers = $nexus['handlers'] ?? [];
+        /** @var list<class-string> $workflows */
+        $workflows = $config['workflows'] ?? [];
+
+        $this->app->singleton(NexusOperationRegistry::class, function ($app) use ($backend, $handlers, $workflows) {
+            $registry = 'temporal' === $backend
+                ? NexusOperationRegistry::routedBy('temporal')
+                : NexusOperationRegistry::unavailableOn($backend);
+
+            (new DeclaredNexusOperations($app, $handlers, $workflows))->registerInto($registry);
+
+            return $registry;
+        });
+
+        if ('temporal' !== $backend) {
+            return;
+        }
+
+        $this->app->singleton(TemporalNexusWorker::class, fn($app) => new TemporalNexusWorker(
+            $app->make(WorkflowServiceNexusRpc::class),
+            $app->make(TemporalConnection::class),
+            $app->make(NexusOperationRegistry::class),
         ));
     }
 
