@@ -388,6 +388,21 @@ Durable ne circule sur `MessageQueue`. Réglez-les pour vos propres consommateur
 Chaque commande ci-dessous est celle que le sélecteur de la [page d'accueil](/fr/) vous donne,
 écrite en toutes lettres.
 
+Le sélecteur lit son état dans l'URL : un lien peut donc ouvrir la page avec une situation déjà
+choisie — pratique dans un ticket, un README ou une réponse de support :
+
+```
+https://durable.rocks/fr/?fw=magento&be=temporal#install
+```
+
+`fw` est le framework (`none`, `symfony`, `laravel`, `sylius`, `apiplatform`, `magento`), `be`
+l'endroit où vit l'état (`memory`, `temporal`, `dbal`, `illuminate`), et `dist` la base sous une
+distribution (`none`, `symfony`, `laravel`). Chaque axe est facultatif. Une valeur que le sélecteur
+refuse — un framework qui n'est pas publié, un backend que l'appariement interdit — est **ignorée
+plutôt que forcée** : un vieux lien retombe sur le choix par défaut au lieu d'afficher une
+combinaison qui n'existe pas. Et choisir dans la page réécrit la barre d'adresse, donc le lien à
+partager est celui qu'on a déjà sous les yeux.
+
 | Votre situation | Commande |
 |---|---|
 | Découverte, ou tests unitaires seulement | `composer require gplanchat/durable` |

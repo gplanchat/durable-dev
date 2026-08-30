@@ -380,6 +380,21 @@ nothing of Durable's rides `MessageQueue`. Tune them for your own consumers.
 
 Every command below is the one the chooser on the [home page](/) hands you, written out in full.
 
+The chooser reads its state from the URL, so a single link can open the page with a situation
+already selected — useful in an issue, a README or a support answer:
+
+```
+https://durable.rocks/?fw=magento&be=temporal#install
+```
+
+`fw` is the framework (`none`, `symfony`, `laravel`, `sylius`, `apiplatform`, `magento`), `be` is
+where the state lives (`memory`, `temporal`, `dbal`, `illuminate`), and `dist` is the base
+underneath a distribution (`none`, `symfony`, `laravel`). Any axis may be omitted. A value the
+chooser refuses — a framework that has not shipped, a backend that pairing forbids — is ignored
+rather than forced, so an old link degrades to the default instead of showing a combination that
+does not exist. Choosing in the page rewrites the address bar, so the link to share is the one you
+are already looking at.
+
 | Your situation | Command |
 |---|---|
 | Learning, or unit tests only | `composer require gplanchat/durable` |
