@@ -353,10 +353,15 @@
   // Et réciproquement : après chaque choix, la barre d'adresse porte le lien à partager.
   // `replaceState` plutôt que `pushState` — cliquer trois puces ne doit pas remplir
   // l'historique de trois entrées que le bouton Retour devrait défaire une par une.
+  // `dist` n'est écrit que quand la ligne « base » est visible — API Platform et
+  // Aimeos, les deux seuls à s'installer sur plusieurs écosystèmes. Ailleurs, l'axe
+  // n'existe pas : `state.dist` garde sa dernière valeur sans que rien ne la lise,
+  // et la publier ferait croire à un choix que la page n'a jamais proposé.
   function shareable() {
     if (!window.history || !history.replaceState) return;
     history.replaceState(null, '',
-      location.pathname + '?fw=' + state.fw + '&dist=' + state.dist + '&be=' + state.be + location.hash);
+      location.pathname + '?fw=' + state.fw + (twoEco() ? '&dist=' + state.dist : '')
+        + '&be=' + state.be + location.hash);
   }
   logos();
   paint();
