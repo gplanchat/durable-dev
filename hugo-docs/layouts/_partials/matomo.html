@@ -1,0 +1,40 @@
+{{- /*
+  Mesure d'audience — voir ../../documentation/adr/DUR048.
+
+  Une seule source pour les deux surfaces : la page d'accueil l'appelle depuis
+  `layout-head.html`, les pages de documentation depuis `docs/inject/head.html`.
+  Deux copies auraient divergé le jour où l'une des deux est corrigée.
+
+  ⚠ `disableCookies` AVANT `trackPageView`, et ce n'est pas un détail de style :
+  c'est cet appel-là qui fait qu'aucune donnée personnelle n'est collectée par
+  cookie, donc qu'aucune bannière n'est due. Inversé, l'ordre ne protège rien —
+  le cookie serait déjà posé.
+
+  ⚠ Ce que ce fichier NE peut pas garantir : l'anonymisation d'IP est un réglage
+  serveur, pas du JavaScript. Elle se coche dans la console Matomo, et c'est
+  écrit dans l'ADR parce qu'aucune relecture de ce dépôt ne la verra.
+
+  Rien n'est émis tant que les deux paramètres ne sont pas renseignés : une
+  installation sans compte ne pose pas de balise vers nulle part.
+
+  ⚠ Pas de `| jsonify` sur les deux valeurs. Go les échappe déjà pour un contexte
+  JavaScript : ajouter jsonify les guillemettait deux fois, et `var u` valait
+  littéralement `""https://…""`. La balise se posait, `matomo.js` ne chargeait
+  jamais, et rien ne le disait. Attrapé par un build réel, pas par une relecture.
+*/ -}}
+{{- with site.Params.matomo }}
+{{- if and .url .siteId }}
+<script>
+  var _paq = window._paq = window._paq || [];
+  _paq.push(['disableCookies']);
+  _paq.push(['trackPageView']);
+  (function () {
+    var u = {{ .url }};
+    _paq.push(['setTrackerUrl', u + 'matomo.php']);
+    _paq.push(['setSiteId', {{ .siteId }}]);
+    var d = document, g = d.createElement('script'), s = d.getElementsByTagName('script')[0];
+    g.async = true; g.src = u + 'matomo.js'; s.parentNode.insertBefore(g, s);
+  })();
+</script>
+{{- end }}
+{{- end }}

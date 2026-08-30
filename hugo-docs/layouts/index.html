@@ -61,6 +61,7 @@
     } catch (e) { /* navigation privée, données de site bloquées : le média système décide */ }
   })();
 </script>
+{{ partial "matomo.html" . }}
 </head>
 <body>
 <style>
@@ -135,6 +136,7 @@
 .dz-h65:hover{filter: brightness(1.08);}
 .dz-h66:hover{border-color: var(--accent, #b4552f); color: var(--accent, #b4552f);}
 .dz-h67:hover{border-bottom-color: var(--accent, #b4552f);}
+.dz-h68:hover{border-color: var(--accent, #b4552f); color: var(--accent, #b4552f);}
 </style>
 <div class="dz-root" style="background: var(--bg, #f7f4ef); color: var(--fg, #1d1a16); font-family: 'Public Sans', system-ui, sans-serif; min-height: 100vh; overflow-x: hidden;">
   <div aria-hidden="true" style="position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: 0.075; mix-blend-mode: overlay; background-image: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E&quot;); background-size: 180px 180px;"></div>
@@ -799,8 +801,9 @@ final class Billing implements BillingServed
           </div>
           <div>
         <div data-skill-panel style="border: 1px dashed var(--line, #ddd6ca); border-radius: 6px; padding: 18px 20px; display: grid; gap: 10px;">
-          <div style="display: flex; gap: 10px; align-items: baseline; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.5;"><span style="color: var(--fg2, #6c6459); user-select: none;">$</span><span style="color: var(--fg, #2c2822); overflow-wrap: anywhere;">/plugin marketplace add gplanchat/durable-skill</span></div>
-          <div style="display: flex; gap: 10px; align-items: baseline; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.5;"><span style="color: var(--fg2, #6c6459); user-select: none;">$</span><span style="color: var(--fg, #2c2822); overflow-wrap: anywhere;">/plugin install durable@durable-skill</span></div>
+          <div style="display: flex; gap: 10px; align-items: baseline; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.5;"><span style="color: var(--fg2, #6c6459); user-select: none;">$</span><span data-skill-cmd style="color: var(--fg, #2c2822); overflow-wrap: anywhere;">/plugin marketplace add gplanchat/durable-skill</span></div>
+          <div style="display: flex; gap: 10px; align-items: baseline; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.5;"><span style="color: var(--fg2, #6c6459); user-select: none;">$</span><span data-skill-cmd style="color: var(--fg, #2c2822); overflow-wrap: anywhere;">/plugin install durable@durable-skill</span></div>
+          <button type="button" data-skill-copy style="justify-self: start; margin-top: 4px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; background: transparent; border: 1px solid var(--line, #ddd6ca); color: var(--fg2, #6c6459); border-radius: 999px; padding: 6px 14px; cursor: pointer;" class="dz-h68" data-dzh="68">Copy</button>
         </div>
             <div data-skill-traps style="margin: 22px 0 0;">
               <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg2, #6c6459);">Four silent mistakes it refuses to make</span>
@@ -1069,6 +1072,38 @@ final class Billing implements BillingServed
       btn.setAttribute('data-said-on', '1');
       btn.textContent = SAID[n];
       setTimeout(function () { btn.innerHTML = ICON + "Copy"; btn.removeAttribute('data-said-on'); }, 1600);
+      track('Copy composer command', text);
+    };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  }
+  // Mesure d'audience — voir DUR048. Silencieux quand la balise n'est pas posée :
+  // le site tourne en local et en préproduction sans Matomo, et un `_paq` absent
+  // ne doit pas casser le bouton qu'il observe.
+  function track(action, name) {
+    if (window._paq) window._paq.push(['trackEvent', 'Install', action, name]);
+  }
+  // La copie des commandes du skill. ⚠ Volontairement PAS `data-cmd` / `data-copy` :
+  // le script du sélecteur prend le PREMIER de la page, et un second détournerait
+  // son bouton Copy vers la mauvaise commande.
+  function copySkill(btn) {
+    var panel = btn.closest('[data-skill-panel]');
+    if (!panel) return;
+    var nodes = panel.querySelectorAll('[data-skill-cmd]');
+    var lines = [];
+    for (var i = 0; i < nodes.length; i++) lines.push(nodes[i].textContent.trim());
+    if (!lines.length) return;
+    var text = lines.join('\n');
+    var label = btn.textContent;
+    var done = function () {
+      btn.textContent = "Copied \u2713";
+      setTimeout(function () { btn.textContent = label; }, 1600);
+      // Compté à la réussite, pas au clic : un presse-papier refusé n'est pas
+      // une intention d'installer qui a abouti.
+      track('Copy skill commands', 'durable-skill');
     };
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
@@ -1097,6 +1132,8 @@ final class Billing implements BillingServed
       shareable();
       return;
     }
+    var sk = el.closest('[data-skill-copy]');
+    if (sk) { copySkill(sk); return; }
     var cp = el.closest('[data-copy]');
     if (cp) copy(cp);
   });
