@@ -6,11 +6,12 @@ bookFlatSection: false
 
 # Guide utilisateur
 
-Comment penser Durable, et comment s'en servir. La [page d'accueil](/fr/) dit à quoi la
-bibliothèque sert ; cette section est la référence.
+Comment penser Durable, et comment s'en servir. Commencez par [Pourquoi Durable](why/) si vous
+hésitez encore ; la [page d'accueil](/fr/) plaide la même chose, de façon interactive.
 
 | | |
 |---|---|
+| [Pourquoi Durable](why/) | le problème qu'il résout, ce qu'il remplace — et quand vous n'en avez pas besoin |
 | [Paquets](packages/) | la bibliothèque, le bundle, le pilote Temporal — quoi installer, et quand |
 | [Premiers pas](getting-started/) | installation, configuration Symfony, un premier workflow, les commandes du worker |
 | [Concepts](concepts/) | workflows, activités, rejeu et backends, en français courant |
