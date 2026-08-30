@@ -17,25 +17,30 @@ Trois décisions tranchées par l'auteur avant d'écrire :
 3. le **tiret cadratin** est le rendu légitime de l'absence dans une table à
    colonnes fixes.
 
-**Tranche 1 faite — PR #228**, qui porte donc la spec **et** son implémentation. `RunTimeline`,
-`TimelineAction`, `TimelineSegment` et `TimelineEvent` dans `Observation/` ; `BackendHealth` gagne
-`ephemeral` (défaut `false`, seul le catalogue in-memory passe `true`) ; `RunDashboardView` devient
-`RunDashboard` dans le cœur, **déplacé et non recopié** — d'où la §2.1 faite avec, laisser deux
-exemplaires de la projection dans l'arbre le temps d'une tranche aurait coûté plus que trois lignes
-de recâblage.
+✅ **Les six tâches sont faites — PR #228.** Le contrat de présentation (delta de
+spec sur `workflow-run-observation`), la projection au cœur, les deux hôtes qui la
+consomment, les compteurs et les absences, le balayage du vocabulaire « voies »,
+`DUR049` et la page `documentation/user/dashboard/`.
 
-⚠ La projection rend des **secondes**, jamais les pourcentages de `scale()` : le bloc Magento
-émettait des largeurs CSS, et le cœur se serait mis à dessiner pour une surface qui ne rend aucun
-balisage.
+⚠ **L'ADR est `DUR049`, pas `DUR048`** : une autre session a pris le 048 pour la
+mesure d'audience et l'a fait atterrir la première. Le numéro se réserve à la
+fusion, pas à l'écriture — c'est le seul conflit qu'ait produit cette branche.
 
-⚠ `ProcessDetail::getTimeline()` n'avait **aucun test**. Les onze cas sont sa première couverture,
-pas un déménagement.
+Ce que la branche a appris, et qui vaut d'être relu :
 
-⚠ Le worktree n'a pas de `vendor` : bootstrap dans le scratchpad de session, qui reprend
-l'autoloader de la copie principale et rebranche **tous** les espaces `Gplanchat\` vers le
-worktree. Les échecs `DurablePhpstan`, `DurableLaravel` et `Bridge/Illuminate` sont de
-l'environnement (illuminate absent du vendor principal), pas du change — la CI les couvre.
+⚠ La projection rend des **secondes**, jamais des pourcentages : le bloc Magento
+émettait des largeurs CSS, et le cœur se serait mis à dessiner pour une surface
+qui ne rend aucun balisage. Mettre à l'échelle reste chez l'hôte.
 
-Reste : tâche 2 (2.2 et 2.3), tâche 3 (Magento consomme la projection), 4, 5, 6.
+⚠ `ProcessDetail::getTimeline()` n'avait **aucun test** — les dix-huit cas sont sa
+première couverture, pas un déménagement. Et **aucun outil de la CI n'analyse un
+`.phtml`** : trois suites de rendu couvrent désormais les gabarits, vérifiées par
+mutation.
 
-**État** : en cours
+⚠ Le worktree n'a pas de `vendor` : bootstrap dans le scratchpad de session, qui
+reprend l'autoloader de la copie principale et rebranche **tous** les espaces
+`Gplanchat\` vers le worktree. Les échecs `DurablePhpstan`, `DurableLaravel` et
+`Bridge/Illuminate` sont de l'environnement (illuminate absent du vendor
+principal), pas du change — la CI les couvre.
+
+**État** : en relecture

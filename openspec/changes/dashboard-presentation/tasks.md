@@ -78,7 +78,7 @@
 
 ## 6. Leave the decision behind
 
-- [x] 6.1 `DUR048 — One projection, two chromes`, indexé dans `documentation/INDEX.md`. Il porte les
+- [x] 6.1 `DUR049 — One projection, two chromes`, indexé dans `documentation/INDEX.md`. Il porte les
       quatre défauts **mesurés** plutôt que supposés (la santé jamais sondée, le dépliant vide sur un
       octet invalide, les deux heures du même événement sur une page, la frise sans aucun test) et
       les quatre alternatives écartées — dont « promouvoir le modèle Sylius », qui aurait uniformisé
@@ -154,7 +154,7 @@ date, et c'est la §6.1 qui le complète plutôt que de le réécrire.
 
 ## Notes de la tranche 6
 
-`DUR048` a été relu contre le code avant d'être figé, et deux chiffres corrigés : `ProcessDetail`
+`DUR049` a été relu contre le code avant d'être figé, et deux chiffres corrigés : `ProcessDetail`
 passe de onze méthodes à sept — il garde `getTimeline()` comme accesseur mémoïsé, il n'en perd pas
 six — et la frise a dix-huit cas de test, pas onze. Un ADR qui compte faux se relit une fois puis
 plus jamais.
