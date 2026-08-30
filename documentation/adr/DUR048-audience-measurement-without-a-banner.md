@@ -91,6 +91,31 @@ it. These must be set, and re-checked whenever the account changes hands:
 | **No cross-site tracking**, one site only | Global navigation tracking across properties is exactly what the exemption excludes. |
 | **DoNotTrack honoured** | Not required for the exemption; cheap, and consistent with the rest. |
 
+### ⚠ The numbers undercount, and by how much is unknowable
+
+Firefox blocks `matomo.cloud` — it is on the Disconnect list that Enhanced Tracking Protection uses.
+In Standard mode that applies to private windows; in Strict mode, everywhere. uBlock Origin blocks
+it too. The audience of this site is PHP developers, who run those defences at a rate nothing like
+the general population.
+
+There is a second floor beneath that one, and it is easy to forget: **Matomo honours the
+`DoNotTrack` header by default, and tracking protection sends it.** So a share of the visitors whose
+browser *does* load the script are still not counted — deliberately, by a setting this ADR
+recommends keeping.
+
+**The usual remedy is refused.** Serving the tracker from a first-party subdomain
+(`analytics.durable.rocks` as a CNAME onto Matomo Cloud) would make the script look first-party and
+slip past the list. That is circumvention of a protection the visitor chose — the Mozilla bug on the
+subject is titled *Tracking protection circumvention* — and Disconnect adds cloaked domains as it
+finds them. A project whose landing page argues that it hides nothing does not buy a few percentage
+points that way.
+
+So the figures are a **floor, not a count**, and they are biased toward visitors who do not defend
+themselves. That is written here rather than fixed, because the failure mode is not the undercount:
+it is someone reading these numbers as absolute in six months. If a real total is ever needed, the
+Apache logs answer it — they see everyone, blockers included, at the cost of bots and of having no
+events. The two are complements, not competitors.
+
 ## Alternatives rejected
 
 **Self-hosted Matomo on the existing OVH plan.** It was the obvious candidate — OVH gives PHP and
