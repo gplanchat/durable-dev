@@ -83,8 +83,10 @@
       octet invalide, les deux heures du même événement sur une page, la frise sans aucun test) et
       les quatre alternatives écartées — dont « promouvoir le modèle Sylius », qui aurait uniformisé
       par le bas
-- [ ] 6.2 The documentation site's dashboard pages describe one dashboard with several chromes,
-      rather than one per host
+- [x] 6.2 Une page `documentation/user/dashboard/`, dans les deux langues : les quatre panneaux, les
+      trois états du backend, la frise par actions, la portée des compteurs, les deux absences. Les
+      sections `durable-plugin` et `durable-magento` de la page paquets ne décrivent plus chacune sa
+      frise — elles décrivent leur **habillage** et pointent dessus
 
 ## Notes de la tranche 1
 
@@ -149,3 +151,25 @@ pas celui de `durable-plugin` sous la main.
 Ce qui restait de « voies » ailleurs était du français ordinaire — « se voient », « deux voies »
 — et n'a pas été touché. `DUR037` en garde aussi : c'est un ADR, il dit ce qui a été décidé à sa
 date, et c'est la §6.1 qui le complète plutôt que de le réécrire.
+
+## Notes de la tranche 6
+
+`DUR048` a été relu contre le code avant d'être figé, et deux chiffres corrigés : `ProcessDetail`
+passe de onze méthodes à sept — il garde `getTimeline()` comme accesseur mémoïsé, il n'en perd pas
+six — et la frise a dix-huit cas de test, pas onze. Un ADR qui compte faux se relit une fois puis
+plus jamais.
+
+Sur le site, la duplication n'avait pas la même excuse que dans les README : deux paquets satellites
+justifient une section répétée, un site non. D'où **une** page, et deux sections d'habillage qui y
+renvoient.
+
+⚠ **La page d'accueil n'est pas touchée, à dessein.** `hugo-docs/layouts/index{,.fr}.html` est
+**engendré** depuis `variant-b-narrative{,-fr}.dc.html` : les phrases du sélecteur d'hôtes s'y
+modifient par le canevas, jamais dans le fichier engendré. Elles ne contredisent rien aujourd'hui —
+« Sylius admin gains a dashboard », « Filament … the dashboard side » restent vraies — mais la ligne
+Magento ne mentionne pas son écran, et c'est une omission à reprendre au canevas.
+
+⚠ **Le hugo installé est un snap** : il ne lit ni `/tmp` ni les dossiers cachés du `$HOME`. Vérifier
+un build depuis un worktree de scratchpad demande donc de recopier `hugo-docs/` et `documentation/`
+(2 Mo) sous un chemin visible du `$HOME`. Build `--minify` servi en HTTP, les deux langues et les
+liens relatifs vérifiés à 200.
