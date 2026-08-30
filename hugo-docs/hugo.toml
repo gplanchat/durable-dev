@@ -79,3 +79,12 @@ startLevel = 2
 # HTML — 150 Ko sur 5,2 Mo, sous un quota de 100 Mo.
 [minify]
   disableHTML = true
+
+# Mesure d'audience — Matomo Cloud, en configuration exemptée de consentement.
+# Voir ../documentation/adr/DUR048-audience-measurement-without-a-banner.md, qui
+# porte les réglages serveur que ce fichier ne peut pas exprimer.
+#
+# Tant que ces deux valeurs sont vides, aucune balise n'est émise.
+[params.matomo]
+url = ""     # https://<instance>.matomo.cloud/  — la barre finale compte
+siteId = ""  # l'identifiant du site dans la console
