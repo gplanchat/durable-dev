@@ -211,7 +211,14 @@
       btn.setAttribute('data-said-on', '1');
       btn.textContent = SAID[n];
       setTimeout(function () { btn.innerHTML = ICON + "Copier"; btn.removeAttribute('data-said-on'); }, 1600);
-      track('Copy composer command', text);
+      // Deux questions, deux événements. La commande entière n'en répondait
+      // qu'une à moitié : « symfony · temporal » et « laravel · illuminate » sont
+      // deux chaînes que rien n'agrège, et un paquet présent dans huit commandes
+      // n'a de total nulle part. Le nom porte donc la destination, et chaque
+      // paquet part en plus, seul, sous sa propre action.
+      track('Copy composer command', destination());
+      var pkgs = packagesIn(text);
+      for (var p = 0; p < pkgs.length; p++) track('Package', pkgs[p]);
     };
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
@@ -224,6 +231,25 @@
   // ne doit pas casser le bouton qu'il observe.
   function track(action, name) {
     if (window._paq) window._paq.push(['trackEvent', 'Install', action, name]);
+  }
+  // ⚠ Les clés d'état, jamais `LABEL` : une étiquette se réécrit, et le jour où
+  // « in-memory » devient autre chose, Matomo scinderait la ligne en deux sans
+  // le dire. Le libellé est de la copie, ceci est une clé.
+  function destination() {
+    return state.fw + (twoEco() ? '+' + state.dist : '') + ' \u00b7 ' + state.be;
+  }
+  // Les paquets sont relus dans la commande, pas reconstruits depuis BASE/BRIDGE :
+  // une seule source, et l'événement suit une correction des tables sans qu'on y
+  // pense. Le `/` fait tout le tri — il écarte `composer` et `require`, et il vide
+  // la liste sur « nothing to install yet ». Le `?` est la marque d'un nom de
+  // brouillon, il ne doit pas entrer dans les statistiques.
+  function packagesIn(text) {
+    var out = [], parts = String(text).split(/\s+/);
+    for (var i = 0; i < parts.length; i++) {
+      var one = parts[i].replace(/\?$/, '');
+      if (one.indexOf('/') > 0) out.push(one);
+    }
+    return out;
   }
   // La copie des commandes du skill. ⚠ Volontairement PAS `data-cmd` / `data-copy` :
   // le script du sélecteur prend le PREMIER de la page, et un second détournerait
@@ -328,10 +354,15 @@
   // Et réciproquement : après chaque choix, la barre d'adresse porte le lien à partager.
   // `replaceState` plutôt que `pushState` — cliquer trois puces ne doit pas remplir
   // l'historique de trois entrées que le bouton Retour devrait défaire une par une.
+  // `dist` n'est écrit que quand la ligne « base » est visible — API Platform et
+  // Aimeos, les deux seuls à s'installer sur plusieurs écosystèmes. Ailleurs, l'axe
+  // n'existe pas : `state.dist` garde sa dernière valeur sans que rien ne la lise,
+  // et la publier ferait croire à un choix que la page n'a jamais proposé.
   function shareable() {
     if (!window.history || !history.replaceState) return;
     history.replaceState(null, '',
-      location.pathname + '?fw=' + state.fw + '&dist=' + state.dist + '&be=' + state.be + location.hash);
+      location.pathname + '?fw=' + state.fw + (twoEco() ? '&dist=' + state.dist : '')
+        + '&be=' + state.be + location.hash);
   }
   logos();
   paint();

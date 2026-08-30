@@ -51,21 +51,35 @@ anyway for the certification and the export.
 - `enableLinkTracking` is **deliberately absent**. Outbound-click tracking is arguably within
   audience measurement; it is also more collection than the question "does anyone come" needs.
 
-### The two events, and the question each answers
+### The three events, and the question each answers
 
 The rule set above says to add collection only when a question requires it, and to write down which.
-Two do:
+Three do:
 
 | Event | The question |
 |---|---|
-| `Install / Copy composer command / <the command>` | Which situation do people actually install for? The command encodes the chooser's combination, so the answer is the event name itself — Magento + Temporal, Laravel + Illuminate, and so on. |
+| `Install / Copy composer command / <fw>[+<dist>] · <backend>` | Which situation do people actually install for? The name is the chooser's combination as a key — `symfony · temporal`, `magento · temporal`, `apiplatform+laravel · illuminate`. |
+| `Install / Package / <one package name>` | Which packages do people actually leave with? One event per package in the copied command, so a package appearing in eight combinations has a total. |
 | `Install / Copy skill commands / durable-skill` | Does the second door get used at all? The skill block was placed by a design decision; this is how that decision gets checked instead of assumed. |
 
-Both are pushed **on success, not on click**: a clipboard write that fails is not an install intent
+All are pushed **on success, not on click**: a clipboard write that fails is not an install intent
 that succeeded, and counting it would inflate exactly the number being read.
 
-Neither carries anything about the visitor. The event name is page content — a command string the
-page itself displays.
+⚠ **A copy of a two-package command emits three events, and that is intended.** `Copy composer
+command` stays the count of copies — one per click, whatever the command holds. The per-package
+events sit under their own action precisely so they never contaminate it.
+
+**Why the name is not the command any more.** It was, and it answered the first question only by
+eye: `composer require gplanchat/durable-bundle gplanchat/durable-bridge-temporal` is a string
+nothing aggregates, and a package appearing across eight commands had a total nowhere. Splitting the
+two questions into two events makes both readable without parsing anything in the Matomo UI.
+
+⚠ **The name carries state keys, never `LABEL`.** A label is copy and gets rewritten; the day
+"in-memory" is reworded, Matomo would silently split one row into two and the history before the
+change would stop matching the history after it. The keys are the stable thing.
+
+None of the three carries anything about the visitor. The names are page content — a combination the
+page displays and a package name it prints.
 - Nothing at all is emitted while `params.matomo.url` or `params.matomo.siteId` is empty.
 
 Measured on a real build: empty parameters put the string `matomo` on **0 of 41 pages**; filled,
