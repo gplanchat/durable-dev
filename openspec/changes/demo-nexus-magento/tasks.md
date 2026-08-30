@@ -148,6 +148,10 @@
 - [x] 6.1 `demo/README.md` : trois maquettes, six processus, le troisième namespace, et les
       prérequis du banc Magento.
 - [x] 6.2 `documentation/user/nexus/_index.{md,fr.md}` : la section devient « Trois applications, en
-      vrai », et dit ce que la troisième prouve de plus.
+      vrai », suivie de « Appeler ne demande rien à votre hôte » — l'asymétrie appelant/servant, les
+      trois namespaces pour deux endpoints, et l'ordre des appels comme compensation.
+      Vérifié sur un build `--minify` servi en HTTP, les deux langues symétriques : **8 `h2`,
+      6 `h3`, 2 tableaux, 13 blocs de code** de chaque côté, et le tableau des maquettes rend bien
+      ses quatre colonnes.
 - [x] 6.3 La réserve de `EveryCaseWorkflow` et le `README.md` du banc renvoient désormais au
       workflow qui existe, au lieu d'annoncer un change à venir.
