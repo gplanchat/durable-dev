@@ -6,11 +6,12 @@ bookFlatSection: false
 
 # User guide
 
-How to think about Durable and how to use it. The [home page](/) covers what it is for; this
-section is the reference.
+How to think about Durable and how to use it. Start with [Why Durable](why/) if you are still
+deciding; the [home page](/) makes the same case interactively.
 
 | | |
 |---|---|
+| [Why Durable](why/) | the problem it solves, what it replaces — and when you do not need it |
 | [Packages](packages/) | the library, the bundle, the Temporal driver — what to install and when |
 | [Getting started](getting-started/) | installation, Symfony configuration, a first workflow, worker commands |
 | [Concepts](concepts/) | workflows, activities, replay and backends in plain language |
