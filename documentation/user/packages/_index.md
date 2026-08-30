@@ -266,9 +266,13 @@ require, suggest or detect Filament.
 composer require gplanchat/durable-plugin
 ```
 
-An admin dashboard for Sylius: the list of workflow runs with search and status filters, and a run
-detail view with timeline lanes and recent events. Timeline labels prefer the human-readable
-`ActivityType.name` and fall back to technical IDs only when there is nothing better.
+The Sylius chrome for [The dashboard](../dashboard/): an entry in the admin menu, the run list on
+Tabler cards with cursor paging, and the run detail beside it. The panels, the grouping and the
+wording come from `gplanchat/durable` itself, so the same run reads the same here and on the Magento
+screen — what this package owns is the chrome around them.
+
+Labels prefer the human-readable `ActivityType.name` and fall back to technical IDs only when there
+is nothing better.
 
 It **observes**; it does not execute. It requires `gplanchat/durable-bundle`, which wires the run
 catalog it reads, so the command above is the whole install.
@@ -290,16 +294,10 @@ workflow and activity classes to the runtime, assembles the engine for a Magento
 workers as `bin/magento` commands, and adds a read-only admin screen under
 **System > Durable processes > Process history**.
 
-The screen is a standard Magento grid — paging, bookmarks, column controls, export, and a
-multi-select status filter whose options come from the status enum itself. Selecting a run opens its
-detail: a timeline with **one line per action** — an activity scheduled, started and completed is
-one line, and the line's bar is how long it took. The run itself is the first line, named after the
-workflow and holding its workflow tasks; a child workflow keeps a line of its own. Each bar is cut
-between consecutive events, so an interval in which nothing was recorded — waiting for a worker —
-says how long it lasted rather than hiding inside a bar. The journal sits beneath it. Each journal line unfolds onto what the backend recorded with
-it — the arguments an activity was called with, what it returned, the class and message of a
-failure. Positioning by time rather than by rank is the point: it is what makes a run that spent
-twenty-two of its twenty-four seconds waiting look like one.
+The chrome is Magento's: a standard grid — paging, bookmarks, column controls, export, and a
+multi-select status filter whose options come from the status enum itself — with the state of the
+backend and the outcome counters above it. What the screen *shows* is not Magento's and not this
+package's: see [The dashboard](../dashboard/), which every host renders in its own chrome.
 
 Magento's container has no equivalent of Symfony's tag autoconfiguration, so declaration is
 explicit — two arrays in `di.xml`:

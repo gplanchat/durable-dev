@@ -22,16 +22,21 @@ use Magento\Ui\DataProvider\AbstractDataProvider;
  * deux ne se traduisent pas l'un dans l'autre sans état. Ce fournisseur lit donc une **fenêtre**
  * bornée et pagine dedans.
  *
- * ponytail: fenêtre de 200 exécutions. Au-delà, la grille dit la vérité sur ce qu'elle montre mais
- * ne montre pas tout. Le jour où ça gêne, la sortie est de mémoriser les curseurs par page dans la
- * session de l'administrateur — pas d'agrandir la fenêtre.
+ * La taille de cette fenêtre vit sur {@see RuntimeFactory::OBSERVATION_WINDOW}, et pas ici : l'écran
+ * de détail lit la même, et deux littéraux distincts rendaient possible d'être listé ici et
+ * introuvable là. Elle est **dite à l'exploitant** par la bannière au-dessus de la grille — une
+ * fenêtre bornée qui ne s'annonce pas se découvre par une exécution qui manque.
  */
 /*
  * Pas `final` : le conteneur l'instancie, donc il engendre un `Interceptor` qui l'étend.
  */
 class ProcessListing extends AbstractDataProvider
 {
-    private const WINDOW = 200;
+    /**
+     * Le rendu d'un fait que **cette exécution** n'a pas, dans une grille à colonnes fixes. Le même
+     * que celui de l'écran de détail, et c'est tout l'intérêt de le nommer.
+     */
+    private const ABSENT = '—';
 
     /** @var array<string, list<string>|string> */
     private array $filters = [];
@@ -53,7 +58,7 @@ class ProcessListing extends AbstractDataProvider
 
     public function getData(): array
     {
-        $runs = $this->runtimeFactory->catalog()->listRuns(limit: self::WINDOW)->runs;
+        $runs = $this->runtimeFactory->catalog()->listRuns(limit: RuntimeFactory::OBSERVATION_WINDOW)->runs;
 
         $runs = $this->applyFilters($runs);
 
@@ -66,8 +71,12 @@ class ProcessListing extends AbstractDataProvider
                 'run_id' => $run->runId,
                 'workflow_name' => $run->workflowName,
                 'status' => $run->status->value,
-                'started_at' => $run->startedAt?->format('Y-m-d H:i:s') ?? '',
-                'ended_at' => $run->endedAt?->format('Y-m-d H:i:s') ?? '',
+                // ⚠ Un tiret cadratin, pas une chaîne vide. Une exécution en cours n'a pas de date
+                // de fin, et la colonne existe pour toutes les autres : une case vide se lit comme
+                // un rendu qui a échoué, là où le tiret dit « rien ici ». C'est l'inverse du fait
+                // dont le backend n'a **pas la notion** — celui-là n'a pas de colonne du tout.
+                'started_at' => $run->startedAt?->format('Y-m-d H:i:s') ?? self::ABSENT,
+                'ended_at' => $run->endedAt?->format('Y-m-d H:i:s') ?? self::ABSENT,
             ], $window),
         ];
     }

@@ -281,10 +281,13 @@ suggérera ni ne détectera jamais Filament.
 composer require gplanchat/durable-plugin
 ```
 
-Un tableau de bord d'administration pour Sylius : la liste des exécutions avec recherche et filtres
-par statut, et une vue de détail avec les couloirs de la chronologie et les événements récents. Les
-libellés de chronologie privilégient l'`ActivityType.name` lisible et ne retombent sur les
-identifiants techniques que faute de mieux.
+L'habillage Sylius du [tableau de bord](../dashboard/) : une entrée dans le menu d'administration, la
+liste des exécutions sur des cartes Tabler avec pagination par curseur, et le détail à côté. Les
+panneaux, le regroupement et les mots viennent de `gplanchat/durable` lui-même : la même exécution se
+lit donc pareil ici et sur l'écran Magento — ce que ce paquet possède, c'est l'habillage autour d'eux.
+
+Les libellés privilégient l'`ActivityType.name` lisible et ne retombent sur les identifiants
+techniques que faute de mieux.
 
 Il **observe** ; il n'exécute pas. Il exige `gplanchat/durable-bundle`, qui câble le catalogue
 d'exécutions qu'il lit : la commande ci-dessus est donc toute l'installation.
@@ -306,18 +309,11 @@ les classes de workflow et d'activité au moteur, l'assemble pour un processus M
 workers en commandes `bin/magento`, et ajoute un écran d'administration en lecture seule sous
 **System > Durable processes > Process history**.
 
-L'écran est une grille Magento standard — pagination, signets, choix des colonnes, export, et un
-filtre d'état multi-select dont les options viennent de l'énumération elle-même. Ouvrir une
-exécution mène à son détail : une frise avec **une ligne par action** — une activité planifiée,
-démarrée puis terminée est une ligne, et la barre de la ligne est sa durée. L'exécution elle-même
-est la première ligne, nommée d'après le workflow et portant ses tâches de workflow ; un workflow
-enfant garde sa propre ligne. Chaque barre est découpée entre événements consécutifs, de sorte
-qu'un intervalle sans rien d'enregistré — l'attente d'un worker — dit sa durée au lieu de se
-cacher dans une barre. Le journal est en dessous. Chaque ligne du journal se
-déplie sur ce que le backend a enregistré avec elle — les arguments d'appel d'une activité, ce
-qu'elle a rendu, la classe et le message d'un échec. Placer dans le temps plutôt que par rang est
-tout l'intérêt : c'est ce qui fait qu'une exécution ayant passé vingt-deux de ses vingt-quatre
-secondes à attendre en a l'air.
+L'habillage est celui de Magento : une grille standard — pagination, signets, choix des colonnes,
+export, et un filtre d'état multi-select dont les options viennent de l'énumération elle-même — avec
+l'état du backend et les compteurs par issue au-dessus. Ce que l'écran *montre* n'appartient ni à
+Magento ni à ce paquet : voir [le tableau de bord](../dashboard/), que chaque hôte rend dans son
+propre habillage.
 
 Le conteneur de Magento n'a pas d'équivalent de l'autoconfiguration par tag de Symfony : la
 déclaration est explicite, deux tableaux dans `di.xml`.

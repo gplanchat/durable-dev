@@ -5,9 +5,32 @@
 ## Features
 
 - Workflow runs list with an outcome filter and cursor paging.
-- Run details with recorded history grouped in lanes.
+- Run details as a timeline: **one line per action**, placed in time, hatched where the wait was for
+  someone to pick the work up rather than for the work itself.
 - Backend-neutral: reads whichever catalog the bundle registers — Temporal, SQL, or in-memory.
-- Lane labels prioritise human-readable names and fall back to technical IDs only when needed.
+- Action labels prioritise human-readable names and fall back to technical IDs only when needed.
+
+## The panels, and why they are the same everywhere
+
+Every Durable dashboard shows the same four panels, whichever host renders them. They are not a
+matter of chrome: a panel one surface has and another lacks is a question one application can answer
+about a run and another cannot, about the same run, recorded by the same backend.
+
+1. **The state of the backend.** Three states, and an empty list means something different under
+   each: no readable backend is configured; a backend is configured and cannot be reached, named and
+   dated so an operator knows what to restart; or a backend answers and its journal does not outlive
+   the request that renders the page — where an empty list is the correct answer, not a failure.
+2. **The runs**, filterable by outcome and paged.
+3. **Counters per outcome**, over the set the list is paging through — and labelled as covering that
+   set, never as a total over the application's history.
+4. **A selected run's recorded history**: one line per *action*, placed in time, with an interval
+   spent waiting to be picked up told apart from one spent working; each event unfolds onto what the
+   backend recorded with it.
+
+Grouping into actions, measuring, telling a queue apart from work and wording a duration are decided
+**once**, in `gplanchat/durable` beside the observation model. What each host decides is how to draw
+it — scaling seconds to a column width is the only thing a surface owns, because a surface that
+renders no markup has no column.
 
 ### What the page does not show, and why
 
@@ -19,7 +42,7 @@ backend that has no such notion.
 | --- | --- | --- | --- |
 | Task queue, namespace | recorded, not shown — see below | no such notion | no such notion |
 | Grouping across continue-as-new | the workflow id | no such notion | no such notion |
-| Query lane | recorded | never recorded; queries are answered live | never recorded, same reason |
+| Queries | recorded | never recorded; queries are answered live | never recorded, same reason |
 | Runs from another process | all of them | all of them | **none — see below** |
 
 Task queue and namespace are not shown at all for now: they belong to one backend only, and the page
@@ -86,10 +109,11 @@ The dashboard route is:
 
 - Menu entry registration listens to `sylius.menu.admin.main`.
 - If no catalog is registered, the page reports it without naming any particular backend.
-- Timeline labeling rules:
-  - Activity lanes: `ActivityType.name` > `activityId` > generated fallback label.
-  - Signal lanes: signal name from Temporal event attributes.
-  - Query lanes: short human-readable query state derived from Temporal event type.
+- Timeline labelling rules — an action is named by the event that **opens** it, because only the
+  scheduling knows the name and its follow-ups carry a number:
+  - Activities: `ActivityType.name` > `activityId` > generated fallback label.
+  - Signals: signal name from Temporal event attributes.
+  - Queries: short human-readable query state derived from Temporal event type.
 
 ### Timeline labels (before/after)
 
@@ -102,7 +126,7 @@ The dashboard route is:
 
 ### Label source mapping
 
-| Lane kind | Primary source | Fallback(s) |
+| Event kind | Primary source | Fallback(s) |
 | --- | --- | --- |
 | `activity` | `ActivityTaskScheduledEventAttributes.activity_type.name` | `activityId`, then generated `activity-<scheduledId>` |
 | `signal` | `WorkflowExecutionSignaledEventAttributes.signal_name` | generated `signal-<eventId>` |

@@ -22,7 +22,7 @@ use Temporal\Api\History\V1\HistoryEvent;
  * L'ordre des tests de rangement compte, et c'est le piège que le code d'origine n'évitait pas :
  * `WORKFLOW_EXECUTION_SIGNALED` contient `WORKFLOW_`, et
  * `START_CHILD_WORKFLOW_EXECUTION_INITIATED` aussi. Chercher `WORKFLOW_` en premier range donc les
- * signaux et les workflows enfants sur la voie de l'exécution. Les cas particuliers passent avant
+ * signaux et les workflows enfants sur la nature de l'exécution. Les cas particuliers passent avant
  * le cas général.
  */
 final class TemporalRunHistoryReader
@@ -187,7 +187,7 @@ final class TemporalRunHistoryReader
      * intéressantes d'une commande sous quatre lignes de plomberie portant le même nom.
      *
      * ⚠ **Les exceptions sont l'essentiel de cette règle**, et le même piège que pour le rangement
-     * en voies : `WORKFLOW_EXECUTION_SIGNALED` et la famille `WORKFLOW_EXECUTION_UPDATE_*`
+     * en natures : `WORKFLOW_EXECUTION_SIGNALED` et la famille `WORKFLOW_EXECUTION_UPDATE_*`
      * commencent par le même préfixe et ne sont pas l'exécution — un signal reçu et une mise à jour
      * sont des actions à part entière, avec leur propre ligne. Les workflows **enfants**
      * (`CHILD_WORKFLOW_EXECUTION_*`, `START_CHILD_WORKFLOW_EXECUTION_*`) et les workflows

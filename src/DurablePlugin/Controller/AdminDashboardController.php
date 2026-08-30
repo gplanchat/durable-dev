@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Plugin\Controller;
 
-use Gplanchat\Durable\Plugin\Dashboard\RunDashboardView;
+use Gplanchat\Durable\Observation\RunDashboard;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -21,7 +21,7 @@ final class AdminDashboardController
     ) {}
 
     #[IsGranted('ROLE_ADMINISTRATION_ACCESS')]
-    public function index(Request $request, RunDashboardView $view): Response
+    public function index(Request $request, RunDashboard $view): Response
     {
         $status = trim((string) $request->query->get('status', 'all'));
         $cursor = trim((string) $request->query->get('cursor', ''));
