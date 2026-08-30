@@ -34,8 +34,11 @@ use Gplanchat\DurableProbe\Workflow\Activity\EveryCaseActivities;
  *
  * ⚠ **Deux cas manquent, et c'est délibéré.** Un *signal* demande un émetteur, et le runtime de
  * l'hôte n'expose pas d'envoi — la sonde tourne sans surveillance, donc rien ne le lui enverrait.
- * Une opération *Nexus* demande **deux applications** ; elle appartient à
- * `change/demo-nexus-deux-applications`, et l'écrire ici en ferait une deuxième source de vérité.
+ * Une opération *Nexus* demande **deux applications en face** : elle est dans
+ * {@see CommandeNexusWorkflow}, qui appelle les maquettes Sylius et Symfony, et elle y reste. La
+ * mettre ici rendrait cette sonde indémarrable seule — elle attendrait deux workers qui ne tournent
+ * que sous `demo/lancer.sh`. Un journal contenant les trois événements Nexus existe donc, il porte
+ * juste un autre nom d'exécution.
  */
 final class EveryCaseWorkflow
 {

@@ -231,18 +231,18 @@ appel qui échoue, c'est un service qui ne reçoit jamais rien, en silence. Il n
 
 ---
 
-## Deux applications, en vrai
+## Trois applications, en vrai
 
-Le dépôt embarque une démonstration où deux applications Durable s'appellent. C'est la première fois
-que deux d'entre elles se parlent, et ce qu'elle montre se lit mieux qu'il ne se décrit.
+Le dépôt embarque une démonstration où trois applications Durable s'appellent, à travers deux
+frameworks. Ce qu'elle montre se lit mieux qu'il ne se décrit.
 
-| | `sylius/` — la boutique | `symfony/` — le métier |
-|---|---|---|
-| namespace | `demo-boutique` | `demo-metier` |
-| sert | `stock` (`reserver`) | `facturation` (`verifier`, `encaisser`) |
-| appelle | `facturation` | `stock` |
+| | `sylius/` — la boutique | `symfony/` — le métier | `magento/` — le banc Magento |
+|---|---|---|---|
+| namespace | `demo-boutique` | `demo-metier` | `demo-magento` |
+| sert | `stock` (`reserver`) | `facturation` (`verifier`, `encaisser`) | **rien** |
+| appelle | `facturation` | `stock` | `facturation` **et** `stock` |
 
-Les deux lisent le même paquet de contrats. Rien d'autre ne circule entre elles.
+Les trois lisent le même paquet de contrats. Rien d'autre ne circule entre elles.
 
 Le workflow de commande de la boutique appelle les deux formes sur le même stub :
 
@@ -278,10 +278,47 @@ quatre minutes**. L'opération est restée en `NexusOperationStarted`, l'appelan
 et tout s'est terminé normalement au retour du worker. C'est cela, « l'attente ne tient rien
 d'ouvert » — et ce n'est pas une chose qu'un schéma permet d'affirmer.
 
-Les prérequis, les processus à démarrer et les deux commandes à lancer sont dans
-[`demo/README.md`](https://github.com/gplanchat/durable-dev/blob/main/demo/README.md). Une chose à
+### Appeler ne demande rien à votre hôte
+
+La troisième application est là pour séparer ce que Nexus demande au framework de ce qu'il vous
+demande à vous. Les deux premières sont toutes deux en Symfony : elles partagent son conteneur, la
+passe de compilation qui enregistre les gestionnaires et le transport Messenger qui tourne les
+workers. On pouvait raisonnablement lire tout cela comme une fonctionnalité du bundle.
+
+Le banc Magento n'a rien de tout ça. Il câble ses services en `di.xml`, tourne son worker par
+`bin/magento durable:worker --role=journal`, et lit son DSN dans `app/etc/env.php`. Il appelle les
+deux services — l'immédiat et celui qu'un workflow remplit — et **pas une ligne n'a été ajoutée au
+cœur, au pont Temporal ou à `gplanchat/durable-magento`** pour cela.
+
+La raison est que les deux côtés ne sont pas symétriques :
+
+- **Appeler** demande un workflow dont le journal est la grappe, et rien d'autre.
+  `WorkflowEnvironment::nexusStub()` lit le contrat par réflexion ; aucun conteneur n'intervient.
+- **Servir** demande à l'hôte d'enregistrer des gestionnaires et de poller une file de tâches Nexus.
+  C'est du travail d'hôte, écrit une fois par hôte — une passe de compilation en Symfony, et, pour
+  l'instant, rien en Magento.
+
+Cette asymétrie se voit dans la grappe : trois namespaces, **deux endpoints**. Un endpoint dit où un
+service est servi, donc une application qui ne fait qu'appeler n'en a pas.
+
+```php
+// Le banc Magento, appelant les deux services depuis un seul workflow. C'est tout ce que
+// l'intégration à l'hôte représente : deux stubs et trois opérations attendues.
+$verdict = $this->environment->await($this->facturation->verifier($commande, $montant, $devise));
+$reservation = $this->environment->await($this->stock->reserver($commande, $lignes));
+$recu = $this->environment->await($this->facturation->encaisser($commande, $montant, $devise));
+```
+
+⚠ **L'ordre de ces trois appels n'est pas cosmétique.** Il a d'abord été écrit à l'envers, et
+mesuré : une commande en USD retenait le stock **puis** se faisait refuser sa facture, laissant du
+stock retenu sans qu'aucune opération du contrat `stock` ne sache le rendre. Vérifier d'abord fait
+qu'il n'y a rien à rendre. Quand une opération n'a pas de contrepartie compensatoire, l'ordre des
+appels **est** la compensation.
+
+Les prérequis, les processus à démarrer et les trois commandes à lancer sont dans
+[`demo/README.md`](https://github.com/gplanchat/durable-dev/blob/main/demo/README.md). Deux choses à
 savoir avant de commencer : un serveur qui répond `Nexus APIs are disabled` ne convient pas —
-`temporal server start-dev`, si.
+`temporal server start-dev`, si — et les trois maquettes ne tournent pas sur le même binaire PHP.
 
 ---
 

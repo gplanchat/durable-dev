@@ -20,8 +20,8 @@ use Gplanchat\Durable\WorkflowEnvironment;
  * worker qui fait avancer cette exécution est le même `WorkflowTaskRunner` que les deux autres
  * maquettes tournent sous un autre nom.
  *
- * Les deux formes de réponse sont ici, comme dans `CommandeWorkflow` de la boutique : `reserver` et
- * `verifier` reviennent sur la tâche, `encaisser` est remplie par un workflow d'en face et prend
+ * Les deux formes de réponse sont ici, comme dans `CommandeWorkflow` de la boutique : `verifier` et
+ * `reserver` reviennent sur la tâche, `encaisser` est remplie par un workflow d'en face et prend
  * une quinzaine de secondes. Rien dans ce fichier ne dit laquelle est laquelle.
  *
  * ⚠ **Le garde de nommage ne couvre pas cet hôte.** La règle « tout paramètre d'un workflow qui
@@ -56,31 +56,34 @@ final class CommandeNexusWorkflow
      * @param int                $montant en centimes
      *
      * @return array{
-     *     reservation: array{reserve: bool, manquants: array<string, int>},
-     *     verifiee: array{acceptee: bool, motif: string|null}|null,
+     *     verifiee: array{acceptee: bool, motif: string|null},
+     *     reservation: array{reserve: bool, manquants: array<string, int>}|null,
      *     encaissement: array{recu: string, encaisse: int}|null
      * }
      */
     #[AsWorkflowMethod]
     public function run(string $commande, array $lignes, int $montant, string $devise = 'EUR'): array
     {
-        $reservation = $this->environment->await($this->stock->reserver($commande, $lignes));
-
-        // Rien à facturer si rien n'est retenu — et rien à compenser non plus, la boutique n'ayant
-        // rien retenu. L'ordre des deux appels est ce qui rend l'annulation inutile ici.
-        if (true !== ($reservation['reserve'] ?? false)) {
-            return ['reservation' => $reservation, 'verifiee' => null, 'encaissement' => null];
-        }
-
+        // ⚠ **L'ordre des trois appels est ce qui dispense de compenser**, et il a été mesuré à
+        // l'envers d'abord : retenir le stock avant de vérifier la facture laissait `MUG_BLUE`
+        // retenu chez la boutique après un refus de devise, sans que rien ne le libère. Le contrat
+        // `stock` n'a pas d'opération qui rende ce qu'il a pris — vérifier d'abord fait qu'il n'y a
+        // rien à rendre.
         $verdict = $this->environment->await($this->facturation->verifier($commande, $montant, $devise));
 
         if (true !== ($verdict['acceptee'] ?? false)) {
-            return ['reservation' => $reservation, 'verifiee' => $verdict, 'encaissement' => null];
+            return ['verifiee' => $verdict, 'reservation' => null, 'encaissement' => null];
+        }
+
+        $reservation = $this->environment->await($this->stock->reserver($commande, $lignes));
+
+        if (true !== ($reservation['reserve'] ?? false)) {
+            return ['verifiee' => $verdict, 'reservation' => $reservation, 'encaissement' => null];
         }
 
         return [
-            'reservation' => $reservation,
             'verifiee' => $verdict,
+            'reservation' => $reservation,
             'encaissement' => $this->environment->await($this->facturation->encaisser($commande, $montant, $devise)),
         ];
     }

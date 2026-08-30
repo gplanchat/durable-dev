@@ -87,6 +87,23 @@ bin/magento durable:demo ORD-4242
 Les trois lignes ne sont pas des étiquettes écrites dans la commande : ce sont les noms que
 `#[ActivityMethod]` porte sur le contrat, résolus au moment où le module assemble son moteur.
 
+**Et Magento sait appeler les deux autres maquettes du dépôt**, par Nexus, sur un troisième
+namespace :
+
+```bash
+MAGENTO_DC_DURABLE__TEMPORAL__DSN='temporal://127.0.0.1:7239?namespace=demo-magento&tls=0' \
+  bin/magento durable:demo:nexus MAG-1 1200 MUG_BLUE=1
+```
+
+`CommandeNexusWorkflow` fait vérifier la facture par la maquette Symfony, retenir le stock par la
+maquette Sylius, puis encaisser — la dernière étant remplie par un workflow d'en face, qui met une
+quinzaine de secondes. Le banc ne **sert** aucune opération : appeler ne demande rien à l'hôte,
+servir demanderait un registre de gestionnaires et une file Nexus, qui n'existent pas ici.
+
+Elle ne tourne pas seule : les cinq autres workers, les deux endpoints et les prérequis sont dans
+[`demo/README.md`](../demo/README.md). La grappe du `compose.yaml` ci-dessus ne convient pas — ses
+API Nexus sont désactivées.
+
 **Dans le back-office** — Magento livre son propre serveur de développement, il n'y a rien à
 installer :
 

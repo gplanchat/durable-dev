@@ -89,10 +89,17 @@ class RunNexusDemoCommand extends Command
         $resultat = $client->pollForCompletion($commande, 500, $secondes * 2);
 
         $output->writeln(json_encode($resultat, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE));
-        $output->writeln(sprintf('<info>%.1f s — dont l\'encaissement, rempli par un workflow d\'en face.</info>', microtime(true) - $depart));
 
-        return \is_array($resultat) && true === ($resultat['reservation']['reserve'] ?? null)
-            ? Command::SUCCESS
-            : Command::FAILURE;
+        // Le commentaire de durée dit ce qui s'est passé, et non ce qui se passe d'habitude : une
+        // commande refusée revient en un dixième de seconde, et annoncer « dont l'encaissement »
+        // ferait passer un refus rapide pour un encaissement anormalement véloce.
+        $encaisse = \is_array($resultat) && null !== ($resultat['encaissement'] ?? null);
+        $output->writeln(sprintf(
+            '<info>%.1f s%s</info>',
+            microtime(true) - $depart,
+            $encaisse ? ' — dont l\'encaissement, rempli par un workflow d\'en face.' : ' — rien n\'a été encaissé.',
+        ));
+
+        return $encaisse ? Command::SUCCESS : Command::FAILURE;
     }
 }

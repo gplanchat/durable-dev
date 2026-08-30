@@ -227,18 +227,18 @@ refusal happens when the application starts.
 
 ---
 
-## Two applications, for real
+## Three applications, for real
 
-The repository ships a demonstration where two Durable applications call each other. It is the
-first time two of them talk, and what it shows is easier to read than to describe.
+The repository ships a demonstration where three Durable applications call each other, across two
+frameworks. What it shows is easier to read than to describe.
 
-| | `sylius/` — the shop | `symfony/` — the back office |
-|---|---|---|
-| namespace | `demo-boutique` | `demo-metier` |
-| serves | `stock` (`reserver`) | `facturation` (`verifier`, `encaisser`) |
-| calls | `facturation` | `stock` |
+| | `sylius/` — the shop | `symfony/` — the back office | `magento/` — the Magento bench |
+|---|---|---|---|
+| namespace | `demo-boutique` | `demo-metier` | `demo-magento` |
+| serves | `stock` (`reserver`) | `facturation` (`verifier`, `encaisser`) | **nothing** |
+| calls | `facturation` | `stock` | `facturation` **and** `stock` |
 
-Both read the same contract package. Nothing else travels between them.
+All three read the same contract package. Nothing else travels between them.
 
 The shop's order workflow calls both forms on the same stub:
 
@@ -273,10 +273,46 @@ minutes**. The operation sat at `NexusOperationStarted`, the caller consumed not
 finished normally when the worker came back. That is what "the wait holds nothing open" means, and
 it is not a claim you can make from a diagram.
 
-Prerequisites, the processes to start and the two commands to run are in
-[`demo/README.md`](https://github.com/gplanchat/durable-dev/blob/main/demo/README.md). One thing to
+### Calling asks nothing of your host
+
+The third application is there to separate what Nexus asks of the framework from what it asks of
+you. The first two are both Symfony: they share its container, the compile pass that registers
+handlers, and the Messenger transport that runs the workers. You could reasonably read all of that
+as a feature of the bundle.
+
+The Magento bench has none of it. It wires services in `di.xml`, runs its worker with
+`bin/magento durable:worker --role=journal`, and reads its DSN from `app/etc/env.php`. It calls both
+services — the immediate one and the one a workflow fulfils — and **not one line was added to the
+core, to the Temporal bridge or to `gplanchat/durable-magento`** to make that work.
+
+The reason is that the two sides are not symmetrical:
+
+- **Calling** needs a workflow whose journal is the cluster, and nothing else.
+  `WorkflowEnvironment::nexusStub()` reads the contract by reflection; no container is involved.
+- **Serving** needs the host to register handlers and to poll a Nexus task queue. That is host work,
+  written once per host — a compile pass in Symfony, and, for now, nothing in Magento.
+
+That asymmetry has a visible consequence in the cluster: three namespaces, **two endpoints**. An
+endpoint says where a service is served, so an application that only calls has none.
+
+```php
+// The Magento bench, calling both services from one workflow. This is the whole of the host
+// integration: two stubs and three awaited operations.
+$verdict = $this->environment->await($this->facturation->verifier($commande, $montant, $devise));
+$reservation = $this->environment->await($this->stock->reserver($commande, $lignes));
+$recu = $this->environment->await($this->facturation->encaisser($commande, $montant, $devise));
+```
+
+⚠ **The order of those three calls is not cosmetic.** It was written the other way round first, and
+measured: an order in USD reserved the stock and *then* had its invoice refused, leaving stock held
+with no operation in the `stock` contract to give it back. Verifying first means there is nothing to
+give back. When an operation has no compensating counterpart, the order of the calls is the
+compensation.
+
+Prerequisites, the processes to start and the three commands to run are in
+[`demo/README.md`](https://github.com/gplanchat/durable-dev/blob/main/demo/README.md). Two things to
 know before you start: a server that answers `Nexus APIs are disabled` will not do —
-`temporal server start-dev` will.
+`temporal server start-dev` will — and the three mockups do not run on the same PHP binary.
 
 ---
 
