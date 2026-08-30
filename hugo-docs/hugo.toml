@@ -86,5 +86,5 @@ startLevel = 2
 #
 # Tant que ces deux valeurs sont vides, aucune balise n'est émise.
 [params.matomo]
-url = ""     # https://<instance>.matomo.cloud/  — la barre finale compte
-siteId = ""  # l'identifiant du site dans la console
+url = "https://durablerocks.matomo.cloud/"     # https://<instance>.matomo.cloud/  — la barre finale compte
+siteId = "1"  # l'identifiant du site dans la console

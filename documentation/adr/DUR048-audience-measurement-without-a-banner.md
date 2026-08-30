@@ -2,9 +2,8 @@
 
 ## Status
 
-Accepted, and **inert on purpose**: the tag is wired into both surfaces but emits nothing until two
-parameters are filled in `hugo-docs/hugo.toml`. A repository without an account does not carry a
-beacon pointing nowhere.
+Accepted and live: `durablerocks.matomo.cloud`, site 1. The partial still emits nothing when the two
+parameters are empty, which keeps a fork or a local build silent.
 
 ## Context
 
@@ -50,13 +49,34 @@ anyway for the certification and the export.
 - `_paq.push(['disableCookies'])` is emitted **before** `trackPageView`. The order is load-bearing:
   reversed, the cookie is already set and nothing is protected.
 - `enableLinkTracking` is **deliberately absent**. Outbound-click tracking is arguably within
-  audience measurement; it is also more collection than the question "does anyone come" needs. Add
-  it when a question actually requires it, and write down which.
+  audience measurement; it is also more collection than the question "does anyone come" needs.
+
+### The two events, and the question each answers
+
+The rule set above says to add collection only when a question requires it, and to write down which.
+Two do:
+
+| Event | The question |
+|---|---|
+| `Install / Copy composer command / <the command>` | Which situation do people actually install for? The command encodes the chooser's combination, so the answer is the event name itself — Magento + Temporal, Laravel + Illuminate, and so on. |
+| `Install / Copy skill commands / durable-skill` | Does the second door get used at all? The skill block was placed by a design decision; this is how that decision gets checked instead of assumed. |
+
+Both are pushed **on success, not on click**: a clipboard write that fails is not an install intent
+that succeeded, and counting it would inflate exactly the number being read.
+
+Neither carries anything about the visitor. The event name is page content — a command string the
+page itself displays.
 - Nothing at all is emitted while `params.matomo.url` or `params.matomo.siteId` is empty.
 
 Measured on a real build: empty parameters put the string `matomo` on **0 of 41 pages**; filled,
 the tag lands on **40 of 41** — the exception being `en/index.html`, a Hugo-generated redirect stub
 nobody reads.
+
+⚠ **One defect only a real build could catch.** The first version passed both parameters through
+`| jsonify`. Go already escapes a value for a JavaScript context, so the quoting happened twice and
+the emitted code read `var u = ""https://durablerocks.matomo.cloud/"";`. The tag was present on
+every page, `matomo.js` never loaded, and nothing said so — a review of the template would have
+found it correct. It is fixed, and the partial carries the reason so it is not reintroduced.
 
 ### ⚠ What the repository cannot guarantee
 
