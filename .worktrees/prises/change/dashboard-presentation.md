@@ -17,4 +17,9 @@ Trois décisions tranchées par l'auteur avant d'écrire :
 3. le **tiret cadratin** est le rendu légitime de l'absence dans une table à
    colonnes fixes.
 
-**État** : en cours
+✅ **Les six tâches sont faites — PR #228, verte.** Le contrat de présentation
+(delta de spec sur `workflow-run-observation`), la projection au cœur, les deux
+hôtes qui la consomment, les compteurs et les absences, le balayage du
+vocabulaire « voies », `DUR048` et la page `documentation/user/dashboard/`.
+
+**État** : en relecture
