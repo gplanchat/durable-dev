@@ -18,6 +18,12 @@
                 <!-- Le véhicule de recette de l'écran d'observation : tous les cas dans une exécution. -->
                 <item name="probe_every_case" xsi:type="string">Gplanchat\DurableProbe\Workflow\EveryCaseWorkflow</item>
                 <item name="probe_every_case_child" xsi:type="string">Gplanchat\DurableProbe\Workflow\EveryCaseChildWorkflow</item>
+                <!--
+                    L'appelant de la démonstration Nexus à trois maquettes. Il n'a pas d'activité :
+                    tout ce qu'il fait est servi ailleurs, donc le banc n'a pas de worker
+                    d'activité à lancer pour lui.
+                -->
+                <item name="demo_commande_nexus" xsi:type="string">Gplanchat\DurableProbe\Workflow\CommandeNexusWorkflow</item>
             </argument>
             <argument name="activityHandlers" xsi:type="array">
                 <item name="probe_order" xsi:type="object">Gplanchat\DurableProbe\Workflow\Activity\RecordingOrderActivities</item>
@@ -32,6 +38,7 @@
         <arguments>
             <argument name="commands" xsi:type="array">
                 <item name="durable_demo" xsi:type="object">Gplanchat\DurableProbe\Console\Command\RunDemoCommand</item>
+                <item name="durable_demo_nexus" xsi:type="object">Gplanchat\DurableProbe\Console\Command\RunNexusDemoCommand</item>
             </argument>
         </arguments>
     </type>

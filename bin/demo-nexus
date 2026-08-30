@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 #
-# Prépare le cluster pour la démonstration Nexus à deux applications.
+# Prépare le cluster pour la démonstration Nexus à trois applications.
 #
-# Trois choses n'existent pas tant que personne ne les crée, et aucune n'appartient au code : deux
-# namespaces, et l'endpoint qui dit où le service `stock` est servi. C'est du déploiement, et c'est
-# pourquoi cela vit dans un script d'opérateur plutôt que dans une classe.
+# Cinq choses n'existent pas tant que personne ne les crée, et aucune n'appartient au code : trois
+# namespaces, et les deux endpoints qui disent où `stock` et `facturation` sont servis. C'est du
+# déploiement, et c'est pourquoi cela vit dans un script d'opérateur plutôt que dans une classe.
+#
+# ⚠ Il y a trois namespaces et **deux** endpoints, et ce n'est pas un oubli : un endpoint dit où un
+# service est servi, et la maquette Magento n'en sert aucun. Lui en créer un que personne ne
+# pollerait donnerait un appelant qui attend pour rien — l'exacte panne que ce script existe pour
+# éviter.
 #
 # L'endpoint est la pièce que l'on oublie. Sans lui, le workflow appelant part, le serveur ne sait
 # pas où router l'opération, et l'historique de l'appelant s'arrête sur un échec qui nomme un
@@ -18,6 +23,9 @@ set -euo pipefail
 ADRESSE="${TEMPORAL_ADDRESS:-127.0.0.1:7233}"
 BOUTIQUE="demo-boutique"
 METIER="demo-metier"
+# La troisième maquette, appelante seulement : elle a un namespace parce qu'une exécution vit
+# quelque part, et pas d'endpoint parce qu'elle ne sert rien.
+MAGENTO="demo-magento"
 ENDPOINT_STOCK="demo-boutique-stock"
 ENDPOINT_FACTURATION="demo-metier-facturation"
 # La file que le worker Nexus de la boutique poll. Elle est nommée dans son DSN
@@ -30,7 +38,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --address) ADRESSE="$2"; shift 2 ;;
         --address=*) ADRESSE="${1#*=}"; shift ;;
-        -h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "option inconnue : $1" >&2; exit 2 ;;
     esac
 done
@@ -55,6 +63,7 @@ creer_namespace() {
 echo "cluster $ADRESSE"
 creer_namespace "$BOUTIQUE"
 creer_namespace "$METIER"
+creer_namespace "$MAGENTO"
 
 creer_endpoint() {
     local nom="$1" namespace="$2" file="$3"
@@ -88,7 +97,7 @@ creer_endpoint "$ENDPOINT_FACTURATION" "$METIER" "$FILE_METIER"
 
 cat <<FIN
 
-Six processus, deux namespaces. Chaque maquette sert et appelle.
+Six processus, trois namespaces. Deux maquettes servent et appellent, la troisième appelle.
 
   # la boutique sert « stock » — profil demo, journal DBAL, tableau de bord inchangé
   cd sylius
@@ -113,6 +122,12 @@ Six processus, deux namespaces. Chaque maquette sert et appelle.
   # le métier appelle « stock »
   cd symfony
   bin/console durable:demo:nexus CMD-1 MUG_BLUE=2
+
+  # Magento appelle les deux — et ne sert rien
+  cd magento
+  export MAGENTO_DC_DURABLE__TEMPORAL__DSN='temporal://$ADRESSE?namespace=$MAGENTO&tls=0'
+  bin/magento durable:worker --role=journal
+  bin/magento durable:demo:nexus MAG-1 1200 MUG_BLUE=1
 
 \`demo/lancer.sh\` fait tout cela d'un coup.
 FIN
