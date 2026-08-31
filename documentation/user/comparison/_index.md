@@ -396,9 +396,12 @@ replacing yields with fiber suspension ([#702](https://github.com/temporalio/sdk
 and its maintainers have said the change is prototyped and slated for an upcoming major. None of it
 is in a release as of v2.18, and this section describes v2.18.
 
-What that would settle is the colouring, not the rest of the page: sections
-[1](#1-the-worker-runtime-no-roadrunner), [2](#2-testability) and [4](#4-the-authoring-surface) rest
-on the worker runtime and the authoring surface, which fibers do not touch.
+What that would settle is the colouring, and only the colouring. The suspension mechanism is not
+what makes a workflow test need a server — [the worker runtime](#1-the-worker-runtime-no-roadrunner)
+is. A workflow still runs inside RoadRunner, driven by a task queue on a real cluster, whether it
+suspends on a `yield` or on a fiber. So the difference that would matter most once fibers land is
+the one above them: [Testability](#2-testability) — running a workflow to completion in the test
+process, asserting on a returned value, with no server to start and no second runtime to supervise.
 
 ---
 

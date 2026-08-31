@@ -404,9 +404,13 @@ proposait de remplacer les *yields* par une suspension de fibre
 changement prototypé et prévu pour un prochain majeur. Rien de tout cela n'est dans une version
 publiée à la v2.18, et cette section décrit la v2.18.
 
-Ce que cela réglerait, c'est la coloration, pas le reste de la page : les sections
-[1](#1-the-worker-runtime-no-roadrunner), [2](#2-testability) et [4](#4-the-authoring-surface)
-reposent sur le moteur du worker et la surface d'écriture, auxquels les fibres ne touchent pas.
+Ce que cela réglerait, c'est la coloration, et rien qu'elle. Le mécanisme de suspension n'est pas ce
+qui oblige un test de workflow à démarrer un serveur : c'est [le moteur du
+worker](#1-the-worker-runtime-no-roadrunner). Un workflow continue de tourner dans RoadRunner,
+piloté par une file de tâches sur un vrai cluster, qu'il suspende sur un `yield` ou sur une fibre.
+La différence qui compterait donc le plus une fois les fibres arrivées est celle au-dessus d'elles :
+[la testabilité](#2-testability) — mener un workflow jusqu'au bout dans le processus de test,
+vérifier une valeur rendue, sans serveur à démarrer ni second moteur à surveiller.
 
 ---
 
