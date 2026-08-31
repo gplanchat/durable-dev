@@ -83,9 +83,19 @@ that is where the plurality of processes lives.
 - **A Filament dashboard.** `gplanchat/durable-filament` will require this package, and this package
   will never require, suggest or detect Filament. A Laravel application without Filament hears
   nothing about it — the same one-directional shape as `durable-plugin` against `durable-bundle`.
-- **Temporal.** `gplanchat/durable-bridge-temporal` requires `symfony/messenger`,
-  `symfony/dependency-injection`, `symfony/http-kernel` and `symfony/config`, to reach a gRPC client
-  that needs none of them. Serving it from here is not decided, and this package refuses the
-  combination by name until it is.
+The `temporal` backend used to be on this list, and it no longer is: `backend => 'temporal'` binds
+the journal and the catalogue to a cluster, and `durable:nexus-worker` serves the Nexus operations
+`durable.nexus.handlers` declares. `gplanchat/durable-bridge-temporal` stays **suggested and not
+required** — it pulls in four Symfony components a Laravel application never loads, and an
+application on the `illuminate` backend has no use for them.
+
+⚠ **The two worker commands are registered by the `temporal` backend only.** On `illuminate` or
+`memory`, `artisan list` shows neither, and the error you get from calling one names the command,
+not the backend that would have provided it.
+
+⚠ **What Symfony checks and this package does not.** `NexusHandlerPass` refuses the container when a
+fulfilling workflow's parameter name diverges from the contract it claims. Reading a config file
+cannot do the same work: `durable.nexus.handlers` registers, it does not compare. A parameter
+renamed on one side only hands the workflow `null`, with no error and no trace.
 
 MIT. See [`LICENSE`](LICENSE).

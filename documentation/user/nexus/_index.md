@@ -227,18 +227,19 @@ refusal happens when the application starts.
 
 ---
 
-## Three applications, for real
+## Four applications, for real
 
-The repository ships a demonstration where three Durable applications call each other, across two
+The repository ships a demonstration where four Durable applications call each other, across three
 frameworks. What it shows is easier to read than to describe.
 
-| | `sylius/` — the shop | `symfony/` — the back office | `magento/` — the Magento bench |
-|---|---|---|---|
-| namespace | `demo-boutique` | `demo-metier` | `demo-magento` |
-| serves | `stock` (`reserver`) | `facturation` (`verifier`, `encaisser`) | **nothing** |
-| calls | `facturation` | `stock` | `facturation` **and** `stock` |
+| | `sylius/` — the shop | `symfony/` — the back office | `magento/` — the Magento bench | `laravel/` — the logistics |
+|---|---|---|---|---|
+| namespace | `demo-boutique` | `demo-metier` | `demo-magento` | `demo-laravel` |
+| serves | `stock` (`reserver`) | `facturation` (`verifier`, `encaisser`) | **nothing** | `livraison` (`planifier`, `expedier`) |
+| calls | `facturation` | `stock` | all three services | `stock`, **from the workflow that serves** |
+| what declares the handler | a tag under `when@demo` | `#[AsNexusServiceHandler]` | — | six lines of `config/durable.php` |
 
-All three read the same contract package. Nothing else travels between them.
+All four read the same contract package. Nothing else travels between them.
 
 The shop's order workflow calls both forms on the same stub:
 
@@ -281,38 +282,89 @@ handlers, and the Messenger transport that runs the workers. You could reasonabl
 as a feature of the bundle.
 
 The Magento bench has none of it. It wires services in `di.xml`, runs its worker with
-`bin/magento durable:worker --role=journal`, and reads its DSN from `app/etc/env.php`. It calls both
-services — the immediate one and the one a workflow fulfils — and **not one line was added to the
-core, to the Temporal bridge or to `gplanchat/durable-magento`** to make that work.
+`bin/magento durable:worker --role=journal`, and reads its DSN from `app/etc/env.php`. It calls all
+three services — the immediate ones and the two a workflow fulfils — and **not one line was added to
+the core, to the Temporal bridge or to `gplanchat/durable-magento`** to make that work.
 
 The reason is that the two sides are not symmetrical:
 
 - **Calling** needs a workflow whose journal is the cluster, and nothing else.
   `WorkflowEnvironment::nexusStub()` reads the contract by reflection; no container is involved.
 - **Serving** needs the host to register handlers and to poll a Nexus task queue. That is host work,
-  written once per host — a compile pass in Symfony, and, for now, nothing in Magento.
+  written once per host — a compile pass in Symfony, a config file in Laravel, and, for now, nothing
+  in Magento.
 
-That asymmetry has a visible consequence in the cluster: three namespaces, **two endpoints**. An
+That asymmetry has a visible consequence in the cluster: four namespaces, **three endpoints**. An
 endpoint says where a service is served, so an application that only calls has none.
 
 ```php
-// The Magento bench, calling both services from one workflow. This is the whole of the host
-// integration: two stubs and three awaited operations.
+// The Magento bench, calling three services from one workflow. This is the whole of the host
+// integration: three stubs and five awaited operations.
 $verdict = $this->environment->await($this->facturation->verifier($commande, $montant, $devise));
+$livraison = $this->environment->await($this->livraison->planifier($commande, $lignes));
 $reservation = $this->environment->await($this->stock->reserver($commande, $lignes));
 $recu = $this->environment->await($this->facturation->encaisser($commande, $montant, $devise));
+$suivi = $this->environment->await($this->livraison->expedier($commande, $livraison['creneau']));
 ```
 
-⚠ **The order of those three calls is not cosmetic.** It was written the other way round first, and
-measured: an order in USD reserved the stock and *then* had its invoice refused, leaving stock held
-with no operation in the `stock` contract to give it back. Verifying first means there is nothing to
-give back. When an operation has no compensating counterpart, the order of the calls is the
+⚠ **The order of those five calls is not cosmetic.** Two inversions were written first, and both
+were measured: an order in USD reserved the stock and *then* had its invoice refused, and an order
+of six parcels was *charged* before the logistics refused to carry it. None of the three contracts
+has an operation that gives back what it took. **Ask everything that can say no first, commit
+afterwards** — when an operation has no compensating counterpart, the order of the calls is the
 compensation.
 
-Prerequisites, the processes to start and the three commands to run are in
+### Serving is host work, and it is not Symfony work
+
+The other half of the asymmetry gets its own demonstration, because until the Laravel mockup existed
+every served operation had been registered by a Symfony compile pass and polled by a Symfony
+transport. Here is the whole of the host wiring on a framework that has neither:
+
+```php
+// config/durable.php
+'backend' => env('DURABLE_BACKEND', 'temporal'),   // serving Nexus needs the cluster: it routes
+'temporal' => ['dsn' => env('DURABLE_DSN')],
+'workflows' => [App\Durable\Workflow\ExpedierWorkflow::class],
+'nexus' => ['handlers' => [
+    App\Durable\Nexus\LivraisonHandler::class => LivraisonContract::class,
+]],
+```
+
+`DeclaredNexusOperations` reads that file the way `NexusHandlerPass` reads Symfony's tags, through
+the same `NexusContractResolver` and the same `NexusHandlerInvoker`; `php artisan durable:nexus-worker`
+polls the queue. The handler class knows none of it — it implements `LivraisonServed` and says
+nothing about Nexus.
+
+⚠ **One thing the compile pass does that a config file cannot.** Symfony refuses the container when
+a fulfilling workflow's parameter name diverges from the contract it claims. Reading a list of
+classes cannot compare two signatures it was never given, so on this host a parameter renamed on one
+side only hands the workflow `null`, with no error and no trace. The contract, the workflow and the
+mockup's README all say so at the point where you would read them.
+
+### A workflow that serves can call
+
+`ExpedierWorkflow` fulfils `livraison/expedier`. Before releasing the goods it asks the shop for its
+verdict again, through `stock/reserver`, on an endpoint that is not its own — so one execution
+carries an operation it serves and an operation it calls:
+
+```
+ 5  TimerStarted              ← six seconds of picking
+ 6  TimerFired
+10  NexusOperationScheduled   ← stock/reserver, at the shop
+11  NexusOperationCompleted
+15  WorkflowExecutionCompleted
+```
+
+Its workflow id is the **operation token** of the operation it fulfils — a workflow started by a
+Nexus task is not named by the application that runs it.
+
+The call is safe because `reserver` is idempotent per order id: the shop re-reads the decision it
+made at order time instead of taking a new one, which is why the lines passed are empty.
+
+Prerequisites, the processes to start and the commands to run are in
 [`demo/README.md`](https://github.com/gplanchat/durable-dev/blob/main/demo/README.md). Two things to
 know before you start: a server that answers `Nexus APIs are disabled` will not do —
-`temporal server start-dev` will — and the three mockups do not run on the same PHP binary.
+`temporal server start-dev` will — and the four mockups do not run on the same PHP binary.
 
 ---
 

@@ -75,48 +75,46 @@ final class CommandeNexusWorkflow
     #[AsWorkflowMethod]
     public function run(string $commande, array $lignes, int $montant, string $devise = 'EUR'): array
     {
-        // ⚠ **L'ordre des appels est ce qui dispense de compenser**, et il a été mesuré à
-        // l'envers d'abord : retenir le stock avant de vérifier la facture laissait `MUG_BLUE`
-        // retenu chez la boutique après un refus de devise, sans que rien ne le libère. Le contrat
-        // `stock` n'a pas d'opération qui rende ce qu'il a pris — vérifier d'abord fait qu'il n'y a
-        // rien à rendre.
+        // ⚠ **L'ordre des cinq appels est ce qui dispense de compenser**, et les deux inversions
+        // ont été mesurées avant d'être corrigées :
+        //
+        // - retenir le stock avant de vérifier la facture laissait `MUG_BLUE` retenu chez la
+        //   boutique après un refus de devise ;
+        // - encaisser avant de planifier la tournée faisait payer une commande que la logistique
+        //   refusait ensuite de porter.
+        //
+        // Aucun des trois contrats n'a d'opération qui rende ce qu'il a pris. **Demander d'abord
+        // tout ce qui peut dire non, n'engager qu'ensuite** : c'est l'ordre qui est la
+        // compensation, faute d'en avoir une.
         $verdict = $this->environment->await($this->facturation->verifier($commande, $montant, $devise));
 
         if (true !== ($verdict['acceptee'] ?? false)) {
             return self::rien($verdict);
         }
 
-        $reservation = $this->environment->await($this->stock->reserver($commande, $lignes));
-
-        if (true !== ($reservation['reserve'] ?? false)) {
-            // `array_merge` et non `+` : l'union de tableaux garde la clé **de gauche**, donc le
-            // `null` de `rien()`, et le verdict de stock disparaîtrait du résultat en silence.
-            return array_merge(self::rien($verdict), ['reservation' => $reservation]);
-        }
-
-        $encaissement = $this->environment->await($this->facturation->encaisser($commande, $montant, $devise));
-
-        // La logistique, servie par la maquette Laravel : `planifier` revient sur la tâche,
-        // `expedier` est remplie par un workflow d'en face — qui, lui, rappelle la boutique.
-        // Trois hôtes, trois frameworks, et le même `await` pour les six appels.
         $livraison = $this->environment->await($this->livraison->planifier($commande, $lignes));
 
         if (true !== ($livraison['planifiee'] ?? false)) {
-            // La marchandise est payée et retenue : ne pas expédier n'est pas une panne, c'est une
-            // tournée à replanifier. Le résultat le dit, et l'exploitant décide.
-            return [
-                'verifiee' => $verdict,
-                'reservation' => $reservation,
-                'encaissement' => $encaissement,
-                'livraison' => $livraison,
-                'expedition' => null,
-            ];
+            return array_merge(self::rien($verdict), ['livraison' => $livraison]);
         }
 
+        $reservation = $this->environment->await($this->stock->reserver($commande, $lignes));
+
+        if (true !== ($reservation['reserve'] ?? false)) {
+            return array_merge(self::rien($verdict), [
+                'livraison' => $livraison,
+                'reservation' => $reservation,
+            ]);
+        }
+
+        // Les deux engagements, une fois que les trois refus possibles ont été écartés.
+        // `encaisser` est remplie par un workflow du métier, `expedier` par un workflow de la
+        // logistique — qui, lui, rappelle la boutique pendant qu'il sert. Trois hôtes, trois
+        // frameworks, et le même `await` pour les cinq appels.
         return [
             'verifiee' => $verdict,
             'reservation' => $reservation,
-            'encaissement' => $encaissement,
+            'encaissement' => $this->environment->await($this->facturation->encaisser($commande, $montant, $devise)),
             'livraison' => $livraison,
             'expedition' => $this->environment->await(
                 $this->livraison->expedier($commande, $livraison['creneau']),
