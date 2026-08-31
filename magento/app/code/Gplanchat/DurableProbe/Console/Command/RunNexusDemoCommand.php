@@ -13,7 +13,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * `bin/magento durable:demo:nexus <commande> <montant> REF=qté …` — Magento appelle les deux autres.
+ * `bin/magento durable:demo:nexus <commande> <montant> REF=qté …` — Magento appelle les trois autres.
  *
  * **Sur la grappe, et non ici.** `MagentoRuntime::run()` exécuterait le workflow dans ce processus,
  * ce qui n'est pas ce que la démonstration montre : une opération Nexus est servie par une autre
@@ -40,7 +40,7 @@ class RunNexusDemoCommand extends Command
     protected function configure(): void
     {
         $this->setName('durable:demo:nexus')
-            ->setDescription('Reserves stock in the Sylius shop and gets billed by the Symfony application, through Nexus')
+            ->setDescription('Gets billed, stocked and shipped by three other applications, through Nexus')
             ->addArgument('commande', InputArgument::REQUIRED, 'Identifiant de commande — c\'est lui qui rend la réservation idempotente')
             ->addArgument('montant', InputArgument::REQUIRED, 'Montant à facturer, en centimes')
             ->addArgument('lignes', InputArgument::IS_ARRAY | InputArgument::REQUIRED, 'REFERENCE=quantité, une ou plusieurs')
@@ -94,12 +94,17 @@ class RunNexusDemoCommand extends Command
         // commande refusée revient en un dixième de seconde, et annoncer « dont l'encaissement »
         // ferait passer un refus rapide pour un encaissement anormalement véloce.
         $encaisse = \is_array($resultat) && null !== ($resultat['encaissement'] ?? null);
+        $expedie = \is_array($resultat) && true === ($resultat['expedition']['expediee'] ?? null);
         $output->writeln(sprintf(
             '<info>%.1f s%s</info>',
             microtime(true) - $depart,
-            $encaisse ? ' — dont l\'encaissement, rempli par un workflow d\'en face.' : ' — rien n\'a été encaissé.',
+            match (true) {
+                $expedie => ' — dont deux opérations remplies par des workflows, chez deux hôtes différents.',
+                $encaisse => ' — encaissée, mais rien n\'est parti.',
+                default => ' — rien n\'a été encaissé.',
+            },
         ));
 
-        return $encaisse ? Command::SUCCESS : Command::FAILURE;
+        return $expedie ? Command::SUCCESS : Command::FAILURE;
     }
 }
