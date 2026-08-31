@@ -71,6 +71,7 @@
     .approval-title { font-weight: 500; color: var(--ds-warning); }
     .approval code { display: block; white-space: pre-wrap; }
     .approval-reason { font-size: .8rem; color: var(--ds-text-muted); }
+    .approval-clock[data-urgent="1"] { color: var(--ds-danger); }
     .approval-actions { display: flex; gap: .5rem; }
     .chat-form { display: flex; gap: .6rem; }
     .chat-form .ds-input { flex: 1; }
@@ -93,7 +94,7 @@
         el.innerHTML = html;
         return el;
     };
-    let approvalTimeout = null;
+    let clocks = [];
 
     const approvalBubble = (p) => {
         const card = document.createElement('div');
@@ -101,12 +102,28 @@
         card.innerHTML = '<div class="approval-title">⛔ ' + escape(p.tool) + ' demande une validation</div>'
             + '<code>' + escape(JSON.stringify(p.arguments)) + '</code>'
             + '<div class="approval-reason">Le workflow est suspendu ici. Ta décision part en signal <code>tool_decision</code>.'
-            + (approvalTimeout ? ' Sans réponse sous ' + Math.round(approvalTimeout) + ' s, la demande est refusée.' : '')
-            + '</div>'
+            + '<span class="approval-clock"></span></div>'
             + '<div class="approval-actions">'
             + '<button class="btn btn-primary btn-sm" data-ok="1">Autoriser</button>'
             + '<button class="btn btn-ghost btn-sm" data-ok="0">Refuser</button>'
             + '</div>';
+        // Le compte à rebours vient du minuteur du journal, pas de l'ouverture de la page : un
+        // rechargement ne remet pas l'échéance à zéro, elle a commencé côté workflow.
+        const clock = card.querySelector('.approval-clock');
+        if (clock && p.expiresAt) {
+            const tick = () => {
+                const left = Math.max(0, Math.round(p.expiresAt - Date.now() / 1000));
+                clock.textContent = left > 0
+                    ? ' Sans réponse d’ici ' + (left >= 60 ? Math.floor(left / 60) + ' min ' + (left % 60) + ' s' : left + ' s') + ', la demande est refusée.'
+                    : ' L’échéance est passée.';
+                clock.dataset.urgent = left <= 60 ? '1' : '0';
+            };
+            tick();
+            const timer = setInterval(tick, 1000);
+            card.addEventListener('remove', () => clearInterval(timer));
+            clocks.push(timer);
+        }
+
         for (const button of card.querySelectorAll('button')) {
             button.addEventListener('click', async () => {
                 card.querySelector('.approval-actions').textContent = 'décision envoyée…';
@@ -130,7 +147,10 @@
         const atBottom = thread.scrollTop + thread.clientHeight >= thread.scrollHeight - 40;
         thread.replaceChildren();
 
-        approvalTimeout = data.approvalTimeoutSeconds;
+        // Les cartes sont reconstruites à chaque rafraîchissement : leurs minuteurs d'affichage
+        // aussi, sinon ils s'empilent.
+        for (const timer of clocks) { clearInterval(timer); }
+        clocks = [];
         // Le message optimiste disparaît dès que le journal le porte, sinon il ferait doublon.
         if (data.messages.some((m) => m.role === 'user' && m.content === pending)) { pending = null; }
 

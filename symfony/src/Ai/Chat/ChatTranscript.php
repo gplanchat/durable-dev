@@ -11,6 +11,9 @@ use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
+use Gplanchat\Durable\Event\TimerCancelled;
+use Gplanchat\Durable\Event\TimerCompleted;
+use Gplanchat\Durable\Event\TimerScheduled;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
@@ -50,6 +53,30 @@ final class ChatTranscript
         return $payload;
     }
 
+    /**
+     * Quand l'échéance tranchera à la place de l'humain.
+     *
+     * `TimerScheduled::scheduledAt()` ne dit pas la même chose selon le backend : le cœur y met
+     * l'instant de tir, le pont Temporal l'instant de départ — son convertisseur construit
+     * `new TimerScheduled($id, $timerId, $ts)` avec l'horodatage de l'événement et laisse tomber
+     * `startToFireTimeout`. Tant que l'attente dure, le tir est forcément à venir : c'est ce qui
+     * permet de trancher entre les deux lectures sans deviner le backend.
+     *
+     * @param array<string, float> $deadlines minuteurs encore en vol
+     */
+    private static function expiryOf(array $deadlines, ?Duration $timeout): ?float
+    {
+        if ([] === $deadlines) {
+            return null;
+        }
+
+        $scheduled = (float) end($deadlines);
+
+        return $scheduled >= microtime(true) || null === $timeout
+            ? $scheduled
+            : $scheduled + $timeout->toSeconds();
+    }
+
     public function forExecution(string $executionId): Transcript
     {
         $messages = [];
@@ -61,6 +88,7 @@ final class ChatTranscript
         $decided = [];
         $signalledMode = null;
         $messagesSignalled = 0;
+        $deadlines = [];
         // La charge de démarrage n'est pas au même endroit selon le backend : sur Temporal natif
         // elle ouvre le journal (ExecutionStarted), sur DBAL un run dispatché n'écrit que ses
         // événements d'exécution et la charge reste dans le store de métadonnées. On lit les deux.
@@ -86,6 +114,21 @@ final class ChatTranscript
                         null,
                     );
                 }
+
+                continue;
+            }
+
+            if ($event instanceof TimerScheduled) {
+                // Pas de filtre sur le résumé : il ne survit pas à l'aller-retour Temporal, où
+                // l'événement revient sans lui. Un agent ne planifie de minuteur qu'ici, donc le
+                // dernier minuteur encore en vol est l'échéance de l'attente en cours.
+                $deadlines[$event->timerId()] = $event->scheduledAt();
+
+                continue;
+            }
+
+            if ($event instanceof TimerCompleted || $event instanceof TimerCancelled) {
+                unset($deadlines[$event->timerId()]);
 
                 continue;
             }
@@ -139,7 +182,13 @@ final class ChatTranscript
             }
 
             $ref = ToolCallRef::fromWire($call);
-            $pending[] = new PendingApproval($ref->callId, $ref->tool, $ref->arguments, 'En attente de ta décision.');
+            $pending[] = new PendingApproval(
+                $ref->callId,
+                $ref->tool,
+                $ref->arguments,
+                'En attente de ta décision.',
+                self::expiryOf($deadlines, $approvalTimeout),
+            );
         }
 
         $answer = $results[$lastModelCallId]['choices'][0]['message']['content'] ?? null;

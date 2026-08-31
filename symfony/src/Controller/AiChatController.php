@@ -27,11 +27,14 @@ use Symfony\Component\Uid\Uuid;
 final class AiChatController extends AbstractController
 {
     /**
-     * Échéance d'une demande de validation, globale à l'agent. Deux minutes pour que la démo soit
-     * observable ; en production c'est l'ordre de grandeur du délai humain acceptable qui décide,
-     * pas celui d'une requête HTTP.
+     * Échéance d'une demande de validation, globale à l'agent.
+     *
+     * Un quart d'heure : le délai doit être celui d'un humain qui lit, réfléchit et change de
+     * fenêtre — pas celui d'une requête HTTP. À 120 s la carte disparaissait sous les yeux de qui
+     * la lisait, et l'agent répondait « refusé faute de validation » sans que personne n'ait rien
+     * refusé.
      */
-    private const APPROVAL_TIMEOUT_SECONDS = 120.0;
+    private const APPROVAL_TIMEOUT_SECONDS = 900.0;
 
     /**
      * Le catalogue d'outils de la démo. `effect` est ce que lit la garde : c'est lui, et pas le nom
