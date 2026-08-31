@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Ai\Durable;
 
 use App\Ai\Activity\AgentToolActivityInterface;
+use App\Ai\Guard\AgentMode;
+use App\Ai\Guard\ToolApprovalGate;
+use App\Ai\Guard\ToolGuardInterface;
+use App\Ai\Guard\ToolVerdict;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -23,8 +27,15 @@ final class DurableToolExecutor implements ToolExecutorInterface
 {
     private readonly ActivityStub $stub;
 
+    /**
+     * @param \Closure(): AgentMode $mode le mode est de l'état de workflow, il peut changer entre
+     *                                    deux tours — donc il se lit au moment de la décision
+     */
     public function __construct(
         private readonly WorkflowEnvironment $environment,
+        private readonly ToolGuardInterface $guard,
+        private readonly ToolApprovalGate $gate,
+        private readonly \Closure $mode,
         ?ActivityOptions $options = null,
     ) {
         $this->stub = $environment->activityStub(AgentToolActivityInterface::class, $options);
@@ -35,11 +46,35 @@ final class DurableToolExecutor implements ToolExecutorInterface
         $results = [];
 
         foreach ($toolCalls as $toolCall) {
+            $decision = $this->guard->decide($toolCall, ($this->mode)());
+
+            if (ToolVerdict::Deny === $decision->verdict) {
+                yield new Progress('tool_denied', (string) $decision->reason, $toolCall);
+                $results[] = new ToolResult($toolCall, \sprintf('Refusé : %s', $decision->reason));
+
+                continue;
+            }
+
+            if (ToolVerdict::Ask === $decision->verdict) {
+                $this->gate->ask($toolCall, (string) $decision->reason);
+                yield new Progress('tool_approval', (string) $decision->reason, $toolCall);
+
+                // Suspension, pas attente : le processus peut mourir ici, l'accord peut arriver
+                // demain, le workflow reprendra à cette ligne.
+                $this->environment->await(fn(): bool => $this->gate->isDecided($toolCall->getId()));
+
+                if (!$this->gate->isApproved($toolCall->getId())) {
+                    $results[] = new ToolResult($toolCall, 'Refusé par l\'utilisateur.');
+
+                    continue;
+                }
+            }
+
             yield new Progress('tool_call', \sprintf('Exécution de l\'outil "%s".', $toolCall->getName()), $toolCall);
 
             $results[] = new ToolResult(
                 $toolCall,
-                $this->environment->await($this->stub->callTool($toolCall->getName(), $toolCall->getArguments())),
+                $this->environment->await($this->stub->callTool($toolCall->getId(), $toolCall->getName(), $toolCall->getArguments())),
             );
         }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Ai\Chat\ChatTranscript;
+use App\Ai\Guard\AgentMode;
 use App\Ai\Workflow\DurableChatWorkflow;
 use App\Durable\DurableSampleWorkflowRunner;
 use Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage;
@@ -22,13 +23,35 @@ use Symfony\Component\Uid\Uuid;
  */
 final class AiChatController extends AbstractController
 {
+    /**
+     * `effect` est ce que lit la garde : c'est lui, et pas le nom de l'outil, que le mode consulte.
+     */
     private const TOOLS = [
         'weather' => [
             'description' => 'Météo courante d’une ville.',
+            'effect' => 'read',
             'parameters' => [
                 'type' => 'object',
                 'properties' => ['city' => ['type' => 'string']],
                 'required' => ['city'],
+            ],
+        ],
+        'save_note' => [
+            'description' => 'Enregistre une note dans le dossier courant.',
+            'effect' => 'write',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => ['text' => ['type' => 'string']],
+                'required' => ['text'],
+            ],
+        ],
+        'send_email' => [
+            'description' => 'Envoie un courriel. Effet externe : rien ne le rattrape.',
+            'effect' => 'external',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => ['to' => ['type' => 'string'], 'body' => ['type' => 'string']],
+                'required' => ['to', 'body'],
             ],
         ],
     ];
@@ -46,7 +69,7 @@ final class AiChatController extends AbstractController
         $executionId = (string) Uuid::v4();
         $this->workflowRunner->dispatchWorkflowRun(
             DurableChatWorkflow::class,
-            ['tools' => self::TOOLS],
+            ['tools' => self::TOOLS, 'mode' => 'standard'],
             $executionId,
         );
 
@@ -70,6 +93,35 @@ final class AiChatController extends AbstractController
         // Le workflow est suspendu sur sa condition ; le signal le réveille. Rien à attendre ici,
         // la page relit la projection.
         $this->messageBus->dispatch(new DeliverWorkflowSignalMessage($executionId, 'user_message', ['text' => $text]));
+
+        return new JsonResponse(null, Response::HTTP_ACCEPTED);
+    }
+
+    /**
+     * L'accord ou le refus d'un appel d'outil : un signal, donc journalisé, donc rejoué. Le workflow
+     * peut avoir été suspendu là-dessus depuis des jours.
+     */
+    #[Route('/durable/chat/{executionId}/decision', name: 'durable_chat_decision', methods: ['POST'])]
+    public function decision(string $executionId, Request $request): JsonResponse
+    {
+        $body = $request->toArray();
+        $this->messageBus->dispatch(new DeliverWorkflowSignalMessage($executionId, 'tool_decision', [
+            'callId' => (string) ($body['callId'] ?? ''),
+            'approved' => (bool) ($body['approved'] ?? false),
+        ]));
+
+        return new JsonResponse(null, Response::HTTP_ACCEPTED);
+    }
+
+    #[Route('/durable/chat/{executionId}/mode', name: 'durable_chat_mode', methods: ['POST'])]
+    public function mode(string $executionId, Request $request): JsonResponse
+    {
+        $mode = AgentMode::tryFrom((string) ($request->toArray()['mode'] ?? ''));
+        if (null === $mode) {
+            return new JsonResponse(['error' => 'Mode inconnu.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $this->messageBus->dispatch(new DeliverWorkflowSignalMessage($executionId, 'set_mode', ['mode' => $mode->value]));
 
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
     }

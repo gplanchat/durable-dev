@@ -18,5 +18,5 @@ interface AgentToolActivityInterface
      * @param array<string, mixed> $arguments
      */
     #[AsActivityMethod('ai_tool_call')]
-    public function callTool(string $name, array $arguments): string;
+    public function callTool(string $callId, string $name, array $arguments): string;
 }

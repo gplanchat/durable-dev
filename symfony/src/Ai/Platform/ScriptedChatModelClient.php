@@ -13,15 +13,13 @@ use Symfony\AI\Platform\Result\RawResultInterface;
  * Répond comme un fournisseur « chat completions », sans réseau ni clé d'API.
  *
  * La démo n'a pas besoin d'un vrai modèle pour montrer ce qu'elle montre : le journal, les
- * activités, et le fait que la boucle se rejoue. Un vrai fournisseur se branche en remplaçant ce
+ * activités, la garde et la reprise après signal. Un vrai fournisseur se branche en remplaçant ce
  * service par le `ModelClientInterface` d'un bridge `symfony/ai-*-platform`.
  *
- * La réponse est fonction de la conversation reçue — donc déterministe, donc rejouable.
+ * La réponse est une fonction pure de la conversation reçue — donc déterministe, donc rejouable.
  */
 final class ScriptedChatModelClient implements ModelClientInterface
 {
-    private const CITIES = ['Paris', 'Lyon'];
-
     public function supports(Model $model): bool
     {
         return true;
@@ -29,31 +27,76 @@ final class ScriptedChatModelClient implements ModelClientInterface
 
     public function request(Model $model, array|string $payload, array $options = []): RawResultInterface
     {
-        $answered = \count(array_filter(
-            $payload['messages'] ?? [],
-            static fn (array $message): bool => 'tool' === ($message['role'] ?? null),
-        ));
+        $messages = $payload['messages'] ?? [];
+        $lastUser = '';
+        $answeredSinceUser = 0;
 
-        if ($answered < \count(self::CITIES)) {
-            return new InMemoryRawResult($this->toolCall($answered, self::CITIES[$answered]));
+        foreach ($messages as $message) {
+            if ('user' === ($message['role'] ?? null)) {
+                $lastUser = mb_strtolower((string) $message['content']);
+                $answeredSinceUser = 0;
+            } elseif ('tool' === ($message['role'] ?? null)) {
+                ++$answeredSinceUser;
+            }
         }
 
-        return new InMemoryRawResult($this->text(\sprintf(
-            'Relevé pour %s — demandé via %d appels d\'outil.',
-            implode(' et ', self::CITIES),
-            $answered,
-        )));
+        // Un seul tour d'outil par message : au second passage, on répond.
+        if ($answeredSinceUser > 0) {
+            return new InMemoryRawResult($this->text($this->summarise($messages)));
+        }
+
+        if (str_contains($lastUser, 'mail') || str_contains($lastUser, 'courriel')) {
+            return new InMemoryRawResult($this->toolCall($messages, 'send_email', [
+                'to' => 'equipe@example.test',
+                'body' => 'Compte rendu demandé depuis le chat durable.',
+            ]));
+        }
+
+        if (str_contains($lastUser, 'note')) {
+            return new InMemoryRawResult($this->toolCall($messages, 'save_note', ['text' => $lastUser]));
+        }
+
+        foreach (['paris', 'lyon', 'marseille'] as $city) {
+            if (str_contains($lastUser, $city)) {
+                return new InMemoryRawResult($this->toolCall($messages, 'weather', ['city' => ucfirst($city)]));
+            }
+        }
+
+        return new InMemoryRawResult($this->text(
+            'Je sais consulter la météo d’une ville, enregistrer une note, ou envoyer un courriel. Lequel ?'
+        ));
     }
 
     /**
+     * @param list<array<string, mixed>> $messages
+     */
+    private function summarise(array $messages): string
+    {
+        $last = '';
+        foreach ($messages as $message) {
+            if ('tool' === ($message['role'] ?? null)) {
+                $last = (string) $message['content'];
+            }
+        }
+
+        return '' === $last ? 'C’est fait.' : $last;
+    }
+
+    /**
+     * L'identifiant d'appel dérive du rang du tour : deux constructions de la même conversation
+     * donnent le même identifiant, sinon le rejeu divergerait.
+     *
+     * @param list<array<string, mixed>> $messages
+     * @param array<string, mixed>       $arguments
+     *
      * @return array<string, mixed>
      */
-    private function toolCall(int $index, string $city): array
+    private function toolCall(array $messages, string $tool, array $arguments): array
     {
         return ['choices' => [['message' => ['content' => null, 'tool_calls' => [[
-            'id' => \sprintf('call_%d', $index + 1),
+            'id' => \sprintf('call_%d', \count($messages)),
             'type' => 'function',
-            'function' => ['name' => 'weather', 'arguments' => json_encode(['city' => $city])],
+            'function' => ['name' => $tool, 'arguments' => json_encode($arguments, \JSON_UNESCAPED_UNICODE)],
         ]]], 'finish_reason' => 'tool_calls']]];
     }
 

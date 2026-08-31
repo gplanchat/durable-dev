@@ -24,7 +24,7 @@ final class AgentToolActivityHandler implements AgentToolActivityInterface
     ) {
     }
 
-    public function callTool(string $name, array $arguments): string
+    public function callTool(string $callId, string $name, array $arguments): string
     {
         if (!$this->tools->has($name)) {
             // ponytail: l'échec remonte et tue l'appel agent. Le renvoyer au modèle comme

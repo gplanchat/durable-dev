@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai\Workflow;
 
 use App\Ai\Durable\DurableAgentFactory;
+use App\Ai\Guard\ToolGuardInterface;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -34,9 +35,9 @@ final class DurableAgentWorkflow
      * @param array<string, array{description: string, parameters: array<string, mixed>|null}> $tools
      */
     #[AsWorkflowMethod]
-    public function run(string $prompt, string $model = 'gpt-4o-mini', array $tools = [], int $maxToolCalls = 10): string
+    public function run(string $prompt, string $model = 'gpt-4o-mini', array $tools = [], int $maxToolCalls = 10, ?ToolGuardInterface $guard = null): string
     {
-        $agent = DurableAgentFactory::create($this->environment, $model, $tools, $maxToolCalls);
+        $agent = DurableAgentFactory::create($this->environment, $model, $tools, $maxToolCalls, guard: $guard);
 
         return (string) $agent->call($prompt)->getResult()->getContent();
     }

@@ -16,14 +16,30 @@
             il est <em>suspendu</em>. Le fil affiché est une projection du journal — rien n’est stocké
             en session.
         </p>
+        <p>
+            Chaque appel d’outil passe par une <strong>garde</strong>. Le mode décide de ce qui passe
+            sans demander ; le reste <em>suspend le workflow</em> jusqu’à ta décision — signal
+            <code>tool_decision</code>. Essaie « envoie un mail » en mode <code>auto</code> puis en
+            <code>standard</code>.
+        </p>
     </div>
 
     <div class="chat">
         <div class="chat-meta">
             <span>executionId</span>
             <code>{{ executionId }}</code>
+            <label class="chat-mode">
+                mode
+                <select id="mode" class="ds-input">
+                    <option value="standard">standard — seules les lectures passent</option>
+                    <option value="edition">edition — les écritures passent</option>
+                    <option value="auto">auto — tout passe</option>
+                </select>
+            </label>
             <span class="chat-state" id="state">…</span>
         </div>
+
+        <div id="approvals"></div>
 
         <div class="chat-thread" id="thread"></div>
 
@@ -47,6 +63,13 @@
     .msg-tool { align-self: flex-start; max-width: 92%; font-family: var(--font-mono); font-size: .8rem;
         color: var(--ds-text-muted); background: transparent; border: 1px dashed var(--ds-border-soft); }
     .msg-tool b { color: var(--ds-accent); font-weight: 500; }
+    .chat-mode { display: inline-flex; align-items: center; gap: .4rem; }
+    .chat-mode select { padding: .15rem .4rem; font-size: .8rem; }
+    .approval { border: 1px solid var(--ds-warning); border-radius: var(--radius); padding: .8rem 1rem;
+        background: rgba(255, 178, 135, .08); display: flex; flex-direction: column; gap: .6rem; margin-bottom: .8rem; }
+    .approval-title { font-weight: 500; color: var(--ds-warning); }
+    .approval code { display: block; margin-top: .3rem; white-space: pre-wrap; }
+    .approval-actions { display: flex; gap: .5rem; }
     .chat-form { display: flex; gap: .6rem; }
     .chat-form .ds-input { flex: 1; }
     .chat-empty { color: var(--ds-text-muted); font-size: .9rem; margin: auto; }
@@ -58,6 +81,8 @@
     const thread = document.getElementById('thread');
     const state = document.getElementById('state');
     const form = document.getElementById('form');
+    const approvals = document.getElementById('approvals');
+    const mode = document.getElementById('mode');
     const input = document.getElementById('text');
     let pending = null;
 
@@ -98,7 +123,35 @@
             thread.append(empty);
         }
 
-        state.textContent = data.finished ? 'terminé' : (data.working ? 'l’agent travaille…' : 'suspendu — en attente d’un signal');
+        approvals.replaceChildren();
+        for (const p of data.pending) {
+            const card = document.createElement('div');
+            card.className = 'approval';
+            card.innerHTML = '<div class="approval-title">⛔ ' + escape(p.tool) + ' demande une validation</div>'
+                + '<code>' + escape(JSON.stringify(p.arguments)) + '</code>'
+                + '<div class="approval-actions">'
+                + '<button class="btn btn-primary btn-sm" data-ok="1">Autoriser</button>'
+                + '<button class="btn btn-ghost btn-sm" data-ok="0">Refuser</button>'
+                + '</div>';
+            for (const button of card.querySelectorAll('button')) {
+                button.addEventListener('click', async () => {
+                    card.remove();
+                    await fetch(base + '/decision', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({callId: p.callId, approved: button.dataset.ok === '1'}),
+                    });
+                    setTimeout(refresh, 400);
+                });
+            }
+            approvals.append(card);
+        }
+
+        if (mode.value !== data.mode) { mode.value = data.mode; }
+
+        state.textContent = data.finished ? 'terminé'
+            : (data.pending.length ? 'suspendu — en attente de ta décision'
+            : (data.working ? 'l’agent travaille…' : 'suspendu — en attente d’un signal'));
         state.dataset.working = data.working ? '1' : '0';
         if (!data.working) { pending = null; }
         if (atBottom) { thread.scrollTop = thread.scrollHeight; }
@@ -117,6 +170,15 @@
             body: JSON.stringify({text}),
         });
         setTimeout(refresh, 300);
+    });
+
+    mode.addEventListener('change', async () => {
+        await fetch(base + '/mode', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({mode: mode.value}),
+        });
+        setTimeout(refresh, 400);
     });
 
     refresh();
