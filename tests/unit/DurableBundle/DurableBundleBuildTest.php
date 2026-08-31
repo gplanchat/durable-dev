@@ -7,7 +7,7 @@ namespace unit\Gplanchat\DurableBundle;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\ActivityHandlerPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\DurableTemporalTransportFactoryPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\NexusHandlerPass;
-use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterWorkflowDispatchProfilerMiddlewarePass;
+use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\WorkflowPass;
 use Gplanchat\Durable\Bundle\DurableBundle;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -81,10 +81,10 @@ final class DurableBundleBuildTest extends TestCase
         self::assertContains(NexusHandlerPass::class, $this->registeredPassClasses());
     }
 
-    public function testRegisterWorkflowDispatchProfilerMiddlewarePassIsRegistered(): void
+    public function testRegisterDurableMiddlewarePassIsRegistered(): void
     {
         self::assertContains(
-            RegisterWorkflowDispatchProfilerMiddlewarePass::class,
+            RegisterDurableMiddlewarePass::class,
             $this->registeredPassClasses(),
         );
     }
