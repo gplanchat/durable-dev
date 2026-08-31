@@ -8,6 +8,9 @@ use Gplanchat\Durable\Attribute\AsActivityHandler;
 use Psr\Container\ContainerInterface;
 
 /**
+ * Route un appel d'outil vers son implémentation. **Non couvert par le test du spike** : celui-ci
+ * enregistre directement un handler pour `ai_tool_call` dans l'environnement de test.
+ *
  * Route un appel d'outil vers son implémentation. Chaque appel est une activité : journalisée,
  * retentée selon ses `ActivityOptions`, et jamais ré-exécutée au rejeu.
  */
@@ -27,6 +30,6 @@ final class AgentToolActivityHandler implements AgentToolActivityInterface
             throw new \InvalidArgumentException(\sprintf('Outil "%s" inconnu.', $name));
         }
 
-        return (string) $this->tools->get($name)(...['arguments' => $arguments]);
+        return (string) $this->tools->get($name)($arguments);
     }
 }
