@@ -1,6 +1,16 @@
 {
     "name": "gplanchat/durable-magento",
     "description": "Magento 2 / Mage-OS module bringing durable workflow execution to the host's own container and queue.",
+    "keywords": [
+        "magento",
+        "magento2",
+        "mage-os",
+        "magento-module",
+        "durable-execution",
+        "workflow",
+        "orchestration",
+        "long-running"
+    ],
     "license": "MIT",
     "type": "magento2-module",
     "require": {

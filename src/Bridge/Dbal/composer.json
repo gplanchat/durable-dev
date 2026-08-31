@@ -1,6 +1,15 @@
 {
     "name": "gplanchat/durable-bridge-dbal",
     "description": "Doctrine DBAL journal, metadata and parent-link stores for gplanchat/durable — durable execution on a single SQL database, no orchestrator cluster",
+    "keywords": [
+        "doctrine",
+        "doctrine-dbal",
+        "event-store",
+        "durable-execution",
+        "workflow",
+        "orchestration",
+        "long-running"
+    ],
     "license": "MIT",
     "type": "library",
     "require": {

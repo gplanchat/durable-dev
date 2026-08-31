@@ -1,6 +1,16 @@
 {
     "name": "gplanchat/durable-plugin",
     "description": "Sylius-oriented dashboard plugin for durable workflow tracking.",
+    "keywords": [
+        "sylius",
+        "sylius-plugin",
+        "symfony",
+        "durable-execution",
+        "workflow",
+        "orchestration",
+        "long-running",
+        "dashboard"
+    ],
     "license": "MIT",
     "type": "symfony-bundle",
     "require": {
