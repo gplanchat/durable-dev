@@ -28,7 +28,8 @@ composer require gplanchat/durable
 composer require gplanchat/durable-bundle
 ```
 
-Activez le bundle dans `config/bundles.php` (Symfony Flex l'enregistre en général tout seul) :
+Le paquet déclare `"type": "symfony-bundle"`, donc **Symfony Flex l'enregistre tout seul** — il n'y
+a rien à ajouter à `config/bundles.php`. Sans Flex, ajoutez la ligne vous-même :
 
 ```php
 return [
@@ -36,6 +37,8 @@ return [
     Gplanchat\Durable\Bundle\DurableBundle::class => ['all' => true],
 ];
 ```
+
+C'est tout ce que Flex fait ici : la configuration ci-dessous reste à votre charge.
 
 ---
 
