@@ -93,8 +93,12 @@ final class DurableAgentReplayTest extends TestCase
             static function ($workflowEnvironment) use (&$passes): string {
                 ++$passes;
 
-                return (new DurableAgentWorkflow($workflowEnvironment))
-                    ->run('Météo à Paris et à Lyon ?', 'gpt-4o-mini', self::TOOLS);
+                return (new DurableAgentWorkflow($workflowEnvironment))->run(
+                    self::TOOLS,
+                    prompt: 'Météo à Paris et à Lyon ?',
+                    mode: 'auto',
+                    maxTurns: 1,
+                );
             },
             $executionId,
         );

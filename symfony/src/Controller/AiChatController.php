@@ -6,7 +6,7 @@ namespace App\Controller;
 
 use App\Ai\Chat\ChatTranscript;
 use App\Ai\Guard\AgentMode;
-use App\Ai\Workflow\DurableChatWorkflow;
+use App\Ai\Workflow\DurableAgentWorkflow;
 use App\Durable\DurableSampleWorkflowRunner;
 use Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -68,7 +68,7 @@ final class AiChatController extends AbstractController
     {
         $executionId = (string) Uuid::v4();
         $this->workflowRunner->dispatchWorkflowRun(
-            DurableChatWorkflow::class,
+            DurableAgentWorkflow::class,
             ['tools' => self::TOOLS, 'mode' => 'standard'],
             $executionId,
         );

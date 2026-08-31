@@ -1,7 +1,8 @@
-
 services:
 ###> doctrine/doctrine-bundle ###
   database:
     ports:
-      - "5432"
+      # Port fixe : `symfony serve` relance `docker compose up`, et un port éphémère change à
+      # chaque redémarrage — le serveur web garde alors l'ancien et tombe en « connection refused ».
+      - "35432:5432"
 ###< doctrine/doctrine-bundle ###

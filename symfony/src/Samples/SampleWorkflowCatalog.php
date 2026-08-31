@@ -54,13 +54,18 @@ final class SampleWorkflowCatalog
                 'sourceFolder' => 'Ai',
                 'label' => 'Agent durable (Symfony AI)',
                 'workflowType' => self::workflowAlias(DurableAgentWorkflow::class),
-                'description' => 'La boucle d’appel d’outils de Symfony AI exécutée en code workflow : chaque appel modèle et chaque outil est une activité, donc journalisé et jamais rejoué. Modèle scripté — aucune clé d’API requise.',
+                'description' => 'La boucle d’appel d’outils de Symfony AI exécutée en code workflow : chaque appel modèle et chaque outil est une activité, donc journalisé et jamais rejoué. Ici un prompt et un seul tour ; sans prompt, le même workflow est un chat piloté par signaux.',
                 'defaultPayload' => [
-                    'prompt' => 'Météo à Paris et à Lyon ?',
+                    // Même workflow que le chat : un prompt de départ et un seul tour, donc
+                    // l'exécution se termine et la page peut afficher un résultat.
+                    'prompt' => 'Quelle météo à Paris ?',
+                    'maxTurns' => 1,
+                    'mode' => 'auto',
                     'model' => 'gpt-4o-mini',
                     'tools' => [
                         'weather' => [
                             'description' => 'Météo courante d’une ville.',
+                            'effect' => 'read',
                             'parameters' => [
                                 'type' => 'object',
                                 'properties' => ['city' => ['type' => 'string']],

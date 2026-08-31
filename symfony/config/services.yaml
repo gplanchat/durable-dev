@@ -37,7 +37,12 @@ services:
 
     App\Durable\DurableSampleWorkflowRunner:
         arguments:
-            $workflowClient: '@?Gplanchat\Bridge\Temporal\WorkflowClientInterface'
+            # Le runner prend la branche « poll Temporal » dès qu'un WorkflowClient existe. Or le
+            # cluster reste joignable pour Nexus alors que le journal est en SQL
+            # (durable.temporal.journal: false) : il sonderait Temporal pour une exécution qui n'y
+            # est pas, et tous les samples expireraient. La présence du client n'est pas le bon
+            # signal — c'est `temporal.journal` qui dit où est le journal.
+            $workflowClient: null
 
     App\Dashboard\TemporalEventsDashboardDataProvider:
         arguments:

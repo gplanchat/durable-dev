@@ -83,9 +83,9 @@ final class ToolGuardTest extends TestCase
 
         $result = $environment->run(
             static fn ($workflowEnvironment): string => (new DurableAgentWorkflow($workflowEnvironment))->run(
-                'Envoie un mail',
-                'gpt-4o-mini',
                 ['send_email' => ['description' => 'Envoi', 'effect' => 'external']],
+                prompt: 'Envoie un mail',
+                maxTurns: 1,
                 guard: new ModeToolGuard(self::EFFECTS, ['send_email']),
             ),
             'guard-deny-1',
