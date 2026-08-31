@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0074ed06ea8592b370ac5f0dfee546b2",
+    "content-hash": "4673e00a18c20105a9c3ff4a9640b431",
     "packages": [
         {
             "name": "brick/math",
@@ -668,7 +668,7 @@
             "dist": {
                 "type": "path",
                 "url": "src/DurableBundle",
-                "reference": "fabb057d81e8a12314c2dfef409a59d4bb1a2872"
+                "reference": "3c6e1f5bba6af95386df385f68bb4e5f4ab97eec"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -678,18 +678,15 @@
                 "symfony/console": "^6.4 || ^7.0 || ^8.0",
                 "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
                 "symfony/event-dispatcher": "^6.4 || ^7.0 || ^8.0",
-                "symfony/framework-bundle": "^6.4 || ^7.0 || ^8.0",
                 "symfony/http-foundation": "^6.4 || ^7.0 || ^8.0",
                 "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
                 "symfony/messenger": "^6.4 || ^7.0 || ^8.0",
                 "symfony/service-contracts": "^3.0",
                 "symfony/uid": "^6.4 || ^7.0 || ^8.0"
             },
-            "require-dev": {
-                "phpunit/phpunit": "^11.0"
-            },
             "suggest": {
                 "phpunit/phpunit": "Required by the shipped test helper (Testing\\DurableBundleTestTrait)",
+                "symfony/framework-bundle": "Required by consumers of the shipped test helper (Testing\\DurableBundleTestTrait), whose static::getContainer() resolves against a KernelTestCase",
                 "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)"
             },
             "type": "symfony-bundle",
@@ -723,7 +720,7 @@
             "dist": {
                 "type": "path",
                 "url": "src/DurableLaravel",
-                "reference": "b16fe8996da96e5a28a3e80e04fc1ffa374a7303"
+                "reference": "9302b7f4ee5d308a82a3f5ee094aef5ee3b59941"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -734,6 +731,10 @@
                 "illuminate/database": "^11.0 || ^12.0 || ^13.0",
                 "illuminate/support": "^11.0 || ^12.0 || ^13.0",
                 "php": ">=8.2"
+            },
+            "suggest": {
+                "gplanchat/durable-bridge-temporal": "Required by the \"temporal\" backend: the gRPC driver for a Temporal cluster. Suggested rather than required because it installs five Symfony components a Laravel application never loads.",
+                "illuminate/console": "Required by durable:temporal-worker, the only command this package adds. Every Laravel application already has it; it is suggested so that it stays out of a monorepo graph that still tests the Symfony 6.4 line."
             },
             "type": "library",
             "extra": {
@@ -771,7 +772,7 @@
             "dist": {
                 "type": "path",
                 "url": "src/DurablePlugin",
-                "reference": "6919fcc7ffc9583c00ea9928f6534a62a69883d4"
+                "reference": "bd0df46a7647a87434fe7642703c1b42e71827cd"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -780,7 +781,6 @@
                 "php": ">=8.2",
                 "symfony/config": "^6.4 || ^7.0 || ^8.0",
                 "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
-                "symfony/framework-bundle": "^6.4 || ^7.0 || ^8.0",
                 "symfony/http-foundation": "^6.4 || ^7.0 || ^8.0",
                 "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
                 "symfony/routing": "^6.4 || ^7.0 || ^8.0",
