@@ -2,6 +2,16 @@
 
 Durable execution on the database connection **Laravel already owns**.
 
+> **Read-only mirror.** This repository is a subtree-split of
+> **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
+> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> monorepo](https://github.com/gplanchat/durable-dev/issues)**.
+>
+> **The tests are in the monorepo, not here.** This split carries source only. What covers it is
+> `tests/unit/Bridge/Illuminate/` in the monorepo, run by its `unit` suite.
+>
+> **Documentation**: [durable.rocks](https://durable.rocks).
+
 Four stores behind the four storage ports, written against `Illuminate\Database\Connection` — the
 query builder, not Eloquent. No Doctrine anywhere in the tree.
 

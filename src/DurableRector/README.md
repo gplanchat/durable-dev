@@ -3,6 +3,16 @@
 Rector rules for projects that consume [`gplanchat/durable`](https://github.com/gplanchat/durable-dev)
 and have code to migrate. Two sets, for two different migrations.
 
+> **Read-only mirror.** This repository is a subtree-split of
+> **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
+> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> monorepo](https://github.com/gplanchat/durable-dev/issues)**.
+>
+> **The tests are in the monorepo, not here.** This split carries source only. What covers it is
+> `tests/unit/DurableRector/` in the monorepo, run by its `rector` suite.
+>
+> **Documentation**: [durable.rocks](https://durable.rocks).
+
 ```bash
 composer require --dev gplanchat/durable-rector
 ```
@@ -10,7 +20,7 @@ composer require --dev gplanchat/durable-rector
 | Set | For |
 |---|---|
 | `temporal-sdk.php` | Coming **from the official Temporal PHP SDK**, keeping the workflow and activity type names a running server already knows |
-| `durable-upgrade.php` | Already on Durable, **moving from one version to the next** — cumulative, and detailed version by version in [`UPGRADE.md`](../../UPGRADE.md) |
+| `durable-upgrade.php` | Already on Durable, **moving from one version to the next** — cumulative, and detailed version by version in [`UPGRADE.md`](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md) |
 
 ```php
 // rector.php
@@ -36,7 +46,7 @@ return Rector\Config\RectorConfig::configure()
 Il est cumulatif — le passer une fois rattrape toutes les versions franchies. Ce qu'il contient, et
 surtout ce qu'il **ne peut pas** faire tout seul (un conteneur Symfony compilé garde les noms
 pleinement qualifiés, et veut son `cache:clear`), est écrit version par version dans
-[`UPGRADE.md`](../../UPGRADE.md) à la racine du dépôt.
+[`UPGRADE.md`](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md) à la racine du dépôt.
 
 ---
 
@@ -142,17 +152,17 @@ attributes, and the options objects.
 method returns is yours, and the contract's docblock is usually where it is written down.
 
 **Migrate the options objects, interceptors, or a Saga.** It reports them. See
-[OST004 §6](../../documentation/ost/OST004-what-is-not-built-yet.md).
+[OST004 §6](https://github.com/gplanchat/durable-dev/blob/main/documentation/ost/OST004-what-is-not-built-yet.md).
 
 **Anything with no counterpart** — it reports those rather than pretending. `Workflow::getVersion()`
 has no target at all until workflow versioning lands; `Workflow::newUntypedActivityStub()` and
 activity-by-name calls were removed on purpose
-([DUR039](../../documentation/adr/DUR039-workflow-authoring-surface.md)).
+([DUR039](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR039-workflow-authoring-surface.md)).
 
 ## Development
 
 `temporal/sdk` is **not** a dependency, of this package or of the monorepo — see
-[DUR006](../../documentation/adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md). Rector
+[DUR006](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md). Rector
 matches attributes by fully-qualified name and never loads them, so the tests declare the shape they
 read in `tests/unit/DurableRector/Source/temporal-sdk-stubs.php`, under the SDK's own namespace.
 

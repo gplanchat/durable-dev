@@ -3,6 +3,16 @@
 Durable execution in a Laravel application: one published config file binds the four storage ports,
 and the workflow code is the one that already runs on Symfony.
 
+> **Read-only mirror.** This repository is a subtree-split of
+> **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
+> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> monorepo](https://github.com/gplanchat/durable-dev/issues)**.
+>
+> **The tests are in the monorepo, not here.** This split carries source only. What covers it is
+> `tests/unit/DurableLaravel/` in the monorepo, run by its `laravel` suite.
+>
+> **Documentation**: [durable.rocks](https://durable.rocks).
+
 ```bash
 composer require gplanchat/durable-laravel
 php artisan migrate
