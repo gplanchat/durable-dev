@@ -10,6 +10,7 @@ use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\ExecutionCompleted;
+use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
@@ -30,6 +31,25 @@ final class ChatTranscript
     ) {
     }
 
+    /**
+     * Le payload d'une activité n'a pas la même profondeur selon le backend : en mémoire l'événement
+     * porte les arguments de l'activité, sur Temporal il porte l'enveloppe `ActivityMessage` qui les
+     * contient. On descend jusqu'à la couche qui porte la clé attendue plutôt que de coder une
+     * profondeur — c'est la seule asymétrie que cette projection ait rencontrée entre les deux.
+     *
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, mixed>
+     */
+    private static function descendTo(array $payload, string $key): array
+    {
+        while (!\array_key_exists($key, $payload) && \is_array($payload['payload'] ?? null)) {
+            $payload = $payload['payload'];
+        }
+
+        return $payload;
+    }
+
     public function forExecution(string $executionId): Transcript
     {
         $messages = [];
@@ -39,28 +59,29 @@ final class ChatTranscript
         $finished = false;
         $executed = [];
         $decided = [];
-        // La charge de démarrage vit dans le store de métadonnées, pas dans le journal : un run
-        // dispatché n'écrit pas d'ExecutionStarted, seulement ses événements d'exécution.
+        $signalledMode = null;
+        // La charge de démarrage n'est pas au même endroit selon le backend : sur Temporal natif
+        // elle ouvre le journal (ExecutionStarted), sur DBAL un run dispatché n'écrit que ses
+        // événements d'exécution et la charge reste dans le store de métadonnées. On lit les deux.
         $started = $this->metadataStore->get($executionId)['payload'] ?? [];
-        $mode = AgentMode::tryFrom((string) ($started['mode'] ?? '')) ?? AgentMode::Standard;
-        $approvalTimeout = Duration::fromWireValue($started['approvalTimeoutSeconds'] ?? null);
 
         foreach ($this->eventStore->readStream($executionId) as $event) {
             if ($event instanceof ActivityScheduled) {
-                $payload = $event->payload()['payload'] ?? [];
+                $payload = $event->payload();
 
                 if ('ai_model_invoke' === $event->activityName()) {
-                    $messages = $payload['payload']['messages'] ?? $messages;
+                    $messages = self::descendTo($payload, 'messages')['messages'] ?? $messages;
                     $lastModelCallId = $event->activityId();
 
                     continue;
                 }
 
                 if ('ai_tool_call' === $event->activityName()) {
-                    $executed[(string) ($payload['callId'] ?? '')] = true;
+                    $call = self::descendTo($payload, 'arguments');
+                    $executed[(string) ($call['callId'] ?? '')] = true;
                     $steps[$event->activityId()] = new ToolStep(
-                        (string) ($payload['name'] ?? '?'),
-                        (array) ($payload['arguments'] ?? []),
+                        (string) ($call['name'] ?? '?'),
+                        (array) ($call['arguments'] ?? []),
                         null,
                     );
                 }
@@ -79,8 +100,14 @@ final class ChatTranscript
                 if ('tool_decision' === $event->signalName()) {
                     $decided[(string) ($signal['callId'] ?? '')] = true;
                 } elseif ('set_mode' === $event->signalName()) {
-                    $mode = AgentMode::tryFrom((string) ($signal['mode'] ?? '')) ?? $mode;
+                    $signalledMode = AgentMode::tryFrom((string) ($signal['mode'] ?? '')) ?? $signalledMode;
                 }
+
+                continue;
+            }
+
+            if ($event instanceof ExecutionStarted) {
+                $started = [] !== $started ? $started : $event->payload();
 
                 continue;
             }
@@ -89,6 +116,10 @@ final class ChatTranscript
                 $finished = true;
             }
         }
+
+        // Le dernier `set_mode` l'emporte sur le mode de démarrage : il lui est postérieur.
+        $mode = $signalledMode ?? AgentMode::tryFrom((string) ($started['mode'] ?? '')) ?? AgentMode::Standard;
+        $approvalTimeout = Duration::fromWireValue($started['approvalTimeoutSeconds'] ?? null);
 
         foreach ($steps as $activityId => $step) {
             $result = $results[$activityId] ?? null;

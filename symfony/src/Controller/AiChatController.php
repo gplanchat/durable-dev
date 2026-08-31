@@ -10,6 +10,7 @@ use App\Ai\Guard\ToolEffect;
 use App\Ai\Tool\ToolDefinition;
 use App\Ai\Workflow\DurableAgentWorkflow;
 use App\Durable\DurableSampleWorkflowRunner;
+use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -64,7 +65,31 @@ final class AiChatController extends AbstractController
         private readonly DurableSampleWorkflowRunner $workflowRunner,
         private readonly MessageBusInterface $messageBus,
         private readonly ChatTranscript $transcript,
+        private readonly ?WorkflowClientInterface $workflowClient = null,
     ) {
+    }
+
+    /**
+     * Un signal n'a pas le même chemin selon qui détient le journal.
+     *
+     * Sur Temporal natif le cluster **est** le journal : `TemporalReadThroughEventStore::append()`
+     * n'écrit que dans le cache local de la requête, donc un `WorkflowSignalReceived` posé là
+     * disparaît avec le processus. Le signal doit partir au cluster.
+     *
+     * Sur DBAL (DUR030) il n'y a pas de cluster : le message Messenger est la bonne porte, et
+     * `DeliverWorkflowSignalHandler` écrit dans un journal SQL que tout le monde relit.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function signal(string $executionId, string $signalName, array $payload): void
+    {
+        if (null !== $this->workflowClient) {
+            $this->workflowClient->signal($this->workflowClient->workflowId($executionId), $signalName, $payload);
+
+            return;
+        }
+
+        $this->messageBus->dispatch(new DeliverWorkflowSignalMessage($executionId, $signalName, $payload));
     }
 
     #[Route('/durable/chat', name: 'durable_chat_start', methods: ['GET'])]
@@ -100,7 +125,7 @@ final class AiChatController extends AbstractController
 
         // Le workflow est suspendu sur sa condition ; le signal le réveille. Rien à attendre ici,
         // la page relit la projection.
-        $this->messageBus->dispatch(new DeliverWorkflowSignalMessage($executionId, 'user_message', ['text' => $text]));
+        $this->signal($executionId, 'user_message', ['text' => $text]);
 
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
     }
@@ -113,10 +138,10 @@ final class AiChatController extends AbstractController
     public function decision(string $executionId, Request $request): JsonResponse
     {
         $body = $request->toArray();
-        $this->messageBus->dispatch(new DeliverWorkflowSignalMessage($executionId, 'tool_decision', [
+        $this->signal($executionId, 'tool_decision', [
             'callId' => (string) ($body['callId'] ?? ''),
             'approved' => (bool) ($body['approved'] ?? false),
-        ]));
+        ]);
 
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
     }
@@ -129,7 +154,7 @@ final class AiChatController extends AbstractController
             return new JsonResponse(['error' => 'Mode inconnu.'], Response::HTTP_BAD_REQUEST);
         }
 
-        $this->messageBus->dispatch(new DeliverWorkflowSignalMessage($executionId, 'set_mode', ['mode' => $mode->value]));
+        $this->signal($executionId, 'set_mode', ['mode' => $mode->value]);
 
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
     }
@@ -137,7 +162,7 @@ final class AiChatController extends AbstractController
     #[Route('/durable/chat/{executionId}/close', name: 'durable_chat_close', methods: ['POST'])]
     public function close(string $executionId): JsonResponse
     {
-        $this->messageBus->dispatch(new DeliverWorkflowSignalMessage($executionId, 'close', []));
+        $this->signal($executionId, 'close', []);
 
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
     }
