@@ -137,5 +137,7 @@
 - [x] 6.2 `documentation/user/nexus/_index.{md,fr.md}` : la section devient « Quatre applications, en
       vrai », et la sous-section sur l'asymétrie dit désormais **les deux moitiés** — appeler ne
       demande rien, servir se câble une fois par hôte, et voici à quoi ressemble ce câblage hors de
-      Symfony. Vérifié sur un build `--minify` servi en HTTP.
+      Symfony. Vérifié sur un build `--minify` servi en HTTP, les deux langues symétriques : **8 `h2`, 8 `h3`,
+      2 tableaux, 15 blocs de code** de chaque côté, et le tableau des maquettes rend ses cinq
+      colonnes.
 - [x] 6.3 `src/DurableLaravel/README.md` : la phrase de §0.2 qui refusait Temporal est corrigée.
