@@ -11,9 +11,33 @@ namespace App\Ai\Guard;
 final readonly class ToolDecision
 {
     private function __construct(
-        public ToolVerdict $verdict,
+        private ToolVerdict $verdict,
         public ?string $reason,
     ) {
+    }
+
+    /**
+     * L'appel part sans que personne n'ait à trancher.
+     */
+    public function isAllowed(): bool
+    {
+        return ToolVerdict::Allow === $this->verdict;
+    }
+
+    /**
+     * L'appel suspend l'exécution jusqu'à une décision humaine — ou jusqu'à l'échéance.
+     */
+    public function needsApproval(): bool
+    {
+        return ToolVerdict::Ask === $this->verdict;
+    }
+
+    /**
+     * L'appel ne partira pas, quel que soit le mode : la politique l'interdit.
+     */
+    public function isDenied(): bool
+    {
+        return ToolVerdict::Deny === $this->verdict;
     }
 
     public static function allow(): self

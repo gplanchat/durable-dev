@@ -18,4 +18,23 @@ enum AgentMode: string
 
     /** Seules les lectures passent. */
     case Standard = 'standard';
+
+    /**
+     * La règle du mode, énoncée une fois — c'est ici qu'elle appartient, pas dans les comparaisons
+     * d'une garde.
+     *
+     * | | lecture | écriture | externe |
+     * |---|---|---|---|
+     * | `auto` | passe | passe | passe |
+     * | `edition` | passe | passe | demande |
+     * | `standard` | passe | demande | demande |
+     */
+    public function requiresApprovalFor(ToolEffect $effect): bool
+    {
+        return match ($this) {
+            self::Auto => false,
+            self::Edition => $effect->isIrreversible(),
+            self::Standard => !$effect->isHarmless(),
+        };
+    }
 }

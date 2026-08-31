@@ -17,6 +17,23 @@ enum ApprovalOutcome: string
     case Expired = 'expired';
 
     /**
+     * Seule issue qui laisse partir l'outil.
+     */
+    public function isApproved(): bool
+    {
+        return self::Approved === $this;
+    }
+
+    /**
+     * Personne n'a tranché : l'échéance l'a fait à sa place. Distinct d'un refus, qui est une
+     * décision.
+     */
+    public function isExpired(): bool
+    {
+        return self::Expired === $this;
+    }
+
+    /**
      * Ce que le modèle lit à la place du résultat de l'outil.
      */
     public function message(): string

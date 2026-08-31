@@ -7,13 +7,8 @@ namespace App\Ai\Guard;
 use Symfony\AI\Platform\Result\ToolCall;
 
 /**
- * La garde par défaut : une liste de refus qui l'emporte toujours, puis le croisement mode × effet.
- *
- * | | lecture | écriture | externe |
- * |---|---|---|---|
- * | `auto` | passe | passe | passe |
- * | `edition` | passe | passe | demande |
- * | `standard` | passe | demande | demande |
+ * La garde par défaut : une liste de refus qui l'emporte toujours, puis la règle du mode
+ * ({@see AgentMode::requiresApprovalFor()}).
  *
  * ponytail: pas de moteur de règles. Un outil inconnu est traité comme `external` — le défaut
  * prudent. Des conditions sur les arguments (« ce chemin, pas cet autre ») justifieraient une
@@ -41,13 +36,7 @@ final class ModeToolGuard implements ToolGuardInterface
 
         $effect = $this->effects[$name] ?? ToolEffect::External;
 
-        $needsApproval = match ($mode) {
-            AgentMode::Auto => false,
-            AgentMode::Edition => ToolEffect::External === $effect,
-            AgentMode::Standard => ToolEffect::Read !== $effect,
-        };
-
-        return $needsApproval
+        return $mode->requiresApprovalFor($effect)
             ? ToolDecision::ask(\sprintf('« %s » (%s) demande une validation en mode %s.', $name, $effect->value, $mode->value))
             : ToolDecision::allow();
     }

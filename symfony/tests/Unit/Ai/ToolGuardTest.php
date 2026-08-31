@@ -8,7 +8,6 @@ use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\ApprovalOutcome;
 use App\Ai\Guard\ModeToolGuard;
 use App\Ai\Guard\ToolEffect;
-use App\Ai\Guard\ToolVerdict;
 use App\Ai\Workflow\DurableAgentWorkflow;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -27,30 +26,31 @@ final class ToolGuardTest extends TestCase
 
     public static function matrix(): \Generator
     {
-        yield 'auto laisse tout passer' => [AgentMode::Auto, 'send_email', ToolVerdict::Allow];
-        yield 'auto laisse passer une écriture' => [AgentMode::Auto, 'save_note', ToolVerdict::Allow];
-        yield 'edition laisse passer une écriture' => [AgentMode::Edition, 'save_note', ToolVerdict::Allow];
-        yield 'edition demande pour un effet externe' => [AgentMode::Edition, 'send_email', ToolVerdict::Ask];
-        yield 'standard laisse passer une lecture' => [AgentMode::Standard, 'weather', ToolVerdict::Allow];
-        yield 'standard demande pour une écriture' => [AgentMode::Standard, 'save_note', ToolVerdict::Ask];
-        yield 'standard demande pour un effet externe' => [AgentMode::Standard, 'send_email', ToolVerdict::Ask];
+        yield 'auto laisse tout passer' => [AgentMode::Auto, 'send_email', false];
+        yield 'auto laisse passer une écriture' => [AgentMode::Auto, 'save_note', false];
+        yield 'edition laisse passer une écriture' => [AgentMode::Edition, 'save_note', false];
+        yield 'edition demande pour un effet externe' => [AgentMode::Edition, 'send_email', true];
+        yield 'standard laisse passer une lecture' => [AgentMode::Standard, 'weather', false];
+        yield 'standard demande pour une écriture' => [AgentMode::Standard, 'save_note', true];
+        yield 'standard demande pour un effet externe' => [AgentMode::Standard, 'send_email', true];
         // Le défaut prudent : un outil non classé est traité comme externe.
-        yield 'un outil inconnu est traité comme externe' => [AgentMode::Standard, 'rm_rf', ToolVerdict::Ask];
+        yield 'un outil inconnu est traité comme externe' => [AgentMode::Standard, 'rm_rf', true];
     }
 
     #[DataProvider('matrix')]
-    public function testTheModeDecidesFromTheDeclaredEffect(AgentMode $mode, string $tool, ToolVerdict $expected): void
+    public function testTheModeDecidesFromTheDeclaredEffect(AgentMode $mode, string $tool, bool $needsApproval): void
     {
-        $guard = new ModeToolGuard(self::EFFECTS);
+        $decision = (new ModeToolGuard(self::EFFECTS))->decide(new ToolCall('c1', $tool), $mode);
 
-        self::assertSame($expected, $guard->decide(new ToolCall('c1', $tool), $mode)->verdict);
+        self::assertSame($needsApproval, $decision->needsApproval());
+        self::assertSame(!$needsApproval, $decision->isAllowed());
     }
 
     public function testADenyListWinsOverEveryMode(): void
     {
         $guard = new ModeToolGuard(self::EFFECTS, ['send_email']);
 
-        self::assertSame(ToolVerdict::Deny, $guard->decide(new ToolCall('c1', 'send_email'), AgentMode::Auto)->verdict);
+        self::assertTrue($guard->decide(new ToolCall('c1', 'send_email'), AgentMode::Auto)->isDenied());
     }
 
     /**

@@ -9,7 +9,6 @@ use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\ApprovalOutcome;
 use App\Ai\Guard\ToolApprovalGate;
 use App\Ai\Guard\ToolGuardInterface;
-use App\Ai\Guard\ToolVerdict;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Duration;
@@ -54,14 +53,14 @@ final class DurableToolExecutor implements ToolExecutorInterface
         foreach ($toolCalls as $toolCall) {
             $decision = $this->guard->decide($toolCall, ($this->mode)());
 
-            if (ToolVerdict::Deny === $decision->verdict) {
+            if ($decision->isDenied()) {
                 yield new Progress('tool_denied', (string) $decision->reason, $toolCall);
                 $results[] = new ToolResult($toolCall, \sprintf('Refusé : %s', $decision->reason));
 
                 continue;
             }
 
-            if (ToolVerdict::Ask === $decision->verdict) {
+            if ($decision->needsApproval()) {
                 $this->gate->ask($toolCall, (string) $decision->reason);
                 yield new Progress('tool_approval', (string) $decision->reason, $toolCall);
 
@@ -81,9 +80,9 @@ final class DurableToolExecutor implements ToolExecutorInterface
                     yield new Progress('tool_expired', \sprintf('Validation de « %s » expirée.', $toolCall->getName()), $toolCall);
                 }
 
-                $outcome = $this->gate->outcome($toolCall->getId());
-                if (ApprovalOutcome::Approved !== $outcome) {
-                    $results[] = new ToolResult($toolCall, $outcome?->message() ?? ApprovalOutcome::Refused->message());
+                $outcome = $this->gate->outcome($toolCall->getId()) ?? ApprovalOutcome::Refused;
+                if (!$outcome->isApproved()) {
+                    $results[] = new ToolResult($toolCall, $outcome->message());
 
                     continue;
                 }
