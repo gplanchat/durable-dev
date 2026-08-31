@@ -2,7 +2,17 @@
 
 Durable execution on **one SQL database**, with no orchestration cluster and no `ext-grpc`.
 
-PHP namespace: **`Gplanchat\Bridge\Dbal`**. Decision record: **[DUR030](../../../documentation/adr/DUR030-dbal-backend-simplified-durable-execution.md)**.
+> **Read-only mirror.** This repository is a subtree-split of
+> **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
+> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> monorepo](https://github.com/gplanchat/durable-dev/issues)**.
+>
+> **The tests are in the monorepo, not here.** This split carries source only. What covers it is
+> `tests/unit/Bridge/Dbal/` in the monorepo, run by its `unit` suite.
+>
+> **Documentation**: [durable.rocks](https://durable.rocks).
+
+PHP namespace: **`Gplanchat\Bridge\Dbal`**. Decision record: **[DUR030](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR030-dbal-backend-simplified-durable-execution.md)**.
 
 The core replay interpreter, the workflow ports and the command buffer are unchanged — this bridge
 only makes the three process-local stores persistent. Workflow and activity code is identical to

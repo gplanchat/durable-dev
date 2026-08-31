@@ -3,6 +3,16 @@
 `gplanchat/durable-magento` runs Durable workflows inside a Magento application:
 `Gplanchat_DurableModule` in `bin/magento module:status`.
 
+> **Read-only mirror.** This repository is a subtree-split of
+> **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
+> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> monorepo](https://github.com/gplanchat/durable-dev/issues)**.
+>
+> **The tests are in the monorepo, not here.** This split carries source only. What covers it is
+> `tests/unit/DurableModule/` in the monorepo, run by its `unit` suite.
+>
+> **Documentation**: [durable.rocks](https://durable.rocks).
+
 It declares workflow and activity classes to the runtime, assembles the engine for a Magento
 process, ships the workers as `bin/magento` commands, and adds a read-only admin screen under
 **System > Durable processes > Process history**.
