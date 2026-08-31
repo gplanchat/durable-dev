@@ -8,6 +8,7 @@ use Gplanchat\Durable\Attribute\AsActivityHandler;
 use Symfony\AI\Platform\ModelCatalog\FallbackModelCatalog;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelClientInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Exécute l'appel modèle hors du workflow. Reçoit et rend des tableaux : le payload a été normalisé
@@ -17,6 +18,8 @@ use Symfony\AI\Platform\ModelClientInterface;
 final class ModelInvocationActivityHandler implements ModelInvocationActivityInterface
 {
     public function __construct(
+        // ponytail: client scripté pour la démo — un bridge `symfony/ai-*-platform` le remplace.
+        #[Autowire(service: \App\Ai\Platform\ScriptedChatModelClient::class)]
         private readonly ModelClientInterface $client,
         private readonly ModelCatalogInterface $catalog = new FallbackModelCatalog(),
     ) {

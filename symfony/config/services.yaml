@@ -28,6 +28,10 @@ services:
         resource: '../src/Samples/Workflow/'
         tags: [durable.workflow]
 
+    App\Ai\Workflow\:
+        resource: '../src/Ai/Workflow/'
+        tags: [durable.workflow]
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 

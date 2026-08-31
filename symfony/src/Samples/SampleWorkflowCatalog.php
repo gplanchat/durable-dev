@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Samples;
 
+use App\Ai\Workflow\DurableAgentWorkflow;
 use App\Samples\Workflow\ActivityRetry\ActivityRetryGreetingWorkflow;
 use App\Samples\Workflow\BookingSaga\BookingSagaLightWorkflow;
 use App\Samples\Workflow\CancellationScope\CancellationScopeRaceWorkflow;
@@ -48,6 +49,27 @@ final class SampleWorkflowCatalog
     public static function scenarios(): array
     {
         return [
+            [
+                'id' => 'durable_agent',
+                'sourceFolder' => 'Ai',
+                'label' => 'Agent durable (Symfony AI)',
+                'workflowType' => self::workflowAlias(DurableAgentWorkflow::class),
+                'description' => 'La boucle d’appel d’outils de Symfony AI exécutée en code workflow : chaque appel modèle et chaque outil est une activité, donc journalisé et jamais rejoué. Modèle scripté — aucune clé d’API requise.',
+                'defaultPayload' => [
+                    'prompt' => 'Météo à Paris et à Lyon ?',
+                    'model' => 'gpt-4o-mini',
+                    'tools' => [
+                        'weather' => [
+                            'description' => 'Météo courante d’une ville.',
+                            'parameters' => [
+                                'type' => 'object',
+                                'properties' => ['city' => ['type' => 'string']],
+                                'required' => ['city'],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
             [
                 'id' => 'simple_activity',
                 'sourceFolder' => 'SimpleActivity',

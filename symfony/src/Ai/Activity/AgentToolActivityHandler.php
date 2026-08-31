@@ -6,6 +6,7 @@ namespace App\Ai\Activity;
 
 use Gplanchat\Durable\Attribute\AsActivityHandler;
 use Psr\Container\ContainerInterface;
+use Symfony\Component\DependencyInjection\Attribute\AutowireLocator;
 
 /**
  * Route un appel d'outil vers son implémentation. **Non couvert par le test du spike** : celui-ci
@@ -18,6 +19,7 @@ use Psr\Container\ContainerInterface;
 final class AgentToolActivityHandler implements AgentToolActivityInterface
 {
     public function __construct(
+        #[AutowireLocator('app.ai.tool', indexAttribute: 'key')]
         private readonly ContainerInterface $tools,
     ) {
     }
