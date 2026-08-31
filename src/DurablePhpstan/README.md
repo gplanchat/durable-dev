@@ -3,6 +3,16 @@
 Extension PHPStan pour [`gplanchat/durable`](https://github.com/gplanchat/durable). Elle résout les
 appels de `ActivityStub`, `ChildWorkflowStub` et `NexusStub` depuis leur contrat typé.
 
+> **Read-only mirror.** This repository is a subtree-split of
+> **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
+> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> monorepo](https://github.com/gplanchat/durable-dev/issues)**.
+>
+> **The tests are in the monorepo, not here.** This split carries source only. What covers it is
+> `tests/unit/DurablePhpstan/` in the monorepo, run by its `unit` suite.
+>
+> **Documentation**: [durable.rocks](https://durable.rocks).
+
 Pour `NexusStub`, elle suit en plus l'**héritage** : un contrat Nexus se sépare en deux interfaces —
 celle que le gestionnaire implémente et celle qui l'étend pour l'appelant —, et le stub appelle les
 deux.

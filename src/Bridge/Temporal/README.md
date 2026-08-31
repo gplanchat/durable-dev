@@ -2,6 +2,16 @@
 
 **gRPC** bridge (without the official Temporal PHP SDK) to persist the Durable journal in a **minimal Temporal workflow**.
 
+> **Read-only mirror.** This repository is a subtree-split of
+> **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
+> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> monorepo](https://github.com/gplanchat/durable-dev/issues)**.
+>
+> **The tests are in the monorepo, not here.** This split carries source only. What covers it is
+> `tests/unit/Bridge/Temporal/` in the monorepo, run by its `unit` suite.
+>
+> **Documentation**: [durable.rocks](https://durable.rocks).
+
 PHP namespace: **`Gplanchat\Bridge\Temporal`**.
 
 **Deployment invariant**: when Temporal is enabled for Durable, the **journal** (`EventStore`) and **application queues** share the **same** Temporal connection (`temporal://…`). **Access mode** (journal receive-only vs application envelope) is selected via **`options.purpose`** (`journal` \| `application`) or inferred (presence of **`inner`** ⇒ application). Schemes **`temporal-journal://`** and **`temporal-application://`** are still accepted and normalized to **`temporal://`**.
@@ -58,8 +68,8 @@ Same idea as `messenger:consume`: run the Messenger worker under FrankenPHP work
 
 ## License
 
-**MIT** — see [`LICENSE`](LICENSE) in this directory and [WA004](../../../documentation/wa/WA004-mit-license-distribution.md).
+**MIT** — see [`LICENSE`](LICENSE) in this directory and [WA004](https://github.com/gplanchat/durable-dev/blob/main/documentation/wa/WA004-mit-license-distribution.md).
 
 ## Further reading
 
-- **DUR019** — Temporal gRPC bridge and journal: [`documentation/adr/DUR019-temporal-grpc-bridge-and-journal.md`](../../../documentation/adr/DUR019-temporal-grpc-bridge-and-journal.md)
+- **DUR019** — Temporal gRPC bridge and journal: [`documentation/adr/DUR019-temporal-grpc-bridge-and-journal.md`](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR019-temporal-grpc-bridge-and-journal.md)

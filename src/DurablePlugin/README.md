@@ -2,6 +2,16 @@
 
 `gplanchat/durable-plugin` provides a Sylius-oriented admin dashboard for Durable workflow tracking.
 
+> **Read-only mirror.** This repository is a subtree-split of
+> **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
+> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> monorepo](https://github.com/gplanchat/durable-dev/issues)**.
+>
+> **Tests.** This split ships its own `tests/` and `phpunit.xml`; the same files run in the monorepo
+> as its `plugin` suite.
+>
+> **Documentation**: [durable.rocks](https://durable.rocks).
+
 ## Features
 
 - Workflow runs list with an outcome filter and cursor paging.
