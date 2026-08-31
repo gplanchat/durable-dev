@@ -20,6 +20,13 @@
         },
         {
             "type": "path",
+            "url": "../src/Bridge/Dbal",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
             "url": "../src/Bridge/Temporal",
             "options": {
                 "symlink": true
@@ -39,6 +46,7 @@
         "ext-iconv": "*",
         "doctrine/doctrine-bundle": ">=2.19.0",
         "gplanchat/durable": "@dev",
+        "gplanchat/durable-bridge-dbal": "@dev",
         "gplanchat/durable-bridge-temporal": "@dev",
         "gplanchat/durable-bundle": "@dev",
         "gplanchat/durable-demo-contracts": "@dev",
@@ -48,6 +56,7 @@
         "symfony/dotenv": "^7.4.15 || ^8.0",
         "symfony/flex": "^2.11",
         "symfony/framework-bundle": "^7.4.17 || ^8.0",
+        "symfony/lock": "^7.4",
         "symfony/runtime": "^7.4.14 || ^8.0",
         "symfony/uid": "^7.4.17 || ^8.0",
         "symfony/yaml": "^7.4.17 || ^8.0"

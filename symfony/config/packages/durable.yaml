@@ -22,18 +22,29 @@ durable:
             - App\Durable\Activity\TickActivityInterface
             - App\Durable\Activity\EncaissementActivityInterface
 
+# Spike agent durable : le chat a besoin d'un workflow qui survit à la requête HTTP. Un event store
+# in-memory meurt avec le processus, donc `DeliverWorkflowSignalHandler` y écrit un
+# WorkflowSignalReceived que personne ne relira jamais. Backend DBAL (DUR030) : une seule base SQL,
+# pas de cluster, les tables sont créées à la première écriture.
+# Pour repasser sur Temporal : remettre `type: in_memory` + `dsn: '%env(DURABLE_DSN)%'` ici et les
+# DSN temporal dans .env.dev.
 when@dev:
     durable:
+        dbal:
+            connection: doctrine.dbal.default_connection
         event_store:
-            type: in_memory
+            type: dbal
         temporal:
+            # Le cluster reste joignable (l'app déclare un handler Nexus, qui l'exige), mais le
+            # journal est celui d'event_store : une seule source de vérité, et elle est en SQL.
             dsn: '%env(DURABLE_DSN)%'
+            journal: false
         workflow_metadata:
-            type: in_memory
+            type: dbal
         child_workflow:
             async_messenger: true
             parent_link_store:
-                type: in_memory
+                type: dbal
 
 when@prod:
     durable:

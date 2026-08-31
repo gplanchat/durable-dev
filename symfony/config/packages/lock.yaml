@@ -1,0 +1,3 @@
+# `durable.dbal.lock_factory` sérialise les reprises d'une même exécution (DUR030).
+framework:
+    lock: 'flock'
