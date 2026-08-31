@@ -468,8 +468,8 @@ reach. Temporal's own documentation carries a Nexus section for Go, Java, Python
 .NET, and none for PHP.
 
 **This one is being built.** An integration is open in a pull request
-([#768](https://github.com/temporalio/sdk-php/pull/768)), following an earlier implementation
-attempt ([#580](https://github.com/temporalio/sdk-php/pull/580)), and its maintainers have said it
+([#768](https://github.com/temporalio/sdk-php/pull/768)), following the issue that opened the
+subject ([#580](https://github.com/temporalio/sdk-php/issues/580)), and its maintainers have said it
 is slated for an upcoming major. Read "the one place Durable is ahead" as a lead measured in
 releases, not as a gap that will stay open.
 

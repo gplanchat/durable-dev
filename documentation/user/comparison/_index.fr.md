@@ -478,8 +478,8 @@ d'historique — sans aucune API qu'un workflow puisse atteindre. La documentati
 une section Nexus pour Go, Java, Python, TypeScript et .NET, et aucune pour PHP.
 
 **Et cela se construit.** Une intégration est ouverte en *pull request*
-([#768](https://github.com/temporalio/sdk-php/pull/768)), après une première tentative
-d'implémentation ([#580](https://github.com/temporalio/sdk-php/pull/580)), et ses mainteneurs l'ont
+([#768](https://github.com/temporalio/sdk-php/pull/768)), après le ticket qui a ouvert le
+sujet ([#580](https://github.com/temporalio/sdk-php/issues/580)), et ses mainteneurs l'ont
 annoncée pour un prochain majeur. Lisez « le seul endroit où Durable est devant » comme une avance
 qui se mesure en versions, non comme un écart qui restera ouvert.
 
