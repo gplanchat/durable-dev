@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Ai;
 
 use App\Ai\Guard\AgentMode;
+use App\Ai\Guard\ApprovalOutcome;
 use App\Ai\Guard\ModeToolGuard;
 use App\Ai\Guard\ToolEffect;
 use App\Ai\Guard\ToolVerdict;
@@ -94,7 +95,7 @@ final class ToolGuardTest extends TestCase
         );
 
         self::assertSame(0, $toolCalls, 'Une validation expirée a quand même déclenché l\'outil.');
-        self::assertStringContainsString('avant l\'échéance', $result);
+        self::assertSame(ApprovalOutcome::Expired->message(), $result);
     }
 
     /**

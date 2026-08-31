@@ -8,16 +8,17 @@ use Symfony\AI\Platform\Result\ToolCall;
 
 /**
  * L'état d'attente d'un accord humain. C'est de l'**état de workflow** : il est reconstruit par
- * rejeu depuis les signaux journalisés, jamais lu d'un stockage à côté.
+ * rejeu depuis les signaux journalisés et les minuteurs, jamais lu d'un stockage à côté.
  *
  * C'est ce qui distingue cette validation de {@see \Symfony\AI\Agent\Toolbox\Event\ToolCallRequested}
  * de Symfony AI : `deny()` est un hook synchrone dans le processus courant, ici l'agent peut rester
- * suspendu trois jours, à travers un redéploiement, jusqu'à ce que quelqu'un tranche.
+ * suspendu trois jours, à travers un redéploiement, jusqu'à ce que quelqu'un tranche — ou que
+ * l'échéance tranche à sa place.
  */
 final class ToolApprovalGate
 {
-    /** @var array<string, bool> id d'appel → accordé */
-    private array $decisions = [];
+    /** @var array<string, ApprovalOutcome> */
+    private array $outcomes = [];
 
     /** @var array<string, PendingApproval> */
     private array $pending = [];
@@ -27,20 +28,30 @@ final class ToolApprovalGate
         $this->pending[$toolCall->getId()] = PendingApproval::of($toolCall, $reason);
     }
 
+    /**
+     * Une décision humaine, arrivée par signal.
+     */
     public function decide(string $callId, bool $approved): void
     {
-        $this->decisions[$callId] = $approved;
-        unset($this->pending[$callId]);
+        $this->settle($callId, $approved ? ApprovalOutcome::Approved : ApprovalOutcome::Refused);
     }
 
-    public function isDecided(string $callId): bool
+    /**
+     * L'échéance a tranché faute de réponse. Distinct d'un refus : personne n'a rien décidé.
+     */
+    public function timeout(string $callId): void
     {
-        return \array_key_exists($callId, $this->decisions);
+        $this->settle($callId, ApprovalOutcome::Expired);
     }
 
-    public function isApproved(string $callId): bool
+    public function isSettled(string $callId): bool
     {
-        return $this->decisions[$callId] ?? false;
+        return \array_key_exists($callId, $this->outcomes);
+    }
+
+    public function outcome(string $callId): ?ApprovalOutcome
+    {
+        return $this->outcomes[$callId] ?? null;
     }
 
     /**
@@ -49,5 +60,14 @@ final class ToolApprovalGate
     public function pending(): array
     {
         return array_values($this->pending);
+    }
+
+    private function settle(string $callId, ApprovalOutcome $outcome): void
+    {
+        // La première issue gagne : un signal arrivé après le tir de l'échéance ne doit pas
+        // ressusciter un appel que le workflow a déjà tranché — au rejeu, l'ordre du journal
+        // rejouerait l'inverse.
+        $this->outcomes[$callId] ??= $outcome;
+        unset($this->pending[$callId]);
     }
 }

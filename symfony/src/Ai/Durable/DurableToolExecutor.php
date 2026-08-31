@@ -6,6 +6,7 @@ namespace App\Ai\Durable;
 
 use App\Ai\Activity\AgentToolActivityInterface;
 use App\Ai\Guard\AgentMode;
+use App\Ai\Guard\ApprovalOutcome;
 use App\Ai\Guard\ToolApprovalGate;
 use App\Ai\Guard\ToolGuardInterface;
 use App\Ai\Guard\ToolVerdict;
@@ -69,21 +70,20 @@ final class DurableToolExecutor implements ToolExecutorInterface
                 // journal (DUR032), donc elle survit au redémarrage elle aussi.
                 try {
                     $this->environment->await(
-                        fn(): bool => $this->gate->isDecided($toolCall->getId()),
+                        fn(): bool => $this->gate->isSettled($toolCall->getId()),
                         $this->approvalTimeout,
                     );
                 } catch (DeadlineExceededException) {
-                    // Pas de réponse vaut refus. La décision est inscrite dans la porte pour que le
-                    // rejeu la relise au lieu de replanifier un minuteur déjà tiré.
-                    $this->gate->decide($toolCall->getId(), false);
+                    // Pas de réponse vaut refus — mais l'issue reste distincte d'un refus humain :
+                    // personne n'a rien décidé. Elle est inscrite dans la porte pour que le rejeu
+                    // la relise au lieu de replanifier un minuteur déjà tiré.
+                    $this->gate->timeout($toolCall->getId());
                     yield new Progress('tool_expired', \sprintf('Validation de « %s » expirée.', $toolCall->getName()), $toolCall);
-                    $results[] = new ToolResult($toolCall, 'Refusé : aucune validation reçue avant l\'échéance.');
-
-                    continue;
                 }
 
-                if (!$this->gate->isApproved($toolCall->getId())) {
-                    $results[] = new ToolResult($toolCall, 'Refusé par l\'utilisateur.');
+                $outcome = $this->gate->outcome($toolCall->getId());
+                if (ApprovalOutcome::Approved !== $outcome) {
+                    $results[] = new ToolResult($toolCall, $outcome?->message() ?? ApprovalOutcome::Refused->message());
 
                     continue;
                 }
