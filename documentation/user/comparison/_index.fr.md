@@ -12,9 +12,16 @@ métier au long cours — et font des arbitrages différents à chaque couche en
 
 Cette page énonce ces différences, y compris celles où le SDK est devant.
 
+**Quelle version du SDK.** Chaque affirmation ci-dessous a été vérifiée contre `temporal/sdk`
+**v2.18**, publiée le 2026-08-17. Le SDK avance, et deux des différences énoncées ici sont de celles
+que ses mainteneurs ont dit à voix haute vouloir refermer — les sections
+[5](#5-fibers-or-generators-the-colouring-problem) et [8](#8-nexus-the-one-place-durable-is-ahead)
+nomment le travail public en cours. Lisez une différence comme vraie à cette version, non comme une
+propriété permanente.
+
 ---
 
-## 1. Le moteur du worker : pas de RoadRunner
+## 1. Le moteur du worker : pas de RoadRunner {#1-the-worker-runtime-no-roadrunner}
 
 Le SDK se scinde en un **client** et un **worker**. Le client exige `ext-grpc` ; le worker exige
 **RoadRunner**, un serveur applicatif Go que l'on télécharge dans le projet par
@@ -211,7 +218,7 @@ bouge pas. Voir [Backends](../backends/).
 
 ---
 
-## 4. La surface d'écriture
+## 4. La surface d'écriture {#4-the-authoring-surface}
 
 Le même workflow — encaisser une commande, attendre une heure, envoyer le reçu — écrit deux fois.
 
@@ -388,6 +395,19 @@ Aucun des deux modèles n'affecte le déterminisme : les deux rejouent le même 
 interdisent les mêmes appels non déterministes dans un workflow. La différence est l'endroit où vit
 le mot-clé de suspension — dans votre code, ou dans le moteur.
 
+### Le SDK compte refermer cet écart
+
+Les fibres ne sont pas une frontière permanente. Le SDK a une *pull request* ouverte qui ajoute une
+API de fibres ([#798](https://github.com/temporalio/sdk-php/pull/798)), après le ticket qui
+proposait de remplacer les *yields* par une suspension de fibre
+([#702](https://github.com/temporalio/sdk-php/issues/702)), et ses mainteneurs ont annoncé le
+changement prototypé et prévu pour un prochain majeur. Rien de tout cela n'est dans une version
+publiée à la v2.18, et cette section décrit la v2.18.
+
+Ce que cela réglerait, c'est la coloration, pas le reste de la page : les sections
+[1](#1-the-worker-runtime-no-roadrunner), [2](#2-testability) et [4](#4-the-authoring-surface)
+reposent sur le moteur du worker et la surface d'écriture, auxquels les fibres ne touchent pas.
+
 ---
 
 ## 6. Planifier des activités
@@ -435,7 +455,7 @@ Voir [Changer un workflow qui tourne](../deploying/).
 
 ---
 
-## 8. Nexus : le seul endroit où Durable est devant
+## 8. Nexus : le seul endroit où Durable est devant {#8-nexus-the-one-place-durable-is-ahead}
 
 [Nexus](https://docs.temporal.io/nexus) achemine un appel d'un workflow vers une opération servie
 dans un autre espace de noms ou un autre cluster. **Un workflow Durable peut en appeler une, et
@@ -452,15 +472,21 @@ chaîne. Cela compte parce que le serveur ne garde que le point d'entrée : il r
 malformé, et accepte sans un mot un service ou une opération vide ou faite d'espaces — laissant
 l'appel attendre un gestionnaire dont le nom ne correspondra jamais.
 
-À l'heure où ces lignes sont écrites, « Nexus » n'apparaît dans le SDK PHP que comme de la plomberie
-gRPC engendrée — CRUD de points d'entrée sur le client opérateur, une option d'emplacement de tâche
-sur le worker, un vidage d'historique — sans aucune API qu'un workflow puisse atteindre. La
-documentation de Temporal porte une section Nexus pour Go, Java, Python, TypeScript et .NET, et
-aucune pour PHP. Côté Durable, le chemin appelant est éprouvé par des tests d'intégration contre un
-vrai serveur Temporal : aller-retours, annulation et échec, bornes d'opération, les règles de
-nommage du point d'entrée, du service, de l'opération et des en-têtes — et, côté gestionnaire, les
-deux formes de réponse et le chemin d'annulation, un appelant Durable et un gestionnaire Durable
-dans le même test.
+À la v2.18, « Nexus » n'apparaît dans le SDK PHP que comme de la plomberie gRPC engendrée — CRUD de
+points d'entrée sur le client opérateur, une option d'emplacement de tâche sur le worker, un vidage
+d'historique — sans aucune API qu'un workflow puisse atteindre. La documentation de Temporal porte
+une section Nexus pour Go, Java, Python, TypeScript et .NET, et aucune pour PHP.
+
+**Et cela se construit.** Une intégration est ouverte en *pull request*
+([#768](https://github.com/temporalio/sdk-php/pull/768)), après une première tentative
+d'implémentation ([#580](https://github.com/temporalio/sdk-php/pull/580)), et ses mainteneurs l'ont
+annoncée pour un prochain majeur. Lisez « le seul endroit où Durable est devant » comme une avance
+qui se mesure en versions, non comme un écart qui restera ouvert.
+
+Côté Durable, le chemin appelant est éprouvé par des tests d'intégration contre un vrai serveur
+Temporal : aller-retours, annulation et échec, bornes d'opération, les règles de nommage du point
+d'entrée, du service, de l'opération et des en-têtes — et, côté gestionnaire, les deux formes de
+réponse et le chemin d'annulation, un appelant Durable et un gestionnaire Durable dans le même test.
 
 **Et l'appel interopère.** La charge voyage telle que l'appelant l'a écrite — sans emballage, sans
 enveloppe —, si bien qu'un gestionnaire écrit avec un autre SDK y lit les champs qu'il déclare.

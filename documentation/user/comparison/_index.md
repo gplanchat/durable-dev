@@ -12,6 +12,12 @@ long-running business logic — and they make different trade-offs at every laye
 
 This page states those differences, including the ones where the SDK is ahead.
 
+**Which SDK.** Every claim below was checked against `temporal/sdk` **v2.18**, released 2026-08-17.
+The SDK moves, and two of the differences stated here are ones its maintainers have said out loud
+they intend to close — sections [5](#5-fibers-or-generators-the-colouring-problem) and
+[8](#8-nexus-the-one-place-durable-is-ahead) name the public work in flight. Read a difference as of
+that version, not as a permanent property.
+
 ---
 
 ## 1. The worker runtime: no RoadRunner
@@ -382,6 +388,18 @@ Neither model affects determinism: both replay the same history, and both forbid
 non-deterministic calls inside a workflow. The difference is where the suspension keyword lives —
 in your code, or in the runtime.
 
+### The SDK intends to close this
+
+Fibers are not a permanent divide. The SDK has an open pull request adding a Fibers API
+([#798](https://github.com/temporalio/sdk-php/pull/798)), on top of the issue that proposed
+replacing yields with fiber suspension ([#702](https://github.com/temporalio/sdk-php/issues/702)),
+and its maintainers have said the change is prototyped and slated for an upcoming major. None of it
+is in a release as of v2.18, and this section describes v2.18.
+
+What that would settle is the colouring, not the rest of the page: sections
+[1](#1-the-worker-runtime-no-roadrunner), [2](#2-testability) and [4](#4-the-authoring-surface) rest
+on the worker runtime and the authoring surface, which fibers do not touch.
+
 ---
 
 ## 6. Scheduling activities
@@ -444,13 +462,21 @@ That matters because the server only guards the endpoint: it refuses a malformed
 accepts an empty or whitespace-only service or operation without a word — leaving the call waiting
 for a handler whose name will never match.
 
-At the time of writing, "Nexus" appears in the PHP SDK only as generated gRPC plumbing — endpoint
-CRUD on the operator client, a task-slot option on the worker, history dumping — with no API a
-workflow can reach. Temporal's own documentation carries a Nexus section for Go, Java, Python,
-TypeScript and .NET, and none for PHP. On the Durable side the caller path is exercised by
-integration tests against a real Temporal server: round trips, cancellation and failure, operation
-bounds, the endpoint, service, operation and header naming rules — and, on the handler side, both
-response shapes and the cancellation path, a Durable caller and a Durable handler in the same test.
+As of v2.18, "Nexus" appears in the PHP SDK only as generated gRPC plumbing — endpoint CRUD on the
+operator client, a task-slot option on the worker, history dumping — with no API a workflow can
+reach. Temporal's own documentation carries a Nexus section for Go, Java, Python, TypeScript and
+.NET, and none for PHP.
+
+**This one is being built.** An integration is open in a pull request
+([#768](https://github.com/temporalio/sdk-php/pull/768)), following an earlier implementation
+attempt ([#580](https://github.com/temporalio/sdk-php/pull/580)), and its maintainers have said it
+is slated for an upcoming major. Read "the one place Durable is ahead" as a lead measured in
+releases, not as a gap that will stay open.
+
+On the Durable side the caller path is exercised by integration tests against a real Temporal
+server: round trips, cancellation and failure, operation bounds, the endpoint, service, operation
+and header naming rules — and, on the handler side, both response shapes and the cancellation path,
+a Durable caller and a Durable handler in the same test.
 
 **And the call interoperates.** The payload travels as the caller wrote it — no wrapper, no
 envelope — so a handler written with another SDK reads the fields it declares. Measured against a
