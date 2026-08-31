@@ -35,10 +35,10 @@ Rien d'autre : ni provider à écrire, ni commande, ni passe de compilation.
 `DeclaredNexusOperations` fait le travail que `NexusHandlerPass` fait côté Symfony — lire le
 contrat, tenir entre la signature du gestionnaire et ce que le registre appelle.
 
-⚠ **Ce qu'il ne fait pas, et que Symfony fait :** refuser au démarrage un workflow dont un paramètre
-ne porte pas le nom déclaré par le contrat. La passe de compilation compare les deux listes ;
-`config/durable.php` ne compare rien. Sur cet hôte, un renommage d'un seul côté donne `null` au
-workflow, sans erreur et sans trace.
+Et ce qu'il refuse, il le refuse comme Symfony : un workflow dont un paramètre obligatoire ne porte
+pas le nom déclaré par le contrat fait échouer l'enregistrement en nommant les deux signatures. Le
+contrôle vit au cœur — `NexusFulfilmentParameterNames` —, et les deux hôtes servants l'appellent au
+même moment. Il a été écrit pour Symfony et n'y est resté que le temps d'un second hôte.
 
 ## Le workflow qui sert **et** appelle
 

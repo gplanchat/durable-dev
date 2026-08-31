@@ -13,6 +13,10 @@ use Illuminate\Container\Container;
 use PHPUnit\Framework\TestCase;
 use unit\DurableLaravel\Fixtures\BillingHandler;
 use unit\DurableLaravel\Fixtures\BillingService;
+use unit\DurableLaravel\Fixtures\DeferredBillingHandler;
+use unit\DurableLaravel\Fixtures\DeferredBillingService;
+use unit\DurableLaravel\Fixtures\MistypedSettleWorkflow;
+use unit\DurableLaravel\Fixtures\SettleWorkflow;
 
 /**
  * Servir des opérations Nexus depuis une application Laravel.
@@ -74,6 +78,54 @@ final class NexusOnLaravelTest extends TestCase
         $app->make(NexusOperationRegistry::class);
     }
 
+    public function testAWorkflowCoversTheOperationTheHandlerHasNoMethodFor(): void
+    {
+        $app = $this->container(
+            'temporal',
+            [DeferredBillingHandler::class => DeferredBillingService::class],
+            [SettleWorkflow::class],
+        );
+        (new DurableServiceProvider($app))->register();
+
+        $registry = $app->make(NexusOperationRegistry::class);
+
+        self::assertTrue($registry->serves(NexusService::named('deferred-billing'), NexusOperationName::named('settle')));
+    }
+
+    public function testAWorkflowWhoseParameterNamesDoNotMatchTheContractIsRefused(): void
+    {
+        // La panne que ce refus remplace est muette : la charge est clée par nom des deux côtés,
+        // donc `$ammount` recevrait `null` sans qu'aucune erreur ne soit levée. Symfony refuse
+        // depuis sa passe de compilation ; l'hôte qui lit un fichier de configuration doit refuser
+        // au même moment — à l'enregistrement, pas au premier appel.
+        $app = $this->container(
+            'temporal',
+            [DeferredBillingHandler::class => DeferredBillingService::class],
+            [MistypedSettleWorkflow::class],
+        );
+        (new DurableServiceProvider($app))->register();
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/\$ammount/');
+        $this->expectExceptionMessageMatches('/silently receive null/');
+
+        $app->make(NexusOperationRegistry::class);
+    }
+
+    public function testAnOptionalExtraParameterIsAllowed(): void
+    {
+        // `$dryRun` n'est pas au contrat, mais il a une valeur par défaut : son absence est une
+        // décision, pas un oubli.
+        $app = $this->container(
+            'temporal',
+            [DeferredBillingHandler::class => DeferredBillingService::class],
+            [SettleWorkflow::class],
+        );
+        (new DurableServiceProvider($app))->register();
+
+        self::assertInstanceOf(NexusOperationRegistry::class, $app->make(NexusOperationRegistry::class));
+    }
+
     public function testTheNexusWorkerIsAssembledUnderTemporal(): void
     {
         $app = $this->container('temporal', []);
@@ -82,11 +134,14 @@ final class NexusOnLaravelTest extends TestCase
         self::assertInstanceOf(TemporalNexusWorker::class, $app->make(TemporalNexusWorker::class));
     }
 
-    /** @param array<class-string, class-string> $handlers */
-    private function container(string $backend, array $handlers): Container
+    /**
+     * @param array<class-string, class-string> $handlers
+     * @param list<class-string>                $workflows
+     */
+    private function container(string $backend, array $handlers, array $workflows = []): Container
     {
         $app = new Container();
-        $durable = ['backend' => $backend, 'workflows' => [], 'nexus' => ['handlers' => $handlers]];
+        $durable = ['backend' => $backend, 'workflows' => $workflows, 'nexus' => ['handlers' => $handlers]];
         if ('temporal' === $backend) {
             $durable['temporal'] = ['dsn' => 'temporal://127.0.0.1:7233?namespace=durable-test'
                 . '&journal_task_queue=durable-journal&activity_task_queue=durable-activities'];

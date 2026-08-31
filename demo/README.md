@@ -30,10 +30,9 @@ qui n'est pas le sien. Une même exécution porte donc une opération servie et 
 et son identifiant est le **jeton de l'opération** qu'elle remplit, pas un nom choisi par
 l'application.
 
-⚠ **Ce que Symfony refuse au démarrage et que Laravel ne refuse pas.** La passe de compilation
-compare les noms de paramètres du workflow remplissant à ceux du contrat ; un fichier de
-configuration ne compare rien. Sur cet hôte, un renommage d'un seul côté donne `null` au workflow,
-sans erreur et sans trace.
+**Et les deux hôtes servants refusent la même faute.** Un workflow remplissant dont un paramètre
+obligatoire ne porte pas le nom du contrat fait échouer l'enregistrement, chez Symfony comme chez
+Laravel : le contrôle est descendu au cœur le jour où il a eu un second appelant.
 
 ## Ce que la troisième maquette ajoute
 

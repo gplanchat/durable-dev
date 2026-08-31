@@ -335,11 +335,12 @@ the same `NexusContractResolver` and the same `NexusHandlerInvoker`; `php artisa
 polls the queue. The handler class knows none of it — it implements `LivraisonServed` and says
 nothing about Nexus.
 
-⚠ **One thing the compile pass does that a config file cannot.** Symfony refuses the container when
-a fulfilling workflow's parameter name diverges from the contract it claims. Reading a list of
-classes cannot compare two signatures it was never given, so on this host a parameter renamed on one
-side only hands the workflow `null`, with no error and no trace. The contract, the workflow and the
-mockup's README all say so at the point where you would read them.
+⚠ **The check that keeps this honest lives in the core, not in either host.** A fulfilling
+workflow whose required parameter matches nothing in the contract's signature is refused at
+registration, and the message names both signatures — because the payload is keyed by parameter name
+at both ends, and without that refusal the parameter would simply receive `null`. Symfony calls the
+check from its compile pass, Laravel from `durable.nexus.handlers`; it was written for the first host
+and moved the day it had a second.
 
 ### A workflow that serves can call
 
