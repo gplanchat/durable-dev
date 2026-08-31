@@ -1,6 +1,16 @@
 {
     "name": "gplanchat/durable-bridge-illuminate",
     "description": "Illuminate (Laravel) journal, metadata and run stores for gplanchat/durable \u2014 durable execution on the connection Laravel already owns",
+    "keywords": [
+        "laravel",
+        "illuminate",
+        "eloquent",
+        "event-store",
+        "durable-execution",
+        "workflow",
+        "orchestration",
+        "long-running"
+    ],
     "license": "MIT",
     "type": "library",
     "require": {

@@ -1,6 +1,15 @@
 {
     "name": "gplanchat/durable-phpstan",
     "description": "PHPStan extension for gplanchat/durable — resolves ActivityStub and ChildWorkflowStub calls from their typed contract, so a mistyped activity is an analysis error rather than a runtime failure",
+    "keywords": [
+        "phpstan",
+        "phpstan-extension",
+        "static-analysis",
+        "durable-execution",
+        "workflow",
+        "orchestration",
+        "long-running"
+    ],
     "license": "MIT",
     "type": "phpstan-extension",
     "require": {

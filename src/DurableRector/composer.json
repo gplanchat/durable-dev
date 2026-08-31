@@ -1,6 +1,16 @@
 {
     "name": "gplanchat/durable-rector",
     "description": "Rector rules that migrate a project off the official Temporal PHP SDK onto gplanchat/durable — attribute rewrites that keep the workflow and activity type names a running server already knows",
+    "keywords": [
+        "rector",
+        "rector-rules",
+        "migration",
+        "temporal",
+        "durable-execution",
+        "workflow",
+        "orchestration",
+        "long-running"
+    ],
     "license": "MIT",
     "type": "library",
     "require": {

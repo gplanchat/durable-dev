@@ -1,6 +1,15 @@
 {
     "name": "gplanchat/durable-laravel",
     "description": "Laravel integration for gplanchat/durable — binds the four storage ports from one published config file",
+    "keywords": [
+        "laravel",
+        "queue",
+        "durable-execution",
+        "workflow",
+        "orchestration",
+        "long-running",
+        "saga"
+    ],
     "license": "MIT",
     "type": "library",
     "require": {
