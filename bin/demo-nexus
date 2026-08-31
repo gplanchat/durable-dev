@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 #
-# Prépare le cluster pour la démonstration Nexus à trois applications.
+# Prépare le cluster pour la démonstration Nexus à quatre applications.
 #
-# Cinq choses n'existent pas tant que personne ne les crée, et aucune n'appartient au code : trois
-# namespaces, et les deux endpoints qui disent où `stock` et `facturation` sont servis. C'est du
-# déploiement, et c'est pourquoi cela vit dans un script d'opérateur plutôt que dans une classe.
+# Sept choses n'existent pas tant que personne ne les crée, et aucune n'appartient au code : quatre
+# namespaces, et les trois endpoints qui disent où `stock`, `facturation` et `livraison` sont
+# servis. C'est du déploiement, et c'est pourquoi cela vit dans un script d'opérateur plutôt que
+# dans une classe.
 #
-# ⚠ Il y a trois namespaces et **deux** endpoints, et ce n'est pas un oubli : un endpoint dit où un
-# service est servi, et la maquette Magento n'en sert aucun. Lui en créer un que personne ne
+# ⚠ Il y a quatre namespaces et **trois** endpoints, et ce n'est pas un oubli : un endpoint dit où
+# un service est servi, et la maquette Magento n'en sert aucun. Lui en créer un que personne ne
 # pollerait donnerait un appelant qui attend pour rien — l'exacte panne que ce script existe pour
-# éviter.
+# éviter. La maquette Laravel, elle, sert `livraison` : elle a donc les deux.
 #
 # L'endpoint est la pièce que l'on oublie. Sans lui, le workflow appelant part, le serveur ne sait
 # pas où router l'opération, et l'historique de l'appelant s'arrête sur un échec qui nomme un
@@ -26,19 +27,22 @@ METIER="demo-metier"
 # La troisième maquette, appelante seulement : elle a un namespace parce qu'une exécution vit
 # quelque part, et pas d'endpoint parce qu'elle ne sert rien.
 MAGENTO="demo-magento"
+LARAVEL="demo-laravel"
 ENDPOINT_STOCK="demo-boutique-stock"
 ENDPOINT_FACTURATION="demo-metier-facturation"
+ENDPOINT_LIVRAISON="demo-laravel-livraison"
 # La file que le worker Nexus de la boutique poll. Elle est nommée dans son DSN
 # (`nexus_task_queue=`), et l'endpoint doit désigner la même : c'est le seul endroit où les deux
 # moitiés se rencontrent, et une faute de frappe y donne un appelant qui attend pour rien.
 FILE_BOUTIQUE="demo-boutique-nexus"
 FILE_METIER="demo-metier-nexus"
+FILE_LARAVEL="demo-laravel-nexus"
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --address) ADRESSE="$2"; shift 2 ;;
         --address=*) ADRESSE="${1#*=}"; shift ;;
-        -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "option inconnue : $1" >&2; exit 2 ;;
     esac
 done
@@ -64,6 +68,7 @@ echo "cluster $ADRESSE"
 creer_namespace "$BOUTIQUE"
 creer_namespace "$METIER"
 creer_namespace "$MAGENTO"
+creer_namespace "$LARAVEL"
 
 creer_endpoint() {
     local nom="$1" namespace="$2" file="$3"
@@ -94,10 +99,11 @@ creer_endpoint() {
 
 creer_endpoint "$ENDPOINT_STOCK" "$BOUTIQUE" "$FILE_BOUTIQUE"
 creer_endpoint "$ENDPOINT_FACTURATION" "$METIER" "$FILE_METIER"
+creer_endpoint "$ENDPOINT_LIVRAISON" "$LARAVEL" "$FILE_LARAVEL"
 
 cat <<FIN
 
-Six processus, trois namespaces. Deux maquettes servent et appellent, la troisième appelle.
+Huit processus, quatre namespaces. Les quatre maquettes appellent, trois d'entre elles servent.
 
   # la boutique sert « stock » — profil demo, journal DBAL, tableau de bord inchangé
   cd sylius
@@ -123,11 +129,18 @@ Six processus, trois namespaces. Deux maquettes servent et appellent, la troisi�
   cd symfony
   bin/console durable:demo:nexus CMD-1 MUG_BLUE=2
 
-  # Magento appelle les deux — et ne sert rien
+  # Magento appelle les trois services — et n'en sert aucun
   cd magento
   export MAGENTO_DC_DURABLE__TEMPORAL__DSN='temporal://$ADRESSE?namespace=$MAGENTO&tls=0'
   bin/magento durable:worker --role=journal
   bin/magento durable:demo:nexus MAG-1 1200 MUG_BLUE=1
+
+  # la logistique sert « livraison », dont « expedier » qu'un workflow remplit — et qui appelle
+  # « stock » pendant qu'elle sert
+  cd laravel
+  export DURABLE_DSN='temporal://$ADRESSE?namespace=$LARAVEL&nexus_task_queue=$FILE_LARAVEL&tls=0'
+  php artisan durable:nexus-worker
+  php artisan durable:temporal-worker
 
 \`demo/lancer.sh\` fait tout cela d'un coup.
 FIN

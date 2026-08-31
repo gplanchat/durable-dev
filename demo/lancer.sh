@@ -1,24 +1,26 @@
 #!/usr/bin/env bash
 #
-# Démarre la démonstration Nexus à trois applications, et raconte ce qu'elle fait.
+# Démarre la démonstration Nexus à quatre applications, et raconte ce qu'elle fait.
 #
-# Six processus — cinq pour les deux maquettes Symfony, un pour le banc Magento —, et l'ordre n'a
-# pas d'importance : un worker qui démarre en retard fait attendre,
+# Huit processus — cinq pour les deux maquettes Symfony, un pour le banc Magento, deux pour la
+# maquette Laravel —, et l'ordre n'a pas d'importance : un worker qui démarre en retard fait attendre,
 # il ne fait pas échouer. C'est le sujet même de la démonstration — la sonde l'a montré en direct,
 # un `encaisser` étant resté quatre minutes en `NEXUS_OPERATION_STARTED` pendant que son worker
 # était éteint, puis s'étant terminé sans que l'appelant ait rien tenu d'ouvert.
 #
-#   demo/lancer.sh            # démarre les six workers, laisse la main
+#   demo/lancer.sh            # démarre les huit workers, laisse la main
 #   demo/lancer.sh --arreter  # les arrête
 #   demo/lancer.sh --etat     # dit qui tourne
 #
-# Variables : PHP (défaut php8.3), PHP_MAGENTO (défaut php8.2), TEMPORAL_ADDRESS (127.0.0.1:7233),
-# DATABASE_URL pour la boutique.
+# Variables : PHP (défaut php8.3), PHP_MAGENTO et PHP_LARAVEL (défaut php8.2), TEMPORAL_ADDRESS
+# (127.0.0.1:7233), DATABASE_URL pour la boutique.
 #
 # ⚠ Deux binaires PHP, et c'est mesuré, pas frileux. Sur le poste de référence, 8.3 est la seule
 # version qui ait `grpc` **et** satisfasse le `php: >=8.3` de la maquette Sylius ; il lui manque
-# `pdo_mysql`, `curl` et `soap`, que Mage-OS exige. 8.2 les a tous, `grpc` compris, et le banc
-# Magento est épinglé dessus. Une seule version ne fait pas tourner les trois.
+# `pdo_mysql`, `curl`, `soap` et `pdo_sqlite`, que Mage-OS et Laravel exigent. 8.2 les a tous,
+# `grpc` compris, et les bancs Magento et Laravel sont épinglés dessus. Deux variables plutôt
+# qu'une, bien qu'elles aient le même défaut : les deux bancs n'ont aucune raison de rester sur la
+# même version pour toujours.
 #
 set -euo pipefail
 
@@ -26,6 +28,7 @@ RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VAR="$RACINE/demo/var"
 PHP="${PHP:-php8.3}"
 PHP_MAGENTO="${PHP_MAGENTO:-php8.2}"
+PHP_LARAVEL="${PHP_LARAVEL:-php8.2}"
 ADRESSE="${TEMPORAL_ADDRESS:-127.0.0.1:7233}"
 BOUTIQUE_DB="${DATABASE_URL:-pgsql://sylius:sylius@127.0.0.1:55432/sylius_demo?serverVersion=16&charset=utf8}"
 
@@ -37,6 +40,10 @@ DSN_METIER="temporal://$ADRESSE?namespace=demo-metier&nexus_task_queue=demo-meti
 # l'environnement — le banc garde ainsi le DSN de sa propre grappe, dont les API Nexus sont
 # désactivées.
 DSN_MAGENTO="temporal://$ADRESSE?namespace=demo-magento&tls=0"
+# La seule des quatre à porter `nexus_task_queue` sans être une maquette Symfony : la logistique
+# sert `livraison`, et ses deux workers lisent le même DSN — l'un poll la file Nexus, l'autre la
+# file des tâches de workflow.
+DSN_LARAVEL="temporal://$ADRESSE?namespace=demo-laravel&nexus_task_queue=demo-laravel-nexus&tls=0"
 
 etat() {
     local vivants=0
@@ -109,7 +116,7 @@ mkdir -p "$VAR"
 case "${1:-}" in
     --arreter) arreter; exit 0 ;;
     --etat) etat; exit 0 ;;
-    -h|--help) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     '') ;;
     *) echo "option inconnue : $1" >&2; exit 2 ;;
 esac
@@ -135,9 +142,17 @@ echo "le banc Magento (magento/)"
 lancer magento-workflows magento "$PHP_MAGENTO bin/magento durable:worker --role=journal" \
     "MAGENTO_DC_DURABLE__TEMPORAL__DSN=$DSN_MAGENTO"
 
+echo "la logistique (laravel/)"
+# Deux workers, et pas trois : `ExpedierWorkflow` n'a pas d'activité — ce qu'il attend, il l'attend
+# d'un minuteur et d'une opération Nexus servie ailleurs.
+lancer logistique-sert-livraison laravel "$PHP_LARAVEL artisan durable:nexus-worker" \
+    "DURABLE_DSN=$DSN_LARAVEL"
+lancer logistique-workflows      laravel "$PHP_LARAVEL artisan durable:temporal-worker" \
+    "DURABLE_DSN=$DSN_LARAVEL"
+
 cat <<FIN
 
-Les logs sont dans demo/var/. Trois appels à essayer :
+Les logs sont dans demo/var/. Trois appels à essayer — le troisième traverse les quatre maquettes :
 
   # le métier demande du stock à la boutique — réponse immédiate
   cd symfony && DURABLE_DSN='$DSN_METIER' \\
