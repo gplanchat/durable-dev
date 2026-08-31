@@ -39,7 +39,6 @@
             <span class="chat-state" id="state">…</span>
         </div>
 
-        <div id="approvals"></div>
 
         <div class="chat-thread" id="thread"></div>
 
@@ -65,10 +64,11 @@
     .msg-tool b { color: var(--ds-accent); font-weight: 500; }
     .chat-mode { display: inline-flex; align-items: center; gap: .4rem; }
     .chat-mode select { padding: .15rem .4rem; font-size: .8rem; }
-    .approval { border: 1px solid var(--ds-warning); border-radius: var(--radius); padding: .8rem 1rem;
-        background: rgba(255, 178, 135, .08); display: flex; flex-direction: column; gap: .6rem; margin-bottom: .8rem; }
+    .approval { align-self: flex-start; max-width: 92%; border: 1px solid var(--ds-warning); border-radius: var(--radius);
+        padding: .7rem .9rem; background: rgba(255, 178, 135, .08); display: flex; flex-direction: column; gap: .55rem; }
     .approval-title { font-weight: 500; color: var(--ds-warning); }
-    .approval code { display: block; margin-top: .3rem; white-space: pre-wrap; }
+    .approval code { display: block; white-space: pre-wrap; }
+    .approval-reason { font-size: .8rem; color: var(--ds-text-muted); }
     .approval-actions { display: flex; gap: .5rem; }
     .chat-form { display: flex; gap: .6rem; }
     .chat-form .ds-input { flex: 1; }
@@ -81,7 +81,6 @@
     const thread = document.getElementById('thread');
     const state = document.getElementById('state');
     const form = document.getElementById('form');
-    const approvals = document.getElementById('approvals');
     const mode = document.getElementById('mode');
     const input = document.getElementById('text');
     let pending = null;
@@ -92,6 +91,30 @@
         el.innerHTML = html;
         return el;
     };
+    const approvalBubble = (p) => {
+        const card = document.createElement('div');
+        card.className = 'approval';
+        card.innerHTML = '<div class="approval-title">⛔ ' + escape(p.tool) + ' demande une validation</div>'
+            + '<code>' + escape(JSON.stringify(p.arguments)) + '</code>'
+            + '<div class="approval-reason">Le workflow est suspendu ici. Ta décision part en signal <code>tool_decision</code>.</div>'
+            + '<div class="approval-actions">'
+            + '<button class="btn btn-primary btn-sm" data-ok="1">Autoriser</button>'
+            + '<button class="btn btn-ghost btn-sm" data-ok="0">Refuser</button>'
+            + '</div>';
+        for (const button of card.querySelectorAll('button')) {
+            button.addEventListener('click', async () => {
+                card.querySelector('.approval-actions').textContent = 'décision envoyée…';
+                await fetch(base + '/decision', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({callId: p.callId, approved: button.dataset.ok === '1'}),
+                });
+                setTimeout(refresh, 400);
+            });
+        }
+        return card;
+    };
+
     const escape = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
     async function refresh() {
@@ -100,6 +123,8 @@
 
         const atBottom = thread.scrollTop + thread.clientHeight >= thread.scrollHeight - 40;
         thread.replaceChildren();
+
+        const pendingById = new Map(data.pending.map((p) => [p.callId, p]));
 
         for (const m of data.messages) {
             if (m.role === 'user') {
@@ -110,41 +135,24 @@
                 thread.append(bubble('msg-assistant', escape(m.content)));
             } else if (m.role === 'assistant' && m.tool_calls) {
                 for (const c of m.tool_calls) {
-                    thread.append(bubble('msg-tool', '⚙ appel <b>' + escape(c.function.name) + '</b> ' + escape(c.function.arguments)));
+                    const waiting = pendingById.get(c.id);
+                    if (waiting) {
+                        thread.append(approvalBubble(waiting));
+                        pendingById.delete(c.id);
+                    } else {
+                        thread.append(bubble('msg-tool', '⚙ appel <b>' + escape(c.function.name) + '</b> ' + escape(c.function.arguments)));
+                    }
                 }
             }
         }
 
         if (pending) { thread.append(bubble('msg-user', escape(pending))); }
+        for (const waiting of pendingById.values()) { thread.append(approvalBubble(waiting)); }
         if (!thread.childElementCount) {
             const empty = document.createElement('p');
             empty.className = 'chat-empty';
             empty.textContent = 'Le workflow est démarré et suspendu. Envoie un message pour le réveiller.';
             thread.append(empty);
-        }
-
-        approvals.replaceChildren();
-        for (const p of data.pending) {
-            const card = document.createElement('div');
-            card.className = 'approval';
-            card.innerHTML = '<div class="approval-title">⛔ ' + escape(p.tool) + ' demande une validation</div>'
-                + '<code>' + escape(JSON.stringify(p.arguments)) + '</code>'
-                + '<div class="approval-actions">'
-                + '<button class="btn btn-primary btn-sm" data-ok="1">Autoriser</button>'
-                + '<button class="btn btn-ghost btn-sm" data-ok="0">Refuser</button>'
-                + '</div>';
-            for (const button of card.querySelectorAll('button')) {
-                button.addEventListener('click', async () => {
-                    card.remove();
-                    await fetch(base + '/decision', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({callId: p.callId, approved: button.dataset.ok === '1'}),
-                    });
-                    setTimeout(refresh, 400);
-                });
-            }
-            approvals.append(card);
         }
 
         if (mode.value !== data.mode) { mode.value = data.mode; }
