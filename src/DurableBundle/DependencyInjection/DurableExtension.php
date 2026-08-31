@@ -32,6 +32,7 @@ use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
+use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
 use Gplanchat\Durable\Bundle\EventListener\ResetDurableProfilerListener;
 use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler;
@@ -160,7 +161,7 @@ final class DurableExtension extends Extension
             // Sans serveur pour sérialiser les tâches d'une exécution, le verrou est obligatoire.
             $container->register('durable.dbal.single_resume_lock', SingleResumeLockMiddleware::class)
                 ->setArguments([new Reference($config['dbal']['lock_factory'])])
-                ->addTag('messenger.middleware')
+                ->addTag(RegisterDurableMiddlewarePass::TAG, ['priority' => 90])
                 ->setPublic(false)
             ;
         }
@@ -755,6 +756,8 @@ final class DurableExtension extends Extension
 
         $container->register('durable.messenger.middleware.workflow_run_dispatch_profiler', WorkflowRunDispatchProfilerMiddleware::class)
             ->setArguments([new Reference('durable.execution_trace')])
+            // Au-dessus du verrou : ses mesures incluent alors l'attente que le verrou impose.
+            ->addTag(RegisterDurableMiddlewarePass::TAG, ['priority' => 100])
         ;
 
         $container->register(DurableDataCollector::class)
