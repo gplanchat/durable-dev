@@ -8,6 +8,7 @@ use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Tool\ExecutionReference;
+use App\Ai\Tool\ToolDefinition;
 use Symfony\AI\Platform\Tool\Tool;
 
 /**
@@ -24,21 +25,19 @@ final class SchemaOnlyToolbox implements ToolboxInterface
     private readonly array $tools;
 
     /**
-     * @param array<string, array{description: string, parameters: array<string, mixed>|null}> $definitions
+     * @param list<ToolDefinition> $definitions
      */
     public function __construct(array $definitions)
     {
-        $tools = [];
-        foreach ($definitions as $name => $definition) {
-            $tools[] = new Tool(
+        $this->tools = array_map(
+            static fn (ToolDefinition $definition): Tool => new Tool(
                 new ExecutionReference(DurableToolExecutor::class, 'execute'),
-                $name,
-                $definition['description'],
-                $definition['parameters'] ?? null,
-            );
-        }
-
-        $this->tools = $tools;
+                $definition->name,
+                $definition->description,
+                $definition->parameters,
+            ),
+            $definitions,
+        );
     }
 
     public function getTools(): array

@@ -8,9 +8,11 @@ use App\Ai\Durable\DurableAgentFactory;
 use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\ToolApprovalGate;
 use App\Ai\Guard\ToolGuardInterface;
+use App\Ai\Tool\ToolDefinition;
 use Gplanchat\Durable\Attribute\AsSignalMethod;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
@@ -29,7 +31,9 @@ use Symfony\AI\Platform\Message\MessageBag;
  *   des jours, à travers un redéploiement.
  *
  * Chaque appel d'outil passe par une garde ({@see ToolGuardInterface}) : selon le mode il passe, il
- * est refusé, ou il suspend l'exécution jusqu'à un signal `tool_decision`.
+ * est refusé, ou il suspend l'exécution jusqu'à un signal `tool_decision`. `approvalTimeoutSeconds`
+ * borne cette attente pour toute l'instance d'agent — pas de réponse vaut refus, et le minuteur
+ * étant journalisé (DUR032) l'échéance survit au redémarrage comme l'attente elle-même.
  *
  * Contraintes de rejeu, à ne pas relâcher : `symfony/ai` épinglé (`Runner` est `@internal`, sa
  * boucle est le contrat de déterminisme), pas de streaming, schémas d'outils figés dans le payload,
@@ -106,7 +110,10 @@ final class DurableAgentWorkflow
     }
 
     /**
-     * @param array<string, array{description: string, parameters?: array<string, mixed>|null, effect?: string}> $tools
+     * La charge arrive du journal, donc en tableaux : `$tools` est converti en
+     * {@see ToolDefinition} dès l'entrée, et plus rien en dessous ne manipule de tableau associatif.
+     *
+     * @param array<string, array{description?: string, parameters?: array<string, mixed>|null, effect?: string}> $tools
      *
      * @return string la dernière réponse de l'agent
      */
@@ -119,6 +126,7 @@ final class DurableAgentWorkflow
         ?string $prompt = null,
         int $maxTurns = 20,
         int $maxToolCalls = 10,
+        ?float $approvalTimeoutSeconds = null,
         ?ToolGuardInterface $guard = null,
     ): string {
         $this->mode = AgentMode::tryFrom($mode) ?? AgentMode::Standard;
@@ -132,11 +140,12 @@ final class DurableAgentWorkflow
         $agent = DurableAgentFactory::create(
             $this->environment,
             $model,
-            $tools,
+            ToolDefinition::listFromWire($tools),
             $maxToolCalls,
             gate: $this->gate,
             mode: fn(): AgentMode => $this->mode,
             guard: $guard,
+            approvalTimeout: Duration::fromWireValue($approvalTimeoutSeconds),
         );
 
         $messages = new MessageBag(Message::forSystem($systemPrompt));

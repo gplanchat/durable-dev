@@ -6,6 +6,8 @@ namespace App\Controller;
 
 use App\Ai\Chat\ChatTranscript;
 use App\Ai\Guard\AgentMode;
+use App\Ai\Guard\ToolEffect;
+use App\Ai\Tool\ToolDefinition;
 use App\Ai\Workflow\DurableAgentWorkflow;
 use App\Durable\DurableSampleWorkflowRunner;
 use Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage;
@@ -24,37 +26,39 @@ use Symfony\Component\Uid\Uuid;
 final class AiChatController extends AbstractController
 {
     /**
-     * `effect` est ce que lit la garde : c'est lui, et pas le nom de l'outil, que le mode consulte.
+     * Échéance d'une demande de validation, globale à l'agent. Deux minutes pour que la démo soit
+     * observable ; en production c'est l'ordre de grandeur du délai humain acceptable qui décide,
+     * pas celui d'une requête HTTP.
      */
-    private const TOOLS = [
-        'weather' => [
-            'description' => 'Météo courante d’une ville.',
-            'effect' => 'read',
-            'parameters' => [
+    private const APPROVAL_TIMEOUT_SECONDS = 120.0;
+
+    /**
+     * Le catalogue d'outils de la démo. `effect` est ce que lit la garde : c'est lui, et pas le nom
+     * de l'outil, que le mode consulte — et le déclarer en {@see ToolEffect} fait lever une faute de
+     * frappe ici plutôt que de la traduire silencieusement en « externe ».
+     *
+     * @return list<ToolDefinition>
+     */
+    private static function tools(): array
+    {
+        return [
+            new ToolDefinition('weather', 'Météo courante d’une ville.', ToolEffect::Read, [
                 'type' => 'object',
                 'properties' => ['city' => ['type' => 'string']],
                 'required' => ['city'],
-            ],
-        ],
-        'save_note' => [
-            'description' => 'Enregistre une note dans le dossier courant.',
-            'effect' => 'write',
-            'parameters' => [
+            ]),
+            new ToolDefinition('save_note', 'Enregistre une note dans le dossier courant.', ToolEffect::Write, [
                 'type' => 'object',
                 'properties' => ['text' => ['type' => 'string']],
                 'required' => ['text'],
-            ],
-        ],
-        'send_email' => [
-            'description' => 'Envoie un courriel. Effet externe : rien ne le rattrape.',
-            'effect' => 'external',
-            'parameters' => [
+            ]),
+            new ToolDefinition('send_email', 'Envoie un courriel. Effet externe : rien ne le rattrape.', ToolEffect::External, [
                 'type' => 'object',
                 'properties' => ['to' => ['type' => 'string'], 'body' => ['type' => 'string']],
                 'required' => ['to', 'body'],
-            ],
-        ],
-    ];
+            ]),
+        ];
+    }
 
     public function __construct(
         private readonly DurableSampleWorkflowRunner $workflowRunner,
@@ -69,7 +73,11 @@ final class AiChatController extends AbstractController
         $executionId = (string) Uuid::v4();
         $this->workflowRunner->dispatchWorkflowRun(
             DurableAgentWorkflow::class,
-            ['tools' => self::TOOLS, 'mode' => 'standard'],
+            [
+                'tools' => ToolDefinition::listToWire(self::tools()),
+                'mode' => AgentMode::Standard->value,
+                'approvalTimeoutSeconds' => self::APPROVAL_TIMEOUT_SECONDS,
+            ],
             $executionId,
         );
 

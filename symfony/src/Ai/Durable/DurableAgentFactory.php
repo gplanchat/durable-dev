@@ -9,6 +9,8 @@ use App\Ai\Guard\ModeToolGuard;
 use App\Ai\Guard\ToolApprovalGate;
 use App\Ai\Guard\ToolEffect;
 use App\Ai\Guard\ToolGuardInterface;
+use App\Ai\Tool\ToolDefinition;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Platform\ModelCatalog\FallbackModelCatalog;
@@ -24,8 +26,10 @@ use Symfony\AI\Platform\Provider;
 final class DurableAgentFactory
 {
     /**
-     * @param array<string, array{description: string, parameters?: array<string, mixed>|null, effect?: string}> $tools
-     * @param \Closure(): AgentMode|null                                                                         $mode
+     * @param list<ToolDefinition>       $tools
+     * @param \Closure(): AgentMode|null $mode
+     * @param Duration|null              $approvalTimeout échéance des demandes de validation, globale
+     *                                                    à cette instance d'agent
      */
     public static function create(
         WorkflowEnvironment $environment,
@@ -35,6 +39,7 @@ final class DurableAgentFactory
         ?ToolApprovalGate $gate = null,
         ?\Closure $mode = null,
         ?ToolGuardInterface $guard = null,
+        ?Duration $approvalTimeout = null,
     ): Agent {
         $platform = new Platform([
             new Provider(
@@ -54,22 +59,22 @@ final class DurableAgentFactory
                 $guard ?? new ModeToolGuard(self::effects($tools)),
                 $gate ?? new ToolApprovalGate(),
                 $mode ?? static fn(): AgentMode => AgentMode::Auto,
+                $approvalTimeout,
             ),
             maxToolCalls: $maxToolCalls,
         );
     }
 
     /**
-     * @param array<string, array{effect?: string}> $tools
+     * @param list<ToolDefinition> $tools
      *
      * @return array<string, ToolEffect>
      */
     private static function effects(array $tools): array
     {
         $effects = [];
-        foreach ($tools as $name => $definition) {
-            // Un outil qui ne déclare rien est traité comme externe par la garde : le défaut prudent.
-            $effects[$name] = ToolEffect::tryFrom($definition['effect'] ?? '') ?? ToolEffect::External;
+        foreach ($tools as $definition) {
+            $effects[$definition->name] = $definition->effect;
         }
 
         return $effects;

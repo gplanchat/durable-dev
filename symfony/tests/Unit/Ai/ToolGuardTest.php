@@ -53,6 +53,51 @@ final class ToolGuardTest extends TestCase
     }
 
     /**
+     * Sans réponse avant l'échéance, la demande tombe — et elle tombe du côté sûr : refus.
+     * L'horloge virtuelle du runner in-memory avance d'échéance en échéance, donc le minuteur tire
+     * sans attendre réellement.
+     */
+    public function testAnApprovalThatIsNeverAnsweredExpiresAsARefusal(): void
+    {
+        $toolCalls = 0;
+        $round = 0;
+        $environment = WorkflowTestEnvironment::inMemory([
+            'ai_model_invoke' => static function (array $payload) use (&$round): array {
+                if (0 === $round++) {
+                    return ['choices' => [['message' => ['content' => null, 'tool_calls' => [[
+                        'id' => 'call_1',
+                        'type' => 'function',
+                        'function' => ['name' => 'send_email', 'arguments' => '{"to":"a@b.test"}'],
+                    ]]], 'finish_reason' => 'tool_calls']]];
+                }
+
+                $last = end($payload['payload']['messages']);
+
+                return ['choices' => [['message' => ['content' => $last['content']], 'finish_reason' => 'stop']]];
+            },
+            'ai_tool_call' => static function (array $payload) use (&$toolCalls): string {
+                ++$toolCalls;
+
+                return 'envoyé';
+            },
+        ]);
+
+        $result = $environment->run(
+            static fn ($workflowEnvironment): string => (new DurableAgentWorkflow($workflowEnvironment))->run(
+                ['send_email' => ['description' => 'Envoi', 'effect' => 'external']],
+                mode: 'standard',
+                prompt: 'Envoie un mail',
+                maxTurns: 1,
+                approvalTimeoutSeconds: 5.0,
+            ),
+            'guard-timeout-1',
+        );
+
+        self::assertSame(0, $toolCalls, 'Une validation expirée a quand même déclenché l\'outil.');
+        self::assertStringContainsString('avant l\'échéance', $result);
+    }
+
+    /**
      * Un refus n'est pas une exception : il redevient un résultat d'outil rendu au modèle, qui
      * continue. L'activité, elle, n'est jamais planifiée.
      */

@@ -19,16 +19,12 @@ final class ToolApprovalGate
     /** @var array<string, bool> id d'appel → accordé */
     private array $decisions = [];
 
-    /** @var array<string, array{tool: string, arguments: array<string, mixed>, reason: string}> */
+    /** @var array<string, PendingApproval> */
     private array $pending = [];
 
     public function ask(ToolCall $toolCall, string $reason): void
     {
-        $this->pending[$toolCall->getId()] = [
-            'tool' => $toolCall->getName(),
-            'arguments' => $toolCall->getArguments(),
-            'reason' => $reason,
-        ];
+        $this->pending[$toolCall->getId()] = PendingApproval::of($toolCall, $reason);
     }
 
     public function decide(string $callId, bool $approved): void
@@ -48,10 +44,10 @@ final class ToolApprovalGate
     }
 
     /**
-     * @return array<string, array{tool: string, arguments: array<string, mixed>, reason: string}>
+     * @return list<PendingApproval>
      */
     public function pending(): array
     {
-        return $this->pending;
+        return array_values($this->pending);
     }
 }
