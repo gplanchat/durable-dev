@@ -24,6 +24,28 @@ ne contient que ce que Rector sait faire sans deviner ; tout le reste est écrit
 
 ## 0.1.0-alpha8
 
+### Laravel refuse au démarrage un workflow dont les noms de paramètres divergent du contrat
+
+`gplanchat/durable-laravel` enregistrait sans vérifier. Un workflow portant
+`#[FulfilsNexusOperation]` dont un paramètre **obligatoire** ne correspond à aucun paramètre du
+contrat fait désormais échouer l'enregistrement, en nommant les deux signatures — le même refus que
+`NexusHandlerPass` produit côté Symfony depuis toujours, et par la même classe :
+`Gplanchat\Durable\Nexus\Serving\NexusFulfilmentParameterNames`.
+
+**Pourquoi** — la charge d'une opération Nexus est clée **par nom** aux deux bouts. Un paramètre
+renommé d'un seul côté ne casse rien à l'écriture, ne lève rien à l'exécution, et arrive à `null` :
+le workflow démarre, s'exécute et rend un résultat calculé sur du vide. L'enregistrement est le
+dernier moment où quelqu'un regarde.
+
+**Ce que Rector ne peut pas faire** — rien à renommer mécaniquement : le bon nom est celui du
+contrat, et seul l'auteur sait lequel des deux côtés porte la faute de frappe. Le message du refus
+imprime les deux listes de paramètres, ce qui est exactement l'information qu'il faudrait à Rector
+pour choisir.
+
+**Qui est concerné** — aucune application dont les opérations Nexus fonctionnent : le refus ne
+frappe que des configurations qui rendaient déjà `null` en silence. Si le démarrage échoue après la
+montée de version, la panne existait avant, sans le dire.
+
 ### Un workflow qui remplit une opération Nexus doit porter sa balise
 
 `NexusHandlerPass` lisait les `#[FulfilsNexusOperation]` en **balayant toutes les définitions du

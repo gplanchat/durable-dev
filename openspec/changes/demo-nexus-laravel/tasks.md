@@ -31,7 +31,8 @@
       Sur cet hôte, un renommage d'un seul côté donne `null` au workflow, sans erreur et sans trace.
       **Dit à trois endroits** — le contrat, le workflow, le README du banc — et **pas corrigé
       ici** : ajouter un garde au paquet publié est un change à lui seul, et il n'appartient pas à
-      une démonstration.
+      une démonstration. C'est `change/nexus-garde-des-noms`, qui suit immédiatement et rend ces
+      trois avertissements caducs.
 
 ## 1. Le contrat `livraison`
 

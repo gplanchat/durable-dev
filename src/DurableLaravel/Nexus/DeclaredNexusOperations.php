@@ -8,6 +8,7 @@ use Gplanchat\Durable\Attribute\FulfilsNexusOperation;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Nexus\Serving\NexusContractResolver;
+use Gplanchat\Durable\Nexus\Serving\NexusFulfilmentParameterNames;
 use Gplanchat\Durable\Nexus\Serving\NexusHandlerInvoker;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
@@ -73,6 +74,18 @@ final class DeclaredNexusOperations
 
                 $workflowClass = $claimed[$contract][$operation] ?? null;
                 if (null !== $workflowClass) {
+                    // Le même refus que côté Symfony, par la même classe : lire une liste dans un
+                    // fichier ne dispense pas de vérifier ce qu'une passe de compilation vérifie.
+                    // Il tombe ici, à l'enregistrement, et pas à la première tâche — c'est le
+                    // dernier moment où quelqu'un regarde.
+                    NexusFulfilmentParameterNames::assertMatch(
+                        'durable.nexus.handlers',
+                        $contract,
+                        $method,
+                        $operation,
+                        $workflowClass,
+                    );
+
                     // Le **type**, pas le FQCN : c'est le nom que le serveur connaît et que le
                     // journal enregistre.
                     $registry->registerFulfilment(

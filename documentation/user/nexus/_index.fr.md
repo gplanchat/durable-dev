@@ -340,11 +340,12 @@ même `NexusContractResolver` et le même `NexusHandlerInvoker` ; `php artisan d
 poll la file. La classe du gestionnaire, elle, n'en sait rien — elle implémente `LivraisonServed` et
 ne dit pas un mot de Nexus.
 
-⚠ **Une chose que la passe fait et qu'un fichier de configuration ne peut pas faire.** Symfony refuse
-le conteneur quand un paramètre d'un workflow remplissant ne porte pas le nom déclaré par le contrat.
-Lire une liste de classes ne compare pas deux signatures qu'on ne lui a pas données : sur cet hôte,
-un renommage d'un seul côté donne `null` au workflow, sans erreur et sans trace. Le contrat, le
-workflow et le README de la maquette le disent, à l'endroit où on les lirait.
+⚠ **Le contrôle qui tient cela honnête vit au cœur, et non chez l'un des deux hôtes.** Un workflow
+remplissant dont un paramètre obligatoire ne correspond à rien dans la signature du contrat est
+refusé à l'enregistrement, et le message nomme les deux signatures — la charge étant clée par nom
+aux deux bouts, sans ce refus le paramètre recevrait simplement `null`. Symfony appelle le contrôle
+depuis sa passe de compilation, Laravel depuis `durable.nexus.handlers` ; il a été écrit pour le
+premier hôte et a déménagé le jour où il en a eu un second.
 
 ### Un workflow qui sert peut appeler
 

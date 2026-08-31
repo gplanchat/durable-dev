@@ -7,6 +7,7 @@ namespace Gplanchat\Durable\Bundle\DependencyInjection\Compiler;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Nexus\Serving\NexusContractResolver;
+use Gplanchat\Durable\Nexus\Serving\NexusFulfilmentParameterNames;
 use Gplanchat\Durable\Nexus\Serving\NexusHandlerInvoker;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
@@ -117,7 +118,7 @@ final class NexusHandlerPass implements CompilerPassInterface
 
                     $workflowClass = $claimed[$contract][$operation] ?? null;
                     if (null !== $workflowClass) {
-                        self::assertParameterNamesMatch($contract, $method, $operation, $workflowClass);
+                        NexusFulfilmentParameterNames::assertMatch(self::TAG, $contract, $method, $operation, $workflowClass);
 
                         // Déclarée : rien à appeler, le worker démarrera ce workflow. On lui passe
                         // le **type** et non le FQCN — c'est le nom que le serveur connaît, et
@@ -145,57 +146,6 @@ final class NexusHandlerPass implements CompilerPassInterface
 
             }
         }
-    }
-
-    /**
-     * Les noms de paramètres du workflow doivent être ceux du contrat qu'il remplit.
-     *
-     * C'est le mode d'échec le plus silencieux de tout Nexus. La charge est clée **par nom** à
-     * l'écriture — `NexusStub::argumentsToPayload()` — et relue par nom à l'arrivée —
-     * `WorkflowDefinitionLoader::mapInputToArguments()`. Un paramètre de workflow qui ne
-     * correspond à aucun paramètre du contrat n'est pas une erreur : il reçoit `null`. Le workflow
-     * démarre, s'exécute, et rend un résultat calculé sur du vide.
-     *
-     * Le refus est ici, au démarrage, et pas dans une règle d'analyse statique, pour que les hôtes
-     * qui ne lancent pas PHPStan l'aient aussi. Un paramètre qui a une valeur par défaut est
-     * accepté : le contrat n'a alors rien à en dire, et l'absence est une décision, pas un oubli.
-     *
-     * @param class-string $contract
-     * @param class-string $workflowClass
-     */
-    private static function assertParameterNamesMatch(
-        string $contract,
-        string $contractMethod,
-        string $operation,
-        string $workflowClass,
-    ): void {
-        $attendus = [];
-        foreach ((new \ReflectionMethod($contract, $contractMethod))->getParameters() as $parameter) {
-            $attendus[$parameter->getName()] = true;
-        }
-
-        $orphelins = [];
-        foreach ((new WorkflowDefinitionLoader())->workflowMethodParameters($workflowClass) as $nom => $facultatif) {
-            if (!$facultatif && !isset($attendus[$nom])) {
-                $orphelins[] = $nom;
-            }
-        }
-
-        if ([] === $orphelins) {
-            return;
-        }
-
-        throw new \LogicException(\sprintf(
-            '%s: workflow %s fulfils operation "%s" of %s, but its parameter(s) $%s match nothing in %s::%s(%s). The payload is keyed by parameter name at both ends, so each of them would silently receive null.',
-            self::TAG,
-            $workflowClass,
-            $operation,
-            $contract,
-            implode(', $', $orphelins),
-            $contract,
-            $contractMethod,
-            '' === implode(', $', array_keys($attendus)) ? '' : '$' . implode(', $', array_keys($attendus)),
-        ));
     }
 
     /**

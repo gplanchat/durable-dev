@@ -32,9 +32,10 @@ use Gplanchat\Durable\WorkflowEnvironment;
  * **appelée**, dans le même journal, chez le même hôte, et cet hôte est Laravel.
  *
  * ⚠ **Les noms de paramètres sont l'interface.** `commande` et `creneau` sont ceux que
- * `LivraisonContract::expedier()` déclare, et la charge est clée par nom des deux côtés. Sur cet
- * hôte, **rien ne le vérifie au démarrage** : `NexusHandlerPass` et son refus sont propres à
- * Symfony. Un renommage d'un seul côté donnerait `null`, sans erreur et sans trace.
+ * `LivraisonContract::expedier()` déclare, et la charge est clée par nom des deux côtés. En
+ * renommer un ici sans le renommer là-bas fait refuser l'enregistrement, en nommant les deux
+ * signatures : `NexusFulfilmentParameterNames` est appelée par `DeclaredNexusOperations` comme elle
+ * l'est par la passe de compilation de Symfony.
  */
 #[AsWorkflow(self::TYPE)]
 #[FulfilsNexusOperation(LivraisonContract::class, 'expedier')]

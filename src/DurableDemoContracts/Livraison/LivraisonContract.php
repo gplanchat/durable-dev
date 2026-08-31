@@ -17,9 +17,10 @@ use Gplanchat\Durable\Attribute\AsNexusService;
  * conteneur de Symfony, par `config/durable.php` et non par une passe de compilation.
  *
  * ⚠ **Les noms de paramètres déclarés ici sont l'interface.** La charge est clée par nom à l'appel
- * et relue par nom dans le workflow qui remplit l'opération — et sur cet hôte-là, **aucune passe de
- * compilation ne vérifie que les deux coïncident** : `NexusHandlerPass` n'existe qu'en Symfony. Un
- * paramètre renommé d'un seul côté donne `null` au workflow, sans erreur et sans trace.
+ * et relue par nom dans le workflow qui remplit l'opération. Les deux hôtes servants le vérifient
+ * désormais au même moment — à l'enregistrement — par la même classe du cœur,
+ * {@see \Gplanchat\Durable\Nexus\Serving\NexusFulfilmentParameterNames} : Symfony depuis sa
+ * passe de compilation, Laravel depuis `config/durable.php`.
  */
 #[AsNexusService('livraison')]
 interface LivraisonContract extends LivraisonServed
