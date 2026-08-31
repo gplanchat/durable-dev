@@ -69,6 +69,17 @@ DURABLE_DSN='…' php8.2 artisan durable:temporal-worker  # fait avancer Expedie
 `demo/lancer.sh` démarre les deux avec les bonnes valeurs, en même temps que les six autres
 processus. Les prérequis de l'ensemble sont dans [`demo/README.md`](../demo/README.md).
 
+## La sonde
+
+```bash
+DURABLE_DSN='temporal://127.0.0.1:7999?namespace=sonde&nexus_task_queue=q&tls=0' php8.2 probe-nexus.php
+```
+
+Elle démarre l'application, prend le registre du cœur dans le conteneur et **dispatche les deux
+opérations** — la méthode même que le worker Nexus appelle quand une tâche arrive. Aucune grappe,
+aucun endpoint, aucun processus en face : le DSN désigne un port fermé, et rien ne s'y connecte.
+C'est ce que la CI lance à chaque commit ; le bout en bout, lui, vit dans `demo/`.
+
 ## Ce qu'elle n'est pas
 
 **Un tableau de bord.** `gplanchat/durable-filament` en portera un ; ce banc n'a pas d'interface, et

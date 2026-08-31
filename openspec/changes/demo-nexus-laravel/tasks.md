@@ -141,3 +141,67 @@
       2 tableaux, 15 blocs de code** de chaque côté, et le tableau des maquettes rend ses cinq
       colonnes.
 - [x] 6.3 `src/DurableLaravel/README.md` : la phrase de §0.2 qui refusait Temporal est corrigée.
+
+## 7. Ce que la CI en garde
+
+- [x] 7.1 `laravel/probe-nexus.php` — une sonde du banc, comme les `probe-*.php` de `magento/` :
+      elle démarre l'application, prend le `NexusOperationRegistry` du conteneur et **dispatche les
+      deux opérations**. `dispatch()` est la méthode que le worker Nexus appelle quand une tâche
+      arrive : l'éprouver ne demande ni grappe, ni endpoint, ni processus en face.
+      Huit vérifications, dont les deux qui distinguent les deux formes — `planifier` répond sur la
+      tâche et refuse un panier vide (c'est donc bien **le gestionnaire** qui a répondu, pas un
+      enregistrement vide), `expedier` ne répond pas et nomme `ExpedierWorkflow`.
+- [ ] 7.2 **Le job de CI est écrit et n'est pas dans cette PR** : le jeton disponible dans la
+      session n'a pas la portée `workflow`, et GitHub refuse le push — *« refusing to allow an OAuth
+      App to create or update workflow `.github/workflows/ci.yml` without `workflow` scope »*.
+      À ajouter après `laravel:` dans `.github/workflows/ci.yml`, par quelqu'un dont le jeton l'a
+      (`gh auth refresh -s workflow`, ou une clé SSH) :
+
+      ```yaml
+      laravel-maquette:
+          # Ce que la matrice `laravel` ne peut pas dire : la **maquette** sert deux opérations
+          # Nexus. Ici c'est une application Laravel entière qui démarre, lit son
+          # `config/durable.php`, et laisse le registre du cœur répondre — le chemin
+          # config → DeclaredNexusOperations → registre → gestionnaire, celui qui distingue cet
+          # hôte de Symfony. Sans grappe : `dispatch()` est la méthode que le worker Nexus appelle
+          # quand une tâche arrive. Le bout en bout coûte quatre bancs et reste dans `demo/`.
+          name: Maquette Laravel (elle sert pour de vrai)
+          runs-on: ubuntu-latest
+          steps:
+              - uses: actions/checkout@v4
+              - name: Setup PHP
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: '8.2'
+                    extensions: bcmath, ctype, curl, dom, fileinfo, mbstring, openssl, pdo_sqlite, sqlite3, tokenizer, xml, zip
+                    coverage: none
+              - name: Cache Composer
+                uses: actions/cache@v4
+                with:
+                    path: ~/.composer/cache
+                    key: laravel-maquette-${{ hashFiles('laravel/composer.lock') }}
+                    restore-keys: laravel-maquette-
+              # ⚠ `--ignore-platform-req=ext-grpc` : le pont exige l'extension en dur, la sonde ne
+              # construit aucun client, et l'installer coûterait sept minutes de compilation pour
+              # du code qui ne tourne pas ici.
+              - name: Composer install (laravel/)
+                working-directory: laravel
+                run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req=ext-grpc
+              - name: Préparer l'application
+                working-directory: laravel
+                run: |
+                  cp .env.example .env
+                  php artisan key:generate
+                  touch database/database.sqlite
+                  php artisan migrate --force
+              # Le DSN désigne un **port fermé** : le backend en exige un pour se lier, et un port
+              # mort rendrait la sonde rouge si quelque chose se mettait à composer un appel
+              # qu'elle ne demande pas.
+              - name: La maquette sert livraison
+                working-directory: laravel
+                env:
+                    DURABLE_DSN: 'temporal://127.0.0.1:7999?namespace=sonde&nexus_task_queue=sonde-nexus&tls=0'
+                run: php probe-nexus.php
+      ```
+
+      Éprouvé localement dans cette configuration exacte — huit vérifications au vert, sans grappe.
