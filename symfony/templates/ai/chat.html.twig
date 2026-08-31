@@ -131,6 +131,9 @@
         thread.replaceChildren();
 
         approvalTimeout = data.approvalTimeoutSeconds;
+        // Le message optimiste disparaît dès que le journal le porte, sinon il ferait doublon.
+        if (data.messages.some((m) => m.role === 'user' && m.content === pending)) { pending = null; }
+
         const pendingById = new Map(data.pending.map((p) => [p.callId, p]));
 
         for (const m of data.messages) {
@@ -164,11 +167,12 @@
 
         if (mode.value !== data.mode) { mode.value = data.mode; }
 
+        // `pending` local : entre la soumission et sa trace au journal, l'agent travaille déjà.
+        const working = data.working || null !== pending;
         state.textContent = data.finished ? 'terminé'
             : (data.pending.length ? 'suspendu — en attente de ta décision'
-            : (data.working ? 'l’agent travaille…' : 'suspendu — en attente d’un signal'));
-        state.dataset.working = data.working ? '1' : '0';
-        if (!data.working) { pending = null; }
+            : (working ? 'l’agent travaille…' : 'suspendu — en attente d’un message'));
+        state.dataset.working = working ? '1' : '0';
         if (atBottom) { thread.scrollTop = thread.scrollHeight; }
     }
 

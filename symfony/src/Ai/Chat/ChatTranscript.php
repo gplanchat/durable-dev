@@ -60,6 +60,7 @@ final class ChatTranscript
         $executed = [];
         $decided = [];
         $signalledMode = null;
+        $messagesSignalled = 0;
         // La charge de démarrage n'est pas au même endroit selon le backend : sur Temporal natif
         // elle ouvre le journal (ExecutionStarted), sur DBAL un run dispatché n'écrit que ses
         // événements d'exécution et la charge reste dans le store de métadonnées. On lit les deux.
@@ -97,7 +98,9 @@ final class ChatTranscript
 
             if ($event instanceof WorkflowSignalReceived) {
                 $signal = $event->signalPayload();
-                if ('tool_decision' === $event->signalName()) {
+                if ('user_message' === $event->signalName()) {
+                    ++$messagesSignalled;
+                } elseif ('tool_decision' === $event->signalName()) {
                     $decided[(string) ($signal['callId'] ?? '')] = true;
                 } elseif ('set_mode' === $event->signalName()) {
                     $signalledMode = AgentMode::tryFrom((string) ($signal['mode'] ?? '')) ?? $signalledMode;
@@ -141,6 +144,14 @@ final class ChatTranscript
 
         $answer = $results[$lastModelCallId]['choices'][0]['message']['content'] ?? null;
 
+        // Un message signalé que le dernier appel modèle ne contient pas encore : le tour a commencé
+        // mais le journal n'en porte pas encore la trace. Sans ça l'agent paraît inactif entre la
+        // soumission et la planification de l'activité.
+        $messagesSeenByModel = \count(array_filter(
+            $messages,
+            static fn (array $message): bool => 'user' === ($message['role'] ?? null),
+        ));
+
         $thread = array_values(array_filter(
             array_map(TranscriptMessage::fromWire(...), $messages),
             static fn (TranscriptMessage $message): bool => !$message->isSystem(),
@@ -156,12 +167,14 @@ final class ChatTranscript
             $pending,
             $mode,
             $approvalTimeout,
-            // Un appel modèle planifié sans résultat, ou une réponse qui demande encore des outils :
-            // l'agent travaille toujours.
+            // Trois façons d'avoir un tour en cours : un message reçu que le modèle n'a pas encore
+            // vu, un appel modèle planifié sans résultat, ou une réponse qui demande encore des
+            // outils. Aucun appel modèle du tout n'est *pas* un tour en cours : c'est l'état de
+            // départ, où le workflow est suspendu sur son premier signal.
             !$finished && [] === $pending && (
-                null === $lastModelCallId
-                || !\array_key_exists($lastModelCallId, $results)
-                || !\is_string($answer)
+                $messagesSignalled > $messagesSeenByModel
+                || (null !== $lastModelCallId && !\array_key_exists($lastModelCallId, $results))
+                || (null !== $lastModelCallId && !\is_string($answer))
             ),
             $finished,
         );
