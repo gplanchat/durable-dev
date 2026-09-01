@@ -60,6 +60,22 @@ final class ScriptedChatModelClient implements ModelClientInterface
             ]));
         }
 
+        // Le levier explicite : un vrai modèle décide seul de demander, un modèle scripté a besoin
+        // qu'on le lui dise. « demande-moi… » sert à voir le questionnaire à volonté, et « choix
+        // multiple » à voir l'autre forme.
+        if (str_contains($lastUser, 'demande') || str_contains($lastUser, 'question')) {
+            return new InMemoryRawResult($this->toolCall($messages, AskUserQuestion::TOOL, [
+                'question' => 'Sur quoi veux-tu que je tranche ?',
+                'header' => 'À toi de voir',
+                'multiSelect' => str_contains($lastUser, 'multiple'),
+                'options' => [
+                    ['label' => 'La météo', 'description' => 'Je consulte, personne n’a rien à valider'],
+                    ['label' => 'Une note', 'description' => 'J’écris dans le dossier courant'],
+                    ['label' => 'Un courriel', 'description' => 'Effet externe : la garde demandera ton accord'],
+                ],
+            ]));
+        }
+
         if (str_contains($lastUser, 'mail') || str_contains($lastUser, 'courriel')) {
             return new InMemoryRawResult($this->toolCall($messages, 'send_email', [
                 'to' => 'equipe@example.test',
