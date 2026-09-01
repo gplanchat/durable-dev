@@ -77,6 +77,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var array<string, int> timer ID → eventId of its TIMER_FIRED (l'ordre du journal tranche le verdict d'une échéance) */
     private array $firedTimerIds = [];
 
+    /** @var array<string, true> minuteurs que le workflow a lui-même annulés (perdants d'une course) */
+    private array $cancelledTimerIds = [];
+
     /** @var array<int, mixed> slot index → side effect result (MARKER_RECORDED events) */
     private array $sideEffects = [];
 
@@ -322,6 +325,13 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 }
                 break;
 
+            case EventType::EVENT_TYPE_TIMER_CANCELED:
+                $attr = $event->getTimerCanceledEventAttributes();
+                if (null !== $attr) {
+                    $this->cancelledTimerIds[(string) $attr->getTimerId()] = true;
+                }
+                break;
+
             case EventType::EVENT_TYPE_MARKER_RECORDED:
                 $attr = $event->getMarkerRecordedEventAttributes();
                 if (null !== $attr && self::MARKER_CANCELLATION_DELIVERED === $attr->getMarkerName()) {
@@ -533,6 +543,18 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         }
 
         return ['id' => $timerId, 'scheduledAt' => $this->timerScheduledAt[$timerId] ?? 0.0, 'failed' => null];
+    }
+
+    /**
+     * Le minuteur a-t-il déjà une issue dans l'historique — tiré ou annulé ?
+     *
+     * Un minuteur annulé reste absent de {@see findTimerSlotResult()} : le perdant d'une course
+     * n'a pas de verdict à annoncer, il revient donc en attente à chaque reprise. Sans ce garde,
+     * le workflow réémettrait `CANCEL_TIMER` à chaque tâche.
+     */
+    public function isTimerSettled(string $timerId): bool
+    {
+        return isset($this->cancelledTimerIds[$timerId]) || isset($this->firedTimerIds[$timerId]);
     }
 
     public function findScheduledTimerId(int $slot): ?string

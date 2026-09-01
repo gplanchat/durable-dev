@@ -434,8 +434,22 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $this->commands[] = $cmd;
     }
 
+    /**
+     * Le replay repasse par l'annulation des perdants à chaque reprise, et un minuteur annulé
+     * n'a pas de verdict : il revient en attente, et l'annulation est redemandée.
+     *
+     * Sur le journal SQL {@see \Gplanchat\Durable\Store\EventStoreCommandBuffer::cancelTimer()}
+     * s'en garde depuis longtemps — au pire un événement en double. Ici Temporal rejette la tâche
+     * entière (`BadCancelTimerAttributes: invalid history builder state for action:
+     * add-timer-canceled-event`), le worker meurt, et la tâche redélivrée le tue à nouveau : une
+     * seule exécution empoisonne toute la file.
+     */
     public function cancelTimer(string $timerId, string $reason): void
     {
+        if (true === $this->history?->isTimerSettled($timerId)) {
+            return;
+        }
+
         $attrs = new \Temporal\Api\Command\V1\CancelTimerCommandAttributes();
         $attrs->setTimerId($timerId);
 
