@@ -194,22 +194,27 @@ complete would make the timer win every `any(activity, timer)` race. See
 
 ---
 
-## 3. Backends: one, or three
+## 3. Backends: one, or four
 
 | | Durable | Temporal PHP SDK |
 |---|---|---|
-| Execution backends | **three**, running the same workflow code | a Temporal cluster |
+| Execution backends | **four**, running the same workflow code | a Temporal cluster |
 | Tests | In-Memory, no server | test server |
-| Production without a cluster | **DBAL** — durable execution on one SQL database | not possible |
+| Production without a cluster | **DBAL** or **Illuminate** — durable execution on one SQL database | not possible |
 
-The DBAL backend ([DUR030](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR030-dbal-backend-simplified-durable-execution.md))
-has no counterpart in the SDK: a journal, workflow metadata and locks on a single relational
-database, no cluster and no `ext-grpc`. For an application that needs durable execution but not the
-operational surface of a Temporal deployment, this is often the deciding difference — more than the
-worker runtime.
+In-Memory, plus the three bridges you choose between: Temporal, DBAL or Illuminate.
 
-Switching is a configuration change (`durable.event_store.type`); the workflow code does not move.
-See [Backends](../backends/).
+The two SQL backends ([DUR030](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR030-dbal-backend-simplified-durable-execution.md)
+on Doctrine's connection, [DUR047](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR047-laravel-the-host-that-measured-before-it-wired.md)
+on Laravel's) have no counterpart in the SDK: a journal, workflow metadata and locks on a single
+relational database, no cluster and no `ext-grpc`. For an application that needs durable execution
+but not the operational surface of a Temporal deployment, this is often the deciding difference —
+more than the worker runtime.
+
+Switching is a configuration change, and the knob depends on the host: on Symfony
+`durable.event_store.type` takes three of the four (`memory`, `dbal`, `temporal`), and Illuminate is
+bound instead by `gplanchat/durable-laravel` through its own `config/durable.php`. Either way the
+workflow code does not move. See [Backends](../backends/).
 
 ---
 
@@ -575,6 +580,6 @@ can make.
 ## See also
 
 - [Packages](../packages/) — what each package contains and what it requires.
-- [Backends](../backends/) — In-Memory, DBAL and Temporal side by side.
+- [Backends](../backends/) — In-Memory, DBAL, Illuminate and Temporal side by side.
 - [Testing workflows](../testing/) — the full testing toolkit.
 - [Creating a workflow](../workflows/) — the authoring surface in detail.
