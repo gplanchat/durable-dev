@@ -743,20 +743,20 @@
         <div style="min-width: 0; display: flex; flex-direction: column; gap: 16px;">
           <div style="border: 1px solid var(--line, #ddd6ca); border-radius: 6px; background: var(--code-bg, #ffffff); overflow: hidden; transition: transform 0.32s cubic-bezier(.2,.7,.2,1), box-shadow 0.32s;" style-hover="transform: translateY(-3px); box-shadow: 0 18px 40px -22px rgba(0,0,0,0.45);">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 18px; border-bottom: 1px solid var(--line, #ddd6ca); font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--fg2, #6c6459);"><span>signal, query, update</span><span>knocking on a running process</span></div>
-            <pre style="margin: 0; padding: 26px 28px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: calc(14px * var(--ts, 1)); line-height: 1.9; color: var(--code-fg, #1d1a16);"><code><span style="color: var(--cc, #9a9184);">#[SignalMethod(OrderSignal::Approve)]
+            <pre style="margin: 0; padding: 26px 28px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: calc(14px * var(--ts, 1)); line-height: 1.9; color: var(--code-fg, #1d1a16);"><code><span style="color: var(--cc, #9a9184);">#[AsSignalMethod(OrderSignal::Approve)]
 </span><span style="color: var(--ck, #a1341f);">public function</span> approve(<span style="color: var(--ck, #a1341f);">string</span> <span style="color: var(--cv, #1c6b8a);">$approver</span>): <span style="color: var(--ck, #a1341f);">void</span> { <span style="color: var(--cc, #9a9184);">/* … */</span> }
 
-<span style="color: var(--cc, #9a9184);">#[QueryMethod(<span style="color: var(--cs, #6b7d1f);">'status'</span>)]
+<span style="color: var(--cc, #9a9184);">#[AsQueryMethod(<span style="color: var(--cs, #6b7d1f);">'status'</span>)]
 </span><span style="color: var(--ck, #a1341f);">public function</span> status(): <span style="color: var(--ck, #a1341f);">string</span>
 {
     <span style="color: var(--ck, #a1341f);">return</span> <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;status;
 }
 
-<span style="color: var(--cc, #9a9184);">#[UpdateMethod(<span style="color: var(--cs, #6b7d1f);">'changeAddress'</span>)]
+<span style="color: var(--cc, #9a9184);">#[AsUpdateMethod(<span style="color: var(--cs, #6b7d1f);">'changeAddress'</span>)]
 </span><span style="color: var(--ck, #a1341f);">public function</span> changeAddress(<span style="color: var(--ck, #a1341f);">string</span> <span style="color: var(--cv, #1c6b8a);">$address</span>): <span style="color: var(--ck, #a1341f);">string</span> { <span style="color: var(--cc, #9a9184);">/* … */</span> }
 
-<span style="color: var(--cc, #9a9184);">// inside the workflow method — a plain string still works:
-</span><span style="color: var(--cv, #1c6b8a);">$approval</span> = <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;waitSignal(OrderSignal::Approve, Duration::hours(<span style="color: var(--ck, #a1341f);">1</span>));</code></pre>
+<span style="color: var(--cc, #9a9184);">// inside the workflow method — a handler mutates state, a condition observes it:
+</span><span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;await(<span style="color: var(--ck, #a1341f);">fn</span>(): <span style="color: var(--ck, #a1341f);">bool</span> =&gt; <span style="color: var(--ck, #a1341f);">null</span> !== <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;approver, Duration::hours(<span style="color: var(--ck, #a1341f);">1</span>));</code></pre>
           </div>
         </div>
       </div>
@@ -794,8 +794,9 @@
       <div style="min-width: 0;">
         <div style="border: 1px solid var(--line, #ddd6ca); border-radius: 6px; background: var(--code-bg, #ffffff); overflow: hidden; margin: 0 0 40px; transition: transform 0.32s cubic-bezier(.2,.7,.2,1), box-shadow 0.32s;" style-hover="transform: translateY(-3px); box-shadow: 0 18px 40px -22px rgba(0,0,0,0.45);">
           <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; padding: 12px 18px; border-bottom: 1px solid var(--line, #ddd6ca); font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--fg2, #6c6459);"><span>one method · 48 hours, then 30 days</span><span>no status column, no cron tick</span></div>
-          <pre style="margin: 0; padding: 26px 28px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: calc(14px * var(--ts, 1)); line-height: 1.9; color: var(--code-fg, #1d1a16);"><code><span style="color: var(--ck, #a1341f);">try</span> {
-    <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;waitSignal(SupplierSignal::Confirmed, Duration::hours(<span style="color: var(--ck, #a1341f);">48</span>));
+          <pre style="margin: 0; padding: 26px 28px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: calc(14px * var(--ts, 1)); line-height: 1.9; color: var(--code-fg, #1d1a16);"><code><span style="color: var(--cc, #9a9184);">// #[AsSignalMethod(SupplierSignal::Confirmed)] sets $this-&gt;confirmed
+</span><span style="color: var(--ck, #a1341f);">try</span> {
+    <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;await(<span style="color: var(--ck, #a1341f);">fn</span>(): <span style="color: var(--ck, #a1341f);">bool</span> =&gt; <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;confirmed, Duration::hours(<span style="color: var(--ck, #a1341f);">48</span>));
 } <span style="color: var(--ck, #a1341f);">catch</span> (DeadlineExceededException <span style="color: var(--cv, #1c6b8a);">$e</span>) {
     <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;await(<span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;desk-&gt;escalate(<span style="color: var(--cv, #1c6b8a);">$orderId</span>));
 }
@@ -803,8 +804,9 @@
 <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;sleep(Duration::of(<span style="color: var(--ck, #a1341f);">new</span> \DateInterval(<span style="color: var(--cs, #6b7d1f);">'P7D'</span>)));
 <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;await(<span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;mail-&gt;remind(<span style="color: var(--cv, #1c6b8a);">$orderId</span>));
 
-<span style="color: var(--cv, #1c6b8a);">$delivery</span> = <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;waitSignal(
-    SupplierSignal::Delivered,
+<span style="color: var(--cc, #9a9184);">// #[AsSignalMethod(SupplierSignal::Delivered)] sets $this-&gt;delivery
+</span><span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;await(
+    <span style="color: var(--ck, #a1341f);">fn</span>(): <span style="color: var(--ck, #a1341f);">bool</span> =&gt; <span style="color: var(--ck, #a1341f);">null</span> !== <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;delivery,
     Duration::of(<span style="color: var(--ck, #a1341f);">new</span> \DateInterval(<span style="color: var(--cs, #6b7d1f);">'P30D'</span>)),
 );</code></pre>
         </div>
@@ -863,7 +865,7 @@
 </span><span style="color: var(--cv, #1c6b8a);">$plan</span> = <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;await(<span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;agent-&gt;decide(<span style="color: var(--cv, #1c6b8a);">$conversation</span>));
 
 <span style="color: var(--ck, #a1341f);">if</span> (<span style="color: var(--cv, #1c6b8a);">$plan</span>-&gt;needsApproval()) {
-    <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;waitSignal(AgentSignal::Approve, Duration::hours(<span style="color: var(--ck, #a1341f);">24</span>));
+    <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;await(<span style="color: var(--ck, #a1341f);">fn</span>(): <span style="color: var(--ck, #a1341f);">bool</span> =&gt; <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;approved, Duration::hours(<span style="color: var(--ck, #a1341f);">24</span>));
 }
 
 <span style="color: var(--cv, #1c6b8a);">$outcome</span> = <span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;env-&gt;await(<span style="color: var(--cv, #1c6b8a);">$this</span>-&gt;tools-&gt;run(<span style="color: var(--cv, #1c6b8a);">$plan</span>-&gt;tool(), <span style="color: var(--cv, #1c6b8a);">$plan</span>-&gt;arguments()));</code></pre>

@@ -133,6 +133,63 @@ try {
 
 C'est la forme canonique de la saga : attendre l'approbation, renoncer au bout d'une heure.
 
+#### Le gestionnaire est une méthode, l'attente aussi
+
+Dans un workflow écrit en classe, déclarez le gestionnaire avec `#[AsSignalMethod]` — le moteur le
+câble — et adjoignez-lui une petite méthode privée qui attend et consomme. Le corps se lit alors en
+une ligne, et le tampon est une propriété plutôt qu'une référence capturée :
+
+```php
+#[AsWorkflow('Order')]
+final class OrderWorkflow
+{
+    /** @var list<array<string, mixed>> */
+    private array $approvals = [];
+
+    public function __construct(private readonly WorkflowEnvironment $env) {}
+
+    #[AsSignalMethod(OrderSignal::Approve)]
+    public function approve(array $payload): void
+    {
+        $this->approvals[] = $payload;
+    }
+
+    #[AsWorkflowMethod]
+    public function run(string $orderId): string
+    {
+        $approval = $this->waitApproval(Duration::hours(48));
+
+        return $this->ship($orderId, $approval['by']);
+    }
+
+    /** @return array<string, mixed> */
+    private function waitApproval(Duration $deadline): array
+    {
+        $this->env->await(fn(): bool => [] !== $this->approvals, $deadline);
+
+        return array_shift($this->approvals);
+    }
+}
+```
+
+Parce que les livraisons sont **l'état du workflow**, un workflow qui attend trois fois le même
+signal garde trois entrées et les consomme à son rythme — et un signal arrivé alors que personne
+n'attendait est encore là à l'attente suivante. C'est ce que le `waitSignal()` supprimé approchait
+avec un compteur côté moteur ; ici c'est `array_shift()`.
+
+> [!WARNING]
+> Deux pièges, silencieux tous les deux.
+>
+> L'attribut est lu sur la **classe du workflow**, avec `ReflectionClass::getMethods()`. PHP
+> n'expose pas, à travers la classe qui l'implémente, un attribut déclaré sur une méthode
+> d'interface : `#[AsSignalMethod]` posé sur une interface de contrat n'enregistre donc **rien** —
+> le signal arrive, aucun gestionnaire ne tourne, et la condition ne se réalise jamais. L'attribut
+> va sur la classe.
+>
+> Et le gestionnaire est appelé avec **un** argument : le tableau de charge. Une signature comme
+> `approve(string $by)` échoue à la livraison du signal, pas au démarrage du worker.
+
+
 Une condition doit être fonction de **l'état du workflow et de rien d'autre**. Elle est réévaluée à
 chaque rejeu : tout ce qu'un rejeu ne peut pas reproduire — une horloge, un tirage aléatoire, une
 variable d'environnement — doit être enregistré une fois avec `sideEffect()` puis relu :
@@ -237,8 +294,8 @@ ce qu'un workflow peut faire, et rien de ce que le moteur garde pour lui.
 | `sleep($duration, $summary = '')` | Attend, et fait l'attente pour vous. Dit ce qu'il fait. |
 | `activityStub($contract, $options = null)` | Un proxy typé sur un contrat d'activité. Construisez-le dans le constructeur ; tous ses appels portent `$options`. |
 | `childWorkflowStub($class, $options = null)` | Le même, pour un workflow enfant : résolu depuis la classe de l'enfant, et ses appels se composent comme les autres. |
-| `waitSignal($name, $deadline = null)` | Attend un signal. Le nom prend une énumération adossée, donc une faute de frappe est une erreur de type et non une attente qui ne se résout jamais. |
-| `waitUpdate($name)` | Attend une mise à jour. |
+| `onSignal($name, $handler)` | Enregistre un gestionnaire de signal. Le gestionnaire mute l'état du workflow et `await()` l'observe — il n'y a pas d'attente séparée. Le nom prend une énumération adossée, donc une faute de frappe est une erreur de type et non une attente qui ne se résout jamais. |
+| `onUpdate($name, $handler)` | Le même pour une mise à jour, dont la valeur de retour du gestionnaire est la réponse rendue à l'appelant. |
 | `sideEffect($closure)` | Exécute une fois un travail local non déterministe et en journalise le résultat, pour que le rejeu le reproduise. |
 | `continueAsNew($type, $payload = [], $options = null)` | Termine cette exécution et démarre la suivante avec un historique neuf. |
 | `executionId()` | L'identifiant de cette exécution. |

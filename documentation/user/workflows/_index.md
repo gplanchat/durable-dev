@@ -131,6 +131,62 @@ try {
 
 That is the canonical saga shape: wait for approval, give up after an hour.
 
+#### The handler is a method, the wait is a method
+
+In a workflow written as a class, declare the handler with `#[AsSignalMethod]` — the engine wires
+it — and pair it with a small private method that waits and consumes. The body then reads as one
+line, and the buffer is a property rather than a captured reference:
+
+```php
+#[AsWorkflow('Order')]
+final class OrderWorkflow
+{
+    /** @var list<array<string, mixed>> */
+    private array $approvals = [];
+
+    public function __construct(private readonly WorkflowEnvironment $env) {}
+
+    #[AsSignalMethod(OrderSignal::Approve)]
+    public function approve(array $payload): void
+    {
+        $this->approvals[] = $payload;
+    }
+
+    #[AsWorkflowMethod]
+    public function run(string $orderId): string
+    {
+        $approval = $this->waitApproval(Duration::hours(48));
+
+        return $this->ship($orderId, $approval['by']);
+    }
+
+    /** @return array<string, mixed> */
+    private function waitApproval(Duration $deadline): array
+    {
+        $this->env->await(fn(): bool => [] !== $this->approvals, $deadline);
+
+        return array_shift($this->approvals);
+    }
+}
+```
+
+Because the deliveries are **workflow state**, a workflow that waits for the same signal three
+times keeps three entries and consumes them at its own pace — and a signal that arrived while
+nothing was waiting is still there at the next wait. That is what the removed `waitSignal()` needed
+an engine-side counter to approximate; here it is `array_shift()`.
+
+> [!WARNING]
+> Two traps, both silent.
+>
+> The attribute is read from the **workflow class**, with `ReflectionClass::getMethods()`. PHP does
+> not surface an attribute declared on an interface method through the class implementing it, so
+> `#[AsSignalMethod]` on a contract interface registers **nothing** — the signal arrives, no handler
+> runs, and the condition never holds. Put the attribute on the class.
+>
+> And the handler is called with **one** argument: the payload array. A signature like
+> `approve(string $by)` fails when the signal is delivered, not when the worker boots.
+
+
 A condition must be a function of **workflow state and nothing else**. It is re-evaluated on every
 replay, so anything a replay cannot reproduce — a clock, a random draw, an environment variable —
 must be recorded once with `sideEffect()` and read back:
@@ -232,8 +288,8 @@ everything a workflow can do, and nothing the engine keeps for itself.
 | `sleep($duration, $summary = '')` | Waits, and awaits for you. Says what it does. |
 | `activityStub($contract, $options = null)` | A typed proxy over an activity contract. Build it in the constructor; every call it makes carries `$options`. |
 | `childWorkflowStub($class, $options = null)` | The same, for a child workflow: resolved from the child's class, and its calls compose like any other. |
-| `waitSignal($name, $deadline = null)` | Waits for a signal. The name takes a backed enum, so a typo is a type error rather than a wait that never settles. |
-| `waitUpdate($name)` | Waits for an update. |
+| `onSignal($name, $handler)` | Registers a signal handler. The handler mutates workflow state and `await()` observes it — there is no separate wait. The name takes a backed enum, so a typo is a type error rather than a wait that never settles. |
+| `onUpdate($name, $handler)` | The same for an update, whose handler's return value is the caller's response. |
 | `sideEffect($closure)` | Runs non-deterministic local work once and journals its result, so replay reproduces it. |
 | `continueAsNew($type, $payload = [], $options = null)` | Ends this run and starts the next with a fresh history. |
 | `executionId()` | This execution's identifier. |
