@@ -199,22 +199,27 @@ alors qu'une activité pourrait encore aboutir ferait gagner le minuteur à chaq
 
 ---
 
-## 3. Les backends : un, ou trois
+## 3. Les backends : un, ou quatre
 
 | | Durable | SDK PHP de Temporal |
 |---|---|---|
-| Backends d'exécution | **trois**, faisant tourner le même code de workflow | un cluster Temporal |
+| Backends d'exécution | **quatre**, faisant tourner le même code de workflow | un cluster Temporal |
 | Tests | en mémoire, sans serveur | serveur de test |
-| Production sans cluster | **DBAL** — l'exécution durable sur une base SQL | impossible |
+| Production sans cluster | **DBAL** ou **Illuminate** — l'exécution durable sur une base SQL | impossible |
 
-Le backend DBAL ([DUR030](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR030-dbal-backend-simplified-durable-execution.md))
-n'a pas d'équivalent dans le SDK : un journal, des métadonnées de workflow et des verrous sur une
-seule base relationnelle, sans cluster et sans `ext-grpc`. Pour une application qui a besoin
-d'exécution durable mais pas de la surface opérationnelle d'un déploiement Temporal, c'est souvent
-la différence qui tranche — davantage que le moteur du worker.
+Le backend en mémoire, plus les trois ponts entre lesquels on choisit : Temporal, DBAL ou Illuminate.
 
-En changer est un changement de configuration (`durable.event_store.type`) ; le code du workflow ne
-bouge pas. Voir [Backends](../backends/).
+Les deux backends SQL ([DUR030](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR030-dbal-backend-simplified-durable-execution.md)
+sur la connexion de Doctrine, [DUR047](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR047-laravel-the-host-that-measured-before-it-wired.md)
+sur celle de Laravel) n'ont pas d'équivalent dans le SDK : un journal, des métadonnées de workflow et
+des verrous sur une seule base relationnelle, sans cluster et sans `ext-grpc`. Pour une application
+qui a besoin d'exécution durable mais pas de la surface opérationnelle d'un déploiement Temporal,
+c'est souvent la différence qui tranche — davantage que le moteur du worker.
+
+En changer est un changement de configuration, et le réglage dépend de l'hôte : sur Symfony,
+`durable.event_store.type` en prend trois sur quatre (`memory`, `dbal`, `temporal`), et Illuminate
+est câblé par `gplanchat/durable-laravel` à travers son propre `config/durable.php`. Dans les deux
+cas, le code du workflow ne bouge pas. Voir [Backends](../backends/).
 
 ---
 
@@ -590,6 +595,6 @@ ruptures entre versions est un échange que vous pouvez faire.
 ## Voir aussi
 
 - [Paquets](../packages/) — ce que chaque paquet contient et ce qu'il exige.
-- [Backends](../backends/) — en mémoire, DBAL et Temporal côte à côte.
+- [Backends](../backends/) — en mémoire, DBAL, Illuminate et Temporal côte à côte.
 - [Tester des workflows](../testing/) — la boîte à outils de test complète.
 - [Écrire un workflow](../workflows/) — la surface d'écriture en détail.
