@@ -89,7 +89,7 @@ final class ToolGuardTest extends TestCase
                 mode: 'standard',
                 prompt: 'Envoie un mail',
                 maxTurns: 1,
-                approvalTimeoutSeconds: 5.0,
+                humanTimeoutSeconds: 5.0,
             ),
             'guard-timeout-1',
         );

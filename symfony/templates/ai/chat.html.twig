@@ -72,6 +72,14 @@
     .approval code { display: block; white-space: pre-wrap; }
     .approval-reason { font-size: .8rem; color: var(--ds-text-muted); }
     .approval-clock[data-urgent="1"] { color: var(--ds-danger); }
+    .question { border-color: var(--ds-primary-hover); background: rgba(121, 98, 140, .12); }
+    .question-header { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ds-text-muted); }
+    .question-text { font-weight: 500; }
+    .question-options { display: flex; flex-direction: column; gap: .4rem; }
+    .question-options .option { display: flex; flex-direction: column; align-items: flex-start; gap: .1rem; text-align: left; }
+    .question-options .option span { font-size: .78rem; color: var(--ds-text-muted); font-weight: 400; }
+    .question-options .option[data-retenu="1"] { border-color: var(--ds-accent); color: var(--ds-accent); }
+    .question-free input { width: 100%; }
     .approval-actions { display: flex; gap: .5rem; }
     .chat-form { display: flex; gap: .6rem; }
     .chat-form .ds-input { flex: 1; }
@@ -138,6 +146,22 @@
 
     let clocks = [];
 
+    // Le compte à rebours vient du minuteur du journal, pas de l'ouverture de la page : un
+    // rechargement ne remet pas l'échéance à zéro, elle a commencé côté workflow.
+    const armerLeCompteur = (card, expiresAt, consequence) => {
+        const clock = card.querySelector('.approval-clock');
+        if (!clock || !expiresAt) { return; }
+        const tick = () => {
+            const left = Math.max(0, Math.round(expiresAt - Date.now() / 1000));
+            clock.textContent = left > 0
+                ? ' Sans réponse d’ici ' + (left >= 60 ? Math.floor(left / 60) + ' min ' + (left % 60) + ' s' : left + ' s') + ', ' + consequence + '.'
+                : ' L’échéance est passée.';
+            clock.dataset.urgent = left <= 60 ? '1' : '0';
+        };
+        tick();
+        clocks.push(setInterval(tick, 1000));
+    };
+
     const approvalBubble = (p) => {
         const card = document.createElement('div');
         card.className = 'approval';
@@ -149,22 +173,7 @@
             + '<button class="btn btn-primary btn-sm" data-ok="1">Autoriser</button>'
             + '<button class="btn btn-ghost btn-sm" data-ok="0">Refuser</button>'
             + '</div>';
-        // Le compte à rebours vient du minuteur du journal, pas de l'ouverture de la page : un
-        // rechargement ne remet pas l'échéance à zéro, elle a commencé côté workflow.
-        const clock = card.querySelector('.approval-clock');
-        if (clock && p.expiresAt) {
-            const tick = () => {
-                const left = Math.max(0, Math.round(p.expiresAt - Date.now() / 1000));
-                clock.textContent = left > 0
-                    ? ' Sans réponse d’ici ' + (left >= 60 ? Math.floor(left / 60) + ' min ' + (left % 60) + ' s' : left + ' s') + ', la demande est refusée.'
-                    : ' L’échéance est passée.';
-                clock.dataset.urgent = left <= 60 ? '1' : '0';
-            };
-            tick();
-            const timer = setInterval(tick, 1000);
-            card.addEventListener('remove', () => clearInterval(timer));
-            clocks.push(timer);
-        }
+        armerLeCompteur(card, p.expiresAt, 'la demande est refusée');
 
         for (const button of card.querySelectorAll('button')) {
             button.addEventListener('click', async () => {
@@ -177,6 +186,67 @@
                 setTimeout(refresh, 400);
             });
         }
+        return card;
+    };
+
+    // L'agent pose une question : ni validation ni refus, un choix. Une réponse libre reste
+    // toujours possible — les options du modèle ne sont que des propositions.
+    const questionBubble = (q) => {
+        const card = document.createElement('div');
+        card.className = 'approval question';
+        card.innerHTML = (q.header ? '<div class="question-header">' + escape(q.header) + '</div>' : '')
+            + '<div class="question-text">' + escape(q.question) + '</div>'
+            + '<div class="question-options"></div>'
+            + '<div class="question-free"><input class="ds-input" placeholder="Autre réponse…"></div>'
+            + '<div class="approval-reason">Le workflow est suspendu ici. Ta réponse part en signal <code>question_answered</code>.<span class="approval-clock"></span></div>'
+            + '<div class="approval-actions"></div>';
+
+        const options = card.querySelector('.question-options');
+        const actions = card.querySelector('.approval-actions');
+        const libre = card.querySelector('.question-free input');
+        const retenus = new Set();
+
+        const repondre = async (answers) => {
+            if (!answers.length) { return; }
+            actions.textContent = 'réponse envoyée…';
+            card.querySelectorAll('input, button').forEach((el) => { el.disabled = true; });
+            await fetch(base + '/answer', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({callId: q.callId, answers}),
+            });
+            setTimeout(refresh, 400);
+        };
+
+        for (const option of q.options) {
+            const button = document.createElement('button');
+            button.className = 'btn btn-ghost btn-sm option';
+            button.innerHTML = '<b>' + escape(option.label) + '</b>'
+                + (option.description ? '<span>' + escape(option.description) + '</span>' : '');
+            button.addEventListener('click', () => {
+                if (!q.multiSelect) { repondre([option.label]); return; }
+                retenus.has(option.label) ? retenus.delete(option.label) : retenus.add(option.label);
+                button.dataset.retenu = retenus.has(option.label) ? '1' : '0';
+            });
+            options.append(button);
+        }
+
+        // En choix multiple il faut un moment pour dire « j'ai fini » ; en choix unique le clic
+        // sur l'option suffit, et un bouton de plus serait un clic de plus pour rien.
+        if (q.multiSelect) {
+            const valider = document.createElement('button');
+            valider.className = 'btn btn-primary btn-sm';
+            valider.textContent = 'Valider';
+            valider.addEventListener('click', () => repondre([...retenus, libre.value.trim()].filter(Boolean)));
+            actions.append(valider);
+        }
+
+        libre.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') { event.preventDefault(); repondre([libre.value.trim()].filter(Boolean)); }
+        });
+
+        armerLeCompteur(card, q.expiresAt, 'l’agent continue sans ta réponse');
+
         return card;
     };
 
@@ -197,6 +267,7 @@
         if (data.messages.some((m) => m.role === 'user' && m.content === pending)) { pending = null; }
 
         const pendingById = new Map(data.pending.map((p) => [p.callId, p]));
+        const questionsById = new Map(data.questions.map((q) => [q.callId, q]));
 
         for (const m of data.messages) {
             if (m.role === 'user') {
@@ -208,7 +279,11 @@
             } else if (m.role === 'assistant' && m.toolCalls.length) {
                 for (const c of m.toolCalls) {
                     const waiting = pendingById.get(c.callId);
-                    if (waiting) {
+                    const asking = questionsById.get(c.callId);
+                    if (asking) {
+                        thread.append(questionBubble(asking));
+                        questionsById.delete(c.callId);
+                    } else if (waiting) {
                         thread.append(approvalBubble(waiting));
                         pendingById.delete(c.callId);
                     } else {
@@ -220,6 +295,7 @@
 
         if (pending) { thread.append(bubble('msg-user', escape(pending))); }
         for (const waiting of pendingById.values()) { thread.append(approvalBubble(waiting)); }
+        for (const asking of questionsById.values()) { thread.append(questionBubble(asking)); }
         if (!thread.childElementCount) {
             const empty = document.createElement('p');
             empty.className = 'chat-empty';
@@ -232,8 +308,9 @@
         // `pending` local : entre la soumission et sa trace au journal, l'agent travaille déjà.
         const working = data.working || null !== pending;
         state.textContent = data.finished ? 'terminé'
+            : (data.questions.length ? 'suspendu — l’agent te pose une question'
             : (data.pending.length ? 'suspendu — en attente de ta décision'
-            : (working ? labeurCourant() : 'prêt'));
+            : (working ? labeurCourant() : 'prêt')));
         if (!working) { labeur = null; }
         state.dataset.working = working ? '1' : '0';
         if (atBottom) { thread.scrollTop = thread.scrollHeight; }

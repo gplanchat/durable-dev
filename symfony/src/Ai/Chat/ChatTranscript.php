@@ -6,6 +6,8 @@ namespace App\Ai\Chat;
 
 use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\PendingApproval;
+use App\Ai\Question\AskUserQuestion;
+use App\Ai\Question\PendingQuestion;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityScheduled;
@@ -86,6 +88,7 @@ final class ChatTranscript
         $finished = false;
         $executed = [];
         $decided = [];
+        $answered = [];
         $signalledMode = null;
         $messagesSignalled = 0;
         $deadlines = [];
@@ -145,6 +148,8 @@ final class ChatTranscript
                     ++$messagesSignalled;
                 } elseif ('tool_decision' === $event->signalName()) {
                     $decided[(string) ($signal['callId'] ?? '')] = true;
+                } elseif ('question_answered' === $event->signalName()) {
+                    $answered[(string) ($signal['callId'] ?? '')] = true;
                 } elseif ('set_mode' === $event->signalName()) {
                     $signalledMode = AgentMode::tryFrom((string) ($signal['mode'] ?? '')) ?? $signalledMode;
                 }
@@ -165,29 +170,38 @@ final class ChatTranscript
 
         // Le dernier `set_mode` l'emporte sur le mode de démarrage : il lui est postérieur.
         $mode = $signalledMode ?? AgentMode::tryFrom((string) ($started['mode'] ?? '')) ?? AgentMode::Standard;
-        $approvalTimeout = Duration::fromWireValue($started['approvalTimeoutSeconds'] ?? null);
+        $humanTimeout = Duration::fromWireValue($started['humanTimeoutSeconds'] ?? null);
 
         foreach ($steps as $activityId => $step) {
             $result = $results[$activityId] ?? null;
             $steps[$activityId] = $step->withResult(\is_string($result) ? $result : null);
         }
 
-        // En attente d'accord : le modèle a demandé l'outil, la garde a suspendu, et ni l'activité
-        // ni une décision ne sont au journal.
+        // Deux attentes humaines, lues au même endroit : le modèle a demandé un outil, et ni
+        // l'activité ni la réponse ne sont au journal. La garde retient l'un, le guichet l'autre.
+        $expiresAt = self::expiryOf($deadlines, $humanTimeout);
         $pending = [];
+        $questions = [];
         foreach ($results[$lastModelCallId]['choices'][0]['message']['tool_calls'] ?? [] as $call) {
             $callId = (string) ($call['id'] ?? '');
-            if (isset($executed[$callId]) || isset($decided[$callId])) {
+            if (isset($executed[$callId]) || isset($decided[$callId]) || isset($answered[$callId])) {
                 continue;
             }
 
             $ref = ToolCallRef::fromWire($call);
+
+            if (AskUserQuestion::TOOL === $ref->tool) {
+                $questions[] = PendingQuestion::fromArguments($ref->callId, $ref->arguments, $expiresAt);
+
+                continue;
+            }
+
             $pending[] = new PendingApproval(
                 $ref->callId,
                 $ref->tool,
                 $ref->arguments,
                 'En attente de ta décision.',
-                self::expiryOf($deadlines, $approvalTimeout),
+                $expiresAt,
             );
         }
 
@@ -214,13 +228,14 @@ final class ChatTranscript
             $thread,
             array_values($steps),
             $pending,
+            $questions,
             $mode,
-            $approvalTimeout,
+            $humanTimeout,
             // Trois façons d'avoir un tour en cours : un message reçu que le modèle n'a pas encore
             // vu, un appel modèle planifié sans résultat, ou une réponse qui demande encore des
             // outils. Aucun appel modèle du tout n'est *pas* un tour en cours : c'est l'état de
             // départ, où le workflow est suspendu sur son premier signal.
-            !$finished && [] === $pending && (
+            !$finished && [] === $pending && [] === $questions && (
                 $messagesSignalled > $messagesSeenByModel
                 || (null !== $lastModelCallId && !\array_key_exists($lastModelCallId, $results))
                 || (null !== $lastModelCallId && !\is_string($answer))

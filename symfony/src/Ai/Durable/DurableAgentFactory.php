@@ -9,6 +9,8 @@ use App\Ai\Guard\ModeToolGuard;
 use App\Ai\Guard\ToolApprovalGate;
 use App\Ai\Guard\ToolEffect;
 use App\Ai\Guard\ToolGuardInterface;
+use App\Ai\Question\AskUserQuestion;
+use App\Ai\Question\HumanQuestionDesk;
 use App\Ai\Tool\ToolDefinition;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -28,8 +30,9 @@ final class DurableAgentFactory
     /**
      * @param list<ToolDefinition>       $tools
      * @param \Closure(): AgentMode|null $mode
-     * @param Duration|null              $approvalTimeout échéance des demandes de validation, globale
-     *                                                    à cette instance d'agent
+     * @param Duration|null              $humanTimeout échéance de toute attente humaine — validation
+     *                                                 comme réponse à une question — globale à
+     *                                                 cette instance d'agent
      */
     public static function create(
         WorkflowEnvironment $environment,
@@ -37,10 +40,14 @@ final class DurableAgentFactory
         array $tools,
         int $maxToolCalls = 10,
         ?ToolApprovalGate $gate = null,
+        ?HumanQuestionDesk $desk = null,
         ?\Closure $mode = null,
         ?ToolGuardInterface $guard = null,
-        ?Duration $approvalTimeout = null,
+        ?Duration $humanTimeout = null,
     ): Agent {
+        // Toujours offert : un agent qui ne peut pas demander invente.
+        $tools = [...$tools, AskUserQuestion::definition()];
+
         $platform = new Platform([
             new Provider(
                 'durable',
@@ -58,8 +65,9 @@ final class DurableAgentFactory
                 $environment,
                 $guard ?? new ModeToolGuard(self::effects($tools)),
                 $gate ?? new ToolApprovalGate(),
+                $desk ?? new HumanQuestionDesk(),
                 $mode ?? static fn(): AgentMode => AgentMode::Auto,
-                $approvalTimeout,
+                $humanTimeout,
             ),
             maxToolCalls: $maxToolCalls,
         );

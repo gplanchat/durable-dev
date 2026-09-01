@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Ai\Platform;
 
+use App\Ai\Question\AskUserQuestion;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
 use Symfony\AI\Platform\Result\InMemoryRawResult;
@@ -43,6 +44,20 @@ final class ScriptedChatModelClient implements ModelClientInterface
         // Un seul tour d'outil par message : au second passage, on répond.
         if ($answeredSinceUser > 0) {
             return new InMemoryRawResult($this->text($this->summarise($messages)));
+        }
+
+        // Une demande vague : le modèle ne devine pas, il demande. C'est ce que fait un vrai
+        // modèle quand la consigne laisse plusieurs suites également raisonnables.
+        if (str_contains($lastUser, 'import')) {
+            return new InMemoryRawResult($this->toolCall($messages, AskUserQuestion::TOOL, [
+                'question' => 'Comment veux-tu lancer cet import ?',
+                'header' => 'Mode d’import',
+                'options' => [
+                    ['label' => 'Par lot', 'description' => 'Tout d’un coup, plus rapide, bloque le catalogue'],
+                    ['label' => 'Au fil de l’eau', 'description' => 'Plus lent, le catalogue reste servi'],
+                    ['label' => 'Simulation', 'description' => 'Rien n’est écrit, on regarde ce qui changerait'],
+                ],
+            ]));
         }
 
         if (str_contains($lastUser, 'mail') || str_contains($lastUser, 'courriel')) {

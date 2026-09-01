@@ -6,6 +6,7 @@ namespace App\Ai\Chat;
 
 use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\PendingApproval;
+use App\Ai\Question\PendingQuestion;
 use Gplanchat\Durable\Duration;
 
 /**
@@ -19,21 +20,23 @@ final readonly class Transcript implements \JsonSerializable
     /**
      * @param list<TranscriptMessage> $messages
      * @param list<ToolStep>          $steps
-     * @param list<PendingApproval>   $pending
+     * @param list<PendingApproval>   $pending   validations retenues par la garde
+     * @param list<PendingQuestion>   $questions questions posées par l'agent
      */
     public function __construct(
         public array $messages,
         public array $steps,
         public array $pending,
+        public array $questions,
         public AgentMode $mode,
-        public ?Duration $approvalTimeout,
+        public ?Duration $humanTimeout,
         public bool $working,
         public bool $finished,
     ) {
     }
 
     /**
-     * @return array{messages: list<TranscriptMessage>, steps: list<ToolStep>, pending: list<PendingApproval>, mode: string, approvalTimeoutSeconds: float|null, working: bool, finished: bool}
+     * @return array{messages: list<TranscriptMessage>, steps: list<ToolStep>, pending: list<PendingApproval>, questions: list<PendingQuestion>, mode: string, humanTimeoutSeconds: float|null, working: bool, finished: bool}
      */
     public function jsonSerialize(): array
     {
@@ -41,8 +44,9 @@ final readonly class Transcript implements \JsonSerializable
             'messages' => $this->messages,
             'steps' => $this->steps,
             'pending' => $this->pending,
+            'questions' => $this->questions,
             'mode' => $this->mode->value,
-            'approvalTimeoutSeconds' => $this->approvalTimeout?->toSeconds(),
+            'humanTimeoutSeconds' => $this->humanTimeout?->toSeconds(),
             'working' => $this->working,
             'finished' => $this->finished,
         ];

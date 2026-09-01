@@ -27,14 +27,14 @@ use Symfony\Component\Uid\Uuid;
 final class AiChatController extends AbstractController
 {
     /**
-     * Échéance d'une demande de validation, globale à l'agent.
+     * Échéance de toute attente humaine — validation d'un outil comme réponse à une question.
      *
      * Un quart d'heure : le délai doit être celui d'un humain qui lit, réfléchit et change de
      * fenêtre — pas celui d'une requête HTTP. À 120 s la carte disparaissait sous les yeux de qui
      * la lisait, et l'agent répondait « refusé faute de validation » sans que personne n'ait rien
      * refusé.
      */
-    private const APPROVAL_TIMEOUT_SECONDS = 900.0;
+    private const HUMAN_TIMEOUT_SECONDS = 900.0;
 
     /**
      * Le catalogue d'outils de la démo. `effect` est ce que lit la garde : c'est lui, et pas le nom
@@ -104,7 +104,7 @@ final class AiChatController extends AbstractController
             [
                 'tools' => ToolDefinition::listToWire(self::tools()),
                 'mode' => AgentMode::Standard->value,
-                'approvalTimeoutSeconds' => self::APPROVAL_TIMEOUT_SECONDS,
+                'humanTimeoutSeconds' => self::HUMAN_TIMEOUT_SECONDS,
             ],
             $executionId,
         );
@@ -144,6 +144,24 @@ final class AiChatController extends AbstractController
         $this->signal($executionId, 'tool_decision', [
             'callId' => (string) ($body['callId'] ?? ''),
             'approved' => (bool) ($body['approved'] ?? false),
+        ]);
+
+        return new JsonResponse(null, Response::HTTP_ACCEPTED);
+    }
+
+    /**
+     * La réponse à une question posée par l'agent. Rien à valider ici : l'humain renseigne, il
+     * n'autorise pas.
+     */
+    #[Route('/durable/chat/{executionId}/answer', name: 'durable_chat_answer', methods: ['POST'])]
+    public function answer(string $executionId, Request $request): JsonResponse
+    {
+        $body = $request->toArray();
+        $answers = \is_array($body['answers'] ?? null) ? $body['answers'] : [];
+
+        $this->signal($executionId, 'question_answered', [
+            'callId' => (string) ($body['callId'] ?? ''),
+            'answers' => array_values(array_map(strval(...), $answers)),
         ]);
 
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
