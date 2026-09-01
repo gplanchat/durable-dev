@@ -191,7 +191,7 @@
         const working = data.working || null !== pending;
         state.textContent = data.finished ? 'terminé'
             : (data.pending.length ? 'suspendu — en attente de ta décision'
-            : (working ? 'l’agent travaille…' : 'suspendu — en attente d’un message'));
+            : (working ? 'l’agent travaille…' : 'prêt'));
         state.dataset.working = working ? '1' : '0';
         if (atBottom) { thread.scrollTop = thread.scrollHeight; }
     }
