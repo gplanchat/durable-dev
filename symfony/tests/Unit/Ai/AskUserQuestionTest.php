@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Ai;
 
+use App\Ai\Guard\ModeToolGuard;
 use App\Ai\Question\AskUserQuestion;
 use App\Ai\Workflow\DurableAgentWorkflow;
 use Gplanchat\Durable\Event\ExecutionStarted;
@@ -71,6 +72,43 @@ final class AskUserQuestionTest extends TestCase
         $answer = $environment->runWorkflowClass(DurableAgentWorkflow::class, $this->input(5.0), 'question-3');
 
         self::assertStringContainsString('Aucune réponse', $answer);
+    }
+
+    /**
+     * La garde reste devant, pas à côté : elle décide de **tous** les appels, y compris de celui-ci.
+     *
+     * En mode `standard`, où toute écriture demande une validation, poser une question passe sans
+     * rien demander — elle est classée `read`. Si la garde l'avait retenue, ce test resterait
+     * suspendu faute de signal `tool_decision`, et c'est exactement ce qu'il vérifie.
+     */
+    public function testAskingIsNotSomethingOneHasToApproveFirst(): void
+    {
+        $environment = WorkflowTestEnvironment::inMemory($this->scriptedModel());
+        $this->answerUpFront($environment, 'question-5', ['Par lot']);
+
+        $input = ['mode' => 'standard'] + $this->input();
+
+        self::assertSame(
+            'Compris : Par lot',
+            $environment->runWorkflowClass(DurableAgentWorkflow::class, $input, 'question-5'),
+        );
+    }
+
+    /**
+     * Et l'inverse tient aussi : une politique qui interdit de poser des questions les interdit
+     * pour de bon. C'est la preuve que la garde est bien en amont — sinon le guichet suspendrait
+     * l'exécution avant qu'elle n'ait son mot à dire.
+     */
+    public function testAPolicyCanForbidAskingAltogether(): void
+    {
+        $environment = WorkflowTestEnvironment::inMemory($this->scriptedModel());
+
+        // Aucun signal n'est déposé : si la question atteignait le guichet, l'exécution resterait
+        // suspendue au lieu de rendre une réponse.
+        $input = ['guard' => new ModeToolGuard([], [AskUserQuestion::TOOL])] + $this->input();
+        $answer = $environment->runWorkflowClass(DurableAgentWorkflow::class, $input, 'question-6');
+
+        self::assertStringContainsString('interdit par la politique', $answer);
     }
 
     /**
