@@ -6,4 +6,4 @@
 - **Entrées** : `documentation/user/workflows/_index.md` (+ `.fr.md`), le canevas
   `hugo-docs/variant-b-narrative.dc.html` (+ `-fr`) et la réimportation vers `layouts/index.html`
   (+ `.fr.html`), suivant WA005.
-- **État** : en cours
+- **État** : en relecture (PR #249)
