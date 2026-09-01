@@ -232,8 +232,8 @@ everything a workflow can do, and nothing the engine keeps for itself.
 | `sleep($duration, $summary = '')` | Waits, and awaits for you. Says what it does. |
 | `activityStub($contract, $options = null)` | A typed proxy over an activity contract. Build it in the constructor; every call it makes carries `$options`. |
 | `childWorkflowStub($class, $options = null)` | The same, for a child workflow: resolved from the child's class, and its calls compose like any other. |
-| `waitSignal($name, $deadline = null)` | Waits for a signal. The name takes a backed enum, so a typo is a type error rather than a wait that never settles. |
-| `waitUpdate($name)` | Waits for an update. |
+| `onSignal($name, $handler)` | Registers a signal handler. The handler mutates workflow state and `await()` observes it — there is no separate wait. The name takes a backed enum, so a typo is a type error rather than a wait that never settles. |
+| `onUpdate($name, $handler)` | The same for an update, whose handler's return value is the caller's response. |
 | `sideEffect($closure)` | Runs non-deterministic local work once and journals its result, so replay reproduces it. |
 | `continueAsNew($type, $payload = [], $options = null)` | Ends this run and starts the next with a fresh history. |
 | `executionId()` | This execution's identifier. |
