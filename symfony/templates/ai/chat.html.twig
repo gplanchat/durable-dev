@@ -94,6 +94,38 @@
         el.innerHTML = html;
         return el;
     };
+    // Ce que fait un agent durable quand il travaille. Le rejeu, la compensation, les minuteurs
+    // et les validations sont du vocabulaire maison — autant en rire.
+    const LABEURS = [
+        'Rejeu de la même pensée pour la troisième fois…',
+        'Compensation d’un croissant déjà mangé…',
+        'Négociation avec un minuteur…',
+        'Journalisation d’un doute…',
+        'Baguettage des jetons…',
+        'Persistance dans l’erreur, mais durablement…',
+        'Demande d’autorisation à personne en particulier…',
+        'Reconstruction de la conversation depuis le début, encore…',
+        'Suspension au-dessus du vide…',
+        'Recomptage des activités sur les doigts…',
+        'Attente d’un signal qui ne viendra peut-être jamais…',
+        'Relecture du journal en diagonale…',
+    ];
+    let labeur = null;
+    let labeurDepuis = 0;
+
+    // Une phrase par période de travail, renouvelée toutes les quatre secondes, jamais deux fois
+    // la même d'affilée.
+    const labeurCourant = () => {
+        if (null === labeur || Date.now() - labeurDepuis > 4000) {
+            let suivant;
+            do { suivant = LABEURS[Math.floor(Math.random() * LABEURS.length)]; } while (suivant === labeur && LABEURS.length > 1);
+            labeur = suivant;
+            labeurDepuis = Date.now();
+        }
+
+        return labeur;
+    };
+
     let clocks = [];
 
     const approvalBubble = (p) => {
@@ -191,7 +223,8 @@
         const working = data.working || null !== pending;
         state.textContent = data.finished ? 'terminé'
             : (data.pending.length ? 'suspendu — en attente de ta décision'
-            : (working ? 'l’agent travaille…' : 'prêt'));
+            : (working ? labeurCourant() : 'prêt'));
+        if (!working) { labeur = null; }
         state.dataset.working = working ? '1' : '0';
         if (atBottom) { thread.scrollTop = thread.scrollHeight; }
     }
