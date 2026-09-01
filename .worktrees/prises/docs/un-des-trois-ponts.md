@@ -5,4 +5,4 @@
   trois ponts). Le badge devient « one of three bridges » / « un des trois ponts ».
 - **Entrées** : les canevas `hugo-docs/variant-b-narrative.dc.html` (+ `-fr`) et la
   réimportation vers `layouts/index.html` (+ `.fr.html`), suivant WA005.
-- **État** : en cours
+- **État** : en relecture (PR #250)
