@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration;
 
+use App\Ai\Chat\ChatTranscript;
 use App\Ai\Workflow\DurableAgentWorkflow;
 use App\Durable\DurableMessengerDrain;
 use Gplanchat\Durable\Bundle\Testing\DurableBundleTestTrait;
@@ -72,6 +73,21 @@ final class AiAgentLifecycleTest extends KernelTestCase
         self::assertSame(['role' => 'user', 'content' => 'Salut'], $history[0]);
         self::assertSame('assistant', $history[1]['role']);
         self::assertNotSame('', $history[1]['content']);
+
+        // La charge transmise n'a de valeur que si le run suivant en fait vraiment un sac : le
+        // modèle doit voir le fil repris *et* le nouveau message, pas repartir de zéro.
+        $successor = $this->dispatchWorkflow(
+            DurableAgentWorkflow::class,
+            $continued->nextPayload() + ['prompt' => 'Salut encore'],
+        );
+        $this->drainUntilHandover($successor);
+
+        $resumed = (new ChatTranscript($this->getEventStoreService(), $this->getWorkflowMetadataStore()))
+            ->forExecution($successor);
+
+        self::assertGreaterThanOrEqual(4, \count($resumed->messages), 'le fil repris doit précéder le nouveau tour');
+        self::assertSame('Salut', $resumed->messages[0]->content);
+        self::assertSame('Salut encore', $resumed->messages[2]->content);
     }
 
     /**
