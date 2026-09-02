@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Platform;
 
+use App\Ai\Question\AskUserQuestion;
+use App\Ai\Watch\WatchTool;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
 use Symfony\AI\Platform\Result\InMemoryRawResult;
@@ -53,20 +55,58 @@ final class ScriptedChatModelClient implements ModelClientInterface
             ));
         }
 
+        // Une demande vague : le modèle ne devine pas, il demande. C'est ce que fait un vrai
+        // modèle quand la consigne laisse plusieurs suites également raisonnables.
+        if (str_contains($lastUser, 'import')) {
+            return new InMemoryRawResult($this->toolCall($messages, AskUserQuestion::TOOL, [
+                'question' => 'Comment veux-tu lancer cet import ?',
+                'header' => 'Mode d’import',
+                'options' => [
+                    ['label' => 'Par lot', 'description' => 'Tout d’un coup, plus rapide, bloque le catalogue'],
+                    ['label' => 'Au fil de l’eau', 'description' => 'Plus lent, le catalogue reste servi'],
+                    ['label' => 'Simulation', 'description' => 'Rien n’est écrit, on regarde ce qui changerait'],
+                ],
+            ]));
+        }
+
+        if (str_contains($lastUser, 'surveille') || str_contains($lastUser, 'préviens')) {
+            return new InMemoryRawResult($this->toolCall($messages, WatchTool::TOOL, [
+                'observation' => 'La livraison du fournisseur arrive à l’entrepôt',
+                'intention' => 'Enregistrer une note de réception et prévenir l’équipe',
+                'deadlineSeconds' => 900,
+            ]));
+        }
+
+        // Le levier explicite : un vrai modèle décide seul de demander, un modèle scripté a besoin
+        // qu'on le lui dise. « demande-moi… » sert à voir le questionnaire à volonté, et « choix
+        // multiple » à voir l'autre forme.
+        if (str_contains($lastUser, 'demande') || str_contains($lastUser, 'question')) {
+            return new InMemoryRawResult($this->toolCall($messages, AskUserQuestion::TOOL, [
+                'question' => 'Sur quoi veux-tu que je tranche ?',
+                'header' => 'À toi de voir',
+                'multiSelect' => str_contains($lastUser, 'multiple'),
+                'options' => [
+                    ['label' => 'La météo', 'description' => 'Je consulte, personne n’a rien à valider'],
+                    ['label' => 'Une note', 'description' => 'J’écris dans le dossier courant'],
+                    ['label' => 'Un courriel', 'description' => 'Effet externe : la garde demandera ton accord'],
+                ],
+            ]));
+        }
+
         if (str_contains($lastUser, 'mail') || str_contains($lastUser, 'courriel')) {
             return new InMemoryRawResult($this->toolCall($messages, 'send_email', [
                 'to' => 'equipe@example.test',
                 'body' => 'Compte rendu demandé depuis le chat durable.',
-            ], 'La demande parle de courriel. Effet externe : rien ne rattrape un envoi, je passe par l\'outil et j\'attends la garde.'));
+            ]));
         }
 
         if (str_contains($lastUser, 'note')) {
-            return new InMemoryRawResult($this->toolCall($messages, 'save_note', ['text' => $lastUser], 'Une note à garder : écriture locale, réversible.'));
+            return new InMemoryRawResult($this->toolCall($messages, 'save_note', ['text' => $lastUser]));
         }
 
         foreach (['paris', 'lyon', 'marseille'] as $city) {
             if (str_contains($lastUser, $city)) {
-                return new InMemoryRawResult($this->toolCall($messages, 'weather', ['city' => ucfirst($city)], \sprintf('%s est nommée : une lecture suffit, aucun effet à compenser.', ucfirst($city))));
+                return new InMemoryRawResult($this->toolCall($messages, 'weather', ['city' => ucfirst($city)]));
             }
         }
 
@@ -148,27 +188,35 @@ final class ScriptedChatModelClient implements ModelClientInterface
      *
      * @return array<string, mixed>
      */
-    private function toolCall(array $messages, string $tool, array $arguments, string $reasoning = ''): array
+    private function toolCall(array $messages, string $tool, array $arguments): array
     {
-        return ['choices' => [['message' => [
-            'content' => null,
-            'reasoning_content' => '' === $reasoning ? null : $reasoning,
-            'tool_calls' => [[
-                'id' => \sprintf('call_%d', \count($messages)),
-                'type' => 'function',
-                'function' => ['name' => $tool, 'arguments' => json_encode($arguments, \JSON_UNESCAPED_UNICODE)],
-            ]],
-        ], 'finish_reason' => 'tool_calls']]];
+        return ['choices' => [['message' => ['content' => null, 'tool_calls' => [[
+            'id' => \sprintf('call_%d', \count($messages)),
+            'type' => 'function',
+            'function' => ['name' => $tool, 'arguments' => json_encode($arguments, \JSON_UNESCAPED_UNICODE)],
+        ]]], 'finish_reason' => 'tool_calls']]];
     }
 
     /**
      * @return array<string, mixed>
      */
+    /**
+     * La forme d'un tour raisonné **chez Mistral** : une liste de morceaux `thinking` et `text`,
+     * pas un `reasoning_content` à côté. Le contrat générique envoie ce dernier, et Mistral le
+     * refuse par un 422 « Extra inputs are not permitted » ({@see \Symfony\AI\Platform\Bridge\Mistral\Contract\AssistantMessageNormalizer}).
+     *
+     * Sans raisonnement, on garde la chaîne simple qu'attendent tous les autres modèles : le
+     * convertisseur du pont ne descend dans les morceaux que si `content` est un tableau.
+     *
+     * @return array<string, mixed>
+     */
     private function text(string $text, string $reasoning = ''): array
     {
         return ['choices' => [['message' => [
-            'content' => $text,
-            'reasoning_content' => '' === $reasoning ? null : $reasoning,
+            'content' => '' === $reasoning ? $text : [
+                ['type' => 'thinking', 'thinking' => [['type' => 'text', 'text' => $reasoning]]],
+                ['type' => 'text', 'text' => $text],
+            ],
         ], 'finish_reason' => 'stop']]];
     }
 }

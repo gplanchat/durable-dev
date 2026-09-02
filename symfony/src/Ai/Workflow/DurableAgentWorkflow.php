@@ -6,11 +6,14 @@ namespace App\Ai\Workflow;
 
 use App\Ai\Activity\ModelInvocationActivityInterface;
 use App\Ai\Chat\TranscriptMessage;
+use App\Ai\Context\ContextBudget;
 use App\Ai\Durable\DurableAgentFactory;
 use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\ToolApprovalGate;
 use App\Ai\Guard\ToolGuardInterface;
+use App\Ai\Question\HumanQuestionDesk;
 use App\Ai\Tool\ToolDefinition;
+use App\Ai\Watch\WatchDesk;
 use Gplanchat\Durable\Attribute\AsSignalMethod;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
@@ -35,9 +38,22 @@ use Symfony\AI\Platform\Result\MultiPartResult;
  *   des jours, à travers un redéploiement.
  *
  * Chaque appel d'outil passe par une garde ({@see ToolGuardInterface}) : selon le mode il passe, il
- * est refusé, ou il suspend l'exécution jusqu'à un signal `tool_decision`. `approvalTimeoutSeconds`
- * borne cette attente pour toute l'instance d'agent — pas de réponse vaut refus, et le minuteur
- * étant journalisé (DUR032) l'échéance survit au redémarrage comme l'attente elle-même.
+ * est refusé, ou il suspend l'exécution jusqu'à un signal `tool_decision`.
+ *
+ * L'agent dispose en plus de deux outils dont l'exécution est une suspension :
+ * `demander_a_l_utilisateur` attend un signal `question_answered` — là l'humain autorise, ici il
+ * renseigne — et `surveiller` attend un signal `alerte`, levé par le dehors. Le réveil rend à
+ * l'agent l'observation **et l'intention qu'il avait écrite en s'inscrivant** : il n'a rien à se
+ * rappeler, le journal le lui dit.
+ *
+ * `humanTimeoutSeconds` borne toute attente humaine pour l'instance d'agent : pas de réponse vaut
+ * refus pour une validation, « rien choisi » pour une question. Le minuteur étant journalisé
+ * (DUR032), l'échéance survit au redémarrage comme l'attente elle-même.
+ *
+ * `contextTokens` borne la conversation : une conversation durable grossit sans fin, et le jour
+ * où elle dépasse la fenêtre du modèle l'agent ne rate pas un tour, il ne peut plus en faire un
+ * seul. La compaction abandonne les tours les plus anciens — par tours entiers, pour ne pas
+ * laisser de résultat d'outil orphelin — et elle est **pure**, donc rejouée à l'identique.
  *
  * Contraintes de rejeu, à ne pas relâcher : `symfony/ai` épinglé (`Runner` est `@internal`, sa
  * boucle est le contrat de déterminisme), pas de streaming, schémas d'outils figés dans le payload,
@@ -88,10 +104,16 @@ final class DurableAgentWorkflow
 
     private readonly ToolApprovalGate $gate;
 
+    private readonly HumanQuestionDesk $desk;
+
+    private readonly WatchDesk $watches;
+
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
         $this->gate = new ToolApprovalGate();
+        $this->desk = new HumanQuestionDesk();
+        $this->watches = new WatchDesk();
     }
 
     /**
@@ -120,6 +142,36 @@ final class DurableAgentWorkflow
         $callId = (string) ($payload['callId'] ?? '');
         if ('' !== $callId) {
             $this->gate->decide($callId, (bool) ($payload['approved'] ?? false));
+        }
+    }
+
+    /**
+     * La réponse à une question posée par l'agent. C'est l'autre sens de la conversation : ici
+     * l'humain ne pilote pas, il renseigne.
+     *
+     * @param array<string, mixed> $payload
+     */
+    #[AsSignalMethod('question_answered')]
+    public function onQuestionAnswered(array $payload): void
+    {
+        $callId = (string) ($payload['callId'] ?? '');
+        if ('' !== $callId) {
+            $this->desk->answer($callId, \is_array($payload['answers'] ?? null) ? $payload['answers'] : []);
+        }
+    }
+
+    /**
+     * L'alerte qui lève une veille. Elle vient du dehors — une supervision, un webhook, un autre
+     * agent — et c'est le journal, pas le modèle, qui rappellera à l'agent ce qu'il comptait faire.
+     *
+     * @param array<string, mixed> $payload
+     */
+    #[AsSignalMethod('alerte')]
+    public function onAlerte(array $payload): void
+    {
+        $callId = (string) ($payload['callId'] ?? '');
+        if ('' !== $callId) {
+            $this->watches->raise($callId, (string) ($payload['observation'] ?? ''));
         }
     }
 
@@ -195,13 +247,14 @@ final class DurableAgentWorkflow
     #[AsWorkflowMethod]
     public function run(
         array $tools = [],
-        string $model = 'gpt-4o-mini',
+        string $model = 'mistral-small-latest',
         string $mode = 'standard',
         string $systemPrompt = 'Tu es un assistant concis. Utilise les outils quand ils répondent mieux que toi.',
         ?string $prompt = null,
         int $maxTurns = 20,
         int $maxToolCalls = 10,
-        ?float $approvalTimeoutSeconds = null,
+        ?float $humanTimeoutSeconds = null,
+        int $contextTokens = 24_000,
         ?float $idleTimeoutSeconds = null,
         ?int $rolloverAfterTurns = null,
         bool $compactHistory = false,
@@ -229,9 +282,12 @@ final class DurableAgentWorkflow
             ToolDefinition::listFromWire($tools),
             $maxToolCalls,
             gate: $this->gate,
+            desk: $this->desk,
+            watches: $this->watches,
             mode: fn(): AgentMode => $this->mode,
             guard: $guard,
-            approvalTimeout: Duration::fromWireValue($approvalTimeoutSeconds),
+            humanTimeout: Duration::fromWireValue($humanTimeoutSeconds),
+            budget: new ContextBudget($contextTokens),
         );
 
         // Le sac est reconstruit à chaque rejeu ; `$thread` en est la trace transportable — mêmes
@@ -300,7 +356,8 @@ final class DurableAgentWorkflow
                     'systemPrompt' => $systemPrompt,
                     'maxTurns' => $maxTurns,
                     'maxToolCalls' => $maxToolCalls,
-                    'approvalTimeoutSeconds' => $approvalTimeoutSeconds,
+                    'humanTimeoutSeconds' => $humanTimeoutSeconds,
+                    'contextTokens' => $contextTokens,
                     'idleTimeoutSeconds' => $idleTimeoutSeconds,
                     'rolloverAfterTurns' => $rolloverAfterTurns,
                     // Le relais transmet le fil tel quel : il a lieu au milieu d'une conversation

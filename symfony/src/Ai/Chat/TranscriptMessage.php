@@ -29,14 +29,57 @@ final readonly class TranscriptMessage implements \JsonSerializable
      */
     public static function fromWire(array $wire): self
     {
-        $reasoning = trim((string) ($wire['reasoning_content'] ?? ''));
+        [$content, $reasoning] = self::splitContent($wire['content'] ?? null, $wire['reasoning_content'] ?? null);
 
         return new self(
             (string) ($wire['role'] ?? 'assistant'),
-            null !== ($wire['content'] ?? null) ? (string) $wire['content'] : null,
+            $content,
             array_map(ToolCallRef::fromWire(...), $wire['tool_calls'] ?? []),
-            '' === $reasoning ? null : $reasoning,
+            $reasoning,
         );
+    }
+
+    /**
+     * Sépare le dit du pensé, dans la forme que le pont Mistral donne à un tour raisonné : une
+     * liste de morceaux `thinking` et `text` à la place de la chaîne habituelle.
+     *
+     * Le contrat générique, lui, met le raisonnement dans un `reasoning_content` à côté — que
+     * Mistral refuse par un 422. Les deux formes se lisent donc ici, parce que le fil est une
+     * projection du journal et qu'un journal porte ce que le fournisseur du jour y a écrit :
+     * changer de pont ne doit pas rendre illisibles les conversations d'avant.
+     *
+     * @param mixed $content la valeur brute de `message.content`
+     *
+     * @return array{0: string|null, 1: string|null} le texte, puis le raisonnement
+     */
+    public static function splitContent(mixed $content, ?string $sidecar = null): array
+    {
+        $reasoning = trim((string) ($sidecar ?? ''));
+
+        if (!\is_array($content)) {
+            $text = null !== $content ? (string) $content : null;
+
+            return [$text, '' === $reasoning ? null : $reasoning];
+        }
+
+        $text = '';
+        foreach ($content as $chunk) {
+            if (!\is_array($chunk)) {
+                continue;
+            }
+
+            if ('text' === ($chunk['type'] ?? null) && \is_string($chunk['text'] ?? null)) {
+                $text .= $chunk['text'];
+            } elseif ('thinking' === ($chunk['type'] ?? null)) {
+                foreach ($chunk['thinking'] ?? [] as $part) {
+                    if (\is_array($part) && \is_string($part['text'] ?? null)) {
+                        $reasoning .= $part['text'];
+                    }
+                }
+            }
+        }
+
+        return ['' === $text ? null : $text, '' === trim($reasoning) ? null : trim($reasoning)];
     }
 
     public static function assistant(string $content, ?string $reasoning = null): self

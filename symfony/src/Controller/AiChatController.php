@@ -28,14 +28,14 @@ use Symfony\Component\Uid\Uuid;
 final class AiChatController extends AbstractController
 {
     /**
-     * Échéance d'une demande de validation, globale à l'agent.
+     * Échéance de toute attente humaine — validation d'un outil comme réponse à une question.
      *
      * Un quart d'heure : le délai doit être celui d'un humain qui lit, réfléchit et change de
      * fenêtre — pas celui d'une requête HTTP. À 120 s la carte disparaissait sous les yeux de qui
      * la lisait, et l'agent répondait « refusé faute de validation » sans que personne n'ait rien
      * refusé.
      */
-    private const APPROVAL_TIMEOUT_SECONDS = 900.0;
+    private const HUMAN_TIMEOUT_SECONDS = 900.0;
 
     /**
      * Silence au bout duquel l'exécution se termine d'elle-même.
@@ -55,6 +55,12 @@ final class AiChatController extends AbstractController
      * où la reprise coûte moins que la continuation.
      */
     private const ROLLOVER_AFTER_TURNS = 40;
+
+    /**
+     * Le budget de fenêtre par défaut d'une conversation. `?contexte=N` le remplace, sous les
+     * bornes de {@see start()} — c'est ce qui rend la compaction observable à la main.
+     */
+    private const DEFAULT_CONTEXT_TOKENS = 24_000;
 
     /**
      * Le catalogue d'outils de la démo. `effect` est ce que lit la garde : c'est lui, et pas le nom
@@ -118,8 +124,9 @@ final class AiChatController extends AbstractController
     /**
      * @param list<array{role: string, content: string}> $history        le fil repris d'une exécution close
      * @param bool                                       $compactHistory remplacer ce fil par un résumé avant le premier tour
+     * @param int                                        $contextTokens  budget de fenêtre de l'agent
      */
-    private function startAgent(array $history = [], bool $compactHistory = false): string
+    private function startAgent(array $history = [], bool $compactHistory = false, int $contextTokens = self::DEFAULT_CONTEXT_TOKENS): string
     {
         $executionId = (string) Uuid::v4();
         $this->workflowRunner->dispatchWorkflowRun(
@@ -127,7 +134,8 @@ final class AiChatController extends AbstractController
             [
                 'tools' => ToolDefinition::listToWire(self::tools()),
                 'mode' => AgentMode::Standard->value,
-                'approvalTimeoutSeconds' => self::APPROVAL_TIMEOUT_SECONDS,
+                'humanTimeoutSeconds' => self::HUMAN_TIMEOUT_SECONDS,
+                'contextTokens' => $contextTokens,
                 'idleTimeoutSeconds' => self::IDLE_TIMEOUT_SECONDS,
                 'rolloverAfterTurns' => self::ROLLOVER_AFTER_TURNS,
                 'compactHistory' => $compactHistory,
@@ -149,10 +157,16 @@ final class AiChatController extends AbstractController
         return $this->redirectToRoute('durable_chat_start');
     }
 
+    /**
+     * `?contexte=300` ouvre une conversation à budget minuscule : la compaction se déclenche alors
+     * en deux ou trois messages au lieu de plusieurs centaines, et devient observable à la main.
+     */
     #[Route('/durable/chat', name: 'durable_chat_start', methods: ['GET'])]
-    public function start(): Response
+    public function start(Request $request): Response
     {
-        return $this->redirectToRoute('durable_chat_show', ['executionId' => $this->startAgent()]);
+        return $this->redirectToRoute('durable_chat_show', ['executionId' => $this->startAgent(
+            contextTokens: max(200, min(200_000, $request->query->getInt('contexte', self::DEFAULT_CONTEXT_TOKENS))),
+        )]);
     }
 
     /**
@@ -209,6 +223,41 @@ final class AiChatController extends AbstractController
         $this->signal($executionId, 'tool_decision', [
             'callId' => (string) ($body['callId'] ?? ''),
             'approved' => (bool) ($body['approved'] ?? false),
+        ]);
+
+        return new JsonResponse(null, Response::HTTP_ACCEPTED);
+    }
+
+    /**
+     * La réponse à une question posée par l'agent. Rien à valider ici : l'humain renseigne, il
+     * n'autorise pas.
+     */
+    #[Route('/durable/chat/{executionId}/answer', name: 'durable_chat_answer', methods: ['POST'])]
+    public function answer(string $executionId, Request $request): JsonResponse
+    {
+        $body = $request->toArray();
+        $answers = \is_array($body['answers'] ?? null) ? $body['answers'] : [];
+
+        $this->signal($executionId, 'question_answered', [
+            'callId' => (string) ($body['callId'] ?? ''),
+            'answers' => array_values(array_map(strval(...), $answers)),
+        ]);
+
+        return new JsonResponse(null, Response::HTTP_ACCEPTED);
+    }
+
+    /**
+     * Lever une alerte : c'est le rôle qu'une supervision, un webhook ou un autre agent tiendrait
+     * en production. La page l'imite pour que la veille soit démontrable.
+     */
+    #[Route('/durable/chat/{executionId}/alert', name: 'durable_chat_alert', methods: ['POST'])]
+    public function alert(string $executionId, Request $request): JsonResponse
+    {
+        $body = $request->toArray();
+
+        $this->signal($executionId, 'alerte', [
+            'callId' => (string) ($body['callId'] ?? ''),
+            'observation' => (string) ($body['observation'] ?? ''),
         ]);
 
         return new JsonResponse(null, Response::HTTP_ACCEPTED);

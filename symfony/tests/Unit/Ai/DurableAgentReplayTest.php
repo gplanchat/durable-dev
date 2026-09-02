@@ -62,39 +62,33 @@ final class DurableAgentReplayTest extends TestCase
     }
 
     /**
-     * Le bloc de raisonnement du tour N doit repartir dans la charge du tour N+1.
+     * Un tour d'appel d'outil **ne peut pas** porter de raisonnement à travers ce pont, et c'est
+     * une contrainte du fournisseur, pas un oubli : `CompletionsConversionTrait::convertChoice()`
+     * rend un `ToolCallResult` nu dès que `finish_reason` vaut `tool_calls`, sans regarder autre
+     * chose. Le raisonnement d'un tour outillé est donc perdu à la frontière.
      *
-     * Le laisser tomber ne lève rien : le tour d'après part simplement amputé — et chez un
-     * fournisseur qui vérifie ses blocs au renvoi, c'est l'appel qui échoue. C'est donc au journal
-     * de le porter (il porte le JSON brut entier) et au convertisseur de le relire.
+     * Le test est là pour que ça se voie le jour où le pont changera d'avis : c'est un point de
+     * changement, pas un détail — corriger le convertisseur ferait diverger toute exécution en vol.
      */
-    public function testTheThinkingBlockOfOneTurnComesBackInTheNextPayload(): void
+    public function testAToolCallingTurnCarriesNoReasoningThroughThisBridge(): void
     {
-        [, $modelCalls] = $this->executeAgent('exec-thinking');
+        [, $modelCalls] = $this->executeAgent('exec-tool-reasoning');
 
-        self::assertCount(3, $modelCalls);
-
-        $reasonings = array_map(
-            static fn (array $call): array => array_values(array_filter(array_map(
-                static fn (array $message): ?string => $message['reasoning_content'] ?? null,
-                $call['payload']['messages'],
-            ))),
-            $modelCalls,
+        $assistantTurns = array_filter(
+            $modelCalls[2]['payload']['messages'],
+            static fn (array $m): bool => 'assistant' === ($m['role'] ?? null),
         );
 
-        // Premier tour : rien à renvoyer, personne n'a encore raisonné.
-        self::assertSame([], $reasonings[0]);
-        self::assertSame(['Deux villes demandées, je commence par Paris.'], $reasonings[1]);
-        self::assertSame(
-            ['Deux villes demandées, je commence par Paris.', 'Paris est connue, reste Lyon.'],
-            $reasonings[2],
-            'Un bloc de raisonnement a été perdu entre deux tours.',
-        );
+        self::assertNotSame([], $assistantTurns, 'Aucun tour d\'assistant n\'est reparti au modèle.');
+        foreach ($assistantTurns as $turn) {
+            self::assertArrayNotHasKey('reasoning_content', $turn, 'Le contrat générique a repris la main : Mistral répond 422 là-dessus.');
+        }
     }
 
     /**
-     * Le raisonnement voyage à côté de la réponse, il ne la contamine pas : `MultiPartResult`
-     * rendrait un tableau à `getContent()`, et le fil afficherait « Array ».
+     * Un tour raisonné arrive en `MultiPartResult` — le convertisseur Mistral rend un
+     * `ThinkingResult` **et** un `TextResult`. `getContent()` y donne un tableau : sans
+     * `asText()`, le fil afficherait « Array » à la place de la réponse.
      */
     public function testTheAnswerStaysTheTextEvenWhenTheTurnCarriesReasoning(): void
     {
@@ -113,8 +107,8 @@ final class DurableAgentReplayTest extends TestCase
         $passes = 0;
 
         $scripted = [
-            $this->toolCallResponse('call_1', 'weather', ['city' => 'Paris'], 'Deux villes demandées, je commence par Paris.'),
-            $this->toolCallResponse('call_2', 'weather', ['city' => 'Lyon'], 'Paris est connue, reste Lyon.'),
+            $this->toolCallResponse('call_1', 'weather', ['city' => 'Paris']),
+            $this->toolCallResponse('call_2', 'weather', ['city' => 'Lyon']),
             $this->textResponse('Paris 22°C, Lyon 25°C.', 'Les deux relevés sont là, je réponds.'),
         ];
 
@@ -153,17 +147,13 @@ final class DurableAgentReplayTest extends TestCase
      *
      * @return array<string, mixed>
      */
-    private function toolCallResponse(string $id, string $name, array $arguments, string $reasoning = ''): array
+    private function toolCallResponse(string $id, string $name, array $arguments): array
     {
-        return ['choices' => [['message' => [
-            'content' => null,
-            'reasoning_content' => '' === $reasoning ? null : $reasoning,
-            'tool_calls' => [[
-                'id' => $id,
-                'type' => 'function',
-                'function' => ['name' => $name, 'arguments' => json_encode($arguments)],
-            ]],
-        ], 'finish_reason' => 'tool_calls']]];
+        return ['choices' => [['message' => ['content' => null, 'tool_calls' => [[
+            'id' => $id,
+            'type' => 'function',
+            'function' => ['name' => $name, 'arguments' => json_encode($arguments)],
+        ]]], 'finish_reason' => 'tool_calls']]];
     }
 
     /**
@@ -172,8 +162,10 @@ final class DurableAgentReplayTest extends TestCase
     private function textResponse(string $text, string $reasoning = ''): array
     {
         return ['choices' => [['message' => [
-            'content' => $text,
-            'reasoning_content' => '' === $reasoning ? null : $reasoning,
+            'content' => '' === $reasoning ? $text : [
+                ['type' => 'thinking', 'thinking' => [['type' => 'text', 'text' => $reasoning]]],
+                ['type' => 'text', 'text' => $text],
+            ],
         ], 'finish_reason' => 'stop']]];
     }
 }

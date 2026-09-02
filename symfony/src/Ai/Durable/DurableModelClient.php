@@ -10,7 +10,9 @@ use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
-use Symfony\AI\Platform\Result\InMemoryRawResult;
+use App\Ai\Context\ContextBudget;
+use App\Ai\Context\ContextOverflow;
+use App\Ai\Platform\JournaledHttpResult;
 use Symfony\AI\Platform\Result\RawResultInterface;
 
 /**
@@ -26,6 +28,7 @@ final class DurableModelClient implements ModelClientInterface
 
     public function __construct(
         private readonly WorkflowEnvironment $environment,
+        private readonly ContextBudget $budget = new ContextBudget(),
         ?ActivityOptions $options = null,
     ) {
         $this->stub = $environment->activityStub(ModelInvocationActivityInterface::class, $options);
@@ -47,8 +50,19 @@ final class DurableModelClient implements ModelClientInterface
             throw new \LogicException('Le streaming est incompatible avec le rejeu : journalise le résultat assemblé, streame sur un canal latéral.');
         }
 
-        return new InMemoryRawResult(
-            $this->environment->await($this->stub->invokeModel($model->getName(), $payload, $options)),
-        );
+        // Préventif : on ne part jamais au-dessus du plafond. La compaction est pure, donc elle
+        // rend le même payload à chaque rejeu.
+        $payload['messages'] = $this->budget->fit($payload['messages'] ?? []);
+
+        $data = $this->environment->await($this->stub->invokeModel($model->getName(), $payload, $options));
+
+        // Réactif : le fournisseur a compté autrement que nous. Rejouer la même charge donnerait
+        // le même verdict — c'est la charge qu'il faut changer, pas l'appel qu'il faut retenter.
+        if (ContextOverflow::detected($data)) {
+            $payload['messages'] = $this->budget->halved()->fit($payload['messages']);
+            $data = $this->environment->await($this->stub->invokeModel($model->getName(), $payload, $options));
+        }
+
+        return new JournaledHttpResult($data);
     }
 }
