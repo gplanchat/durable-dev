@@ -12,11 +12,13 @@ use App\Ai\Guard\ToolGuardInterface;
 use App\Ai\Question\AskUserQuestion;
 use App\Ai\Question\HumanQuestionDesk;
 use App\Ai\Question\PendingQuestion;
+use App\Ai\Team\DelegateTool;
 use App\Ai\Watch\UnknownWatchSubject;
 use App\Ai\Watch\Watch;
 use App\Ai\Watch\WatchDesk;
 use App\Ai\Watch\WatchSubject;
 use App\Ai\Watch\WatchTool;
+use App\Ai\Workflow\DurableAgentWorkflow;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Duration;
@@ -53,6 +55,7 @@ final class DurableToolExecutor implements ToolExecutorInterface
         private readonly WatchDesk $watches,
         private readonly \Closure $mode,
         private readonly ?Duration $humanTimeout = null,
+        private readonly string $model = 'gpt-4o-mini',
         ?ActivityOptions $options = null,
     ) {
         $this->stub = $environment->activityStub(AgentToolActivityInterface::class, $options);
@@ -108,6 +111,15 @@ final class DurableToolExecutor implements ToolExecutorInterface
                 continue;
             }
 
+            // La troisième : elle attend un autre agent. Le délégué est un workflow enfant — sa
+            // propre exécution, son propre journal, son propre modèle — et le parent se suspend
+            // sur sa réponse comme sur n'importe quel `await`.
+            if (DelegateTool::TOOL === $toolCall->getName()) {
+                $results[] = new ToolResult($toolCall, yield from $this->delegate($toolCall));
+
+                continue;
+            }
+
             // L'autre suspension : celle-ci n'attend pas un humain devant une carte, mais un
             // événement du dehors.
             if (WatchTool::TOOL === $toolCall->getName()) {
@@ -125,6 +137,53 @@ final class DurableToolExecutor implements ToolExecutorInterface
         }
 
         return $results;
+    }
+
+    /**
+     * La délégation : un sous-agent fait le travail, le parent attend sa réponse.
+     *
+     * **Le plafond est le sujet de cette méthode.** Le délégué reçoit le mode effectif du parent
+     * comme plafond, et son propre mode ne peut plus le desserrer — ni à l'entrée, ni par un
+     * `set_mode` ensuite. Sans ça, un agent en `standard` confierait à un sous-agent en `auto` ce
+     * que sa garde lui refuse : la garde ne serait pas contournée, elle serait décorative.
+     *
+     * Le délégué ne reçoit **que** sa mission : ni le fil du parent, ni ses outils de suspension.
+     * Un sous-agent que personne ne regarde n'a rien à demander à un humain.
+     *
+     * @return \Generator<int, Progress, mixed, string>
+     */
+    private function delegate(ToolCall $toolCall): \Generator
+    {
+        $arguments = $toolCall->getArguments();
+        $mission = trim((string) ($arguments['mission'] ?? ''));
+        if ('' === $mission) {
+            return 'Une délégation sans mission n\'a rien à déléguer. Dis ce que le sous-agent doit faire.';
+        }
+
+        $ceiling = ($this->mode)();
+        $modele = trim((string) ($arguments['modele'] ?? '')) ?: $this->model;
+
+        yield new Progress('delegated', \sprintf('Mission confiée à un sous-agent (%s).', $modele), $toolCall);
+
+        // ⚠ Positionnel, et pas par noms. `ChildWorkflowStub::argumentsToInput()` apparie les
+        // arguments **par position** (`$arguments[$i]`) : PHP passe les arguments nommés à `__call`
+        // dans un tableau à clés de chaînes, aucun indice n'y répond, et *tous* les paramètres
+        // retombent sur leur valeur par défaut. Sans exception, sans trace — le sous-agent démarre
+        // avec un prompt vide et attend un message qui ne viendra jamais. C'est un défaut du cœur,
+        // pas d'ici ; en attendant, l'ordre de la signature fait foi.
+        $reponse = (string) $this->environment->await(
+            $this->environment->childWorkflowStub(DurableAgentWorkflow::class)->run(
+                [],                                   // tools
+                $modele,                              // model
+                $ceiling->value,                      // mode
+                $ceiling->value,                      // modeCeiling
+                DurableAgentWorkflow::SYSTEM_PROMPT,  // systemPrompt
+                $mission,                             // prompt
+                1,                                    // maxTurns
+            ),
+        );
+
+        return \sprintf('Le sous-agent (%s) répond : %s', $modele, $reponse);
     }
 
     /**

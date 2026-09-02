@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai\Platform;
 
 use App\Ai\Question\AskUserQuestion;
+use App\Ai\Team\DelegateTool;
 use App\Ai\Watch\WatchSubject;
 use App\Ai\Watch\WatchTool;
 use Symfony\AI\Platform\Model;
@@ -101,6 +102,14 @@ final class ScriptedChatModelClient implements ModelClientInterface
             return new InMemoryRawResult($this->toolCall($messages, 'send_email', [
                 'to' => 'equipe@example.test',
                 'body' => 'Compte rendu demandé depuis le chat durable.',
+            ]));
+        }
+
+        // Le levier de la délégation : un modèle scripté ne décide pas seul de confier une tâche.
+        if (str_contains($lastUser, 'délègue') || str_contains($lastUser, 'delegue') || str_contains($lastUser, 'équipe')) {
+            return new InMemoryRawResult($this->toolCall($messages, DelegateTool::TOOL, [
+                'mission' => 'Résume en une phrase ce que fait un agent durable.',
+                'modele' => 'ministral-3b-latest',
             ]));
         }
 

@@ -85,6 +85,9 @@ final class DurableAgentWorkflow
      */
     public const TYPE = 'Ai_DurableAgent';
 
+    /** La consigne par défaut. Une constante parce qu'un appelant a besoin de la citer. */
+    public const SYSTEM_PROMPT = 'Tu es un assistant concis. Utilise les outils quand ils répondent mieux que toi.';
+
     /**
      * Ce qu'on demande au modèle quand une conversation froide redémarre.
      *
@@ -101,6 +104,12 @@ final class DurableAgentWorkflow
     private bool $closed = false;
 
     private AgentMode $mode = AgentMode::Standard;
+
+    /**
+     * Ce que cet agent ne peut pas dépasser, quoi qu'il demande. `auto` pour un agent de premier
+     * rang — c'est-à-dire aucune borne — et le mode effectif du parent pour un délégué.
+     */
+    private AgentMode $ceiling = AgentMode::Auto;
 
     private readonly ToolApprovalGate $gate;
 
@@ -180,10 +189,23 @@ final class DurableAgentWorkflow
      *
      * @param array<string, mixed> $payload
      */
+    /**
+     * Le mode change, **sans jamais desserrer le plafond**.
+     *
+     * Le plafond vaut à l'entrée *et* en cours de route : un sous-agent qui accepterait
+     * `set_mode: auto` n'aurait pas de plafond du tout, et déléguer redeviendrait le chemin
+     * d'échappement de la garde. Un agent de premier rang a `auto` pour plafond — la borne ne lui
+     * coûte rien.
+     */
     #[AsSignalMethod('set_mode')]
     public function onSetMode(array $payload): void
     {
-        $this->mode = AgentMode::tryFrom((string) ($payload['mode'] ?? '')) ?? $this->mode;
+        $demande = AgentMode::tryFrom((string) ($payload['mode'] ?? ''));
+        if (null === $demande || $demande->loosens($this->ceiling)) {
+            return;
+        }
+
+        $this->mode = $demande;
     }
 
     /**
@@ -249,7 +271,8 @@ final class DurableAgentWorkflow
         array $tools = [],
         string $model = 'mistral-small-latest',
         string $mode = 'standard',
-        string $systemPrompt = 'Tu es un assistant concis. Utilise les outils quand ils répondent mieux que toi.',
+        string $modeCeiling = 'auto',
+        string $systemPrompt = self::SYSTEM_PROMPT,
         ?string $prompt = null,
         int $maxTurns = 20,
         int $maxToolCalls = 10,
@@ -262,7 +285,9 @@ final class DurableAgentWorkflow
         array $pending = [],
         ?ToolGuardInterface $guard = null,
     ): string {
-        $this->mode = AgentMode::tryFrom($mode) ?? AgentMode::Standard;
+        // Le plafond d'abord : le mode demandé s'y plie, il ne le contourne pas.
+        $this->ceiling = AgentMode::tryFrom($modeCeiling) ?? AgentMode::Auto;
+        $this->mode = AgentMode::strictest($this->ceiling, AgentMode::tryFrom($mode) ?? AgentMode::Standard);
 
         // Ce que le run précédent n'a pas eu le temps de traiter passe devant : ces messages sont
         // arrivés avant ceux que le nouveau run recevra.

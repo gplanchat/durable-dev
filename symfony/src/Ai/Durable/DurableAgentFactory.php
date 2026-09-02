@@ -12,6 +12,7 @@ use App\Ai\Guard\ToolEffect;
 use App\Ai\Guard\ToolGuardInterface;
 use App\Ai\Question\AskUserQuestion;
 use App\Ai\Question\HumanQuestionDesk;
+use App\Ai\Team\DelegateTool;
 use App\Ai\Tool\ToolDefinition;
 use App\Ai\Watch\WatchDesk;
 use App\Ai\Watch\WatchTool;
@@ -56,7 +57,7 @@ final class DurableAgentFactory
     ): Agent {
         // Toujours offerts : un agent qui ne peut pas demander invente, et un agent qui ne peut
         // pas attendre bâcle.
-        $tools = [...$tools, AskUserQuestion::definition(), WatchTool::definition()];
+        $tools = [...$tools, AskUserQuestion::definition(), WatchTool::definition(), DelegateTool::definition()];
 
         // Le pont Mistral fournit tout ce qui est **pur** — la normalisation de la conversation,
         // le catalogue, la conversion du JSON en résultat — et c'est ce qui tourne en code
@@ -84,6 +85,7 @@ final class DurableAgentFactory
                 $watches ?? new WatchDesk(),
                 $mode ?? static fn(): AgentMode => AgentMode::Auto,
                 $humanTimeout,
+                $model,
             ),
             maxToolCalls: $maxToolCalls,
         );
