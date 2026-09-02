@@ -149,31 +149,33 @@ final class DurableAgentWorkflow
      * `Runner` ne ferait qu'exposer la compaction aux gardes et aux appels d'outils. L'appel sort
      * du journal comme les autres — donc rejoué, donc payé une fois.
      *
-     * Si le modèle ne rend rien d'exploitable, le fil brut vaut mieux qu'un résumé vide : l'appelant
-     * garde alors ce qu'il avait.
+     * Un résumé vide n'est pas un résumé : le fil repart alors tel quel. C'est le seul choix qui
+     * garde l'affichage et le sac d'accord — la projection, elle aussi, retombe sur le fil brut
+     * quand le journal ne porte pas de résumé exploitable.
      *
      * @param list<TranscriptMessage> $thread
+     *
+     * @return list<TranscriptMessage>
      */
-    private function compact(string $model, array $thread): TranscriptMessage
+    private function compact(string $model, array $thread): array
     {
         $result = $this->environment->await(
             $this->environment
                 ->activityStub(ModelInvocationActivityInterface::class)
                 ->compactConversation($model, ['messages' => [
                     ['role' => 'system', 'content' => self::COMPACTION_PROMPT],
-                    ...TranscriptMessage::listToWire($thread),
+                    // Sans étiquette : ce qui part au modèle est la conversation, pas la façon
+                    // dont on la lui a présentée la fois d'avant.
+                    ...TranscriptMessage::listToWire(
+                        array_map(static fn (TranscriptMessage $m): TranscriptMessage => $m->stripped(), $thread),
+                    ),
                 ]], []),
         );
 
         // La forme d'une réponse « chat completions », la même que lit la projection.
         $digest = trim((string) ($result['choices'][0]['message']['content'] ?? ''));
 
-        return '' === $digest
-            ? TranscriptMessage::assistant(implode(
-                "\n",
-                array_map(static fn (TranscriptMessage $message): string => (string) $message->content, $thread),
-            ))
-            : TranscriptMessage::compaction($digest);
+        return '' === $digest ? $thread : [TranscriptMessage::compaction($digest)];
     }
 
     /**
@@ -235,7 +237,7 @@ final class DurableAgentWorkflow
         // tours, forme du fil, sans les appels d'outils.
         $thread = TranscriptMessage::listFromWire($history);
         if ($compactHistory && [] !== $thread) {
-            $thread = [$this->compact($model, $thread)];
+            $thread = $this->compact($model, $thread);
         }
 
         $messages = new MessageBag(Message::forSystem($systemPrompt));

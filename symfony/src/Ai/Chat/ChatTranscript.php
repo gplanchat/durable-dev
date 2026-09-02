@@ -186,7 +186,9 @@ final class ChatTranscript
         // Sauf s'il l'a compacté : c'est alors le résumé qui fait foi, dès avant le premier tour.
         // L'afficher plus tôt n'aurait pas seulement l'air faux — le fil complet compterait des
         // messages que le modèle ne verra jamais, et fausserait le statut de l'agent.
-        $digest = $results[$compactionCallId]['choices'][0]['message']['content'] ?? null;
+        $digest = null !== $compactionCallId
+            ? ($results[$compactionCallId]['choices'][0]['message']['content'] ?? null)
+            : null;
         $carried = \is_string($digest) && '' !== trim($digest)
             ? [TranscriptMessage::compaction(trim($digest))->toWire()]
             : $started['history'] ?? [];

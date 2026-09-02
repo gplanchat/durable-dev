@@ -8,6 +8,7 @@ use App\Ai\Chat\ChatTranscript;
 use App\Ai\Workflow\DurableAgentWorkflow;
 use App\Durable\DurableMessengerDrain;
 use Gplanchat\Durable\Bundle\Testing\DurableBundleTestTrait;
+use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -119,6 +120,66 @@ final class AiAgentLifecycleTest extends KernelTestCase
         self::assertStringStartsWith('Résumé de notre conversation précédente :', (string) $resumed->messages[0]->content);
         self::assertStringContainsString('Météo à Lyon', (string) $resumed->messages[0]->content);
         self::assertSame('Merci', $resumed->messages[1]->content);
+    }
+
+    /**
+     * Une conversation qu'on reprend, on la reprend deux fois — et le résumé de la première part
+     * alors au modèle comme conversation à résumer. Il doit y arriver **sans son étiquette** :
+     * celle-ci est pour l'humain, et la renvoyer ferait résumer un résumé étiqueté.
+     */
+    public function testTheSecondCompactionIsSentWithoutTheSummaryLabel(): void
+    {
+        $first = $this->dispatchWorkflow(DurableAgentWorkflow::class, [
+            'tools' => [],
+            'compactHistory' => true,
+            'history' => [
+                ['role' => 'user', 'content' => 'Météo à Lyon ?'],
+                ['role' => 'assistant', 'content' => '18 °C'],
+            ],
+            'idleTimeoutSeconds' => 0.05,
+        ]);
+        $this->drainMessengerUntilSettled($first);
+
+        $transcript = new ChatTranscript($this->getEventStoreService(), $this->getWorkflowMetadataStore());
+        $seed = $transcript->forExecution($first)->seed();
+        self::assertStringStartsWith('Résumé de notre conversation précédente :', $seed[0]['content']);
+
+        $second = $this->dispatchWorkflow(DurableAgentWorkflow::class, [
+            'tools' => [],
+            'compactHistory' => true,
+            'history' => $seed,
+            'idleTimeoutSeconds' => 0.05,
+        ]);
+        $this->drainMessengerUntilSettled($second);
+
+        foreach ($this->compactionPayload($second) as $message) {
+            self::assertStringNotContainsString(
+                'Résumé de notre conversation précédente',
+                (string) ($message['content'] ?? ''),
+                'l’étiquette du résumé ne doit pas repartir au modèle',
+            );
+        }
+    }
+
+    /**
+     * Les messages tels que la compaction les a envoyés au modèle.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function compactionPayload(string $executionId): array
+    {
+        foreach ($this->getEventStoreService()->readStream($executionId) as $event) {
+            if ($event instanceof ActivityScheduled && 'ai_model_compact' === $event->activityName()) {
+                $payload = $event->payload();
+                while (!\array_key_exists('messages', $payload) && \is_array($payload['payload'] ?? null)) {
+                    $payload = $payload['payload'];
+                }
+
+                return $payload['messages'] ?? [];
+            }
+        }
+
+        self::fail('aucune compaction au journal');
     }
 
     /**

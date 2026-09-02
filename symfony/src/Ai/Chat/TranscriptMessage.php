@@ -10,6 +10,9 @@ namespace App\Ai\Chat;
  */
 final readonly class TranscriptMessage implements \JsonSerializable
 {
+    /** Ce qui annonce un résumé dans le fil — à l'affichage, jamais au modèle. */
+    private const COMPACTION_PREFIX = 'Résumé de notre conversation précédente : ';
+
     /**
      * @param list<ToolCallRef> $toolCalls
      */
@@ -51,7 +54,23 @@ final readonly class TranscriptMessage implements \JsonSerializable
      */
     public static function compaction(string $digest): self
     {
-        return new self('assistant', 'Résumé de notre conversation précédente : ' . $digest, []);
+        return new self('assistant', self::COMPACTION_PREFIX . $digest, []);
+    }
+
+    /**
+     * Le texte sans son étiquette.
+     *
+     * Le préfixe est là pour l'humain. Le renvoyer au modèle à la compaction suivante lui ferait
+     * résumer un résumé étiqueté — et une reprise se reprend, elle : au deuxième retour,
+     * l'étiquette se retrouverait imbriquée dans son propre texte.
+     */
+    public function stripped(): self
+    {
+        $content = (string) $this->content;
+
+        return str_starts_with($content, self::COMPACTION_PREFIX)
+            ? new self($this->role, substr($content, \strlen(self::COMPACTION_PREFIX)), $this->toolCalls)
+            : $this;
     }
 
     public function isSystem(): bool
