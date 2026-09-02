@@ -68,4 +68,43 @@ final class ChatTranscriptStatusTest extends TestCase
 
         self::assertTrue($this->transcript->forExecution(self::EXECUTION)->working);
     }
+
+    /**
+     * Le raisonnement se lit à deux endroits, et il faut les deux : celui d'un tour passé est
+     * remis par le normaliseur dans la charge du tour suivant, celui du dernier tour n'a pas de
+     * tour suivant et ne vit que dans le résultat.
+     */
+    public function testTheThreadCarriesTheReasoningOfPastAndLastTurns(): void
+    {
+        $this->eventStore->append(new WorkflowSignalReceived(self::EXECUTION, 'user_message', ['text' => 'Météo à Lyon ?']));
+        $this->eventStore->append(new ActivityScheduled(self::EXECUTION, 'a1', 'ai_model_invoke', [
+            'payload' => ['messages' => [
+                ['role' => 'user', 'content' => 'Météo à Lyon ?'],
+                ['role' => 'assistant', 'content' => null, 'reasoning_content' => 'Une ville est nommée, je lis la météo.'],
+                ['role' => 'tool', 'content' => 'Lyon: 25°C'],
+            ]],
+        ]));
+        $this->eventStore->append(new ActivityCompleted(self::EXECUTION, 'a1', [
+            'choices' => [['message' => [
+                'content' => 'Lyon 25°C.',
+                'reasoning_content' => 'Le relevé est là, je réponds.',
+            ]]],
+        ]));
+
+        $messages = $this->transcript->forExecution(self::EXECUTION)->messages;
+
+        self::assertSame('Une ville est nommée, je lis la météo.', $messages[1]->reasoning, 'Le raisonnement d\'un tour passé est perdu.');
+        self::assertNull($messages[0]->reasoning, 'Un message de l\'humain n\'a pas de raisonnement.');
+        self::assertSame('Lyon 25°C.', $messages[3]->content);
+        self::assertSame('Le relevé est là, je réponds.', $messages[3]->reasoning, 'Le raisonnement du dernier tour est perdu.');
+    }
+
+    public function testAMessageWithoutReasoningCarriesNullNotAnEmptyString(): void
+    {
+        $this->eventStore->append(new ActivityScheduled(self::EXECUTION, 'a1', 'ai_model_invoke', [
+            'payload' => ['messages' => [['role' => 'assistant', 'content' => 'Bonjour.', 'reasoning_content' => '   ']]],
+        ]));
+
+        self::assertNull($this->transcript->forExecution(self::EXECUTION)->messages[0]->reasoning);
+    }
 }

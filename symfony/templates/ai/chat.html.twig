@@ -74,6 +74,17 @@
     .msg-tool { align-self: flex-start; max-width: 92%; font-family: var(--font-mono); font-size: .8rem;
         color: var(--ds-text-muted); background: transparent; border: 1px dashed var(--ds-border-soft); }
     .msg-tool b { color: var(--ds-accent); font-weight: 500; }
+    /* Replié par défaut : le raisonnement se consulte, il ne se lit pas. `<details>` fait déjà
+       tout — l'ouverture, le clavier, l'état — inutile d'écrire un accordéon. */
+    .msg-thinking { align-self: flex-start; max-width: 92%; padding: 0; background: transparent;
+        border: 1px dashed var(--ds-border-soft); white-space: normal; }
+    .msg-thinking > summary { padding: .35rem .75rem; font-size: .78rem; cursor: pointer;
+        color: var(--ds-text-muted); list-style: none; }
+    .msg-thinking > summary::-webkit-details-marker { display: none; }
+    .msg-thinking > summary::before { content: '▸ '; }
+    .msg-thinking[open] > summary::before { content: '▾ '; }
+    .msg-thinking > div { padding: 0 .75rem .6rem; font-size: .82rem; line-height: 1.5;
+        color: var(--ds-text-muted); white-space: pre-wrap; }
     .chat-mode { display: inline-flex; align-items: center; gap: .4rem; margin-left: auto; }
     .chat-mode select { padding: .15rem .4rem; font-size: .8rem; }
     .approval { align-self: flex-start; max-width: 92%; border: 1px solid var(--ds-warning); border-radius: var(--radius);
@@ -107,6 +118,19 @@
         const el = document.createElement('div');
         el.className = 'msg ' + cls;
         el.innerHTML = html;
+        return el;
+    };
+    // Le raisonnement arrive du journal comme le reste : le normaliseur le remet dans la charge du
+    // tour suivant, la projection le relit. Ce n'est pas une trace de mise au point — chez un
+    // fournisseur qui le signe, c'est de l'état de conversation.
+    const thinkingBubble = (text) => {
+        const el = document.createElement('details');
+        el.className = 'msg msg-thinking';
+        const summary = document.createElement('summary');
+        summary.textContent = 'raisonnement';
+        const body = document.createElement('div');
+        body.textContent = text;
+        el.append(summary, body);
         return el;
     };
     // L'écosystème PHP a trente ans de folklore : autant s'en servir. PHP meurt tous les ans
@@ -214,6 +238,9 @@
         const pendingById = new Map(data.pending.map((p) => [p.callId, p]));
 
         for (const m of data.messages) {
+            // Avant la bulle du tour : c'est ce qui l'a précédé, pas un commentaire d'après coup.
+            if (m.role === 'assistant' && m.reasoning) { thread.append(thinkingBubble(m.reasoning)); }
+
             if (m.role === 'user') {
                 thread.append(bubble('msg-user', escape(m.content)));
             } else if (m.role === 'tool') {

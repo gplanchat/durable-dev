@@ -20,6 +20,7 @@ final readonly class TranscriptMessage implements \JsonSerializable
         public string $role,
         public ?string $content,
         public array $toolCalls,
+        public ?string $reasoning = null,
     ) {
     }
 
@@ -28,16 +29,19 @@ final readonly class TranscriptMessage implements \JsonSerializable
      */
     public static function fromWire(array $wire): self
     {
+        $reasoning = trim((string) ($wire['reasoning_content'] ?? ''));
+
         return new self(
             (string) ($wire['role'] ?? 'assistant'),
             null !== ($wire['content'] ?? null) ? (string) $wire['content'] : null,
             array_map(ToolCallRef::fromWire(...), $wire['tool_calls'] ?? []),
+            '' === $reasoning ? null : $reasoning,
         );
     }
 
-    public static function assistant(string $content): self
+    public static function assistant(string $content, ?string $reasoning = null): self
     {
-        return new self('assistant', $content, []);
+        return new self('assistant', $content, [], $reasoning);
     }
 
     public static function user(string $content): self
@@ -69,7 +73,7 @@ final readonly class TranscriptMessage implements \JsonSerializable
         $content = (string) $this->content;
 
         return str_starts_with($content, self::COMPACTION_PREFIX)
-            ? new self($this->role, substr($content, \strlen(self::COMPACTION_PREFIX)), $this->toolCalls)
+            ? new self($this->role, substr($content, \strlen(self::COMPACTION_PREFIX)), $this->toolCalls, $this->reasoning)
             : $this;
     }
 
@@ -99,6 +103,14 @@ final readonly class TranscriptMessage implements \JsonSerializable
     /**
      * La forme du fil, celle que porte déjà la charge d'un appel modèle — pas un format de plus.
      *
+     * **Le raisonnement n'y va pas.** Cette méthode alimente deux choses qui partent au modèle : la
+     * charge de compaction, et le fil que le relais transmet au run suivant. Y ajouter une clé
+     * changerait une charge sortante — et une charge sortante qui change, c'est un rejeu qui
+     * diverge. Le raisonnement est de l'affichage ; il sort par {@see jsonSerialize()}.
+     *
+     * Conséquence assumée : après un relais, le fil repris n'a plus ses blocs de raisonnement. Ce
+     * qui se reprend, ce sont les tours parlés.
+     *
      * @return array{role: string, content: string}
      */
     public function toWire(): array
@@ -127,10 +139,15 @@ final readonly class TranscriptMessage implements \JsonSerializable
     }
 
     /**
-     * @return array{role: string, content: string|null, toolCalls: list<ToolCallRef>}
+     * @return array{role: string, content: string|null, toolCalls: list<ToolCallRef>, reasoning: string|null}
      */
     public function jsonSerialize(): array
     {
-        return ['role' => $this->role, 'content' => $this->content, 'toolCalls' => $this->toolCalls];
+        return [
+            'role' => $this->role,
+            'content' => $this->content,
+            'toolCalls' => $this->toolCalls,
+            'reasoning' => $this->reasoning,
+        ];
     }
 }

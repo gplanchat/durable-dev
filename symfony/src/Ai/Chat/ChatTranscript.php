@@ -233,6 +233,10 @@ final class ChatTranscript
         }
 
         $answer = $results[$lastModelCallId]['choices'][0]['message']['content'] ?? null;
+        // Le raisonnement du dernier tour n'est nulle part ailleurs : les tours précédents ont le
+        // leur dans la charge du tour d'après (le normaliseur l'y remet), mais le dernier n'a pas
+        // de tour d'après. Il se lit dans le résultat, à côté de la réponse.
+        $lastReasoning = trim((string) ($results[$lastModelCallId]['choices'][0]['message']['reasoning_content'] ?? ''));
 
         // Un message signalé que le dernier appel modèle ne contient pas encore : le tour a commencé
         // mais le journal n'en porte pas encore la trace. Sans ça l'agent paraît inactif entre la
@@ -248,7 +252,7 @@ final class ChatTranscript
         ));
 
         if (\is_string($answer) && '' !== $answer) {
-            $thread[] = TranscriptMessage::assistant($answer);
+            $thread[] = TranscriptMessage::assistant($answer, '' === $lastReasoning ? null : $lastReasoning);
         }
 
         return new Transcript(
