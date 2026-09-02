@@ -60,7 +60,8 @@
         "symfony/lock": "^7.4",
         "symfony/runtime": "^7.4.14 || ^8.0",
         "symfony/uid": "^7.4.17 || ^8.0",
-        "symfony/yaml": "^7.4.17 || ^8.0"
+        "symfony/yaml": "^7.4.17 || ^8.0",
+        "symfony/mercure-bundle": "^0.5"
     },
     "config": {
         "allow-plugins": {

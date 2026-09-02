@@ -150,6 +150,7 @@
 <script>
 (function () {
     const base = {{ path('durable_chat_show', {executionId: executionId})|json_encode|raw }};
+    const fluxUrl = {{ mercure('durable/agent/' ~ executionId)|json_encode|raw }};
     const thread = document.getElementById('thread');
     const state = document.getElementById('state');
     const form = document.getElementById('form');
@@ -557,7 +558,11 @@
     // ponytail: un `setTimeout` qui se replanifie, pas un `setInterval` qu'on recrée. Le vrai
     // remède au sondage est un canal poussé (Mercure) — voir le commentaire de `transcriptJson()`.
     const CADENCE_VIVE = 700;
-    const CADENCE_MOLLE = 5000;
+    // Le repli est long parce que le concentrateur couvre ce qui arrive de dehors : un message
+    // envoyé depuis un autre onglet, une activité qui rend. Le sondage ne garde que ce que
+    // personne ne sonne — une échéance qui tombe, une clôture sur inactivité, un relais. Sans
+    // Mercure joignable, on retombe simplement sur ce rythme-là : la page reste utilisable.
+    const CADENCE_MOLLE = 15000;
     let cadence = CADENCE_VIVE;
     let prochain = null;
 
@@ -577,6 +582,22 @@
     // Le fil reprend son rythme dès que l'onglet redevient visible : en arrière-plan le navigateur
     // brime les minuteurs, et on revient sur une conversation figée.
     document.addEventListener('visibilitychange', () => { if (!document.hidden) { reveiller(); } });
+
+    // Le concentrateur ne transporte que « cette exécution a bougé » : la page va chercher le fil
+    // elle-même, par le chemin qu'elle connaît déjà, et l'ETag rend gratuit le cas où rien n'a
+    // changé. Publier le fil ici en aurait fait une seconde projection, calculée une fois par
+    // abonné dans un worker qui n'a que faire de l'affichage.
+    //
+    // Pas de reconnexion à gérer : une reprise ou un `?contexte=N` ouvrent une **autre** exécution,
+    // donc une autre page, donc un autre flux. L'identifiant ne change jamais sous cette page.
+    if (fluxUrl) {
+        const flux = new EventSource(fluxUrl);
+        flux.addEventListener('message', reveiller);
+        // `EventSource` retente tout seul, et échoue en silence. On ne coupe donc rien : le
+        // sondage lent tourne de toute façon, et c'est lui qui rattrape un concentrateur absent.
+        flux.addEventListener('error', () => {});
+        window.addEventListener('beforeunload', () => flux.close());
+    }
 
     refresh();
     planifier(CADENCE_VIVE);

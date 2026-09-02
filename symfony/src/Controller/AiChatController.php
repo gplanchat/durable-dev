@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Ai\Chat\ChatTranscript;
 use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\ToolEffect;
+use App\Ai\Live\AgentLiveFeed;
 use App\Ai\Tool\ToolDefinition;
 use App\Ai\Workflow\DurableAgentWorkflow;
 use App\Durable\DurableSampleWorkflowRunner;
@@ -94,6 +95,7 @@ final class AiChatController extends AbstractController
         private readonly DurableSampleWorkflowRunner $workflowRunner,
         private readonly MessageBusInterface $messageBus,
         private readonly ChatTranscript $transcript,
+        private readonly AgentLiveFeed $feed,
         private readonly ?WorkflowClientInterface $workflowClient = null,
     ) {
     }
@@ -119,6 +121,17 @@ final class AiChatController extends AbstractController
         }
 
         $this->messageBus->dispatch(new DeliverWorkflowSignalMessage($executionId, $signalName, $payload));
+    }
+
+    /**
+     * Un signal n'est pas un message de worker : il part d'ici, et aucun `WorkerMessageHandledEvent`
+     * ne le suivra tant que le workflow n'aura pas repris. Sans cette sonnerie, un message envoyé
+     * depuis un onglet n'apparaîtrait dans les autres qu'au sondage suivant.
+     */
+    private function signalAndNudge(string $executionId, string $signalName, array $payload): void
+    {
+        $this->signal($executionId, $signalName, $payload);
+        $this->feed->nudge($executionId);
     }
 
     /**
@@ -207,7 +220,7 @@ final class AiChatController extends AbstractController
 
         // Le workflow est suspendu sur sa condition ; le signal le réveille. Rien à attendre ici,
         // la page relit la projection.
-        $this->signal($executionId, 'user_message', ['text' => $text]);
+        $this->signalAndNudge($executionId, 'user_message', ['text' => $text]);
 
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
     }
@@ -220,7 +233,7 @@ final class AiChatController extends AbstractController
     public function decision(string $executionId, Request $request): JsonResponse
     {
         $body = $request->toArray();
-        $this->signal($executionId, 'tool_decision', [
+        $this->signalAndNudge($executionId, 'tool_decision', [
             'callId' => (string) ($body['callId'] ?? ''),
             'approved' => (bool) ($body['approved'] ?? false),
         ]);
@@ -238,7 +251,7 @@ final class AiChatController extends AbstractController
         $body = $request->toArray();
         $answers = \is_array($body['answers'] ?? null) ? $body['answers'] : [];
 
-        $this->signal($executionId, 'question_answered', [
+        $this->signalAndNudge($executionId, 'question_answered', [
             'callId' => (string) ($body['callId'] ?? ''),
             'answers' => array_values(array_map(strval(...), $answers)),
         ]);
@@ -255,7 +268,7 @@ final class AiChatController extends AbstractController
     {
         $body = $request->toArray();
 
-        $this->signal($executionId, 'alerte', [
+        $this->signalAndNudge($executionId, 'alerte', [
             'callId' => (string) ($body['callId'] ?? ''),
             'observation' => (string) ($body['observation'] ?? ''),
         ]);
@@ -271,7 +284,7 @@ final class AiChatController extends AbstractController
             return new JsonResponse(['error' => 'Mode inconnu.'], Response::HTTP_BAD_REQUEST);
         }
 
-        $this->signal($executionId, 'set_mode', ['mode' => $mode->value]);
+        $this->signalAndNudge($executionId, 'set_mode', ['mode' => $mode->value]);
 
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
     }
@@ -279,7 +292,7 @@ final class AiChatController extends AbstractController
     #[Route('/durable/chat/{executionId}/close', name: 'durable_chat_close', methods: ['POST'])]
     public function close(string $executionId): JsonResponse
     {
-        $this->signal($executionId, 'close', []);
+        $this->signalAndNudge($executionId, 'close', []);
 
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
     }

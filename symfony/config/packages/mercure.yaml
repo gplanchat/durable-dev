@@ -1,0 +1,12 @@
+mercure:
+    hubs:
+        default:
+            # Ce que l'application et les workers appellent pour publier. Ils tournent sur l'hôte,
+            # donc ils passent par le port publié du conteneur, comme le navigateur.
+            url: '%env(MERCURE_URL)%'
+            # Ce que la page reçoit pour s'abonner. Distinct de `url` par principe : le jour où
+            # l'application entre dans le réseau compose, seul celui-ci reste joignable du dehors.
+            public_url: '%env(MERCURE_PUBLIC_URL)%'
+            jwt:
+                secret: '%env(MERCURE_JWT_SECRET)%'
+                publish: '*'
