@@ -167,9 +167,11 @@
     // Le raisonnement arrive du journal comme le reste : le normaliseur le remet dans la charge du
     // tour suivant, la projection le relit. Ce n'est pas une trace de mise au point — chez un
     // fournisseur qui le signe, c'est de l'état de conversation.
-    const thinkingBubble = (text) => {
+    const thinkingBubble = (cle, text) => {
         const el = document.createElement('details');
         el.className = 'msg msg-thinking';
+        el.open = ouverts.has(cle);
+        el.addEventListener('toggle', () => el.open ? ouverts.add(cle) : ouverts.delete(cle));
         const summary = document.createElement('summary');
         summary.textContent = 'raisonnement';
         const body = document.createElement('div');
@@ -219,7 +221,26 @@
         return labeur;
     };
 
-    let clocks = [];
+    // Ce qui doit survivre à un redessin. Le fil est reconstruit à chaque changement, et sans ça
+    // il emporte tout ce que la personne était en train de faire : un `<details>` ouvert se
+    // referme, un champ à moitié rempli se vide, le curseur saute. Une carte d'attente est
+    // justement l'endroit où l'on s'assoit et où l'on tape.
+    const ouverts = new Set();       // clés des blocs dépliés
+    const cartesVivantes = new Map(); // callId -> la carte déjà construite, et son minuteur
+
+    /**
+     * Une carte d'attente n'est construite qu'une fois. La rebâtir à l'identique toutes les
+     * secondes coûterait le texte tapé dedans, le focus, et un minuteur de plus à chaque tour.
+     */
+    const carte = (callId, batir) => {
+        let card = cartesVivantes.get(callId);
+        if (!card) {
+            card = batir();
+            cartesVivantes.set(callId, card);
+        }
+
+        return card;
+    };
 
     // Le compte à rebours vient du minuteur du journal, pas de l'ouverture de la page : un
     // rechargement ne remet pas l'échéance à zéro, elle a commencé côté workflow.
@@ -234,7 +255,10 @@
             clock.dataset.urgent = left <= 60 ? '1' : '0';
         };
         tick();
-        clocks.push(setInterval(tick, 1000));
+        // Le minuteur vit et meurt avec sa carte. Tant qu'elle est réutilisée il continue seul ;
+        // quand elle disparaît du journal, {@see elaguer} l'arrête. Un tableau global de minuteurs
+        // n'existait que parce que le fil était rasé à chaque tour.
+        card.dataset.clock = String(setInterval(tick, 1000));
     };
 
     const approvalBubble = (p) => {
@@ -258,7 +282,7 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({callId: p.callId, approved: button.dataset.ok === '1'}),
                 });
-                setTimeout(refresh, 400);
+                reveiller();
             });
         }
         return card;
@@ -286,7 +310,7 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({callId: w.callId, observation: libre.value.trim()}),
             });
-            setTimeout(refresh, 400);
+            reveiller();
         };
         for (const button of card.querySelectorAll('button')) { button.addEventListener('click', lever); }
         libre.addEventListener('keydown', (event) => {
@@ -324,7 +348,7 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({callId: q.callId, answers}),
             });
-            setTimeout(refresh, 400);
+            reveiller();
         };
 
         for (const option of q.options) {
@@ -361,23 +385,65 @@
 
     const escape = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
+    /** Une carte que le journal ne porte plus : son minuteur s'arrête avec elle. */
+    const elaguer = (vivants) => {
+        for (const [callId, card] of cartesVivantes) {
+            if (vivants.has(callId)) { continue; }
+            clearInterval(Number(card.dataset.clock));
+            cartesVivantes.delete(callId);
+        }
+    };
+
+    /**
+     * Ce que la pastille et la bulle de travail disent, et qui change tout seul même quand le
+     * journal, lui, n'a pas bougé : le labeur tourne toutes les quatre secondes.
+     */
+    const rafraichirLeStatut = (data, working) => {
+        const dit = data.finished ? 'terminé'
+            : (data.watches.length ? 'en veille — l’agent attend un événement'
+            : (data.questions.length ? 'suspendu — l’agent te pose une question'
+            : (data.pending.length ? 'suspendu — en attente de ta décision'
+            : (working ? labeurCourant() : 'prêt'))));
+
+        state.textContent = dit;
+        if (!working) { labeur = null; }
+        state.dataset.working = working ? '1' : '0';
+        // La pastille porte le même signe que le fil : roue si ça calcule, battement si la balle
+        // est dans ton camp, rien quand il n'y a rien à attendre.
+        state.className = 'chat-state' + (working ? ' spin'
+            : (!data.finished && (data.watches.length || data.questions.length || data.pending.length) ? ' waits-on-you' : ''));
+
+        const travail = thread.querySelector('.msg-working');
+        if (travail && working) { travail.textContent = labeurCourant(); }
+    };
+
+    let empreinte = null;
+
     async function refresh() {
         let data;
         try { data = await (await fetch(base + '/transcript')).json(); } catch (e) { return; }
 
+        const working = data.working || null !== pending;
+
+        // Le journal n'a pas bougé : ne pas raser le fil. C'est ce rasage — et pas le rythme du
+        // sondage — qui refermait les blocs dépliés et vidait les champs à moitié remplis. Seuls
+        // le labeur et la pastille, qui changent d'eux-mêmes, sont remis à jour.
+        const empreinteCourante = JSON.stringify(data) + '|' + (pending ?? '');
+        if (empreinteCourante === empreinte) {
+            rafraichirLeStatut(data, working);
+
+            return working;
+        }
+        empreinte = empreinteCourante;
+
         const atBottom = thread.scrollTop + thread.clientHeight >= thread.scrollHeight - 40;
         thread.replaceChildren();
 
-        // Les cartes sont reconstruites à chaque rafraîchissement : leurs minuteurs d'affichage
-        // aussi, sinon ils s'empilent.
-        for (const timer of clocks) { clearInterval(timer); }
-        clocks = [];
         // Le message optimiste disparaît dès que le journal le porte, sinon il ferait doublon.
         if (data.messages.some((m) => m.role === 'user' && m.content === pending)) { pending = null; }
 
-        // `pending` local : entre la soumission et sa trace au journal, l'agent travaille déjà.
-        const working = data.working || null !== pending;
-
+        // `pending` local : entre la soumission et sa trace au journal, l'agent travaille déjà —
+        // `working` est calculé plus haut, avant le test d'empreinte.
         const pendingById = new Map(data.pending.map((p) => [p.callId, p]));
         // Une étape sans résultat, c'est une activité partie et pas revenue — le seul endroit du
         // fil où quelque chose tourne vraiment. Appariée par callId : deux appels au même outil
@@ -386,9 +452,11 @@
         const questionsById = new Map(data.questions.map((q) => [q.callId, q]));
         const watchesById = new Map(data.watches.map((w) => [w.callId, w]));
 
-        for (const m of data.messages) {
+        for (const [rang, m] of data.messages.entries()) {
             // Avant la bulle du tour : c'est ce qui l'a précédé, pas un commentaire d'après coup.
-            if (m.role === 'assistant' && m.reasoning) { thread.append(thinkingBubble(m.reasoning)); }
+            // La clé est le rang : le fil ne fait que s'allonger, un message déjà écrit ne bouge
+            // plus de place.
+            if (m.role === 'assistant' && m.reasoning) { thread.append(thinkingBubble('r' + rang, m.reasoning)); }
 
             if (m.role === 'user') {
                 thread.append(bubble('msg-user', escape(m.content)));
@@ -402,13 +470,13 @@
                     const asking = questionsById.get(c.callId);
                     const watching = watchesById.get(c.callId);
                     if (watching) {
-                        thread.append(watchBubble(watching));
+                        thread.append(carte(watching.callId, () => watchBubble(watching)));
                         watchesById.delete(c.callId);
                     } else if (asking) {
-                        thread.append(questionBubble(asking));
+                        thread.append(carte(asking.callId, () => questionBubble(asking)));
                         questionsById.delete(c.callId);
                     } else if (waiting) {
-                        thread.append(approvalBubble(waiting));
+                        thread.append(carte(waiting.callId, () => approvalBubble(waiting)));
                         pendingById.delete(c.callId);
                     } else {
                         const step = stepsById.get(c.callId);
@@ -423,9 +491,9 @@
         }
 
         if (pending) { thread.append(bubble('msg-user', escape(pending))); }
-        for (const waiting of pendingById.values()) { thread.append(approvalBubble(waiting)); }
-        for (const asking of questionsById.values()) { thread.append(questionBubble(asking)); }
-        for (const watching of watchesById.values()) { thread.append(watchBubble(watching)); }
+        for (const waiting of pendingById.values()) { thread.append(carte(waiting.callId, () => approvalBubble(waiting))); }
+        for (const asking of questionsById.values()) { thread.append(carte(asking.callId, () => questionBubble(asking))); }
+        for (const watching of watchesById.values()) { thread.append(carte(watching.callId, () => watchBubble(watching))); }
 
         // Le travail machine se voit dans le fil, pas seulement dans la pastille : entre le
         // message envoyé et la réponse, il ne se passait visuellement rien.
@@ -439,22 +507,15 @@
 
         if (mode.value !== data.mode) { mode.value = data.mode; }
 
-        state.textContent = data.finished ? 'terminé'
-            : (data.watches.length ? 'en veille — l’agent attend un événement'
-            : (data.questions.length ? 'suspendu — l’agent te pose une question'
-            : (data.pending.length ? 'suspendu — en attente de ta décision'
-            : (working ? labeurCourant() : 'prêt'))));
-        if (!working) { labeur = null; }
-        state.dataset.working = working ? '1' : '0';
-        // La pastille porte le même signe que le fil : roue si ça calcule, battement si la balle
-        // est dans ton camp, rien quand il n'y a rien à attendre.
-        state.className = 'chat-state' + (working ? ' spin'
-            : (!data.finished && (data.watches.length || data.questions.length || data.pending.length) ? ' waits-on-you' : ''));
+        elaguer(new Set([...data.pending, ...data.questions, ...data.watches].map((w) => w.callId)));
+        rafraichirLeStatut(data, working);
         // Une exécution terminée n'écoute plus aucun signal : le champ ne servirait qu'à envoyer
         // des messages dans le vide.
         form.hidden = data.finished;
         resume.hidden = !data.finished;
         if (atBottom) { thread.scrollTop = thread.scrollHeight; }
+
+        return true;
     }
 
     form.addEventListener('submit', async (event) => {
@@ -469,7 +530,7 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({text}),
         });
-        setTimeout(refresh, 300);
+        reveiller();
     });
 
     mode.addEventListener('change', async () => {
@@ -478,7 +539,7 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({mode: mode.value}),
         });
-        setTimeout(refresh, 400);
+        reveiller();
     });
 
     document.getElementById('resume-btn').addEventListener('click', async (event) => {
@@ -488,8 +549,37 @@
         window.location.href = (await response.json()).url;
     });
 
+    // Sonder à cadence fixe interroge une conversation endormie aussi souvent qu'une conversation
+    // active. La cadence s'étire quand rien ne bouge et se resserre dès que quelque chose se passe
+    // — et surtout dès que *tu* fais quelque chose : sans ce réveil, on répondrait à une question
+    // puis on attendrait la fin du repli avant de voir le fil avancer.
+    //
+    // ponytail: un `setTimeout` qui se replanifie, pas un `setInterval` qu'on recrée. Le vrai
+    // remède au sondage est un canal poussé (Mercure) — voir le commentaire de `transcriptJson()`.
+    const CADENCE_VIVE = 700;
+    const CADENCE_MOLLE = 5000;
+    let cadence = CADENCE_VIVE;
+    let prochain = null;
+
+    const planifier = (delai) => {
+        clearTimeout(prochain);
+        cadence = delai;
+        prochain = setTimeout(boucle, delai);
+    };
+
+    const reveiller = () => planifier(CADENCE_VIVE);
+
+    async function boucle() {
+        const bouge = await refresh();
+        planifier(bouge ? CADENCE_VIVE : Math.min(CADENCE_MOLLE, Math.round(cadence * 1.4)));
+    }
+
+    // Le fil reprend son rythme dès que l'onglet redevient visible : en arrière-plan le navigateur
+    // brime les minuteurs, et on revient sur une conversation figée.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { reveiller(); } });
+
     refresh();
-    setInterval(refresh, 1200);
+    planifier(CADENCE_VIVE);
 })();
 </script>
 {% endblock %}

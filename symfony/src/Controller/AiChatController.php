@@ -284,9 +284,22 @@ final class AiChatController extends AbstractController
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
     }
 
+    /**
+     * Le fil, tel que le journal le raconte, avec un ETag.
+     *
+     * Le sondage demande toutes les secondes et la réponse est presque toujours la même : l'ETag
+     * la rend gratuite à sérialiser et à transporter. **Il ne rend pas la lecture gratuite** —
+     * {@see ChatTranscript::forExecution()} rejoue le flux d'événements à chaque appel, et ça, seul
+     * un vrai canal poussé l'éviterait. Ce qui coûte ici, c'est la lecture, pas le JSON.
+     */
     #[Route('/durable/chat/{executionId}/transcript', name: 'durable_chat_transcript', methods: ['GET'])]
-    public function transcriptJson(string $executionId): JsonResponse
+    public function transcriptJson(string $executionId, Request $request): JsonResponse
     {
-        return new JsonResponse($this->transcript->forExecution($executionId));
+        $response = new JsonResponse($this->transcript->forExecution($executionId));
+        $response->setEtag(hash('xxh128', (string) $response->getContent()));
+        $response->setPrivate();
+        $response->isNotModified($request);
+
+        return $response;
     }
 }
