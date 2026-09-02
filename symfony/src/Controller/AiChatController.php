@@ -96,7 +96,7 @@ final class AiChatController extends AbstractController
     }
 
     #[Route('/durable/chat', name: 'durable_chat_start', methods: ['GET'])]
-    public function start(): Response
+    public function start(Request $request): Response
     {
         $executionId = (string) Uuid::v4();
         $this->workflowRunner->dispatchWorkflowRun(
@@ -105,6 +105,10 @@ final class AiChatController extends AbstractController
                 'tools' => ToolDefinition::listToWire(self::tools()),
                 'mode' => AgentMode::Standard->value,
                 'humanTimeoutSeconds' => self::HUMAN_TIMEOUT_SECONDS,
+                // `?contexte=300` ouvre une conversation à budget minuscule : la compaction se
+                // déclenche alors en deux ou trois messages au lieu de plusieurs centaines, et
+                // devient observable à la main.
+                'contextTokens' => max(200, min(200_000, $request->query->getInt('contexte', 24_000))),
             ],
             $executionId,
         );
