@@ -8,6 +8,8 @@ use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\PendingApproval;
 use App\Ai\Question\AskUserQuestion;
 use App\Ai\Question\PendingQuestion;
+use App\Ai\Watch\Watch;
+use App\Ai\Watch\WatchTool;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityScheduled;
@@ -89,6 +91,7 @@ final class ChatTranscript
         $executed = [];
         $decided = [];
         $answered = [];
+        $alerted = [];
         $signalledMode = null;
         $messagesSignalled = 0;
         $deadlines = [];
@@ -150,6 +153,8 @@ final class ChatTranscript
                     $decided[(string) ($signal['callId'] ?? '')] = true;
                 } elseif ('question_answered' === $event->signalName()) {
                     $answered[(string) ($signal['callId'] ?? '')] = true;
+                } elseif ('alerte' === $event->signalName()) {
+                    $alerted[(string) ($signal['callId'] ?? '')] = true;
                 } elseif ('set_mode' === $event->signalName()) {
                     $signalledMode = AgentMode::tryFrom((string) ($signal['mode'] ?? '')) ?? $signalledMode;
                 }
@@ -182,9 +187,10 @@ final class ChatTranscript
         $expiresAt = self::expiryOf($deadlines, $humanTimeout);
         $pending = [];
         $questions = [];
+        $watches = [];
         foreach ($results[$lastModelCallId]['choices'][0]['message']['tool_calls'] ?? [] as $call) {
             $callId = (string) ($call['id'] ?? '');
-            if (isset($executed[$callId]) || isset($decided[$callId]) || isset($answered[$callId])) {
+            if (isset($executed[$callId]) || isset($decided[$callId]) || isset($answered[$callId]) || isset($alerted[$callId])) {
                 continue;
             }
 
@@ -192,6 +198,12 @@ final class ChatTranscript
 
             if (AskUserQuestion::TOOL === $ref->tool) {
                 $questions[] = PendingQuestion::fromArguments($ref->callId, $ref->arguments, $expiresAt);
+
+                continue;
+            }
+
+            if (WatchTool::TOOL === $ref->tool) {
+                $watches[] = Watch::fromArguments($ref->callId, $ref->arguments, $expiresAt);
 
                 continue;
             }
@@ -229,13 +241,14 @@ final class ChatTranscript
             array_values($steps),
             $pending,
             $questions,
+            $watches,
             $mode,
             $humanTimeout,
             // Trois façons d'avoir un tour en cours : un message reçu que le modèle n'a pas encore
             // vu, un appel modèle planifié sans résultat, ou une réponse qui demande encore des
             // outils. Aucun appel modèle du tout n'est *pas* un tour en cours : c'est l'état de
             // départ, où le workflow est suspendu sur son premier signal.
-            !$finished && [] === $pending && [] === $questions && (
+            !$finished && [] === $pending && [] === $questions && [] === $watches && (
                 $messagesSignalled > $messagesSeenByModel
                 || (null !== $lastModelCallId && !\array_key_exists($lastModelCallId, $results))
                 || (null !== $lastModelCallId && !\is_string($answer))

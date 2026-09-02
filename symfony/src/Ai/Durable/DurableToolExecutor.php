@@ -12,6 +12,9 @@ use App\Ai\Guard\ToolGuardInterface;
 use App\Ai\Question\AskUserQuestion;
 use App\Ai\Question\HumanQuestionDesk;
 use App\Ai\Question\PendingQuestion;
+use App\Ai\Watch\Watch;
+use App\Ai\Watch\WatchDesk;
+use App\Ai\Watch\WatchTool;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Duration;
@@ -45,6 +48,7 @@ final class DurableToolExecutor implements ToolExecutorInterface
         private readonly ToolGuardInterface $guard,
         private readonly ToolApprovalGate $gate,
         private readonly HumanQuestionDesk $desk,
+        private readonly WatchDesk $watches,
         private readonly \Closure $mode,
         private readonly ?Duration $humanTimeout = null,
         ?ActivityOptions $options = null,
@@ -102,6 +106,14 @@ final class DurableToolExecutor implements ToolExecutorInterface
                 continue;
             }
 
+            // L'autre suspension : celle-ci n'attend pas un humain devant une carte, mais un
+            // événement du dehors.
+            if (WatchTool::TOOL === $toolCall->getName()) {
+                $results[] = new ToolResult($toolCall, yield from $this->standBy($toolCall));
+
+                continue;
+            }
+
             yield new Progress('tool_call', \sprintf('Exécution de l\'outil "%s".', $toolCall->getName()), $toolCall);
 
             $results[] = new ToolResult(
@@ -111,6 +123,44 @@ final class DurableToolExecutor implements ToolExecutorInterface
         }
 
         return $results;
+    }
+
+    /**
+     * La veille : l'agent dort jusqu'à l'alerte, et se réveille en retrouvant son intention.
+     *
+     * @return \Generator<int, Progress, mixed, string> ce que le modèle relira à la place d'un résultat d'outil
+     */
+    private function standBy(ToolCall $toolCall): \Generator
+    {
+        $watch = Watch::fromArguments($toolCall->getId(), $toolCall->getArguments());
+        $this->watches->watch($watch);
+        yield new Progress('watch_started', $watch->observation, $toolCall);
+
+        // L'échéance de la veille est celle que le modèle a demandée ; à défaut, le budget humain
+        // de l'agent — une veille sans borne aucune finirait par ne plus être une veille.
+        $deadline = Duration::fromWireValue($toolCall->getArguments()['deadlineSeconds'] ?? null) ?? $this->humanTimeout;
+
+        try {
+            $this->environment->await(fn(): bool => $this->watches->isSettled($toolCall->getId()), $deadline);
+        } catch (DeadlineExceededException) {
+            $this->watches->raise($toolCall->getId(), '');
+            yield new Progress('watch_expired', $watch->observation, $toolCall);
+
+            return \sprintf(
+                'La veille « %s » a expiré sans alerte. Tu comptais : %s. Reprends la main et dis ce que tu fais.',
+                $watch->observation,
+                $watch->intention,
+            );
+        }
+
+        // Le réveil rend l'observation **et** l'intention : c'est ce qui dispense l'agent de se
+        // souvenir de ce qu'il faisait il y a trois jours.
+        return \sprintf(
+            'Alerte sur « %s » : %s. Tu comptais : %s.',
+            $watch->observation,
+            '' === $this->watches->observationOf($toolCall->getId()) ? 'rien de plus n’a été rapporté' : $this->watches->observationOf($toolCall->getId()),
+            $watch->intention,
+        );
     }
 
     /**

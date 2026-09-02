@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai\Platform;
 
 use App\Ai\Question\AskUserQuestion;
+use App\Ai\Watch\WatchTool;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
 use Symfony\AI\Platform\Result\InMemoryRawResult;
@@ -57,6 +58,14 @@ final class ScriptedChatModelClient implements ModelClientInterface
                     ['label' => 'Au fil de l’eau', 'description' => 'Plus lent, le catalogue reste servi'],
                     ['label' => 'Simulation', 'description' => 'Rien n’est écrit, on regarde ce qui changerait'],
                 ],
+            ]));
+        }
+
+        if (str_contains($lastUser, 'surveille') || str_contains($lastUser, 'préviens')) {
+            return new InMemoryRawResult($this->toolCall($messages, WatchTool::TOOL, [
+                'observation' => 'La livraison du fournisseur arrive à l’entrepôt',
+                'intention' => 'Enregistrer une note de réception et prévenir l’équipe',
+                'deadlineSeconds' => 900,
             ]));
         }
 

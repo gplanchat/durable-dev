@@ -12,6 +12,8 @@ use App\Ai\Guard\ToolGuardInterface;
 use App\Ai\Question\AskUserQuestion;
 use App\Ai\Question\HumanQuestionDesk;
 use App\Ai\Tool\ToolDefinition;
+use App\Ai\Watch\WatchDesk;
+use App\Ai\Watch\WatchTool;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Symfony\AI\Agent\Agent;
@@ -45,12 +47,14 @@ final class DurableAgentFactory
         int $maxToolCalls = 10,
         ?ToolApprovalGate $gate = null,
         ?HumanQuestionDesk $desk = null,
+        ?WatchDesk $watches = null,
         ?\Closure $mode = null,
         ?ToolGuardInterface $guard = null,
         ?Duration $humanTimeout = null,
     ): Agent {
-        // Toujours offert : un agent qui ne peut pas demander invente.
-        $tools = [...$tools, AskUserQuestion::definition()];
+        // Toujours offerts : un agent qui ne peut pas demander invente, et un agent qui ne peut
+        // pas attendre bâcle.
+        $tools = [...$tools, AskUserQuestion::definition(), WatchTool::definition()];
 
         // Le pont Mistral fournit tout ce qui est **pur** — la normalisation de la conversation,
         // le catalogue, la conversion du JSON en résultat — et c'est ce qui tourne en code
@@ -75,6 +79,7 @@ final class DurableAgentFactory
                 $guard ?? new ModeToolGuard(self::effects($tools)),
                 $gate ?? new ToolApprovalGate(),
                 $desk ?? new HumanQuestionDesk(),
+                $watches ?? new WatchDesk(),
                 $mode ?? static fn(): AgentMode => AgentMode::Auto,
                 $humanTimeout,
             ),

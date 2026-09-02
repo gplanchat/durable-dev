@@ -10,6 +10,7 @@ use App\Ai\Guard\ToolApprovalGate;
 use App\Ai\Guard\ToolGuardInterface;
 use App\Ai\Question\HumanQuestionDesk;
 use App\Ai\Tool\ToolDefinition;
+use App\Ai\Watch\WatchDesk;
 use Gplanchat\Durable\Attribute\AsSignalMethod;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
@@ -34,9 +35,11 @@ use Symfony\AI\Platform\Message\MessageBag;
  * Chaque appel d'outil passe par une garde ({@see ToolGuardInterface}) : selon le mode il passe, il
  * est refusé, ou il suspend l'exécution jusqu'à un signal `tool_decision`.
  *
- * L'agent dispose en plus d'un outil pour **poser une question** : `demander_a_l_utilisateur`
- * suspend l'exécution jusqu'à un signal `question_answered`. Même primitive que la validation, sens
- * inverse — là l'humain autorise, ici il renseigne.
+ * L'agent dispose en plus de deux outils dont l'exécution est une suspension :
+ * `demander_a_l_utilisateur` attend un signal `question_answered` — là l'humain autorise, ici il
+ * renseigne — et `surveiller` attend un signal `alerte`, levé par le dehors. Le réveil rend à
+ * l'agent l'observation **et l'intention qu'il avait écrite en s'inscrivant** : il n'a rien à se
+ * rappeler, le journal le lui dit.
  *
  * `humanTimeoutSeconds` borne toute attente humaine pour l'instance d'agent : pas de réponse vaut
  * refus pour une validation, « rien choisi » pour une question. Le minuteur étant journalisé
@@ -63,11 +66,14 @@ final class DurableAgentWorkflow
 
     private readonly HumanQuestionDesk $desk;
 
+    private readonly WatchDesk $watches;
+
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
         $this->gate = new ToolApprovalGate();
         $this->desk = new HumanQuestionDesk();
+        $this->watches = new WatchDesk();
     }
 
     /**
@@ -111,6 +117,21 @@ final class DurableAgentWorkflow
         $callId = (string) ($payload['callId'] ?? '');
         if ('' !== $callId) {
             $this->desk->answer($callId, \is_array($payload['answers'] ?? null) ? $payload['answers'] : []);
+        }
+    }
+
+    /**
+     * L'alerte qui lève une veille. Elle vient du dehors — une supervision, un webhook, un autre
+     * agent — et c'est le journal, pas le modèle, qui rappellera à l'agent ce qu'il comptait faire.
+     *
+     * @param array<string, mixed> $payload
+     */
+    #[AsSignalMethod('alerte')]
+    public function onAlerte(array $payload): void
+    {
+        $callId = (string) ($payload['callId'] ?? '');
+        if ('' !== $callId) {
+            $this->watches->raise($callId, (string) ($payload['observation'] ?? ''));
         }
     }
 
@@ -169,6 +190,7 @@ final class DurableAgentWorkflow
             $maxToolCalls,
             gate: $this->gate,
             desk: $this->desk,
+            watches: $this->watches,
             mode: fn(): AgentMode => $this->mode,
             guard: $guard,
             humanTimeout: Duration::fromWireValue($humanTimeoutSeconds),

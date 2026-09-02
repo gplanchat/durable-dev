@@ -167,6 +167,23 @@ final class AiChatController extends AbstractController
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
     }
 
+    /**
+     * Lever une alerte : c'est le rôle qu'une supervision, un webhook ou un autre agent tiendrait
+     * en production. La page l'imite pour que la veille soit démontrable.
+     */
+    #[Route('/durable/chat/{executionId}/alert', name: 'durable_chat_alert', methods: ['POST'])]
+    public function alert(string $executionId, Request $request): JsonResponse
+    {
+        $body = $request->toArray();
+
+        $this->signal($executionId, 'alerte', [
+            'callId' => (string) ($body['callId'] ?? ''),
+            'observation' => (string) ($body['observation'] ?? ''),
+        ]);
+
+        return new JsonResponse(null, Response::HTTP_ACCEPTED);
+    }
+
     #[Route('/durable/chat/{executionId}/mode', name: 'durable_chat_mode', methods: ['POST'])]
     public function mode(string $executionId, Request $request): JsonResponse
     {

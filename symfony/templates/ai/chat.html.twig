@@ -80,6 +80,8 @@
     .question-options .option span { font-size: .78rem; color: var(--ds-text-muted); font-weight: 400; }
     .question-options .option[data-retenu="1"] { border-color: var(--ds-accent); color: var(--ds-accent); }
     .question-free input { width: 100%; }
+    .watch { border-color: var(--ds-warning); background: rgba(255, 178, 135, .06); }
+    .watch-intention { font-size: .82rem; color: var(--ds-text-muted); font-style: italic; }
     .approval-actions { display: flex; gap: .5rem; }
     .chat-form { display: flex; gap: .6rem; }
     .chat-form .ds-input { flex: 1; }
@@ -189,6 +191,40 @@
         return card;
     };
 
+    // L'agent se met en veille : rien à décider, un événement à provoquer. La page tient ici le
+    // rôle qu'une supervision ou un webhook tiendrait en production.
+    const watchBubble = (w) => {
+        const card = document.createElement('div');
+        card.className = 'approval watch';
+        card.innerHTML = '<div class="question-header">En veille</div>'
+            + '<div class="question-text">' + escape(w.observation) + '</div>'
+            + '<div class="watch-intention">Au réveil : ' + escape(w.intention) + '</div>'
+            + '<div class="question-free"><input class="ds-input" placeholder="Ce qui s’est passé…"></div>'
+            + '<div class="approval-reason">Le workflow dort ici. L’alerte part en signal <code>alerte</code>.<span class="approval-clock"></span></div>'
+            + '<div class="approval-actions"><button class="btn btn-primary btn-sm">Lever l’alerte</button></div>';
+
+        const libre = card.querySelector('.question-free input');
+        const actions = card.querySelector('.approval-actions');
+        const lever = async () => {
+            actions.textContent = 'alerte levée…';
+            card.querySelectorAll('input, button').forEach((el) => { el.disabled = true; });
+            await fetch(base + '/alert', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({callId: w.callId, observation: libre.value.trim()}),
+            });
+            setTimeout(refresh, 400);
+        };
+        for (const button of card.querySelectorAll('button')) { button.addEventListener('click', lever); }
+        libre.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') { event.preventDefault(); lever(); }
+        });
+
+        armerLeCompteur(card, w.expiresAt, 'la veille est abandonnée');
+
+        return card;
+    };
+
     // L'agent pose une question : ni validation ni refus, un choix. Une réponse libre reste
     // toujours possible — les options du modèle ne sont que des propositions.
     const questionBubble = (q) => {
@@ -268,6 +304,7 @@
 
         const pendingById = new Map(data.pending.map((p) => [p.callId, p]));
         const questionsById = new Map(data.questions.map((q) => [q.callId, q]));
+        const watchesById = new Map(data.watches.map((w) => [w.callId, w]));
 
         for (const m of data.messages) {
             if (m.role === 'user') {
@@ -280,7 +317,11 @@
                 for (const c of m.toolCalls) {
                     const waiting = pendingById.get(c.callId);
                     const asking = questionsById.get(c.callId);
-                    if (asking) {
+                    const watching = watchesById.get(c.callId);
+                    if (watching) {
+                        thread.append(watchBubble(watching));
+                        watchesById.delete(c.callId);
+                    } else if (asking) {
                         thread.append(questionBubble(asking));
                         questionsById.delete(c.callId);
                     } else if (waiting) {
@@ -296,6 +337,7 @@
         if (pending) { thread.append(bubble('msg-user', escape(pending))); }
         for (const waiting of pendingById.values()) { thread.append(approvalBubble(waiting)); }
         for (const asking of questionsById.values()) { thread.append(questionBubble(asking)); }
+        for (const watching of watchesById.values()) { thread.append(watchBubble(watching)); }
         if (!thread.childElementCount) {
             const empty = document.createElement('p');
             empty.className = 'chat-empty';
@@ -308,9 +350,10 @@
         // `pending` local : entre la soumission et sa trace au journal, l'agent travaille déjà.
         const working = data.working || null !== pending;
         state.textContent = data.finished ? 'terminé'
+            : (data.watches.length ? 'en veille — l’agent attend un événement'
             : (data.questions.length ? 'suspendu — l’agent te pose une question'
             : (data.pending.length ? 'suspendu — en attente de ta décision'
-            : (working ? labeurCourant() : 'prêt')));
+            : (working ? labeurCourant() : 'prêt'))));
         if (!working) { labeur = null; }
         state.dataset.working = working ? '1' : '0';
         if (atBottom) { thread.scrollTop = thread.scrollHeight; }
