@@ -129,6 +129,7 @@ final class ChatTranscript
                     $call = self::descendTo($payload, 'arguments');
                     $executed[(string) ($call['callId'] ?? '')] = true;
                     $steps[$event->activityId()] = new ToolStep(
+                        (string) ($call['callId'] ?? ''),
                         (string) ($call['name'] ?? '?'),
                         (array) ($call['arguments'] ?? []),
                         null,

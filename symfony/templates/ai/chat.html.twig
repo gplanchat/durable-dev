@@ -66,6 +66,40 @@
     .chat-state { align-self: flex-start; margin-bottom: -.5rem; padding: .1rem .55rem; font-size: .78rem;
         color: var(--ds-text-muted); border-radius: 999px; border: 1px solid var(--ds-border-soft); }
     .chat-state[data-working="1"] { color: var(--ds-warning); border-color: var(--ds-warning); }
+
+    /* Deux attentes, deux signes — et surtout pas le même. Une roue qui tourne dit « ça calcule,
+       laisse faire » ; un battement dit « ça t'attend, toi ». Mettre la roue sur une validation
+       ferait patienter devant sa propre décision. */
+    @keyframes dz-spin { to { transform: rotate(360deg); } }
+    @keyframes dz-pulse { 50% { opacity: .35; } }
+    .spin::before { content: ''; display: inline-block; width: .68em; height: .68em; margin-right: .45em;
+        vertical-align: -.06em; border: 2px solid currentColor; border-right-color: transparent;
+        border-radius: 50%; animation: dz-spin .7s linear infinite; }
+    .waits-on-you::before { content: ''; display: inline-block; width: .5em; height: .5em; margin-right: .5em;
+        vertical-align: .04em; background: currentColor; border-radius: 50%;
+        animation: dz-pulse 1.4s ease-in-out infinite; }
+    /* Le mouvement est une information, pas une décoration : qui l'a désactivé garde le signe,
+       il cesse simplement de bouger. */
+    @media (prefers-reduced-motion: reduce) {
+        .spin::before, .waits-on-you::before { animation: none; }
+        .spin::before { border-right-color: currentColor; opacity: .5; }
+    }
+    .msg-working { align-self: flex-start; color: var(--ds-text-muted); background: transparent;
+        border: 1px dashed var(--ds-border-soft); font-size: .82rem; }
+    .msg-tool.spin { color: var(--ds-warning); border-color: var(--ds-warning); }
+    /* Les cartes sont en colonne flex : un `::before` sur la carte deviendrait un enfant flex à
+       lui tout seul, sur sa propre ligne. Le battement va donc sur leur titre. */
+    .approval.waits-on-you::before { content: none; }
+    .approval.waits-on-you > .approval-title::before,
+    .approval.waits-on-you > .question-header::before,
+    .approval.waits-on-you > .question-text:first-child::before { content: ''; display: inline-block;
+        width: .5em; height: .5em; margin-right: .5em; vertical-align: .12em; background: currentColor;
+        border-radius: 50%; animation: dz-pulse 1.4s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) {
+        .approval.waits-on-you > .approval-title::before,
+        .approval.waits-on-you > .question-header::before,
+        .approval.waits-on-you > .question-text:first-child::before { animation: none; }
+    }
     .chat-thread { display: flex; flex-direction: column; gap: .7rem; min-height: 18rem; max-height: 60vh; overflow-y: auto;
         padding: 1rem; background: rgba(21, 15, 35, .55); border: 1px solid var(--ds-border); border-radius: var(--radius); }
     .msg { max-width: 82%; padding: .6rem .85rem; border-radius: var(--radius); line-height: 1.5; white-space: pre-wrap; }
@@ -205,7 +239,7 @@
 
     const approvalBubble = (p) => {
         const card = document.createElement('div');
-        card.className = 'approval';
+        card.className = 'approval waits-on-you';
         card.innerHTML = '<div class="approval-title">⛔ ' + escape(p.tool) + ' demande une validation</div>'
             + '<code>' + escape(JSON.stringify(p.arguments)) + '</code>'
             + '<div class="approval-reason">Le workflow est suspendu ici. Ta décision part en signal <code>tool_decision</code>.'
@@ -234,7 +268,7 @@
     // rôle qu'une supervision ou un webhook tiendrait en production.
     const watchBubble = (w) => {
         const card = document.createElement('div');
-        card.className = 'approval watch';
+        card.className = 'approval watch waits-on-you';
         card.innerHTML = '<div class="question-header">En veille</div>'
             + '<div class="question-text">' + escape(w.observation) + '</div>'
             + '<div class="watch-intention">Au réveil : ' + escape(w.intention) + '</div>'
@@ -268,7 +302,7 @@
     // toujours possible — les options du modèle ne sont que des propositions.
     const questionBubble = (q) => {
         const card = document.createElement('div');
-        card.className = 'approval question';
+        card.className = 'approval question waits-on-you';
         card.innerHTML = (q.header ? '<div class="question-header">' + escape(q.header) + '</div>' : '')
             + '<div class="question-text">' + escape(q.question) + '</div>'
             + '<div class="question-options"></div>'
@@ -341,7 +375,14 @@
         // Le message optimiste disparaît dès que le journal le porte, sinon il ferait doublon.
         if (data.messages.some((m) => m.role === 'user' && m.content === pending)) { pending = null; }
 
+        // `pending` local : entre la soumission et sa trace au journal, l'agent travaille déjà.
+        const working = data.working || null !== pending;
+
         const pendingById = new Map(data.pending.map((p) => [p.callId, p]));
+        // Une étape sans résultat, c'est une activité partie et pas revenue — le seul endroit du
+        // fil où quelque chose tourne vraiment. Appariée par callId : deux appels au même outil
+        // avec les mêmes arguments ne se distinguent pas autrement.
+        const stepsById = new Map(data.steps.map((t) => [t.callId, t]));
         const questionsById = new Map(data.questions.map((q) => [q.callId, q]));
         const watchesById = new Map(data.watches.map((w) => [w.callId, w]));
 
@@ -370,7 +411,12 @@
                         thread.append(approvalBubble(waiting));
                         pendingById.delete(c.callId);
                     } else {
-                        thread.append(bubble('msg-tool', '⚙ appel <b>' + escape(c.tool) + '</b> ' + escape(JSON.stringify(c.arguments))));
+                        const step = stepsById.get(c.callId);
+                        const inFlight = !step || step.result === null;
+                        thread.append(bubble(
+                            'msg-tool' + (inFlight ? ' spin' : ''),
+                            (inFlight ? '' : '⚙ ') + 'appel <b>' + escape(c.tool) + '</b> ' + escape(JSON.stringify(c.arguments)),
+                        ));
                     }
                 }
             }
@@ -380,6 +426,10 @@
         for (const waiting of pendingById.values()) { thread.append(approvalBubble(waiting)); }
         for (const asking of questionsById.values()) { thread.append(questionBubble(asking)); }
         for (const watching of watchesById.values()) { thread.append(watchBubble(watching)); }
+
+        // Le travail machine se voit dans le fil, pas seulement dans la pastille : entre le
+        // message envoyé et la réponse, il ne se passait visuellement rien.
+        if (working) { thread.append(bubble('msg-working spin', escape(labeurCourant()))); }
         if (!thread.childElementCount) {
             const empty = document.createElement('p');
             empty.className = 'chat-empty';
@@ -389,8 +439,6 @@
 
         if (mode.value !== data.mode) { mode.value = data.mode; }
 
-        // `pending` local : entre la soumission et sa trace au journal, l'agent travaille déjà.
-        const working = data.working || null !== pending;
         state.textContent = data.finished ? 'terminé'
             : (data.watches.length ? 'en veille — l’agent attend un événement'
             : (data.questions.length ? 'suspendu — l’agent te pose une question'
@@ -398,6 +446,10 @@
             : (working ? labeurCourant() : 'prêt'))));
         if (!working) { labeur = null; }
         state.dataset.working = working ? '1' : '0';
+        // La pastille porte le même signe que le fil : roue si ça calcule, battement si la balle
+        // est dans ton camp, rien quand il n'y a rien à attendre.
+        state.className = 'chat-state' + (working ? ' spin'
+            : (!data.finished && (data.watches.length || data.questions.length || data.pending.length) ? ' waits-on-you' : ''));
         // Une exécution terminée n'écoute plus aucun signal : le champ ne servirait qu'à envoyer
         // des messages dans le vide.
         form.hidden = data.finished;

@@ -39,7 +39,7 @@ final readonly class Transcript implements \JsonSerializable
     }
 
     /**
- * Ce qu'une exécution neuve doit reprendre de celle-ci : le fil parlé, sans la mécanique
+     * Ce qu'une exécution neuve doit reprendre de celle-ci : le fil parlé, sans la mécanique
      * d'outils du run qui s'achève.
      *
      * @return list<array{role: string, content: string}>
