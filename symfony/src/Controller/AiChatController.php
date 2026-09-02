@@ -24,6 +24,7 @@ use Symfony\Component\Uid\Uuid;
  * Démo de chat sur un agent durable : une conversation = une exécution de workflow, chaque message
  * de l'humain = un signal. Entre deux messages le workflow est suspendu, pas en attente.
  */
+#[Route(host: '%app.host.agent%')]
 final class AiChatController extends AbstractController
 {
     /**
@@ -136,6 +137,16 @@ final class AiChatController extends AbstractController
         );
 
         return $executionId;
+    }
+
+    /**
+     * La racine du domaine de l'agent. Les samples ont la leur, sur le leur : deux `/`, deux hôtes,
+     * et c'est l'hôte qui tranche.
+     */
+    #[Route('/', name: 'durable_agent_home', methods: ['GET'])]
+    public function home(): Response
+    {
+        return $this->redirectToRoute('durable_chat_start');
     }
 
     #[Route('/durable/chat', name: 'durable_chat_start', methods: ['GET'])]
