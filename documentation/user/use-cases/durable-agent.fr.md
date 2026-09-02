@@ -124,9 +124,32 @@ relus depuis la configuration au rejeu. Ajouter un outil change sinon le prompt 
   n'est pas fait.
 - **Aucun crash inter-processus.** Le test tourne en mémoire. Le runner y rejoue pour de vrai, mais
   un vrai redémarrage de processus reste à démontrer.
-- **Les blocs `Thinking` n'ont jamais traversé la frontière.** Le raisonnement tient — le JSON brut
-  transporte ce qu'il contient — mais le convertisseur écrit à la main ne lit que `content` et
-  `tool_calls`, et les laisserait tomber.
+- **Les blocs de raisonnement passent, mais la signature reste dehors.** Le convertisseur ne lisait
+  d'abord que `content` et `tool_calls` : un `reasoning_content` journalisé était perdu — sans
+  exception et sans trace, le tour d'après partait simplement amputé. Il lit maintenant le champ et
+  rend un `MultiPartResult` ; `Message::toContent()` le déplie en `Thinking`, et
+  `AssistantMessageNormalizer` le remet sur le fil au tour suivant. Deux tests le tiennent, vérifiés
+  par mutation.
+
+  Ce qui reste dehors, c'est la **signature** — le champ dont le docblock de `Thinking` dit qu'il
+  sert « to verify thinking blocks when they are replayed on a subsequent turn ». Aucun normaliseur
+  de `ai-platform` ne l'écrit : `AssistantMessageNormalizer` concatène le contenu dans
+  `reasoning_content` et ne lit jamais `getSignature()`. Le rejeu signé suppose donc un bridge
+  fournisseur qui remplace ce normaliseur — plausible, c'est à ça que sert le `Contract`, mais
+  invérifiable ici : aucun `ai-*-platform` n'est installé.
+
+  **La leçon vaut au-delà du raisonnement.** Ce correctif n'en était pas un : c'est un **point de
+  changement**. Tant que le convertisseur laissait tomber le champ, il le laissait tomber *de la
+  même façon à chaque rejeu* — déterministe, donc sûr. Le jour où on le corrige, le journal contient
+  toujours le même JSON mais le convertisseur en extrait davantage : le message reconstruit porte un
+  champ de plus, et la charge du tour N+1 ne ressemble plus à celle qui avait été envoyée. Toutes les
+  exécutions en vol divergent. Ici c'est sans conséquence — un prototype, rien en vol. En production
+  ce genre de correction se déclare et se garde ; elle ne se glisse pas dans un patch.
+
+  La contrepartie est bonne, et elle vient d'un choix : journaliser la réponse **brute** plutôt qu'un
+  DTO converti. Le raisonnement était déjà dans le journal de toutes les exécutions passées, avant
+  même que quelque chose le lise. Le journal transporte des champs que le convertisseur ne connaît
+  pas encore — c'est ce qui a rendu la correction gratuite.
 - **La classification d'échec.** Une activité d'outil qui échoue tue aujourd'hui l'appel d'agent.
   C'est un défaut, pas une décision.
 - **Le socle bouge.** `symfony/ai` est en 0.x, treize versions mineures à ce jour, sans promesse de

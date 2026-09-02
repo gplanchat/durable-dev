@@ -118,9 +118,30 @@ configuration on replay. Otherwise adding a tool changes the replayed prompt.
   has not been done.
 - **No cross-process crash.** The test runs in memory. The runner replays for real there, but an
   actual process restart remains to be demonstrated.
-- **`Thinking` blocks have never crossed the boundary.** The reasoning holds — raw JSON carries what
-  it contains — but the hand-written converter only reads `content` and `tool_calls`, and would drop
-  them.
+- **Reasoning blocks now travel; the signature does not.** The converter first read only `content`
+  and `tool_calls`, so a journaled `reasoning_content` was lost — no exception, no trace, just an
+  amputated following turn. It now reads the field and returns a `MultiPartResult`;
+  `Message::toContent()` unrolls it into a `Thinking`, and `AssistantMessageNormalizer` puts it back
+  on the wire on the next turn. Two tests hold it, both verified by mutation.
+
+  What stays out is the **signature** — the field whose docblock on `Thinking` says it serves "to
+  verify thinking blocks when they are replayed on a subsequent turn". No normalizer in
+  `ai-platform` writes it: `AssistantMessageNormalizer` concatenates the content into
+  `reasoning_content` and never reads `getSignature()`. Signed replay therefore assumes a provider
+  bridge replacing that normalizer — plausible, that is what `Contract` is for, but unverifiable
+  here: no `ai-*-platform` is installed.
+
+  **The lesson outlives the reasoning field.** This was not a bug fix, it was a **change point**. As
+  long as the converter dropped the field, it dropped it *the same way on every replay* —
+  deterministic, therefore safe. The day it is fixed, the journal still holds the same JSON but the
+  converter extracts more from it: the reconstructed message carries one more field, and the payload
+  for turn N+1 no longer matches what was originally sent. Every in-flight execution diverges. Here
+  that costs nothing — a prototype, nothing in flight. In production this kind of fix gets declared
+  and guarded; it does not slip into a patch.
+
+  The upside came from one choice: journaling the **raw** response rather than a converted DTO. The
+  reasoning was already in the journal of every past execution, before anything read it. The journal
+  carries fields the converter does not know about yet — that is what made the fix free.
 - **Failure classification.** A failing tool activity currently kills the agent call. That is a
   default, not a decision.
 - **The ground moves.** `symfony/ai` is 0.x, thirteen minor versions so far, with no compatibility
