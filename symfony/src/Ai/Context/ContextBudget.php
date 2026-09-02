@@ -62,12 +62,9 @@ final readonly class ContextBudget
     /**
      * Ramène la conversation sous le plafond en abandonnant les tours les plus anciens.
      *
-     * **Par tours entiers, jamais par messages.** Un message `assistant` qui demande des outils et
-     * les messages `tool` qui lui répondent forment un bloc : couper au milieu laisse un résultat
-     * d'outil orphelin, que les fournisseurs refusent. Un tour va donc d'un message `user` au
-     * suivant, et part d'un bloc.
-     *
-     * Le message système est toujours conservé : c'est lui qui dit à l'agent ce qu'il est.
+     * Le découpage en tours vit dans {@see Conversation} : ici on ne fait qu'en retirer par le
+     * début tant que ça dépasse. C'est {@see Turn} qui garantit qu'un résultat d'outil ne se
+     * retrouve jamais sans l'appel qui l'a produit.
      *
      * ponytail: plafond assumé — un tour à lui seul plus gros que la fenêtre ne peut pas être
      * compacté, puisque abandonner le message auquel il faut répondre n'aurait pas de sens. Il
@@ -85,75 +82,22 @@ final readonly class ContextBudget
             return $messages;
         }
 
-        $system = [];
-        $rest = [];
-        foreach ($messages as $message) {
-            if ('system' === ($message['role'] ?? null) && [] === $rest) {
-                $system[] = $message;
+        $conversation = Conversation::fromWire($messages);
+        $avant = $conversation->messageCount();
 
-                continue;
-            }
-
-            $rest[] = $message;
+        while (!$conversation->hasSingleTurn() && $this->estimate($conversation->toWire()) > $this->ceiling()) {
+            $conversation = $conversation->withoutOldestTurn();
         }
 
-        $turns = self::splitIntoTurns($rest);
-        $dropped = 0;
-
-        // On abandonne du plus ancien, et on garde toujours le dernier tour : sans lui il ne
-        // resterait rien à quoi répondre.
-        while (\count($turns) > 1 && $this->estimate([...$system, ...self::flatten($turns)]) > $this->ceiling()) {
-            $gone = array_shift($turns);
-            $dropped += \count($gone);
-        }
-
-        if (0 === $dropped) {
+        $retires = $avant - $conversation->messageCount();
+        if (0 === $retires) {
             return $messages;
         }
 
-        return [
-            ...$system,
-            ['role' => 'system', 'content' => \sprintf(
-                '[%d messages plus anciens ont été retirés du contexte pour tenir dans la fenêtre du '
-                .'modèle. Si une information manque, demande-la plutôt que de l’inventer.]',
-                $dropped,
-            )],
-            ...self::flatten($turns),
-        ];
-    }
-
-    /**
-     * @param list<array<string, mixed>> $messages
-     *
-     * @return list<list<array<string, mixed>>>
-     */
-    private static function splitIntoTurns(array $messages): array
-    {
-        $turns = [];
-        $current = [];
-        foreach ($messages as $message) {
-            if ('user' === ($message['role'] ?? null) && [] !== $current) {
-                $turns[] = $current;
-                $current = [];
-            }
-
-            $current[] = $message;
-        }
-
-        if ([] !== $current) {
-            $turns[] = $current;
-        }
-
-        return $turns;
-    }
-
-    /**
-     * @param list<list<array<string, mixed>>> $turns
-     *
-     * @return list<array<string, mixed>>
-     */
-    private static function flatten(array $turns): array
-    {
-        return array_merge(...($turns ?: [[]]));
+        return $conversation->withNotice(\sprintf(
+            '[%d messages plus anciens ont été retirés du contexte pour tenir dans la fenêtre du '
+            .'modèle. Si une information manque, demande-la plutôt que de l\'inventer.]',
+            $retires,
+        ))->toWire();
     }
 }
