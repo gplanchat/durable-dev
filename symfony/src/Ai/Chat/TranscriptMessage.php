@@ -42,6 +42,18 @@ final readonly class TranscriptMessage implements \JsonSerializable
         return new self('user', $content, []);
     }
 
+    /**
+     * Le résumé qui remplace une conversation reprise.
+     *
+     * Une fabrique et pas deux `sprintf` : le workflow la construit pour le modèle, la projection
+     * la reconstruit pour l'affichage, et les deux doivent tomber sur le même message — sinon le
+     * fil visible change de texte au premier tour.
+     */
+    public static function compaction(string $digest): self
+    {
+        return new self('assistant', 'Résumé de notre conversation précédente : ' . $digest, []);
+    }
+
     public function isSystem(): bool
     {
         return 'system' === $this->role;

@@ -115,9 +115,10 @@ final class AiChatController extends AbstractController
     }
 
     /**
-     * @param list<array{role: string, content: string}> $history le fil repris d'une exécution close
+     * @param list<array{role: string, content: string}> $history        le fil repris d'une exécution close
+     * @param bool                                       $compactHistory remplacer ce fil par un résumé avant le premier tour
      */
-    private function startAgent(array $history = []): string
+    private function startAgent(array $history = [], bool $compactHistory = false): string
     {
         $executionId = (string) Uuid::v4();
         $this->workflowRunner->dispatchWorkflowRun(
@@ -128,6 +129,7 @@ final class AiChatController extends AbstractController
                 'approvalTimeoutSeconds' => self::APPROVAL_TIMEOUT_SECONDS,
                 'idleTimeoutSeconds' => self::IDLE_TIMEOUT_SECONDS,
                 'rolloverAfterTurns' => self::ROLLOVER_AFTER_TURNS,
+                'compactHistory' => $compactHistory,
                 'history' => $history,
             ],
             $executionId,
@@ -147,11 +149,16 @@ final class AiChatController extends AbstractController
      *
      * Une exécution close ne se rouvre pas : on en ouvre une neuve, et le fil qu'elle reprend sort
      * de la projection du journal de l'ancienne. Rien n'est stocké entre les deux.
+     *
+     * Et il repart **compacté** : une conversation qu'on reprend après une heure de silence est
+     * froide, et la rejouer mot pour mot ferait payer au premier tour tout ce que le précédent
+     * avait déjà coûté. Le résumé est un appel modèle du run repris, donc journalisé, donc payé
+     * une fois même si la reprise redémarre.
      */
     #[Route('/durable/chat/{executionId}/resume', name: 'durable_chat_resume', methods: ['POST'])]
     public function resume(string $executionId): JsonResponse
     {
-        $resumed = $this->startAgent($this->transcript->forExecution($executionId)->seed());
+        $resumed = $this->startAgent($this->transcript->forExecution($executionId)->seed(), compactHistory: true);
 
         return new JsonResponse(
             ['url' => $this->generateUrl('durable_chat_show', ['executionId' => $resumed])],

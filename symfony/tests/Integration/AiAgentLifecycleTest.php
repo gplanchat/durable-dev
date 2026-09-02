@@ -91,6 +91,63 @@ final class AiAgentLifecycleTest extends KernelTestCase
     }
 
     /**
+     * Une reprise froide ne rejoue pas la conversation : elle la résume. Le modèle du tour suivant
+     * ne doit voir qu'un message repris, pas les quatre d'avant — c'est tout l'intérêt.
+     */
+    public function testAResumedRunStartsFromASummary(): void
+    {
+        $executionId = $this->dispatchWorkflow(DurableAgentWorkflow::class, [
+            'tools' => [],
+            'compactHistory' => true,
+            'history' => [
+                ['role' => 'user', 'content' => 'Météo à Lyon ?'],
+                ['role' => 'assistant', 'content' => '18 °C'],
+                ['role' => 'user', 'content' => 'Et à Paris ?'],
+                ['role' => 'assistant', 'content' => '14 °C'],
+            ],
+            'prompt' => 'Merci',
+            'maxTurns' => 1,
+        ]);
+
+        $this->drainMessengerUntilSettled($executionId);
+
+        $resumed = (new ChatTranscript($this->getEventStoreService(), $this->getWorkflowMetadataStore()))
+            ->forExecution($executionId);
+
+        // Le résumé, le nouveau message, la réponse. Pas les quatre tours d'avant.
+        self::assertCount(3, $resumed->messages);
+        self::assertStringStartsWith('Résumé de notre conversation précédente :', (string) $resumed->messages[0]->content);
+        self::assertStringContainsString('Météo à Lyon', (string) $resumed->messages[0]->content);
+        self::assertSame('Merci', $resumed->messages[1]->content);
+    }
+
+    /**
+     * La compaction porte un nom d'activité à part, et ce n'est pas cosmétique : sous
+     * `ai_model_invoke`, la projection prendrait sa charge — la conversation qu'on remplace — pour
+     * le tour en cours, et une reprise restée silencieuse réafficherait tout l'ancien fil.
+     */
+    public function testACompactedRunGoneIdleShowsTheSummaryNotTheOldThread(): void
+    {
+        $executionId = $this->dispatchWorkflow(DurableAgentWorkflow::class, [
+            'tools' => [],
+            'compactHistory' => true,
+            'history' => [
+                ['role' => 'user', 'content' => 'Météo à Lyon ?'],
+                ['role' => 'assistant', 'content' => '18 °C'],
+            ],
+            'idleTimeoutSeconds' => 0.05,
+        ]);
+
+        $this->drainMessengerUntilSettled($executionId);
+
+        $resumed = (new ChatTranscript($this->getEventStoreService(), $this->getWorkflowMetadataStore()))
+            ->forExecution($executionId);
+
+        self::assertCount(1, $resumed->messages);
+        self::assertStringStartsWith('Résumé de notre conversation précédente :', (string) $resumed->messages[0]->content);
+    }
+
+    /**
      * Un run qui passe la main ne « se termine » pas : il n'a pas de résultat, et sa métadonnée
      * disparaît au profit de celle du run suivant. Le drain du trait attend un résultat, celui-ci
      * attend la relève.

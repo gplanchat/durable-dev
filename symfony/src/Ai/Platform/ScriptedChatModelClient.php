@@ -28,6 +28,11 @@ final class ScriptedChatModelClient implements ModelClientInterface
     public function request(Model $model, array|string $payload, array $options = []): RawResultInterface
     {
         $messages = $payload['messages'] ?? [];
+
+        if ($this->isCompactionRequest($messages)) {
+            return new InMemoryRawResult($this->text($this->digest($messages)));
+        }
+
         $lastUser = '';
         $answeredSinceUser = 0;
 
@@ -65,6 +70,55 @@ final class ScriptedChatModelClient implements ModelClientInterface
         return new InMemoryRawResult($this->text(
             'Je sais consulter la météo d’une ville, enregistrer une note, ou envoyer un courriel. Lequel ?'
         ));
+    }
+
+    /**
+     * La compaction arrive par la même porte que le reste — c'est sa consigne système qui la
+     * distingue, comme elle le ferait chez un vrai fournisseur.
+     *
+     * @param list<array<string, mixed>> $messages
+     */
+    private function isCompactionRequest(array $messages): bool
+    {
+        foreach ($messages as $message) {
+            if ('system' === ($message['role'] ?? null)
+                && str_contains((string) $message['content'], 'Résume-la')
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Un résumé pour de faux, mais qui dit vrai : ce qui a été demandé, et où la conversation en
+     * était restée. Fonction pure de la conversation reçue, donc rejouable.
+     *
+     * @param list<array<string, mixed>> $messages
+     */
+    private function digest(array $messages): string
+    {
+        $asked = [];
+        $lastAnswer = '';
+        foreach ($messages as $message) {
+            $role = $message['role'] ?? null;
+            if ('user' === $role) {
+                $asked[] = trim((string) $message['content']);
+            } elseif ('assistant' === $role && null !== ($message['content'] ?? null)) {
+                $lastAnswer = trim((string) $message['content']);
+            }
+        }
+
+        if ([] === $asked) {
+            return 'La conversation précédente n’a pas dépassé les présentations.';
+        }
+
+        return \sprintf(
+            'La personne avait demandé : %s. Dernière réponse donnée : « %s ». Rien n’est resté en attente.',
+            implode(', ', array_map(static fn (string $q): string => '« ' . $q . ' »', $asked)),
+            '' === $lastAnswer ? 'aucune' : $lastAnswer,
+        );
     }
 
     /**

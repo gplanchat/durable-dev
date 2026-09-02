@@ -83,6 +83,7 @@ final class ChatTranscript
         $steps = [];
         $results = [];
         $lastModelCallId = null;
+        $compactionCallId = null;
         $finished = false;
         $executed = [];
         $decided = [];
@@ -106,6 +107,14 @@ final class ChatTranscript
                 if ('ai_model_invoke' === $event->activityName()) {
                     $messages = self::descendTo($payload, 'messages')['messages'] ?? $messages;
                     $lastModelCallId = $event->activityId();
+
+                    continue;
+                }
+
+                // La compaction est un appel modèle comme un autre, sous un nom à part : sa charge
+                // est la conversation qu'on remplace, pas celle du tour en cours.
+                if ('ai_model_compact' === $event->activityName()) {
+                    $compactionCallId = $event->activityId();
 
                     continue;
                 }
@@ -173,7 +182,14 @@ final class ChatTranscript
         // Un run repris — reprise après clôture ou continue-as-new — porte son fil d'origine dans
         // sa charge de démarrage. Tant qu'aucun appel modèle ne l'a réémis, c'est la seule trace
         // qu'en ait le journal ; sans ça la conversation paraît s'être vidée.
-        $carried = $started['history'] ?? [];
+        //
+        // Sauf s'il l'a compacté : c'est alors le résumé qui fait foi, dès avant le premier tour.
+        // L'afficher plus tôt n'aurait pas seulement l'air faux — le fil complet compterait des
+        // messages que le modèle ne verra jamais, et fausserait le statut de l'agent.
+        $digest = $results[$compactionCallId]['choices'][0]['message']['content'] ?? null;
+        $carried = \is_string($digest) && '' !== trim($digest)
+            ? [TranscriptMessage::compaction(trim($digest))->toWire()]
+            : $started['history'] ?? [];
         if ([] === $messages) {
             $messages = $carried;
         }
@@ -239,12 +255,13 @@ final class ChatTranscript
             $pending,
             $mode,
             $approvalTimeout,
-            // Trois façons d'avoir un tour en cours : un message reçu que le modèle n'a pas encore
-            // vu, un appel modèle planifié sans résultat, ou une réponse qui demande encore des
-            // outils. Aucun appel modèle du tout n'est *pas* un tour en cours : c'est l'état de
-            // départ, où le workflow est suspendu sur son premier signal.
+            // Quatre façons d'avoir un tour en cours : une compaction en vol, un message reçu que
+            // le modèle n'a pas encore vu, un appel modèle planifié sans résultat, ou une réponse
+            // qui demande encore des outils. Aucun appel modèle du tout n'est *pas* un tour en
+            // cours : c'est l'état de départ, où le workflow est suspendu sur son premier signal.
             !$finished && [] === $pending && (
-                $messagesSignalled > $messagesSeenByModel
+                (null !== $compactionCallId && !\array_key_exists($compactionCallId, $results))
+                || $messagesSignalled > $messagesSeenByModel
                 || (null !== $lastModelCallId && !\array_key_exists($lastModelCallId, $results))
                 || (null !== $lastModelCallId && !\is_string($answer))
             ),

@@ -29,4 +29,9 @@ final class ModelInvocationActivityHandler implements ModelInvocationActivityInt
     {
         return $this->client->request($this->catalog->getModel($model), $payload, $options)->getData();
     }
+
+    public function compactConversation(string $model, array $payload, array $options): array
+    {
+        return $this->invokeModel($model, $payload, $options);
+    }
 }

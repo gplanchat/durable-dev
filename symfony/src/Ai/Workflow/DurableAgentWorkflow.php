@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Ai\Workflow;
 
+use App\Ai\Activity\ModelInvocationActivityInterface;
 use App\Ai\Chat\TranscriptMessage;
 use App\Ai\Durable\DurableAgentFactory;
 use App\Ai\Guard\AgentMode;
@@ -48,7 +49,9 @@ use Symfony\AI\Platform\Message\MessageBag;
  *   exécution** : même `workflowId`, même URL, journal vierge, fil transporté.
  *
  * Ce qui est transporté est le fil *parlé*, pas le journal : les appels d'outils et leurs retours
- * appartiennent au run qui s'achève.
+ * appartiennent au run qui s'achève. Et `compactHistory` le réduit à un résumé avant le premier
+ * tour — ce qu'on veut d'une reprise froide, où rejouer la conversation mot pour mot ferait payer
+ * au premier tour tout ce que le run précédent avait déjà coûté.
  *
  * Le relais n'a pas la même surface selon le backend, et c'est ce qui le rend opt-in : sur Temporal
  * le `workflowId` ne bouge pas, donc l'URL du chat non plus ; sur les autres,
@@ -64,6 +67,16 @@ final class DurableAgentWorkflow
      * ({@see \Gplanchat\Durable\WorkflowRegistry}) : `continueAsNew` doit donner celui-là.
      */
     public const TYPE = 'Ai_DurableAgent';
+
+    /**
+     * Ce qu'on demande au modèle quand une conversation froide redémarre.
+     *
+     * Le résumé remplace le fil : il doit donc porter ce dont le tour suivant a besoin — la demande,
+     * ce qui a été fait, ce qui reste ouvert — et rien de la mécanique.
+     */
+    private const COMPACTION_PROMPT = 'Tu reprends une conversation interrompue. Résume-la en '
+        . 'quelques phrases : ce que la personne a demandé, ce qui a été fait pour elle, et ce qui '
+        . 'reste en suspens. Écris le résumé seul, sans préambule ni formule d\'introduction.';
 
     /** @var list<string> */
     private array $inbox = [];
@@ -130,12 +143,47 @@ final class DurableAgentWorkflow
     }
 
     /**
+     * Réduire une conversation froide à ce qu'il faut en savoir.
+     *
+     * Un appel modèle, pas une boucle d'agent : il n'y a rien à outiller ici, et passer par
+     * `Runner` ne ferait qu'exposer la compaction aux gardes et aux appels d'outils. L'appel sort
+     * du journal comme les autres — donc rejoué, donc payé une fois.
+     *
+     * Si le modèle ne rend rien d'exploitable, le fil brut vaut mieux qu'un résumé vide : l'appelant
+     * garde alors ce qu'il avait.
+     *
+     * @param list<TranscriptMessage> $thread
+     */
+    private function compact(string $model, array $thread): TranscriptMessage
+    {
+        $result = $this->environment->await(
+            $this->environment
+                ->activityStub(ModelInvocationActivityInterface::class)
+                ->compactConversation($model, ['messages' => [
+                    ['role' => 'system', 'content' => self::COMPACTION_PROMPT],
+                    ...TranscriptMessage::listToWire($thread),
+                ]], []),
+        );
+
+        // La forme d'une réponse « chat completions », la même que lit la projection.
+        $digest = trim((string) ($result['choices'][0]['message']['content'] ?? ''));
+
+        return '' === $digest
+            ? TranscriptMessage::assistant(implode(
+                "\n",
+                array_map(static fn (TranscriptMessage $message): string => (string) $message->content, $thread),
+            ))
+            : TranscriptMessage::compaction($digest);
+    }
+
+    /**
      * La charge arrive du journal, donc en tableaux : `$tools` est converti en
      * {@see ToolDefinition} dès l'entrée, et plus rien en dessous ne manipule de tableau associatif.
      *
      * @param array<string, array{description?: string, parameters?: array<string, mixed>|null, effect?: string}> $tools
      * @param float|null                                                                                         $idleTimeoutSeconds silence au bout duquel l'exécution se termine ; `null` = jamais
      * @param int|null                                                                                           $rolloverAfterTurns tours au bout desquels le run passe la main à un run neuf ; `null` = jamais
+     * @param bool                                                                                               $compactHistory     remplacer le fil repris par un résumé avant le premier tour
      * @param list<array{role?: string, content?: string|null}>                                                   $history            le fil repris d'une exécution précédente
      * @param list<string>                                                                                        $pending            messages reçus mais pas encore traités, transmis par le run précédent
      *
@@ -153,6 +201,7 @@ final class DurableAgentWorkflow
         ?float $approvalTimeoutSeconds = null,
         ?float $idleTimeoutSeconds = null,
         ?int $rolloverAfterTurns = null,
+        bool $compactHistory = false,
         array $history = [],
         array $pending = [],
         ?ToolGuardInterface $guard = null,
@@ -185,6 +234,10 @@ final class DurableAgentWorkflow
         // Le sac est reconstruit à chaque rejeu ; `$thread` en est la trace transportable — mêmes
         // tours, forme du fil, sans les appels d'outils.
         $thread = TranscriptMessage::listFromWire($history);
+        if ($compactHistory && [] !== $thread) {
+            $thread = [$this->compact($model, $thread)];
+        }
+
         $messages = new MessageBag(Message::forSystem($systemPrompt));
         foreach ($thread as $carried) {
             $messages->add($carried->isUser()
@@ -244,6 +297,10 @@ final class DurableAgentWorkflow
                     'approvalTimeoutSeconds' => $approvalTimeoutSeconds,
                     'idleTimeoutSeconds' => $idleTimeoutSeconds,
                     'rolloverAfterTurns' => $rolloverAfterTurns,
+                    // Le relais transmet le fil tel quel : il a lieu au milieu d'une conversation
+                    // vivante, où perdre le détail se paierait tout de suite. La compaction est
+                    // pour les reprises froides.
+                    'compactHistory' => false,
                     'history' => TranscriptMessage::listToWire($thread),
                     'pending' => $this->inbox,
                 ]);
