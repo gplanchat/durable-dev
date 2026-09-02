@@ -54,16 +54,16 @@ final class ScriptedChatModelClient implements ModelClientInterface
             return new InMemoryRawResult($this->toolCall($messages, 'send_email', [
                 'to' => 'equipe@example.test',
                 'body' => 'Compte rendu demandé depuis le chat durable.',
-            ]));
+            ], 'La demande parle de courriel. Effet externe : rien ne rattrape un envoi, je passe par l\'outil et j\'attends la garde.'));
         }
 
         if (str_contains($lastUser, 'note')) {
-            return new InMemoryRawResult($this->toolCall($messages, 'save_note', ['text' => $lastUser]));
+            return new InMemoryRawResult($this->toolCall($messages, 'save_note', ['text' => $lastUser], 'Une note à garder : écriture locale, réversible.'));
         }
 
         foreach (['paris', 'lyon', 'marseille'] as $city) {
             if (str_contains($lastUser, $city)) {
-                return new InMemoryRawResult($this->toolCall($messages, 'weather', ['city' => ucfirst($city)]));
+                return new InMemoryRawResult($this->toolCall($messages, 'weather', ['city' => ucfirst($city)], \sprintf('%s est nommée : une lecture suffit, aucun effet à compenser.', ucfirst($city))));
             }
         }
 
@@ -145,20 +145,27 @@ final class ScriptedChatModelClient implements ModelClientInterface
      *
      * @return array<string, mixed>
      */
-    private function toolCall(array $messages, string $tool, array $arguments): array
+    private function toolCall(array $messages, string $tool, array $arguments, string $reasoning = ''): array
     {
-        return ['choices' => [['message' => ['content' => null, 'tool_calls' => [[
-            'id' => \sprintf('call_%d', \count($messages)),
-            'type' => 'function',
-            'function' => ['name' => $tool, 'arguments' => json_encode($arguments, \JSON_UNESCAPED_UNICODE)],
-        ]]], 'finish_reason' => 'tool_calls']]];
+        return ['choices' => [['message' => [
+            'content' => null,
+            'reasoning_content' => '' === $reasoning ? null : $reasoning,
+            'tool_calls' => [[
+                'id' => \sprintf('call_%d', \count($messages)),
+                'type' => 'function',
+                'function' => ['name' => $tool, 'arguments' => json_encode($arguments, \JSON_UNESCAPED_UNICODE)],
+            ]],
+        ], 'finish_reason' => 'tool_calls']]];
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function text(string $text): array
+    private function text(string $text, string $reasoning = ''): array
     {
-        return ['choices' => [['message' => ['content' => $text], 'finish_reason' => 'stop']]];
+        return ['choices' => [['message' => [
+            'content' => $text,
+            'reasoning_content' => '' === $reasoning ? null : $reasoning,
+        ], 'finish_reason' => 'stop']]];
     }
 }

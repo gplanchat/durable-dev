@@ -62,6 +62,48 @@ final class DurableAgentReplayTest extends TestCase
     }
 
     /**
+     * Le bloc de raisonnement du tour N doit repartir dans la charge du tour N+1.
+     *
+     * Le laisser tomber ne lève rien : le tour d'après part simplement amputé — et chez un
+     * fournisseur qui vérifie ses blocs au renvoi, c'est l'appel qui échoue. C'est donc au journal
+     * de le porter (il porte le JSON brut entier) et au convertisseur de le relire.
+     */
+    public function testTheThinkingBlockOfOneTurnComesBackInTheNextPayload(): void
+    {
+        [, $modelCalls] = $this->executeAgent('exec-thinking');
+
+        self::assertCount(3, $modelCalls);
+
+        $reasonings = array_map(
+            static fn (array $call): array => array_values(array_filter(array_map(
+                static fn (array $message): ?string => $message['reasoning_content'] ?? null,
+                $call['payload']['messages'],
+            ))),
+            $modelCalls,
+        );
+
+        // Premier tour : rien à renvoyer, personne n'a encore raisonné.
+        self::assertSame([], $reasonings[0]);
+        self::assertSame(['Deux villes demandées, je commence par Paris.'], $reasonings[1]);
+        self::assertSame(
+            ['Deux villes demandées, je commence par Paris.', 'Paris est connue, reste Lyon.'],
+            $reasonings[2],
+            'Un bloc de raisonnement a été perdu entre deux tours.',
+        );
+    }
+
+    /**
+     * Le raisonnement voyage à côté de la réponse, il ne la contamine pas : `MultiPartResult`
+     * rendrait un tableau à `getContent()`, et le fil afficherait « Array ».
+     */
+    public function testTheAnswerStaysTheTextEvenWhenTheTurnCarriesReasoning(): void
+    {
+        [$result] = $this->executeAgent('exec-answer');
+
+        self::assertSame('Paris 22°C, Lyon 25°C.', $result);
+    }
+
+    /**
      * @return array{0: string, 1: list<array<string, mixed>>, 2: list<array<string, mixed>>, 3: int}
      */
     private function executeAgent(string $executionId): array
@@ -71,9 +113,9 @@ final class DurableAgentReplayTest extends TestCase
         $passes = 0;
 
         $scripted = [
-            $this->toolCallResponse('call_1', 'weather', ['city' => 'Paris']),
-            $this->toolCallResponse('call_2', 'weather', ['city' => 'Lyon']),
-            $this->textResponse('Paris 22°C, Lyon 25°C.'),
+            $this->toolCallResponse('call_1', 'weather', ['city' => 'Paris'], 'Deux villes demandées, je commence par Paris.'),
+            $this->toolCallResponse('call_2', 'weather', ['city' => 'Lyon'], 'Paris est connue, reste Lyon.'),
+            $this->textResponse('Paris 22°C, Lyon 25°C.', 'Les deux relevés sont là, je réponds.'),
         ];
 
         $environment = WorkflowTestEnvironment::inMemory([
@@ -111,20 +153,27 @@ final class DurableAgentReplayTest extends TestCase
      *
      * @return array<string, mixed>
      */
-    private function toolCallResponse(string $id, string $name, array $arguments): array
+    private function toolCallResponse(string $id, string $name, array $arguments, string $reasoning = ''): array
     {
-        return ['choices' => [['message' => ['content' => null, 'tool_calls' => [[
-            'id' => $id,
-            'type' => 'function',
-            'function' => ['name' => $name, 'arguments' => json_encode($arguments)],
-        ]]], 'finish_reason' => 'tool_calls']]];
+        return ['choices' => [['message' => [
+            'content' => null,
+            'reasoning_content' => '' === $reasoning ? null : $reasoning,
+            'tool_calls' => [[
+                'id' => $id,
+                'type' => 'function',
+                'function' => ['name' => $name, 'arguments' => json_encode($arguments)],
+            ]],
+        ], 'finish_reason' => 'tool_calls']]];
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function textResponse(string $text): array
+    private function textResponse(string $text, string $reasoning = ''): array
     {
-        return ['choices' => [['message' => ['content' => $text], 'finish_reason' => 'stop']]];
+        return ['choices' => [['message' => [
+            'content' => $text,
+            'reasoning_content' => '' === $reasoning ? null : $reasoning,
+        ], 'finish_reason' => 'stop']]];
     }
 }

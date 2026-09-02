@@ -19,6 +19,7 @@ use Gplanchat\Durable\Exception\DeadlineExceededException;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Result\MultiPartResult;
 
 /**
  * Un agent durable : **une conversation = une exécution**.
@@ -273,8 +274,11 @@ final class DurableAgentWorkflow
             // `Runner` ajoute lui-même les messages de la boucle d'outils au sac, mais pas la
             // réponse finale : elle sort de la boucle sans y passer.
             $result = $agent->call($messages)->getResult();
+            // Le sac reçoit le résultat entier — `Message::toContent()` déplie un `MultiPartResult`,
+            // et le bloc de raisonnement repart ainsi au tour suivant. Le fil, lui, ne veut que le
+            // texte : `getContent()` d'un multi-parts rend un tableau, pas une chaîne.
             $messages->add(Message::ofAssistant($result));
-            $answer = (string) $result->getContent();
+            $answer = $result instanceof MultiPartResult ? $result->asText() : (string) $result->getContent();
             $thread[] = TranscriptMessage::assistant($answer);
 
             ++$turns;

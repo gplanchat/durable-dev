@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Ai\Durable;
 
 use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\Result\MultiPartResult;
 use Symfony\AI\Platform\Result\RawResultInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Result\TextResult;
+use Symfony\AI\Platform\Result\ThinkingResult;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Result\ToolCallResult;
 use Symfony\AI\Platform\ResultConverterInterface;
@@ -31,8 +33,18 @@ final class ChatCompletionResultConverter implements ResultConverterInterface
     {
         $message = $result->getData()['choices'][0]['message'] ?? [];
 
+        $parts = [];
+
+        // Le bloc de raisonnement d'abord : `Message::toContent()` le rendra à un `Thinking`, que
+        // `AssistantMessageNormalizer` remettra en `reasoning_content` au tour suivant. Le laisser
+        // tomber ici ampute le tour d'après **sans rien lever** — et chez un fournisseur qui vérifie
+        // ses blocs au renvoi, l'appel échoue.
+        if ('' !== ($reasoning = trim((string) ($message['reasoning_content'] ?? $message['reasoning'] ?? '')))) {
+            $parts[] = new ThinkingResult($reasoning);
+        }
+
         if ([] !== ($message['tool_calls'] ?? [])) {
-            return new ToolCallResult(array_map(
+            $parts[] = new ToolCallResult(array_map(
                 static fn (array $call): ToolCall => new ToolCall(
                     $call['id'],
                     $call['function']['name'],
@@ -40,9 +52,11 @@ final class ChatCompletionResultConverter implements ResultConverterInterface
                 ),
                 $message['tool_calls'],
             ));
+        } else {
+            $parts[] = new TextResult((string) ($message['content'] ?? ''));
         }
 
-        return new TextResult((string) ($message['content'] ?? ''));
+        return 1 === \count($parts) ? $parts[0] : new MultiPartResult($parts);
     }
 
     public function getTokenUsageExtractor(): ?TokenUsageExtractorInterface
