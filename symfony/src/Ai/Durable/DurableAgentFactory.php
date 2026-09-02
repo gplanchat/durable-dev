@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Ai\Durable;
 
+use App\Ai\Context\ContextBudget;
 use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\ModeToolGuard;
 use App\Ai\Guard\ToolApprovalGate;
@@ -51,6 +52,7 @@ final class DurableAgentFactory
         ?\Closure $mode = null,
         ?ToolGuardInterface $guard = null,
         ?Duration $humanTimeout = null,
+        ?ContextBudget $budget = null,
     ): Agent {
         // Toujours offerts : un agent qui ne peut pas demander invente, et un agent qui ne peut
         // pas attendre bâcle.
@@ -63,7 +65,7 @@ final class DurableAgentFactory
         $platform = new Platform([
             new Provider(
                 'durable-mistral',
-                [new DurableModelClient($environment)],
+                [new DurableModelClient($environment, $budget ?? new ContextBudget())],
                 [new ResultConverter()],
                 new ModelCatalog(),
                 Contract::create([new AssistantMessageNormalizer(), new ToolNormalizer()]),

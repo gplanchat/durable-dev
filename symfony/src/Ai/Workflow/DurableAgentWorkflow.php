@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Ai\Workflow;
 
+use App\Ai\Context\ContextBudget;
 use App\Ai\Durable\DurableAgentFactory;
 use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\ToolApprovalGate;
@@ -44,6 +45,11 @@ use Symfony\AI\Platform\Message\MessageBag;
  * `humanTimeoutSeconds` borne toute attente humaine pour l'instance d'agent : pas de réponse vaut
  * refus pour une validation, « rien choisi » pour une question. Le minuteur étant journalisé
  * (DUR032), l'échéance survit au redémarrage comme l'attente elle-même.
+ *
+ * `contextTokens` borne la conversation : une conversation durable grossit sans fin, et le jour
+ * où elle dépasse la fenêtre du modèle l'agent ne rate pas un tour, il ne peut plus en faire un
+ * seul. La compaction abandonne les tours les plus anciens — par tours entiers, pour ne pas
+ * laisser de résultat d'outil orphelin — et elle est **pure**, donc rejouée à l'identique.
  *
  * Contraintes de rejeu, à ne pas relâcher : `symfony/ai` épinglé (`Runner` est `@internal`, sa
  * boucle est le contrat de déterminisme), pas de streaming, schémas d'outils figés dans le payload,
@@ -173,6 +179,7 @@ final class DurableAgentWorkflow
         int $maxTurns = 20,
         int $maxToolCalls = 10,
         ?float $humanTimeoutSeconds = null,
+        int $contextTokens = 24_000,
         ?ToolGuardInterface $guard = null,
     ): string {
         $this->mode = AgentMode::tryFrom($mode) ?? AgentMode::Standard;
@@ -194,6 +201,7 @@ final class DurableAgentWorkflow
             mode: fn(): AgentMode => $this->mode,
             guard: $guard,
             humanTimeout: Duration::fromWireValue($humanTimeoutSeconds),
+            budget: new ContextBudget($contextTokens),
         );
 
         $messages = new MessageBag(Message::forSystem($systemPrompt));
