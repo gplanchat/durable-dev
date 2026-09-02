@@ -15,7 +15,11 @@ use App\Ai\Tool\ToolDefinition;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Symfony\AI\Agent\Agent;
-use Symfony\AI\Platform\ModelCatalog\FallbackModelCatalog;
+use Symfony\AI\Platform\Bridge\Mistral\Contract\AssistantMessageNormalizer;
+use Symfony\AI\Platform\Bridge\Mistral\Contract\ToolNormalizer;
+use Symfony\AI\Platform\Bridge\Mistral\Llm\ResultConverter;
+use Symfony\AI\Platform\Bridge\Mistral\ModelCatalog;
+use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\Provider;
 
@@ -48,12 +52,17 @@ final class DurableAgentFactory
         // Toujours offert : un agent qui ne peut pas demander invente.
         $tools = [...$tools, AskUserQuestion::definition()];
 
+        // Le pont Mistral fournit tout ce qui est **pur** — la normalisation de la conversation,
+        // le catalogue, la conversion du JSON en résultat — et c'est ce qui tourne en code
+        // workflow, donc rejoué. Seul son client HTTP est remplacé : lui seul sort du processus,
+        // et c'est précisément ce qui doit devenir une activité.
         $platform = new Platform([
             new Provider(
-                'durable',
+                'durable-mistral',
                 [new DurableModelClient($environment)],
-                [new ChatCompletionResultConverter()],
-                new FallbackModelCatalog(),
+                [new ResultConverter()],
+                new ModelCatalog(),
+                Contract::create([new AssistantMessageNormalizer(), new ToolNormalizer()]),
             ),
         ]);
 

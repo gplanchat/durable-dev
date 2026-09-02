@@ -61,7 +61,7 @@ final class SampleWorkflowCatalog
                     'prompt' => 'Quelle météo à Paris ?',
                     'maxTurns' => 1,
                     'mode' => 'auto',
-                    'model' => 'gpt-4o-mini',
+                    'model' => 'mistral-small-latest',
                     'tools' => [
                         'weather' => [
                             'description' => 'Météo courante d’une ville.',

@@ -10,7 +10,7 @@ use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
-use Symfony\AI\Platform\Result\InMemoryRawResult;
+use App\Ai\Platform\JournaledHttpResult;
 use Symfony\AI\Platform\Result\RawResultInterface;
 
 /**
@@ -47,7 +47,7 @@ final class DurableModelClient implements ModelClientInterface
             throw new \LogicException('Le streaming est incompatible avec le rejeu : journalise le résultat assemblé, streame sur un canal latéral.');
         }
 
-        return new InMemoryRawResult(
+        return new JournaledHttpResult(
             $this->environment->await($this->stub->invokeModel($model->getName(), $payload, $options)),
         );
     }

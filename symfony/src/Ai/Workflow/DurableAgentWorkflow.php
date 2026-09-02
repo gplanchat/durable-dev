@@ -145,7 +145,7 @@ final class DurableAgentWorkflow
     #[AsWorkflowMethod]
     public function run(
         array $tools = [],
-        string $model = 'gpt-4o-mini',
+        string $model = 'mistral-small-latest',
         string $mode = 'standard',
         string $systemPrompt = 'Tu es un assistant concis. Utilise les outils quand ils répondent mieux que toi.',
         ?string $prompt = null,
