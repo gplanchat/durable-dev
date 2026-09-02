@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai\Platform;
 
 use App\Ai\Question\AskUserQuestion;
+use App\Ai\Watch\WatchSubject;
 use App\Ai\Watch\WatchTool;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
@@ -71,6 +72,9 @@ final class ScriptedChatModelClient implements ModelClientInterface
 
         if (str_contains($lastUser, 'surveille') || str_contains($lastUser, 'préviens')) {
             return new InMemoryRawResult($this->toolCall($messages, WatchTool::TOOL, [
+                // Le sujet est ce qui rend la veille joignable : `app:agent:evenement
+                // commande.expediee` la réveille, un texte libre ne l'aurait jamais réveillée.
+                'sujet' => WatchSubject::CommandeExpediee->value,
                 'observation' => 'La livraison du fournisseur arrive à l’entrepôt',
                 'intention' => 'Enregistrer une note de réception et prévenir l’équipe',
                 'deadlineSeconds' => 900,

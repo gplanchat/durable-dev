@@ -7,17 +7,14 @@ namespace App\Controller;
 use App\Ai\Chat\ChatTranscript;
 use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\ToolEffect;
-use App\Ai\Live\AgentLiveFeed;
+use App\Ai\Live\AgentSignals;
 use App\Ai\Tool\ToolDefinition;
 use App\Ai\Workflow\DurableAgentWorkflow;
 use App\Durable\DurableSampleWorkflowRunner;
-use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
-use Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
@@ -93,45 +90,9 @@ final class AiChatController extends AbstractController
 
     public function __construct(
         private readonly DurableSampleWorkflowRunner $workflowRunner,
-        private readonly MessageBusInterface $messageBus,
         private readonly ChatTranscript $transcript,
-        private readonly AgentLiveFeed $feed,
-        private readonly ?WorkflowClientInterface $workflowClient = null,
+        private readonly AgentSignals $signals,
     ) {
-    }
-
-    /**
-     * Un signal n'a pas le même chemin selon qui détient le journal.
-     *
-     * Sur Temporal natif le cluster **est** le journal : `TemporalReadThroughEventStore::append()`
-     * n'écrit que dans le cache local de la requête, donc un `WorkflowSignalReceived` posé là
-     * disparaît avec le processus. Le signal doit partir au cluster.
-     *
-     * Sur DBAL (DUR030) il n'y a pas de cluster : le message Messenger est la bonne porte, et
-     * `DeliverWorkflowSignalHandler` écrit dans un journal SQL que tout le monde relit.
-     *
-     * @param array<string, mixed> $payload
-     */
-    private function signal(string $executionId, string $signalName, array $payload): void
-    {
-        if (null !== $this->workflowClient) {
-            $this->workflowClient->signal($this->workflowClient->workflowId($executionId), $signalName, $payload);
-
-            return;
-        }
-
-        $this->messageBus->dispatch(new DeliverWorkflowSignalMessage($executionId, $signalName, $payload));
-    }
-
-    /**
-     * Un signal n'est pas un message de worker : il part d'ici, et aucun `WorkerMessageHandledEvent`
-     * ne le suivra tant que le workflow n'aura pas repris. Sans cette sonnerie, un message envoyé
-     * depuis un onglet n'apparaîtrait dans les autres qu'au sondage suivant.
-     */
-    private function signalAndNudge(string $executionId, string $signalName, array $payload): void
-    {
-        $this->signal($executionId, $signalName, $payload);
-        $this->feed->nudge($executionId);
     }
 
     /**
@@ -220,7 +181,7 @@ final class AiChatController extends AbstractController
 
         // Le workflow est suspendu sur sa condition ; le signal le réveille. Rien à attendre ici,
         // la page relit la projection.
-        $this->signalAndNudge($executionId, 'user_message', ['text' => $text]);
+        $this->signals->send($executionId, 'user_message', ['text' => $text]);
 
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
     }
@@ -233,7 +194,7 @@ final class AiChatController extends AbstractController
     public function decision(string $executionId, Request $request): JsonResponse
     {
         $body = $request->toArray();
-        $this->signalAndNudge($executionId, 'tool_decision', [
+        $this->signals->send($executionId, 'tool_decision', [
             'callId' => (string) ($body['callId'] ?? ''),
             'approved' => (bool) ($body['approved'] ?? false),
         ]);
@@ -251,7 +212,7 @@ final class AiChatController extends AbstractController
         $body = $request->toArray();
         $answers = \is_array($body['answers'] ?? null) ? $body['answers'] : [];
 
-        $this->signalAndNudge($executionId, 'question_answered', [
+        $this->signals->send($executionId, 'question_answered', [
             'callId' => (string) ($body['callId'] ?? ''),
             'answers' => array_values(array_map(strval(...), $answers)),
         ]);
@@ -268,7 +229,7 @@ final class AiChatController extends AbstractController
     {
         $body = $request->toArray();
 
-        $this->signalAndNudge($executionId, 'alerte', [
+        $this->signals->send($executionId, 'alerte', [
             'callId' => (string) ($body['callId'] ?? ''),
             'observation' => (string) ($body['observation'] ?? ''),
         ]);
@@ -284,7 +245,7 @@ final class AiChatController extends AbstractController
             return new JsonResponse(['error' => 'Mode inconnu.'], Response::HTTP_BAD_REQUEST);
         }
 
-        $this->signalAndNudge($executionId, 'set_mode', ['mode' => $mode->value]);
+        $this->signals->send($executionId, 'set_mode', ['mode' => $mode->value]);
 
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
     }
@@ -292,7 +253,7 @@ final class AiChatController extends AbstractController
     #[Route('/durable/chat/{executionId}/close', name: 'durable_chat_close', methods: ['POST'])]
     public function close(string $executionId): JsonResponse
     {
-        $this->signalAndNudge($executionId, 'close', []);
+        $this->signals->send($executionId, 'close', []);
 
         return new JsonResponse(null, Response::HTTP_ACCEPTED);
     }

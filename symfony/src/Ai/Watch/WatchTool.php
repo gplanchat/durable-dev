@@ -18,6 +18,9 @@ use App\Ai\Tool\ToolDefinition;
  * jours, traverser un redéploiement, et retrouver au réveil non seulement l'observation mais
  * **l'intention qu'il avait écrite en s'inscrivant**. Rien à se rappeler, tout est au journal.
  *
+ * Le `sujet` est ce qui rend la veille joignable : {@see WatchSubject} en tient le vocabulaire, et
+ * c'est lui — pas l'`observation`, qui est pour l'humain — qu'un événement métier appariera.
+ *
  * Classé `read` : se mettre en veille n'écrit nulle part. Ce que l'agent fera *ensuite* repassera
  * par la garde comme n'importe quel appel.
  */
@@ -27,6 +30,14 @@ final class WatchTool
 
     private function __construct()
     {
+    }
+
+    private static function catalogue(): string
+    {
+        return implode(', ', array_map(
+            static fn (WatchSubject $s): string => \sprintf('`%s` (%s)', $s->value, $s->describe()),
+            WatchSubject::cases(),
+        ));
     }
 
     public static function definition(): ToolDefinition
@@ -41,6 +52,14 @@ final class WatchTool
             [
                 'type' => 'object',
                 'properties' => [
+                    'sujet' => [
+                        'type' => 'string',
+                        'enum' => WatchSubject::values(),
+                        'description' => 'L’événement que tu attends, à choisir dans la liste : '
+                            .self::catalogue()
+                            .'. C’est lui, et pas ta phrase, qui réveillera la veille — un sujet '
+                            .'hors liste sera refusé.',
+                    ],
                     'observation' => [
                         'type' => 'string',
                         'description' => 'Ce que tu guettes, dit en une phrase lisible par un humain.',
@@ -55,7 +74,7 @@ final class WatchTool
                         'description' => 'Au-delà de ce délai, la veille est abandonnée et tu reprends la main.',
                     ],
                 ],
-                'required' => ['observation', 'intention'],
+                'required' => ['sujet', 'observation', 'intention'],
             ],
         );
     }

@@ -12,8 +12,10 @@ use App\Ai\Guard\ToolGuardInterface;
 use App\Ai\Question\AskUserQuestion;
 use App\Ai\Question\HumanQuestionDesk;
 use App\Ai\Question\PendingQuestion;
+use App\Ai\Watch\UnknownWatchSubject;
 use App\Ai\Watch\Watch;
 use App\Ai\Watch\WatchDesk;
+use App\Ai\Watch\WatchSubject;
 use App\Ai\Watch\WatchTool;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
@@ -132,7 +134,21 @@ final class DurableToolExecutor implements ToolExecutorInterface
      */
     private function standBy(ToolCall $toolCall): \Generator
     {
-        $watch = Watch::fromArguments($toolCall->getId(), $toolCall->getArguments());
+        try {
+            $watch = Watch::fromArguments($toolCall->getId(), $toolCall->getArguments());
+        } catch (UnknownWatchSubject $refus) {
+            // Rendu au modèle comme un résultat d'outil, pas levé : c'est une consigne mal suivie,
+            // pas une panne, et l'agent peut se corriger au tour suivant. Une veille armée sur un
+            // sujet inconnu, elle, dormirait jusqu'à son échéance sans que rien ne le dise.
+            yield new Progress('watch_refused', $refus->subject, $toolCall);
+
+            return \sprintf(
+                '%s Sujets connus : %s. Reprends avec l\'un d\'eux, ou fais autrement.',
+                $refus->getMessage(),
+                implode(', ', WatchSubject::values()),
+            );
+        }
+
         $this->watches->watch($watch);
         yield new Progress('watch_started', $watch->observation, $toolCall);
 

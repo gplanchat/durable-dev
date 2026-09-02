@@ -116,6 +116,7 @@ final class WatchTest extends TestCase
                         'id' => self::CALL,
                         'type' => 'function',
                         'function' => ['name' => WatchTool::TOOL, 'arguments' => json_encode([
+                            'sujet' => 'commande.expediee',
                             'observation' => 'La livraison arrive à l’entrepôt',
                             'intention' => 'Enregistrer la réception et prévenir l’équipe',
                             'deadlineSeconds' => 5,
@@ -128,5 +129,38 @@ final class WatchTest extends TestCase
                 return ['choices' => [['message' => ['content' => $last['content']], 'finish_reason' => 'stop']]];
             },
         ];
+    }
+
+    /**
+     * Un sujet hors du vocabulaire ne doit pas armer une veille : rien ne pourrait jamais la
+     * lever, et l'agent dormirait jusqu'à son échéance sans que personne ne le sache.
+     */
+    public function testAnUnknownSubjectIsRefusedInsteadOfArmingADeadWatch(): void
+    {
+        $round = 0;
+        $environment = WorkflowTestEnvironment::inMemory([
+            'ai_model_invoke' => static function (array $payload) use (&$round): array {
+                if (0 === $round++) {
+                    return ['choices' => [['message' => ['content' => null, 'tool_calls' => [[
+                        'id' => self::CALL,
+                        'type' => 'function',
+                        'function' => ['name' => WatchTool::TOOL, 'arguments' => json_encode([
+                            'sujet' => 'livraison.arrivee',
+                            'observation' => 'Le camion',
+                            'intention' => 'Prévenir',
+                        ], \JSON_UNESCAPED_UNICODE)],
+                    ]]], 'finish_reason' => 'tool_calls']]];
+                }
+
+                $last = end($payload['payload']['messages']);
+
+                return ['choices' => [['message' => ['content' => $last['content']], 'finish_reason' => 'stop']]];
+            },
+        ]);
+
+        $answer = $environment->runWorkflowClass(DurableAgentWorkflow::class, $this->input(), 'watch-refus');
+
+        self::assertStringContainsString('Sujet de veille inconnu', $answer);
+        self::assertStringContainsString('commande.expediee', $answer, 'Le refus doit dire ce qui est acceptable.');
     }
 }

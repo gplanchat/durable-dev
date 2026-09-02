@@ -294,7 +294,7 @@
     const watchBubble = (w) => {
         const card = document.createElement('div');
         card.className = 'approval watch waits-on-you';
-        card.innerHTML = '<div class="question-header">En veille</div>'
+        card.innerHTML = '<div class="question-header">En veille — ' + escape(w.subject) + '</div>'
             + '<div class="question-text">' + escape(w.observation) + '</div>'
             + '<div class="watch-intention">Au réveil : ' + escape(w.intention) + '</div>'
             + '<div class="question-free"><input class="ds-input" placeholder="Ce qui s’est passé…"></div>'

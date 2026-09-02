@@ -15,6 +15,7 @@ final readonly class Watch implements \JsonSerializable
 {
     public function __construct(
         public string $callId,
+        public WatchSubject $subject,
         public string $observation,
         public string $intention,
         public ?float $expiresAt = null,
@@ -28,8 +29,17 @@ final readonly class Watch implements \JsonSerializable
      */
     public static function fromArguments(string $callId, array $arguments, ?float $expiresAt = null): self
     {
+        $subject = WatchSubject::tryFrom(trim((string) ($arguments['sujet'] ?? '')));
+        if (null === $subject) {
+            // Refus visible plutôt que veille morte : sans sujet connu, aucun événement ne pourra
+            // jamais lever cette veille, et l'agent dormirait jusqu'à son échéance sans que rien
+            // ne le signale.
+            throw new UnknownWatchSubject(trim((string) ($arguments['sujet'] ?? '')));
+        }
+
         return new self(
             $callId,
+            $subject,
             trim((string) ($arguments['observation'] ?? '')),
             trim((string) ($arguments['intention'] ?? '')),
             $expiresAt,
@@ -37,12 +47,13 @@ final readonly class Watch implements \JsonSerializable
     }
 
     /**
-     * @return array{callId: string, observation: string, intention: string, expiresAt: float|null}
+     * @return array{callId: string, subject: string, observation: string, intention: string, expiresAt: float|null}
      */
     public function jsonSerialize(): array
     {
         return [
             'callId' => $this->callId,
+            'subject' => $this->subject->value,
             'observation' => $this->observation,
             'intention' => $this->intention,
             'expiresAt' => $this->expiresAt,
