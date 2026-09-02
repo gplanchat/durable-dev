@@ -37,6 +37,25 @@ final class AiChatController extends AbstractController
     private const APPROVAL_TIMEOUT_SECONDS = 900.0;
 
     /**
+     * Silence au bout duquel l'exécution se termine d'elle-même.
+     *
+     * Une conversation abandonnée n'a pas de raison de rester ouverte : sur Temporal chaque
+     * exécution ouverte a un coût, et une heure sans un mot est une conversation finie. Le fil
+     * n'est pas perdu pour autant — il est au journal, et {@see resume()} le reprend.
+     */
+    private const IDLE_TIMEOUT_SECONDS = 3600.0;
+
+    /**
+     * Tours au bout desquels le run passe la main à un run neuf.
+     *
+     * Ce n'est pas le journal qui borne : à une dizaine d'événements par tour, Temporal en tolère
+     * cent fois plus. C'est le **coût par tour** — chaque tour renvoie tout le sac au modèle, donc
+     * la dépense d'une conversation croît avec le carré de sa longueur. Quarante tours est le point
+     * où la reprise coûte moins que la continuation.
+     */
+    private const ROLLOVER_AFTER_TURNS = 40;
+
+    /**
      * Le catalogue d'outils de la démo. `effect` est ce que lit la garde : c'est lui, et pas le nom
      * de l'outil, que le mode consulte — et le déclarer en {@see ToolEffect} fait lever une faute de
      * frappe ici plutôt que de la traduire silencieusement en « externe ».
@@ -95,8 +114,10 @@ final class AiChatController extends AbstractController
         $this->messageBus->dispatch(new DeliverWorkflowSignalMessage($executionId, $signalName, $payload));
     }
 
-    #[Route('/durable/chat', name: 'durable_chat_start', methods: ['GET'])]
-    public function start(): Response
+    /**
+     * @param list<array{role: string, content: string}> $history le fil repris d'une exécution close
+     */
+    private function startAgent(array $history = []): string
     {
         $executionId = (string) Uuid::v4();
         $this->workflowRunner->dispatchWorkflowRun(
@@ -105,11 +126,37 @@ final class AiChatController extends AbstractController
                 'tools' => ToolDefinition::listToWire(self::tools()),
                 'mode' => AgentMode::Standard->value,
                 'approvalTimeoutSeconds' => self::APPROVAL_TIMEOUT_SECONDS,
+                'idleTimeoutSeconds' => self::IDLE_TIMEOUT_SECONDS,
+                'rolloverAfterTurns' => self::ROLLOVER_AFTER_TURNS,
+                'history' => $history,
             ],
             $executionId,
         );
 
-        return $this->redirectToRoute('durable_chat_show', ['executionId' => $executionId]);
+        return $executionId;
+    }
+
+    #[Route('/durable/chat', name: 'durable_chat_start', methods: ['GET'])]
+    public function start(): Response
+    {
+        return $this->redirectToRoute('durable_chat_show', ['executionId' => $this->startAgent()]);
+    }
+
+    /**
+     * Reprendre une conversation dont l'exécution est close — inactivité, `close`, ou tours épuisés.
+     *
+     * Une exécution close ne se rouvre pas : on en ouvre une neuve, et le fil qu'elle reprend sort
+     * de la projection du journal de l'ancienne. Rien n'est stocké entre les deux.
+     */
+    #[Route('/durable/chat/{executionId}/resume', name: 'durable_chat_resume', methods: ['POST'])]
+    public function resume(string $executionId): JsonResponse
+    {
+        $resumed = $this->startAgent($this->transcript->forExecution($executionId)->seed());
+
+        return new JsonResponse(
+            ['url' => $this->generateUrl('durable_chat_show', ['executionId' => $resumed])],
+            Response::HTTP_CREATED,
+        );
     }
 
     #[Route('/durable/chat/{executionId}', name: 'durable_chat_show', methods: ['GET'])]

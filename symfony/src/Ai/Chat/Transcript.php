@@ -33,6 +33,20 @@ final readonly class Transcript implements \JsonSerializable
     }
 
     /**
+     * Ce qu'une exécution neuve doit reprendre de celle-ci : le fil parlé, sans la mécanique
+     * d'outils du run qui s'achève.
+     *
+     * @return list<array{role: string, content: string}>
+     */
+    public function seed(): array
+    {
+        return TranscriptMessage::listToWire(array_filter(
+            $this->messages,
+            static fn (TranscriptMessage $message): bool => $message->carriesText(),
+        ));
+    }
+
+    /**
      * @return array{messages: list<TranscriptMessage>, steps: list<ToolStep>, pending: list<PendingApproval>, mode: string, approvalTimeoutSeconds: float|null, working: bool, finished: bool}
      */
     public function jsonSerialize(): array

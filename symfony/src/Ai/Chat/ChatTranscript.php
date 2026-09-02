@@ -92,7 +92,12 @@ final class ChatTranscript
         // La charge de démarrage n'est pas au même endroit selon le backend : sur Temporal natif
         // elle ouvre le journal (ExecutionStarted), sur DBAL un run dispatché n'écrit que ses
         // événements d'exécution et la charge reste dans le store de métadonnées. On lit les deux.
-        $started = $this->metadataStore->get($executionId)['payload'] ?? [];
+        //
+        // L'événement passe devant, et ce n'est pas un détail de style : après un continue-as-new,
+        // le store de métadonnées porte encore la charge du **premier** run — celle d'avant le
+        // relais, dont le fil est vide. Seul l'événement du run courant dit ce que ce run a repris.
+        $startedFromStore = $this->metadataStore->get($executionId)['payload'] ?? [];
+        $started = [];
 
         foreach ($this->eventStore->readStream($executionId) as $event) {
             if ($event instanceof ActivityScheduled) {
@@ -153,7 +158,7 @@ final class ChatTranscript
             }
 
             if ($event instanceof ExecutionStarted) {
-                $started = [] !== $started ? $started : $event->payload();
+                $started = $event->payload();
 
                 continue;
             }
@@ -162,6 +167,24 @@ final class ChatTranscript
                 $finished = true;
             }
         }
+
+        $started = [] !== $started ? $started : $startedFromStore;
+
+        // Un run repris — reprise après clôture ou continue-as-new — porte son fil d'origine dans
+        // sa charge de démarrage. Tant qu'aucun appel modèle ne l'a réémis, c'est la seule trace
+        // qu'en ait le journal ; sans ça la conversation paraît s'être vidée.
+        $carried = $started['history'] ?? [];
+        if ([] === $messages) {
+            $messages = $carried;
+        }
+
+        // Le fil repris entre dans le sac dès le premier appel modèle. Sans le compter du côté des
+        // messages reçus, `messagesSignalled` (ce run seul) et `messagesSeenByModel` (le sac entier)
+        // cessent de parler de la même chose, et l'agent paraît au repos pendant qu'il travaille.
+        $messagesSignalled += \count(array_filter(
+            $carried,
+            static fn (array $message): bool => 'user' === ($message['role'] ?? null),
+        ));
 
         // Le dernier `set_mode` l'emporte sur le mode de démarrage : il lui est postérieur.
         $mode = $signalledMode ?? AgentMode::tryFrom((string) ($started['mode'] ?? '')) ?? AgentMode::Standard;

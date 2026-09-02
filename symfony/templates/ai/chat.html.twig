@@ -47,6 +47,15 @@
             <input class="ds-input" id="text" name="text" placeholder="Demande la météo à Paris, à Lyon…" required>
             <button class="btn btn-primary" type="submit">Envoyer</button>
         </form>
+
+        <div class="chat-resume" id="resume" hidden>
+            <p>
+                L’exécution est terminée — une heure sans un mot, ou la conversation close. Elle ne
+                se rouvre pas : reprendre en ouvre une <strong>neuve</strong>, avec le fil parlé
+                repris de celle-ci. Rien n’est stocké entre les deux, il sort du journal.
+            </p>
+            <button class="btn btn-primary" id="resume-btn" type="button">Reprendre la conversation</button>
+        </div>
     </div>
 </div>
 
@@ -76,6 +85,10 @@
     .chat-form { display: flex; gap: .6rem; }
     .chat-form .ds-input { flex: 1; }
     .chat-empty { color: var(--ds-text-muted); font-size: .9rem; margin: auto; }
+    .chat-resume { display: flex; flex-direction: column; gap: .7rem; align-items: flex-start;
+        padding: .9rem 1rem; border: 1px solid var(--ds-border); border-radius: var(--radius);
+        background: var(--ds-surface); }
+    .chat-resume p { margin: 0; font-size: .85rem; color: var(--ds-text-muted); line-height: 1.5; }
 </style>
 
 <script>
@@ -86,6 +99,7 @@
     const form = document.getElementById('form');
     const mode = document.getElementById('mode');
     const input = document.getElementById('text');
+    const resume = document.getElementById('resume');
     let pending = null;
 
     const bubble = (cls, html) => {
@@ -236,6 +250,10 @@
             : (working ? labeurCourant() : 'prêt'));
         if (!working) { labeur = null; }
         state.dataset.working = working ? '1' : '0';
+        // Une exécution terminée n'écoute plus aucun signal : le champ ne servirait qu'à envoyer
+        // des messages dans le vide.
+        form.hidden = data.finished;
+        resume.hidden = !data.finished;
         if (atBottom) { thread.scrollTop = thread.scrollHeight; }
     }
 
@@ -261,6 +279,13 @@
             body: JSON.stringify({mode: mode.value}),
         });
         setTimeout(refresh, 400);
+    });
+
+    document.getElementById('resume-btn').addEventListener('click', async (event) => {
+        event.target.disabled = true;
+        event.target.textContent = 'reprise…';
+        const response = await fetch(base + '/resume', {method: 'POST'});
+        window.location.href = (await response.json()).url;
     });
 
     refresh();
