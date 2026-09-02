@@ -16,7 +16,10 @@ seule chose qui les distingue d'un exemple de la section [Écrire un workflow](.
 | | |
 |---|---|
 | [Quatre applications qui s'appellent](nexus-demo/) | trois frameworks, quatre namespaces Temporal, un contrat partagé — et une exécution qui sert une opération pendant qu'elle en appelle une autre |
-| [Un agent IA interruptible](durable-agent/) | la boucle d'agent de Symfony AI pilotée depuis du code de workflow : elle survit au redémarrage, et elle attend votre accord avant d'envoyer le courriel |
+
+Une seconde entrée — un agent IA interruptible, dont la boucle est pilotée depuis du code de
+workflow — attend que son prototype se pose. Elle arrivera avec de quoi la lancer : une entrée qui
+renvoie vers quelque chose qu'on ne peut pas démarrer n'est pas une entrée.
 
 ## Ce qu'une entrée doit contenir
 

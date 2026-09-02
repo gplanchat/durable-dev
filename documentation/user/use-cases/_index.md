@@ -16,7 +16,10 @@ thing separating them from an example in [Writing a workflow](../workflows/).
 | | |
 |---|---|
 | [Four applications calling each other](nexus-demo/) | three frameworks, four Temporal namespaces, one shared contract — and an execution that serves one operation while calling another |
-| [An interruptible AI agent](durable-agent/) | Symfony AI's agent loop driven from workflow code: it survives a restart, and it waits for your approval before sending the email |
+
+A second entry — an interruptible AI agent, its loop driven from workflow code — is waiting for its
+prototype to settle. It will land with a way to run it: an entry pointing at something you cannot
+start is not an entry.
 
 ## What an entry must contain
 
