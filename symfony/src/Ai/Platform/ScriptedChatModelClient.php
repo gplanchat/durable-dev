@@ -47,7 +47,10 @@ final class ScriptedChatModelClient implements ModelClientInterface
 
         // Un seul tour d'outil par message : au second passage, on répond.
         if ($answeredSinceUser > 0) {
-            return new InMemoryRawResult($this->text($this->summarise($messages)));
+            return new InMemoryRawResult($this->text(
+                $this->summarise($messages),
+                'L’outil a répondu ; je rends son relevé tel quel plutôt que de le paraphraser.',
+            ));
         }
 
         if (str_contains($lastUser, 'mail') || str_contains($lastUser, 'courriel')) {
