@@ -51,18 +51,23 @@ as a requirement.
 
 The component ships four conformance suites and they are subclassed twelve times:
 
+A pairing exists only where a backend implements the port. Temporal implements two of the four:
+
 | Port | In-memory | DBAL | Illuminate | Temporal |
 |---|---|---|---|---|
-| `EventStoreInterface` (+ replay) | yes | yes | yes | **no** |
-| `WorkflowMetadataStore` | yes | yes | yes | **no** |
-| `WorkflowRunCatalogInterface` | yes | yes | yes | **no** |
-| `ChildWorkflowParentLinkStore` | yes | yes | yes | **no** |
+| `EventStoreInterface` (+ replay) | yes | yes | yes | implemented twice, **runs nothing** |
+| `WorkflowMetadataStore` | yes | yes | yes | not implemented |
+| `ChildWorkflowParentLinkStore` | yes | yes | yes | not implemented |
+| `WorkflowRunCatalogInterface` | yes | yes | yes | implemented, **runs nothing** |
 
-Twelve of sixteen cells, and the four empty ones are the same backend — the only one whose data
-model actually differs. The three that are covered share a journal and a table, so parity between
-them was never in doubt. Parity is proven exactly where it was already free, and unproven where it
-is at stake. ADR **DUR041** states the suite is "implemented for all four ports", and a docblock in
-the core says the two Temporal stores extend it; neither is true today.
+Twelve pairings exist and are covered; two exist and are not, and both are Temporal — the only
+backend whose storage shape differs from the reference. The three that are covered share a journal
+and a table, so parity between them was never in doubt. Parity is proven exactly where it was
+already free, and unproven where it is at stake.
+
+ADR **DUR041** described the Temporal arrangement in the present tense — "they run this tier there",
+"Temporal's read-through store gets checked for the first time" — and the docblock of
+`EventStoreReplayConformanceTestCase` repeated it. Neither was true. Both now carry the state above.
 
 ## What Changes
 

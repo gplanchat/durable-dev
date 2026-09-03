@@ -83,23 +83,31 @@ DURABLE_TEMPORAL_ADDRESS=127.0.0.1:7233 vendor/bin/phpunit --testsuite integrati
 
 ## 5. Les quatre cases vides de la grille
 
-- [ ] 5.1 Les quatre sous-classes Temporal manquantes : `EventStoreReplayConformanceTestCase`,
-      `WorkflowMetadataStoreConformanceTestCase`, `WorkflowRunCatalogConformanceTestCase`,
-      `ChildWorkflowParentLinkStoreConformanceTestCase`. Elles vont dans la testsuite `integration`,
-      gated sur `DURABLE_TEMPORAL_ADDRESS` — une case gated est une case déclarée, pas une absence.
-- [ ] 5.2 Ce que ces quatre suites font tomber est **le résultat du chantier**, pas un contretemps :
+- [ ] 5.1 Les **deux** paires manquantes, et deux seulement : `EventStoreConformanceTestCase` pour
+      les deux stores Temporal — le palier port, celui qu'un adaptateur adossé à un serveur doit
+      étendre — et `WorkflowRunCatalogConformanceTestCase` pour `TemporalWorkflowRunCatalog`. Elles
+      vont dans la testsuite `integration`, gated sur `DURABLE_TEMPORAL_ADDRESS` : une case gated
+      est une case déclarée, pas une absence.
+      `WorkflowMetadataStore` et `ChildWorkflowParentLinkStore` n'ont **pas** d'implémentation
+      Temporal — ce ne sont pas des trous, et leur inventer un adaptateur ne relève pas de ce
+      change.
+- [ ] 5.2 Ce que ces suites font tomber est **le résultat du chantier**, pas un contretemps :
       chaque échec est une divergence que personne ne mesurait. Les consigner une par une avant de
       les corriger, et arbitrer pour chacune qui a raison — le port ou le backend.
-- [ ] 5.3 Un job CI qui rend la grille lisible : quatre ports × quatre backends, chaque case
-      *passante*, *gated* ou **absente**. Une case absente échoue le job. C'est ce qui empêche la
-      grille de se retrouver à 12/16 une seconde fois.
+- [ ] 5.3 Un job CI qui rend la grille lisible : pour chaque port, chaque backend qui l'implémente,
+      et l'état de la paire — *passante*, *gated*, ou **absente**. Une paire absente échoue le job,
+      et une paire qui n'existe pas n'est pas comptée. C'est ce qui empêche la grille de se
+      retrouver incomplète une seconde fois sans que personne ne le voie.
 
 ## 6. Le dire
 
-- [ ] 6.1 **DUR041 est repris** : il se déclare « implemented for all four ports », ce qui était faux
-      au moment où on l'a écrit. Il dit désormais l'état réel et ce qui le tient — le job de 5.3.
-- [ ] 6.2 Le docblock du cœur qui affirme que les deux stores Temporal étendent la suite est corrigé
-      ou devient vrai. Il a menti à au moins un lecteur, qui est l'audit.
+- [x] 6.1 **DUR041 porte l'état réel** — fait hors de ce change, PR #270 : tableau de couverture,
+      et les deux phrases au présent de l'indicatif conservées et annotées plutôt que réécrites. Le
+      statut « implemented for all four ports » était exact *des ports* ; c'est la couverture des
+      adaptateurs qu'il ne donnait pas.
+- [x] 6.2 Le docbloc d'`EventStoreReplayConformanceTestCase`, qui reprenait le même énoncé faux, est
+      corrigé dans la même PR #270 — sinon le lecteur qui vérifie l'ADR dans le code y retombe.
+- [ ] 6.2b Quand 5.3 existe, DUR041 pointe le job plutôt que de porter un tableau daté.
 - [ ] 6.3 Un ADR pour l'identité : pourquoi le nom donné par l'appelant, pourquoi ni `runId`, ni
       `groupId`, ni la paire, et pourquoi le memo plutôt qu'une dérivation du workflow id.
 - [ ] 6.4 `UPGRADE.md` : la rupture ne touche que qui **implémente** un port de stockage. Une règle
