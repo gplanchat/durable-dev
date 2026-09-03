@@ -7,4 +7,4 @@
   qu'à supposer.
 - **Entrées** : `DurableBundle::build()`, un test de conteneur, la documentation qui décrit la
   balise. Pas de changement du `WorkflowPass`.
-- **État** : rédaction.
+- **État** : en revue — PR #278.
