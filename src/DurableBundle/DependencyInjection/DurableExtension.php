@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\DependencyInjection;
 
-use Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware;
 use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
+use Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Bridge\Dbal\Store\DbalChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Dbal\Store\DbalEventStore;
@@ -30,7 +30,6 @@ use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
-use Gplanchat\Durable\Bundle\SchemaListener\DurableSchemaListener;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
@@ -42,6 +41,7 @@ use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler;
 use Gplanchat\Durable\Bundle\Messenger\MessengerWorkflowResumeDispatcher;
 use Gplanchat\Durable\Bundle\Messenger\WorkflowRunDispatchProfilerMiddleware;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
+use Gplanchat\Durable\Bundle\SchemaListener\DurableSchemaListener;
 use Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport;
 use Gplanchat\Durable\Bundle\Transport\MessengerWorkflowTimerDispatcher;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;

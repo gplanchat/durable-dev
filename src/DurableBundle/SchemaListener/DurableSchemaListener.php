@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\SchemaListener;
 
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\TableNotFoundException;
 use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 
@@ -17,15 +19,6 @@ use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
  *
  * Le pendant amont est `MessengerTransportDoctrineSchemaListener`, qui existe pour la même raison
  * et à propos des mêmes tables gérées par une bibliothèque plutôt que par une entité.
- *
- * **Prudence délibérée sur la connexion.** Les tables ne sont déclarées que si le journal écrit sur
- * la connexion même que l'ORM inspecte. Deux objets `Connection` distincts peuvent pointer la même
- * base, et l'amont le prouve par une sonde ; cette sonde vit dans `AbstractSchemaListener`, dont
- * l'API a bougé à l'intérieur de la plage de versions que ce bundle accepte (^6.4 à ^8.0). Plutôt
- * que de s'y adosser au risque d'un appel fatal sur la version basse, on s'abstient : ne rien
- * déclarer laisse l'exploitant gérer ce schéma lui-même, là où déclarer à tort ferait créer des
- * tables dans la mauvaise base. {@see DurableSchema::configureSchema()} garde le paramètre de
- * sonde, et un hôte qui sait mieux peut le fournir.
  */
 final class DurableSchemaListener
 {
@@ -40,8 +33,41 @@ final class DurableSchemaListener
         $this->schema->configureSchema(
             $event->getSchema(),
             $connection,
-            // Connexions distinctes : on ne tranche pas, donc on ne déclare pas. Voir le docbloc.
-            static fn(): bool => false,
+            self::isSameDatabase($connection),
         );
+    }
+
+    /**
+     * Sonde « même base » : deux objets `Connection` distincts peuvent pointer la même base, et
+     * seule une écriture le prouve. Le principe est celui de
+     * `Symfony\Bridge\Doctrine\SchemaListener\AbstractSchemaListener::getIsSameDatabaseChecker()`,
+     * dont la déclaration est identique de Symfony 6.4 à 8.0 — vérifié sur `v6.4.0`, `7.2` et
+     * `8.0`. Elle est recopiée plutôt qu'héritée pour deux raisons : elle y est `protected`, donc
+     * inaccessible sans étendre la classe, et l'étendre imposerait `symfony/doctrine-bridge` au
+     * bundle pour vingt lignes qui ne dépendent que de la DBAL.
+     *
+     * @return \Closure(\Closure(string): mixed): bool
+     */
+    private static function isSameDatabase(Connection $connection): \Closure
+    {
+        return static function (\Closure $exec) use ($connection): bool {
+            $checkTable = 'durable_schema_check_' . bin2hex(random_bytes(7));
+            $connection->executeStatement(\sprintf('CREATE TABLE %s (id INTEGER NOT NULL)', $checkTable));
+
+            try {
+                $exec(\sprintf('DROP TABLE %s', $checkTable));
+            } catch (\Exception) {
+                // La connexion du journal n'a pas pu supprimer la table : soit une autre base,
+                // soit un droit manquant. Le second contrôle tranche.
+            }
+
+            try {
+                $connection->executeStatement(\sprintf('DROP TABLE %s', $checkTable));
+
+                return false;
+            } catch (TableNotFoundException) {
+                return true;
+            }
+        };
     }
 }
