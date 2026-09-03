@@ -36,7 +36,7 @@ contrepartie anglaise.
 
 - **Fichier** : `src/Durable/README.md:29`
 - **Gravité** : majeur
-- **Constat** : La ligne dit « Composer `suggest` lists optional PHPStan / **Psalm** extensions (see **DUR012** in the ADR index) ». Le `suggest` de `src/Durable/composer.json` ne cite qu'une extension, `gplanchat/durable-phpstan` ; le mot « Psalm » n'apparaît qu'**une seule fois dans tout le dépôt**, à cette ligne. Et DUR012 est *API client layer and repository adapters* — aucune mention de PHPStan ni de Psalm ; l'ADR qui fonde réellement l'extension est DUR038, celui que le `suggest` cite lui-même.
+- **Constat** : La ligne dit « Composer `suggest` lists optional PHPStan / **Psalm** extensions (see **DUR012** in the ADR index) ». Le `suggest` de `src/Durable/composer.json` ne cite qu'une extension, `gplanchat/durable-phpstan` ; **aucun paquet d'extension Psalm n'existe dans ce dépôt** — `SPLITS` n'en publie pas, et il n'y a pas de répertoire pour lui. (Psalm, lui, y est bien présent en tant qu'analyseur : `psalm.xml`, `psalm-baseline.xml`, `psalm-magento.xml`, et deux passages dans `.github/workflows/ci.yml`. C'est l'*extension* que la ligne annonce qui n'existe pas, pas l'outil.) Et DUR012 est *API client layer and repository adapters* — aucune mention de PHPStan ni de Psalm ; l'ADR qui fonde réellement l'extension est DUR038, celui que le `suggest` cite lui-même.
 - **Amont** : `documentation/adr/DUR012-api-client-and-repository-adapter-layers.md` et `documentation/INDEX.md:31`.
 - **Correctif** : remplacer la ligne par un renvoi à DUR038 et supprimer la mention Psalm — c'est le README du paquet phare, la première page que voit un lecteur de Packagist.
 

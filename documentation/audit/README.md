@@ -61,6 +61,18 @@ Hors périmètre : les paquets Laravel et Magento.
 | Pyramide de tests, déterminisme, conformance | [19](19-tests.md) |
 | Back-office Sylius 2, Twig, grids, i18n | [20](20-admin-sylius.md) |
 
+## Notes d'édition
+
+Deux corrections apportées après la relecture croisée des PR, le 4 septembre 2026 :
+
+- **[13](13-documentation.md), C3** affirmait que le mot « Psalm » n'apparaissait qu'une seule fois
+  dans tout le dépôt. C'est faux : `psalm.xml`, `psalm-baseline.xml`, `psalm-magento.xml` et deux
+  passages de `.github/workflows/ci.yml` le portent — et **[07](07-compatibilite-statique.md)**, dans
+  ce même versement, consacre un constat entier à la baseline Psalm. Le constat de fond tient — le
+  `suggest` ne cite qu'une extension, et l'ADR renvoyé est le mauvais — c'est sa preuve qui était
+  fausse, et elle est retirée. Deux rapports d'un même audit ne peuvent pas s'appuyer sur des faits
+  incompatibles sans que le lecteur ait le droit de le savoir.
+
 ## Ce que l'audit n'a pas vu
 
 Un audit est une lecture de code, et deux classes de défaut lui échappent par construction. Les
