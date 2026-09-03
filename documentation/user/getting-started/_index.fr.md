@@ -84,7 +84,7 @@ durable:
     activity_contracts:
         cache: cache.app
         contracts:
-            - App\Workflow\Activity\OrderActivities   # listez ici vos interfaces d'activité
+            - App\Workflow\Activity\GreetingActivities   # listez ici vos interfaces d'activité
 ```
 
 Basculez sur Temporal à l'exécution en définissant `DURABLE_DSN` dans votre environnement :
@@ -110,7 +110,7 @@ framework:
         routing:
             Gplanchat\Durable\Transport\ResumeWorkflowMessage:        durable_workflows
             Gplanchat\Durable\Transport\ActivityMessage:              durable_activities
-            Gplanchat\Durable\Transport\FireWorkflowTimersMessage:    sync
+            Gplanchat\Durable\Transport\FireWorkflowTimersMessage:    durable_workflows
             Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage: sync
             Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage: sync
 ```
@@ -158,8 +158,14 @@ Toute classe portant `#[AsWorkflow]` dans votre espace de noms de workflows est 
 # config/services.yaml
 App\Workflow\:
     resource: '../src/Workflow/'
+    exclude: '../src/Workflow/Activity/'
     tags: [durable.workflow]
 ```
+
+L'`exclude` compte. La balise ne filtre rien : chaque service qu'elle attrape est passé au registre
+des workflows, qui exige exactement un `#[AsWorkflowMethod]` et lève sinon. Baliser un dossier qui
+porte aussi vos gestionnaires d'activité, et le conteneur cesse de se construire sur une erreur
+nommant une classe que vous n'enregistriez pas exprès. Au dossier balisé, ses seuls workflows.
 
 ### Déclarer les implémentations d'activité
 
@@ -264,7 +270,9 @@ final class GreetController
         $executionId = 'greet-'.uniqid();
         $this->dispatcher->dispatchNewWorkflowRun($executionId, 'greet', ['name' => $name]);
 
-        return new JsonResponse(['executionId' => $executionId]);
+        // 202 : le run est en file, pas terminé. Répondre 200 ici est la première chose qui
+        // fait attendre un résultat qu'aucun consommateur n'a encore produit.
+        return new JsonResponse(['executionId' => $executionId], JsonResponse::HTTP_ACCEPTED);
     }
 }
 ```
@@ -301,8 +309,15 @@ consommer dans un worker séparé ne peut pas marcher, et le rejeu non plus — 
 worker aurait besoin vit dans la mémoire du processus web.
 
 **Plusieurs processus — développement local et production.** De vrais transports **et** un magasin
-durable. Les deux, sinon le worker prend en file une entrée nommant un workflow dont il ne voit pas
-le journal :
+durable, sinon le worker prend une entrée nommant un workflow dont il ne voit pas le journal.
+
+Ce profil demande deux paquets que la prise en main ci-dessus n'installe pas — le journal DBAL, et
+DoctrineBundle pour le service `doctrine.dbal.default_connection` qu'il nomme :
+
+```bash
+composer require gplanchat/durable-bridge-dbal doctrine/doctrine-bundle
+```
+
 
 ```yaml
 durable:

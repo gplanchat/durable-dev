@@ -84,7 +84,7 @@ durable:
     activity_contracts:
         cache: cache.app
         contracts:
-            - App\Workflow\Activity\OrderActivities   # list your activity interfaces here
+            - App\Workflow\Activity\GreetingActivities   # list your activity interfaces here
 ```
 
 Switch to Temporal at runtime by setting `DURABLE_DSN` in your environment:
@@ -110,7 +110,7 @@ framework:
         routing:
             Gplanchat\Durable\Transport\ResumeWorkflowMessage:        durable_workflows
             Gplanchat\Durable\Transport\ActivityMessage:              durable_activities
-            Gplanchat\Durable\Transport\FireWorkflowTimersMessage:    sync
+            Gplanchat\Durable\Transport\FireWorkflowTimersMessage:    durable_workflows
             Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage: sync
             Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage: sync
 ```
@@ -158,8 +158,14 @@ Any class annotated with `#[AsWorkflow]` in your workflow namespace is auto-regi
 # config/services.yaml
 App\Workflow\:
     resource: '../src/Workflow/'
+    exclude: '../src/Workflow/Activity/'
     tags: [durable.workflow]
 ```
+
+The `exclude` matters. The tag is not a filter: every service it matches is handed to the workflow
+registry, which requires exactly one `#[AsWorkflowMethod]` and throws otherwise. Tag a folder that
+also holds your activity handlers and the container stops building, with an error naming a class you
+never meant to register. Keep the tagged folder to workflows, or exclude what is not one.
 
 ### Register activity implementations
 
@@ -264,7 +270,9 @@ final class GreetController
         $executionId = 'greet-'.uniqid();
         $this->dispatcher->dispatchNewWorkflowRun($executionId, 'greet', ['name' => $name]);
 
-        return new JsonResponse(['executionId' => $executionId]);
+        // 202: the run is queued, not done. Answering 200 here is the first thing that makes a
+        // caller poll for a result that no consumer has produced yet.
+        return new JsonResponse(['executionId' => $executionId], JsonResponse::HTTP_ACCEPTED);
     }
 }
 ```
@@ -301,7 +309,15 @@ in a separate worker cannot work here, and neither can replay — the journal th
 lives in the web process's memory.
 
 **Several processes — local dev and production.** Real transports **and** a durable store. Both, or
-the worker picks up a queue entry naming a workflow whose journal it cannot see:
+the worker picks up a queue entry naming a workflow whose journal it cannot see.
+
+This profile needs two packages the quick start above does not install — the DBAL journal, and
+DoctrineBundle for the `doctrine.dbal.default_connection` service it names:
+
+```bash
+composer require gplanchat/durable-bridge-dbal doctrine/doctrine-bundle
+```
+
 
 ```yaml
 durable:
