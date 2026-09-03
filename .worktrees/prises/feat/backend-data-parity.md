@@ -6,4 +6,5 @@
   jamais exposé sur le quatrième.
 - **Entrées** : `openspec/changes/backend-data-parity/` uniquement. Aucun code de `src/` dans cette
   prise — la tranche d'implémentation viendra après acceptation de la proposition.
-- **État** : rédaction de la proposition.
+- **État** : en revue — PR #269. Proposition seule ; la §0 des tâches (sonder le serveur Temporal)
+  conditionne toute tranche d'implémentation.
