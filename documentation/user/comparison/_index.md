@@ -27,19 +27,23 @@ The SDK splits into a **client** and a **worker**. The client needs `ext-grpc`; 
 configured through its own `.rr.yaml`. Workflow and activity code runs inside PHP processes that
 RoadRunner supervises.
 
-Durable has no second runtime. Workflow and activity work is delivered by **Symfony Messenger**,
-and a worker is an ordinary PHP CLI consumer:
+Durable has no second runtime. A worker is an ordinary PHP CLI process, launched by the console the
+host already ships. What carries the work is the host's own transport — Symfony Messenger, Laravel's
+queue — or, on Magento, the backend queue the command polls itself:
 
 ```bash
-bin/console messenger:consume durable_workflows durable_activities
+bin/console messenger:consume durable_workflows durable_activities  # Symfony
+php artisan queue:work                                              # Laravel
+bin/magento durable:worker --role=journal                           # Magento
+bin/magento durable:worker --role=activity                          #   (two roles, two processes)
 ```
 
 | | Durable | Temporal PHP SDK |
 |---|---|---|
-| Worker process | `messenger:consume`, supervised by whatever already supervises your workers | RoadRunner (Go binary), supervised by RoadRunner |
+| Worker process | `messenger:consume`, `queue:work` or `bin/magento durable:worker`, supervised by whatever already supervises your processes | RoadRunner (Go binary), supervised by RoadRunner |
 | Extra binary in the image | no | yes |
-| Worker configuration | `messenger.yaml` | `.rr.yaml` |
-| Deployment model | the one your Symfony application already uses | a second process model to learn and operate |
+| Worker configuration | `messenger.yaml`, `config/durable.php` or `di.xml` | `.rr.yaml` |
+| Deployment model | the one your application already uses | a second process model to learn and operate |
 
 ### What this does *not* claim
 
@@ -569,7 +573,7 @@ return type it leaves behind. What it will not do is invent the return type that
 convert what has no counterpart here: those it comments, so you know before you start whether the
 migration is open to you at all.
 
-**Use Durable** when you want durable execution without adding a second runtime to your Symfony
+**Use Durable** when you want durable execution without adding a second runtime to your
 application, when a single SQL database is the right operational footprint, when you want workflow
 logic covered by unit tests that need no infrastructure, or when you need to **call** Nexus
 operations from PHP at all — and when an alpha with breaking changes between releases is a trade you
