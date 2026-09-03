@@ -8,4 +8,4 @@
   survivent pas au processus.
 - **Entrées** : `documentation/user/getting-started/`, `activities/`, `packages/` — les deux langues.
   Aucun code.
-- **État** : rédaction.
+- **État** : en revue — PR #276.
