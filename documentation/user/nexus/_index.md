@@ -201,7 +201,7 @@ An endpoint is a cluster-wide object, created once by an operator, not by the ap
 
 ```bash
 temporal operator nexus endpoint create \
-    --name paiements \
+    --name payments \
     --target-namespace production \
     --target-task-queue durable-workflows
 ```

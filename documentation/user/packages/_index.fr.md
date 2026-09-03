@@ -317,7 +317,20 @@ Magento ni à ce paquet : voir [le tableau de bord](../dashboard/), que chaque h
 propre habillage.
 
 Le conteneur de Magento n'a pas d'équivalent de l'autoconfiguration par tag de Symfony : la
-déclaration est explicite, deux tableaux dans `di.xml`.
+déclaration est explicite, deux tableaux dans `di.xml` :
+
+```xml
+<type name="Gplanchat\DurableModule\Runtime\RuntimeFactory">
+    <arguments>
+        <argument name="workflowClasses" xsi:type="array">
+            <item name="place_order" xsi:type="string">Acme\Shop\Workflow\PlaceOrder</item>
+        </argument>
+        <argument name="activityHandlers" xsi:type="array">
+            <item name="order" xsi:type="object">Acme\Shop\Activity\OrderActivities</item>
+        </argument>
+    </arguments>
+</type>
+```
 
 Ce qui ne se déclare **pas**, c'est le contrat : la fabrique lit les interfaces de chaque
 gestionnaire et garde celles qui portent `#[AsActivityMethod]`. Une déclaration de moins à écrire de
