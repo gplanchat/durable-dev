@@ -28,19 +28,24 @@ Le SDK se scinde en un **client** et un **worker**. Le client exige `ext-grpc` ;
 `./vendor/bin/rr get` et que l'on configure par son propre `.rr.yaml`. Le code des workflows et des
 activités tourne dans des processus PHP supervisés par RoadRunner.
 
-Durable n'a pas de second moteur. Le travail de workflow et d'activité est acheminé par **Symfony
-Messenger**, et un worker est un consommateur PHP en ligne de commande, ordinaire :
+Durable n'a pas de second moteur. Un worker est un processus PHP en ligne de commande, ordinaire,
+lancé par la console que l'hôte fournit déjà. Ce qui achemine le travail, c'est le transport de
+l'hôte lui-même — Symfony Messenger, la file de Laravel — ou, sur Magento, la file du backend que la
+commande interroge elle-même :
 
 ```bash
-bin/console messenger:consume durable_workflows durable_activities
+bin/console messenger:consume durable_workflows durable_activities  # Symfony
+php artisan queue:work                                              # Laravel
+bin/magento durable:worker --role=journal                           # Magento
+bin/magento durable:worker --role=activity                          #   (deux rôles, deux processus)
 ```
 
 | | Durable | SDK PHP de Temporal |
 |---|---|---|
-| Processus du worker | `messenger:consume`, supervisé par ce qui supervise déjà vos workers | RoadRunner (binaire Go), supervisé par RoadRunner |
+| Processus du worker | `messenger:consume`, `queue:work` ou `bin/magento durable:worker`, supervisé par ce qui supervise déjà vos processus | RoadRunner (binaire Go), supervisé par RoadRunner |
 | Binaire supplémentaire dans l'image | non | oui |
-| Configuration du worker | `messenger.yaml` | `.rr.yaml` |
-| Modèle de déploiement | celui que votre application Symfony emploie déjà | un second modèle de processus à apprendre et à opérer |
+| Configuration du worker | `messenger.yaml`, `config/durable.php` ou `di.xml` | `.rr.yaml` |
+| Modèle de déploiement | celui que votre application emploie déjà | un second modèle de processus à apprendre et à opérer |
 
 ### Ce que cela ne prétend *pas*
 
@@ -585,7 +590,7 @@ c'est inventer le type de retour qui le remplace, ni convertir ce qui n'a pas d'
 le commente, pour que vous sachiez avant de commencer si la migration vous est seulement ouverte.
 
 **Prenez Durable** quand vous voulez l'exécution durable sans ajouter un second moteur à votre
-application Symfony, quand une seule base SQL est la bonne empreinte opérationnelle, quand vous
+application, quand une seule base SQL est la bonne empreinte opérationnelle, quand vous
 voulez une logique de workflow couverte par des tests unitaires sans infrastructure, ou quand vous
 avez besoin d'**appeler** des opérations Nexus depuis PHP tout court — et quand une alpha avec des
 ruptures entre versions est un échange que vous pouvez faire.
