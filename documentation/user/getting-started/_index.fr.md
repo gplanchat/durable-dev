@@ -84,7 +84,7 @@ durable:
     activity_contracts:
         cache: cache.app
         contracts:
-            - App\Workflow\Activity\OrderActivities   # listez ici vos interfaces d'activité
+            - App\Workflow\Activity\GreetingActivities   # listez ici vos interfaces d'activité
 ```
 
 Basculez sur Temporal à l'exécution en définissant `DURABLE_DSN` dans votre environnement :
@@ -110,7 +110,7 @@ framework:
         routing:
             Gplanchat\Durable\Transport\ResumeWorkflowMessage:        durable_workflows
             Gplanchat\Durable\Transport\ActivityMessage:              durable_activities
-            Gplanchat\Durable\Transport\FireWorkflowTimersMessage:    sync
+            Gplanchat\Durable\Transport\FireWorkflowTimersMessage:    durable_workflows
             Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage: sync
             Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage: sync
 ```
@@ -158,12 +158,18 @@ Toute classe portant `#[AsWorkflow]` dans votre espace de noms de workflows est 
 # config/services.yaml
 App\Workflow\:
     resource: '../src/Workflow/'
+    exclude: '../src/Workflow/Activity/'
     tags: [durable.workflow]
 ```
 
+L'`exclude` compte. La balise ne filtre rien : chaque service qu'elle attrape est passé au registre
+des workflows, qui exige exactement un `#[AsWorkflowMethod]` et lève sinon. Baliser un dossier qui
+porte aussi vos gestionnaires d'activité, et le conteneur cesse de se construire sur une erreur
+nommant une classe que vous n'enregistriez pas exprès. Au dossier balisé, ses seuls workflows.
+
 ### Déclarer les implémentations d'activité
 
-Les classes d'implémentation d'activité sont des services Symfony ordinaires (l'autowiring s'applique). Si vous posez `#[AsActivityHandler]` sur la classe, le bundle les ramasse tout seul dès que le service est marqué.
+Rien à écrire. Une classe portant `#[AsActivityHandler]` est ramassée par l'autoconfiguration du bundle dès qu'elle est un service — ce qu'avec l'`autoconfigure: true` par défaut d'une application Symfony elle est déjà. C'est là que les workflows ci-dessus diffèrent : eux ont encore besoin de la balise.
 
 ---
 
@@ -178,8 +184,11 @@ declare(strict_types=1);
 
 namespace App\Workflow\Activity;
 
+use Gplanchat\Durable\Attribute\AsActivity;
 use Gplanchat\Durable\Attribute\AsActivityMethod;
 
+// Optionnel : préfixe le nom des activités déclarées en dessous.
+#[AsActivity(name: 'greeting-activities')]
 interface GreetingActivities
 {
     #[AsActivityMethod(name: 'greet')]
@@ -196,9 +205,10 @@ declare(strict_types=1);
 
 namespace App\Workflow\Activity;
 
-use Gplanchat\Durable\Attribute\AsActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 
-#[AsActivity(name: 'greeting-activities')]
+// C'est cet attribut qui enregistre la classe ; le bundle l'autoconfigure.
+#[AsActivityHandler(contract: GreetingActivities::class)]
 final class GreetingActivitiesHandler implements GreetingActivities
 {
     public function greet(string $name): string
@@ -260,10 +270,77 @@ final class GreetController
         $executionId = 'greet-'.uniqid();
         $this->dispatcher->dispatchNewWorkflowRun($executionId, 'greet', ['name' => $name]);
 
-        return new JsonResponse(['executionId' => $executionId]);
+        // 202 : le run est en file, pas terminé. Répondre 200 ici est la première chose qui
+        // fait attendre un résultat qu'aucun consommateur n'a encore produit.
+        return new JsonResponse(['executionId' => $executionId], JsonResponse::HTTP_ACCEPTED);
     }
 }
 ```
+
+### 5 — Faire tourner un consommateur, sinon rien n'arrive
+
+`dispatchNewWorkflowRun()` rend `void` et fait exactement ce que son nom dit : il *envoie*. Le
+workflow s'exécute quand quelque chose consomme les transports configurés plus haut. D'ici là
+l'exécution attend en file — un tableau de bord la dira `RUNNING`, ce qui est vrai et inutile : ça
+veut dire *pas terminée*, pas *quelqu'un s'en occupe*.
+
+```bash
+php bin/console messenger:consume durable_workflows durable_activities
+```
+
+Ces deux noms sont les transports que **vous** avez déclarés dans `messenger.yaml`. Aucun document
+ne peut vous donner cette commande sans que vous ayez écrit ce fichier d'abord — c'est ce qui fait
+qu'on cherche la pièce manquante partout sauf dans sa propre configuration.
+
+Pour voir ce que le moteur retient d'une exécution :
+
+```bash
+php bin/console durable:execution:diagnose greet-abc123
+```
+
+#### Dans quel profil êtes-vous ?
+
+Deux configurations fonctionnent. Les mélanger est le faux pas habituel, et il échoue en silence.
+
+**Un seul processus — les tests.** Transports `in-memory://` et magasins en mémoire. Envoi, reprise
+et activité se passent dans un même processus PHP, donc un test envoie et draine d'un seul geste. Un
+transport en mémoire **ne survit pas à son processus** : y envoyer depuis une requête web pour
+consommer dans un worker séparé ne peut pas marcher, et le rejeu non plus — le journal dont le
+worker aurait besoin vit dans la mémoire du processus web.
+
+**Plusieurs processus — développement local et production.** De vrais transports **et** un magasin
+durable, sinon le worker prend une entrée nommant un workflow dont il ne voit pas le journal.
+
+Ce profil demande deux paquets que la prise en main ci-dessus n'installe pas — le journal DBAL, et
+DoctrineBundle pour le service `doctrine.dbal.default_connection` qu'il nomme :
+
+```bash
+composer require gplanchat/durable-bridge-dbal doctrine/doctrine-bundle
+```
+
+
+```yaml
+durable:
+    event_store:
+        type: dbal
+    workflow_metadata:
+        type: dbal
+    child_workflow:
+        parent_link_store:
+            type: dbal
+    dbal:
+        connection: doctrine.dbal.default_connection
+```
+
+```dotenv
+MESSENGER_DURABLE_WORKFLOW_DSN=doctrine://default
+MESSENGER_DURABLE_ACTIVITY_DSN=doctrine://default
+```
+
+La règle derrière les deux profils : **une exécution survit exactement à ce à quoi survivent son
+journal et sa file.** Routez `ResumeWorkflowMessage` ou `ActivityMessage` vers un transport qu'un
+worker séparé ne peut pas lire, et le workflow rejoue dans la requête web qui l'a démarré puis meurt
+avec le processus — précisément la panne que l'exécution durable existe pour supprimer.
 
 ---
 
