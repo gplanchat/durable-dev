@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Bundle;
 
 use Gplanchat\Durable\Attribute\AsActivityHandler;
+use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
 use Gplanchat\Durable\Attribute\FulfilsNexusOperation;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\ActivityHandlerPass;
@@ -25,6 +26,16 @@ final class DurableBundle extends Bundle
             AsActivityHandler::class,
             static function (ChildDefinition $definition, AsActivityHandler $attribute, \Reflector $_reflector): void {
                 $definition->addTag('durable.activity_handler', ['contract' => $attribute->contract]);
+            },
+        );
+
+        // Le quatrième, et il manquait. `WorkflowDefinitionLoader` lit déjà `#[AsWorkflow]` pour
+        // nommer le type ; c'est ici que la classe devient trouvable par le registre, sans balise
+        // écrite à la main dans le `services.yaml` de l'application.
+        $container->registerAttributeForAutoconfiguration(
+            AsWorkflow::class,
+            static function (ChildDefinition $definition, AsWorkflow $_attribute, \Reflector $_reflector): void {
+                $definition->addTag('durable.workflow');
             },
         );
 
