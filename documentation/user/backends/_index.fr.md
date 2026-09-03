@@ -5,23 +5,27 @@ weight: 15
 
 # Backends
 
-Durable prend en charge trois backends d'exécution.
+Durable prend en charge quatre backends d'exécution : en mémoire, plus les trois ponts entre
+lesquels vous choisissez.
 
 | Backend | Usage |
 |---------|-------|
 | **En mémoire** | Tests unitaires, tests fonctionnels, exploration locale — aucun serveur nécessaire. |
 | **DBAL** | Production sans cluster d'orchestration — une base SQL, pas d'`ext-grpc`. |
+| **Illuminate** | Le même, sur la connexion de Laravel plutôt que sur celle de Doctrine. |
 | **Temporal** | Production et recette à l'échelle, tests d'intégration réalistes — `ext-grpc` et un cluster Temporal requis. |
 
 > [!NOTE]
-> **Sur Magento, la ligne SQL n'existe pas.** `gplanchat/durable-magento` déclare un `conflict`
+> **Sur Magento, aucune des deux lignes SQL n'existe.** `gplanchat/durable-magento` déclare un `conflict`
 > Composer sur les deux ponts SQL : `Magento\Framework\App\ResourceConnection` n'est ni une
 > connexion Doctrine DBAL ni celle d'Illuminate, donc aucun des deux n'a de quoi se lier. L'état vit
 > dans une grappe Temporal, ou il vit dans un processus — et le choix se fait par la présence de
 > `durable/temporal/dsn` dans `app/etc/env.php`, pas par un réglage.
 
-Les trois font tourner le **même pilote à fibres** et le même code de workflows et d'activités. Le
-choix se fait par `durable.event_store.type` (et `DURABLE_DSN` pour Temporal).
+Les quatre font tourner le **même pilote à fibres** et le même code de workflows et d'activités.
+Trois d'entre eux se choisissent par `durable.event_store.type` (et `DURABLE_DSN` pour Temporal) ;
+**Illuminate n'en est pas une valeur** et ne le sera jamais — voir
+[le backend Illuminate](#illuminate-backend) pour ce qui le lie à la place.
 
 ---
 
@@ -259,69 +263,70 @@ vous redonne exactement la panne que le verrou existe pour empêcher. Configurez
 Pas pour : les requêtes par attributs de recherche, les planifications cron, ni le débit et la
 visibilité qu'apporte un cluster Temporal. Voir la matrice de capacités plus bas.
 
-### Le même échange, sur la connexion de Laravel
+---
+
+## Le backend Illuminate {#illuminate-backend}
 
 Les mêmes quatre stockages existent sur `Illuminate\Database\Connection`, sous le nom
 [`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate--le-backend-laravel)
 — même journal, même échange face à Temporal.
+
+**L'échange face à Temporal est celui du pont DBAL, mot pour mot.** Ce qui change est la connexion,
+et pourquoi : un stockage sur `DB::connection()` est dans `DB::transaction()` par construction, ce
+qu'exige DUR030. Voir [DUR047](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR047-laravel-the-host-that-measured-before-it-wired.md).
+
+### Ce qui le lie n'est pas le YAML de cette page
 
 Ce n'est **pas une quatrième valeur d'`event_store.type`**, et ça ne le sera jamais : une
 application Laravel ne lit pas le YAML de cette page. Le pont est la moitié stockage, et **ce qui le
 lie, c'est `gplanchat/durable-laravel`**, par son propre `config/durable.php` publié.
 
 Ce paquet porte aussi le côté file — activités et reprises en jobs, un minuteur comme reprise
-différée sur le délai natif de la file, et l'exclusion par exécution que décrit la section
-ci-dessus. Son [entrée dans la page Paquets](../packages/#gplanchatdurable-laravel--lintégration-laravel)
+différée sur le délai natif de la file, et l'exclusion par exécution que décrit la section DBAL. Son
+[entrée dans la page Paquets](../packages/#gplanchatdurable-laravel--lintégration-laravel)
 donne la configuration, les trois réglages qu'il refuse plutôt que de les tolérer, et les deux
 comportements qui ressemblent à des bugs sans en être.
-
-**L'échange face à Temporal est celui du pont DBAL, mot pour mot.** Ce qui change est la connexion,
-et pourquoi : un stockage sur `DB::connection()` est dans `DB::transaction()` par construction, ce
-qu'exige DUR030. Voir [DUR047](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR047-laravel-the-host-that-measured-before-it-wired.md).
 
 ---
 
 ## Choisir un backend par environnement
 
-```
-┌───────────────────────────┬───────────────────────────────────────────────────┐
-│ Environnement             │ Backend                                           │
-├───────────────────────────┼───────────────────────────────────────────────────┤
-│ Tests unitaires           │ En mémoire (DurableTestCase)                      │
-│ Tests d'intégration       │ En mémoire (DurableBundleTestTrait + KernelTestCase)│
-│ Intégration continue avec │ Temporal (groupe temporal-integration)            │
-│   Temporal                │                                                   │
-│ Développement local       │ Au choix (en mémoire pour la vitesse, DBAL/Temporal pour le réalisme)│
-│ Production, sans cluster  │ DBAL                                              │
-│ Production, à l'échelle   │ Temporal                                          │
-└───────────────────────────┴───────────────────────────────────────────────────┘
-```
+| Environnement | Backend |
+|---|---|
+| Tests unitaires | En mémoire (`DurableTestCase`) |
+| Tests d'intégration | En mémoire (`DurableBundleTestTrait` + `KernelTestCase`) |
+| Intégration continue avec Temporal | Temporal (groupe `temporal-integration`) |
+| Développement local | Au choix — en mémoire pour la vitesse, un backend à journal pour le réalisme |
+| Production, sans cluster | DBAL sous Symfony, Illuminate sous Laravel |
+| Production, à l'échelle | Temporal |
 
 ---
 
 ## Matrice de capacités {#capability-matrix}
 
-Les trois backends font tourner le **même pilote à fibres** et le même chemin d'exécution des
-activités. Ce qui diffère, c'est ce que la plateforme autour sait offrir.
+Les quatre backends font tourner le **même pilote à fibres** et le même chemin d'exécution des
+activités. Ce qui diffère, c'est ce que la plateforme autour sait offrir. Les deux colonnes SQL ne
+diffèrent que par la connexion sur laquelle elles reposent : elles répondent pareil partout, sauf
+sur le transport.
 
-| Capacité | En mémoire | DBAL | Temporal |
-|---|---|---|---|
-| Activités, réessais, délais | ✅ | ✅ | ✅ |
-| Minuteurs, effets de bord | ✅ | ✅ (délais Messenger) | ✅ |
-| Signaux, mises à jour, requêtes | ✅ | ✅ | ✅ |
-| Workflows enfants | ✅ | ✅ | ✅ |
-| Cascade `ParentClosePolicy` | ✅ | ✅ | ✅ (pilotée par le serveur) |
-| Continue-as-new | ✅ | ✅ | ✅ |
-| Annulation avec compensation | ✅ | ✅ | ✅ |
-| Survit au redémarrage du processus | ❌ | ✅ | ✅ |
-| Sérialisation des tâches par exécution | sans objet (processus unique) | verrou applicatif | ✅ côté serveur |
-| Attributs de recherche | journalisés seulement | journalisés seulement | ✅ indexés et interrogeables |
-| Planifications cron | ❌ pas d'ordonnanceur | ❌ pas d'ordonnanceur | ✅ |
-| Rétention d'historique / API de visibilité | ❌ | votre table SQL | ✅ |
-| Opérations Nexus (appeler **et** servir) | ❌ | ❌ | ✅ |
+| Capacité | En mémoire | DBAL | Illuminate | Temporal |
+|---|---|---|---|---|
+| Activités, réessais, délais | ✅ | ✅ | ✅ | ✅ |
+| Minuteurs, effets de bord | ✅ | ✅ (délais Messenger) | ✅ (délais de la file) | ✅ |
+| Signaux, mises à jour, requêtes | ✅ | ✅ | ✅ | ✅ |
+| Workflows enfants | ✅ | ✅ | ✅ | ✅ |
+| Cascade `ParentClosePolicy` | ✅ | ✅ | ✅ | ✅ (pilotée par le serveur) |
+| Continue-as-new | ✅ | ✅ | ✅ | ✅ |
+| Annulation avec compensation | ✅ | ✅ | ✅ | ✅ |
+| Survit au redémarrage du processus | ❌ | ✅ | ✅ | ✅ |
+| Sérialisation des tâches par exécution | sans objet (processus unique) | verrou applicatif | verrou applicatif | ✅ côté serveur |
+| Attributs de recherche | journalisés seulement | journalisés seulement | journalisés seulement | ✅ indexés et interrogeables |
+| Planifications cron | ❌ pas d'ordonnanceur | ❌ pas d'ordonnanceur | ❌ pas d'ordonnanceur | ✅ |
+| Rétention d'historique / API de visibilité | ❌ | votre table SQL | votre table SQL | ✅ |
+| Opérations Nexus (appeler **et** servir) | ❌ | ❌ | ❌ | ✅ |
 
-Ni le backend en mémoire ni le backend DBAL n'ont d'ordonnanceur ou de frontière entre espaces de
-noms : cron et Nexus n'y ont donc pas d'équivalent. Là où une capacité manque, elle **échoue
+Aucun backend hors Temporal n'a d'ordonnanceur ou de frontière entre espaces de noms : cron et Nexus
+n'ont donc pas d'équivalent sur les trois autres. Là où une capacité manque, elle **échoue
 explicitement** plutôt que d'être ignorée en silence — pour un *appel* Nexus, à l'appel ; pour un
 *gestionnaire* Nexus, au montage du conteneur, puisqu'un gestionnaire sans route n'est pas un appel
 qui échoue mais un service qui ne reçoit jamais rien.
@@ -330,7 +335,7 @@ qui échoue mais un service qui ne reçoit jamais rien.
 
 ## Les réessais ont la même sémantique partout
 
-Une activité sans borne de tentatives réessaie **indéfiniment** sur les deux backends — c'est le
+Une activité sans borne de tentatives réessaie **indéfiniment** sur tous les backends — c'est le
 défaut de Temporal. Le `max_activity_retries` du bundle agit toujours comme un plafond quand une
 activité n'en pose pas ; à `0`, il ne plafonne rien.
 

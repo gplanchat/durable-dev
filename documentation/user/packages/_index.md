@@ -154,10 +154,12 @@ handed, twice included. It takes a closure, so a queued job, an artisan command 
 worker can all use it.
 
 > [!NOTE]
-> **There is no Laravel integration package yet.** This is a set of stores, not a wiring: nothing
-> binds the ports, no worker command, no jobs. `DurableIlluminateServiceProvider` registers exactly
-> one thing — where the migrations live. Until an integration package exists you wire the stores
-> yourself, the way a framework-less application does.
+> **This bridge is the storage half, not a wiring.** Nothing here binds the ports, and there is no
+> worker command and no job: `DurableIlluminateServiceProvider` registers exactly one thing — where
+> the migrations live. What binds it is
+> [`gplanchat/durable-laravel`](#gplanchatdurable-laravel--the-laravel-integration), the section
+> below. Take the bridge alone and you wire the stores yourself, the way a framework-less
+> application does.
 
 ---
 
