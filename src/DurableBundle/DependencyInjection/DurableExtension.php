@@ -500,9 +500,12 @@ final class DurableExtension extends Extension
     {
         $activityConfig = $config['activity_contracts'] ?? [];
         $cacheId = $activityConfig['cache'] ?? null;
-        $cacheRef = null !== $cacheId && $container->hasDefinition($cacheId)
-            ? new Reference($cacheId)
-            : null;
+        // Pas de `hasDefinition()` ici : un alias n'en est pas une — `Psr\Cache\CacheItemPoolInterface`
+        // en est un — et une définition posée par une extension qui tourne après celle-ci n'en est
+        // pas encore une. Le test rendait donc faux pour des configurations parfaitement valides, et
+        // le pool demandé était jeté sans un mot. Référencer sans condition rend l'erreur au
+        // compilateur, qui sait dire quel service manque.
+        $cacheRef = null !== $cacheId ? new Reference($cacheId) : null;
 
         $container->register(ActivityContractResolver::class, ActivityContractResolver::class)
             ->setArguments([$cacheRef])
