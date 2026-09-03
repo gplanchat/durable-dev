@@ -19,6 +19,8 @@
         <div class="hstack">
             <a href="{{ path('durable_documentation') }}" class="btn btn-primary">Lire la documentation</a>
             <a href="{{ path('app_dashboard') }}" class="btn btn-ghost">Ouvrir le dashboard</a>
+            {# L'agent vit sur son propre domaine : `path()` s'en aperçoit et rend une URL absolue. #}
+            <a href="{{ path('durable_chat_start') }}" class="btn btn-ghost">Ouvrir la démo d'agent</a>
         </div>
     </section>
 
