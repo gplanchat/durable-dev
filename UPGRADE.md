@@ -22,6 +22,29 @@ vendor/bin/rector process src
 Le set est **cumulatif** : le passer une fois rattrape toutes les versions franchies d'un coup. Il
 ne contient que ce que Rector sait faire sans deviner ; tout le reste est écrit à la main ci-dessous.
 
+## Non publié
+
+### Le profileur ne s'enregistre plus hors debug
+
+**Qui est concerné** : une application qui tirait `durable.execution_trace` du conteneur en
+production, ou qui injectait `WorkflowExecutionObserverInterface` en s'attendant à la trace.
+
+Le collecteur, sa trace, son écouteur de remise à zéro et son middleware Messenger n'étaient posés
+sous aucune condition. L'observateur qu'ils installent est injecté dans `ExecutionRuntime`,
+`ExecutionEngine` et `ActivityMessageProcessor` : il passait donc sur le chemin chaud de chaque
+exécution en production, pour alimenter une page que personne n'y sert. Et sa trace n'était vidée
+que par un écouteur `kernel.request`, que `messenger:consume` ne déclenche jamais — un worker
+l'accumulait tant qu'il vivait.
+
+Hors `kernel.debug`, `WorkflowExecutionObserverInterface` pointe désormais
+`Gplanchat\Durable\Debug\NullWorkflowExecutionObserver`. Le contrat d'observation est intact ;
+c'est son implémentation qui ne fait plus rien. En debug, rien ne change, sinon que la trace porte
+un tag `kernel.reset` et se vide donc aussi entre deux messages d'un worker.
+
+Une application qui veut observer les exécutions en production n'a pas à ressusciter le profileur :
+elle implémente `WorkflowExecutionObserverInterface` et aliase l'interface sur son propre service —
+ce que le profileur faisait, en moins cher et sans accumuler une timeline pour l'écran de personne.
+
 ## 0.1.0-alpha8
 
 ### Laravel refuse au démarrage un workflow dont les noms de paramètres divergent du contrat

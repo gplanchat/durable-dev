@@ -42,6 +42,7 @@ use Gplanchat\Durable\Bundle\Messenger\WorkflowRunDispatchProfilerMiddleware;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
 use Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport;
 use Gplanchat\Durable\Bundle\Transport\MessengerWorkflowTimerDispatcher;
+use Gplanchat\Durable\Debug\NullWorkflowExecutionObserver;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
@@ -93,7 +94,15 @@ final class DurableExtension extends Extension
         $asyncChildMessenger = (bool) ($config['child_workflow']['async_messenger'] ?? false);
         $container->setParameter('durable.child_workflow_async_messenger', $asyncChildMessenger);
 
-        $this->registerProfiler($container);
+        // Un conteneur synthétique — un test d'extension, par exemple — n'a pas ce paramètre ;
+        // il n'est pas en production pour autant, d'où le défaut à « debug ».
+        $debug = !$container->hasParameter('kernel.debug') || (bool) $container->getParameter('kernel.debug');
+
+        if ($debug) {
+            $this->registerProfiler($container);
+        } else {
+            $this->registerNullObserver($container);
+        }
         $this->registerChildWorkflowParentLinkStore($container);
         $this->registerWorkflowDefinitionLoader($container);
         $this->registerEventStore($container, $config);
@@ -739,9 +748,34 @@ final class DurableExtension extends Extension
         ;
     }
 
+    /**
+     * Le profileur n'est pas de la plomberie neutre : son observateur est injecté dans
+     * `ExecutionRuntime`, `ExecutionEngine` et `ActivityMessageProcessor`, donc il passe sur le
+     * chemin chaud de chaque exécution, et sa trace n'est vidée que par un écouteur
+     * `kernel.request` — que `messenger:consume` ne déclenche jamais.
+     *
+     * Hors debug, on n'en enregistre donc rien du tout et l'observation retombe sur un objet nul.
+     * FrameworkBundle procède ainsi pour ses propres collecteurs, chargés depuis des fichiers
+     * séparés sous condition.
+     */
+    private function registerNullObserver(ContainerBuilder $container): void
+    {
+        $container->register('durable.execution_observer.null', NullWorkflowExecutionObserver::class)
+            ->setPublic(false)
+        ;
+
+        $container->setAlias(WorkflowExecutionObserverInterface::class, 'durable.execution_observer.null')
+            ->setPublic(true)
+        ;
+    }
+
     private function registerProfiler(ContainerBuilder $container): void
     {
         $container->register('durable.execution_trace', DurableExecutionTrace::class)
+            // `ResetDurableProfilerListener` ne borne que le cas HTTP. Dans un worker il n'y a pas
+            // de requête, et c'est `services_resetter` — donc ce tag — qui vide la trace entre
+            // deux messages. Sans lui, un `messenger:consume` accumule la timeline tant qu'il vit.
+            ->addTag('kernel.reset', ['method' => 'reset'])
             ->setPublic(true)
         ;
 
