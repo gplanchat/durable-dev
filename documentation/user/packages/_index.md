@@ -12,16 +12,28 @@ the workflow code — only where the execution is recorded.
 | Package | Brings | Needs |
 |---|---|---|
 | `gplanchat/durable` | workflows, activities, timers, event journal, in-memory backend | `psr/cache` |
-| `gplanchat/durable-bundle` | Symfony wiring, worker commands, profiler panel | the library, Symfony framework-bundle and Messenger |
+| `gplanchat/durable-bundle` | Symfony wiring, Messenger transports, profiler panel | the library and Symfony Messenger |
 | `gplanchat/durable-bridge-temporal` | the Temporal driver, over gRPC | the library, `ext-grpc`, a Temporal cluster |
 | `gplanchat/durable-bridge-dbal` | durable execution on one SQL database | the library, Doctrine DBAL 3 or 4, `symfony/lock` |
 | `gplanchat/durable-bridge-illuminate` | the same, on the connection Laravel already owns | the library, `illuminate/database` 11, 12 or 13 |
 | `gplanchat/durable-laravel` | the Laravel wiring: ports bound from config, work on the application's queue | the library, the Illuminate bridge, `illuminate/support` |
 | `gplanchat/durable-magento` | a Magento 2.4 / Mage-OS module: declaration, workers, admin screen | the library; Temporal for anything that must outlive a process |
 | `gplanchat/durable-plugin` | a Sylius admin dashboard for workflow runs | the bundle, `knplabs/knp-menu`; Sylius 2.x to appear in its menu |
+| `gplanchat/durable-phpstan` | static analysis of stub calls against their contract | the library, `phpstan/phpstan` |
+| `gplanchat/durable-rector` | automated migration off the Temporal PHP SDK | the library, `rector/rector` |
 
 The three bridges are **alternatives**, not layers: you pick Temporal, DBAL or Illuminate, never
 two of them.
+
+The last two are **development-time tools**, `require-dev` rather than `require`:
+
+- **`gplanchat/durable-phpstan`** resolves `activityStub()` and `childWorkflowStub()` calls against
+  the contract interface, so a mistyped activity or a wrong argument is an analysis error instead of
+  a serialization failure at runtime.
+- **`gplanchat/durable-rector`** migrates a project off the official Temporal PHP SDK — the attribute
+  rewrites and the execution-model change, keeping the workflow and activity type names a running
+  server already knows. What it cannot convert it comments, so you know before you start. See
+  [the comparison page](../comparison/#choosing).
 
 ---
 
@@ -60,7 +72,10 @@ What it does that you would otherwise write by hand:
   own; you do not list them in a container file.
 - **Messenger wiring.** Workflow resumes and activity dispatches are routed to the transports you
   name in `durable.yaml`, so a workflow that suspends resumes through your existing queues.
-- **Worker commands.** Console entry points to run workflow and activity workers.
+- **One console command.** `durable:execution:diagnose <executionId>` prints what the engine holds
+  for one run: its workflow metadata, its parent/child links and its event journal. There is no
+  worker command to add — the worker is Messenger's own `messenger:consume` on the transports
+  above.
 - **Profiler panel.** In the Symfony toolbar: each execution, its journal, and the timeline of
   activities — including which attempt failed and why.
 
@@ -254,7 +269,7 @@ are the one thing the application's own queue cannot carry.
 `gplanchat/durable-bridge-temporal` is **suggested rather than required**: it installs eight packages,
 five of them Symfony components a Laravel application never loads, for some 36 MB. An application
 that does not select the backend never pays for it, and one that does is told by name what to
-install. Splitting the bridge — its Symfony-coupled part is eight files out of 759 — would remove
+install. Splitting the bridge — its Symfony-coupled part is eight files out of 774 — would remove
 the weight, and that is its own change.
 
 **A dashboard.** `gplanchat/durable-filament` will require this package, and this package will never

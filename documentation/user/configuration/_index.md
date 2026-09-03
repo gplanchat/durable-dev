@@ -13,26 +13,54 @@ This page documents every key accepted by `DurableBundle` in `config/packages/du
 
 ```yaml
 durable:
+    dbal:                                    # only read when a type below is 'dbal'
+        connection: doctrine.dbal.default_connection
+        lock_factory: lock.factory           # must be shared across workers
     event_store:
-        type: in_memory          # 'in_memory' (default)
+        type: in_memory                      # 'in_memory' (default) or 'dbal'
+        table_name: durable_events
     temporal:
-        dsn: null                # set to temporal://… to activate the Temporal backend
-        journal: true            # false: the cluster is reachable, event_store stays the journal
+        dsn: null                            # set to temporal://… to activate the Temporal backend
+        journal: true                        # false: the cluster is reachable, event_store stays the journal
     workflow_metadata:
-        type: in_memory          # 'in_memory' (default)
+        type: in_memory                      # 'in_memory' (default) or 'dbal'
+        table_name: durable_workflow_metadata
     activity_transport:
-        type: messenger          # 'messenger' (default) or 'in_memory'
+        type: messenger                      # 'in_memory' is the DEFAULT — set 'messenger' to route
         transport_name: durable_activities
-    max_activity_retries: 0      # maximum automatic retries before marking an activity as failed
+        table_name: durable_activity_outbox
+    max_activity_retries: 0                  # maximum automatic retries before marking an activity as failed
     activity_contracts:
-        cache: cache.app         # PSR-6 cache pool for contract metadata (null = no cache)
+        cache: cache.app                     # PSR-6 cache pool for contract metadata (default: null, no cache)
         contracts:
             - App\Workflow\Activity\OrderActivities
     child_workflow:
-        async_messenger: true    # true = child workflows dispatched via Messenger
+        async_messenger: true                # true = child workflows dispatched via Messenger
         parent_link_store:
-            type: in_memory      # 'in_memory' (default)
+            type: in_memory                  # 'in_memory' (default) or 'dbal'
+            table_name: durable_child_workflow_parent_link
 ```
+
+> [!IMPORTANT]
+> **`activity_transport.type` defaults to `in_memory`, not `messenger`.** Omit the key and activities
+> run **synchronously inside the workflow task**, whatever transport `messenger.yaml` defines. Every
+> example on this site sets it explicitly for that reason. See
+> [`activity_transport`](#activity_transport).
+
+---
+
+## `dbal`
+
+Where the SQL backend gets its connection and its lock. Read only when one of the three `type` keys
+below is set to `dbal`; ignored otherwise, so it costs nothing to leave at its defaults.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `connection` | service ID | `doctrine.dbal.default_connection` | The `Doctrine\DBAL\Connection` the stores write to. |
+| `lock_factory` | service ID | `lock.factory` | The `LockFactory` that serialises resumes of one execution. **It is only as safe as your lock store** — an in-memory or per-process factory with several workers gives back the failure the lock exists to prevent. |
+
+The trade this backend makes, and why the lock is load-bearing, are on the
+[Backends](../backends/#dbal-backend) page.
 
 ---
 
@@ -42,7 +70,8 @@ Controls where workflow event history is stored.
 
 | Key | Values | Default | Description |
 |-----|--------|---------|-------------|
-| `type` | `in_memory` | `in_memory` | Storage backend. `in_memory` keeps events in the PHP process — correct for tests and Temporal native (Temporal is the real history source). |
+| `type` | `in_memory`, `dbal` | `in_memory` | Storage backend. `in_memory` keeps events in the PHP process — correct for tests and Temporal native (Temporal is the real history source). `dbal` persists them in SQL, and is what makes a run survive a restart without a cluster. |
+| `table_name` | string | `durable_events` | Table the `dbal` store writes to. Created on first write. |
 
 ### When using Temporal
 
@@ -90,7 +119,8 @@ Stores workflow type and initial payload, looked up by `executionId` when resumi
 
 | Key | Values | Default | Description |
 |-----|--------|---------|-------------|
-| `type` | `in_memory` | `in_memory` | In-process store. Correct for single-process tests and Temporal (metadata is persisted in Temporal history via the memo field). |
+| `type` | `in_memory`, `dbal` | `in_memory` | In-process store. Correct for single-process tests and Temporal (metadata is persisted in Temporal history via the memo field). `dbal` persists it in SQL. |
+| `table_name` | string | `durable_workflow_metadata` | Table the `dbal` store writes to. Created on first write. |
 
 ---
 
@@ -100,8 +130,14 @@ How the bundle dispatches activity messages from workflow tasks to activity hand
 
 | Key | Values | Default | Description |
 |-----|--------|---------|-------------|
-| `type` | `messenger`, `in_memory` | `messenger` | `messenger` routes activity messages via Symfony Messenger to the configured transport. `in_memory` executes activities synchronously within the workflow task handler. |
+| `type` | `in_memory`, `messenger` | **`in_memory`** | `in_memory` executes activities **synchronously within the workflow task handler** — that is what you get when the key is absent. `messenger` routes activity messages via Symfony Messenger to the configured transport. |
 | `transport_name` | string | `durable_activities` | Name of the Messenger transport used when `type: messenger`. Must match a transport defined in `messenger.yaml`. |
+| `table_name` | string | `durable_activity_outbox` | Outbox table name. |
+
+**The default is the one you probably do not want in production.** Defining `durable_activities` in
+`messenger.yaml` does not select it: without `type: messenger` the transport stays empty and the
+activity has already run inline, taking the workflow task's time with it and losing the retry
+semantics the transport provides.
 
 ---
 
@@ -143,7 +179,8 @@ Controls how child workflow dispatching works.
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `async_messenger` | bool | `false` | When `true`, child workflow runs are dispatched via Messenger (async). When `false`, they run synchronously within the parent workflow task. |
-| `parent_link_store.type` | `in_memory` | `in_memory` | Tracks parent→child links for completion propagation. |
+| `parent_link_store.type` | `in_memory`, `dbal` | `in_memory` | Tracks parent→child links for completion propagation. `dbal` persists them in SQL. |
+| `parent_link_store.table_name` | string | `durable_child_workflow_parent_link` | Table the `dbal` store writes to. Created on first write. |
 
 ---
 

@@ -514,16 +514,16 @@ sont identiques événement par événement.
 Un gestionnaire déclare l'opération qu'il sert, et répond maintenant ou plus tard :
 
 ```php
-#[AsNexusServiceHandler(contract: FacturationServie::class)]
-final class Facturation implements FacturationServie
+#[AsNexusServiceHandler(contract: BillingServed::class)]
+final class Billing implements BillingServed
 {
     // Maintenant, si vous avez déjà la réponse — vous avez environ neuf secondes.
-    public function verifier(Ordre $ordre): Verdict { /* … */ }
+    public function verify(Order $order): Verdict { /* … */ }
 }
 
 // Plus tard, pour tout ce qui est réel : un workflow réclame l'opération et produit le résultat.
 #[AsWorkflow]
-#[FulfilsNexusOperation(FacturationContract::class, 'encaisser')]
+#[FulfilsNexusOperation(BillingContract::class, 'charge')]
 final class Encaissement { /* … */ }
 ```
 
