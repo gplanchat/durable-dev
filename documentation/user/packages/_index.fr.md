@@ -164,11 +164,12 @@ fidèlement ce qu'on lui donne, deux fois comprises. Il prend une fermeture : un
 commande artisan ou un worker écrit à la main peuvent tous s'en servir.
 
 > [!NOTE]
-> **Il n'y a pas encore de paquet d'intégration Laravel.** Ceci est un jeu de stockages, pas un
-> câblage : rien ne lie les ports, aucune commande de worker, aucun job.
-> `DurableIlluminateServiceProvider` enregistre exactement une chose — où sont ses migrations. Tant
-> qu'un paquet d'intégration n'existe pas, vous câblez les stockages vous-même, comme le fait une
-> application sans framework.
+> **Ce pont est la moitié stockage, pas un câblage.** Rien ici ne lie les ports, et il n'y a ni
+> commande de worker ni job : `DurableIlluminateServiceProvider` enregistre exactement une chose —
+> où sont ses migrations. Ce qui le lie, c'est
+> [`gplanchat/durable-laravel`](#gplanchatdurable-laravel--lintégration-laravel), la section
+> ci-dessous. Le pont seul, et vous câblez les stockages vous-même, comme le fait une application
+> sans framework.
 
 ---
 
