@@ -7,4 +7,4 @@
   `framework.lock`. M14 : deux ponts importés en dur, absents même du `suggest`.
 - **Entrées** : `DurableExtension`, `ActivityContractResolver`, une passe de compilation, le
   `composer.json` du bundle, les tests. Pas de refonte de l'extension (M20), pas M17.
-- **État** : rédaction.
+- **État** : en revue — PR #277.
