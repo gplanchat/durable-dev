@@ -13,7 +13,7 @@ l'exécution est enregistrée.
 | Paquet | Apporte | Exige |
 |---|---|---|
 | `gplanchat/durable` | workflows, activités, minuteurs, journal d'événements, backend en mémoire | `psr/cache` |
-| `gplanchat/durable-bundle` | câblage Symfony, commandes de worker, panneau du profileur | la bibliothèque, framework-bundle et Messenger |
+| `gplanchat/durable-bundle` | câblage Symfony, transports Messenger, panneau du profileur | la bibliothèque et Symfony Messenger |
 | `gplanchat/durable-bridge-temporal` | le pilote Temporal, en gRPC | la bibliothèque, `ext-grpc`, un cluster Temporal |
 | `gplanchat/durable-bridge-dbal` | l'exécution durable sur une base SQL | la bibliothèque, Doctrine DBAL 3 ou 4, `symfony/lock` |
 | `gplanchat/durable-bridge-illuminate` | la même chose, sur la connexion que Laravel possède déjà | la bibliothèque, `illuminate/database` 11, 12 ou 13 |
@@ -64,8 +64,10 @@ Ce qu'il fait, et que vous écririez autrement à la main :
 - **Le câblage Messenger.** Reprises de workflow et envois d'activité sont routés vers les transports
   que vous nommez dans `durable.yaml`, si bien qu'un workflow qui se suspend reprend par vos files
   existantes.
-- **Les commandes de worker.** Des points d'entrée en ligne de commande pour faire tourner les
-  workers de workflow et d'activité.
+- **Une commande de console.** `durable:execution:diagnose <executionId>` affiche ce que le moteur
+  détient d'une exécution : ses métadonnées de workflow, ses liens parent/enfant et son journal
+  d'événements. Il n'y a pas de commande de worker à ajouter — le worker, c'est le
+  `messenger:consume` de Messenger sur les transports ci-dessus.
 - **Le panneau du profileur.** Dans la barre d'outils Symfony : chaque exécution, son journal, et la
   chronologie de ses activités — avec quelle tentative a échoué, et pourquoi.
 
@@ -268,7 +270,7 @@ la seule chose que la file de l'application ne peut pas porter.
 `gplanchat/durable-bridge-temporal` est **suggéré et non exigé** : il installe huit paquets, dont cinq
 composants Symfony qu'une application Laravel ne charge jamais, pour quelque 36 Mo. Une application
 qui ne choisit pas ce backend ne le paie jamais, et celle qui le choisit s'entend nommer le paquet à
-installer. Scinder le pont — sa partie couplée à Symfony fait huit fichiers sur 759 — retirerait le
+installer. Scinder le pont — sa partie couplée à Symfony fait huit fichiers sur 774 — retirerait le
 poids, et c'est un change à part.
 
 **Un tableau de bord.** `gplanchat/durable-filament` exigera ce paquet, et ce paquet n'exigera, ne
