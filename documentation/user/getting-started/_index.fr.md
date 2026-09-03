@@ -9,12 +9,30 @@ weight: 10
 
 - **PHP 8.2+**
 - **Composer**
-- Pour les tests et le développement local sans Temporal : aucune infrastructure supplémentaire — le backend **en mémoire** tourne entièrement dans PHP.
-- Pour la production ou des tests d'intégration réalistes : un cluster **Temporal** (image Docker disponible) et l'extension PHP **`ext-grpc`** — dans une image de conteneur, copiez-la depuis une [image préconstruite](../container-images/) plutôt que de la compiler.
+- Pour les tests et le développement local : aucune infrastructure supplémentaire — le backend **en mémoire** tourne entièrement dans PHP.
+- Pour la production **sans cluster** : une seule base SQL, par le backend **DBAL** sous Symfony ou le backend **Illuminate** sous Laravel. Aucune extension à compiler.
+- Pour la production **à l'échelle**, ou des tests d'intégration réalistes : un cluster **Temporal** (image Docker disponible) et l'extension PHP **`ext-grpc`** — dans une image de conteneur, copiez-la depuis une [image préconstruite](../container-images/) plutôt que de la compiler.
+
+Les quatre backends font tourner le même code de workflow ; [Backends](../backends/) compare ce que
+chacun sait offrir.
 
 ---
 
 ## Installation
+
+**Cette page déroule l'intégration Symfony.** Durable a trois intégrations d'hôte, et se tromper de
+paquet est l'erreur à éviter dès la première ligne — chacune a son câblage, son fichier de
+configuration et son worker :
+
+| Votre application | À installer | À lire plutôt |
+|---|---|---|
+| **Symfony** (Sylius compris) | `gplanchat/durable-bundle` | cette page |
+| **Laravel** | `gplanchat/durable-laravel` | [Paquets](../packages/#gplanchatdurable-laravel--lintégration-laravel) |
+| **Magento 2.4 / Mage-OS** | `gplanchat/durable-magento` | [Paquets](../packages/#gplanchatdurable-magento--lintégration-magento) |
+| **Sans framework** | `gplanchat/durable` | [Paquets](../packages/#gplanchatdurable--la-bibliothèque) |
+
+Les concepts, l'API de workflow et l'API d'activité sont identiques sur les quatre — seul le câblage
+ci-dessous est celui de Symfony.
 
 ### La bibliothèque seule (sans framework)
 
@@ -251,7 +269,10 @@ final class GreetController
 
 ## Démarrer les workers Temporal (production / mode dev)
 
-Quand `DURABLE_DSN` pointe vers un serveur Temporal, lancez les consommateurs Messenger dans des processus séparés :
+Quand `DURABLE_DSN` pointe vers un serveur Temporal, lancez les consommateurs Messenger dans des
+processus séparés. **Ce sont les commandes Symfony** — les autres hôtes interrogent le même cluster
+avec les leurs : `php artisan durable:temporal-worker` sous Laravel,
+`bin/magento durable:worker --role=journal` et `--role=activity` sous Magento :
 
 ```bash
 # Worker des tâches de workflow (interroge Temporal pour les tâches de workflow)
@@ -280,4 +301,4 @@ workers:
 - [Écrire des activités](../activities/) — `ActivityOptions`, réessais, délais, injection de dépendances.
 - [Tester des workflows](../testing/) — `DurableTestCase`, `ActivitySpy`, `DurableBundleTestTrait`.
 - [Référence de configuration](../configuration/) — chaque clé de `durable.yaml`, expliquée.
-- [Backends](../backends/) — en mémoire ou Temporal : quand choisir lequel, et la mise en place Docker Compose.
+- [Backends](../backends/) — en mémoire, DBAL, Illuminate et Temporal : quand choisir lequel, et la mise en place Docker Compose.
