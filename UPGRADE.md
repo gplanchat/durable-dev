@@ -22,6 +22,58 @@ vendor/bin/rector process src
 Le set est **cumulatif** : le passer une fois rattrape toutes les versions franchies d'un coup. Il
 ne contient que ce que Rector sait faire sans deviner ; tout le reste est écrit à la main ci-dessous.
 
+## Non publié
+
+### `WorkflowHistorySourceInterface` gagne `hasSideEffectForSlot()`
+
+**Qui est concerné** : uniquement qui **implémente** `WorkflowHistorySourceInterface` — c'est-à-dire
+qui écrit un backend. Une application qui appelle `sideEffect()` n'a rien à changer ; elle gagne le
+correctif sans rien faire.
+
+**Ce qui était cassé.** `findSideEffectForSlot()` rend `mixed` et signalait « rien d'enregistré » par
+`null`. Une closure qui rend légitimement `null` était donc indistinguable d'un slot vide : elle
+était **ré-exécutée à chaque passe de rejeu**, et le journal grossissait d'un `SideEffectRecorded`
+par passe. C'est la garantie même que `sideEffect()` existe pour offrir. Les valeurs `false`, `0`,
+`''` et `[]` n'étaient pas touchées — la comparaison était un `!==` strict.
+
+**Ce qu'il faut écrire.** Une méthode qui répond *le slot existe-t-il*, sans regarder ce qu'il porte.
+Rector ne peut rien ici : la réponse dépend de la façon dont votre backend range ses slots, et lui
+en faire deviner une produirait un adaptateur qui compile et ment. Les deux implémentations livrées
+donnent les deux formes attendues.
+
+Sur un journal parcouru :
+
+```php
+public function hasSideEffectForSlot(int $slot): bool
+{
+    $index = 0;
+    foreach ($this->eventStore->readStream($this->executionId) as $event) {
+        if ($event instanceof SideEffectRecorded) {
+            if ($index === $slot) {
+                return true;
+            }
+            ++$index;
+        }
+    }
+
+    return false;
+}
+```
+
+Sur un tableau indexé par slot — et c'est `array_key_exists()`, jamais `isset()`, qui rouvrirait
+exactement le trou que ce correctif ferme :
+
+```php
+public function hasSideEffectForSlot(int $slot): bool
+{
+    return \array_key_exists($slot, $this->sideEffects);
+}
+```
+
+`findSideEffectForSlot()` ne change pas de signature et garde son comportement : elle rend la valeur,
+et rend `null` aussi bien pour un slot absent que pour un slot portant `null`. C'est désormais écrit
+dans son contrat, et c'est `hasSideEffectForSlot()` qui décide s'il faut exécuter la closure.
+
 ## 0.1.0-alpha8
 
 ### Laravel refuse au démarrage un workflow dont les noms de paramètres divergent du contrat

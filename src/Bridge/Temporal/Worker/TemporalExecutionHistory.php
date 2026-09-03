@@ -562,6 +562,11 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         return $this->scheduledTimerIds[$slot] ?? null;
     }
 
+    public function hasSideEffectForSlot(int $slot): bool
+    {
+        return \array_key_exists($slot, $this->sideEffects);
+    }
+
     public function findSideEffectForSlot(int $slot): mixed
     {
         return $this->sideEffects[$slot] ?? null;
