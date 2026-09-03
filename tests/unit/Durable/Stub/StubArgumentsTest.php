@@ -58,12 +58,42 @@ final class StubArgumentsTest extends TestCase
     }
 
     /**
-     * Un paramètre sans défaut et non fourni vaut `null` : c'est le comportement d'avant, et la
-     * validation reste au gestionnaire.
+     * Un paramètre requis non fourni lève, comme PHP lèverait `ArgumentCountError` sur l'appel
+     * ordinaire correspondant.
+     *
+     * Le laisser valoir `null` faisait voyager la faute jusque dans le journal, où elle se rejoue
+     * à l'identique à chaque passe : `$text` est déclaré `string`, une charge portant `null` est
+     * donc de toute façon refusée à l'arrivée — mais une passe de rejeu plus tard, dans un worker,
+     * loin de l'appel fautif.
      */
-    public function testAMissingRequiredParameterIsNull(): void
+    public function testUnParametreRequisNonFourniLeve(): void
     {
-        self::assertNull($this->map([])['text']);
+        $this->expectException(\BadMethodCallException::class);
+        $this->expectExceptionMessageMatches('/Missing required argument \$text/');
+
+        $this->map([]);
+    }
+
+    /**
+     * Servir le même paramètre en positionnel puis en nommé : PHP refuse (« Named parameter $x
+     * overwrites previous argument »), le stub choisissait le positionnel en silence.
+     */
+    public function testUnParametreServiDeuxFoisLeve(): void
+    {
+        $this->expectException(\BadMethodCallException::class);
+        $this->expectExceptionMessageMatches('/\$text.*both positionally and by name/');
+
+        $this->map([0 => 'positionnel', 'text' => 'nommé']);
+    }
+
+    /**
+     * Le cas voisin, qui doit continuer de passer : un paramètre optionnel non fourni prend sa
+     * valeur par défaut, et un `null` explicite reste `null`.
+     */
+    public function testUnParametreOptionnelGardeSonDefautEtAccepteNull(): void
+    {
+        self::assertSame(1, $this->map(['text' => 'x'])['times']);
+        self::assertNull($this->map(['text' => 'x', 'tag' => null])['tag']);
     }
 
     /**
@@ -74,9 +104,7 @@ final class StubArgumentsTest extends TestCase
     private function map(array $arguments): array
     {
         $contract = new class {
-            public function greet(string $text, int $times = 1, ?string $tag = 'défaut'): void
-            {
-            }
+            public function greet(string $text, int $times = 1, ?string $tag = 'défaut'): void {}
         };
 
         return StubArguments::toPayload(new \ReflectionMethod($contract, 'greet'), $arguments);
