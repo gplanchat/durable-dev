@@ -2,7 +2,33 @@
 
 ## Status
 
-Accepted — **implemented for all four ports.**
+Accepted — a conformance suite ships for all four ports, and every adapter that can run one does.
+
+**Two adapter pairings are declared below and do not exist: neither Temporal event store nor the
+Temporal run catalogue runs any tier of any suite.** This ADR described the arrangement for them in
+the future tense of a decision and, in two places, in the past tense of a fact. Those two places are
+marked where they occur, and the table below is the state as of 2026-09-03.
+
+### Coverage as it stands
+
+A pairing exists only where a backend implements the port. Temporal implements two of the four:
+`WorkflowMetadataStore` and `ChildWorkflowParentLinkStoreInterface` have no Temporal implementation
+and are not gaps.
+
+| Port | In-memory | DBAL | Illuminate | Temporal |
+|---|---|---|---|---|
+| `EventStoreInterface` | runs both tiers | runs both tiers | runs both tiers | **implemented twice, runs nothing** |
+| `WorkflowMetadataStore` | runs | runs | runs | not implemented |
+| `ChildWorkflowParentLinkStoreInterface` | runs | runs | runs | not implemented |
+| `WorkflowRunCatalogInterface` | runs | runs | runs | **implemented, runs nothing** |
+
+Twelve pairings exist and are covered; two exist and are not. Both uncovered pairings are Temporal —
+the only backend whose storage shape differs from the reference. The three covered backends share a
+journal and a table, so the parity they prove is the parity that was never in doubt. **The suite is
+proven where it was free and unproven where it is at stake**, which is the opposite of what this ADR
+set out to do.
+
+Closing the two gaps is the subject of the `backend-data-parity` change.
 
 ## Context
 
@@ -92,6 +118,12 @@ this monorepo can then run it, which a suite parked in `tests/` cannot offer.
 The split is declared so that a bridge running half the suite is a visible fact rather than an
 omission nobody notices.
 
+> **Not true as written.** The sentence above says the Temporal adapters run the replay tier in the
+> integration suite. They run neither tier, in neither suite. The split is a sound decision and
+> stands; what does not stand is the present tense. A bridge running *no* half of the suite turned
+> out to be exactly the omission nobody noticed — the declaration was never made, so there was
+> nothing to notice.
+
 ### `NullEventStore` is outside conformance
 
 It implements the port so a signature can be satisfied in distributed mode, where the methods are
@@ -115,6 +147,11 @@ reader from "fixing" it into the suite.
 - **Temporal's read-through store gets checked for the first time.** This is the consequence most
   likely to surface a defect rather than confirm one — DUR029 conversion is where the shapes could
   already have diverged, and the suite will say so.
+
+  > **Outstanding.** This consequence has not been realised. `TemporalReadThroughEventStore` and
+  > `TemporalJournalEventStore` still extend nothing, so the DUR029 conversion remains the one
+  > round trip in the component that no suite differences against the reference. It is listed here
+  > rather than quietly dropped because it was, and remains, the consequence worth having.
 - **The `phpunit/phpunit` cost was already paid.** This ADR listed it as a real cost; it is not one.
   `gplanchat/durable` already carries `phpunit/phpunit` under `require-dev` and already ships
   `Testing\DurableTestCase`, `Testing\ActivitySpy` and `Testing\WorkflowTestEnvironment`. The

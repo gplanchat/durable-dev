@@ -274,52 +274,84 @@ Child workflows can run **asynchronously** (fire-and-forget) or be awaited by th
 
 ## Backends
 
-Durable runs on two backends that share the same workflow and activity code:
+Durable runs on four backends that share the same workflow and activity code:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                  Application code                           │
-│  (workflows, activities, WorkflowEnvironment)               │
-└────────────────────┬────────────────────────────────────────┘
-                     │ same API
-          ┌──────────┴──────────┐
-          ▼                     ▼
-   ┌─────────────┐       ┌──────────────┐
-   │  In-Memory  │       │   Temporal   │
-   │  (tests,    │       │  (production,│
-   │   local)    │       │  staging)    │
-   └─────────────┘       └──────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                           Application code                           │
+│             (workflows, activities, WorkflowEnvironment)             │
+└───────────────────────────────────┬──────────────────────────────────┘
+                                    │ same API
+      ┌──────────────┬──────────────┼──────────────┐
+      ▼              ▼              ▼              ▼
+┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐
+│ In-Memory │  │    DBAL   │  │ Illuminate│  │  Temporal │
+│   tests,  │  │  one SQL  │  │  one SQL  │  │ a cluster,│
+│   local   │  │ database, │  │ database, │  │  at scale │
+│           │  │  Doctrine │  │  Laravel  │  │           │
+└───────────┘  └───────────┘  └───────────┘  └───────────┘
 ```
 
 ### In-Memory
 
 - Runs entirely in a single PHP process.
-- No external server or infrastructure.
-- Messenger in-memory transports simulate async activity dispatch.
+- No external server, no persistence between requests.
+- Async activity dispatch is simulated by an in-process transport.
 - Ideal for all **automated tests** and quick local experiments.
+
+### DBAL
+
+- The journal, the resume metadata and the parent/child links become tables in **one SQL database**,
+  through Doctrine DBAL.
+- No orchestration server, no sidecar, no `ext-grpc`.
+- Survives restarts and deploys, at a scale one database can hold.
+
+### Illuminate
+
+- The same four stores and the same trade, on `Illuminate\Database\Connection` rather than
+  Doctrine's — a store on `DB::connection()` is inside `DB::transaction()` by construction.
+- It is not a fourth value of `event_store.type` and never will be: a Laravel application does not
+  read the bundle's YAML. What binds it is `gplanchat/durable-laravel`, through its own
+  `config/durable.php`.
 
 ### Temporal
 
 - Production-grade orchestration with a real Temporal cluster.
-- Full history persistence, durable retries, Temporal UI.
-- Workers poll Temporal over gRPC via two Symfony Messenger consumers.
-- Requires `ext-grpc` PHP extension.
+- Full history persistence, durable retries, Temporal UI — and the three things no journal backend
+  has: search attributes, cron schedules, and Nexus.
+- Workers poll Temporal over gRPC, through whatever the host runs its workers with.
+- Requires the `ext-grpc` PHP extension.
+
+> [!NOTE]
+> **On Magento, only two of the four are reachable.** `gplanchat/durable-magento` declares a Composer
+> `conflict` on both SQL bridges — `Magento\Framework\App\ResourceConnection` is neither Doctrine
+> DBAL nor Illuminate's connection, so neither has anything to bind to. The state lives in a Temporal
+> cluster, or it lives in one process, and the presence of `durable/temporal/dsn` in `app/etc/env.php`
+> decides which.
 
 For setup details, see [Backends](../backends/).
 
 ---
 
-## Symfony Messenger integration
+## How work reaches a worker
 
-In Symfony applications, Durable uses **Messenger** to:
+Durable brings no transport of its own. Workflow and activity work rides what the host already has,
+and each host says so differently:
 
-- Route **`ResumeWorkflowMessage`** → workflow task queue.
-- Route **`ActivityMessage`** → activity task queue.
-- Dispatch **signals**, **updates**, and **timer fire** messages on the synchronous bus.
+**Symfony** — **Messenger**. `ResumeWorkflowMessage` routes to the workflow task queue,
+`ActivityMessage` to the activity task queue, and signals, updates and timer fires go on the
+synchronous bus. With the Temporal backend the transport is a **gRPC-backed polling transport** —
+the same consumer interface, a different underlying protocol.
 
-This means workflows integrate naturally with Symfony's async infrastructure. With the Temporal backend, the Messenger transport is a **gRPC-backed polling transport** — the same consumer interface, different underlying protocol.
+**Laravel** — the **queue the application already drains**. Activities and resumes are jobs, a timer
+is a deferred resume on the queue's own delay, and `php artisan queue:work` is the only worker.
 
-For configuration, see [Getting started](../getting-started/) and [Configuration reference](../configuration/).
+**Magento** — neither. Workers are `bin/magento durable:worker --role=journal|activity` commands
+that poll the backend directly; nothing rides Magento's own `MessageQueue`, because on Temporal an
+activity is already a Temporal command and a resume a workflow task.
+
+For configuration, see [Getting started](../getting-started/) and
+[Configuration reference](../configuration/).
 
 ---
 
@@ -345,7 +377,7 @@ The **replay contract** is the core constraint: any code inside `#[AsWorkflowMet
 ## Going deeper
 
 - [Getting started](../getting-started/) — install, configure, write your first workflow end-to-end.
-- [Backends](../backends/) — In-Memory vs Temporal, Docker setup, DSN reference.
+- [Backends](../backends/) — In-Memory, DBAL, Illuminate and Temporal, Docker setup, DSN reference.
 - [Creating a workflow](../workflows/) — full workflow API with signals, queries, updates, child workflows.
 - [Creating activities](../activities/) — `ActivityOptions`, retries, timeouts, dependency injection.
 - [Testing workflows](../testing/) — `DurableTestCase`, `ActivitySpy`, `DurableBundleTestTrait`.

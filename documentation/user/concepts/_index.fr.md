@@ -262,52 +262,87 @@ Un workflow enfant peut tourner de façon **asynchrone** (on le lance et on l'ou
 
 ## Les backends
 
-Durable tourne sur deux backends qui partagent le même code de workflows et d'activités :
+Durable tourne sur quatre backends qui partagent le même code de workflows et d'activités :
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Code applicatif                         │
-│      (workflows, activités, WorkflowEnvironment)            │
-└────────────────────┬────────────────────────────────────────┘
-                     │ même API
-          ┌──────────┴──────────┐
-          ▼                     ▼
-   ┌─────────────┐       ┌──────────────┐
-   │  En mémoire │       │   Temporal   │
-   │  (tests,    │       │ (production, │
-   │   local)    │       │  recette)    │
-   └─────────────┘       └──────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                           Code applicatif                            │
+│             (workflows, activités, WorkflowEnvironment)              │
+└───────────────────────────────────┬──────────────────────────────────┘
+                                    │ même API
+      ┌──────────────┬──────────────┼──────────────┐
+      ▼              ▼              ▼              ▼
+┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐
+│ En mémoire│  │    DBAL   │  │ Illuminate│  │  Temporal │
+│   tests,  │  │  une base │  │  une base │  │un cluster,│
+│   local   │  │    SQL,   │  │    SQL,   │  │à l'échelle│
+│           │  │  Doctrine │  │  Laravel  │  │           │
+└───────────┘  └───────────┘  └───────────┘  └───────────┘
 ```
 
 ### En mémoire
 
 - Tourne entièrement dans un seul processus PHP.
-- Aucun serveur ni infrastructure externe.
-- Les transports Messenger en mémoire simulent l'envoi asynchrone des activités.
+- Aucun serveur externe, rien de persisté d'une requête à l'autre.
+- L'envoi asynchrone des activités est simulé par un transport en processus.
 - Le choix idéal pour tous les **tests automatisés** et les essais locaux rapides.
+
+### DBAL
+
+- Le journal, les métadonnées de reprise et les liens parent/enfant deviennent des tables dans **une
+  seule base SQL**, à travers Doctrine DBAL.
+- Aucun serveur d'orchestration, aucun sidecar, pas d'`ext-grpc`.
+- Survit aux redémarrages et aux déploiements, à l'échelle qu'une base peut tenir.
+
+### Illuminate
+
+- Les mêmes quatre magasins et le même compromis, sur `Illuminate\Database\Connection` plutôt que
+  sur celle de Doctrine — un magasin sur `DB::connection()` est dans `DB::transaction()` par
+  construction.
+- Ce n'est pas une quatrième valeur d'`event_store.type`, et ce ne le sera jamais : une application
+  Laravel ne lit pas le YAML du bundle. Ce qui le branche, c'est `gplanchat/durable-laravel`, par son
+  propre `config/durable.php`.
 
 ### Temporal
 
 - Une orchestration de production, avec un vrai cluster Temporal.
-- Historique persisté intégralement, réessais durables, interface Temporal.
-- Les workers interrogent Temporal en gRPC, par deux consommateurs Symfony Messenger.
+- Historique persisté intégralement, réessais durables, interface Temporal — et les trois choses
+  qu'aucun backend à journal n'a : les attributs de recherche, les planifications cron, et Nexus.
+- Les workers interrogent Temporal en gRPC, par ce avec quoi l'hôte fait tourner ses workers.
 - Nécessite l'extension PHP `ext-grpc`.
+
+> [!NOTE]
+> **Sur Magento, deux des quatre seulement sont atteignables.** `gplanchat/durable-magento` déclare
+> un `conflict` Composer sur les deux ponts SQL — `Magento\Framework\App\ResourceConnection` n'est
+> ni Doctrine DBAL ni la connexion d'Illuminate, aucun des deux n'a donc de quoi se brancher. L'état
+> vit dans un cluster Temporal, ou il vit dans un processus, et c'est la présence de
+> `durable/temporal/dsn` dans `app/etc/env.php` qui tranche.
 
 Pour la mise en place, voir [Backends](../backends/).
 
 ---
 
-## L'intégration Symfony Messenger
+## Par où le travail atteint un worker
 
-Dans une application Symfony, Durable se sert de **Messenger** pour :
+Durable n'apporte aucun transport à lui. Le travail de workflow et d'activité roule sur ce que l'hôte
+a déjà, et chaque hôte le dit autrement :
 
-- router **`ResumeWorkflowMessage`** vers la file des tâches de workflow ;
-- router **`ActivityMessage`** vers la file des tâches d'activité ;
-- distribuer les **signaux**, les **mises à jour** et les messages d'**échéance de minuteur** sur le bus synchrone.
+**Symfony** — **Messenger**. `ResumeWorkflowMessage` est routé vers la file des tâches de workflow,
+`ActivityMessage` vers celle des activités, et les signaux, les mises à jour et les échéances de
+minuteur partent sur le bus synchrone. Avec le backend Temporal, le transport est un **transport
+d'interrogation adossé à gRPC** — même interface de consommateur, protocole sous-jacent différent.
 
-Les workflows s'intègrent ainsi naturellement à l'infrastructure asynchrone de Symfony. Avec le backend Temporal, le transport Messenger est un **transport d'interrogation adossé à gRPC** — même interface de consommateur, protocole sous-jacent différent.
+**Laravel** — la **file que l'application draine déjà**. Les activités et les reprises sont des jobs,
+un minuteur est une reprise différée sur le délai de la file, et `php artisan queue:work` est le seul
+worker.
 
-Pour la configuration, voir [Premiers pas](../getting-started/) et [Référence de configuration](../configuration/).
+**Magento** — ni l'un ni l'autre. Les workers sont des commandes
+`bin/magento durable:worker --role=journal|activity` qui interrogent le backend directement ; rien ne
+roule sur le `MessageQueue` de Magento, parce que sur Temporal une activité est déjà une commande
+Temporal et une reprise une tâche de workflow.
+
+Pour la configuration, voir [Premiers pas](../getting-started/) et
+[Référence de configuration](../configuration/).
 
 ---
 
@@ -333,7 +368,7 @@ Le **contrat de rejeu** est la contrainte centrale : tout code à l'intérieur d
 ## Pour aller plus loin
 
 - [Premiers pas](../getting-started/) — installer, configurer, écrire un premier workflow de bout en bout.
-- [Backends](../backends/) — en mémoire ou Temporal, mise en place Docker, référence des DSN.
+- [Backends](../backends/) — en mémoire, DBAL, Illuminate et Temporal, mise en place Docker, référence des DSN.
 - [Écrire un workflow](../workflows/) — l'API complète : signaux, requêtes, mises à jour, workflows enfants.
 - [Écrire des activités](../activities/) — `ActivityOptions`, réessais, délais, injection de dépendances.
 - [Tester des workflows](../testing/) — `DurableTestCase`, `ActivitySpy`, `DurableBundleTestTrait`.
