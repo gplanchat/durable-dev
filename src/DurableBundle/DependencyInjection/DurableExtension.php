@@ -75,6 +75,7 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
@@ -665,7 +666,11 @@ final class DurableExtension extends Extension
                     new Reference(WorkflowClientInterface::class),
                     new Reference(WorkflowMetadataStore::class),
                     new Reference(WorkflowDefinitionLoader::class),
-                    new Reference('durable.execution_trace'),
+                    // Le profileur n'existe qu'en debug depuis ce correctif, et le constructeur
+                    // cible déclare la dépendance `?DurableExecutionTrace $executionTrace = null`.
+                    // Une référence nue ferait échouer la compilation du conteneur de production
+                    // dès qu'un `temporal.dsn` est configuré.
+                    new Reference('durable.execution_trace', ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 ])
                 ->setPublic(true)
             ;
@@ -764,7 +769,28 @@ final class DurableExtension extends Extension
             ->setPublic(false)
         ;
 
-        $container->setAlias(WorkflowExecutionObserverInterface::class, 'durable.execution_observer.null')
+        self::aliaserObservateur($container, 'durable.execution_observer.null');
+    }
+
+    /**
+     * Aliase l'interface d'observation, **sans écraser ce que l'application a déjà déclaré**.
+     *
+     * `UPGRADE.md` invite une application qui veut observer ses exécutions en production à
+     * implémenter le contrat et à aliaser l'interface sur son propre service. Les définitions du
+     * `services.yaml` de l'application existent déjà quand l'extension se charge — le
+     * `MergeExtensionConfigurationPass` tourne à la compilation, après le chargement de la
+     * configuration — si bien qu'un `setAlias()` inconditionnel effaçait cet alias-là, et
+     * l'échappatoire ne fonctionnait pas.
+     */
+    private static function aliaserObservateur(ContainerBuilder $container, string $service): void
+    {
+        if ($container->hasAlias(WorkflowExecutionObserverInterface::class)
+            || $container->hasDefinition(WorkflowExecutionObserverInterface::class)
+        ) {
+            return;
+        }
+
+        $container->setAlias(WorkflowExecutionObserverInterface::class, $service)
             ->setPublic(true)
         ;
     }
@@ -779,9 +805,7 @@ final class DurableExtension extends Extension
             ->setPublic(true)
         ;
 
-        $container->setAlias(WorkflowExecutionObserverInterface::class, 'durable.execution_trace')
-            ->setPublic(true)
-        ;
+        self::aliaserObservateur($container, 'durable.execution_trace');
 
         $container->register(ResetDurableProfilerListener::class)
             ->setArguments([new Reference('durable.execution_trace')])

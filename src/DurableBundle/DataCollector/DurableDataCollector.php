@@ -27,6 +27,7 @@ use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
+use Gplanchat\Durable\Observation\RecordedDetails;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Symfony\Component\HttpFoundation\Request;
@@ -113,9 +114,13 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             ),
         ];
 
-        // Une seule barrière, au seul endroit où `$this->data` est constitué : ce qui sort d'ici
-        // est stockable, quelle que soit la charge utile observée.
-        $this->data = self::storable($this->data);
+        // La barrière, au seul endroit où `$this->data` est constitué. Elle s'applique **clé par
+        // clé** : une charge utile pathologique fait disparaître son panneau, pas le collecteur
+        // entier — ce que la barrière d'ensemble ne garantissait pas, `$this->data` étant typée
+        // `array|Data` chez le parent.
+        foreach ($this->data as $cle => $valeur) {
+            $this->data[$cle] = RecordedDetails::storable($valeur);
+        }
     }
 
     /**
@@ -835,31 +840,6 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     public function reset(): void
     {
         $this->data = [];
-    }
-
-    /**
-     * Ramène à des scalaires et des tableaux ce que le collecteur vient de ranger.
-     *
-     * Une charge utile de workflow est de la donnée métier : n'importe quoi peut s'y trouver, y
-     * compris ce qui refuse `serialize()`. Or le Profiler sérialise le profil **entier** pour
-     * l'écrire — une closure dans une charge utile ne casse donc pas le panneau Durable, elle
-     * casse le profil de la requête, panneaux des autres bundles compris.
-     *
-     * Le passage par JSON est la conversion que le gabarit fait de toute façon pour afficher
-     * (`|json_encode`) : rien n'est perdu de ce qui était montré, et ce qui ne pouvait pas l'être
-     * ne fait plus tomber ce qui l'entoure.
-     *
-     * - `JSON_INVALID_UTF8_SUBSTITUTE` — un journal porte des octets, pas forcément du texte
-     *   valide ; sans lui `json_encode` rend `false`, et le gabarit affiche un vide là où il y
-     *   avait une charge utile.
-     * - `JSON_PARTIAL_OUTPUT_ON_ERROR` — une valeur inencodable devient `null` plutôt que
-     *   d'emporter tout le tableau qui la contient.
-     */
-    private static function storable(mixed $value): mixed
-    {
-        $json = json_encode($value, \JSON_INVALID_UTF8_SUBSTITUTE | \JSON_PARTIAL_OUTPUT_ON_ERROR);
-
-        return false === $json ? null : json_decode($json, true);
     }
 
     /**
