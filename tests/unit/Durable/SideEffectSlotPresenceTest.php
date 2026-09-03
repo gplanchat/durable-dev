@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Tests\Unit\Durable;
 
 use Gplanchat\Durable\Event\SideEffectRecorded;
+use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
+use Gplanchat\Durable\Versioning\ChangePoint;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
-use Gplanchat\Durable\InMemoryWorkflowRunner;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -126,5 +127,41 @@ final class SideEffectSlotPresenceTest extends TestCase
         }
 
         return $total;
+    }
+
+    /**
+     * L'appelant frère. `version()` demande « suis-je en train de rejouer ? » à
+     * `hasRecordedWorkAhead()`, qui interrogeait les quatre autres types de slot et pas les effets
+     * de bord, faute de pouvoir en lire la présence sans en lire la valeur.
+     *
+     * Une exécution dont le travail restant devant elle n'est fait que d'effets de bord était donc
+     * vue comme arrivée au bout de son historique. Elle prenait la branche neuve **en plein
+     * rejeu**, et écrivait son marqueur de version au milieu d'une histoire écrite avant que le
+     * point de changement existe — ce que `version()` est précisément là pour empêcher.
+     */
+    public function testUnTravailRestantFaitDEffetsDeBordRetientLAncienneVersion(): void
+    {
+        $store = new InMemoryEventStore();
+
+        // Le code d'avant : deux effets de bord, aucun point de changement.
+        $avant = static fn(WorkflowEnvironment $wf): array => [
+            'premier' => $wf->sideEffect(static fn(): mixed => null),
+            'second' => $wf->sideEffect(static fn(): string => 'après'),
+        ];
+        self::executer($store, 'exec-1', $avant);
+
+        // Le code d'après, sur la même exécution : un point de changement s'est glissé entre les
+        // deux effets de bord, et le second est encore devant.
+        $apres = static fn(WorkflowEnvironment $wf): array => [
+            'premier' => $wf->sideEffect(static fn(): mixed => null),
+            'version' => $wf->version('changement-1', 1, 3),
+            'second' => $wf->sideEffect(static fn(): string => 'après'),
+        ];
+
+        self::assertSame(
+            ChangePoint::DEFAULT_VERSION,
+            self::executer($store, 'exec-1', $apres)['version'],
+            'une exécution en vol garde l\'ancien comportement tant qu\'il lui reste du journal à rejouer',
+        );
     }
 }

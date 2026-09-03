@@ -74,6 +74,26 @@ public function hasSideEffectForSlot(int $slot): bool
 et rend `null` aussi bien pour un slot absent que pour un slot portant `null`. C'est désormais écrit
 dans son contrat, et c'est `hasSideEffectForSlot()` qui décide s'il faut exécuter la closure.
 
+
+### `version()` cesse de basculer une exécution en vol
+
+**Qui est concerné** : toute application qui appelle `version()`. Rien à écrire ; le comportement
+change, en mieux, et il faut savoir en quoi.
+
+`version()` décide de rendre l'ancien comportement quand l'exécution est encore en train de
+rejouer. Ce signal se déduisait des quatre types de slot qui savent dire leur présence — activité,
+minuteur, workflow enfant, opération Nexus — et laissait les effets de bord de côté, pour la raison
+même que le correctif ci-dessus vient de lever : leur présence ne se lisait pas sans lire leur
+valeur.
+
+Conséquence : une exécution dont le travail restant devant elle n'était fait que d'effets de bord
+était vue comme arrivée au bout de son historique. Elle prenait la branche **neuve** au milieu d'un
+rejeu et y écrivait son marqueur de version — dans une histoire écrite avant que le point de
+changement existe. `hasSideEffectForSlot()` étant désormais au port, ce cas rejoint les autres.
+
+Une exécution qui a déjà écrit un marqueur de version garde le sien : `versionForChangeId()` est
+consulté en premier, et rien de ce commit ne le touche.
+
 ## 0.1.0-alpha8
 
 ### Laravel refuse au démarrage un workflow dont les noms de paramètres divergent du contrat
