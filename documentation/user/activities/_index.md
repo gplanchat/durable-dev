@@ -10,7 +10,7 @@ This page summarizes how you **author** activities in Durable. Normative detail 
 ## Two pieces
 
 1. **Activity contract interface** — methods the workflow may call, each marked with **`#[AsActivityMethod]`**. From the workflow you interact through **`ActivityStub`** (**ActivityInvoker** in ADRs).
-2. **Activity implementation class** — concrete class (often annotated with **`#[AsActivity]`** for naming) that **implements** the contract and performs real work.
+2. **Activity implementation class** — concrete class carrying **`#[AsActivityHandler]`**, naming the contract it implements. That attribute is what registers the class: the bundle autoconfigures it, and without it the workflow finds no handler at run time.
 
 ## Example: activity contract and implementation
 
@@ -22,15 +22,19 @@ The **interface** lists methods the workflow may schedule. Each exposed method c
 declare(strict_types=1);
 
 use Gplanchat\Durable\Attribute\AsActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 use Gplanchat\Durable\Attribute\AsActivityMethod;
 
+// `#[AsActivity]` is optional and belongs on the **contract**: it prefixes the names of the
+// activities declared below. On an implementation class nothing reads it.
+#[AsActivity(name: 'order-activities')]
 interface OrderActivities
 {
     #[AsActivityMethod(name: 'charge-order')]
     public function charge(string $orderId): string; // synchronous return type on the worker
 }
 
-#[AsActivity(name: 'order-activities')]
+#[AsActivityHandler(contract: OrderActivities::class)]
 final class OrderActivitiesHandler implements OrderActivities
 {
     public function __construct(

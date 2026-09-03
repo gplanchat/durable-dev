@@ -72,8 +72,11 @@ composer require gplanchat/durable-bundle
 
 Ce qu'il fait, et que vous écririez autrement à la main :
 
-- **L'autoconfiguration.** Les classes portant `#[AsWorkflow]` et `#[AsActivity]` s'enregistrent seules ;
-  vous ne les listez pas dans un fichier de conteneur.
+- **L'autoconfiguration.** Les classes portant `#[AsActivityHandler]` s'enregistrent seules sur
+  l'exécuteur d'activités ; vous ne les listez pas dans un fichier de conteneur. `#[AsActivity]` est
+  un attribut de **nommage** posé sur le contrat, pas d'enregistrement, et `#[AsWorkflow]` n'est
+  **pas** autoconfiguré à ce jour — une classe de workflow a encore besoin de la balise
+  `durable.workflow`, que le guide de démarrage montre.
 - **Le câblage Messenger.** Reprises de workflow et envois d'activité sont routés vers les transports
   que vous nommez dans `durable.yaml`, si bien qu'un workflow qui se suspend reprend par vos files
   existantes.

@@ -10,7 +10,7 @@ Cette page résume comment on **écrit** des activités en Durable. Le détail n
 ## Deux pièces
 
 1. **L'interface de contrat d'activité** — les méthodes que le workflow a le droit d'appeler, chacune marquée d'un **`#[AsActivityMethod]`**. Depuis le workflow, on passe par un **`ActivityStub`** (**ActivityInvoker** dans les ADR).
-2. **La classe d'implémentation** — une classe concrète (souvent annotée d'un **`#[AsActivity]`** pour son nom) qui **implémente** le contrat et fait le vrai travail.
+2. **La classe d'implémentation** — une classe concrète portant **`#[AsActivityHandler]`**, qui nomme le contrat qu'elle implémente. C'est cet attribut qui l'enregistre : le bundle l'autoconfigure, et sans lui le workflow ne trouve aucun gestionnaire à l'exécution.
 
 ## Exemple : contrat et implémentation
 
@@ -22,15 +22,19 @@ L'**interface** énumère les méthodes que le workflow peut planifier. Chaque m
 declare(strict_types=1);
 
 use Gplanchat\Durable\Attribute\AsActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 use Gplanchat\Durable\Attribute\AsActivityMethod;
 
+// `#[AsActivity]` est optionnel et se pose sur le **contrat** : il préfixe le nom des activités
+// déclarées en dessous. Sur une classe d'implémentation, personne ne le lit.
+#[AsActivity(name: 'order-activities')]
 interface OrderActivities
 {
     #[AsActivityMethod(name: 'charge-order')]
     public function charge(string $orderId): string; // type de retour synchrone, côté worker
 }
 
-#[AsActivity(name: 'order-activities')]
+#[AsActivityHandler(contract: OrderActivities::class)]
 final class OrderActivitiesHandler implements OrderActivities
 {
     public function __construct(

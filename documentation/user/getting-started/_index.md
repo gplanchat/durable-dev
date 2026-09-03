@@ -163,7 +163,7 @@ App\Workflow\:
 
 ### Register activity implementations
 
-Activity implementation classes are registered as normal Symfony services (autowiring applies). If you use `#[AsActivityHandler]` on the class, the bundle picks them up automatically when the service is tagged.
+Nothing to write. A class carrying `#[AsActivityHandler]` is picked up by the bundle's autoconfiguration as soon as it is a service — which, with the default `autoconfigure: true` of a Symfony application, it already is. This is where workflows above differ: those still need the tag.
 
 ---
 
@@ -178,8 +178,11 @@ declare(strict_types=1);
 
 namespace App\Workflow\Activity;
 
+use Gplanchat\Durable\Attribute\AsActivity;
 use Gplanchat\Durable\Attribute\AsActivityMethod;
 
+// Optional: prefixes the names of the activities declared below.
+#[AsActivity(name: 'greeting-activities')]
 interface GreetingActivities
 {
     #[AsActivityMethod(name: 'greet')]
@@ -196,9 +199,10 @@ declare(strict_types=1);
 
 namespace App\Workflow\Activity;
 
-use Gplanchat\Durable\Attribute\AsActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 
-#[AsActivity(name: 'greeting-activities')]
+// This attribute is what registers the class; the bundle autoconfigures it.
+#[AsActivityHandler(contract: GreetingActivities::class)]
 final class GreetingActivitiesHandler implements GreetingActivities
 {
     public function greet(string $name): string
@@ -264,6 +268,63 @@ final class GreetController
     }
 }
 ```
+
+### 5 — Run a consumer, or nothing happens
+
+`dispatchNewWorkflowRun()` returns `void`, and does exactly what its name says: it *dispatches*. The
+workflow runs when something consumes the transports you configured above. Until then the execution
+sits in a queue — a dashboard will call it `RUNNING`, which is true and unhelpful: it means *not
+finished*, not *someone is working on it*.
+
+```bash
+php bin/console messenger:consume durable_workflows durable_activities
+```
+
+Those two names are the transports **you** declared in `messenger.yaml`. No document can hand you
+this command without you having written that file first, which is why it is easy to look for the
+missing piece everywhere except in your own configuration.
+
+To see what the engine holds for one run:
+
+```bash
+php bin/console durable:execution:diagnose greet-abc123
+```
+
+#### Which profile are you in?
+
+Two configurations work. Mixing them is the usual first stumble, and it fails silently.
+
+**One process — tests.** `in-memory://` transports with the in-memory stores. Dispatch, resume and
+activity all happen inside a single PHP process, so a test can dispatch and drain in one go. An
+in-memory transport **does not outlive its process**: dispatching from a web request and consuming
+in a separate worker cannot work here, and neither can replay — the journal the worker would need
+lives in the web process's memory.
+
+**Several processes — local dev and production.** Real transports **and** a durable store. Both, or
+the worker picks up a queue entry naming a workflow whose journal it cannot see:
+
+```yaml
+durable:
+    event_store:
+        type: dbal
+    workflow_metadata:
+        type: dbal
+    child_workflow:
+        parent_link_store:
+            type: dbal
+    dbal:
+        connection: doctrine.dbal.default_connection
+```
+
+```dotenv
+MESSENGER_DURABLE_WORKFLOW_DSN=doctrine://default
+MESSENGER_DURABLE_ACTIVITY_DSN=doctrine://default
+```
+
+The rule behind both profiles: **an execution survives exactly what its journal and its queue
+survive.** Route `ResumeWorkflowMessage` or `ActivityMessage` to a transport a separate worker
+cannot read, and the workflow replays inside the web request that started it and dies with the
+process — the very failure durable execution exists to remove.
 
 ---
 
