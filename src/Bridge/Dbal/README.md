@@ -82,7 +82,29 @@ journal cannot have two sources of truth.
 ## Schema
 
 Tables are created on first write; there is no migration to run and no `doctrine/migrations`
-dependency. To manage them yourself, call `DurableSchema::addToSchema()` from your own schema
+dependency.
+
+**With Doctrine ORM installed, they are also declared to its tooling.** The bundle registers a
+`postGenerateSchema` listener, so `doctrine:schema:update` and `doctrine:migrations:diff` know these
+tables belong to the application. Without it they would look like orphans and a generated migration
+would **drop them** — with the journal, every in-flight execution.
+
+The listener declares the tables only when the journal writes on the very `Connection` the ORM
+inspects. Two distinct `Connection` objects can point at the same database, and proving it takes a
+probe this bundle does not run; not declaring leaves that schema to you, whereas declaring wrongly
+would create tables in the wrong database. Pass your own probe to
+`DurableSchema::configureSchema($schema, $connection, $isSameDatabase)` if you need the other case.
+
+Once migrations own the schema, turn the lazy creation off — otherwise both mechanisms write
+behind each other:
+
+```yaml
+durable:
+    dbal:
+        auto_setup: false
+```
+
+To manage the tables entirely yourself, call `DurableSchema::addToSchema()` from your own schema
 provider and keep the table names in sync with the configuration above.
 
 The journal table has no `sequence` column — `readStream()` promises insertion order and the

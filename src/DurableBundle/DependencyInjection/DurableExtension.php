@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Bundle\DependencyInjection;
 
 use Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware;
+use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Bridge\Dbal\Store\DbalChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Dbal\Store\DbalEventStore;
@@ -29,6 +30,7 @@ use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
+use Gplanchat\Durable\Bundle\SchemaListener\DurableSchemaListener;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
@@ -147,9 +149,21 @@ final class DurableExtension extends Extension
                 $config['workflow_metadata']['table_name'],
                 $config['child_workflow']['parent_link_store']['table_name'],
             ])
+            ->setArgument('$autoSetup', $config['dbal']['auto_setup'])
             ->setPublic(false)
         ;
         $schema = new Reference('durable.dbal.schema');
+
+        // Sans cet écouteur, `doctrine:migrations:diff` ne voit pas les tables du journal et
+        // génère leur suppression. Enregistré seulement si l'ORM est là : le pont DBAL fonctionne
+        // sans lui, et une application qui n'a que la DBAL n'a pas de schéma à compléter.
+        if (class_exists(GenerateSchemaEventArgs::class)) {
+            $container->register('durable.dbal.schema_listener', DurableSchemaListener::class)
+                ->setArguments([$schema])
+                ->addTag('doctrine.event_listener', ['event' => 'postGenerateSchema'])
+                ->setPublic(false)
+            ;
+        }
 
         if ($eventStoreDbal) {
             $container->register('durable.event_store.dbal', DbalEventStore::class)

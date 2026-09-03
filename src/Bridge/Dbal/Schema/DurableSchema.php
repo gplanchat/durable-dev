@@ -9,10 +9,19 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Types\Types;
 
 /**
- * Tables du backend DBAL : journal, métadonnées d'exécution, lien parent/enfant.
+ * Tables du backend DBAL : journal, métadonnées d'exécution, lien parent/enfant, catalogue de runs.
  *
- * L'auto-création suit le modèle du transport Doctrine de Messenger : la première écriture
- * crée ce qui manque. Pas de doctrine/migrations — la forme est figée par ce fichier.
+ * Deux façons de les obtenir, et le transport Doctrine de Messenger a les deux :
+ *
+ * - **L'auto-création** ({@see ensure()}) : la première écriture crée ce qui manque. Pratique en
+ *   développement, et c'est le défaut.
+ * - **La déclaration** ({@see configureSchema()}) : les tables rejoignent le schéma que Doctrine
+ *   construit, donc `doctrine:schema:update` et `doctrine:migrations:diff` les connaissent. Sans
+ *   elle, l'outillage les voit comme orphelines et **génère leur suppression** — un journal
+ *   d'exécutions durables effacé par une migration que personne n'a relue de près.
+ *
+ * Les deux ensemble se marchent dessus dès que les migrations tiennent le schéma : `auto_setup`
+ * éteint alors l'auto-création, comme le fait le transport Doctrine.
  *
  * @see DUR030
  */
@@ -26,6 +35,7 @@ final class DurableSchema
         private readonly string $metadataTable = 'durable_workflow_metadata',
         private readonly string $parentLinkTable = 'durable_child_workflow_parent_link',
         private readonly string $runsTable = 'durable_workflow_runs',
+        private readonly bool $autoSetup = true,
     ) {}
 
     /**
@@ -33,7 +43,7 @@ final class DurableSchema
      */
     public function ensure(): void
     {
-        if ($this->ensured) {
+        if (!$this->autoSetup || $this->ensured) {
             return;
         }
         $this->ensured = true;
@@ -53,7 +63,34 @@ final class DurableSchema
     }
 
     /**
-     * Déclare les tables manquantes ; branché aussi sur `configureSchema` côté bundle.
+     * Ajoute au schéma que Doctrine construit les tables qui manquent, pour que l'outillage les
+     * connaisse au lieu de les prendre pour des orphelines à supprimer.
+     *
+     * Le journal peut vivre sur une autre connexion que celle de l'ORM. Y déclarer ces tables
+     * ferait créer, dans la base de l'application, des tables qui n'y sont pas — et laisserait
+     * l'outillage proposer de supprimer, dans la base du journal, celles qui y sont. D'où la
+     * même garde que les adaptateurs amont : même connexion, ou même base prouvée par la sonde.
+     *
+     * @param \Closure(\Closure(string): mixed): bool $isSameDatabase
+     *
+     * @return Schema le schéma, complété
+     */
+    public function configureSchema(Schema $schema, Connection $forConnection, \Closure $isSameDatabase): Schema
+    {
+        if ($forConnection !== $this->connection && !$isSameDatabase($this->connection->executeStatement(...))) {
+            return $schema;
+        }
+
+        $this->addToSchema($schema, array_values(array_filter(
+            [$this->eventsTable, $this->metadataTable, $this->parentLinkTable, $this->runsTable],
+            static fn(string $table): bool => $schema->hasTable($table),
+        )));
+
+        return $schema;
+    }
+
+    /**
+     * Déclare les tables manquantes dans le schéma passé.
      *
      * @param list<string> $skip tables déjà présentes
      */
