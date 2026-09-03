@@ -20,9 +20,22 @@ l'exécution est enregistrée.
 | `gplanchat/durable-laravel` | le câblage Laravel : les ports liés depuis la configuration, le travail sur la file de l'application | la bibliothèque, le pont Illuminate, `illuminate/support` |
 | `gplanchat/durable-magento` | un module Magento 2.4 / Mage-OS : déclaration, workers, écran d'administration | la bibliothèque ; Temporal pour tout ce qui doit survivre à un processus |
 | `gplanchat/durable-plugin` | un tableau de bord Sylius pour les exécutions | le bundle, `knplabs/knp-menu` ; Sylius 2.x pour apparaître dans son menu |
+| `gplanchat/durable-phpstan` | l'analyse statique des appels de stub face à leur contrat | la bibliothèque, `phpstan/phpstan` |
+| `gplanchat/durable-rector` | la migration automatisée depuis le SDK PHP de Temporal | la bibliothèque, `rector/rector` |
 
 Les trois ponts sont des **alternatives**, pas des couches : vous prenez Temporal, DBAL ou
 Illuminate, jamais deux d'entre eux.
+
+Les deux derniers sont des **outils de développement**, en `require-dev` plutôt qu'en `require` :
+
+- **`gplanchat/durable-phpstan`** résout les appels d'`activityStub()` et de `childWorkflowStub()`
+  face à l'interface de contrat : une activité mal nommée ou un mauvais argument devient une erreur
+  d'analyse au lieu d'un échec de sérialisation à l'exécution.
+- **`gplanchat/durable-rector`** migre un projet depuis le SDK PHP officiel de Temporal — la
+  réécriture des attributs et le changement de modèle d'exécution, en gardant les noms de type de
+  workflow et d'activité qu'un serveur en cours d'exécution connaît déjà. Ce qu'il ne sait pas
+  convertir, il le commente, pour que vous le sachiez avant de commencer. Voir
+  [la page de comparaison](../comparison/#choisir).
 
 ---
 

@@ -19,9 +19,21 @@ the workflow code — only where the execution is recorded.
 | `gplanchat/durable-laravel` | the Laravel wiring: ports bound from config, work on the application's queue | the library, the Illuminate bridge, `illuminate/support` |
 | `gplanchat/durable-magento` | a Magento 2.4 / Mage-OS module: declaration, workers, admin screen | the library; Temporal for anything that must outlive a process |
 | `gplanchat/durable-plugin` | a Sylius admin dashboard for workflow runs | the bundle, `knplabs/knp-menu`; Sylius 2.x to appear in its menu |
+| `gplanchat/durable-phpstan` | static analysis of stub calls against their contract | the library, `phpstan/phpstan` |
+| `gplanchat/durable-rector` | automated migration off the Temporal PHP SDK | the library, `rector/rector` |
 
 The three bridges are **alternatives**, not layers: you pick Temporal, DBAL or Illuminate, never
 two of them.
+
+The last two are **development-time tools**, `require-dev` rather than `require`:
+
+- **`gplanchat/durable-phpstan`** resolves `activityStub()` and `childWorkflowStub()` calls against
+  the contract interface, so a mistyped activity or a wrong argument is an analysis error instead of
+  a serialization failure at runtime.
+- **`gplanchat/durable-rector`** migrates a project off the official Temporal PHP SDK — the attribute
+  rewrites and the execution-model change, keeping the workflow and activity type names a running
+  server already knows. What it cannot convert it comments, so you know before you start. See
+  [the comparison page](../comparison/#choosing).
 
 ---
 
