@@ -20,6 +20,7 @@ final class Configuration implements ConfigurationInterface
             ->info("Backend DBAL : exécution durable sur une seule base SQL, sans cluster d'orchestration (DUR030).")
             ->children()
             ->scalarNode('connection')->defaultValue('doctrine.dbal.default_connection')->info('Service ID de la Doctrine\\DBAL\\Connection à utiliser')->end()
+            ->booleanNode('auto_setup')->defaultTrue()->info("Créer les tables manquantes à la première écriture. À passer à false dès que doctrine/migrations tient le schéma : les deux mécanismes écriraient sinon l'un derrière l'autre.")->end()
             ->scalarNode('lock_factory')->defaultValue('lock.factory')->info("Service ID de la Symfony\\Component\\Lock\\LockFactory qui sérialise les reprises d'une même exécution")->end()
             ->end()
             ->end()
