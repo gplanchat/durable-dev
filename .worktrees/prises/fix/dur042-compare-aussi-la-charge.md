@@ -4,7 +4,7 @@
   (`activityNameForSlot()`). La **charge** ne traverse jamais la comparaison : un rejeu qui
   recalcule un payload différent voit le journal servir l'ancien résultat, la nouvelle charge
   partir à la poubelle, et l'exécution se terminer en succès. Mesuré par mutation sur la maquette
-  d'agent — 9 charges calculées, 3 journalisées, 6 divergences avalées, suite verte.
+  d'agent — 12 charges calculées, 3 journalisées, 9 divergences avalées, suite verte.
   Ajout de `activityPayloadForSlot(): ?array` au port et d'une empreinte canonique comparée dans
   `ExecutionContext::activity()`.
 - **Entrées** : `Port/WorkflowHistorySourceInterface`, ses deux implémentations,
