@@ -69,10 +69,15 @@ rejouer la même commande rend le même verdict et ne retient pas de stock une s
 ## Comment on la lance
 
 ```bash
-demo/lancer.sh            # démarre les huit workers
+bin/demo-nexus            # d'abord : les namespaces et les endpoints Nexus
+demo/lancer.sh            # ensuite : les huit workers
 demo/lancer.sh --etat     # dit qui tourne
 demo/lancer.sh --arreter  # les arrête
 ```
+
+`bin/demo-nexus` passe en premier, et il n'est pas facultatif : les workers se connectent à des
+endpoints qui n'existent pas tant qu'il ne les a pas créés. Les deux scripts impriment, une fois
+finis, les commandes d'appel avec les bonnes valeurs.
 
 L'ordre de démarrage n'a pas d'importance : un worker en retard fait attendre, il ne fait pas
 échouer.

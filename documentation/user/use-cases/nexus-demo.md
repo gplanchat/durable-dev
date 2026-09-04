@@ -67,10 +67,15 @@ provide it.
 ## How to run it
 
 ```bash
-demo/lancer.sh            # start the eight workers
+bin/demo-nexus            # first: the namespaces and the Nexus endpoints
+demo/lancer.sh            # then: the eight workers
 demo/lancer.sh --etat     # report who is running
 demo/lancer.sh --arreter  # stop them
 ```
+
+`bin/demo-nexus` comes first and is not optional: the workers connect to endpoints that do not
+exist until it has created them. Both scripts print the call commands with the right values once
+they are done.
 
 Start order does not matter: a late worker makes things wait, it does not make them fail.
 
