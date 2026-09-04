@@ -24,6 +24,37 @@ ne contient que ce que Rector sait faire sans deviner ; tout le reste est écrit
 
 ## 0.1.0-alpha8
 
+### La garde de divergence compare aussi la charge de l'activité
+
+`WorkflowHistorySourceInterface` gagne `activityPayloadForSlot(int $slot): ?array`. La garde de
+divergence (DUR042) ne comparait que le **nom** de l'activité au slot ; elle compare désormais aussi
+ses arguments. Un replay qui redemande la même activité avec une autre charge lève un
+`WorkflowTaskFailure` au lieu de continuer en silence.
+
+**Pourquoi** — le nom seul laissait passer la moitié du problème. Le journal servait l'ancien
+résultat, la charge fraîchement calculée partait à la poubelle, et l'exécution se terminait **en
+succès** en ayant menti sur ce qu'elle avait demandé. Mesuré sur une maquette d'agent : neuf charges
+calculées, trois journalisées, six divergences avalées sans un mot, suite de tests verte.
+
+**Ce que ça change pour du code existant** — un workflow déjà déterministe ne voit rien. Un workflow
+qui construisait sa charge avec une horloge, un aléa ou une lecture hors journal échoue désormais sa
+tâche de replay, en nommant l'octet où les deux empreintes divergent. C'est le défaut qu'il fallait
+voir : ces exécutions-là rendaient déjà un résultat faux.
+
+**Ce qui reste hors de portée de la garde, volontairement** — la comparaison passe par l'empreinte
+que le journal sait tenir (aller-retour JSON, clés triées). Un objet dont le journal ne retient rien
+— un DTO à propriétés privées, le style de la maison — ne fait donc pas diverger un replay fidèle.
+Une charge inencodable (ressource, `NAN`) désarme la garde plutôt que d'accuser ce qu'elle ne sait
+pas lire. Les histoires écrites avant ce changement n'ont rien à comparer et passent inchangées.
+
+**Ce que Rector ne peut pas faire** — rien à réécrire dans le code appelant. Seules les
+implémentations tierces de `WorkflowHistorySourceInterface` doivent ajouter la méthode ; rendre
+`null` reproduit exactement le comportement d'avant, sans garde sur la charge.
+
+**Hors périmètre** — les slots Nexus et workflow enfant comparent toujours leur seule identité. Le
+trou y est le même, et l'enjeu plus grand côté Nexus, où un doublon part chez un tiers.
+
+
 ### Laravel refuse au démarrage un workflow dont les noms de paramètres divergent du contrat
 
 `gplanchat/durable-laravel` enregistrait sans vérifier. Un workflow portant

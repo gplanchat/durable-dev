@@ -53,6 +53,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var array<string, string> activityId → nom d'activité (pour typer les échecs) */
     private array $activityNames = [];
 
+    /** @var array<string, array<string, mixed>> activityId → charge planifiée (garde DUR042) */
+    private array $activityPayloads = [];
+
     /** @var array<int, string> scheduled event ID → activity ID */
     private array $scheduledEventIdToActivityId = [];
 
@@ -241,6 +244,20 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     $this->activityIdToScheduledEventId[$activityId] = $eventId;
                     $this->activityNames[$activityId] = (string) ($attr->getActivityType()?->getName() ?? '');
                     $this->scheduledEventIdToActivityId[$eventId] = $activityId;
+
+                    // L'entrée porte l'enveloppe écrite par TemporalActivityScheduleInput ; sa case
+                    // `payload` tient les arguments. Absente ou illisible, on n'enregistre rien :
+                    // la garde n'a alors rien à comparer, ce qui est son cas de repos.
+                    $input = $attr->getInput();
+                    if (null !== $input) {
+                        $payloads = $input->getPayloads();
+                        if ($payloads->count() > 0) {
+                            $envelope = JsonPlainPayload::decode($payloads[0]);
+                            if (\is_array($envelope) && \is_array($envelope['payload'] ?? null)) {
+                                $this->activityPayloads[$activityId] = $envelope['payload'];
+                            }
+                        }
+                    }
                 }
                 break;
 
@@ -523,6 +540,16 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         $name = $this->activityNames[$activityId] ?? '';
 
         return '' === $name ? null : $name;
+    }
+
+    public function activityPayloadForSlot(int $slot): ?array
+    {
+        $activityId = $this->scheduledActivityIds[$slot] ?? null;
+        if (null === $activityId) {
+            return null;
+        }
+
+        return $this->activityPayloads[$activityId] ?? null;
     }
 
     public function findTimerSlotResult(int $slot): ?array
