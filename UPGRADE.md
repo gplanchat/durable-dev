@@ -24,12 +24,13 @@ ne contient que ce que Rector sait faire sans deviner ; tout le reste est écrit
 
 ## 0.1.0-alpha8
 
-### La garde de divergence compare aussi la charge de l'activité
+### La garde de divergence compare aussi la charge
 
-`WorkflowHistorySourceInterface` gagne `activityPayloadForSlot(int $slot): ?array`. La garde de
-divergence (DUR042) ne comparait que le **nom** de l'activité au slot ; elle compare désormais aussi
-ses arguments. Un replay qui redemande la même activité avec une autre charge lève un
-`WorkflowTaskFailure` au lieu de continuer en silence.
+`WorkflowHistorySourceInterface` gagne trois méthodes — `activityPayloadForSlot()`,
+`nexusOperationPayloadForSlot()` et `childWorkflowInputForSlot()`, toutes `?array`. La garde de
+divergence (DUR042) ne comparait que l'**identité** du slot — nom d'activité, type d'enfant,
+triplet Nexus ; elle compare désormais aussi la charge, sur les trois. Un replay qui redemande le
+même appel avec une autre charge lève un `WorkflowTaskFailure` au lieu de continuer en silence.
 
 **Pourquoi** — le nom seul laissait passer la moitié du problème. Le journal servait l'ancien
 résultat, la charge fraîchement calculée partait à la poubelle, et l'exécution se terminait **en
@@ -48,11 +49,13 @@ Une charge inencodable (ressource, `NAN`) désarme la garde plutôt que d'accuse
 pas lire. Les histoires écrites avant ce changement n'ont rien à comparer et passent inchangées.
 
 **Ce que Rector ne peut pas faire** — rien à réécrire dans le code appelant. Seules les
-implémentations tierces de `WorkflowHistorySourceInterface` doivent ajouter la méthode ; rendre
-`null` reproduit exactement le comportement d'avant, sans garde sur la charge.
+implémentations tierces de `WorkflowHistorySourceInterface` doivent ajouter les trois méthodes ;
+rendre `null` reproduit exactement le comportement d'avant, sans garde sur la charge.
 
-**Hors périmètre** — les slots Nexus et workflow enfant comparent toujours leur seule identité. Le
-trou y est le même, et l'enjeu plus grand côté Nexus, où un doublon part chez un tiers.
+**Nexus** — la garde s'y exerce côté pont Temporal uniquement, et c'est structurel : le backend
+journal refuse les opérations Nexus par construction (DUR036), et son événement
+`NexusOperationScheduled` ne porte que le site d'appel. Aucun champ n'a été ajouté à aucun
+événement : les trois charges étaient déjà sur le fil.
 
 
 ### Laravel refuse au démarrage un workflow dont les noms de paramètres divergent du contrat

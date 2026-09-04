@@ -78,6 +78,44 @@ final class ChildWorkflowSlotDivergenceTest extends TestCase
         self::assertNotNull($awaitable, "Le type inchangé ne doit pas diverger : l'identifiant d'exécution engendré n'entre pas dans la comparaison.");
     }
 
+    public function testTheSameChildStartedWithAnotherInputIsRefused(): void
+    {
+        // Le type concorde, l'input non. Sans cette garde la divergence ne remonterait jamais :
+        // le journal tient déjà l'issue de l'enfant, donc rien de neuf n'est démarré et le nouvel
+        // input part à la poubelle en silence.
+        $context = $this->contextWithChild('ChargeCardWorkflow');
+
+        $this->expectException(WorkflowTaskFailure::class);
+        $this->expectExceptionMessageMatches('/payload changed/');
+
+        $context->executeChildWorkflow('ChargeCardWorkflow', ['sku' => 'XYZ']);
+    }
+
+    public function testTheInputRefusalNamesTheChildAndTheKind(): void
+    {
+        $context = $this->contextWithChild('ChargeCardWorkflow');
+
+        try {
+            $context->executeChildWorkflow('ChargeCardWorkflow', ['sku' => 'XYZ']);
+            self::fail('La divergence de charge aurait dû être refusée.');
+        } catch (WorkflowTaskFailure $e) {
+            $message = $e->getMessage();
+        }
+
+        self::assertStringContainsString('child workflow slot 0', $message);
+        self::assertStringContainsString('"ChargeCardWorkflow" is still the same child workflow', $message);
+        self::assertStringContainsString('non-deterministic workflow code', $message);
+    }
+
+    public function testAnUnchangedInputStillReplays(): void
+    {
+        $context = $this->contextWithChild('ChargeCardWorkflow');
+
+        $awaitable = $context->executeChildWorkflow('ChargeCardWorkflow', ['sku' => 'ABC']);
+
+        self::assertNotNull($awaitable, 'Un replay fidèle ne doit pas diverger sur son propre input.');
+    }
+
     private function contextWithChild(string $childType): ExecutionContext
     {
         $store = new InMemoryEventStore();

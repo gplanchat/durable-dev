@@ -56,6 +56,12 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var array<string, array<string, mixed>> activityId → charge planifiée (garde DUR042) */
     private array $activityPayloads = [];
 
+    /** @var array<int, array<string, mixed>> slot → charge Nexus planifiée (garde DUR042) */
+    private array $nexusOperationPayloads = [];
+
+    /** @var array<int, array<string, mixed>> slot → input du workflow enfant (garde DUR042) */
+    private array $childWorkflowInputs = [];
+
     /** @var array<int, string> scheduled event ID → activity ID */
     private array $scheduledEventIdToActivityId = [];
 
@@ -181,6 +187,18 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                             'service' => (string) $attr->getService(),
                             'operation' => (string) $attr->getOperation(),
                         ];
+
+                        // La charge de l'appelant, **nue** : une opération Nexus porte un
+                        // `Payload` et non des `Payloads`, et l'enveloppe `{operationId, payload}`
+                        // a été retirée du tampon (tâche 1.1). Décoder autre chose ici comparerait
+                        // une forme que le fil ne porte plus.
+                        $nexusInput = $attr->getInput();
+                        if (null !== $nexusInput) {
+                            $decodedInput = JsonPlainPayload::decode($nexusInput);
+                            if (\is_array($decodedInput)) {
+                                $this->nexusOperationPayloads[\count($this->scheduledNexusOperationIds) - 1] = $decodedInput;
+                            }
+                        }
                     }
                 }
                 break;
@@ -450,6 +468,20 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     // Le type, en parallèle et au même index : c'est lui l'identité du slot,
                     // l'identifiant d'exécution étant engendré.
                     $this->childWorkflowTypes[] = (string) ($attr->getWorkflowType()?->getName() ?? '');
+
+                    // `singlePayloads(encode($input))` côté tampon : une liste d'un élément, dont
+                    // le premier est l'input nu. Une forme de plus que Nexus (Payload nu) et que
+                    // l'activité (enveloppe) — les trois se ressemblent et ne se valent pas.
+                    $childInput = $attr->getInput();
+                    if (null !== $childInput) {
+                        $childPayloads = $childInput->getPayloads();
+                        if ($childPayloads->count() > 0) {
+                            $decodedChild = JsonPlainPayload::decode($childPayloads[0]);
+                            if (\is_array($decodedChild)) {
+                                $this->childWorkflowInputs[\count($this->childExecutionIds) - 1] = $decodedChild;
+                            }
+                        }
+                    }
                 }
                 break;
 
@@ -540,6 +572,16 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         $name = $this->activityNames[$activityId] ?? '';
 
         return '' === $name ? null : $name;
+    }
+
+    public function nexusOperationPayloadForSlot(int $slot): ?array
+    {
+        return $this->nexusOperationPayloads[$slot] ?? null;
+    }
+
+    public function childWorkflowInputForSlot(int $slot): ?array
+    {
+        return $this->childWorkflowInputs[$slot] ?? null;
     }
 
     public function activityPayloadForSlot(int $slot): ?array
