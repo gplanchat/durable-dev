@@ -8,11 +8,18 @@ use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\ActivityExecutor;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
+use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 
 /**
  * Enregistre sur {@see ActivityExecutor} les activités exposées par les services tagués durable.activity_handler.
+ *
+ * Par un **localisateur de services**, et non par un tableau de callables. Poser
+ * `[new Reference($invoker), '__invoke']` obligerait le conteneur à résoudre chaque référence pour
+ * bâtir l'argument : il instancierait alors tous les gestionnaires de l'application — et leurs
+ * connexions, clients HTTP et autres dépendances — pour en appeler un seul. Sur un worker qui
+ * traite une activité par message, c'est payé à chaque message.
  */
 final class ActivityHandlerPass implements CompilerPassInterface
 {
@@ -38,6 +45,9 @@ final class ActivityHandlerPass implements CompilerPassInterface
 
         $executor = $container->findDefinition($executorId);
         $resolver = new ActivityContractResolver(null);
+
+        /** @var array<string, Reference> $handlerRefs */
+        $handlerRefs = [];
 
         foreach ($tagged as $serviceId => $tags) {
             foreach ($tags as $tag) {
@@ -72,13 +82,23 @@ final class ActivityHandlerPass implements CompilerPassInterface
                         ->setPublic(false)
                     ;
 
-                    $executor->addMethodCall('register', [
-                        $activityName,
-                        [new Reference($invokerId), '__invoke'],
-                    ]);
+                    // Une référence dans le localisateur, pas un callable construit à la
+                    // compilation : bâtir `[new Reference(...), '__invoke']` obligerait le
+                    // conteneur à instancier **chaque** invoker — donc chaque gestionnaire et ses
+                    // dépendances — pour en appeler un seul.
+                    $handlerRefs[$activityName] = new Reference($invokerId);
                 }
             }
         }
+
+        if ([] === $handlerRefs) {
+            return;
+        }
+
+        // Le localisateur ne construit que ce qu'on lui demande, et `ServiceLocatorTagPass` le
+        // déduplique entre passes : c'est le mécanisme amont pour « beaucoup de candidats, un seul
+        // appelé », celui qu'emploie `MessengerPass` pour les gestionnaires de messages.
+        $executor->setArgument('$lazyHandlers', ServiceLocatorTagPass::register($container, $handlerRefs));
     }
 
     /**
