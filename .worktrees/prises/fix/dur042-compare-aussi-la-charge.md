@@ -8,6 +8,8 @@
   Ajout de `activityPayloadForSlot(): ?array` au port et d'une empreinte canonique comparée dans
   `ExecutionContext::activity()`.
 - **Entrées** : `Port/WorkflowHistorySourceInterface`, ses deux implémentations,
-  `ExecutionContext::activity()`, des tests, `UPGRADE.md`. Rien d'autre.
-- **Hors périmètre** : les slots Nexus et workflow enfant ont le même trou. Pas touchés ici.
+  `ExecutionContext` (les trois appelants), des tests, `UPGRADE.md`. Rien d'autre.
+- **Étendu** : la même garde sur les slots Nexus et workflow enfant. Une seule méthode pour les
+  trois, comme `refuseDivergence()` tient déjà leur identité. Nexus côté pont Temporal seulement —
+  le backend journal refuse ces opérations par construction (DUR036).
 - **État** : GREEN, en revue — PR #282.
