@@ -22,6 +22,32 @@ vendor/bin/rector process src
 Le set est **cumulatif** : le passer une fois rattrape toutes les versions franchies d'un coup. Il
 ne contient que ce que Rector sait faire sans deviner ; tout le reste est écrit à la main ci-dessous.
 
+## Non publié
+
+### Onze services internes du bundle passent en privé
+
+**Qui est concerné** : une application qui tire l'un de ces onze identifiants du conteneur par
+`$container->get()`. Pas celle qui les reçoit par autowiring, ni celle qui passe par leur interface.
+
+Les implémentations concrètes derrière un alias et les décorateurs de projection n'ont pas à être
+des points d'entrée du conteneur : un service public échappe à l'*inlining* et à la suppression des
+définitions inutilisées, et devient une promesse de compatibilité que personne n'a voulu prendre.
+
+| Devenu privé | À demander à la place |
+| --- | --- |
+| `durable.event_store.dbal`, `durable.event_store.temporal`, `durable.event_store.inner`, `durable.event_store.*.projecting` | `Gplanchat\Durable\Store\EventStoreInterface` |
+| `durable.workflow_metadata_store.inner`, `durable.workflow_metadata_store.*.projecting` | `Gplanchat\Durable\Store\WorkflowMetadataStore` |
+| `durable.run_catalog.dbal`, `durable.run_catalog.in_memory`, `durable.run_catalog.temporal` | `Gplanchat\Durable\Port\WorkflowRunCatalogInterface` |
+
+Les trois interfaces restent **publiques** et autowirables, et elles pointent la même instance : ce
+qui change est le chemin pour y arriver, pas ce qu'on obtient. Le reste de la surface publique du
+bundle est inchangé — les workers Temporal, le magasin de liens parent/enfant, le collecteur de
+profil et les classes du moteur restent joignables par leur identifiant.
+
+Rector ne peut rien : réécrire un `$container->get('durable.event_store.dbal')` en une injection
+demande de savoir où l'objet est utilisé, ce qu'aucune règle ne devine. Le tableau ci-dessus est la
+procédure.
+
 ## 0.1.0-alpha8
 
 ### Laravel refuse au démarrage un workflow dont les noms de paramètres divergent du contrat
