@@ -10,4 +10,4 @@
 - **Entrées** : `Port/WorkflowHistorySourceInterface`, ses deux implémentations,
   `ExecutionContext::activity()`, des tests, `UPGRADE.md`. Rien d'autre.
 - **Hors périmètre** : les slots Nexus et workflow enfant ont le même trou. Pas touchés ici.
-- **État** : GREEN, en revue — PR à ouvrir.
+- **État** : GREEN, en revue — PR #282.
