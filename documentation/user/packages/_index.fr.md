@@ -13,16 +13,29 @@ l'exécution est enregistrée.
 | Paquet | Apporte | Exige |
 |---|---|---|
 | `gplanchat/durable` | workflows, activités, minuteurs, journal d'événements, backend en mémoire | `psr/cache` |
-| `gplanchat/durable-bundle` | câblage Symfony, commandes de worker, panneau du profileur | la bibliothèque, framework-bundle et Messenger |
+| `gplanchat/durable-bundle` | câblage Symfony, transports Messenger, panneau du profileur | la bibliothèque et Symfony Messenger |
 | `gplanchat/durable-bridge-temporal` | le pilote Temporal, en gRPC | la bibliothèque, `ext-grpc`, un cluster Temporal |
 | `gplanchat/durable-bridge-dbal` | l'exécution durable sur une base SQL | la bibliothèque, Doctrine DBAL 3 ou 4, `symfony/lock` |
 | `gplanchat/durable-bridge-illuminate` | la même chose, sur la connexion que Laravel possède déjà | la bibliothèque, `illuminate/database` 11, 12 ou 13 |
 | `gplanchat/durable-laravel` | le câblage Laravel : les ports liés depuis la configuration, le travail sur la file de l'application | la bibliothèque, le pont Illuminate, `illuminate/support` |
 | `gplanchat/durable-magento` | un module Magento 2.4 / Mage-OS : déclaration, workers, écran d'administration | la bibliothèque ; Temporal pour tout ce qui doit survivre à un processus |
 | `gplanchat/durable-plugin` | un tableau de bord Sylius pour les exécutions | le bundle, `knplabs/knp-menu` ; Sylius 2.x pour apparaître dans son menu |
+| `gplanchat/durable-phpstan` | l'analyse statique des appels de stub face à leur contrat | la bibliothèque, `phpstan/phpstan` |
+| `gplanchat/durable-rector` | la migration automatisée depuis le SDK PHP de Temporal | la bibliothèque, `rector/rector` |
 
 Les trois ponts sont des **alternatives**, pas des couches : vous prenez Temporal, DBAL ou
 Illuminate, jamais deux d'entre eux.
+
+Les deux derniers sont des **outils de développement**, en `require-dev` plutôt qu'en `require` :
+
+- **`gplanchat/durable-phpstan`** résout les appels d'`activityStub()` et de `childWorkflowStub()`
+  face à l'interface de contrat : une activité mal nommée ou un mauvais argument devient une erreur
+  d'analyse au lieu d'un échec de sérialisation à l'exécution.
+- **`gplanchat/durable-rector`** migre un projet depuis le SDK PHP officiel de Temporal — la
+  réécriture des attributs et le changement de modèle d'exécution, en gardant les noms de type de
+  workflow et d'activité qu'un serveur en cours d'exécution connaît déjà. Ce qu'il ne sait pas
+  convertir, il le commente, pour que vous le sachiez avant de commencer. Voir
+  [la page de comparaison](../comparison/#choisir).
 
 ---
 
@@ -64,8 +77,10 @@ Ce qu'il fait, et que vous écririez autrement à la main :
 - **Le câblage Messenger.** Reprises de workflow et envois d'activité sont routés vers les transports
   que vous nommez dans `durable.yaml`, si bien qu'un workflow qui se suspend reprend par vos files
   existantes.
-- **Les commandes de worker.** Des points d'entrée en ligne de commande pour faire tourner les
-  workers de workflow et d'activité.
+- **Une commande de console.** `durable:execution:diagnose <executionId>` affiche ce que le moteur
+  détient d'une exécution : ses métadonnées de workflow, ses liens parent/enfant et son journal
+  d'événements. Il n'y a pas de commande de worker à ajouter — le worker, c'est le
+  `messenger:consume` de Messenger sur les transports ci-dessus.
 - **Le panneau du profileur.** Dans la barre d'outils Symfony : chaque exécution, son journal, et la
   chronologie de ses activités — avec quelle tentative a échoué, et pourquoi.
 
@@ -268,7 +283,7 @@ la seule chose que la file de l'application ne peut pas porter.
 `gplanchat/durable-bridge-temporal` est **suggéré et non exigé** : il installe huit paquets, dont cinq
 composants Symfony qu'une application Laravel ne charge jamais, pour quelque 36 Mo. Une application
 qui ne choisit pas ce backend ne le paie jamais, et celle qui le choisit s'entend nommer le paquet à
-installer. Scinder le pont — sa partie couplée à Symfony fait huit fichiers sur 759 — retirerait le
+installer. Scinder le pont — sa partie couplée à Symfony fait huit fichiers sur 774 — retirerait le
 poids, et c'est un change à part.
 
 **Un tableau de bord.** `gplanchat/durable-filament` exigera ce paquet, et ce paquet n'exigera, ne
@@ -317,7 +332,20 @@ Magento ni à ce paquet : voir [le tableau de bord](../dashboard/), que chaque h
 propre habillage.
 
 Le conteneur de Magento n'a pas d'équivalent de l'autoconfiguration par tag de Symfony : la
-déclaration est explicite, deux tableaux dans `di.xml`.
+déclaration est explicite, deux tableaux dans `di.xml` :
+
+```xml
+<type name="Gplanchat\DurableModule\Runtime\RuntimeFactory">
+    <arguments>
+        <argument name="workflowClasses" xsi:type="array">
+            <item name="place_order" xsi:type="string">Acme\Shop\Workflow\PlaceOrder</item>
+        </argument>
+        <argument name="activityHandlers" xsi:type="array">
+            <item name="order" xsi:type="object">Acme\Shop\Activity\OrderActivities</item>
+        </argument>
+    </arguments>
+</type>
+```
 
 Ce qui ne se déclare **pas**, c'est le contrat : la fabrique lit les interfaces de chaque
 gestionnaire et garde celles qui portent `#[AsActivityMethod]`. Une déclaration de moins à écrire de

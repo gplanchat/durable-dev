@@ -100,7 +100,7 @@ temporal workflow list --query 'TemporalChangeVersion = "add-discount-1"'
 
 An empty answer means nobody is on version 1 any more, and the `DEFAULT_VERSION` branch can go.
 
-**On the In-Memory and DBAL backends there is no search attribute and no equivalent answer.** There,
+**On the journal backends — In-Memory, DBAL and Illuminate — there is no search attribute and no equivalent answer.** There,
 knowing when a branch is dead means knowing your own executions — which in practice means keeping
 the branch until you are certain, or using the workflow-type rename below, whose drain window is
 visible.
@@ -136,7 +136,7 @@ As soon as an activity moves with it, the activity's name catches it.
 
 ## On the backends without workflow tasks
 
-The In-Memory and DBAL backends have no notion of a workflow *task* — there is nothing to fail and
+The journal backends — In-Memory, DBAL and Illuminate — have no notion of a workflow *task* — there is nothing to fail and
 retry. There, a divergence ends the execution instead. That is still far better than the alternative
 of resolving the wrong recorded value in silence, but reverting will not bring the run back.
 

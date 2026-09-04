@@ -23,18 +23,18 @@ en ordonnancer une que si son journal **est** le cluster.
 ## Appeler une opération
 
 ```php
-#[AsNexusService('facturation')]
-interface FacturationContract
+#[AsNexusService('billing')]
+interface BillingContract
 {
-    #[AsNexusOperation('encaisser')]
-    public function encaisser(string $ordre, int $montant): array;
+    #[AsNexusOperation('charge')]
+    public function charge(string $ordre, int $montant): array;
 }
 ```
 
 ```php
-$facturation = $env->nexusStub(FacturationContract::class, endpoint: 'paiements');
+$billing = $env->nexusStub(BillingContract::class, endpoint: 'payments');
 
-$recu = $env->await($facturation->encaisser('CMD-42', 1200));
+$recu = $env->await($billing->charge('CMD-42', 1200));
 ```
 
 Le contrat s'écrit **une fois** et se lit des deux côtés de la frontière : l'appelant en dérive un
@@ -70,10 +70,10 @@ Un gestionnaire implémente le contrat — ou la part de celui-ci à laquelle il
 ```php
 use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
 
-#[AsNexusServiceHandler(contract: FacturationServie::class)]
-final class Facturation implements FacturationServie
+#[AsNexusServiceHandler(contract: BillingServed::class)]
+final class Billing implements BillingServed
 {
-    public function verifier(string $ordre): array
+    public function verify(string $ordre): array
     {
         return $this->regles->controler($ordre);
     }
@@ -87,26 +87,26 @@ workflow, et le serveur en livre le résultat. Le contrat se sépare donc : l'in
 gestionnaire **implémente**, et celle qui l'**étend** pour l'appelant.
 
 ```php
-#[AsNexusService('facturation')]
-interface FacturationServie                            // répondu tout de suite
+#[AsNexusService('billing')]
+interface BillingServed                            // répondu tout de suite
 {
-    #[AsNexusOperation('verifier')]
-    public function verifier(string $ordre): array;
+    #[AsNexusOperation('verify')]
+    public function verify(string $ordre): array;
 }
 
-#[AsNexusService('facturation')]
-interface FacturationContract extends FacturationServie // + ce qu'un workflow remplit
+#[AsNexusService('billing')]
+interface BillingContract extends BillingServed // + ce qu'un workflow remplit
 {
-    #[AsNexusOperation('encaisser')]
-    public function encaisser(string $ordre, int $montant): array;
+    #[AsNexusOperation('charge')]
+    public function charge(string $ordre, int $montant): array;
 }
 
 #[AsWorkflow]
-#[FulfilsNexusOperation(FacturationContract::class, 'encaisser')]
+#[FulfilsNexusOperation(BillingContract::class, 'charge')]
 final class Encaissement { /* … */ }
 ```
 
-Sans cette séparation, PHP exigerait un corps pour `encaisser()` sur le gestionnaire — une méthode
+Sans cette séparation, PHP exigerait un corps pour `charge()` sur le gestionnaire — une méthode
 vide dont le seul rôle serait de dire qu'il n'y a rien à écrire. C'est le workflow qui réclame
 l'opération, là où son code vit, et le contrat de l'appelant déclare quand même tout, pour que le
 stub puisse tout appeler.
@@ -117,10 +117,10 @@ Il y a deux formes, et choisir entre elles est la seule décision qui compte.
 
 ```php
 // Maintenant — le gestionnaire rend le type déclaré par le contrat.
-public function verifier(string $ordre): array { … }
+public function verify(string $ordre): array { … }
 
 // Plus tard — un workflow réclame l'opération, et produit le résultat.
-#[FulfilsNexusOperation(FacturationContract::class, 'encaisser')]
+#[FulfilsNexusOperation(BillingContract::class, 'charge')]
 final class Encaissement { … }
 ```
 
@@ -205,7 +205,7 @@ Un endpoint est un objet du cluster entier, créé une fois par un opérateur, p
 
 ```bash
 temporal operator nexus endpoint create \
-    --name paiements \
+    --name payments \
     --target-namespace production \
     --target-task-queue durable-workflows
 ```

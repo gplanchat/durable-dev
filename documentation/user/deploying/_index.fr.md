@@ -105,7 +105,7 @@ temporal workflow list --query 'TemporalChangeVersion = "add-discount-1"'
 Une réponse vide signifie que plus personne n'est en version 1, et que la branche `DEFAULT_VERSION`
 peut disparaître.
 
-**Sur les backends In-Memory et DBAL, il n'y a pas d'attribut de recherche et donc pas de réponse
+**Sur les backends à journal — en mémoire, DBAL et Illuminate —, il n'y a pas d'attribut de recherche et donc pas de réponse
 équivalente.** Y savoir qu'une branche est morte revient à connaître ses propres exécutions — en
 pratique, garder la branche jusqu'à en être sûr, ou passer par le renommage de type ci-dessous, dont
 la fenêtre d'écoulement est visible.
@@ -142,7 +142,7 @@ L'angle mort est plus étroit qu'il n'y paraît : un décalage n'échappe au con
 
 ## Sur les backends sans tâches de workflow
 
-Les backends en mémoire et DBAL n'ont pas de notion de *tâche* de workflow — il n'y a rien à faire
+Les backends à journal — en mémoire, DBAL et Illuminate — n'ont pas de notion de *tâche* de workflow — il n'y a rien à faire
 échouer puis à réessayer. Là, une divergence met fin à l'exécution. Cela reste bien préférable à
 l'autre solution, qui serait de résoudre en silence la mauvaise valeur enregistrée, mais revenir en
 arrière ne ramènera pas l'exécution.

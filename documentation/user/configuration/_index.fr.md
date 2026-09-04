@@ -13,26 +13,54 @@ Cette page documente chaque clé acceptée par `DurableBundle` dans `config/pack
 
 ```yaml
 durable:
+    dbal:                                    # lu seulement si un type ci-dessous vaut 'dbal'
+        connection: doctrine.dbal.default_connection
+        lock_factory: lock.factory           # doit être partagé entre les workers
     event_store:
-        type: in_memory          # 'in_memory' (défaut)
+        type: in_memory                      # 'in_memory' (défaut) ou 'dbal'
+        table_name: durable_events
     temporal:
-        dsn: null                # mettre temporal://… pour activer le backend Temporal
-        journal: true            # false : le cluster est joignable, event_store reste le journal
+        dsn: null                            # mettre temporal://… pour activer le backend Temporal
+        journal: true                        # false : le cluster est joignable, event_store reste le journal
     workflow_metadata:
-        type: in_memory          # 'in_memory' (défaut)
+        type: in_memory                      # 'in_memory' (défaut) ou 'dbal'
+        table_name: durable_workflow_metadata
     activity_transport:
-        type: messenger          # 'messenger' (défaut) ou 'in_memory'
+        type: messenger                      # 'in_memory' est le DÉFAUT — mettre 'messenger' pour router
         transport_name: durable_activities
-    max_activity_retries: 0      # réessais automatiques maximum avant de marquer une activité en échec
+        table_name: durable_activity_outbox
+    max_activity_retries: 0                  # réessais automatiques maximum avant de marquer une activité en échec
     activity_contracts:
-        cache: cache.app         # pool de cache PSR-6 pour les métadonnées de contrat (null = pas de cache)
+        cache: cache.app                     # pool de cache PSR-6 pour les métadonnées de contrat (défaut : null, pas de cache)
         contracts:
             - App\Workflow\Activity\OrderActivities
     child_workflow:
-        async_messenger: true    # true = les workflows enfants partent par Messenger
+        async_messenger: true                # true = les workflows enfants partent par Messenger
         parent_link_store:
-            type: in_memory      # 'in_memory' (défaut)
+            type: in_memory                  # 'in_memory' (défaut) ou 'dbal'
+            table_name: durable_child_workflow_parent_link
 ```
+
+> [!IMPORTANT]
+> **`activity_transport.type` vaut `in_memory` par défaut, pas `messenger`.** Omettez la clé et les
+> activités s'exécutent **de façon synchrone dans la tâche de workflow**, quel que soit le transport
+> défini dans `messenger.yaml`. C'est pour cette raison que tous les exemples de ce site la posent
+> explicitement. Voir [`activity_transport`](#activity_transport).
+
+---
+
+## `dbal`
+
+Où le backend SQL prend sa connexion et son verrou. Lu seulement quand l'une des trois clés `type`
+ci-dessous vaut `dbal` ; ignoré sinon, le laisser à ses défauts ne coûte donc rien.
+
+| Clé | Type | Défaut | Description |
+|-----|------|--------|-------------|
+| `connection` | identifiant de service | `doctrine.dbal.default_connection` | La `Doctrine\DBAL\Connection` dans laquelle les magasins écrivent. |
+| `lock_factory` | identifiant de service | `lock.factory` | La `LockFactory` qui sérialise les reprises d'une même exécution. **Elle ne vaut que ce que vaut votre magasin de verrous** — une fabrique en mémoire ou locale au processus, avec plusieurs workers, vous redonne la panne que le verrou existe pour empêcher. |
+
+Le compromis que fait ce backend, et pourquoi le verrou est porteur, sont sur la page
+[Backends](../backends/#le-backend-dbal).
 
 ---
 
@@ -42,7 +70,8 @@ Détermine où l'historique d'événements du workflow est stocké.
 
 | Clé | Valeurs | Défaut | Description |
 |-----|---------|--------|-------------|
-| `type` | `in_memory` | `in_memory` | Le backend de stockage. `in_memory` garde les événements dans le processus PHP — ce qui convient aux tests et à Temporal natif (Temporal étant la vraie source de l'historique). |
+| `type` | `in_memory`, `dbal` | `in_memory` | Le backend de stockage. `in_memory` garde les événements dans le processus PHP — ce qui convient aux tests et à Temporal natif (Temporal étant la vraie source de l'historique). `dbal` les persiste en SQL, et c'est ce qui fait survivre une exécution à un redémarrage sans cluster. |
+| `table_name` | chaîne | `durable_events` | Table dans laquelle le magasin `dbal` écrit. Créée à la première écriture. |
 
 ### Avec Temporal
 
@@ -94,7 +123,8 @@ reprise.
 
 | Clé | Valeurs | Défaut | Description |
 |-----|---------|--------|-------------|
-| `type` | `in_memory` | `in_memory` | Stockage dans le processus. Correct pour les tests mono-processus et pour Temporal (les métadonnées sont persistées dans l'historique Temporal par le champ mémo). |
+| `type` | `in_memory`, `dbal` | `in_memory` | Stockage dans le processus. Correct pour les tests mono-processus et pour Temporal (les métadonnées sont persistées dans l'historique Temporal par le champ mémo). `dbal` les persiste en SQL. |
+| `table_name` | chaîne | `durable_workflow_metadata` | Table dans laquelle le magasin `dbal` écrit. Créée à la première écriture. |
 
 ---
 
@@ -105,8 +135,14 @@ d'activité.
 
 | Clé | Valeurs | Défaut | Description |
 |-----|---------|--------|-------------|
-| `type` | `messenger`, `in_memory` | `messenger` | `messenger` route les messages d'activité par Symfony Messenger vers le transport configuré. `in_memory` exécute les activités de façon synchrone à l'intérieur du gestionnaire de tâche de workflow. |
+| `type` | `in_memory`, `messenger` | **`in_memory`** | `in_memory` exécute les activités **de façon synchrone dans le gestionnaire de tâche de workflow** — c'est ce que vous obtenez quand la clé est absente. `messenger` route les messages d'activité par Symfony Messenger vers le transport configuré. |
 | `transport_name` | chaîne | `durable_activities` | Nom du transport Messenger employé quand `type: messenger`. Doit correspondre à un transport défini dans `messenger.yaml`. |
+| `table_name` | chaîne | `durable_activity_outbox` | Nom de la table d'outbox. |
+
+**Le défaut est celui que vous ne voulez probablement pas en production.** Définir `durable_activities`
+dans `messenger.yaml` ne le sélectionne pas : sans `type: messenger`, le transport reste vide et
+l'activité a déjà tourné en ligne, prenant le temps de la tâche de workflow avec elle et perdant la
+sémantique de réessai que le transport apporte.
 
 ---
 
@@ -153,7 +189,8 @@ Contrôle la façon dont les workflows enfants sont lancés.
 | Clé | Type | Défaut | Description |
 |-----|------|--------|-------------|
 | `async_messenger` | booléen | `false` | À `true`, les exécutions de workflows enfants partent par Messenger (asynchrone). À `false`, elles tournent de façon synchrone dans la tâche de workflow du parent. |
-| `parent_link_store.type` | `in_memory` | `in_memory` | Suit les liens parent → enfant pour propager les complétions. |
+| `parent_link_store.type` | `in_memory`, `dbal` | `in_memory` | Suit les liens parent → enfant pour propager les complétions. `dbal` les persiste en SQL. |
+| `parent_link_store.table_name` | chaîne | `durable_child_workflow_parent_link` | Table dans laquelle le magasin `dbal` écrit. Créée à la première écriture. |
 
 ---
 
