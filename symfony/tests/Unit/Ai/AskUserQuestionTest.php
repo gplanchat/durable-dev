@@ -105,7 +105,7 @@ final class AskUserQuestionTest extends TestCase
 
         // Aucun signal n'est déposé : si la question atteignait le guichet, l'exécution resterait
         // suspendue au lieu de rendre une réponse.
-        $input = ['guard' => new ModeToolGuard([], [AskUserQuestion::TOOL])] + $this->input();
+        $input = ['guard' => new ModeToolGuard(denied: [AskUserQuestion::TOOL])] + $this->input();
         $answer = $environment->runWorkflowClass(DurableAgentWorkflow::class, $input, 'question-6');
 
         self::assertStringContainsString('interdit par la politique', $answer);

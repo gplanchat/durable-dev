@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Ai\Guard;
 
+use App\Ai\Tool\Toolset;
 use Symfony\AI\Platform\Result\ToolCall;
 
 /**
@@ -17,11 +18,11 @@ use Symfony\AI\Platform\Result\ToolCall;
 final class ModeToolGuard implements ToolGuardInterface
 {
     /**
-     * @param array<string, ToolEffect> $effects map nom d'outil → effet déclaré
-     * @param list<string>              $denied  outils refusés quel que soit le mode
+     * @param Toolset      $tools  ce que l'agent peut faire, et ce que chaque outil fait
+     * @param list<string> $denied outils refusés quel que soit le mode
      */
     public function __construct(
-        private readonly array $effects = [],
+        private readonly Toolset $tools = new Toolset(),
         private readonly array $denied = [],
     ) {
     }
@@ -34,7 +35,7 @@ final class ModeToolGuard implements ToolGuardInterface
             return ToolDecision::deny(\sprintf('L\'outil « %s » est interdit par la politique de l\'agent.', $name));
         }
 
-        $effect = $this->effects[$name] ?? ToolEffect::External;
+        $effect = $this->tools->effectOf($name);
 
         return $mode->requiresApprovalFor($effect)
             ? ToolDecision::ask(\sprintf('« %s » (%s) demande une validation en mode %s.', $name, $effect->value, $mode->value))

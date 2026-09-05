@@ -9,6 +9,7 @@ use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\ToolEffect;
 use App\Ai\Live\AgentSignals;
 use App\Ai\Tool\ToolDefinition;
+use App\Ai\Tool\Toolset;
 use App\Ai\Workflow\DurableAgentWorkflow;
 use App\Durable\DurableSampleWorkflowRunner;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -64,12 +65,10 @@ final class AiChatController extends AbstractController
      * Le catalogue d'outils de la démo. `effect` est ce que lit la garde : c'est lui, et pas le nom
      * de l'outil, que le mode consulte — et le déclarer en {@see ToolEffect} fait lever une faute de
      * frappe ici plutôt que de la traduire silencieusement en « externe ».
-     *
-     * @return list<ToolDefinition>
      */
-    private static function tools(): array
+    private static function tools(): Toolset
     {
-        return [
+        return new Toolset(
             new ToolDefinition('weather', 'Météo courante d’une ville.', ToolEffect::Read, [
                 'type' => 'object',
                 'properties' => ['city' => ['type' => 'string']],
@@ -85,7 +84,7 @@ final class AiChatController extends AbstractController
                 'properties' => ['to' => ['type' => 'string'], 'body' => ['type' => 'string']],
                 'required' => ['to', 'body'],
             ]),
-        ];
+        );
     }
 
     public function __construct(
@@ -106,7 +105,7 @@ final class AiChatController extends AbstractController
         $this->workflowRunner->dispatchWorkflowRun(
             DurableAgentWorkflow::class,
             [
-                'tools' => ToolDefinition::listToWire(self::tools()),
+                'tools' => self::tools()->toWire(),
                 'mode' => AgentMode::Standard->value,
                 'humanTimeoutSeconds' => self::HUMAN_TIMEOUT_SECONDS,
                 'contextTokens' => $contextTokens,

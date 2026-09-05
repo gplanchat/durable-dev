@@ -8,6 +8,8 @@ use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\ApprovalOutcome;
 use App\Ai\Guard\ModeToolGuard;
 use App\Ai\Guard\ToolEffect;
+use App\Ai\Tool\ToolDefinition;
+use App\Ai\Tool\Toolset;
 use App\Ai\Workflow\DurableAgentWorkflow;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -18,11 +20,14 @@ use Symfony\AI\Platform\Result\ToolCall;
 #[CoversClass(ModeToolGuard::class)]
 final class ToolGuardTest extends TestCase
 {
-    private const EFFECTS = [
-        'weather' => ToolEffect::Read,
-        'save_note' => ToolEffect::Write,
-        'send_email' => ToolEffect::External,
-    ];
+    private static function tools(): Toolset
+    {
+        return new Toolset(
+            new ToolDefinition('weather', 'Météo', ToolEffect::Read),
+            new ToolDefinition('save_note', 'Note', ToolEffect::Write),
+            new ToolDefinition('send_email', 'Courriel', ToolEffect::External),
+        );
+    }
 
     public static function matrix(): \Generator
     {
@@ -40,7 +45,7 @@ final class ToolGuardTest extends TestCase
     #[DataProvider('matrix')]
     public function testTheModeDecidesFromTheDeclaredEffect(AgentMode $mode, string $tool, bool $needsApproval): void
     {
-        $decision = (new ModeToolGuard(self::EFFECTS))->decide(new ToolCall('c1', $tool), $mode);
+        $decision = (new ModeToolGuard(self::tools()))->decide(new ToolCall('c1', $tool), $mode);
 
         self::assertSame($needsApproval, $decision->needsApproval());
         self::assertSame(!$needsApproval, $decision->isAllowed());
@@ -48,7 +53,7 @@ final class ToolGuardTest extends TestCase
 
     public function testADenyListWinsOverEveryMode(): void
     {
-        $guard = new ModeToolGuard(self::EFFECTS, ['send_email']);
+        $guard = new ModeToolGuard(self::tools(), ['send_email']);
 
         self::assertTrue($guard->decide(new ToolCall('c1', 'send_email'), AgentMode::Auto)->isDenied());
     }
@@ -132,7 +137,7 @@ final class ToolGuardTest extends TestCase
                 ['send_email' => ['description' => 'Envoi', 'effect' => 'external']],
                 prompt: 'Envoie un mail',
                 maxTurns: 1,
-                guard: new ModeToolGuard(self::EFFECTS, ['send_email']),
+                guard: new ModeToolGuard(self::tools(), ['send_email']),
             ),
             'guard-deny-1',
         );

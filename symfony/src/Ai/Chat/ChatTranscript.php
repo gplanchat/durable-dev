@@ -6,6 +6,7 @@ namespace App\Ai\Chat;
 
 use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\PendingApproval;
+use App\Ai\Platform\ChatCompletion;
 use App\Ai\Question\AskUserQuestion;
 use App\Ai\Question\PendingQuestion;
 use App\Ai\Watch\Watch;
@@ -89,10 +90,7 @@ final class ChatTranscript
         $lastModelCallId = null;
         $compactionCallId = null;
         $finished = false;
-        $executed = [];
-        $decided = [];
-        $answered = [];
-        $alerted = [];
+        $settled = new SettledCalls();
         $signalledMode = null;
         $messagesSignalled = 0;
         $deadlines = [];
@@ -127,7 +125,7 @@ final class ChatTranscript
 
                 if ('ai_tool_call' === $event->activityName()) {
                     $call = self::descendTo($payload, 'arguments');
-                    $executed[(string) ($call['callId'] ?? '')] = true;
+                    $settled->settle((string) ($call['callId'] ?? ''));
                     $steps[$event->activityId()] = new ToolStep(
                         (string) ($call['callId'] ?? ''),
                         (string) ($call['name'] ?? '?'),
@@ -164,12 +162,8 @@ final class ChatTranscript
                 $signal = $event->signalPayload();
                 if ('user_message' === $event->signalName()) {
                     ++$messagesSignalled;
-                } elseif ('tool_decision' === $event->signalName()) {
-                    $decided[(string) ($signal['callId'] ?? '')] = true;
-                } elseif ('question_answered' === $event->signalName()) {
-                    $answered[(string) ($signal['callId'] ?? '')] = true;
-                } elseif ('alerte' === $event->signalName()) {
-                    $alerted[(string) ($signal['callId'] ?? '')] = true;
+                } elseif (\in_array($event->signalName(), ['tool_decision', 'question_answered', 'alerte'], true)) {
+                    $settled->settle((string) ($signal['callId'] ?? ''));
                 } elseif ('set_mode' === $event->signalName()) {
                     $signalledMode = AgentMode::tryFrom((string) ($signal['mode'] ?? '')) ?? $signalledMode;
                 }
@@ -198,9 +192,9 @@ final class ChatTranscript
         // L'afficher plus tôt n'aurait pas seulement l'air faux — le fil complet compterait des
         // messages que le modèle ne verra jamais, et fausserait le statut de l'agent.
         $digest = null !== $compactionCallId
-            ? ($results[$compactionCallId]['choices'][0]['message']['content'] ?? null)
+            ? ChatCompletion::fromWire($results[$compactionCallId] ?? null)?->text
             : null;
-        $carried = \is_string($digest) && '' !== trim($digest)
+        $carried = null !== $digest && '' !== trim($digest)
             ? [TranscriptMessage::compaction(trim($digest))->toWire()]
             : $started['history'] ?? [];
         if ([] === $messages) {
@@ -227,16 +221,14 @@ final class ChatTranscript
         // Deux attentes humaines, lues au même endroit : le modèle a demandé un outil, et ni
         // l'activité ni la réponse ne sont au journal. La garde retient l'un, le guichet l'autre.
         $expiresAt = self::expiryOf($deadlines, $humanTimeout);
+        $answer = ChatCompletion::fromWire($results[$lastModelCallId] ?? null);
         $pending = [];
         $questions = [];
         $watches = [];
-        foreach ($results[$lastModelCallId]['choices'][0]['message']['tool_calls'] ?? [] as $call) {
-            $callId = (string) ($call['id'] ?? '');
-            if (isset($executed[$callId]) || isset($decided[$callId]) || isset($answered[$callId]) || isset($alerted[$callId])) {
+        foreach ($answer?->toolCalls ?? [] as $ref) {
+            if ($settled->has($ref->callId)) {
                 continue;
             }
-
-            $ref = ToolCallRef::fromWire($call);
 
             if (AskUserQuestion::TOOL === $ref->tool) {
                 $questions[] = PendingQuestion::fromArguments($ref->callId, $ref->arguments, $expiresAt);
@@ -259,16 +251,6 @@ final class ChatTranscript
             );
         }
 
-        // Le raisonnement du dernier tour n'est nulle part ailleurs : les tours précédents ont le
-        // leur dans la charge du tour d'après (le normaliseur l'y remet), mais le dernier n'a pas
-        // de tour d'après. Il se lit dans le résultat, mêlé à la réponse — d'où le même découpage
-        // que pour le fil.
-        $lastMessage = $results[$lastModelCallId]['choices'][0]['message'] ?? [];
-        [$answer, $lastReasoning] = TranscriptMessage::splitContent(
-            $lastMessage['content'] ?? null,
-            $lastMessage['reasoning_content'] ?? null,
-        );
-
         // Un message signalé que le dernier appel modèle ne contient pas encore : le tour a commencé
         // mais le journal n'en porte pas encore la trace. Sans ça l'agent paraît inactif entre la
         // soumission et la planification de l'activité.
@@ -282,8 +264,12 @@ final class ChatTranscript
             static fn (TranscriptMessage $message): bool => !$message->isSystem(),
         ));
 
-        if (\is_string($answer) && '' !== $answer) {
-            $thread[] = TranscriptMessage::assistant($answer, $lastReasoning);
+        // Le raisonnement du dernier tour n'est nulle part ailleurs : les tours précédents ont le
+        // leur dans la charge du tour d'après (le normaliseur l'y remet), mais le dernier n'a pas
+        // de tour d'après. Il se lit dans le résultat, mêlé à la réponse — et c'est {@see ChatCompletion}
+        // qui fait le découpage, le même que pour le fil.
+        if (null !== $answer?->text && '' !== $answer->text) {
+            $thread[] = TranscriptMessage::assistant($answer->text, $answer->reasoning);
         }
 
         return new Transcript(
@@ -306,7 +292,7 @@ final class ChatTranscript
                 (null !== $compactionCallId && !\array_key_exists($compactionCallId, $results))
                 || $messagesSignalled > $messagesSeenByModel
                 || (null !== $lastModelCallId && !\array_key_exists($lastModelCallId, $results))
-                || (null !== $lastModelCallId && !\is_string($answer))
+                || (null !== $lastModelCallId && null === $answer?->text)
             ),
             $finished,
         );

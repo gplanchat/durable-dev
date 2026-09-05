@@ -8,12 +8,11 @@ use App\Ai\Context\ContextBudget;
 use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\ModeToolGuard;
 use App\Ai\Guard\ToolApprovalGate;
-use App\Ai\Guard\ToolEffect;
 use App\Ai\Guard\ToolGuardInterface;
 use App\Ai\Question\AskUserQuestion;
 use App\Ai\Question\HumanQuestionDesk;
 use App\Ai\Team\DelegateTool;
-use App\Ai\Tool\ToolDefinition;
+use App\Ai\Tool\Toolset;
 use App\Ai\Watch\WatchDesk;
 use App\Ai\Watch\WatchTool;
 use Gplanchat\Durable\Duration;
@@ -36,7 +35,6 @@ use Symfony\AI\Platform\Provider;
 final class DurableAgentFactory
 {
     /**
-     * @param list<ToolDefinition>       $tools
      * @param \Closure(): AgentMode|null $mode
      * @param Duration|null              $humanTimeout échéance de toute attente humaine — validation
      *                                                 comme réponse à une question — globale à
@@ -45,7 +43,7 @@ final class DurableAgentFactory
     public static function create(
         WorkflowEnvironment $environment,
         string $model,
-        array $tools,
+        Toolset $tools,
         int $maxToolCalls = 10,
         ?ToolApprovalGate $gate = null,
         ?HumanQuestionDesk $desk = null,
@@ -57,7 +55,7 @@ final class DurableAgentFactory
     ): Agent {
         // Toujours offerts : un agent qui ne peut pas demander invente, et un agent qui ne peut
         // pas attendre bâcle.
-        $tools = [...$tools, AskUserQuestion::definition(), WatchTool::definition(), DelegateTool::definition()];
+        $tools = $tools->with(AskUserQuestion::definition(), WatchTool::definition(), DelegateTool::definition());
 
         // Le pont Mistral fournit tout ce qui est **pur** — la normalisation de la conversation,
         // le catalogue, la conversion du JSON en résultat — et c'est ce qui tourne en code
@@ -79,7 +77,7 @@ final class DurableAgentFactory
             toolbox: new SchemaOnlyToolbox($tools),
             toolExecutor: new DurableToolExecutor(
                 $environment,
-                $guard ?? new ModeToolGuard(self::effects($tools)),
+                $guard ?? new ModeToolGuard($tools),
                 $gate ?? new ToolApprovalGate(),
                 $desk ?? new HumanQuestionDesk(),
                 $watches ?? new WatchDesk(),
@@ -89,20 +87,5 @@ final class DurableAgentFactory
             ),
             maxToolCalls: $maxToolCalls,
         );
-    }
-
-    /**
-     * @param list<ToolDefinition> $tools
-     *
-     * @return array<string, ToolEffect>
-     */
-    private static function effects(array $tools): array
-    {
-        $effects = [];
-        foreach ($tools as $definition) {
-            $effects[$definition->name] = $definition->effect;
-        }
-
-        return $effects;
     }
 }

@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Ai;
 use App\Ai\Chat\ChatTranscript;
 use App\Ai\Chat\Transcript;
 use App\Ai\Chat\TranscriptMessage;
+use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
@@ -126,5 +127,32 @@ final class ChatTranscriptResumeTest extends TestCase
             ['role' => 'user', 'content' => 'Météo à Lyon ?'],
             ['role' => 'assistant', 'content' => 'Il fait 18 °C.'],
         ], $this->transcript->forExecution(self::EXECUTION)->seed());
+    }
+    /**
+     * Un résumé peut arriver en morceaux `thinking`/`text` — c'est la forme d'un modèle qui
+     * raisonne, et la compaction passe par la même porte que le reste.
+     *
+     * La projection lisait `content` brut et n'en gardait que ce qui était **déjà une chaîne** :
+     * un résumé en morceaux était ignoré, et le fil repris s'affichait en entier alors que le
+     * modèle, lui, ne verrait que le résumé. {@see \App\Ai\Platform\ChatCompletion} fait le même
+     * découpage des deux côtés.
+     */
+    public function testAChunkedDigestIsReadLikeAnyOtherAnswer(): void
+    {
+        $this->metadataStore->save(self::EXECUTION, 'Ai_DurableAgent', ['history' => self::HISTORY]);
+        $this->eventStore->append(new ActivityScheduled(self::EXECUTION, 'c1', 'ai_model_compact', []));
+        $this->eventStore->append(new ActivityCompleted(self::EXECUTION, 'c1', [
+            'choices' => [['message' => ['content' => [
+                ['type' => 'thinking', 'thinking' => [['type' => 'text', 'text' => 'Je pèse ce qui compte.']]],
+                ['type' => 'text', 'text' => 'On s\'est salués.'],
+            ]]]],
+        ]));
+
+        $transcript = $this->transcript->forExecution(self::EXECUTION);
+
+        self::assertSame(
+            ['Résumé de notre conversation précédente : On s\'est salués.'],
+            array_map(static fn (TranscriptMessage $message): ?string => $message->content, $transcript->messages),
+        );
     }
 }

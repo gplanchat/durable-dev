@@ -9,6 +9,7 @@ use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Tool\ExecutionReference;
 use App\Ai\Tool\ToolDefinition;
+use App\Ai\Tool\Toolset;
 use Symfony\AI\Platform\Tool\Tool;
 
 /**
@@ -24,10 +25,7 @@ final class SchemaOnlyToolbox implements ToolboxInterface
     /** @var Tool[] */
     private readonly array $tools;
 
-    /**
-     * @param list<ToolDefinition> $definitions
-     */
-    public function __construct(array $definitions)
+    public function __construct(Toolset $tools)
     {
         $this->tools = array_map(
             static fn (ToolDefinition $definition): Tool => new Tool(
@@ -36,7 +34,7 @@ final class SchemaOnlyToolbox implements ToolboxInterface
                 $definition->description,
                 $definition->parameters,
             ),
-            $definitions,
+            $tools->definitions,
         );
     }
 

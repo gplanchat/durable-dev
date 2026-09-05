@@ -35,43 +35,30 @@ final readonly class ToolDefinition
      * Un outil qui ne déclare pas son effet est traité comme externe — le défaut prudent, celui qui
      * demande une validation dans tous les modes sauf `auto`.
      *
-     * @param array<string, array{description?: string, effect?: string, parameters?: array<string, mixed>|null}> $wire
-     *
-     * @return list<self>
+     * @param array{description?: string, effect?: string, parameters?: array<string, mixed>|null} $wire
      */
-    public static function listFromWire(array $wire): array
+    public static function fromWire(string $name, array $wire): self
     {
-        $definitions = [];
-        foreach ($wire as $name => $definition) {
-            $definitions[] = new self(
-                (string) $name,
-                (string) ($definition['description'] ?? ''),
-                ToolEffect::tryFrom((string) ($definition['effect'] ?? '')) ?? ToolEffect::External,
-                $definition['parameters'] ?? null,
-            );
-        }
-
-        return $definitions;
+        return new self(
+            $name,
+            (string) ($wire['description'] ?? ''),
+            ToolEffect::tryFrom((string) ($wire['effect'] ?? '')) ?? ToolEffect::External,
+            $wire['parameters'] ?? null,
+        );
     }
 
     /**
-     * Retour vers le fil : la charge de démarrage du workflow part en JSON.
+     * Retour vers le fil : la charge de démarrage du workflow part en JSON, indexée par nom
+     * d'outil — c'est {@see Toolset::toWire()} qui pose la clé.
      *
-     * @param list<self> $definitions
-     *
-     * @return array<string, array{description: string, effect: string, parameters: array<string, mixed>|null}>
+     * @return array{description: string, effect: string, parameters: array<string, mixed>|null}
      */
-    public static function listToWire(array $definitions): array
+    public function toWire(): array
     {
-        $wire = [];
-        foreach ($definitions as $definition) {
-            $wire[$definition->name] = [
-                'description' => $definition->description,
-                'effect' => $definition->effect->value,
-                'parameters' => $definition->parameters,
-            ];
-        }
-
-        return $wire;
+        return [
+            'description' => $this->description,
+            'effect' => $this->effect->value,
+            'parameters' => $this->parameters,
+        ];
     }
 }

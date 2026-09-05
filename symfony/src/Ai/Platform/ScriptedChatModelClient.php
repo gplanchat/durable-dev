@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Ai\Platform;
 
+use App\Ai\Chat\ToolCallRef;
 use App\Ai\Question\AskUserQuestion;
 use App\Ai\Team\DelegateTool;
 use App\Ai\Watch\WatchSubject;
@@ -203,33 +204,19 @@ final class ScriptedChatModelClient implements ModelClientInterface
      */
     private function toolCall(array $messages, string $tool, array $arguments): array
     {
-        return ['choices' => [['message' => ['content' => null, 'tool_calls' => [[
-            'id' => \sprintf('call_%d', \count($messages)),
-            'type' => 'function',
-            'function' => ['name' => $tool, 'arguments' => json_encode($arguments, \JSON_UNESCAPED_UNICODE)],
-        ]]], 'finish_reason' => 'tool_calls']]];
+        return ChatCompletion::ofToolCall(
+            new ToolCallRef(\sprintf('call_%d', \count($messages)), $tool, $arguments),
+        )->toWire();
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    /**
-     * La forme d'un tour raisonné **chez Mistral** : une liste de morceaux `thinking` et `text`,
-     * pas un `reasoning_content` à côté. Le contrat générique envoie ce dernier, et Mistral le
-     * refuse par un 422 « Extra inputs are not permitted » ({@see \Symfony\AI\Platform\Bridge\Mistral\Contract\AssistantMessageNormalizer}).
-     *
-     * Sans raisonnement, on garde la chaîne simple qu'attendent tous les autres modèles : le
-     * convertisseur du pont ne descend dans les morceaux que si `content` est un tableau.
+     * Le texte, avec son raisonnement s'il y en a un. La forme des deux vit dans
+     * {@see ChatCompletion::toWire()} — la même que celle que relit la projection.
      *
      * @return array<string, mixed>
      */
     private function text(string $text, string $reasoning = ''): array
     {
-        return ['choices' => [['message' => [
-            'content' => '' === $reasoning ? $text : [
-                ['type' => 'thinking', 'thinking' => [['type' => 'text', 'text' => $reasoning]]],
-                ['type' => 'text', 'text' => $text],
-            ],
-        ], 'finish_reason' => 'stop']]];
+        return ChatCompletion::ofText($text, '' === $reasoning ? null : $reasoning)->toWire();
     }
 }

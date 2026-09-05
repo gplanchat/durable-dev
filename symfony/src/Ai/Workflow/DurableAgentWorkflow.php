@@ -11,8 +11,9 @@ use App\Ai\Durable\DurableAgentFactory;
 use App\Ai\Guard\AgentMode;
 use App\Ai\Guard\ToolApprovalGate;
 use App\Ai\Guard\ToolGuardInterface;
+use App\Ai\Platform\ChatCompletion;
 use App\Ai\Question\HumanQuestionDesk;
-use App\Ai\Tool\ToolDefinition;
+use App\Ai\Tool\Toolset;
 use App\Ai\Watch\WatchDesk;
 use Gplanchat\Durable\Attribute\AsSignalMethod;
 use Gplanchat\Durable\Attribute\AsWorkflow;
@@ -247,15 +248,14 @@ final class DurableAgentWorkflow
                 ]], []),
         );
 
-        // La forme d'une réponse « chat completions », la même que lit la projection.
-        $digest = trim((string) ($result['choices'][0]['message']['content'] ?? ''));
+        $digest = trim((string) (ChatCompletion::fromWire($result)?->text ?? ''));
 
         return '' === $digest ? $thread : [TranscriptMessage::compaction($digest)];
     }
 
     /**
      * La charge arrive du journal, donc en tableaux : `$tools` est converti en
-     * {@see ToolDefinition} dès l'entrée, et plus rien en dessous ne manipule de tableau associatif.
+     * {@see Toolset} dès l'entrée, et plus rien en dessous ne manipule de tableau associatif.
      *
      * @param array<string, array{description?: string, parameters?: array<string, mixed>|null, effect?: string}> $tools
      * @param float|null                                                                                         $idleTimeoutSeconds silence au bout duquel l'exécution se termine ; `null` = jamais
@@ -304,7 +304,7 @@ final class DurableAgentWorkflow
         $agent = DurableAgentFactory::create(
             $this->environment,
             $model,
-            ToolDefinition::listFromWire($tools),
+            Toolset::fromWire($tools),
             $maxToolCalls,
             gate: $this->gate,
             desk: $this->desk,
