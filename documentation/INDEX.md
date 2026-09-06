@@ -76,6 +76,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | WA003 | GitHub epics, tasks, and project tracking | [wa/WA003-github-epics-tasks-and-project-tracking.md](wa/WA003-github-epics-tasks-and-project-tracking.md) |
 | WA004 | MIT license for the repository and Composer packages | [wa/WA004-mit-license-distribution.md](wa/WA004-mit-license-distribution.md) |
 | WA005 | The canvas is the source, `layouts/index.html` is output | [wa/WA005-the-canvas-is-the-source-the-page-is-output.md](wa/WA005-the-canvas-is-the-source-the-page-is-output.md) |
+| WA007 | The agentic loop and its ledgers | [wa/WA007-the-agentic-loop-and-its-ledgers.md](wa/WA007-the-agentic-loop-and-its-ledgers.md) |
 
 ## Opportunity solution trees (OST)
 
