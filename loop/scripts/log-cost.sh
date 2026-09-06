@@ -13,7 +13,11 @@ cd "$(dirname "$0")/.."
 USAGE=memory/usage.tsv
 [ -f "$USAGE" ] || printf 'date\tstage\tmodel\tinput\toutput\tthinking\tcache_read\tcost_usd\n' > "$USAGE"
 
-printf '%s' "${3:-{}}" | jq -r --arg d "$(date +%F)" --arg s "$1" --arg m "$2" '
+# NB: "${3:-{}}" looks like a sane default but bash closes the expansion at the FIRST brace,
+# yielding the argument followed by a literal "}" — jq then dies on trailing garbage after
+# having already emitted its line. Spell the default out instead.
+JSON="${3:-}"; [ -n "$JSON" ] || JSON='{}'
+printf '%s' "$JSON" | jq -r --arg d "$(date +%F)" --arg s "$1" --arg m "$2" '
   [$d, $s, $m,
    (.usage.input_tokens // 0),
    (.usage.output_tokens // 0),

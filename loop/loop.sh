@@ -18,6 +18,12 @@ cd "$(dirname "$0")"
 MEM=memory
 STAMP=$(date +%F)
 
+# Prompts asking for bare output are instructions, not guarantees: both seats intermittently wrap
+# their answer in a markdown fence. Unfenced, two things break silently — a fenced "QUIET" never
+# equals QUIET, so a quiet repository wakes the expensive seat on every tick, and a fenced work
+# order dies in jq halfway through. Strip the fence once, here, rather than trusting the prompt.
+unfence() { sed -e '/^[[:space:]]*```/d' ; }
+
 # The three seats. Variables, not constants: a model outage, a price change or a compliance
 # ruling is then a config edit rather than an incident (WA007). Defaults are the current
 # generation as of 2026-09-06 — the article's Fable 5 is the alternative decision seat, set
@@ -40,7 +46,7 @@ CONTEXT=$( { git log --oneline -15;
 TRIAGE=$(printf '%s' "$CONTEXT" | claude -p "$(cat triage.md)" \
   --model "$WORKER_MODEL" --allowedTools "" --output-format json)
 ./scripts/log-cost.sh triage "$WORKER_MODEL" "$TRIAGE"
-FINDINGS=$(printf '%s' "$TRIAGE" | jq -r '.result')
+FINDINGS=$(printf '%s' "$TRIAGE" | jq -r '.result' | unfence | sed -e 's/[[:space:]]*$//' -e '/^$/d')
 [ "$FINDINGS" = "QUIET" ] && { echo "$STAMP quiet"; exit 0; }
 
 # ---- 2. conductor: the decision seat (read-only, cached prefix first) ---
@@ -56,7 +62,7 @@ $(cat $MEM/trust.tsv)
 $FINDINGS" \
   --model "$CONDUCTOR_MODEL" \
   --allowedTools "Read,Grep,Glob" \
-  --output-format json)
+  --output-format json < /dev/null)
 
 # Refusals arrive as HTTP 200 with a normal-looking body. Check before using the result.
 STOP=$(printf '%s' "$ORDER" | jq -r '.stop_reason // "end_turn"')
@@ -78,7 +84,12 @@ fi
 
 ./scripts/log-cost.sh conductor "$CONDUCTOR_MODEL" "$ORDER"
 
-DECISION=$(printf '%s' "$ORDER" | jq -r '.result' | jq -c '.')
+# An unparseable decision is not something to iterate on — it is a rerouted or malformed seat.
+DECISION=$(printf '%s' "$ORDER" | jq -r '.result' | unfence | jq -c '.' 2>/dev/null) || {
+  echo "$STAMP ALERT conductor returned no parseable work order" >> $MEM/STATE.md
+  printf '%s' "$ORDER" | jq -r '.result' | head -20 >> $MEM/STATE.md
+  exit 2
+}
 ACTION=$(printf '%s' "$DECISION" | jq -r '.action')
 SKILL=$(printf '%s' "$DECISION"  | jq -r '.skill')
 printf '%s\t%s\t%s\n' "$STAMP" "$SKILL" "$ACTION" >> $MEM/dispatch.tsv
@@ -86,12 +97,12 @@ printf '%s\t%s\t%s\n' "$STAMP" "$SKILL" "$ACTION" >> $MEM/dispatch.tsv
 [ "$ACTION" = "stop" ]  && exit 0
 [ "$ACTION" = "queue" ] && { echo "queued: $DECISION" >> $MEM/STATE.md; exit 0; }
 
-# A skill below its trust tier does not run unattended, whatever the conductor decided (Layer 4).
+# What the trust tier gates is the PR, not the attempt. Gating the attempt deadlocks the ledger:
+# a skill can only reach `auto` by accumulating runs, and it can only accumulate runs by running.
+# So every tier executes, in a throwaway worktree on a throwaway branch, and every outcome is
+# recorded — but only a skill at `auto` may open a PR without a human. Below that the branch is
+# left sitting for someone to look at, which is exactly what weeks 1 and 2 of the rollout are.
 TIER=$(./scripts/trust-log.sh --tier "$SKILL")
-if [ "$TIER" != "auto" ]; then
-  echo "queued ($TIER): $DECISION" >> $MEM/STATE.md
-  exit 0
-fi
 
 # ---- 3. worker: cheap model executes in a worktree ---------------------
 REPO_ROOT=$(git rev-parse --show-toplevel)
@@ -117,10 +128,10 @@ VERDICT=$(printf '%s' "$VERDICT_JSON" | jq -r '.result')
 if printf '%s' "$VERDICT" | grep -q '^PASS'; then
   # ---- 5. the gate votes last ------------------------------------------
   if ( cd "$WT" && ./loop/guardrails/verify.sh ); then
-    if [ "$LOOP_PUSH" = "1" ]; then
+    if [ "$LOOP_PUSH" = "1" ] && [ "$TIER" = "auto" ]; then
       ( cd "$WT" && git push -u origin HEAD && gh pr create --fill --draft )
     else
-      echo "$STAMP $SKILL passed the gate; LOOP_PUSH=0, no PR opened" >> $MEM/STATE.md
+      echo "$STAMP $SKILL passed the gate; no PR (LOOP_PUSH=$LOOP_PUSH, tier=$TIER). Branch: loop/$SKILL-$STAMP" >> $MEM/STATE.md
     fi
     ./scripts/trust-log.sh "$SKILL" pass
     exit 0
