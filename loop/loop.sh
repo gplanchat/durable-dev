@@ -108,6 +108,7 @@ TIER=$(./scripts/trust-log.sh --tier "$SKILL")
 REPO_ROOT=$(git rev-parse --show-toplevel)
 WT="$REPO_ROOT/.worktrees/loop-$SKILL-$STAMP"
 git worktree add "$WT" -b "loop/$SKILL-$STAMP" 2>/dev/null || true
+BASE=$(cd "$WT" && git rev-parse HEAD)
 (
   cd "$WT"
   printf '%s' "$DECISION" | claude -p "$(cat "$REPO_ROOT/loop/workers/implement.md")" \
@@ -118,7 +119,21 @@ git worktree add "$WT" -b "loop/$SKILL-$STAMP" 2>/dev/null || true
 ./scripts/log-cost.sh worker "$WORKER_MODEL" "$(cat $MEM/last-worker.json)"
 
 # ---- 4. verifier: fresh context judges spec against diff, nothing else --
-DIFF=$(cd "$WT" && git diff)
+# Diff against the branch point, not the index. Plain `git diff` shows neither untracked files nor
+# anything the worker committed — and the worker prompt mandates TDD, so the new failing test is
+# precisely the untracked file that would go missing. The verifier would then be asked to judge
+# done_when against a diff with the test cut out of it. Verified: touch a new file and modify a
+# tracked one, and `git diff` reports one of the two.
+DIFF=$(cd "$WT" && git add -A && git diff "$BASE")
+
+# A no-op must never reach the ledger. An empty diff satisfies the verifier vacuously (nothing in
+# it exceeds the spec) and passes the gate (the tree is unchanged), writing an unearned pass into
+# the trust ledger. Twenty of those and a skill that has done nothing is promoted to `auto` — the
+# ledger that decides autonomy, poisoned by the loop idling. Not a run, so not recorded as one.
+if [ -z "$DIFF" ]; then
+  echo "$STAMP $SKILL produced no diff — not recorded as a run" >> $MEM/STATE.md
+  exit 1
+fi
 VERDICT_JSON=$(printf 'SPEC:\n%s\n\nDIFF:\n%s' "$DECISION" "$DIFF" \
   | claude -p "$(cat workers/verify.md)" \
     --model "$VERIFIER_MODEL" --allowedTools "" --output-format json)
