@@ -7,9 +7,9 @@ namespace unit\DurableLaravel\Fixtures;
 use Illuminate\Contracts\Queue\Job;
 
 /**
- * Une file de test qui retient ce qu'on lui pousse. Elle n'implémente pas le contrat entier —
- * seules `push`, `later` et `pop` sont sur le chemin du transport, et un double qui implémente ce
- * qu'il n'utilise pas raconte une histoire plus riche que le code.
+ * A test queue that keeps whatever is pushed onto it. It does not implement the whole contract —
+ * only `push`, `later` and `pop` are on the transport's path, and a double that implements what it
+ * does not use tells a richer story than the code.
  */
 final class FakeQueue
 {

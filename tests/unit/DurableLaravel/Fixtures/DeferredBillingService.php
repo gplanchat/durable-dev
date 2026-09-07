@@ -8,11 +8,11 @@ use Gplanchat\Durable\Attribute\AsNexusOperation;
 use Gplanchat\Durable\Attribute\AsNexusService;
 
 /**
- * Un contrat dont une opération est servie tout de suite et l'autre remplie par un workflow.
+ * A contract with one operation served straight away and the other fulfilled by a workflow.
  *
- * En un seul morceau, là où les contrats de la démonstration se séparent en deux interfaces : ce
- * qui compte ici est qu'un gestionnaire n'ait pas de méthode pour `settle`, et
- * `DeclaredNexusOperations` le lit par `method_exists()`, pas par la hiérarchie.
+ * In a single piece, where the demo's contracts split into two interfaces: what counts here is
+ * that a handler has no method for `settle`, and `DeclaredNexusOperations` reads that through
+ * `method_exists()`, not through the hierarchy.
  */
 #[AsNexusService('deferred-billing')]
 interface DeferredBillingService

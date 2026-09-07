@@ -15,10 +15,10 @@ use Illuminate\Container\Container;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Le backend Temporal, servi plutôt que refusé.
+ * The Temporal backend, served rather than refused.
  *
- * Ce que ces tests ne font pas : parler à un cluster. Ils vérifient que le paquet **assemble** le
- * pont — la suite d'intégration, elle, tourne contre un vrai serveur.
+ * What these tests do not do: talk to a cluster. They check that the package **assembles** the
+ * bridge — the integration suite, for its part, runs against a real server.
  */
 final class TemporalBackendTest extends TestCase
 {
@@ -31,9 +31,9 @@ final class TemporalBackendTest extends TestCase
 
         (new DurableServiceProvider($app))->register();
 
-        // Le journal et le catalogue viennent du cluster…
+        // The journal and the catalog come from the cluster…
         self::assertInstanceOf(TemporalWorkflowRunCatalog::class, $app->make(WorkflowRunCatalogInterface::class));
-        // …et le worker de tâches est assemblé, prêt à être drainé par la commande.
+        // …and the task worker is assembled, ready to be drained by the command.
         self::assertInstanceOf(WorkflowTaskProcessor::class, $app->make(WorkflowTaskProcessor::class));
     }
 
