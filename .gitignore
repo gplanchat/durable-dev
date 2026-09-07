@@ -7,23 +7,23 @@
 documentation/journal/inbox/*.md
 documentation/journal/archive/*.md
 
-# Hugo : thème vendorisé pour inspection locale, la CI le récupère via go modules
+# Hugo: vendored theme for local inspection, CI fetches it via go modules
 hugo-docs/_vendor/
 hugo-docs/public/
-# Build --minify servi en HTTP pour vérifier le rendu : public/ et file:// mentent.
+# Build --minify served over HTTP to check the rendering: public/ and file:// lie.
 hugo-docs/public-check/
 hugo-docs/resources/
 hugo-docs/.hugo_build.lock
 
-# Dépendances et caches d'outils : jamais au dépôt, chaque poste les reconstruit.
-# `vendor/` sans barre initiale attrape aussi celui des paquets satellites.
+# Dependencies and tool caches: never in the repository, every workstation rebuilds them.
+# `vendor/` without a leading slash also catches the satellite packages' one.
 vendor/
 .phpunit.cache/
 .php-cs-fixer.cache
 __pycache__/
 
-# Cache du noyau Symfony construit par les tests d'intégration du bundle.
+# Symfony kernel cache built by the bundle's integration tests.
 /var/
 
-# Les journaux et les PID des workers de la démonstration.
+# The demonstration workers' logs and PIDs.
 /demo/var/
