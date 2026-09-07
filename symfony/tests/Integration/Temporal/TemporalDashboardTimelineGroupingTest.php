@@ -16,7 +16,7 @@ use Temporal\Api\Update\V1\Meta;
 use Temporal\Api\Update\V1\Request;
 
 /**
- * Vérifie le regroupement des updates de timeline par protocol_instance_id.
+ * Verifies the grouping of timeline updates by protocol_instance_id.
  *
  * @internal
  */

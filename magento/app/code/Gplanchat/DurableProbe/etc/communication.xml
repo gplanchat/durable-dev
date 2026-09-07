@@ -1,14 +1,14 @@
 <?xml version="1.0"?>
 <!--
-    Sujet de sonde du §1.3 : mesurer ce qu'un consommateur laisse derrière lui
-    quand son processus meurt au milieu d'un message. Le banc n'a pas d'AMQP,
-    donc c'est `Magento\MysqlMq` qui répond — et sa redélivrance n'a pas les
-    règles d'AMQP.
+    The §1.3 probe topic: measuring what a consumer leaves behind it when its
+    process dies half way through a message. The bench has no AMQP, so it is
+    `Magento\MysqlMq` that answers — and its redelivery does not have AMQP's
+    rules.
 
-    Il vit au banc et n'entre pas dans `gplanchat/durable-magento` : un sujet
-    dont le gestionnaire ne fait que dormir n'a rien à faire dans un paquet
-    publié. Les quatre fichiers de la 4.1 (reprise, activité, signal, update,
-    minuterie) s'écriront dans le module, pas ici.
+    It lives at the bench and does not enter `gplanchat/durable-magento`: a
+    topic whose handler does nothing but sleep has no business in a published
+    package. The four files of 4.1 (resume, activity, signal, update, timer)
+    will be written in the module, not here.
 -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Communication/etc/communication.xsd">

@@ -7,30 +7,30 @@ namespace Gplanchat\DurableProbe\Workflow\Activity;
 use Gplanchat\Durable\Attribute\AsActivityMethod;
 
 /**
- * Le contrat du workflow de démonstration exhaustive : une activité par forme que l'écran
- * d'observation doit savoir montrer.
+ * The contract of the exhaustive demonstration workflow: one activity per shape the observation
+ * screen has to know how to show.
  *
- * Le banc n'avait que des activités qui réussissent. Un écran qui n'a jamais vu d'échec n'a jamais
- * prouvé qu'il savait en montrer un — et « la couleur d'échec marche » ne se vérifie pas sur une
- * exécution qui n'échoue nulle part.
+ * The bench only had activities that succeed. A screen that has never seen a failure has never
+ * proved it knew how to show one — and "the failure colour works" is not verified on an execution
+ * that fails nowhere.
  */
 interface EveryCaseActivities
 {
-    /** Le cas nominal : elle réussit du premier coup. */
+    /** The nominal case: it succeeds first time. */
     #[AsActivityMethod(name: 'durable.case.succeed')]
     public function succeed(string $caseId): string;
 
     /**
-     * Elle échoue les deux premières fois, puis réussit.
+     * It fails the first two times, then succeeds.
      *
-     * C'est le seul moyen d'obtenir un `ACTIVITY_TASK_FAILED` **suivi d'une reprise** : une action
-     * qui porte à la fois du rouge et une fin verte, et qui prouve que la couleur marque
-     * l'événement et non l'action entière.
+     * It is the only way to get an `ACTIVITY_TASK_FAILED` **followed by a retry**: an action that
+     * carries both red and a green ending, and that proves the colour marks the event and not the
+     * whole action.
      */
     #[AsActivityMethod(name: 'durable.case.flaky')]
     public function flaky(string $caseId): string;
 
-    /** Elle échoue toujours, et son échec est définitif. */
+    /** It always fails, and its failure is final. */
     #[AsActivityMethod(name: 'durable.case.doomed')]
     public function doomed(string $caseId): string;
 }
