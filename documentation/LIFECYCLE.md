@@ -24,7 +24,7 @@ Cursor plan (design phase)
 
 ## Document types and usage
 
-### ADR — Architecture Decision Record
+### ADR (Architecture Decision Record)
 
 **When** : A technical decision affects architecture (library choice, pattern, stack).
 
@@ -38,7 +38,7 @@ Cursor plan (design phase)
 
 ---
 
-### WA — Working Agreement
+### WA (Working Agreement)
 
 **When** : Agreement on how we work or manage the project.
 
@@ -51,7 +51,7 @@ Cursor plan (design phase)
 
 ---
 
-### OST — Opportunity Solution Tree
+### OST (Opportunity Solution Tree)
 
 **When** : Exploring a future feature before development.
 
@@ -65,7 +65,7 @@ Cursor plan (design phase)
 
 ---
 
-### PRD — Product Requirements Document
+### PRD (Product Requirements Document)
 
 **When** : A feature is already built and needs documentation.
 
@@ -129,7 +129,7 @@ documentation/
 
 ## Numbering
 
-- **Sequential per type** : For this repository, ADR filenames use the **`DUR`** prefix (`DUR000`, `DUR001`, …) per project convention — see [DUR000](adr/DUR000-adr-management-process.md) and [documentation/INDEX.md](INDEX.md).
+- **Sequential per type** : For this repository, ADR filenames use the **`DUR`** prefix (`DUR000`, `DUR001`, …) per project convention. See [DUR000](adr/DUR000-adr-management-process.md) and [documentation/INDEX.md](INDEX.md).
 - **No gaps** : Do not reuse a removed number
 - **Short slug** : Lowercase, hyphens, descriptive (e.g. `temporal-grpc-bridge`)
 
