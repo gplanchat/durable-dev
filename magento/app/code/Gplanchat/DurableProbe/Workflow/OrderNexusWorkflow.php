@@ -4,139 +4,138 @@ declare(strict_types=1);
 
 namespace Gplanchat\DurableProbe\Workflow;
 
-use Gplanchat\Durable\Demo\Contracts\Facturation\FacturationContract;
-use Gplanchat\Durable\Demo\Contracts\Livraison\LivraisonContract;
-use Gplanchat\Durable\Demo\Contracts\Stock\StockContract;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\Demo\Contracts\Billing\BillingContract;
+use Gplanchat\Durable\Demo\Contracts\Delivery\DeliveryContract;
+use Gplanchat\Durable\Demo\Contracts\Stock\StockContract;
 use Gplanchat\Durable\Nexus\NexusStub;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Magento passe une commande dont **rien n'est servi par Magento**.
+ * Magento places an order of which **nothing is served by Magento**.
  *
- * Le stock est retenu par la boutique Sylius, la facture est vérifiée puis encaissée par le métier
- * Symfony, et l'expédition est planifiée puis faite par la logistique Laravel. Quatre applications,
- * quatre namespaces, trois frameworks, et celle-ci n'a ni gestionnaire Nexus, ni file de tâches
- * Nexus, ni passe de compilation qui enregistrerait quoi que ce soit — parce qu'**appeler n'en
- * demande aucun**. `WorkflowEnvironment::nexusStub()` lit le contrat par réflexion, et le
- * worker qui fait avancer cette exécution est le même `WorkflowTaskRunner` que les deux autres
- * maquettes tournent sous un autre nom.
+ * The stock is held by the Sylius shop, the invoice is verified then charged by the Symfony
+ * business, and the shipment is scheduled then made by the Laravel logistics. Four applications,
+ * four namespaces, three frameworks, and this one has no Nexus handler, no Nexus task queue and no
+ * compiler pass registering anything — because **calling needs none of them**.
+ * `WorkflowEnvironment::nexusStub()` reads the contract by reflection, and the worker that advances
+ * this execution is the same `WorkflowTaskRunner` the two other mockups run under another name.
  *
- * Les deux formes de réponse sont ici, comme dans `CommandeWorkflow` de la boutique : `verifier` et
- * `reserver` reviennent sur la tâche, `encaisser` est remplie par un workflow d'en face et prend
- * une quinzaine de secondes. Rien dans ce fichier ne dit laquelle est laquelle.
+ * Both answer shapes are here, as in the shop's `OrderWorkflow`: `verify` and `reserve` come back on
+ * the task, `charge` is fulfilled by a workflow on the other side and takes some fifteen seconds.
+ * Nothing in this file says which is which.
  *
- * ⚠ **Le garde de nommage ne couvre pas cet hôte.** La règle « tout paramètre d'un workflow qui
- * remplit une opération doit être un paramètre du contrat » vit dans `NexusHandlerPass`, donc dans
- * le conteneur de Symfony. Elle garde le **servant**, et Magento ne sert rien : ici, ce qui compte
- * est que les noms passés aux méthodes du stub soient ceux du contrat, ce que la signature typée du
- * contrat vérifie déjà.
+ * ⚠ **The naming guard does not cover this host.** The rule that every parameter of a workflow
+ * fulfilling an operation must be a parameter of the contract lives in `NexusHandlerPass`, and so in
+ * Symfony's container. It guards the **server**, and Magento serves nothing: what matters here is
+ * that the names passed to the stub's methods are the contract's, which the contract's typed
+ * signature already checks.
  */
 final class OrderNexusWorkflow
 {
-    /** L'endpoint de la boutique, créé par `bin/demo-nexus`. */
-    public const ENDPOINT_STOCK = 'demo-boutique-stock';
+    /** The shop's endpoint, created by `bin/demo-nexus`. */
+    public const ENDPOINT_STOCK = 'demo-shop-stock';
 
-    /** Celui du métier. */
-    public const ENDPOINT_FACTURATION = 'demo-metier-facturation';
+    /** The business's. */
+    public const ENDPOINT_BILLING = 'demo-business-billing';
 
-    /** Celui de la logistique. */
-    public const ENDPOINT_LIVRAISON = 'demo-laravel-livraison';
+    /** The logistics'. */
+    public const ENDPOINT_DELIVERY = 'demo-laravel-delivery';
 
     /** @var NexusStub<StockContract> */
     private readonly NexusStub $stock;
 
-    /** @var NexusStub<FacturationContract> */
-    private readonly NexusStub $facturation;
+    /** @var NexusStub<BillingContract> */
+    private readonly NexusStub $billing;
 
-    /** @var NexusStub<LivraisonContract> */
-    private readonly NexusStub $livraison;
+    /** @var NexusStub<DeliveryContract> */
+    private readonly NexusStub $delivery;
 
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
         $this->stock = $environment->nexusStub(StockContract::class, endpoint: self::ENDPOINT_STOCK);
-        $this->facturation = $environment->nexusStub(FacturationContract::class, endpoint: self::ENDPOINT_FACTURATION);
-        $this->livraison = $environment->nexusStub(LivraisonContract::class, endpoint: self::ENDPOINT_LIVRAISON);
+        $this->billing = $environment->nexusStub(BillingContract::class, endpoint: self::ENDPOINT_BILLING);
+        $this->delivery = $environment->nexusStub(DeliveryContract::class, endpoint: self::ENDPOINT_DELIVERY);
     }
 
     /**
-     * @param array<string, int> $lignes  référence => quantité
-     * @param int                $montant en centimes
+     * @param array<string, int> $lines  reference => quantity
+     * @param int                $amount in cents
      *
      * @return array{
-     *     verifiee: array{acceptee: bool, motif: string|null},
-     *     reservation: array{reserve: bool, manquants: array<string, int>}|null,
-     *     encaissement: array{recu: string, encaisse: int}|null,
-     *     livraison: array{planifiee: bool, creneau: string, transporteur: string, motif: string|null}|null,
-     *     expedition: array{expediee: bool, suivi: string}|null
+     *     verified: array{accepted: bool, reason: string|null},
+     *     reservation: array{reserved: bool, missing: array<string, int>}|null,
+     *     charge: array{receipt: string, charged: int}|null,
+     *     delivery: array{scheduled: bool, slot: string, carrier: string, reason: string|null}|null,
+     *     shipment: array{shipped: bool, tracking: string}|null
      * }
      */
     #[AsWorkflowMethod]
-    public function run(string $commande, array $lignes, int $montant, string $devise = 'EUR'): array
+    public function run(string $order, array $lines, int $amount, string $currency = 'EUR'): array
     {
-        // ⚠ **L'ordre des cinq appels est ce qui dispense de compenser**, et les deux inversions
-        // ont été mesurées avant d'être corrigées :
+        // ⚠ **The order of the five calls is what spares any compensation**, and both inversions
+        // were measured before they were fixed:
         //
-        // - retenir le stock avant de vérifier la facture laissait `MUG_BLUE` retenu chez la
-        //   boutique après un refus de devise ;
-        // - encaisser avant de planifier la tournée faisait payer une commande que la logistique
-        //   refusait ensuite de porter.
+        // - holding the stock before verifying the invoice left `MUG_BLUE` held at the shop after a
+        //   currency refusal;
+        // - charging before scheduling the round made an order paid for that logistics then refused
+        //   to carry.
         //
-        // Aucun des trois contrats n'a d'opération qui rende ce qu'il a pris. **Demander d'abord
-        // tout ce qui peut dire non, n'engager qu'ensuite** : c'est l'ordre qui est la
-        // compensation, faute d'en avoir une.
-        $verdict = $this->environment->await($this->facturation->verifier($commande, $montant, $devise));
+        // None of the three contracts has an operation that gives back what it took. **Ask first
+        // everything that can say no, commit only afterwards**: the order is the compensation, for
+        // want of having one.
+        $verdict = $this->environment->await($this->billing->verify($order, $amount, $currency));
 
-        if (true !== ($verdict['acceptee'] ?? false)) {
-            return self::rien($verdict);
+        if (true !== ($verdict['accepted'] ?? false)) {
+            return self::nothing($verdict);
         }
 
-        $livraison = $this->environment->await($this->livraison->planifier($commande, $lignes));
+        $delivery = $this->environment->await($this->delivery->schedule($order, $lines));
 
-        if (true !== ($livraison['planifiee'] ?? false)) {
-            return array_merge(self::rien($verdict), ['livraison' => $livraison]);
+        if (true !== ($delivery['scheduled'] ?? false)) {
+            return array_merge(self::nothing($verdict), ['delivery' => $delivery]);
         }
 
-        $reservation = $this->environment->await($this->stock->reserver($commande, $lignes));
+        $reservation = $this->environment->await($this->stock->reserve($order, $lines));
 
-        if (true !== ($reservation['reserve'] ?? false)) {
-            return array_merge(self::rien($verdict), [
-                'livraison' => $livraison,
+        if (true !== ($reservation['reserved'] ?? false)) {
+            return array_merge(self::nothing($verdict), [
+                'delivery' => $delivery,
                 'reservation' => $reservation,
             ]);
         }
 
-        // Les deux engagements, une fois que les trois refus possibles ont été écartés.
-        // `encaisser` est remplie par un workflow du métier, `expedier` par un workflow de la
-        // logistique — qui, lui, rappelle la boutique pendant qu'il sert. Trois hôtes, trois
-        // frameworks, et le même `await` pour les cinq appels.
+        // The two commitments, once the three possible refusals have been ruled out. `charge` is
+        // fulfilled by a workflow of the business, `ship` by a workflow of the logistics — which in
+        // turn calls the shop back while it serves. Three hosts, three frameworks, and the same
+        // `await` for all five calls.
         return [
-            'verifiee' => $verdict,
+            'verified' => $verdict,
             'reservation' => $reservation,
-            'encaissement' => $this->environment->await($this->facturation->encaisser($commande, $montant, $devise)),
-            'livraison' => $livraison,
-            'expedition' => $this->environment->await(
-                $this->livraison->expedier($commande, $livraison['creneau']),
+            'charge' => $this->environment->await($this->billing->charge($order, $amount, $currency)),
+            'delivery' => $delivery,
+            'shipment' => $this->environment->await(
+                $this->delivery->ship($order, $delivery['slot']),
             ),
         ];
     }
 
     /**
-     * Le résultat d'une commande qui s'arrête avant d'avoir rien coûté à personne.
+     * The result of an order that stops before it has cost anybody anything.
      *
-     * @param array{acceptee: bool, motif: string|null} $verdict
+     * @param array{accepted: bool, reason: string|null} $verdict
      *
-     * @return array{verifiee: array{acceptee: bool, motif: string|null}, reservation: null, encaissement: null, livraison: null, expedition: null}
+     * @return array{verified: array{accepted: bool, reason: string|null}, reservation: null, charge: null, delivery: null, shipment: null}
      */
-    private static function rien(array $verdict): array
+    private static function nothing(array $verdict): array
     {
         return [
-            'verifiee' => $verdict,
+            'verified' => $verdict,
             'reservation' => null,
-            'encaissement' => null,
-            'livraison' => null,
-            'expedition' => null,
+            'charge' => null,
+            'delivery' => null,
+            'shipment' => null,
         ];
     }
 }
