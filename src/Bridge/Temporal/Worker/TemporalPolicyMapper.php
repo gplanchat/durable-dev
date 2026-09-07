@@ -15,14 +15,14 @@ use Temporal\Api\Enums\V1\ParentClosePolicy as TemporalParentClosePolicy;
 use Temporal\Api\Enums\V1\WorkflowIdReusePolicy as TemporalIdReusePolicy;
 
 /**
- * Conversions des options durables vers leurs équivalents protobuf.
+ * Conversions from the durable options to their protobuf equivalents.
  *
- * Partagées par le buffer de commandes (workflows enfants) et le client (démarrage racine) :
- * racine et enfant décrivent les mêmes réglages, ils ne doivent pas les traduire différemment.
+ * Shared by the command buffer (child workflows) and the client (root start): root and child
+ * describe the same settings, they must not translate them differently.
  *
- * Les signatures acceptaient `mixed` — non par souplesse, mais parce que les valeurs traversaient
- * un tableau avant d'arriver. Depuis qu'elles franchissent le port typées, le `match` est
- * exhaustif et le compilateur en répond.
+ * The signatures used to accept `mixed` — not out of flexibility, but because the values crossed
+ * an array before arriving. Now that they cross the port typed, the `match` is exhaustive and the
+ * compiler answers for it.
  */
 final class TemporalPolicyMapper
 {
@@ -47,11 +47,11 @@ final class TemporalPolicyMapper
     }
 
     /**
-     * Pose les bornes temporelles sur n'importe quel message qui les accepte — requête de
-     * démarrage, commande d'enfant, commande de continue-as-new : ils exposent les mêmes
-     * setters, et ne doivent pas traduire les mêmes options différemment.
+     * Sets the time bounds on any message that accepts them — start request, child command,
+     * continue-as-new command: they expose the same setters, and must not translate the same
+     * options differently.
      *
-     * @param object $target message protobuf exposant setWorkflowExecutionTimeout /
+     * @param object $target protobuf message exposing setWorkflowExecutionTimeout /
      *                       setWorkflowRunTimeout / setWorkflowTaskTimeout
      */
     public static function applyWorkflowTimeouts(WorkflowTimeouts $timeouts, object $target): void
@@ -68,11 +68,11 @@ final class TemporalPolicyMapper
     }
 
     /**
-     * Pose les attributs de recherche sur un message qui les accepte.
+     * Sets the search attributes on a message that accepts them.
      *
-     * Le type accompagne chaque valeur dans les métadonnées de la charge utile. Le serveur
-     * applique en réalité celui de son registre — mais l'annoncer rend l'intention lisible pour
-     * qui inspecte l'historique.
+     * The type travels with each value in the payload metadata. The server actually applies the
+     * one from its own registry — but announcing it makes the intent readable to whoever inspects
+     * the history.
      */
     public static function applySearchAttributes(SearchAttributes $attributes, object $target): void
     {
@@ -83,7 +83,7 @@ final class TemporalPolicyMapper
         $message = new TemporalSearchAttributes();
         $fields = $message->getIndexedFields();
         foreach ($attributes->toValues() as $name => $value) {
-            // Le type accompagne la valeur dans les métadonnées de la charge utile.
+            // The type travels with the value in the payload metadata.
             $fields[$name] = JsonPlainPayload::encodeWithMetadata($value, [
                 'type' => (string) $attributes->typeOf($name)?->value,
             ]);
