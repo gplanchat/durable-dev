@@ -102,8 +102,8 @@ icon, two French sentences, and `illuminate` reachable from the frameworkless op
 measured, the regenerated `:root` was byte-identical before a single line was ported.
 
 **The reconciliation repaired three things nobody had reported**, which is the argument for doing it
-rather than living with the drift: two dead hover classes (`dz-h64`, `dz-h65`, where the attribute copied
-from a neighbour without its rule), an unlocalised link (`/docs/nexus/` on the French page, sending a
+rather than living with the drift: two dead hover classes (`dz-h64`, `dz-h65`, whose attribute was
+copied from a neighbour without its rule), an unlocalised link (`/docs/nexus/` on the French page, sending a
 French reader to the English one), and a chooser that contradicted its own copy.
 
 Until (1) exists, this working agreement is a convention with an alarm on it. It is written down
