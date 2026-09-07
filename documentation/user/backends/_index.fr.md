@@ -10,21 +10,21 @@ lesquels vous choisissez.
 
 | Backend | Usage |
 |---------|-------|
-| **En mémoire** | Tests unitaires, tests fonctionnels, exploration locale — aucun serveur nécessaire. |
-| **DBAL** | Production sans cluster d'orchestration — une base SQL, pas d'`ext-grpc`. |
+| **En mémoire** | Tests unitaires, tests fonctionnels, exploration locale ; aucun serveur nécessaire. |
+| **DBAL** | Production sans cluster d'orchestration : une base SQL, pas d'`ext-grpc`. |
 | **Illuminate** | Le même, sur la connexion de Laravel plutôt que sur celle de Doctrine. |
-| **Temporal** | Production et recette à l'échelle, tests d'intégration réalistes — `ext-grpc` et un cluster Temporal requis. |
+| **Temporal** | Production et recette à l'échelle, tests d'intégration réalistes ; `ext-grpc` et un cluster Temporal requis. |
 
 > [!NOTE]
 > **Sur Magento, aucune des deux lignes SQL n'existe.** `gplanchat/durable-magento` déclare un `conflict`
 > Composer sur les deux ponts SQL : `Magento\Framework\App\ResourceConnection` n'est ni une
 > connexion Doctrine DBAL ni celle d'Illuminate, donc aucun des deux n'a de quoi se lier. L'état vit
-> dans une grappe Temporal, ou il vit dans un processus — et le choix se fait par la présence de
+> dans une grappe Temporal, ou il vit dans un processus, et le choix se fait par la présence de
 > `durable/temporal/dsn` dans `app/etc/env.php`, pas par un réglage.
 
 Les quatre font tourner le **même pilote à fibres** et le même code de workflows et d'activités.
 Trois d'entre eux se choisissent par `durable.event_store.type` (et `DURABLE_DSN` pour Temporal) ;
-**Illuminate n'en est pas une valeur** et ne le sera jamais — voir
+**Illuminate n'en est pas une valeur** et ne le sera jamais ; voir
 [le backend Illuminate](#illuminate-backend) pour ce qui le lie à la place.
 
 ---
@@ -112,7 +112,7 @@ php -m | grep grpc
 
 **Dans une image de conteneur, ne la recompilez pas.** `pecl install grpc` prend environ sept
 minutes, et votre construction d'image les paie sur chaque branche. Des extensions préconstruites
-sont publiées pour PHP 8.2 à 8.5, en versions thread-safe et non thread-safe — voir
+sont publiées pour PHP 8.2 à 8.5, en versions thread-safe et non thread-safe ; voir
 [gRPC dans votre image de conteneur](../container-images/) pour les recettes
 `COPY --from`, php-fpm, mod_php et FrankenPHP compris.
 
@@ -206,13 +206,13 @@ d'`ext-grpc`. Voir **DUR030**.
 
 ### Comment il fonctionne
 
-- Les trois stockages locaux au processus deviennent des tables SQL ; tout le reste — rejeu, tampon
-  de commandes, cycle de vie — est le code que le backend en mémoire fait déjà tourner.
+- Les trois stockages locaux au processus deviennent des tables SQL ; tout le reste (rejeu, tampon
+  de commandes, cycle de vie) est le code que le backend en mémoire fait déjà tourner.
 - Reprises et activités voyagent par **Symfony Messenger** : prenez donc un transport durable
   (Doctrine, Redis, AMQP). Un transport `in-memory://` jette ce que le journal SQL vient de
   persister.
 - Les minuteurs voyagent par le `DelayStamp` de Messenger, via `FireWorkflowTimersHandler`.
-- Les tables sont créées à la **première écriture** — aucune migration à jouer, aucune dépendance à
+- Les tables sont créées à la **première écriture** : aucune migration à jouer, aucune dépendance à
   `doctrine/migrations`.
 
 ### Configuration
@@ -236,17 +236,17 @@ durable:
 
 framework:
     lock:
-        default: '%env(LOCK_DSN)%'   # doctrine://default, redis://… — doit être partagé entre les workers
+        default: '%env(LOCK_DSN)%'   # doctrine://default, redis://…, doit être partagé entre les workers
 ```
 
 Poser `event_store.type: dbal` en même temps qu'un `temporal.dsn` non vide lève à la compilation :
 le journal ne peut pas avoir deux sources de vérité.
 
-### Une reprise à la fois — la chose à ne pas rater
+### Une reprise à la fois, la chose à ne pas rater
 
 Temporal sérialise les tâches de workflow d'une exécution côté serveur. Ici il n'y a pas de serveur :
 deux consommateurs peuvent donc défiler deux reprises de la même exécution et rejouer la même fibre
-en parallèle, chacun ajoutant ses propres commandes — **activités dupliquées, journal bifurqué**.
+en parallèle, chacun ajoutant ses propres commandes : **activités dupliquées, journal bifurqué**.
 
 Durable l'empêche par un verrou par exécution (`SingleResumeLockMiddleware`), enregistré
 automatiquement quand le stockage d'événements DBAL est actif. **Il ne vaut que ce que vaut votre
@@ -255,7 +255,7 @@ vous redonne exactement la panne que le verrou existe pour empêcher. Configurez
 
 ### Quand l'employer
 
-- **En production, sans opérer de cluster** — une application Symfony qui a déjà une base de données
+- **En production, sans opérer de cluster.** Une application Symfony qui a déjà une base de données
   et un transport Messenger.
 - Pour des workflows longs qui doivent survivre aux déploiements et aux redémarrages, à une échelle
   qu'une seule base peut tenir.
@@ -269,7 +269,7 @@ visibilité qu'apporte un cluster Temporal. Voir la matrice de capacités plus b
 
 Les mêmes quatre stockages existent sur `Illuminate\Database\Connection`, sous le nom
 [`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate--le-backend-laravel)
-— même journal, même échange face à Temporal.
+avec le même journal et le même échange face à Temporal.
 
 **L'échange face à Temporal est celui du pont DBAL, mot pour mot.** Ce qui change est la connexion,
 et pourquoi : un stockage sur `DB::connection()` est dans `DB::transaction()` par construction, ce
@@ -281,7 +281,7 @@ Ce n'est **pas une quatrième valeur d'`event_store.type`**, et ça ne le sera j
 application Laravel ne lit pas le YAML de cette page. Le pont est la moitié stockage, et **ce qui le
 lie, c'est `gplanchat/durable-laravel`**, par son propre `config/durable.php` publié.
 
-Ce paquet porte aussi le côté file — activités et reprises en jobs, un minuteur comme reprise
+Ce paquet porte aussi le côté file : activités et reprises en jobs, un minuteur comme reprise
 différée sur le délai natif de la file, et l'exclusion par exécution que décrit la section DBAL. Son
 [entrée dans la page Paquets](../packages/#gplanchatdurable-laravel--lintégration-laravel)
 donne la configuration, les trois réglages qu'il refuse plutôt que de les tolérer, et les deux
@@ -296,7 +296,7 @@ comportements qui ressemblent à des bugs sans en être.
 | Tests unitaires | En mémoire (`DurableTestCase`) |
 | Tests d'intégration | En mémoire (`DurableBundleTestTrait` + `KernelTestCase`) |
 | Intégration continue avec Temporal | Temporal (groupe `temporal-integration`) |
-| Développement local | Au choix — en mémoire pour la vitesse, un backend à journal pour le réalisme |
+| Développement local | Au choix : en mémoire pour la vitesse, un backend à journal pour le réalisme |
 | Production, sans cluster | DBAL sous Symfony, Illuminate sous Laravel |
 | Production, à l'échelle | Temporal |
 
@@ -327,7 +327,7 @@ sur le transport.
 
 Aucun backend hors Temporal n'a d'ordonnanceur ou de frontière entre espaces de noms : cron et Nexus
 n'ont donc pas d'équivalent sur les trois autres. Là où une capacité manque, elle **échoue
-explicitement** plutôt que d'être ignorée en silence — pour un *appel* Nexus, à l'appel ; pour un
+explicitement** plutôt que d'être ignorée en silence : pour un *appel* Nexus, à l'appel ; pour un
 *gestionnaire* Nexus, au montage du conteneur, puisqu'un gestionnaire sans route n'est pas un appel
 qui échoue mais un service qui ne reçoit jamais rien.
 
@@ -335,7 +335,7 @@ qui échoue mais un service qui ne reçoit jamais rien.
 
 ## Les réessais ont la même sémantique partout
 
-Une activité sans borne de tentatives réessaie **indéfiniment** sur tous les backends — c'est le
+Une activité sans borne de tentatives réessaie **indéfiniment** sur tous les backends, c'est le
 défaut de Temporal. Le `max_activity_retries` du bundle agit toujours comme un plafond quand une
 activité n'en pose pas ; à `0`, il ne plafonne rien.
 
@@ -349,8 +349,8 @@ Deux ports définissent un backend : `WorkflowCommandBufferInterface` pour ce qu
 et `WorkflowHistorySourceInterface` pour ce qui s'est déjà passé.
 
 Les deux portent des **objets valeur**, pas des primitives. Une implémentation reçoit les options
-telles que l'appelant les a construites — limites de réessai, délais, files de tâches, planifications
-cron — et lui appartient la traduction vers sa propre représentation, sérialisation et lecture
+telles que l'appelant les a construites (limites de réessai, délais, files de tâches, planifications
+cron), et lui appartient la traduction vers sa propre représentation, sérialisation et lecture
 d'horloge comprises.
 
 `startTimer()` reçoit un **délai**, pas une échéance : en faire un instant est votre décision, avec
@@ -363,6 +363,6 @@ La décision de contribution est [DUR031](https://github.com/gplanchat/durable-d
 
 ## Voir aussi
 
-- [Référence de configuration](../configuration/) — la liste complète des clés de `durable.yaml`.
-- [Premiers pas](../getting-started/) — routage Messenger et commandes du worker.
-- [Tester des workflows](../testing/) — se servir du backend en mémoire dans les tests.
+- [Référence de configuration](../configuration/) liste toutes les clés de `durable.yaml`.
+- [Premiers pas](../getting-started/) couvre le routage Messenger et les commandes du worker.
+- [Tester des workflows](../testing/) montre le backend en mémoire à l'œuvre dans les tests.
