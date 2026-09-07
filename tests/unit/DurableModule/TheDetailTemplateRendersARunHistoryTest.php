@@ -12,17 +12,17 @@ use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Le gabarit de détail, rendu pour de vrai.
+ * The detail template, rendered for real.
  *
- * ⚠ **Rien ne le vérifiait, et rien ne pouvait le vérifier.** PHPStan et Psalm tournent contre les
- * vraies classes de Magento dans la CI, mais aucun des deux n'analyse un `.phtml`. Ce gabarit vient
- * d'être réécrit sur une API d'objets — `$action->durationLabel`, `$row->actionLabel`,
- * `$row->renderedDetails` — là où il lisait des tableaux : une propriété mal nommée n'y casse rien à
- * l'installation et rend un écran vide, sur celui qu'un exploitant est venu regarder.
+ * ⚠ **Nothing was checking it, and nothing could check it.** PHPStan and Psalm run against the real
+ * Magento classes in CI, but neither of the two analyses a `.phtml`. This template has just been
+ * rewritten onto an object API — `$action->durationLabel`, `$row->actionLabel`,
+ * `$row->renderedDetails` — where it used to read arrays: a mis-named property breaks nothing there
+ * at installation and renders an empty screen, on the very one an operator came to look at.
  *
- * Le bloc, lui, est typé et la CI le voit. C'est le gabarit qui n'avait pas de filet ; il en a un,
- * et il n'a besoin ni de Magento ni d'une base — un double qui répond aux méthodes appelées suffit,
- * et c'est ce qui rend ce test tenable dans la suite ordinaire.
+ * The block, for its part, is typed and CI sees it. It is the template that had no net; it has one
+ * now, and it needs neither Magento nor a database — a double that answers the methods called is
+ * enough, and that is what makes this test bearable inside the ordinary suite.
  */
 final class TheDetailTemplateRendersARunHistoryTest extends TestCase
 {
@@ -31,8 +31,8 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
         $page = $this->renderDetail();
 
         self::assertStringContainsString('durable-frieze', $page);
-        // La prise en charge tombe à 10 s sur une portée de 20 s : la barre d'attente occupe la
-        // première moitié de la piste. Un étalement par rang l'aurait mise ailleurs.
+        // The pick-up falls at 10 s over a 20 s span: the waiting bar takes up the first half of
+        // the track. A spread by rank would have put it somewhere else.
         self::assertStringContainsString('left: 0.000%; width: 50.000%', $page);
         self::assertStringContainsString('waiting', $page);
         self::assertStringContainsString('waiting to be picked up', $page);
@@ -40,21 +40,21 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
 
     public function testEveryJournalRowNamesItsActionAndNotItsEvent(): void
     {
-        // `ActivityTaskStarted` nomme la classe de l'événement ; l'exploitant cherche `charge`. La
-        // colonne porte donc le nom de l'action, et c'est la même chaîne que sur la ligne de frise.
+        // `ActivityTaskStarted` names the event class; the operator is looking for `charge`. The
+        // column therefore carries the action name, and it is the same string as on the frieze row.
         $page = $this->renderDetail();
 
-        // La colonne « Action » des deux lignes de l'activité, planification et démarrage.
+        // The "Action" column of the activity's two rows, scheduling and start.
         self::assertSame(2, substr_count($page, '<td>charge</td>'));
-        self::assertStringContainsString('ActivityTaskStarted', $page, 'la ligne garde aussi son propre libellé');
-        // Et le signal, qui est à lui seul son action, se nomme lui-même plutôt que de laisser un
-        // trou dans la colonne.
+        self::assertStringContainsString('ActivityTaskStarted', $page, 'the row also keeps its own label');
+        // And the signal, which is its own action all by itself, names itself rather than leaving
+        // a hole in the column.
         self::assertSame(1, substr_count($page, '<td>orderApproved</td>'));
     }
 
     public function testAnEventWithNothingRecordedHasNoExpander(): void
     {
-        // Un dépliant qui s'ouvre sur du vide se rouvre à chaque fois.
+        // An expander that opens onto nothing gets reopened every time.
         $page = $this->renderDetail();
 
         self::assertSame(1, substr_count($page, '<details>'));
@@ -81,9 +81,9 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
         try {
             require __DIR__ . '/../../../src/DurableModule/view/adminhtml/templates/process/detail.phtml';
         } finally {
-            // `finally` et non la suite du flot : une erreur dans le gabarit laisserait sinon le
-            // tampon ouvert, et PHPUnit signale alors un test « risqué » par-dessus l'échec réel —
-            // deux messages pour une cause, dont celui qui compte n'est pas le premier.
+            // `finally` and not the rest of the flow: an error in the template would otherwise
+            // leave the buffer open, and PHPUnit then reports a "risky" test on top of the real
+            // failure — two messages for one cause, of which the one that counts is not the first.
             $page = ob_get_clean();
         }
 
@@ -94,8 +94,8 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
 }
 
 /**
- * Ce que le gabarit appelle sur son bloc, et rien de plus. Le vrai bloc étend `Template`, qui
- * réclame le conteneur de Magento — absent de cette suite, et il n'a rien à y faire.
+ * What the template calls on its block, and nothing more. The real block extends `Template`,
+ * which demands Magento's container — absent from this suite, and it has no business being there.
  */
 final class DetailBlockDouble
 {
@@ -113,7 +113,7 @@ final class DetailBlockDouble
                 ['orderId' => 'ORD-7'],
                 'activity:act-1',
             ),
-            // Prise en charge dix secondes plus tard : les dix premières secondes sont une file.
+            // Picked up ten seconds later: the first ten seconds are a queue.
             new WorkflowRunEvent(
                 2,
                 new \DateTimeImmutable('@1700000010'),
@@ -168,7 +168,7 @@ final class DetailBlockDouble
 }
 
 /**
- * Le contrat d'échappement de Magento, réduit à ce que ce gabarit appelle.
+ * Magento's escaping contract, reduced to what this template calls.
  */
 final class EscaperDouble
 {

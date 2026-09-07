@@ -49,25 +49,25 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * §3.1 — la sonde qui tranche l'hypothèse centrale du design.
+ * §3.1 — the probe that settles the design's central hypothesis.
  *
- * Le design la pose et demande qu'on la falsifie :
+ * The design states it and asks for it to be falsified:
  *
- * > le gestionnaire répond une fois, en nommant un workflow, et le serveur corrèle la complétion
- * > de ce workflow à l'opération sans que le gestionnaire soit sollicité de nouveau.
+ * > the handler answers once, naming a workflow, and the server correlates the completion of that
+ * > workflow with the operation without the handler being called on again.
  *
- * La sonde 1.4 n'avait mesuré que la moitié : le serveur **accepte** un jeton et écrit
- * `NEXUS_OPERATION_STARTED`. Que la complétion revienne ensuite au bon endroit n'avait jamais été
- * observé — c'était une déduction tirée de `callback: temporal://system` lu dans la tâche de start.
+ * Probe 1.4 had only measured half of it: the server **accepts** a token and writes
+ * `NEXUS_OPERATION_STARTED`. That the completion then comes back to the right place had never been
+ * observed — it was a deduction drawn from `callback: temporal://system` read in the start task.
  *
- * Ce que la sonde monte, sans aucun worker : un appelant Durable planifie l'opération ; on répond à
- * la tâche Nexus par un jeton, **après** avoir démarré un second workflow portant le `callback` de
- * la tâche dans ses `completion_callbacks` ; on termine ce workflow ; et on regarde si l'historique
- * de l'appelant reçoit `NEXUS_OPERATION_COMPLETED` avec le résultat de ce workflow.
+ * What the probe rigs up, with no worker at all: a Durable caller schedules the operation; we
+ * answer the Nexus task with a token, **after** having started a second workflow carrying the
+ * task's `callback` in its `completion_callbacks`; we complete that workflow; and we look at
+ * whether the caller's history receives `NEXUS_OPERATION_COMPLETED` with that workflow's result.
  *
- * Si oui, l'hypothèse tient et le contrat du gestionnaire est « rends un jeton ».
- * Si non, le jeton n'est pas au gestionnaire de le choisir, et le contrat est « démarre ce
- * workflow » — la plomberie attachant le callback et dérivant le jeton.
+ * If it does, the hypothesis holds and the handler's contract is "return a token".
+ * If it does not, the token is not the handler's to choose, and the contract is "start this
+ * workflow" — the plumbing attaching the callback and deriving the token.
  */
 #[RequiresPhpExtension('grpc')]
 final class NexusAsynchronousFulfilmentTest extends TestCase
@@ -85,7 +85,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
     {
         $address = getenv('DURABLE_TEMPORAL_ADDRESS');
         if (false === $address || '' === $address) {
-            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS non défini : pas de serveur Temporal.');
+            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS not set: no Temporal server.');
         }
 
         $queue = 'nexus-async-' . bin2hex(random_bytes(5));
@@ -150,19 +150,19 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
 
         $task = $this->pollNexusTask();
         $request = $task->getRequest()?->getStartOperation();
-        self::assertNotNull($request, 'Aucune tâche start_operation reçue sur la file Nexus.');
+        self::assertNotNull($request, 'No start_operation task received on the Nexus queue.');
 
         $callbackUrl = (string) $request->getCallback();
-        self::assertNotSame('', $callbackUrl, 'La tâche de start ne porte aucun callback.');
+        self::assertNotSame('', $callbackUrl, 'The start task carries no callback.');
 
-        // Le workflow qui remplit l'opération, démarré AVANT la réponse : le callback ne
-        // s'attache qu'au démarrage, `completion_callbacks` n'existant pas ailleurs.
+        // The workflow that fulfils the operation, started BEFORE the answer: the callback only
+        // attaches at start time, `completion_callbacks` existing nowhere else.
         $fulfillerId = $this->startFulfillingWorkflow($callbackUrl, $request->getCallbackHeader());
 
         $this->respondAsynchronously($task->getTaskToken(), $fulfillerId);
 
-        // Le gestionnaire a répondu et ne sera plus sollicité : c'est ce workflow-ci qui porte
-        // désormais l'opération. On le termine, et on regarde chez l'appelant.
+        // The handler has answered and will not be called on again: it is this workflow that now
+        // carries the operation. We complete it, and we look at the caller's side.
         $this->completeFulfillingWorkflow($fulfillerId, ['greeting' => 'hello ada']);
 
         $outcome = $this->awaitTerminalNexusEvent($callerId);
@@ -170,7 +170,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
         self::assertSame(
             EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED,
             $outcome['type'],
-            'Le serveur n’a pas corrélé la complétion du workflow à l’opération : ' . $outcome['names'],
+            'The server did not correlate the workflow completion with the operation: ' . $outcome['names'],
         );
         self::assertSame(['greeting' => 'hello ada'], $outcome['result']);
     }
@@ -248,7 +248,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
         self::assertSame(
             0,
             (int) ($pair[1]->code ?? -1),
-            'Le serveur a refusé la réponse asynchrone : ' . (string) ($pair[1]->details ?? ''),
+            'The server refused the asynchronous answer: ' . (string) ($pair[1]->details ?? ''),
         );
     }
 
@@ -274,7 +274,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
             return;
         }
 
-        self::fail("Aucune tâche de workflow pour {$workflowId} : impossible de le terminer.");
+        self::fail("No workflow task for {$workflowId}: impossible to complete it.");
     }
 
     /**
@@ -323,13 +323,13 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
             $poll->setIdentity($this->connection->identity);
 
             $task = GrpcUnary::wait($this->client->PollNexusTaskQueue($poll, [], ['timeout' => 30_000_000]));
-            // §1.2 : une file vide rend un jeton vide et une requête nulle. C'est un succès.
+            // §1.2: an empty queue returns an empty token and a null request. That is a success.
             if ('' !== (string) $task->getTaskToken()) {
                 return $task;
             }
         }
 
-        self::fail('Aucune tâche Nexus reçue.');
+        self::fail('No Nexus task received.');
     }
 
     private function pollWorkflowTask(): PollWorkflowTaskQueueResponse
@@ -358,7 +358,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
         self::assertSame(
             0,
             (int) ($pair[1]->code ?? -1),
-            'Le serveur a refusé la tâche de workflow : ' . (string) ($pair[1]->details ?? ''),
+            'The server refused the workflow task: ' . (string) ($pair[1]->details ?? ''),
         );
     }
 }

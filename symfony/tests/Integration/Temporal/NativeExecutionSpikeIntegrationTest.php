@@ -16,7 +16,7 @@ use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Vérifie que le spike DUR024 produit un historique avec événements d’activité (pas seulement des signaux).
+ * Verifies that the DUR024 spike produces a history with activity events (not only signals).
  *
  * @see NativeExecutionSpike
  */
@@ -32,17 +32,17 @@ final class NativeExecutionSpikeIntegrationTest extends TestCase
         $dsn = (string) (getenv('DURABLE_DSN') ?: '');
         if ('' === trim($dsn)) {
             self::markTestSkipped(
-                'Définissez DURABLE_DSN (ex. temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&tls=0).',
+                'Set DURABLE_DSN (e.g. temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&tls=0).',
             );
         }
         if (!extension_loaded('grpc')) {
-            self::markTestSkipped('L’extension PHP grpc est requise.');
+            self::markTestSkipped('The PHP grpc extension is required.');
         }
 
         self::$connection = TemporalConnection::fromDsn($dsn);
         if (!self::temporalTcpReachable(self::$connection)) {
             self::markTestSkipped(
-                'Temporal n’est pas joignable sur '.self::$connection->target.'. Lancez `docker compose up -d` depuis `symfony/`.',
+                'Temporal is not reachable at '.self::$connection->target.'. Run `docker compose up -d` from `symfony/`.',
             );
         }
 

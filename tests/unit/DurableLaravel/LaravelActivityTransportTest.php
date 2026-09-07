@@ -25,7 +25,7 @@ final class LaravelActivityTransportTest extends TestCase
         self::assertCount(1, $queue->pushed);
         self::assertInstanceOf(RunActivityJob::class, $queue->pushed[0]['job']);
         self::assertSame('durable', $queue->pushed[0]['queue']);
-        self::assertNull($queue->pushed[0]['delay'], 'sans report, un push simple');
+        self::assertNull($queue->pushed[0]['delay'], 'without a delay, a plain push');
     }
 
     public function testARetryDelayBecomesTheQueuesOwnDelayAndLeavesTheMessage(): void
@@ -41,13 +41,13 @@ final class LaravelActivityTransportTest extends TestCase
             retryDelay: Duration::seconds(2.4),
         ));
 
-        // Le report devient celui de la file — arrondi au-dessus, parce qu'attendre moins que
-        // demandé est la seule erreur qui compte ici.
+        // The delay becomes the queue's own — rounded up, because waiting less than was asked
+        // for is the only mistake that counts here.
         self::assertSame(3, $queue->pushed[0]['delay']);
 
         /** @var RunActivityJob $job */
         $job = $queue->pushed[0]['job'];
-        // …et disparaît du message : un délai qui survit à la mise en file serait attendu deux fois.
+        // …and disappears from the message: a delay that survived queueing would be waited twice.
         self::assertNull($job->message->retryDelay);
     }
 
@@ -61,7 +61,7 @@ final class LaravelActivityTransportTest extends TestCase
 
         self::assertInstanceOf(ActivityMessage::class, $popped);
         self::assertSame('act-1', $popped->activityId);
-        self::assertTrue($job->deleted, 'un job rendu et jamais acquitté repasserait à chaque tour');
+        self::assertTrue($job->deleted, 'a job handed back and never acknowledged would come round again on every pass');
     }
 
     public function testIsEmptyKeepsWhatItPoppedToAnswer(): void
@@ -70,8 +70,8 @@ final class LaravelActivityTransportTest extends TestCase
         $transport = new LaravelActivityTransport(new FakeQueueFactory(new FakeQueue([$job])));
 
         self::assertFalse($transport->isEmpty());
-        // Le job que la question a dépilé est toujours là : sinon `isEmpty()` répondrait juste une
-        // fois et perdrait du travail à chaque appel.
+        // The job the question popped is still there: otherwise `isEmpty()` would be right just
+        // once and lose work on every call.
         self::assertNotNull($transport->dequeue());
     }
 

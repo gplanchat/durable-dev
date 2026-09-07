@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace Gplanchat\DurableProbe\Workflow\Activity;
 
 /**
- * L'implémentation de la démonstration : trois étapes qui ne font que se nommer.
+ * The demonstration's implementation: three steps that do nothing but name themselves.
  *
- * Elle n'a rien de Magento non plus, et c'est voulu — ce qu'elle sert à montrer est que les noms
- * d'activité viennent des attributs du contrat, pas de chaînes recopiées dans la commande.
+ * It has nothing of Magento about it either, and that is deliberate — what it serves to show is
+ * that the activity names come from the contract's attributes, not from strings copied into the
+ * command.
  */
 /*
- * Pas `final` : le conteneur de Magento l'instancie, donc il engendre un `Interceptor` qui l'étend.
- * Même contrainte d'hôte que pour la commande et la fabrique, et le message d'erreur ne nomme
- * toujours pas le mot-clé.
+ * Not `final`: Magento's container instantiates it, so it generates an `Interceptor` extending it.
+ * Same host constraint as for the command and the factory, and the error message still does not
+ * name the keyword.
  */
 class DemoOrderActivities implements OrderActivities
 {

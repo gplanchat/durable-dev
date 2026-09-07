@@ -7,11 +7,11 @@ namespace unit\DurableModule\Fixture;
 use Gplanchat\Durable\Attribute\AsActivityMethod;
 
 /**
- * Le contrat que les tests du module emploient.
+ * The contract the module's tests employ.
  *
- * Il vit **ici** et non dans le paquet : ce que ces tests éprouvent est le mécanisme de déclaration,
- * pas un workflow en particulier. Un contrat de test dans le paquet publié serait du poids que tout
- * projet consommateur porterait pour rien.
+ * It lives **here** and not in the package: what these tests put to the test is the declaration
+ * mechanism, not one workflow in particular. A test contract inside the published package would be
+ * weight that every consuming project would carry for nothing.
  */
 interface OrderActivities
 {

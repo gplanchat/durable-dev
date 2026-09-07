@@ -69,9 +69,9 @@ return [
     Knp\Bundle\SnappyBundle\KnpSnappyBundle::class => ['all' => true],
     Sylius\RefundPlugin\SyliusRefundPlugin::class => ['all' => true],
     Sylius\AdyenPlugin\SyliusAdyenPlugin::class => ['all' => true],
-    // Le pont Temporal enregistre la fabrique Messenger `temporal://`. Sans lui, le transport qui
-    // sert Nexus n'a pas de fabrique et Messenger répond « No transport supports Messenger DSN ».
-    // Il ne coûte rien sans DSN : la fabrique ne répond qu'aux DSN `temporal://`.
+    // The Temporal bridge registers the `temporal://` Messenger factory. Without it, the
+    // transport that serves Nexus has no factory and Messenger answers "No transport supports
+    // Messenger DSN". It costs nothing without a DSN: the factory only answers `temporal://` DSNs.
     Gplanchat\Bridge\Temporal\TemporalBridgeBundle::class => ['all' => true],
     Gplanchat\Durable\Bundle\DurableBundle::class => ['all' => true],
     Gplanchat\Durable\Plugin\DurablePlugin::class => ['all' => true],

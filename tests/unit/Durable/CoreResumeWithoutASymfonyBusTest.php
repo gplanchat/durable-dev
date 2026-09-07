@@ -23,14 +23,14 @@ use Gplanchat\Durable\WorkflowRegistry;
 use PHPUnit\Framework\TestCase;
 
 /**
- * La reprise d'une exécution, sans une ligne de Symfony.
+ * Resuming an execution, without a line of Symfony.
  *
- * Cette orchestration vivait dans le bundle : 138 lignes dont 15 imports du cœur et 6 de Symfony,
- * ces six-là servant à **deux** choses — un identifiant v7, que `ExecutionId` sait déjà fabriquer,
- * et « publier le réveil des minuteries après l'unité de travail courante », qui est un port.
+ * This orchestration lived in the bundle: 138 lines, of which 15 imports from the core and 6 from
+ * Symfony, those six serving **two** things — a v7 identifier, which `ExecutionId` already knows
+ * how to build, and "publish the timer wake after the current unit of work", which is a port.
  *
- * Six hôtes du sélecteur ne passent pas par le bundle. Le coût de la laisser là n'était pas
- * 279 lignes, c'était 279 par hôte, plus la divergence à la première correction.
+ * Six hosts of the selector do not go through the bundle. The cost of leaving it there was not
+ * 279 lines, it was 279 per host, plus the divergence at the first fix.
  */
 final class CoreResumeWithoutASymfonyBusTest extends TestCase
 {
@@ -50,9 +50,9 @@ final class CoreResumeWithoutASymfonyBusTest extends TestCase
     }
 
     /**
-     * Ce que le port remplace : le `messageBus->dispatch(new Envelope(…, [DispatchAfterCurrentBusStamp]))`
-     * du bundle. Un hôte sans bus doit pouvoir répondre à la même question — « réveille les
-     * minuteries de cette exécution, après le travail courant, dans n millisecondes ».
+     * What the port replaces: the bundle's `messageBus->dispatch(new Envelope(…, [DispatchAfterCurrentBusStamp]))`.
+     * A host without a bus must be able to answer the same question — "wake the timers of this
+     * execution, after the current work, in n milliseconds".
      */
     public function testAnExecutionWaitingOnATimerAsksThePortAndNotAMessageBus(): void
     {

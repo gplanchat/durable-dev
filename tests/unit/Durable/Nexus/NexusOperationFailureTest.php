@@ -12,12 +12,12 @@ use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
 use PHPUnit\Framework\TestCase;
 
 /**
- * §3.6 — un échec d'opération Nexus est **classé**, pas aplati.
+ * §3.6 — a Nexus operation failure is **classified**, not flattened.
  *
- * Les quatre natures viennent du spec, mot pour mot : l'opération a échoué, le handler n'a pas pu
- * tourner, une borne s'est écoulée, l'opération a été annulée. Elles ne se distinguent pas par
- * confort de lecture — un appelant compense sur un échec d'opération, réessaie sur une erreur de
- * handler, et ne fait ni l'un ni l'autre sur une annulation qu'il a lui-même demandée.
+ * The four kinds come from the spec, word for word: the operation failed, the handler could not
+ * run, a bound elapsed, the operation was cancelled. They are not told apart for reading comfort —
+ * a caller compensates on an operation failure, retries on a handler error, and does neither on a
+ * cancellation it asked for itself.
  */
 final class NexusOperationFailureTest extends TestCase
 {
@@ -27,14 +27,14 @@ final class NexusOperationFailureTest extends TestCase
         self::assertNotSame(
             NexusOperationFailureKind::OperationFailed,
             NexusOperationFailureKind::HandlerError,
-            "un handler qui n'a pas pu tourner n'est pas une opération qui a échoué",
+            'a handler that could not run is not an operation that failed',
         );
     }
 
     public function testTheFailureNamesTheCallSite(): void
     {
-        // Le spec l'exige : « The failure SHALL carry the endpoint, service and operation names so
-        // an unhandled one names the call site. »
+        // The spec requires it: "The failure SHALL carry the endpoint, service and operation
+        // names so an unhandled one names the call site."
         $e = $this->failure(NexusOperationFailureKind::Timeout);
 
         self::assertSame('paiements', $e->endpoint());
@@ -47,8 +47,8 @@ final class NexusOperationFailureTest extends TestCase
 
     public function testTheRetryBehaviourRidesOnTheHandlerErrorOnly(): void
     {
-        // Le spec attache le comportement de reprise du serveur à l'erreur de handler, et à elle
-        // seule : c'est ce qui distingue « réessayer a un sens » de « le handler a répondu non ».
+        // The spec attaches the server's retry behaviour to the handler error, and to it alone:
+        // that is what tells "retrying makes sense" apart from "the handler answered no".
         $handlerError = $this->failure(NexusOperationFailureKind::HandlerError, retryBehaviour: 'retryable');
         self::assertSame('retryable', $handlerError->retryBehaviour());
 
@@ -69,8 +69,8 @@ final class NexusOperationFailureTest extends TestCase
 
     public function testItIsNotFlattenedOntoTheGenericHandlerFailure(): void
     {
-        // Sans sa branche dans le classificateur, l'échec tomberait dans le fourre-tout et
-        // l'origine de l'appel serait perdue — c'est la panne que §3.6 existe pour empêcher.
+        // Without its branch in the classifier, the failure would fall into the catch-all and
+        // the origin of the call would be lost — the failure mode §3.6 exists to prevent.
         $failed = WorkflowFailureClassifier::classify('exec-1', $this->failure(NexusOperationFailureKind::Cancellation));
 
         self::assertNotSame(WorkflowExecutionFailed::KIND_WORKFLOW_HANDLER, $failed->kind());

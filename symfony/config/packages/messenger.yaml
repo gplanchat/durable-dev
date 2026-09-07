@@ -1,8 +1,8 @@
 parameters:
-    # Test (APP_ENV=test) : in-memory forcé via when@test. Dev/prod : DURABLE_DSN + transports ci-dessous (même DSN, purpose différent).
+    # Test (APP_ENV=test): in-memory forced through when@test. Dev/prod: DURABLE_DSN + the transports below (same DSN, different purpose).
     env(MESSENGER_DURABLE_WORKFLOW_DSN): 'in-memory://'
     env(MESSENGER_DURABLE_ACTIVITY_DSN): 'in-memory://'
-    # Défaut aligné sur symfony/.env (TEMPORAL_FRONTEND_PORT=7234 dans compose) — éviter 7233 si le port hôte diffère.
+    # Default aligned with symfony/.env (TEMPORAL_FRONTEND_PORT=7234 in compose) — avoid 7233 if the host port differs.
     env(DURABLE_DSN): 'temporal://127.0.0.1:7234?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0'
 
 framework:
@@ -25,7 +25,7 @@ when@dev:
     framework:
         messenger:
             transports:
-                # DSN peut omettre interpreter_mirror=1 : le bundle injecte durable.temporal.connection (identique à l’EventStore).
+                # The DSN may omit interpreter_mirror=1: the bundle injects durable.temporal.connection (identical to the EventStore).
                 durable_temporal_journal:
                     dsn: '%env(DURABLE_DSN)%'
                 durable_temporal_activity:
@@ -45,7 +45,7 @@ when@prod:
     framework:
         messenger:
             transports:
-                # Même remarque que dev : connexion effective via durable.temporal.connection (bundle).
+                # Same remark as dev: the effective connection goes through durable.temporal.connection (bundle).
                 durable_temporal_journal:
                     dsn: '%env(DURABLE_DSN)%'
                 durable_temporal_activity:
@@ -69,6 +69,6 @@ when@test:
                 durable_activities: 'in-memory://'
                 failed: 'in-memory://'
             routing:
-                # Comme dev/prod : les réveils timer portent DelayStamp ; sync:// les exécute tout de suite
-                # et ignore le délai — les workflows sample (Query 2s, Periodic 0.2s) ne terminent jamais.
+                # Like dev/prod: timer wake-ups carry a DelayStamp; sync:// runs them right away
+                # and ignores the delay — the sample workflows (Query 2s, Periodic 0.2s) never finish.
                 Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows

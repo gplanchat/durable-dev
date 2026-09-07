@@ -18,9 +18,9 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Lance des workflows sample : envoi Messenger seul ({@see dispatchWorkflowRun}) ou attente du résultat
- * ({@see waitForWorkflowCompletion}, {@see runAndSettle}). Par défaut le dispatch est non bloquant ;
- * l'historique dans le profiler Web provient de l'event store pour les executionId collectés sur la requête.
+ * Runs sample workflows: Messenger dispatch alone ({@see dispatchWorkflowRun}) or waiting for the result
+ * ({@see waitForWorkflowCompletion}, {@see runAndSettle}). By default the dispatch is non-blocking;
+ * the history in the Web profiler comes from the event store for the executionIds collected on the request.
  */
 final class DurableSampleWorkflowRunner
 {
@@ -42,7 +42,7 @@ final class DurableSampleWorkflowRunner
     }
 
     /**
-     * Dispatche un nouveau run de workflow via {@see WorkflowResumeDispatcher::dispatchNewWorkflowRun}.
+     * Dispatches a new workflow run through {@see WorkflowResumeDispatcher::dispatchNewWorkflowRun}.
      */
     public function dispatchWorkflowRun(string $workflowType, array $payload, ?string $executionId = null): string
     {
@@ -53,13 +53,13 @@ final class DurableSampleWorkflowRunner
     }
 
     /**
-     * Attend la complétion du workflow.
+     * Waits for the workflow to complete.
      *
-     * - Backend **Temporal natif** (multi-processus) : sonde `GetWorkflowExecutionHistory` via
-     *   {@see WorkflowClient::pollForCompletion()} — ne suppose pas de worker dans le même processus.
-     * - Backend **in-memory** : vide les transports Messenger in-process via {@see DurableMessengerDrain}.
+     * - **Native Temporal** backend (multi-process): probes `GetWorkflowExecutionHistory` through
+     *   {@see WorkflowClient::pollForCompletion()} — does not assume a worker in the same process.
+     * - **In-memory** backend: drains the in-process Messenger transports through {@see DurableMessengerDrain}.
      *
-     * @return mixed résultat du workflow
+     * @return mixed the workflow result
      */
     public function waitForWorkflowCompletion(string $executionId): mixed
     {
@@ -74,11 +74,11 @@ final class DurableSampleWorkflowRunner
             $this->receiverLocator,
             $executionId,
         )) {
-            throw new \RuntimeException('Drain Messenger incomplet (limite d\'itérations ou exécution non terminée).');
+            throw new \RuntimeException('Incomplete Messenger drain (iteration limit, or the execution did not finish).');
         }
         $result = WorkflowQueryEvaluator::lastExecutionResult($this->eventStore, $executionId);
         if (null === $result) {
-            throw new \RuntimeException('Aucun ExecutionCompleted dans le journal (échec ou drain incomplet).');
+            throw new \RuntimeException('No ExecutionCompleted in the journal (a failure, or an incomplete drain).');
         }
 
         return $result;
@@ -97,8 +97,8 @@ final class DurableSampleWorkflowRunner
     }
 
     /**
-     * Pour un workflow qui attend un signal ({@see WorkflowEnvironment::onSignal()}) : vide les transports
-     * jusqu'à la suspension sans minuteur en attente, envoie le signal, puis attend la fin.
+     * For a workflow that waits on a signal ({@see WorkflowEnvironment::onSignal()}): drains the transports
+     * until it suspends with no pending timer, sends the signal, then waits for the end.
      *
      * @param array<string, mixed> $signalPayload
      *
@@ -123,7 +123,7 @@ final class DurableSampleWorkflowRunner
         );
 
         if ('timeout' === $phase) {
-            throw new \RuntimeException('Drain incomplet avant envoi du signal (timeout ou exécution inactive).');
+            throw new \RuntimeException('Incomplete drain before the signal was sent (timeout, or the execution is inactive).');
         }
 
         if ('complete' === $phase) {
@@ -142,7 +142,7 @@ final class DurableSampleWorkflowRunner
     }
 
     /**
-     * Comme {@see runAndSettleWithAutoSignal} mais pour un update ({@see \Gplanchat\Durable\WorkflowEnvironment::onUpdate()}).
+     * Like {@see runAndSettleWithAutoSignal} but for an update ({@see \Gplanchat\Durable\WorkflowEnvironment::onUpdate()}).
      *
      * @param array<string, mixed> $updateArguments
      *
@@ -167,7 +167,7 @@ final class DurableSampleWorkflowRunner
         );
 
         if ('timeout' === $phase) {
-            throw new \RuntimeException('Drain incomplet avant envoi de l\'update (timeout ou exécution inactive).');
+            throw new \RuntimeException('Incomplete drain before the update was sent (timeout, or the execution is inactive).');
         }
 
         if ('complete' === $phase) {

@@ -25,9 +25,9 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 /**
  * Scenarios ported from temporalio/samples-php — metadata for the Symfony samples UI.
  *
- * `workflowType` est l’**alias** Temporal (1er argument de `#[AsWorkflow]`, sinon nom court de classe) :
- * c’est ce qui est envoyé au serveur Temporal et stocké dans le journal ; le {@see WorkflowRegistry}
- * accepte aussi le FQCN pour le dispatch.
+ * `workflowType` is the Temporal **alias** (first argument of `#[AsWorkflow]`, otherwise the short class name):
+ * it is what gets sent to the Temporal server and stored in the journal; the {@see WorkflowRegistry}
+ * also accepts the FQCN for dispatch.
  *
  * @phpstan-type Scenario array{
  *     id: string,
@@ -67,7 +67,7 @@ final class SampleWorkflowCatalog
             [
                 'id' => 'child',
                 'sourceFolder' => 'Child',
-                'label' => 'Child (parent → enfant)',
+                'label' => 'Child (parent → child)',
                 'workflowType' => self::workflowAlias(SamplesParentCallsEchoChildWorkflow::class),
                 'description' => 'A parent workflow calling a SamplesEchoChildWorkflow (echoUpper through an activity).',
                 'defaultPayload' => ['text' => 'child'],
@@ -75,7 +75,7 @@ final class SampleWorkflowCatalog
             [
                 'id' => 'query',
                 'sourceFolder' => 'Query',
-                'label' => 'Query (timer + salutation)',
+                'label' => 'Query (timer + greeting)',
                 'workflowType' => self::workflowAlias(SamplesQueryWorkflow::class),
                 'description' => 'A durable 2 s pause then a greeting (Temporal client-side queries are not reproduced here).',
                 'defaultPayload' => ['name' => 'World'],
@@ -83,7 +83,7 @@ final class SampleWorkflowCatalog
             [
                 'id' => 'signal',
                 'sourceFolder' => 'Signal',
-                'label' => 'Signal (approve → salutation)',
+                'label' => 'Signal (approve → greeting)',
                 'workflowType' => self::workflowAlias(SamplesSignalWorkflow::class),
                 'description' => 'Awaits the "approve" signal with a { name } payload, then composeGreeting. The UI sends the signal automatically once suspended.',
                 'defaultPayload' => [],
@@ -111,7 +111,7 @@ final class SampleWorkflowCatalog
             [
                 'id' => 'periodic',
                 'sourceFolder' => 'Periodic',
-                'label' => 'Periodic (boucle + timer)',
+                'label' => 'Periodic (loop + timer)',
                 'workflowType' => self::workflowAlias(PeriodicGreetingWorkflow::class),
                 'description' => 'Several greetings with a durable pause between iterations (no continue-as-new).',
                 'defaultPayload' => ['name' => 'World', 'iterations' => 3],
@@ -189,8 +189,8 @@ final class SampleWorkflowCatalog
                 'defaultPayload' => [],
                 'autoUpdate' => [
                     'name' => 'greet',
-                    // La réponse n'est plus fournie par l'appelant : le handler la produit à
-                    // partir de ces arguments.
+                    // The response is no longer supplied by the caller: the handler produces it
+                    // from these arguments.
                     'arguments' => ['name' => 'Temporal'],
                 ],
             ],

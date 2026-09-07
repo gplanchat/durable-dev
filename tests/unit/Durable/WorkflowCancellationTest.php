@@ -27,9 +27,9 @@ use PHPUnit\Framework\TestCase;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
- * L'annulation est livrée DANS le fiber, au point d'attente — équivalent du CanceledFailure
- * Temporal. Auparavant elle empêchait le fiber de démarrer, donc aucun workflow ne pouvait
- * compenser.
+ * Cancellation is delivered INSIDE the fiber, at the wait point — the equivalent of Temporal's
+ * CanceledFailure. Previously it prevented the fiber from starting, so no workflow could
+ * compensate.
  */
 final class WorkflowCancellationTest extends TestCase
 {
@@ -58,7 +58,7 @@ final class WorkflowCancellationTest extends TestCase
 
         try {
             $this->engine->resume('exec-1', $handler);
-            self::fail('la reprise doit se terminer sur une annulation');
+            self::fail('the resume must end on a cancellation');
         } catch (WorkflowCancelledException $e) {
             self::assertSame(ActivityCancellationReason::WORKFLOW_CANCELLED, $e->reason);
         }
@@ -66,7 +66,7 @@ final class WorkflowCancellationTest extends TestCase
         self::assertNotNull($this->firstOf('exec-1', WorkflowExecutionCancelled::class));
         self::assertFalse(ParentChildWorkflowCoordinator::isChildRunActive($this->eventStore, 'exec-1'));
 
-        // L'activité en attente est retirée avec la raison qui sert de trace de livraison.
+        // The waiting activity is withdrawn with the reason that serves as the delivery trace.
         $cancelled = $this->firstOf('exec-1', ActivityCancelled::class);
         self::assertNotNull($cancelled);
         self::assertSame(ActivityCancellationReason::WORKFLOW_CANCELLED, $cancelled->reason());
@@ -95,18 +95,18 @@ final class WorkflowCancellationTest extends TestCase
         $this->startAndSuspend('exec-2', $handler);
         $this->requestCancellation('exec-2');
 
-        // Tâche 1 : l'annulation est relevée dans le fiber, la compensation est planifiée.
+        // Task 1: the cancellation is raised in the fiber, the compensation is scheduled.
         $this->resumeExpectingSuspension('exec-2', $handler);
         $this->drainActivities('exec-2');
 
-        // Tâche 2 : rejeu — la compensation est réglée par le journal, puis l'annulation ressort.
+        // Task 2: replay — the journal settles the compensation, then the cancellation resurfaces.
         try {
             $this->engine->resume('exec-2', $handler);
-            self::fail('la compensation terminée, l’annulation doit ressortir');
+            self::fail('with the compensation finished, the cancellation must resurface');
         } catch (WorkflowCancelledException) {
         }
 
-        self::assertSame(1, $refunds, 'la compensation doit s’exécuter exactement une fois');
+        self::assertSame(1, $refunds, 'the compensation must run exactly once');
         self::assertNotNull($this->firstOf('exec-2', WorkflowExecutionCancelled::class));
     }
 
@@ -140,8 +140,8 @@ final class WorkflowCancellationTest extends TestCase
 
     public function testRaceLosersKeepTheirOwnCancellationSemantics(): void
     {
-        // Garde : une activité perdante d'un any() ne doit pas être confondue avec une
-        // annulation de workflow — même événement, raison différente.
+        // Guard: a losing activity of an any() must not be confused with a workflow
+        // cancellation — same event, different reason.
         $this->executor->register('fast', static fn(): string => 'winner');
         $runner = new \Gplanchat\Durable\InMemoryWorkflowRunner($this->eventStore, $this->transport, $this->executor);
 
@@ -163,7 +163,7 @@ final class WorkflowCancellationTest extends TestCase
     {
         try {
             $this->engine->start($executionId, $handler);
-            self::fail('le workflow devait suspendre sur son activité');
+            self::fail('the workflow was to suspend on its activity');
         } catch (WorkflowSuspendedException) {
         }
     }
@@ -172,7 +172,7 @@ final class WorkflowCancellationTest extends TestCase
     {
         try {
             $this->engine->resume($executionId, $handler);
-            self::fail('le workflow devait suspendre sur sa compensation');
+            self::fail('the workflow was to suspend on its compensation');
         } catch (WorkflowSuspendedException) {
         }
     }

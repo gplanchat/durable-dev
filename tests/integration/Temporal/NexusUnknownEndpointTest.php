@@ -26,19 +26,19 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Sonde, et non fonctionnalité : le change « temporal-nexus-support » promet que les échecs d'une
- * opération Nexus remontent au workflow en échecs typés. Un endpoint inconnu **n'en fait pas
- * partie**, et c'est ce que cette sonde établit.
+ * A probe, not a feature: the "temporal-nexus-support" change promises that the failures of a Nexus
+ * operation reach the workflow as typed failures. An unknown endpoint is **not one of them**, and
+ * that is what this probe establishes.
  *
- * Mesuré contre Temporal 1.31.2 : la commande est refusée à `RespondWorkflowTaskCompleted` avec
- * INVALID_ARGUMENT, l'historique enregistre un WORKFLOW_TASK_FAILED de cause
- * BAD_SCHEDULE_NEXUS_OPERATION_ATTRIBUTES, et la tâche est **re-servie**, son `attempt` montant à
- * chaque tour. Aucune opération Nexus n'est jamais planifiée, donc aucun échec d'opération ne peut
- * être livré : le workflow ne tombe pas, il tourne.
+ * Measured against Temporal 1.31.2: the command is refused at `RespondWorkflowTaskCompleted` with
+ * INVALID_ARGUMENT, the history records a WORKFLOW_TASK_FAILED with cause
+ * BAD_SCHEDULE_NEXUS_OPERATION_ATTRIBUTES, and the task is **re-served**, its `attempt` climbing at
+ * each turn. No Nexus operation is ever scheduled, so no operation failure can be delivered: the
+ * workflow does not fall over, it spins.
  *
- * Conséquence de conception : un objet-valeur `NexusEndpoint` n'y peut rien — le nom est bien
- * formé, c'est l'endpoint qui n'existe pas. Seule une vérification avant émission de la commande,
- * ou l'acceptation assumée de la boucle, couvre ce cas.
+ * Design consequence: a `NexusEndpoint` value object can do nothing about it — the name is well
+ * formed, it is the endpoint that does not exist. Only a check before the command is emitted, or a
+ * deliberate acceptance of the loop, covers this case.
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §1.2
  */
@@ -55,7 +55,7 @@ final class NexusUnknownEndpointTest extends TestCase
     {
         $address = getenv('DURABLE_TEMPORAL_ADDRESS');
         if (false === $address || '' === $address) {
-            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS non défini : pas de serveur Temporal.');
+            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS not set: no Temporal server.');
         }
 
         $queue = 'nexus-unknown-' . bin2hex(random_bytes(5));
@@ -75,7 +75,7 @@ final class NexusUnknownEndpointTest extends TestCase
             return;
         }
 
-        // Sans worker, l'exécution resterait ouverte à retenter sa tâche indéfiniment.
+        // Without a worker, the execution would stay open, retrying its task indefinitely.
         $req = new TerminateWorkflowExecutionRequest();
         $req->setNamespace($this->connection->namespace->name());
         $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $this->workflowId]));
@@ -84,7 +84,7 @@ final class NexusUnknownEndpointTest extends TestCase
         try {
             GrpcUnary::wait($this->client->TerminateWorkflowExecution($req, [], ['timeout' => 10_000_000]));
         } catch (\RuntimeException) {
-            // Le nettoyage ne masque pas le verdict.
+            // Cleanup does not mask the verdict.
         }
     }
 
@@ -95,32 +95,32 @@ final class NexusUnknownEndpointTest extends TestCase
 
         $error = $this->respondWithNexusCommand($first);
 
-        self::assertNotNull($error, 'Le serveur a accepté un endpoint inconnu.');
+        self::assertNotNull($error, 'The server accepted an unknown endpoint.');
         self::assertSame(self::GRPC_INVALID_ARGUMENT, $error['code']);
         self::assertStringContainsString('BadScheduleNexusOperationAttributes', $error['message']);
         self::assertStringContainsString('not found', $error['message']);
 
-        // L'historique porte l'échec, avec sa cause nommée.
+        // The history carries the failure, with its cause named.
         $failed = $this->findEvent(EventType::EVENT_TYPE_WORKFLOW_TASK_FAILED);
-        self::assertNotNull($failed, 'Aucun WORKFLOW_TASK_FAILED enregistré.');
+        self::assertNotNull($failed, 'No WORKFLOW_TASK_FAILED recorded.');
         self::assertSame(
             WorkflowTaskFailedCause::WORKFLOW_TASK_FAILED_CAUSE_BAD_SCHEDULE_NEXUS_OPERATION_ATTRIBUTES,
             $failed->getWorkflowTaskFailedEventAttributes()?->getCause(),
         );
 
-        // Et la tâche revient : c'est une boucle, pas un arrêt. Le workflow ne tombe jamais.
+        // And the task comes back: it is a loop, not a halt. The workflow never falls over.
         $retry = $this->pollOnce();
-        self::assertNotSame('', $retry->getTaskToken(), 'La tâche n’a pas été re-servie.');
+        self::assertNotSame('', $retry->getTaskToken(), 'The task was not re-served.');
         self::assertGreaterThan(
             $first->getAttempt(),
             $retry->getAttempt(),
-            'Le compteur de tentative n’a pas monté : ce ne serait pas la même tâche retentée.',
+            'The attempt counter did not climb: this would not be the same task retried.',
         );
 
-        // Aucune opération Nexus n'a été planifiée — donc aucun échec d'opération à typer.
+        // No Nexus operation was scheduled — so there is no operation failure to type.
         self::assertNull(
             $this->findEvent(EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED),
-            'Une opération Nexus a été planifiée alors que l’endpoint est inconnu.',
+            'A Nexus operation was scheduled even though the endpoint is unknown.',
         );
     }
 
@@ -153,7 +153,7 @@ final class NexusUnknownEndpointTest extends TestCase
     private function respondWithNexusCommand(PollWorkflowTaskQueueResponse $poll): ?array
     {
         $attrs = new ScheduleNexusOperationCommandAttributes();
-        // Un nom BIEN FORMÉ au regard de la regex serveur : ce qui manque est l'endpoint lui-même.
+        // A name WELL FORMED for the server regex: what is missing is the endpoint itself.
         $attrs->setEndpoint('absent-endpoint-' . bin2hex(random_bytes(4)));
         $attrs->setService('un-service');
         $attrs->setOperation('une-operation');

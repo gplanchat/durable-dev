@@ -218,9 +218,9 @@ final class TemporalExecutionHistoryTest extends TestCase
 
     public function testMessagesAreReadInRecordedOrderWhateverTheirName(): void
     {
-        // Il n'y a plus de rang par nom : les messages se lisent dans l'ordre du journal, et
-        // c'est le handler de chaque nom qui trie. Un signal `reject` intercalé ne décale donc
-        // plus les `approve` — il occupe simplement sa place.
+        // There is no rank by name any more: messages are read in journal order, and it is the
+        // handler of each name that sorts them. An interleaved `reject` signal therefore no longer
+        // shifts the `approve` ones — it simply takes its place.
         $history = TemporalExecutionHistory::fromEvents([
             self::makeStartedEvent(1),
             self::makeSignal(2, 'approve', ['approved' => true]),
@@ -243,11 +243,11 @@ final class TemporalExecutionHistoryTest extends TestCase
         self::assertSame('approve', $third['name']);
         self::assertTrue($third['payload']['second'] ?? false);
 
-        // Les positions sont croissantes : c'est ce qui permet de comparer un message au tir
-        // d'une échéance.
+        // The positions are increasing: that is what allows a message to be compared with the
+        // firing of a deadline.
         self::assertSame([2, 3, 4], [$first['position'], $second['position'], $third['position']]);
 
-        self::assertNull($history->messageAt(3), 'Il n’y a pas de quatrième message');
+        self::assertNull($history->messageAt(3), 'There is no fourth message');
     }
 
     public function testFindScheduledActivityId(): void

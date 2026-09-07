@@ -13,16 +13,16 @@ use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Transport\TransportInterface;
 
 /**
- * Vide les transports workflow / activités jusqu’à {@see ExecutionCompleted}.
- * Les réveils minuteur sont planifiés par le cœur ({@see \Gplanchat\Durable\Handler\ResumeWorkflowHandler}),
- * pas par une boucle qui spamme {@see \Gplanchat\Durable\Transport\FireWorkflowTimersMessage}.
+ * Drains the workflow / activity transports until {@see ExecutionCompleted}.
+ * Timer wake-ups are scheduled by the core ({@see \Gplanchat\Durable\Handler\ResumeWorkflowHandler}),
+ * not by a loop that spams {@see \Gplanchat\Durable\Transport\FireWorkflowTimersMessage}.
  *
- * Chaque enveloppe retournée par {@see TransportInterface::get()} doit être {@see TransportInterface::ack() ackée}
- * (comportement du worker Symfony) — sinon les transports in-memory renverraient le même message à chaque tour.
+ * Every envelope returned by {@see TransportInterface::get()} must be {@see TransportInterface::ack() acked}
+ * (Symfony worker behaviour) — otherwise the in-memory transports would hand back the same message on every turn.
  *
- * Avec le **backend Temporal natif** ({@see WorkflowTaskRunner} + {@see TemporalHistoryCursor}), les activités
- * passent par {@code durable_temporal_activity} (poll gRPC) : il faut aussi consommer {@code durable_temporal_journal}
- * et {@code durable_temporal_activity}, comme {@code messenger:consume}.
+ * With the **native Temporal backend** ({@see WorkflowTaskRunner} + {@see TemporalHistoryCursor}), activities
+ * go through {@code durable_temporal_activity} (gRPC poll): {@code durable_temporal_journal} and
+ * {@code durable_temporal_activity} must be consumed too, like {@code messenger:consume}.
  */
 final class DurableMessengerDrain
 {
@@ -32,11 +32,11 @@ final class DurableMessengerDrain
     /** @var list<string> */
     private const TEMPORAL_MIRROR_TRANSPORTS = ['durable_temporal_journal', 'durable_temporal_activity'];
 
-    /** Temps réel max (secondes) : les workflows avec {@see WorkflowEnvironment::delay} repose sur des messages Messenger différés. */
+    /** Max wall-clock time (seconds): workflows using {@see WorkflowEnvironment::delay} rely on delayed Messenger messages. */
     private const MAX_DRAIN_SECONDS = 120.0;
 
     /**
-     * @return bool true si un {@see ExecutionCompleted} est présent pour cet executionId
+     * @return bool true if an {@see ExecutionCompleted} is present for this executionId
      */
     public static function drainUntilWorkflowSettled(
         EventStoreInterface $eventStore,
@@ -180,10 +180,10 @@ final class DurableMessengerDrain
     }
 
     /**
-     * Poll Temporal (journal + activité) : pas d'enveloppe Messenger, effet de bord dans {@see TransportInterface::get()}.
+     * Polls Temporal (journal + activity): no Messenger envelope, the side effect is in {@see TransportInterface::get()}.
      *
-     * Vérifie la complétion du workflow ENTRE chaque transport pour éviter un long-poll inutile sur le transport
-     * d'activités si le journal vient de produire {@see ExecutionCompleted}.
+     * Checks workflow completion BETWEEN each transport to avoid a pointless long-poll on the activity
+     * transport if the journal has just produced {@see ExecutionCompleted}.
      */
     private static function pollTemporalMirrorTransportsIfRegistered(
         ContainerInterface $receiverLocator,
@@ -199,7 +199,7 @@ final class DurableMessengerDrain
             }
             $receiver = self::transport($receiverLocator, $transportName);
             foreach ($receiver->get() as $envelope) {
-                // Les transports Temporal actuels renvoient un itérable vide ; l'effet utile est le poll gRPC dans get().
+                // The current Temporal transports return an empty iterable; the useful effect is the gRPC poll in get().
             }
         }
     }

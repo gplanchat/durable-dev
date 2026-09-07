@@ -9,13 +9,12 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Un cas par verdict observé sur Temporal 1.31.2 (tâche 1.1), et rien d'autre.
+ * One case per verdict observed on Temporal 1.31.2 (task 1.1), and nothing else.
  *
- * Contrairement à {@see \Gplanchat\Durable\TaskQueue}, cet objet n'est **pas** plus strict que le
- * serveur. Il n'a pas à l'être : une file mal nommée est acceptée puis n'est jamais servie, en
- * silence, alors qu'un endpoint mal nommé est refusé net à la création. Il n'y a donc pas de
- * panne muette à prévenir, et inventer une règle de plus ne ferait que refuser des noms que le
- * serveur accepte.
+ * Unlike {@see \Gplanchat\Durable\TaskQueue}, this object is **not** stricter than the server. It
+ * does not have to be: a badly named queue is accepted and then never served, in silence, whereas
+ * a badly named endpoint is refused outright at creation. There is therefore no silent failure to
+ * prevent, and inventing one more rule would only refuse names the server accepts.
  */
 final class NexusEndpointTest extends TestCase
 {
@@ -37,7 +36,7 @@ final class NexusEndpointTest extends TestCase
         yield 'chiffre en tête' => ['1probe'];
         yield 'tiret en tête' => ['-probe'];
         yield 'tiret en queue' => ['probe-'];
-        // Le motif exige un premier *et* un dernier caractère : une lettre seule n'en a qu'un.
+        // The pattern requires a first *and* a last character: a lone letter only has one.
         yield 'lettre seule' => ['a'];
     }
 
@@ -68,8 +67,8 @@ final class NexusEndpointTest extends TestCase
 
     public function testAnEmptyNameIsUnsetRatherThanMalformed(): void
     {
-        // La distinction est celle du serveur : « endpoint name not set » d'un côté, le refus par
-        // le motif de l'autre. Deux fautes différentes méritent deux messages différents.
+        // The distinction is the server's: "endpoint name not set" on one side, the refusal by
+        // the pattern on the other. Two different mistakes deserve two different messages.
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/not set/');
 
