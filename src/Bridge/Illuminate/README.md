@@ -4,7 +4,7 @@ Durable execution on the database connection **Laravel already owns**.
 
 > **Read-only mirror.** This repository is a subtree-split of
 > **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
-> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> require this package on its own. Issues and pull requests are disabled here; open them **[on the
 > monorepo](https://github.com/gplanchat/durable-dev/issues)**.
 >
 > **The tests are in the monorepo, not here.** This split carries source only. What covers it is
@@ -12,7 +12,7 @@ Durable execution on the database connection **Laravel already owns**.
 >
 > **Documentation**: [durable.rocks](https://durable.rocks).
 
-Four stores behind the four storage ports, written against `Illuminate\Database\Connection` — the
+Four stores behind the four storage ports, written against `Illuminate\Database\Connection`, the
 query builder, not Eloquent. No Doctrine anywhere in the tree.
 
 | Port | This package |
@@ -26,7 +26,7 @@ query builder, not Eloquent. No Doctrine anywhere in the tree.
 
 **DUR030** sells durable execution on one database with no cluster, and that only pays if the
 journal append and the business write land in **one transaction**. Otherwise the activity writes,
-the process dies before the journal records that it did, and replay runs it a second time — the
+the process dies before the journal records that it did, and replay runs it a second time: the
 exact failure durable execution exists to prevent.
 
 A store on `DB::connection()` is inside `DB::transaction()` by construction. Handing Doctrine DBAL
@@ -41,14 +41,14 @@ timestamps over a row whose entire contract is that it is never mutated.
 
 ## What proves it
 
-Every store extends its conformance suite from **DUR041** — the same cases the in-memory reference
+Every store extends its conformance suite from **DUR041**, the same cases the in-memory reference
 and the DBAL bridge run. The journal suite joins the **replay tier**: a real workflow with an
 activity, a timer and two side effects runs against this store and against `InMemoryEventStore`,
 and what replay reads back is compared. A payload deformed by a round trip breaks replay silently,
 not at write time, and that comparison is what catches it.
 
 ```
-tests/unit/Bridge/Illuminate/  — 44 cases, four ports
+tests/unit/Bridge/Illuminate/    44 cases, four ports
 ```
 
 ## Not in this package
@@ -56,7 +56,7 @@ tests/unit/Bridge/Illuminate/  — 44 cases, four ports
 - **A queue, and jobs to put on it.** `Queue\ResumeLock` is the exclusion, not the plumbing: it
   takes a closure, so a job, an artisan command or a hand-written worker can all use it. Nothing
   here decides which.
-- **The Durable service provider.** Registering stores, binding ports, adding worker commands —
+- **The Durable service provider.** Registering stores, binding ports, adding worker commands:
   that belongs to the Laravel integration package. A set of stores does not decide how an
   application wires them.
 
@@ -67,7 +67,7 @@ tests/unit/Bridge/Illuminate/  — 44 cases, four ports
 
 `Queue\ResumeLock` is the one thing no storage choice can supply. Two workers resuming the **same**
 execution both replay it, both believe they are discovering the commands it produces, and those
-commands go out twice. The journal does not prevent it — it faithfully records whatever it is
+commands go out twice. The journal does not prevent it: it faithfully records whatever it is
 handed, twice included.
 
 ```php
@@ -76,7 +76,7 @@ $lock->around($executionId, fn() => $runner->resume($executionId));
 ```
 
 **It waits on its own rather than calling `Lock::block()`**, and that is deliberate: `block()` calls
-a **global** `now()`, which only a full Laravel application defines — `illuminate/support` publishes
+a **global** `now()`, which only a full Laravel application defines; `illuminate/support` publishes
 it under its own namespace only. A package that relies on it works inside an application and breaks
 in a standalone worker or a test, which is the worst of both: the failure only happens where nobody
 is looking.
@@ -84,7 +84,7 @@ is looking.
 **`LockProvider` is the only contract this lock needs, and it filters nothing.** An earlier version
 of this file claimed it forced the caller to pick a store that can actually lock, and that the
 `file` store did not implement it. **Both halves are wrong on Laravel 12**, and measuring said so:
-nine stores implement `LockProvider`, `file` among them — and it locks correctly across processes —
+nine stores implement `LockProvider`, `file` among them, and it locks correctly across processes,
 while `NullStore` implements it too and its `NoLock::acquire()` returns `true` unconditionally.
 
 Measured, twenty resumes of one execution across four `queue:work` processes:
@@ -97,7 +97,7 @@ Measured, twenty resumes of one execution across four `queue:work` processes:
 | `null` | **15 of 20** | **4** |
 
 `array` excludes inside one process and not between two; `null` excludes nothing at all and says so
-to nobody. Both type-check. **So the type is not the guard — the choice is yours, and it is the one
+to nobody. Both type-check. **So the type is not the guard: the choice is yours, and it is the one
 choice in this package that silently forks a journal when it is wrong.** Use `database`, `redis`,
 `memcached`, `dynamodb` or `file`.
 
@@ -108,7 +108,7 @@ composer require gplanchat/durable gplanchat/durable-bridge-illuminate
 php artisan migrate
 ```
 
-The four tables ship as a migration, loaded straight from the package — `migrate` is enough.
+The four tables ship as a migration, loaded straight from the package, so `migrate` is enough.
 Publishing is for when you want to edit them, and from that point they are yours:
 
 ```bash
@@ -116,14 +116,14 @@ php artisan vendor:publish --tag=durable-migrations
 ```
 
 **Keep the published file's name.** Laravel keys migrations by basename and lets
-`database/migrations` win the tie — that shadowing is exactly what makes your copy the one that
+`database/migrations` win the tie, and that shadowing is exactly what makes your copy the one that
 runs. Rename it and the two become two migrations, both run, and the second fails on
 `table "durable_events" already exists` with the database half migrated.
 
 `Schema\DurableSchema` still creates the tables on demand. That is what a test and a worker booting
 on an empty database use; an application uses the migration. **Two ways to create the same four
-tables is two chances to drift**, so `MigrationMatchesSchemaTest` renders the DDL of both — against
-MySQL's grammar, which carries lengths and indexes where SQLite discards them — and compares them
+tables is two chances to drift**, so `MigrationMatchesSchemaTest` renders the DDL of both (against
+MySQL's grammar, which carries lengths and indexes where SQLite discards them) and compares them
 statement for statement.
 
 MIT. See [`LICENSE`](LICENSE).

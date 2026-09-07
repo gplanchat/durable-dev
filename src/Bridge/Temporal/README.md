@@ -4,7 +4,7 @@
 
 > **Read-only mirror.** This repository is a subtree-split of
 > **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
-> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> require this package on its own. Issues and pull requests are disabled here; open them **[on the
 > monorepo](https://github.com/gplanchat/durable-dev/issues)**.
 >
 > **The tests are in the monorepo, not here.** This split carries source only. What covers it is
@@ -58,7 +58,7 @@ Or `temporal://…` without `inner` in the URL and **`options: { purpose: applic
 
 1. In the monorepo the code lives under `src/Bridge/Temporal`; in a split repo: `composer require gplanchat/durable-bridge-temporal`.
 2. Register `Gplanchat\Bridge\Temporal\TemporalBridgeBundle` in the kernel.
-3. `framework.messenger.transports.<name>: 'temporal://…'` (without `inner`, journal DSN — e.g. `journal_task_queue=durable-journal`).
+3. `framework.messenger.transports.<name>: 'temporal://…'` (without `inner`, journal DSN, e.g. `journal_task_queue=durable-journal`).
 4. `messenger:consume <name>` (standard Symfony worker; poll and journal task handling are inside `TemporalJournalTransport::get()`).
 5. Wire `EventStoreInterface` to `TemporalJournalEventStore` where appropriate (explicit DI).
 
@@ -68,8 +68,8 @@ Same idea as `messenger:consume`: run the Messenger worker under FrankenPHP work
 
 ## License
 
-**MIT** — see [`LICENSE`](LICENSE) in this directory and [WA004](https://github.com/gplanchat/durable-dev/blob/main/documentation/wa/WA004-mit-license-distribution.md).
+**MIT**, see [`LICENSE`](LICENSE) in this directory and [WA004](https://github.com/gplanchat/durable-dev/blob/main/documentation/wa/WA004-mit-license-distribution.md).
 
 ## Further reading
 
-- **DUR019** — Temporal gRPC bridge and journal: [`documentation/adr/DUR019-temporal-grpc-bridge-and-journal.md`](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR019-temporal-grpc-bridge-and-journal.md)
+- **DUR019**, Temporal gRPC bridge and journal: [`documentation/adr/DUR019-temporal-grpc-bridge-and-journal.md`](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR019-temporal-grpc-bridge-and-journal.md)

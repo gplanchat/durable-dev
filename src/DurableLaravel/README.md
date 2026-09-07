@@ -5,7 +5,7 @@ and the workflow code is the one that already runs on Symfony.
 
 > **Read-only mirror.** This repository is a subtree-split of
 > **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
-> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> require this package on its own. Issues and pull requests are disabled here; open them **[on the
 > monorepo](https://github.com/gplanchat/durable-dev/issues)**.
 >
 > **The tests are in the monorepo, not here.** This split carries source only. What covers it is
@@ -23,7 +23,7 @@ Package auto-discovery registers the provider. `migrate` creates the four tables
 
 ## What it is not
 
-**A durable engine for Laravel.** That square is occupied — `durable-workflow/workflow` does
+**A durable engine for Laravel.** That square is occupied: `durable-workflow/workflow` does
 `yield`-as-checkpoint on Laravel queues, has its own storage, needs no server, and is good at it. If
 that is what you want, take it.
 
@@ -53,7 +53,7 @@ attribute declares and by its FQCN.
 
 The list is also the cheap answer. Measured on a thousand classes: naming them costs 0,14 ms and
 does not grow with the application, while a reflection scan costs 15 ms **and loads all thousand
-into every process** to find five. There is no `durable:cache` for the same reason — a cached
+into every process** to find five. There is no `durable:cache` for the same reason: a cached
 manifest beats the list by 0,11 ms, and `config:cache` already caches the file.
 
 A resume for a type nobody declared fails naming the type, the config key, and what *is* declared.
@@ -76,8 +76,8 @@ one execution:
 | store | overlapping critical sections |
 |---|---|
 | `database`, `file` | 0 of 20 |
-| `array` | 15 of 20 — excludes inside one process only |
-| `null` | 15 of 20 — excludes nothing |
+| `array` | 15 of 20, excludes inside one process only |
+| `null` | 15 of 20, excludes nothing |
 
 All four implement `LockProvider`, so **the type system does not protect you here**. Two workers
 replaying one execution both believe they are discovering the commands it produces, and those
@@ -85,18 +85,18 @@ commands go out twice.
 
 `null` is therefore refused **at boot**: no deployment needs a lock that grants everything. `array`
 is not, because it is Laravel's own default cache in the testing environment and excluding inside
-one process is exactly what a test wants — it is the worker command's business to refuse it, since
+one process is exactly what a test wants; it is the worker command's business to refuse it, since
 that is where the plurality of processes lives.
 
 ## Not in this package
 
 - **A Filament dashboard.** `gplanchat/durable-filament` will require this package, and this package
   will never require, suggest or detect Filament. A Laravel application without Filament hears
-  nothing about it — the same one-directional shape as `durable-plugin` against `durable-bundle`.
+  nothing about it, the same one-directional shape as `durable-plugin` against `durable-bundle`.
 The `temporal` backend used to be on this list, and it no longer is: `backend => 'temporal'` binds
 the journal and the catalogue to a cluster, and `durable:nexus-worker` serves the Nexus operations
 `durable.nexus.handlers` declares. `gplanchat/durable-bridge-temporal` stays **suggested and not
-required** — it pulls in four Symfony components a Laravel application never loads, and an
+required**: it pulls in four Symfony components a Laravel application never loads, and an
 application on the `illuminate` backend has no use for them.
 
 ⚠ **The two worker commands are registered by the `temporal` backend only.** On `illuminate` or

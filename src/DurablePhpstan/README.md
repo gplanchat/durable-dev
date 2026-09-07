@@ -5,7 +5,7 @@ appels de `ActivityStub`, `ChildWorkflowStub` et `NexusStub` depuis leur contrat
 
 > **Read-only mirror.** This repository is a subtree-split of
 > **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
-> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> require this package on its own. Issues and pull requests are disabled here; open them **[on the
 > monorepo](https://github.com/gplanchat/durable-dev/issues)**.
 >
 > **The tests are in the monorepo, not here.** This split carries source only. What covers it is
@@ -13,8 +13,8 @@ appels de `ActivityStub`, `ChildWorkflowStub` et `NexusStub` depuis leur contrat
 >
 > **Documentation**: [durable.rocks](https://durable.rocks).
 
-Pour `NexusStub`, elle suit en plus l'**héritage** : un contrat Nexus se sépare en deux interfaces —
-celle que le gestionnaire implémente et celle qui l'étend pour l'appelant —, et le stub appelle les
+Pour `NexusStub`, elle suit en plus l'**héritage** : un contrat Nexus se sépare en deux interfaces,
+celle que le gestionnaire implémente et celle qui l'étend pour l'appelant, et le stub appelle les
 deux.
 
 ```bash
@@ -32,15 +32,15 @@ includes:
 ## Le problème
 
 Les stubs résolvent leurs appels par `__call()`. Sans extension, PHPStan ne voit que des objets
-sans méthode et signale **tous** les appels de stub — les corrects comme les fautifs :
+sans méthode et signale **tous** les appels de stub, les corrects comme les fautifs :
 
 ```php
-$this->orders->charge($orderId, 100);   // sans extension : « undefined method » — faux
-$this->orders->chrage($orderId, 100);   // sans extension : « undefined method » — vrai
+$this->orders->charge($orderId, 100);   // sans extension : « undefined method », faux
+$this->orders->chrage($orderId, 100);   // sans extension : « undefined method », vrai
 ```
 
 Le défaut n'est donc pas le silence, c'est le **bruit**. Quatre erreurs dont deux fausses se
-mettent en ligne de base ou s'ignorent d'un bloc, et les deux vraies partent avec — ce qui revient
+mettent en ligne de base ou s'ignorent d'un bloc, et les deux vraies partent avec, ce qui revient
 au même que ne rien vérifier, en plus coûteux.
 
 Depuis les décisions **DUR038** et **DUR039**, le stub typé est la *seule* façon de planifier une
@@ -52,11 +52,11 @@ Sur la même fixture, mesuré :
 
 | | sans extension | avec |
 |---|---|---|
-| `charge()` — appel correct | ✗ signalé à tort | ✓ |
-| `run()` — enfant, appel correct | ✗ signalé à tort | ✓ |
-| `chrage()` — faute de frappe | ✗ | ✗ |
-| `helper()` — sans `#[ActivityMethod]` | ✗ | ✗ |
-| `charge($id)` — un argument sur deux | *invisible* | ✗ **arité vérifiée** |
+| `charge()`, appel correct | ✗ signalé à tort | ✓ |
+| `run()`, enfant, appel correct | ✗ signalé à tort | ✓ |
+| `chrage()`, faute de frappe | ✗ | ✗ |
+| `helper()`, sans `#[ActivityMethod]` | ✗ | ✗ |
+| `charge($id)`, un argument sur deux | *invisible* | ✗ **arité vérifiée** |
 
 La dernière ligne est le gain que le bruit masquait : une fois la méthode connue, PHPStan compare
 les arguments à ce que le contrat déclare.
@@ -65,7 +65,7 @@ les arguments à ce que le contrat déclare.
 
 Le stub porte son contrat en paramètre générique, et PHPStan l'infère depuis
 `WorkflowEnvironment::activityStub()`. Encore faut-il qu'il puisse le suivre jusqu'au point
-d'appel — ce qui est le cas dès que la propriété est `readonly` et affectée une seule fois, au
+d'appel, ce qui est le cas dès que la propriété est `readonly` et affectée une seule fois, au
 constructeur :
 
 ```php
@@ -91,8 +91,8 @@ désactivée.
 
 ## Ce qu'elle ne fait pas
 
-Une méthode absente du contrat, ou présente mais sans `#[ActivityMethod]` — respectivement
-`#[WorkflowMethod]` pour un enfant — reste inconnue. C'est voulu : le stub la refuse déjà à
+Une méthode absente du contrat, ou présente mais sans `#[ActivityMethod]` (respectivement
+`#[WorkflowMethod]` pour un enfant) reste inconnue. C'est voulu : le stub la refuse déjà à
 l'exécution avec un `BadMethodCallException`, et l'analyse le dit désormais avant.
 
 ## Licence

@@ -5,7 +5,7 @@
 
 > **Read-only mirror.** This repository is a subtree-split of
 > **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
-> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> require this package on its own. Issues and pull requests are disabled here; open them **[on the
 > monorepo](https://github.com/gplanchat/durable-dev/issues)**.
 >
 > **The tests are in the monorepo, not here.** This split carries source only. What covers it is
@@ -19,7 +19,7 @@ process, ships the workers as `bin/magento` commands, and adds a read-only admin
 
 ## Release state
 
-`v0.1.0-alpha8` is the first tagged release of this package, and it is the whole suite's version —
+`v0.1.0-alpha8` is the first tagged release of this package, and it is the whole suite's version,
 the monorepo tags once and every satellite receives the same tag.
 
 ⚠ **It is an alpha, and Composer's default stability will refuse it.** A project on
@@ -30,7 +30,7 @@ the monorepo tags once and every satellite receives the same tag.
 
 - PHP 8.2+
 - Magento 2.4.x or Mage-OS
-- `gplanchat/durable` — pulled in as a dependency
+- `gplanchat/durable`, pulled in as a dependency
 - `gplanchat/durable-bridge-temporal` for anything that must outlive a process
 
 ## Two backends, and Composer enforces it
@@ -48,7 +48,7 @@ Which backend you get is decided by a DSN in `app/etc/env.php`, not by a setting
 ],
 ```
 
-Without it the journal lives in the process that writes it, and dies with it — fine for a console
+Without it the journal lives in the process that writes it, and dies with it, which is fine for a console
 command, ruinous for anything served by PHP-FPM.
 
 ## Installation
@@ -62,7 +62,7 @@ bin/magento setup:upgrade
 ## Declaring what runs
 
 Magento's container has no equivalent of Symfony's tag autoconfiguration, so declaration is
-explicit — two arrays in your own module's `di.xml`:
+explicit: two arrays in your own module's `di.xml`:
 
 ```xml
 <type name="Gplanchat\DurableModule\Runtime\RuntimeFactory">
@@ -81,7 +81,7 @@ The *contract* is not declared: the factory reads each handler's interfaces and 
 `#[AsActivityMethod]`. One declaration fewer to get wrong, and the activity names stay the
 attributes'.
 
-A workflow class written for the Symfony bundle runs here unmodified — everything below the ports is
+A workflow class written for the Symfony bundle runs here unmodified: everything below the ports is
 the same component.
 
 ## Workers are commands, not queue consumers
@@ -109,12 +109,12 @@ $this->runtimeFactory->workflowClient()->startAsync(
 
 Starting it inline would kill it with the request, which is the very failure this integration exists
 to remove. And an observer that throws refuses a sale that already happened: a workflow that fails
-to start is an operational incident, not a reason to reject the customer — rejecting them would not
+to start is an operational incident, not a reason to reject the customer; rejecting them would not
 give the money back either.
 
 ## The admin screen
 
-A standard Magento grid — paging, bookmarks, column controls, export, and a multi-select status
+A standard Magento grid: paging, bookmarks, column controls, export, and a multi-select status
 filter whose options come from the status enum itself. Above it, the state of the backend and the
 outcome counters; selecting a run opens its detail.
 
@@ -127,9 +127,9 @@ about a run and another cannot, about the same run, recorded by the same backend
 1. **The state of the backend.** Three states, and an empty list means something different under
    each: no readable backend is configured; a backend is configured and cannot be reached, named and
    dated so an operator knows what to restart; or a backend answers and its journal does not outlive
-   the request that renders the page — where an empty list is the correct answer, not a failure.
+   the request that renders the page, where an empty list is the correct answer, not a failure.
 2. **The runs**, filterable by outcome and paged.
-3. **Counters per outcome**, over the set the list is paging through — and labelled as covering that
+3. **Counters per outcome**, over the set the list is paging through, and labelled as covering that
    set, never as a total over the application's history.
 4. **A selected run's recorded history**: one line per *action*, placed in time, with an interval
    spent waiting to be picked up told apart from one spent working; each event unfolds onto what the
@@ -137,12 +137,12 @@ about a run and another cannot, about the same run, recorded by the same backend
 
 Grouping into actions, measuring, telling a queue apart from work and wording a duration are decided
 **once**, in `gplanchat/durable` beside the observation model. What each host decides is how to draw
-it — scaling seconds to a column width is the only thing a surface owns, because a surface that
+it: scaling seconds to a column width is the only thing a surface owns, because a surface that
 renders no markup has no column.
 
 The chrome is Magento's, the panels are Durable's. The same run opened on the Sylius dashboard is
 grouped into the same actions, labelled with the same strings, and its waits are worded the same way
-— an operator moving between two applications of the same house has nothing to translate.
+and an operator moving between two applications of the same house has nothing to translate.
 
 ⚠ **The grid reads a 200-run window and pages inside it.** The grid pages by offset, the cluster by
 continuation cursor, and the two do not translate without state. Beyond the window the grid tells
@@ -156,7 +156,7 @@ Two processes, and the failure of forgetting one is not symmetric.
 | Missing | What you see |
 |---|---|
 | `--role=journal` | Nothing advances at all. Executions start, their history fills, and no one answers their workflow tasks. |
-| `--role=activity` | Worse, because it looks like it works. An execution advances **up to its first activity** and stops there — the order is charged, the stock is not, and you learn it from the customer. |
+| `--role=activity` | Worse, because it looks like it works. An execution advances **up to its first activity** and stops there: the order is charged, the stock is not, and you learn it from the customer. |
 
 That second line is the failure this integration exists to remove, put back by hand. Supervise both,
 or supervise neither.
@@ -177,7 +177,7 @@ A run whose activity "failed after 3 attempts" in seconds is the sign of a worke
 there, not of code that is wrong three times over.
 
 **Magento's own queue settings are not part of this.** `retry_inprogress_after`, the
-`messagequeue_*` cron jobs, `queue_lock` — none of them carries anything of Durable's, because
+`messagequeue_*` cron jobs, `queue_lock`: none of them carries anything of Durable's, because
 nothing of Durable's rides `MessageQueue`. Tune them for your own consumers; they cannot break a
 workflow here.
 
@@ -192,7 +192,7 @@ cluster.
 resume is a workflow task; a topic here would be a second queue for an operator to supervise, for
 nothing. Magento has no native journal of its own and will not get one.
 
-**There is no SQL journal on `ResourceConnection`**, and none is planned — see the two backends
+**There is no SQL journal on `ResourceConnection`**, and none is planned; see the two backends
 above.
 
 ## License
