@@ -28,8 +28,9 @@ final class DurableBundleTest extends KernelTestCase
         self::$kernel = null;
         self::$booted = false;
         /*
-         * Le kernel Symfony enregistre un handler d'exceptions ; PHPUnit 11 signale un test « risky »
-         * si la pile ne revient pas à l'état capturé en début de test. On retire le handler ajouté.
+         * The Symfony kernel registers an exception handler; PHPUnit 11 reports a "risky" test if
+         * the stack does not come back to the state captured at the start of the test. We remove
+         * the handler that was added.
          */
         restore_exception_handler();
     }
