@@ -70,7 +70,7 @@ Un gestionnaire implémente le contrat — ou la part de celui-ci à laquelle il
 ```php
 use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
 
-#[AsNexusServiceHandler(contract: BillingServed::class)]
+#[AsNexusServiceHandler(contract: BillingContract::class)]
 final class Billing implements BillingServed
 {
     public function verify(string $ordre): array
@@ -101,7 +101,7 @@ interface BillingContract extends BillingServed // + ce qu'un workflow remplit
     public function charge(string $ordre, int $montant): array;
 }
 
-#[AsWorkflow]
+#[AsWorkflow('Charge')]
 #[FulfilsNexusOperation(BillingContract::class, 'charge')]
 final class Charge { /* … */ }
 ```
