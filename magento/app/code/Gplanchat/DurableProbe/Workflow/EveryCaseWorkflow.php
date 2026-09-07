@@ -12,33 +12,33 @@ use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\DurableProbe\Workflow\Activity\EveryCaseActivities;
 
 /**
- * Une exécution qui contient **tous les cas que l'écran d'observation doit savoir montrer**.
+ * An execution that contains **every case the observation screen has to know how to show**.
  *
- * Le banc n'avait qu'un chemin heureux : trois activités qui réussissent, aucun minuteur, aucun
- * enfant, aucun échec. Un écran qui n'a jamais vu d'échec n'a jamais prouvé qu'il savait en
- * montrer un, et une frise validée sur une seule forme d'action ne prouve rien de la suivante.
- * Celui-ci est le véhicule de recette : ce qu'il produit est ce que la page doit rendre lisible.
+ * The bench only had a happy path: three activities that succeed, no timer, no child, no failure.
+ * A screen that has never seen a failure has never proved it knew how to show one, and a timeline
+ * validated on a single shape of action proves nothing about the next. This one is the acceptance
+ * vehicle: what it produces is what the page has to make legible.
  *
- * Ce qu'il contient, et pourquoi :
- * - une activité qui **réussit** — la ligne de référence ;
- * - une activité **instable**, deux échecs puis une réussite : une action qui porte du rouge *et*
- *   se termine bien, ce qui prouve que la couleur marque l'événement et non l'action entière ;
- *   ⚠ **elle ne se reprend que sur le backend en mémoire** — sur Temporal les trois tentatives
- *   sont consommées en deux secondes sans que le code de l'activité soit rappelé. C'est cette
- *   sonde qui l'a trouvé, et le fait est rapporté dans l'issue #218 : ici il n'est pas contourné ;
- * - un **minuteur** de cinq secondes, qui doit annoncer sa durée sans qu'on ait à soustraire deux
- *   horodatages ;
- * - un **workflow enfant** qui réussit et un autre qui échoue, sur des lignes séparées ;
- * - une activité **condamnée**, dont l'échec est définitif et rattrapé ici : l'exécution se
- *   termine, et l'échec reste visible dans son journal.
+ * What it contains, and why:
+ * - an activity that **succeeds** — the reference row;
+ * - an **unstable** activity, two failures then a success: an action that carries red *and* ends
+ *   well, which proves the colour marks the event and not the whole action;
+ *   ⚠ **it only retries on the in-memory backend** — on Temporal the three attempts are consumed
+ *   in two seconds without the activity's code being called back. It is this probe that found it,
+ *   and the fact is reported in issue #218: here it is not worked around;
+ * - a five-second **timer**, which has to announce its duration without anyone having to subtract
+ *   two timestamps;
+ * - a **child workflow** that succeeds and another that fails, on separate rows;
+ * - a **doomed** activity, whose failure is final and is caught here: the execution finishes, and
+ *   the failure stays visible in its journal.
  *
- * ⚠ **Deux cas manquent, et c'est délibéré.** Un *signal* demande un émetteur, et le runtime de
- * l'hôte n'expose pas d'envoi — la sonde tourne sans surveillance, donc rien ne le lui enverrait.
- * Une opération *Nexus* demande **deux applications en face** : elle est dans
- * {@see OrderNexusWorkflow}, qui appelle les maquettes Sylius et Symfony, et elle y reste. La
- * mettre ici rendrait cette sonde indémarrable seule — elle attendrait deux workers qui ne tournent
- * que sous `demo/run.sh`. Un journal contenant les trois événements Nexus existe donc, il porte
- * juste un autre nom d'exécution.
+ * ⚠ **Two cases are missing, and that is deliberate.** A *signal* needs a sender, and the host's
+ * runtime exposes no send — the probe runs unattended, so nothing would send it one. A *Nexus*
+ * operation needs **two applications facing each other**: it is in {@see OrderNexusWorkflow},
+ * which calls the Sylius and Symfony mockups, and it stays there. Putting it here would make this
+ * probe impossible to start on its own — it would wait for two workers that only run under
+ * `demo/run.sh`. So a journal containing the three Nexus events does exist, it just carries
+ * another execution name.
  */
 final class EveryCaseWorkflow
 {
@@ -53,13 +53,13 @@ final class EveryCaseWorkflow
     public function run(string $caseId = 'CASE-1'): array
     {
         $steady = $this->environment->activityStub(EveryCaseActivities::class);
-        // Trois tentatives, une seconde entre chacune : assez pour que l'attente entre deux
-        // tentatives soit un intervalle visible, assez court pour ne pas faire attendre l'exploitant.
+        // Three attempts, one second between each: enough for the wait between two attempts to
+        // be a visible interval, short enough not to keep the operator waiting.
         $patient = $this->environment->activityStub(
             EveryCaseActivities::class,
             ActivityOptions::of(retryLimit: RetryLimit::ofAttempts(3), initialInterval: 1.0, backoffCoefficient: 1.0),
         );
-        // Une seule tentative : l'échec est définitif, et il l'est tout de suite.
+        // A single attempt: the failure is final, and it is final right away.
         $hopeless = $this->environment->activityStub(
             EveryCaseActivities::class,
             ActivityOptions::of(retryLimit: RetryLimit::once()),
@@ -71,20 +71,20 @@ final class EveryCaseWorkflow
         $this->environment->sleep(Duration::seconds(5), 'cooling down before retry');
         $trace['timer'] = 'slept 5 s';
 
-        // Rattrapée elle aussi, et pas par principe : sur le backend en mémoire elle se reprend et
-        // rend « recovered after 3 attempts », sur Temporal elle échoue. La laisser propager ferait
-        // mourir l'exécution ici et priverait la page des quatre cas suivants — or c'est
-        // précisément la page qu'on vient juger. La différence entre les deux backends est un fait
-        // que cette sonde a trouvé, pas une raison de ne montrer qu'un backend.
+        // Caught as well, and not on principle: on the in-memory backend it retries and returns
+        // "recovered after 3 attempts", on Temporal it fails. Letting it propagate would make the
+        // execution die here and would deprive the page of the four following cases — and the page
+        // is precisely what we have come to judge. The difference between the two backends is a
+        // fact this probe found, not a reason to show only one backend.
         $trace['flaky'] = $this->caught(fn(): mixed => $this->environment->await($patient->flaky($caseId)));
 
         $trace['child'] = $this->environment->await(
             $this->environment->childWorkflowStub(EveryCaseChildWorkflow::class)->run($caseId . '-ok'),
         );
 
-        // Rattrapés, tous les deux : ce que la page doit montrer est un échec **dans** une
-        // exécution qui se termine. Une exécution qui meurt à la première erreur n'aurait qu'une
-        // seule ligne rouge, la dernière, et n'apprendrait rien de la mise en page du reste.
+        // Caught, both of them: what the page has to show is a failure **inside** an execution
+        // that finishes. An execution that dies on the first error would have only one red row,
+        // the last one, and would teach nothing about the layout of the rest.
         $trace['failing child'] = $this->caught(fn(): mixed => $this->environment->await(
             $this->environment->childWorkflowStub(EveryCaseChildWorkflow::class)->run($caseId . '-ko', true),
         ));
