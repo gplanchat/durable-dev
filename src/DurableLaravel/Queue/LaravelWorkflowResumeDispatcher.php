@@ -10,15 +10,15 @@ use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 
 /**
- * Le port de reprise, sur la file de Laravel.
+ * The resume port, on Laravel's queue.
  *
- * Même forme que {@see \Gplanchat\Durable\Bundle\Messenger\MessengerWorkflowResumeDispatcher} : une
- * reprise est un message, un nouveau run enregistre d'abord ses métadonnées puis en devient une.
+ * The same shape as {@see \Gplanchat\Durable\Bundle\Messenger\MessengerWorkflowResumeDispatcher}: a
+ * resume is a message, a new run first records its metadata then becomes one.
  *
- * **Ce que le pendant Symfony obtient d'un `DispatchAfterCurrentBusStamp`, celui-ci l'obtient de la
- * file elle-même** — à une condition, et c'est pourquoi le provider refuse la connexion `sync` au
- * démarrage : sur `sync`, `push()` exécute le job sur place, et une reprise qui en dispatche une
- * autre récurserait dans le même processus jusqu'à la pile.
+ * **What the Symfony counterpart gets from a `DispatchAfterCurrentBusStamp`, this one gets from the
+ * queue itself** — on one condition, and that is why the provider refuses the `sync` connection at
+ * boot: on `sync`, `push()` runs the job on the spot, and a resume that dispatches another one
+ * would recurse in the same process until the stack ends.
  */
 final class LaravelWorkflowResumeDispatcher implements WorkflowResumeDispatcher
 {
@@ -37,7 +37,7 @@ final class LaravelWorkflowResumeDispatcher implements WorkflowResumeDispatcher
     /** @param array<string, mixed> $payload */
     public function dispatchNewWorkflowRun(string $executionId, string $workflowType, array $payload): void
     {
-        // Les métadonnées d'abord : une reprise qui arrive avant elles ne saurait pas quoi rejouer.
+        // The metadata first: a resume arriving before it would not know what to replay.
         $this->metadataStore->save($executionId, $workflowType, $payload);
         $this->push(new ResumeWorkflowMessage($executionId));
     }
