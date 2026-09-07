@@ -15,7 +15,7 @@ There are two entry points depending on whether you write framework-agnostic tes
 
 ---
 
-## Unit and functional tests — `DurableTestCase`
+## Unit and functional tests with `DurableTestCase`
 
 `DurableTestCase` is an abstract PHPUnit `TestCase` that wires an **in-memory backend** for you.
 Subclass it, call `createWorkflowTestEnvironment()`, run your workflow, and use the built-in assertions.
@@ -63,7 +63,7 @@ final class GreetWorkflowTest extends DurableTestCase
 }
 ```
 
-The workflow and the contract under test — the same two files you would write for production:
+The workflow and the contract under test, the same two files you would write for production:
 
 ```php
 interface GreetingActivities
@@ -96,7 +96,7 @@ final class GreetingWorkflow
 > `run()` also accepts a closure receiving the environment, and a few tests below use it for a
 > three-line workflow that is not worth a class. That form is the **harness's** shape, not a
 > workflow's: since the environment moved to the constructor, no real workflow has that
-> signature. Prefer `runWorkflowClass()` — what you test is then what you ship.
+> signature. Prefer `runWorkflowClass()`, so that what you test is what you ship.
 
 ### Available assertions in `DurableTestCase`
 
@@ -110,7 +110,7 @@ final class GreetingWorkflow
 
 ---
 
-## Controlling activity behaviour — `ActivitySpy`
+## Controlling activity behaviour with `ActivitySpy`
 
 `ActivitySpy` is a **callable test double** for activities. You can preset its return value, make it throw, or give it a sequence of results to simulate retries.
 
@@ -154,7 +154,7 @@ $spy->assertNeverCalled();
 
 ---
 
-## Low-level environment — `WorkflowTestEnvironment`
+## Low-level environment: `WorkflowTestEnvironment`
 
 `WorkflowTestEnvironment` is the backing object that `DurableTestCase` uses. You can use it directly when you do not want to subclass `DurableTestCase`, for instance in test-support helper classes.
 
@@ -179,14 +179,14 @@ assert($result === 'HELLO');
 
 `WorkflowTestEnvironment` exposes:
 
-- `run(callable $workflow, string $executionId): mixed` — run the workflow closure.
-- `getEventStore(): EventStoreInterface` — read the in-memory event store.
-- `getRunner(): InMemoryWorkflowRunner` — access the underlying runner directly.
-- `getActivityTransport()` — inspect the in-memory activity queue.
+- `run(callable $workflow, string $executionId): mixed` runs the workflow closure.
+- `getEventStore(): EventStoreInterface` reads the in-memory event store.
+- `getRunner(): InMemoryWorkflowRunner` reaches the underlying runner directly.
+- `getActivityTransport()` inspects the in-memory activity queue.
 
 ---
 
-## Symfony integration tests — `DurableBundleTestTrait`
+## Symfony integration tests with `DurableBundleTestTrait`
 
 For tests that boot your Symfony application kernel, use `DurableBundleTestTrait` in any class that extends `KernelTestCase`. The trait assumes that your **Messenger transports** in the `test` environment are configured as **in-memory** (see [Getting started](../getting-started/)).
 
@@ -346,7 +346,7 @@ $result = $env->run(function (WorkflowEnvironment $wf): string {
 ```
 
 The clock only moves when **nothing else can progress**. Skipping earlier would make the timer win
-every `any(activity, timer)` race that an activity was about to win — so a race behaves the same
+every `any(activity, timer)` race that an activity was about to win, so a race behaves the same
 here as it does in production.
 
 Retry backoff is a different matter: it uses real time, because a retry is queued on the transport

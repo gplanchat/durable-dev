@@ -16,7 +16,7 @@ ou des tests d'intégration du bundle Symfony :
 
 ---
 
-## Tests unitaires et fonctionnels — `DurableTestCase`
+## Tests unitaires et fonctionnels avec `DurableTestCase`
 
 `DurableTestCase` est un `TestCase` PHPUnit abstrait qui câble pour vous un **backend en mémoire**.
 Héritez-en, appelez `createWorkflowTestEnvironment()`, faites tourner votre workflow, et servez-vous
@@ -65,7 +65,7 @@ final class GreetWorkflowTest extends DurableTestCase
 }
 ```
 
-Le workflow et le contrat sous test — les deux mêmes fichiers que vous écririez pour la production :
+Le workflow et le contrat sous test, les deux mêmes fichiers que vous écririez pour la production :
 
 ```php
 interface GreetingActivities
@@ -98,7 +98,7 @@ final class GreetingWorkflow
 > `run()` accepte aussi une fermeture qui reçoit l'environnement, et quelques tests plus bas s'en
 > servent pour un workflow de trois lignes qui ne vaut pas une classe. Cette forme est celle du
 > **harnais**, pas celle d'un workflow : depuis que l'environnement est passé au constructeur,
-> aucun vrai workflow n'a cette signature. Préférez `runWorkflowClass()` — ce que vous testez est
+> aucun vrai workflow n'a cette signature. Préférez `runWorkflowClass()`, ce que vous testez est
 > alors ce que vous livrez.
 
 ### Les assertions de `DurableTestCase`
@@ -113,7 +113,7 @@ final class GreetingWorkflow
 
 ---
 
-## Piloter le comportement d'une activité — `ActivitySpy`
+## Piloter le comportement d'une activité avec `ActivitySpy`
 
 `ActivitySpy` est un **doublure de test appelable** pour les activités. Vous pouvez lui fixer une
 valeur de retour, la faire lever, ou lui donner une séquence de résultats pour simuler des réessais.
@@ -158,7 +158,7 @@ $spy->assertNeverCalled();
 
 ---
 
-## L'environnement de bas niveau — `WorkflowTestEnvironment`
+## L'environnement de bas niveau : `WorkflowTestEnvironment`
 
 `WorkflowTestEnvironment` est l'objet sur lequel `DurableTestCase` s'appuie. Vous pouvez l'employer
 directement quand vous ne voulez pas hériter de `DurableTestCase`, par exemple dans des classes
@@ -185,14 +185,14 @@ assert($result === 'HELLO');
 
 `WorkflowTestEnvironment` expose :
 
-- `run(callable $workflow, string $executionId): mixed` — faire tourner la fermeture du workflow ;
-- `getEventStore(): EventStoreInterface` — lire le journal en mémoire ;
-- `getRunner(): InMemoryWorkflowRunner` — accéder directement au moteur sous-jacent ;
-- `getActivityTransport()` — inspecter la file d'activités en mémoire.
+- `run(callable $workflow, string $executionId): mixed` fait tourner la fermeture du workflow ;
+- `getEventStore(): EventStoreInterface` lit le journal en mémoire ;
+- `getRunner(): InMemoryWorkflowRunner` donne accès au moteur sous-jacent ;
+- `getActivityTransport()` inspecte la file d'activités en mémoire.
 
 ---
 
-## Tests d'intégration Symfony — `DurableBundleTestTrait`
+## Tests d'intégration Symfony avec `DurableBundleTestTrait`
 
 Pour les tests qui démarrent le noyau de votre application Symfony, employez `DurableBundleTestTrait`
 dans n'importe quelle classe héritant de `KernelTestCase`. Le trait suppose que vos **transports
@@ -360,7 +360,7 @@ $result = $env->run(function (WorkflowEnvironment $wf): string {
 ```
 
 L'horloge n'avance que lorsque **rien d'autre ne peut progresser**. Sauter plus tôt ferait gagner le
-minuteur à chaque course `any(activité, minuteur)` qu'une activité était sur le point de gagner —
+minuteur à chaque course `any(activité, minuteur)` qu'une activité était sur le point de gagner ;
 ainsi une course se comporte ici comme en production.
 
 Le recul entre réessais est une autre affaire : il consomme du temps réel, parce qu'un réessai est
