@@ -1,79 +1,76 @@
-# La démonstration Nexus à quatre applications
+# The four-application Nexus demonstration
 
-Quatre applications, quatre namespaces Temporal, trois frameworks. Les quatre appellent, trois
-servent.
+Four applications, four Temporal namespaces, three frameworks. All four call, three serve.
 
-| | `sylius/` — la boutique | `symfony/` — le métier | `magento/` — le banc Magento | `laravel/` — la logistique |
+| | `sylius/` — the shop | `symfony/` — the business | `magento/` — the Magento bench | `laravel/` — the logistics |
 |---|---|---|---|---|
-| namespace | `demo-boutique` | `demo-metier` | `demo-magento` | `demo-laravel` |
-| sert | `stock` (`reserver`) | `facturation` (`verifier`, `encaisser`) | **rien** | `livraison` (`planifier`, `expedier`) |
-| appelle | `facturation` | `stock` | les trois services | `stock`, **depuis le workflow qui sert** |
-| ce qui déclare le gestionnaire | une balise sous `when@demo` | `#[AsNexusServiceHandler]` | — | six lignes de `config/durable.php` |
-| profil qui **sert** | `APP_ENV=demo` — journal DBAL, tableau de bord inchangé | `APP_ENV=dev` — journal Temporal | — | backend `temporal` |
-| profil qui **appelle** | `APP_ENV=demo_appelant` — journal Temporal | `APP_ENV=dev` | le DSN par `MAGENTO_DC_…` | le même |
+| namespace | `demo-shop` | `demo-business` | `demo-magento` | `demo-laravel` |
+| serves | `stock` (`reserve`) | `billing` (`verify`, `charge`) | **nothing** | `delivery` (`schedule`, `ship`) |
+| calls | `billing` | `stock` | all three services | `stock`, **from the workflow that serves** |
+| what declares the handler | a tag under `when@demo` | `#[AsNexusServiceHandler]` | — | six lines of `config/durable.php` |
+| profile that **serves** | `APP_ENV=demo` — DBAL journal, dashboard unchanged | `APP_ENV=dev` — Temporal journal | — | `temporal` backend |
+| profile that **calls** | `APP_ENV=demo_caller` — Temporal journal | `APP_ENV=dev` | the DSN through `MAGENTO_DC_…` | the same one |
 | PHP | 8.3 | 8.3 | **8.2** | **8.2** |
 
-Les quatre lisent le même paquet de contrats, `src/DurableDemoContracts/`. Rien d'autre ne circule
-entre elles.
+All four read the same contract package, `src/DurableDemoContracts/`. Nothing else travels between
+them.
 
-## Ce que la quatrième maquette ajoute
+## What the fourth mockup adds
 
-**Servir, hors du conteneur de Symfony.** Les deux gestionnaires des débuts étaient enregistrés par
-`NexusHandlerPass` — une passe de compilation — et pollés par un transport Messenger. On pouvait en
-conclure que la moitié servante de Nexus **était** du Symfony. La logistique la sert avec deux
-classes et six lignes de `config/durable.php` : `DeclaredNexusOperations` fait le travail de la
-passe, `php artisan durable:nexus-worker` celui du transport.
+**Serving, outside the Symfony container.** The two original handlers were registered by
+`NexusHandlerPass` — a compiler pass — and polled by a Messenger transport. One could conclude that
+the serving half of Nexus **was** Symfony. The logistics serves it with two classes and six lines of
+`config/durable.php`: `DeclaredNexusOperations` does the pass's work, `php artisan
+durable:nexus-worker` the transport's.
 
-**Et elle appelle pendant qu'elle sert.** `ExpedierWorkflow` remplit `livraison/expedier` ; avant de
-sortir la marchandise, il redemande son verdict à la boutique par `stock/reserver`, sur un endpoint
-qui n'est pas le sien. Une même exécution porte donc une opération servie et une opération appelée —
-et son identifiant est le **jeton de l'opération** qu'elle remplit, pas un nom choisi par
-l'application.
+**And it calls while it serves.** `ShipWorkflow` fulfils `delivery/ship`; before the goods leave, it
+asks the shop for its verdict again through `stock/reserve`, on an endpoint that is not its own. One
+execution therefore carries a served operation and a called operation — and its identifier is the
+**operation's token**, not a name the application picked.
 
-**Et les deux hôtes servants refusent la même faute.** Un workflow remplissant dont un paramètre
-obligatoire ne porte pas le nom du contrat fait échouer l'enregistrement, chez Symfony comme chez
-Laravel : le contrôle est descendu au cœur le jour où il a eu un second appelant.
+**And both serving hosts refuse the same mistake.** A fulfilling workflow whose required parameter
+does not carry the contract's name makes the registration fail, on Symfony as on Laravel: the check
+moved down into the core the day it had a second caller.
 
-## Ce que la troisième maquette ajoute
+## What the third mockup adds
 
-**Elle n'a rien de ce que Nexus semblait demander.** Les deux premières partagent le conteneur de
-Symfony, la passe de compilation qui enregistre les gestionnaires et le transport Messenger qui
-tourne les workers ; un lecteur pouvait en conclure que Nexus était une fonctionnalité du bundle.
-Le banc Magento câble ses services en `di.xml`, tourne son worker par `bin/magento durable:worker`
-et lit son DSN dans `app/etc/env.php` — et il appelle les deux services sans qu'une ligne ait été
-ajoutée au cœur, au pont Temporal ou à `gplanchat/durable-magento`.
+**It has none of what Nexus seemed to require.** The first two share the Symfony container, the
+compiler pass that registers the handlers and the Messenger transport that runs the workers; a
+reader could conclude that Nexus was a bundle feature. The Magento bench wires its services in
+`di.xml`, runs its worker through `bin/magento durable:worker` and reads its DSN from
+`app/etc/env.php` — and it calls both services without one line having been added to the core, to
+the Temporal bridge or to `gplanchat/durable-magento`.
 
-**Parce qu'appeler ne demande rien, et que servir se câble une fois par hôte.**
-`WorkflowEnvironment::nexusStub()` lit le contrat par réflexion, et le worker qui fait avancer
-l'exécution est le même `WorkflowTaskRunner` dans les trois maquettes. Servir, en revanche, demande
-à l'hôte d'enregistrer des gestionnaires et de poller une file Nexus : c'est pour cela que Magento
-appelle et ne sert pas.
+**Because calling requires nothing, and serving is wired once per host.**
+`WorkflowEnvironment::nexusStub()` reads the contract by reflection, and the worker that advances the
+execution is the same `WorkflowTaskRunner` in all three mockups. Serving, on the other hand, asks the
+host to register handlers and to poll a Nexus queue: that is why Magento calls and does not serve.
 
-**Et l'ordre des appels compte.** `CommandeNexusWorkflow` demande d'abord tout ce qui peut dire non
-— vérifier la facture, planifier la tournée, retenir le stock — et n'engage qu'ensuite : encaisser,
-puis expédier. Les deux ordres inverses ont été écrits d'abord, et mesurés : une commande en USD
-retenait le stock avant de se faire refuser la facture, et une commande de six colis était
-**encaissée** avant que la logistique ne refuse de la porter. Aucun des trois contrats n'a
-d'opération qui rende ce qu'il a pris ; l'ordre des appels est la seule compensation qu'il y ait.
+**And the call order matters.** `OrderNexusWorkflow` asks first for everything that can say no —
+verify the invoice, schedule the round, hold the stock — and only commits afterwards: charge, then
+ship. Both reverse orders were written first, and measured: an order in USD held the stock before
+having its invoice refused, and an order of six parcels was **charged** before the logistics refused
+to carry it. None of the three contracts has an operation that gives back what it took; the call
+order is the only compensation there is.
 
-## Ce qu'elle montre, et qu'un schéma ne montre pas
+## What it shows, and a diagram does not
 
-**Les deux formes, côte à côte, écrites pareil.** `CommandeWorkflow` appelle `verifier` puis
-`encaisser` sur le même stub. La première revient en quelques millisecondes, servie par une méthode
-que le métier a écrite ; la seconde prend une quinzaine de secondes, remplie par un workflow d'en
-face. Le code de l'appelant ne distingue pas les deux, et c'est le sujet.
+**Both shapes, side by side, written the same.** `OrderWorkflow` calls `verify` then `charge` on the
+same stub. The first comes back in a few milliseconds, served by a method the business wrote; the
+second takes some fifteen seconds, fulfilled by a workflow on the other side. The caller's code does
+not tell the two apart, and that is the subject.
 
-**L'attente ne tient rien d'ouvert.** Pendant une mise au point, le worker qui devait faire avancer
-l'encaissement est resté éteint quatre minutes. L'opération est restée en
-`NEXUS_OPERATION_STARTED`, l'appelant n'a rien consommé, et tout s'est terminé normalement quand le
-worker est revenu. Aucune connexion, aucun processus, aucune transaction n'attendait.
+**The wait holds nothing open.** During one debugging session, the worker meant to advance the charge
+stayed off for four minutes. The operation stayed in `NEXUS_OPERATION_STARTED`, the caller consumed
+nothing, and everything finished normally when the worker came back. No connection, no process, no
+transaction was waiting.
 
-**Une tâche Nexus est redélivrée.** Le gestionnaire de `stock` écrit son verdict dans
-`app_durable_stock_reservation`, clé par identifiant de commande. Rejouer la même commande rend le
-même verdict et ne retient pas de stock une seconde fois.
+**A Nexus task is redelivered.** The `stock` handler writes its verdict into
+`app_durable_stock_reservation`, keyed by order identifier. Replaying the same order returns the same
+verdict and does not hold stock a second time.
 
-**Et cela vaut depuis n'importe quel appelant.** Refait depuis Magento, worker d'en face éteint : 49
-secondes en `NexusOperationStarted`, puis le résultat nominal au retour du worker.
+**And that holds from any caller.** Repeated from Magento, with the facing worker off: 49 seconds in
+`NexusOperationStarted`, then the nominal result when the worker came back.
 
 ## Prérequis
 
