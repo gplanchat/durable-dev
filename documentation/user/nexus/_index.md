@@ -217,7 +217,7 @@ The container refuses to build, and names what is missing:
 ```
 durable.nexus_handler: a Nexus handler is declared, but this backend cannot route
 Nexus operations. Nexus needs the Temporal backend — set durable.temporal.dsn.
-Declared by: app.encaisser.
+Declared by: app.charge.
 ```
 
 This is deliberate, and it is not how the caller side behaves. A call on a backend with no route
@@ -234,9 +234,9 @@ frameworks. What it shows is easier to read than to describe.
 
 | | `sylius/` — the shop | `symfony/` — the back office | `magento/` — the Magento bench | `laravel/` — the logistics |
 |---|---|---|---|---|
-| namespace | `demo-boutique` | `demo-metier` | `demo-magento` | `demo-laravel` |
-| serves | `stock` (`reserver`) | `facturation` (`verifier`, `encaisser`) | **nothing** | `livraison` (`planifier`, `expedier`) |
-| calls | `facturation` | `stock` | all three services | `stock`, **from the workflow that serves** |
+| namespace | `demo-shop` | `demo-business` | `demo-magento` | `demo-laravel` |
+| serves | `stock` (`reserve`) | `billing` (`verify`, `charge`) | **nothing** | `delivery` (`schedule`, `ship`) |
+| calls | `billing` | `stock` | all three services | `stock`, **from the workflow that serves** |
 | what declares the handler | a tag under `when@demo` | `#[AsNexusServiceHandler]` | — | six lines of `config/durable.php` |
 
 All four read the same contract package. Nothing else travels between them.
@@ -244,28 +244,28 @@ All four read the same contract package. Nothing else travels between them.
 The shop's order workflow calls both forms on the same stub:
 
 ```php
-$verdict = $this->environment->await($this->facturation->verifier($commande, $montant, $devise));
+$verdict = $this->environment->await($this->billing->verify($order, $amount, $currency));
 
-if (true !== ($verdict['acceptee'] ?? false)) {
-    return ['verifiee' => $verdict, 'encaissement' => null];
+if (true !== ($verdict['accepted'] ?? false)) {
+    return ['verified' => $verdict, 'charge' => null];
 }
 
 return [
-    'verifiee' => $verdict,
-    'encaissement' => $this->environment->await($this->facturation->encaisser($commande, $montant, $devise)),
+    'verified' => $verdict,
+    'charge' => $this->environment->await($this->billing->charge($order, $amount, $currency)),
 ];
 ```
 
-`verifier` is answered by a method the back office wrote. `encaisser` has no handler body at all: a
+`verify` is answered by a method the back office wrote. `charge` has no handler body at all: a
 workflow claims it, sleeps twelve seconds, calls a payment activity, and its result becomes the
 operation's. **Nothing in the code above distinguishes the two.** The caller's history does:
 
 ```
- 5  NexusOperationScheduled     verifier
- 6  NexusOperationCompleted     verifier      ← same second
-10  NexusOperationScheduled     encaisser
-11  NexusOperationStarted       encaisser     ← a workflow took it
-15  NexusOperationCompleted     encaisser     ← fourteen seconds later
+ 5  NexusOperationScheduled     verify
+ 6  NexusOperationCompleted     verify    ← same second
+10  NexusOperationScheduled     charge
+11  NexusOperationStarted       charge    ← a workflow took it
+15  NexusOperationCompleted     charge    ← fourteen seconds later
 19  WorkflowExecutionCompleted
 ```
 
@@ -300,11 +300,11 @@ endpoint says where a service is served, so an application that only calls has n
 ```php
 // The Magento bench, calling three services from one workflow. This is the whole of the host
 // integration: three stubs and five awaited operations.
-$verdict = $this->environment->await($this->facturation->verifier($commande, $montant, $devise));
-$livraison = $this->environment->await($this->livraison->planifier($commande, $lignes));
-$reservation = $this->environment->await($this->stock->reserver($commande, $lignes));
-$recu = $this->environment->await($this->facturation->encaisser($commande, $montant, $devise));
-$suivi = $this->environment->await($this->livraison->expedier($commande, $livraison['creneau']));
+$verdict = $this->environment->await($this->billing->verify($order, $amount, $currency));
+$delivery = $this->environment->await($this->delivery->schedule($order, $lines));
+$reservation = $this->environment->await($this->stock->reserve($order, $lines));
+$receipt = $this->environment->await($this->billing->charge($order, $amount, $currency));
+$shipment = $this->environment->await($this->delivery->ship($order, $delivery['slot']));
 ```
 
 ⚠ **The order of those five calls is not cosmetic.** Two inversions were written first, and both
@@ -324,15 +324,15 @@ transport. Here is the whole of the host wiring on a framework that has neither:
 // config/durable.php
 'backend' => env('DURABLE_BACKEND', 'temporal'),   // serving Nexus needs the cluster: it routes
 'temporal' => ['dsn' => env('DURABLE_DSN')],
-'workflows' => [App\Durable\Workflow\ExpedierWorkflow::class],
+'workflows' => [App\Durable\Workflow\ShipWorkflow::class],
 'nexus' => ['handlers' => [
-    App\Durable\Nexus\LivraisonHandler::class => LivraisonContract::class,
+    App\Durable\Nexus\DeliveryHandler::class => DeliveryContract::class,
 ]],
 ```
 
 `DeclaredNexusOperations` reads that file the way `NexusHandlerPass` reads Symfony's tags, through
 the same `NexusContractResolver` and the same `NexusHandlerInvoker`; `php artisan durable:nexus-worker`
-polls the queue. The handler class knows none of it — it implements `LivraisonServed` and says
+polls the queue. The handler class knows none of it — it implements `DeliveryServed` and says
 nothing about Nexus.
 
 ⚠ **The check that keeps this honest lives in the core, not in either host.** A fulfilling
@@ -344,14 +344,14 @@ and moved the day it had a second.
 
 ### A workflow that serves can call
 
-`ExpedierWorkflow` fulfils `livraison/expedier`. Before releasing the goods it asks the shop for its
-verdict again, through `stock/reserver`, on an endpoint that is not its own — so one execution
+`ShipWorkflow` fulfils `delivery/ship`. Before releasing the goods it asks the shop for its
+verdict again, through `stock/reserve`, on an endpoint that is not its own — so one execution
 carries an operation it serves and an operation it calls:
 
 ```
  5  TimerStarted              ← six seconds of picking
  6  TimerFired
-10  NexusOperationScheduled   ← stock/reserver, at the shop
+10  NexusOperationScheduled   ← stock/reserve, at the shop
 11  NexusOperationCompleted
 15  WorkflowExecutionCompleted
 ```
@@ -359,7 +359,7 @@ carries an operation it serves and an operation it calls:
 Its workflow id is the **operation token** of the operation it fulfils — a workflow started by a
 Nexus task is not named by the application that runs it.
 
-The call is safe because `reserver` is idempotent per order id: the shop re-reads the decision it
+The call is safe because `reserve` is idempotent per order id: the shop re-reads the decision it
 made at order time instead of taking a new one, which is why the lines passed are empty.
 
 Prerequisites, the processes to start and the commands to run are in
