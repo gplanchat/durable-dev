@@ -2,11 +2,11 @@
 
 La démonstration à trois applications a prouvé une moitié, et l'a dite : **appeler ne demande rien à
 l'hôte, servir se câble une fois par hôte**. La maquette Magento appelait sans qu'une ligne soit
-ajoutée nulle part — et ne servait rien, précisément parce que servir demandait un registre de
+ajoutée nulle part, et ne servait rien, précisément parce que servir demandait un registre de
 gestionnaires et une file Nexus que son module n'a pas.
 
 L'autre moitié n'a donc jamais tourné ailleurs que dans le conteneur de Symfony. Les deux
-gestionnaires de la démonstration — `stock` et `facturation` — sont enregistrés par
+gestionnaires de la démonstration (`stock` et `facturation`) sont enregistrés par
 `NexusHandlerPass`, une passe de compilation Symfony, et pollés par un transport Messenger. Un
 lecteur pouvait raisonnablement conclure que la moitié servante **est** du Symfony.
 
@@ -18,7 +18,7 @@ Or `gplanchat/durable-laravel` livre déjà tout ce qu'il faut pour la servir ai
 
 ## What Changes
 
-Une quatrième maquette, `laravel/` — une application Laravel 12 ordinaire — qui **sert** un
+Une quatrième maquette, `laravel/` (une application Laravel 12 ordinaire) qui **sert** un
 troisième service, `livraison` :
 
 - `planifier`, répondue sur la tâche par `LivraisonHandler`, déclaré dans `config/durable.php` ;
@@ -30,7 +30,7 @@ exécution porte donc une opération Nexus servie et une opération Nexus appel�
 journal, chez un hôte qui n'est ni Symfony ni Magento.
 
 Le workflow appelant du banc Magento gagne les deux appels correspondants : une commande y est
-désormais vérifiée, planifiée, réservée, encaissée, puis expédiée — cinq opérations, trois
+désormais vérifiée, planifiée, réservée, encaissée, puis expédiée : cinq opérations, trois
 endpoints, quatre applications.
 
 ## Impact
@@ -38,8 +38,8 @@ endpoints, quatre applications.
 - `laravel/` : une application neuve, 59 fichiers suivis, `vendor/` ignoré comme pour les trois
   autres maquettes. Deux classes et six lignes de configuration sont tout ce qui la relie à Durable.
 - `src/DurableDemoContracts/` : le contrat `livraison`, en deux interfaces comme les deux autres.
-- `bin/demo-nexus` : quatre namespaces, **trois** endpoints — la maquette Laravel sert, donc elle en
-  a un ; la maquette Magento n'en a toujours pas.
+- `bin/demo-nexus` : quatre namespaces, **trois** endpoints (la maquette Laravel sert, donc elle en
+  a un ; la maquette Magento n'en a toujours pas).
 - `demo/lancer.sh` : huit processus, et une seconde variable de binaire PHP.
 - `magento/` : le workflow appelant et sa commande, dont les mesures sont refaites.
 - `documentation/user/nexus/` et `demo/README.md`.

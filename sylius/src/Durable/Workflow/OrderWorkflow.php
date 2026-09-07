@@ -19,7 +19,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
  * class exists to show: the caller writes two calls, awaits two results, and does not know which one
  * cost somebody else twelve seconds.
  *
- * While it waits, this workflow holds nothing open — no connection, no process, no transaction. It
+ * While it waits, this workflow holds nothing open: no connection, no process, no transaction. It
  * is not in memory: the worker that resumes it may not be the one that started it.
  */
 #[AsWorkflow(self::TYPE)]

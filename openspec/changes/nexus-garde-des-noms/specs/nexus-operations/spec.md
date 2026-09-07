@@ -6,7 +6,7 @@
 
 An application SHALL be refused at registration when a workflow claiming a Nexus operation declares
 a required parameter that matches no parameter of the operation it fulfils, **whatever host declares
-it** — an attribute read by a compile pass, or a list read from a configuration file.
+it**: an attribute read by a compile pass, or a list read from a configuration file.
 
 The payload is keyed by parameter name at both ends. Without the refusal the parameter receives
 `null`: the workflow starts, runs, and returns a result computed on nothing.

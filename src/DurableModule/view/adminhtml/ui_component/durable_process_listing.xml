@@ -4,7 +4,7 @@
     pagination, les signets, la sélection de colonnes et l'export qu'il connaît de toutes les autres
     grilles, et nous n'en réimplémentons aucun.
 
-    La source n'est pas une collection SQL — elle interroge la grappe — d'où un fournisseur de
+    La source n'est pas une collection SQL (elle interroge la grappe), d'où un fournisseur de
     données maison. Voir `Ui\DataProvider\ProcessListing` pour ce que ça coûte : la grille pagine
     par décalage, la grappe par curseur, donc la fenêtre est bornée et le dit.
 -->

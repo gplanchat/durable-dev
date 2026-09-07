@@ -193,7 +193,7 @@
 {% endblock %}
 
 {% block panel %}
-    <h2>Durable — exécutions &amp; historique</h2>
+    <h2>Durable : exécutions &amp; historique</h2>
 
     <p class="help">
         Pour charger le journal d’une exécution absente de la trace (worker, autre requête, etc.), il faut que
@@ -327,7 +327,7 @@
                                             <dt>Événements (historique)</dt>
                                             <dd>
                                                 {{ ex.storeEventCount }} dans le journal
-                                                {% if ex.storeTruncated %}<span class="text-muted"> — affichage tronqué</span>{% endif %}
+                                                {% if ex.storeTruncated %}<span class="text-muted"> (affichage tronqué)</span>{% endif %}
                                             </dd>
                                         </div>
                                         <div style="grid-column: 1 / -1;">
@@ -463,7 +463,7 @@
             <h3 class="tab-title">Vue globale</h3>
             <div class="tab-content">
                 {% if processTf.bounds is not null and processTf.segments is not empty %}
-                    <h4>Time frame — tous processus confondus</h4>
+                    <h4>Time frame : tous processus confondus</h4>
                     <div class="durable-timeframe-wrap">
                         <div class="durable-timeframe-axis">
                             <span>0&nbsp;ms</span>
@@ -477,7 +477,7 @@
 
                 {% for st in tf.store_timelines|default([]) %}
                     {% if st.bounds is not null and st.segments is not empty %}
-                        <h4>Journal — <code>{{ st.executionId }}</code></h4>
+                        <h4>Journal : <code>{{ st.executionId }}</code></h4>
                         <div class="durable-timeframe-wrap">
                             {% for seg in st.segments %}
                                 {{ _self.timeframe_segment_row(seg) }}
@@ -507,7 +507,7 @@
                                         {% elseif e.kind == 'workflow' %}
                                             workflow {{ e.workflowType }} {% if e.isResume %}(reprise){% else %}(démarrage){% endif %}
                                         {% elseif e.kind == 'activity' %}
-                                            {{ e.activityName }} — {{ (e.durationSeconds * 1000)|number_format(2) }} ms
+                                            {{ e.activityName }} ({{ (e.durationSeconds * 1000)|number_format(2) }} ms)
                                         {% else %}
                                             {{ e.kind|default('') }}
                                         {% endif %}

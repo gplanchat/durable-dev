@@ -83,7 +83,7 @@ forked.
 ### Requirement: The storage backend is chosen by configuration
 
 The application SHALL choose its backend in one published configuration file, and the choice SHALL
-bind every storage port together — a journal on one backend and metadata on another is not a
+bind every storage port together: a journal on one backend and metadata on another is not a
 configuration, it is a fault.
 
 #### Scenario: An application selects the SQL backend it already owns

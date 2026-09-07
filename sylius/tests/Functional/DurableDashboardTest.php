@@ -19,7 +19,7 @@ use App\Entity\User\AdminUser;
  *
  * Tout le change `backend-neutral-workflow-dashboard` a été vérifié au niveau unitaire et statique,
  * et son ADR le dit : la page n'avait jamais été rendue. Ce test est ce qui lève cette limite. Il
- * fait donc ce qu'aucun test unitaire ne peut faire — monter le noyau Sylius, authentifier un
+ * fait donc ce qu'aucun test unitaire ne peut faire : monter le noyau Sylius, authentifier un
  * administrateur, et demander la page par HTTP.
  */
 final class DurableDashboardTest extends WebTestCase

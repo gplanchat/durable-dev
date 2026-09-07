@@ -15,7 +15,7 @@ parameters:
         - src/DurableRector
     excludePaths:
         # `illuminate/console` exige `symfony/console ^7.x` sur ses trois lignes, donc le faire
-        # entrer dans le graphe de la racine rendrait la ligne Symfony 6.4 irrésoluble — la même
+        # entrer dans le graphe de la racine rendrait la ligne Symfony 6.4 irrésoluble, la même
         # panne qu'`illuminate/queue` avait causée. La commande est réelle et tourne dans une
         # application Laravel, qui embarque toujours illuminate/console ; c'est ici, et ici
         # seulement, qu'elle ne peut pas être analysée.
@@ -26,12 +26,12 @@ parameters:
     reportUnmatchedIgnoredErrors: false
     ignoreErrors:
         # ServiceProvider::$app est typé par PHPDoc comme l'application complète. Ce paquet tient à
-        # ce que ce soit faux : ses liaisons s'enregistrent aussi dans un conteneur nu — worker
-        # autonome, test — où configPath() n'existe pas. La garde est réelle, c'est le PHPDoc amont
+        # ce que ce soit faux : ses liaisons s'enregistrent aussi dans un conteneur nu (worker
+        # autonome, test) où configPath() n'existe pas. La garde est réelle, c'est le PHPDoc amont
         # qui est optimiste.
         - identifier: function.alreadyNarrowedType
           path: src/DurableLaravel/DurableServiceProvider.php
-        # google/protobuf stubs type MapField incorrectly — constructor expects "long" but GPBType constants are int
+        # google/protobuf stubs type MapField incorrectly: constructor expects "long" but GPBType constants are int
         - identifier: argument.type
           path: src/Bridge/Temporal/Worker/TemporalWorkflowCommandBuffer.php
         # MapField is typed as non-nullable by google/protobuf stubs, but defensive null checks are intentional
@@ -56,7 +56,7 @@ parameters:
         - identifier: identical.alwaysFalse
           path: src/Durable/Worker/ActivityMessageProcessor.php
         # Implémenter ExtendedMethodReflection sort de la promesse de compatibilité de PHPStan :
-        # l'interface peut changer sur une version mineure. C'est assumé et non contournable — la
+        # l'interface peut changer sur une version mineure. C'est assumé et non contournable : la
         # seule façon de dire qu'un appel de stub rend un Awaitable plutôt que le type du contrat
         # est de décorer la réflexion. Le prix est connu : si une mineure casse SchedulingMethod-
         # Reflection, ce sont ses 28 méthodes de délégation qu'il faut réaligner, et les six tests

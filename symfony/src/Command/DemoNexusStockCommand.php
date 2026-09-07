@@ -18,7 +18,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * Starts the caller of the demonstration: the business asks the shop for stock.
  *
  * It does not speak to the shop. It starts a workflow in `demo-business`, and it is that workflow
- * which calls the Nexus operation — the only link between the two applications is the endpoint,
+ * which calls the Nexus operation; the only link between the two applications is the endpoint,
  * created by `bin/demo-nexus`, and the contract they share.
  */
 #[AsCommand(
@@ -29,7 +29,7 @@ final class DemoNexusStockCommand extends Command
 {
     public function __construct(
         // Optional: with no Temporal DSN this service does not exist, and the command still has to
-        // load — otherwise the test bench's container refuses to compile.
+        // load; otherwise the test bench's container refuses to compile.
         private readonly ?WorkflowClientInterface $client = null,
     ) {
         parent::__construct();
@@ -38,7 +38,7 @@ final class DemoNexusStockCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument('order', InputArgument::REQUIRED, 'The order identifier — it is what makes the reservation idempotent')
+            ->addArgument('order', InputArgument::REQUIRED, 'The order identifier (it is what makes the reservation idempotent)')
             ->addArgument('lines', InputArgument::IS_ARRAY | InputArgument::REQUIRED, 'REFERENCE=quantity, one or more')
             ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Seconds to wait for the verdict', '60')
         ;
@@ -69,7 +69,7 @@ final class DemoNexusStockCommand extends Command
             $lines[$reference] = (int) $quantity;
         }
 
-        $io->comment(\sprintf('order %s — %s', $order, json_encode($lines, \JSON_THROW_ON_ERROR)));
+        $io->comment(\sprintf('order %s: %s', $order, json_encode($lines, \JSON_THROW_ON_ERROR)));
 
         // The payload keys are the workflow's parameter names, not their positions:
         // `mapInputToArguments` matches by name, and a rename on one side only would hand `null`.

@@ -1,7 +1,7 @@
 # scheduling-ports Specification
 
 ## Purpose
-What the core hands to a driver when it schedules work — activities, timers, child workflows — and
+What the core hands to a driver when it schedules work (activities, timers, child workflows) and
 which side owns the translation into a backend's own primitives.
 ## Requirements
 ### Requirement: Scheduling options cross the port as value objects

@@ -16,8 +16,8 @@ ligne au cœur, la démonstration dit quelque chose que deux applications Symfon
 dire.
 
 Et une réserve attend d'être levée : `magento-module` §3bis.9 écarte explicitement le cas Nexus de
-`EveryCaseWorkflow` — *« Nexus demande deux applications, qui appartiennent à
-`change/demo-nexus-deux-applications` »*. Elles existent maintenant.
+`EveryCaseWorkflow` (*« Nexus demande deux applications, qui appartiennent à
+`change/demo-nexus-deux-applications` »*). Elles existent maintenant.
 
 ## What Changes
 
@@ -28,32 +28,32 @@ appelante seulement** :
 - elle appelle `facturation/verifier` puis `facturation/encaisser`, la seconde remplie par un
   **workflow** du métier Symfony.
 
-Un seul workflow, dans le module de banc `Gplanchat_DurableProbe`, appelle les deux services — donc
+Un seul workflow, dans le module de banc `Gplanchat_DurableProbe`, appelle les deux services, donc
 les deux formes de réponse et les deux endpoints existants, depuis un hôte qui n'est pas Symfony.
 
 ### Pourquoi appelante seulement
 
 Servir demande à l'hôte d'enregistrer des gestionnaires et de poller une file Nexus : côté Symfony
 c'est `NexusHandlerPass` et un transport Messenger, et Magento n'a ni l'un ni l'autre. Appeler ne
-demande **rien** — `WorkflowEnvironment::nexusStub()` lit le contrat par réflexion, et
+demande **rien** : `WorkflowEnvironment::nexusStub()` lit le contrat par réflexion, et
 `WorkflowTaskRunner` est déjà le worker que les trois hôtes partagent.
 
 C'est précisément ce déséquilibre qui est la démonstration : le côté appelant est gratuit partout,
 le côté servant se câble une fois par hôte. Faire servir Magento demanderait un chantier dans le
-module — il aura son change, et il commencera là où celui-ci s'arrête.
+module ; il aura son change, et il commencera là où celui-ci s'arrête.
 
 ### Ce que le banc Magento doit gagner
 
 Le contrat partagé, un workflow, une commande pour le démarrer, et un DSN qui pointe le cluster de
 la démonstration. Sa propre grappe (`temporalio/auto-setup:1.25.2` dans son `compose.yaml`) répond
-`Nexus APIs are disabled` — c'est déjà écrit dans `demo/README.md`, et c'est la raison pour laquelle
+`Nexus APIs are disabled`. C'est déjà écrit dans `demo/README.md`, et c'est la raison pour laquelle
 la démonstration a son `temporal server start-dev` à elle.
 
 ## Impact
 
 - `magento/` : le contrat en dépôt path, un workflow et une commande dans `Gplanchat_DurableProbe`.
-- `bin/demo-nexus` : un troisième namespace, et **aucun endpoint de plus** — un endpoint désigne qui
-  sert, et Magento ne sert pas.
+- `bin/demo-nexus` : un troisième namespace, et **aucun endpoint de plus** (un endpoint désigne qui
+  sert, et Magento ne sert pas).
 - `demo/lancer.sh` et `demo/README.md` : un processus de plus, et le compte refait.
 - `documentation/user/nexus/` : la section « Deux applications, en vrai » devient trois, dans les
   deux langues.

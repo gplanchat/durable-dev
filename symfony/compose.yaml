@@ -4,7 +4,7 @@
 #
 #   cd symfony && docker compose up -d
 #
-# Puis sur l’hôte : `symfony serve` ou `php -S` — Temporal est joignable sur localhost:7233, UI sur http://localhost:8088
+# Puis sur l’hôte : `symfony serve` ou `php -S` ; Temporal est joignable sur localhost:7233, UI sur http://localhost:8088
 # Si le port 7233 est déjà pris (ex. `compose.yaml` à la racine du dépôt) : TEMPORAL_FRONTEND_PORT=17233 TEMPORAL_UI_PORT=18088 docker compose up -d
 # et adaptez les DSN dans `.env.local` (127.0.0.1:17233).
 #

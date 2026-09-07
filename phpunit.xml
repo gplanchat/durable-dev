@@ -11,7 +11,7 @@
             <!-- rector/rector embarque son propre nikic/php-parser, non préfixé. Sous couverture,
                  php-code-coverage charge celui du projet et les deux se déclarent : « Cannot declare
                  class PhpParser\Node\Scalar\Float_ ». D'où une suite à part, écartée de la
-                 couverture — src/DurableRector n'est de toute façon pas dans <source>. -->
+                 couverture : src/DurableRector n'est de toute façon pas dans <source>. -->
             <exclude>tests/unit/DurableRector</exclude>
             <!-- Et le paquet Laravel, qui a sa propre suite pour que la matrice « Laravel x /
                  PHP y » puisse l'exercer contre une ligne d'illuminate/* épinglée. PHPUnit refuse

@@ -5,7 +5,7 @@
         <referenceContainer name="content">
             <!--
                 L'avertissement d'abord, la grille ensuite. Sans DSN, une liste vide est la bonne
-                réponse et non une panne — mais seule cette bannière peut le dire, une grille n'a
+                réponse et non une panne, mais seule cette bannière peut le dire, une grille n'a
                 pas d'endroit pour l'expliquer.
             -->
             <block class="Gplanchat\DurableModule\Block\Adminhtml\ProcessHistory"

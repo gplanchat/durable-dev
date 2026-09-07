@@ -20,7 +20,7 @@
         /* Nexus tranche sur les autres à dessein : c'est la seule voie où l'attente est servie
            hors de cette application, et c'est celle qu'un exploitant doit repérer sans la chercher. */
         .durable-action.nexus { border-left-color: #fdba74; }
-        /* Ce qui a mal tourné se lit sans être déplié — une annulation, elle, reste noire. */
+        /* Ce qui a mal tourné se lit sans être déplié ; une annulation, elle, reste noire. */
         .durable-failed, .durable-failed > details > summary { color: #d63939; }
         .durable-events { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
         .durable-events li { border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); padding: .5rem .65rem; background: var(--tblr-bg-surface); }
@@ -71,7 +71,7 @@
                 </div>
 
                 {# Trois états, pas deux : sans backend lisible, injoignable, ou joignable dont le
-                   journal ne survit pas à la requête. Le troisième répond, et sa réponse est vide —
+                   journal ne survit pas à la requête. Le troisième répond, et sa réponse est vide :
                    le peindre en succès apprendrait que rien n'a tourné, ce qui est faux. #}
                 <div class="alert {% if not backend.available %}alert-warning{% elseif backend.ephemeral %}alert-info{% else %}alert-success{% endif %}" role="alert">
                     <div>{{ backend.message }}</div>
@@ -180,7 +180,7 @@
                                             <p class="text-secondary mb-0">No recorded history for this run.</p>
                                         {% else %}
                                             {# La frise : une ligne par action, **placée dans le temps**. Empiler des
-                                               blocs répond « dans quel ordre », jamais « pendant combien de temps » —
+                                               blocs répond « dans quel ordre », jamais « pendant combien de temps »,
                                                et la seconde est la question qu'un exploitant devant une exécution
                                                lente vient poser. Les secondes viennent du cœur ; la seule chose qui se
                                                décide ici est leur mise à l'échelle, parce qu'elle demande de connaître
@@ -215,17 +215,17 @@
                                                 {# Survoler suppose de savoir qu'il y a quelque chose à survoler. #}
                                                 <div class="durable-frieze-key">
                                                     <span class="durable-frieze-bar waiting other"></span>
-                                                    Hatched: waiting to be picked up — the work had been asked for, but nobody had started it yet.
+                                                    Hatched: waiting to be picked up. The work had been asked for, but nobody had started it yet.
                                                 </div>
                                                 <div class="durable-frieze-key">
                                                     <span class="durable-frieze-bar failed"></span>
-                                                    Red: what failed. A cancellation is not painted red — it is an outcome, not a breakdown.
+                                                    Red: what failed. A cancellation is not painted red; it is an outcome, not a breakdown.
                                                 </div>
                                             </div>
                                             {# Un bloc par action, pas par nature : une activité planifiée, démarrée puis
                                                terminée est une action et trois événements, et c'est sa durée que l'exploitant
                                                vient lire. Le groupement, les durées et la distinction file/travail viennent
-                                               du cœur — cette page les rend, elle ne les calcule pas. #}
+                                               du cœur ; cette page les rend, elle ne les calcule pas. #}
                                             {% for action in selectedRun.timeline.actions %}
                                                 <div class="durable-action {{ action.kind.value }}">
                                                     <h4 class="h5 mb-2">{{ action.label }} <small class="text-secondary">{{ action.durationLabel }}</small></h4>
@@ -236,7 +236,7 @@
                                                             <li{% if mark.event.failed %} class="durable-failed"{% endif %}>
                                                                 {# ⚠ `date(..., false)` garde le fuseau que **porte** la date. Sans lui,
                                                                    Twig applique celui du serveur, et le même événement se lisait
-                                                                   22:13:20 dans l'infobulle de la frise — composée dans le cœur — et
+                                                                   22:13:20 dans l'infobulle de la frise (composée dans le cœur) et
                                                                    23:13:20 dans cette ligne-ci, sur une machine à Paris. #}
                                                                 {# `renderedDetails` vaut `null` quand il n'y a rien à ouvrir. La mise
                                                                    en forme se décide dans le cœur : ce gabarit appelait `json_encode`
@@ -244,11 +244,11 @@
                                                                    n'était pas de l'UTF-8. #}
                                                                 {% if mark.renderedDetails is not null %}
                                                                     <details>
-                                                                        <summary><strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v', false) }} — {{ mark.event.label }}</summary>
+                                                                        <summary><strong>#{{ mark.event.sequence }}</strong> ({{ mark.event.recordedAt|date('H:i:s.v', false) }}) {{ mark.event.label }}</summary>
                                                                         <pre>{{ mark.renderedDetails }}</pre>
                                                                     </details>
                                                                 {% else %}
-                                                                    <strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v', false) }} — {{ mark.event.label }}
+                                                                    <strong>#{{ mark.event.sequence }}</strong> ({{ mark.event.recordedAt|date('H:i:s.v', false) }}) {{ mark.event.label }}
                                                                 {% endif %}
                                                             </li>
                                                         {% endfor %}

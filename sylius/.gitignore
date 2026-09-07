@@ -61,10 +61,10 @@ phpstan.neon
 /public/media/cache/
 ###< liip/imagine-bundle ###
 
-# /composer.lock — DÉLIBÉRÉMENT suivi, contrairement au squelette Sylius.
+# /composer.lock : DÉLIBÉRÉMENT suivi, contrairement au squelette Sylius.
 # Upstream l'ignore parce que sylius-standard est un modèle de projet. Ici l'app sert de banc
 # d'essai au plugin en CI : sans lock, chaque passage résout à neuf et une release Sylius casserait
 # le job sans qu'aucun commit du dépôt n'ait bougé. `symfony/` suit déjà le sien.
-# Une montée de version du squelette rendra cette ligne conflictuelle — c'est voulu, elle force à
+# Une montée de version du squelette rendra cette ligne conflictuelle. C'est voulu, elle force à
 # re-décider plutôt qu'à subir.
 /yarn.lock

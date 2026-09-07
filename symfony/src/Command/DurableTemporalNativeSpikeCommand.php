@@ -21,7 +21,7 @@ use Symfony\Component\Uid\Uuid;
  */
 #[AsCommand(
     name: 'durable:temporal:native-spike',
-    description: 'Exécute le spike d’exécution Temporal native (DUR024) — une activité visible dans l’UI',
+    description: 'Exécute le spike d’exécution Temporal native (DUR024) : une activité visible dans l’UI',
 )]
 final class DurableTemporalNativeSpikeCommand extends Command
 {
@@ -68,7 +68,7 @@ final class DurableTemporalNativeSpikeCommand extends Command
         $io->comment('Types: '.NativeExecutionSpike::WORKFLOW_TYPE.' / '.NativeExecutionSpike::ACTIVITY_TYPE);
 
         $runId = $spike->run($workflowId);
-        $io->success('Terminé. run_id='.$runId.' — vérifiez l’historique dans Temporal UI (activités).');
+        $io->success('Terminé. run_id='.$runId.'. Vérifiez l’historique dans Temporal UI (activités).');
 
         return Command::SUCCESS;
     }

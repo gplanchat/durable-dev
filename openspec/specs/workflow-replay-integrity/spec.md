@@ -63,7 +63,7 @@ back which behaviour applies to the execution being run.
 
 The engine SHALL fix that answer the first time an execution reaches the point, SHALL record it in
 that execution's journal, and SHALL return the recorded answer on every later replay of that
-execution — regardless of what the deployed code would otherwise choose.
+execution, regardless of what the deployed code would otherwise choose.
 
 The engine SHALL NOT report a divergence for steps whose identity differs because of a declared
 change point. It SHALL still report one for steps that differ for any other reason.

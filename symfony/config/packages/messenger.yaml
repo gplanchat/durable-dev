@@ -2,7 +2,7 @@ parameters:
     # Test (APP_ENV=test) : in-memory forcé via when@test. Dev/prod : DURABLE_DSN + transports ci-dessous (même DSN, purpose différent).
     env(MESSENGER_DURABLE_WORKFLOW_DSN): 'in-memory://'
     env(MESSENGER_DURABLE_ACTIVITY_DSN): 'in-memory://'
-    # Défaut aligné sur symfony/.env (TEMPORAL_FRONTEND_PORT=7234 dans compose) — éviter 7233 si le port hôte diffère.
+    # Défaut aligné sur symfony/.env (TEMPORAL_FRONTEND_PORT=7234 dans compose) ; éviter 7233 si le port hôte diffère.
     env(DURABLE_DSN): 'temporal://127.0.0.1:7234?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0'
 
 framework:
@@ -33,7 +33,7 @@ when@dev:
                     options:
                         purpose: activity_worker
                 # The loop that serves Nexus: receive-only, every `get()` long-polls an incoming
-                # task. The business serves `billing` — including `charge`, which a workflow fulfils.
+                # task. The business serves `billing`, including `charge`, which a workflow fulfils.
                 durable_temporal_nexus:
                     dsn: '%env(DURABLE_DSN)%'
                     options:
@@ -53,7 +53,7 @@ when@prod:
                     options:
                         purpose: activity_worker
                 # The loop that serves Nexus: receive-only, every `get()` long-polls an incoming
-                # task. The business serves `billing` — including `charge`, which a workflow fulfils.
+                # task. The business serves `billing`, including `charge`, which a workflow fulfils.
                 durable_temporal_nexus:
                     dsn: '%env(DURABLE_DSN)%'
                     options:
@@ -70,5 +70,5 @@ when@test:
                 failed: 'in-memory://'
             routing:
                 # Comme dev/prod : les réveils timer portent DelayStamp ; sync:// les exécute tout de suite
-                # et ignore le délai — les workflows sample (Query 2s, Periodic 0.2s) ne terminent jamais.
+                # et ignore le délai : les workflows sample (Query 2s, Periodic 0.2s) ne terminent jamais.
                 Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows

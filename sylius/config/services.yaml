@@ -50,7 +50,7 @@ services:
 # La balise Nexus est posée ici, et non par `#[AsNexusServiceHandler]` sur la classe.
 #
 # L'attribut vaudrait dans **tous** les environnements, et un gestionnaire déclaré sur un backend
-# sans route est refusé au démarrage — à raison, puisqu'il ne recevrait jamais rien. Or la boutique
+# sans route est refusé au démarrage (à raison, puisqu'il ne recevrait jamais rien). Or la boutique
 # n'a de cluster que dans son profil de démonstration. La balise dit donc ce qui est vrai : elle
 # sert `stock` en `demo`, et nulle part ailleurs.
 #

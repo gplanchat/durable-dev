@@ -101,11 +101,11 @@ $timeline = $block->getTimeline();
                 <?php /* Une hachure sans légende est une devinette. */ ?>
                 <div class="durable-frieze-key">
                     <span class="durable-frieze-bar waiting other"></span>
-                    <?= $escaper->escapeHtml(__('Hatched: waiting to be picked up — the work had been asked for, but nobody had started it yet.')) ?>
+                    <?= $escaper->escapeHtml(__('Hatched: waiting to be picked up. The work had been asked for, but nobody had started it yet.')) ?>
                 </div>
                 <div class="durable-frieze-key">
                     <span class="durable-frieze-bar failed"></span>
-                    <?= $escaper->escapeHtml(__('Red: what failed. A cancellation is not painted red — it is an outcome, not a breakdown.')) ?>
+                    <?= $escaper->escapeHtml(__('Red: what failed. A cancellation is not painted red; it is an outcome, not a breakdown.')) ?>
                 </div>
             </div>
         </div>

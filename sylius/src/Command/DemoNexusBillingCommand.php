@@ -17,7 +17,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /**
  * Starts the caller of the other direction: the shop has an order billed.
  *
- * It exists only in the shop's `demo` profile — the one whose journal is the cluster. The `dev`
+ * It exists only in the shop's `demo` profile, the one whose journal is the cluster. The `dev`
  * profile, which serves `stock` from a DBAL journal, cannot call a Nexus operation: an SQL journal
  * has no server to address the scheduling to, and refuses while saying so.
  */
@@ -29,7 +29,7 @@ final class DemoNexusBillingCommand extends Command
 {
     public function __construct(
         // Optional: with no Temporal DSN this service does not exist, and the command still has to
-        // load — otherwise the test bench's container refuses to compile.
+        // load; otherwise the test bench's container refuses to compile.
         private readonly ?WorkflowClientInterface $client = null,
     ) {
         parent::__construct();
@@ -71,13 +71,13 @@ final class DemoNexusBillingCommand extends Command
             $order,
         );
 
-        $io->comment(\sprintf('%s started — the shop holds nothing open while it waits.', $order));
+        $io->comment(\sprintf('%s started; the shop holds nothing open while it waits.', $order));
 
         $seconds = max(1, (int) $input->getOption('timeout'));
         $result = $this->client->pollForCompletion($order, 500, $seconds * 2);
 
         $io->writeln(json_encode($result, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE));
-        $io->success(\sprintf('%.1f s — including the charge, fulfilled by a workflow on the other side.', microtime(true) - $startedAt));
+        $io->success(\sprintf('%.1f s, including the charge, fulfilled by a workflow on the other side.', microtime(true) - $startedAt));
 
         return Command::SUCCESS;
     }

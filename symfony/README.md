@@ -5,7 +5,7 @@ Demonstrates `gplanchat/durable` with **Messenger**, **Temporal** (gRPC workers)
 ## Requirements
 
 - PHP 8.2+
-- Composer — dependencies live under **`symfony/vendor/`**. Run **`composer install`** from this `symfony/` directory.
+- Composer: dependencies live under **`symfony/vendor/`**. Run **`composer install`** from this `symfony/` directory.
 - Packages **`gplanchat/durable`** and **`gplanchat/durable-bundle`** resolve via **path** from **`../src/Durable`** and **`../src/DurableBundle`** at the monorepo root. For an app outside the monorepo: `composer require gplanchat/durable-bundle` from Packagist.
 
 After changing the vendor layout, clear cache: **`rm -rf var/cache/*`** then **`php bin/console cache:clear`**.
@@ -54,7 +54,7 @@ For the native Temporal backend, `WorkflowTaskRunner`:
 4. Replays history: resolved awaitables resume immediately
 5. Stops on the first unresolved awaitable (new command) and returns Temporal commands
 
-No `pcntl_fork()`, no Swoole, no RoadRunner — **plain PHP CLI**.
+No `pcntl_fork()`, no Swoole, no RoadRunner: **plain PHP CLI**.
 
 ### Temporal History Cursor
 
@@ -91,7 +91,7 @@ Tests cover **`durable:sample`** example workflows and, when configured, real Te
 
 ### Temporal (real integration, optional)
 
-Requires a Temporal frontend reachable from the machine running PHPUnit (often `docker compose up -d`). The host port may differ from `7233` if `TEMPORAL_FRONTEND_PORT` is set — check with `docker compose port temporal 7233`.
+Requires a Temporal frontend reachable from the machine running PHPUnit (often `docker compose up -d`). The host port may differ from `7233` if `TEMPORAL_FRONTEND_PORT` is set; check with `docker compose port temporal 7233`.
 
 - Prerequisite: **ext-grpc**
 - Variable: **`DURABLE_DSN`**, e.g. `temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0` (adjust the port)
@@ -113,4 +113,4 @@ The `interpreter_mirror_activities` key was removed. The Temporal bridge now use
 
 ## License
 
-**MIT** — see [`LICENSE`](LICENSE) in this directory and [WA004](../documentation/wa/WA004-mit-license-distribution.md).
+**MIT**: see [`LICENSE`](LICENSE) in this directory and [WA004](../documentation/wa/WA004-mit-license-distribution.md).

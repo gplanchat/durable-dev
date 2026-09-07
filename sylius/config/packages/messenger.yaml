@@ -29,7 +29,7 @@ when@demo:
         messenger:
             transports:
                 # Receive-only : chaque `get()` long-poll une tâche Nexus entrante et la sert par
-                # `TemporalNexusWorker`. Il n'y a pas de file Sylius derrière — le nom désigne une
+                # `TemporalNexusWorker`. Il n'y a pas de file Sylius derrière : le nom désigne une
                 # boucle de poll, pas une file de messages.
                 #
                 #   bin/console messenger:consume durable_temporal_nexus
@@ -43,7 +43,7 @@ when@demo_caller:
         messenger:
             transports:
                 # Le worker de tâches de workflow du profil appelant. C'est lui qui fait avancer
-                # `OrderWorkflow` entre ses deux appels — et qui le reprend après l'attente, sans
+                # `OrderWorkflow` entre ses deux appels, et qui le reprend après l'attente, sans
                 # que ce soit forcément le même processus qui l'avait démarré.
                 durable_temporal_journal:
                     dsn: '%env(DURABLE_TEMPORAL_DSN)%'

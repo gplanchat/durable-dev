@@ -7,7 +7,7 @@ hold.
 ## Requirements
 ### Requirement: A condition is awaited like anything else
 
-The single wait of the component SHALL accept a condition — a predicate over workflow state —
+The single wait of the component SHALL accept a condition (a predicate over workflow state)
 wherever it accepts an awaitable. The workflow SHALL resume as soon as the condition holds, and
 SHALL NOT resume while it does not.
 
@@ -63,12 +63,12 @@ A condition SHALL NOT be evaluated against state that no journaled message produ
 
 ### Requirement: A condition reads workflow state and nothing else
 
-A condition SHALL be a function of workflow state alone — state the journal produced, and nothing
+A condition SHALL be a function of workflow state alone: state the journal produced, and nothing
 else. Anything a replay cannot reproduce SHALL be recorded once and read back, as any other
 non-reproducible value already is.
 
 The component SHALL NOT promise to detect a condition that breaks this rule. It detects no other
-non-determinism, and detecting this one would require recording a verdict per wait — an event this
+non-determinism, and detecting this one would require recording a verdict per wait, an event this
 change exists to avoid.
 
 #### Scenario: A non-reproducible value is recorded before a condition reads it

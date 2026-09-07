@@ -21,7 +21,7 @@ use Gplanchat\Durable\Demo\Contracts\Stock\StockServed;
  * cluster in its demonstration profile: a handler declared with no route is refused at boot, and
  * rightly so. `symfony/` keeps the attribute, its bench having a DSN everywhere.
  *
- * The budget is about nine seconds — the task's, not the operation's. Two indexed reads and one
+ * The budget is about nine seconds: the task's, not the operation's. Two indexed reads and one
  * write fit in it; a call to a provider does not, and that is what `#[FulfilsNexusOperation]` exists
  * to carry.
  */

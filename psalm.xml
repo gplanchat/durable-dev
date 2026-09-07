@@ -29,7 +29,7 @@
     </projectFiles>
 
     <issueHandlers>
-        <!-- Temporal protobuf generated classes use dynamic method calls — suppress globally -->
+        <!-- Temporal protobuf generated classes use dynamic method calls: suppress globally -->
         <UndefinedMethod errorLevel="suppress" />
         <!-- MapField from google/protobuf is incorrectly typed as non-nullable -->
         <DocblockTypeContradiction errorLevel="suppress" />

@@ -13,7 +13,7 @@ use Doctrine\ORM\Mapping as ORM;
  * It exists for a precise reason: **a Nexus task is redelivered**. The handler has about nine
  * seconds; past that the server hands the same task to another worker, and the redeliveries
  * measured land at ~9.9 s, ~20.7 s, ~33.6 s. With no record of what was already decided, the second
- * delivery would set stock aside a second time, and the caller would see nothing wrong — it would
+ * delivery would set stock aside a second time, and the caller would see nothing wrong: it would
  * have its answer.
  *
  * The key is therefore the order identifier, the one the caller writes into the payload: two

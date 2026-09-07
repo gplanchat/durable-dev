@@ -35,7 +35,7 @@ payload. That form remains inside the engine, where the stub uses it.
 The test harness SHALL be able to run a workflow class: the environment reaching its constructor,
 its business arguments reaching its workflow method, exactly as in production.
 
-A test written this way SHALL observe the same behaviour as the same class running on a backend —
+A test written this way SHALL observe the same behaviour as the same class running on a backend,
 including its activity results, its failures, and what its journal records.
 
 #### Scenario: Running a workflow class under test
@@ -56,8 +56,8 @@ including its activity results, its failures, and what its journal records.
 Every method a workflow author can reach on the environment SHALL have a use a workflow can
 actually make of it.
 
-A method that resolves a value into an already-settled awaitable — adding nothing a workflow could
-not write — SHALL NOT be part of the surface.
+A method that resolves a value into an already-settled awaitable (adding nothing a workflow could
+not write) SHALL NOT be part of the surface.
 
 #### Scenario: Reaching for the resolved-value helper
 
@@ -96,7 +96,7 @@ remains inside the engine, where the stub uses it.
 A call on any stub SHALL start the work and return something the caller awaits. It SHALL NOT wait
 on the caller's behalf.
 
-A call that waited could not be raced, counted towards a quorum, or bounded by a deadline — which
+A call that waited could not be raced, counted towards a quorum, or bounded by a deadline, which
 is the only reason to build a stub rather than call the primitive. This holds for every stub, so
 that "a stub call is an awaitable" is a rule a reader can rely on rather than a property to check
 one stub at a time.
