@@ -11,16 +11,16 @@ use Gplanchat\Durable\Mapping\EventDataMapper;
 use Gplanchat\Durable\Store\EventStoreInterface;
 
 /**
- * Journal d'événements persisté en SQL — le pendant durable de
+ * Event journal persisted in SQL — the durable counterpart of
  * {@see \Gplanchat\Durable\Store\InMemoryEventStore}.
  *
- * La (dé)sérialisation passe entièrement par {@see EventDataMapper} : les lignes ont la même
- * forme que les enregistrements du journal Temporal, ce que le mapper documente déjà.
+ * (De)serialization goes entirely through {@see EventDataMapper}: the rows have the same shape as
+ * the records of the Temporal journal, which the mapper already documents.
  *
- * ponytail: pas de colonne `sequence` — l'auto-increment porte l'ordre d'insertion.
- * L'exclusion mutuelle entre deux reprises concurrentes d'une même exécution est en amont,
- * dans {@see \Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware} ; sans elle, deux
- * workers rejoueraient la même exécution et dupliqueraient ses commandes.
+ * ponytail: no `sequence` column — the auto-increment carries the insertion order.
+ * Mutual exclusion between two concurrent resumes of the same execution sits upstream, in
+ * {@see \Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware}; without it, two workers
+ * would replay the same execution and duplicate its commands.
  *
  * @see DUR030
  */
@@ -87,7 +87,7 @@ final class DbalEventStore implements EventStoreInterface
     }
 
     /**
-     * Les plateformes rendent `recorded_at` en string (SQLite, MySQL) ou en objet (PostgreSQL selon le driver).
+     * Platforms return `recorded_at` as a string (SQLite, MySQL) or an object (PostgreSQL, driver-dependent).
      */
     private static function toDateTime(mixed $raw): ?\DateTimeImmutable
     {

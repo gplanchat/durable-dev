@@ -13,29 +13,29 @@ use Magento\Framework\View\Result\PageFactory;
 /**
  * `System > Durable processes > Process history`.
  *
- * L'écran est en lecture seule et le restera : ce qu'un exploitant vient y chercher est de savoir
- * si une commande est passée, pas de la relancer à la main. Reprendre une exécution depuis un
- * navigateur contournerait le verrou par exécution — ce que la 1.5 a montré coûter deux
- * gestionnaires en parallèle sur un même message.
+ * The screen is read-only and will stay that way: what an operator comes here for is to know
+ * whether an order went through, not to re-run it by hand. Resuming an execution from a browser
+ * would bypass the per-execution lock — which §1.5 showed to cost two handlers running in
+ * parallel on one message.
  *
- * L'espace de noms suit PSR-4, et ce n'est pas un détail : Magento résout une action **par
- * convention depuis le nom du module** — `ActionList::get()` compose `Gplanchat_DurableModule` +
- * `\Controller\Adminhtml\…`. Tant que le nom du module et la racine PSR-4 du paquet se
- * correspondent, il n'y a rien à déclarer de plus.
+ * The namespace follows PSR-4, and that is not a detail: Magento resolves an action **by
+ * convention from the module name** — `ActionList::get()` composes `Gplanchat_DurableModule` +
+ * `\Controller\Adminhtml\…`. As long as the module name and the package's PSR-4 root agree,
+ * there is nothing more to declare.
  *
- * Ils ne se correspondaient pas : le module s'appelait `Gplanchat_Durable` et le paquet
- * s'autochargeait sous `Gplanchat\DurableModule\`, ce qui obligeait à une **seconde** entrée
- * `psr-4` pour ce seul dossier. Le symptôme était trompeur — route déclarée, menu affiché, et un
- * 404 rendu dans le châssis d'admin. La cause n'était pas Magento, c'était deux noms qui ne
- * s'accordaient pas ; les accorder l'a fait disparaître.
+ * They did not agree: the module was called `Gplanchat_Durable` and the package autoloaded under
+ * `Gplanchat\DurableModule\`, which forced a **second** `psr-4` entry for that one directory. The
+ * symptom was misleading — route declared, menu rendered, and a 404 served inside the admin
+ * chrome. The cause was not Magento, it was two names that did not agree; making them agree made
+ * it disappear.
  *
- * ⚠ `HttpGetActionInterface` n'est pas décoratif : depuis 2.3, le routeur **ignore** une action qui
- * n'implémente aucune des interfaces de verbe, et Magento rend son 404 dans le châssis d'admin —
- * menu compris. Le symptôme ressemble donc à une route mal déclarée, alors que la déclaration est
- * juste et que c'est la classe qui manque un marqueur.
+ * ⚠ `HttpGetActionInterface` is not decorative: since 2.3, the router **ignores** an action that
+ * implements none of the verb interfaces, and Magento serves its 404 inside the admin chrome —
+ * menu included. So the symptom looks like a badly declared route, when the declaration is right
+ * and it is the class that is missing a marker.
  */
 /*
- * Pas `final` : le conteneur l'instancie, donc il engendre un `Interceptor` qui l'étend.
+ * Not `final`: the container instantiates it, so it generates an `Interceptor` extending it.
  */
 class History extends Action implements HttpGetActionInterface
 {
@@ -51,16 +51,16 @@ class History extends Action implements HttpGetActionInterface
     public function execute(): ResultInterface
     {
         /*
-         * ⚠ `Magento\Framework\View\Result\PageFactory` ne rend pas une page de framework dans
-         * l'aire d'administration : `module-backend/etc/adminhtml/di.xml` lui passe
-         * `instanceName = Magento\Backend\Model\View\Result\Page`, et c'est cette page-là qui
-         * porte `setActiveMenu()`. L'annotation dit à l'analyse ce que le conteneur fait, plutôt
-         * que de faire taire l'erreur : c'est vérifiable dans le `di.xml` cité.
+         * ⚠ `Magento\Framework\View\Result\PageFactory` does not return a framework page in the
+         * admin area: `module-backend/etc/adminhtml/di.xml` passes it
+         * `instanceName = Magento\Backend\Model\View\Result\Page`, and that is the page which
+         * carries `setActiveMenu()`. The annotation tells static analysis what the container does,
+         * rather than silencing the error: it is verifiable in the `di.xml` cited.
          */
         /** @var \Magento\Backend\Model\View\Result\Page $page */
         $page = $this->pageFactory->create();
         $page->setActiveMenu('Gplanchat_DurableModule::process_history');
-        // `Title::prepend()` déclare `string` ; `__()` rend une `Phrase`, rendue ici de toute façon.
+        // `Title::prepend()` declares `string`; `__()` returns a `Phrase`, rendered here anyway.
         $page->getConfig()->getTitle()->prepend((string) __('Process history'));
 
         return $page;

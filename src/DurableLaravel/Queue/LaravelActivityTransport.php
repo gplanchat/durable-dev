@@ -10,20 +10,20 @@ use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Contracts\Queue\Job;
 
 /**
- * Le port de transport des activités, sur la file de Laravel.
+ * The activity transport port, on Laravel's queue.
  *
- * Même adaptation que {@see \Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport} :
- * `enqueue` pousse, `dequeue` dépile et acquitte. Ce qui change est le vocabulaire — `later()` au
- * lieu d'un `DelayStamp`, `pop()` au lieu d'un `ReceiverInterface`.
+ * The same adaptation as {@see \Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport}:
+ * `enqueue` pushes, `dequeue` pops and acknowledges. What changes is the vocabulary — `later()`
+ * instead of a `DelayStamp`, `pop()` instead of a `ReceiverInterface`.
  *
- * **Le report devient celui de la file, puis disparaît du message.** C'est le contrat que le
- * transport en mémoire et celui de Messenger tiennent déjà : un `retryDelay` qui survivrait à la
- * mise en file serait attendu deux fois.
+ * **The deferral becomes the queue's, then disappears from the message.** That is the contract the
+ * in-memory transport and the Messenger one already hold: a `retryDelay` that survived being put
+ * on the queue would be waited out twice.
  *
- * En production personne n'appelle la moitié « pull » de ce port : `queue:work` pousse le job dans
- * `handle()`. Elle est implémentée quand même, parce qu'un drain synchrone — un test, une commande
- * qui vide la file à la main — a le droit d'exister, et qu'un `isEmpty()` qui mentirait ferait
- * conclure « plus rien à faire » à un appelant qui a encore du travail.
+ * In production nobody calls the "pull" half of this port: `queue:work` pushes the job into
+ * `handle()`. It is implemented all the same, because a synchronous drain — a test, a command that
+ * empties the queue by hand — has the right to exist, and because an `isEmpty()` that lied would
+ * make a caller that still has work conclude "nothing left to do".
  */
 final class LaravelActivityTransport implements ActivityTransportInterface
 {
@@ -58,8 +58,8 @@ final class LaravelActivityTransport implements ActivityTransportInterface
         }
 
         $message = self::messageOf($job);
-        // Acquitter dans les deux cas : un job qui n'est pas le nôtre n'a rien à faire ici, et le
-        // laisser en file le ferait repasser à chaque tour.
+        // Acknowledge in both cases: a job that is not ours has no business here, and leaving it
+        // on the queue would make it come round again on every turn.
         $job->delete();
 
         return $message;
@@ -71,20 +71,20 @@ final class LaravelActivityTransport implements ActivityTransportInterface
             return false;
         }
 
-        // Dépiler pour savoir, et **garder** ce qu'on a dépilé : un `isEmpty()` qui jette le job
-        // qu'il vient de sortir répond juste une fois et perd du travail à chaque appel.
+        // Pop to find out, and **keep** what was popped: an `isEmpty()` that throws away the job
+        // it has just taken out answers correctly once and loses work on every call.
         $this->pending = $this->queue->connection($this->connection)->pop($this->queueName);
 
         return null === $this->pending;
     }
 
-    /** La file porte elle-même le report : rien à attendre côté PHP. */
+    /** The queue carries the deferral itself: nothing to wait for on the PHP side. */
     public function nextDueAt(): ?float
     {
         return $this->isEmpty() ? null : microtime(true);
     }
 
-    /** Best effort, et Laravel ne le permet pas : un job en file ne se retire pas par son contenu. */
+    /** Best effort, and Laravel does not allow it: a queued job cannot be removed by its content. */
     public function removePendingFor(string $executionId, string $activityId): bool
     {
         return false;

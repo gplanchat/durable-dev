@@ -8,11 +8,11 @@ use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Magento\Framework\Data\OptionSourceInterface;
 
 /**
- * Les états qu'une exécution peut avoir, tels que le cœur les définit.
+ * The states an execution can be in, as the core defines them.
  *
- * La liste n'est pas recopiée : elle est dérivée de l'énumération. Un état ajouté au composant
- * apparaît dans le filtre sans que personne y pense, et un état retiré en disparaît — ce qui est
- * exactement ce qu'on veut d'un filtre, qui ment dès qu'il propose un choix qui n'existe plus.
+ * The list is not copied out: it is derived from the enum. A state added to the component appears
+ * in the filter without anyone thinking about it, and a state removed disappears from it — which
+ * is exactly what one wants of a filter, which lies the moment it offers a choice that is gone.
  */
 final class StatusOptions implements OptionSourceInterface
 {

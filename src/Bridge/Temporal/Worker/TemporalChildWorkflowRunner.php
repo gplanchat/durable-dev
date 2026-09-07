@@ -8,15 +8,15 @@ use Gplanchat\Durable\Exception\ChildWorkflowStartDeferred;
 use Gplanchat\Durable\Port\ChildWorkflowRunnerInterface;
 
 /**
- * Côté Temporal, un workflow enfant n'est jamais exécuté en ligne par le worker : le parent émet
- * COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION et le serveur pilote la suite, jusqu'à écrire
- * CHILD_WORKFLOW_EXECUTION_COMPLETED / _FAILED dans l'historique du parent — que
- * {@see TemporalExecutionHistory} sait déjà relire.
+ * On the Temporal side, a child workflow is never run inline by the worker: the parent emits
+ * COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION and the server drives the rest, up to writing
+ * CHILD_WORKFLOW_EXECUTION_COMPLETED / _FAILED into the parent's history — which
+ * {@see TemporalExecutionHistory} already knows how to read back.
  *
- * Sans cette implémentation, {@see \Gplanchat\Durable\ExecutionContext::executeChildWorkflow()}
- * levait une LogicException : les workflows enfants n'étaient pas utilisables sur le driver
- * Temporal, et la commande construite par {@see TemporalWorkflowCommandBuffer::scheduleChildWorkflow()}
- * n'était atteinte par aucun appelant.
+ * Without this implementation, {@see \Gplanchat\Durable\ExecutionContext::executeChildWorkflow()}
+ * raised a LogicException: child workflows were not usable on the Temporal driver, and the
+ * command built by {@see TemporalWorkflowCommandBuffer::scheduleChildWorkflow()} was reached by
+ * no caller.
  */
 final class TemporalChildWorkflowRunner implements ChildWorkflowRunnerInterface
 {
@@ -27,8 +27,8 @@ final class TemporalChildWorkflowRunner implements ChildWorkflowRunnerInterface
 
     public function runChild(string $childExecutionId, string $workflowType, array $input, ?string $parentExecutionId = null): mixed
     {
-        // La commande de démarrage est déjà dans le buffer ; l'awaitable reste non réglé
-        // jusqu'à ce que l'historique porte l'issue de l'enfant.
+        // The start command is already in the buffer; the awaitable stays unsettled until the
+        // history carries the child's outcome.
         throw new ChildWorkflowStartDeferred();
     }
 }

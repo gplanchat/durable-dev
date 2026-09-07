@@ -5,8 +5,8 @@
         <resources>
             <resource id="Magento_Backend::admin">
                 <resource id="Magento_Backend::system">
-                    <!-- Une console d'exploitation, pas un réglage de boutique : la ressource vit
-                         sous System, comme le menu. -->
+                    <!-- An operations console, not a store setting: the resource lives under
+                         System, like the menu. -->
                     <resource id="Gplanchat_DurableModule::processes" title="Durable processes" sortOrder="90">
                         <resource id="Gplanchat_DurableModule::process_history" title="Process history" sortOrder="10"/>
                     </resource>

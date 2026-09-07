@@ -43,6 +43,12 @@ target = 'content'
 source = '../documentation/user'
 target = 'content/docs'
 
+# The blog. Outside `BookSection`, so hugo-book renders it with its own `list.html`
+# (`book-post` markup, pagination, dated meta) instead of the book menu tree. No layout of ours.
+[[module.mounts]]
+source = '../documentation/blog'
+target = 'content/posts'
+
 [params]
 BookRepo = 'https://github.com/gplanchat/durable-dev'
 BookEditPath = 'edit/main/documentation/user'
@@ -53,13 +59,21 @@ BookTheme = 'auto'
 BookToC = true
 BookCollapsedLevel = 1
 
-[params.menu]
-[[params.menu.after]]
+# `[menu]`, not `[params.menu]`. The theme reads `.Site.Menus.after`, which Hugo builds from
+# `[menu]` alone; declared under `params` these three entries parse without error and render
+# nowhere, which is where the first two spent their life.
+[menu]
+[[menu.after]]
+name = 'Blog'
+url = '/posts/'
+weight = 5
+
+[[menu.after]]
 name = 'Repository'
 url = 'https://github.com/gplanchat/durable-dev'
 weight = 10
 
-[[params.menu.after]]
+[[menu.after]]
 name = 'Contributor docs (ADRs)'
 url = 'https://github.com/gplanchat/durable-dev/tree/main/documentation/adr'
 weight = 20

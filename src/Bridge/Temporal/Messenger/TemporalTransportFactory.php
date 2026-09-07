@@ -13,11 +13,11 @@ use Symfony\Component\Messenger\Transport\TransportFactoryInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
 
 /**
- * DSN unique {@code temporal://HOST:PORT?namespace=...&tls=...} pour toute connexion Temporal.
- * Le type d’accès (journal vs messages applicatifs vs worker activités) est choisi via {@code options.purpose},
- * la query {@code purpose=} du DSN, ou déduit : présence de {@code inner} (DSN ou options) ⇒ {@code application}, sinon {@code journal}.
+ * A single DSN {@code temporal://HOST:PORT?namespace=...&tls=...} for every Temporal connection.
+ * The kind of access (journal vs application messages vs activity worker) is chosen via {@code options.purpose},
+ * the DSN's {@code purpose=} query, or inferred: presence of {@code inner} (DSN or options) ⇒ {@code application}, otherwise {@code journal}.
  *
- * Schémas obsolètes acceptés et normalisés : {@code temporal-journal://}, {@code temporal-application://}.
+ * Obsolete schemes accepted and normalized: {@code temporal-journal://}, {@code temporal-application://}.
  *
  * @implements TransportFactoryInterface<TemporalJournalTransport|TemporalApplicationTransport|TemporalActivityWorkerTransport|TemporalNexusWorkerTransport>
  */
@@ -31,8 +31,8 @@ final class TemporalTransportFactory implements TransportFactoryInterface
         private readonly ?TemporalActivityWorker $activityWorker = null,
         private readonly ?TemporalConnection $temporalConnection = null,
         private readonly ?WorkflowRegistry $workflowRegistry = null,
-        // En queue, et pas à côté du worker d'activité : les indices d'arguments sont écrits en
-        // dur dans DurableTemporalTransportFactoryPass, et intercaler les décalerait en silence.
+        // At the tail, and not next to the activity worker: the argument indices are hard-coded
+        // in DurableTemporalTransportFactoryPass, and slotting one in would silently shift them.
         private readonly ?TemporalNexusWorker $nexusWorker = null,
     ) {}
 

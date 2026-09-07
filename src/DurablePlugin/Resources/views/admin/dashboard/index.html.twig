@@ -17,10 +17,10 @@
         .durable-action.signal { border-left-color: #fbcfe8; }
         .durable-action.query { border-left-color: #fde68a; }
         .durable-action.update { border-left-color: #c4b5fd; }
-        /* Nexus tranche sur les autres à dessein : c'est la seule voie où l'attente est servie
-           hors de cette application, et c'est celle qu'un exploitant doit repérer sans la chercher. */
+        /* Nexus stands out from the rest on purpose: it is the one path where the wait is served
+           outside this application, and the one an operator has to spot without looking for it. */
         .durable-action.nexus { border-left-color: #fdba74; }
-        /* Ce qui a mal tourné se lit sans être déplié — une annulation, elle, reste noire. */
+        /* What went wrong reads without unfolding anything — a cancellation stays black. */
         .durable-failed, .durable-failed > details > summary { color: #d63939; }
         .durable-events { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
         .durable-events li { border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); padding: .5rem .65rem; background: var(--tblr-bg-surface); }
@@ -28,24 +28,24 @@
         .durable-frieze-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .3rem; }
         .durable-frieze-name { flex: 0 0 12rem; text-align: right; font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .durable-frieze-track { position: relative; flex: 1 1 auto; height: 1.4rem; background: var(--tblr-bg-surface-secondary); border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); }
-        /* `min-width` uniforme, et c'est ce qui tient la règle : quatre millisecondes de file ne
-           doivent pas dessiner plus large que six millisecondes de travail. Un minimum appliqué
-           aux deux les rend égales sous le seuil, jamais inversées. */
+        /* One `min-width` for both, and that is what holds the rule: four milliseconds of queue
+           must not draw wider than six milliseconds of work. A minimum applied to both makes them
+           equal under the threshold, never inverted. */
         .durable-frieze-bar { position: absolute; top: .3rem; height: .8rem; min-width: .2rem; border-radius: .4rem; opacity: .35; background: #206bc4; }
         .durable-frieze-mark { position: absolute; top: .4rem; width: .6rem; height: .6rem; margin-left: -.3rem; border-radius: 50%; background: #206bc4; }
         .durable-frieze-bar.execution, .durable-frieze-mark.execution { background: #4b5563; }
         .durable-frieze-bar.activity, .durable-frieze-mark.activity { background: #206bc4; }
         .durable-frieze-bar.signal, .durable-frieze-mark.signal { background: #d63939; }
         .durable-frieze-bar.update, .durable-frieze-mark.update { background: #7048e8; }
-        /* Nexus tranche sur les autres à dessein, ici comme sur les blocs plus bas. */
+        /* Nexus stands out on purpose here too, as it does on the blocks further down. */
         .durable-frieze-bar.nexus, .durable-frieze-mark.nexus { background: #f76707; }
         .durable-frieze-bar.other, .durable-frieze-mark.other { background: #868e96; }
-        /* Après les règles de nature, et pas avant : celles-ci posent `background` en raccourci,
-           qui remet `background-image` à zéro. L'opacité est relevée parce qu'une file de quelques
-           millisecondes tient dans deux pixels, où des hachures translucides ne se voient plus. */
+        /* After the per-kind rules, not before: those set `background` as a shorthand, which
+           resets `background-image`. The opacity is raised because a queue of a few milliseconds
+           fits in two pixels, where translucent hatching no longer shows. */
         .durable-frieze-bar.waiting { opacity: .75; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.9) 0 1px, rgba(255,255,255,0) 1px 3px); }
-        /* `background-color` et non `background` : le raccourci effacerait la trame, et une attente
-           qui finit en échec est les deux à la fois. */
+        /* `background-color` and not `background`: the shorthand would wipe the hatching, and a
+           wait that ends in a failure is both at once. */
         .durable-frieze-bar.failed { background-color: #d63939; opacity: .75; }
         .durable-frieze-mark.failed { background-color: #d63939; }
         .durable-frieze-took { flex: 0 0 5rem; font-size: .8rem; color: var(--tblr-secondary-color); }
@@ -70,23 +70,23 @@
                     <p class="text-secondary mb-0">Observe workflow runs, outcomes and recorded history from the Sylius back-office.</p>
                 </div>
 
-                {# Trois états, pas deux : sans backend lisible, injoignable, ou joignable dont le
-                   journal ne survit pas à la requête. Le troisième répond, et sa réponse est vide —
-                   le peindre en succès apprendrait que rien n'a tourné, ce qui est faux. #}
+                {# Three states, not two: no readable backend, an unreachable one, or a reachable
+                   one whose journal does not outlive the request. The third answers, and its answer
+                   is empty — painting it as a success would teach that nothing ran, which is false. #}
                 <div class="alert {% if not backend.available %}alert-warning{% elseif backend.ephemeral %}alert-info{% else %}alert-success{% endif %}" role="alert">
                     <div>{{ backend.message }}</div>
-                    {# Le backend n'est nommé que s'il y en a un : sans catalogue, nommer un serveur
-                       enverrait l'exploitant sur une fausse piste. #}
+                    {# The backend is named only when there is one: with no catalogue, naming a
+                       server would send the operator down a false trail. #}
                     {% if backend.name is defined %}
                         <small class="text-secondary">{{ backend.name }} · checked at {{ backend.checkedAt|date('Y-m-d H:i:s', false) }}</small>
                     {% endif %}
                 </div>
 
                 {% if backend.available %}
-                    {# La portée est dite, et c'est le sujet : un intitulé « Total » sous lequel on lit
-                       vingt apprend à l'exploitant qu'une application qui a enregistré cinq cents
-                       exécutions en a vingt. Ces compteurs couvrent la page affichée, parce que
-                       c'est ce que le catalogue a été interrogé de rendre. #}
+                    {# The scope is stated, and the scope is the point: a "Total" heading with twenty
+                       under it teaches the operator that an application which recorded five hundred
+                       runs has twenty. These counters cover the page on screen, because that is what
+                       the catalogue was asked to return. #}
                     <h2 class="h4 mb-0">Outcomes across the {{ kpis.total }} runs on this page</h2>
                     <div class="row row-cards">
                         {% for label, counter in {
@@ -150,7 +150,7 @@
                                                 </div>
                                                 <div class="durable-meta mt-1">
                                                     <code>{{ run.runId }}</code>
-                                                    {# Chaque fait n'apparaît que s'il existe : le modèle de vue omet la clé plutôt que de rendre une valeur vide. #}
+                                                    {# Each fact shows only when it exists: the view model omits the key rather than render an empty value. #}
                                                     {% if run.startedAt is defined %}<span>{{ run.startedAt|date('Y-m-d H:i:s', false) }}</span>{% endif %}
                                                     {% if run.groupId is defined %}<span>Group: <code>{{ run.groupId }}</code></span>{% endif %}
                                                 </div>
@@ -179,21 +179,20 @@
                                         {% if selectedRun.timeline.actions is empty %}
                                             <p class="text-secondary mb-0">No recorded history for this run.</p>
                                         {% else %}
-                                            {# La frise : une ligne par action, **placée dans le temps**. Empiler des
-                                               blocs répond « dans quel ordre », jamais « pendant combien de temps » —
-                                               et la seconde est la question qu'un exploitant devant une exécution
-                                               lente vient poser. Les secondes viennent du cœur ; la seule chose qui se
-                                               décide ici est leur mise à l'échelle, parce qu'elle demande de connaître
-                                               une largeur de colonne. #}
+                                            {# The frieze: one row per action, **placed in time**. Stacking blocks
+                                               answers "in what order", never "for how long" — and the second is the
+                                               question an operator in front of a slow run comes to ask. The seconds
+                                               come from the core; the only thing decided here is how they scale,
+                                               because that needs to know a column width. #}
                                             {% set scale = selectedRun.timeline.span > 0 ? 100 / selectedRun.timeline.span : 0 %}
                                             <div class="durable-frieze">
                                                 {% for action in selectedRun.timeline.actions %}
                                                     <div class="durable-frieze-row">
                                                         <span class="durable-frieze-name" title="{{ action.label }}">{{ action.label }}</span>
                                                         <div class="durable-frieze-track">
-                                                            {# Un segment par intervalle, et non une barre par action : dès que
-                                                               l'exécution elle-même occupe une ligne, une barre unique dirait
-                                                               « le run a duré le temps du run » et masquerait l'attente. #}
+                                                            {# One segment per interval, not one bar per action: as soon as the run
+                                                               itself takes a row, a single bar would say "the run lasted as long as
+                                                               the run" and would hide the wait. #}
                                                             {% for segment in action.segments %}
                                                                 <span class="durable-frieze-bar {{ action.kind.value }}{{ segment.waiting ? ' waiting' }}{{ segment.failed ? ' failed' }}"
                                                                       style="left: {{ (segment.offset * scale)|number_format(3, '.', '') }}%; width: {{ (segment.duration * scale)|number_format(3, '.', '') }}%"
@@ -212,7 +211,7 @@
                                                     <span>0</span>
                                                     <span>{{ selectedRun.timeline.spanLabel }}</span>
                                                 </div>
-                                                {# Survoler suppose de savoir qu'il y a quelque chose à survoler. #}
+                                                {# Hovering assumes you know there is something to hover over. #}
                                                 <div class="durable-frieze-key">
                                                     <span class="durable-frieze-bar waiting other"></span>
                                                     Hatched: waiting to be picked up — the work had been asked for, but nobody had started it yet.
@@ -222,26 +221,26 @@
                                                     Red: what failed. A cancellation is not painted red — it is an outcome, not a breakdown.
                                                 </div>
                                             </div>
-                                            {# Un bloc par action, pas par nature : une activité planifiée, démarrée puis
-                                               terminée est une action et trois événements, et c'est sa durée que l'exploitant
-                                               vient lire. Le groupement, les durées et la distinction file/travail viennent
-                                               du cœur — cette page les rend, elle ne les calcule pas. #}
+                                            {# One block per action, not per kind: an activity scheduled, started and then
+                                               finished is one action and three events, and it is its duration the operator
+                                               comes to read. The grouping, the durations and the queue/work split come from
+                                               the core — this page renders them, it does not compute them. #}
                                             {% for action in selectedRun.timeline.actions %}
                                                 <div class="durable-action {{ action.kind.value }}">
                                                     <h4 class="h5 mb-2">{{ action.label }} <small class="text-secondary">{{ action.durationLabel }}</small></h4>
                                                     <ul class="durable-events">
                                                         {% for mark in action.events %}
-                                                            {# Un événement dont le backend n'a rien enregistré garde une ligne simple :
-                                                               un dépliant qui s'ouvre sur du vide se rouvre à chaque fois. #}
+                                                            {# An event the backend recorded nothing for keeps a plain row: a disclosure
+                                                               that opens on nothing gets opened again every time. #}
                                                             <li{% if mark.event.failed %} class="durable-failed"{% endif %}>
-                                                                {# ⚠ `date(..., false)` garde le fuseau que **porte** la date. Sans lui,
-                                                                   Twig applique celui du serveur, et le même événement se lisait
-                                                                   22:13:20 dans l'infobulle de la frise — composée dans le cœur — et
-                                                                   23:13:20 dans cette ligne-ci, sur une machine à Paris. #}
-                                                                {# `renderedDetails` vaut `null` quand il n'y a rien à ouvrir. La mise
-                                                                   en forme se décide dans le cœur : ce gabarit appelait `json_encode`
-                                                                   sans tolérance et rendait un dépliant **vide** dès qu'un octet
-                                                                   n'était pas de l'UTF-8. #}
+                                                                {# ⚠ `date(..., false)` keeps the timezone the date **carries**. Without it
+                                                                   Twig applies the server's, and the same event read 22:13:20 in the
+                                                                   frieze tooltip — composed in the core — and 23:13:20 in this very row,
+                                                                   on a machine in Paris. #}
+                                                                {# `renderedDetails` is `null` when there is nothing to open. The formatting
+                                                                   is decided in the core: this template used to call `json_encode` with no
+                                                                   tolerance and rendered an **empty** disclosure as soon as one byte was
+                                                                   not UTF-8. #}
                                                                 {% if mark.renderedDetails is not null %}
                                                                     <details>
                                                                         <summary><strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v', false) }} — {{ mark.event.label }}</summary>

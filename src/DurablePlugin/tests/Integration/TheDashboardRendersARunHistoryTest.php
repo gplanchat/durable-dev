@@ -35,8 +35,8 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         $page = $this->render();
 
         self::assertStringContainsString('SendWelcomeEmail', $page);
-        self::assertStringContainsString('orderApproved', $page, 'un signal est une ligne à lui seul');
-        self::assertStringContainsString('#1', $page, 'chaque événement garde son rang');
+        self::assertStringContainsString('orderApproved', $page, 'a signal is a row of its own');
+        self::assertStringContainsString('#1', $page, 'every event keeps its rank');
     }
 
     public function testAnEventCarryingSomethingUnfoldsAndAnEmptyOneStaysALine(): void
@@ -47,7 +47,7 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
 
         self::assertStringContainsString('<details>', $page);
         self::assertStringContainsString('cus-42', $page);
-        self::assertSame(1, substr_count($page, '<details>'), 'un seul des deux événements a de quoi déplier');
+        self::assertSame(1, substr_count($page, '<details>'), 'only one of the two events has anything to unfold');
     }
 
     public function testAnEphemeralJournalIsNeitherAFailureNorASuccess(): void
@@ -77,7 +77,7 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         $page = $this->render();
 
         self::assertStringContainsString('waiting', $page);
-        self::assertStringContainsString('waiting to be picked up', $page, 'une hachure sans légende est une devinette');
+        self::assertStringContainsString('waiting to be picked up', $page, 'hatching with no legend is a guessing game');
     }
 
     public function testTheHatchingIsExplainedOnThePageAndNotOnlyOnHover(): void

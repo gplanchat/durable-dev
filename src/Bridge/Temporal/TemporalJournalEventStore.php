@@ -22,16 +22,16 @@ use Temporal\Api\Workflowservice\V1\SignalWithStartWorkflowExecutionResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * EventStore backed by a Temporal workflow journal (signals + historique serveur).
+ * EventStore backed by a Temporal workflow journal (signals + server history).
  *
- * La lecture repose sur {@see GetWorkflowExecutionHistory} (cohérent avec DBAL : pas de blocage
- * sur le worker ni sur une query traitée par poll).
+ * Reading relies on {@see GetWorkflowExecutionHistory} (consistent with DBAL: no blocking on the
+ * worker nor on a query served by poll).
  */
 final class TemporalJournalEventStore implements EventStoreInterface
 {
     private const GRPC_NOT_FOUND = 5;
 
-    /** @var array<string, string> executionId → run_id (rempli à l’append ; sinon résolu via Describe) */
+    /** @var array<string, string> executionId → run_id (filled at append; otherwise resolved via Describe) */
     private array $runIdByExecutionId = [];
 
     private readonly HistoryPageMerger $historyMerger;
