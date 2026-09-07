@@ -7,11 +7,11 @@ namespace App\Tests\Http;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
- * Smoke tests HTTP : vérifie que le container se construit correctement (routing, DI, templates)
- * et que les pages principales retournent HTTP 200 avec le contenu attendu.
+ * HTTP smoke tests: verifies that the container builds correctly (routing, DI, templates)
+ * and that the main pages return HTTP 200 with the expected content.
  *
- * Ces tests auraient détecté la régression du DurableTemporalTransportFactoryPass
- * (mauvais type injecté → exception à l'initialisation du container).
+ * These tests would have caught the DurableTemporalTransportFactoryPass regression
+ * (wrong type injected → exception during container initialization).
  *
  * @internal
  */
@@ -44,7 +44,7 @@ final class SamplesControllerSmokeTest extends WebTestCase
 
         $this->assertResponseIsSuccessful();
         $content = (string) $client->getResponse()->getContent();
-        // Quelques scénarios représentatifs du catalogue
+        // A few representative scenarios from the catalogue
         $this->assertStringContainsString('SimpleActivity', $content);
         $this->assertStringContainsString('Signal', $content);
         $this->assertStringContainsString('BookingSaga', $content);
@@ -57,7 +57,7 @@ final class SamplesControllerSmokeTest extends WebTestCase
 
         $this->assertResponseIsSuccessful();
         $content = (string) $client->getResponse()->getContent();
-        $this->assertStringContainsString('Lire la documentation', $content);
+        $this->assertStringContainsString('Read the documentation', $content);
         $this->assertStringContainsString('SimpleActivity', $content);
     }
 
@@ -68,7 +68,7 @@ final class SamplesControllerSmokeTest extends WebTestCase
 
         $this->assertResponseIsSuccessful();
         $content = (string) $client->getResponse()->getContent();
-        $this->assertStringContainsString('Documentation Durable', $content);
+        $this->assertStringContainsString('Durable Documentation', $content);
     }
 
     public function testSamplesRunSyncReturns200ForSimpleActivity(): void
@@ -109,10 +109,10 @@ final class SamplesControllerSmokeTest extends WebTestCase
         $content = (string) $client->getResponse()->getContent();
         $this->assertStringContainsString('Workflow Dashboard', $content);
         $this->assertStringContainsString('Running', $content);
-        $this->assertStringContainsString('Navigation des executions', $content);
-        $this->assertStringContainsString('Affichage de', $content);
-        $this->assertStringContainsString('Frise temporelle', $content);
-        $this->assertStringContainsString('Historique des evenements', $content);
+        $this->assertStringContainsString('Execution navigation', $content);
+        $this->assertStringContainsString('Showing', $content);
+        $this->assertStringContainsString('Timeline frieze', $content);
+        $this->assertStringContainsString('Event history', $content);
     }
 
     public function testDashboardShowsTimelineControlsAndLegend(): void
@@ -123,7 +123,7 @@ final class SamplesControllerSmokeTest extends WebTestCase
         $this->assertResponseIsSuccessful();
         $content = (string) $client->getResponse()->getContent();
         $normalized = strtoupper($content);
-        $this->assertStringContainsString('LIGNES', $normalized);
+        $this->assertStringContainsString('LANES', $normalized);
         $this->assertStringContainsString('EXECUTION', $normalized);
         $this->assertStringContainsString('ACTIVITY', $normalized);
         $this->assertStringContainsString('SIGNAL', $normalized);

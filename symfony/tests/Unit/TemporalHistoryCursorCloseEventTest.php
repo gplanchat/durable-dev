@@ -15,10 +15,10 @@ use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Tests unitaires pour {@see TemporalHistoryCursor::closeEvent()}.
+ * Unit tests for {@see TemporalHistoryCursor::closeEvent()}.
  *
- * Utilise un double de test de {@see WorkflowServiceClient} (sous-classe sans gRPC réel)
- * afin de contrôler les réponses gRPC de GetWorkflowExecutionHistory.
+ * Uses a test double of {@see WorkflowServiceClient} (a subclass without real gRPC)
+ * in order to control the gRPC responses of GetWorkflowExecutionHistory.
  */
 final class TemporalHistoryCursorCloseEventTest extends TestCase
 {
@@ -133,9 +133,9 @@ final class TemporalHistoryCursorCloseEventTest extends TestCase
 }
 
 /**
- * Test double pour {@see WorkflowServiceClient} : évite toute connexion gRPC réelle.
- * Le constructeur parent n'est pas appelé, ce qui permet d'utiliser cette classe
- * dans des tests sans l'extension gRPC active.
+ * Test double for {@see WorkflowServiceClient}: avoids any real gRPC connection.
+ * The parent constructor is not called, which makes it possible to use this class
+ * in tests without the gRPC extension active.
  *
  * @internal
  */
@@ -178,7 +178,7 @@ final class FakeWorkflowServiceClient extends WorkflowServiceClient
 }
 
 /**
- * Simule un appel gRPC unaire avec un résultat préprogrammé.
+ * Simulates a unary gRPC call with a preprogrammed result.
  *
  * @internal
  */
