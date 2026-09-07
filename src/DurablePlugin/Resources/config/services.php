@@ -13,8 +13,8 @@ use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 return static function (ContainerConfigurator $container): void {
     $services = $container->services();
 
-    // Le catalogue est absent quand aucun backend n'est lisible : le bundle n'en enregistre alors
-    // aucun, et la page doit le dire plutôt que d'échouer au montage.
+    // The catalog is absent when no backend is readable: the bundle then registers none, and the
+    // page must say so rather than failing to wire.
     $services
         ->set(RunDashboard::class)
         ->arg('$catalog', service(WorkflowRunCatalogInterface::class)->nullOnInvalid())

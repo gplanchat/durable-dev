@@ -10,7 +10,7 @@ use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
- * Vide la trace en début de requête HTTP principale pour éviter la fuite entre requêtes.
+ * Clears the trace at the start of the main HTTP request to avoid leaking between requests.
  */
 final class ResetDurableProfilerListener implements EventSubscriberInterface
 {

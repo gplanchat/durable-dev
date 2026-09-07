@@ -13,15 +13,15 @@ use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Un stub assemble, il n'attend pas.
+ * A stub assembles, it does not await.
  *
- * `ChildWorkflowStub::__call()` rendait le résultat de l'enfant, déjà attendu, là où
- * `ActivityStub` rend un `Awaitable`. L'asymétrie ne se voit qu'au moment de composer, et alors la
- * forme typée ne sait pas exprimer ce qu'on veut : c'est pour ça que l'application d'exemple
- * lançait ses deux enfants parallèles en les nommant par une chaîne.
+ * `ChildWorkflowStub::__call()` returned the child's result, already awaited, where
+ * `ActivityStub` returns an `Awaitable`. The asymmetry only shows at composition time, and then
+ * the typed form cannot express what is wanted: that is why the example application launched its
+ * two parallel children by naming them with a string.
  *
- * DUR033 l'avait déjà tranché — « await() est la seule méthode qui attend » — mais il énumérait
- * les méthodes de l'environnement, pas celles du stub.
+ * DUR033 had already settled it — "await() is the only method that awaits" — but it enumerated
+ * the methods of the environment, not those of the stub.
  *
  * @see openspec/changes/child-workflow-surface
  */
@@ -37,7 +37,7 @@ final class ChildWorkflowSurfaceTest extends TestCase
         }
 
         self::assertNotContains('scheduleChildWorkflow', $public);
-        // Celle-ci attendait pour l'appelant, ce qui la rendait incomposable par construction.
+        // This one awaited on the caller's behalf, which made it uncomposable by construction.
         self::assertNotContains('executeChildWorkflow', $public);
     }
 
@@ -56,8 +56,8 @@ final class ChildWorkflowSurfaceTest extends TestCase
         $env = WorkflowTestEnvironment::inMemory();
         $env->registerWorkflowClass(EchoChild::class);
 
-        // Le cas qui motive tout le change : impossible à écrire tant que le stub attendait, parce
-        // que le premier enfant se serait réglé avant que le second ne démarre.
+        // The case that motivates the whole change: impossible to write as long as the stub
+        // awaited, because the first child would have settled before the second even started.
         $result = $env->runWorkflowClass(RacingParent::class, ['first' => 'a', 'second' => 'b']);
 
         self::assertContains($result, ['child:a', 'child:b']);

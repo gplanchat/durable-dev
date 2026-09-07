@@ -17,13 +17,13 @@ final class NexusOperationRegistryTest extends TestCase
 {
     public function testABackendThatCannotRouteRefusesTheHandlerAtRegistration(): void
     {
-        // Le mode d'échec que ce garde existe pour rendre impossible : sur un backend sans route,
-        // un gestionnaire déclaré n'est pas un appel qui échoue, c'est un service qui ne reçoit
-        // jamais rien — aucune erreur, aucune ligne de log, une file que personne ne poll.
+        // The failure mode this guard exists to make impossible: on a backend with no routing, a
+        // declared handler is not a call that fails, it is a service that never receives anything
+        // — no error, no log line, a queue nobody polls.
         //
-        // La passe de compilation du bundle Symfony l'attrapait déjà. Elle n'attrape que Symfony :
-        // le module Magento et le pont Illuminate montent leurs services autrement, et n'avaient
-        // rien. Le garde appartient donc au cœur.
+        // The Symfony bundle's compiler pass already caught it. It only catches Symfony: the
+        // Magento module and the Illuminate bridge wire their services differently, and had
+        // nothing. The guard therefore belongs to the core.
         $registry = NexusOperationRegistry::unavailableOn('memory');
 
         $this->expectException(NexusUnsupportedByBackendException::class);
@@ -76,9 +76,9 @@ final class NexusOperationRegistryTest extends TestCase
 
     public function testAnOperationFulfilledByAWorkflowNeedsNoHandler(): void
     {
-        // La forme différée déclarée : aucun gestionnaire n'est appelé, et il n'y en a pas à
-        // écrire. Le registre rend directement la réponse que le worker sait traiter — démarrer
-        // le workflow avec le callback de la tâche attaché.
+        // The declared deferred form: no handler is called, and there is none to write. The
+        // registry returns directly the response the worker knows how to process — start the
+        // workflow with the task callback attached.
         $registry = NexusOperationRegistry::routedBy('temporal');
         $registry->registerFulfilment(
             NexusService::named('billing'),
@@ -94,7 +94,7 @@ final class NexusOperationRegistryTest extends TestCase
 
         self::assertFalse($response->isImmediate);
         self::assertSame('ChargeWorkflow', $response->workflowType);
-        self::assertSame(['order' => 'o-1'], $response->workflowInput, "la charge de l'appelant devient l'entrée du workflow");
+        self::assertSame(['order' => 'o-1'], $response->workflowInput, "the caller's payload becomes the workflow's input");
     }
 
     public function testAFulfilledOperationIsServed(): void
@@ -111,8 +111,8 @@ final class NexusOperationRegistryTest extends TestCase
 
     public function testAFulfilmentOnABackendThatCannotRouteIsRefusedToo(): void
     {
-        // Même garde que pour un gestionnaire : sans route, ce workflow ne sera jamais démarré
-        // par personne, et rien ne le dirait.
+        // Same guard as for a handler: with no routing, this workflow will never be started by
+        // anyone, and nothing would say so.
         $registry = NexusOperationRegistry::unavailableOn('memory');
 
         $this->expectException(NexusUnsupportedByBackendException::class);
@@ -126,14 +126,14 @@ final class NexusOperationRegistryTest extends TestCase
 
     public function testAnOperationNobodyServesIsRefusedTerminally(): void
     {
-        // 1b.3 : NOT_IMPLEMENTED est du côté non réessayable. Le dire réessayable ferait
-        // redemander la même opération toutes les ~9 s pendant tout son budget, pour une
-        // réponse qui ne changera pas.
+        // 1b.3: NOT_IMPLEMENTED is on the non-retryable side. Calling it retryable would have
+        // the same operation asked again every ~9 s for its whole budget, for an answer that
+        // will not change.
         $registry = NexusOperationRegistry::routedBy('temporal');
 
         try {
             $registry->dispatch(NexusService::named('billing'), NexusOperationName::named('refund'), null);
-            self::fail('Une opération non servie doit être refusée.');
+            self::fail('An operation nobody serves must be refused.');
         } catch (NexusOperationNotHandledException $refusal) {
             self::assertSame(NexusHandlerErrorType::NotImplemented, $refusal->type());
             self::assertFalse($refusal->type()->isRetryable());
@@ -158,7 +158,7 @@ final class NexusOperationRegistryTest extends TestCase
 
     public function testTwoOperationsWhoseNamesSplitDifferentlyDoNotCollide(): void
     {
-        // Une clé jointe par un point confondrait ("a.b", "c") et ("a", "b.c").
+        // A key joined by a dot would confuse ("a.b", "c") with ("a", "b.c").
         $registry = NexusOperationRegistry::routedBy('temporal');
         $registry->register(
             NexusService::named('a.b'),

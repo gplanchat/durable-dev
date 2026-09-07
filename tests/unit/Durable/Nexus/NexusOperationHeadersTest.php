@@ -9,15 +9,15 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Un cas par verdict observé sur Temporal 1.31.2 (sonde §1.1 et §1.2), et rien d'autre.
+ * One case per verdict observed on Temporal 1.31.2 (probe §1.1 and §1.2), and nothing else.
  *
- * Le serveur est permissif sur tout **sauf la casse** : clé vide, valeur vide, blancs en bord,
- * saut de ligne, espace dans la clé, mille caractères — tout est accepté tel quel. Être plus
- * strict que lui rejetterait des en-têtes qu'il porte sans broncher.
+ * The server is permissive about everything **except case**: empty key, empty value, whitespace at
+ * the edges, newline, space in the key, a thousand characters — everything is accepted as it is.
+ * Being stricter than it would reject headers it carries without flinching.
  *
- * Une seule chose lui échappe, et elle est muette : il minuscule les clés, si bien que deux clés
- * ne différant que par la casse entrent en collision — deux en-têtes entrent, un seul sort, sans
- * erreur ni trace. C'est la seule chose que cet objet ait à empêcher.
+ * One single thing escapes it, and it is silent: it lowercases the keys, so that two keys
+ * differing only by case collide — two headers go in, one comes out, with no error and no trace.
+ * That is the only thing this object has to prevent.
  */
 final class NexusOperationHeadersTest extends TestCase
 {
@@ -44,8 +44,8 @@ final class NexusOperationHeadersTest extends TestCase
 
     public function testAKeyIsLoweredSoTheCallerHoldsWhatTheServerKeeps(): void
     {
-        // Le serveur minuscule sans le dire. Rendre la clé telle qu'envoyée ferait mentir la
-        // relecture : l'appelant croirait avoir posé `X-Correlation`.
+        // The server lowercases without saying so. Returning the key as it was sent would make
+        // reading it back a lie: the caller would believe it had set `X-Correlation`.
         $headers = NexusOperationHeaders::of(['X-Correlation' => 'abc-123', 'X-TOUT-MAJ' => 'v']);
 
         self::assertSame(['x-correlation' => 'abc-123', 'x-tout-maj' => 'v'], $headers->toArray());
@@ -53,8 +53,8 @@ final class NexusOperationHeadersTest extends TestCase
 
     public function testTwoKeysCollidingOnCaseAreRefused(): void
     {
-        // La panne muette : côté serveur, deux en-têtes entrent et un seul sort. Ici l'appelant
-        // demande quelque chose que le serveur ne sait pas faire et ne dirait pas.
+        // The silent failure: on the server side, two headers go in and one comes out. Here the
+        // caller asks for something the server cannot do and would not say.
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/x-choc/');
 
@@ -63,11 +63,11 @@ final class NexusOperationHeadersTest extends TestCase
 
     public function testTheCollisionMessageNamesBothSpellings(): void
     {
-        // Un message qui ne nomme que la clé rabattue laisse chercher laquelle des deux graphies
-        // du code appelant a fauté.
+        // A message naming only the folded key leaves you hunting for which of the two spellings
+        // in the calling code was at fault.
         try {
             NexusOperationHeaders::of(['X-Choc' => 'a', 'x-choc' => 'b']);
-            self::fail('La collision aurait dû être refusée.');
+            self::fail('The collision should have been refused.');
         } catch (\InvalidArgumentException $e) {
             self::assertStringContainsString('X-Choc', $e->getMessage());
             self::assertStringContainsString('x-choc', $e->getMessage());
@@ -76,8 +76,8 @@ final class NexusOperationHeadersTest extends TestCase
 
     public function testAnIdenticalKeyTwiceIsNotACollision(): void
     {
-        // PHP ne peut pas produire ce cas dans un littéral, mais un tableau construit le peut :
-        // deux fois la même clé n'est pas une ambiguïté, c'est une seule entrée.
+        // PHP cannot produce this case in a literal, but a built array can: the same key twice
+        // is not an ambiguity, it is a single entry.
         self::assertSame(['x-a' => 'deux'], NexusOperationHeaders::of(['x-a' => 'deux'])->toArray());
     }
 

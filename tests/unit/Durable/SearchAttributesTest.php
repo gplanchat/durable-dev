@@ -12,7 +12,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Trois règles serveur, sondées une par une ; deux sont vérifiables ici, la troisième non.
+ * Three server rules, probed one by one; two are checkable here, the third is not.
  *
  * @see \integration\Temporal\SearchAttributesTest
  */
@@ -43,8 +43,8 @@ final class SearchAttributesTest extends TestCase
     #[DataProvider('mismatchedValues')]
     public function testAValueThatDoesNotMatchItsTypeIsRejected(SearchAttributeType $type, mixed $value): void
     {
-        // Le serveur refuse au démarrage (« invalid value for search attribute … of type Int ») ;
-        // autant le voir à l'écriture.
+        // The server refuses at start ("invalid value for search attribute … of type Int");
+        // better to see it at write time.
         $this->expectExceptionMessageMatches('/is of type .* and needs/');
 
         SearchAttributes::none()->with('DurableThing', $type, $value);
@@ -67,7 +67,7 @@ final class SearchAttributesTest extends TestCase
     #[DataProvider('readOnlyAttributes')]
     public function testServerMaintainedAttributesAreRefused(string $name): void
     {
-        // Relevé nom par nom : « … attribute can't be set in SearchAttributes ».
+        // Recorded name by name: "… attribute can't be set in SearchAttributes".
         $this->expectExceptionMessageMatches('/maintained by the server/');
 
         SearchAttributes::none()->keyword($name, 'x');
@@ -85,7 +85,7 @@ final class SearchAttributesTest extends TestCase
 
     public function testAttributesTheServerLetsYouWriteAreAccepted(): void
     {
-        // Sondés acceptés en écriture, contrairement aux précédents.
+        // Probed as accepted for writing, unlike the previous ones.
         foreach (['BuildIds', 'BinaryChecksums', 'TemporalChangeVersion'] as $name) {
             self::assertTrue(SearchAttributes::none()->keywordList($name, ['x'])->has($name));
         }

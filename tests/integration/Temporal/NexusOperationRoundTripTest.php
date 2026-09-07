@@ -36,25 +36,24 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * La commande que le pont construit est-elle acceptée par un vrai serveur, et revient-elle
- * inchangée dans l'historique ?
+ * Is the command the bridge builds accepted by a real server, and does it come back unchanged in
+ * the history?
  *
- * Les tests unitaires de `TemporalWorkflowCommandBuffer` vérifient la FORME de la commande. Ils ne
- * peuvent pas dire si le serveur l'accepte : c'est ce que ce fichier ajoute, et c'est ce qui a
- * manqué à d'autres commandes de ce pont — une commande bien formée mais jamais soumise passe tous
- * les tests et ne fait rien.
+ * The unit tests of `TemporalWorkflowCommandBuffer` check the SHAPE of the command. They cannot say
+ * whether the server accepts it: that is what this file adds, and that is what other commands of
+ * this bridge lacked — a command that is well formed but never submitted passes every test and does
+ * nothing.
  *
- * **Prérequis du namespace de test : un endpoint Nexus.** Contrairement aux attributs de recherche,
- * qui doivent être déclarés à la main, ce test crée le sien et le supprime en sortant — un nom
- * d'endpoint est unique pour le cluster entier, et en laisser traîner gênerait toute autre session.
- * L'équivalent manuel, pour qui veut reproduire à la main :
+ * **Prerequisite of the test namespace: a Nexus endpoint.** Unlike the search attributes, which
+ * have to be declared by hand, this test creates its own and deletes it on the way out — an
+ * endpoint name is unique for the whole cluster, and leaving one lying around would get in the way
+ * of every other session. The manual equivalent, for whoever wants to reproduce it by hand:
  *
  *     temporal operator nexus endpoint create --name durable-probe --target-namespace durable-test \
  *         --target-task-queue durable-nexus
  *
- * Aucun worker n'est démarré : la tâche de workflow est poll et complétée par le test lui-même,
- * ce qui est le seul moyen de soumettre une commande construite par le tampon sans dépendre du
- * pilote de fiber.
+ * No worker is started: the workflow task is polled and completed by the test itself, which is the
+ * only way to submit a command built by the buffer without depending on the fiber driver.
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §6.1 §6.2
  */
@@ -73,7 +72,7 @@ final class NexusOperationRoundTripTest extends TestCase
     {
         $address = getenv('DURABLE_TEMPORAL_ADDRESS');
         if (false === $address || '' === $address) {
-            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS non défini : pas de serveur Temporal.');
+            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS not set: no Temporal server.');
         }
 
         $queue = 'nexus-rt-' . bin2hex(random_bytes(5));
@@ -144,7 +143,7 @@ final class NexusOperationRoundTripTest extends TestCase
         self::assertSame('billing', $scheduled->getService());
         self::assertSame('charge', $scheduled->getOperation());
 
-        // Les bornes reviennent telles quelles : aucune n'excède l'enveloppe, donc rien n'est raboté.
+        // The bounds come back as they are: none exceeds the envelope, so nothing is clamped.
         self::assertSame(600, $scheduled->getScheduleToCloseTimeout()?->getSeconds());
         self::assertSame(30, $scheduled->getScheduleToStartTimeout()?->getSeconds());
         self::assertSame(120, $scheduled->getStartToCloseTimeout()?->getSeconds());
@@ -155,19 +154,19 @@ final class NexusOperationRoundTripTest extends TestCase
         $scheduled = $this->scheduleThrough(NexusOperationTimeouts::none());
 
         $input = $scheduled->getInput();
-        self::assertNotNull($input, 'L’entrée de l’opération n’a pas été enregistrée.');
+        self::assertNotNull($input, 'The operation input was not recorded.');
 
-        // 1b.2 a retiré l'enveloppe : le serveur reçoit la charge de l'appelant, nue. Chercher
-        // encore une clé `payload` reviendrait à réclamer l'enveloppe que ce chantier a supprimée
-        // — et c'est exactement ce qu'un gestionnaire d'un autre SDK ne trouverait pas.
+        // 1b.2 removed the envelope: the server receives the caller's payload, bare. Still
+        // looking for a `payload` key would amount to demanding the envelope this work removed
+        // — and that is exactly what a handler from another SDK would not find.
         $decoded = JsonPlainPayload::decode($input);
         self::assertSame(['amount' => 10], $decoded);
     }
 
     public function testUnboundedStaysUnbounded(): void
     {
-        // Sans borne, le serveur n'en invente aucune (§1.3) : ce test est la garde de cette
-        // promesse contre un défaut serveur qui apparaîtrait un jour.
+        // With no bound, the server invents none (§1.3): this test is the guard of that promise
+        // against a server defect that might appear one day.
         $scheduled = $this->scheduleThrough(NexusOperationTimeouts::none());
 
         self::assertNull($scheduled->getScheduleToCloseTimeout());
@@ -176,14 +175,14 @@ final class NexusOperationRoundTripTest extends TestCase
     }
 
     /**
-     * Construit la commande par le tampon du pont, la soumet, et relit ce que l'historique en a
-     * gardé.
+     * Builds the command through the bridge's buffer, submits it, and reads back what the history
+     * kept of it.
      */
     public function testAHeaderSentThroughTheBridgeComesBackUnchanged(): void
     {
-        // §4.1. La sonde du bloc 1 a établi que le serveur accepte l'en-tête ; ce test-ci prouve
-        // que **notre commande** le porte jusque-là. Les tests unitaires du tampon vérifient la
-        // forme du champ — ils ne peuvent pas dire qu'il survit à la soumission.
+        // §4.1. The block 1 probe established that the server accepts the header; this test
+        // proves that **our command** carries it all the way there. The buffer's unit tests check
+        // the shape of the field — they cannot say that it survives submission.
         $scheduled = $this->scheduleThrough(
             NexusOperationTimeouts::none(),
             NexusOperationHeaders::of(['x-correlation' => 'abc-123', 'x-tenant' => 'acme']),
@@ -200,8 +199,8 @@ final class NexusOperationRoundTripTest extends TestCase
 
     public function testAKeyGivenInUpperCaseIsAlreadyLoweredBeforeItLeaves(): void
     {
-        // La coercition appartient à l'objet-valeur. Ce que le serveur renvoie doit donc être
-        // identique à ce que l'appelant tenait — pas seulement équivalent à ce qu'il a tapé.
+        // The coercion belongs to the value object. What the server returns must therefore be
+        // identical to what the caller held — not merely equivalent to what it typed.
         $headers = NexusOperationHeaders::of(['X-Correlation' => 'abc-123']);
         $scheduled = $this->scheduleThrough(NexusOperationTimeouts::none(), $headers);
 
@@ -210,7 +209,7 @@ final class NexusOperationRoundTripTest extends TestCase
             $back[(string) $key] = (string) $value;
         }
 
-        self::assertSame($headers->toArray(), $back, "Ce que l'appelant tient doit être ce que le serveur garde.");
+        self::assertSame($headers->toArray(), $back, 'What the caller holds must be what the server keeps.');
     }
 
     public function testNoHeaderMeansNoHeaderInHistory(): void
@@ -258,7 +257,7 @@ final class NexusOperationRoundTripTest extends TestCase
         self::assertSame(
             0,
             (int) ($pair[1]->code ?? -1),
-            \sprintf('Le serveur a refusé la commande du pont : %s', (string) ($pair[1]->details ?? '')),
+            \sprintf('The server refused the bridge command: %s', (string) ($pair[1]->details ?? '')),
         );
 
         $cursor = new TemporalHistoryCursor($this->client, $this->connection);
@@ -271,6 +270,6 @@ final class NexusOperationRoundTripTest extends TestCase
             }
         }
 
-        self::fail('Aucun NEXUS_OPERATION_SCHEDULED dans l’historique.');
+        self::fail('No NEXUS_OPERATION_SCHEDULED in the history.');
     }
 }

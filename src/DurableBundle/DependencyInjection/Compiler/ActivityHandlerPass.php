@@ -13,13 +13,13 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 
 /**
- * Enregistre sur {@see ActivityExecutor} les activités exposées par les services tagués durable.activity_handler.
+ * Registers on {@see ActivityExecutor} the activities exposed by the services tagged durable.activity_handler.
  *
- * Par un **localisateur de services**, et non par un tableau de callables. Poser
- * `[new Reference($invoker), '__invoke']` obligerait le conteneur à résoudre chaque référence pour
- * bâtir l'argument : il instancierait alors tous les gestionnaires de l'application — et leurs
- * connexions, clients HTTP et autres dépendances — pour en appeler un seul. Sur un worker qui
- * traite une activité par message, c'est payé à chaque message.
+ * Through a **service locator**, not through an array of callables. Passing
+ * `[new Reference($invoker), '__invoke']` would force the container to resolve every reference to
+ * build the argument: it would then instantiate every handler in the application, and their
+ * connections, HTTP clients and other dependencies, in order to call one. On a worker that handles
+ * one activity per message, that is paid on every message.
  */
 final class ActivityHandlerPass implements CompilerPassInterface
 {
@@ -82,10 +82,10 @@ final class ActivityHandlerPass implements CompilerPassInterface
                         ->setPublic(false)
                     ;
 
-                    // Une référence dans le localisateur, pas un callable construit à la
-                    // compilation : bâtir `[new Reference(...), '__invoke']` obligerait le
-                    // conteneur à instancier **chaque** invoker — donc chaque gestionnaire et ses
-                    // dépendances — pour en appeler un seul.
+                    // A reference in the locator, not a callable built at
+                    // compilation: building `[new Reference(...), '__invoke']` would force the
+                    // container to instantiate **every** invoker, so every handler and its
+                    // dependencies, in order to call one.
                     $handlerRefs[$activityName] = new Reference($invokerId);
                 }
             }
@@ -95,14 +95,14 @@ final class ActivityHandlerPass implements CompilerPassInterface
             return;
         }
 
-        // Le localisateur ne construit que ce qu'on lui demande, et `ServiceLocatorTagPass` le
-        // déduplique entre passes : c'est le mécanisme amont pour « beaucoup de candidats, un seul
-        // appelé », celui qu'emploie `MessengerPass` pour les gestionnaires de messages.
+        // The locator builds only what it is asked for, and `ServiceLocatorTagPass` deduplicates it
+        // across passes: it is the upstream mechanism for "many candidates, one called", the one
+        // `MessengerPass` uses for message handlers.
         $executor->setArgument('$lazyHandlers', ServiceLocatorTagPass::register($container, $handlerRefs));
     }
 
     /**
-     * Les contrats d'activité sont des interfaces : {@see class_exists} retourne false pour elles.
+     * Activity contracts are interfaces: {@see class_exists} returns false for them.
      */
     private static function typeExists(string $fqcn): bool
     {

@@ -10,8 +10,8 @@ use Gplanchat\Durable\Duration;
 use PHPUnit\Framework\TestCase;
 
 /**
- * La question du domaine — « cette tentative est-elle encore permise ? » — se pose à l'objet,
- * plus à chaque site d'appel qui devait retraduire un 0 magique.
+ * The domain question — "is this attempt still allowed?" — is asked of the object, no longer of
+ * every call site that had to retranslate a magic 0.
  */
 final class RetryLimitTest extends TestCase
 {
@@ -31,7 +31,7 @@ final class RetryLimitTest extends TestCase
 
         self::assertSame(3, $limit->maxAttempts());
         self::assertTrue($limit->allowsAttempt(3));
-        self::assertFalse($limit->allowsAttempt(4), 'ofAttempts(3) = 3 exécutions, pas 4');
+        self::assertFalse($limit->allowsAttempt(4), 'ofAttempts(3) = 3 executions, not 4');
     }
 
     public function testOnceForbidsAnyRetry(): void
@@ -42,8 +42,8 @@ final class RetryLimitTest extends TestCase
 
     public function testRetriesVocabularyAddsTheInitialAttempt(): void
     {
-        self::assertSame(3, RetryLimit::ofRetries(2)->maxAttempts(), '2 retentatives = 3 tentatives');
-        self::assertTrue(RetryLimit::ofRetries(0)->isUnlimited(), 'aucun plafond, pas « une seule tentative »');
+        self::assertSame(3, RetryLimit::ofRetries(2)->maxAttempts(), '2 retries = 3 attempts');
+        self::assertTrue(RetryLimit::ofRetries(0)->isUnlimited(), 'no cap, not "a single attempt"');
     }
 
     public function testABoundBelowOneAttemptIsRejected(): void
@@ -56,8 +56,8 @@ final class RetryLimitTest extends TestCase
 
     public function testWireValueKeepsTheTemporalEncoding(): void
     {
-        // 0 = illimité sur le fil : c'est le langage du serveur, et il voyage dans l'historique
-        // des exécutions en cours — le modèle PHP ne doit pas le changer.
+        // 0 = unlimited on the wire: it is the server's language, and it travels in the history
+        // of the executions in flight — the PHP model must not change it.
         self::assertSame(0, RetryLimit::unlimited()->toWireValue());
         self::assertSame(5, RetryLimit::ofAttempts(5)->toWireValue());
         self::assertTrue(RetryLimit::fromWireValue(0)->isUnlimited());

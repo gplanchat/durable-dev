@@ -9,12 +9,12 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use PHPUnit\Framework\TestCase;
 
 /**
- * La relecture d'une opération Nexus sur le backend journal.
+ * Replaying a Nexus operation on the journal backend.
  *
- * Le tampon de ce backend **refuse** de planifier une opération Nexus (§3.4) : aucune ne peut donc
- * figurer dans son journal, et la source d'historique répond « rien » quel que soit le slot. Ce
- * n'est pas un trou d'implémentation mais la conséquence exacte du refus, et c'est ce que ce test
- * épingle — pour qu'une future implémentation « au cas où » se remarque.
+ * This backend's buffer **refuses** to schedule a Nexus operation (§3.4): none can therefore
+ * appear in its journal, and the history source answers "nothing" whatever the slot. This is not
+ * an implementation gap but the exact consequence of the refusal, and that is what this test pins
+ * down — so that a future "just in case" implementation gets noticed.
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §3.3
  */
@@ -32,7 +32,7 @@ final class NexusHistorySourceTest extends TestCase
 
     public function testTheAnswerIsTheSameForAnySlot(): void
     {
-        // Aucune borne de slot : la réponse ne dépend pas du rang, elle dépend du backend.
+        // No slot bound: the answer does not depend on the rank, it depends on the backend.
         $source = $this->source();
 
         foreach ([0, 1, 7, 999] as $slot) {

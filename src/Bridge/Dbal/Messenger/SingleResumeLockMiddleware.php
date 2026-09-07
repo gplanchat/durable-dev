@@ -12,15 +12,15 @@ use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
 use Symfony\Component\Messenger\Middleware\StackInterface;
 
 /**
- * Une seule reprise à la fois par exécution.
+ * One resume at a time per execution.
  *
- * Temporal sérialise les tâches d'un même workflow côté serveur ; le backend DBAL n'a pas de
- * serveur, donc deux consumers qui dépilent deux reprises de la même exécution rejoueraient le
- * même fiber en parallèle et écriraient deux fois les mêmes commandes — activités dupliquées,
- * journal divergent. Ce verrou est la contrepartie de cette absence.
+ * Temporal serializes the tasks of a single workflow on the server side; the DBAL backend has no
+ * server, so two consumers popping two resumes of the same execution would replay the same fiber
+ * in parallel and write the same commands twice — duplicated activities, diverging journal. This
+ * lock is the counterpart of that missing server.
  *
- * ponytail: acquisition bloquante — le worker attend son tour plutôt que de renvoyer le message.
- * Passer à un rejet + retry Messenger si l'attente occupe trop de workers.
+ * ponytail: blocking acquisition — the worker waits its turn rather than handing the message back.
+ * Move to a reject + Messenger retry if the wait ties up too many workers.
  *
  * @see DUR030
  */

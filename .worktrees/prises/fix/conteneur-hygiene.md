@@ -6,4 +6,4 @@
   des décorateurs internes que rien n'a de raison de tirer du conteneur.
 - **Entrées** : `ActivityHandlerPass`, `RegistryActivityExecutor`, `DurableExtension`, les tests,
   `UPGRADE.md`.
-- **État** : rédaction.
+- **État** : en revue — PR #280.

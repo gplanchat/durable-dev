@@ -24,6 +24,33 @@ ne contient que ce que Rector sait faire sans deviner ; tout le reste est écrit
 
 ## Non publié
 
+### Les stubs refusent ce que PHP refuse
+
+**Qui est concerné** : toute application qui appelle un contrat d'activité, d'opération Nexus ou de
+workflow enfant par un stub. Rien à écrire ; des appels qui passaient en silence lèvent désormais,
+et c'est le but.
+
+Les trois stubs transforment les arguments reçus par `__call` en une charge nommée. Trois fautes
+d'appel y disparaissaient sans un mot, et voyageaient jusque dans le journal — où elles se rejouent
+à l'identique, passe après passe, loin de l'appel fautif :
+
+| L'appel | Avant | Maintenant | Ce que PHP fait sur l'appel ordinaire |
+|---|---|---|---|
+| argument nommé inconnu | ignoré | `BadMethodCallException` | `Error: Unknown named parameter` |
+| paramètre requis non fourni | vaut `null` | `BadMethodCallException` | `ArgumentCountError` |
+| paramètre servi en positionnel **et** en nommé | le positionnel gagne | `BadMethodCallException` | `Error: Named parameter overwrites previous argument` |
+
+Le type est `\BadMethodCallException` et non celui de PHP parce que l'appel passe par `__call` :
+c'est l'exception que la SPL réserve à une méthode appelée de travers, et elle reste rattrapable.
+
+**Si une de ces exceptions apparaît en production**, elle désigne un appel qui était déjà faux : un
+workflow enfant démarré avec un paramètre manquant partait avec `null` et attendait un message qui
+ne venait jamais. Rector ne peut rien ici — la correction est dans votre code d'appel, pas dans une
+forme mécanique.
+
+Ces exceptions sont déterministes : rejouées à l'identique à chaque redélivrance, elles brûlent les
+tentatives de Messenger jusqu'au transport d'échec. Configurez-en un.
+
 ### Onze services internes du bundle passent en privé
 
 **Qui est concerné** : une application qui tire l'un de ces onze identifiants du conteneur par
@@ -49,6 +76,40 @@ demande de savoir où l'objet est utilisé, ce qu'aucune règle ne devine. Le ta
 procédure.
 
 ## 0.1.0-alpha8
+
+### La garde de divergence compare aussi la charge
+
+`WorkflowHistorySourceInterface` gagne trois méthodes — `activityPayloadForSlot()`,
+`nexusOperationPayloadForSlot()` et `childWorkflowInputForSlot()`, toutes `?array`. La garde de
+divergence (DUR042) ne comparait que l'**identité** du slot — nom d'activité, type d'enfant,
+triplet Nexus ; elle compare désormais aussi la charge, sur les trois. Un replay qui redemande le
+même appel avec une autre charge lève un `WorkflowTaskFailure` au lieu de continuer en silence.
+
+**Pourquoi** — le nom seul laissait passer la moitié du problème. Le journal servait l'ancien
+résultat, la charge fraîchement calculée partait à la poubelle, et l'exécution se terminait **en
+succès** en ayant menti sur ce qu'elle avait demandé. Mesuré sur une maquette d'agent : neuf charges
+calculées, trois journalisées, six divergences avalées sans un mot, suite de tests verte.
+
+**Ce que ça change pour du code existant** — un workflow déjà déterministe ne voit rien. Un workflow
+qui construisait sa charge avec une horloge, un aléa ou une lecture hors journal échoue désormais sa
+tâche de replay, en nommant l'octet où les deux empreintes divergent. C'est le défaut qu'il fallait
+voir : ces exécutions-là rendaient déjà un résultat faux.
+
+**Ce qui reste hors de portée de la garde, volontairement** — la comparaison passe par l'empreinte
+que le journal sait tenir (aller-retour JSON, clés triées). Un objet dont le journal ne retient rien
+— un DTO à propriétés privées, le style de la maison — ne fait donc pas diverger un replay fidèle.
+Une charge inencodable (ressource, `NAN`) désarme la garde plutôt que d'accuser ce qu'elle ne sait
+pas lire. Les histoires écrites avant ce changement n'ont rien à comparer et passent inchangées.
+
+**Ce que Rector ne peut pas faire** — rien à réécrire dans le code appelant. Seules les
+implémentations tierces de `WorkflowHistorySourceInterface` doivent ajouter les trois méthodes ;
+rendre `null` reproduit exactement le comportement d'avant, sans garde sur la charge.
+
+**Nexus** — la garde s'y exerce côté pont Temporal uniquement, et c'est structurel : le backend
+journal refuse les opérations Nexus par construction (DUR036), et son événement
+`NexusOperationScheduled` ne porte que le site d'appel. Aucun champ n'a été ajouté à aucun
+événement : les trois charges étaient déjà sur le fil.
+
 
 ### Laravel refuse au démarrage un workflow dont les noms de paramètres divergent du contrat
 

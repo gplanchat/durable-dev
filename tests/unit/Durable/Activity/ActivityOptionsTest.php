@@ -12,8 +12,8 @@ use Gplanchat\Durable\TaskQueue;
 use PHPUnit\Framework\TestCase;
 
 /**
- * La fabrique {@see ActivityOptions::of()} n'est qu'une façon plus courte d'écrire le
- * constructeur : ce qui doit être vrai, c'est que les deux produisent le même objet de fil.
+ * The {@see ActivityOptions::of()} factory is only a shorter way of writing the constructor:
+ * what has to be true is that the two produce the same wire object.
  */
 final class ActivityOptionsTest extends TestCase
 {
@@ -51,7 +51,7 @@ final class ActivityOptionsTest extends TestCase
 
     public function testAnAttemptCountOfZeroIsRefusedRatherThanReadAsUnlimited(): void
     {
-        // La valeur magique que RetryLimit existe pour supprimer ne rentre pas par la fabrique.
+        // The magic value RetryLimit exists to remove does not get in through the factory.
         $this->expectException(\InvalidArgumentException::class);
 
         ActivityOptions::of(0);
@@ -64,8 +64,8 @@ final class ActivityOptionsTest extends TestCase
 
     public function testAnUnlimitedBackoffSettlesOnTheCapRatherThanOverflowing(): void
     {
-        // Vers la millieme tentative, 2.0 ** n depasse le flottant. Le plafond s'applique
-        // quand meme : un facteur deborde veut dire « le plafond ».
+        // Around the thousandth attempt, 2.0 ** n overflows the float. The cap applies all the
+        // same: an overflowed factor means "the cap".
         self::assertEquals(
             Duration::seconds(100.0),
             ActivityOptions::default()->retryDelayBeforeAttempt(1100),

@@ -15,24 +15,24 @@ use Temporal\Api\Operatorservice\V1\DeleteNexusEndpointRequest;
 use Temporal\Api\Operatorservice\V1\OperatorServiceClient;
 
 /**
- * Sonde, et non fonctionnalité : le change « temporal-nexus-support » veut un objet-valeur
- * `NexusEndpoint` validé à la construction, et §1.4 interdit d'y écrire un invariant qui n'a pas
- * été observé. Voici ce qui a été observé, contre Temporal 1.31.2.
+ * A probe, not a feature: the "temporal-nexus-support" change wants a `NexusEndpoint` value object
+ * validated at construction, and §1.4 forbids writing into it any invariant that has not been
+ * observed. Here is what was observed, against Temporal 1.31.2.
  *
- * Le résultat renverse la leçon de {@see \Gplanchat\Durable\TaskQueue} : là, le serveur acceptait
- * presque tout — `" "`, les blancs en bord, les tabulations — et l'objet-valeur devait être PLUS
- * STRICT que lui, parce qu'une file mal nommée ne produit aucune erreur, juste une exécution qui
- * attend un worker qui ne viendra pas. Ici le serveur valide lui-même, par une regex explicite, et
- * refuse à la création. Le mode de défaillance silencieux qui justifiait la sévérité de `TaskQueue`
- * n'existe pas pour un endpoint Nexus : `NexusEndpoint` n'a donc pas à inventer de règle, il a à
- * refuser au plus tôt ce que le serveur refuserait de toute façon, et rien de plus.
+ * The result overturns the lesson of {@see \Gplanchat\Durable\TaskQueue}: there, the server
+ * accepted almost anything — `" "`, edge whitespace, tabs — and the value object had to be
+ * STRICTER than it, because a badly named queue produces no error, just an execution waiting for a
+ * worker that will never come. Here the server validates by itself, through an explicit regex, and
+ * refuses at creation time. The silent failure mode that justified the severity of `TaskQueue` does
+ * not exist for a Nexus endpoint: `NexusEndpoint` therefore has no rule to invent, it has to refuse
+ * as early as possible what the server would refuse anyway, and nothing more.
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §1.1
  */
 #[RequiresPhpExtension('grpc')]
 final class NexusEndpointNameRulesTest extends TestCase
 {
-    /** Sondée : 200 accepté, 201 refusé (« endpoint name exceeds length limit of 200 »). */
+    /** Probed: 200 accepted, 201 refused ("endpoint name exceeds length limit of 200"). */
     private const MAX_LENGTH = 200;
 
     private OperatorServiceClient $operator;
@@ -41,7 +41,7 @@ final class NexusEndpointNameRulesTest extends TestCase
     {
         $address = getenv('DURABLE_TEMPORAL_ADDRESS');
         if (false === $address || '' === $address) {
-            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS non défini : pas de serveur Temporal.');
+            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS not set: no Temporal server.');
         }
 
         $this->operator = new OperatorServiceClient($address, ['credentials' => \Grpc\ChannelCredentials::createInsecure()]);
@@ -71,24 +71,24 @@ final class NexusEndpointNameRulesTest extends TestCase
     {
         $error = $this->create($name);
 
-        self::assertNotNull($error, \sprintf('Le serveur a accepté "%s" : la regex a changé.', addcslashes($name, "\0..\37")));
+        self::assertNotNull($error, \sprintf('The server accepted "%s": the regex has changed.', addcslashes($name, "\0..\37")));
         self::assertStringContainsString(
             'must match the regex',
             $error,
-            \sprintf('Refusé pour un autre motif que la regex : %s', $error),
+            \sprintf('Refused for a reason other than the regex: %s', $error),
         );
     }
 
     public function testAnEmptyNameIsRefusedForBeingUnsetRatherThanMalformed(): void
     {
-        // Distinction utile : le message ne parle pas de regex, donc l'objet-valeur peut rendre
-        // « vide » et « mal formé » comme deux fautes différentes sans inventer la seconde.
+        // A useful distinction: the message does not mention a regex, so the value object can
+        // return "empty" and "malformed" as two different faults without inventing the second.
         self::assertSame('endpoint name not set', $this->create(''));
     }
 
     public function testTwoCharactersIsTheShortestAcceptedName(): void
     {
-        self::assertNull($this->create('ab'), 'Deux caractères devraient suffire.');
+        self::assertNull($this->create('ab'), 'Two characters should be enough.');
     }
 
     public function testLettersDigitsAndInnerHyphensAreAccepted(): void
@@ -106,10 +106,11 @@ final class NexusEndpointNameRulesTest extends TestCase
     }
 
     /**
-     * Crée l'endpoint et le supprime aussitôt. Rend le message du serveur, ou null s'il a accepté.
+     * Creates the endpoint and deletes it at once. Returns the server's message, or null if it
+     * accepted.
      *
-     * Le serveur est partagé : un endpoint laissé derrière soi resterait visible de toutes les
-     * autres sessions, et son nom est unique pour le cluster entier.
+     * The server is shared: an endpoint left behind would stay visible to every other session, and
+     * its name is unique for the whole cluster.
      */
     private function create(string $name): ?string
     {
@@ -147,9 +148,9 @@ final class NexusEndpointNameRulesTest extends TestCase
     }
 
     /**
-     * Un suffixe unique, pour qu'un nom valide ne collisionne pas d'une exécution à l'autre.
-     * Il n'est ajouté qu'aux noms que la regex accepterait : sur un nom fautif il masquerait la
-     * faute qu'on mesure, et sur un nom de longueur limite il ferait franchir la borne.
+     * A unique suffix, so that a valid name does not collide from one execution to the next.
+     * It is only added to names the regex would accept: on a faulty name it would mask the fault
+     * being measured, and on a name at the length limit it would push it past the bound.
      */
     private function suffix(string $name): string
     {

@@ -10,10 +10,10 @@ use Gplanchat\Durable\WorkflowStartOptions;
 use Temporal\Api\Enums\V1\EventType;
 
 /**
- * Les attributs de recherche n'atteignaient jamais le serveur : journalisés dans les métadonnées,
- * puis oubliés, aucune commande ne les posant.
+ * The search attributes never reached the server: journalled in the metadata, then forgotten, with
+ * no command ever setting them.
  *
- * Prérequis du namespace de test :
+ * Prerequisite of the test namespace:
  *
  *     temporal operator search-attribute create --name DurableOrderId --type Keyword
  *     temporal operator search-attribute create --name DurableAmount  --type Int
@@ -39,7 +39,7 @@ final class SearchAttributesTest extends TemporalServerTestCase
 
     public function testTheWorkflowBecomesFindableByItsAttributes(): void
     {
-        // C'est tout l'intérêt d'un attribut de recherche : retrouver l'exécution.
+        // That is the whole point of a search attribute: finding the execution again.
         $orderId = 'ORD-' . bin2hex(random_bytes(4));
         $executionId = $this->startWorkflow('Plain', ['value' => 1], new WorkflowStartOptions(
             searchAttributes: SearchAttributes::none()->keyword('DurableOrderId', $orderId),
@@ -61,8 +61,8 @@ final class SearchAttributesTest extends TemporalServerTestCase
 
     public function testAnUnregisteredAttributeIsRefusedByTheServer(): void
     {
-        // Seule règle que l'objet ne peut pas vérifier localement : il faudrait lire le registre
-        // du namespace.
+        // The one rule the object cannot check locally: it would have to read the namespace's
+        // registry.
         $this->expectExceptionMessageMatches('/no mapping defined for search attribute/');
 
         $this->startWorkflow('Plain', ['value' => 1], new WorkflowStartOptions(

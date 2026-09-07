@@ -10,7 +10,7 @@ use Gplanchat\Durable\Duration;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Les quatre bornes ne se lisent pas isolément : c'est leur composition qui a un sens.
+ * The four bounds do not read in isolation: it is their composition that means something.
  */
 final class ActivityTimeoutsTest extends TestCase
 {
@@ -22,7 +22,7 @@ final class ActivityTimeoutsTest extends TestCase
 
     public function testAHeartbeatLongerThanTheAttemptIsRejected(): void
     {
-        // La tentative se terminerait avant le premier battement manqué : la borne serait morte.
+        // The attempt would end before the first missed heartbeat: the bound would be dead.
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/cannot exceed start-to-close/');
 
@@ -34,7 +34,7 @@ final class ActivityTimeoutsTest extends TestCase
 
     public function testTheExecutionBoundNamesTheServerRequirement(): void
     {
-        // Temporal refuse une activité sans borne de fermeture ; le repli est nommé, pas caché.
+        // Temporal refuses an activity with no closing bound; the fallback is named, not hidden.
         $fallback = Duration::seconds(30.0);
 
         self::assertSame(30.0, ActivityTimeouts::none()->executionBoundOr($fallback)->toSeconds());
@@ -45,7 +45,7 @@ final class ActivityTimeoutsTest extends TestCase
         self::assertSame(
             7.0,
             (new ActivityTimeouts(scheduleToClose: Duration::seconds(7.0)))->executionBoundOr($fallback)->toSeconds(),
-            'à défaut de borne de tentative, la borne de bout en bout fait office',
+            'without an attempt bound, the end-to-end bound stands in',
         );
     }
 

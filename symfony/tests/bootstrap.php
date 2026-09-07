@@ -17,9 +17,9 @@ foreach ($autoloads as $file) {
 }
 
 if (!class_exists(Dotenv::class)) {
-    throw new \RuntimeException('symfony/dotenv introuvable : exécutez `composer install`.');
+    throw new \RuntimeException('symfony/dotenv not found: run `composer install`.');
 }
 
-// Charge .env + .env.test (et .env.test.local si présent), comme le point d'entrée HTTP.
-// Cela garantit que les variables (DEFAULT_URI, etc.) sont disponibles pour WebTestCase.
+// Loads .env + .env.test (and .env.test.local when present), like the HTTP entry point.
+// This guarantees that the variables (DEFAULT_URI, etc.) are available to WebTestCase.
 (new Dotenv())->bootEnv($projectRoot.'/.env');

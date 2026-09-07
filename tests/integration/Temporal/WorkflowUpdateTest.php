@@ -7,12 +7,12 @@ namespace integration\Temporal;
 use Gplanchat\Durable\Exception\DurableUpdateFailedException;
 
 /**
- * Un update qui répond, contre un vrai serveur.
+ * An update that answers, against a real server.
  *
- * C'est le chemin entier : le client envoie l'update, le serveur le remet au worker en message de
- * protocole *hors historique*, le handler produit l'issue, le worker accepte et répond sur la même
- * tâche, et l'appelant reçoit la valeur de retour. Aucune partie de cette chaîne ne se vérifie
- * contre un faux serveur — d'où ce test (tâches 5.5 et 7.3).
+ * This is the whole path: the client sends the update, the server hands it to the worker as a
+ * protocol message *outside the history*, the handler produces the outcome, the worker accepts and
+ * answers on the same task, and the caller receives the return value. No part of that chain can be
+ * checked against a fake server — hence this test (tasks 5.5 and 7.3).
  */
 final class WorkflowUpdateTest extends TemporalServerTestCase
 {
@@ -35,12 +35,12 @@ final class WorkflowUpdateTest extends TemporalServerTestCase
 
         try {
             $this->workflowClient()->update($workflowId, 'refuse', ['by' => 'bob']);
-            self::fail('l’update devait échouer');
+            self::fail('the update should have failed');
         } catch (DurableUpdateFailedException $e) {
             self::assertStringContainsString('approbation refusée', $e->getMessage());
         }
 
-        // L'exécution est intacte : elle répond encore, et va au bout.
+        // The execution is intact: it still answers, and runs to the end.
         self::assertSame(['ok' => true, 'by' => 'alice'], $this->workflowClient()->update($workflowId, 'approve', ['by' => 'alice']));
         $result = $this->workflowClient()->pollForCompletion($executionId, 250, 160);
         self::assertSame(['ok' => true, 'by' => 'alice'], $result['approved'] ?? null);

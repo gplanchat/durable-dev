@@ -35,9 +35,9 @@ final class DurableBundle extends Bundle
             },
         );
 
-        // Un workflow qui réclame une opération différée n'a rien à enregistrer sur le registre :
-        // la plomberie le démarre. La balise sert à ce que la passe le **voie** — sans quoi elle
-        // conclurait que l'opération n'est servie par personne et refuserait au démarrage.
+        // A workflow that requests a deferred operation has nothing to register on the registry:
+        // the plumbing starts it. The tag is there so that the pass **sees** it — without which it
+        // would conclude that the operation is served by nobody and would refuse at startup.
         $container->registerAttributeForAutoconfiguration(
             FulfilsNexusOperation::class,
             static function (ChildDefinition $definition, FulfilsNexusOperation $attribute, \Reflector $_reflector): void {
@@ -48,15 +48,15 @@ final class DurableBundle extends Bundle
             },
         );
 
-        // Avant MessengerPass du FrameworkBundle : enrichit messenger.bus.*.middleware.
+        // Before the FrameworkBundle's MessengerPass: enriches messenger.bus.*.middleware.
         $container->addCompilerPass(new RegisterDurableMiddlewarePass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 10);
 
         $container->addCompilerPass(new WorkflowPass());
-        // Priorité 50 : après AttributeAutoconfigurationPass (100), avant les passes à 0 (WorkflowPass, etc.).
+        // Priority 50: after AttributeAutoconfigurationPass (100), before the passes at 0 (WorkflowPass, etc.).
         $container->addCompilerPass(new ActivityHandlerPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 50);
-        // Même priorité, même raison : après l'autoconfiguration par attribut, avant les passes à 0.
+        // Same priority, same reason: after autoconfiguration by attribute, before the passes at 0.
         $container->addCompilerPass(new NexusHandlerPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 50);
-        // Après tous les passes d'autowiring : injecte TemporalActivityWorker dans TemporalTransportFactory.
+        // After all the autowiring passes: injects TemporalActivityWorker into TemporalTransportFactory.
         $container->addCompilerPass(new DurableTemporalTransportFactoryPass(), PassConfig::TYPE_BEFORE_REMOVING);
     }
 }

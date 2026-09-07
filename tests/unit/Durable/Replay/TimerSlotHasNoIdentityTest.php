@@ -18,20 +18,20 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Le trou de la garde, épinglé plutôt que comblé — DUR042.
+ * The hole in the guard, pinned rather than filled — DUR042.
  *
- * Les quatre autres types de slot portent une identité que l'historique enregistre déjà : le nom
- * d'une activité, le triplet d'une opération Nexus, le type d'un enfant. **Un minuteur n'en porte
- * aucune.** `TimerScheduled` retient `clock() + delay`, une échéance **absolue** qu'un replay ne
- * peut pas recalculer, et le délai d'origine n'est enregistré nulle part ; `summary` est fourni par
- * l'auteur et vaut la chaîne vide par défaut.
+ * The four other slot kinds carry an identity the history already records: the name of an
+ * activity, the triplet of a Nexus operation, the type of a child. **A timer carries none.**
+ * `TimerScheduled` keeps `clock() + delay`, an **absolute** deadline a replay cannot recompute,
+ * and the original delay is recorded nowhere; `summary` is supplied by the author and defaults to
+ * the empty string.
  *
- * Ce fichier existe pour que ce trou se remarque. Sans lui, la première personne qui lit la garde
- * y verrait un oubli et « corrigerait » en comparant l'échéance — ce qui ferait diverger un replay
- * parfaitement fidèle, puisque l'échéance recalculée maintenant n'est jamais celle d'alors.
+ * This file exists so that the hole gets noticed. Without it, the first person to read the guard
+ * would see an oversight there and "fix" it by comparing the deadline — which would make a
+ * perfectly faithful replay diverge, since the deadline recomputed now is never the one from then.
  *
- * Il dit aussi ce qui **borne** le trou, et c'est le plus utile des deux : un décalage de slots ne
- * passe inaperçu que s'il ne touche que des minuteurs.
+ * It also says what **bounds** the hole, and that is the more useful of the two: a slot shift goes
+ * unnoticed only if it touches nothing but timers.
  */
 final class TimerSlotHasNoIdentityTest extends TestCase
 {
@@ -39,8 +39,8 @@ final class TimerSlotHasNoIdentityTest extends TestCase
 
     public function testAChangedDurationReplaysWithoutBeingReported(): void
     {
-        // Le comportement tel qu'il est, et non tel qu'on le souhaiterait : le slot se résout,
-        // aucune divergence n'est signalée. C'est le trou.
+        // The behaviour as it is, and not as one would wish it: the slot resolves, no divergence
+        // is reported. That is the hole.
         $store = new InMemoryEventStore();
         $store->append(new TimerScheduled(self::EXECUTION, 'timer-1', 1_000_000.0, ''));
         $store->append(new TimerCompleted(self::EXECUTION, 'timer-1'));
@@ -48,14 +48,14 @@ final class TimerSlotHasNoIdentityTest extends TestCase
         $context = $this->context($store);
         $awaitable = $context->timer(Duration::seconds(3600.0));
 
-        self::assertTrue($awaitable->isSettled(), 'Le slot de minuteur se résout : rien à comparer.');
+        self::assertTrue($awaitable->isSettled(), 'The timer slot resolves: nothing to compare.');
     }
 
     public function testTheRecordedDeadlineIsAbsoluteAndSaysNothingAboutTheDelay(): void
     {
-        // La raison du trou, épinglée : deux minuteurs de durées différentes, planifiés à des
-        // instants différents, peuvent porter la même échéance. L'échéance n'identifie donc pas
-        // l'appel — c'est ce qui interdit de la comparer.
+        // The reason for the hole, pinned: two timers of different durations, scheduled at
+        // different instants, can carry the same deadline. The deadline therefore does not
+        // identify the call — that is what forbids comparing it.
         $store = new InMemoryEventStore();
         $store->append(new TimerScheduled(self::EXECUTION, 'timer-1', 1_000_000.0, ''));
 
@@ -63,14 +63,14 @@ final class TimerSlotHasNoIdentityTest extends TestCase
         $recorded = $events[0];
 
         self::assertInstanceOf(TimerScheduled::class, $recorded);
-        self::assertSame(1_000_000.0, $recorded->scheduledAt(), "L'échéance est un instant, pas une durée.");
-        self::assertSame('', $recorded->summary(), 'Et le seul champ libre est facultatif.');
+        self::assertSame(1_000_000.0, $recorded->scheduledAt(), 'The deadline is an instant, not a duration.');
+        self::assertSame('', $recorded->summary(), 'And the only free field is optional.');
     }
 
     public function testAShiftThatAlsoMovesAnActivityIsStillCaught(): void
     {
-        // Ce qui borne le trou. Un décalage de slots n'échappe à la garde que s'il ne touche
-        // **que** des minuteurs ; dès qu'une activité bouge avec, le nom la rattrape.
+        // What bounds the hole. A slot shift escapes the guard only if it touches **nothing but**
+        // timers; as soon as an activity moves with it, the name catches it.
         $store = new InMemoryEventStore();
         $store->append(new TimerScheduled(self::EXECUTION, 'timer-1', 1_000_000.0, ''));
         $store->append(new TimerCompleted(self::EXECUTION, 'timer-1'));
