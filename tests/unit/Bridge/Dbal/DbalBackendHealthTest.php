@@ -11,9 +11,9 @@ use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunCatalog;
 use PHPUnit\Framework\TestCase;
 
 /**
- * « Un catalogue est enregistré » et « le backend répond » sont deux questions distinctes, et la
- * page ne posait que la première : une base injoignable donnait un tableau de bord qui se
- * prétendait connecté.
+ * "A catalog is registered" and "the backend answers" are two distinct questions, and the page
+ * was asking only the first: an unreachable database gave a dashboard that claimed to be
+ * connected.
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/tasks.md §4.4
  */
@@ -32,8 +32,9 @@ final class DbalBackendHealthTest extends TestCase
 
     public function testAnUnreachableDatabaseIsReportedUnreachableRatherThanThrowing(): void
     {
-        // Un fichier SQLite dans un répertoire qui n'existe pas : la connexion est paresseuse, donc
-        // l'échec ne survient qu'au premier ordre — exactement le cas d'une base tombée en route.
+        // A SQLite file in a directory that does not exist: the connection is lazy, so the
+        // failure only happens on the first statement — exactly the case of a database that went
+        // down en route.
         $connection = DriverManager::getConnection([
             'driver' => 'pdo_sqlite',
             'path' => '/nonexistent-directory-for-tests/durable.sqlite',
