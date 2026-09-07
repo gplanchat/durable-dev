@@ -8,9 +8,9 @@
 # un `encaisser` étant resté quatre minutes en `NEXUS_OPERATION_STARTED` pendant que son worker
 # était éteint, puis s'étant terminé sans que l'appelant ait rien tenu d'ouvert.
 #
-#   demo/lancer.sh            # démarre les huit workers, laisse la main
-#   demo/lancer.sh --arreter  # les arrête
-#   demo/lancer.sh --etat     # dit qui tourne
+#   demo/run.sh            # démarre les huit workers, laisse la main
+#   demo/run.sh --arreter  # les arrête
+#   demo/run.sh --etat     # dit qui tourne
 #
 # Variables : PHP (défaut php8.3), PHP_MAGENTO et PHP_LARAVEL (défaut php8.2), TEMPORAL_ADDRESS
 # (127.0.0.1:7233), DATABASE_URL pour la boutique.
@@ -166,6 +166,6 @@ Les logs sont dans demo/var/. Trois appels à essayer — le troisième traverse
   cd magento && MAGENTO_DC_DURABLE__TEMPORAL__DSN='$DSN_MAGENTO' \\
     $PHP_MAGENTO bin/magento durable:demo:nexus MAG-1 1200 MUG_BLUE=1
 
-  demo/lancer.sh --etat      # qui tourne
-  demo/lancer.sh --arreter   # tout éteindre
+  demo/run.sh --etat      # qui tourne
+  demo/run.sh --arreter   # tout éteindre
 FIN
