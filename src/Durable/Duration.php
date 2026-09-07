@@ -12,7 +12,7 @@ namespace Gplanchat\Durable;
  *
  * Remplace les `?float …Seconds` : l'unité vivait dans le nom du champ, jamais dans le type, et
  * chaque lecteur devait redire `null !== $x && $x > 0` avant de s'en servir. Les comparaisons du
- * domaine — « ce délai est-il écoulé ? », « lequel est le plus court ? » — se posent désormais à
+ * domaine (« ce délai est-il écoulé ? », « lequel est le plus court ? ») se posent désormais à
  * l'objet.
  *
  * Sur le fil, la représentation reste un nombre de secondes : c'est ce que porte déjà
@@ -58,7 +58,7 @@ final readonly class Duration
      *
      * Couvre Carbon sans en dépendre : `CarbonInterval` étend `DateInterval`. Les unités
      * calendaires (années, mois) n'ont pas de longueur fixe ; elles sont résolues contre une
-     * ancre UTC fixe, donc approximatives — préférer jours/heures/minutes pour une borne
+     * ancre UTC fixe, donc approximatives. Préférer jours/heures/minutes pour une borne
      * temporelle.
      */
     public static function of(\DateInterval $interval): self
@@ -116,8 +116,8 @@ final readonly class Duration
      * L'absence de borne était jusqu'ici un `null` : l'absence d'une valeur, pas une valeur.
      * Elle ne se comparait pas ({@see shortest()}), ne se transportait pas dans une
      * configuration, et obligeait chaque site qui accepte une échéance à écrire son cas
-     * particulier. C'est pourtant une longueur de temps parfaitement définie du domaine — celle
-     * d'une attente qu'on ne borne pas — et elle mérite d'être dite comme telle.
+     * particulier. C'est pourtant une longueur de temps parfaitement définie du domaine (celle
+     * d'une attente qu'on ne borne pas), et elle mérite d'être dite comme telle.
      *
      * Une durée infinie n'est pas une durée de fil : {@see WorkflowEnvironment::timer()} la
      * refuse, parce qu'un minuteur qui ne tire jamais est un réveil qui n'existe pas.

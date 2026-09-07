@@ -12,7 +12,7 @@ use Gplanchat\Durable\Attribute\AsNexusService;
  *
  * `encaisser` n'a pas de corps de gestionnaire : un workflow la réclame avec
  * {@see \Gplanchat\Durable\Attribute\FulfilsNexusOperation}, et le serveur livre le résultat de ce
- * workflow à l'appelant. C'est pour elle que le contrat se sépare — PHP ne sait pas dire
+ * workflow à l'appelant. C'est pour elle que le contrat se sépare : PHP ne sait pas dire
  * « implémente partiellement ».
  *
  * ⚠ **Les noms de paramètres déclarés ici sont l'interface, pas une commodité de lecture.** La

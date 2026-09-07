@@ -37,7 +37,7 @@ interface WorkflowHistorySourceInterface
      *
      * The slot lookups above answer "what happened here"; this one answers "what was this".
      * Without it a replay resolves a slot with whatever the journal holds at that index, whether
-     * or not it belongs to the call the code is making — measured, and it terminates the run
+     * or not it belongs to the call the code is making (measured), and it terminates the run
      * successfully carrying the wrong value.
      */
     public function activityNameForSlot(int $slot): ?string;
@@ -47,7 +47,7 @@ interface WorkflowHistorySourceInterface
      * not reached that point yet.
      *
      * Keyed by change id and **not** by slot: a change point is a named place in the code, and two
-     * of them in the same workflow are independent — an execution can be on the old side of one and
+     * of them in the same workflow are independent; an execution can be on the old side of one and
      * the new side of another.
      */
     public function versionForChangeId(string $changeId): ?int;
@@ -108,7 +108,7 @@ interface WorkflowHistorySourceInterface
     /**
      * Returns the identity of the Nexus operation recorded at slot N, or null if none was.
      *
-     * The identity is the **triple** — endpoint, service, operation — rendered as
+     * The identity is the **triple** (endpoint, service, operation) rendered as
      * `endpoint/service/operation`. Routing the same service and operation to another endpoint is
      * a different call, and comparing the operation name alone would let it through.
      */
@@ -120,7 +120,7 @@ interface WorkflowHistorySourceInterface
      * Signals and updates share one cursor: what orders them is their rank in the journal, not
      * their kind.
      *
-     * `position` is the rank of the event in this execution's recorded history — the stream index
+     * `position` is the rank of the event in this execution's recorded history: the stream index
      * in memory, the `eventId` on Temporal. Positions are comparable **within one execution's own
      * history** and nowhere else: they are never serialized, and never compared across backends.
      * See ADR DUR035.

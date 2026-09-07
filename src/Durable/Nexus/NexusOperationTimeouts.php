@@ -26,7 +26,7 @@ use Gplanchat\Durable\Duration;
  * borne » et non « zéro seconde ». {@see Duration::infinity()} le dit sans ce déguisement.
  *
  * Pas d'`executionBoundOr()` ici, contrairement aux activités : §2.2 le conditionnait à ce que le
- * serveur exige une borne de fermeture, et la sonde a montré qu'il n'en exige aucune — une
+ * serveur exige une borne de fermeture, et la sonde a montré qu'il n'en exige aucune. Une
  * commande sans aucune des trois est acceptée, et l'événement n'en enregistre aucune.
  */
 final readonly class NexusOperationTimeouts

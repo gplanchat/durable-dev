@@ -18,15 +18,15 @@ use Illuminate\Contracts\Container\Container;
  * Ce que l'application déclare servir en Nexus, porté dans le registre du cœur.
  *
  * C'est le pendant de `NexusHandlerPass` côté Symfony, et il fait le même travail par le même
- * chemin — `NexusContractResolver` pour lire le contrat, `NexusHandlerInvoker` pour tenir entre la
+ * chemin : `NexusContractResolver` pour lire le contrat, `NexusHandlerInvoker` pour tenir entre la
  * signature du gestionnaire et ce que le registre appelle. Ce qui change est la source : Symfony
  * lit des balises qu'une autoconfiguration a posées, Laravel lit `config/durable.php`, parce que
- * son conteneur n'a pas d'équivalent — la même raison qui fait déclarer les workflows.
+ * son conteneur n'a pas d'équivalent (la même raison qui fait déclarer les workflows).
  *
  * **Une opération sans corps n'est pas une opération manquante.** Un contrat Nexus se sépare en
  * deux interfaces parce que PHP ne sait pas dire « implémente partiellement » : ce que le
  * gestionnaire ne sert pas, un workflow le remplit, et c'est `#[FulfilsNexusOperation]` qui le
- * déclare. On enregistre alors le **type** du workflow et non sa classe — c'est le nom que le
+ * déclare. On enregistre alors le **type** du workflow et non sa classe : c'est le nom que le
  * serveur connaît et que le journal enregistre.
  */
 final class DeclaredNexusOperations
@@ -76,7 +76,7 @@ final class DeclaredNexusOperations
                 if (null !== $workflowClass) {
                     // Le même refus que côté Symfony, par la même classe : lire une liste dans un
                     // fichier ne dispense pas de vérifier ce qu'une passe de compilation vérifie.
-                    // Il tombe ici, à l'enregistrement, et pas à la première tâche — c'est le
+                    // Il tombe ici, à l'enregistrement, et pas à la première tâche : c'est le
                     // dernier moment où quelqu'un regarde.
                     NexusFulfilmentParameterNames::assertMatch(
                         'durable.nexus.handlers',

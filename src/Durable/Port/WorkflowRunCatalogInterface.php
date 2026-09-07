@@ -13,7 +13,7 @@ use Gplanchat\Durable\Observation\WorkflowRunStatus;
 /**
  * Lecture seule : quelles exécutions existent, et ce qu'elles sont devenues.
  *
- * Le composant n'avait aucune surface de listage — {@see \Gplanchat\Durable\Store\EventStoreInterface}
+ * Le composant n'avait aucune surface de listage : {@see \Gplanchat\Durable\Store\EventStoreInterface}
  * ne lit qu'un flux par id d'exécution, {@see \Gplanchat\Durable\Store\WorkflowMetadataStore} qu'une
  * exécution à la fois. Un tableau de bord lit en travers des exécutions ; c'est un autre besoin, et
  * ce port est là pour qu'il ne soit pas servi en parlant gRPC ou SQL depuis la vue.
@@ -42,7 +42,7 @@ interface WorkflowRunCatalogInterface
      * savoir de quel backend il parle.
      *
      * Une exécution inconnue rend une liste vide : une exécution purgée, ou jamais vue, n'est pas
-     * une erreur d'appel — la vue doit pouvoir l'afficher sans rien avoir à rattraper.
+     * une erreur d'appel. La vue doit pouvoir l'afficher sans rien avoir à rattraper.
      *
      * @return list<WorkflowRunEvent>
      */

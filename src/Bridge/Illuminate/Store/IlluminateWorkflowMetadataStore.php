@@ -12,7 +12,7 @@ use Illuminate\Database\Connection;
  * Le type et le payload d'une exécution, pour la reprise.
  *
  * La subtilité du port tient en une phrase : `markCompleted()` **ne supprime pas**. Le type reste
- * lisible après le succès — un tableau de bord et un profiler en vivent — et c'est
+ * lisible après le succès (un tableau de bord et un profiler en vivent), et c'est
  * `hasActiveWorkflowMetadata()`, pas `get()`, qui dit si une reprise s'applique encore. Confondre
  * les deux rend un workflow terminé éternellement reprenable, ou fait disparaître son type d'une
  * page. Les deux sens sont des cas de {@see \Gplanchat\Durable\Testing\WorkflowMetadataStoreConformanceTestCase}.
@@ -34,7 +34,7 @@ final class IlluminateWorkflowMetadataStore implements WorkflowMetadataStore
 
         // `save()` sert aussi à repartir d'un continue-as-new : c'est un upsert, et il remet
         // `completed` à faux. `updateOrInsert()` interroge avant d'écrire, donc il ne dépend pas
-        // du comptage de lignes affectées — que SQLite et MySQL ne comptent pas de la même façon.
+        // du comptage de lignes affectées, que SQLite et MySQL ne comptent pas de la même façon.
         $this->connection->table($this->table)->updateOrInsert(
             ['execution_id' => $executionId],
             [

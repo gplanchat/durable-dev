@@ -11,7 +11,7 @@ namespace Gplanchat\Durable\Observation;
  * tâches » vide apprend à l'exploitant que l'exécution n'a pas de file, alors que c'est le backend
  * qui n'a pas la notion. D'où des propriétés nullables plutôt que des valeurs de remplissage.
  *
- * `groupId` porte le regroupement quand le backend en a un — Temporal conserve le workflow id à
+ * `groupId` porte le regroupement quand le backend en a un : Temporal conserve le workflow id à
  * travers les continuations et donne à chaque exécution son propre run id. Le backend DBAL n'a pas
  * cette notion et le laisse absent.
  */

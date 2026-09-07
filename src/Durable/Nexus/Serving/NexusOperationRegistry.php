@@ -14,7 +14,7 @@ use Gplanchat\Durable\Nexus\NexusUnsupportedByBackendException;
  * Une opération est nommée par un couple (service, opération) : c'est ce que porte la tâche de
  * start, et c'est donc la seule clé qui permette de router sans deviner.
  *
- * Le registre ne poll rien et ne parle à personne. Il répond à une question — « qui sert ceci ? » —
+ * Le registre ne poll rien et ne parle à personne. Il répond à une question (« qui sert ceci ? »)
  * et rend ce que le gestionnaire a répondu. La boucle de poll, le gRPC et la traduction des erreurs
  * vivent dans le worker, qui n'a besoin d'aucune de ces trois choses pour être testé.
  */
@@ -84,7 +84,7 @@ final class NexusOperationRegistry
      *
      * Il n'y a pas de gestionnaire à appeler, et pas de corps à écrire. Le worker démarre ce
      * workflow avec le `callback` de la tâche attaché, et le serveur livre son résultat à
-     * l'appelant — c'est ce que la sonde §3.1 a mesuré, et le jeton n'y est qu'un identifiant.
+     * l'appelant. C'est ce que la sonde §3.1 a mesuré, et le jeton n'y est qu'un identifiant.
      */
     public function registerFulfilment(NexusService $service, NexusOperationName $operation, string $workflowType): void
     {
@@ -124,7 +124,7 @@ final class NexusOperationRegistry
     private static function key(NexusService $service, NexusOperationName $operation): string
     {
         // Le séparateur est un octet que ni un nom de service ni un nom d'opération ne peut
-        // contenir — les deux sont validés à la construction. Un simple point laisserait
+        // contenir : les deux sont validés à la construction. Un simple point laisserait
         // ("a.b", "c") et ("a", "b.c") se confondre.
         return $service->name() . "\0" . $operation->name();
     }

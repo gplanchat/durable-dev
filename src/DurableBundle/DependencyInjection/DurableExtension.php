@@ -65,8 +65,8 @@ use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
-// Et non celle de HttpKernel, qui n'en est qu'une sous-classe mince — `@internal` depuis
-// Symfony 7.1, dépréciée en 8.1 — et n'ajoute que les restes du cache de classes annotées.
+// Et non celle de HttpKernel, qui n'en est qu'une sous-classe mince (`@internal` depuis
+// Symfony 7.1, dépréciée en 8.1) et n'ajoute que les restes du cache de classes annotées.
 // Celle-ci existe depuis 6.4 : l'échange ne coûte aucune version supportée.
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
@@ -212,7 +212,7 @@ final class DurableExtension extends Extension
         $container->setAlias(EventStoreInterface::class, 'durable.event_store.dbal.projecting')->setPublic(true);
 
         // Le journal peut être en SQL sans que les métadonnées le soient : dans ce cas le magasin
-        // en place — in-memory — devient l'intérieur du décorateur, plutôt que d'exiger une
+        // en place (in-memory) devient l'intérieur du décorateur, plutôt que d'exiger une
         // configuration que rien n'oblige à donner.
         if (!$container->hasDefinition('durable.workflow_metadata_store.inner')) {
             $container->setDefinition(
@@ -244,7 +244,7 @@ final class DurableExtension extends Extension
      *
      * Le catalogue lit le journal **non décoré** pour rendre un historique, et le décorateur
      * l'alimente en écriture. Les deux pointent donc sur `durable.event_store.inner` plutôt que
-     * l'un sur l'autre — sans quoi le conteneur boucle.
+     * l'un sur l'autre, sans quoi le conteneur boucle.
      *
      * Ce que ça lève : le tableau de bord affichait « aucun backend lisible » sur in-memory, faute
      * de catalogue, alors que le plugin se dit neutre vis-à-vis du backend. Il l'est vraiment
@@ -311,7 +311,7 @@ final class DurableExtension extends Extension
     /**
      * Temporal « natif » : le cluster **est** le journal.
      *
-     * Un DSN sans journal dit autre chose — le cluster est joignable pour ce qui en a besoin, et
+     * Un DSN sans journal dit autre chose : le cluster est joignable pour ce qui en a besoin, et
      * servir une opération Nexus en a besoin, mais la source de vérité reste celle d'`event_store`.
      * Les deux ne peuvent pas partager le même drapeau : c'est lui qui débranche le transport
      * d'activités, le répartiteur de reprise et les alias de lecture du tableau de bord.
@@ -800,7 +800,7 @@ final class DurableExtension extends Extension
 
         // Le registre existe dès que Temporal est configuré, même sans gestionnaire déclaré : c'est
         // sa présence que NexusHandlerPass lit pour savoir si ce backend sait router. Sans elle, la
-        // passe refuse — et c'est le refus au démarrage que §5.3 demande.
+        // passe refuse, et c'est le refus au démarrage que §5.3 demande.
         $container->register('durable.temporal.nexus_registry', NexusOperationRegistry::class)
             ->setFactory([NexusOperationRegistry::class, 'routedBy'])
             ->setArguments(['temporal'])

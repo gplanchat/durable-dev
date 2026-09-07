@@ -10,8 +10,8 @@ use Gplanchat\Durable\ExecutionContext;
 /**
  * Une fois le composite réglé, retire de la file les branches qui n'ont plus d'objet.
  *
- * S'applique à toute forme de course — le premier arrivé d'un {@see AnyAwaitable}, comme le
- * quorum d'un {@see QuorumAwaitable} : dans les deux cas des branches restent en vol alors que
+ * S'applique à toute forme de course (le premier arrivé d'un {@see AnyAwaitable}, comme le
+ * quorum d'un {@see QuorumAwaitable}) : dans les deux cas des branches restent en vol alors que
  * le verdict est acquis, et rien ne viendra les réclamer. Best effort : si le transport ne le
  * permet pas, ou si l'activité a déjà été consommée, on n'insiste pas.
  *

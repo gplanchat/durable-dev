@@ -13,7 +13,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  * Messenger ne lit sa pile que dans le paramètre « busId ».middleware, posé par FrameworkExtension
  * et relu par MessengerPass. **Il n'existe pas de balise `messenger.middleware`** : rien n'appelle
  * `findTaggedServiceIds()` dessus et `UnusedTagsPass` ne la connaît pas. Un service qui la porte
- * est défini et jamais installé, en silence — c'est ce qui est arrivé au verrou de reprise du
+ * est défini et jamais installé, en silence : c'est ce qui est arrivé au verrou de reprise du
  * backend DBAL, seule garde contre deux reprises concurrentes de la même exécution.
  *
  * D'où une balise qui appartient au bundle, `durable.messenger.middleware`, et cette passe pour la
@@ -21,7 +21,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  *
  * L'ordre vient de l'attribut `priority`, décroissant : ce qui compte est que deux middlewares ne
  * dépendent pas de l'ordre d'itération du conteneur. Ils entrent en **tête** parce qu'un verrou
- * doit envelopper tout ce qui suit, y compris un `doctrine_transaction` — le relâcher avant le
+ * doit envelopper tout ce qui suit, y compris un `doctrine_transaction` : le relâcher avant le
  * commit rouvrirait la fenêtre qu'il ferme.
  */
 final class RegisterDurableMiddlewarePass implements CompilerPassInterface

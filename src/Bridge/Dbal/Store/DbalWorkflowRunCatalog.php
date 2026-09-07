@@ -20,7 +20,7 @@ use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
  * La pagination est **par clé**, pas par décalage. `started_at` est stocké à la seconde et la table
  * grossit pendant qu'on la lit : un `OFFSET` ferait glisser la fenêtre à chaque exécution démarrée
  * entre deux pages, et l'exploitant verrait des lignes deux fois ou pas du tout. Le curseur porte
- * donc la dernière position lue — date *et* id —, et l'id départage les exécutions de la même
+ * donc la dernière position lue (date *et* id), et l'id départage les exécutions de la même
  * seconde, ce qui est le cas courant et non le cas limite.
  *
  * `groupId` reste absent : le backend DBAL n'a pas de notion de regroupement entre les exécutions

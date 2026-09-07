@@ -29,7 +29,7 @@ use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
  *  6. Return the collected commands to the caller (WorkflowTaskProcessor → RespondWorkflowTaskCompleted).
  *
  * The fiber is non-persistent: each workflow task starts a fresh fiber that replays the full history.
- * No pcntl_fork(), no Swoole, no RoadRunner — standard PHP-CLI only.
+ * No pcntl_fork(), no Swoole, no RoadRunner: standard PHP-CLI only.
  */
 final class WorkflowTaskRunner
 {
@@ -107,7 +107,7 @@ final class WorkflowTaskRunner
 
         $commands = $commandBuffer->flush();
 
-        // Acceptation et réponse partent sur la tâche courante — et *avant* les commandes du
+        // Acceptation et réponse partent sur la tâche courante, et *avant* les commandes du
         // workflow : le serveur refuse toute séquence où CompleteWorkflowExecution n'est pas la
         // dernière commande, et un update traité débloque justement souvent la complétion.
         $reply = UpdateProtocol::reply($inboundUpdates);

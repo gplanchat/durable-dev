@@ -62,7 +62,7 @@ use Illuminate\Support\ServiceProvider;
  * Lie les quatre ports de stockage depuis un seul fichier de configuration.
  *
  * **Un choix de backend lie les quatre ports ensemble.** Un journal sur un backend et des
- * métadonnées sur un autre n'est pas une configuration, c'est une panne — d'où un seul `match`
+ * métadonnées sur un autre n'est pas une configuration, c'est une panne ; d'où un seul `match`
  * plutôt que quatre réglages indépendants.
  *
  * Ce provider est celui du paquet d'**intégration**. Celui du pont,
@@ -113,8 +113,8 @@ final class DurableServiceProvider extends ServiceProvider
         }
 
         // §1.3 : `null` ne verrouille jamais, dans aucun déploiement. Le refus est donc sans risque
-        // au démarrage, là où `array` — correct dans un seul processus, et cache par défaut de
-        // l'environnement de test — ne peut être jugé que par la commande de worker.
+        // au démarrage, là où `array` (correct dans un seul processus, et cache par défaut de
+        // l'environnement de test) ne peut être jugé que par la commande de worker.
         if ($this->app->bound('cache')) {
             $this->refuseALockStoreThatCannotLock();
         }
@@ -189,13 +189,13 @@ final class DurableServiceProvider extends ServiceProvider
     /**
      * Le backend Temporal : le journal et le catalogue vivent dans le cluster.
      *
-     * Les métadonnées et les liens parents restent en mémoire, comme côté Symfony — Temporal tient
+     * Les métadonnées et les liens parents restent en mémoire, comme côté Symfony : Temporal tient
      * l'état durable, ces deux-là ne sont que du cache de processus.
      *
      * **Ce que ce paquet ne réplique pas, et c'est délibéré :** les transports Messenger du pont.
      * Les activités et les reprises continuent de voyager sur la file de l'application, qui les
      * draine déjà ; Temporal possède le journal, Laravel possède la file. Le worker de tâches de
-     * workflow, lui, a son propre tour de boucle — `durable:temporal-worker`.
+     * workflow, lui, a son propre tour de boucle (`durable:temporal-worker`).
      *
      * @param array<string, mixed> $config
      */
@@ -282,7 +282,7 @@ final class DurableServiceProvider extends ServiceProvider
         if (method_exists($this->app, 'runningInConsole') && $this->app->runningInConsole()) {
             // Nommée par une chaîne, et pas par `::class` : la classe étend
             // `Illuminate\Console\Command`, qui ne peut pas entrer dans le graphe de la racine
-            // sans rendre la ligne Symfony 6.4 irrésoluble — voir phpstan.neon. Une référence
+            // sans rendre la ligne Symfony 6.4 irrésoluble (voir phpstan.neon). Une référence
             // `::class` ferait suivre l'analyseur jusque dans une classe qu'il ne peut pas lire.
             $this->commands([
                 'Gplanchat\\Durable\\Laravel\\Console\\TemporalWorkerCommand',
@@ -363,7 +363,7 @@ final class DurableServiceProvider extends ServiceProvider
      *
      * `ResumeWorkflowHandler` a quitté le bundle Symfony pour le cœur pour qu'un hôte sans bus
      * puisse le rendre : ce paquet n'a donc qu'à l'assembler, pas à le réécrire. Un minuteur, lui,
-     * est une reprise différée — la file porte le délai, comme le `DelayStamp` de Messenger.
+     * est une reprise différée : la file porte le délai, comme le `DelayStamp` de Messenger.
      *
      * @param array<string, mixed> $config
      */
@@ -448,7 +448,7 @@ final class DurableServiceProvider extends ServiceProvider
     /**
      * Nexus : le registre existe toujours, et il sait dire pourquoi il ne peut pas router.
      *
-     * `routedBy('temporal')` sous Temporal, `unavailableOn($backend)` ailleurs — et le second refuse
+     * `routedBy('temporal')` sous Temporal, `unavailableOn($backend)` ailleurs, et le second refuse
      * **à l'enregistrement**, pas au premier appel. C'est le cœur qui porte ce refus, précisément
      * parce que la passe de compilation de Symfony n'attrape que Symfony : un hôte qui déclare un
      * gestionnaire sur un backend qui ne route pas doit s'en entendre dire la raison, où qu'il soit.
@@ -513,7 +513,7 @@ final class DurableServiceProvider extends ServiceProvider
         $name = $queue['connection'] ?? null;
 
         // Le **nom du driver**, pas la classe de la connexion : `SyncQueue` vit dans
-        // `illuminate/queue`, dont Laravel 11+ tire `symfony/process ^7.2` — l'exiger rendrait ce
+        // `illuminate/queue`, dont Laravel 11+ tire `symfony/process ^7.2`. L'exiger rendrait ce
         // paquet irréconciliable avec la ligne Symfony 6.4 que la matrice du dépôt teste encore.
         // Lire la configuration dit la même chose, sans la dépendance, et sans avoir à résoudre la
         // connexion pour la juger.

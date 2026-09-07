@@ -47,7 +47,7 @@ final readonly class EventStoreWorkflowLifecycle implements WorkflowLifecycleInt
 
     /**
      * Demandée, et pas encore livrée : la livraison se trace par l'annulation d'une opération
-     * avec la raison workflow_cancelled — sans cette borne, chaque replay relèverait de nouveau
+     * avec la raison workflow_cancelled. Sans cette borne, chaque replay relèverait de nouveau
      * l'annulation, y compris dans les attentes de compensation.
      */
     public function isCancellationPending(string $executionId): bool

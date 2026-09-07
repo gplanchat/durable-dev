@@ -9,7 +9,7 @@ namespace Gplanchat\Durable\Attribute;
  *
  * La déclaration vit **sur le workflow**, et non sur le contrat, pour deux raisons.
  *
- * Le contrat est lu par l'appelant, qui n'a pas à connaître la classe qui le sert — l'y nommer
+ * Le contrat est lu par l'appelant, qui n'a pas à connaître la classe qui le sert : l'y nommer
  * ferait fuir l'implémentation à travers la frontière que Nexus existe pour poser.
  *
  * Et c'est ici que le code vit. Une opération remplie par un workflow n'a pas de corps de

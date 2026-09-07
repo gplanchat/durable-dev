@@ -8,12 +8,12 @@ namespace Gplanchat\Durable\Observation;
  * Une ligne de frise : **une action**, pas une nature.
  *
  * Une activité planifiée, démarrée puis terminée est une action et trois événements ; les
- * événements de l'exécution elle-même en sont une, la première. Ranger par nature — « les
- * activités », « les signaux » — obligeait l'exploitant à recoller trois lignes de l'œil pour
+ * événements de l'exécution elle-même en sont une, la première. Ranger par nature (« les
+ * activités », « les signaux ») obligeait l'exploitant à recoller trois lignes de l'œil pour
  * savoir combien de temps *celle-là* avait duré.
  *
  * `label` est le nom de l'événement qui **ouvre** l'action : seule la planification connaît le nom
- * de l'activité, ses suites ne portent qu'un numéro. `kind` vient de la même source — une action a
+ * de l'activité, ses suites ne portent qu'un numéro. `kind` vient de la même source : une action a
  * la nature de ce qui l'ouvre.
  *
  * `duration` peut valoir zéro sans que ce soit une anomalie : un événement qui est à lui seul son

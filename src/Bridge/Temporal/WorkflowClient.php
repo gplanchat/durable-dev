@@ -65,7 +65,7 @@ final class WorkflowClient implements WorkflowClientInterface
     /**
      * Démarre une exécution **récurrente** : le serveur en relance une à chaque échéance cron.
      *
-     * Un cron Temporal n'est pas un planificateur externe — c'est la même exécution logique,
+     * Un cron Temporal n'est pas un planificateur externe : c'est la même exécution logique,
      * relancée avec un historique neuf. La suivante n'est pas démarrée tant que la précédente
      * n'est pas terminée : une échéance manquée est sautée, pas rattrapée.
      *
