@@ -27,6 +27,7 @@ use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
+use Gplanchat\Durable\Observation\RecordedDetails;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Symfony\Component\HttpFoundation\Request;
@@ -112,6 +113,14 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                 $grouped,
             ),
         ];
+
+        // The barrier, at the one place `$this->data` is built. It applies **key by key**: a
+        // pathological payload makes its own panel disappear, not the whole collector, which is
+        // what the blanket barrier did not guarantee, `$this->data` being typed
+        // `array|Data` chez le parent.
+        foreach ($this->data as $cle => $valeur) {
+            $this->data[$cle] = RecordedDetails::storable($valeur);
+        }
     }
 
     /**

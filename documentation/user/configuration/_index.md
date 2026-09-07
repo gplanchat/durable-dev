@@ -30,6 +30,8 @@ durable:
         transport_name: durable_activities
         table_name: durable_activity_outbox
     max_activity_retries: 0                  # maximum automatic retries before marking an activity as failed
+    messenger:
+        buses: []                            # [] = every bus (default)
     activity_contracts:
         cache: cache.app                     # PSR-6 cache pool for contract metadata (default: null, no cache)
         contracts:
@@ -138,6 +140,29 @@ How the bundle dispatches activity messages from workflow tasks to activity hand
 `messenger.yaml` does not select it: without `type: messenger` the transport stays empty and the
 activity has already run inline, taking the workflow task's time with it and losing the retry
 semantics the transport provides.
+
+---
+
+## `messenger`
+
+```yaml
+durable:
+    messenger:
+        buses:
+            - messenger.bus.durable
+```
+
+Which Messenger buses the bundle installs its middlewares on — the DBAL resume lock, and the
+profiler middleware in debug.
+
+**The default is every bus**, which is what earlier versions did unconditionally. That default
+cannot be narrower: the bundle does not know which bus your application routes
+`ResumeWorkflowMessage` to, and guessing would take the resume lock off the bus that carries the
+work — a silent loss of the guarantee the lock exists to give.
+
+Naming buses is worth doing once you have more than one. A business command bus carries no durable
+message, and taking a per-execution lock on it is contention nobody asked for. An id that names no
+declared bus is refused at compile time rather than silently doing nothing.
 
 ---
 

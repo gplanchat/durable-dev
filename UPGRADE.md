@@ -1,8 +1,8 @@
-# Monter de version
+# Upgrading
 
-Toute rupture publique de ce dépôt vient avec sa procédure de migration : **Rector d'abord, un
-script quand Rector ne peut pas, et de la documentation dans tous les cas.** Ce fichier est la
-troisième moitié — il dit ce qui a bougé, et par quoi le rattraper.
+Every public break in this repository comes with its migration procedure: **Rector first, a script
+when Rector cannot, and documentation in every case.** This file is the third half — it says what
+moved, and what puts it right.
 
 ```bash
 composer require --dev gplanchat/durable-rector
@@ -11,7 +11,7 @@ composer require --dev gplanchat/durable-rector
 ```php
 // rector.php
 return Rector\Config\RectorConfig::configure()
-    ->withImportNames()   // sans quoi les noms réécrits arrivent pleinement qualifiés, à côté d'un `use` périmé
+    ->withImportNames()   // without it the rewritten names arrive fully qualified, next to a stale `use`
     ->withSets([__DIR__ . '/vendor/gplanchat/durable-rector/config/sets/durable-upgrade.php']);
 ```
 
@@ -19,125 +19,238 @@ return Rector\Config\RectorConfig::configure()
 vendor/bin/rector process src
 ```
 
-Le set est **cumulatif** : le passer une fois rattrape toutes les versions franchies d'un coup. Il
-ne contient que ce que Rector sait faire sans deviner ; tout le reste est écrit à la main ci-dessous.
+The set is **cumulative**: running it once catches up every version crossed at once. It contains
+only what Rector can do without guessing; everything else is written by hand below.
 
-## Non publié
+## Unreleased
 
-### Les stubs refusent ce que PHP refuse
+### Stubs refuse what PHP refuses
 
-**Qui est concerné** : toute application qui appelle un contrat d'activité, d'opération Nexus ou de
-workflow enfant par un stub. Rien à écrire ; des appels qui passaient en silence lèvent désormais,
-et c'est le but.
+**Who is affected**: any application that calls an activity, Nexus operation or child workflow
+contract through a stub. Nothing to write; calls that used to go through in silence now throw, and
+that is the point.
 
-Les trois stubs transforment les arguments reçus par `__call` en une charge nommée. Trois fautes
-d'appel y disparaissaient sans un mot, et voyageaient jusque dans le journal — où elles se rejouent
-à l'identique, passe après passe, loin de l'appel fautif :
+The three stubs turn the arguments received by `__call` into a named payload. Three call mistakes
+used to vanish there without a word, and travelled all the way into the journal — where they replay
+identically, pass after pass, far from the offending call:
 
-| L'appel | Avant | Maintenant | Ce que PHP fait sur l'appel ordinaire |
-|---|---|---|---|
-| argument nommé inconnu | ignoré | `BadMethodCallException` | `Error: Unknown named parameter` |
-| paramètre requis non fourni | vaut `null` | `BadMethodCallException` | `ArgumentCountError` |
-| paramètre servi en positionnel **et** en nommé | le positionnel gagne | `BadMethodCallException` | `Error: Named parameter overwrites previous argument` |
+| The call                                        | Before                  | Now                      | What PHP does on an ordinary call                     |
+|-------------------------------------------------|-------------------------|--------------------------|-------------------------------------------------------|
+| unknown named argument                          | ignored                 | `BadMethodCallException` | `Error: Unknown named parameter`                      |
+| required parameter not supplied                 | comes out `null`        | `BadMethodCallException` | `ArgumentCountError`                                  |
+| parameter supplied positionally **and** by name | the positional one wins | `BadMethodCallException` | `Error: Named parameter overwrites previous argument` |
 
-Le type est `\BadMethodCallException` et non celui de PHP parce que l'appel passe par `__call` :
-c'est l'exception que la SPL réserve à une méthode appelée de travers, et elle reste rattrapable.
+The type is `\BadMethodCallException` and not PHP's own because the call goes through `__call`: it
+is the exception the SPL reserves for a method called wrongly, and it stays catchable.
 
-**Si une de ces exceptions apparaît en production**, elle désigne un appel qui était déjà faux : un
-workflow enfant démarré avec un paramètre manquant partait avec `null` et attendait un message qui
-ne venait jamais. Rector ne peut rien ici — la correction est dans votre code d'appel, pas dans une
-forme mécanique.
+**If one of these exceptions shows up in production**, it points at a call that was already wrong: a
+child workflow started with a missing parameter went off with `null` and waited for a message that
+never came. Rector can do nothing here — the fix is in your calling code, not in a mechanical shape.
 
-Ces exceptions sont déterministes : rejouées à l'identique à chaque redélivrance, elles brûlent les
-tentatives de Messenger jusqu'au transport d'échec. Configurez-en un.
+These exceptions are deterministic: replayed identically on every redelivery, they burn through
+Messenger's attempts down to the failure transport. Configure one.
+
+### Eleven internal bundle services become private
+
+**Who is affected**: an application that pulls one of these eleven ids out of the container with
+`$container->get()`. Not one that receives them by autowiring, nor one that goes through their
+interface.
+
+The concrete implementations behind an alias and the projection decorators have no business being
+container entry points: a public service escapes *inlining* and the removal of unused definitions,
+and becomes a compatibility promise nobody meant to make.
+
+| Now private                                                                                                                 | Ask for this instead                                 |
+| --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `durable.event_store.dbal`, `durable.event_store.temporal`, `durable.event_store.inner`, `durable.event_store.*.projecting` | `Gplanchat\Durable\Store\EventStoreInterface`        |
+| `durable.workflow_metadata_store.inner`, `durable.workflow_metadata_store.*.projecting`                                     | `Gplanchat\Durable\Store\WorkflowMetadataStore`      |
+| `durable.run_catalog.dbal`, `durable.run_catalog.in_memory`, `durable.run_catalog.temporal`                                 | `Gplanchat\Durable\Port\WorkflowRunCatalogInterface` |
+
+The three interfaces stay **public** and autowirable, and they point at the same instance: what
+changes is the path to get there, not what you get. The rest of the bundle's public surface is
+unchanged — the Temporal workers, the parent/child link store, the profiler collector and the engine
+classes stay reachable by their id.
+
+Rector can do nothing: rewriting a `$container->get('durable.event_store.dbal')` into an injection
+requires knowing where the object is used, which no rule can guess. The table above is the
+procedure.
+
+### `WorkflowHistorySourceInterface` gagne `hasSideEffectForSlot()`
+
+**Qui est concerné** : uniquement qui **implémente** `WorkflowHistorySourceInterface` — c'est-à-dire
+qui écrit un backend. Une application qui appelle `sideEffect()` n'a rien à changer ; elle gagne le
+correctif sans rien faire.
+
+**Ce qui était cassé.** `findSideEffectForSlot()` rend `mixed` et signalait « rien d'enregistré » par
+`null`. Une closure qui rend légitimement `null` était donc indistinguable d'un slot vide : elle
+était **ré-exécutée à chaque passe de rejeu**, et le journal grossissait d'un `SideEffectRecorded`
+par passe. C'est la garantie même que `sideEffect()` existe pour offrir. Les valeurs `false`, `0`,
+`''` et `[]` n'étaient pas touchées — la comparaison était un `!==` strict.
+
+**Ce qu'il faut écrire.** Une méthode qui répond *le slot existe-t-il*, sans regarder ce qu'il porte.
+Rector ne peut rien ici : la réponse dépend de la façon dont votre backend range ses slots, et lui
+en faire deviner une produirait un adaptateur qui compile et ment. Les deux implémentations livrées
+donnent les deux formes attendues.
+
+Sur un journal parcouru :
+
+```php
+public function hasSideEffectForSlot(int $slot): bool
+{
+    $index = 0;
+    foreach ($this->eventStore->readStream($this->executionId) as $event) {
+        if ($event instanceof SideEffectRecorded) {
+            if ($index === $slot) {
+                return true;
+            }
+            ++$index;
+        }
+    }
+
+    return false;
+}
+```
+
+Sur un tableau indexé par slot — et c'est `array_key_exists()`, jamais `isset()`, qui rouvrirait
+exactement le trou que ce correctif ferme :
+
+```php
+public function hasSideEffectForSlot(int $slot): bool
+{
+    return \array_key_exists($slot, $this->sideEffects);
+}
+```
+
+`findSideEffectForSlot()` ne change pas de signature et garde son comportement : elle rend la valeur,
+et rend `null` aussi bien pour un slot absent que pour un slot portant `null`. C'est désormais écrit
+dans son contrat, et c'est `hasSideEffectForSlot()` qui décide s'il faut exécuter la closure.
+
+
+### `version()` cesse de basculer une exécution en vol
+
+**Qui est concerné** : toute application qui appelle `version()`. Rien à écrire ; le comportement
+change, en mieux, et il faut savoir en quoi.
+
+`version()` décide de rendre l'ancien comportement quand l'exécution est encore en train de
+rejouer. Ce signal se déduisait des quatre types de slot qui savent dire leur présence — activité,
+minuteur, workflow enfant, opération Nexus — et laissait les effets de bord de côté, pour la raison
+même que le correctif ci-dessus vient de lever : leur présence ne se lisait pas sans lire leur
+valeur.
+
+Conséquence : une exécution dont le travail restant devant elle n'était fait que d'effets de bord
+était vue comme arrivée au bout de son historique. Elle prenait la branche **neuve** au milieu d'un
+rejeu et y écrivait son marqueur de version — dans une histoire écrite avant que le point de
+changement existe. `hasSideEffectForSlot()` étant désormais au port, ce cas rejoint les autres.
+
+Une exécution qui a déjà écrit un marqueur de version garde le sien : `versionForChangeId()` est
+consulté en premier, et rien de ce commit ne le touche.
+
+### Le profileur ne s'enregistre plus hors debug
+
+**Qui est concerné** : une application qui tirait `durable.execution_trace` du conteneur en
+production, ou qui injectait `WorkflowExecutionObserverInterface` en s'attendant à la trace.
+
+Le collecteur, sa trace, son écouteur de remise à zéro et son middleware Messenger n'étaient posés
+sous aucune condition. L'observateur qu'ils installent est injecté dans `ExecutionRuntime`,
+`ExecutionEngine` et `ActivityMessageProcessor` : il passait donc sur le chemin chaud de chaque
+exécution en production, pour alimenter une page que personne n'y sert. Et sa trace n'était vidée
+que par un écouteur `kernel.request`, que `messenger:consume` ne déclenche jamais — un worker
+l'accumulait tant qu'il vivait.
+
+Hors `kernel.debug`, `WorkflowExecutionObserverInterface` pointe désormais
+`Gplanchat\Durable\Debug\NullWorkflowExecutionObserver`. Le contrat d'observation est intact ;
+c'est son implémentation qui ne fait plus rien. En debug, rien ne change, sinon que la trace porte
+un tag `kernel.reset` et se vide donc aussi entre deux messages d'un worker.
+
+Une application qui veut observer les exécutions en production n'a pas à ressusciter le profileur :
+elle implémente `WorkflowExecutionObserverInterface` et aliase l'interface sur son propre service —
+ce que le profileur faisait, en moins cher et sans accumuler une timeline pour l'écran de personne.
 
 ## 0.1.0-alpha8
 
-### La garde de divergence compare aussi la charge
+### The divergence guard compares the payload too
 
-`WorkflowHistorySourceInterface` gagne trois méthodes — `activityPayloadForSlot()`,
-`nexusOperationPayloadForSlot()` et `childWorkflowInputForSlot()`, toutes `?array`. La garde de
-divergence (DUR042) ne comparait que l'**identité** du slot — nom d'activité, type d'enfant,
-triplet Nexus ; elle compare désormais aussi la charge, sur les trois. Un replay qui redemande le
-même appel avec une autre charge lève un `WorkflowTaskFailure` au lieu de continuer en silence.
+`WorkflowHistorySourceInterface` gains three methods — `activityPayloadForSlot()`,
+`nexusOperationPayloadForSlot()` and `childWorkflowInputForSlot()`, all `?array`. The divergence
+guard (DUR042) only compared the slot's **identity** — activity name, child type, Nexus triplet; it
+now compares the payload as well, on all three. A replay that asks for the same call again with a
+different payload raises a `WorkflowTaskFailure` instead of carrying on in silence.
 
-**Pourquoi** — le nom seul laissait passer la moitié du problème. Le journal servait l'ancien
-résultat, la charge fraîchement calculée partait à la poubelle, et l'exécution se terminait **en
-succès** en ayant menti sur ce qu'elle avait demandé. Mesuré sur une maquette d'agent : neuf charges
-calculées, trois journalisées, six divergences avalées sans un mot, suite de tests verte.
+**Why** — the name alone let half the problem through. The journal served the old result, the
+freshly computed payload went in the bin, and the execution finished **successfully** having lied
+about what it had asked for. Measured on an agent mock-up: nine payloads computed, three journalled,
+six divergences swallowed without a word, test suite green.
 
-**Ce que ça change pour du code existant** — un workflow déjà déterministe ne voit rien. Un workflow
-qui construisait sa charge avec une horloge, un aléa ou une lecture hors journal échoue désormais sa
-tâche de replay, en nommant l'octet où les deux empreintes divergent. C'est le défaut qu'il fallait
-voir : ces exécutions-là rendaient déjà un résultat faux.
+**What it changes for existing code** — a workflow that is already deterministic sees nothing. A
+workflow that built its payload from a clock, a random draw or a read outside the journal now fails
+its replay task, naming the byte where the two fingerprints diverge. That is the defect that had to
+be seen: those executions were already returning a wrong result.
 
-**Ce qui reste hors de portée de la garde, volontairement** — la comparaison passe par l'empreinte
-que le journal sait tenir (aller-retour JSON, clés triées). Un objet dont le journal ne retient rien
-— un DTO à propriétés privées, le style de la maison — ne fait donc pas diverger un replay fidèle.
-Une charge inencodable (ressource, `NAN`) désarme la garde plutôt que d'accuser ce qu'elle ne sait
-pas lire. Les histoires écrites avant ce changement n'ont rien à comparer et passent inchangées.
+**What stays out of the guard's reach, deliberately** — the comparison goes through the fingerprint
+the journal can hold (JSON round trip, sorted keys). An object the journal retains nothing of — a
+DTO with private properties, the house style — therefore does not make a faithful replay diverge. An
+unencodable payload (a resource, `NAN`) disarms the guard rather than accusing what it cannot read.
+Histories written before this change have nothing to compare and pass unchanged.
 
-**Ce que Rector ne peut pas faire** — rien à réécrire dans le code appelant. Seules les
-implémentations tierces de `WorkflowHistorySourceInterface` doivent ajouter les trois méthodes ;
-rendre `null` reproduit exactement le comportement d'avant, sans garde sur la charge.
+**What Rector cannot do** — nothing to rewrite in the calling code. Only third-party implementations
+of `WorkflowHistorySourceInterface` have to add the three methods; returning `null` reproduces
+exactly the previous behaviour, with no guard on the payload.
 
-**Nexus** — la garde s'y exerce côté pont Temporal uniquement, et c'est structurel : le backend
-journal refuse les opérations Nexus par construction (DUR036), et son événement
-`NexusOperationScheduled` ne porte que le site d'appel. Aucun champ n'a été ajouté à aucun
-événement : les trois charges étaient déjà sur le fil.
+**Nexus** — the guard applies there on the Temporal bridge side only, and that is structural: the
+journal backend refuses Nexus operations by construction (DUR036), and its `NexusOperationScheduled`
+event carries only the call site. No field was added to any event: the three payloads were already
+on the wire.
 
 
-### Laravel refuse au démarrage un workflow dont les noms de paramètres divergent du contrat
+### Laravel refuses at boot a workflow whose parameter names diverge from the contract
 
-`gplanchat/durable-laravel` enregistrait sans vérifier. Un workflow portant
-`#[FulfilsNexusOperation]` dont un paramètre **obligatoire** ne correspond à aucun paramètre du
-contrat fait désormais échouer l'enregistrement, en nommant les deux signatures — le même refus que
-`NexusHandlerPass` produit côté Symfony depuis toujours, et par la même classe :
+`gplanchat/durable-laravel` used to register without checking. A workflow carrying
+`#[FulfilsNexusOperation]` with a **required** parameter matching no parameter of the contract now
+makes registration fail, naming both signatures — the same refusal `NexusHandlerPass` has always
+produced on the Symfony side, and from the same class:
 `Gplanchat\Durable\Nexus\Serving\NexusFulfilmentParameterNames`.
 
-**Pourquoi** — la charge d'une opération Nexus est clée **par nom** aux deux bouts. Un paramètre
-renommé d'un seul côté ne casse rien à l'écriture, ne lève rien à l'exécution, et arrive à `null` :
-le workflow démarre, s'exécute et rend un résultat calculé sur du vide. L'enregistrement est le
-dernier moment où quelqu'un regarde.
+**Why** — a Nexus operation's payload is keyed **by name** at both ends. A parameter renamed on one
+side only breaks nothing when written, raises nothing when run, and arrives as `null`: the workflow
+starts, runs and returns a result computed on nothing. Registration is the last moment anyone looks.
 
-**Ce que Rector ne peut pas faire** — rien à renommer mécaniquement : le bon nom est celui du
-contrat, et seul l'auteur sait lequel des deux côtés porte la faute de frappe. Le message du refus
-imprime les deux listes de paramètres, ce qui est exactement l'information qu'il faudrait à Rector
-pour choisir.
+**What Rector cannot do** — nothing to rename mechanically: the right name is the contract's, and
+only the author knows which of the two sides carries the typo. The refusal message prints both
+parameter lists, which is exactly the information Rector would need in order to choose.
 
-**Qui est concerné** — aucune application dont les opérations Nexus fonctionnent : le refus ne
-frappe que des configurations qui rendaient déjà `null` en silence. Si le démarrage échoue après la
-montée de version, la panne existait avant, sans le dire.
+**Who is affected** — no application whose Nexus operations work: the refusal only strikes
+configurations that were already returning `null` in silence. If boot fails after the upgrade, the
+fault was already there, without saying so.
 
-### Un workflow qui remplit une opération Nexus doit porter sa balise
+### A workflow that fulfils a Nexus operation must carry its tag
 
-`NexusHandlerPass` lisait les `#[FulfilsNexusOperation]` en **balayant toutes les définitions du
-conteneur** et en appelant `class_exists()` sur chacune. Il lit désormais la balise
-`durable.nexus_fulfilment`, que `DurableBundle::build()` pose depuis l'attribut.
+`NexusHandlerPass` used to read the `#[FulfilsNexusOperation]` attributes by **scanning every
+definition in the container** and calling `class_exists()` on each one. It now reads the
+`durable.nexus_fulfilment` tag, which `DurableBundle::build()` sets from the attribute.
 
-**Pourquoi** — le balayage chargeait chaque classe du conteneur pour lire ses attributs. Il suffit
-qu'une seule étende un parent absent — un bundle de développement à moitié installé, et
-`Symfony\Bundle\MakerBundle\Maker\AbstractMaker` est le cas réel qui l'a montré — pour que le
-chargement fasse une **erreur fatale** dans une passe de compilation qui n'avait rien à y voir. La
-balise dit exactement ce qu'on cherche, et elle existait déjà pour ça.
+**Why** — the scan loaded every class in the container in order to read its attributes. A single one
+extending an absent parent is enough — a half-installed development bundle, and
+`Symfony\Bundle\MakerBundle\Maker\AbstractMaker` is the real case that showed it — for the loading
+to raise a **fatal error** in a compiler pass that had nothing to do with it. The tag says exactly
+what we are looking for, and it already existed for that.
 
-**Ce que Rector ne peut pas faire** — rien à renommer : la rupture est de configuration.
+**What Rector cannot do** — nothing to rename: the break is a configuration one.
 
-⚠ **Ce que vous avez à faire, si et seulement si** un de vos workflows portant
-`#[FulfilsNexusOperation]` est déclaré avec `autoconfigure: false`, ou monté à la main comme
-`Definition`. L'ancien balayage le voyait quand même ; la balise, non. Le symptôme est un refus au
-démarrage, et il vous nomme l'opération :
+⚠ **What you have to do, if and only if** one of your workflows carrying
+`#[FulfilsNexusOperation]` is declared with `autoconfigure: false`, or built by hand as a
+`Definition`. The old scan saw it anyway; the tag does not. The symptom is a refusal at boot, and it
+names the operation for you:
 
 ```
 durable.nexus_handler: operation "encaisser" of contract … is served by nobody
 ```
 
-Deux façons de le rattraper, selon ce que vous vouliez :
+Two ways to put it right, depending on what you wanted:
 
 ```yaml
 services:
     App\Workflow\Encaissement:
-        autoconfigure: true          # la balise revient toute seule
+        autoconfigure: true          # the tag comes back on its own
 ```
 
 ```yaml
@@ -149,152 +262,147 @@ services:
               operation: 'encaisser'
 ```
 
-### Les noms de paramètres d'un workflow qui remplit une opération sont vérifiés
+### The parameter names of a workflow that fulfils an operation are checked
 
-Un workflow portant `#[FulfilsNexusOperation]` dont un paramètre **sans valeur par défaut** ne
-correspond à aucun paramètre de la méthode de contrat fait maintenant échouer la compilation du
-conteneur.
+A workflow carrying `#[FulfilsNexusOperation]` with a parameter **without a default value** matching
+no parameter of the contract method now makes container compilation fail.
 
-**Pourquoi** — c'est le mode d'échec le plus silencieux de Nexus. La charge est clée par nom à
-l'écriture et relue par nom à l'arrivée : un paramètre qui ne correspond à rien recevait `null`, et
-le workflow démarrait, s'exécutait et rendait un résultat calculé sur du vide.
+**Why** — it is the quietest failure mode Nexus has. The payload is keyed by name when written and
+read back by name on arrival: a parameter matching nothing received `null`, and the workflow
+started, ran and returned a result computed on nothing.
 
-**Ce que vous avez à faire** — si le refus se déclenche, un des deux côtés a une faute de frappe.
-Le message donne les deux signatures. Un paramètre que le contrat ignore volontairement passe s'il
-a une valeur par défaut : l'absence est alors une décision, pas un oubli.
+**What you have to do** — if the refusal fires, one of the two sides has a typo. The message gives
+both signatures. A parameter the contract deliberately ignores passes if it has a default value:
+absence is then a decision, not an oversight.
 
 
-### L'orchestration de reprise descend du bundle vers le cœur
+### Resume orchestration moves down from the bundle into the core
 
 - `Gplanchat\Durable\Bundle\Handler\ResumeWorkflowHandler` → `Gplanchat\Durable\Handler\ResumeWorkflowHandler`
 - `Gplanchat\Durable\Bundle\Handler\FireWorkflowTimersHandler` → `Gplanchat\Durable\Handler\FireWorkflowTimersHandler`
 - `Gplanchat\Durable\Bundle\Support\AsyncChildWorkflowFailureProjector` → `Gplanchat\Durable\Workflow\AsyncChildWorkflowFailureProjector`
 
-**Pourquoi** — ce n'était pas un adaptateur d'hôte. Sur **279 lignes, 21 touchaient Symfony**
-(imports compris), et ces 21 ne servaient qu'à deux choses : un identifiant v7, que
-`ExecutionId::generate()` fabrique déjà dans le cœur, et « publier le réveil des minuteries après
-l'unité de travail courante ». La seconde est devenue le port
-`Gplanchat\Durable\Port\WorkflowTimerDispatcher`, dont le bundle fournit l'implémentation
-Messenger. Six hôtes du sélecteur ne passent pas par le bundle : les y laisser aurait voulu dire
-autant de copies de la sémantique de reprise, divergentes à la première correction.
+**Why** — this was not a host adapter. Out of **279 lines, 21 touched Symfony** (imports included),
+and those 21 served two things only: a v7 id, which `ExecutionId::generate()` already makes in the
+core, and "publishing the timer wake-up after the current unit of work". The second became the port
+`Gplanchat\Durable\Port\WorkflowTimerDispatcher`, for which the bundle supplies the Messenger
+implementation. Six of the selector's hosts do not go through the bundle: leaving it there would
+have meant as many copies of the resume semantics, divergent at the first fix.
 
-**Ce que Rector fait** — les trois renommages. **Ce que vous avez à faire** — rien de plus, si vous
-utilisiez ces classes indirectement : le bundle les câble toujours, aux mêmes identifiants de
-service. Le `cache:clear` reste nécessaire, pour la raison ci-dessous.
+**What Rector does** — the three renames. **What you have to do** — nothing more, if you were using
+these classes indirectly: the bundle still wires them, at the same service ids. The `cache:clear`
+remains necessary, for the reason below.
 
-⚠ **Si vous aviez votre propre implémentation** de `WorkflowTimerDispatcher` avant qu'il existe —
-c'est impossible, il est neuf — rien à faire. Mais si vous injectiez un `MessageBusInterface` dans
-un décorateur de ces gestionnaires, le septième argument de `ResumeWorkflowHandler` et le quatrième
-de `FireWorkflowTimersHandler` sont désormais un `WorkflowTimerDispatcher`, pas un bus.
+⚠ **If you had your own implementation** of `WorkflowTimerDispatcher` before it existed — impossible,
+it is brand new — nothing to do. But if you were injecting a `MessageBusInterface` into a decorator
+of these handlers, the seventh argument of `ResumeWorkflowHandler` and the fourth of
+`FireWorkflowTimersHandler` are now a `WorkflowTimerDispatcher`, not a bus.
 
-### `TimerWakeDelayCalculator` descend du bundle vers le cœur
+### `TimerWakeDelayCalculator` moves down from the bundle into the core
 
-`Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator` devient
+`Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator` becomes
 `Gplanchat\Durable\Timer\TimerWakeDelayCalculator`.
 
-**Pourquoi, et pourquoi ça compte plus que le déplacement suivant** — cette classe n'importait rien
-de Symfony (des événements de minuterie et le port du magasin d'événements), et
-`InMemoryWorkflowRunner`, qui **est** du cœur, l'appelait. `gplanchat/durable` ne requiert pas
-`gplanchat/durable-bundle` : sur tout hôte qui n'installe pas le bundle, une reprise qui devait
-sauter au prochain minuteur levait une **erreur fatale de classe introuvable**. Sous Symfony rien ne
-se voyait, le bundle étant toujours là.
+**Why, and why it matters more than the next move** — this class imported nothing from Symfony
+(timer events and the event store port), and `InMemoryWorkflowRunner`, which **is** core, called it.
+`gplanchat/durable` does not require `gplanchat/durable-bundle`: on any host that does not install
+the bundle, a resume that had to jump to the next timer raised a **fatal class-not-found error**.
+Under Symfony nothing showed, the bundle always being there.
 
-Trouvé en rejouant sur Magento une commande tuée pendant sa réservation. Une garde le tient
-désormais : aucun fichier de `src/Durable` n'importe un hôte ni un pont.
+Found by replaying on Magento an order killed during its reservation. A guard now holds it: no file
+in `src/Durable` imports a host or a bridge.
 
-**Ce que Rector fait** — le renommage. **Ce qu'il ne peut pas faire** — le même `cache:clear` que
-ci-dessous, pour la même raison.
+**What Rector does** — the rename. **What it cannot do** — the same `cache:clear` as below, for the
+same reason.
 
-### `PayloadToContractMethodInvoker` descend du bundle vers le cœur
+### `PayloadToContractMethodInvoker` moves down from the bundle into the core
 
-`Gplanchat\Durable\Bundle\Activity\PayloadToContractMethodInvoker` devient
+`Gplanchat\Durable\Bundle\Activity\PayloadToContractMethodInvoker` becomes
 `Gplanchat\Durable\Activity\PayloadToContractMethodInvoker`.
 
-**Pourquoi** — la classe adapte une charge utile (tableau, clés = noms des paramètres) vers la
-méthode d'un contrat d'activité. Elle vivait dans le paquet du bundle Symfony **sans en importer une
-ligne**, et l'intégration Magento en a besoin mot pour mot : son conteneur n'a pas les tags de
-Symfony, mais une fois le contrat résolu l'adaptation est la même. Elle rejoint
-`ActivityContractResolver`, qui la nourrit et qui était déjà dans le cœur.
+**Why** — the class adapts a payload (an array, keys = parameter names) onto the method of an
+activity contract. It lived in the Symfony bundle package **without importing a single line of it**,
+and the Magento integration needs it word for word: its container has none of Symfony's tags, but
+once the contract is resolved the adaptation is the same. It joins `ActivityContractResolver`, which
+feeds it and which was already in the core.
 
-**Ce que Rector fait** — le renommage, partout où le nom apparaît.
+**What Rector does** — the rename, everywhere the name appears.
 
-**⚠ Ce que Rector ne peut pas faire, et qu'il faut faire à la main** — vider le cache du conteneur :
+**⚠ What Rector cannot do, and what you have to do by hand** — clear the container cache:
 
 ```bash
 bin/console cache:clear
 ```
 
-Le nom pleinement qualifié est écrit dans le **conteneur compilé**. Sans ce vidage, une application
-Symfony continue de demander l'ancien nom après la mise à jour, et la panne arrive au premier appel
-d'activité — loin de sa cause, et sans que rien ne désigne le déplacement. C'est aussi pourquoi
-Composer ne peut pas vous prévenir : il installe les deux paquets sans rien dire, et l'ancien nom
-disparaît simplement.
+The fully qualified name is written into the **compiled container**. Without that clear, a Symfony
+application keeps asking for the old name after the update, and the failure arrives at the first
+activity call — far from its cause, and with nothing pointing at the move. It is also why Composer
+cannot warn you: it installs both packages without a word, and the old name simply disappears.
 
-**Si vous ne l'utilisiez pas directement**, vous n'aviez rien à faire dans votre code : la classe
-n'était référencée que par la passe de compilation du bundle. Le vidage de cache, lui, reste
-nécessaire.
+**If you were not using it directly**, you had nothing to do in your code: the class was only
+referenced by the bundle's compiler pass. The cache clear, though, remains necessary.
 
-### Tout attribut de déclaration prend le préfixe `As`
+### Every declaration attribute takes the `As` prefix
 
-Le dépôt portait deux conventions. Le cœur nommait ses attributs sans préfixe (`#[Workflow]`,
-`#[Activity]`) ; le bundle Symfony en avait un seul, préfixé (`#[AsDurableActivity]`) ; ni le pont
-Illuminate ni le module Magento n'en avaient. Servir des opérations Nexus demandait d'en ajouter,
-donc de choisir. `As*` l'emporte, et il dit ce qu'il dit : *cette déclaration enregistre un X*.
+The repository carried two conventions. The core named its attributes without a prefix
+(`#[Workflow]`, `#[Activity]`); the Symfony bundle had a single one, prefixed
+(`#[AsDurableActivity]`); neither the Illuminate bridge nor the Magento module had any. Serving
+Nexus operations meant adding some, and therefore choosing. `As*` wins, and it says what it says:
+*this declaration registers an X*.
 
-Les attributs de **méthode** suivent la même règle, pour qu'il n'y en ait qu'une à retenir plutôt
-qu'une règle et son exception.
+**Method** attributes follow the same rule, so that there is one to remember rather than a rule and
+its exception.
 
-| avant | après |
-|---|---|
-| `#[Workflow]` | `#[AsWorkflow]` |
-| `#[Activity]` | `#[AsActivity]` |
+| before              | after                 |
+|---------------------|-----------------------|
+| `#[Workflow]`       | `#[AsWorkflow]`       |
+| `#[Activity]`       | `#[AsActivity]`       |
 | `#[WorkflowMethod]` | `#[AsWorkflowMethod]` |
 | `#[ActivityMethod]` | `#[AsActivityMethod]` |
-| `#[QueryMethod]` | `#[AsQueryMethod]` |
-| `#[SignalMethod]` | `#[AsSignalMethod]` |
-| `#[UpdateMethod]` | `#[AsUpdateMethod]` |
+| `#[QueryMethod]`    | `#[AsQueryMethod]`    |
+| `#[SignalMethod]`   | `#[AsSignalMethod]`   |
+| `#[UpdateMethod]`   | `#[AsUpdateMethod]`   |
 
-**Ce que Rector fait** — le renommage, partout où l'attribut apparaît. Rien d'autre ne bouge : les
-arguments, les cibles et le sens de chaque attribut sont inchangés. Le set est donc rejouable sans
-dommage.
+**What Rector does** — the rename, everywhere the attribute appears. Nothing else moves: the
+arguments, the targets and the meaning of each attribute are unchanged. The set is therefore
+replayable without harm.
 
-### `AsDurableActivity` descend du bundle vers le cœur, sous le nom `AsActivityHandler`
+### `AsDurableActivity` moves down from the bundle into the core, under the name `AsActivityHandler`
 
-`Gplanchat\Durable\Bundle\Attribute\AsDurableActivity` devient
+`Gplanchat\Durable\Bundle\Attribute\AsDurableActivity` becomes
 `Gplanchat\Durable\Attribute\AsActivityHandler`.
 
-Deux changements en un, et ils se justifient ensemble. Le déplacement d'abord : cet attribut
-déclarait qu'une classe implémente un contrat d'activité, ce qu'aucun framework ne rend spécifique.
-Le laisser côté Symfony aurait obligé le pont Illuminate et le module Magento à en inventer chacun
-un autre pour dire la même chose. Le nom ensuite : `AsActivityHandler` le met en paire avec
-`AsNexusServiceHandler`, les deux déclarant une implémentation par son contrat.
+Two changes in one, and they justify each other. The move first: this attribute declared that a
+class implements an activity contract, which no framework makes specific to itself. Leaving it on
+the Symfony side would have forced the Illuminate bridge and the Magento module each to invent
+another one to say the same thing. The name second: `AsActivityHandler` pairs it with
+`AsNexusServiceHandler`, both declaring an implementation by its contract.
 
-**⚠ Ce que Rector ne peut pas faire, et qu'il faut faire à la main** — vider le cache du conteneur :
+**⚠ What Rector cannot do, and what you have to do by hand** — clear the container cache:
 
 ```bash
 bin/console cache:clear
 ```
 
-C'est le même piège que pour `PayloadToContractMethodInvoker`, en pire : cet attribut est **lu par
-une passe de compilation**. Le conteneur compilé garde le nom pleinement qualifié, et une
-application qui monte de version sans vider son cache continue de chercher un attribut qui n'existe
-plus — sans que rien ne désigne le déplacement.
+It is the same trap as for `PayloadToContractMethodInvoker`, only worse: this attribute is **read by
+a compiler pass**. The compiled container keeps the fully qualified name, and an application that
+upgrades without clearing its cache keeps looking for an attribute that no longer exists — with
+nothing pointing at the move.
 
-**Si vous n'utilisiez pas `#[AsDurableActivity]`**, vous n'avez rien à faire ; le vidage de cache
-reste néanmoins recommandé, l'autre entrée de cette version l'exigeant.
+**If you were not using `#[AsDurableActivity]`**, you have nothing to do; the cache clear is
+nevertheless still recommended, since the other entry in this version requires it.
 
-### `JournalExecutionIdResolver::MEMO_KEY_JOURNAL_BOOTSTRAP` est retirée
+### `JournalExecutionIdResolver::MEMO_KEY_JOURNAL_BOOTSTRAP` is removed
 
-La constante nommait un mémo qu'un **bootstrap natif par le journal** aurait posé — un pan de code
-qui n'a jamais atteint `main`. Six tests d'intégration le décrivaient, quatre des cinq classes qu'ils
-appelaient n'ont jamais existé, et ces tests ont été supprimés avec leur constat consigné. La
-constante leur avait survécu : plus rien ne la lisait, et son docblock décrivait `workflowType`,
-qui n'a jamais été son contenu.
+The constant named a memo that a **journal-native bootstrap** would have set — a slab of code that
+never reached `main`. Six integration tests described it, four of the five classes they called never
+existed, and those tests were deleted with their finding recorded. The constant had outlived them:
+nothing read it any more, and its docblock described `workflowType`, which was never its content.
 
-**Ce que Rector fait** — rien. Il n'y a pas de nom de remplacement : ce n'est pas un renommage mais
-une suppression, et inventer une cible serait pire que se taire.
+**What Rector does** — nothing. There is no replacement name: this is not a rename but a removal,
+and inventing a target would be worse than saying nothing.
 
-**Ce que vous avez à faire** — presque certainement rien. Cette constante n'était lue par aucun code
-du dépôt. Si vous la référencez, c'est que vous parliez à un mémo que Durable n'a jamais écrit :
-`MEMO_KEY_DURABLE_EXECUTION_ID`, elle, reste et est bien celle que `WorkflowClient` pose au
-démarrage.
+**What you have to do** — almost certainly nothing. This constant was read by no code in the
+repository. If you reference it, then you were talking to a memo Durable never wrote:
+`MEMO_KEY_DURABLE_EXECUTION_ID`, for its part, stays and is indeed the one `WorkflowClient` sets at
+start.

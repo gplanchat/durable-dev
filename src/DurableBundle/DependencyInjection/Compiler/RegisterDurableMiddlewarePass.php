@@ -19,6 +19,11 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  * Hence a tag that belongs to the bundle, `durable.messenger.middleware`, and this pass to consume
  * it. The next middleware of the bundle installs itself by adding it, without a thought.
  *
+ * **Which buses.** All of them by default, and `durable.messenger.buses` names the ones that
+ * actually carry durable messages. The default cannot be finer: the bundle does not know which bus
+ * the application chose to route `ResumeWorkflowMessage` on, and guessing would take the lock off
+ * where it does its work.
+ *
  * The order comes from the `priority` attribute, descending: what matters is that two middleware
  * do not depend on the container's iteration order. They go in at the **head** because a lock must
  * wrap everything that follows, including a `doctrine_transaction` — releasing it before the
@@ -27,6 +32,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 final class RegisterDurableMiddlewarePass implements CompilerPassInterface
 {
     public const TAG = 'durable.messenger.middleware';
+    public const BUSES_PARAMETER = 'durable.messenger.buses';
 
     public function process(ContainerBuilder $container): void
     {
@@ -35,7 +41,7 @@ final class RegisterDurableMiddlewarePass implements CompilerPassInterface
             return;
         }
 
-        foreach (array_keys($container->findTaggedServiceIds('messenger.bus')) as $busId) {
+        foreach ($this->busesToServe($container) as $busId) {
             $param = $busId . '.middleware';
             if (!$container->hasParameter($param)) {
                 continue;
@@ -55,6 +61,43 @@ final class RegisterDurableMiddlewarePass implements CompilerPassInterface
 
             $container->setParameter($param, $middleware);
         }
+    }
+
+    /**
+     * The buses to install on, and none besides.
+     *
+     * The default stays **every bus**: it is the historical behaviour, and narrowing it on our own
+     * initiative would take the resume lock off the bus that really carries somebody's durable
+     * messages: a silent loss of durability, which is exactly what the lock exists against.
+     *
+     * @return list<string>
+     */
+    private function busesToServe(ContainerBuilder $container): array
+    {
+        $declared = array_keys($container->findTaggedServiceIds('messenger.bus'));
+
+        $chosen = $container->hasParameter(self::BUSES_PARAMETER)
+            ? $container->getParameter(self::BUSES_PARAMETER)
+            : [];
+
+        if (!\is_array($chosen) || [] === $chosen) {
+            return $declared;
+        }
+
+        // A named bus that does not exist is a typo, and letting it through would produce the very
+        // silence this is meant to remove: the configuration looks set, and nothing installs.
+        $unknown = array_diff($chosen, $declared);
+        if ([] !== $unknown) {
+            throw new \LogicException(\sprintf(
+                'durable.messenger.buses names %s, which is not a Messenger bus of this application. '
+                . 'Declared buses: %s. A bus id is a service id, '
+                . '"messenger.bus.default" for FrameworkBundle\'s default bus.',
+                implode(', ', array_map(static fn(string $id): string => '"' . $id . '"', $unknown)),
+                [] === $declared ? 'none' : implode(', ', $declared),
+            ));
+        }
+
+        return array_values(array_intersect($declared, $chosen));
     }
 
     /**

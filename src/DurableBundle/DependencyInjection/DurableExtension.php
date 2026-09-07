@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\DependencyInjection;
 
+use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
 use Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Bridge\Dbal\Store\DbalChildWorkflowParentLinkStore;
@@ -40,8 +41,10 @@ use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler;
 use Gplanchat\Durable\Bundle\Messenger\MessengerWorkflowResumeDispatcher;
 use Gplanchat\Durable\Bundle\Messenger\WorkflowRunDispatchProfilerMiddleware;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
+use Gplanchat\Durable\Bundle\SchemaListener\DurableSchemaListener;
 use Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport;
 use Gplanchat\Durable\Bundle\Transport\MessengerWorkflowTimerDispatcher;
+use Gplanchat\Durable\Debug\NullWorkflowExecutionObserver;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
@@ -74,6 +77,7 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
@@ -93,7 +97,15 @@ final class DurableExtension extends Extension
         $asyncChildMessenger = (bool) ($config['child_workflow']['async_messenger'] ?? false);
         $container->setParameter('durable.child_workflow_async_messenger', $asyncChildMessenger);
 
-        $this->registerProfiler($container);
+        // A synthetic container, an extension test for instance, does not have this parameter;
+        // that does not make it production, hence the default to debug.
+        $debug = !$container->hasParameter('kernel.debug') || (bool) $container->getParameter('kernel.debug');
+
+        if ($debug) {
+            $this->registerProfiler($container);
+        } else {
+            $this->registerNullObserver($container);
+        }
         $this->registerChildWorkflowParentLinkStore($container);
         $this->registerWorkflowDefinitionLoader($container);
         $this->registerEventStore($container, $config);
@@ -102,6 +114,13 @@ final class DurableExtension extends Extension
         $this->registerRuntime($container, $config);
         $this->registerWorkflowMessengerServices($container, $config);
         $this->registerParentChildCoordinator($container);
+        // The pass that installs the middleware runs well after the extensions; it reads this
+        // choice back here rather than rediscovering it.
+        $container->setParameter(
+            RegisterDurableMiddlewarePass::BUSES_PARAMETER,
+            $config['messenger']['buses'] ?? [],
+        );
+
         $this->registerActivityContractResolver($container, $config);
         $this->registerEngine($container, $config);
         $this->registerActivityContractCacheWarmer($container, $config);
@@ -147,14 +166,26 @@ final class DurableExtension extends Extension
                 $config['workflow_metadata']['table_name'],
                 $config['child_workflow']['parent_link_store']['table_name'],
             ])
+            ->setArgument('$autoSetup', $config['dbal']['auto_setup'])
             ->setPublic(false)
         ;
         $schema = new Reference('durable.dbal.schema');
 
+        // Without this listener, `doctrine:migrations:diff` does not see the journal's tables and
+        // generates their removal. Registered only when the ORM is there: the DBAL bridge works
+        // without it, and an application that has only the DBAL has no schema to complete.
+        if (class_exists(GenerateSchemaEventArgs::class)) {
+            $container->register('durable.dbal.schema_listener', DurableSchemaListener::class)
+                ->setArguments([$schema])
+                ->addTag('doctrine.event_listener', ['event' => 'postGenerateSchema'])
+                ->setPublic(false)
+            ;
+        }
+
         if ($eventStoreDbal) {
             $container->register('durable.event_store.dbal', DbalEventStore::class)
                 ->setArguments([$connection, $schema, $config['event_store']['table_name']])
-                ->setPublic(true)
+                ->setPublic(false)
             ;
             $container->setAlias(EventStoreInterface::class, 'durable.event_store.dbal')->setPublic(true);
 
@@ -169,7 +200,7 @@ final class DurableExtension extends Extension
         if ($metadataDbal) {
             $container->register('durable.workflow_metadata_store.inner', DbalWorkflowMetadataStore::class)
                 ->setArguments([$connection, $schema, $config['workflow_metadata']['table_name']])
-                ->setPublic(true)
+                ->setPublic(false)
             ;
             $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.inner')->setPublic(true);
         }
@@ -207,7 +238,7 @@ final class DurableExtension extends Extension
 
         $container->register('durable.event_store.dbal.projecting', ProjectingEventStore::class)
             ->setArguments([new Reference('durable.event_store.dbal'), $projection])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
         $container->setAlias(EventStoreInterface::class, 'durable.event_store.dbal.projecting')->setPublic(true);
 
@@ -224,13 +255,13 @@ final class DurableExtension extends Extension
 
         $container->register('durable.workflow_metadata_store.projecting', ProjectingWorkflowMetadataStore::class)
             ->setArguments([new Reference('durable.workflow_metadata_store.inner'), $projection])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
         $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.projecting')->setPublic(true);
 
         $container->register('durable.run_catalog.dbal', DbalWorkflowRunCatalog::class)
             ->setArguments([$connection, $schema])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
         $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.dbal')->setPublic(true);
     }
@@ -260,14 +291,14 @@ final class DurableExtension extends Extension
 
         $container->register('durable.run_catalog.in_memory', InMemoryWorkflowRunCatalog::class)
             ->setArguments([new Reference('durable.event_store.inner')])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
         $catalog = new Reference('durable.run_catalog.in_memory');
         $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.in_memory')->setPublic(true);
 
         $container->register('durable.event_store.in_memory.projecting', ProjectingEventStore::class)
             ->setArguments([new Reference('durable.event_store.inner'), $catalog])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
         $container->setAlias(EventStoreInterface::class, 'durable.event_store.in_memory.projecting')->setPublic(true);
 
@@ -281,7 +312,7 @@ final class DurableExtension extends Extension
 
         $container->register('durable.workflow_metadata_store.in_memory.projecting', ProjectingWorkflowMetadataStore::class)
             ->setArguments([new Reference('durable.workflow_metadata_store.inner'), $catalog])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
         $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.in_memory.projecting')->setPublic(true);
     }
@@ -330,7 +361,7 @@ final class DurableExtension extends Extension
      */
     private function registerEventStore(ContainerBuilder $container, array $config): void
     {
-        $container->register('durable.event_store.inner', InMemoryEventStore::class)->setPublic(true);
+        $container->register('durable.event_store.inner', InMemoryEventStore::class)->setPublic(false);
 
         $temporalConfig = $config['temporal'] ?? [];
         $dsn = $temporalConfig['dsn'] ?? null;
@@ -378,7 +409,7 @@ final class DurableExtension extends Extension
                     new Reference('durable.temporal.connection'),
                     new Reference(TemporalHistoryCursor::class),
                 ])
-                ->setPublic(true)
+                ->setPublic(false)
             ;
             if ($journal) {
                 $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.temporal')->setPublic(true);
@@ -417,7 +448,7 @@ final class DurableExtension extends Extension
                     new Reference(TemporalHistoryCursor::class),
                     new Reference(WorkflowClientInterface::class),
                 ])
-                ->setPublic(true)
+                ->setPublic(false)
             ;
 
             if ($journal) {
@@ -656,7 +687,11 @@ final class DurableExtension extends Extension
                     new Reference(WorkflowClientInterface::class),
                     new Reference(WorkflowMetadataStore::class),
                     new Reference(WorkflowDefinitionLoader::class),
-                    new Reference('durable.execution_trace'),
+                    // Le profileur n'existe qu'en debug depuis ce correctif, et le constructeur
+                    // target declares the dependency `?DurableExecutionTrace $executionTrace = null`.
+                    // A bare reference would fail the production container's compilation as soon as
+                    // a `temporal.dsn` is configured.
+                    new Reference('durable.execution_trace', ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 ])
                 ->setPublic(true)
             ;
@@ -739,15 +774,59 @@ final class DurableExtension extends Extension
         ;
     }
 
+    /**
+     * The profiler is not neutral plumbing: its observer is injected into
+     * `ExecutionRuntime`, `ExecutionEngine` et `ActivityMessageProcessor`, donc il passe sur le
+     * hot path of every execution, and its trace is emptied only by a `kernel.request` listener,
+     * which `messenger:consume` never fires.
+     *
+     * Hors debug, on n'en enregistre donc rien du tout et l'observation retombe sur un objet nul.
+     * FrameworkBundle does the same for its own collectors, loaded from separate files under a
+     * condition.
+     */
+    private function registerNullObserver(ContainerBuilder $container): void
+    {
+        $container->register('durable.execution_observer.null', NullWorkflowExecutionObserver::class)
+            ->setPublic(false)
+        ;
+
+        self::aliaserObservateur($container, 'durable.execution_observer.null');
+    }
+
+    /**
+     * Aliases the observation interface, **without overwriting what the application already
+     * declared**.
+     *
+     * `UPGRADE.md` invites an application that wants to observe its executions in production to
+     * implement the contract and alias the interface onto its own service. The definitions in the
+     * application's `services.yaml` already exist when the extension loads, since
+     * `MergeExtensionConfigurationPass` runs at compilation, after the configuration is loaded, so
+     * an unconditional `setAlias()` erased that alias and the escape hatch did not work.
+     */
+    private static function aliaserObservateur(ContainerBuilder $container, string $service): void
+    {
+        if ($container->hasAlias(WorkflowExecutionObserverInterface::class)
+            || $container->hasDefinition(WorkflowExecutionObserverInterface::class)
+        ) {
+            return;
+        }
+
+        $container->setAlias(WorkflowExecutionObserverInterface::class, $service)
+            ->setPublic(true)
+        ;
+    }
+
     private function registerProfiler(ContainerBuilder $container): void
     {
         $container->register('durable.execution_trace', DurableExecutionTrace::class)
+            // `ResetDurableProfilerListener` ne borne que le cas HTTP. Dans un worker il n'y a pas
+            // request, and it is `services_resetter`, so this tag, that empties the trace between
+            // deux messages. Sans lui, un `messenger:consume` accumule la timeline tant qu'il vit.
+            ->addTag('kernel.reset', ['method' => 'reset'])
             ->setPublic(true)
         ;
 
-        $container->setAlias(WorkflowExecutionObserverInterface::class, 'durable.execution_trace')
-            ->setPublic(true)
-        ;
+        self::aliaserObservateur($container, 'durable.execution_trace');
 
         $container->register(ResetDurableProfilerListener::class)
             ->setArguments([new Reference('durable.execution_trace')])
