@@ -14,7 +14,7 @@ use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Chaîne download → process → upload (sans routage de file d’attente dynamique comme samples-php).
+ * A download → process → upload chain (without the dynamic queue routing that samples-php does).
  */
 #[AsWorkflow('Samples_FileProcessing_Light')]
 final class FileProcessingLightWorkflow

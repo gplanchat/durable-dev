@@ -14,7 +14,7 @@ use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Inspiré de samples-php Exception : l’échec d’activité est intercepté dans le workflow.
+ * Inspired by samples-php Exception: the activity failure is caught inside the workflow.
  */
 #[AsWorkflow('Samples_Exception_Handled')]
 final class ExceptionHandledWorkflow

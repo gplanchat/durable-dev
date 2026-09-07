@@ -18,8 +18,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 
 /**
- * Mode distribué + transport Messenger activités : {@see ActivityRunHandler} via
- * {@see ReceivedStamp} sur le transport configuré (équivalent local de messenger:consume).
+ * Distributed mode + Messenger activity transport: {@see ActivityRunHandler} through
+ * {@see ReceivedStamp} on the configured transport (local equivalent of messenger:consume).
  *
  * @internal
  */
@@ -46,7 +46,7 @@ final class DurableActivityRunHandlerIntegrationTest extends KernelTestCase
         self::bootKernel();
         $container = self::getContainer();
 
-        self::assertTrue($container->has(ActivityRunHandler::class), 'ActivityRunHandler en mode distributed + messenger');
+        self::assertTrue($container->has(ActivityRunHandler::class), 'ActivityRunHandler in distributed + messenger mode');
 
         $container->get(\Gplanchat\Durable\ActivityExecutor::class)->register(
             'echo',

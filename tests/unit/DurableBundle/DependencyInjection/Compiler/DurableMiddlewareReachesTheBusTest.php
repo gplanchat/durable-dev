@@ -10,18 +10,18 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
- * Ce que le bundle promet insère-t-il vraiment quelque chose dans un bus.
+ * Does what the bundle promises really insert anything into a bus.
  *
- * Le verrou de reprise du backend DBAL était enregistré avec `->addTag('messenger.middleware')`.
- * Cette balise n'existe pas dans Symfony : rien n'appelle `findTaggedServiceIds()` dessus, et
- * `UnusedTagsPass` ne la connaît pas. Le service était donc défini et **installé dans aucun bus**,
- * en silence, alors que la documentation promet qu'il l'est automatiquement et que c'est la seule
- * garde du backend contre deux reprises concurrentes de la même exécution — activités dupliquées,
- * journal forké.
+ * The DBAL backend's resume lock was registered with `->addTag('messenger.middleware')`.
+ * That tag does not exist in Symfony: nothing calls `findTaggedServiceIds()` on it, and
+ * `UnusedTagsPass` does not know it. The service was therefore defined and **installed in no bus**,
+ * silently, while the documentation promises it is installed automatically and that it is the
+ * backend's only guard against two concurrent resumes of the same execution — duplicated
+ * activities, forked journal.
  *
- * Le test ne nomme aucune passe : il joue celles que le bundle enregistre et regarde le paramètre
- * `<busId>.middleware`, qui est le seul endroit où Messenger lit sa pile. Une passe renommée ou
- * remplacée ne le fait pas passer par accident.
+ * The test names no compiler pass: it plays the ones the bundle registers and looks at the
+ * `<busId>.middleware` parameter, the only place where Messenger reads its stack. A renamed or
+ * replaced pass does not make it pass by accident.
  *
  * @see DUR030
  */
@@ -69,8 +69,8 @@ final class DurableMiddlewareReachesTheBusTest extends TestCase
         $container = new ContainerBuilder();
         (new DurableExtension())->load([$config], $container);
 
-        // Ce que FrameworkExtension pose pour chaque bus déclaré, et la seule chose que
-        // MessengerPass relit ensuite.
+        // What FrameworkExtension lays down for each declared bus, and the only thing that
+        // MessengerPass reads back afterwards.
         $container->register('messenger.bus.default')->addTag('messenger.bus');
         $container->setParameter('messenger.bus.default.middleware', $existing);
 

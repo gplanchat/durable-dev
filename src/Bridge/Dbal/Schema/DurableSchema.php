@@ -9,19 +9,19 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Types\Types;
 
 /**
- * Tables du backend DBAL : journal, métadonnées d'exécution, lien parent/enfant, catalogue de runs.
+ * Tables of the DBAL backend: journal, execution metadata, parent/child link, run catalogue.
  *
- * Deux façons de les obtenir, et le transport Doctrine de Messenger a les deux :
+ * Two ways to get them, and Messenger's Doctrine transport has both:
  *
- * - **L'auto-création** ({@see ensure()}) : la première écriture crée ce qui manque. Pratique en
- *   développement, et c'est le défaut.
- * - **La déclaration** ({@see configureSchema()}) : les tables rejoignent le schéma que Doctrine
- *   construit, donc `doctrine:schema:update` et `doctrine:migrations:diff` les connaissent. Sans
- *   elle, l'outillage les voit comme orphelines et **génère leur suppression** — un journal
- *   d'exécutions durables effacé par une migration que personne n'a relue de près.
+ * - **Auto-creation** ({@see ensure()}): the first write creates what is missing. Handy in
+ *   development, and it is the default.
+ * - **Declaration** ({@see configureSchema()}): the tables join the schema Doctrine builds, so
+ *   `doctrine:schema:update` and `doctrine:migrations:diff` know about them. Without it the
+ *   tooling sees them as orphans and **generates their removal**: a journal of durable executions
+ *   erased by a migration nobody read closely.
  *
- * Les deux ensemble se marchent dessus dès que les migrations tiennent le schéma : `auto_setup`
- * éteint alors l'auto-création, comme le fait le transport Doctrine.
+ * The two together tread on each other as soon as migrations hold the schema. `auto_setup` then
+ * turns auto-creation off, exactly as the Doctrine transport does.
  *
  * @see DUR030
  */
@@ -39,7 +39,7 @@ final class DurableSchema
     ) {}
 
     /**
-     * Idempotent : ne crée que les tables absentes, et ne le vérifie qu'une fois par processus.
+     * Idempotent: creates only the missing tables, and checks that only once per process.
      */
     public function ensure(): void
     {
@@ -63,17 +63,17 @@ final class DurableSchema
     }
 
     /**
-     * Ajoute au schéma que Doctrine construit les tables qui manquent, pour que l'outillage les
-     * connaisse au lieu de les prendre pour des orphelines à supprimer.
+     * Adds the missing tables to the schema Doctrine builds, so the tooling knows them instead of
+     * taking them for orphans to drop.
      *
-     * Le journal peut vivre sur une autre connexion que celle de l'ORM. Y déclarer ces tables
-     * ferait créer, dans la base de l'application, des tables qui n'y sont pas — et laisserait
-     * l'outillage proposer de supprimer, dans la base du journal, celles qui y sont. D'où la
-     * même garde que les adaptateurs amont : même connexion, ou même base prouvée par la sonde.
+     * The journal may live on a connection other than the ORM's. Declaring these tables there would
+     * create, in the application's database, tables that do not belong to it, and would leave the
+     * tooling offering to drop, in the journal's database, the ones that do. Hence the same guard as
+     * the adapters upstream: the same connection, or the same database proven by the probe.
      *
      * @param \Closure(\Closure(string): mixed): bool $isSameDatabase
      *
-     * @return Schema le schéma, complété
+     * @return Schema the schema, completed
      */
     public function configureSchema(Schema $schema, Connection $forConnection, \Closure $isSameDatabase): Schema
     {
@@ -90,22 +90,22 @@ final class DurableSchema
     }
 
     /**
-     * Déclare les tables manquantes dans le schéma passé.
+     * Declares the missing tables in the schema it is given.
      *
-     * @param list<string> $skip tables déjà présentes
+     * @param list<string> $skip tables already present
      */
     public function addToSchema(Schema $schema, array $skip = []): void
     {
         if (!\in_array($this->eventsTable, $skip, true)) {
             $events = $schema->createTable($this->eventsTable);
-            // Auto-increment : `readStream()` promet l'ordre d'insertion, l'id le porte.
+            // Auto-increment: `readStream()` promises insertion order, the id carries it.
             $events->addColumn('id', Types::BIGINT)->setAutoincrement(true);
             $events->addColumn('execution_id', Types::STRING, ['length' => 128]);
             $events->addColumn('event_type', Types::STRING, ['length' => 255]);
             $events->addColumn('payload', Types::TEXT);
             $events->addColumn('recorded_at', Types::DATETIME_IMMUTABLE);
-            // setPrimaryKey() est déprécié en DBAL 4.3, mais son remplaçant n'existe pas en DBAL 3 :
-            // le paquet supporte les deux majeures, donc on garde l'appel commun.
+            // setPrimaryKey() is deprecated in DBAL 4.3, but its replacement does not exist in
+            // DBAL 3: the package supports both majors, so we keep the call they share.
             $events->setPrimaryKey(['id']);
             $events->addIndex(['execution_id'], $this->eventsTable . '_execution_idx');
         }
@@ -120,10 +120,10 @@ final class DurableSchema
         }
 
         if (!\in_array($this->runsTable, $skip, true)) {
-            // Projection de lecture : le journal est écrit à chaque pas et lu par id d'exécution,
-            // un tableau de bord lit en travers et ordonne par date. Deux motifs d'accès, et
-            // `durable_events` n'est indexée que sur `execution_id` — lister depuis lui serait un
-            // balayage par page, croissant avec le nombre total d'événements jamais écrits.
+            // Read projection: the journal is written at every step and read by execution id,
+            // while a dashboard reads across it and orders by date. Two access patterns, and
+            // `durable_events` is only indexed on `execution_id` — listing from it would be a
+            // scan per page, growing with the total number of events ever written.
             $runs = $schema->createTable($this->runsTable);
             $runs->addColumn('execution_id', Types::STRING, ['length' => 128]);
             $runs->addColumn('workflow_type', Types::STRING, ['length' => 255]);

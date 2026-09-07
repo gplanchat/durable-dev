@@ -11,9 +11,9 @@ use Gplanchat\Durable\Testing\WorkflowMetadataStoreConformanceTestCase;
 use Illuminate\Database\Capsule\Manager;
 
 /**
- * `illuminate/database` s'utilise sans application Laravel autour — c'est ce que Capsule est, et
- * les adaptateurs ne touchent qu'une `Connection`. Aucun conteneur, aucun service provider :
- * la surface est celle qu'une vraie application leur passerait.
+ * `illuminate/database` is usable with no Laravel application around it — that is what Capsule is,
+ * and the adapters touch nothing but a `Connection`. No container, no service provider:
+ * the surface is the one a real application would hand them.
  *
  * @see DUR041
  */

@@ -17,7 +17,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'durable:execution:diagnose',
-    description: 'Diagnostic pour un executionId : métadonnées workflow, liens parent/enfant et journal d’événements.',
+    description: 'Diagnose one executionId: workflow metadata, parent/child links and the event journal.',
 )]
 final class DiagnoseExecutionCommand extends Command
 {
@@ -32,9 +32,9 @@ final class DiagnoseExecutionCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument('executionId', InputArgument::REQUIRED, 'Identifiant d’exécution (workflow ou enfant).')
-            ->addOption('limit', 'l', InputOption::VALUE_REQUIRED, 'Nombre max d’événements détaillés dans la sortie.', '30')
-            ->addOption('json', null, InputOption::VALUE_NONE, 'Sortie structurée JSON sur stdout.')
+            ->addArgument('executionId', InputArgument::REQUIRED, 'Execution identifier (workflow or child).')
+            ->addOption('limit', 'l', InputOption::VALUE_REQUIRED, 'How many events at most to detail in the output.', '30')
+            ->addOption('json', null, InputOption::VALUE_NONE, 'Write structured JSON to stdout.')
         ;
     }
 
@@ -42,7 +42,7 @@ final class DiagnoseExecutionCommand extends Command
     {
         $executionId = trim((string) $input->getArgument('executionId'));
         if ('' === $executionId) {
-            $output->writeln('<error>executionId ne peut pas être vide.</error>');
+            $output->writeln('<error>executionId cannot be empty.</error>');
 
             return Command::FAILURE;
         }
@@ -91,40 +91,40 @@ final class DiagnoseExecutionCommand extends Command
         }
 
         $io = new SymfonyStyle($input, $output);
-        $io->title('Diagnostic Durable — ' . $executionId);
+        $io->title('Durable diagnosis — ' . $executionId);
 
-        $io->section('Métadonnées workflow');
+        $io->section('Workflow metadata');
         if (null === $meta) {
-            $io->warning('Aucune ligne dans le store de métadonnées pour cet identifiant (run inline sans dispatch, ou ID inconnu).');
+            $io->warning('No row in the metadata store for this identifier (an inline run with no dispatch, or an unknown id).');
         } else {
             $io->horizontalTable(
-                ['workflowType', 'completed', 'payload (extrait)'],
+                ['workflowType', 'completed', 'payload (excerpt)'],
                 [[
                     $meta['workflowType'],
-                    isset($meta['completed']) && true === $meta['completed'] ? 'oui' : 'non',
+                    isset($meta['completed']) && true === $meta['completed'] ? 'yes' : 'no',
                     $this->truncateJson($meta['payload']),
                 ]],
             );
         }
 
-        $io->section('Lien parent / enfants');
+        $io->section('Parent / child links');
         $io->listing([
-            'Parent si cet ID est un enfant : ' . ($parentId ?? '(aucun)'),
-            'Enfants enregistrés pour cet ID comme parent : ' . (0 === \count($childIds) ? '(aucun)' : implode(', ', $childIds)),
+            'Parent, if this id is a child: ' . ($parentId ?? '(none)'),
+            'Children recorded under this id as parent: ' . (0 === \count($childIds) ? '(none)' : implode(', ', $childIds)),
         ]);
 
-        $io->section('Journal d’événements');
-        $io->text(\sprintf('Nombre total d’événements : %d', $totalEvents));
+        $io->section('Event journal');
+        $io->text(\sprintf('Total events: %d', $totalEvents));
         if ([] !== $histogram) {
             ksort($histogram);
             $histRows = [];
             foreach ($histogram as $k => $v) {
                 $histRows[] = [$k, (string) $v];
             }
-            $io->table(['Type', 'Nombre'], $histRows);
+            $io->table(['Type', 'Count'], $histRows);
         }
         if ($limit > 0 && [] !== $sample) {
-            $io->text(\sprintf('Premiers événements (max %d) :', $limit));
+            $io->text(\sprintf('First events (at most %d):', $limit));
             foreach ($sample as $i => $row) {
                 $io->writeln(\sprintf(
                     '  %d. [%s] %s — %s',
@@ -135,7 +135,7 @@ final class DiagnoseExecutionCommand extends Command
                 ));
             }
         } elseif ($limit > 0 && 0 === $totalEvents) {
-            $io->note('Flux vide pour cet executionId.');
+            $io->note('Empty stream for this executionId.');
         }
 
         return Command::SUCCESS;

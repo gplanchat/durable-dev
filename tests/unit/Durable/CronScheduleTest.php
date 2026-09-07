@@ -10,11 +10,11 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Une expression cron est une grammaire, pas une chaîne : une faute de frappe ne se manifestait
- * qu'au retour du serveur, c'est-à-dire en production.
+ * A cron expression is a grammar, not a string: a typo only showed on the server's answer, that is
+ * to say in production.
  *
- * Les cas ci-dessous sont ceux dont le verdict a été **sondé sur un vrai serveur Temporal** ; le
- * validateur doit rendre le même.
+ * The cases below are those whose verdict has been **probed against a real Temporal server**; the
+ * validator must return the same one.
  *
  * @see \integration\Temporal\CronScheduleTest
  */
@@ -83,7 +83,7 @@ final class CronScheduleTest extends TestCase
 
     public function testSixFieldExpressionsAreNamedInTheError(): void
     {
-        // L'erreur la plus fréquente : un cron Quartz, avec les secondes, copié d'ailleurs.
+        // The most frequent mistake: a Quartz cron, with the seconds, copied from elsewhere.
         $this->expectExceptionMessageMatches('/Six-field expressions \(Quartz, with seconds\)/');
 
         CronSchedule::parse('0 0 12 * * ?');
@@ -127,8 +127,8 @@ final class CronScheduleTest extends TestCase
 
     public function testTimeZoneIsCarriedAsThePrefixTheServerExpects(): void
     {
-        // Sans fuseau, le serveur lit l'expression en UTC — presque jamais ce qu'on veut d'un
-        // « tous les jours à 9 h ».
+        // Without a time zone, the server reads the expression in UTC — almost never what one
+        // wants from an "every day at 9 am".
         $schedule = CronSchedule::dailyAt(9)->inTimeZone(new \DateTimeZone('Europe/Paris'));
 
         self::assertSame('CRON_TZ=Europe/Paris 0 9 * * *', $schedule->toExpression());

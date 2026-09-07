@@ -7,7 +7,7 @@ namespace integration\Durable\Support;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 
 /**
- * Dispatcher de test : callbacks explicites pour simuler la reprise sans Messenger.
+ * Test dispatcher: explicit callbacks to simulate the resume without Messenger.
  */
 final class CallbackWorkflowResumeDispatcher implements WorkflowResumeDispatcher
 {

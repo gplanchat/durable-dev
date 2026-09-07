@@ -11,12 +11,12 @@ use unit\DurableModule\Fixture\OrderWorkflow;
 use unit\DurableModule\Fixture\RecordingOrderActivities;
 
 /**
- * La déclaration, puisque le conteneur de Magento n'a pas les tags de Symfony.
+ * The declaration, since Magento's container has none of Symfony's tags.
  *
- * Ce qui se prouve ici sans Magento : qu'une classe **déclarée** tourne, que ses activités sont
- * résolues depuis `#[AsActivityMethod]` et non depuis des chaînes recopiées à la main, et qu'une
- * classe **non déclarée** échoue en le disant. La fabrique est du PHP ordinaire — c'est ce qui
- * permet à la CI de garder ce mécanisme, là où le reste du module demande un banc.
+ * What is proved here without Magento: that a **declared** class runs, that its activities are
+ * resolved from `#[AsActivityMethod]` and not from strings copied out by hand, and that an
+ * **undeclared** class fails saying so. The factory is ordinary PHP — that is what lets CI guard
+ * this mechanism, where the rest of the module asks for a bench.
  */
 final class DeclaredRuntimeTest extends TestCase
 {
@@ -31,8 +31,8 @@ final class DeclaredRuntimeTest extends TestCase
     }
 
     /**
-     * Les noms viennent du contrat, pas de la commande de démonstration : c'est la seule chose qui
-     * distingue un mécanisme de déclaration d'une liste recopiée à côté.
+     * The names come from the contract, not from the demonstration command: that is the only
+     * thing that tells a declaration mechanism apart from a list copied out beside it.
      */
     public function testTheDeclaredActivityNamesAreTheOnesTheContractCarries(): void
     {
@@ -45,8 +45,8 @@ final class DeclaredRuntimeTest extends TestCase
     }
 
     /**
-     * Sans ce refus, la déclaration ne déclare rien : n'importe quelle classe tournerait, qu'elle
-     * soit dans `di.xml` ou non, et l'oubli ne se verrait qu'en production.
+     * Without this refusal, the declaration declares nothing: any class at all would run,
+     * whether it is in `di.xml` or not, and the omission would only show up in production.
      */
     public function testAnUndeclaredWorkflowFailsNamingTheTypeAndWhereTypesAreDeclared(): void
     {

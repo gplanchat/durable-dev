@@ -8,7 +8,7 @@ use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Attribute\FulfilsNexusOperation;
 
-/** `$ammount` : la faute de frappe que la charge clée par nom ne peut pas rattraper. */
+/** `$ammount`: the typo that a payload keyed by name cannot catch. */
 #[AsWorkflow('MistypedSettleWorkflow')]
 #[FulfilsNexusOperation(DeferredBillingService::class, 'settle')]
 final class MistypedSettleWorkflow

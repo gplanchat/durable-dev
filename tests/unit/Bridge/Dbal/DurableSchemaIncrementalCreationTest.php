@@ -11,14 +11,14 @@ use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Sonde, et non fonctionnalité : le change « backend-neutral-workflow-dashboard » choisit une table
- * de projection plutôt qu'une colonne ajoutée aux métadonnées, et ce choix repose entièrement sur la
- * propriété gardée ici — `ensure()` crée les tables manquantes et ne touche pas aux existantes.
+ * A probe, and not a feature: the "backend-neutral-workflow-dashboard" change picks a projection
+ * table rather than a column added to the metadata, and that choice rests entirely on the property
+ * guarded here — `ensure()` creates the missing tables and does not touch the existing ones.
  *
- * Le paquet ne livre pas de migrations. Si cette propriété tombe, une installation qui existe déjà
- * n'obtiendrait jamais la nouvelle table, et le lecteur du tableau de bord interrogerait une table
- * absente. La sonde est donc épinglée pour que personne ne la casse en croyant `DurableSchema`
- * anodin.
+ * The package ships no migrations. If this property falls, an installation that already exists
+ * would never get the new table, and the dashboard reader would query a table that is not there.
+ * The probe is therefore pinned, so that nobody breaks it believing `DurableSchema` to be
+ * harmless.
  *
  * @see DUR030
  * @see openspec/changes/backend-neutral-workflow-dashboard/design.md
@@ -34,7 +34,7 @@ final class DurableSchemaIncrementalCreationTest extends TestCase
 
     public function testMissingTablesAreCreatedBesideExistingOnes(): void
     {
-        // Une installation partielle : le journal existe déjà, le reste non.
+        // A partial installation: the journal already exists, the rest does not.
         $this->createEventsTableAlone();
         self::assertSame(['durable_events'], $this->durableTables());
 
@@ -52,8 +52,8 @@ final class DurableSchemaIncrementalCreationTest extends TestCase
     }
 
     /**
-     * L'assertion qui a des dents : si `ensure()` recréait la table au lieu de la laisser, les
-     * lignes disparaîtraient sans que le décompte des tables bouge d'un pouce.
+     * The assertion with teeth: if `ensure()` re-created the table instead of leaving it be, the
+     * rows would vanish without the table count moving an inch.
      */
     public function testAnExistingTableKeepsItsRows(): void
     {
@@ -74,10 +74,10 @@ final class DurableSchemaIncrementalCreationTest extends TestCase
     }
 
     /**
-     * La propriété dont dépend la projection : une table *nouvelle*, inconnue de l'installation,
-     * apparaît sans que les autres soient retouchées. Le nom est délibérément étranger au schéma —
-     * y mettre le nom d'une table réelle a fait entrer ce test en collision avec la projection le
-     * jour où elle a été déclarée.
+     * The property the projection depends on: a *new* table, unknown to the installation, appears
+     * without the others being touched up. The name is deliberately foreign to the schema —
+     * putting a real table name there made this test collide with the projection on the day the
+     * projection was declared.
      */
     public function testATableTheInstallHasNeverSeenIsCreated(): void
     {

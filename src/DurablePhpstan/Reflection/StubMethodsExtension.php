@@ -15,44 +15,44 @@ use PHPStan\Reflection\ExtendedMethodReflection;
 use PHPStan\Reflection\MethodsClassReflectionExtension;
 
 /**
- * Apprend à PHPStan de quoi un stub Durable est capable.
+ * Teaches PHPStan what a Durable stub is capable of.
  *
- * `ActivityStub`, `ChildWorkflowStub` et `NexusStub` résolvent leurs appels par `__call()`. Sans
- * extension,
- * PHPStan ne voit que des objets sans méthode et signale **tous** les appels de stub — les
- * corrects comme les fautifs :
+ * `ActivityStub`, `ChildWorkflowStub` and `NexusStub` resolve their calls through `__call()`.
+ * Without the extension, PHPStan sees only objects with no method and reports **every** stub
+ * call — the correct ones as well as the faulty ones:
  *
  * ```php
- * $this->orders->charge($orderId, 100);   // sans extension : « undefined method » — faux
- * $this->orders->chrage($orderId, 100);   // sans extension : « undefined method » — vrai
+ * $this->orders->charge($orderId, 100);   // without the extension: "undefined method" — false
+ * $this->orders->chrage($orderId, 100);   // without the extension: "undefined method" — true
  * ```
  *
- * Le défaut n'est donc pas le silence, c'est le bruit. Quatre erreurs dont deux fausses se mettent
- * en ligne de base ou s'ignorent d'un bloc, et les deux vraies partent avec — ce qui revient au
- * même que ne rien vérifier, en plus coûteux.
+ * The default is therefore not silence, it is noise. Four errors of which two are false go into a
+ * baseline or get ignored in one block, and the two true ones leave along with them — which comes
+ * to the same as checking nothing, only more expensive.
  *
- * L'extension **distingue**. Elle débloque au passage une vérification que le bruit masquait : une
- * fois la méthode connue, PHPStan compare les arguments à ce que le contrat déclare.
+ * The extension **tells them apart**. It unlocks along the way a check the noise was hiding: once
+ * the method is known, PHPStan compares the arguments against what the contract declares.
  *
- * Le stub porte son contrat en paramètre générique, `ActivityStub<OrderActivities>`, et PHPStan
- * l'infère déjà depuis la signature de `WorkflowEnvironment::activityStub()`. Il suffit donc de lui
- * dire quelles méthodes ce contrat déclare : celles marquées {@see AsActivityMethod} pour une
- * activité, {@see AsWorkflowMethod} pour un enfant, {@see AsNexusOperation} pour une opération Nexus.
+ * The stub carries its contract as a generic parameter, `ActivityStub<OrderActivities>`, and
+ * PHPStan already infers it from the signature of `WorkflowEnvironment::activityStub()`. All that
+ * is left is to tell it which methods that contract declares: those marked {@see AsActivityMethod}
+ * for an activity, {@see AsWorkflowMethod} for a child, {@see AsNexusOperation} for a Nexus
+ * operation.
  *
- * Le cas Nexus ajoute l'héritage. Un contrat Nexus se sépare en deux interfaces — celle que le
- * gestionnaire implémente, et celle qui l'étend pour l'appelant — et le stub appelle les deux.
- * `hasNativeMethod()` suit déjà la hiérarchie ; c'est `getAttributes()` sur la réflexion native
- * qui ne la suivrait pas si on lisait la méthode sur la mauvaise classe, d'où la lecture par
- * `getNativeReflection()->getMethod()`, qui la résout.
+ * The Nexus case adds inheritance. A Nexus contract splits into two interfaces — the one the
+ * handler implements, and the one that extends it for the caller — and the stub calls both.
+ * `hasNativeMethod()` already follows the hierarchy; it is `getAttributes()` on the native
+ * reflection that would not follow it if the method were read on the wrong class, hence the read
+ * through `getNativeReflection()->getMethod()`, which resolves it.
  *
- * Une méthode absente du contrat, ou présente mais non marquée, reste inconnue de PHPStan. C'est
- * le comportement voulu : le stub la refuse déjà à l'exécution, et l'analyse le dit désormais
- * avant.
+ * A method absent from the contract, or present but not marked, stays unknown to PHPStan. That is
+ * the intended behaviour: the stub already refuses it at runtime, and the analysis now says so
+ * beforehand.
  */
 final class StubMethodsExtension implements MethodsClassReflectionExtension
 {
     /**
-     * Le stub, et l'attribut qui rend une méthode du contrat appelable à travers lui.
+     * The stub, and the attribute that makes a contract method callable through it.
      *
      * @var array<class-string, class-string>
      */
@@ -72,7 +72,7 @@ final class StubMethodsExtension implements MethodsClassReflectionExtension
         $method = $this->resolve($classReflection, $methodName);
         if (null === $method) {
             throw new \LogicException(\sprintf(
-                'getMethod(%s) appelée alors que hasMethod() l\'a refusée.',
+                'getMethod(%s) was called although hasMethod() refused it.',
                 $methodName,
             ));
         }
@@ -92,23 +92,23 @@ final class StubMethodsExtension implements MethodsClassReflectionExtension
             return null;
         }
 
-        // Déclarée par le contrat : reste à savoir si elle est appelable à travers le stub. Une
-        // méthode non marquée est du code de contrat, pas une opération planifiable.
+        // Declared by the contract: what remains is whether it is callable through the stub. An
+        // unmarked method is contract code, not a schedulable operation.
         $native = $contract->getNativeReflection()->getMethod($methodName);
         if ([] === $native->getAttributes($attribute)) {
             return null;
         }
 
-        // Le contrat dit ce que l'activité rend ; le stub, lui, rend un Awaitable.
+        // The contract says what the activity returns; the stub itself returns an Awaitable.
         return new SchedulingMethodReflection($contract->getNativeMethod($methodName));
     }
 
     /**
-     * Le contrat porté par le stub, lu de son paramètre générique.
+     * The contract carried by the stub, read from its generic parameter.
      *
-     * Sans paramètre — un `ActivityStub` écrit sans préciser son contrat — il n'y a rien à
-     * résoudre. L'appel reste alors inconnu plutôt que d'être accepté à l'aveugle : mieux vaut un
-     * faux positif qu'une vérification silencieusement désactivée.
+     * With no parameter — an `ActivityStub` written without stating its contract — there is
+     * nothing to resolve. The call then stays unknown rather than being accepted blindly: better a
+     * false positive than a check silently switched off.
      */
     private function contractOf(ClassReflection $classReflection): ?ClassReflection
     {

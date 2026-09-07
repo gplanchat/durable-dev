@@ -9,12 +9,30 @@ weight: 10
 
 - **PHP 8.2+**
 - **Composer**
-- For tests and local development without Temporal: no additional infrastructure — the **In-Memory** backend runs fully inside PHP.
-- For production or realistic integration tests: a **Temporal** cluster (Docker image available) and the **`ext-grpc`** PHP extension — in a container image, copy it from a [prebuilt image](../container-images/) rather than compiling it.
+- For tests and local development: no additional infrastructure, since the **In-Memory** backend runs fully inside PHP.
+- For production **without a cluster**: one SQL database, through the **DBAL** backend on Symfony or the **Illuminate** backend on Laravel. No extension to compile.
+- For production **at scale**, or realistic integration tests: a **Temporal** cluster (Docker image available) and the **`ext-grpc`** PHP extension. In a container image, copy it from a [prebuilt image](../container-images/) rather than compiling it.
+
+The four backends run the same workflow code; [Backends](../backends/) compares what each one can
+offer.
 
 ---
 
 ## Install
+
+**This page walks through the Symfony integration.** Durable has three host integrations, and
+installing the wrong one is the mistake to avoid on the first line, because each has its own wiring,
+its own configuration file and its own worker:
+
+| Your application | Install | Read instead |
+|---|---|---|
+| **Symfony** (incl. Sylius) | `gplanchat/durable-bundle` | this page |
+| **Laravel** | `gplanchat/durable-laravel` | [Packages](../packages/#gplanchatdurable-laravel--the-laravel-integration) |
+| **Magento 2.4 / Mage-OS** | `gplanchat/durable-magento` | [Packages](../packages/#gplanchatdurable-magento--the-magento-integration) |
+| **No framework** | `gplanchat/durable` | [Packages](../packages/#gplanchatdurable--the-library) |
+
+The concepts, the workflow API and the activity API are identical on all four; only the wiring
+below is Symfony's.
 
 ### Core component only (framework-agnostic)
 
@@ -28,7 +46,7 @@ composer require gplanchat/durable
 composer require gplanchat/durable-bundle
 ```
 
-The package declares `"type": "symfony-bundle"`, so **Symfony Flex registers it on its own** — there
+The package declares `"type": "symfony-bundle"`, so **Symfony Flex registers it on its own**, and there
 is nothing to add to `config/bundles.php`. Without Flex, add the line yourself:
 
 ```php
@@ -151,7 +169,7 @@ Activity implementation classes are registered as normal Symfony services (autow
 
 ## First workflow
 
-### 1 — Define an activity contract
+### 1. Define an activity contract {#1--define-an-activity-contract}
 
 ```php
 <?php
@@ -169,7 +187,7 @@ interface GreetingActivities
 }
 ```
 
-### 2 — Implement the activity
+### 2. Implement the activity {#2--implement-the-activity}
 
 ```php
 <?php
@@ -190,7 +208,7 @@ final class GreetingActivitiesHandler implements GreetingActivities
 }
 ```
 
-### 3 — Define the workflow
+### 3. Define the workflow {#3--define-the-workflow}
 
 ```php
 <?php
@@ -219,7 +237,7 @@ final class GreetWorkflow
 }
 ```
 
-### 4 — Dispatch from a controller or service
+### 4. Dispatch from a controller or service {#4--dispatch-from-a-controller-or-service}
 
 ```php
 <?php
@@ -251,7 +269,10 @@ final class GreetController
 
 ## Start Temporal workers (production / dev mode)
 
-When `DURABLE_DSN` points to a Temporal server, start the Messenger consumers in separate processes:
+When `DURABLE_DSN` points to a Temporal server, start the Messenger consumers in separate processes.
+**These are the Symfony commands**; the other hosts poll the same cluster with their own:
+`php artisan durable:temporal-worker` on Laravel, `bin/magento durable:worker --role=journal` and
+`--role=activity` on Magento.
 
 ```bash
 # Workflow task worker (polls Temporal for workflow tasks)
@@ -275,9 +296,9 @@ workers:
 
 ## Next steps
 
-- [Concepts](../concepts/) — replay model, backends, event history in plain language.
-- [Creating a workflow](../workflows/) — full workflow API: signals, queries, updates, child workflows, timers.
-- [Creating activities](../activities/) — `ActivityOptions`, retries, timeouts, dependency injection.
-- [Testing workflows](../testing/) — `DurableTestCase`, `ActivitySpy`, `DurableBundleTestTrait`.
-- [Configuration reference](../configuration/) — every `durable.yaml` key explained.
-- [Backends](../backends/) — In-Memory vs Temporal: when to use each, Docker Compose setup.
+- [Concepts](../concepts/) covers the replay model, backends and event history in plain language.
+- [Creating a workflow](../workflows/) covers the full workflow API: signals, queries, updates, child workflows, timers.
+- [Creating activities](../activities/) covers `ActivityOptions`, retries, timeouts and dependency injection.
+- [Testing workflows](../testing/) covers `DurableTestCase`, `ActivitySpy` and `DurableBundleTestTrait`.
+- [Configuration reference](../configuration/) explains every `durable.yaml` key.
+- [Backends](../backends/) covers In-Memory, DBAL, Illuminate and Temporal: when to use each, Docker Compose setup.

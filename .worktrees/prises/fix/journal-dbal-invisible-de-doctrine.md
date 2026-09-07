@@ -7,4 +7,4 @@
   interrupteur `auto_setup` pour que le DDL paresseux cesse quand les migrations prennent la main.
 - **Entrées** : `src/Bridge/Dbal/Schema/DurableSchema.php`, un écouteur dans `src/DurableBundle/`,
   sa configuration et son enregistrement, un test, `UPGRADE.md` si rupture. Rien d'autre.
-- **État** : rédaction.
+- **État** : en revue — PR #274.

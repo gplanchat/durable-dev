@@ -16,12 +16,12 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Planifier une opération Nexus, et la retrouver au replay.
+ * Scheduling a Nexus operation, and finding it again on replay.
  *
- * Même discipline de slot que les activités : le rang de l'appel dans le workflow identifie
- * l'opération d'une passe à l'autre. Sans lui, un replay replanifierait ce qui est déjà en vol —
- * et Nexus appelle un système tiers, où une opération émise deux fois est un vrai doublon, pas une
- * écriture idempotente qu'on rattrape chez soi.
+ * Same slot discipline as activities: the rank of the call inside the workflow identifies the
+ * operation from one pass to the next. Without it, a replay would reschedule what is already in
+ * flight — and Nexus calls a third-party system, where an operation emitted twice is a real
+ * duplicate, not an idempotent write you catch up on at home.
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §3.2
  */
@@ -47,7 +47,7 @@ final class NexusOperationSchedulingTest extends TestCase
 
     public function testAScheduledOperationIsTrackedAsPending(): void
     {
-        // Sans ce registre, l'issue lue dans l'historique n'aurait pas d'attente à régler.
+        // Without this registry, the outcome read from the history would have no wait to settle.
         $context = $this->context($this->history());
 
         $awaitable = $this->schedule($context);
@@ -80,10 +80,10 @@ final class NexusOperationSchedulingTest extends TestCase
 
     public function testAReplayedOperationIsNotScheduledTwice(): void
     {
-        // Le cœur : l'historique dit qu'elle est déjà partie, on ne la renvoie pas.
+        // The core of it: the history says it already went out, so we do not send it again.
         $awaitable = $this->schedule($this->context($this->history(scheduledId: 'op-deja-partie')));
 
-        self::assertCount(0, $this->scheduled, 'Une opération déjà planifiée a été renvoyée au fournisseur.');
+        self::assertCount(0, $this->scheduled, 'An already scheduled operation was sent to the provider again.');
         self::assertSame('op-deja-partie', $awaitable->operationId());
         self::assertFalse($awaitable->isSettled());
     }
@@ -121,8 +121,8 @@ final class NexusOperationSchedulingTest extends TestCase
         $context = $this->context($this->history());
         $environment = $this->environment($context);
 
-        // Chaînes brutes en entrée : la coercition de frontière est ce qui rend l'appel écrivable
-        // sans importer trois classes, sans renoncer à la validation.
+        // Raw strings on the way in: boundary coercion is what makes the call writable without
+        // importing three classes, and without giving up validation.
         $awaitable = $environment->nexusOperation('billing-endpoint', 'billing', 'charge', ['amount' => 10]);
 
         self::assertInstanceOf(NexusOperationAwaitable::class, $awaitable);
@@ -140,8 +140,8 @@ final class NexusOperationSchedulingTest extends TestCase
 
     private function environment(ExecutionContext $context): \Gplanchat\Durable\WorkflowEnvironment
     {
-        // ExecutionRuntime est final : on en monte un vrai, inerte. Rien de ce que teste ce
-        // fichier ne passe par lui.
+        // ExecutionRuntime is final: we build a real one, inert. Nothing this file tests goes
+        // through it.
         $runtime = new \Gplanchat\Durable\ExecutionRuntime(
             new \Gplanchat\Durable\Store\InMemoryEventStore(),
             new \Gplanchat\Durable\Transport\NoopActivityTransport(),

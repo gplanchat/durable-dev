@@ -14,12 +14,12 @@ use Gplanchat\Durable\Versioning\ChangePoint;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Un point de changement déclaré : le code dit « ici, mon comportement a changé », et l'exécution
- * apprend lequel des deux la concerne.
+ * A declared change point: the code says "here, my behaviour changed", and the execution learns
+ * which of the two concerns it.
  *
- * La convention du fil a été sondée avant d'être encodée (tâches 1.1–1.2) : marqueur « Version »,
- * `change-id` et `version` en json/plain, accepté par un vrai serveur et identique à ce que le SDK
- * Go écrit.
+ * The wire convention was probed before being encoded (tasks 1.1–1.2): a "Version" marker,
+ * `change-id` and `version` in json/plain, accepted by a real server and identical to what the Go
+ * SDK writes.
  */
 final class ChangePointTest extends TestCase
 {
@@ -32,13 +32,13 @@ final class ChangePointTest extends TestCase
 
         $version = $context->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
 
-        self::assertSame(1, $version, 'une exécution neuve prend la version la plus récente');
+        self::assertSame(1, $version, 'a fresh execution takes the most recent version');
 
         $marks = array_values(array_filter(
             iterator_to_array($store->readStream(self::EXECUTION)),
             static fn(object $e): bool => $e instanceof VersionMarked,
         ));
-        self::assertCount(1, $marks, 'et le fait est enregistré, une fois');
+        self::assertCount(1, $marks, 'and the fact is recorded, once');
         self::assertSame('ajout-remise', $marks[0]->changeId());
         self::assertSame(1, $marks[0]->version());
     }
@@ -48,10 +48,10 @@ final class ChangePointTest extends TestCase
         $store = new InMemoryEventStore();
         $store->append(new VersionMarked(self::EXECUTION, 'ajout-remise', 1));
 
-        // Le code déployé sait faire jusqu'à la version 3 ; l'exécution, elle, est sur la 1.
+        // The deployed code can go up to version 3; the execution, though, is on 1.
         $version = $this->context($store)->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 3);
 
-        self::assertSame(1, $version, "l'historique décide, pas le code déployé");
+        self::assertSame(1, $version, 'the history decides, not the deployed code');
     }
 
     public function testTheAnswerDoesNotMoveAcrossReplays(): void
@@ -63,7 +63,7 @@ final class ChangePointTest extends TestCase
         $third = $this->context($store)->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 5);
 
         self::assertSame(1, $first);
-        self::assertSame($first, $second, 'un code plus récent ne déplace pas une exécution en cours');
+        self::assertSame($first, $second, 'newer code does not move an execution in flight');
         self::assertSame($first, $third);
     }
 
@@ -79,7 +79,7 @@ final class ChangePointTest extends TestCase
             iterator_to_array($store->readStream(self::EXECUTION)),
             static fn(object $e): bool => $e instanceof VersionMarked,
         );
-        self::assertCount(1, $marks, 'le marqueur est écrit à la première rencontre, pas à chaque appel');
+        self::assertCount(1, $marks, 'the marker is written on the first encounter, not on every call');
     }
 
     public function testTwoChangePointsAreIndependent(): void
@@ -92,7 +92,7 @@ final class ChangePointTest extends TestCase
         self::assertSame(
             2,
             $context->version('ajout-tva', ChangePoint::DEFAULT_VERSION, 2),
-            "une exécution peut être du vieux côté d'un point et du neuf côté d'un autre",
+            'an execution can be on the old side of one point and the new side of another',
         );
     }
 

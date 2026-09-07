@@ -40,16 +40,16 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * §4 — l'annulation, mesurée puis servie.
+ * §4 — cancellation, measured then served.
  *
- * §1.5 avait établi la moitié négative : avec la tâche de start encore en attente, annuler
- * l'appelant écrit `NEXUS_OPERATION_CANCEL_REQUESTED` de son côté et **aucune tâche n'arrive** au
- * gestionnaire. L'opération n'avait jamais démarré : rien à annuler chez lui.
+ * §1.5 had established the negative half: with the start task still pending, cancelling the caller
+ * writes `NEXUS_OPERATION_CANCEL_REQUESTED` on its side and **no task reaches** the handler. The
+ * operation had never started: nothing to cancel on its end.
  *
- * La moitié positive n'avait jamais pu être observée, faute de pouvoir démarrer une opération en
- * asynchrone. C'est maintenant possible, et les deux tests ici se lisent dans l'ordre : le premier
- * mesure ce que porte la tâche d'annulation — elle **nomme le jeton rendu au démarrage** —, le
- * second fait faire le geste au worker et vérifie qu'il atteint le workflow qui porte l'opération.
+ * The positive half had never been observable, for want of a way to start an operation
+ * asynchronously. That is now possible, and the two tests here read in order: the first measures
+ * what the cancellation task carries — it **names the token returned at start** —, the second has
+ * the worker make the gesture and checks that it reaches the workflow that carries the operation.
  */
 #[RequiresPhpExtension('grpc')]
 final class NexusServedCancellationTest extends TestCase
@@ -68,7 +68,7 @@ final class NexusServedCancellationTest extends TestCase
     {
         $address = getenv('DURABLE_TEMPORAL_ADDRESS');
         if (false === $address || '' === $address) {
-            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS non défini : pas de serveur Temporal.');
+            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS not set: no Temporal server.');
         }
 
         $this->queue = 'nexus-cancel-' . bin2hex(random_bytes(5));
@@ -142,11 +142,11 @@ final class NexusServedCancellationTest extends TestCase
         $this->worker($registry)->pollOnce();
         $this->started[] = $fulfillerId;
 
-        // L'opération a démarré : l'appelant doit voir NEXUS_OPERATION_STARTED avant qu'annuler
-        // ait un sens. C'est exactement la condition que §1.5 avait trouvée manquante.
+        // The operation has started: the caller must see NEXUS_OPERATION_STARTED before
+        // cancelling makes any sense. That is exactly the condition §1.5 had found missing.
         self::assertTrue(
             $this->awaitEvent($callerId, \Temporal\Api\Enums\V1\EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED),
-            'L’opération n’a pas démarré : la sonde ne teste pas ce qu’elle croit.',
+            'The operation did not start: the probe is not testing what it thinks it is.',
         );
 
         $this->requestCancellationFromTheCaller($callerId);
@@ -154,13 +154,13 @@ final class NexusServedCancellationTest extends TestCase
         $task = $this->pollNexusTask();
         $cancel = $task?->getRequest()?->getCancelOperation();
 
-        self::assertNotNull($cancel, 'Aucune tâche cancel_operation n’est arrivée pour une opération démarrée.');
+        self::assertNotNull($cancel, 'No cancel_operation task arrived for a started operation.');
         self::assertSame('probe', $cancel->getService());
         self::assertSame('slow', $cancel->getOperation());
         self::assertSame(
             $fulfillerId,
             $cancel->getOperationToken(),
-            'La tâche d’annulation doit nommer le jeton rendu au démarrage — c’est la seule prise sur ce qui porte l’opération.',
+            'The cancellation task must name the token returned at start — it is the only handle on what carries the operation.',
         );
     }
 
@@ -182,18 +182,18 @@ final class NexusServedCancellationTest extends TestCase
 
         self::assertTrue(
             $this->awaitEvent($callerId, \Temporal\Api\Enums\V1\EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED),
-            'L’opération n’a pas démarré.',
+            'The operation did not start.',
         );
         self::assertFalse(
             $this->awaitEvent($fulfillerId, \Temporal\Api\Enums\V1\EventType::EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED, 2),
-            'Le workflow ne devait pas encore être annulé.',
+            'The workflow was not supposed to be cancelled yet.',
         );
 
         $this->requestCancellationFromTheCaller($callerId);
 
-        // Le même worker, sur la tâche d'annulation cette fois. `pollOnce()` est un poll et un
-        // seul : sur une file vide il rend la main sans rien dire (§1.2), et la tâche
-        // d'annulation ne s'y présente pas forcément au premier appel.
+        // The same worker, on the cancellation task this time. `pollOnce()` is one poll and one
+        // only: on an empty queue it hands back control without a word (§1.2), and the
+        // cancellation task does not necessarily show up on the first call.
         for ($attempt = 0; $attempt < 4; ++$attempt) {
             $worker->pollOnce();
             if ($this->awaitEvent($fulfillerId, \Temporal\Api\Enums\V1\EventType::EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED, 2)) {
@@ -203,7 +203,7 @@ final class NexusServedCancellationTest extends TestCase
 
         self::assertTrue(
             $this->awaitEvent($fulfillerId, \Temporal\Api\Enums\V1\EventType::EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED),
-            'Annuler l’opération doit annuler le workflow qui la porte.',
+            'Cancelling the operation must cancel the workflow that carries it.',
         );
     }
 
@@ -245,8 +245,8 @@ final class NexusServedCancellationTest extends TestCase
 
     private function requestCancellationFromTheCaller(string $callerId): void
     {
-        // Un signal force une nouvelle tâche : sans lui, rien ne relancerait l'exécution et il n'y
-        // aurait pas de tâche où poser l'annulation.
+        // A signal forces a new task: without it, nothing would restart the execution and there
+        // would be no task on which to place the cancellation.
         $signal = new \Temporal\Api\Workflowservice\V1\SignalWorkflowExecutionRequest();
         $signal->setNamespace($this->connection->namespace->name());
         $signal->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $callerId]));
@@ -255,19 +255,19 @@ final class NexusServedCancellationTest extends TestCase
         GrpcUnary::wait($this->client->SignalWorkflowExecution($signal, [], ['timeout' => 10_000_000]));
 
         $task = $this->pollWorkflowTaskFor($callerId);
-        // L'historique complet, et non celui de la tâche : la page que le poll rend après un
-        // signal ne repart pas du début, et la planification de l'opération est en amont. Le
-        // tampon n'a besoin que de l'eventId, qui est le même dans les deux lectures.
+        // The complete history, and not the task's: the page the poll returns after a signal does
+        // not restart from the beginning, and the operation's scheduling is upstream. The buffer
+        // only needs the eventId, which is the same in both reads.
         $history = TemporalExecutionHistory::fromEvents(
             (new TemporalHistoryCursor($this->client, $this->connection))
                 ->events(new WorkflowExecution(['workflow_id' => $callerId])),
         );
         $buffer = new TemporalWorkflowCommandBuffer($this->connection, 'exec-1', $history);
         $identity = $history->findScheduledNexusOperation(0);
-        self::assertNotNull($identity, 'L’opération planifiée est absente de l’historique de la tâche.');
+        self::assertNotNull($identity, 'The scheduled operation is missing from the task history.');
         $buffer->cancelNexusOperation($identity, 'race_superseded');
         $commands = $buffer->flush();
-        self::assertCount(1, $commands, 'Le tampon n’a pas produit la commande d’annulation.');
+        self::assertCount(1, $commands, 'The buffer did not produce the cancellation command.');
         $this->respondToWorkflowTask($task, $commands);
     }
 
@@ -304,10 +304,10 @@ final class NexusServedCancellationTest extends TestCase
     }
 
     /**
-     * Le workflow qui remplit l'opération tourne sur la **même file** que l'appelant : un poll nu
-     * peut rendre sa tâche. Répondre à celle-là avec une commande qui parle de l'historique de
-     * l'appelant fait rejeter la tâche entière — le serveur dit alors que l'opération est
-     * « non-existing », ce qui envoie chercher un défaut là où il n'y en a pas.
+     * The workflow that fulfils the operation runs on the **same queue** as the caller: a bare poll
+     * can return its task. Answering that one with a command that speaks of the caller's history
+     * makes the whole task be rejected — the server then says the operation is "non-existing",
+     * which sends you looking for a defect where there is none.
      */
     private function pollWorkflowTaskFor(string $workflowId): PollWorkflowTaskQueueResponse
     {
@@ -318,7 +318,7 @@ final class NexusServedCancellationTest extends TestCase
             }
         }
 
-        self::fail("Aucune tâche de workflow pour {$workflowId}.");
+        self::fail("No workflow task for {$workflowId}.");
     }
 
     private function pollWorkflowTask(): PollWorkflowTaskQueueResponse
@@ -347,7 +347,7 @@ final class NexusServedCancellationTest extends TestCase
         self::assertSame(
             0,
             (int) ($pair[1]->code ?? -1),
-            'Le serveur a refusé la tâche de workflow : ' . (string) ($pair[1]->details ?? ''),
+            'The server refused the workflow task: ' . (string) ($pair[1]->details ?? ''),
         );
     }
 }

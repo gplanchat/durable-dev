@@ -15,13 +15,14 @@ use Gplanchat\Durable\Nexus\NexusService;
 use PHPUnit\Framework\TestCase;
 
 /**
- * §3.1 et §3.2 — les en-têtes traversent le port et atteignent la commande.
+ * §3.1 and §3.2 — the headers travel through the port and reach the command.
  *
- * Prises ensemble : élargir le port sans que le pont n'écrive rien livrerait un paramètre accepté
- * puis ignoré, ce qui est pire que de ne pas l'avoir — un appelant croirait poser un en-tête.
+ * Taken together: widening the port without the bridge writing anything would ship a parameter
+ * that is accepted then ignored, which is worse than not having it — a caller would believe it
+ * was setting a header.
  *
- * Ce que ces tests ne peuvent pas dire : si le serveur accepte. C'est §4.1, contre un vrai
- * serveur, et c'est déjà ce qui a manqué à d'autres commandes de ce pont.
+ * What these tests cannot say: whether the server accepts. That is §4.1, against a real server,
+ * and it is exactly what other commands of this bridge have already lacked.
  */
 final class NexusHeadersThroughTheBridgeTest extends TestCase
 {
@@ -40,8 +41,8 @@ final class NexusHeadersThroughTheBridgeTest extends TestCase
 
     public function testAKeyGivenInUpperCaseTravelsLowercased(): void
     {
-        // La coercition appartient à l'objet-valeur, pas au pont : ce que l'appelant tient doit
-        // déjà être ce que le serveur gardera, sinon la relecture de sa propre valeur ment.
+        // The coercion belongs to the value object, not to the bridge: what the caller holds must
+        // already be what the server will keep, otherwise reading its own value back lies.
         $command = $this->schedule(NexusOperationHeaders::of(['X-Correlation' => 'abc-123']));
 
         $written = [];
@@ -54,7 +55,7 @@ final class NexusHeadersThroughTheBridgeTest extends TestCase
 
     public function testNoHeaderWritesNoHeader(): void
     {
-        // Une map vide n'est pas la même chose qu'une map absente pour qui relit un historique.
+        // An empty map is not the same thing as an absent map for whoever reads a history back.
         $command = $this->schedule(NexusOperationHeaders::none());
 
         self::assertCount(0, $command->getScheduleNexusOperationCommandAttributes()?->getNexusHeader() ?? []);

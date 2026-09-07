@@ -17,18 +17,18 @@ use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
 
 /**
- * Traduit l'historique Temporal en événements lisibles, dans le vocabulaire du composant.
+ * Translates the Temporal history into readable events, in the vocabulary of the component.
  *
- * L'ordre des tests de rangement compte, et c'est le piège que le code d'origine n'évitait pas :
- * `WORKFLOW_EXECUTION_SIGNALED` contient `WORKFLOW_`, et
- * `START_CHILD_WORKFLOW_EXECUTION_INITIATED` aussi. Chercher `WORKFLOW_` en premier range donc les
- * signaux et les workflows enfants sur la nature de l'exécution. Les cas particuliers passent avant
- * le cas général.
+ * The order of the classification tests matters, and that is the trap the original code did not
+ * avoid: `WORKFLOW_EXECUTION_SIGNALED` contains `WORKFLOW_`, and so does
+ * `START_CHILD_WORKFLOW_EXECUTION_INITIATED`. Looking for `WORKFLOW_` first therefore files
+ * signals and child workflows under the kind of the execution. The special cases come before the
+ * general case.
  */
 final class TemporalRunHistoryReader
 {
     /**
-     * Les champs `Payloads` de l'historique, par leur nom dans la sérialisation JSON du message.
+     * The `Payloads` fields of the history, by their name in the message's JSON serialization.
      *
      * @var array<string, string>
      */
@@ -41,20 +41,20 @@ final class TemporalRunHistoryReader
     ];
 
     /**
-     * La clé de l'action que l'exécution est pour elle-même. Une seule par historique, et la
-     * première : son événement d'ouverture porte le numéro 1.
+     * The key of the action that the execution is for itself. Only one per history, and the
+     * first one: its opening event carries number 1.
      */
     private const RUN_ACTION = 'workflow';
 
     /**
-     * Les renvois vers l'événement fondateur d'une action, dans l'ordre où ils font autorité.
+     * The pointers to the founding event of an action, in the order in which they carry authority.
      *
-     * ⚠ **`getInitiatedEventId` passe avant `getStartedEventId`**, et ce n'est pas cosmétique : la
-     * fin d'une exécution enfant porte les deux, et `startedEventId` désigne le *démarrage* de
-     * l'enfant, pas l'événement qui l'a fondée. Dans l'ordre inverse, chaque workflow enfant
-     * occupait **deux lignes** de frise — sa demande et son démarrage sur l'une, sa fin sur
-     * l'autre — et aucune des deux ne disait sa durée. Mesuré sur la sonde de tous les cas :
-     * 9 actions pour 2 enfants là où il en fallait 7.
+     * ⚠ **`getInitiatedEventId` comes before `getStartedEventId`**, and that is not cosmetic: the
+     * end of a child execution carries both, and `startedEventId` designates the *start* of the
+     * child, not the event that founded it. In the reverse order, every child workflow occupied
+     * **two rows** of frieze — its request and its start on one, its end on the other — and
+     * neither of the two told its duration. Measured on the probe covering every case: 9 actions
+     * for 2 children where 7 were needed.
      *
      * @var list<string>
      */
@@ -65,7 +65,7 @@ final class TemporalRunHistoryReader
     ];
 
     /**
-     * Ce qui ouvre une action sans désigner personne : un minuteur démarré, une activité planifiée.
+     * What opens an action without designating anyone: a started timer, a scheduled activity.
      *
      * @var list<string>
      */
@@ -95,12 +95,12 @@ final class TemporalRunHistoryReader
                 self::labelOf($event, $type),
                 self::detailsOf($event),
                 self::actionKeyOf($event, $type),
-                // Un suffixe suffit : Temporal nomme `_STARTED` tout événement par lequel un
-                // worker prend la main. `WORKFLOW_EXECUTION_STARTED` y tombe aussi, et c'est
-                // inerte — c'est l'événement 1, rien ne le précède, donc aucun intervalle ne peut
-                // être compté comme attente devant lui. Le journal maison retient ici la même
-                // règle, `ExecutionStarted` compris, pour que les deux backends ne divergent pas
-                // sur un cas qui ne change rien.
+                // A suffix is enough: Temporal names `_STARTED` every event by which a worker
+                // takes over. `WORKFLOW_EXECUTION_STARTED` falls under it too, and that is
+                // inert — it is event 1, nothing precedes it, so no interval can be counted as
+                // a wait in front of it. The house journal keeps the same rule here,
+                // `ExecutionStarted` included, so that the two backends do not diverge on a
+                // case that changes nothing.
                 str_ends_with($type, '_STARTED'),
                 self::isFailure($type),
             );
@@ -110,20 +110,20 @@ final class TemporalRunHistoryReader
     }
 
     /**
-     * L'action dont l'événement fait partie — celle dont il est le troisième acte, ou le premier.
+     * The action the event is part of — the one it is the third act of, or the first.
      *
-     * Temporal corrèle par **numéro d'événement** : tout ce qui arrive après une planification la
-     * désigne par `scheduledEventId`, `startedEventId` ou `initiatedEventId` selon la famille. La
-     * clé est donc l'événement fondateur, et les trois accesseurs se cherchent dans cet ordre —
-     * une tâche de workflow terminée porte les deux premiers, et c'est la planification qui ouvre
-     * l'action.
+     * Temporal correlates by **event number**: everything that happens after a scheduling
+     * designates it by `scheduledEventId`, `startedEventId` or `initiatedEventId` depending on
+     * the family. The key is therefore the founding event, and the three accessors are tried in
+     * that order — a completed workflow task carries the first two, and it is the scheduling
+     * that opens the action.
      *
-     * Un événement fondateur qui ne désigne personne se désigne lui-même : sans quoi une activité
-     * planifiée n'appartiendrait pas à l'action qu'elle ouvre.
+     * A founding event that designates nobody designates itself: without which a scheduled
+     * activity would not belong to the action it opens.
      *
-     * ⚠ `getParentInitiatedEventId` — que porte le démarrage d'une exécution enfant — n'est
-     * volontairement pas dans la liste : il pointe vers l'histoire du **parent**, pas vers une
-     * action de celle-ci. Le confondre rattacherait le démarrage à un numéro d'un autre journal.
+     * ⚠ `getParentInitiatedEventId` — carried by the start of a child execution — is
+     * deliberately not in the list: it points to the history of the **parent**, not to an action
+     * of that history. Confusing it would attach the start to a number from another journal.
      */
     private static function actionKeyOf(HistoryEvent $event, string $eventType): ?string
     {
@@ -162,17 +162,17 @@ final class TemporalRunHistoryReader
     }
 
     /**
-     * Ce qui a mal tourné, et rien d'autre.
+     * What went wrong, and nothing else.
      *
-     * Temporal suffixe `_FAILED` tout échec et `_TIMED_OUT` toute échéance dépassée, à tous les
-     * niveaux — activité, minuteur, enfant, workflow externe, tâche de workflow. Deux suffixes
-     * couvrent donc le jeu entier sans table à tenir.
+     * Temporal suffixes `_FAILED` on every failure and `_TIMED_OUT` on every missed deadline, at
+     * every level — activity, timer, child, external workflow, workflow task. Two suffixes
+     * therefore cover the whole set with no table to maintain.
      *
-     * ⚠ **`_CANCELED` et `_TERMINATED` n'en sont pas**, et c'est une décision : ce sont des issues,
-     * demandées par quelqu'un. Les peindre comme des pannes enverrait un exploitant chercher un
-     * incident là où il n'y a qu'une annulation — et le rouge ne veut plus rien dire dès qu'il
-     * couvre les deux. ⚠ Temporal écrit `CANCELED` à un seul « l » là où le journal maison écrit
-     * `Cancelled` : une règle écrite d'un seul côté rate l'autre en silence.
+     * ⚠ **`_CANCELED` and `_TERMINATED` are not among them**, and that is a decision: they are
+     * outcomes, asked for by somebody. Painting them as breakdowns would send an operator looking
+     * for an incident where there is only a cancellation — and red no longer means anything once
+     * it covers both. ⚠ Temporal writes `CANCELED` with a single "l" where the house journal
+     * writes `Cancelled`: a rule written on one side only misses the other in silence.
      */
     private static function isFailure(string $eventType): bool
     {
@@ -180,19 +180,19 @@ final class TemporalRunHistoryReader
     }
 
     /**
-     * L'exécution elle-même est **une action** : son démarrage, ses tâches de workflow, sa fin.
+     * The execution itself is **an action**: its start, its workflow tasks, its end.
      *
-     * Une tâche de workflow n'est pas un fait métier — c'est le mécanisme par lequel le moteur
-     * fait avancer l'exécution. Lui donner une ligne par occurrence noyait les quatre lignes
-     * intéressantes d'une commande sous quatre lignes de plomberie portant le même nom.
+     * A workflow task is not a business fact — it is the mechanism by which the engine moves the
+     * execution forward. Giving it a row per occurrence drowned the four interesting rows of an
+     * order under four rows of plumbing bearing the same name.
      *
-     * ⚠ **Les exceptions sont l'essentiel de cette règle**, et le même piège que pour le rangement
-     * en natures : `WORKFLOW_EXECUTION_SIGNALED` et la famille `WORKFLOW_EXECUTION_UPDATE_*`
-     * commencent par le même préfixe et ne sont pas l'exécution — un signal reçu et une mise à jour
-     * sont des actions à part entière, avec leur propre ligne. Les workflows **enfants**
-     * (`CHILD_WORKFLOW_EXECUTION_*`, `START_CHILD_WORKFLOW_EXECUTION_*`) et les workflows
-     * **externes** (`EXTERNAL_`, `REQUEST_CANCEL_EXTERNAL_`, `SIGNAL_EXTERNAL_`) ne commencent pas
-     * par ce préfixe : c'est ce qui leur laisse leurs lignes, et c'est éprouvé type par type.
+     * ⚠ **The exceptions are the essence of this rule**, and the same trap as for classification
+     * into kinds: `WORKFLOW_EXECUTION_SIGNALED` and the `WORKFLOW_EXECUTION_UPDATE_*` family
+     * start with the same prefix and are not the execution — a received signal and an update are
+     * actions in their own right, with their own row. **Child** workflows
+     * (`CHILD_WORKFLOW_EXECUTION_*`, `START_CHILD_WORKFLOW_EXECUTION_*`) and **external**
+     * workflows (`EXTERNAL_`, `REQUEST_CANCEL_EXTERNAL_`, `SIGNAL_EXTERNAL_`) do not start with
+     * that prefix: that is what leaves them their rows, and it is proven type by type.
      */
     private static function belongsToTheRunItself(string $eventType): bool
     {
@@ -209,26 +209,26 @@ final class TemporalRunHistoryReader
     }
 
     /**
-     * Le contenu de l'événement, tel que le serveur le raconte.
+     * The content of the event, as the server tells it.
      *
-     * Les attributs sont un `oneof` : un seul des cinquante accesseurs répond, et le nom du champ
-     * choisi se lit sur `getAttributes()`. La sérialisation JSON du message donne alors tout ce que
-     * l'interface de Temporal montre elle-même — type d'activité, file, délais, tentative, message
-     * d'échec — sans que nous ayons à énumérer les cinquante formes.
+     * The attributes are a `oneof`: only one of the fifty accessors answers, and the name of the
+     * chosen field is read from `getAttributes()`. The JSON serialization of the message then
+     * gives everything the Temporal interface shows itself — activity type, queue, timeouts,
+     * attempt, failure message — without our having to enumerate the fifty shapes.
      *
-     * ⚠ **Une charge utile y arriverait en base64**, parce que `Payload.data` est un champ `bytes`.
-     * Les champs qui en portent sont donc relus par-dessus avec le codec du pont, celui-là même qui
-     * les a écrites. Un `input` illisible dans un écran de diagnostic serait pire que pas d'écran.
+     * ⚠ **A payload would arrive there in base64**, because `Payload.data` is a `bytes` field. The
+     * fields that carry one are read back over it with the bridge codec, the very one that wrote
+     * them. An unreadable `input` in a diagnostic screen would be worse than no screen.
      *
-     * Un échec de sérialisation rend un tableau vide : un écran d'administration qui explose sur un
-     * événement exotique n'apprend rien à personne, alors qu'une ligne sans détail reste une ligne.
+     * A serialization failure returns an empty array: an administration screen that blows up on
+     * an exotic event teaches nobody anything, whereas a row without detail is still a row.
      *
      * @return array<string, mixed>
      */
     private static function detailsOf(HistoryEvent $event): array
     {
-        // `whichOneof` rend le nom du champ renseigné, ou la chaîne vide quand aucun ne l'est —
-        // ce qui arrive pour un type d'événement plus récent que les stubs générés.
+        // `whichOneof` returns the name of the field that is set, or the empty string when none
+        // is — which happens for an event type more recent than the generated stubs.
         $which = $event->getAttributes();
         if ('' === $which) {
             return [];
@@ -259,9 +259,9 @@ final class TemporalRunHistoryReader
             try {
                 $details[$field] = JsonPlainPayload::decodePayloads($payloads);
             } catch (\Throwable) {
-                // Une charge utile qui n'est pas du `json/plain` — un autre encodage, un autre
-                // producteur. La forme base64 de la sérialisation reste en place : moins lisible,
-                // mais présente, et c'est encore la meilleure des deux réponses possibles.
+                // A payload that is not `json/plain` — another encoding, another producer. The
+                // base64 form from the serialization stays in place: less readable, but present,
+                // and that is still the better of the two possible answers.
             }
         }
 
@@ -271,8 +271,8 @@ final class TemporalRunHistoryReader
     private static function kindOf(string $eventType): WorkflowRunEventKind
     {
         return match (true) {
-            // Avant tout le reste : NEXUS_OPERATION_CANCEL_REQUESTED contient CANCEL, et une
-            // règle placée plus bas laisserait passer les variantes au fil des versions du serveur.
+            // Before all the rest: NEXUS_OPERATION_CANCEL_REQUESTED contains CANCEL, and a rule
+            // placed further down would let the variants through as server versions go by.
             str_contains($eventType, 'NEXUS_') => WorkflowRunEventKind::Nexus,
             str_contains($eventType, 'UPDATE_') => WorkflowRunEventKind::Update,
             str_contains($eventType, 'QUERY_') => WorkflowRunEventKind::Query,
@@ -285,15 +285,15 @@ final class TemporalRunHistoryReader
     }
 
     /**
-     * Le nom métier d'abord, l'identifiant technique ensuite, le type d'événement en dernier
-     * recours : `SendWelcomeEmail` vaut mieux que `act-1`, qui vaut mieux que
+     * The business name first, the technical identifier next, the event type as a last resort:
+     * `SendWelcomeEmail` is better than `act-1`, which is better than
      * `ACTIVITY TASK SCHEDULED`.
      */
     private static function labelOf(HistoryEvent $event, string $eventType): string
     {
-        // Une ligne de frise porte le nom de son action. Les événements qui ouvrent une exécution —
-        // la sienne, celle d'un enfant — nomment leur type de workflow, et c'est ce nom-là que
-        // l'exploitant cherche, pas « WORKFLOW EXECUTION STARTED » en capitales.
+        // A frieze row carries the name of its action. The events that open an execution — its
+        // own, that of a child — name their workflow type, and that is the name the operator is
+        // looking for, not "WORKFLOW EXECUTION STARTED" in capitals.
         $workflowType = self::workflowTypeOf($event);
         if (null !== $workflowType) {
             return $workflowType;
@@ -312,9 +312,9 @@ final class TemporalRunHistoryReader
             }
         }
 
-        // Un minuteur ne porte aucun nom métier : « TIMER STARTED » nomme la classe d'événement,
-        // et l'exploitant qui regarde une frise veut savoir **combien de temps** on attend, pas
-        // qu'on attend. Le délai est le seul fait que le minuteur ait, donc c'est son nom.
+        // A timer carries no business name: "TIMER STARTED" names the event class, and the
+        // operator looking at a frieze wants to know **how long** we are waiting, not that we
+        // are waiting. The delay is the only fact the timer has, so that is its name.
         $timer = $event->getTimerStartedEventAttributes();
         if (null !== $timer) {
             return 'timer ' . ReadableDuration::of(self::secondsOf($timer->getStartToFireTimeout()));
@@ -332,11 +332,11 @@ final class TemporalRunHistoryReader
     }
 
     /**
-     * Le type de workflow que l'événement nomme, s'il en nomme un.
+     * The workflow type the event names, if it names one.
      *
-     * `getWorkflowType()` est porté par le démarrage d'une exécution comme par les événements d'un
-     * workflow enfant — une seule règle nomme donc la ligne de l'exécution et celles de ses
-     * enfants, sans table de correspondance à tenir.
+     * `getWorkflowType()` is carried by the start of an execution just as by the events of a
+     * child workflow — one single rule therefore names the row of the execution and those of its
+     * children, with no correspondence table to maintain.
      */
     private static function workflowTypeOf(HistoryEvent $event): ?string
     {
@@ -356,9 +356,9 @@ final class TemporalRunHistoryReader
     }
 
     /**
-     * Une durée protobuf en secondes. Les deux champs sont castés explicitement : ce sont des
-     * entiers 64 bits que la bibliothèque rend parfois en chaîne, et `strictBinaryOperands` refuse
-     * de les mélanger à un flottant sans le dire.
+     * A protobuf duration in seconds. Both fields are cast explicitly: they are 64-bit integers
+     * that the library sometimes returns as a string, and `strictBinaryOperands` refuses to mix
+     * them with a float without saying so.
      */
     private static function secondsOf(?Duration $duration): float
     {
@@ -375,11 +375,11 @@ final class TemporalRunHistoryReader
     }
 
     /**
-     * ⚠ **Les nanosecondes ne sont pas décoratives.** Temporal horodate à la nanoseconde, et n'en
-     * garder que les secondes écrasait tout ce qu'une exécution rapide a fait : seize événements
-     * séparés de quelques millisecondes se lisaient au même instant. Une frise construite là-dessus
-     * empile tous ses repères au même endroit et ne dit plus rien. PHP s'arrête à la microseconde,
-     * donc c'est là que la troncature a lieu — assumée, et six ordres de grandeur plus bas.
+     * ⚠ **Nanoseconds are not decorative.** Temporal timestamps to the nanosecond, and keeping
+     * only the seconds of it crushed everything a fast execution did: sixteen events separated
+     * by a few milliseconds read as the same instant. A frieze built on that piles all its
+     * marks in the same place and no longer says anything. PHP stops at the microsecond, so that
+     * is where the truncation happens — assumed, and six orders of magnitude lower.
      */
     private static function recordedAt(HistoryEvent $event): \DateTimeImmutable
     {
@@ -393,8 +393,8 @@ final class TemporalRunHistoryReader
             new \DateTimeZone('UTC'),
         );
 
-        // `createFromFormat` rend `false` sur une entrée qu'il ne sait pas lire. La seconde seule
-        // reste une réponse juste, simplement moins précise.
+        // `createFromFormat` returns `false` on an input it cannot read. The second alone is
+        // still a correct answer, simply less precise.
         return false === $moment
             ? (new \DateTimeImmutable('@' . $seconds))->setTimezone(new \DateTimeZone('UTC'))
             : $moment->setTimezone(new \DateTimeZone('UTC'));

@@ -27,14 +27,14 @@ use Gplanchat\Durable\WorkflowTimeouts;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Épingle la forme de fil, indépendamment des signatures de ports.
+ * Pins the wire form, independently of the port signatures.
  *
- * Elle voyage dans le journal in-memory et dans l'historique Temporal des exécutions en cours :
- * la déplacer casserait leur rejeu, en silence. Les tableaux ci-dessous sont relevés sur le code
- * tel qu'il est aujourd'hui ; un refactor de frontière ne doit pas les faire bouger d'un octet.
+ * It travels in the in-memory journal and in the Temporal history of the executions in flight:
+ * moving it would break their replay, silently. The arrays below are taken from the code as it
+ * stands today; a boundary refactor must not move them by a single byte.
  *
- * Ce test n'est pas là pour décrire un comportement souhaitable — il est là pour interdire un
- * changement. Si vous devez le modifier, c'est une migration de données, pas un refactor.
+ * This test is not here to describe a desirable behaviour — it is here to forbid a change. If you
+ * have to modify it, it is a data migration, not a refactor.
  *
  * @see openspec/changes/value-objects-through-ports
  */
@@ -122,11 +122,11 @@ final class WireFormatPinTest extends TestCase
         $decoded = ActivityOptions::fromMetadata($options->toMetadata());
 
         self::assertNotNull($decoded);
-        self::assertSame($options->toMetadata(), $decoded->toMetadata(), 'un aller-retour ne doit rien perdre');
+        self::assertSame($options->toMetadata(), $decoded->toMetadata(), 'a round trip must lose nothing');
     }
 
     /**
-     * Une activité planifiée telle que le journal la porte aujourd'hui.
+     * A scheduled activity as the journal carries it today.
      */
     public function testScheduledActivityJournalRecord(): void
     {
@@ -164,11 +164,11 @@ final class WireFormatPinTest extends TestCase
     }
 
     /**
-     * Ce qu'une planification réelle écrit : les options, plus l'horodatage de mise en file dont
-     * ActivityMessageProcessor se sert pour les timeouts schedule-to-*.
+     * What a real scheduling writes: the options, plus the queuing timestamp that
+     * ActivityMessageProcessor uses for the schedule-to-* timeouts.
      *
-     * L'horodatage vient de l'horloge du **backend**, pas d'un microtime() lu par le cœur : un
-     * moteur de rejeu ne consulte pas l'horloge murale.
+     * The timestamp comes from the clock of the **backend**, not from a microtime() read by the
+     * core: a replay engine does not consult the wall clock.
      */
     public function testScheduledActivityCarriesTheBackendClock(): void
     {
@@ -210,8 +210,8 @@ final class WireFormatPinTest extends TestCase
     }
 
     /**
-     * Un minuteur porte une échéance absolue dans le journal. Le port qui la transporte peut
-     * changer ; l'événement enregistré, non.
+     * A timer carries an absolute deadline in the journal. The port that carries it may change;
+     * the recorded event may not.
      */
     public function testScheduledTimerJournalRecord(): void
     {

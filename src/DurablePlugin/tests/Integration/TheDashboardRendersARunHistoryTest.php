@@ -20,13 +20,13 @@ use Twig\Loader\FilesystemLoader;
 use Twig\TwigFunction;
 
 /**
- * Le gabarit rendu pour de vrai, sur une exécution qui a une histoire.
+ * The template rendered for real, on a run that has a history.
  *
- * Les autres assertions de ce dossier lisent le fichier ; celle-ci l'exécute. La différence n'est
- * pas cosmétique : la frise vient désormais du cœur, et le gabarit traverse `action.events`, puis
- * `mark.event.label` — un chemin qu'aucune lecture de texte n'éprouve. Une propriété mal nommée
- * dans cette chaîne ne casse rien à l'installation et rend une page vide en production, sur
- * précisément l'écran qu'un exploitant est venu regarder.
+ * The other assertions in this directory read the file; this one executes it. The difference is
+ * not cosmetic: the frieze now comes from the core, and the template walks `action.events`, then
+ * `mark.event.label` — a path no text read puts to the test. A misnamed property in that chain
+ * breaks nothing at install time and renders an empty page in production, on precisely the screen
+ * an operator came to look at.
  */
 final class TheDashboardRendersARunHistoryTest extends TestCase
 {
@@ -35,24 +35,24 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         $page = $this->render();
 
         self::assertStringContainsString('SendWelcomeEmail', $page);
-        self::assertStringContainsString('orderApproved', $page, 'un signal est une ligne à lui seul');
-        self::assertStringContainsString('#1', $page, 'chaque événement garde son rang');
+        self::assertStringContainsString('orderApproved', $page, 'a signal is a row of its own');
+        self::assertStringContainsString('#1', $page, 'every event keeps its rank');
     }
 
     public function testAnEventCarryingSomethingUnfoldsAndAnEmptyOneStaysALine(): void
     {
-        // Un dépliant qui s'ouvre sur du vide se rouvre à chaque fois : c'est exactement ce qu'on
-        // ne veut pas faire faire deux fois à quelqu'un qui cherche une panne.
+        // An expander that opens on nothing gets reopened every time: that is exactly what we do
+        // not want to make someone hunting for a failure do twice.
         $page = $this->render();
 
         self::assertStringContainsString('<details>', $page);
         self::assertStringContainsString('cus-42', $page);
-        self::assertSame(1, substr_count($page, '<details>'), 'un seul des deux événements a de quoi déplier');
+        self::assertSame(1, substr_count($page, '<details>'), 'only one of the two events has anything to unfold');
     }
 
     public function testAnEphemeralJournalIsNeitherAFailureNorASuccess(): void
     {
-        // Le troisième état : il répond, et sa réponse est vide par construction.
+        // The third state: it answers, and its answer is empty by construction.
         $page = $this->render(ephemeral: true);
 
         self::assertStringContainsString('alert-info', $page);
@@ -62,13 +62,13 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
 
     public function testTheActionsArePlacedInTimeAndNotMerelyStacked(): void
     {
-        // Empiler des blocs répond « dans quel ordre », jamais « pendant combien de temps » — et la
-        // seconde est la question qu'un exploitant devant une exécution lente vient poser.
+        // Stacking blocks answers "in what order", never "for how long" — and the second is the
+        // question an operator in front of a slow run comes to ask.
         $page = $this->render();
 
         self::assertStringContainsString('durable-frieze', $page);
-        // L'activité ouvre à 0 s et le signal tombe à 20 s sur une portée de 20 s : le repère du
-        // signal est donc tout à droite. Un étalement par rang l'aurait mis au milieu.
+        // The activity opens at 0 s and the signal falls at 20 s over a 20 s span: the signal's
+        // mark is therefore all the way right. A spread by rank would have put it in the middle.
         self::assertMatchesRegularExpression('/left: 100\.000%/', $page);
     }
 
@@ -77,12 +77,12 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         $page = $this->render();
 
         self::assertStringContainsString('waiting', $page);
-        self::assertStringContainsString('waiting to be picked up', $page, 'une hachure sans légende est une devinette');
+        self::assertStringContainsString('waiting to be picked up', $page, 'hatching with no legend is a guessing game');
     }
 
     public function testTheHatchingIsExplainedOnThePageAndNotOnlyOnHover(): void
     {
-        // Survoler suppose de savoir qu'il y a quelque chose à survoler.
+        // Hovering assumes you know there is something to hover over.
         $page = $this->render();
 
         self::assertStringContainsString('durable-frieze-key', $page);
@@ -90,8 +90,8 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
 
     public function testAPayloadWithABadByteStillUnfoldsOnWhatIsReadable(): void
     {
-        // Sans tolérance, `json_encode` rendait `false` : le dépliant s'ouvrait sur du vide, et
-        // c'est l'écran qu'un exploitant ouvre en dernier recours.
+        // Without tolerance, `json_encode` returned `false`: the expander opened on nothing, and
+        // this is the screen an operator opens as a last resort.
         $page = $this->render(badPayload: true);
 
         self::assertStringContainsString('<details>', $page);
@@ -100,10 +100,10 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
 
     public function testAnEventReadsAtTheSameMomentInTheFriezeAndInTheList(): void
     {
-        // La frise compose son infobulle dans le cœur, avec le fuseau de l'événement ; le filtre
-        // `date` de Twig, lui, applique celui du serveur. Sur une machine à Paris, le même
-        // événement se lisait 22:13:20 au survol et 23:13:20 dans la ligne juste dessous — dans une
-        // page dont toute la raison d'être est qu'un exploitant n'ait rien à convertir de tête.
+        // The frieze composes its tooltip in the core, with the event's time zone; Twig's `date`
+        // filter, for its part, applies the server's. On a machine in Paris, the same event read
+        // 22:13:20 on hover and 23:13:20 in the row just below it — in a page whose whole reason
+        // for being is that an operator has nothing to convert in their head.
         $was = date_default_timezone_get();
         date_default_timezone_set('Europe/Paris');
 
@@ -122,9 +122,9 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
 
     public function testTheCountersNameTheirScopeRatherThanClaimingATotal(): void
     {
-        // Un intitulé « Total » sous lequel on lit vingt apprend à l'exploitant qu'une application
-        // qui a enregistré cinq cents exécutions en a vingt. Ce que ces compteurs couvrent est la
-        // page, parce que c'est ce que le catalogue a été interrogé de rendre.
+        // A "Total" heading with twenty under it teaches the operator that an application which
+        // recorded five hundred runs has twenty. What these counters cover is the page, because
+        // that is what the catalog was asked to return.
         $page = $this->render();
 
         self::assertStringContainsString('runs on this page', $page);
@@ -145,8 +145,8 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         $plugin = new FilesystemLoader([\dirname(__DIR__, 2) . '/Resources/views'], null);
         $plugin->addPath(\dirname(__DIR__, 2) . '/Resources/views', 'DurablePlugin');
 
-        // Le châssis d'admin de Sylius n'est pas installé ici, et n'a pas à l'être : ce test garde
-        // la page, pas la boutique.
+        // The Sylius admin chrome is not installed here, and does not have to be: this test guards
+        // the page, not the store.
         $sylius = new ArrayLoader([
             '@SyliusAdmin/shared/layout/base.html.twig' => '{% block title %}{% endblock %}{% block stylesheets %}{% endblock %}{% block body %}{% endblock %}',
             '@SyliusAdmin/shared/crud/common/sidebar.html.twig' => '',
@@ -191,8 +191,8 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface
                     : ['payload' => ['customerId' => 'cus-42']],
                 'activity:act-1',
             ),
-            // Prise en charge dix secondes après la planification : les dix premières secondes sont
-            // une file, pas du travail.
+            // Picked up ten seconds after being scheduled: the first ten seconds are a queue, not
+            // work.
             new WorkflowRunEvent(
                 2,
                 new \DateTimeImmutable('@1700000010'),

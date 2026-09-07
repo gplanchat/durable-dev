@@ -13,7 +13,7 @@ mieux d'être su avant que d'être découvert après.
 
 Un workflow ne reprend pas là où il s'est arrêté : il **rejoue depuis le début** à chaque tâche, et
 chaque étape qu'il planifie est appariée au journal **par position**. L'étape 3, c'est la troisième
-activité que ce workflow a planifiée — pas le troisième appel à cette activité-là.
+activité que ce workflow a planifiée, pas le troisième appel à cette activité-là.
 
 Insérer un appel devant un autre décale donc tout ce qui suit. La position 3 dans le code ne veut
 plus dire ce que veut dire la position 3 dans le journal.
@@ -54,7 +54,7 @@ Nexus par leur triplet point d'entrée / service / opération, les workflows enf
 ### Revenir en arrière, et l'exécution se termine
 
 L'échec vous dit que le déploiement ne convient pas aux exécutions sur lesquelles il est tombé.
-Remettez la version précédente et le réessai suivant rejouera proprement — l'exécution repart
+Remettez la version précédente et le réessai suivant rejouera proprement : l'exécution repart
 exactement là où elle en était, n'ayant rien perdu que le temps écoulé entre les deux déploiements.
 
 C'est toute la raison pour laquelle c'est la tâche qui échoue, et non l'exécution.
@@ -85,8 +85,8 @@ Trois choses à savoir avant de s'en servir :
 - **L'identifiant de changement vit dans le journal.** Le renommer plus tard fait paraître toutes
   les exécutions en vol comme n'ayant jamais atteint le point. Choisissez un nom avec lequel vous
   pourrez vivre.
-- **Une exécution passée par cet endroit avant que le point n'existe reçoit `DEFAULT_VERSION`** —
-  elle a commencé sur l'ancien comportement, elle finira dessus. Rien n'est écrit pour elle : elle
+- **Une exécution passée par cet endroit avant que le point n'existe reçoit `DEFAULT_VERSION`.**
+  Elle a commencé sur l'ancien comportement, elle finira dessus. Rien n'est écrit pour elle : elle
   est reconnue, pas marquée.
 - **La garde de divergence s'applique toujours partout ailleurs.** Déclarer un point de changement
   n'autorise pas un changement non déclaré trois lignes plus bas : celui-là arrête toujours
@@ -105,9 +105,9 @@ temporal workflow list --query 'TemporalChangeVersion = "add-discount-1"'
 Une réponse vide signifie que plus personne n'est en version 1, et que la branche `DEFAULT_VERSION`
 peut disparaître.
 
-**Sur les backends In-Memory et DBAL, il n'y a pas d'attribut de recherche et donc pas de réponse
-équivalente.** Y savoir qu'une branche est morte revient à connaître ses propres exécutions — en
-pratique, garder la branche jusqu'à en être sûr, ou passer par le renommage de type ci-dessous, dont
+**Sur les backends à journal (en mémoire, DBAL et Illuminate), il n'y a pas d'attribut de recherche
+et donc pas de réponse équivalente.** Y savoir qu'une branche est morte revient à connaître ses
+propres exécutions, en pratique garder la branche jusqu'à en être sûr, ou passer par le renommage de type ci-dessous, dont
 la fenêtre d'écoulement est visible.
 
 ### Ou donner un nouveau nom à la nouvelle forme
@@ -134,7 +134,7 @@ part.
 ## Ce qui n'est pas vérifié
 
 **Les minuteurs.** Un minuteur enregistre une date d'échéance absolue, pas le délai qui l'a produite,
-et son libellé est facultatif — rien dans le journal n'identifie *quel* minuteur occupe une position.
+et son libellé est facultatif : rien dans le journal n'identifie *quel* minuteur occupe une position.
 Ne changer que des durées de minuteur se rejoue donc sans être signalé.
 
 L'angle mort est plus étroit qu'il n'y paraît : un décalage n'échappe au contrôle que s'il touche
@@ -142,8 +142,8 @@ L'angle mort est plus étroit qu'il n'y paraît : un décalage n'échappe au con
 
 ## Sur les backends sans tâches de workflow
 
-Les backends en mémoire et DBAL n'ont pas de notion de *tâche* de workflow — il n'y a rien à faire
-échouer puis à réessayer. Là, une divergence met fin à l'exécution. Cela reste bien préférable à
+Les backends à journal (en mémoire, DBAL et Illuminate) n'ont pas de notion de *tâche* de workflow,
+il n'y a donc rien à faire échouer puis à réessayer. Là, une divergence met fin à l'exécution. Cela reste bien préférable à
 l'autre solution, qui serait de résoudre en silence la mauvaise valeur enregistrée, mais revenir en
 arrière ne ramènera pas l'exécution.
 

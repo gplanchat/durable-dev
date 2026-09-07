@@ -180,7 +180,7 @@ final class WorkflowTaskRunnerTest extends TestCase
     }
 
     /**
-     * Un update tel qu'il arrive : message de protocole sur la tâche, pas événement d'historique.
+     * An update as it arrives: a protocol message on the task, not a history event.
      */
     private static function makeUpdateMessage(string $updateId, string $name, mixed $args, int $sequencingEventId): ProtocolMessage
     {
@@ -471,9 +471,9 @@ final class WorkflowTaskRunnerTest extends TestCase
 
     public function testASignalDeliveredAfterItsDeadlineDoesNotUndoTheTimeoutOnReplay(): void
     {
-        // Parité de verdict avec le backend in-memory (WorkflowDeadlineTest) : l'historique
-        // Temporal est ordonné par eventId, et un signal d'eventId supérieur à celui du
-        // TIMER_FIRED est arrivé trop tard pour l'attente que le minuteur bornait.
+        // Verdict parity with the in-memory backend (WorkflowDeadlineTest): the Temporal history
+        // is ordered by eventId, and a signal whose eventId is greater than that of the
+        // TIMER_FIRED arrived too late for the wait the timer was bounding.
         $verdict = new \stdClass();
         $verdict->value = null;
 
@@ -537,8 +537,8 @@ final class WorkflowTaskRunnerTest extends TestCase
 
     public function testAnUpdateIsAcceptedAndAnsweredOnTheSameTask(): void
     {
-        // Parité avec la sonde 1.3 : acceptation et réponse repartent sur la tâche courante, et
-        // c'est le retour du handler qui fait l'issue.
+        // Parity with probe 1.3: acceptance and answer both leave on the current task, and it is
+        // the handler's return that makes the outcome.
         $registry = new WorkflowRegistry();
         $registry->registerFactory('UpdatableWorkflow', static fn(array $payload)
             => static function (WorkflowEnvironment $env): string {
@@ -563,8 +563,8 @@ final class WorkflowTaskRunnerTest extends TestCase
         $ids = array_map(static fn(ProtocolMessage $m): string => $m->getId(), $result->messages);
         self::assertSame(['upd-42/accept', 'upd-42/complete'], $ids);
 
-        // Une commande par message. L'acceptation seule laisserait la réponse hors de la
-        // séquence, et le serveur clôrait l'exécution avant de la délivrer.
+        // One command per message. Acceptance alone would leave the answer out of the sequence,
+        // and the server would close the execution before delivering it.
         $protocolCommands = array_values(array_filter(
             $result->commands,
             static fn($c): bool => CommandType::COMMAND_TYPE_PROTOCOL_MESSAGE === $c->getCommandType(),
@@ -580,8 +580,9 @@ final class WorkflowTaskRunnerTest extends TestCase
         self::assertNotNull($success);
         self::assertSame(['ok' => true, 'by' => 'alice'], JsonPlainPayload::decode($success->getPayloads()[0]));
 
-        // Le workflow est allé au bout : l'update l'a débloqué, pas l'inverse. Et l'ordre compte —
-        // le serveur refuse toute séquence où CompleteWorkflowExecution n'est pas la dernière.
+        // The workflow ran to the end: the update unblocked it, not the other way round. And the
+        // order matters — the server refuses any sequence where CompleteWorkflowExecution is not
+        // the last.
         $types = array_map(static fn($c): int => $c->getCommandType(), $result->commands);
         self::assertSame(
             [

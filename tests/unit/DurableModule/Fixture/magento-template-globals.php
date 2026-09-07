@@ -3,14 +3,14 @@
 declare(strict_types=1);
 
 /*
- * Un `.phtml` n'a pas d'espace de noms : il s'exécute dans le global, et une fonction `__()`
- * déclarée dans un fichier de test namespacé n'y est donc pas visible. D'où ce fichier-ci, sans
- * espace de noms, et pas une astuce d'écriture dans le test.
+ * A `.phtml` has no namespace: it runs in the global one, and a `__()` function declared in a
+ * namespaced test file is therefore not visible there. Hence this file here, with no namespace,
+ * rather than a writing trick inside the test.
  */
 
 if (!\function_exists('__')) {
     /**
-     * `__()` de Magento, réduite au remplacement positionnel que les gabarits de ce module font.
+     * Magento's `__()`, reduced to the positional replacement the templates of this module do.
      */
     function __(string $message, mixed ...$arguments): string
     {

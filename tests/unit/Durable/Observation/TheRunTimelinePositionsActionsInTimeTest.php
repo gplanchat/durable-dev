@@ -10,16 +10,15 @@ use Gplanchat\Durable\Observation\WorkflowRunEventKind;
 use PHPUnit\Framework\TestCase;
 
 /**
- * La frise se calcule **une fois**, à côté du modèle d'observation, et elle se mesure en secondes.
+ * The frieze is computed **once**, next to the observation model, and it is measured in seconds.
  *
- * Deux surfaces la dérivaient chacune de son côté : Magento plaçait les actions dans le temps,
- * Sylius les empilait. Le même run se lisait donc différemment selon l'application ouverte, alors
- * que c'est le même journal dessous.
+ * Two surfaces each derived it on their own side: Magento placed the actions in time, Sylius
+ * stacked them. The same run therefore read differently depending on the application opened, when
+ * it is the same journal underneath.
  *
- * ⚠ Et elle rend des **secondes**, jamais des pourcentages. Le bloc Magento rendait des flottants
- * de 0 à 100, c'est-à-dire une largeur CSS : le cœur se serait mis à dessiner pour une surface API
- * Platform qui ne rend aucun balisage. Mettre à l'échelle est le métier de l'hôte ; mesurer est le
- * nôtre.
+ * ⚠ And it returns **seconds**, never percentages. The Magento block returned floats from 0 to
+ * 100, that is to say a CSS width: the core would have started drawing for an API Platform surface
+ * that renders no markup. Scaling is the host's job; measuring is ours.
  */
 final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
 {
@@ -38,8 +37,8 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
 
     public function testAnActionIsPlacedAndMeasuredInSeconds(): void
     {
-        // Le fait à ne pas perdre : 22 secondes valent 22.0, pas « 73.3 % de la barre ». L'hôte
-        // met à l'échelle avec ce qu'il sait de sa colonne ; le cœur n'en sait rien.
+        // The fact not to lose: 22 seconds are worth 22.0, not "73.3 % of the bar". The host
+        // scales with what it knows of its column; the core knows nothing of it.
         $timeline = RunTimeline::of([
             $this->event(1, '12:00:00.000', 'start'),
             $this->event(2, '12:00:08.000', 'charge', actionKey: 'activity:act-1'),
@@ -65,8 +64,8 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
 
     public function testWaitingToBePickedUpIsNotShownAsWork(): void
     {
-        // Le segment hérite du `started` de l'événement qui le **ferme** : ce qui précède la prise
-        // en charge est le temps passé à attendre qu'on veuille bien commencer.
+        // The segment inherits the `started` of the event that **closes** it: what precedes being
+        // picked up is the time spent waiting for somebody to be willing to start.
         $timeline = RunTimeline::of([
             $this->event(1, '12:00:00.000', 'charge', actionKey: 'activity:act-1'),
             $this->event(2, '12:00:20.000', 'charge', actionKey: 'activity:act-1', started: true),
@@ -75,15 +74,15 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
 
         $segments = $timeline->actions[0]->segments;
         self::assertCount(2, $segments);
-        self::assertTrue($segments[0]->waiting, 'les vingt secondes avant la prise en charge sont une file');
+        self::assertTrue($segments[0]->waiting, 'the twenty seconds before being picked up are a queue');
         self::assertSame(20.0, $segments[0]->duration);
-        self::assertFalse($segments[1]->waiting, 'la seconde qui suit est du travail');
+        self::assertFalse($segments[1]->waiting, 'the second that follows is work');
     }
 
     public function testAFailureIsCarriedByTheIntervalThatEndsOnIt(): void
     {
-        // Peindre l'action entière ferait passer une activité reprise du deuxième coup pour une
-        // activité perdue.
+        // Painting the whole action would make an activity that succeeded on the second attempt
+        // look like a lost one.
         $timeline = RunTimeline::of([
             $this->event(1, '12:00:00.000', 'charge', actionKey: 'activity:act-1'),
             $this->event(2, '12:00:01.000', 'charge', actionKey: 'activity:act-1', failed: true),
@@ -97,8 +96,8 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
 
     public function testASegmentNamesTheTwoEventsItSpans(): void
     {
-        // L'hôte compose son infobulle avec les deux bouts, sans recompter les index : un couplage
-        // par rang est exactement ce qu'on relit à trois heures du matin.
+        // The host composes its tooltip from the two ends, without recounting the indices: a
+        // coupling by rank is exactly what one re-reads at three in the morning.
         $timeline = RunTimeline::of([
             $this->event(1, '12:00:00.000', 'charge', actionKey: 'activity:act-1'),
             $this->event(2, '12:00:01.000', 'charge', actionKey: 'activity:act-1', started: true),
@@ -111,8 +110,8 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
 
     public function testAnEventThatIsItsOwnActionHasNoInterval(): void
     {
-        // Un repère seul dit déjà tout ce qu'il y a à dire d'un instant : lui inventer un segment
-        // lui donnerait une durée qu'il n'a pas.
+        // A lone mark already says everything there is to say about a moment: inventing a segment
+        // for it would give it a duration it does not have.
         $timeline = RunTimeline::of([
             $this->event(1, '12:00:00.000', 'orderApproved', kind: WorkflowRunEventKind::Signal),
         ]);
@@ -124,8 +123,8 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
 
     public function testTwoEventsInTheSameMicrosecondAreNotSpreadByRank(): void
     {
-        // Étaler par rang ferait passer un ordre pour une durée, et un run d'une milliseconde
-        // ressemblerait à un run d'une heure.
+        // Spreading by rank would pass an ordering off as a duration, and a one-millisecond run
+        // would look like a one-hour run.
         $timeline = RunTimeline::of([
             $this->event(1, '12:00:00.000', 'start'),
             $this->event(2, '12:00:00.000', 'orderApproved', kind: WorkflowRunEventKind::Signal),
@@ -138,9 +137,9 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
 
     public function testARunStillGoingEndsOnItsLastRecordedFact(): void
     {
-        // L'échelle va du premier au dernier événement enregistré, pas du début à la fin de
-        // l'exécution : une exécution en cours n'a pas de fin, et la frise ne prétend rien savoir
-        // de plus que ce qui est écrit.
+        // The scale goes from the first to the last recorded event, not from the start to the end
+        // of the execution: a running execution has no end, and the frieze claims to know nothing
+        // more than what is written.
         $timeline = RunTimeline::of([
             $this->event(1, '12:00:00.000', 'start'),
             $this->event(2, '12:00:04.000', 'charge', actionKey: 'activity:act-1'),
@@ -151,19 +150,19 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
 
     public function testAnEmptyHistoryIsAnEmptyTimelineRatherThanNothing(): void
     {
-        // Une exécution purgée, ou jamais vue, n'est pas une erreur d'appel : l'hôte doit pouvoir
-        // l'afficher sans rien avoir à rattraper.
+        // A purged execution, or one never seen, is not a call error: the host must be able to
+        // display it without having anything to catch up on.
         $timeline = RunTimeline::of([]);
 
         self::assertSame([], $timeline->actions);
-        self::assertSame([], $timeline->journal(), 'array_merge() sans argument, et non une erreur');
+        self::assertSame([], $timeline->journal(), 'array_merge() with no argument, and not an error');
         self::assertSame(0.0, $timeline->span);
     }
 
     public function testEachEventKeepsItsOwnPositionInsideItsAction(): void
     {
-        // Le repère d'un événement se place dans le temps du run, pas dans celui de son action :
-        // c'est ce qui permet de le retrouver sur la même verticale que ceux des autres lignes.
+        // An event's mark is placed in the run's time, not in that of its action: that is what
+        // makes it possible to find it on the same vertical as those of the other rows.
         $timeline = RunTimeline::of([
             $this->event(1, '12:00:00.000', 'start'),
             $this->event(2, '12:00:03.000', 'charge', actionKey: 'activity:act-1'),
@@ -178,9 +177,9 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
 
     public function testASegmentSaysWhatItIsInWordsBothHostsShare(): void
     {
-        // Une hachure sans légende est une devinette, et celui qui survole la barre est justement
-        // celui qui veut savoir. Que les deux surfaces le disent avec les mêmes mots n'est pas de
-        // la coquetterie : un exploitant qui passe de l'une à l'autre ne doit rien avoir à traduire.
+        // A hatching with no legend is a guessing game, and whoever hovers the bar is precisely
+        // the one who wants to know. That both surfaces say it with the same words is not
+        // coquetry: an operator moving from one to the other must have nothing to translate.
         $timeline = RunTimeline::of([
             $this->event(1, '12:00:00.000', 'charge', actionKey: 'activity:act-1'),
             $this->event(2, '12:00:20.000', 'charge', actionKey: 'activity:act-1', started: true),
@@ -218,8 +217,8 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
 
     public function testWhatTheBackendRecordedIsRenderedOnceForEverySurface(): void
     {
-        // Sylius passait la charge utile à `json_encode` sans tolérance et rendait un dépliant
-        // vide dès qu'un octet n'était pas de l'UTF-8. La mise en forme se décide ici, une fois.
+        // Sylius passed the payload to `json_encode` without tolerance and rendered an empty
+        // unfoldable as soon as one byte was not UTF-8. The formatting is decided here, once.
         $timeline = RunTimeline::of([
             $this->event(1, '12:00:00.000', 'charge', actionKey: 'activity:act-1', details: ['orderId' => 'ORD-7']),
             $this->event(2, '12:00:01.000', 'charge', actionKey: 'activity:act-1'),
@@ -228,14 +227,14 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
         $marks = $timeline->actions[0]->events;
         self::assertIsString($marks[0]->renderedDetails);
         self::assertStringContainsString('ORD-7', $marks[0]->renderedDetails);
-        self::assertNull($marks[1]->renderedDetails, 'rien d\'enregistré, rien à déplier');
+        self::assertNull($marks[1]->renderedDetails, 'nothing recorded, nothing to unfold');
     }
 
     public function testEveryRowOfTheJournalNamesItsActionAndNotItsEvent(): void
     {
-        // Seule la planification connaît le nom de l'activité : ses suites ne portent qu'un numéro,
-        // et une surface en tableau affichait donc `ACTIVITY TASK STARTED` sur deux lignes sur
-        // trois, là où l'exploitant cherchait `charge`.
+        // Only the scheduling knows the activity's name: its follow-ups carry nothing but a
+        // number, and a table surface therefore displayed `ACTIVITY TASK STARTED` on two rows out
+        // of three, where the operator was looking for `charge`.
         $timeline = RunTimeline::of([
             $this->event(1, '12:00:00.000', 'charge', actionKey: 'activity:act-1'),
             $this->event(2, '12:00:01.000', 'ActivityTaskStarted', actionKey: 'activity:act-1', started: true),
@@ -248,8 +247,8 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
 
     public function testAnEventThatIsItsOwnActionNamesItself(): void
     {
-        // Laisser la case vide ferait croire à un trou ; répéter son libellé dans les deux colonnes
-        // n'apprend rien, mais c'est la vérité et non un trou.
+        // Leaving the cell empty would suggest a hole; repeating its label in both columns
+        // teaches nothing, but it is the truth and not a hole.
         $timeline = RunTimeline::of([
             $this->event(1, '12:00:00.000', 'orderApproved', kind: WorkflowRunEventKind::Signal),
         ]);
@@ -259,9 +258,9 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
 
     public function testTheJournalComesBackInRecordedOrderAndNotGroupedByAction(): void
     {
-        // La frise groupe pour répondre « combien de temps » ; le journal déroule pour répondre
-        // « dans quel ordre ». Rendre le second dans l'ordre du premier ferait mentir l'ordre, qui
-        // est ce qu'un exploitant vient lire en premier.
+        // The frieze groups to answer "how long"; the journal unrolls to answer "in what order".
+        // Returning the second in the order of the first would make the order lie, and the order
+        // is what an operator comes to read first.
         $timeline = RunTimeline::of([
             $this->event(1, '12:00:00.000', 'charge', actionKey: 'activity:act-1'),
             $this->event(2, '12:00:01.000', 'orderApproved', kind: WorkflowRunEventKind::Signal),

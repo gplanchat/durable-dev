@@ -9,8 +9,8 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Testing\EventStoreConformanceTestCase;
 
 /**
- * La référence rejoue la suite. Sans ce fichier, DUR041 comparerait les adaptateurs à une
- * définition que rien ne vérifie.
+ * The reference replays the suite. Without this file, DUR041 would compare the adapters against a
+ * definition nothing checks.
  *
  * @see DUR041
  */

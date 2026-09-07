@@ -19,17 +19,17 @@ use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\NexusOperationScheduledEventAttributes;
 
 /**
- * La charge d'une opération Nexus part telle que l'appelant l'a écrite.
+ * The payload of a Nexus operation leaves exactly as the caller wrote it.
  *
- * Mesuré avant d'être corrigé (tâche 1.1) : un gestionnaire servi par le SDK Go, appelé depuis un
- * workflow Durable, recevait `{"name":""}` et répondait « hello » au lieu de « hello ada ». Notre
- * enveloppe `{operationId, payload}` arrivait à un gestionnaire qui attendait la charge, il n'y
- * trouvait pas ses champs et prenait des valeurs zéro. **Rien ne levait** — ni le serveur, ni le SDK
- * Go, ni nous.
+ * Measured before being fixed (task 1.1): a handler served by the Go SDK, called from a Durable
+ * workflow, received `{"name":""}` and answered "hello" instead of "hello ada". Our
+ * `{operationId, payload}` envelope reached a handler that expected the payload, it did not find
+ * its fields there and took zero values. **Nothing raised** — not the server, not the Go SDK, not
+ * us.
  *
- * La corrélation dont l'enveloppe servait de prétexte est déjà sur le fil : le serveur assigne un
- * `scheduledEventId` que l'événement de planification et les événements terminaux portent tous les
- * deux. C'est lui l'identité, et l'appelant n'a rien à ajouter à la charge de l'utilisateur.
+ * The correlation the envelope used as its pretext is already on the wire: the server assigns a
+ * `scheduledEventId` that both the scheduling event and the terminal events carry. That one is the
+ * identity, and the caller has nothing to add to the user's payload.
  */
 final class NexusPayloadTravelsVerbatimTest extends TestCase
 {
@@ -56,13 +56,13 @@ final class NexusPayloadTravelsVerbatimTest extends TestCase
         self::assertSame(
             ['name' => 'ada'],
             JsonPlainPayload::decode($input),
-            "un gestionnaire d'un autre SDK doit trouver ses champs au premier niveau",
+            'a handler from another SDK must find its fields at the top level',
         );
     }
 
     public function testAnOperationIsRecoveredFromItsScheduledEventId(): void
     {
-        // L'identité que le serveur assigne, et que les événements terminaux portent.
+        // The identity the server assigns, and that the terminal events carry.
         $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5), $this->scheduled(9)]);
 
         self::assertSame('5', $history->findScheduledNexusOperation(0));
@@ -72,8 +72,8 @@ final class NexusPayloadTravelsVerbatimTest extends TestCase
 
     public function testTheCancellationLookupStillFindsTheRealEventId(): void
     {
-        // §4.2 en dépend : `RequestCancelNexusOperation` exige l'eventId réel, et un identifiant
-        // qui ne correspond à rien fait rejeter la tâche par le serveur.
+        // §4.2 depends on it: `RequestCancelNexusOperation` requires the real eventId, and an
+        // identifier that matches nothing makes the server reject the task.
         $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
 
         self::assertSame(5, $history->scheduledEventIdForNexusOperation('5'));
@@ -82,8 +82,8 @@ final class NexusPayloadTravelsVerbatimTest extends TestCase
 
     public function testTheCallSiteIsStillRecoverableForFailures(): void
     {
-        // Le triplet reste lisible : c'est ce qui nomme la divergence et ce qui dit d'où vient un
-        // échec, et l'enveloppe n'y était pour rien.
+        // The triple stays readable: it is what names the divergence and what says where a
+        // failure comes from, and the envelope had nothing to do with it.
         $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
 
         self::assertSame('paiements/facturation/encaisser', $history->nexusOperationSignatureForSlot(0));
@@ -95,7 +95,7 @@ final class NexusPayloadTravelsVerbatimTest extends TestCase
         $attrs->setEndpoint('paiements');
         $attrs->setService('facturation');
         $attrs->setOperation('encaisser');
-        // La charge de l'appelant, nue.
+        // The caller's payload, bare.
         $attrs->setInput(JsonPlainPayload::encode(['name' => 'ada']));
 
         $event = new HistoryEvent();

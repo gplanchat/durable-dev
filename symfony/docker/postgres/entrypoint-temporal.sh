@@ -1,6 +1,6 @@
 #!/bin/sh
-# Enveloppe autour de l’entrypoint officiel Postgres : après démarrage, applique
-# temporal-bootstrap.sh (idempotent) pour les volumes créés avant 99-temporal.sql.
+# Wrapper around the official Postgres entrypoint: after startup, it applies
+# temporal-bootstrap.sh (idempotent) for volumes created before 99-temporal.sql.
 set -eu
 
 /usr/local/bin/docker-entrypoint.sh postgres &

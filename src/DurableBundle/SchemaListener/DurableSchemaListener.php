@@ -10,15 +10,15 @@ use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 
 /**
- * Fait connaître les tables du journal à l'outillage Doctrine.
+ * Makes the journal's tables known to the Doctrine tooling.
  *
- * Sans lui, `doctrine:schema:update` et `doctrine:migrations:diff` construisent le schéma attendu
- * à partir des seules entités, n'y trouvent pas les tables du pont, et les traitent en orphelines :
- * la migration générée **les supprime**. Un journal d'exécutions durables est exactement ce qu'on
- * ne veut pas voir disparaître dans une migration relue en diagonale.
+ * Without it, `doctrine:schema:update` and `doctrine:migrations:diff` build the expected schema
+ * from the entities alone, do not find the bridge's tables there, and treat them as orphans: the
+ * generated migration **drops them**. A journal of durable executions is exactly what nobody wants
+ * to see disappear in a migration read at a glance.
  *
- * Le pendant amont est `MessengerTransportDoctrineSchemaListener`, qui existe pour la même raison
- * et à propos des mêmes tables gérées par une bibliothèque plutôt que par une entité.
+ * The upstream counterpart is `MessengerTransportDoctrineSchemaListener`, which exists for the same
+ * reason and about the same kind of table, held by a library rather than by an entity.
  */
 final class DurableSchemaListener
 {
@@ -38,13 +38,13 @@ final class DurableSchemaListener
     }
 
     /**
-     * Sonde « même base » : deux objets `Connection` distincts peuvent pointer la même base, et
-     * seule une écriture le prouve. Le principe est celui de
+     * The "same database" probe: two distinct `Connection` objects can point at one database, and
+     * only a write proves it. The principle is that of
      * `Symfony\Bridge\Doctrine\SchemaListener\AbstractSchemaListener::getIsSameDatabaseChecker()`,
-     * dont la déclaration est identique de Symfony 6.4 à 8.0 — vérifié sur `v6.4.0`, `7.2` et
-     * `8.0`. Elle est recopiée plutôt qu'héritée pour deux raisons : elle y est `protected`, donc
-     * inaccessible sans étendre la classe, et l'étendre imposerait `symfony/doctrine-bridge` au
-     * bundle pour vingt lignes qui ne dépendent que de la DBAL.
+     * whose declaration is identical from Symfony 6.4 to 8.0, checked on `v6.4.0`, `7.2` and `8.0`.
+     * It is copied rather than inherited for two reasons: it is `protected` there, so unreachable
+     * without extending the class, and extending it would impose `symfony/doctrine-bridge` on the
+     * bundle for twenty lines that depend on the DBAL alone.
      *
      * @return \Closure(\Closure(string): mixed): bool
      */
@@ -57,8 +57,8 @@ final class DurableSchemaListener
             try {
                 $exec(\sprintf('DROP TABLE %s', $checkTable));
             } catch (\Exception) {
-                // La connexion du journal n'a pas pu supprimer la table : soit une autre base,
-                // soit un droit manquant. Le second contrôle tranche.
+                // The journal's connection could not drop the table: either another database, or a
+                // missing privilege. The second check settles it.
             }
 
             try {

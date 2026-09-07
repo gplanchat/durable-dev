@@ -12,14 +12,15 @@ use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\NexusOperationScheduledEventAttributes;
 
 /**
- * L'identité d'une opération Nexus au replay, côté pont.
+ * The identity of a Nexus operation at replay, on the bridge side.
  *
- * Ici et pas côté journal : ce backend refuse les opérations Nexus par construction (DUR036), donc
- * aucun de ses historiques n'en porte, et la garde n'y aurait rien à comparer.
+ * Here and not on the journal side: that backend refuses Nexus operations by construction
+ * (DUR036), so none of its histories carries one, and the guard would have nothing to compare
+ * there.
  *
- * L'identité est le **triplet**. Router le même service et la même opération vers un autre
- * endpoint est une divergence, et ne comparer que le nom de l'opération la laisserait passer —
- * c'est le cas que ce fichier tient.
+ * The identity is the **triple**. Routing the same service and the same operation to another
+ * endpoint is a divergence, and comparing only the operation name would let it through — that is
+ * the case this file holds.
  */
 final class NexusSlotDivergenceTest extends TestCase
 {
@@ -39,8 +40,8 @@ final class NexusSlotDivergenceTest extends TestCase
 
     public function testTheEndpointIsPartOfTheIdentity(): void
     {
-        // Le piège que ce test tient : service et opération identiques, endpoint différent. Une
-        // garde qui ne comparerait que l'opération croirait le replay fidèle.
+        // The trap this test holds: identical service and operation, different endpoint. A guard
+        // that compared only the operation would believe the replay faithful.
         $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5, 'op-1', 'paiements', 'facturation', 'encaisser')]);
 
         self::assertNotSame('remboursements/facturation/encaisser', $history->nexusOperationSignatureForSlot(0));

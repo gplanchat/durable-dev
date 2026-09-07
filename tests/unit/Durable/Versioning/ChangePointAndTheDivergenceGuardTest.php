@@ -17,12 +17,12 @@ use Gplanchat\Durable\Versioning\ChangePoint;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Le versioning est l'exception sanctionnée à la garde de divergence (DUR042) — et une exception
- * qui désarmerait la règle vaudrait moins que pas d'exception du tout.
+ * Versioning is the sanctioned exception to the divergence guard (DUR042) — and an exception that
+ * would disarm the rule would be worth less than no exception at all.
  *
- * Les deux mécanismes se rencontrent au même endroit : la garde compare l'identité au slot, et un
- * point de changement fait justement varier ce que le code demande aux slots suivants. Ce fichier
- * tient les trois faits qui rendent la cohabitation sûre.
+ * The two mechanisms meet in the same place: the guard compares the identity at the slot, and a
+ * change point is precisely what makes what the code asks of the following slots vary. This file
+ * holds the three facts that make the cohabitation safe.
  */
 final class ChangePointAndTheDivergenceGuardTest extends TestCase
 {
@@ -30,8 +30,8 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
 
     public function testTheGuardDoesNotFireOnABranchTheVersionDecided(): void
     {
-        // L'exécution est sur la version 1 : son journal porte `discountedCharge` au slot 0,
-        // et c'est bien ce que la branche v1 du code demande. Aucune divergence.
+        // The execution is on version 1: its journal carries `discountedCharge` at slot 0,
+        // and that is exactly what the v1 branch of the code asks for. No divergence.
         $store = new InMemoryEventStore();
         $store->append(new VersionMarked(self::EXECUTION, 'ajout-remise', 1));
         $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'discountedCharge', []));
@@ -42,19 +42,19 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
 
         self::assertSame(1, $version);
 
-        // La branche que cette version commande. La garde ne doit pas broncher.
+        // The branch this version commands. The guard must not flinch.
         $awaitable = 1 === $version
             ? $context->activity('discountedCharge', [])
             : $context->activity('plainCharge', []);
 
-        self::assertTrue($awaitable->isSettled(), 'le slot se résout : le code a suivi sa version');
+        self::assertTrue($awaitable->isSettled(), 'the slot resolves: the code followed its version');
     }
 
     public function testAnOldRunTakesTheOtherBranchWithoutDivergingEither(): void
     {
-        // La même exécution, mais partie avant le point : elle a `plainCharge` au slot 0, et la
-        // branche par défaut demande exactement ça. Les deux branches sont donc légitimes —
-        // chacune pour l'exécution qui la concerne.
+        // The same execution, but started before the point: it has `plainCharge` at slot 0, and
+        // the default branch asks for exactly that. Both branches are therefore legitimate —
+        // each for the execution it concerns.
         $store = new InMemoryEventStore();
         $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'plainCharge', []));
         $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 100));
@@ -75,8 +75,8 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
 
     public function testVersioningOnePointDoesNotDisarmTheGuardElsewhere(): void
     {
-        // Le point de changement est respecté, et un AUTRE slot est changé sans le déclarer.
-        // C'est là que se joue la valeur de l'exception : elle ne couvre que ce qu'elle nomme.
+        // The change point is honoured, and ANOTHER slot is changed without declaring it. That
+        // is where the value of the exception is decided: it covers only what it names.
         $store = new InMemoryEventStore();
         $store->append(new VersionMarked(self::EXECUTION, 'ajout-remise', 1));
         $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'discountedCharge', []));
@@ -89,14 +89,14 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
         $context->activity('discountedCharge', []);
 
         $this->expectException(WorkflowTaskFailure::class);
-        $context->activity('sendInvoice', []); // le journal tient « shipOrder »
+        $context->activity('sendInvoice', []); // the journal holds "shipOrder"
     }
 
     public function testTheVersionIsDecidedBeforeTheSlotsItCommands(): void
     {
-        // L'ordre est le fond du sujet : si la version était résolue APRÈS le slot qu'elle
-        // décide, l'exécution se serait déjà servie d'une réponse qu'elle n'avait pas.
-        // Le marqueur doit donc précéder, dans le journal, l'activité qu'il commande.
+        // Order is the heart of the matter: if the version were resolved AFTER the slot it
+        // decides, the execution would already have used an answer it did not have.
+        // The marker must therefore precede, in the journal, the activity it commands.
         $store = new InMemoryEventStore();
         $context = $this->context($store);
 
@@ -110,12 +110,12 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
         $marker = array_search(VersionMarked::class, $kinds, true);
         $scheduled = array_search(ActivityScheduled::class, $kinds, true);
 
-        self::assertIsInt($marker, 'le marqueur est écrit');
-        self::assertIsInt($scheduled, "l'activité est planifiée");
+        self::assertIsInt($marker, 'the marker is written');
+        self::assertIsInt($scheduled, 'the activity is scheduled');
         self::assertLessThan(
             $scheduled,
             $marker,
-            "la version est décidée et enregistrée AVANT le slot qu'elle commande",
+            'the version is decided and recorded BEFORE the slot it commands',
         );
     }
 
