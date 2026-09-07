@@ -27,8 +27,8 @@ Quatre applications, quatre namespaces Temporal, trois frameworks. Elles vivent 
 | | la boutique | le métier | le banc Magento | la logistique |
 |---|---|---|---|---|
 | framework | Sylius | Symfony | Mage-OS | Laravel |
-| sert | `stock` | `facturation` | — | `livraison` |
-| appelle | `facturation` | `stock` | les trois | `stock`, **depuis le workflow qui sert** |
+| sert | `stock` | `billing` | — | `delivery` |
+| appelle | `billing` | `stock` | les trois | `stock`, **depuis le workflow qui sert** |
 | PHP | 8.3 | 8.3 | 8.2 | 8.2 |
 
 Les quatre lisent le même paquet de contrats, `src/DurableDemoContracts/`. **Rien d'autre ne circule
@@ -41,7 +41,7 @@ Servir se câble une fois par hôte — et se câble *hors* de Symfony : la logi
 gestionnaires avec deux classes et six lignes de `config/durable.php`, le banc Magento câble en
 `di.xml`. La moitié servante de Nexus n'est pas une fonctionnalité du bundle.
 
-**Les deux formes s'écrivent pareil.** `CommandeWorkflow` appelle `verifier` puis `encaisser` sur le
+**Les deux formes s'écrivent pareil.** `OrderWorkflow` appelle `verify` puis `charge` sur le
 même stub. La première revient en quelques millisecondes, servie par une méthode ordinaire ; la
 seconde prend une quinzaine de secondes, remplie par un workflow d'en face. **Le code de l'appelant
 ne distingue pas les deux**, et c'est tout le sujet.
@@ -75,7 +75,7 @@ partent et aucune qui y arrive. La carte de contextes, c'est `temporal operator 
 **Neuf secondes décident de la forme d'une opération.** Une tâche de démarrage porte
 `request-timeout=8.998s`, qui borne la réponse à *cette tâche* et non l'opération ; passé ce délai
 la tâche est redélivrée et le gestionnaire recommence. Une méthode implémentée est donc une
-**requête qui traverse la frontière** — `verifier` applique des règles de facturation à des données
+**requête qui traverse la frontière** — `verify` applique des règles de facturation à des données
 que le métier a déjà — et tout ce qui dure plus longtemps est une **étape de saga** que l'autre
 contexte possède, ce que déclare `#[FulfilsNexusOperation]`. L'appelant lit un seul contrat et ne
 sait pas laquelle des deux il a obtenue.
@@ -89,7 +89,7 @@ machine à états qui tient l'attente.
 ## Ce qu'il n'apporte pas
 
 **Pas la compensation.** Aucun des trois contrats n'a d'opération qui rende ce qu'il a pris. La
-seule protection est **l'ordre des appels** : `CommandeNexusWorkflow` demande d'abord tout ce qui
+seule protection est **l'ordre des appels** : `OrderNexusWorkflow` demande d'abord tout ce qui
 peut dire non — vérifier la facture, planifier la tournée, retenir le stock — et n'engage
 qu'ensuite. Les deux ordres inverses ont été écrits d'abord et mesurés : une commande en USD
 retenait le stock avant de se faire refuser la facture, et une commande de six colis était
@@ -100,7 +100,7 @@ de `stock` écrit son verdict dans `app_durable_stock_reservation`, clé par ide
 rejouer la même commande rend le même verdict et ne retient pas de stock une seconde fois. Ça a
 été écrit à la main, Durable ne l'a pas fourni.
 
-**Pas la couche anticorruption.** `CommandeWorkflow` lit `$verdict['acceptee']` directement sur le
+**Pas la couche anticorruption.** `OrderWorkflow` lit `$verdict['accepted']` directement sur le
 stub : la forme de charge d'un autre contexte se retrouve donc au cœur de la décision de la
 boutique. La démonstration est plate à dessein, pour montrer les deux formes d'opération côte à
 côte. Une application garderait le stub dans un adaptateur secondaire, déclarerait son port dans son
@@ -115,10 +115,10 @@ type de domaine de l'un ou l'autre côté.
 ## Comment on la lance
 
 ```bash
-bin/demo-nexus            # d'abord : les namespaces et les endpoints Nexus
-demo/lancer.sh            # ensuite : les huit workers
-demo/lancer.sh --etat     # dit qui tourne
-demo/lancer.sh --arreter  # les arrête
+bin/demo-nexus        # d'abord : les namespaces et les endpoints Nexus
+demo/run.sh           # ensuite : les huit workers
+demo/run.sh --status  # dit qui tourne
+demo/run.sh --stop    # les arrête
 ```
 
 `bin/demo-nexus` passe en premier, et il n'est pas facultatif : les workers se connectent à des

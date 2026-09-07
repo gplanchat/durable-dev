@@ -27,8 +27,8 @@ Four applications, four Temporal namespaces, three frameworks. They live in the 
 | | the shop | the business side | the Magento bench | logistics |
 |---|---|---|---|---|
 | framework | Sylius | Symfony | Mage-OS | Laravel |
-| serves | `stock` | `facturation` | — | `livraison` |
-| calls | `facturation` | `stock` | all three | `stock`, **from the workflow that serves** |
+| serves | `stock` | `billing` | — | `delivery` |
+| calls | `billing` | `stock` | all three | `stock`, **from the workflow that serves** |
 | PHP | 8.3 | 8.3 | 8.2 | 8.2 |
 
 All four read the same contract package, `src/DurableDemoContracts/`. **Nothing else travels between
@@ -41,7 +41,7 @@ Serving is wired once per host — and it wires up *outside* Symfony: logistics 
 with two classes and six lines of `config/durable.php`, the Magento bench wires in `di.xml`. The
 serving half of Nexus is not a bundle feature.
 
-**Both shapes are written the same way.** `CommandeWorkflow` calls `verifier`, then `encaisser`, on
+**Both shapes are written the same way.** `OrderWorkflow` calls `verify`, then `charge`, on
 the same stub. The first returns in milliseconds, served by an ordinary method; the second takes
 about fifteen seconds, fulfilled by a workflow on the other side. **The caller's code does not tell
 them apart**, and that is the whole point.
@@ -73,7 +73,7 @@ none arriving. The context map is `temporal operator nexus endpoint list`.
 **Nine seconds decide the shape of an operation.** A start task carries `request-timeout=8.998s`,
 which bounds the answer to *this task* and not the operation; past it the task is redelivered and
 the handler starts over. An implemented method is therefore a **query across the boundary** —
-`verifier` applies invoicing rules to data the business side already holds — and anything longer is
+`verify` applies billing rules to data the business side already holds — and anything longer is
 a **saga step** the other context owns, which is what `#[FulfilsNexusOperation]` declares. The
 caller reads one contract and cannot tell which of the two it got.
 
@@ -85,7 +85,7 @@ store, expire, and wrap in a state machine that holds the wait.
 ## What it does not bring
 
 **Not compensation.** None of the three contracts has an operation that gives back what it took. The
-only protection is **call ordering**: `CommandeNexusWorkflow` first asks everything that can say no
+only protection is **call ordering**: `OrderNexusWorkflow` first asks everything that can say no
 — check the invoice, plan the round, hold the stock — and only then commits. Both reverse orders
 were written first, and measured: a USD order held stock before being refused an invoice, and a
 six-parcel order was **charged** before logistics refused to carry it.
@@ -95,7 +95,7 @@ writes its verdict to `app_durable_stock_reservation`, keyed by order id — rep
 returns the same verdict and does not hold stock twice. That was written by hand; Durable did not
 provide it.
 
-**Not an anti-corruption layer.** `CommandeWorkflow` reads `$verdict['acceptee']` straight off the
+**Not an anti-corruption layer.** `OrderWorkflow` reads `$verdict['accepted']` straight off the
 stub, so another context's payload shape sits inside the shop's own decision. The demonstration is
 flat on purpose, to put the two operation forms side by side. An application would keep the stub in
 a driven adapter, declare its port in its own language, and let that adapter build its value
@@ -109,10 +109,10 @@ from either side.
 ## How to run it
 
 ```bash
-bin/demo-nexus            # first: the namespaces and the Nexus endpoints
-demo/lancer.sh            # then: the eight workers
-demo/lancer.sh --etat     # report who is running
-demo/lancer.sh --arreter  # stop them
+bin/demo-nexus        # first: the namespaces and the Nexus endpoints
+demo/run.sh           # then: the eight workers
+demo/run.sh --status  # report who is running
+demo/run.sh --stop    # stop them
 ```
 
 `bin/demo-nexus` comes first and is not optional: the workers connect to endpoints that do not
