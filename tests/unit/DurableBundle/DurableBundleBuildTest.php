@@ -16,10 +16,10 @@ use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
- * Vérifie que DurableBundle::build() enregistre tous les compiler passes requis.
+ * Checks that DurableBundle::build() registers every required compiler pass.
  *
- * Régression couverte : DurableTemporalTransportFactoryPass créé mais non enregistré,
- * causant un crash des workers durable_temporal_activity au démarrage (exit code 1).
+ * Regression covered: DurableTemporalTransportFactoryPass created but not registered,
+ * crashing the durable_temporal_activity workers at startup (exit code 1).
  *
  * @internal
  */
@@ -48,9 +48,9 @@ final class DurableBundleBuildTest extends TestCase
     }
 
     /**
-     * Régression : DurableTemporalTransportFactoryPass était créé mais non enregistré.
-     * Sans ce pass, TemporalTransportFactory ne reçoit pas TemporalActivityWorker et
-     * les workers messenger:consume durable_temporal_activity crashent immédiatement.
+     * Regression: DurableTemporalTransportFactoryPass was created but not registered.
+     * Without that pass, TemporalTransportFactory does not receive TemporalActivityWorker and
+     * the messenger:consume durable_temporal_activity workers crash immediately.
      */
     public function testDurableTemporalTransportFactoryPassIsRegistered(): void
     {
@@ -75,9 +75,9 @@ final class DurableBundleBuildTest extends TestCase
 
     public function testNexusHandlerPassIsRegistered(): void
     {
-        // Sans elle, un #[AsNexusOperationHandler] pose sa balise et rien ne la lit : le
-        // gestionnaire n'est jamais enregistré, et le worker poll une file où personne ne sert
-        // l'opération. Le silence est exactement ce que §5.3 cherche à rendre impossible.
+        // Without it, an #[AsNexusOperationHandler] lays down its tag and nothing reads it: the
+        // handler is never registered, and the worker polls a queue where nobody serves the
+        // operation. That silence is exactly what §5.3 sets out to make impossible.
         self::assertContains(NexusHandlerPass::class, $this->registeredPassClasses());
     }
 

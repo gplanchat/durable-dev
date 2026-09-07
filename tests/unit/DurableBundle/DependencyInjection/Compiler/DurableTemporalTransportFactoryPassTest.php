@@ -13,10 +13,10 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 
 /**
- * Vérifie que le compiler pass injecte les bons services dans TemporalTransportFactory.
+ * Checks that the compiler pass injects the right services into TemporalTransportFactory.
  *
- * Régression : le pass injectait auparavant EventStoreInterface à l'index 3 au lieu de WorkflowRegistry,
- * provoquant une erreur de type à l'initialisation du container.
+ * Regression: the pass used to inject EventStoreInterface at index 3 instead of WorkflowRegistry,
+ * causing a type error when the container was initialized.
  *
  * @internal
  */
@@ -26,12 +26,12 @@ final class DurableTemporalTransportFactoryPassTest extends TestCase
     public function testPassIsNoOpWhenTemporalTransportFactoryIsAbsent(): void
     {
         $container = new ContainerBuilder();
-        // Pas de TemporalTransportFactory enregistré → le pass ne fait rien.
+        // No TemporalTransportFactory registered → the pass does nothing.
         $container->register('durable.temporal.connection', \stdClass::class);
 
         (new DurableTemporalTransportFactoryPass())->process($container);
 
-        // Aucune exception levée — le pass a bien ignoré l'absence du service.
+        // No exception raised — the pass did ignore the absence of the service.
         $this->assertTrue(true);
     }
 
@@ -40,7 +40,7 @@ final class DurableTemporalTransportFactoryPassTest extends TestCase
         $container = new ContainerBuilder();
         $container->register(TemporalTransportFactory::class, TemporalTransportFactory::class)
             ->setArguments([[], null, null, null]);
-        // Pas de connexion Temporal → le pass ne touche pas les arguments.
+        // No Temporal connection → the pass does not touch the arguments.
 
         (new DurableTemporalTransportFactoryPass())->process($container);
 
@@ -57,11 +57,11 @@ final class DurableTemporalTransportFactoryPassTest extends TestCase
 
         $args = $container->getDefinition(TemporalTransportFactory::class)->getArguments();
 
-        $this->assertInstanceOf(Reference::class, $args[3], 'L\'argument [3] doit être une Reference DI.');
+        $this->assertInstanceOf(Reference::class, $args[3], 'Argument [3] must be a DI Reference.');
         $this->assertSame(
             WorkflowRegistry::class,
             (string) $args[3],
-            'L\'argument [3] doit référencer WorkflowRegistry, pas EventStoreInterface ou autre.',
+            'Argument [3] must reference WorkflowRegistry, not EventStoreInterface or anything else.',
         );
     }
 
