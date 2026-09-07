@@ -207,7 +207,7 @@ final class DurableServiceProvider extends ServiceProvider
 
         if (!\is_string($dsn) || '' === $dsn) {
             throw new \InvalidArgumentException(
-                'Durable: the "temporal" backend needs durable.temporal.dsn — the address of the '
+                'Durable: the "temporal" backend needs durable.temporal.dsn: the address of the '
                 . 'cluster, its namespace and its two task queues. Nothing else can supply it.',
             );
         }
@@ -215,7 +215,7 @@ final class DurableServiceProvider extends ServiceProvider
         if (!class_exists(TemporalConnection::class)) {
             throw new \InvalidArgumentException(
                 'Durable: the "temporal" backend needs gplanchat/durable-bridge-temporal, which is '
-                . 'suggested rather than required — it installs a gRPC client and five Symfony '
+                . 'suggested rather than required, and it installs a gRPC client and five Symfony '
                 . 'components a Laravel application never loads. Run: composer require '
                 . 'gplanchat/durable-bridge-temporal',
             );
@@ -521,7 +521,7 @@ final class DurableServiceProvider extends ServiceProvider
             throw new \InvalidArgumentException(\sprintf(
                 'Durable: the "%s" queue connection runs jobs inline, so a resume that dispatches '
                 . 'another resume recurses in the same process until the stack ends. Use a real '
-                . 'queue connection — database, redis, sqs, beanstalkd.',
+                . 'queue connection: database, redis, sqs, beanstalkd.',
                 $name ?? 'default',
             ));
         }
@@ -558,7 +558,7 @@ final class DurableServiceProvider extends ServiceProvider
         if ($store instanceof ArrayStore && ($this->durableConfig()['backend'] ?? 'illuminate') === 'illuminate') {
             throw new \InvalidArgumentException(\sprintf(
                 'Durable: the "%s" cache store only excludes inside one process, and a resume runs '
-                . 'in a worker separate from whatever dispatched it — two workers would replay the '
+                . 'in a worker separate from whatever dispatched it, so two workers would replay the '
                 . 'same execution. Use database, redis, memcached, dynamodb or file.',
                 $name ?? 'default',
             ));

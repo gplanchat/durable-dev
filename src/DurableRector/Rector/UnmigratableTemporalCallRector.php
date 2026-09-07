@@ -48,11 +48,11 @@ final class UnmigratableTemporalCallRector extends AbstractRector
     ];
 
     private const REASONS = [
-        'getVersion' => 'no equivalent yet — workflow versioning is an open change, and a run that reached this marker cannot migrate before it lands',
-        'now' => 'sideEffect() is the equivalent, and it changes when the value is captured — a review, not a rename',
-        'uuid' => 'sideEffect() is the equivalent, and it changes when the value is captured — a review, not a rename',
-        'uuid4' => 'sideEffect() is the equivalent, and it changes when the value is captured — a review, not a rename',
-        'uuid7' => 'sideEffect() is the equivalent, and it changes when the value is captured — a review, not a rename',
+        'getVersion' => 'no equivalent yet; workflow versioning is an open change, and a run that reached this marker cannot migrate before it lands',
+        'now' => 'sideEffect() is the equivalent, and it changes when the value is captured, so a review and not a rename',
+        'uuid' => 'sideEffect() is the equivalent, and it changes when the value is captured, so a review and not a rename',
+        'uuid4' => 'sideEffect() is the equivalent, and it changes when the value is captured, so a review and not a rename',
+        'uuid7' => 'sideEffect() is the equivalent, and it changes when the value is captured, so a review and not a rename',
         'executeActivity' => 'DUR039: a typed stub is the only way to schedule an activity; the contract interface is yours to write',
         'executeChildWorkflow' => 'DUR039: a typed stub is the only way; the contract interface is yours to write',
         'newUntypedActivityStub' => 'DUR039: a typed stub is the only way; the contract interface is yours to write',
@@ -63,8 +63,8 @@ final class UnmigratableTemporalCallRector extends AbstractRector
         'async' => 'no coroutine primitive: a stub assembles and returns an Awaitable, and await() is the only wait (DUR038)',
         'asyncDetached' => 'no detached coroutine; work that must outlive the scope is a child workflow',
         'runLocked' => 'no mutex; a workflow is single-threaded here, so what the lock protected may not need protecting',
-        'allHandlersFinished' => 'no equivalent — handler completion is not observable from workflow code',
-        'isReplaying' => 'no equivalent — replay is not observable from workflow code, by design',
+        'allHandlersFinished' => 'no equivalent; handler completion is not observable from workflow code',
+        'isReplaying' => 'no equivalent; replay is not observable from workflow code, by design',
         'upsertSearchAttributes' => 'search attributes are start options here, not writable from inside a run',
         'upsertTypedSearchAttributes' => 'search attributes are start options here, not writable from inside a run',
         'upsertMemo' => 'no memo',
@@ -85,12 +85,12 @@ final class UnmigratableTemporalCallRector extends AbstractRector
     ];
 
     private const UNMIGRATABLE_CLASSES = [
-        'Temporal\Workflow\Saga' => 'no saga helper — the shape is a deadline and a compensation path, written out by hand',
+        'Temporal\Workflow\Saga' => 'no saga helper; the shape is a deadline and a compensation path, written out by hand',
         'Temporal\Workflow\Mutex' => 'no mutex; a workflow is single-threaded here',
         // The options objects are the same idea on both sides and not the same shape: Durable builds
         // them with ActivityOptions::of() over ActivityTimeouts and RetryLimit, not with a fluent
         // withStartToCloseTimeout(). Left alone, they would read as migrated and could not run.
-        'Temporal\Activity\ActivityOptions' => 'Durable\Activity\ActivityOptions is a different shape — ActivityOptions::of() with ActivityTimeouts and RetryLimit',
+        'Temporal\Activity\ActivityOptions' => 'Durable\Activity\ActivityOptions is a different shape: ActivityOptions::of() with ActivityTimeouts and RetryLimit',
         'Temporal\Activity\LocalActivityOptions' => 'no local activities; this is an ordinary activity here, with its own options',
         'Temporal\Common\RetryOptions' => 'retry is a RetryLimit on the activity options here',
         'Temporal\Workflow\ChildWorkflowOptions' => 'Durable\ChildWorkflowOptions is a different shape',
@@ -106,7 +106,7 @@ final class UnmigratableTemporalCallRector extends AbstractRector
 $version = yield Workflow::getVersion('change', 1, 2);
 BEFORE,
                 <<<'AFTER'
-// durable-rector: Workflow::getVersion() — no equivalent yet — workflow versioning is an open change
+// durable-rector: Workflow::getVersion(): no equivalent yet; workflow versioning is an open change
 $version = yield Workflow::getVersion('change', 1, 2);
 AFTER,
             )],
@@ -166,7 +166,7 @@ AFTER,
             if ($node instanceof New_ && $node->class instanceof Node\Name) {
                 $reason = self::UNMIGRATABLE_CLASSES[$node->class->toString()] ?? null;
                 if (null !== $reason) {
-                    $findings[] = \sprintf('new %s — %s', $node->class->getLast(), $reason);
+                    $findings[] = \sprintf('new %s: %s', $node->class->getLast(), $reason);
                 }
 
                 return null;
@@ -181,7 +181,7 @@ AFTER,
             // An options object is reached through a static builder as often as through `new`.
             $reason = self::UNMIGRATABLE_CLASSES[$class] ?? null;
             if (null !== $reason) {
-                $findings[] = \sprintf('%s::%s() — %s', $node->class->getLast(), $node->name->toString(), $reason);
+                $findings[] = \sprintf('%s::%s(): %s', $node->class->getLast(), $node->name->toString(), $reason);
 
                 return null;
             }
@@ -197,14 +197,14 @@ AFTER,
 
             if (self::isAwaitBeyondOneCondition($node, $name)) {
                 $findings[] = \sprintf(
-                    'Workflow::%s() with more than one condition — await() takes one condition and a deadline here, so a second condition would become a timeout; combine them by hand',
+                    'Workflow::%s() with more than one condition; await() takes one condition and a deadline here, so a second condition would become a timeout; combine them by hand',
                     $name,
                 );
 
                 return null;
             }
 
-            $findings[] = \sprintf('Workflow::%s() — %s', $name, self::reasonFor($name));
+            $findings[] = \sprintf('Workflow::%s(): %s', $name, self::reasonFor($name));
 
             return null;
         });
@@ -231,6 +231,6 @@ AFTER,
             return self::RUN_STATE_REASON;
         }
 
-        return self::REASONS[$name] ?? 'no Durable equivalent — decide by hand';
+        return self::REASONS[$name] ?? 'no Durable equivalent; decide by hand';
     }
 }

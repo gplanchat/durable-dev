@@ -50,7 +50,7 @@ final class NexusHandlerPass implements CompilerPassInterface
 
         if (!$container->hasDefinition('durable.temporal.nexus_registry')) {
             throw new \LogicException(\sprintf(
-                '%s: a Nexus handler is declared, but this backend cannot route Nexus operations. Nexus needs the Temporal backend — set durable.temporal.dsn. Declared by: %s.',
+                '%s: a Nexus handler is declared, but this backend cannot route Nexus operations. Nexus needs the Temporal backend: set durable.temporal.dsn. Declared by: %s.',
                 self::TAG,
                 implode(', ', array_keys($tagged)),
             ));
@@ -135,7 +135,7 @@ final class NexusHandlerPass implements CompilerPassInterface
                     // Ni implémentée, ni réclamée : personne ne la sert. L'appelant attendrait un
                     // résultat que rien ne produit, et le serveur n'a rien à en dire.
                     throw new \LogicException(\sprintf(
-                        '%s: operation "%s" of contract %s is served by nobody — handler "%s" does not implement %s() and no workflow claims it with #[FulfilsNexusOperation]. A caller would wait on a result nothing produces.',
+                        '%s: operation "%s" of contract %s is served by nobody: handler "%s" does not implement %s() and no workflow claims it with #[FulfilsNexusOperation]. A caller would wait on a result nothing produces.',
                         self::TAG,
                         $operation,
                         $contract,
@@ -202,7 +202,7 @@ final class NexusHandlerPass implements CompilerPassInterface
                 $operation = $tag['operation'] ?? null;
                 if (!\is_string($contract) || !\is_string($operation)) {
                     throw new \LogicException(\sprintf(
-                        '%s: service "%s" must declare both a "contract" and an "operation" — #[FulfilsNexusOperation] carries them, and the autoconfiguration copies them onto the tag.',
+                        '%s: service "%s" must declare both a "contract" and an "operation": #[FulfilsNexusOperation] carries them, and the autoconfiguration copies them onto the tag.',
                         self::FULFILMENT_TAG,
                         $serviceId,
                     ));

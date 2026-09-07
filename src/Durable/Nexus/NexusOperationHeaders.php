@@ -44,7 +44,7 @@ final readonly class NexusOperationHeaders
             if (isset($origins[$lowerKey])) {
                 throw new \InvalidArgumentException(\sprintf(
                     'Nexus headers "%s" and "%s" collide on "%s": the server lowercases keys, so only '
-                    . 'one of the two would survive — and it would not say which.',
+                    . 'one of the two would survive, and it would not say which.',
                     $origins[$lowerKey],
                     (string) $key,
                     $lowerKey,

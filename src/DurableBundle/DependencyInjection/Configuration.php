@@ -39,7 +39,7 @@ final class Configuration implements ConfigurationInterface
             ->end()
             ->booleanNode('journal')
             ->defaultTrue()
-            ->info("false : le cluster est joignable, mais le journal reste celui d'event_store. Une application qui sert une opération Nexus depuis un journal DBAL a besoin des deux — et il n'y a pas deux sources de vérité, puisque event_store dit laquelle.")
+            ->info("false : le cluster est joignable, mais le journal reste celui d'event_store. Une application qui sert une opération Nexus depuis un journal DBAL a besoin des deux, et il n'y a pas deux sources de vérité, puisque event_store dit laquelle.")
             ->end()
             ->end()
             ->end()

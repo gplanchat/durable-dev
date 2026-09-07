@@ -33,7 +33,7 @@ final class ResumeDeferral
     {
         if ($job->deferrals >= $this->maxDeferrals) {
             throw new \RuntimeException(\sprintf(
-                'Durable: gave up resuming %s — the per-execution lock was held on %d consecutive '
+                'Durable: gave up resuming %s: the per-execution lock was held on %d consecutive '
                 . 'attempts. Either a worker died holding it (the lock TTL releases it), or this '
                 . 'execution is resumed faster than it replays; raise durable.lock.backoff.',
                 $job->message->executionId,

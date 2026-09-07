@@ -100,7 +100,7 @@ final class DurableActivityFailedException extends \Exception
                 } catch (\Throwable $e) {
                     // DUR011: declared restore failed → documented fallback to fromActivityFailed (see error_log).
                     error_log(\sprintf(
-                        '[Gplanchat\Durable] restoreFromActivityFailureContext failed for %s: %s — using generic DurableActivityFailedException',
+                        '[Gplanchat\Durable] restoreFromActivityFailureContext failed for %s: %s; using generic DurableActivityFailedException',
                         $class,
                         $e->getMessage(),
                     ));
@@ -120,7 +120,7 @@ final class DurableActivityFailedException extends \Exception
         $namePart = '' !== $activityName ? $activityName . ' / ' : '';
 
         return \sprintf(
-            '[%s%s] attempt=%d — %s: %s',
+            '[%s%s] attempt=%d, %s: %s',
             $namePart,
             $activityId,
             $attempt,

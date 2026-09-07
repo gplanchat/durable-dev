@@ -204,7 +204,7 @@ class RuntimeFactory
 
         if ($settings === null) {
             throw new \RuntimeException(
-                'A journal worker needs a cluster to poll. Set durable/temporal/dsn in app/etc/env.php first — without it the journal lives in the process that writes it, and a worker would poll a queue that does not exist while looking perfectly healthy.',
+                'A journal worker needs a cluster to poll. Set durable/temporal/dsn in app/etc/env.php first; without it the journal lives in the process that writes it, and a worker would poll a queue that does not exist while looking perfectly healthy.',
             );
         }
 
@@ -284,7 +284,7 @@ class RuntimeFactory
 
         if ($settings === null) {
             throw new \RuntimeException(\sprintf(
-                '%s needs a cluster. Set durable/temporal/dsn in app/etc/env.php first — without it the journal lives in the process that writes it, and a worker would poll a queue that does not exist while looking perfectly healthy.',
+                '%s needs a cluster. Set durable/temporal/dsn in app/etc/env.php first; without it the journal lives in the process that writes it, and a worker would poll a queue that does not exist while looking perfectly healthy.',
                 $what,
             ));
         }

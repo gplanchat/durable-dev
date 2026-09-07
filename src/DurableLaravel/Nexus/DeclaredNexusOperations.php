@@ -99,7 +99,7 @@ final class DeclaredNexusOperations
 
             if (0 === $served) {
                 throw new \InvalidArgumentException(\sprintf(
-                    'Durable: %s serves none of the operations of %s — neither a method nor a workflow '
+                    'Durable: %s serves none of the operations of %s: neither a method nor a workflow '
                     . 'carrying #[FulfilsNexusOperation] answers for any of them. A handler that serves '
                     . 'nothing is a declaration nobody will notice is dead.',
                     $handlerClass,

@@ -54,7 +54,7 @@ final class DurableProfilerEventPresentation
         $parts = [];
         if ($isResume) {
             $parts[] = 'Reprise Messenger (WorkflowRunMessage)';
-            $parts[] = 'sans type dans le message — résolu au handler depuis les métadonnées';
+            $parts[] = 'sans type dans le message, résolu au handler depuis les métadonnées';
         } elseif ('' !== $wt) {
             $parts[] = 'Nouveau run « ' . $wt . ' » (WorkflowRunMessage)';
         } else {
@@ -299,7 +299,7 @@ final class DurableProfilerEventPresentation
 
         return [
             'title' => $technical,
-            'subtitle' => 'Événement du journal — voir le payload pour le détail.',
+            'subtitle' => 'Événement du journal, voir le payload pour le détail.',
             'category' => 'default',
             'technical' => $technical,
         ];

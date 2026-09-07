@@ -220,7 +220,7 @@ Le conteneur refuse de se construire, et nomme ce qui manque :
 
 ```
 durable.nexus_handler: a Nexus handler is declared, but this backend cannot route
-Nexus operations. Nexus needs the Temporal backend — set durable.temporal.dsn.
+Nexus operations. Nexus needs the Temporal backend: set durable.temporal.dsn.
 Declared by: app.charge.
 ```
 

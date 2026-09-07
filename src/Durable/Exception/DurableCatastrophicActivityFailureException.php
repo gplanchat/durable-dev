@@ -17,7 +17,7 @@ final class DurableCatastrophicActivityFailureException extends \RuntimeExceptio
     ) {
         parent::__construct(
             \sprintf(
-                '[%s] Catastrophic activity failure (%s): %s — %s (attempt %d, reason=%s)',
+                '[%s] Catastrophic activity failure (%s): %s, %s (attempt %d, reason=%s)',
                 $event->activityId(),
                 $event->activityName(),
                 $event->exceptionClass(),

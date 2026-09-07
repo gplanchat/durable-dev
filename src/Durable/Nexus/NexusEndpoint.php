@@ -49,7 +49,7 @@ final readonly class NexusEndpoint
         if (1 !== preg_match(self::PATTERN, $name)) {
             throw new \InvalidArgumentException(\sprintf(
                 'Nexus endpoint name "%s" does not match %s: it starts with a letter, continues with '
-                . 'letters, digits or hyphens, and ends with a letter or a digit — which also means a '
+                . 'letters, digits or hyphens, and ends with a letter or a digit, which also means a '
                 . 'single character is too short.',
                 addcslashes($name, "\0..\37\177"),
                 '^[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9]$',

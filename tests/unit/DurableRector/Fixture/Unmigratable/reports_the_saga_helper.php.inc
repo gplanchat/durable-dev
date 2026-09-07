@@ -26,7 +26,7 @@ class SagaWorkflow
 {
     public function run()
     {
-        // durable-rector: new Saga — no saga helper — the shape is a deadline and a compensation path, written out by hand
+        // durable-rector: new Saga: no saga helper; the shape is a deadline and a compensation path, written out by hand
         $saga = new Workflow\Saga();
 
         return $saga;

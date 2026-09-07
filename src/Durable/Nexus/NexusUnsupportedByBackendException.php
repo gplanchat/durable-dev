@@ -27,7 +27,7 @@ final class NexusUnsupportedByBackendException extends \RuntimeException
     public static function forHandlerOn(string $backend): self
     {
         return new self(\sprintf(
-            'A Nexus handler cannot be served by the %s backend: it has no route, so a handler registered here never receives anything — no error, no log line, a task queue nobody polls. Use the Temporal backend to serve Nexus operations.',
+            'A Nexus handler cannot be served by the %s backend: it has no route, so a handler registered here never receives anything: no error, no log line, a task queue nobody polls. Use the Temporal backend to serve Nexus operations.',
             $backend,
         ));
     }

@@ -127,8 +127,8 @@ final class InMemoryWorkflowRunCatalog implements WorkflowRunCatalogInterface, W
             true,
             'The in-memory catalog answers, and it only ever sees runs from this process: '
             . 'an empty list means nothing ran here, not that nothing ran. '
-            . 'Configure a backend that records outside this process — a SQL database, '
-            . 'or a Temporal cluster — to read the runs of every other one.',
+            . 'Configure a backend that records outside this process (a SQL database, '
+            . 'or a Temporal cluster) to read the runs of every other one.',
             new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
             // Troisième état : il répond, et sa réponse est vide par construction. Une surface a
             // besoin de le lire pour décider quoi afficher ; le dire dans le message ne suffisait

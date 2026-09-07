@@ -91,7 +91,7 @@ final class DiagnoseExecutionCommand extends Command
         }
 
         $io = new SymfonyStyle($input, $output);
-        $io->title('Diagnostic Durable — ' . $executionId);
+        $io->title('Diagnostic Durable: ' . $executionId);
 
         $io->section('Métadonnées workflow');
         if (null === $meta) {
@@ -127,7 +127,7 @@ final class DiagnoseExecutionCommand extends Command
             $io->text(\sprintf('Premiers événements (max %d) :', $limit));
             foreach ($sample as $i => $row) {
                 $io->writeln(\sprintf(
-                    '  %d. [%s] %s — %s',
+                    '  %d. [%s] %s: %s',
                     $i + 1,
                     $row['recordedAt'] ?? '?',
                     $row['type'],

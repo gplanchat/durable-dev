@@ -37,7 +37,7 @@ final class NexusContractResolver
         $attributes = (new \ReflectionClass($contract))->getAttributes(AsNexusService::class);
         if ([] === $attributes) {
             throw new \LogicException(\sprintf(
-                'Nexus contract "%s" declares no service name: add #[AsNexusService(\'…\')]. There is no fallback — the service name is what addresses an incoming task, and a name derived from the interface would be one the caller\'s endpoint never matches.',
+                'Nexus contract "%s" declares no service name: add #[AsNexusService(\'…\')]. There is no fallback: the service name is what addresses an incoming task, and a name derived from the interface would be one the caller\'s endpoint never matches.',
                 $contract,
             ));
         }

@@ -516,7 +516,7 @@ AFTER,
         $comments = $method->getComments();
         $comments[] = new Comment(
             '// ' . UnmigratableTemporalCallRector::MARKER
-            . ' a static method has no $this — move this to an instance method, or pass the environment in',
+            . ' a static method has no $this, so move this to an instance method, or pass the environment in',
         );
         $method->setAttribute('comments', $comments);
 
