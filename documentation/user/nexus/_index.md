@@ -6,14 +6,14 @@ weight: 29
 # Nexus operations
 
 Nexus lets a workflow call an operation owned by another team, another namespace, another
-deployment — without either side knowing the other's workflows. Durable does both roles: it
+deployment, without either side knowing the other's workflows. Durable does both roles: it
 **calls** operations, and it **serves** them.
 
 Serving requires the **Temporal backend**. The in-memory and DBAL backends have no cross-namespace
-route, and they say so rather than pretending — see [Backends](../backends/).
+route, and they say so rather than pretending; see [Backends](../backends/).
 
 That does not mean giving up a SQL journal. `durable.temporal.journal: false` says the cluster is
-reachable while `event_store` stays the source of truth — which is how a shop whose dashboard reads
+reachable while `event_store` stays the source of truth, which is how a shop whose dashboard reads
 DBAL serves a Nexus operation without that dashboard changing what it reads. Calling is the other
 way round: an operation is scheduled by a workflow, and a workflow can only schedule one if its
 journal **is** the cluster.
@@ -44,7 +44,7 @@ is a type error rather than an operation waiting for a handler whose name will n
 The endpoint is a parameter of the stub, not of the contract: it says *where* the service is served,
 which is a deployment concern and changes between environments, while the contract does not.
 
-`nexusStub()` assembles; `await()` waits. Same rule as everywhere else — see
+`nexusStub()` assembles; `await()` waits. Same rule as everywhere else; see
 [Creating a workflow](../workflows/).
 
 The payload travels **as you wrote it**. There is no Durable envelope around it, so a handler
@@ -53,7 +53,7 @@ written with the Go, Java or TypeScript SDK reads the fields it declares.
 That is also the constraint on what a contract may declare. The payload is plain JSON, keyed by
 parameter name, and it is decoded **associatively** on the other side. A parameter typed as an
 object would arrive as an array, and the handler would raise a `TypeError` at the moment it is
-called — not when you wrote the contract. Contracts therefore carry scalars and arrays. One PHP
+called, not when you wrote the contract. Contracts therefore carry scalars and arrays. One PHP
 detail is worth knowing: an *empty* associative array encodes as `[]` and not `{}`, so a field that
 can be empty needs a companion field saying whether to read it at all.
 
@@ -64,7 +64,7 @@ the operation, and the result arrives when it arrives.
 
 ## Serving an operation
 
-A handler implements the contract — or the part of it that it answers immediately:
+A handler implements the contract, or the part of it that it answers immediately:
 
 ```php
 use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
@@ -81,7 +81,7 @@ final class Billing implements BillingServed
 
 ### Why the contract comes in two pieces
 
-An operation fulfilled by a workflow has no handler body — the plumbing starts the workflow, and the
+An operation fulfilled by a workflow has no handler body: the plumbing starts the workflow, and the
 server delivers its result. So the contract splits: the interface a handler **implements**, and the
 one that **extends** it for the caller.
 
@@ -105,7 +105,7 @@ interface BillingContract extends BillingServed // + what a workflow fulfils
 final class Charge { /* … */ }
 ```
 
-Without the split, PHP would demand a body for `charge()` on the handler — an empty method whose only
+Without the split, PHP would demand a body for `charge()` on the handler, an empty method whose only
 job is to say there is nothing to write. The workflow claims the operation instead, where its code
 actually lives, and the caller's contract still declares everything so the stub can call it all.
 
@@ -114,10 +114,10 @@ actually lives, and the caller's contract still declares everything so the stub 
 There are two forms, and choosing between them is the one decision that matters.
 
 ```php
-// Now — the handler returns the contract's own type.
+// Now: the handler returns the contract's own type.
 public function verify(string $order): array { … }
 
-// Later — a workflow claims the operation, and produces the result.
+// Later: a workflow claims the operation, and produces the result.
 #[FulfilsNexusOperation(BillingContract::class, 'charge')]
 final class Charge { … }
 ```
@@ -125,11 +125,11 @@ final class Charge { … }
 **A handler has roughly nine seconds.** That is not the operation's budget, it is the budget for
 answering *this task*: the caller's `scheduleToClose` may be five minutes, but the task itself
 carries a `request-timeout` of about nine seconds. A handler still working when it expires has its
-task redelivered — and starts over. Measured redeliveries: ~9.9 s, ~20.7 s, ~33.6 s.
+task redelivered, and starts over. Measured redeliveries: ~9.9 s, ~20.7 s, ~33.6 s.
 
 So an implemented method is for a lookup, a validation, a computation you already know is fast.
 Anything that talks to a payment provider, waits on a human, or retries for a day belongs in a
-workflow — and that is what `#[FulfilsNexusOperation]` declares.
+workflow, and that is what `#[FulfilsNexusOperation]` declares.
 
 When you name a workflow, Durable starts it with the caller's callback attached, and the server
 delivers that workflow's result to the caller when it finishes. Your handler is not called again.
@@ -140,7 +140,7 @@ If the caller cancels, Durable cancels the workflow fulfilling the operation. Yo
 cancellation hook: your workflow already observes cancellation, and compensates, exactly as
 described in [Cancellation](../cancellation/).
 
-A cancellation only reaches a handler for an operation that has **started** — an operation still
+A cancellation only reaches a handler for an operation that has **started**; an operation still
 waiting for its first answer has nothing to cancel on your side.
 
 ### Failing
@@ -151,18 +151,18 @@ Raise, and the operation fails:
 throw new \RuntimeException('the payment provider is unreachable');
 ```
 
-An ordinary exception is reported as `INTERNAL`, which is **retryable** — the task comes back, up to
+An ordinary exception is reported as `INTERNAL`, which is **retryable**: the task comes back, up to
 the operation's budget. That is right for an outage and wrong for a bad request, which will never
 improve. For a terminal refusal, say which kind it is:
 
-| terminal — do not retry | retryable — try again |
+| terminal, do not retry | retryable, try again |
 |---|---|
 | `BAD_REQUEST`, `UNAUTHENTICATED`, `UNAUTHORIZED` | `RESOURCE_EXHAUSTED`, `INTERNAL` |
 | `NOT_FOUND`, `NOT_IMPLEMENTED`, `CONFLICT` | `UNAVAILABLE`, `UPSTREAM_TIMEOUT`, `REQUEST_TIMEOUT` |
 
 The line is *whose fault is it*. A malformed request or a missing right will not be fixed by
 retrying; an overload or an upstream timeout might. The table is nexus-rpc's, shared by every
-language SDK — not a Durable invention.
+language SDK, not a Durable invention.
 
 An operation nobody serves is answered `NOT_IMPLEMENTED`, terminal, and the worker keeps serving
 its other operations.
@@ -216,12 +216,12 @@ The container refuses to build, and names what is missing:
 
 ```
 durable.nexus_handler: a Nexus handler is declared, but this backend cannot route
-Nexus operations. Nexus needs the Temporal backend — set durable.temporal.dsn.
+Nexus operations. Nexus needs the Temporal backend, set durable.temporal.dsn.
 Declared by: app.encaisser.
 ```
 
 This is deliberate, and it is not how the caller side behaves. A call on a backend with no route
-fails at the call — you find out immediately. A *handler* with no route is not a call that fails, it
+fails at the call, so you find out immediately. A *handler* with no route is not a call that fails, it
 is a service that never receives anything, silently. There is no request left to fail, so the
 refusal happens when the application starts.
 
@@ -232,12 +232,12 @@ refusal happens when the application starts.
 The repository ships a demonstration where four Durable applications call each other, across three
 frameworks. What it shows is easier to read than to describe.
 
-| | `sylius/` — the shop | `symfony/` — the back office | `magento/` — the Magento bench | `laravel/` — the logistics |
+| | `sylius/`, the shop | `symfony/`, the back office | `magento/`, the Magento bench | `laravel/`, the logistics |
 |---|---|---|---|---|
 | namespace | `demo-boutique` | `demo-metier` | `demo-magento` | `demo-laravel` |
 | serves | `stock` (`reserver`) | `facturation` (`verifier`, `encaisser`) | **nothing** | `livraison` (`planifier`, `expedier`) |
 | calls | `facturation` | `stock` | all three services | `stock`, **from the workflow that serves** |
-| what declares the handler | a tag under `when@demo` | `#[AsNexusServiceHandler]` | — | six lines of `config/durable.php` |
+| what declares the handler | a tag under `when@demo` | `#[AsNexusServiceHandler]` | nothing | six lines of `config/durable.php` |
 
 All four read the same contract package. Nothing else travels between them.
 
@@ -283,7 +283,7 @@ as a feature of the bundle.
 
 The Magento bench has none of it. It wires services in `di.xml`, runs its worker with
 `bin/magento durable:worker --role=journal`, and reads its DSN from `app/etc/env.php`. It calls all
-three services — the immediate ones and the two a workflow fulfils — and **not one line was added to
+three services, the immediate ones and the two a workflow fulfils, and **not one line was added to
 the core, to the Temporal bridge or to `gplanchat/durable-magento`** to make that work.
 
 The reason is that the two sides are not symmetrical:
@@ -291,7 +291,7 @@ The reason is that the two sides are not symmetrical:
 - **Calling** needs a workflow whose journal is the cluster, and nothing else.
   `WorkflowEnvironment::nexusStub()` reads the contract by reflection; no container is involved.
 - **Serving** needs the host to register handlers and to poll a Nexus task queue. That is host work,
-  written once per host — a compile pass in Symfony, a config file in Laravel, and, for now, nothing
+  written once per host: a compile pass in Symfony, a config file in Laravel, and, for now, nothing
   in Magento.
 
 That asymmetry has a visible consequence in the cluster: four namespaces, **three endpoints**. An
@@ -311,7 +311,7 @@ $suivi = $this->environment->await($this->livraison->expedier($commande, $livrai
 were measured: an order in USD reserved the stock and *then* had its invoice refused, and an order
 of six parcels was *charged* before the logistics refused to carry it. None of the three contracts
 has an operation that gives back what it took. **Ask everything that can say no first, commit
-afterwards** — when an operation has no compensating counterpart, the order of the calls is the
+afterwards.** When an operation has no compensating counterpart, the order of the calls is the
 compensation.
 
 ### Serving is host work, and it is not Symfony work
@@ -332,20 +332,20 @@ transport. Here is the whole of the host wiring on a framework that has neither:
 
 `DeclaredNexusOperations` reads that file the way `NexusHandlerPass` reads Symfony's tags, through
 the same `NexusContractResolver` and the same `NexusHandlerInvoker`; `php artisan durable:nexus-worker`
-polls the queue. The handler class knows none of it — it implements `LivraisonServed` and says
+polls the queue. The handler class knows none of it: it implements `LivraisonServed` and says
 nothing about Nexus.
 
 ⚠ **The check that keeps this honest lives in the core, not in either host.** A fulfilling
 workflow whose required parameter matches nothing in the contract's signature is refused at
-registration, and the message names both signatures — because the payload is keyed by parameter name
-at both ends, and without that refusal the parameter would simply receive `null`. Symfony calls the
+registration, and the message names both signatures, because the payload is keyed by parameter name
+at both ends, and without that refusal the parameter would receive `null`. Symfony calls the
 check from its compile pass, Laravel from `durable.nexus.handlers`; it was written for the first host
 and moved the day it had a second.
 
 ### A workflow that serves can call
 
 `ExpedierWorkflow` fulfils `livraison/expedier`. Before releasing the goods it asks the shop for its
-verdict again, through `stock/reserver`, on an endpoint that is not its own — so one execution
+verdict again, through `stock/reserver`, on an endpoint that is not its own, so one execution
 carries an operation it serves and an operation it calls:
 
 ```
@@ -356,7 +356,7 @@ carries an operation it serves and an operation it calls:
 15  WorkflowExecutionCompleted
 ```
 
-Its workflow id is the **operation token** of the operation it fulfils — a workflow started by a
+Its workflow id is the **operation token** of the operation it fulfils; a workflow started by a
 Nexus task is not named by the application that runs it.
 
 The call is safe because `reserver` is idempotent per order id: the shop re-reads the decision it
@@ -364,13 +364,13 @@ made at order time instead of taking a new one, which is why the lines passed ar
 
 Prerequisites, the processes to start and the commands to run are in
 [`demo/README.md`](https://github.com/gplanchat/durable-dev/blob/main/demo/README.md). Two things to
-know before you start: a server that answers `Nexus APIs are disabled` will not do —
-`temporal server start-dev` will — and the four mockups do not run on the same PHP binary.
+know before you start: a server that answers `Nexus APIs are disabled` will not do, but
+`temporal server start-dev` will, and the four mockups do not run on the same PHP binary.
 
 ---
 
 ## See also
 
-- [Backends](../backends/) — which backend can route Nexus, and why the others refuse.
-- [Cancellation](../cancellation/) — what your fulfilling workflow does when the caller cancels.
-- [DUR045](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR045-serving-a-nexus-operation.md) — the decision record, and the measurements behind it.
+- [Backends](../backends/) says which backend can route Nexus, and why the others refuse.
+- [Cancellation](../cancellation/) covers what your fulfilling workflow does when the caller cancels.
+- [DUR045](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR045-serving-a-nexus-operation.md) is the decision record, and the measurements behind it.
