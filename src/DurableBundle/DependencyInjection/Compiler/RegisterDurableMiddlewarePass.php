@@ -8,21 +8,21 @@ use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
- * Insère les middlewares du bundle en tête de chaque bus Messenger.
+ * Inserts the bundle's middleware at the head of every Messenger bus.
  *
- * Messenger ne lit sa pile que dans le paramètre « busId ».middleware, posé par FrameworkExtension
- * et relu par MessengerPass. **Il n'existe pas de balise `messenger.middleware`** : rien n'appelle
- * `findTaggedServiceIds()` dessus et `UnusedTagsPass` ne la connaît pas. Un service qui la porte
- * est défini et jamais installé, en silence — c'est ce qui est arrivé au verrou de reprise du
- * backend DBAL, seule garde contre deux reprises concurrentes de la même exécution.
+ * Messenger only reads its stack from the "busId".middleware parameter, set by FrameworkExtension
+ * and read back by MessengerPass. **There is no `messenger.middleware` tag**: nothing calls
+ * `findTaggedServiceIds()` on it and `UnusedTagsPass` does not know it. A service that carries it
+ * is defined and never installed, silently — that is what happened to the DBAL backend's resume
+ * lock, the only guard against two concurrent resumes of the same execution.
  *
- * D'où une balise qui appartient au bundle, `durable.messenger.middleware`, et cette passe pour la
- * consommer. Le prochain middleware du bundle s'installe en la posant, sans y penser.
+ * Hence a tag that belongs to the bundle, `durable.messenger.middleware`, and this pass to consume
+ * it. The next middleware of the bundle installs itself by adding it, without a thought.
  *
- * L'ordre vient de l'attribut `priority`, décroissant : ce qui compte est que deux middlewares ne
- * dépendent pas de l'ordre d'itération du conteneur. Ils entrent en **tête** parce qu'un verrou
- * doit envelopper tout ce qui suit, y compris un `doctrine_transaction` — le relâcher avant le
- * commit rouvrirait la fenêtre qu'il ferme.
+ * The order comes from the `priority` attribute, descending: what matters is that two middleware
+ * do not depend on the container's iteration order. They go in at the **head** because a lock must
+ * wrap everything that follows, including a `doctrine_transaction` — releasing it before the
+ * commit would reopen the window it closes.
  */
 final class RegisterDurableMiddlewarePass implements CompilerPassInterface
 {
@@ -46,7 +46,7 @@ final class RegisterDurableMiddlewarePass implements CompilerPassInterface
                 continue;
             }
 
-            // `traceable` mesure le bus ; le laisser en tête garde ses mesures complètes.
+            // `traceable` measures the bus; leaving it at the head keeps its measurements whole.
             $at = $this->isTraceableFirst($middleware) ? 1 : 0;
             array_splice($middleware, $at, 0, array_map(
                 static fn(string $id): array => ['id' => $id],
@@ -67,8 +67,8 @@ final class RegisterDurableMiddlewarePass implements CompilerPassInterface
             $byPriority[] = [$tags[0]['priority'] ?? 0, $id];
         }
 
-        // Priorité décroissante, puis identifiant : deux middlewares de même priorité gardent un
-        // ordre stable d'une compilation à l'autre.
+        // Descending priority, then id: two middleware of the same priority keep a stable order from
+        // one compilation to the next.
         usort($byPriority, static fn(array $a, array $b): int => [$b[0], $a[1]] <=> [$a[0], $b[1]]);
 
         return array_column($byPriority, 1);

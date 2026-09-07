@@ -20,14 +20,14 @@ use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Transport\TransportInterface;
 
 /**
- * Trait PHPUnit pour les tests d'intégration Symfony avec le DurableBundle.
+ * PHPUnit trait for Symfony integration tests with the DurableBundle.
  *
- * À utiliser dans une classe qui étend {@see \Symfony\Bundle\FrameworkBundle\Test\KernelTestCase}.
+ * To be used in a class that extends {@see \Symfony\Bundle\FrameworkBundle\Test\KernelTestCase}.
  *
- * Pré-requis dans `config/packages/messenger.yaml` (env test) : transports Messenger in-memory
- * (ex. `durable_workflows: 'in-memory://'`, `durable_activities: 'in-memory://'`).
+ * Prerequisites in `config/packages/messenger.yaml` (test env): in-memory Messenger transports
+ * (e.g. `durable_workflows: 'in-memory://'`, `durable_activities: 'in-memory://'`).
  *
- * Usage :
+ * Usage:
  * ```php
  * final class MyWorkflowIntegrationTest extends KernelTestCase
  * {
@@ -48,16 +48,16 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
  */
 trait DurableBundleTestTrait
 {
-    /** @var list<string> Noms des transports Messenger à vider en mode test */
+    /** @var list<string> Names of the Messenger transports to drain in test mode */
     private static array $durableWorkflowTransports = ['durable_workflows', 'durable_activities'];
 
-    /** Durée max du drain (secondes) avant de déclarer l'échec */
+    /** Max drain duration (seconds) before declaring failure */
     private static float $durableMaxDrainSeconds = 30.0;
 
     /**
-     * Dispatch un workflow via le bus Messenger et retourne son executionId.
+     * Dispatches a workflow through the Messenger bus and returns its executionId.
      *
-     * Le workflow est identifié par sa classe PHP. Le type (alias) est résolu via
+     * The workflow is identified by its PHP class. The type (alias) is resolved through
      * {@see WorkflowDefinitionLoader}.
      *
      * @param class-string $workflowClass
@@ -75,12 +75,12 @@ trait DurableBundleTestTrait
     }
 
     /**
-     * Vide les transports Messenger (durable_workflows + durable_activities) jusqu'à ce que le
-     * workflow identifié par $executionId soit terminé ou que le timeout soit atteint.
+     * Drains the Messenger transports (durable_workflows + durable_activities) until the workflow
+     * identified by $executionId is finished or the timeout is reached.
      *
-     * À appeler après {@see dispatchWorkflow} dans un test en mode in-memory Messenger.
+     * To be called after {@see dispatchWorkflow} in a test running Messenger in-memory.
      *
-     * @throws \RuntimeException si le workflow ne se termine pas dans le délai imparti
+     * @throws \RuntimeException if the workflow does not finish within the allotted time
      */
     protected function drainMessengerUntilSettled(string $executionId): void
     {
@@ -122,9 +122,9 @@ trait DurableBundleTestTrait
             }
         }
 
-        // Vérification finale
+        // Final check
         if (null === WorkflowQueryEvaluator::lastExecutionResult($eventStore, $executionId)) {
-            // On autorise l'échec du workflow (WorkflowExecutionFailed)
+            // The workflow is allowed to fail (WorkflowExecutionFailed)
             $hasFailed = false;
             foreach ($eventStore->readStream($executionId) as $event) {
                 if ($event instanceof WorkflowExecutionFailed) {
@@ -145,7 +145,7 @@ trait DurableBundleTestTrait
     }
 
     /**
-     * Vérifie que le workflow s'est terminé avec le résultat attendu.
+     * Checks that the workflow finished with the expected result.
      */
     protected function assertWorkflowResultEquals(string $executionId, mixed $expectedResult): void
     {
@@ -169,7 +169,7 @@ trait DurableBundleTestTrait
     }
 
     /**
-     * Vérifie que le workflow a échoué.
+     * Checks that the workflow failed.
      *
      * @param class-string<\Throwable>|'' $expectedFailureClass
      */
@@ -198,9 +198,9 @@ trait DurableBundleTestTrait
     }
 
     /**
-     * Retourne le DataCollector Durable (panneau profiler).
+     * Returns the Durable DataCollector (profiler panel).
      *
-     * Nécessite que le kernel soit en mode debug et que le profiler soit activé.
+     * Requires the kernel to be in debug mode and the profiler to be enabled.
      */
     protected function getDataCollector(): DurableDataCollector
     {
@@ -208,7 +208,7 @@ trait DurableBundleTestTrait
     }
 
     /**
-     * Retourne l'EventStore du container de test.
+     * Returns the EventStore of the test container.
      */
     protected function getEventStoreService(): EventStoreInterface
     {

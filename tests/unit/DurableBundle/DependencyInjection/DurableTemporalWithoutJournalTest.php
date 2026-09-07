@@ -12,13 +12,13 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
- * Une application qui a besoin du cluster **sans** lui confier son journal.
+ * An application that needs the cluster **without** handing it the journal.
  *
- * Le cas vient d'une boutique qui sert une opération Nexus : servir exige une connexion Temporal,
- * mais son tableau de bord lit un journal DBAL et doit continuer à le lire. Jusqu'ici les deux
- * étaient déclarés exclusifs, et l'exclusion était juste tant que « DSN » voulait dire « le cluster
- * est le journal ». `temporal.journal: false` sépare les deux phrases : il n'y a toujours qu'une
- * source de vérité, et c'est `event_store` qui la nomme.
+ * The case comes from a store that serves a Nexus operation: serving requires a Temporal
+ * connection, but its dashboard reads a DBAL journal and has to keep reading it. Until now the two
+ * were declared mutually exclusive, and the exclusion was right as long as "DSN" meant "the
+ * cluster is the journal". `temporal.journal: false` separates the two statements: there is still
+ * only one source of truth, and it is `event_store` that names it.
  *
  * @see openspec/changes/demo-nexus-deux-applications/tasks.md §2.1
  */
@@ -39,8 +39,8 @@ final class DurableTemporalWithoutJournalTest extends TestCase
 
     public function testTheRefusalNamesTheWayOut(): void
     {
-        // Le mode d'échec que ce message évite : lire « exclusifs » et conclure qu'une boutique
-        // DBAL ne peut pas servir Nexus, alors qu'il lui manque une ligne.
+        // The failure mode this message avoids: reading "mutually exclusive" and concluding that a
+        // DBAL store cannot serve Nexus, when all it is missing is one line.
         try {
             $this->load([
                 'event_store' => ['type' => 'dbal'],
@@ -78,8 +78,8 @@ final class DurableTemporalWithoutJournalTest extends TestCase
             'temporal' => ['dsn' => self::DSN, 'journal' => false],
         ]);
 
-        // Ce que `NexusHandlerPass` lit pour savoir si ce backend sait router : sans lui, un
-        // gestionnaire déclaré est un service qui ne reçoit jamais rien.
+        // What `NexusHandlerPass` reads to know whether this backend can route: without it, a
+        // declared handler is a service that never receives anything.
         self::assertTrue($container->hasDefinition('durable.temporal.nexus_registry'));
         self::assertTrue($container->hasDefinition('durable.temporal.nexus_worker'));
         self::assertTrue($container->hasDefinition('durable.temporal.connection'));

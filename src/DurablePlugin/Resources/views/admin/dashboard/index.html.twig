@@ -75,7 +75,7 @@
                    is empty — painting it as a success would teach that nothing ran, which is false. #}
                 <div class="alert {% if not backend.available %}alert-warning{% elseif backend.ephemeral %}alert-info{% else %}alert-success{% endif %}" role="alert">
                     <div>{{ backend.message }}</div>
-                    {# The backend is named only when there is one: with no catalogue, naming a
+                    {# The backend is named only when there is one: with no catalog, naming a
                        server would send the operator down a false trail. #}
                     {% if backend.name is defined %}
                         <small class="text-secondary">{{ backend.name }} · checked at {{ backend.checkedAt|date('Y-m-d H:i:s', false) }}</small>
@@ -86,7 +86,7 @@
                     {# The scope is stated, and the scope is the point: a "Total" heading with twenty
                        under it teaches the operator that an application which recorded five hundred
                        runs has twenty. These counters cover the page on screen, because that is what
-                       the catalogue was asked to return. #}
+                       the catalog was asked to return. #}
                     <h2 class="h4 mb-0">Outcomes across the {{ kpis.total }} runs on this page</h2>
                     <div class="row row-cards">
                         {% for label, counter in {
