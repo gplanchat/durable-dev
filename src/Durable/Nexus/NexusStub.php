@@ -6,6 +6,7 @@ namespace Gplanchat\Durable\Nexus;
 
 use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Nexus\Serving\NexusContractResolver;
+use Gplanchat\Durable\Stub\StubArguments;
 
 /**
  * Proxy de planification côté appelant.
@@ -76,12 +77,6 @@ final class NexusStub
      */
     private function argumentsToPayload(string $methodName, array $arguments): array
     {
-        $payload = [];
-        foreach ((new \ReflectionMethod($this->contractClass, $methodName))->getParameters() as $i => $param) {
-            $payload[$param->getName()] = $arguments[$i]
-                ?? ($param->isDefaultValueAvailable() ? $param->getDefaultValue() : null);
-        }
-
-        return $payload;
+        return StubArguments::toPayload(new \ReflectionMethod($this->contractClass, $methodName), $arguments);
     }
 }

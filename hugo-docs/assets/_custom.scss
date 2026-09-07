@@ -3,7 +3,7 @@
 //
 // Porte le design de la page de documentation sur la structure du thème plutôt
 // que de la remplacer. La navigation, le sommaire, la recherche, les liens
-// d'édition et l'arbre des pages restent ceux de hugo-book — ils sont des
+// d'édition et l'arbre des pages restent ceux de hugo-book : ils sont des
 // données, pas du balisage, et le design les figeait en dur avec cinq slugs
 // faux. Ce qui se porte, c'est la palette, la typographie et les composants.
 //
@@ -184,7 +184,7 @@ body {
 // La NOTE prend le second accent, pas le premier. Elle portait `--dz-accent`,
 // c'est-à-dire la couleur des liens : dans une page qui en contient trente, un
 // aparté bordé de la même teinte se lit comme un lien de plus. C'est le rôle
-// qu'`accent2` tient déjà sur la page d'accueil — « Nexus · works today », le
+// qu'`accent2` tient déjà sur la page d'accueil, « Nexus · works today », le
 // panneau « With it » : ce qui s'ajoute au propos sans être le propos.
 
 .book-page .markdown blockquote {
@@ -214,7 +214,7 @@ body {
 }
 
 // --- Tableaux ------------------------------------------------------------
-// Ils servent de matrices de décision — gardé/abandonné, situation/commande —
+// Ils servent de matrices de décision (gardé/abandonné, situation/commande),
 // donc ils doivent se lire en diagonale.
 
 .book-page .markdown table {

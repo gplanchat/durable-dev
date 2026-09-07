@@ -7,15 +7,14 @@ namespace Gplanchat\Durable\Demo\Contracts\Stock;
 use Gplanchat\Durable\Attribute\AsNexusService;
 
 /**
- * Ce que l'appelant voit du service `stock`.
+ * What the caller sees of the `stock` service.
  *
- * Elle n'ajoute rien pour l'instant, et c'est volontaire. La séparation n'existe pas pour ce
- * qu'elle sépare aujourd'hui mais pour ce qu'elle laisse ajouter demain : une opération remplie par
- * un workflow se déclare **ici**, où le gestionnaire n'a pas à lui écrire de corps vide.
+ * It adds nothing for now, and that is deliberate. The split does not exist for what it separates
+ * today but for what it lets one add tomorrow: an operation fulfilled by a workflow is declared
+ * **here**, where the handler does not have to write an empty body for it.
  *
- * L'appelant lit donc toujours `StockContract`, y compris tant que les deux interfaces portent les
- * mêmes opérations — sans quoi le jour où l'une diverge, c'est chaque appelant qu'il faudrait
- * retoucher.
+ * The caller therefore always reads `StockContract`, including while both interfaces carry the same
+ * operations — otherwise the day one of them diverges, every caller would need touching.
  */
 #[AsNexusService('stock')]
 interface StockContract extends StockServed {}

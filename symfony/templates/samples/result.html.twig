@@ -15,7 +15,7 @@
 
     <div class="stack">
         <div class="result-card">
-            <div class="result-card-header">Exécution</div>
+            <div class="result-card-header">Execution</div>
             <div class="result-card-body">
                 <dl class="meta-list">
                     <dt>Type</dt>
@@ -25,7 +25,7 @@
                     <dt>Mode</dt>
                     <dd>
                         {% if waitedForCompletion %}
-                            ▶ Synchrone — résultat disponible
+                            ▶ Synchronous — result available
                         {% else %}
                             ⚡ Async — fire &amp; forget
                         {% endif %}
@@ -36,14 +36,14 @@
 
         {% if waitedForCompletion %}
             <div class="result-card">
-                <div class="result-card-header">Résultat</div>
+                <div class="result-card-header">Result</div>
                 <div class="result-card-body">
                     <pre>{% if result is iterable %}{{ result|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}{% else %}{{ result }}{% endif %}</pre>
                 </div>
             </div>
         {% else %}
             <div class="alert alert-info">
-                Workflow dispatché en mode async. Lancez des workers pour l'exécution :
+                Workflow dispatched in async mode. Start workers to execute it:
                 <br><code>php bin/console messenger:consume durable_workflows durable_activities</code>
                 <br>Pour suivre le journal dans le profiler : <code>?durable_execution={{ executionId }}</code>
             </div>
