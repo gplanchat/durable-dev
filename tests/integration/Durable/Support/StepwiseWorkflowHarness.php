@@ -13,8 +13,8 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 
 /**
- * Pilote un workflow en mode distribué (suspension à chaque await) pour les tests :
- * start / resume explicites et drainage unitaire de la file d'activités.
+ * Drives a workflow in distributed mode (suspension on every await) for the tests:
+ * explicit start / resume and one-at-a-time draining of the activity queue.
  */
 final class StepwiseWorkflowHarness
 {
@@ -61,7 +61,7 @@ final class StepwiseWorkflowHarness
     }
 
     /**
-     * @return bool true si le workflow est suspendu (activité ou timer en attente)
+     * @return bool true if the workflow is suspended (activity or timer pending)
      */
     public function start(string $executionId, callable $handler): bool
     {
@@ -75,7 +75,7 @@ final class StepwiseWorkflowHarness
     }
 
     /**
-     * @return bool true si encore suspendu après cette reprise
+     * @return bool true if still suspended after this resume
      */
     public function resume(string $executionId, callable $handler): bool
     {
@@ -89,7 +89,7 @@ final class StepwiseWorkflowHarness
     }
 
     /**
-     * Exécute au plus une activité présente dans la file (un dequeue + complétion + journal).
+     * Executes at most one activity present in the queue (one dequeue + completion + journal).
      */
     public function drainOneQueuedActivity(string $executionId): bool
     {

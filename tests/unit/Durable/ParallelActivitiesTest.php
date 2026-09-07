@@ -15,7 +15,7 @@ use unit\Durable\Fixtures\SuiteActivities;
 /**
  * Verifies parallel activity execution via WorkflowEnvironment::all() / parallel().
  *
- * Key property under test: when a workflow calls `all($a, $b)` sur deux requêtes de stub,
+ * Key property under test: when a workflow calls `all($a, $b)` on two stub requests,
  * both schedule commands must be issued in the SAME workflow task (before the first fiber suspend),
  * and both results must be available when both activities have completed.
  */

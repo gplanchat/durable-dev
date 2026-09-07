@@ -24,8 +24,8 @@ use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Discriminant `retryState` sur {@see ActivityFailed} + trace des tentatives intermédiaires
- * via {@see ActivityTaskFailed}, et sémantique « nombre total de tentatives » de maxAttempts.
+ * The `retryState` discriminant on {@see ActivityFailed} + the trace of the intermediate attempts
+ * through {@see ActivityTaskFailed}, and the "total number of attempts" semantics of maxAttempts.
  */
 final class ActivityRetryStateTest extends TestCase
 {
@@ -40,7 +40,7 @@ final class ActivityRetryStateTest extends TestCase
             throw new \RuntimeException('boom');
         }, new ActivityOptions(RetryLimit::ofAttempts(3), initialInterval: Duration::seconds(0.0)));
 
-        // RetryLimit::ofAttempts(3) => 3 exécutions au total (Temporal), pas 4.
+        // RetryLimit::ofAttempts(3) => 3 executions in total (Temporal), not 4.
         self::assertSame(3, $runs);
 
         $failed = $this->lastFailure($store);
@@ -49,7 +49,7 @@ final class ActivityRetryStateTest extends TestCase
         self::assertTrue($failed->isStalled());
         self::assertSame(3, $failed->failureAttempt());
 
-        // Une tentative intermédiaire échouée laisse une trace, avec sa raison.
+        // A failed intermediate attempt leaves a trace, with its reason.
         $intermediate = $this->taskFailures($store);
         self::assertCount(3, $intermediate);
         self::assertSame(ActivityRetryState::InProgress, $intermediate[0]->retryState());
@@ -60,8 +60,8 @@ final class ActivityRetryStateTest extends TestCase
 
     public function testNoMaxAttemptsMeansUnlimitedRetriesLikeTemporal(): void
     {
-        // Sémantique Temporal : une RetryPolicy sans maximum_attempts retente indéfiniment.
-        // L'in-memory échouait au contraire dès la première tentative.
+        // Temporal semantics: a RetryPolicy with no maximum_attempts retries indefinitely.
+        // The in-memory one, on the contrary, failed from the very first attempt.
         $store = new InMemoryEventStore();
         $transport = new InMemoryActivityTransport();
         $runs = 0;
@@ -71,14 +71,14 @@ final class ActivityRetryStateTest extends TestCase
             throw new \RuntimeException('boom');
         }, new ActivityOptions(initialInterval: Duration::seconds(0.0)), maxDrain: 6, expectTermination: false);
 
-        self::assertSame(7, $runs, 'aucune borne : chaque passe rejoue l’activité');
-        self::assertNull($this->lastFailure($store), 'aucune issue terminale tant que ça retente');
+        self::assertSame(7, $runs, 'no bound: every pass replays the activity');
+        self::assertNull($this->lastFailure($store), 'no terminal outcome as long as it keeps retrying');
         self::assertFalse(ActivityEventJournal::hasTerminalOutcomeForActivity($store, 'exec-1', 'act-1'));
     }
 
     public function testBundleRetryCeilingStillBoundsAnActivityWithoutOptions(): void
     {
-        // `max_activity_retries` reste un plafond quand l'activité n'en fixe pas.
+        // `max_activity_retries` stays a cap when the activity sets none.
         $store = new InMemoryEventStore();
         $runs = 0;
         $executor = new RegistryActivityExecutor();
@@ -103,14 +103,14 @@ final class ActivityRetryStateTest extends TestCase
             $processor->process($next);
         }
 
-        self::assertSame(3, $runs, '2 retentatives = 3 tentatives au total');
+        self::assertSame(3, $runs, '2 retries = 3 attempts in total');
         self::assertSame(ActivityRetryState::MaximumAttemptsReached, $this->lastFailure($store)?->retryState());
     }
 
     public function testBackoffIsCappedAtTheTemporalDefaultInterval(): void
     {
-        // Sans plafond explicite, un backoff exponentiel illimité diverge : le défaut Temporal
-        // est 100 x l'intervalle initial.
+        // With no explicit cap, an unlimited exponential backoff diverges: the Temporal default
+        // is 100 x the initial interval.
         $options = new ActivityOptions(initialInterval: Duration::seconds(1.0), backoffCoefficient: 2.0);
 
         self::assertSame(1.0, $options->retryDelayBeforeAttempt(2)->toSeconds());
@@ -159,9 +159,9 @@ final class ActivityRetryStateTest extends TestCase
 
     public function testTransportDelegatedRetryKeepsRealExceptionAndStaysNonTerminal(): void
     {
-        // Worker Temporal natif : le retry appartient au serveur. L'échec journalisé doit
-        // porter la vraie classe d'exception (sinon nonRetryableErrorTypes ne matche jamais)
-        // et ne doit pas court-circuiter la tentative suivante.
+        // Native Temporal worker: the retry belongs to the server. The journaled failure must
+        // carry the real exception class (otherwise nonRetryableErrorTypes never matches)
+        // and must not short-circuit the next attempt.
         $store = new InMemoryEventStore();
         $this->drain($store, new NoopActivityTransport(), static function (): never {
             throw new \DomainException('real cause');
@@ -177,9 +177,9 @@ final class ActivityRetryStateTest extends TestCase
 
     public function testTransportDelegatedRetryAppliesWithoutAnyLocalRetryPolicy(): void
     {
-        // Configuration par défaut : aucune option, `max_activity_retries` à 0. Le décompte de
-        // tentatives PHP dit « plus de retentative », mais sous Noop c'est le serveur Temporal qui
-        // décide — un échec terminal ici empêcherait le worker de rejouer la tentative suivante.
+        // Default configuration: no options, `max_activity_retries` at 0. The PHP attempt count
+        // says "no more retries", but under Noop it is the Temporal server that decides — a
+        // terminal failure here would stop the worker from replaying the next attempt.
         $store = new InMemoryEventStore();
         $this->drain($store, new NoopActivityTransport(), static function (): never {
             throw new \RuntimeException('transient');
@@ -206,8 +206,8 @@ final class ActivityRetryStateTest extends TestCase
 
     public function testSyncInMemoryDrainHonorsNonRetryableExceptions(): void
     {
-        // Le drain synchrone (InMemoryWorkflowRunner) ignorait les ActivityOptions :
-        // une exception déclarée non-retryable y était retentée quand même.
+        // The synchronous drain (InMemoryWorkflowRunner) ignored the ActivityOptions:
+        // an exception declared non-retryable was retried there all the same.
         $store = new InMemoryEventStore();
         $transport = new InMemoryActivityTransport();
         $executor = new RegistryActivityExecutor();
@@ -229,14 +229,14 @@ final class ActivityRetryStateTest extends TestCase
         );
         $runtime->runUntilIdle($context);
 
-        self::assertSame(1, $runs, 'une exception non-retryable ne doit pas être retentée');
+        self::assertSame(1, $runs, 'a non-retryable exception must not be retried');
         self::assertSame(
             ['ActivityTaskStarted', 'ActivityTaskFailed', 'ActivityFailed'],
             array_map(
                 static fn(object $e): string => (new \ReflectionClass($e))->getShortName(),
                 iterator_to_array($store->readStream('exec-1'), false),
             ),
-            'le drain synchrone doit produire le même trio de marqueurs que le chemin Messenger',
+            'the synchronous drain must produce the same trio of markers as the Messenger path',
         );
         $failed = $this->lastFailure($store);
         self::assertNotNull($failed);

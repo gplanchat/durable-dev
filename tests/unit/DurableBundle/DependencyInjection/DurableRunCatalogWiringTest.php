@@ -17,22 +17,23 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
- * Quel catalogue d'exécutions le conteneur expose, selon le backend configuré.
+ * Which execution catalog the container exposes, depending on the configured backend.
  *
- * Le troisième cas a changé de réponse, et l'argument qu'il portait mérite d'être gardé plutôt
- * qu'effacé. Il disait : sans backend lisible, **rien** ne doit être enregistré, parce qu'un
- * catalogue qui ne sait rien lire afficherait une page vide là où l'exploitant doit lire « aucun
- * backend lisible n'est configuré » — et l'in-memory était ce cas, son journal vivant et mourant
- * avec le processus qui sert la requête.
+ * The third case changed its answer, and the argument it carried deserves to be kept rather than
+ * erased. It said: without a readable backend, **nothing** must be registered, because a catalog
+ * that can read nothing would display an empty page where the operator must read "no readable
+ * backend is configured" — and in-memory was that case, its journal living and dying with the
+ * process that serves the request.
  *
- * La moitié qui tient toujours : sous PHP-FPM, la requête qui rend la page n'a rien exécuté, donc
- * la liste sera vide. La moitié qui ne tient plus : « vide » et « illisible » ne se confondent plus,
- * parce que {@see \Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog::checkHealth()} porte la
- * raison dans son message et que le gabarit l'affiche. Et sur un worker long, le catalogue voit ce
- * que son processus a exécuté.
+ * The half that still holds: under PHP-FPM, the request that renders the page has executed
+ * nothing, so the list will be empty. The half that no longer holds: "empty" and "unreadable" are
+ * no longer confused with one another,
+ * because {@see \Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog::checkHealth()} carries the
+ * reason in its message and the template displays it. And on a long-lived worker, the catalog sees
+ * what its process has executed.
  *
- * Ce qui reste vrai des trois cas : le catalogue in-memory ne s'enregistre qu'**en dernier**, si
- * personne n'a rien posé avant lui.
+ * What stays true of all three cases: the in-memory catalog registers itself only **last**, if
+ * nobody has laid anything down before it.
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/tasks.md §6.1
  * @see DUR037
@@ -63,12 +64,12 @@ final class DurableRunCatalogWiringTest extends TestCase
         self::assertSame(
             ProjectingEventStore::class,
             $container->findDefinition(EventStoreInterface::class)->getClass(),
-            'sans décoration du journal, aucune issue ne serait jamais projetée',
+            'without decorating the journal, no outcome would ever be projected',
         );
         self::assertSame(
             ProjectingWorkflowMetadataStore::class,
             $container->findDefinition(WorkflowMetadataStore::class)->getClass(),
-            'sans décoration des métadonnées, aucune exécution ne serait jamais nommée',
+            'without decorating the metadata, no execution would ever be named',
         );
     }
 
@@ -103,10 +104,10 @@ final class DurableRunCatalogWiringTest extends TestCase
     }
 
     /**
-     * Le risque du câblage n'est pas qu'un service manque : c'est que trois services corrects
-     * pointent sur deux objets différents. Les décorateurs doivent alimenter **le** catalogue que
-     * la page lira, et le catalogue doit lire le journal **non décoré** — sinon le conteneur
-     * boucle.
+     * The risk in the wiring is not that a service is missing: it is that three correct services
+     * point at two different objects. The decorators must feed **the** catalog the page will
+     * read, and the catalog must read the **undecorated** journal — otherwise the container
+     * loops.
      */
     public function testTheThreeInMemoryServicesShareOneCatalogAndOneJournal(): void
     {
@@ -119,22 +120,22 @@ final class DurableRunCatalogWiringTest extends TestCase
         self::assertSame(
             'durable.run_catalog.in_memory',
             (string) $journal->getArgument(1),
-            'le journal doit alimenter le catalogue que la page lit',
+            'the journal must feed the catalog the page reads',
         );
         self::assertSame(
             'durable.run_catalog.in_memory',
             (string) $metadata->getArgument(1),
-            'les métadonnées doivent nommer les exécutions dans ce même catalogue',
+            'the metadata must name the executions in that same catalog',
         );
         self::assertSame(
             'durable.event_store.inner',
             (string) $catalog->getArgument(0),
-            'le catalogue lit le journal non décoré : lire le décorateur ferait boucler le conteneur',
+            'the catalog reads the undecorated journal: reading the decorator would make the container loop',
         );
         self::assertSame(
             'durable.event_store.inner',
             (string) $journal->getArgument(0),
-            'et c\'est le même journal que le décorateur enveloppe',
+            'and it is the same journal that the decorator wraps',
         );
     }
 
@@ -145,7 +146,7 @@ final class DurableRunCatalogWiringTest extends TestCase
         self::assertSame(
             TemporalWorkflowRunCatalog::class,
             $container->findDefinition(WorkflowRunCatalogInterface::class)->getClass(),
-            'le repli ne doit prendre la main que si personne n\'a rien posé',
+            'the fallback must take over only if nobody has laid anything down',
         );
     }
 

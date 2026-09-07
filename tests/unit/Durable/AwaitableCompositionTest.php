@@ -14,16 +14,15 @@ use PHPUnit\Framework\TestCase;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
- * Les assembleurs rendent un {@see Awaitable} : c'est ce qui permet de les border par une
- * échéance et de les emboîter. Un assembleur qui attendait à votre place ne savait faire ni
- * l'un ni l'autre.
+ * The assemblers return an {@see Awaitable}: that is what makes it possible to bound them with a
+ * deadline and to nest them. An assembler that waited on your behalf could do neither.
  */
 final class AwaitableCompositionTest extends TestCase
 {
     public function testAnAssembledWaitCanItselfBeBounded(): void
     {
-        // Inécrivable tant que all() rendait un tableau : la valeur était déjà là quand on
-        // aurait voulu la borner.
+        // Unwritable as long as all() returned an array: the value was already there by the time
+        // one would have wanted to bound it.
         $env = WorkflowTestEnvironment::inMemory([
             'fast' => static fn(): string => 'a',
             'slow' => static fn(): string => 'b',
@@ -63,8 +62,8 @@ final class AwaitableCompositionTest extends TestCase
 
     public function testANestedRaceCancelsItsLoserExactlyOnce(): void
     {
-        // isSettled() est interrogé en boucle par le moteur. Si le décompte d'un quorum
-        // déballait ses membres, la course imbriquée annoncerait son perdant à chaque tour.
+        // isSettled() is queried in a loop by the engine. If a quorum's tally unwrapped its
+        // members, the nested race would announce its loser on every engine turn.
         $env = WorkflowTestEnvironment::inMemory(['fast' => static fn(): string => 'winner']);
         $store = $env->getEventStore();
 
@@ -99,8 +98,8 @@ final class AwaitableCompositionTest extends TestCase
 
     public function testADeadlineOnAnAssemblyReachesTheActivitiesInsideIt(): void
     {
-        // La marche d'annulation doit descendre dans le composite : s'arrêter au premier
-        // niveau laissait les deux activités en file, hors de portée de l'échéance.
+        // The cancellation walk must descend into the composite: stopping at the first level
+        // left both activities in the queue, out of reach of the deadline.
         $env = WorkflowTestEnvironment::inMemory([
             'never' => static fn(): string => 'unreachable',
         ]);
@@ -114,21 +113,21 @@ final class AwaitableCompositionTest extends TestCase
                 ),
                 'compose-3',
             );
-            self::fail("l'échéance devait l'emporter");
+            self::fail('the deadline was to win');
         } catch (DeadlineExceededException) {
-            // attendu
+            // expected
         }
 
         $cancelled = $this->cancelledTimers($store, 'compose-3');
 
-        // Les deux minuteurs bornés, et eux seuls : celui de l'échéance a tiré, il n'y a rien
-        // à y retirer. Avant que la marche d'annulation ne descende dans le composite, aucun
-        // des deux n'était atteint et tous deux restaient en file.
-        self::assertCount(2, $cancelled, 'les branches internes doivent être retirées de la file');
+        // The two bounded timers, and them alone: the deadline's own one has fired, there is
+        // nothing left to withdraw there. Before the cancellation walk descended into the
+        // composite, neither of the two was reached and both stayed in the queue.
+        self::assertCount(2, $cancelled, 'the inner branches must be withdrawn from the queue');
     }
 
     // -------------------------------------------------------------------------
-    // some() : le quorum
+    // some(): the quorum
     // -------------------------------------------------------------------------
 
     public function testAQuorumSettlesOnTheCountAskedFor(): void
@@ -147,14 +146,14 @@ final class AwaitableCompositionTest extends TestCase
 
         self::assertIsArray($result);
         self::assertCount(3, $result);
-        // Indexé par la position de déclaration : l'appelant sait lesquels ont répondu.
+        // Indexed by declaration position: the caller knows which ones answered.
         self::assertSame([0, 1, 2], array_keys($result));
     }
 
     public function testAFailingMemberDoesNotCountTowardsTheQuorum(): void
     {
-        // Le quorum existe pour survivre à des membres qui tombent : compter les échecs le
-        // rendrait strictement pire qu'un all().
+        // The quorum exists to survive members that fall over: counting the failures would make
+        // it strictly worse than an all().
         $env = WorkflowTestEnvironment::inMemory([
             'boom' => static fn(): never => throw new \RuntimeException('provider down'),
             'ok' => static fn(array $p): string => 'quote-' . ($p['n'] ?? '?'),
@@ -176,8 +175,8 @@ final class AwaitableCompositionTest extends TestCase
 
     public function testAnUnreachableQuorumFailsRatherThanHangs(): void
     {
-        // Trois pannes sur quatre : le quorum de deux ne peut plus tomber. Ne rien relever
-        // serait une exécution suspendue pour toujours.
+        // Three breakdowns out of four: the quorum of two can no longer fall. Raising nothing
+        // would be an execution suspended forever.
         $env = WorkflowTestEnvironment::inMemory([
             'boom' => static fn(): never => throw new \RuntimeException('provider down'),
             'ok' => static fn(): string => 'quote',

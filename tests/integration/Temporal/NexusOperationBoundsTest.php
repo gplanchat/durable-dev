@@ -33,22 +33,21 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Sonde, et non fonctionnalité : §1.3 demande si les trois bornes d'une opération Nexus se
- * comportent comme celles d'une activité, **réécritures silencieuses comprises**. Il y en a une, et
- * c'est le résultat qui compte ici.
+ * A probe, not a feature: §1.3 asks whether the three bounds of a Nexus operation behave like an
+ * activity's, **silent rewrites included**. There is one, and that is the result that counts here.
  *
- * Mesuré contre Temporal 1.31.2 :
+ * Measured against Temporal 1.31.2:
  *
- * - une durée négative est refusée sur chacune des trois, et le message NOMME le champ fautif ;
- * - une sous-borne plus grande que `scheduleToClose` est **rabotée à sa valeur, sans un mot** :
- *   demander 60 s de `startToClose` sous 10 s de `scheduleToClose` fait enregistrer 10 s ;
- * - `scheduleToClose = 0` ne rabote rien : c'est « pas de borne », pas « zéro seconde » ;
- * - une borne omise reste absente de l'événement — le serveur n'en invente pas.
+ * - a negative duration is refused on each of the three, and the message NAMES the faulty field;
+ * - a sub-bound larger than `scheduleToClose` is **clamped down to its value, without a word**:
+ *   asking for 60 s of `startToClose` under 10 s of `scheduleToClose` records 10 s;
+ * - `scheduleToClose = 0` clamps nothing: it means "no bound", not "zero seconds";
+ * - an omitted bound stays absent from the event — the server invents none.
  *
- * Ce que cela impose à `NexusOperationTimeouts` : rendre la réécriture visible à la construction
- * plutôt que la laisser se produire côté serveur. Un objet-valeur qui accepte 60/10 et laisse
- * l'utilisateur croire à 60 reproduit exactement la classe de fautes que `ActivityTimeouts` a été
- * écrite pour rendre impossible.
+ * What this imposes on `NexusOperationTimeouts`: make the rewrite visible at construction rather
+ * than letting it happen on the server side. A value object that accepts 60/10 and lets the user
+ * believe in 60 reproduces exactly the class of faults `ActivityTimeouts` was written to make
+ * impossible.
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §1.3
  */
@@ -71,7 +70,7 @@ final class NexusOperationBoundsTest extends TestCase
     {
         $address = getenv('DURABLE_TEMPORAL_ADDRESS');
         if (false === $address || '' === $address) {
-            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS non défini : pas de serveur Temporal.');
+            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS not set: no Temporal server.');
         }
 
         $queue = 'nexus-bounds-' . bin2hex(random_bytes(5));
@@ -146,14 +145,14 @@ final class NexusOperationBoundsTest extends TestCase
 
         $error = $this->schedule(...$bounds);
 
-        self::assertIsString($error, 'Une durée négative a été acceptée.');
+        self::assertIsString($error, 'A negative duration was accepted.');
         self::assertStringContainsString('negative duration', $error);
-        self::assertStringContainsString($field, $error, 'Le message ne nomme pas la borne fautive.');
+        self::assertStringContainsString($field, $error, 'The message does not name the faulty bound.');
     }
 
     public function testASubBoundLargerThanScheduleToCloseIsSilentlyRewrittenDownToIt(): void
     {
-        // Le cœur de §1.3 : demander plus que l'enveloppe et l'obtenir rabotée, sans erreur.
+        // The core of §1.3: asking for more than the envelope and getting it clamped, no error.
         $scheduled = $this->schedule(10, 60, 60);
 
         self::assertInstanceOf(NexusOperationScheduledEventAttributes::class, $scheduled);
@@ -161,12 +160,12 @@ final class NexusOperationBoundsTest extends TestCase
         self::assertSame(
             10,
             $scheduled->getScheduleToStartTimeout()?->getSeconds(),
-            'scheduleToStart n’a pas été raboté à scheduleToClose.',
+            'scheduleToStart was not clamped down to scheduleToClose.',
         );
         self::assertSame(
             10,
             $scheduled->getStartToCloseTimeout()?->getSeconds(),
-            'startToClose n’a pas été raboté à scheduleToClose.',
+            'startToClose was not clamped down to scheduleToClose.',
         );
     }
 
@@ -179,7 +178,7 @@ final class NexusOperationBoundsTest extends TestCase
         self::assertSame(
             30,
             $scheduled->getScheduleToStartTimeout()?->getSeconds(),
-            'Zéro a été traité comme une enveloppe de zéro seconde et a tout raboté.',
+            'Zero was treated as a zero-second envelope and clamped everything.',
         );
     }
 
@@ -194,23 +193,23 @@ final class NexusOperationBoundsTest extends TestCase
     }
 
     /**
-     * Planifie l'opération et relit son événement.
-     * Rend les attributs enregistrés, ou le message du serveur s'il a refusé.
+     * Schedules the operation and reads its event back.
+     * Returns the recorded attributes, or the server's message if it refused.
      */
     public function testTheWorkflowRunIsASecondOuterEnvelopeThatAlsoClampsSilently(): void
     {
-        // `scheduleToClose` est l'enveloppe des trois bornes, mais il en existe une **seconde**,
-        // par-dessus : la durée de l'exécution elle-même. Un appelant peut donc composer un jeu de
-        // bornes parfaitement cohérent entre elles et se les faire rogner quand même, sans erreur.
-        // C'est la question que §1.3 posait — « comme les activités ? » — et la réponse est oui
-        // jusque-là aussi.
+        // `scheduleToClose` is the envelope of the three bounds, but there is a **second** one on
+        // top of it: the duration of the execution itself. A caller can therefore compose a set of
+        // bounds perfectly consistent with each other and still have them trimmed, without error.
+        // That is the question §1.3 asked — "like the activities?" — and the answer is yes there
+        // too.
         $attrs = $this->schedule(3600, null, null, runTimeout: 60);
 
         self::assertInstanceOf(NexusOperationScheduledEventAttributes::class, $attrs);
         self::assertSame(
             60,
             (int) $attrs->getScheduleToCloseTimeout()?->getSeconds(),
-            'Une heure demandée sous une exécution bornée à une minute devrait être rabattue.',
+            'One hour asked for under an execution bounded to one minute should be brought down.',
         );
     }
 
@@ -262,7 +261,7 @@ final class NexusOperationBoundsTest extends TestCase
         $pair = $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000])->wait();
         $code = (int) ($pair[1]->code ?? -1);
         if (0 !== $code) {
-            self::assertSame(self::GRPC_INVALID_ARGUMENT, $code, 'Refus pour un autre motif qu’un argument invalide.');
+            self::assertSame(self::GRPC_INVALID_ARGUMENT, $code, 'Refused for a reason other than an invalid argument.');
 
             return (string) ($pair[1]->details ?? '');
         }

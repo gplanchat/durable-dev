@@ -28,8 +28,8 @@ enum DispatchSignal: string
 }
 
 /**
- * AsWorkflow de classe : le handler est déclaré par attribut, et l'état qu'il mute est celui que
- * le corps observe.
+ * Class-level AsWorkflow: the handler is declared by attribute, and the state it mutates is the
+ * one the body observes.
  */
 #[AsWorkflow('Approval')]
 final class ApprovalWorkflow
@@ -60,19 +60,19 @@ final class ApprovalWorkflow
 }
 
 /**
- * Dispatch des handlers de signal et d'update — bloc 3 du change
+ * Dispatch of the signal and update handlers — block 3 of the change
  * workflow-conditions-and-handler-dispatch.
  *
- * Note aux relectures : ce fichier est ROUGE par construction, `onSignal()` et le dispatch de
- * `#[AsSignalMethod]` arrivant au bloc 5. Deux exceptions assumées : le cas 3.3 passe au vert sans
- * une ligne de code neuve — un signal que personne ne consomme dort déjà dans l'historique — et
- * les deux cas d'update sont explicitement incomplets, faute d'une décision de transport qui
- * appartient au bloc 5.
+ * Note for reviewers: this file is RED by construction, `onSignal()` and the dispatch of
+ * `#[AsSignalMethod]` arriving at block 5. Two acknowledged exceptions: case 3.3 turns green
+ * without a single new line of code — a signal nobody consumes already sleeps in the history — and
+ * the two update cases are explicitly incomplete, for want of a transport decision that belongs to
+ * block 5.
  */
 final class WorkflowHandlerDispatchTest extends TestCase
 {
     // -------------------------------------------------------------------------
-    // 3.1 / 3.2 — les deux façons de déclarer un handler
+    // 3.1 / 3.2 — the two ways of declaring a handler
     // -------------------------------------------------------------------------
 
     public function testAnAnnotatedMethodHandlesTheSignalItNames(): void
@@ -108,12 +108,12 @@ final class WorkflowHandlerDispatchTest extends TestCase
             return $approvals;
         });
 
-        // Même journal, même résultat : les deux formes de déclaration produisent le même dispatch.
+        // Same journal, same result: both declaration forms produce the same dispatch.
         self::assertSame([['by' => 'alice']], $result);
     }
 
     // -------------------------------------------------------------------------
-    // 3.3 — un message sans handler
+    // 3.3 — a message with no handler
     // -------------------------------------------------------------------------
 
     public function testAMessageWithNoDeclaredHandlerIsRecordedAndIgnored(): void
@@ -129,7 +129,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // 3.4 / 3.5 / 3.6 — ordre, répétition, et le message arrivé trop tôt
+    // 3.4 / 3.5 / 3.6 — order, repetition, and the message that arrived too early
     // -------------------------------------------------------------------------
 
     public function testTwoSignalsAreHandledInRecordedOrder(): void
@@ -144,7 +144,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $handler = $this->accumulating(2);
 
         self::assertSame([['n' => 1], ['n' => 2]], $engine->resume('disp-4', $handler));
-        self::assertSame([['n' => 1], ['n' => 2]], $engine->resume('disp-4', $handler), 'même ordre à chaque replay');
+        self::assertSame([['n' => 1], ['n' => 2]], $engine->resume('disp-4', $handler), 'same order on every replay');
     }
 
     public function testEachDeliveryReachesTheHandlerExactlyOncePerPass(): void
@@ -171,17 +171,17 @@ final class WorkflowHandlerDispatchTest extends TestCase
             return $seen;
         };
 
-        self::assertSame(3, $engine->resume('disp-5', $handler), 'trois livraisons, trois appels');
+        self::assertSame(3, $engine->resume('disp-5', $handler), 'three deliveries, three calls');
         self::assertSame(3, $calls);
 
         $calls = 0;
         self::assertSame(3, $engine->resume('disp-5', $handler));
-        self::assertSame(3, $calls, 'un replay rejoue les trois, ni plus ni moins');
+        self::assertSame(3, $calls, 'a replay replays the three, no more and no less');
     }
 
     public function testADeliveryRecordedBeforeAnyWaitIsStillObserved(): void
     {
-        // Le signal arrive alors que le workflow n'attend rien encore : il ne doit pas être perdu.
+        // The signal arrives while the workflow waits on nothing yet: it must not be lost.
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
@@ -194,7 +194,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
                 $ticks[] = $payload;
             });
 
-            // Du travail avant la première attente.
+            // Some work before the first wait.
             $wf->sideEffect(static fn(): string => 'préambule');
 
             $wf->await(static function () use (&$ticks): bool {
@@ -208,7 +208,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // 3.7 / 3.8 — les updates, en attente d'une décision de transport
+    // 3.7 / 3.8 — the updates, awaiting a transport decision
     // -------------------------------------------------------------------------
 
     public function testAnUpdateHandlerReturnValueReachesTheCaller(): void
@@ -231,7 +231,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
             return 'terminé';
         };
 
-        // L'update arrive hors journal, pour cette passe seulement — comme sur la tâche Temporal.
+        // The update arrives outside the journal, for this pass only — as on the Temporal task.
         $pending = new PendingUpdate('approve', ['by' => 'alice']);
 
         self::assertSame('terminé', $engine->resume('upd-1', $handler, null, [$pending]));
@@ -239,12 +239,12 @@ final class WorkflowHandlerDispatchTest extends TestCase
         self::assertSame(['ok' => true, 'by' => 'alice'], $pending->result);
         self::assertNull($pending->failure);
 
-        // L'appelant consigne l'issue, comme le serveur écrit UPDATE_COMPLETED après la réponse
-        // du worker.
+        // The caller records the outcome, the way the server writes UPDATE_COMPLETED after the
+        // worker's answer.
         $store->append(new WorkflowUpdateHandled('upd-1', 'approve', ['by' => 'alice'], $pending->result));
 
-        // Rejoué sans update en attente : l'update est relu du journal, le handler refait l'état,
-        // et le workflow reprend le même chemin.
+        // Replayed with no pending update: the update is read back from the journal, the handler
+        // rebuilds the state, and the workflow takes the same path again.
         self::assertSame('terminé', $engine->resume('upd-1', $handler));
     }
 
@@ -268,7 +268,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
             return 'le workflow continue';
         }, null, [$pending = new PendingUpdate('approve', ['by' => 'alice'])]);
 
-        self::assertSame('le workflow continue', $result, 'un update en échec ne fait pas échouer l’exécution');
+        self::assertSame('le workflow continue', $result, 'a failing update does not fail the execution');
         self::assertTrue($pending->handled);
         self::assertNotNull($pending->failure);
         self::assertSame(\DomainException::class, $pending->failure->class);
@@ -277,9 +277,9 @@ final class WorkflowHandlerDispatchTest extends TestCase
 
     public function testAFailedUpdateReplayedDoesNotFailTheWorkflow(): void
     {
-        // Le chemin que seul un vrai serveur avait révélé : au replay, le handler d'un update en
-        // échec rejoue et relève de nouveau. Sa défaillance est déjà partie chez l'appelant —
-        // la laisser remonter ferait échouer une exécution que l'original avait laissée vivante.
+        // The path only a real server had revealed: on replay, the handler of a failing update
+        // runs again and raises again. Its failure has already gone off to the caller — letting it
+        // bubble up would fail an execution the original had left alive.
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
@@ -313,9 +313,9 @@ final class WorkflowHandlerDispatchTest extends TestCase
 
     public function testTheOutcomeIsRecordedBeforeWhatTheWorkflowDoesInResponse(): void
     {
-        // L'ordre, et pas seulement le contenu : l'issue doit précéder ce que le workflow fait
-        // en réponse, sinon un replay les appliquerait dans l'autre sens. C'est l'ordre que
-        // Temporal produit — l'acceptation avant les commandes du workflow (ADR DUR035).
+        // The order, and not only the content: the outcome must precede what the workflow does
+        // in response, otherwise a replay would apply them the other way round. This is the order
+        // Temporal produces — the acceptance before the workflow commands (ADR DUR035).
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
         $store->append(new ExecutionStarted('upd-4', []));
@@ -331,7 +331,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
                 return $approved;
             });
 
-            // Ce que le workflow fait *parce que* l'update est passé.
+            // What the workflow does *because* the update went through.
             $wf->sideEffect(static fn(): string => 'après');
 
             return 'terminé';
@@ -346,7 +346,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $effect = array_search('SideEffectRecorded', $order, true);
         self::assertIsInt($update);
         self::assertIsInt($effect);
-        self::assertLessThan($effect, $update, 'l’issue de l’update précède ce qu’elle a débloqué');
+        self::assertLessThan($effect, $update, 'the update outcome precedes what it unblocked');
     }
 
     // -------------------------------------------------------------------------

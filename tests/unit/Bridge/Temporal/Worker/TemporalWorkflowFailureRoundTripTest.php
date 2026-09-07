@@ -19,9 +19,9 @@ use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\WorkflowExecutionFailedEventAttributes;
 
 /**
- * Le pilote Temporal aplatissait tout échec de workflow sur un message brut : le `kind`
- * de WorkflowExecutionFailed était perdu et l'événement domaine irreconstituable à la
- * relecture de l'historique. Et un ContinueAsNew devenait un échec de workflow.
+ * The Temporal driver flattened every workflow failure onto a raw message: the `kind` of
+ * WorkflowExecutionFailed was lost and the domain event could not be rebuilt when reading
+ * the history back. And a ContinueAsNew became a workflow failure.
  */
 final class TemporalWorkflowFailureRoundTripTest extends TestCase
 {
@@ -48,7 +48,7 @@ final class TemporalWorkflowFailureRoundTripTest extends TestCase
         self::assertNotNull($failure);
         self::assertSame(DurableActivityFailedException::class, $failure->getApplicationFailureInfo()?->getType());
 
-        // Relecture de l'historique : le kind d'origine doit être restitué.
+        // Reading the history back: the original kind must be given back.
         $attrs = new WorkflowExecutionFailedEventAttributes();
         $attrs->setFailure($failure);
         $event = new HistoryEvent();

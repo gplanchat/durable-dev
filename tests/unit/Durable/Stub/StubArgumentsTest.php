@@ -9,8 +9,8 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Un stub `__call` transforme des arguments PHP en charge nommée. Les trois façons de se tromper
- * sont ici, et les trois étaient silencieuses.
+ * A `__call` stub turns PHP arguments into a named payload. The three ways of getting it wrong are
+ * here, and all three were silent.
  */
 #[CoversClass(StubArguments::class)]
 final class StubArgumentsTest extends TestCase
@@ -21,9 +21,9 @@ final class StubArgumentsTest extends TestCase
     }
 
     /**
-     * Le défaut qui a coûté un après-midi : PHP passe les arguments nommés à `__call` dans un
-     * tableau à **clés de chaînes**. Appariés par indice, ils disparaissaient tous — et chaque
-     * paramètre retombait sur sa valeur par défaut, sans exception ni trace.
+     * The defect that cost an afternoon: PHP passes named arguments to `__call` in an array with
+     * **string keys**. Matched by index, they all disappeared — and every parameter fell back to
+     * its default value, with no exception and no trace.
      */
     public function testNamedArgumentsLandOnTheirParameter(): void
     {
@@ -36,8 +36,8 @@ final class StubArgumentsTest extends TestCase
     }
 
     /**
-     * `??` confondait « absent » et « null » : passer explicitement `null` rendait la valeur par
-     * défaut, c'est-à-dire l'inverse de ce qui était demandé.
+     * `??` confused "absent" and "null": passing `null` explicitly returned the default value,
+     * that is to say the opposite of what was asked for.
      */
     public function testAnExplicitNullIsNotTheDefault(): void
     {
@@ -46,8 +46,8 @@ final class StubArgumentsTest extends TestCase
     }
 
     /**
-     * Une faute de frappe dans un nom d'argument ne doit pas être indiscernable d'une valeur par
-     * défaut voulue. PHP lève sur un appel ordinaire ; le stub aussi.
+     * A typo in an argument name must not be indistinguishable from a deliberate default value.
+     * PHP throws on an ordinary call; so does the stub.
      */
     public function testAnUnknownNamedArgumentIsRefused(): void
     {
@@ -58,15 +58,15 @@ final class StubArgumentsTest extends TestCase
     }
 
     /**
-     * Un paramètre requis non fourni lève, comme PHP lèverait `ArgumentCountError` sur l'appel
-     * ordinaire correspondant.
+     * A required parameter that is not supplied throws, as PHP would throw `ArgumentCountError` on
+     * the corresponding ordinary call.
      *
-     * Le laisser valoir `null` faisait voyager la faute jusque dans le journal, où elle se rejoue
-     * à l'identique à chaque passe : `$text` est déclaré `string`, une charge portant `null` est
-     * donc de toute façon refusée à l'arrivée — mais une passe de rejeu plus tard, dans un worker,
-     * loin de l'appel fautif.
+     * Letting it stand as `null` carried the fault all the way into the journal, where it replays
+     * identically on every pass: `$text` is declared `string`, so a payload carrying `null` is
+     * refused on arrival anyway — but one replay pass later, in a worker, far from the offending
+     * call.
      */
-    public function testUnParametreRequisNonFourniLeve(): void
+    public function testAMissingRequiredParameterThrows(): void
     {
         $this->expectException(\BadMethodCallException::class);
         $this->expectExceptionMessageMatches('/Missing required argument \$text/');
@@ -75,10 +75,10 @@ final class StubArgumentsTest extends TestCase
     }
 
     /**
-     * Servir le même paramètre en positionnel puis en nommé : PHP refuse (« Named parameter $x
-     * overwrites previous argument »), le stub choisissait le positionnel en silence.
+     * Supplying the same parameter positionally and then by name: PHP refuses ("Named parameter $x
+     * overwrites previous argument"), the stub silently chose the positional one.
      */
-    public function testUnParametreServiDeuxFoisLeve(): void
+    public function testAParameterServedTwiceThrows(): void
     {
         $this->expectException(\BadMethodCallException::class);
         $this->expectExceptionMessageMatches('/\$text.*both positionally and by name/');
@@ -87,10 +87,10 @@ final class StubArgumentsTest extends TestCase
     }
 
     /**
-     * Le cas voisin, qui doit continuer de passer : un paramètre optionnel non fourni prend sa
-     * valeur par défaut, et un `null` explicite reste `null`.
+     * The neighbouring case, which has to keep passing: an optional parameter that is not supplied
+     * takes its default value, and an explicit `null` stays `null`.
      */
-    public function testUnParametreOptionnelGardeSonDefautEtAccepteNull(): void
+    public function testAnOptionalParameterKeepsItsDefaultAndAcceptsNull(): void
     {
         self::assertSame(1, $this->map(['text' => 'x'])['times']);
         self::assertNull($this->map(['text' => 'x', 'tag' => null])['tag']);

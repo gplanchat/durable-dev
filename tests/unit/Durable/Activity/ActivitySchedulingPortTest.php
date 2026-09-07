@@ -16,15 +16,14 @@ use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
 
 /**
- * `activity()` est la primitive sous `activityStub()`, pas à côté : le stub planifiait en
- * l'appelant. Elle doit quitter la surface qu'un auteur de workflow atteint, sans que le stub
- * cesse de fonctionner et sans que le journal bouge.
+ * `activity()` is the primitive underneath `activityStub()`, not beside it: the stub scheduled by
+ * calling it. It has to leave the surface a workflow author reaches, without the stub ceasing to
+ * work and without the journal moving.
  *
- * Le troisième point est celui qui compte. Une exécution enregistrée avant ce changement doit
- * rejouer à l'identique : si la forme de fil bouge, la rupture n'est plus une rupture d'API, c'est
- * une rupture de données.
+ * The third point is the one that counts. An execution recorded before this change must replay
+ * identically: if the wire form moves, the break is no longer an API break, it is a data break.
  *
- * @see openspec/changes/workflow-authoring-surface — tâches 4.1 à 4.3
+ * @see openspec/changes/workflow-authoring-surface — tasks 4.1 to 4.3
  */
 final class ActivitySchedulingPortTest extends TestCase
 {
@@ -37,9 +36,9 @@ final class ActivitySchedulingPortTest extends TestCase
             $public[] = $method->getName();
         }
 
-        // Nommer l'activité par une chaîne et lui passer un tableau libre est la forme que la
-        // bibliothèque n'enseigne plus : une faute de frappe y produit une activité qui n'est
-        // jamais planifiée, au lieu d'une erreur de type.
+        // Naming the activity by a string and passing it a free-form array is the form the
+        // library no longer teaches: a typo there produces an activity that is never scheduled,
+        // instead of a type error.
 
         self::assertNotContains('activity', $public);
     }
@@ -53,9 +52,9 @@ final class ActivitySchedulingPortTest extends TestCase
             $public[] = $method->getName();
         }
 
-        // Un auteur déclare `#[AsQueryMethod]` et le moteur câble. Ces trois-là étaient sur
-        // l'environnement parce que c'est l'objet que le moteur avait sous la main, pas parce
-        // qu'un workflow en a besoin — les atteindre revenait à court-circuiter la déclaration.
+        // An author declares `#[AsQueryMethod]` and the engine wires it. These three were on the
+        // environment because it is the object the engine had at hand, not because a workflow
+        // needs them — reaching them amounted to short-circuiting the declaration.
         self::assertNotContains('registerQueryHandler', $public);
         self::assertNotContains('callQueryHandler', $public);
         self::assertNotContains('hasQueryHandler', $public);
@@ -70,9 +69,9 @@ final class ActivitySchedulingPortTest extends TestCase
             $public[] = $method->getName();
         }
 
-        // La dissymétrie avec les queries est voulue, et c'est ce test qui l'épingle. Un signal
-        // se distribue dans l'environnement, pendant `await()` ; une query se lit par le worker,
-        // hors de la fibre. Le verbe qui reste est celui dont le workflow se sert vraiment.
+        // The asymmetry with queries is deliberate, and this test is what pins it. A signal is
+        // delivered inside the environment, during `await()`; a query is read by the worker,
+        // outside the fiber. The verb that remains is the one the workflow really uses.
         self::assertContains('onSignal', $public);
         self::assertContains('onUpdate', $public);
     }
@@ -103,7 +102,7 @@ final class ActivitySchedulingPortTest extends TestCase
             }
         }
 
-        self::assertCount(2, $scheduled, 'les deux appels du stub doivent être planifiés');
+        self::assertCount(2, $scheduled, 'both calls of the stub must be scheduled');
         foreach ($scheduled as $event) {
             self::assertSame('charge', $event->activityName());
         }
@@ -122,9 +121,9 @@ final class ActivitySchedulingPortTest extends TestCase
             $recorded[] = (new \ReflectionClass($event))->getShortName();
         }
 
-        // Épinglé, et volontairement en dur : ce test existe pour interdire un changement, pas
-        // pour décrire un comportement. S'il casse, c'est le rejeu des exécutions déjà
-        // enregistrées qui est en jeu.
+        // Pinned, and deliberately hard-coded: this test exists to forbid a change, not to
+        // describe a behaviour. If it breaks, what is at stake is the replay of the executions
+        // already recorded.
         self::assertSame([
             'ExecutionStarted',
             'ActivityScheduled',

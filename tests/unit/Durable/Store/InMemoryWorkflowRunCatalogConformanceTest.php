@@ -16,9 +16,9 @@ use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Testing\WorkflowRunCatalogConformanceTestCase;
 
 /**
- * La référence du port `WorkflowRunCatalogInterface`. Elle n'existait pas quand DUR041 a été écrit,
- * et son absence était le seul trou de la suite : un port dont un seul adaptateur prouvait quelque
- * chose.
+ * The reference for the `WorkflowRunCatalogInterface` port. It did not exist when DUR041 was
+ * written, and its absence was the only hole in the suite: a port only one adapter proved anything
+ * about.
  *
  * @see DUR041
  */
@@ -57,7 +57,7 @@ final class InMemoryWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
                 'failureCode' => 0,
                 'context' => [],
             ]),
-            WorkflowRunStatus::Running => self::fail('Running n\'est pas une issue'),
+            WorkflowRunStatus::Running => self::fail('Running is not an outcome'),
         });
         $this->catalog->recordOutcome($executionId, $outcome);
     }

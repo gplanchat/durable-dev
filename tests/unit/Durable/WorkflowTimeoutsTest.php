@@ -12,15 +12,15 @@ use Gplanchat\Durable\WorkflowTimeouts;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Trois `?float` répétés à l'identique dans trois classes d'options, avec la même sérialisation
- * copiée trois fois.
+ * Three `?float` repeated identically across three option classes, with the same serialization
+ * copied three times.
  */
 final class WorkflowTimeoutsTest extends TestCase
 {
     public function testARunLongerThanTheExecutionIsRejected(): void
     {
-        // Vérifié contre un vrai serveur : demander execution=10s + run=60s fait enregistrer
-        // run=10s. La configuration est réécrite en silence — autant la refuser tout haut.
+        // Checked against a real server: asking for execution=10s + run=60s records run=10s. The
+        // configuration is silently rewritten — better to refuse it out loud.
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/cannot exceed execution timeout/');
 
@@ -41,8 +41,8 @@ final class WorkflowTimeoutsTest extends TestCase
 
     public function testContinueAsNewRefusesAnExecutionBound(): void
     {
-        // Le nouveau run appartient à l'exécution en cours et hérite sa borne : la commande
-        // Temporal n'a même pas ce champ.
+        // The new run belongs to the current execution and inherits its bound: the Temporal
+        // command does not even have that field.
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/inherits it/');
 

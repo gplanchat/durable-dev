@@ -11,12 +11,12 @@ use Gplanchat\Durable\Testing\EventStoreReplayConformanceTestCase;
 use Illuminate\Database\Capsule\Manager;
 
 /**
- * `illuminate/database` s'utilise sans application Laravel autour — c'est ce que Capsule est, et
- * les adaptateurs ne touchent qu'une `Connection`. Aucun conteneur, aucun service provider :
- * la surface est celle qu'une vraie application leur passerait.
+ * `illuminate/database` is usable with no Laravel application around it — that is what Capsule is,
+ * and the adapters touch nothing but a `Connection`. No container, no service provider:
+ * the surface is the one a real application would hand them.
  *
- * Le palier replay est joint : ce journal peut piloter un workflow en ligne, donc il se
- * différencie d'avec la référence in-memory plutôt que de se contenter du contrat.
+ * The replay tier is joined: this journal can drive a live workflow, so it differentiates itself
+ * against the in-memory reference rather than settling for the contract.
  *
  * @see DUR041
  */

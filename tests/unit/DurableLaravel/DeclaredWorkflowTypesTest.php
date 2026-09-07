@@ -12,19 +12,19 @@ use PHPUnit\Framework\TestCase;
 use unit\DurableLaravel\Fixtures\GreetingWorkflow;
 
 /**
- * Ce qu'un hôte sans autoconfiguration doit rendre : la même classe, résolue par le même nom.
+ * What a host without autoconfiguration has to deliver: the same class, resolved by the same name.
  */
 final class DeclaredWorkflowTypesTest extends TestCase
 {
     public function testAWorkflowWrittenForTheBundleResolvesHereUnmodified(): void
     {
-        // GreetingWorkflow n'importe que `Gplanchat\Durable\` — aucun symbole de Laravel ni de
-        // Symfony. C'est ce qui rend la phrase « sans modification » vérifiable plutôt que promise.
+        // GreetingWorkflow imports nothing but `Gplanchat\Durable\` — no Laravel symbol and no
+        // Symfony one. That is what makes the phrase "unmodified" checkable rather than promised.
         $types = $this->declaring([GreetingWorkflow::class]);
 
-        // Par le nom que l'attribut déclare…
+        // By the name the attribute declares…
         self::assertIsCallable($types->handlerFor('Greeting', []));
-        // …et par le FQCN, parce qu'une reprise peut n'avoir que celui-là.
+        // …and by the FQCN, because a resume may have nothing but that one.
         self::assertIsCallable($types->handlerFor(GreetingWorkflow::class, []));
     }
 
@@ -44,8 +44,8 @@ final class DeclaredWorkflowTypesTest extends TestCase
     {
         $types = $this->declaring([]);
 
-        // « Declared: none » plutôt qu'une liste vide : un message qui se termine sur deux
-        // guillemets vides fait douter du message, pas de la configuration.
+        // "Declared: none" rather than an empty list: a message that ends on two empty quotes
+        // casts doubt on the message, not on the configuration.
         $this->expectExceptionMessage('Declared: none.');
 
         $types->handlerFor('Greeting', []);
@@ -60,7 +60,7 @@ final class DeclaredWorkflowTypesTest extends TestCase
         self::assertSame(
             $app->make(DeclaredWorkflowTypes::class),
             $app->make(DeclaredWorkflowTypes::class),
-            'le registre est un singleton : deux workers du même processus partagent la même table',
+            'the registry is a singleton: two workers in the same process share the same table',
         );
     }
 

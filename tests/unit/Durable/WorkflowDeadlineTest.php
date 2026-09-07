@@ -26,16 +26,16 @@ use PHPUnit\Framework\TestCase;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
- * Borner une attente dans le temps depuis le code workflow.
+ * Bounding a wait in time from workflow code.
  *
- * Les cas de verdict sont joués sur un journal écrit à la main puis rejoué : c'est le seul
- * moyen d'atteindre l'ordre d'événements qui compte (signal enregistré après le tir de
- * l'échéance, et l'inverse), et c'est le chemin de replay que le verdict doit traverser.
+ * The verdict cases are played on a journal written by hand then replayed: it is the only way to
+ * reach the event order that counts (signal recorded after the deadline fired, and the other way
+ * round), and it is the replay path the verdict must cross.
  */
 final class WorkflowDeadlineTest extends TestCase
 {
     // -------------------------------------------------------------------------
-    // Le verdict
+    // The verdict
     // -------------------------------------------------------------------------
 
     public function testWorkThatSettlesBeforeItsDeadlineReturnsItsValue(): void
@@ -54,8 +54,8 @@ final class WorkflowDeadlineTest extends TestCase
 
     public function testAnEmptyAnswerIsNotADeadline(): void
     {
-        // Le cas que la course à la main ne sait pas exprimer : any() rend la valeur gagnante,
-        // et `null` y est indiscernable d'une échéance échue.
+        // The case a hand-written race cannot express: any() returns the winning value, and
+        // `null` is indistinguishable there from an elapsed deadline.
         $env = WorkflowTestEnvironment::inMemory(['empty' => static fn(): mixed => null]);
 
         $result = $env->run(
@@ -85,9 +85,8 @@ final class WorkflowDeadlineTest extends TestCase
 
     public function testASignalWaitGivesUpOnItsDeadlineInTheHarness(): void
     {
-        // Le premier test qu'écrira quiconque se sert de la fonctionnalité : personne ne délivre
-        // le signal, et c'est l'échéance qui doit conclure — pas le garde d'absence de progrès du
-        // runner.
+        // The first test anyone using the feature will write: nobody delivers the signal, and it
+        // is the deadline that must conclude — not the runner's no-progress guard.
         $env = WorkflowTestEnvironment::inMemory([]);
 
         $result = $env->run(static function (WorkflowEnvironment $wf): string {
@@ -111,7 +110,7 @@ final class WorkflowDeadlineTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // L'échéance annule ce qu'elle bornait
+    // The deadline cancels what it was bounding
     // -------------------------------------------------------------------------
 
     public function testTheBoundedActivityIsCancelledWhenTheDeadlineElapses(): void
@@ -122,7 +121,7 @@ final class WorkflowDeadlineTest extends TestCase
 
         try {
             $engine->start('deadline-4', $handler);
-            self::fail('le workflow devait suspendre');
+            self::fail('the workflow was to suspend');
         } catch (WorkflowSuspendedException) {
         }
 
@@ -131,7 +130,7 @@ final class WorkflowDeadlineTest extends TestCase
 
         try {
             $engine->resume('deadline-4', $handler);
-            self::fail('l’échéance devait relever');
+            self::fail('the deadline was to raise');
         } catch (DeadlineExceededException) {
         }
 
@@ -155,7 +154,7 @@ final class WorkflowDeadlineTest extends TestCase
         } catch (DeadlineExceededException) {
         }
 
-        // L'activité annulée répond quand même : le verdict ne bouge pas.
+        // The cancelled activity answers anyway: the verdict does not move.
         $activityId = null;
         foreach ($store->readStream('deadline-5') as $event) {
             if ($event instanceof ActivityScheduled) {
@@ -170,7 +169,7 @@ final class WorkflowDeadlineTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // Le verdict vient du journal, pas de l'horloge du replay
+    // The verdict comes from the journal, not from the replay clock
     // -------------------------------------------------------------------------
 
     public function testReplayOfATimedOutExecutionSchedulesNothingNew(): void
@@ -204,9 +203,9 @@ final class WorkflowDeadlineTest extends TestCase
 
     public function testASignalRecordedBeforeTheDeadlineFiredStillSettlesTheWait(): void
     {
-        // Les deux branches sont réglées dans l'historique et aucune n'a été annulée : le
-        // verdict ne peut donc pas venir de l'ordre de déclaration des branches, seulement de
-        // l'ordre du journal.
+        // Both branches are settled in the history and neither has been cancelled: the verdict
+        // can therefore not come from the declaration order of the branches, only from the order
+        // of the journal.
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
         $handler = $this->signalHandler();
@@ -237,8 +236,8 @@ final class WorkflowDeadlineTest extends TestCase
 
                 return ['unexpected'];
             } catch (DeadlineExceededException) {
-                // Le signal en retard n'a pas été appliqué à l'attente que l'échéance a
-                // tranchée : la suivante l'observe.
+                // The late signal was not applied to the wait the deadline decided: the next one
+                // observes it.
                 $wf->await($pending);
 
                 return ['second wait', array_shift($approvals)];
@@ -308,7 +307,7 @@ final class WorkflowDeadlineTest extends TestCase
             }
         }
 
-        self::fail('aucun minuteur planifié');
+        self::fail('no timer scheduled');
     }
 
     /**

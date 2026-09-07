@@ -9,12 +9,12 @@ use Gplanchat\Durable\Awaitable\NexusOperationAwaitable;
 use PHPUnit\Framework\TestCase;
 
 /**
- * L'awaitable d'une opération Nexus porte de quoi l'annuler.
+ * The awaitable of a Nexus operation carries what it takes to cancel it.
  *
- * Sans identité transportée, un `any(nexusOperation, timer)` dont le minuteur gagne laisserait
- * l'opération tourner chez le fournisseur : l'attente est finie côté workflow, l'appel ne l'est
- * pas. C'est le rôle exact que {@see \Gplanchat\Durable\Awaitable\ActivityAwaitable} joue pour une
- * activité, et {@see \Gplanchat\Durable\Awaitable\AwaitableCancellation} en dépend.
+ * With no identity carried, an `any(nexusOperation, timer)` whose timer wins would leave the
+ * operation running at the provider: the wait is over on the workflow side, the call is not. It is
+ * the exact role {@see \Gplanchat\Durable\Awaitable\ActivityAwaitable} plays for an activity, and
+ * {@see \Gplanchat\Durable\Awaitable\AwaitableCancellation} depends on it.
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §3.1
  */
@@ -47,8 +47,8 @@ final class NexusOperationAwaitableTest extends TestCase
 
     public function testItExposesTheWrappedAwaitable(): void
     {
-        // AwaitableCancellation et les composites descendent par inner() : sans lui, une opération
-        // Nexus enfouie sous un composite serait invisible à l'annulation.
+        // AwaitableCancellation and the composites descend through inner(): without it, a Nexus
+        // operation buried under a composite would be invisible to cancellation.
         $inner = (new Deferred())->awaitable();
         $awaitable = new NexusOperationAwaitable($inner, 'nexus-op-7');
 
