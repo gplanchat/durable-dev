@@ -9,4 +9,4 @@
 - **Entry points**: `documentation/user/use-cases/` only. Stacked on `docs/section-use-cases`
   (PR #265), which is not merged. Cites `nexus-demo` for the measurements rather than repeating
   them. No source change.
-- **State**: in progress.
+- **State**: in review — PR #289, stacked on #265.
