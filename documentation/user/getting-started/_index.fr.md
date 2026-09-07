@@ -27,9 +27,9 @@ configuration et son worker :
 | Votre application | À installer | À lire plutôt |
 |---|---|---|
 | **Symfony** (Sylius compris) | `gplanchat/durable-bundle` | cette page |
-| **Laravel** | `gplanchat/durable-laravel` | [Paquets](../packages/#gplanchatdurable-laravel--lintégration-laravel) |
-| **Magento 2.4 / Mage-OS** | `gplanchat/durable-magento` | [Paquets](../packages/#gplanchatdurable-magento--lintégration-magento) |
-| **Sans framework** | `gplanchat/durable` | [Paquets](../packages/#gplanchatdurable--la-bibliothèque) |
+| **Laravel** | `gplanchat/durable-laravel` | [Paquets](../packages/#gplanchatdurable-laravel-lintégration-laravel) |
+| **Magento 2.4 / Mage-OS** | `gplanchat/durable-magento` | [Paquets](../packages/#gplanchatdurable-magento-lintégration-magento) |
+| **Sans framework** | `gplanchat/durable` | [Paquets](../packages/#gplanchatdurable-la-bibliothèque) |
 
 Les concepts, l'API de workflow et l'API d'activité sont identiques sur les quatre ; seul le câblage
 ci-dessous est celui de Symfony.
