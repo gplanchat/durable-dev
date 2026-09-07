@@ -16,7 +16,7 @@ once.
 
 Look for these in your own code. Each one is a piece of durable execution, hand-built:
 
-- a **status column that means *maybe*** — `pending`, `processing`, `in_progress` — and nobody is
+- a **status column that means *maybe*** (`pending`, `processing`, `in_progress`), and nobody is
   sure which rows are stuck;
 - an **idempotency key** you wrote yourself, because a retry charged a customer twice once;
 - a **reconciliation job** that runs nightly to find the operations that stopped halfway;
@@ -38,10 +38,10 @@ One method, and the journal behind it, instead of:
 
 | You maintain today | What answers it instead |
 |---|---|
-| A state column and the migration that adds the next state | The line the method is on — the journal holds the position |
+| A state column and the migration that adds the next state | The line the method is on. The journal holds the position |
 | A scheduler that polls for what is due | The next statement; timers and signals wake the execution |
 | A retry counter and a dead-letter table | `RetryLimit::ofAttempts(3)`, an option on the activity stub |
-| Idempotency keys, so a retry does not double-charge | A recorded step returns its recorded result — it cannot run twice |
+| Idempotency keys, so a retry does not double-charge | A recorded step returns its recorded result. It cannot run twice |
 | Reading logs to learn why an execution stopped | Replay its journal: every step, every result, every attempt |
 
 The [home page](/) walks through the same order, step by step, showing what happens with and
@@ -53,8 +53,8 @@ of you.
 Durable is not free: it adds a journal to write, workers to run, and a determinism rule your
 workflow code has to respect. Skip it when:
 
-- the work **fits in one request** and has no external side effect worth recovering — rendering a
-  page, a search query, a report you can simply run again;
+- the work **fits in one request** and has no external side effect worth recovering: rendering a
+  page, a search query, a report you can run again;
 - the work **can safely restart from scratch**. A nightly export that rewrites the whole file loses
   nothing by being retried from the top; a partial charge does;
 - your queue consumers are **already idempotent and already observable**, and you can answer *what
@@ -71,7 +71,7 @@ wants a journal. If it costs a re-run, it does not.
 
 | | |
 |---|---|
-| [Concepts](../concepts/) | the vocabulary — workflow, activity, journal, replay — before the guides |
+| [Concepts](../concepts/) | the vocabulary (workflow, activity, journal, replay) before the guides |
 | [Getting started](../getting-started/) | install, configure, and write a first workflow |
 | [Packages](../packages/) | what to install for your framework, and which backend |
 | [Durable and the Temporal PHP SDK](../comparison/) | if you have decided on durable execution and are choosing between the two |

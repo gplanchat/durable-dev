@@ -3,7 +3,7 @@
 // peut changer une largeur sans lutter contre la cascade.
 //
 // Les valeurs viennent du design de la page de documentation. Le reste du thème
-// s'y adapte tout seul — `$mobile-breakpoint` est calculé à partir des trois.
+// s'y adapte tout seul : `$mobile-breakpoint` est calculé à partir des trois.
 
 $menu-width: 13.75rem; // 220 px : la colonne de navigation du design
 $toc-width: 13.125rem; // 210 px : le sommaire, plus étroit que la navigation

@@ -1,5 +1,5 @@
 {{- /*
-  Mesure d'audience — voir ../../documentation/adr/DUR048.
+  Mesure d'audience, voir ../../documentation/adr/DUR048.
 
   Une seule source pour les deux surfaces : la page d'accueil l'appelle depuis
   `layout-head.html`, les pages de documentation depuis `docs/inject/head.html`.
@@ -7,7 +7,7 @@
 
   ⚠ `disableCookies` AVANT `trackPageView`, et ce n'est pas un détail de style :
   c'est cet appel-là qui fait qu'aucune donnée personnelle n'est collectée par
-  cookie, donc qu'aucune bannière n'est due. Inversé, l'ordre ne protège rien —
+  cookie, donc qu'aucune bannière n'est due. Inversé, l'ordre ne protège rien,
   le cookie serait déjà posé.
 
   ⚠ Ce que ce fichier NE peut pas garantir : l'anonymisation d'IP est un réglage

@@ -56,6 +56,6 @@ when@test:
         # définition venue du chargement de `App\`, et les `_defaults` du bloc principal ne s'y
         # appliquent pas. Cette classe n'a pas de constructeur aujourd'hui ; le jour où elle en
         # aura un, l'oubli se verrait par un `ArgumentCountError` dans la suite de test.
-        App\Durable\Nexus\FacturationHandler:
+        App\Durable\Nexus\BillingHandler:
             autowire: true
             autoconfigure: false

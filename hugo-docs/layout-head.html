@@ -1,10 +1,10 @@
 {{- /*
-  Page d'accueil. Engendrée par ./import-design.py — ne pas modifier à la main,
+  Page d'accueil. Engendrée par ./import-design.py : ne pas modifier à la main,
   la prochaine reprise du design écraserait la correction.
 
   Aucun bloc `define` ici, volontairement : Hugo n'enveloppe un gabarit dans le
   `baseof` du thème que si celui-ci en contient un. La page est donc servie
-  telle quelle, sans la barre latérale ni la feuille de hugo-book — deux resets
+  telle quelle, sans la barre latérale ni la feuille de hugo-book, car deux resets
   concurrents se disputeraient la cascade, et la colonne mangerait le premier
   écran.
 */ -}}
@@ -16,10 +16,10 @@
 {{- /* Le titre et la description sont les deux seules phrases de cet en-tête ;
      elles suivent la langue du site plutôt qu'un fichier par langue. */}}
 {{- if eq .Site.Language.Lang "fr" }}
-<title>{{ .Site.Title }} — l'exécution durable pour PHP</title>
+<title>{{ .Site.Title }} : l'exécution durable pour PHP</title>
 <meta name="description" content="Écrivez un processus métier comme une seule méthode. Durable la rejoue depuis son journal : un worker peut redémarrer en plein milieu sans que le processus s'en aperçoive.">
 {{- else }}
-<title>{{ .Site.Title }} — durable execution for PHP</title>
+<title>{{ .Site.Title }}: durable execution for PHP</title>
 <meta name="description" content="Write a business process as one method. Durable replays it from its journal, so a worker can be redeployed mid-process and the execution continues where it stopped.">
 {{- end }}
 <link rel="canonical" href="{{ .Permalink }}">

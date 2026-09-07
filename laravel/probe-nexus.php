@@ -3,16 +3,16 @@
 declare(strict_types=1);
 
 /**
- * `php probe-nexus.php` — ce que la maquette sert, sans grappe et sans worker.
+ * `php probe-nexus.php` — what the mockup serves, with no cluster and no worker.
  *
- * La question à laquelle elle répond est celle qui a fait exister cette maquette : **six lignes de
- * `config/durable.php` suffisent-elles à ce que le registre du cœur connaisse les deux opérations
- * de `livraison` ?** Le chemin éprouvé est config → `DeclaredNexusOperations` → registre →
- * gestionnaire, et il ne demande ni cluster, ni endpoint, ni processus en face : `dispatch()` est
- * la même méthode que le worker Nexus appelle quand une tâche arrive.
+ * The question it answers is the one that made this mockup exist: **are six lines of
+ * `config/durable.php` enough for the core registry to know both operations of `delivery`?** The
+ * path exercised is config → `DeclaredNexusOperations` → registry → handler, and it needs no
+ * cluster, no endpoint and no process on the other side: `dispatch()` is the same method the Nexus
+ * worker calls when a task arrives.
  *
- * Elle vit au banc et pas dans le paquet publié, comme les sondes `probe-*.php` du banc Magento :
- * une sonde éprouve une intégration, elle n'est pas une fonctionnalité.
+ * It lives in the bench and not in the published package, like the `probe-*.php` of the Magento
+ * bench: a probe exercises an integration, it is not a feature.
  */
 
 use Gplanchat\Durable\Nexus\NexusOperationName;
@@ -26,51 +26,51 @@ require __DIR__ . '/vendor/autoload.php';
 $app = require __DIR__ . '/bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
 
-$registre = $app->make(NexusOperationRegistry::class);
-$livraison = NexusService::named('livraison');
-$echecs = [];
+$registry = $app->make(NexusOperationRegistry::class);
+$delivery = NexusService::named('delivery');
+$failures = [];
 
-$verifier = static function (string $quoi, bool $vrai) use (&$echecs): void {
-    echo($vrai ? "  ok   " : "  ÉCHEC") . ' ' . $quoi . "\n";
+$check = static function (string $what, bool $true) use (&$failures): void {
+    echo($true ? "  ok   " : "  FAIL ") . ' ' . $what . "\n";
 
-    if (!$vrai) {
-        $echecs[] = $quoi;
+    if (!$true) {
+        $failures[] = $what;
     }
 };
 
-$verifier('le registre sert livraison/planifier', $registre->serves($livraison, NexusOperationName::named('planifier')));
-$verifier('le registre sert livraison/expedier', $registre->serves($livraison, NexusOperationName::named('expedier')));
+$check('the registry serves delivery/schedule', $registry->serves($delivery, NexusOperationName::named('schedule')));
+$check('the registry serves delivery/ship', $registry->serves($delivery, NexusOperationName::named('ship')));
 
-// Immédiate : le gestionnaire répond sur la tâche. Un panier vide est refusé, ce qui prouve que
-// c'est bien **le code du gestionnaire** qui a répondu, et pas un enregistrement vide.
-$plan = $registre->dispatch($livraison, NexusOperationName::named('planifier'), [
-    'commande' => 'SONDE-1',
-    'lignes' => [],
+// Immediate: the handler answers on the task. An empty basket is refused, which proves it is
+// **the handler's code** that answered, and not an empty registration.
+$plan = $registry->dispatch($delivery, NexusOperationName::named('schedule'), [
+    'order' => 'PROBE-1',
+    'lines' => [],
 ]);
-$verifier('planifier répond sur la tâche', $plan->isImmediate);
-$verifier('planifier refuse un panier vide', false === ($plan->result['planifiee'] ?? null));
+$check('schedule answers on the task', $plan->isImmediate);
+$check('schedule refuses an empty basket', false === ($plan->result['scheduled'] ?? null));
 
-$plein = $registre->dispatch($livraison, NexusOperationName::named('planifier'), [
-    'commande' => 'SONDE-2',
-    'lignes' => ['MUG_BLUE' => 2],
+$full = $registry->dispatch($delivery, NexusOperationName::named('schedule'), [
+    'order' => 'PROBE-2',
+    'lines' => ['MUG_BLUE' => 2],
 ]);
-$verifier('planifier rend un créneau et un transporteur', true === ($plein->result['planifiee'] ?? null)
-    && '' !== ($plein->result['creneau'] ?? '')
-    && '' !== ($plein->result['transporteur'] ?? ''));
+$check('schedule returns a slot and a carrier', true === ($full->result['scheduled'] ?? null)
+    && '' !== ($full->result['slot'] ?? '')
+    && '' !== ($full->result['carrier'] ?? ''));
 
-// Différée : aucun gestionnaire n'est appelé, le registre nomme le workflow qui remplira.
-$expedition = $registre->dispatch($livraison, NexusOperationName::named('expedier'), [
-    'commande' => 'SONDE-3',
-    'creneau' => '2026-01-01 09:00-12:00',
+// Deferred: no handler is called, the registry names the workflow that will fulfil.
+$shipment = $registry->dispatch($delivery, NexusOperationName::named('ship'), [
+    'order' => 'PROBE-3',
+    'slot' => '2026-01-01 09:00-12:00',
 ]);
-$verifier('expedier est remplie par un workflow', !$expedition->isImmediate);
-$verifier('et c\'est ExpedierWorkflow', 'ExpedierWorkflow' === $expedition->workflowType);
-$verifier('la charge de l\'appelant devient son entrée', 'SONDE-3' === ($expedition->workflowInput['commande'] ?? null));
+$check('ship is fulfilled by a workflow', !$shipment->isImmediate);
+$check('and it is ShipWorkflow', 'ShipWorkflow' === $shipment->workflowType);
+$check("the caller's payload becomes its input", 'PROBE-3' === ($shipment->workflowInput['order'] ?? null));
 
-if ([] !== $echecs) {
-    echo "\n" . \count($echecs) . " vérification(s) en échec.\n";
+if ([] !== $failures) {
+    echo "\n" . \count($failures) . " check(s) failed.\n";
 
     exit(1);
 }
 
-echo "\nLa maquette sert livraison : deux opérations, deux formes, aucune grappe.\n";
+echo "\nThe mockup serves delivery: two operations, two shapes, no cluster.\n";

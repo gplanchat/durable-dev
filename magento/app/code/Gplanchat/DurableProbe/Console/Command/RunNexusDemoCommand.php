@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\DurableProbe\Console\Command;
 
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
-use Gplanchat\DurableProbe\Workflow\CommandeNexusWorkflow;
+use Gplanchat\DurableProbe\Workflow\OrderNexusWorkflow;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -13,21 +13,21 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * `bin/magento durable:demo:nexus <commande> <montant> REF=qté …` — Magento appelle les trois autres.
+ * `bin/magento durable:demo:nexus <order> <amount> REF=qty …` — Magento calls the three others.
  *
- * **Sur la grappe, et non ici.** `MagentoRuntime::run()` exécuterait le workflow dans ce processus,
- * ce qui n'est pas ce que la démonstration montre : une opération Nexus est servie par une autre
- * application, et l'exécution qui l'attend doit survivre à la commande qui l'a lancée.
- * `workflowClient()->startAsync()` la confie au cluster ; le worker de journal du banc la fait
- * avancer, et cette commande ne fait plus qu'attendre le résultat pour l'imprimer.
+ * **On the cluster, and not here.** `MagentoRuntime::run()` would execute the workflow in this
+ * process, which is not what the demonstration shows: a Nexus operation is served by another
+ * application, and the execution awaiting it has to outlive the command that started it.
+ * `workflowClient()->startAsync()` hands it to the cluster; the bench's journal worker advances it,
+ * and this command does nothing but wait for the result and print it.
  *
- * Elle ne prouve donc rien toute seule : sans `bin/magento durable:worker --role=journal` en face,
- * l'exécution démarre et reste là. C'est vrai des deux autres maquettes aussi, et c'est
- * `demo/lancer.sh` qui compte les processus.
+ * It therefore proves nothing on its own: with no `bin/magento durable:worker --role=journal` facing
+ * it, the execution starts and stays there. That is true of the two other mockups too, and it is
+ * `demo/run.sh` that counts the processes.
  */
 /*
- * Pas `final` : Magento engendre un `Interceptor` qui étend toute classe que son conteneur
- * instancie, pour porter les plugins. Une classe finale fait échouer la compilation du conteneur.
+ * Not `final`: Magento generates an `Interceptor` extending every class its container instantiates,
+ * to carry the plugins. A final class makes the container compilation fail.
  */
 class RunNexusDemoCommand extends Command
 {
@@ -41,70 +41,70 @@ class RunNexusDemoCommand extends Command
     {
         $this->setName('durable:demo:nexus')
             ->setDescription('Gets billed, stocked and shipped by three other applications, through Nexus')
-            ->addArgument('commande', InputArgument::REQUIRED, 'Identifiant de commande — c\'est lui qui rend la réservation idempotente')
-            ->addArgument('montant', InputArgument::REQUIRED, 'Montant à facturer, en centimes')
-            ->addArgument('lignes', InputArgument::IS_ARRAY | InputArgument::REQUIRED, 'REFERENCE=quantité, une ou plusieurs')
-            ->addOption('devise', null, InputOption::VALUE_REQUIRED, 'Code ISO 4217', 'EUR')
-            ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Secondes d\'attente', '120');
+            ->addArgument('order', InputArgument::REQUIRED, 'The order identifier — it is what makes the reservation idempotent')
+            ->addArgument('amount', InputArgument::REQUIRED, 'The amount to bill, in cents')
+            ->addArgument('lines', InputArgument::IS_ARRAY | InputArgument::REQUIRED, 'REFERENCE=quantity, one or more')
+            ->addOption('currency', null, InputOption::VALUE_REQUIRED, 'An ISO 4217 code', 'EUR')
+            ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Seconds to wait', '120');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $commande = (string) $input->getArgument('commande');
+        $order = (string) $input->getArgument('order');
 
-        $lignes = [];
-        foreach ((array) $input->getArgument('lignes') as $ligne) {
-            if (!\is_string($ligne) || !str_contains($ligne, '=')) {
-                $output->writeln(sprintf('<error>« %s » n\'est pas au format REFERENCE=quantité.</error>', (string) $ligne));
+        $lines = [];
+        foreach ((array) $input->getArgument('lines') as $line) {
+            if (!\is_string($line) || !str_contains($line, '=')) {
+                $output->writeln(sprintf('<error>"%s" is not in the REFERENCE=quantity format.</error>', (string) $line));
 
                 return Command::INVALID;
             }
-            [$reference, $quantite] = explode('=', $ligne, 2);
-            $lignes[$reference] = (int) $quantite;
+            [$reference, $quantity] = explode('=', $line, 2);
+            $lines[$reference] = (int) $quantity;
         }
 
-        // Le message d'un DSN manquant vient de la fabrique, et il nomme `app/etc/env.php` : le
-        // rattraper ici pour le réécrire ne ferait que le dire moins bien.
+        // The message for a missing DSN comes from the factory, and it names `app/etc/env.php`:
+        // catching it here to rewrite it would only say it less well.
         $client = $this->runtimeFactory->workflowClient();
 
-        $output->writeln(sprintf('  commande %s — %s', $commande, json_encode($lignes, \JSON_THROW_ON_ERROR)));
-        $depart = microtime(true);
+        $output->writeln(sprintf('  order %s — %s', $order, json_encode($lines, \JSON_THROW_ON_ERROR)));
+        $startedAt = microtime(true);
 
-        // Les clés de la charge sont les **noms** des paramètres du workflow, pas leur position :
-        // `mapInputToArguments` associe par nom, et un renommage d'un seul côté donnerait `null`.
+        // The payload keys are the workflow's parameter **names**, not their positions:
+        // `mapInputToArguments` matches by name, and a rename on one side only would hand `null`.
         $client->startAsync(
-            CommandeNexusWorkflow::class,
+            OrderNexusWorkflow::class,
             [
-                'commande' => $commande,
-                'lignes' => $lignes,
-                'montant' => (int) $input->getArgument('montant'),
-                'devise' => (string) $input->getOption('devise'),
+                'order' => $order,
+                'lines' => $lines,
+                'amount' => (int) $input->getArgument('amount'),
+                'currency' => (string) $input->getOption('currency'),
             ],
-            $commande,
+            $order,
         );
 
-        $output->writeln('  démarré — Magento ne tient rien d\'ouvert pendant que les deux autres travaillent.');
+        $output->writeln('  started — Magento holds nothing open while the others work.');
 
-        $secondes = max(1, (int) $input->getOption('timeout'));
-        $resultat = $client->pollForCompletion($commande, 500, $secondes * 2);
+        $seconds = max(1, (int) $input->getOption('timeout'));
+        $result = $client->pollForCompletion($order, 500, $seconds * 2);
 
-        $output->writeln(json_encode($resultat, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE));
+        $output->writeln(json_encode($result, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE));
 
-        // Le commentaire de durée dit ce qui s'est passé, et non ce qui se passe d'habitude : une
-        // commande refusée revient en un dixième de seconde, et annoncer « dont l'encaissement »
-        // ferait passer un refus rapide pour un encaissement anormalement véloce.
-        $encaisse = \is_array($resultat) && null !== ($resultat['encaissement'] ?? null);
-        $expedie = \is_array($resultat) && true === ($resultat['expedition']['expediee'] ?? null);
+        // The duration line says what happened, and not what usually happens: a refused order comes
+        // back in a tenth of a second, and announcing "including the charge" would make a fast
+        // refusal read as an abnormally quick charge.
+        $charged = \is_array($result) && null !== ($result['charge'] ?? null);
+        $shipped = \is_array($result) && true === ($result['shipment']['shipped'] ?? null);
         $output->writeln(sprintf(
             '<info>%.1f s%s</info>',
-            microtime(true) - $depart,
+            microtime(true) - $startedAt,
             match (true) {
-                $expedie => ' — dont deux opérations remplies par des workflows, chez deux hôtes différents.',
-                $encaisse => ' — encaissée, mais rien n\'est parti.',
-                default => ' — rien n\'a été encaissé.',
+                $shipped => ' — including two operations fulfilled by workflows, on two different hosts.',
+                $charged => ' — charged, but nothing left the warehouse.',
+                default => ' — nothing was charged.',
             },
         ));
 
-        return $expedie ? Command::SUCCESS : Command::FAILURE;
+        return $shipped ? Command::SUCCESS : Command::FAILURE;
     }
 }
