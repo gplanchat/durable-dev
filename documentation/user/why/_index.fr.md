@@ -18,7 +18,7 @@ PHP n'apporte pas de réponse à ça, donc chaque projet invente la sienne. Dura
 Cherchez ceci dans votre propre code. Chacun de ces éléments est un morceau d'exécution durable,
 construit à la main :
 
-- une **colonne d'état qui veut dire *peut-être*** — `pending`, `processing`, `in_progress` — et
+- une **colonne d'état qui veut dire *peut-être*** (`pending`, `processing`, `in_progress`), et
   personne ne sait quelles lignes sont bloquées ;
 - une **clé d'idempotence** que vous avez écrite vous-même, parce qu'un réessai a débité un client
   deux fois, une fois ;
@@ -43,10 +43,10 @@ Une méthode, et le journal derrière elle, au lieu de :
 
 | Ce que vous maintenez aujourd'hui | Ce qui y répond à la place |
 |---|---|
-| Une colonne d'état, et la migration qui ajoute l'état suivant | La ligne où la méthode en est — le journal tient la position |
+| Une colonne d'état, et la migration qui ajoute l'état suivant | La ligne où la méthode en est. Le journal tient la position |
 | Un planificateur qui interroge ce qui est dû | L'instruction suivante ; minuteries et signaux réveillent l'exécution |
 | Un compteur de réessais et une table de rebut | `RetryLimit::ofAttempts(3)`, une option sur le stub d'activité |
-| Des clés d'idempotence, pour qu'un réessai ne débite pas deux fois | Une étape enregistrée rend son résultat enregistré — elle ne peut pas s'exécuter deux fois |
+| Des clés d'idempotence, pour qu'un réessai ne débite pas deux fois | Une étape enregistrée rend son résultat enregistré. Elle ne peut pas s'exécuter deux fois |
 | Relire les journaux pour savoir pourquoi une exécution s'est arrêtée | Rejouer son journal : chaque étape, chaque résultat, chaque tentative |
 
 La [page d'accueil](/fr/) déroule la même commande, étape par étape, en montrant ce qui se passe
@@ -58,7 +58,7 @@ de code sous les yeux.
 Durable n'est pas gratuit : ça ajoute un journal à écrire, des workers à faire tourner, et une règle
 de déterminisme que le code de workflow doit respecter. Passez votre chemin quand :
 
-- le traitement **tient dans une requête** et n'a aucun effet de bord qui vaille d'être rattrapé —
+- le traitement **tient dans une requête** et n'a aucun effet de bord qui vaille d'être rattrapé :
   rendre une page, une requête de recherche, un rapport que vous pouvez relancer ;
 - le traitement **peut repartir de zéro sans dommage**. Un export nocturne qui réécrit tout le
   fichier ne perd rien à être relancé depuis le début ; un débit partiel, si ;
@@ -76,7 +76,7 @@ confiance d'un client, le traitement veut un journal. Si ça coûte une relance,
 
 | | |
 |---|---|
-| [Concepts](../concepts/) | le vocabulaire — workflow, activité, journal, rejeu — avant les guides |
+| [Concepts](../concepts/) | le vocabulaire (workflow, activité, journal, rejeu) avant les guides |
 | [Premiers pas](../getting-started/) | installer, configurer, et écrire un premier workflow |
 | [Paquets](../packages/) | quoi installer pour votre framework, et quel backend |
 | [Durable et le SDK PHP de Temporal](../comparison/) | si l'exécution durable est décidée et que vous choisissez entre les deux |

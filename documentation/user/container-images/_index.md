@@ -5,7 +5,7 @@ weight: 16
 
 # gRPC in your container image
 
-The Temporal backend talks to the cluster over gRPC, so it needs `ext-grpc` — and `ext-grpc` ships
+The Temporal backend talks to the cluster over gRPC, so it needs `ext-grpc`, and `ext-grpc` ships
 no prebuilt binary. `install-php-extensions grpc protobuf` compiles it from source: measured on this
 repository, **6 min 58 s** for `php:8.3-cli-alpine`, because grpc pulls in abseil, boringssl, re2 and
 upb and compiles as C++17. Your image build pays that every time, on every branch.
@@ -16,33 +16,33 @@ So the compiled extensions are published, and you copy them into your image:
 ghcr.io/gplanchat/php-grpc:8.4-cli
 ```
 
-PHP 8.2, 8.3, 8.4 and 8.5, each in four forms — `cli`, `cli-alpine`, `zts`, `zts-alpine`. Public, no
+PHP 8.2, 8.3, 8.4 and 8.5, each in four forms: `cli`, `cli-alpine`, `zts`, `zts-alpine`. Public, no
 authentication needed.
 
 The recipes below use the rolling tags, which are **rebuilt every Monday** so that they follow PHP's
 own patch releases and their base's security updates. If you would rather your build not move under
-you, every publication also lays a dated tag — `8.4-cli-20260828` — and pinning it is a one-word
+you, every publication also lays a dated tag such as `8.4-cli-20260828`, and pinning it is a one-word
 change. A dated tag is never rebuilt.
 
 Dated tags are pruned: the **eight most recent** are kept for each PHP-and-flavour pair, roughly two
 months of pinning points. Pin for a release you are about to cut, not for a base image you will
-still be building from next year — for that, the rolling tag is the one that keeps working.
+still be building from next year; for that, the rolling tag is the one that keeps working.
 
 ---
 
 ## Picking the tag: three things have to match
 
 An extension is a shared object compiled for one particular PHP. Three properties of that PHP have
-to line up — and they fail in three different ways, which is the part worth knowing:
+to line up, and they fail in three different ways, which is the part worth knowing:
 
 | Must match | What happens if it doesn't | When you find out |
 |---|---|---|
 | **PHP minor version** | the extension directory doesn't exist in your base image, `COPY` finds nothing | `docker build`, immediately |
-| **Thread-safety** (ZTS / NTS) | same — the directory name carries it | `docker build`, immediately |
+| **Thread-safety** (ZTS / NTS) | same, the directory name carries it | `docker build`, immediately |
 | **libc** (glibc / musl) | **the path is identical**, the file copies cleanly, and PHP refuses to load it | at run time, unless you check |
 
 The patch version does *not* have to match: `php:8.4.22` loads an extension built against `8.4.25`.
-The minor does — 8.3 and 8.4 are a different ABI.
+The minor does: 8.3 and 8.4 are a different ABI.
 
 The directory name encodes the first two:
 
@@ -103,7 +103,7 @@ RUN php -m | grep -qx grpc && php -m | grep -qx protobuf
 ```
 
 **On Alpine, check `libstdc++`.** grpc is C++, and it needs that library at load time. Every Debian
-base carries it; Alpine bases are inconsistent — `php:8.4-fpm-alpine` does not have it, the
+base carries it; Alpine bases are inconsistent: `php:8.4-fpm-alpine` does not have it, the
 FrankenPHP Alpine image does:
 
 ```dockerfile
@@ -120,7 +120,7 @@ RUN php -m | grep -qx grpc && php -m | grep -qx protobuf
 ```
 
 Without that `apk add`, the build fails on the last line with `Error loading shared library
-libstdc++.so.6` — which is the check doing its job.
+libstdc++.so.6`, which is the check doing its job.
 
 ### Apache with mod_php
 
@@ -142,8 +142,8 @@ RUN php -m | grep -qx grpc && php -m | grep -qx protobuf
 ### FrankenPHP
 
 FrankenPHP embeds PHP in the server process and runs several workers in one process, so it is built
-**thread-safe**. An NTS extension will not load in it — this is the case the `zts` images exist for.
-Note the `zts` in the paths — `no-debug-zts-20240924`, not `no-debug-non-zts-20240924`:
+**thread-safe**. An NTS extension will not load in it, and this is the case the `zts` images exist for.
+Note the `zts` in the paths: `no-debug-zts-20240924`, not `no-debug-non-zts-20240924`:
 
 ```dockerfile
 FROM ghcr.io/gplanchat/php-grpc:8.4-zts AS ext
@@ -158,7 +158,7 @@ RUN php -m | grep -qx grpc && php -m | grep -qx protobuf
 ```
 
 On `dunglas/frankenphp:1-php8.4-alpine`, copy from `8.4-zts-alpine` instead. That one already ships
-`libstdc++`, so it needs no `apk add` — Alpine bases differ on this, and the `RUN php -m` line is
+`libstdc++`, so it needs no `apk add`; Alpine bases differ on this, and the `RUN php -m` line is
 what tells you which kind you have.
 
 ---
@@ -175,8 +175,8 @@ docker run --rm --entrypoint sh <your-base-image> -c \
   '[ -f /etc/alpine-release ] && echo musl || echo glibc'
 ```
 
-Three answers, three columns of the table above. If no published tag matches all three, compile —
-which is the next section.
+Three answers, three columns of the table above. If no published tag matches all three, compile. That is
+the next section.
 
 ---
 

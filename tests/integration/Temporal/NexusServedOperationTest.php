@@ -44,15 +44,15 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * §6.1 — un appelant Durable et un gestionnaire Durable, sur un vrai serveur, dans les deux formes.
+ * §6.1 — a Durable caller and a Durable handler, on a real server, in both forms.
  *
- * La différence avec {@see NexusAsynchronousFulfilmentTest} : là, le trajet était monté à la main
- * pour mesurer ce que fait le serveur. Ici c'est {@see TemporalNexusWorker} qui poll, route et
- * répond — donc le code qui partira en production, et non une reconstitution.
+ * The difference with {@see NexusAsynchronousFulfilmentTest}: there, the journey was rigged by hand
+ * to measure what the server does. Here it is {@see TemporalNexusWorker} that polls, routes and
+ * answers — so the code that will go to production, and not a reconstruction.
  *
- * Ce que les tests unitaires du worker ne peuvent pas prouver et qui se joue ici : que le serveur
- * **accepte** ce que le worker lui envoie. Un `syncSuccess` mal formé ou un callback mal attaché
- * passe une assertion sur un mock et se fait rejeter par le serveur.
+ * What the worker's unit tests cannot prove and what plays out here: that the server **accepts**
+ * what the worker sends it. A malformed `syncSuccess` or a badly attached callback passes an
+ * assertion on a mock and gets rejected by the server.
  */
 #[RequiresPhpExtension('grpc')]
 final class NexusServedOperationTest extends TestCase
@@ -71,7 +71,7 @@ final class NexusServedOperationTest extends TestCase
     {
         $address = getenv('DURABLE_TEMPORAL_ADDRESS');
         if (false === $address || '' === $address) {
-            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS non défini : pas de serveur Temporal.');
+            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS not set: no Temporal server.');
         }
 
         $this->queue = 'nexus-served-' . bin2hex(random_bytes(5));
@@ -166,22 +166,23 @@ final class NexusServedOperationTest extends TestCase
         $callerId = $this->scheduleOperation('greet', ['name' => 'ada']);
         $this->worker($registry)->pollOnce();
 
-        // Le worker a démarré le workflow qui remplit l'opération, avec le callback attaché. Rien
-        // ne le sollicitera plus : ce workflow porte l'opération, et c'est sa fin qui la règle.
+        // The worker started the workflow that fulfils the operation, with the callback attached.
+        // Nothing will call on it again: this workflow carries the operation, and its end settles
+        // the operation.
         $fulfillerId = $this->completeTheFulfillingWorkflow(['greeting' => 'hello ada, plus tard']);
 
         $outcome = $this->awaitTerminalNexusEvent($callerId);
 
-        self::assertNotSame('', $fulfillerId, 'Le worker n’a démarré aucun workflow.');
+        self::assertNotSame('', $fulfillerId, 'The worker started no workflow.');
         self::assertSame(EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED, $outcome['type'], $outcome['names']);
         self::assertSame(['greeting' => 'hello ada, plus tard'], $outcome['result']);
     }
 
     public function testAnOperationDeclaredAsFulfilledByAWorkflowNeedsNoHandlerAtAll(): void
     {
-        // La forme déclarée, de bout en bout : le registre ne connaît **aucun** gestionnaire pour
-        // cette opération, seulement le workflow qui la remplit. Personne n'écrit de corps, et le
-        // worker démarre pourtant le workflow avec le callback attaché.
+        // The declared form, end to end: the registry knows **no** handler at all for this
+        // operation, only the workflow that fulfils it. Nobody writes a body, and yet the worker
+        // starts the workflow with the callback attached.
         $fulfillerId = 'served-fulfiller-' . bin2hex(random_bytes(4));
 
         $registry = NexusOperationRegistry::routedBy('temporal');
@@ -195,7 +196,7 @@ final class NexusServedOperationTest extends TestCase
         $this->worker($registry)->pollOnce();
 
         $fulfillerId = $this->completeAnyFulfillingWorkflow(['greeting' => 'hello ada, déclaré']);
-        self::assertNotSame('', $fulfillerId, 'le worker n’a démarré aucun workflow');
+        self::assertNotSame('', $fulfillerId, 'the worker started no workflow');
 
         $outcome = $this->awaitTerminalNexusEvent($callerId);
 
@@ -207,8 +208,8 @@ final class NexusServedOperationTest extends TestCase
     {
         $callerId = $this->scheduleOperation('greet', []);
 
-        // Un registre vide : le serveur doit accepter le refus typé que le worker lui envoie.
-        // Si le format était mauvais, `RespondNexusTaskFailed` lèverait ici.
+        // An empty registry: the server must accept the typed refusal the worker sends it.
+        // If the format were wrong, `RespondNexusTaskFailed` would raise here.
         $this->worker(NexusOperationRegistry::routedBy('temporal'))->pollOnce();
 
         self::assertNotSame('', $callerId);
@@ -254,7 +255,7 @@ final class NexusServedOperationTest extends TestCase
     }
 
     /**
-     * Termine le workflow que le **worker** a démarré, dont l'identifiant est engendré.
+     * Completes the workflow the **worker** started, whose identifier is generated.
      *
      * @param array<string, mixed> $result
      */
@@ -332,7 +333,7 @@ final class NexusServedOperationTest extends TestCase
             usleep(500_000);
         }
 
-        return ['type' => 0, 'result' => null, 'names' => 'aucun événement terminal : ' . implode(', ', $names)];
+        return ['type' => 0, 'result' => null, 'names' => 'no terminal event: ' . implode(', ', $names)];
     }
 
     private function pollWorkflowTask(): PollWorkflowTaskQueueResponse
@@ -361,7 +362,7 @@ final class NexusServedOperationTest extends TestCase
         self::assertSame(
             0,
             (int) ($pair[1]->code ?? -1),
-            'Le serveur a refusé la tâche de workflow : ' . (string) ($pair[1]->details ?? ''),
+            'The server refused the workflow task: ' . (string) ($pair[1]->details ?? ''),
         );
     }
 }

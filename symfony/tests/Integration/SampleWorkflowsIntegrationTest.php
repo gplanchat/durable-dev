@@ -28,12 +28,12 @@ use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
- * Intégration Messenger in-memory (APP_ENV=test) : chaque workflow sous {@see \App\Samples\Workflow}
- * listé dans {@see SampleWorkflowCatalog} + {@see SamplesEchoChildWorkflow} enfant seul.
+ * In-memory Messenger integration (APP_ENV=test): every workflow under {@see \App\Samples\Workflow}
+ * listed in {@see SampleWorkflowCatalog} + {@see SamplesEchoChildWorkflow} as a lone child.
  *
- * Après modification du routage Messenger (`config/packages/messenger.yaml`), exécuter
- * `php bin/console cache:clear --env=test` (ou supprimer `var/cache/test`) pour que les
- * transports et le routage `FireWorkflowTimersMessage` soient à jour.
+ * After changing the Messenger routing (`config/packages/messenger.yaml`), run
+ * `php bin/console cache:clear --env=test` (or delete `var/cache/test`) so that the
+ * transports and the `FireWorkflowTimersMessage` routing are up to date.
  *
  * @internal
  */
@@ -79,7 +79,7 @@ final class SampleWorkflowsIntegrationTest extends KernelTestCase
     }
 
     /**
-     * Workflow enfant seul (hors entrée catalogue dédiée) : echoUpper via activité.
+     * Lone child workflow (no dedicated catalogue entry): echoUpper through an activity.
      */
     public function testSamplesEchoChildWorkflow(): void
     {
@@ -235,7 +235,7 @@ final class SampleWorkflowsIntegrationTest extends KernelTestCase
     }
 
     /**
-     * Couverture explicite : chaque classe sous App\Samples\Workflow a un test ci-dessus ou ici (alias).
+     * Explicit coverage: every class under App\Samples\Workflow has a test above or here (alias).
      */
     public function testWorkflowAliasesMatchCatalog(): void
     {
@@ -264,7 +264,7 @@ final class SampleWorkflowsIntegrationTest extends KernelTestCase
             $alias = $loader->workflowTypeForClass($class);
             self::assertTrue(
                 $this->runner()->hasWorkflow($alias),
-                \sprintf('Workflow type "%s" (%s) doit être enregistré.', $alias, $class),
+                \sprintf('Workflow type "%s" (%s) must be registered.', $alias, $class),
             );
         }
     }

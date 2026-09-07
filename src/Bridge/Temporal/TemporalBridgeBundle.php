@@ -9,7 +9,7 @@ use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
 /**
- * Enregistre la fabrique Messenger unique {@code temporal://} (journal + applicatif).
+ * Registers the single {@code temporal://} Messenger factory (journal + application).
  */
 final class TemporalBridgeBundle extends Bundle
 {

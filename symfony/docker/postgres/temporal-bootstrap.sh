@@ -9,7 +9,7 @@ psql() {
   command psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" "$@"
 }
 
-# Rôle + mot de passe (idempotent ; répare un volume créé avant 99-temporal.sql).
+# Role + password (idempotent; repairs a volume created before 99-temporal.sql).
 psql -v ON_ERROR_STOP=1 <<'SQL'
 DO $$
 BEGIN

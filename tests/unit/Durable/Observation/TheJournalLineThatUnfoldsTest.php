@@ -13,11 +13,11 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Une frise dit « quoi ». Un exploitant demande « avec quoi » dans la seconde qui suit.
+ * A frieze says "what". An operator asks "with what" in the second that follows.
  *
- * `WorkflowRunEvent` ne portait que la séquence, l'horodatage, la voie et un libellé : de quoi
- * ranger les lignes, pas de quoi répondre à la deuxième question. Un dépliant construit là-dessus
- * se serait ouvert sur du vide.
+ * `WorkflowRunEvent` only carried the sequence, the timestamp, the lane and a label: enough to
+ * file the rows, not enough to answer the second question. An unfoldable built on that would have
+ * opened onto nothing.
  */
 final class TheJournalLineThatUnfoldsTest extends TestCase
 {
@@ -28,11 +28,11 @@ final class TheJournalLineThatUnfoldsTest extends TestCase
         ]);
 
         self::assertSame(WorkflowRunEventKind::Activity, $history[0]->kind);
-        self::assertNotSame([], $history[0]->details, 'une activité planifiée a de quoi être dépliée');
+        self::assertNotSame([], $history[0]->details, 'a scheduled activity has something to unfold');
         self::assertStringContainsString(
             'ORD-4242',
             json_encode($history[0]->details, \JSON_THROW_ON_ERROR),
-            "l'entrée de l'activité doit se lire dans le détail",
+            "the activity's input must be readable in the detail",
         );
     }
 
@@ -46,14 +46,14 @@ final class TheJournalLineThatUnfoldsTest extends TestCase
         self::assertStringContainsString(
             'rcpt-7',
             json_encode($history[1]->details, \JSON_THROW_ON_ERROR),
-            'un exploitant vient lire ce que la charge a répondu, pas seulement qu\'elle a répondu',
+            'an operator comes to read what the payload answered, not only that it answered',
         );
     }
 
     public function testTheFieldIsAdditive(): void
     {
-        // Le champ arrive en fin de constructeur avec une valeur par défaut : tout appelant écrit
-        // avant lui — le pont Temporal, le plugin Sylius, les tests — continue de construire.
+        // The field lands at the end of the constructor with a default value: every caller
+        // written before it — the Temporal bridge, the Sylius plugin, the tests — still builds.
         $event = new WorkflowRunEvent(1, new \DateTimeImmutable('@0'), WorkflowRunEventKind::Other, 'x');
 
         self::assertSame([], $event->details);

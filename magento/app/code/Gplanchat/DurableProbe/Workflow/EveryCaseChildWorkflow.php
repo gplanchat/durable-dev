@@ -9,10 +9,10 @@ use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\DurableProbe\Workflow\Activity\EveryCaseActivities;
 
 /**
- * L'enfant de {@see EveryCaseWorkflow} : il réussit, ou il échoue, selon ce qu'on lui demande.
+ * The child of {@see EveryCaseWorkflow}: it succeeds, or it fails, depending on what it is asked.
  *
- * Deux exécutions du même type, l'une verte et l'autre rouge, sont ce qui prouve qu'une ligne
- * d'enfant porte son propre sort et non celui de son parent.
+ * Two executions of the same type, one green and the other red, are what proves that a child row
+ * carries its own fate and not its parent's.
  */
 final class EveryCaseChildWorkflow
 {

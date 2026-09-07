@@ -9,8 +9,8 @@ use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 
 /**
- * Lien parent/enfant persisté : en mode Messenger asynchrone, le run enfant se termine dans un
- * autre processus que le parent et doit retrouver à qui rendre son résultat.
+ * Persisted parent/child link: in asynchronous Messenger mode, the child run ends in a different
+ * process from the parent and has to find out whom to hand its result back to.
  *
  * @see DUR030
  */

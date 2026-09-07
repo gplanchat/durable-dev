@@ -19,24 +19,24 @@ use Temporal\Api\Update\V1\Response as UpdateResponse;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 
 /**
- * Le protocole d'update, côté worker.
+ * The update protocol, worker side.
  *
- * Sondé contre un vrai serveur (tâche 1.3 du change workflow-conditions-and-handler-dispatch) :
- * un update n'arrive **pas** par l'historique. Il vient à côté, en message de protocole sur la
- * tâche, et le worker l'accepte *et* y répond sur cette **même** tâche — une `Acceptance` portée
- * par une commande `PROTOCOL_MESSAGE`, une `Response` qui porte l'issue. Le serveur écrit ensuite
- * `WORKFLOW_EXECUTION_UPDATE_ACCEPTED` puis `..._UPDATE_COMPLETED`, les deux événements que
- * {@see TemporalExecutionHistory} lit déjà.
+ * Probed against a real server (task 1.3 of the workflow-conditions-and-handler-dispatch change):
+ * an update does **not** arrive through the history. It comes alongside, as a protocol message on
+ * the task, and the worker accepts it *and* answers it on that **same** task — an `Acceptance`
+ * carried by a `PROTOCOL_MESSAGE` command, a `Response` carrying the outcome. The server then
+ * writes `WORKFLOW_EXECUTION_UPDATE_ACCEPTED` then `..._UPDATE_COMPLETED`, the two events that
+ * {@see TemporalExecutionHistory} already reads.
  *
- * C'est pourquoi rien ici ne ressemble à la livraison d'un signal : un signal *est* un événement,
- * un update ne le devient qu'une fois accepté.
+ * That is why nothing here looks like signal delivery: a signal *is* an event, an update only
+ * becomes one once accepted.
  */
 final class UpdateProtocol
 {
     private function __construct() {}
 
     /**
-     * Extrait de la tâche les updates à traiter dans cette passe.
+     * Extracts from the task the updates to handle in this pass.
      *
      * @return list<InboundUpdate>
      */
@@ -70,9 +70,9 @@ final class UpdateProtocol
     }
 
     /**
-     * Acceptation et réponse, pour les updates que la passe a traités.
+     * Acceptance and response, for the updates this pass has handled.
      *
-     * Les deux partent sur la tâche courante : rien n'attend un second aller-retour.
+     * Both leave on the current task: nothing waits for a second round trip.
      *
      * @param list<InboundUpdate> $inbound
      *
@@ -85,8 +85,8 @@ final class UpdateProtocol
 
         foreach ($inbound as $update) {
             if (!$update->pending->handled) {
-                // Aucun handler déclaré pour ce nom : ne rien accepter, l'update reste ouvert
-                // plutôt que d'être clos sur une issue vide.
+                // No handler declared for this name: accept nothing, the update stays open
+                // rather than being closed on an empty outcome.
                 continue;
             }
 
@@ -107,11 +107,11 @@ final class UpdateProtocol
             $responseMessage->setProtocolInstanceId($updateId);
             $responseMessage->setBody(self::pack(self::outcomeOf($update)));
 
-            // Une commande par message. L'acceptation seule suffit au serveur pour ouvrir
-            // l'update, mais laisse la réponse hors de la séquence : si le workflow se termine
-            // sur la même tâche — ce qu'un update débloquant provoque justement — le serveur
-            // clôt l'exécution avant d'avoir délivré l'issue, et l'appelant reçoit « the
-            // Workflow completed before the Update completed ».
+            // One command per message. The acceptance alone is enough for the server to open the
+            // update, but leaves the response out of the sequence: if the workflow ends on the
+            // same task — which is exactly what an unblocking update causes — the server closes
+            // the execution before having delivered the outcome, and the caller gets "the
+            // Workflow completed before the Update completed".
             $commands[] = self::protocolCommand($acceptMessage->getId());
             $commands[] = self::protocolCommand($responseMessage->getId());
             $messages[] = $acceptMessage;

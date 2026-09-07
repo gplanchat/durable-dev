@@ -16,7 +16,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
 use InvalidArgumentException;
 
 /**
- * Port de samples-php ActivityRetry : politique de retry sur l’activité (max attempts, backoff, non-retryable).
+ * Port of samples-php ActivityRetry: a retry policy on the activity (max attempts, backoff, non-retryable).
  */
 #[AsWorkflow('Samples_ActivityRetry_Greeting')]
 final class ActivityRetryGreetingWorkflow

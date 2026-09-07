@@ -7,15 +7,15 @@ namespace integration\Temporal\Fixtures;
 use Gplanchat\Durable\Attribute\AsActivityMethod;
 
 /**
- * Les activités que la suite d'intégration planifie contre un vrai serveur.
+ * The activities that the integration suite schedules against a real server.
  *
- * Distinct du contrat des tests unitaires, et pas par symétrie : les deux suites vivent dans des
- * espaces de noms séparés, et surtout ce qui part sur le fil ici est observé par un serveur
- * Temporal. Le nom transmis est celui de l'attribut — il ne doit pas bouger, sinon ce sont les
- * historiques déjà enregistrés qui cessent de rejouer.
+ * Distinct from the unit tests' contract, and not out of symmetry: the two suites live in separate
+ * namespaces, and above all what goes on the wire here is observed by a Temporal server. The name
+ * transmitted is the attribute's — it must not move, otherwise it is the already recorded
+ * histories that stop replaying.
  *
- * Le nom du paramètre est la clé de la charge : `ActivityStub` la construit depuis les
- * paramètres déclarés ici.
+ * The parameter name is the payload key: `ActivityStub` builds it from the parameters declared
+ * here.
  */
 interface IntegrationActivities
 {
@@ -28,7 +28,7 @@ interface IntegrationActivities
     #[AsActivityMethod('refund')]
     public function refund(string $order): string;
 
-    /** Échoue toujours : c'est le sujet des workflows FailsOnActivity, UnboundedRetry et NonRetryable. */
+    /** Always fails: it is the subject of the FailsOnActivity, UnboundedRetry and NonRetryable workflows. */
     #[AsActivityMethod('boom')]
     public function boom(): never;
 }

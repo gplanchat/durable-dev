@@ -12,11 +12,11 @@ use Symfony\Component\Messenger\Transport\Receiver\ReceiverInterface;
 use Symfony\Component\Messenger\Transport\Sender\SenderInterface;
 
 /**
- * Adapte ActivityTransportInterface pour utiliser Symfony Messenger.
+ * Adapts ActivityTransportInterface to use Symfony Messenger.
  * Enqueue = send, Dequeue = get + ack.
  *
- * Si les métadonnées contiennent « retry_delay_seconds », un {@see DelayStamp} est appliqué
- * (comportement proche des retentatives Temporal / file différée).
+ * If the metadata contains "retry_delay_seconds", a {@see DelayStamp} is applied
+ * (behaviour close to Temporal retries / a delayed queue).
  */
 final class MessengerActivityTransport implements ActivityTransportInterface
 {
@@ -29,7 +29,7 @@ final class MessengerActivityTransport implements ActivityTransportInterface
 
     public function enqueue(ActivityMessage $message): void
     {
-        // Même principe : le report devient un DelayStamp, et disparaît du message.
+        // Same principle: the deferral becomes a DelayStamp, and disappears from the message.
         $delayMs = null !== $message->retryDelay ? (int) round($message->retryDelay->toSeconds() * 1000.0) : 0;
         $clean = $message->withoutRetryDelay();
 
@@ -73,8 +73,8 @@ final class MessengerActivityTransport implements ActivityTransportInterface
     }
 
     /**
-     * Messenger porte lui-même le report (DelayStamp) : le worker n'a pas à attendre une
-     * échéance côté PHP.
+     * Messenger carries the deferral itself (DelayStamp): the worker does not have to wait for
+     * a deadline on the PHP side.
      */
     public function nextDueAt(): ?float
     {

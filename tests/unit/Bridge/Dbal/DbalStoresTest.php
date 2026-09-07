@@ -17,9 +17,9 @@ use Gplanchat\Durable\Event\SideEffectRecorded;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Le backend DBAL rejoue depuis SQL ce que le backend in-memory rejoue depuis un tableau :
- * si l'ordre d'insertion ou le type d'événement ne survit pas à l'aller-retour, tout replay
- * diverge en silence. C'est ce que ce test garde.
+ * The DBAL backend replays from SQL what the in-memory backend replays from an array:
+ * if the insertion order or the event type does not survive the round trip, every replay
+ * diverges in silence. That is what this test guards.
  *
  * @see DUR030
  */
@@ -36,7 +36,7 @@ final class DbalStoresTest extends TestCase
     {
         $store = new DbalEventStore($this->connection, $this->schema());
 
-        // La table n'existe pas encore : le premier append doit la créer.
+        // The table does not exist yet: the first append must create it.
         $store->append(new ActivityScheduled('exec-1', 'act-1', 'charge', ['amount' => 10]));
         $store->append(new SideEffectRecorded('exec-1', 'se-1', 'roll-42'));
         $store->append(new ActivityCompleted('exec-1', 'act-1', ['ok' => true]));
@@ -93,13 +93,13 @@ final class DbalStoresTest extends TestCase
         );
         self::assertTrue($store->hasActiveWorkflowMetadata('exec-1'));
 
-        // Un second save (continue-as-new) écrase la ligne au lieu de violer la clé primaire.
+        // A second save (continue-as-new) overwrites the row instead of violating the primary key.
         $store->save('exec-1', 'App\\Checkout', ['cart' => 8]);
         self::assertSame(['cart' => 8], $store->get('exec-1')['payload']);
 
         $store->markCompleted('exec-1');
         self::assertFalse($store->hasActiveWorkflowMetadata('exec-1'));
-        // Le type reste consultable après complétion (profiler, observabilité).
+        // The type stays readable after completion (profiler, observability).
         self::assertSame('App\\Checkout', $store->get('exec-1')['workflowType']);
 
         $store->delete('exec-1');
@@ -136,7 +136,7 @@ final class DbalStoresTest extends TestCase
         $events->append(new ActivityScheduled('exec-1', 'act-1', 'charge', []));
         $metadata->save('exec-1', 'App\\Checkout', []);
 
-        // Un second DurableSchema sur la même connexion ne doit pas retenter les CREATE TABLE.
+        // A second DurableSchema on the same connection must not retry the CREATE TABLE statements.
         $second = new DbalEventStore($this->connection, $this->schema());
         $second->append(new ActivityScheduled('exec-1', 'act-2', 'ship', []));
 

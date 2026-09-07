@@ -15,7 +15,7 @@ qui permet de décider s'il faut compenser, alerter, ou laisser le workflow mour
 | Événement | Sens |
 |---|---|
 | `ActivityScheduled` | le workflow l'a demandée |
-| `ActivityTaskStarted` | une tentative a commencé — une par tentative |
+| `ActivityTaskStarted` | une tentative a commencé, une ligne par tentative |
 | `ActivityTaskFailed` | **une tentative a échoué**, qu'une autre suive ou non |
 | `ActivityTaskCompleted` | une tentative a réussi |
 | `ActivityCompleted` | résultat final : succès |
@@ -24,14 +24,14 @@ qui permet de décider s'il faut compenser, alerter, ou laisser le workflow mour
 | `ActivityCatastrophicFailure` | l'échec lui-même n'a pas pu être journalisé sans risque |
 
 `ActivityTaskFailed` compte : sans lui, une tentative qui échouait puis se voyait suivie d'un succès
-ne laissait **aucune trace**. La première erreur disparaissait purement et simplement du journal.
+ne laissait **aucune trace**. La première erreur disparaissait du journal.
 
 ---
 
 ## Pourquoi une activité a cessé de réessayer
 
-`ActivityFailed` porte un `retryState` qui dit dans laquelle des quatre situations vous êtes —
-elles étaient autrefois indiscernables :
+`ActivityFailed` porte un `retryState` qui dit dans laquelle des quatre situations vous êtes. Elles
+étaient autrefois indiscernables :
 
 ```php
 use Gplanchat\Durable\Failure\ActivityRetryState;
@@ -42,11 +42,11 @@ $failed->isStalled();      // vrai quand les tentatives sont épuisées
 
 | État | Sens |
 |---|---|
-| `NonRetryableFailure` | l'exception est déclarée non réessayable — elle ne sera jamais retentée |
+| `NonRetryableFailure` | l'exception est déclarée non réessayable, elle ne sera donc jamais retentée |
 | `MaximumAttemptsReached` | toutes les tentatives autorisées ont été consommées |
 | `Timeout` | une borne « planification à démarrage » ou « planification à clôture » s'est écoulée |
 | `RetryPolicyNotSet` | aucune politique de réessai ne s'appliquait |
-| `InProgress` | non final — une autre tentative est attendue |
+| `InProgress` | non final ; une autre tentative est attendue |
 
 `InProgress` est la façon d'enregistrer un échec qui n'est **pas** un dénouement. Il apparaît quand
 le réessai est délégué au serveur Temporal, et il ne compte délibérément pas comme un dénouement
@@ -73,7 +73,7 @@ aussi, pas seulement le worker PHP.
 
 ## Le décompte des tentatives
 
-`RetryLimit::ofAttempts(3)` signifie **trois exécutions au total**, comme sur Temporal — et non
+`RetryLimit::ofAttempts(3)` signifie **trois exécutions au total**, comme sur Temporal, et non
 trois réessais après un premier essai.
 
 > [!WARNING]

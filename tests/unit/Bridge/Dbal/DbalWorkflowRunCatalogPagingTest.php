@@ -20,14 +20,14 @@ use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Parcourir la liste : filtrer par issue, et tourner les pages sans rien perdre ni rien voir deux
- * fois.
+ * Walking the list: filter by outcome, and turn the pages without losing anything or seeing
+ * anything twice.
  *
- * Le second point n'est pas théorique ici. `started_at` est stocké à la seconde, et une salve
- * d'exécutions démarrées dans la même seconde partage donc la même date : un curseur à décalage
- * ferait glisser la fenêtre à chaque insertion concurrente, et un tri sans départage rendrait
- * l'ordre arbitraire d'une page à l'autre. Ces tests créent délibérément leurs exécutions dans la
- * même seconde.
+ * The second point is not theoretical here. `started_at` is stored to the second, and a burst of
+ * executions started within the same second therefore shares the same date: an offset cursor would
+ * slide the window on every concurrent insertion, and a sort with no tie-break would make the
+ * order arbitrary from one page to the next. These tests deliberately create their executions
+ * within the same second.
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/specs/workflow-run-observation/spec.md
  */
@@ -87,7 +87,7 @@ final class DbalWorkflowRunCatalogPagingTest extends TestCase
             $seen = [...$seen, ...$this->idsOf($page->runs)];
             $cursor = $page->nextCursor;
             ++$pages;
-            self::assertLessThan(10, $pages, 'la pagination ne se termine pas');
+            self::assertLessThan(10, $pages, 'the paging never ends');
         } while (null !== $cursor);
 
         self::assertSame($expected, $seen);
@@ -103,7 +103,7 @@ final class DbalWorkflowRunCatalogPagingTest extends TestCase
         $page = $this->catalog()->listRuns(null, null, 2);
 
         self::assertSame(['exec-01', 'exec-02'], $this->idsOf($page->runs));
-        self::assertNull($page->nextCursor, 'une page exactement pleine ne doit pas promettre une page vide');
+        self::assertNull($page->nextCursor, 'a page that is exactly full must not promise an empty one');
     }
 
     public function testAFilteredListPagesOverTheFilteredSetOnly(): void
@@ -133,12 +133,12 @@ final class DbalWorkflowRunCatalogPagingTest extends TestCase
     }
 
     /**
-     * Démarre une exécution **et fige sa date**.
+     * Starts an execution **and freezes its date**.
      *
-     * `recordStart()` horodate à `now`, et `started_at` est stocké à la seconde : une salve de cinq
-     * exécutions tombe dans la même seconde presque toujours, et à cheval sur deux de temps en
-     * temps. L'ordre attendu changeait alors sous les pieds du test — c'est arrivé en CI, pas ici.
-     * Ces tests portent sur la pagination, pas sur l'horodatage : la date est donc dictée.
+     * `recordStart()` stamps `now`, and `started_at` is stored to the second: a burst of five
+     * executions falls within the same second almost always, and straddles two of them every now
+     * and then. The expected order then changed under the test's feet — that happened in CI, not
+     * here. These tests are about paging, not about timestamping: the date is therefore dictated.
      */
     private function startRun(string $executionId, string $workflowType, int $startedAt = 1_700_000_000): void
     {

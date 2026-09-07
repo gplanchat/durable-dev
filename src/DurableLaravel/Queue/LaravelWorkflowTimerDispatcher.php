@@ -9,12 +9,12 @@ use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 
 /**
- * Un minuteur, sur le délai que la file porte déjà.
+ * A timer, on the delay the queue already carries.
  *
- * Réveiller une exécution « dans n millisecondes » est une reprise différée, et rien d'autre : le
- * port ne demande pas un mécanisme séparé. Le pendant Symfony obtient la même chose d'un
- * `DelayStamp` ; ici c'est `later()`, arrondi **au-dessus** parce qu'attendre moins que demandé est
- * la seule erreur qui compte — un workflow réveillé trop tôt reprend avant son échéance.
+ * Waking an execution "in n milliseconds" is a deferred resume, and nothing else: the port does not
+ * ask for a separate mechanism. The Symfony counterpart gets the same thing from a `DelayStamp`;
+ * here it is `later()`, rounded **up** because waiting less than asked is the only error that
+ * counts — a workflow woken too early resumes before its deadline.
  */
 final class LaravelWorkflowTimerDispatcher implements WorkflowTimerDispatcher
 {

@@ -15,13 +15,13 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use PHPUnit\Framework\TestCase;
 
 /**
- * La même garde, sur les slots de workflow enfant.
+ * The same guard, on child workflow slots.
  *
- * Un enfant s'identifie par son **type**. Son identifiant d'exécution, lui, est engendré : le
- * comparer ferait diverger un replay parfaitement fidèle.
+ * A child is identified by its **type**. Its execution id, on the other hand, is generated:
+ * comparing it would make a perfectly faithful replay diverge.
  *
- * Les opérations Nexus ont leur propre test, côté pont : le backend journal les refuse par
- * construction (DUR036), et y éprouver la garde serait éprouver une situation impossible.
+ * Nexus operations have their own test, on the bridge side: the journal backend refuses them by
+ * construction (DUR036), and testing the guard there would be testing an impossible situation.
  *
  * @see \unit\Gplanchat\Bridge\Temporal\Worker\NexusSlotDivergenceTest
  */
@@ -43,7 +43,7 @@ final class ChildWorkflowSlotDivergenceTest extends TestCase
 
         try {
             $context->executeChildWorkflow('ReserveStockWorkflow', ['sku' => 'ABC']);
-            self::fail('La divergence aurait dû être refusée.');
+            self::fail('The divergence should have been refused.');
         } catch (WorkflowTaskFailure $e) {
             $message = $e->getMessage();
         }
@@ -54,13 +54,13 @@ final class ChildWorkflowSlotDivergenceTest extends TestCase
 
     public function testTheMessageNamesTheSlotKind(): void
     {
-        // « activity » et « child workflow » ne se cherchent pas au même endroit dans un
-        // historique : confondre les deux coûte au lecteur le temps qu'il vient d'économiser.
+        // "activity" and "child workflow" are not looked up in the same place in a history:
+        // confusing the two costs the reader the time they have just saved.
         $context = $this->contextWithChild('ChargeCardWorkflow');
 
         try {
             $context->executeChildWorkflow('ReserveStockWorkflow', ['sku' => 'ABC']);
-            self::fail('La divergence aurait dû être refusée.');
+            self::fail('The divergence should have been refused.');
         } catch (WorkflowTaskFailure $e) {
             $message = $e->getMessage();
         }
@@ -75,7 +75,7 @@ final class ChildWorkflowSlotDivergenceTest extends TestCase
 
         $awaitable = $context->executeChildWorkflow('ChargeCardWorkflow', ['sku' => 'ABC']);
 
-        self::assertNotNull($awaitable, "Le type inchangé ne doit pas diverger : l'identifiant d'exécution engendré n'entre pas dans la comparaison.");
+        self::assertNotNull($awaitable, 'The unchanged type must not diverge: the generated execution id does not enter the comparison.');
     }
 
     public function testTheSameChildStartedWithAnotherInputIsRefused(): void

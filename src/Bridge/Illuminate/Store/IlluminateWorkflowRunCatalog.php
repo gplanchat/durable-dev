@@ -15,21 +15,21 @@ use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Illuminate\Database\Connection;
 
 /**
- * Quelles exécutions existent, et ce qu'elles sont devenues — côté Laravel.
+ * Which executions exist, and what became of them — on the Laravel side.
  *
- * Lecture **et** écriture dans le même objet, comme le catalogue in-memory et contrairement au pont
- * DBAL qui sépare `DbalWorkflowRunProjection` de son catalogue. Ce n'est pas une simplification :
- * les deux moitiés vivent sur une seule connexion et une seule table, il n'y a rien à partager
- * entre elles qu'un nom de table. Les décorateurs du cœur — {@see \Gplanchat\Durable\Store\ProjectingEventStore}
- * et {@see \Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore} — attendent un
- * {@see WorkflowRunProjectionInterface} et se branchent donc dessus sans rien savoir d'Illuminate.
+ * Reading **and** writing in the same object, like the in-memory catalog and unlike the DBAL bridge
+ * which separates `DbalWorkflowRunProjection` from its catalog. This is not a simplification: both
+ * halves live on a single connection and a single table, and there is nothing to share between
+ * them but a table name. The core decorators — {@see \Gplanchat\Durable\Store\ProjectingEventStore}
+ * and {@see \Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore} — expect a
+ * {@see WorkflowRunProjectionInterface} and therefore plug in knowing nothing about Illuminate.
  *
- * Le curseur est un couple `(started_at, execution_id)` encodé en base64, exactement comme côté
- * DBAL : un décalage ferait glisser la fenêtre à chaque insertion concurrente, et `started_at`
- * seul ne départage pas une salve d'exécutions démarrées dans la même seconde. La suite de
- * conformité crée les siennes d'un trait pour tomber précisément dans ce cas.
+ * The cursor is a `(started_at, execution_id)` pair encoded in base64, exactly as on the DBAL side:
+ * an offset would make the window slide on every concurrent insertion, and `started_at` alone
+ * does not break ties within a burst of executions started in the same second. The conformance
+ * suite creates its own in one go so as to fall precisely into that case.
  *
- * @see DUR037 l'observation d'un run est une projection
+ * @see DUR037 observing a run is a projection
  * @see DUR041
  */
 final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface, WorkflowRunProjectionInterface
@@ -43,7 +43,7 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
         private readonly ?JournalRunHistoryReader $history = null,
     ) {}
 
-    // -- côté écriture : WorkflowRunProjectionInterface ------------------------------------------
+    // -- write side: WorkflowRunProjectionInterface ----------------------------------------------
 
     public function recordStart(string $executionId, string $workflowType): void
     {
@@ -54,8 +54,8 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
             ->exists();
 
         if ($known) {
-            // Un continue-as-new réécrit le type sans effacer la date de départ : la ligne garde
-            // sa place dans l'ordre, et le curseur qui la désigne reste valide.
+            // A continue-as-new rewrites the type without erasing the start date: the row keeps
+            // its place in the order, and the cursor that designates it stays valid.
             $this->connection->table($this->table)
                 ->where('execution_id', $executionId)
                 ->update(['workflow_type' => $workflowType]);
@@ -81,7 +81,7 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
             ->update(['status' => $status->value, 'ended_at' => self::now()]);
     }
 
-    // -- côté lecture : WorkflowRunCatalogInterface ----------------------------------------------
+    // -- read side: WorkflowRunCatalogInterface --------------------------------------------------
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
     {
@@ -109,8 +109,8 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
             });
         }
 
-        // Une ligne de plus que demandé : c'est elle, et elle seule, qui dit s'il y a une suite.
-        // Sans elle, une page exactement pleine promettrait une page vide.
+        // One row more than asked for: that row, and only it, says whether there is a next page.
+        // Without it, an exactly full page would promise an empty one.
         $rows = $query->limit($limit + 1)->get()->all();
         $hasMore = \count($rows) > $limit;
         $rows = \array_slice($rows, 0, $limit);
@@ -150,8 +150,8 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
         $checkedAt = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
         try {
-            // On sonde la connexion, pas le schéma : passer par `ensure()` transformerait une base
-            // joignable mais vide en échec.
+            // We probe the connection, not the schema: going through `ensure()` would turn a
+            // reachable but empty database into a failure.
             $this->connection->select('SELECT 1');
         } catch (\Throwable $failure) {
             return new BackendHealth(

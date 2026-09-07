@@ -1,9 +1,9 @@
-# Symfony CLI : lance des workers en parallèle avec `symfony serve` (depuis ce dossier).
-# - durable_temporal_journal : poll gRPC du journal Temporal (receive-only, DURABLE_TEMPORAL_DSN).
-# - durable_temporal_activity : poll activités Temporal (TemporalActivityWorker → ActivityMessageProcessor).
-# - durable_workflows / durable_activities : files applicatives (inner Doctrine).
+# Symfony CLI: runs workers in parallel with `symfony serve` (from this directory).
+# - durable_temporal_journal: Temporal journal gRPC poll (receive-only, DURABLE_TEMPORAL_DSN).
+# - durable_temporal_activity: Temporal activity poll (TemporalActivityWorker → ActivityMessageProcessor).
+# - durable_workflows / durable_activities: application queues (inner Doctrine).
 #
-# Prérequis : APP_ENV=dev, ext-grpc, `docker compose up -d`, DURABLE_TEMPORAL_DSN + MESSENGER_DURABLE_* dans .env.dev.
+# Prerequisites: APP_ENV=dev, ext-grpc, `docker compose up -d`, DURABLE_TEMPORAL_DSN + MESSENGER_DURABLE_* in .env.dev.
 
 workers:
     durable_temporal_journal_1:
