@@ -53,9 +53,9 @@ class StartOrderWorkflow implements ObserverInterface
                 ['orderId' => $increment, 'pauseSeconds' => 2],
                 $executionId,
             );
-            $this->trace(sprintf('%s -> exécution %s démarrée sur la grappe', $increment, $executionId));
+            $this->trace(sprintf('%s -> execution %s started on the cluster', $increment, $executionId));
         } catch (\Throwable $exception) {
-            $this->trace(sprintf('%s -> AUCUNE exécution : %s', $increment, $exception->getMessage()));
+            $this->trace(sprintf('%s -> NO execution: %s', $increment, $exception->getMessage()));
         }
     }
 
