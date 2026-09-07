@@ -17,7 +17,7 @@ use Gplanchat\Durable\Versioning\ChangePoint;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Le versioning est l'exception sanctionnée à la garde de divergence (DUR042) — et une exception
+ * Le versioning est l'exception sanctionnée à la garde de divergence (DUR042), et une exception
  * qui désarmerait la règle vaudrait moins que pas d'exception du tout.
  *
  * Les deux mécanismes se rencontrent au même endroit : la garde compare l'identité au slot, et un
@@ -53,7 +53,7 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
     public function testAnOldRunTakesTheOtherBranchWithoutDivergingEither(): void
     {
         // La même exécution, mais partie avant le point : elle a `plainCharge` au slot 0, et la
-        // branche par défaut demande exactement ça. Les deux branches sont donc légitimes —
+        // branche par défaut demande exactement ça. Les deux branches sont donc légitimes,
         // chacune pour l'exécution qui la concerne.
         $store = new InMemoryEventStore();
         $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'plainCharge', []));

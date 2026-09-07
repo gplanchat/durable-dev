@@ -44,11 +44,11 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * §6.1 — un appelant Durable et un gestionnaire Durable, sur un vrai serveur, dans les deux formes.
+ * §6.1 : un appelant Durable et un gestionnaire Durable, sur un vrai serveur, dans les deux formes.
  *
  * La différence avec {@see NexusAsynchronousFulfilmentTest} : là, le trajet était monté à la main
  * pour mesurer ce que fait le serveur. Ici c'est {@see TemporalNexusWorker} qui poll, route et
- * répond — donc le code qui partira en production, et non une reconstitution.
+ * répond, donc le code qui partira en production, et non une reconstitution.
  *
  * Ce que les tests unitaires du worker ne peuvent pas prouver et qui se joue ici : que le serveur
  * **accepte** ce que le worker lui envoie. Un `syncSuccess` mal formé ou un callback mal attaché

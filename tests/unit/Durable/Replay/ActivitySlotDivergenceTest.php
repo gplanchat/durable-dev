@@ -57,7 +57,7 @@ final class ActivitySlotDivergenceTest extends TestCase
     {
         // Ce que quelqu'un fait avec ce message, dans l'ordre : il ouvre l'historique de cette
         // exécution, va à ce slot, et compare les deux noms. Les cinq morceaux sont donc un
-        // contrat, pas une formulation — c'est pour ça qu'ils ont leur test.
+        // contrat, pas une formulation : c'est pour ça qu'ils ont leur test.
         $store = new InMemoryEventStore();
         $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'chargeCard', ['sku' => 'ABC']));
         $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 42));
@@ -79,7 +79,7 @@ final class ActivitySlotDivergenceTest extends TestCase
         }
 
         self::assertStringContainsString('activity', $message, 'le type de slot');
-        self::assertStringContainsString('slot 1', $message, "l'index, et celui du second appel — pas 0 par accident");
+        self::assertStringContainsString('slot 1', $message, "l'index, et celui du second appel, pas 0 par accident");
         self::assertStringContainsString(self::EXECUTION, $message, "l'exécution");
         self::assertStringContainsString('"shipOrder"', $message, 'ce que le journal tient à CE slot');
         self::assertStringContainsString('"reserveStock"', $message, 'ce que le code a demandé');
@@ -110,7 +110,7 @@ final class ActivitySlotDivergenceTest extends TestCase
     {
         // Un historique qui ne porte pas le nom de l'activité ne dit rien sur ce slot. La garde
         // ne peut pas comparer, donc elle laisse passer : c'est le trou annoncé, pas un refus.
-        // Sans cette règle, la garde se déclencherait sur chaque slot dont l'identité manque —
+        // Sans cette règle, la garde se déclencherait sur chaque slot dont l'identité manque,
         // exactement le contraire de ce qu'on lui demande.
         $store = new InMemoryEventStore();
         $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', '', ['sku' => 'ABC']));

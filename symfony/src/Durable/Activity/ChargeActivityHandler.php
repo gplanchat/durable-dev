@@ -11,7 +11,7 @@ use Gplanchat\Durable\Attribute\AsActivityHandler;
  *
  * The slowness is not decorative. It is what makes the wait **real**: without it the demonstration
  * would show an immediate round trip dressed up as a deferred one, and the reader would not see the
- * one thing the deferred shape exists to show — the caller holding nothing open meanwhile.
+ * one thing the deferred shape exists to show: the caller holding nothing open meanwhile.
  */
 #[AsActivityHandler(contract: ChargeActivityInterface::class)]
 final class ChargeActivityHandler implements ChargeActivityInterface

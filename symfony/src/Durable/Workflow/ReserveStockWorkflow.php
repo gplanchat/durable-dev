@@ -14,7 +14,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
  * The business asks the shop to hold stock, and waits for its verdict.
  *
  * It is the simpler of the two directions: the operation is served **right away**, by a method the
- * shop wrote. Nothing here says so and nothing here knows it — this workflow awaits an operation,
+ * shop wrote. Nothing here says so and nothing here knows it: this workflow awaits an operation,
  * and the result arrives when it arrives. If the shop decided tomorrow to fulfil `reserve` with a
  * workflow of its own, this class would not change by a line.
  *
@@ -25,14 +25,14 @@ use Gplanchat\Durable\WorkflowEnvironment;
 final class ReserveStockWorkflow
 {
     /**
-     * The endpoint says *where* the service is served — a deployment matter, not a contract one.
+     * The endpoint says *where* the service is served: a deployment matter, not a contract one.
      *
      * It is created by `bin/demo-nexus`, which points it at the shop's namespace and at the queue
      * its worker polls.
      */
     public const ENDPOINT = 'demo-shop-stock';
 
-    /** The name the server knows — the one in `#[AsWorkflow]`, not the FQCN. */
+    /** The name the server knows, the one in `#[AsWorkflow]`, not the FQCN. */
     public const TYPE = 'ReserveStockWorkflow';
 
     /** @var NexusStub<StockContract> */

@@ -24,7 +24,7 @@ use Temporal\Api\History\V1\NexusOperationScheduledEventAttributes;
  * Mesuré avant d'être corrigé (tâche 1.1) : un gestionnaire servi par le SDK Go, appelé depuis un
  * workflow Durable, recevait `{"name":""}` et répondait « hello » au lieu de « hello ada ». Notre
  * enveloppe `{operationId, payload}` arrivait à un gestionnaire qui attendait la charge, il n'y
- * trouvait pas ses champs et prenait des valeurs zéro. **Rien ne levait** — ni le serveur, ni le SDK
+ * trouvait pas ses champs et prenait des valeurs zéro. **Rien ne levait** : ni le serveur, ni le SDK
  * Go, ni nous.
  *
  * La corrélation dont l'enveloppe servait de prétexte est déjà sur le fil : le serveur assigne un

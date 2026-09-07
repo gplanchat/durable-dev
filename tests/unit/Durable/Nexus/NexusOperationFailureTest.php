@@ -12,11 +12,11 @@ use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
 use PHPUnit\Framework\TestCase;
 
 /**
- * §3.6 — un échec d'opération Nexus est **classé**, pas aplati.
+ * §3.6 : un échec d'opération Nexus est **classé**, pas aplati.
  *
  * Les quatre natures viennent du spec, mot pour mot : l'opération a échoué, le handler n'a pas pu
  * tourner, une borne s'est écoulée, l'opération a été annulée. Elles ne se distinguent pas par
- * confort de lecture — un appelant compense sur un échec d'opération, réessaie sur une erreur de
+ * confort de lecture : un appelant compense sur un échec d'opération, réessaie sur une erreur de
  * handler, et ne fait ni l'un ni l'autre sur une annulation qu'il a lui-même demandée.
  */
 final class NexusOperationFailureTest extends TestCase
@@ -70,7 +70,7 @@ final class NexusOperationFailureTest extends TestCase
     public function testItIsNotFlattenedOntoTheGenericHandlerFailure(): void
     {
         // Sans sa branche dans le classificateur, l'échec tomberait dans le fourre-tout et
-        // l'origine de l'appel serait perdue — c'est la panne que §3.6 existe pour empêcher.
+        // l'origine de l'appel serait perdue : c'est la panne que §3.6 existe pour empêcher.
         $failed = WorkflowFailureClassifier::classify('exec-1', $this->failure(NexusOperationFailureKind::Cancellation));
 
         self::assertNotSame(WorkflowExecutionFailed::KIND_WORKFLOW_HANDLER, $failed->kind());

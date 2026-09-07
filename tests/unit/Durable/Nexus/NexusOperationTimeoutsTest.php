@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
  * Les verdicts de la sonde §1.3, rendus impossibles à subir.
  *
  * Le serveur rabote en silence : demander 60 s de `startToClose` sous 10 s de `scheduleToClose`
- * fait enregistrer 10 s, sans erreur. L'objet-valeur refuse la combinaison à la construction —
+ * fait enregistrer 10 s, sans erreur. L'objet-valeur refuse la combinaison à la construction :
  * c'est la seule différence entre une borne qu'on croit avoir et une borne qu'on a.
  *
  * @see openspec/changes/temporal-nexus-support/design.md
@@ -65,7 +65,7 @@ final class NexusOperationTimeoutsTest extends TestCase
 
     public function testAnInfiniteEnvelopeClampsNothing(): void
     {
-        // Sur le fil, cette enveloppe s'écrit 0 — que le serveur lit « pas de borne » et qui ne
+        // Sur le fil, cette enveloppe s'écrit 0, que le serveur lit « pas de borne » et qui ne
         // rabote rien. L'infini du domaine dit la même chose sans le déguiser en zéro seconde.
         $timeouts = new NexusOperationTimeouts(
             scheduleToClose: Duration::infinity(),

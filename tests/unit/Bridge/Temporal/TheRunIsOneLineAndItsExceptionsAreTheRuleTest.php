@@ -165,7 +165,7 @@ final class TheRunIsOneLineAndItsExceptionsAreTheRuleTest extends TestCase
     {
         // Le piège que le test précédent a trouvé : ces deux types-là parlent d'annulation et
         // finissent pourtant en `_FAILED`. Ce n'est pas l'annulation qui est une panne, c'est la
-        // demande d'annulation qui n'est **pas passée** — l'exécution visée continue de tourner
+        // demande d'annulation qui n'est **pas passée** : l'exécution visée continue de tourner
         // alors que quelqu'un a demandé son arrêt, et c'est exactement le genre de fait qu'on ne
         // veut pas voir sortir en noir.
         self::assertTrue($this->isFailure('EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_FAILED'));

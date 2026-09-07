@@ -7,7 +7,7 @@ namespace integration\Temporal;
 use Temporal\Api\Enums\V1\EventType;
 
 /**
- * La garde de divergence, contre un vrai serveur — DUR042.
+ * La garde de divergence, contre un vrai serveur (DUR042).
  *
  * Les tests unitaires vérifient que la comparaison refuse et que le pont répond
  * `RespondWorkflowTaskFailed`. Ils ne peuvent pas dire ce que le **serveur** fait de cette réponse,
@@ -45,7 +45,7 @@ final class ReplayDivergenceGuardTest extends TemporalServerTestCase
         self::assertNotContains(
             'EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED',
             $noms,
-            'et surtout elle ne doit pas se terminer en succès avec la valeur du voisin — le défaut mesuré au départ',
+            'et surtout elle ne doit pas se terminer en succès avec la valeur du voisin : le défaut mesuré au départ',
         );
 
         // Le déploiement est annulé. Rien d'autre ne change.

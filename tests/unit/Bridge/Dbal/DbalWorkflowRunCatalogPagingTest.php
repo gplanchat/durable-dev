@@ -137,7 +137,7 @@ final class DbalWorkflowRunCatalogPagingTest extends TestCase
      *
      * `recordStart()` horodate à `now`, et `started_at` est stocké à la seconde : une salve de cinq
      * exécutions tombe dans la même seconde presque toujours, et à cheval sur deux de temps en
-     * temps. L'ordre attendu changeait alors sous les pieds du test — c'est arrivé en CI, pas ici.
+     * temps. L'ordre attendu changeait alors sous les pieds du test : c'est arrivé en CI, pas ici.
      * Ces tests portent sur la pagination, pas sur l'horodatage : la date est donc dictée.
      */
     private function startRun(string $executionId, string $workflowType, int $startedAt = 1_700_000_000): void

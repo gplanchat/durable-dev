@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ scenario.label }} — Durable{% endblock %}
+{% block title %}{{ scenario.label }} | Durable{% endblock %}
 
 {% block body %}
 <div class="container-sm">
@@ -25,9 +25,9 @@
                     <dt>Mode</dt>
                     <dd>
                         {% if waitedForCompletion %}
-                            ▶ Synchronous — result available
+                            ▶ Synchronous, result available
                         {% else %}
-                            ⚡ Async — fire &amp; forget
+                            ⚡ Async, fire &amp; forget
                         {% endif %}
                     </dd>
                 </dl>

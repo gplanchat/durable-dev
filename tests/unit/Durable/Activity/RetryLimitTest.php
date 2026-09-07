@@ -10,7 +10,7 @@ use Gplanchat\Durable\Duration;
 use PHPUnit\Framework\TestCase;
 
 /**
- * La question du domaine — « cette tentative est-elle encore permise ? » — se pose à l'objet,
+ * La question du domaine (« cette tentative est-elle encore permise ? ») se pose à l'objet,
  * plus à chaque site d'appel qui devait retraduire un 0 magique.
  */
 final class RetryLimitTest extends TestCase
@@ -57,7 +57,7 @@ final class RetryLimitTest extends TestCase
     public function testWireValueKeepsTheTemporalEncoding(): void
     {
         // 0 = illimité sur le fil : c'est le langage du serveur, et il voyage dans l'historique
-        // des exécutions en cours — le modèle PHP ne doit pas le changer.
+        // des exécutions en cours ; le modèle PHP ne doit pas le changer.
         self::assertSame(0, RetryLimit::unlimited()->toWireValue());
         self::assertSame(5, RetryLimit::ofAttempts(5)->toWireValue());
         self::assertTrue(RetryLimit::fromWireValue(0)->isUnlimited());

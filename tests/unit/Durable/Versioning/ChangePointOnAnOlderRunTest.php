@@ -22,7 +22,7 @@ use PHPUnit\Framework\TestCase;
  * à marquer. Lui donner le comportement neuf serait l'inverse exact de ce qu'on veut : elle a
  * commencé sur l'ancien, elle doit le finir sur l'ancien.
  *
- * La distinction se joue sur une seule question — le journal porte-t-il encore du travail que
+ * La distinction se joue sur une seule question : le journal porte-t-il encore du travail que
  * cette passe n'a pas atteint ? Si oui, l'appel est dans le préfixe rejoué et l'exécution est plus
  * vieille que le point de changement. Sinon, elle y arrive pour la première fois.
  */

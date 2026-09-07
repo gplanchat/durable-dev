@@ -37,10 +37,10 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * §6.3 et §6.4 — l'annulation atteint le serveur, et un échec dit d'où il vient.
+ * §6.3 et §6.4 : l'annulation atteint le serveur, et un échec dit d'où il vient.
  *
  * Même montage que {@see NexusOperationRoundTripTest} : le test crée son propre endpoint Nexus,
- * le supprime en sortant, et pilote lui-même les tâches de workflow — aucun worker ne tourne.
+ * le supprime en sortant, et pilote lui-même les tâches de workflow ; aucun worker ne tourne.
  *
  * Ce que ces deux cas ajoutent au round-trip : l'annulation exige l'`eventId` **réel** de la
  * planification, qu'aucun test unitaire ne peut valider puisque c'est le serveur qui rejette un
@@ -159,7 +159,7 @@ final class NexusCancellationAndFailureTest extends TestCase
     {
         // Une borne d'une seconde sur un endpoint que personne ne sert : le serveur finit par
         // écrire NEXUS_OPERATION_TIMED_OUT, et c'est le seul échec qu'on puisse provoquer sans
-        // handler. Ce que le test vérifie est en aval — que la lecture le rende typé.
+        // handler. Ce que le test vérifie est en aval : que la lecture le rende typé.
         $operationId = 'op-' . bin2hex(random_bytes(4));
         $this->scheduleOperation($operationId, new NexusOperationTimeouts(scheduleToClose: Duration::seconds(1.0)));
 

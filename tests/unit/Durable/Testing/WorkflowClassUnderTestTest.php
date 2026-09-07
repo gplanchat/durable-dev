@@ -20,14 +20,14 @@ use PHPUnit\Framework\TestCase;
  * Le harnais doit savoir lancer un workflow **classe**, dans la forme de production.
  *
  * Aujourd'hui il ne prend qu'un `callable`, donc un workflow de test est une closure qui reçoit
- * l'environnement — une signature qu'aucun vrai workflow n'a depuis que l'environnement est passé
+ * l'environnement, une signature qu'aucun vrai workflow n'a depuis que l'environnement est passé
  * au constructeur. C'est la seule raison pour laquelle quarante-sept appels de la suite utilisent
  * encore `activity()` : dans une closure, il n'y a pas de constructeur où bâtir un stub.
  *
- * Tant que ces tests échouent, `activity()` ne peut pas quitter la surface publique — il n'y
+ * Tant que ces tests échouent, `activity()` ne peut pas quitter la surface publique : il n'y
  * aurait aucun remplacement à proposer aux tests.
  *
- * @see openspec/changes/workflow-authoring-surface — tâches 2.1 à 2.4
+ * @see openspec/changes/workflow-authoring-surface (tâches 2.1 à 2.4)
  */
 final class WorkflowClassUnderTestTest extends TestCase
 {
@@ -64,7 +64,7 @@ final class WorkflowClassUnderTestTest extends TestCase
         ]);
 
         // Une activité qui échoue sans que le workflow l'attrape est rapportée comme une faute
-        // d'algorithme, et le message nomme la cause — c'est ce qui rend le test lisible quand il
+        // d'algorithme, et le message nomme la cause : c'est ce qui rend le test lisible quand il
         // casse, et ça vaut d'être épinglé.
         $this->expectException(DurableWorkflowAlgorithmFailureException::class);
         $this->expectExceptionMessage('AsWorkflow did not handle activity failure');
@@ -117,7 +117,7 @@ final class GreetingWorkflow
         private readonly WorkflowEnvironment $environment,
     ) {
         // Une tentative : par défaut les activités retentent indéfiniment, et un échec ne
-        // remonterait jamais — le workflow resterait bloqué jusqu'à épuisement du budget.
+        // remonterait jamais ; le workflow resterait bloqué jusqu'à épuisement du budget.
         $this->greetings = $environment->activityStub(
             GreetingActivities::class,
             ActivityOptions::of(retryLimit: 1),

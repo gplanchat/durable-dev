@@ -33,7 +33,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 /**
  * Le worker vu depuis le fil : ce qu'il envoie au serveur pour chaque forme de réponse.
  *
- * Le client gRPC est simulé, donc rien ici ne dépend d'un serveur — c'est le niveau où les quatre
+ * Le client gRPC est simulé, donc rien ici ne dépend d'un serveur : c'est le niveau où les quatre
  * branches (vide, immédiate, différée, refusée) se lisent d'un coup d'œil. Ce que ces tests ne
  * peuvent pas prouver, c'est que le serveur accepte ce qu'on lui envoie : c'est le rôle de
  * {@see \integration\Temporal\NexusServedOperationTest}.

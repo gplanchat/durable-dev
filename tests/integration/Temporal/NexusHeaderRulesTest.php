@@ -38,7 +38,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  *
  * La règle de la maison veut qu'on sonde avant d'encoder le moindre invariant. Un objet-valeur
  * plus strict que le serveur refuserait des en-têtes parfaitement valides ; plus laxiste, il
- * laisserait passer ce que le serveur réécrit en silence — et un en-tête réécrit ne se voit
+ * laisserait passer ce que le serveur réécrit en silence, et un en-tête réécrit ne se voit
  * qu'en relisant un historique.
  *
  * Le tampon du pont n'envoie pas encore d'en-tête : c'est tout l'objet du change. La commande est
@@ -156,7 +156,7 @@ final class NexusHeaderRulesTest extends TestCase
     public function testTwoKeysDifferingOnlyByCaseSilentlyLoseOne(): void
     {
         // La conséquence, et c'est elle qui doit gouverner §2.1 : deux en-têtes entrent, un seul
-        // sort. Aucune erreur, aucune trace — la panne muette que les objets-valeurs de ce
+        // sort. Aucune erreur, aucune trace : la panne muette que les objets-valeurs de ce
         // composant existent pour rendre impossible.
         $back = $this->roundTrip(['X-Choc' => 'majuscule', 'x-choc' => 'minuscule']);
 

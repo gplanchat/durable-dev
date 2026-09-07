@@ -43,7 +43,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * - une sous-borne plus grande que `scheduleToClose` est **rabotée à sa valeur, sans un mot** :
  *   demander 60 s de `startToClose` sous 10 s de `scheduleToClose` fait enregistrer 10 s ;
  * - `scheduleToClose = 0` ne rabote rien : c'est « pas de borne », pas « zéro seconde » ;
- * - une borne omise reste absente de l'événement — le serveur n'en invente pas.
+ * - une borne omise reste absente de l'événement : le serveur n'en invente pas.
  *
  * Ce que cela impose à `NexusOperationTimeouts` : rendre la réécriture visible à la construction
  * plutôt que la laisser se produire côté serveur. Un objet-valeur qui accepte 60/10 et laisse
@@ -202,7 +202,7 @@ final class NexusOperationBoundsTest extends TestCase
         // `scheduleToClose` est l'enveloppe des trois bornes, mais il en existe une **seconde**,
         // par-dessus : la durée de l'exécution elle-même. Un appelant peut donc composer un jeu de
         // bornes parfaitement cohérent entre elles et se les faire rogner quand même, sans erreur.
-        // C'est la question que §1.3 posait — « comme les activités ? » — et la réponse est oui
+        // C'est la question que §1.3 posait, « comme les activités ? », et la réponse est oui
         // jusque-là aussi.
         $attrs = $this->schedule(3600, null, null, runTimeout: 60);
 

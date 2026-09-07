@@ -179,7 +179,7 @@ final class ActivityRetryStateTest extends TestCase
     {
         // Configuration par défaut : aucune option, `max_activity_retries` à 0. Le décompte de
         // tentatives PHP dit « plus de retentative », mais sous Noop c'est le serveur Temporal qui
-        // décide — un échec terminal ici empêcherait le worker de rejouer la tentative suivante.
+        // décide : un échec terminal ici empêcherait le worker de rejouer la tentative suivante.
         $store = new InMemoryEventStore();
         $this->drain($store, new NoopActivityTransport(), static function (): never {
             throw new \RuntimeException('transient');

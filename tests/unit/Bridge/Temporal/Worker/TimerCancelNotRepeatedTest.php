@@ -20,7 +20,7 @@ use Temporal\Api\History\V1\TimerStartedEventAttributes;
  * cette annulation à chaque reprise, et un minuteur annulé n'a pas de verdict à annoncer : il
  * revient en attente, et l'annulation est redemandée.
  *
- * Le journal SQL s'en gardait déjà — au pire un `TimerCancelled` en double. Le pont ne s'en
+ * Le journal SQL s'en gardait déjà : au pire un `TimerCancelled` en double. Le pont ne s'en
  * gardait pas, et Temporal ne pardonne pas : la tâche entière est rejetée
  * (`BadCancelTimerAttributes`), le worker meurt, la tâche est redélivrée, le worker meurt encore.
  * Une seule exécution empoisonnait toute la file.

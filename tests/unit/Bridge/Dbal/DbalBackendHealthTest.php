@@ -33,7 +33,7 @@ final class DbalBackendHealthTest extends TestCase
     public function testAnUnreachableDatabaseIsReportedUnreachableRatherThanThrowing(): void
     {
         // Un fichier SQLite dans un répertoire qui n'existe pas : la connexion est paresseuse, donc
-        // l'échec ne survient qu'au premier ordre — exactement le cas d'une base tombée en route.
+        // l'échec ne survient qu'au premier ordre, exactement le cas d'une base tombée en route.
         $connection = DriverManager::getConnection([
             'driver' => 'pdo_sqlite',
             'path' => '/nonexistent-directory-for-tests/durable.sqlite',

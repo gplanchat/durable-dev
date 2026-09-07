@@ -20,9 +20,9 @@ use Temporal\Api\History\V1\WorkflowExecutionSignaledEventAttributes;
 use Temporal\Api\History\V1\WorkflowExecutionStartedEventAttributes;
 
 /**
- * Tests for TemporalExecutionHistory — parsing Temporal history events and slot lookups.
+ * Tests for TemporalExecutionHistory: parsing Temporal history events and slot lookups.
  *
- * These are pure unit tests: no gRPC, no Fiber, no registry — just event-to-history mapping.
+ * These are pure unit tests: no gRPC, no Fiber, no registry, just event-to-history mapping.
  */
 final class TemporalExecutionHistoryTest extends TestCase
 {
@@ -220,7 +220,7 @@ final class TemporalExecutionHistoryTest extends TestCase
     {
         // Il n'y a plus de rang par nom : les messages se lisent dans l'ordre du journal, et
         // c'est le handler de chaque nom qui trie. Un signal `reject` intercalé ne décale donc
-        // plus les `approve` — il occupe simplement sa place.
+        // plus les `approve` : il occupe simplement sa place.
         $history = TemporalExecutionHistory::fromEvents([
             self::makeStartedEvent(1),
             self::makeSignal(2, 'approve', ['approved' => true]),

@@ -17,12 +17,12 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Nexus est inter-namespace par nature : appeler une opération servie par une autre équipe n'a
- * aucun équivalent dans un journal local. La proposition l'écrit — le backend journal **refuse**
+ * aucun équivalent dans un journal local. La proposition l'écrit : le backend journal **refuse**
  * l'appel avec une erreur explicite plutôt que de faire semblant.
  *
  * Ce refus n'est pas une lacune à combler plus tard : c'est le comportement voulu. Un backend qui
  * accepterait la commande et n'en ferait rien laisserait le workflow attendre un résultat que
- * personne ne produira — la panne muette, encore.
+ * personne ne produira : la panne muette, encore.
  *
  * @see openspec/changes/temporal-nexus-support/proposal.md
  * @see openspec/changes/temporal-nexus-support/tasks.md §3.4

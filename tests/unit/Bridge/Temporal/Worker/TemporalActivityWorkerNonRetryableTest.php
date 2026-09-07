@@ -27,7 +27,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * The worker must report an activity failure as non-retryable when the failed
- * exception type is listed in the activity's nonRetryableExceptions — otherwise
+ * exception type is listed in the activity's nonRetryableExceptions; otherwise
  * a bad-credential / rejected-payload failure would be retried forever by the
  * Temporal server instead of failing the workflow.
  */

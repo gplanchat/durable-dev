@@ -17,7 +17,7 @@ use Gplanchat\Durable\WorkflowRegistry;
 /**
  * Workflows et activités partagés entre le processus de test et les processus worker.
  *
- * Les workers tournent dans des processus séparés — comme en production —, ils ne peuvent donc
+ * Les workers tournent dans des processus séparés (comme en production) : ils ne peuvent donc
  * pas recevoir de closures définies dans le test.
  */
 final class IntegrationWorkflows
@@ -41,7 +41,7 @@ final class IntegrationWorkflows
         $registry->registerFactory('Plain', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['echo' => $input['value'] ?? null]);
 
         // Une classe et non une fabrique : c'est ce qu'un stub d'enfant sait résoudre, et
-        // `registerClass()` l'enregistre sous son alias comme sous son FQCN — les tests qui la
+        // `registerClass()` l'enregistre sous son alias comme sous son FQCN. Les tests qui la
         // démarrent par « Doubler » ne changent pas.
         $registry->registerClass(DoublerWorkflow::class);
 
@@ -58,7 +58,7 @@ final class IntegrationWorkflows
         )->double((int) ($input['value'] ?? 1)))]);
 
         // Le cas qu'aucun faux serveur ne peut trancher : le signal est livré *après* le tir de
-        // l'échéance, et chaque tâche de workflow rejoue tout depuis le début — si le verdict
+        // l'échéance, et chaque tâche de workflow rejoue tout depuis le début. Si le verdict
         // venait d'ailleurs que de l'ordre du journal, le replay lirait l'inverse (ADR DUR032).
         $registry->registerFactory('SignalDeadline', static fn(array $input) => static function (WorkflowEnvironment $env): array {
             $approvals = [];
@@ -121,7 +121,7 @@ final class IntegrationWorkflows
         });
 
         // maxAttempts borné : sans lui le serveur applique sa RetryPolicy par défaut et retente
-        // indéfiniment — le workflow n'échouerait jamais.
+        // indéfiniment. Le workflow n'échouerait jamais.
         $registry->registerFactory('FailsOnActivity', static fn(array $input) => static fn(WorkflowEnvironment $env): mixed => $env->await($env->activityStub(IntegrationActivities::class, new ActivityOptions(
             RetryLimit::once(),
             timeouts: self::attemptTimeout(),
@@ -187,7 +187,7 @@ final class IntegrationWorkflows
      *
      * `default` planifie `double` au slot d'activité 0 ; `divergent` y planifie `append`. Une
      * exécution démarrée sur l'un puis reprise par l'autre est exactement ce qu'un déploiement fait
-     * à une exécution en vol — et le seul montage qui met la garde de DUR042 sous un vrai serveur.
+     * à une exécution en vol, et le seul montage qui met la garde de DUR042 sous un vrai serveur.
      *
      * Le minuteur entre les deux ouvre la fenêtre : c'est là qu'on remplace le worker.
      */

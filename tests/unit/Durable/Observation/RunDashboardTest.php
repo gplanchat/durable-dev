@@ -173,7 +173,7 @@ final class RunDashboardTest extends TestCase
     {
         // Une opération Nexus est le seul point d'une exécution où l'attente est servie **ailleurs**.
         // Fondue dans le reste, elle laisse un exploitant chercher la panne dans son propre système
-        // alors qu'elle est chez quelqu'un d'autre — d'où sa ligne, et d'où une étiquette qui nomme
+        // alors qu'elle est chez quelqu'un d'autre : d'où sa ligne, et d'où une étiquette qui nomme
         // l'endpoint plutôt que le type d'événement.
         $catalog = new FakeRunCatalog(
             [$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)],
@@ -244,7 +244,7 @@ final class RunDashboardTest extends TestCase
 
     public function testAJournalThatCannotOutliveTheRequestIsAThirdStateAndNotAFailure(): void
     {
-        // Ni « injoignable » — il répond — ni « joignable » tout court, sous lequel une liste vide
+        // Ni « injoignable » (il répond) ni « joignable » tout court, sous lequel une liste vide
         // apprend à l'exploitant qu'aucun workflow n'a tourné, ce qui est faux.
         $view = (new RunDashboard(new FakeRunCatalog([], [], null, ephemeral: true)))->build();
 

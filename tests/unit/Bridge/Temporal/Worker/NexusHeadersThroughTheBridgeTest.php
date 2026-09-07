@@ -15,10 +15,10 @@ use Gplanchat\Durable\Nexus\NexusService;
 use PHPUnit\Framework\TestCase;
 
 /**
- * §3.1 et §3.2 — les en-têtes traversent le port et atteignent la commande.
+ * §3.1 et §3.2 : les en-têtes traversent le port et atteignent la commande.
  *
  * Prises ensemble : élargir le port sans que le pont n'écrive rien livrerait un paramètre accepté
- * puis ignoré, ce qui est pire que de ne pas l'avoir — un appelant croirait poser un en-tête.
+ * puis ignoré, ce qui est pire que de ne pas l'avoir ; un appelant croirait poser un en-tête.
  *
  * Ce que ces tests ne peuvent pas dire : si le serveur accepte. C'est §4.1, contre un vrai
  * serveur, et c'est déjà ce qui a manqué à d'autres commandes de ce pont.

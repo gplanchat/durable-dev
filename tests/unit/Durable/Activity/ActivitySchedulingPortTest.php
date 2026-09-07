@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
  * rejouer à l'identique : si la forme de fil bouge, la rupture n'est plus une rupture d'API, c'est
  * une rupture de données.
  *
- * @see openspec/changes/workflow-authoring-surface — tâches 4.1 à 4.3
+ * @see openspec/changes/workflow-authoring-surface (tâches 4.1 à 4.3)
  */
 final class ActivitySchedulingPortTest extends TestCase
 {
@@ -55,7 +55,7 @@ final class ActivitySchedulingPortTest extends TestCase
 
         // Un auteur déclare `#[AsQueryMethod]` et le moteur câble. Ces trois-là étaient sur
         // l'environnement parce que c'est l'objet que le moteur avait sous la main, pas parce
-        // qu'un workflow en a besoin — les atteindre revenait à court-circuiter la déclaration.
+        // qu'un workflow en a besoin : les atteindre revenait à court-circuiter la déclaration.
         self::assertNotContains('registerQueryHandler', $public);
         self::assertNotContains('callQueryHandler', $public);
         self::assertNotContains('hasQueryHandler', $public);

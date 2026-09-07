@@ -13,7 +13,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
  * Port minimal de samples-php Updates : le handler d'update répond à son appelant *et* mute
- * l'état que le corps attend. La valeur de retour est la réponse — c'est toute la différence
+ * l'état que le corps attend. La valeur de retour est la réponse ; c'est toute la différence
  * avec un signal.
  */
 #[AsWorkflow('Samples_Updates_Greeting')]

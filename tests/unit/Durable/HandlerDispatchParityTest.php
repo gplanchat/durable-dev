@@ -29,7 +29,7 @@ use Temporal\Api\Update\V1\Request as UpdateRequest;
  * Le piège est structurel, pas cosmétique : le backend in-memory énumère un flux unique, où
  * signaux et updates sont déjà entremêlés ; le backend Temporal les tient dans **deux tableaux
  * séparés**. Les concaténer ferait passer tous les signaux avant tous les updates, quel que soit
- * l'ordre réel du journal — une divergence silencieuse, et exactement celle que ce change a
+ * l'ordre réel du journal : une divergence silencieuse, et exactement celle que ce change a
  * supprimée pour les rangs de signaux.
  *
  * Le même journal doit donc rendre la même suite de messages des deux côtés.
@@ -52,8 +52,8 @@ final class HandlerDispatchParityTest extends TestCase
     public function testBothBackendsSituateADeadlineAgainstTheSameMessages(): void
     {
         // La comparaison qui tranche un verdict d'échéance : le message est-il enregistré avant
-        // ou après le tir ? Les positions ne sont pas les mêmes d'un backend à l'autre — rang de
-        // flux ici, eventId là — et ce n'est pas ce qui compte. Ce qui compte est le classement.
+        // ou après le tir ? Les positions ne sont pas les mêmes d'un backend à l'autre (rang de
+        // flux ici, eventId là), et ce n'est pas ce qui compte. Ce qui compte est le classement.
         foreach ([$this->inMemoryHistory(), $this->temporalHistory()] as $history) {
             $firedAt = $history->timerCompletionPosition('timer-a');
             self::assertNotNull($firedAt);

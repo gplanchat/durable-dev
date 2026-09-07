@@ -58,7 +58,7 @@ final class DurableDistributedMessengerIntegrationTest extends KernelTestCase
 
         // Démarrer n'est plus un message : `ResumeWorkflowMessage` ne fait que *reprendre*.
         // Le démarrage passe par le dispatcher, qui persiste les métadonnées avant de publier la
-        // reprise — c'est aussi ce que fait l'application d'exemple.
+        // reprise : c'est aussi ce que fait l'application d'exemple.
         $container->get(WorkflowResumeDispatcher::class)->dispatchNewWorkflowRun($executionId, 'OrderWait', []);
 
         self::assertSame(false, $meta->get($executionId)['completed'] ?? null, 'workflow suspendu');

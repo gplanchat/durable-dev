@@ -40,7 +40,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
- * Unit tests for WorkflowTaskRunner — fiber-based replay of Temporal workflow history.
+ * Unit tests for WorkflowTaskRunner: fiber-based replay of Temporal workflow history.
  *
  * The gRPC client is mocked but NEVER called in these tests because the full history is
  * provided inline in PollWorkflowTaskQueueResponse (next_page_token = '' → no pagination).
@@ -288,7 +288,7 @@ final class WorkflowTaskRunnerTest extends TestCase
 
         $runner = $this->makeRunner($registry);
 
-        // History: only STARTED — activity not yet scheduled in history → new command needed
+        // History: only STARTED; activity not yet scheduled in history → new command needed
         $poll = self::buildPoll('token-2', 'wf-2', 'ActivityWorkflow', [
             self::makeStarted(1),
         ]);
@@ -342,7 +342,7 @@ final class WorkflowTaskRunnerTest extends TestCase
 
         $runner = $this->makeRunner($registry);
 
-        // History: only STARTED — both activities not yet scheduled
+        // History: only STARTED; both activities not yet scheduled
         $poll = self::buildPoll('token-4', 'wf-4', 'ParallelWorkflow', [
             self::makeStarted(1),
         ]);
@@ -400,7 +400,7 @@ final class WorkflowTaskRunnerTest extends TestCase
 
         $runner = $this->makeRunner($registry);
 
-        // History: only STARTED — timer not yet issued
+        // History: only STARTED; timer not yet issued
         $poll = self::buildPoll('token-6', 'wf-6', 'TimerWorkflow', [
             self::makeStarted(1),
         ]);
@@ -580,7 +580,7 @@ final class WorkflowTaskRunnerTest extends TestCase
         self::assertNotNull($success);
         self::assertSame(['ok' => true, 'by' => 'alice'], JsonPlainPayload::decode($success->getPayloads()[0]));
 
-        // Le workflow est allé au bout : l'update l'a débloqué, pas l'inverse. Et l'ordre compte —
+        // Le workflow est allé au bout : l'update l'a débloqué, pas l'inverse. Et l'ordre compte :
         // le serveur refuse toute séquence où CompleteWorkflowExecution n'est pas la dernière.
         $types = array_map(static fn($c): int => $c->getCommandType(), $result->commands);
         self::assertSame(
@@ -614,7 +614,7 @@ final class WorkflowTaskRunnerTest extends TestCase
 
         $runner = $this->makeRunner($registry);
 
-        // History: only STARTED — no signal yet
+        // History: only STARTED; no signal yet
         $poll = self::buildPoll('token-9', 'wf-9', 'SignaledWorkflow', [
             self::makeStarted(1),
         ]);

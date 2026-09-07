@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
  * Les verdicts de la sonde §1.1 (moitié service/opération), rendus impossibles à subir.
  *
  * Le serveur n'en valide aucun : vide, blancs, tabulation, caractère de contrôle, mille
- * caractères — tout est accepté et enregistré verbatim, puis l'opération attend un gestionnaire
+ * caractères ; tout est accepté et enregistré verbatim, puis l'opération attend un gestionnaire
  * qui ne correspondra jamais, sans une ligne d'erreur. C'est la panne muette de
  * {@see \Gplanchat\Durable\TaskQueue}, et elle appelle le même remède : être plus strict que le
  * serveur sur ce qui ne peut être qu'une faute.
@@ -80,7 +80,7 @@ final class NexusServiceAndOperationNameTest extends TestCase
     public function testNoLengthLimitIsInventedBecauseNoneWasObserved(): void
     {
         // §1.4 : ne pas écrire d'invariant qui n'a pas été observé. Mille caractères ont été
-        // acceptés par le serveur et aucune borne haute n'a été trouvée — on n'en fabrique pas.
+        // acceptés par le serveur et aucune borne haute n'a été trouvée : on n'en fabrique pas.
         $long = str_repeat('o', 5_000);
 
         self::assertSame($long, NexusOperationName::named($long)->name());

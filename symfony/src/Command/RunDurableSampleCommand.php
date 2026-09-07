@@ -78,13 +78,13 @@ In dev the event journal can use <comment>Temporal</comment> (see <comment>.env.
 
 Available workflows (see <info>App\Durable\DurableSampleWorkflows</info>):
 
-  <info>GreetingWorkflow</info>              — like <comment>SimpleActivity</comment>
-  <info>ParallelGreetingWorkflow</info>     — like <comment>AsyncActivity</comment> (two activities, <comment>all</comment>)
-  <info>EchoChildWorkflow</info>             — a child: uppercasing through an activity
-  <info>ParentCallsEchoChildWorkflow</info>  — like <comment>Child</comment>
-  <info>ParallelChildEchoWorkflow</info>     — two <comment>EchoChildWorkflow</comment> children under <comment>all</comment>
-  <info>TimerThenTickWorkflow</info>         — a short timer then an activity
-  <info>SideEffectRandomIdWorkflow</info>   — a replayable <comment>sideEffect</comment>
+  <info>GreetingWorkflow</info>              : like <comment>SimpleActivity</comment>
+  <info>ParallelGreetingWorkflow</info>     : like <comment>AsyncActivity</comment> (two activities, <comment>all</comment>)
+  <info>EchoChildWorkflow</info>             : a child, uppercasing through an activity
+  <info>ParentCallsEchoChildWorkflow</info>  : like <comment>Child</comment>
+  <info>ParallelChildEchoWorkflow</info>     : two <comment>EchoChildWorkflow</comment> children under <comment>all</comment>
+  <info>TimerThenTickWorkflow</info>         : a short timer then an activity
+  <info>SideEffectRandomIdWorkflow</info>   : a replayable <comment>sideEffect</comment>
 
 Without <comment>--no-drain</comment>, this command drains the transports locally (the short equivalent of
 <info>php bin/console messenger:consume durable_workflows durable_activities</info>).

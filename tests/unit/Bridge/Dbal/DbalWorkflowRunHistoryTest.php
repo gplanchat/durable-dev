@@ -91,7 +91,7 @@ final class DbalWorkflowRunHistoryTest extends TestCase
 
     public function testACompletionWithoutItsSchedulingFallsBackToTheIdentifier(): void
     {
-        // Journal tronqué — purge, reprise partielle : la complétion n'a que l'id sous la main.
+        // Journal tronqué (purge, reprise partielle) : la complétion n'a que l'id sous la main.
         $this->eventStore()->append(new ActivityCompleted('exec-1', 'act-orphan', null));
 
         $history = $this->catalog()->readHistory($this->describedRun('exec-1'));

@@ -9,7 +9,7 @@ use Gplanchat\Durable\Attribute\AsActivityMethod;
 /**
  * Les activités que la suite planifie, déclarées une fois.
  *
- * La suite nommait ses activités par des chaînes — `$env->activity('double', ['value' => 2])`, sans contrat —
+ * La suite nommait ses activités par des chaînes (`$env->activity('double', ['value' => 2])`, sans contrat),
  * la forme que la bibliothèque n'enseigne plus. Ces noms sont des accessoires de test, pas des
  * contrats métier, mais ce sont quand même du code de workflow : la règle vaut pour eux.
  *
@@ -112,7 +112,7 @@ interface SuiteActivities
     public function compute(int $a, int $b): int;
 
     // Branches nues d'une composition : `a`, `b`, `c` ne nomment rien d'autre que leur place
-    // dans un assemblage. Le contrat ne les rend pas plus expressives — il les rend seulement
+    // dans un assemblage. Le contrat ne les rend pas plus expressives : il les rend seulement
     // atteignables sans nommer une chaîne.
     #[AsActivityMethod('a')]
     public function a(): mixed;

@@ -49,7 +49,7 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * §3.1 — la sonde qui tranche l'hypothèse centrale du design.
+ * §3.1 : la sonde qui tranche l'hypothèse centrale du design.
  *
  * Le design la pose et demande qu'on la falsifie :
  *
@@ -58,7 +58,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  *
  * La sonde 1.4 n'avait mesuré que la moitié : le serveur **accepte** un jeton et écrit
  * `NEXUS_OPERATION_STARTED`. Que la complétion revienne ensuite au bon endroit n'avait jamais été
- * observé — c'était une déduction tirée de `callback: temporal://system` lu dans la tâche de start.
+ * observé. C'était une déduction tirée de `callback: temporal://system` lu dans la tâche de start.
  *
  * Ce que la sonde monte, sans aucun worker : un appelant Durable planifie l'opération ; on répond à
  * la tâche Nexus par un jeton, **après** avoir démarré un second workflow portant le `callback` de
@@ -67,7 +67,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  *
  * Si oui, l'hypothèse tient et le contrat du gestionnaire est « rends un jeton ».
  * Si non, le jeton n'est pas au gestionnaire de le choisir, et le contrat est « démarre ce
- * workflow » — la plomberie attachant le callback et dérivant le jeton.
+ * workflow » : la plomberie attachant le callback et dérivant le jeton.
  */
 #[RequiresPhpExtension('grpc')]
 final class NexusAsynchronousFulfilmentTest extends TestCase

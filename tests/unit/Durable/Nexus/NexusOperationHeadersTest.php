@@ -12,11 +12,11 @@ use PHPUnit\Framework\TestCase;
  * Un cas par verdict observé sur Temporal 1.31.2 (sonde §1.1 et §1.2), et rien d'autre.
  *
  * Le serveur est permissif sur tout **sauf la casse** : clé vide, valeur vide, blancs en bord,
- * saut de ligne, espace dans la clé, mille caractères — tout est accepté tel quel. Être plus
+ * saut de ligne, espace dans la clé, mille caractères ; tout est accepté tel quel. Être plus
  * strict que lui rejetterait des en-têtes qu'il porte sans broncher.
  *
  * Une seule chose lui échappe, et elle est muette : il minuscule les clés, si bien que deux clés
- * ne différant que par la casse entrent en collision — deux en-têtes entrent, un seul sort, sans
+ * ne différant que par la casse entrent en collision ; deux en-têtes entrent, un seul sort, sans
  * erreur ni trace. C'est la seule chose que cet objet ait à empêcher.
  */
 final class NexusOperationHeadersTest extends TestCase

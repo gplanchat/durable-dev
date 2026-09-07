@@ -11,7 +11,7 @@ use Gplanchat\Durable\Testing\EventStoreReplayConformanceTestCase;
 use Illuminate\Database\Capsule\Manager;
 
 /**
- * `illuminate/database` s'utilise sans application Laravel autour — c'est ce que Capsule est, et
+ * `illuminate/database` s'utilise sans application Laravel autour : c'est ce que Capsule est, et
  * les adaptateurs ne touchent qu'une `Connection`. Aucun conteneur, aucun service provider :
  * la surface est celle qu'une vraie application leur passerait.
  *

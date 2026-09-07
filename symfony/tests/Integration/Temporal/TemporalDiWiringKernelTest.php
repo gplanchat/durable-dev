@@ -32,7 +32,7 @@ final class TemporalDiWiringKernelTest extends KernelTestCase
      *
      * Note : en env 'dev', framework.test n'est pas actif, donc self::getContainer() (qui nécessite
      * test.service_container) n'est pas disponible. On utilise self::$kernel->getContainer() à la place,
-     * ce qui ne donne accès qu'aux services publics — suffisant pour notre vérification.
+     * ce qui ne donne accès qu'aux services publics, suffisant pour notre vérification.
      */
     protected static function createKernel(array $options = []): \Symfony\Component\HttpKernel\KernelInterface
     {
@@ -87,7 +87,7 @@ final class TemporalDiWiringKernelTest extends KernelTestCase
     /**
      * Régression couverte, et elle a coûté une CI rouge : `durable.temporal.nexus_worker` était
      * enregistré avec une référence à `WorkflowServiceNexusRpc`, service que rien n'enregistrait.
-     * Le conteneur ne se construisait plus du tout — `cache:clear` échouait avant le moindre test,
+     * Le conteneur ne se construisait plus du tout : `cache:clear` échouait avant le moindre test,
      * dans toutes les versions de la matrice à la fois.
      *
      * Les tests unitaires de la passe de compilation ne pouvaient pas l'attraper : ils montent un
@@ -121,7 +121,7 @@ final class TemporalDiWiringKernelTest extends KernelTestCase
         $worker = self::$kernel->getContainer()->get('durable.temporal.activity_worker');
 
         // Construct the factory with the worker from the container.
-        // This mirrors what the DI container does — if the compiler pass is registered,
+        // This mirrors what the DI container does: if the compiler pass is registered,
         // the factory receives the worker and can create the transport without throwing.
         $factory = new TemporalTransportFactory([], $worker);
 

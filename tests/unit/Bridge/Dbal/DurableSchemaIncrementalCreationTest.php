@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Sonde, et non fonctionnalité : le change « backend-neutral-workflow-dashboard » choisit une table
  * de projection plutôt qu'une colonne ajoutée aux métadonnées, et ce choix repose entièrement sur la
- * propriété gardée ici — `ensure()` crée les tables manquantes et ne touche pas aux existantes.
+ * propriété gardée ici. `ensure()` crée les tables manquantes et ne touche pas aux existantes.
  *
  * Le paquet ne livre pas de migrations. Si cette propriété tombe, une installation qui existe déjà
  * n'obtiendrait jamais la nouvelle table, et le lecteur du tableau de bord interrogerait une table
@@ -75,7 +75,7 @@ final class DurableSchemaIncrementalCreationTest extends TestCase
 
     /**
      * La propriété dont dépend la projection : une table *nouvelle*, inconnue de l'installation,
-     * apparaît sans que les autres soient retouchées. Le nom est délibérément étranger au schéma —
+     * apparaît sans que les autres soient retouchées. Le nom est délibérément étranger au schéma :
      * y mettre le nom d'une table réelle a fait entrer ce test en collision avec la projection le
      * jour où elle a été déclarée.
      */

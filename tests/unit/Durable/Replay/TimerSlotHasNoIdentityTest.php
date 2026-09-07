@@ -18,7 +18,7 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Le trou de la garde, épinglé plutôt que comblé — DUR042.
+ * Le trou de la garde, épinglé plutôt que comblé (DUR042).
  *
  * Les quatre autres types de slot portent une identité que l'historique enregistre déjà : le nom
  * d'une activité, le triplet d'une opération Nexus, le type d'un enfant. **Un minuteur n'en porte
@@ -27,7 +27,7 @@ use PHPUnit\Framework\TestCase;
  * l'auteur et vaut la chaîne vide par défaut.
  *
  * Ce fichier existe pour que ce trou se remarque. Sans lui, la première personne qui lit la garde
- * y verrait un oubli et « corrigerait » en comparant l'échéance — ce qui ferait diverger un replay
+ * y verrait un oubli et « corrigerait » en comparant l'échéance, ce qui ferait diverger un replay
  * parfaitement fidèle, puisque l'échéance recalculée maintenant n'est jamais celle d'alors.
  *
  * Il dit aussi ce qui **borne** le trou, et c'est le plus utile des deux : un décalage de slots ne
@@ -55,7 +55,7 @@ final class TimerSlotHasNoIdentityTest extends TestCase
     {
         // La raison du trou, épinglée : deux minuteurs de durées différentes, planifiés à des
         // instants différents, peuvent porter la même échéance. L'échéance n'identifie donc pas
-        // l'appel — c'est ce qui interdit de la comparer.
+        // l'appel : c'est ce qui interdit de la comparer.
         $store = new InMemoryEventStore();
         $store->append(new TimerScheduled(self::EXECUTION, 'timer-1', 1_000_000.0, ''));
 

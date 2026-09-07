@@ -20,7 +20,7 @@ use Temporal\Api\Operatorservice\V1\OperatorServiceClient;
  * été observé. Voici ce qui a été observé, contre Temporal 1.31.2.
  *
  * Le résultat renverse la leçon de {@see \Gplanchat\Durable\TaskQueue} : là, le serveur acceptait
- * presque tout — `" "`, les blancs en bord, les tabulations — et l'objet-valeur devait être PLUS
+ * presque tout (`" "`, les blancs en bord, les tabulations), et l'objet-valeur devait être PLUS
  * STRICT que lui, parce qu'une file mal nommée ne produit aucune erreur, juste une exécution qui
  * attend un worker qui ne viendra pas. Ici le serveur valide lui-même, par une regex explicite, et
  * refuse à la création. Le mode de défaillance silencieux qui justifiait la sévérité de `TaskQueue`

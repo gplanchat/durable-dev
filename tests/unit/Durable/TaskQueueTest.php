@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
  * chercher. L'objet est donc plus strict que le serveur sur ce qui ne peut être qu'une faute.
  *
  * Les verdicts serveur ci-dessous ont été sondés : non vide, mille caractères au plus, et tout
- * le reste accepté — y compris `" "` et les blancs en bord.
+ * le reste accepté, y compris `" "` et les blancs en bord.
  */
 final class TaskQueueTest extends TestCase
 {

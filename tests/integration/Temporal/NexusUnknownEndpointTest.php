@@ -36,7 +36,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * chaque tour. Aucune opération Nexus n'est jamais planifiée, donc aucun échec d'opération ne peut
  * être livré : le workflow ne tombe pas, il tourne.
  *
- * Conséquence de conception : un objet-valeur `NexusEndpoint` n'y peut rien — le nom est bien
+ * Conséquence de conception : un objet-valeur `NexusEndpoint` n'y peut rien ; le nom est bien
  * formé, c'est l'endpoint qui n'existe pas. Seule une vérification avant émission de la commande,
  * ou l'acceptation assumée de la boucle, couvre ce cas.
  *
@@ -117,7 +117,7 @@ final class NexusUnknownEndpointTest extends TestCase
             'Le compteur de tentative n’a pas monté : ce ne serait pas la même tâche retentée.',
         );
 
-        // Aucune opération Nexus n'a été planifiée — donc aucun échec d'opération à typer.
+        // Aucune opération Nexus n'a été planifiée, donc aucun échec d'opération à typer.
         self::assertNull(
             $this->findEvent(EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED),
             'Une opération Nexus a été planifiée alors que l’endpoint est inconnu.',

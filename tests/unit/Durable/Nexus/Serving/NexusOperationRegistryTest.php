@@ -19,7 +19,7 @@ final class NexusOperationRegistryTest extends TestCase
     {
         // Le mode d'échec que ce garde existe pour rendre impossible : sur un backend sans route,
         // un gestionnaire déclaré n'est pas un appel qui échoue, c'est un service qui ne reçoit
-        // jamais rien — aucune erreur, aucune ligne de log, une file que personne ne poll.
+        // jamais rien. Aucune erreur, aucune ligne de log, une file que personne ne poll.
         //
         // La passe de compilation du bundle Symfony l'attrapait déjà. Elle n'attrape que Symfony :
         // le module Magento et le pont Illuminate montent leurs services autrement, et n'avaient
@@ -77,7 +77,7 @@ final class NexusOperationRegistryTest extends TestCase
     public function testAnOperationFulfilledByAWorkflowNeedsNoHandler(): void
     {
         // La forme différée déclarée : aucun gestionnaire n'est appelé, et il n'y en a pas à
-        // écrire. Le registre rend directement la réponse que le worker sait traiter — démarrer
+        // écrire. Le registre rend directement la réponse que le worker sait traiter : démarrer
         // le workflow avec le callback de la tâche attaché.
         $registry = NexusOperationRegistry::routedBy('temporal');
         $registry->registerFulfilment(

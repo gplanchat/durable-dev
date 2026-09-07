@@ -23,7 +23,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  *
  * Ce fichier était un test de **parité** : il lisait la même réponse serveur avec le fournisseur du
  * plugin et avec ce catalogue, pour prouver que déplacer le code derrière le port ne changeait rien
- * — sauf là où le port sait dire mieux. Le fournisseur ayant rejoint le pont puis disparu, la
+ * (sauf là où le port sait dire mieux). Le fournisseur ayant rejoint le pont puis disparu, la
  * comparaison n'a plus de second terme, et il ne reste que le contrat de l'adaptateur.
  *
  * Ce qui reste vaut d'être rappelé : le fournisseur rangeait **tout** ce qui n'était ni en cours ni

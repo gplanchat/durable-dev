@@ -37,7 +37,7 @@ final class WorkflowSignalUpdateMessengerHandlersTest extends TestCase
 
         // `waitSignal()` n'existe plus : un signal enregistre un handler qui mute l'état, et
         // une condition passée à `await()` observe cet état. Le handler est réenregistré à chaque
-        // passe, y compris au replay — c'est ce qui reconstruit `$payload` à la reprise.
+        // passe, y compris au replay : c'est ce qui reconstruit `$payload` à la reprise.
         //
         // La condition est une closure avec `use (&$payload)`, **pas** une fonction fléchée : une
         // fléchée capture par valeur au moment où elle est écrite, donc elle observerait à jamais

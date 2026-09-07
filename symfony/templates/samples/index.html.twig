@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Samples — Durable pour Symfony{% endblock %}
+{% block title %}Samples | Durable pour Symfony{% endblock %}
 
 {% block body %}
 <div class="container">
@@ -30,9 +30,9 @@
             rewritten for the Durable engine (with no official Temporal PHP SDK and no RoadRunner).
         </p>
         <p>
-            <strong>▶ Synchronous</strong> — the page waits for the run to finish (the transports are drained in the same request);
+            <strong>▶ Synchronous</strong>: the page waits for the run to finish (the transports are drained in the same request);
             result and journal are immediately available in the profiler.
-            <strong>⚡ Async</strong> — dispatch only (fire &amp; forget); the workflow runs in separate workers.
+            <strong>⚡ Async</strong>: dispatch only (fire &amp; forget); the workflow runs in separate workers.
         </p>
     </div>
 

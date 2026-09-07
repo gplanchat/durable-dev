@@ -18,7 +18,7 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
  * pas par une boucle qui spamme {@see \Gplanchat\Durable\Transport\FireWorkflowTimersMessage}.
  *
  * Chaque enveloppe retournée par {@see TransportInterface::get()} doit être {@see TransportInterface::ack() ackée}
- * (comportement du worker Symfony) — sinon les transports in-memory renverraient le même message à chaque tour.
+ * (comportement du worker Symfony) ; sinon les transports in-memory renverraient le même message à chaque tour.
  *
  * Avec le **backend Temporal natif** ({@see WorkflowTaskRunner} + {@see TemporalHistoryCursor}), les activités
  * passent par {@code durable_temporal_activity} (poll gRPC) : il faut aussi consommer {@code durable_temporal_journal}

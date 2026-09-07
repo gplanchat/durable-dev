@@ -35,7 +35,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * Deux pièges de rangement que le code déplacé avait, et qu'il ne faut pas emporter : le type
  * d'événement d'un signal (`WORKFLOW_EXECUTION_SIGNALED`) contient `WORKFLOW_`, et celui d'un
  * workflow enfant (`START_CHILD_WORKFLOW_EXECUTION_INITIATED`) aussi. Tester `WORKFLOW_` en premier
- * range donc les signaux et les enfants sur la voie de l'exécution — ce que le fournisseur du
+ * range donc les signaux et les enfants sur la voie de l'exécution, ce que le fournisseur du
  * plugin fait aujourd'hui.
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/tasks.md §5.1

@@ -18,7 +18,7 @@ use Temporal\Api\History\V1\NexusOperationScheduledEventAttributes;
  * aucun de ses historiques n'en porte, et la garde n'y aurait rien à comparer.
  *
  * L'identité est le **triplet**. Router le même service et la même opération vers un autre
- * endpoint est une divergence, et ne comparer que le nom de l'opération la laisserait passer —
+ * endpoint est une divergence, et ne comparer que le nom de l'opération la laisserait passer :
  * c'est le cas que ce fichier tient.
  */
 final class NexusSlotDivergenceTest extends TestCase

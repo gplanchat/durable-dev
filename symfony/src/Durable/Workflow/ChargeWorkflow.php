@@ -23,7 +23,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
  *
  * ⚠ **The parameter names are the interface.** `order`, `amount` and `currency` are the ones
  * `BillingContract::charge()` declares, and the payload is keyed by name on both sides. Renaming
- * one here without renaming it there would hand `null`, with no error and no trace — which is why
+ * one here without renaming it there would hand `null`, with no error and no trace, which is why
  * `NexusFulfilmentParameterNamesTest` compares the two lists.
  */
 #[AsWorkflow(self::TYPE)]
@@ -51,7 +51,7 @@ final class ChargeWorkflow
     {
         // `sleep()` and not `timer()`: the second one **returns** an awaitable, to await or to
         // compose with `any()`. Calling it without awaiting starts a timer nobody watches, and the
-        // workflow carries on — a `TimerStarted` with no `TimerFired` in the history.
+        // workflow carries on: a `TimerStarted` with no `TimerFired` in the history.
         //
         // The delay is there so the wait goes well past the ~9 s of a Nexus task: an operation that
         // could answer within that budget would not need a workflow, and the demonstration would

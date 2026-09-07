@@ -20,7 +20,7 @@ use Temporal\Api\History\V1\NexusOperationScheduledEventAttributes;
 use Temporal\Api\History\V1\NexusOperationTimedOutEventAttributes;
 
 /**
- * §4.4 — les opérations Nexus deviennent visibles au profileur.
+ * §4.4 : les opérations Nexus deviennent visibles au profileur.
  *
  * Sans conversion, une exécution qui appelle un service externe montre un trou : l'historique
  * Temporal porte les neuf événements `NEXUS_OPERATION_*`, le profileur n'en voit aucun, et

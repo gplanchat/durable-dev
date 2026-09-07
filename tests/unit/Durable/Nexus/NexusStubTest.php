@@ -38,7 +38,7 @@ final class NexusStubTest extends TestCase
 
     public function testNamedArgumentsBecomeTheCallersPayload(): void
     {
-        // La charge voyage telle que l'appelant l'a écrite — pas d'enveloppe (1b.2). Les noms des
+        // La charge voyage telle que l'appelant l'a écrite, pas d'enveloppe (1b.2). Les noms des
         // clés sont ceux des paramètres du contrat, donc un gestionnaire d'un autre SDK y trouve
         // les champs qu'il déclare.
         $scheduler = new RecordingNexusScheduler();

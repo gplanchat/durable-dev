@@ -25,7 +25,7 @@ use PHPUnit\Framework\TestCase;
  * Une exécution qui finit mal doit rester descriptible.
  *
  * C'est la raison d'être du change : `ResumeWorkflowHandler` supprime la ligne de métadonnées sur
- * échec, annulation et continue-as-new, et `ExecutionStarted` ne porte pas le type de workflow —
+ * échec, annulation et continue-as-new, et `ExecutionStarted` ne porte pas le type de workflow ;
  * une exécution en échec n'a donc de nom nulle part. Or un tableau de bord d'exploitation est
  * d'abord une liste d'échecs.
  *

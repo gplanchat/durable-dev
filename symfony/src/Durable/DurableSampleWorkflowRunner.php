@@ -56,7 +56,7 @@ final class DurableSampleWorkflowRunner
      * Attend la complétion du workflow.
      *
      * - Backend **Temporal natif** (multi-processus) : sonde `GetWorkflowExecutionHistory` via
-     *   {@see WorkflowClient::pollForCompletion()} — ne suppose pas de worker dans le même processus.
+     *   {@see WorkflowClient::pollForCompletion()}. Ne suppose pas de worker dans le même processus.
      * - Backend **in-memory** : vide les transports Messenger in-process via {@see DurableMessengerDrain}.
      *
      * @return mixed résultat du workflow

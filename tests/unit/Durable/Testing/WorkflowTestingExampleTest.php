@@ -119,7 +119,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
 
         $env->run(
             static function (WorkflowEnvironment $wf): void {
-                // RetryLimit::once() — sans borne, les tentatives sont illimitées (sémantique
+                // RetryLimit::once() : sans borne, les tentatives sont illimitées (sémantique
                 // Temporal) et l'activité serait retentée au lieu de faire échouer le workflow.
                 $wf->await($wf->activityStub(SuiteActivities::class, new ActivityOptions(RetryLimit::once()))->validate('invalid'));
             },

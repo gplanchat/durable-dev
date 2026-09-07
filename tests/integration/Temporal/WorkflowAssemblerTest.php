@@ -10,7 +10,7 @@ use Temporal\Api\Enums\V1\EventType;
  * Les assembleurs contre un vrai serveur (ADR DUR033).
  *
  * Ce que les tests unitaires ne peuvent pas voir : ils jouent la vidange synchrone, où il n'y a
- * ni fiber suspendu ni workflow task. Or `all()` est passé de N suspensions à une seule — la
+ * ni fiber suspendu ni workflow task. Or `all()` est passé de N suspensions à une seule : la
  * séquence de commandes ne change pas, les frontières de tâches si, et c'est le serveur qui les
  * découpe.
  */

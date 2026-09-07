@@ -40,7 +40,7 @@ final class DurationTest extends TestCase
 
     public function testAnInstantBecomesADurationOnlyRelativeToAnother(): void
     {
-        // Un DateTimeInterface — Carbon compris — est un instant, pas une longueur.
+        // Un DateTimeInterface (Carbon compris) est un instant, pas une longueur.
         $from = new \DateTimeImmutable('2026-01-01 12:00:00');
         $deadline = new \DateTimeImmutable('2026-01-01 12:01:30');
 

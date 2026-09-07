@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
  * d'activité du backend Temporal.
  *
  * Le worker demande au journal, avant de traiter, si la tâche qu'il vient de recevoir a déjà été
- * tranchée — pour ne pas réexécuter une tâche que le serveur redélivre après une réponse perdue.
+ * tranchée, pour ne pas réexécuter une tâche que le serveur redélivre après une réponse perdue.
  * Posée sans le rang de la tentative, la question rendait l'échec de la première à toutes les
  * suivantes : trois tentatives brûlées en deux secondes, le même message d'échec recopié, et le
  * code de l'activité rappelé une seule fois.
@@ -55,7 +55,7 @@ final class ARetryIsNotARedeliveryTest extends TestCase
     public function testAFailureWithoutARetryStateStaysSettled(): void
     {
         // `null` est un journal antérieur au discriminant, pas une reprise en cours. Dans le doute,
-        // on ne rejoue pas un effet de bord — l'inverse rendrait le correctif plus dangereux que
+        // on ne rejoue pas un effet de bord : l'inverse rendrait le correctif plus dangereux que
         // le défaut qu'il corrige.
         $store = $this->journalWith($this->failedOnAttempt(1, null));
 

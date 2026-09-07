@@ -12,7 +12,7 @@ use Gplanchat\Durable\Exception\DurableUpdateFailedException;
  * C'est le chemin entier : le client envoie l'update, le serveur le remet au worker en message de
  * protocole *hors historique*, le handler produit l'issue, le worker accepte et répond sur la même
  * tâche, et l'appelant reçoit la valeur de retour. Aucune partie de cette chaîne ne se vérifie
- * contre un faux serveur — d'où ce test (tâches 5.5 et 7.3).
+ * contre un faux serveur, d'où ce test (tâches 5.5 et 7.3).
  */
 final class WorkflowUpdateTest extends TemporalServerTestCase
 {

@@ -21,7 +21,7 @@ use Temporal\Api\Enums\V1\CommandType;
  * La commande `ScheduleNexusOperation` telle que le pont la construit.
  *
  * Les bornes suivent le verdict de la sonde §1.3 : le serveur n'en défausse aucune, et une borne
- * absente doit le rester. Les poser à zéro « pour remplir » changerait le sens — zéro veut dire
+ * absente doit le rester. Les poser à zéro « pour remplir » changerait le sens : zéro veut dire
  * « pas de borne », pas « zéro seconde ».
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §4.1
@@ -66,7 +66,7 @@ final class TemporalNexusScheduleCommandTest extends TestCase
     public function testAnInfiniteEnvelopeIsSentAsZeroBecauseThatIsHowTemporalSpellsUnbounded(): void
     {
         // Duration::infinity() côté domaine, 0 sur le fil : c'est la convention du serveur, mesurée
-        // en §1.3 — un scheduleToClose à 0 ne rabote pas les sous-bornes.
+        // en §1.3 ; un scheduleToClose à 0 ne rabote pas les sous-bornes.
         $attrs = $this->schedule(new NexusOperationTimeouts(scheduleToClose: Duration::infinity()));
 
         self::assertSame(0, $attrs->getScheduleToCloseTimeout()?->getSeconds());

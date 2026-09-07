@@ -33,7 +33,7 @@ use PHPUnit\Framework\TestCase;
  * la déplacer casserait leur rejeu, en silence. Les tableaux ci-dessous sont relevés sur le code
  * tel qu'il est aujourd'hui ; un refactor de frontière ne doit pas les faire bouger d'un octet.
  *
- * Ce test n'est pas là pour décrire un comportement souhaitable — il est là pour interdire un
+ * Ce test n'est pas là pour décrire un comportement souhaitable : il est là pour interdire un
  * changement. Si vous devez le modifier, c'est une migration de données, pas un refactor.
  *
  * @see openspec/changes/value-objects-through-ports

@@ -16,11 +16,11 @@ use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
- * L'annulation d'un workflow atteint les opérations Nexus en vol — §3.5.
+ * L'annulation d'un workflow atteint les opérations Nexus en vol (§3.5).
  *
  * La tâche disait « étendre `WorkflowFiberDriver::cancelPending()` » ; il n'y a rien à y étendre.
  * La marche unique est {@see AwaitableCancellation}, que le pilote et les composites partagent
- * depuis leur consolidation — son docblock raconte pourquoi elles ont été fusionnées : leurs deux
+ * depuis leur consolidation ; son docblock raconte pourquoi elles ont été fusionnées : leurs deux
  * versions ne descendaient pas à la même profondeur.
  */
 final class NexusCancellationTraversalTest extends TestCase

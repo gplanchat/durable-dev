@@ -28,7 +28,7 @@ final class NexusContractResolverTest extends TestCase
         // La différence qui compte avec le résolveur d'activité, qui ignore l'héritage. Ici le
         // contrat complet **étend** le contrat servi : c'est ce qui permet au gestionnaire de
         // n'implémenter que l'immédiat sans écrire une méthode vide. Sauter les méthodes héritées
-        // ferait disparaître `verifier` de la vue de l'appelant — une opération déclarée, servie,
+        // ferait disparaître `verifier` de la vue de l'appelant : une opération déclarée, servie,
         // et que le stub ne saurait pas appeler.
         $operations = (new NexusContractResolver())->operations(ContratComplet::class);
 

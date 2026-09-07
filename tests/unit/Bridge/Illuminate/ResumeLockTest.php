@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
  *
  * On ne peut pas y lancer deux workers. Ce qui **se** prouve est ce qui compte : qu'une seconde
  * prise sur la même exécution ne passe pas tant que la première tient, et que deux exécutions
- * différentes ne s'attendent jamais. Le reste — qu'un worker distant respecte le même verrou —
+ * différentes ne s'attendent jamais. Le reste (qu'un worker distant respecte le même verrou)
  * tient au nom, et le nom est donc figé par un test plutôt que deviné à deux endroits.
  */
 final class ResumeLockTest extends TestCase

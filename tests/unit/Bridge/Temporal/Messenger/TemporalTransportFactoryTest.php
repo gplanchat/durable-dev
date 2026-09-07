@@ -49,7 +49,7 @@ final class TemporalTransportFactoryTest extends TestCase
         self::assertSame($expected, $factory->supports($dsn, []));
     }
 
-    // ── createTransport() — cas d'erreur sans gRPC ────────────────────────
+    // ── createTransport() : cas d'erreur sans gRPC ────────────────────────
 
     public function testCreateTransportForActivityWorkerPurposeWithoutWorkerThrows(): void
     {
@@ -149,7 +149,7 @@ final class TemporalTransportFactoryTest extends TestCase
         $worker = (new \ReflectionClass(TemporalActivityWorker::class))->newInstanceWithoutConstructor();
         $factory = new TemporalTransportFactory([], $worker);
 
-        // Should not throw — returns TemporalActivityWorkerTransport wrapping the worker
+        // Should not throw: returns TemporalActivityWorkerTransport wrapping the worker
         $transport = $factory->createTransport(
             'temporal://127.0.0.1:7233?purpose=activity_worker',
             [],

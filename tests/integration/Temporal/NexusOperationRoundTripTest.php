@@ -41,11 +41,11 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  *
  * Les tests unitaires de `TemporalWorkflowCommandBuffer` vérifient la FORME de la commande. Ils ne
  * peuvent pas dire si le serveur l'accepte : c'est ce que ce fichier ajoute, et c'est ce qui a
- * manqué à d'autres commandes de ce pont — une commande bien formée mais jamais soumise passe tous
+ * manqué à d'autres commandes de ce pont. Une commande bien formée mais jamais soumise passe tous
  * les tests et ne fait rien.
  *
  * **Prérequis du namespace de test : un endpoint Nexus.** Contrairement aux attributs de recherche,
- * qui doivent être déclarés à la main, ce test crée le sien et le supprime en sortant — un nom
+ * qui doivent être déclarés à la main, ce test crée le sien et le supprime en sortant : un nom
  * d'endpoint est unique pour le cluster entier, et en laisser traîner gênerait toute autre session.
  * L'équivalent manuel, pour qui veut reproduire à la main :
  *
@@ -158,8 +158,8 @@ final class NexusOperationRoundTripTest extends TestCase
         self::assertNotNull($input, 'L’entrée de l’opération n’a pas été enregistrée.');
 
         // 1b.2 a retiré l'enveloppe : le serveur reçoit la charge de l'appelant, nue. Chercher
-        // encore une clé `payload` reviendrait à réclamer l'enveloppe que ce chantier a supprimée
-        // — et c'est exactement ce qu'un gestionnaire d'un autre SDK ne trouverait pas.
+        // encore une clé `payload` reviendrait à réclamer l'enveloppe que ce chantier a supprimée,
+        // et c'est exactement ce qu'un gestionnaire d'un autre SDK ne trouverait pas.
         $decoded = JsonPlainPayload::decode($input);
         self::assertSame(['amount' => 10], $decoded);
     }
@@ -183,7 +183,7 @@ final class NexusOperationRoundTripTest extends TestCase
     {
         // §4.1. La sonde du bloc 1 a établi que le serveur accepte l'en-tête ; ce test-ci prouve
         // que **notre commande** le porte jusque-là. Les tests unitaires du tampon vérifient la
-        // forme du champ — ils ne peuvent pas dire qu'il survit à la soumission.
+        // forme du champ ; ils ne peuvent pas dire qu'il survit à la soumission.
         $scheduled = $this->scheduleThrough(
             NexusOperationTimeouts::none(),
             NexusOperationHeaders::of(['x-correlation' => 'abc-123', 'x-tenant' => 'acme']),
@@ -201,7 +201,7 @@ final class NexusOperationRoundTripTest extends TestCase
     public function testAKeyGivenInUpperCaseIsAlreadyLoweredBeforeItLeaves(): void
     {
         // La coercition appartient à l'objet-valeur. Ce que le serveur renvoie doit donc être
-        // identique à ce que l'appelant tenait — pas seulement équivalent à ce qu'il a tapé.
+        // identique à ce que l'appelant tenait, pas seulement équivalent à ce qu'il a tapé.
         $headers = NexusOperationHeaders::of(['X-Correlation' => 'abc-123']);
         $scheduled = $this->scheduleThrough(NexusOperationTimeouts::none(), $headers);
 

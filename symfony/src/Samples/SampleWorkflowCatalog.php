@@ -23,7 +23,7 @@ use App\Samples\Workflow\Updates\SamplesUpdatesWorkflow;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 
 /**
- * Scenarios ported from temporalio/samples-php — metadata for the Symfony samples UI.
+ * Scenarios ported from temporalio/samples-php: metadata for the Symfony samples UI.
  *
  * `workflowType` est l’**alias** Temporal (1er argument de `#[AsWorkflow]`, sinon nom court de classe) :
  * c’est ce qui est envoyé au serveur Temporal et stocké dans le journal ; le {@see WorkflowRegistry}
@@ -53,7 +53,7 @@ final class SampleWorkflowCatalog
                 'sourceFolder' => 'SimpleActivity',
                 'label' => 'SimpleActivity (Greeting)',
                 'workflowType' => self::workflowAlias(SimpleActivityGreetingWorkflow::class),
-                'description' => 'One composeGreeting(name) activity call — the samples-php SimpleActivity equivalent.',
+                'description' => 'One composeGreeting(name) activity call, the samples-php SimpleActivity equivalent.',
                 'defaultPayload' => ['name' => 'World'],
             ],
             [

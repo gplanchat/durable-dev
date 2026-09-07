@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
  * Le tampon de ce backend **refuse** de planifier une opération Nexus (§3.4) : aucune ne peut donc
  * figurer dans son journal, et la source d'historique répond « rien » quel que soit le slot. Ce
  * n'est pas un trou d'implémentation mais la conséquence exacte du refus, et c'est ce que ce test
- * épingle — pour qu'une future implémentation « au cas où » se remarque.
+ * épingle, pour qu'une future implémentation « au cas où » se remarque.
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §3.3
  */

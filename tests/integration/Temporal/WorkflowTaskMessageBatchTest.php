@@ -25,7 +25,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Sonde, et non fonctionnalité : le change « workflow-conditions-and-handler-dispatch » fait de
- * l'entrelacement — appliquer un message, puis réévaluer les conditions pendantes — le cœur de sa
+ * l'entrelacement, appliquer un message puis réévaluer les conditions pendantes, le cœur de sa
  * boucle (§4.2). Cette boucle n'a de sens que si un **unique** workflow task peut transporter
  * plusieurs messages journalisés : sinon l'ordre serait imposé par le serveur, une tâche par
  * message, et il n'y aurait rien à entrelacer côté domaine.
@@ -36,10 +36,10 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * ⚠ Ce que la sonde établit est que le régime groupé est **atteignable**, pas qu'il soit garanti :
  * la même sonde avec un worker en écoute rend un signal par tâche, celui-ci réclamant chaque tâche
  * avant l'arrivée du suivant. Le nombre de messages par tâche est un artefact de disponibilité du
- * worker, non un contrat — et c'est précisément ce qui interdit d'ordonner les messages par
+ * worker, non un contrat, et c'est précisément ce qui interdit d'ordonner les messages par
  * frontière de tâche. Voir la section « probed » du design.
  *
- * Aucun worker n'est démarré ici, à dessein — c'est ce qui laisse les signaux s'accumuler sur la
+ * Aucun worker n'est démarré ici, à dessein : c'est ce qui laisse les signaux s'accumuler sur la
  * tâche en attente. Le test poll la file lui-même et lit le lot que le serveur lui rend.
  *
  * @see openspec/changes/workflow-conditions-and-handler-dispatch/tasks.md §1.2
@@ -112,7 +112,7 @@ final class WorkflowTaskMessageBatchTest extends TestCase
 
         // Le poll rend l'historique COMPLET : compter les signaux sur tout le lot prouverait
         // seulement qu'il y en a eu plusieurs depuis le début, pas qu'UNE tâche les porte tous.
-        // Seul compte le segment que cette tâche doit traiter — ce qui suit le dernier
+        // Seul compte le segment que cette tâche doit traiter : ce qui suit le dernier
         // WORKFLOW_TASK_COMPLETED.
         $segment = $this->pendingSegment($second);
         $signalled = $this->countIn($segment, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED);
@@ -147,7 +147,7 @@ final class WorkflowTaskMessageBatchTest extends TestCase
         );
 
         // Le type n'a pas à exister : le serveur journalise le démarrage sans rien exécuter tant
-        // qu'aucun worker ne poll — ce qui est précisément la situation voulue.
+        // qu'aucun worker ne poll, ce qui est précisément la situation voulue.
         return $client->startAsync('ProbeMessageBatch', [], 'probe-' . bin2hex(random_bytes(4)));
     }
 

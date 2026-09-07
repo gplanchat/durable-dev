@@ -22,7 +22,7 @@ final class StubArgumentsTest extends TestCase
 
     /**
      * Le défaut qui a coûté un après-midi : PHP passe les arguments nommés à `__call` dans un
-     * tableau à **clés de chaînes**. Appariés par indice, ils disparaissaient tous — et chaque
+     * tableau à **clés de chaînes**. Appariés par indice, ils disparaissaient tous, et chaque
      * paramètre retombait sur sa valeur par défaut, sans exception ni trace.
      */
     public function testNamedArgumentsLandOnTheirParameter(): void
@@ -63,7 +63,7 @@ final class StubArgumentsTest extends TestCase
      *
      * Le laisser valoir `null` faisait voyager la faute jusque dans le journal, où elle se rejoue
      * à l'identique à chaque passe : `$text` est déclaré `string`, une charge portant `null` est
-     * donc de toute façon refusée à l'arrivée — mais une passe de rejeu plus tard, dans un worker,
+     * donc de toute façon refusée à l'arrivée, mais une passe de rejeu plus tard, dans un worker,
      * loin de l'appel fautif.
      */
     public function testUnParametreRequisNonFourniLeve(): void

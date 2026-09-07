@@ -53,7 +53,7 @@ final class TheJournalLineThatUnfoldsTest extends TestCase
     public function testTheFieldIsAdditive(): void
     {
         // Le champ arrive en fin de constructeur avec une valeur par défaut : tout appelant écrit
-        // avant lui — le pont Temporal, le plugin Sylius, les tests — continue de construire.
+        // avant lui (le pont Temporal, le plugin Sylius, les tests) continue de construire.
         $event = new WorkflowRunEvent(1, new \DateTimeImmutable('@0'), WorkflowRunEventKind::Other, 'x');
 
         self::assertSame([], $event->details);

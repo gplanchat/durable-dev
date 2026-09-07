@@ -28,8 +28,8 @@ use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * L'annulation Temporal est coopérative : le serveur n'enregistre qu'une demande et replanifie
- * une tâche. Le worker doit relever un CanceledFailure dans le fiber — pour laisser le workflow
- * compenser — puis répondre par COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION.
+ * une tâche. Le worker doit relever un CanceledFailure dans le fiber (pour laisser le workflow
+ * compenser) puis répondre par COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION.
  */
 final class TemporalWorkflowCancellationTest extends TestCase
 {

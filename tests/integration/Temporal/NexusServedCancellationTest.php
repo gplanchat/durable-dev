@@ -40,7 +40,7 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * §4 — l'annulation, mesurée puis servie.
+ * §4 : l'annulation, mesurée puis servie.
  *
  * §1.5 avait établi la moitié négative : avec la tâche de start encore en attente, annuler
  * l'appelant écrit `NEXUS_OPERATION_CANCEL_REQUESTED` de son côté et **aucune tâche n'arrive** au
@@ -48,7 +48,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  *
  * La moitié positive n'avait jamais pu être observée, faute de pouvoir démarrer une opération en
  * asynchrone. C'est maintenant possible, et les deux tests ici se lisent dans l'ordre : le premier
- * mesure ce que porte la tâche d'annulation — elle **nomme le jeton rendu au démarrage** —, le
+ * mesure ce que porte la tâche d'annulation (elle **nomme le jeton rendu au démarrage**), le
  * second fait faire le geste au worker et vérifie qu'il atteint le workflow qui porte l'opération.
  */
 #[RequiresPhpExtension('grpc')]
@@ -160,7 +160,7 @@ final class NexusServedCancellationTest extends TestCase
         self::assertSame(
             $fulfillerId,
             $cancel->getOperationToken(),
-            'La tâche d’annulation doit nommer le jeton rendu au démarrage — c’est la seule prise sur ce qui porte l’opération.',
+            'La tâche d’annulation doit nommer le jeton rendu au démarrage : c’est la seule prise sur ce qui porte l’opération.',
         );
     }
 
@@ -306,7 +306,7 @@ final class NexusServedCancellationTest extends TestCase
     /**
      * Le workflow qui remplit l'opération tourne sur la **même file** que l'appelant : un poll nu
      * peut rendre sa tâche. Répondre à celle-là avec une commande qui parle de l'historique de
-     * l'appelant fait rejeter la tâche entière — le serveur dit alors que l'opération est
+     * l'appelant fait rejeter la tâche entière : le serveur dit alors que l'opération est
      * « non-existing », ce qui envoie chercher un défaut là où il n'y en a pas.
      */
     private function pollWorkflowTaskFor(string $workflowId): PollWorkflowTaskQueueResponse

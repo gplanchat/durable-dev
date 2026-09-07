@@ -19,7 +19,7 @@ use PHPUnit\Framework\TestCase;
  * Planifier une opération Nexus, et la retrouver au replay.
  *
  * Même discipline de slot que les activités : le rang de l'appel dans le workflow identifie
- * l'opération d'une passe à l'autre. Sans lui, un replay replanifierait ce qui est déjà en vol —
+ * l'opération d'une passe à l'autre. Sans lui, un replay replanifierait ce qui est déjà en vol,
  * et Nexus appelle un système tiers, où une opération émise deux fois est un vrai doublon, pas une
  * écriture idempotente qu'on rattrape chez soi.
  *

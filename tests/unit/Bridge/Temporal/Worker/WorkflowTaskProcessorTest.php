@@ -34,7 +34,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
- * Tests for WorkflowTaskProcessor — the poll → execute → respond loop.
+ * Tests for WorkflowTaskProcessor: the poll → execute → respond loop.
  *
  * Strategy:
  * - Mock WorkflowServiceClient.PollWorkflowTaskQueue to return an inline-history PollResponse.
@@ -392,7 +392,7 @@ final class WorkflowTaskProcessorTest extends TestCase
     public function testAnsweringAQueryLeavesTheCommandsUntouched(): void
     {
         // Répondre à une query ne doit rien changer à l'exécution : le même poll, avec et sans
-        // query, produit les mêmes commandes. C'est ce qui rend la query rejouable — elle n'inscrit
+        // query, produit les mêmes commandes. C'est ce qui rend la query rejouable : elle n'inscrit
         // aucun fait dont un replay aurait à tenir compte.
         //
         // Lu dans le code, ce serait un argument. Ici c'est une assertion, et c'est la différence.
@@ -479,7 +479,7 @@ final class WorkflowTaskProcessorTest extends TestCase
      *
      * L'identifiant est un UUIDv7 tiré à chaque exécution : deux exécutions de la même task ne
      * peuvent pas être identiques au bit près, et ce n'est pas ce qu'on cherche à établir. Tout le
-     * reste — type de commande, nom d'activité, file, charge utile, délais — doit l'être.
+     * reste (type de commande, nom d'activité, file, charge utile, délais) doit l'être.
      *
      * @return list<string>
      */

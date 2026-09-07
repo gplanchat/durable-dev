@@ -231,7 +231,7 @@ abstract class TemporalServerTestCase extends TestCase
      * Remplace le worker de workflow par un autre, sur une variante de code différente.
      *
      * C'est un déploiement, joué en petit : l'ancien processus meurt, le nouveau reprend la même
-     * file et la même exécution. Le worker d'activité, lui, ne bouge pas — ce n'est pas lui qu'on
+     * file et la même exécution. Le worker d'activité, lui, ne bouge pas : ce n'est pas lui qu'on
      * redéploie.
      */
     protected function redeployWorkflowWorker(string $variant): void

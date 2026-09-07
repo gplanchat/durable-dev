@@ -11,8 +11,8 @@ use PHPUnit\Framework\TestCase;
  *
  * `gplanchat/durable` ne requiert ni le bundle Symfony ni aucun pont : c'est la promesse du
  * composant, et ce qui rend « le même workflow tourne partout » vrai plutôt qu'aspirationnel. Une
- * seule ligne l'avait rompue — `InMemoryWorkflowRunner` important
- * `Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator` — et rien ne le disait : sous
+ * seule ligne l'avait rompue (`InMemoryWorkflowRunner` important
+ * `Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator`), et rien ne le disait : sous
  * Symfony le bundle est là, donc tout marche. La panne n'apparaît que sur un hôte qui ne l'installe
  * pas, au moment d'une reprise, sous la forme d'une erreur fatale de classe introuvable. Magento
  * l'a trouvée en rejouant une commande tuée au milieu.
@@ -48,7 +48,7 @@ final class CoreDependsOnNoHostTest extends TestCase
         }
 
         self::assertSame([], $forbidden, sprintf(
-            '%s imports a host package. gplanchat/durable requires neither the Symfony bundle nor any bridge, so this is a fatal error on every host that does not install it — and it looks perfectly healthy under Symfony.',
+            '%s imports a host package. gplanchat/durable requires neither the Symfony bundle nor any bridge, so this is a fatal error on every host that does not install it, and it looks perfectly healthy under Symfony.',
             basename($path),
         ));
     }

@@ -26,7 +26,7 @@ use PHPUnit\Framework\TestCase;
  * La reprise d'une exécution, sans une ligne de Symfony.
  *
  * Cette orchestration vivait dans le bundle : 138 lignes dont 15 imports du cœur et 6 de Symfony,
- * ces six-là servant à **deux** choses — un identifiant v7, que `ExecutionId` sait déjà fabriquer,
+ * ces six-là servant à **deux** choses. Un identifiant v7, que `ExecutionId` sait déjà fabriquer,
  * et « publier le réveil des minuteries après l'unité de travail courante », qui est un port.
  *
  * Six hôtes du sélecteur ne passent pas par le bundle. Le coût de la laisser là n'était pas
@@ -51,7 +51,7 @@ final class CoreResumeWithoutASymfonyBusTest extends TestCase
 
     /**
      * Ce que le port remplace : le `messageBus->dispatch(new Envelope(…, [DispatchAfterCurrentBusStamp]))`
-     * du bundle. Un hôte sans bus doit pouvoir répondre à la même question — « réveille les
+     * du bundle. Un hôte sans bus doit pouvoir répondre à la même question : « réveille les
      * minuteries de cette exécution, après le travail courant, dans n millisecondes ».
      */
     public function testAnExecutionWaitingOnATimerAsksThePortAndNotAMessageBus(): void

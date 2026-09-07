@@ -56,7 +56,7 @@ final class MessengerActivityTransportTest extends TestCase
         // que comptée, pour qu'un événement de plus se voie plutôt que de faire tomber un nombre.
         // Sans ces deux lignes, le test est vert avec **n'importe quel** transport : mesuré, en
         // remplaçant `MessengerActivityTransport` par `InMemoryActivityTransport`. Il portait un
-        // `#[CoversClass]` qu'il n'honorait pas — c'est le journal du moteur qu'il observait, pas
+        // `#[CoversClass]` qu'il n'honorait pas : c'est le journal du moteur qu'il observait, pas
         // le passage par Messenger. Ce qui distingue ce transport des autres, c'est qu'une
         // enveloppe part sur le transport Symfony et y est acquittée.
         self::assertCount(1, $symfonyTransport->getSent(), 'une enveloppe part sur le transport Symfony');

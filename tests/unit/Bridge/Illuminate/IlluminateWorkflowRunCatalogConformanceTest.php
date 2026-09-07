@@ -27,7 +27,7 @@ use Illuminate\Database\Connection;
  *
  * Et ces décorateurs ne connaissent pas Illuminate. Ils attendent un
  * {@see \Gplanchat\Durable\Observation\WorkflowRunProjectionInterface}, que ce catalogue implémente
- * en étant sa propre projection — c'est la seule chose qu'un troisième backend a eu à fournir pour
+ * en étant sa propre projection : c'est la seule chose qu'un troisième backend a eu à fournir pour
  * hériter de toute l'observabilité (DUR043).
  *
  * @see DUR041

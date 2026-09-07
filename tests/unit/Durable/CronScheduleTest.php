@@ -127,7 +127,7 @@ final class CronScheduleTest extends TestCase
 
     public function testTimeZoneIsCarriedAsThePrefixTheServerExpects(): void
     {
-        // Sans fuseau, le serveur lit l'expression en UTC — presque jamais ce qu'on veut d'un
+        // Sans fuseau, le serveur lit l'expression en UTC, presque jamais ce qu'on veut d'un
         // « tous les jours à 9 h ».
         $schedule = CronSchedule::dailyAt(9)->inTimeZone(new \DateTimeZone('Europe/Paris'));
 

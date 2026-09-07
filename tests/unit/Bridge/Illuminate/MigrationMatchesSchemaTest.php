@@ -14,8 +14,8 @@ use PHPUnit\Framework\TestCase;
 /**
  * Les deux façons de créer les tables doivent créer les mêmes.
  *
- * Le pont en a deux : {@see DurableSchema} les monte à la demande — ce dont vivent les tests et un
- * worker qui démarre sur une base vide — et la migration publiée les monte par `php artisan
+ * Le pont en a deux : {@see DurableSchema} les monte à la demande (ce dont vivent les tests et un
+ * worker qui démarre sur une base vide) et la migration publiée les monte par `php artisan
  * migrate`, ce dont vivra une application. Deux chemins vers le même schéma, c'est deux occasions
  * de diverger, et la divergence ne se verrait ni à la migration ni au test : elle se verrait en
  * production, sur une colonne absente ou trop courte.
@@ -35,7 +35,7 @@ final class MigrationMatchesSchemaTest extends TestCase
      * La comparaison se fait sur le **DDL**, pas sur l'introspection.
      *
      * SQLite jette les longueurs : une colonne déclarée `varchar(32)` s'y relit `varchar`, et
-     * `status` raccourci à huit caractères passait donc inaperçu — en tronquant
+     * `status` raccourci à huit caractères passait donc inaperçu, en tronquant
      * `continued_as_new`, dix-huit caractères, dès qu'une vraie application tourne sur MySQL.
      * Laravel sait rendre le DDL sans l'exécuter et sans serveur : la grammaire MySQL, elle, porte
      * les longueurs **et** les index.
@@ -86,7 +86,7 @@ final class MigrationMatchesSchemaTest extends TestCase
 
     /**
      * La migration parle par la façade `Schema`. Hors application Laravel, il faut donc lui donner
-     * un conteneur — c'est tout ce que `Facade::setFacadeApplication()` demande, et c'est aussi ce
+     * un conteneur : c'est tout ce que `Facade::setFacadeApplication()` demande, et c'est aussi ce
      * qui rend ce test possible sans monter une application entière.
      */
     private static function migration(Connection $connection): object
@@ -150,7 +150,7 @@ final class MigrationMatchesSchemaTest extends TestCase
 
     /**
      * Le nom d'une colonne ne suffit pas. `status` raccourci de 32 à 8 caractères passait la
-     * comparaison des seuls noms — et tronquait `continued_as_new`, dix-huit caractères, sur
+     * comparaison des seuls noms, et tronquait `continued_as_new`, dix-huit caractères, sur
      * MySQL. Le type déclaré et la nullabilité entrent donc dans la comparaison.
      *
      * @return array<string, string>

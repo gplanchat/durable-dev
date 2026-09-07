@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
  * dans son propre système, là où elle est à l'extérieur.
  *
  * Elles tombaient jusqu'ici sur la voie `Other`, listées mais sans identité : ni endpoint, ni
- * service, ni nom d'opération — c'est-à-dire sans ce qui dit **chez qui** l'attente a lieu.
+ * service, ni nom d'opération, c'est-à-dire sans ce qui dit **chez qui** l'attente a lieu.
  */
 final class NexusInTheRunHistoryTest extends TestCase
 {
@@ -44,7 +44,7 @@ final class NexusInTheRunHistoryTest extends TestCase
 
     public function testATerminalEventBorrowsTheIdentityOfItsScheduling(): void
     {
-        // Les événements terminaux ne portent que le `scheduledEventId` — la même contrainte que
+        // Les événements terminaux ne portent que le `scheduledEventId`, la même contrainte que
         // pour les activités, où le nom se lit sur la planification. Sans cette corrélation, la
         // frise afficherait « NexusOperationCompleted » et l'exploitant ne saurait pas laquelle.
         $history = $this->read([
@@ -60,7 +60,7 @@ final class NexusInTheRunHistoryTest extends TestCase
     public function testTheTemporalReaderUsesTheSameLane(): void
     {
         // Les deux backends alimentent la même frise. Si l'un range Nexus sur sa voie et l'autre
-        // sur `Other`, le même workflow se lit différemment selon l'endroit où il tourne — et
+        // sur `Other`, le même workflow se lit différemment selon l'endroit où il tourne, et
         // l'exploitant apprend à ne pas faire confiance à la voie.
         $kind = (new \ReflectionMethod(TemporalRunHistoryReader::class, 'kindOf'));
         $kind->setAccessible(true);

@@ -11,7 +11,7 @@ use Gplanchat\Durable\Demo\Contracts\Billing\BillingServed;
 /**
  * The business serves `billing`. It writes only one half of it.
  *
- * The attribute names `BillingContract` — the **whole** contract, the one the caller reads — while
+ * The attribute names `BillingContract` (the **whole** contract, the one the caller reads), while
  * the class implements only `BillingServed`. That is not an inconsistency: it is what lets the
  * compiler pass check the coverage operation by operation, and find that `charge` has no body here
  * because a workflow claims it.

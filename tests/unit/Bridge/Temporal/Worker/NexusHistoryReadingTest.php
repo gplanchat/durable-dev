@@ -20,12 +20,12 @@ use Temporal\Api\History\V1\NexusOperationStartedEventAttributes;
 use Temporal\Api\History\V1\NexusOperationTimedOutEventAttributes;
 
 /**
- * §4.3 — relire les événements `NEXUS_OPERATION_*` depuis l'historique Temporal.
+ * §4.3 : relire les événements `NEXUS_OPERATION_*` depuis l'historique Temporal.
  *
  * C'est ce qui manque pour que le replay retombe sur l'opération déjà lancée. Tant que la lecture
  * n'existe pas, `findScheduledNexusOperation()` ne peut pas rendre `null` sans danger : le
  * contexte n'émet la commande que si le slot est vide, donc un `null` systématique replanifie
- * l'opération à **chaque passe** — et une opération Nexus qui repart est facturée à chaque fois.
+ * l'opération à **chaque passe**, et une opération Nexus qui repart est facturée à chaque fois.
  * C'est pourquoi le stub levait plutôt que de rendre `null`.
  */
 final class NexusHistoryReadingTest extends TestCase
@@ -253,7 +253,7 @@ final class NexusHistoryReadingTest extends TestCase
         $attrs->setService('facturation');
         $attrs->setOperation('encaisser');
         // L'identité applicative voyage dans le payload d'entrée, faute de champ dédié côté
-        // Temporal — c'est ce que le tampon de commandes y met.
+        // Temporal : c'est ce que le tampon de commandes y met.
         // La charge de l'appelant, nue : l'identité est l'eventId que le serveur assigne, et
         // la charge appartient à l'utilisateur (tâche 1b.2).
         $attrs->setInput(JsonPlainPayload::encode(['amount' => 10]));

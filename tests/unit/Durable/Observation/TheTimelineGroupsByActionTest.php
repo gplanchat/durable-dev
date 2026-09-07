@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Une activité planifiée, démarrée puis terminée est **une action et trois événements**.
  *
- * Une frise rangée par nature — « les activités », « les signaux » — obligeait l'exploitant à
+ * Une frise rangée par nature (« les activités », « les signaux ») obligeait l'exploitant à
  * recoller trois repères de l'œil pour savoir combien de temps celle-là avait duré. Le lien
  * existait pourtant déjà dans le journal ; c'est la traduction qui le jetait.
  */
@@ -80,7 +80,7 @@ final class TheTimelineGroupsByActionTest extends TestCase
 
     public function testAnEventThatIsItsOwnActionSaysSoWithNull(): void
     {
-        // `null` est une réponse — « cet événement est à lui seul son action » — et c'est ce qui
+        // `null` est une réponse (« cet événement est à lui seul son action »), et c'est ce qui
         // permet à la frise de lui donner sa ligne sans inventer une clé.
         $history = $this->read([
             new WorkflowSignalReceived('exec-1', 'orderApproved', []),
@@ -174,7 +174,7 @@ final class TheTimelineGroupsByActionTest extends TestCase
     public function testATimerWhoseDeadlineHasPassedAnnouncesNoDelayRatherThanFiftyYears(): void
     {
         // `scheduledAt()` est une **échéance absolue**, pas un délai : soustraire sans garde ferait
-        // annoncer un demi-siècle d'attente à un minuteur dont l'échéance est derrière nous — et
+        // annoncer un demi-siècle d'attente à un minuteur dont l'échéance est derrière nous, et
         // c'est la même garde qui couvre le journal sans horodatage d'enregistrement.
         $history = $this->read([
             new TimerScheduled('exec-1', 'tim-1', 1735689630.0, 'avant relance'),

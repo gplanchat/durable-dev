@@ -37,11 +37,11 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * pour les soumettre au serveur.
  *
  * Verdict, contre Temporal 1.31.2 : **le serveur n'en valide aucun**. Vide, un espace, blancs en
- * bord, tabulation, caractère de contrôle, barre oblique, accent, mille caractères — tout est
+ * bord, tabulation, caractère de contrôle, barre oblique, accent, mille caractères : tout est
  * accepté, et `NEXUS_OPERATION_SCHEDULED` enregistre le nom **verbatim**.
  *
  * C'est l'exact opposé de l'endpoint, dont le serveur énonce la regex et qu'il refuse à la
- * création — et c'est le mode de défaillance de {@see \Gplanchat\Durable\TaskQueue}, à la lettre :
+ * création, et c'est le mode de défaillance de {@see \Gplanchat\Durable\TaskQueue}, à la lettre :
  * accepté sans broncher, jamais servi. Une opération planifiée sur un service mal nommé attend un
  * gestionnaire qui ne correspondra jamais, sans une ligne d'erreur.
  *
