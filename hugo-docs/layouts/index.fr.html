@@ -1,10 +1,10 @@
 {{- /*
-  Page d'accueil. Engendrée par ./import-design.py — ne pas modifier à la main,
+  Page d'accueil. Engendrée par ./import-design.py : ne pas modifier à la main,
   la prochaine reprise du design écraserait la correction.
 
   Aucun bloc `define` ici, volontairement : Hugo n'enveloppe un gabarit dans le
   `baseof` du thème que si celui-ci en contient un. La page est donc servie
-  telle quelle, sans la barre latérale ni la feuille de hugo-book — deux resets
+  telle quelle, sans la barre latérale ni la feuille de hugo-book, car deux resets
   concurrents se disputeraient la cascade, et la colonne mangerait le premier
   écran.
 */ -}}
@@ -833,7 +833,7 @@ final class Billing implements BillingServed
  * la bascule de thème et les annotations ligne à ligne de l'exemple.
  *
  * Les deux marqueurs sont remplacés par ./import-design.py, qui lit les
- * annotations dans le composant d'origine plutôt que de les recopier — les
+ * annotations dans le composant d'origine plutôt que de les recopier : les
  * laisser en double se serait payé au premier changement du design.
  */
 (function () {
@@ -932,7 +932,7 @@ final class Billing implements BillingServed
 <script>
 
 (function () {
-  // Les six intégrations sans chantier — Akeneo, Shopware, PimCore, Bagisto, Sulu, Aimeos —
+  // Les six intégrations sans chantier (Akeneo, Shopware, PimCore, Bagisto, Sulu, Aimeos)
   // n'ont plus de pastille. ponytail: les tables ci-dessous gardent leurs clés, inatteignables
   // sans pastille ; les remettre, c'est remettre le <button>, pas réécrire six objets.
   var BASE = {"none":"gplanchat/durable","symfony":"gplanchat/durable-bundle","sylius":"gplanchat/durable-bundle gplanchat/durable-plugin","shopware":"gplanchat/durable-bundle","akeneo":"gplanchat/durable-bundle","sulu":"gplanchat/durable-bundle","apiplatform":"gplanchat/durable-bundle","laravel":"gplanchat/durable-laravel","magento":"gplanchat/durable-magento","pimcore":"gplanchat/durable-bundle","statamic":"gplanchat/durable-statamic?","bagisto":"gplanchat/durable-bagisto?","aimeos":"gplanchat/durable-bundle","typo3":"gplanchat/durable-typo3?","filament":"gplanchat/durable-filament?"};
@@ -1089,7 +1089,7 @@ final class Billing implements BillingServed
       fallback(text, done);
     }
   }
-  // Mesure d'audience — voir DUR048. Silencieux quand la balise n'est pas posée :
+  // Mesure d'audience, voir DUR048. Silencieux quand la balise n'est pas posée :
   // le site tourne en local et en préproduction sans Matomo, et un `_paq` absent
   // ne doit pas casser le bouton qu'il observe.
   function track(action, name) {
@@ -1103,7 +1103,7 @@ final class Billing implements BillingServed
   }
   // Les paquets sont relus dans la commande, pas reconstruits depuis BASE/BRIDGE :
   // une seule source, et l'événement suit une correction des tables sans qu'on y
-  // pense. Le `/` fait tout le tri — il écarte `composer` et `require`, et il vide
+  // pense. Le `/` fait tout le tri : il écarte `composer` et `require`, et il vide
   // la liste sur « nothing to install yet ». Le `?` est la marque d'un nom de
   // brouillon, il ne doit pas entrer dans les statistiques.
   function packagesIn(text) {
@@ -1199,7 +1199,7 @@ final class Billing implements BillingServed
   }
 
   // Un lien peut arriver avec la solution déjà choisie : ?fw=magento&dist=none&be=temporal
-  // On rejoue des clics au lieu d'écrire dans `state` — le gestionnaire porte déjà les
+  // On rejoue des clics au lieu d'écrire dans `state`, car le gestionnaire porte déjà les
   // refus (une puce `planned`, un backend qu'`allowed()` interdit), donc un lien périmé
   // retombe sur le choix par défaut plutôt que de composer une combinaison impossible.
   // L'ordre compte : `fw` d'abord, puisque c'est lui qui décide ce qui est permis ensuite.
@@ -1215,9 +1215,9 @@ final class Billing implements BillingServed
     }
   }
   // Et réciproquement : après chaque choix, la barre d'adresse porte le lien à partager.
-  // `replaceState` plutôt que `pushState` — cliquer trois puces ne doit pas remplir
+  // `replaceState` plutôt que `pushState` : cliquer trois puces ne doit pas remplir
   // l'historique de trois entrées que le bouton Retour devrait défaire une par une.
-  // `dist` n'est écrit que quand la ligne « base » est visible — API Platform et
+  // `dist` n'est écrit que quand la ligne « base » est visible : API Platform et
   // Aimeos, les deux seuls à s'installer sur plusieurs écosystèmes. Ailleurs, l'axe
   // n'existe pas : `state.dist` garde sa dernière valeur sans que rien ne la lise,
   // et la publier ferait croire à un choix que la page n'a jamais proposé.
