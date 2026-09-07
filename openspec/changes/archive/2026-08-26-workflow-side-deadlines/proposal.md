@@ -10,7 +10,7 @@ $winner = $env->any(
 ```
 
 This is the pattern the user documentation teaches (`documentation/user/workflows/_index.md`). It
-is not merely verbose — **it is ambiguous**. `any()` returns the winning value and nothing else, and
+is not merely verbose; **it is ambiguous**. `any()` returns the winning value and nothing else, and
 a timer resolves to the value its inner awaitable carries. The moment the awaited work can
 legitimately return `null` or `false`, the workflow cannot tell "the provider answered nothing"
 from "the deadline elapsed". A saga that compensates on timeout compensates on a legitimate empty
@@ -26,7 +26,7 @@ Three gaps follow from the same missing concept:
 
 A fourth gap is not visible from the call site and is the reason this is a change rather than a
 helper: a signal wait consumes a positional slot. If the deadline elapses and the signal arrives
-afterwards, a later replay finds that signal for the same slot and resolves it — reaching the
+afterwards, a later replay finds that signal for the same slot and resolves it, reaching the
 opposite verdict from the original execution. **A hand-written race over a signal wait is not
 replay-safe today.**
 
@@ -48,8 +48,8 @@ replay-safe today.**
 
 ### New Capabilities
 
-- `workflow-deadlines`: bounding a wait in time from workflow code — the verdict, its stability
-  across replay, cancellation of the losing branch, and the deadline on a signal wait.
+- `workflow-deadlines`: bounding a wait in time from workflow code (the verdict, its stability
+  across replay, cancellation of the losing branch, and the deadline on a signal wait).
 
 ### Modified Capabilities
 

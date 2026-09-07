@@ -35,7 +35,7 @@ the Temporal bridge, and therefore SHALL NOT require `ext-grpc`.
 
 ### Requirement: A run stays describable after it ends badly
 
-A run SHALL remain describable — named, dated, and carrying its outcome — after it has failed,
+A run SHALL remain describable (named, dated, and carrying its outcome) after it has failed,
 after it has been cancelled, and after it has continued as new. Its description SHALL NOT depend on
 records that the end of the run removes.
 

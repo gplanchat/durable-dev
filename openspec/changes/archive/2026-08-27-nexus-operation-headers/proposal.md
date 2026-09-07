@@ -9,7 +9,7 @@ appel **MAY** en porter. Rien ne le construit aujourd'hui, et le tampon Temporal
 
 Ce n'était pas un oubli. Les en-têtes n'ont **aucune source côté domaine** : ni
 `NexusOperationTimeouts` ni le port `scheduleNexusOperation()` de §3.4 ne les transportent. Les
-écrire dans le tampon sans rien pour les alimenter aurait produit un champ toujours vide — une
+écrire dans le tampon sans rien pour les alimenter aurait produit un champ toujours vide : une
 fonctionnalité en apparence, rien en pratique.
 
 Et elles n'ont pas non plus de consommateur : un en-tête Nexus sert à porter une corrélation, une
@@ -18,7 +18,7 @@ authentification ou un contexte jusqu'au **handler**, qui n'existe pas encore de
 ## What Changes
 
 - Un porteur d'en-têtes côté domaine, construit et validé comme les autres objets-valeurs du
-  composant, avec les règles que le serveur applique réellement — **à sonder avant d'en écrire
+  composant, avec les règles que le serveur applique réellement, **à sonder avant d'en écrire
   aucune**, selon la discipline du chantier précédent.
 - Le port `WorkflowCommandBufferInterface::scheduleNexusOperation()` les transporte. **BREAKING**
   pour les implémentations tierces, comme DUR031 l'a été.

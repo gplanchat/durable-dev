@@ -15,7 +15,7 @@
 
 ## 3. Call sites
 
-- [x] 3.1 `ParallelChildEchoWorkflow` uses the stub — the case that motivated the change
+- [x] 3.1 `ParallelChildEchoWorkflow` uses the stub: the case that motivated the change
 - [x] 3.2 The four `SyncChildWorkflowTest` call sites, and `HarnessParityTest`
 - [x] 3.3 `IntegrationWorkflows`
 - [x] 3.4 Check that nothing on `ExecutionContext` or the command buffer was touched: those are
@@ -25,10 +25,10 @@
 
 - [x] 4.1 The `WorkflowEnvironment` table and the child-workflow section of the workflow guide
 - [x] 4.2 The testing guide's child-workflow example
-- [x] 4.3 DUR038 — a stub assembles, it does not wait, and why DUR033 did not catch it
+- [x] 4.3 DUR038: a stub assembles, it does not wait, and why DUR033 did not catch it
 
 ## 5. Verification
 
-- [x] 5.1 Unit suite green, PHPStan clean — **PHPStan matters more than usual here**: the return
+- [x] 5.1 Unit suite green, PHPStan clean. **PHPStan matters more than usual here**: the return
       type changed silently, so compilation alone proves nothing
 - [x] 5.2 Integration suite green against a real server, to back the claim that no command moved

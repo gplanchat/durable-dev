@@ -1,7 +1,7 @@
 ## Why
 
 `WorkflowEnvironment` carries twenty public methods. Three of them are the engine's own plumbing,
-one is unreachable dead weight, and one — `activity()` — is a primitive the library no longer
+one is unreachable dead weight, and one, `activity()`, is a primitive the library no longer
 teaches but cannot currently hide.
 
 The documentation has just stopped showing `$env->activity('charge', [...])`, because the way to
@@ -16,7 +16,7 @@ Three facts make this a change rather than a deletion:
   calling it. Removing it from the public surface requires giving the stub a route that is not the
   public API.
 - **The test harness has no other shape.** `WorkflowTestEnvironment::run()` takes a callable, so a
-  test workflow is a closure receiving the environment — a signature no real workflow has had since
+  test workflow is a closure receiving the environment, a signature no real workflow has had since
   the environment moved to the constructor. The testing guide says so in a comment today. The
   harness offers a form the product no longer teaches, and every one of the forty-seven direct
   `activity()` calls in the suite exists because of it.
@@ -30,12 +30,12 @@ Three facts make this a change rather than a deletion:
   SHALL NOT be part of the surface a workflow author can reach.
 - Registering and answering queries SHALL NOT be part of that surface either: a query handler is
   declared with `#[QueryMethod]`, and the engine wires it.
-- The test harness SHALL be able to run a workflow **class** — the same shape as production — so
+- The test harness SHALL be able to run a workflow **class** (the same shape as production) so
   that a test no longer needs a form the product does not teach.
 - The closure form SHALL remain available for tests that genuinely want an anonymous workflow; it
   is the harness's shape, and the guide SHALL say so rather than implying it mirrors production.
 - `async()` SHALL be removed. It returns an already-settled awaitable, has no caller anywhere, and
-  is described in two ADRs as scheduling asynchronous work — which it does not do.
+  is described in two ADRs as scheduling asynchronous work, which it does not do.
 - **BREAKING** yes. Code calling `$env->activity()`, `$env->registerQueryHandler()`,
   `$env->callQueryHandler()`, `$env->hasQueryHandler()` or `$env->async()` stops compiling. Each
   has a stated replacement, and none is reachable by accident from a well-formed workflow.
@@ -43,11 +43,11 @@ Three facts make this a change rather than a deletion:
 ### Not in scope
 
 - `continueAsNew()` and `executionId()` have no callers today, and they stay. They are legitimate
-  things for a workflow to do — relaunch itself, name itself in a log — and removing an unexercised
+  things for a workflow to do (relaunch itself, name itself in a log), and removing an unexercised
   capability is not the same as removing a wrong one.
 - The four remaining scheduling verbs (`scheduleChildWorkflow`, `executeChildWorkflow`,
   `childWorkflowStub`, `waitUpdate`) keep both their name-based and typed forms. Child workflows
-  have a stub too, and the same argument applies to them — but it is a separate change, and mixing
+  have a stub too, and the same argument applies to them, but it is a separate change, and mixing
   it in would make this one impossible to review.
 
 ## Capabilities

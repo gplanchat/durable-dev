@@ -73,10 +73,10 @@ activities and timers.
 
 A failed Nexus operation SHALL surface to the workflow as a typed failure that distinguishes:
 
-- an **operation failure** — the handler ran and returned a failure;
-- a **handler error** — the handler could not run, carrying the server's retry behaviour;
-- a **timeout** — a bound elapsed before the operation finished;
-- a **cancellation** — the operation was cancelled.
+- an **operation failure**: the handler ran and returned a failure;
+- a **handler error**: the handler could not run, carrying the server's retry behaviour;
+- a **timeout**: a bound elapsed before the operation finished;
+- a **cancellation**: the operation was cancelled.
 
 The failure SHALL carry the endpoint, service and operation names so an unhandled one names the
 call site.
@@ -99,8 +99,8 @@ Endpoint, service and operation names SHALL be validated when constructed, and t
 bounds SHALL be expressed as durations, consistent with the existing `TaskQueue`,
 `WorkflowNamespace`, `ActivityTimeouts` and `Duration` value objects.
 
-Validation SHALL reject what can only be a mistake — blank names, leading or trailing whitespace,
-control characters — and SHALL NOT reject what the server accepts.
+Validation SHALL reject what can only be a mistake (blank names, leading or trailing whitespace,
+control characters) and SHALL NOT reject what the server accepts.
 
 #### Scenario: A blank endpoint name is refused at construction
 

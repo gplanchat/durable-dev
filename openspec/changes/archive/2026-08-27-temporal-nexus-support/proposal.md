@@ -30,7 +30,7 @@ separate change; see Non-goals in `design.md`.
 - Nexus operation failures SHALL surface to the workflow as typed failures, distinguishing an
   operation failure from a handler error and from a timeout.
 - Endpoint, service and operation names, and the operation timeouts, SHALL be value objects
-  validated at construction — consistent with `TaskQueue`, `WorkflowNamespace` and `ActivityTimeouts`.
+  validated at construction, consistent with `TaskQueue`, `WorkflowNamespace` and `ActivityTimeouts`.
 - **BREAKING** none. Every addition is opt-in; existing workflows are unaffected.
 - The in-memory backend SHALL reject a Nexus call with an explicit error rather than pretend to
   support it. Nexus is cross-namespace by nature and has no in-process equivalent.
@@ -39,8 +39,8 @@ separate change; see Non-goals in `design.md`.
 
 ### New Capabilities
 
-- `nexus-operations`: calling a Temporal Nexus operation from a workflow — scheduling, replay,
-  cancellation, failure classification, and the backend support matrix.
+- `nexus-operations`: calling a Temporal Nexus operation from a workflow (scheduling, replay,
+  cancellation, failure classification, and the backend support matrix).
 
 ### Modified Capabilities
 

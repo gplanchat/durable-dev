@@ -38,7 +38,7 @@ payload. That form remains inside the engine, where the stub uses it.
 The test harness SHALL be able to run a workflow class: the environment reaching its constructor,
 its business arguments reaching its workflow method, exactly as in production.
 
-A test written this way SHALL observe the same behaviour as the same class running on a backend —
+A test written this way SHALL observe the same behaviour as the same class running on a backend,
 including its activity results, its failures, and what its journal records.
 
 #### Scenario: Running a workflow class under test
@@ -59,8 +59,8 @@ including its activity results, its failures, and what its journal records.
 Every method a workflow author can reach on the environment SHALL have a use a workflow can
 actually make of it.
 
-A method that resolves a value into an already-settled awaitable — adding nothing a workflow could
-not write — SHALL NOT be part of the surface.
+A method that resolves a value into an already-settled awaitable (adding nothing a workflow could
+not write) SHALL NOT be part of the surface.
 
 #### Scenario: Reaching for the resolved-value helper
 

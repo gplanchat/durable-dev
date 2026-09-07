@@ -16,7 +16,7 @@ DUR033 decided the opposite, in as many words:
 
 The stub escaped that decision because DUR033 enumerated the environment's methods, not the stub's.
 The consequence is visible in the sample application: `ParallelChildEchoWorkflow` runs two children
-in parallel and cannot use the stub to do it — it falls back to `scheduleChildWorkflow()` with a
+in parallel and cannot use the stub to do it: it falls back to `scheduleChildWorkflow()` with a
 string. The typed form exists and is unusable for the one case that needs composition.
 
 `executeChildWorkflow()` has the same problem by construction: it is `await(schedule(...))`.
@@ -30,7 +30,7 @@ string. The typed form exists and is unusable for the one case that needs compos
   and neither SHALL a verb that waits on the caller's behalf.
 - **BREAKING** yes, on two counts. `scheduleChildWorkflow()` and `executeChildWorkflow()` are
   removed. And a stub call that used to return the child's result now returns an `Awaitable`:
-  `$stub->run($x)` becomes `$env->await($stub->run($x))`. The second is the one to watch — it
+  `$stub->run($x)` becomes `$env->await($stub->run($x))`. The second is the one to watch: it
   changes what existing code *returns* rather than failing to compile, so the tests that cover it
   matter more than usual.
 
@@ -44,14 +44,14 @@ string. The typed form exists and is unusable for the one case that needs compos
 ### Modified Capabilities
 
 - `workflow-authoring-surface` gains two requirements: child workflows are started through a typed
-  stub, and a stub call assembles rather than waits. The activity requirement is untouched — it was
+  stub, and a stub call assembles rather than waits. The activity requirement is untouched; it was
   already right, which is what made the asymmetry visible.
 
 ## Impact
 
 - **Domain** (`src/Durable`): two public methods leave `WorkflowEnvironment`; `ChildWorkflowStub`
   gains the narrow scheduling port and returns an `Awaitable`.
-- **Sample application**: `ParallelChildEchoWorkflow` can finally use the stub — it is the reason
+- **Sample application**: `ParallelChildEchoWorkflow` can finally use the stub; it is the reason
   this change is worth making rather than a tidy-up.
 - **Test suite**: seven call sites, five of them on `ExecutionContext` rather than the environment
   and therefore untouched.

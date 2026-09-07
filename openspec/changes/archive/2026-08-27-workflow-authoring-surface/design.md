@@ -15,14 +15,14 @@ Per the house rule, the boundary between observed and assumed.
 | `async()` | 0 | 0 | 0 | 0 |
 
 The one engine call to `activity()` is `ActivityStub::__call()`. The sample application has already
-moved to the stub — twenty-five of its twenty-seven scheduling calls. **The old form survives in the
+moved to the stub: twenty-five of its twenty-seven scheduling calls. **The old form survives in the
 test suite, not in the product.**
 
 **Observed, by reading:** `WorkflowTestEnvironment::run()` accepts `callable`. There is no
 class-based entry point. `ActivityStub::__construct()` requires an `ActivityContractResolver`, so a
 stub cannot be built without a contract carrying `#[ActivityMethod]`.
 
-**Since observed — task 1.1.** The assumption was that no third-party code calls `activity()`
+**Since observed, task 1.1.** The assumption was that no third-party code calls `activity()`
 directly. It holds, and it was worth checking: the packages are published at `v0.1.0-alpha5`, so
 this was the difference between a rename and a break.
 
@@ -37,8 +37,8 @@ GitHub code search finds exactly one repository declaring `gplanchat/durable` in
 | `registerQueryHandler` | 0 |
 
 The only external consumer already schedules exclusively through the typed stub. Inside the
-repository, one sample workflow calls `activity()` directly —
-`symfony/src/Samples/Workflow/Periodic/PeriodicGreetingWorkflow.php` — and one test registers a
+repository, one sample workflow calls `activity()` directly
+(`symfony/src/Samples/Workflow/Periodic/PeriodicGreetingWorkflow.php`), and one test registers a
 query handler, in `WorkflowTaskProcessorTest`. Everything else is the forty-six calls in the suite.
 
 **Verdict for task 1.2:** a single breaking release, no deprecation window. There is nothing in the
@@ -58,7 +58,7 @@ The stub is a proxy over the very method being hidden.
 
 Two routes, and the choice matters more than it looks:
 
-1. **A narrower port.** The stub receives, at construction, something that schedules — not the whole
+1. **A narrower port.** The stub receives, at construction, something that schedules, not the whole
    environment. The environment keeps the method but marks it internal; the stub no longer needs the
    public surface at all. Small, and it makes the dependency honest: a stub needs to schedule, not
    to sleep, race or continue-as-new.
@@ -76,7 +76,7 @@ entry point, so a test workflow is a closure receiving the environment, and insi
 is no constructor to build a stub in. The old form is the only form available.
 
 Give the harness a class-based run and those tests can take the production shape. Leave it, and
-hiding `activity()` would break the suite with no replacement — which is why this ordering is not
+hiding `activity()` would break the suite with no replacement, which is why this ordering is not
 negotiable, and why the tasks put the harness before the removal.
 
 The closure form stays. A test that wants an anonymous three-line workflow should not have to
@@ -92,8 +92,8 @@ when a query arrives from the server. None of the three is reachable from a well
 an author declares `#[QueryMethod]` and the engine does the rest.
 
 They are on `WorkflowEnvironment` because that is the object the engine already had in hand, not
-because a workflow needs them. Moving them behind an interface the engine holds — and the workflow
-does not — costs nothing at the call sites and removes three ways to get a query wrong.
+because a workflow needs them. Moving them behind an interface the engine holds (and the workflow
+does not) costs nothing at the call sites and removes three ways to get a query wrong.
 
 ## Rejected
 

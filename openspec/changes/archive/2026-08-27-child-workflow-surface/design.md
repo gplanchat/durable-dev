@@ -10,8 +10,8 @@
 | `tests/unit/Durable/SyncChildWorkflowTest` | 4 | `WorkflowEnvironment::executeChildWorkflow()` |
 | `tests/unit/Durable/Testing/HarnessParityTest` | 2 | both |
 | `tests/integration/Temporal/Fixtures/IntegrationWorkflows` | 1 | `executeChildWorkflow()` |
-| `tests/unit/Bridge/Temporal/Worker/TemporalChildWorkflowTest` | 2 | **`ExecutionContext`**, not the environment — untouched |
-| `tests/unit/Bridge/Temporal/Worker/TemporalWorkflowCommandBufferSchedulingTest` | 2 | **the command buffer** — untouched |
+| `tests/unit/Bridge/Temporal/Worker/TemporalChildWorkflowTest` | 2 | **`ExecutionContext`**, not the environment (untouched) |
+| `tests/unit/Bridge/Temporal/Worker/TemporalWorkflowCommandBufferSchedulingTest` | 2 | **the command buffer** (untouched) |
 
 Four of the eleven matches are on engine-side objects a workflow never receives. They stay, exactly
 as `ExecutionContext::activity()` stayed.
@@ -22,7 +22,7 @@ returns the child's result rather than an awaitable.
 
 **Nothing was probed against a Temporal server**, and nothing here needs to be: no command, no wire
 field and no history rule changes. The commands a child produces are emitted by the command buffer,
-which this change does not touch. The integration suite still has to pass — it is what proves that
+which this change does not touch. The integration suite still has to pass: it is what proves that
 claim rather than asserting it.
 
 ## The defect is not the string form, it is the waiting
@@ -38,7 +38,7 @@ would have awaited the first child before starting the second.
 
 So the typed form existed, and the one case that most needed it was the one case it could not serve.
 
-DUR033 already decided this — `await()` is the only method that waits — but it enumerated the
+DUR033 already decided this (`await()` is the only method that waits), but it enumerated the
 environment's methods. The stub was out of its field of view.
 
 ## Consequences of returning an Awaitable
@@ -56,7 +56,7 @@ Both known call sites are in this repository. The external consumer found during
 
 ## Rejected
 
-- **A second, composable accessor on the stub** — `$stub->schedule()->run(...)` beside
+- **A second, composable accessor on the stub**: `$stub->schedule()->run(...)` beside
   `$stub->run(...)`. It keeps both behaviours and therefore keeps the asymmetry, with a longer name
   for the composable one. That is the shape DUR033 rejected when it deleted `race()` and
   `parallel()`: four names for three behaviours.

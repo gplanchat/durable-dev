@@ -37,7 +37,7 @@ remains inside the engine, where the stub uses it.
 A call on any stub SHALL start the work and return something the caller awaits. It SHALL NOT wait
 on the caller's behalf.
 
-A call that waited could not be raced, counted towards a quorum, or bounded by a deadline — which
+A call that waited could not be raced, counted towards a quorum, or bounded by a deadline, which
 is the only reason to build a stub rather than call the primitive. This holds for every stub, so
 that "a stub call is an awaitable" is a rule a reader can rely on rather than a property to check
 one stub at a time.
