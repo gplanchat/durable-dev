@@ -22,14 +22,14 @@ use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Le catalogue des exécutions vu par Temporal, dans le vocabulaire du composant.
+ * The catalog of executions as Temporal sees it, in the vocabulary of the component.
  *
- * Temporal conserve le workflow id à travers les continuations et donne à chaque exécution son
- * propre run id : le run id est l'identité, le workflow id le regroupement. Le backend DBAL n'a pas
- * cette seconde notion et laisse `groupId` absent — c'est un fait qu'un backend a et que l'autre
- * n'a pas, pas une lacune.
+ * Temporal keeps the workflow id across continuations and gives each execution its own run id:
+ * the run id is the identity, the workflow id the grouping. The DBAL backend does not have this
+ * second notion and leaves `groupId` absent — that is a fact one backend has and the other does
+ * not, not a shortcoming.
  *
- * Le curseur transporte tel quel le jeton de page du serveur, encodé pour survivre à une URL.
+ * The cursor carries the server page token as is, encoded to survive a URL.
  *
  * @see DUR006
  */
@@ -73,8 +73,8 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
             }
         }
 
-        // Le serveur ordonne déjà par date de démarrage décroissante, mais la réponse d'une requête
-        // de visibilité personnalisée ne le garantit pas : on retrie, comme le faisait la vue.
+        // The server already orders by descending start date, but the response of a custom
+        // visibility query does not guarantee it: we re-sort, as the view used to do.
         usort(
             $runs,
             static fn(WorkflowRunDescription $left, WorkflowRunDescription $right): int => ($right->startedAt?->getTimestamp() ?? 0) <=> ($left->startedAt?->getTimestamp() ?? 0),
@@ -86,9 +86,9 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     }
 
     /**
-     * Sans curseur câblé ou sans id de regroupement, il n'y a rien à demander au serveur : Temporal
-     * exige le workflow id pour retrouver une histoire. Une liste vide dit « je n'ai rien à
-     * montrer », ce qui est exact, là où une exception dirait « quelque chose ne va pas ».
+     * Without a wired cursor or without a grouping id, there is nothing to ask the server:
+     * Temporal requires the workflow id to retrieve a history. An empty list says "I have
+     * nothing to show", which is exact, where an exception would say "something is wrong".
      *
      * @return list<WorkflowRunEvent>
      */
@@ -107,9 +107,9 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         $checkedAt = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
         try {
-            // Une page d'une ligne : la sonde emprunte le même appel que le tableau de bord, donc
-            // elle échoue aussi quand le serveur répond mais que le namespace n'existe pas — ce qui
-            // est exactement ce que l'exploitant a besoin de savoir.
+            // A one-row page: the probe borrows the same call as the dashboard, so it also fails
+            // when the server answers but the namespace does not exist — which is exactly what
+            // the operator needs to know.
             $request = new ListWorkflowExecutionsRequest();
             $request->setNamespace($this->connection->namespace->name());
             $request->setPageSize(1);
@@ -162,12 +162,12 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     }
 
     /**
-     * Le fournisseur que ce catalogue remplace rangeait toute fin anormale sous « échec » : annulée,
-     * terminée, expirée et continue-as-new s'affichaient identiquement. Le port a le vocabulaire
-     * pour les distinguer, et une exécution annulée n'est pas un incident.
+     * The provider this catalog replaces filed every abnormal end under "failure": cancelled,
+     * terminated, expired and continue-as-new all displayed identically. The port has the
+     * vocabulary to tell them apart, and a cancelled execution is not an incident.
      *
-     * `TERMINATED` et `TIMED_OUT` restent des échecs faute de cas dédiés : ce sont bien des fins
-     * subies, et en inventer deux de plus n'apporterait rien tant qu'aucune vue ne les sépare.
+     * `TERMINATED` and `TIMED_OUT` stay failures for want of dedicated cases: they are indeed ends
+     * that are suffered, and inventing two more brings nothing as long as no view separates them.
      */
     private static function statusOf(int $status): WorkflowRunStatus
     {

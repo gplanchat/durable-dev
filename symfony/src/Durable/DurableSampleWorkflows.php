@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Durable;
 
 /**
- * Noms des workflows exemples (types enregistrés dans {@see \Gplanchat\Durable\WorkflowRegistry}).
+ * Names of the sample workflows (types registered in {@see \Gplanchat\Durable\WorkflowRegistry}).
  */
 final class DurableSampleWorkflows
 {
@@ -17,7 +17,7 @@ final class DurableSampleWorkflows
 
     public const PARENT_CALLS_CHILD = 'ParentCallsEchoChildWorkflow';
 
-    /** Deux {@link EchoChildWorkflow} planifiés en parallèle via {@see WorkflowEnvironment::all}. */
+    /** Two {@link EchoChildWorkflow} scheduled in parallel through {@see WorkflowEnvironment::all}. */
     public const PARALLEL_CHILD_ECHO = 'ParallelChildEchoWorkflow';
 
     public const TIMER_THEN_TICK = 'TimerThenTickWorkflow';

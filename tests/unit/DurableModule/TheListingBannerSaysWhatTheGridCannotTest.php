@@ -11,14 +11,14 @@ use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use PHPUnit\Framework\TestCase;
 
 /**
- * La bannière au-dessus de la grille, et pourquoi elle existe.
+ * The banner above the grid, and why it exists.
  *
- * ⚠ **Une grille vide ne dit rien toute seule.** Elle se lit pareil quand rien n'a tourné, quand la
- * grappe est tombée, et quand le journal ne survit pas à la requête qui rend la page. Cet écran ne
- * sondait pas : une grappe morte y rendait une grille vide et sereine, et l'exploitant en concluait
- * qu'il n'y avait rien à voir. Une grille n'a pas d'endroit où dire ça — la bannière, si.
+ * ⚠ **An empty grid says nothing all by itself.** It reads the same when nothing has run, when the
+ * cluster is down, and when the journal does not survive the request that renders the page. This
+ * screen was not probing: a dead cluster rendered an empty and serene grid there, and the operator
+ * concluded there was nothing to see. A grid has nowhere to say that — the banner does.
  *
- * Comme pour le gabarit de détail, aucun outil de la CI n'analyse un `.phtml`.
+ * As for the detail template, no tool in CI analyses a `.phtml`.
  */
 final class TheListingBannerSaysWhatTheGridCannotTest extends TestCase
 {
@@ -27,9 +27,9 @@ final class TheListingBannerSaysWhatTheGridCannotTest extends TestCase
         $page = $this->renderBanner($this->health(reachable: false));
 
         self::assertStringContainsString('message-error', $page);
-        self::assertStringContainsString('Temporal', $page, 'l\'exploitant doit savoir quoi aller rallumer');
+        self::assertStringContainsString('Temporal', $page, 'the operator must know what to go and switch back on');
         self::assertStringContainsString('checked at', $page);
-        self::assertStringNotContainsString('Outcomes across', $page, 'ne rien compter sur un backend muet');
+        self::assertStringNotContainsString('Outcomes across', $page, 'count nothing on a mute backend');
     }
 
     public function testAJournalThatDiesWithTheRequestIsNeitherAFailureNorSilence(): void
@@ -38,23 +38,24 @@ final class TheListingBannerSaysWhatTheGridCannotTest extends TestCase
 
         self::assertStringContainsString('message-warning', $page);
         self::assertStringContainsString('the correct answer, not a failure', $page);
-        self::assertStringContainsString('durable/temporal/dsn', $page, 'dire quoi configurer, pas seulement que c\'est vide');
+        self::assertStringContainsString('durable/temporal/dsn', $page, 'say what to configure, not only that it is empty');
         self::assertStringNotContainsString('message-error', $page);
     }
 
     public function testTheCountersNameTheirScopeRatherThanClaimingATotal(): void
     {
-        // Un intitulé « total » sous lequel on lit vingt apprend à l'exploitant qu'une boutique qui
-        // a enregistré cinq cents exécutions en a vingt.
+        // A "total" heading under which twenty is read teaches the operator that a shop which has
+        // recorded five hundred executions has twenty.
         $page = $this->renderBanner($this->health(), runs: 3);
 
         self::assertStringContainsString('most recent runs this screen reads', $page);
-        self::assertStringContainsString('Continued as new', $page, 'toutes les issues ont leur seau');
+        self::assertStringContainsString('Continued as new', $page, 'every outcome has its bucket');
     }
 
     public function testAFullWindowAnnouncesItsCeiling(): void
     {
-        // Une fenêtre bornée qui ne s'annonce pas se découvre par une exécution qui manque.
+        // A bounded window that does not announce itself gets discovered through an execution
+        // that is missing.
         $page = $this->renderBanner($this->health(), runs: BannerBlockDouble::WINDOW);
 
         self::assertStringContainsString('Older ones are beyond what it can list or open', $page);
@@ -100,7 +101,7 @@ final class TheListingBannerSaysWhatTheGridCannotTest extends TestCase
 }
 
 /**
- * Ce que la bannière appelle sur son bloc, et rien de plus.
+ * What the banner calls on its block, and nothing more.
  */
 final class BannerBlockDouble
 {

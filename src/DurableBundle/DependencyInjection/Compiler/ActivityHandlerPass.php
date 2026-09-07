@@ -12,7 +12,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 
 /**
- * Enregistre sur {@see ActivityExecutor} les activités exposées par les services tagués durable.activity_handler.
+ * Registers on {@see ActivityExecutor} the activities exposed by the services tagged durable.activity_handler.
  */
 final class ActivityHandlerPass implements CompilerPassInterface
 {
@@ -82,7 +82,7 @@ final class ActivityHandlerPass implements CompilerPassInterface
     }
 
     /**
-     * Les contrats d'activité sont des interfaces : {@see class_exists} retourne false pour elles.
+     * Activity contracts are interfaces: {@see class_exists} returns false for them.
      */
     private static function typeExists(string $fqcn): bool
     {

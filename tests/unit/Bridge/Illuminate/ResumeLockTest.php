@@ -10,12 +10,12 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Ce que le verrou doit garantir, et ce qu'on peut en prouver dans un seul processus.
+ * What the lock must guarantee, and what can be proved of it inside a single process.
  *
- * On ne peut pas y lancer deux workers. Ce qui **se** prouve est ce qui compte : qu'une seconde
- * prise sur la même exécution ne passe pas tant que la première tient, et que deux exécutions
- * différentes ne s'attendent jamais. Le reste — qu'un worker distant respecte le même verrou —
- * tient au nom, et le nom est donc figé par un test plutôt que deviné à deux endroits.
+ * Two workers cannot be launched there. What **can** be proved is what counts: that a second take
+ * on the same execution does not get through while the first one holds, and that two different
+ * executions never wait on each other. The rest — that a remote worker honours the same lock —
+ * hangs on the name, and the name is therefore pinned by a test rather than guessed in two places.
  */
 final class ResumeLockTest extends TestCase
 {
@@ -35,11 +35,11 @@ final class ResumeLockTest extends TestCase
                     $reentered = true;
                 });
             } catch (LockTimeoutException) {
-                // Attendu : c'est exactement ce que le verrou existe pour faire.
+                // Expected: this is exactly what the lock exists to do.
             }
         });
 
-        self::assertFalse($reentered, 'deux reprises de la même exécution se seraient croisées');
+        self::assertFalse($reentered, 'two resumes of the same execution would have crossed');
     }
 
     public function testTwoDifferentExecutionsNeverWaitOnEachOther(): void
@@ -51,7 +51,7 @@ final class ResumeLockTest extends TestCase
             $inner = $lock->around('exec-2', static fn(): string => 'passé');
         });
 
-        self::assertSame('passé', $inner, 'le verrou est par exécution, pas global');
+        self::assertSame('passé', $inner, 'the lock is per execution, not global');
     }
 
     public function testTheLockIsReleasedWhenTheWorkThrows(): void
@@ -61,20 +61,20 @@ final class ResumeLockTest extends TestCase
         try {
             $lock->around('exec-1', static fn() => throw new \RuntimeException('boum'));
         } catch (\RuntimeException) {
-            // On veut la suite, pas l'exception.
+            // We want what comes next, not the exception.
         }
 
         self::assertSame(
             'repris',
             $lock->around('exec-1', static fn(): string => 'repris'),
-            'une reprise qui échoue ne doit pas condamner l\'exécution',
+            'a resume that fails must not condemn the execution',
         );
     }
 
     /**
-     * Le nom traverse les processus : un worker et une commande qui reprennent la même exécution
-     * doivent poser le **même** verrou, et le deviner chacun de son côté est la façon dont deux
-     * processus croient s'exclure sans le faire.
+     * The name crosses processes: a worker and a command that resume the same execution must lay
+     * down the **same** lock, and each of them guessing it on its own side is the way two
+     * processes believe they exclude each other without doing so.
      */
     public function testTheLockNameIsPerExecutionAndStable(): void
     {

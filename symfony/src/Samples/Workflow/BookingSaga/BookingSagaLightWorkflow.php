@@ -14,7 +14,7 @@ use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Port léger de samples-php BookingSaga : réserve vol puis hôtel ; en cas d’échec hôtel, compensation sur le vol.
+ * Light port of samples-php BookingSaga: books a flight then a hotel; if the hotel fails, compensation on the flight.
  */
 #[AsWorkflow('Samples_BookingSaga_Light')]
 final class BookingSagaLightWorkflow
@@ -24,8 +24,8 @@ final class BookingSagaLightWorkflow
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
-        // Une seule tentative : les retentatives sont illimitées par défaut, et l'échec hôtel
-        // du scénario ne remonterait jamais jusqu'à la compensation.
+        // A single attempt: retries are unlimited by default, and the scenario's hotel failure
+        // would never bubble up to the compensation.
         $this->trip = $environment->activityStub(
             TripBookingActivityInterface::class,
             new ActivityOptions(RetryLimit::once()),

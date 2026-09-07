@@ -9,8 +9,8 @@ Cette page résume comment on **écrit** des activités en Durable. Le détail n
 
 ## Deux pièces
 
-1. **L'interface de contrat d'activité** — les méthodes que le workflow a le droit d'appeler, chacune marquée d'un **`#[AsActivityMethod]`**. Depuis le workflow, on passe par un **`ActivityStub`** (**ActivityInvoker** dans les ADR).
-2. **La classe d'implémentation** — une classe concrète portant **`#[AsActivityHandler]`**, qui nomme le contrat qu'elle implémente. C'est cet attribut qui l'enregistre : le bundle l'autoconfigure, et sans lui le workflow ne trouve aucun gestionnaire à l'exécution.
+1. **L'interface de contrat d'activité.** Les méthodes que le workflow a le droit d'appeler, chacune marquée d'un **`#[AsActivityMethod]`**. Depuis le workflow, on passe par un **`ActivityStub`** (**ActivityInvoker** dans les ADR).
+2. **La classe d'implémentation.** Une classe concrète portant **`#[AsActivityHandler]`**, qui nomme le contrat qu'elle implémente. C'est cet attribut qui l'enregistre : le bundle l'autoconfigure, et sans lui le workflow ne trouve aucun gestionnaire à l'exécution.
 
 ## Exemple : contrat et implémentation
 
@@ -74,7 +74,7 @@ Le type **`ActivityStub`** (voir [Écrire un workflow](../workflows/) pour la no
 
 Passez des **`ActivityOptions`** en **second argument** d'**`activityStub()`**. Tous les **`Awaitable`** que ce stub renvoie emploieront ces réglages au moment de planifier l'activité.
 
-Limites de réessai et durées sont des **objets valeur**, pas des nombres — voir [Options et objets valeur](../options/).
+Limites de réessai et durées sont des **objets valeur**, pas des nombres ; voir [Options et objets valeur](../options/).
 
 ```php
 <?php
@@ -98,20 +98,20 @@ $result = $this->environment->await($activities->charge($orderId));
 ```
 
 > [!WARNING]
-> Sans `RetryLimit`, les tentatives sont **illimitées** — c'est le défaut de Temporal. Une activité
+> Sans `RetryLimit`, les tentatives sont **illimitées**, c'est le défaut de Temporal. Une activité
 > qui échoue systématiquement réessaiera indéfiniment au lieu de faire échouer le workflow. Passez
 > `RetryLimit::once()` quand un échec doit être définitif.
 
 > [!NOTE]
 > **Deux délais, deux propriétaires.** `ActivityTimeouts` borne une **tentative** d'activité et est
 > appliqué par le **backend** : il survit au plantage d'un worker, et il ne concerne que cette
-> activité-là. Une **échéance** passée à `await()` — sur un awaitable ou sur une condition — est
+> activité-là. Une **échéance** passée à `await()`, sur un awaitable ou sur une condition, est
 > appliquée **côté workflow** : elle borne *cette* attente dans *cette* exécution, et elle couvre
-> ce que les bornes d'activité ne savent pas couvrir — un workflow enfant, un signal, un groupe
+> ce que les bornes d'activité ne savent pas couvrir : un workflow enfant, un signal, un groupe
 > composé. Prenez `ActivityTimeouts` pour borner une tentative, et une échéance pour borner tout le
 > reste. Voir [Borner une attente dans le temps](../workflows/#bounding-a-wait-in-time).
 
-Créez des **stubs distincts** quand deux appels ont besoin de politiques différentes — l'un avec
+Créez des **stubs distincts** quand deux appels ont besoin de politiques différentes : l'un avec
 des réessais agressifs pour un appel HTTP capricieux, l'autre avec des délais plus stricts pour un
 chemin rapide :
 
@@ -140,7 +140,7 @@ $this->strict = $env->activityStub(PricingActivities::class, ActivityOptions::of
 > appels que vous passez par le stub : PHPStan déduit le contrat depuis `activityStub()` et sait le
 > suivre jusqu'au site d'appel. Une propriété mutable le lui fait perdre, et il faut alors un
 > `/** @var ActivityStub<Contrat> */` explicite. Dans tous les cas, un contrat qu'il ne peut pas
-> résoudre laisse l'appel inconnu de l'analyseur — jamais silencieusement accepté.
+> résoudre laisse l'appel inconnu de l'analyseur, jamais silencieusement accepté.
 
 
 ## Injection de dépendances
@@ -166,9 +166,9 @@ Arguments et valeurs de retour doivent être **sérialisables** au passage de la
 |-------|----------------|
 | Interface | `#[AsActivityMethod]` sur les méthodes appelables ; des types sérialisables |
 | Implémentation | E/S et injection de dépendances ; implémente l'interface |
-| Workflow | N'emploie qu'**`activityStub()`** / **`ActivityStub`** depuis **`WorkflowEnvironment`** — jamais un `new` sur la classe d'activité pour un effet durable ; second argument facultatif **`ActivityOptions`** |
+| Workflow | N'emploie qu'**`activityStub()`** / **`ActivityStub`** depuis **`WorkflowEnvironment`** ; jamais un `new` sur la classe d'activité pour un effet durable ; second argument facultatif **`ActivityOptions`** |
 
 ## Voir aussi
 
-- [Écrire un workflow](../workflows/) — **`WorkflowEnvironment`** et **`ActivityInvoker`**.
-- [Concepts](../concepts/) — pourquoi les activités portent les effets de bord et le rejeu.
+- [Écrire un workflow](../workflows/) couvre **`WorkflowEnvironment`** et **`ActivityInvoker`**.
+- [Concepts](../concepts/) explique pourquoi les activités portent les effets de bord et le rejeu.

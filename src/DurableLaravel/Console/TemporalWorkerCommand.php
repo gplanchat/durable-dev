@@ -8,15 +8,15 @@ use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Illuminate\Console\Command;
 
 /**
- * Le worker de tâches de workflow, pour le backend Temporal — et le seul que ce paquet ajoute.
+ * The workflow task worker, for the Temporal backend — and the only one this package adds.
  *
- * Sous `illuminate`, tout passe par `php artisan queue:work` et ce paquet n'ajoute aucune commande :
- * c'est la règle que §3.2 s'est donnée. Temporal la casse pour une raison qui lui appartient — ses
- * tâches de workflow ne sont pas dans la file de l'application, elles sont dans le cluster, et
- * personne d'autre ne peut les en sortir.
+ * Under `illuminate`, everything goes through `php artisan queue:work` and this package adds no
+ * command: that is the rule §3.2 gave itself. Temporal breaks it for a reason of its own — its
+ * workflow tasks are not in the application's queue, they are in the cluster, and nobody else can
+ * take them out of it.
  *
- * La boucle est celle du pont, `WorkflowTaskProcessor::run()`, qui ne connaît aucun framework. Cette
- * commande ne fait que lui donner un critère d'arrêt et un endroit où l'exécuter.
+ * The loop is the bridge's own, `WorkflowTaskProcessor::run()`, which knows no framework. This
+ * command only gives it a stop criterion and a place to run it.
  */
 final class TemporalWorkerCommand extends Command
 {

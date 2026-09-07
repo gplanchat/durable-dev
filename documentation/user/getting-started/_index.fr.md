@@ -9,9 +9,9 @@ weight: 10
 
 - **PHP 8.2+**
 - **Composer**
-- Pour les tests et le développement local : aucune infrastructure supplémentaire — le backend **en mémoire** tourne entièrement dans PHP.
+- Pour les tests et le développement local : aucune infrastructure supplémentaire, le backend **en mémoire** tourne entièrement dans PHP.
 - Pour la production **sans cluster** : une seule base SQL, par le backend **DBAL** sous Symfony ou le backend **Illuminate** sous Laravel. Aucune extension à compiler.
-- Pour la production **à l'échelle**, ou des tests d'intégration réalistes : un cluster **Temporal** (image Docker disponible) et l'extension PHP **`ext-grpc`** — dans une image de conteneur, copiez-la depuis une [image préconstruite](../container-images/) plutôt que de la compiler.
+- Pour la production **à l'échelle**, ou des tests d'intégration réalistes : un cluster **Temporal** (image Docker disponible) et l'extension PHP **`ext-grpc`**. Dans une image de conteneur, copiez-la depuis une [image préconstruite](../container-images/) plutôt que de la compiler.
 
 Les quatre backends font tourner le même code de workflow ; [Backends](../backends/) compare ce que
 chacun sait offrir.
@@ -21,7 +21,7 @@ chacun sait offrir.
 ## Installation
 
 **Cette page déroule l'intégration Symfony.** Durable a trois intégrations d'hôte, et se tromper de
-paquet est l'erreur à éviter dès la première ligne — chacune a son câblage, son fichier de
+paquet est l'erreur à éviter dès la première ligne, car chacune a son câblage, son fichier de
 configuration et son worker :
 
 | Votre application | À installer | À lire plutôt |
@@ -31,7 +31,7 @@ configuration et son worker :
 | **Magento 2.4 / Mage-OS** | `gplanchat/durable-magento` | [Paquets](../packages/#gplanchatdurable-magento--lintégration-magento) |
 | **Sans framework** | `gplanchat/durable` | [Paquets](../packages/#gplanchatdurable--la-bibliothèque) |
 
-Les concepts, l'API de workflow et l'API d'activité sont identiques sur les quatre — seul le câblage
+Les concepts, l'API de workflow et l'API d'activité sont identiques sur les quatre ; seul le câblage
 ci-dessous est celui de Symfony.
 
 ### La bibliothèque seule (sans framework)
@@ -46,7 +46,7 @@ composer require gplanchat/durable
 composer require gplanchat/durable-bundle
 ```
 
-Le paquet déclare `"type": "symfony-bundle"`, donc **Symfony Flex l'enregistre tout seul** — il n'y
+Le paquet déclare `"type": "symfony-bundle"`, donc **Symfony Flex l'enregistre tout seul**, il n'y
 a rien à ajouter à `config/bundles.php`. Sans Flex, ajoutez la ligne vous-même :
 
 ```php
@@ -169,13 +169,13 @@ nommant une classe que vous n'enregistriez pas exprès. Au dossier balisé, ses 
 
 ### Déclarer les implémentations d'activité
 
-Rien à écrire. Une classe portant `#[AsActivityHandler]` est ramassée par l'autoconfiguration du bundle dès qu'elle est un service — ce qu'avec l'`autoconfigure: true` par défaut d'une application Symfony elle est déjà. C'est là que les workflows ci-dessus diffèrent : eux ont encore besoin de la balise.
+Rien à écrire. Une classe portant `#[AsActivityHandler]` est ramassée par l'autoconfiguration du bundle dès qu'elle est un service, ce qu'avec l'`autoconfigure: true` par défaut d'une application Symfony elle est déjà. C'est là que les workflows ci-dessus diffèrent : eux ont encore besoin de la balise.
 
 ---
 
 ## Un premier workflow
 
-### 1 — Définir un contrat d'activité
+### 1. Définir un contrat d'activité {#1--définir-un-contrat-dactivité}
 
 ```php
 <?php
@@ -196,7 +196,7 @@ interface GreetingActivities
 }
 ```
 
-### 2 — Implémenter l'activité
+### 2. Implémenter l'activité {#2--implémenter-lactivité}
 
 ```php
 <?php
@@ -218,7 +218,7 @@ final class GreetingActivitiesHandler implements GreetingActivities
 }
 ```
 
-### 3 — Définir le workflow
+### 3. Définir le workflow {#3--définir-le-workflow}
 
 ```php
 <?php
@@ -247,7 +247,7 @@ final class GreetWorkflow
 }
 ```
 
-### 4 — Le déclencher depuis un contrôleur ou un service
+### 4. Le déclencher depuis un contrôleur ou un service {#4--le-déclencher-depuis-un-contrôleur-ou-un-service}
 
 ```php
 <?php
@@ -277,11 +277,11 @@ final class GreetController
 }
 ```
 
-### 5 — Faire tourner un consommateur, sinon rien n'arrive
+### 5. Faire tourner un consommateur, sinon rien n'arrive
 
 `dispatchNewWorkflowRun()` rend `void` et fait exactement ce que son nom dit : il *envoie*. Le
 workflow s'exécute quand quelque chose consomme les transports configurés plus haut. D'ici là
-l'exécution attend en file — un tableau de bord la dira `RUNNING`, ce qui est vrai et inutile : ça
+l'exécution attend en file, et un tableau de bord la dira `RUNNING`, ce qui est vrai et inutile : ça
 veut dire *pas terminée*, pas *quelqu'un s'en occupe*.
 
 ```bash
@@ -289,7 +289,7 @@ php bin/console messenger:consume durable_workflows durable_activities
 ```
 
 Ces deux noms sont les transports que **vous** avez déclarés dans `messenger.yaml`. Aucun document
-ne peut vous donner cette commande sans que vous ayez écrit ce fichier d'abord — c'est ce qui fait
+ne peut vous donner cette commande sans que vous ayez écrit ce fichier d'abord : c'est ce qui fait
 qu'on cherche la pièce manquante partout sauf dans sa propre configuration.
 
 Pour voir ce que le moteur retient d'une exécution :
@@ -302,16 +302,16 @@ php bin/console durable:execution:diagnose greet-abc123
 
 Deux configurations fonctionnent. Les mélanger est le faux pas habituel, et il échoue en silence.
 
-**Un seul processus — les tests.** Transports `in-memory://` et magasins en mémoire. Envoi, reprise
+**Un seul processus, pour les tests.** Transports `in-memory://` et magasins en mémoire. Envoi, reprise
 et activité se passent dans un même processus PHP, donc un test envoie et draine d'un seul geste. Un
 transport en mémoire **ne survit pas à son processus** : y envoyer depuis une requête web pour
-consommer dans un worker séparé ne peut pas marcher, et le rejeu non plus — le journal dont le
+consommer dans un worker séparé ne peut pas marcher, et le rejeu non plus : le journal dont le
 worker aurait besoin vit dans la mémoire du processus web.
 
-**Plusieurs processus — développement local et production.** De vrais transports **et** un magasin
+**Plusieurs processus, pour le développement local et la production.** De vrais transports **et** un magasin
 durable, sinon le worker prend une entrée nommant un workflow dont il ne voit pas le journal.
 
-Ce profil demande deux paquets que la prise en main ci-dessus n'installe pas — le journal DBAL, et
+Ce profil demande deux paquets que la prise en main ci-dessus n'installe pas : le journal DBAL, et
 DoctrineBundle pour le service `doctrine.dbal.default_connection` qu'il nomme :
 
 ```bash
@@ -340,14 +340,14 @@ MESSENGER_DURABLE_ACTIVITY_DSN=doctrine://default
 La règle derrière les deux profils : **une exécution survit exactement à ce à quoi survivent son
 journal et sa file.** Routez `ResumeWorkflowMessage` ou `ActivityMessage` vers un transport qu'un
 worker séparé ne peut pas lire, et le workflow rejoue dans la requête web qui l'a démarré puis meurt
-avec le processus — précisément la panne que l'exécution durable existe pour supprimer.
+avec le processus, précisément la panne que l'exécution durable existe pour supprimer.
 
 ---
 
 ## Démarrer les workers Temporal (production / mode dev)
 
 Quand `DURABLE_DSN` pointe vers un serveur Temporal, lancez les consommateurs Messenger dans des
-processus séparés. **Ce sont les commandes Symfony** — les autres hôtes interrogent le même cluster
+processus séparés. **Ce sont les commandes Symfony** ; les autres hôtes interrogent le même cluster
 avec les leurs : `php artisan durable:temporal-worker` sous Laravel,
 `bin/magento durable:worker --role=journal` et `--role=activity` sous Magento :
 
@@ -373,9 +373,9 @@ workers:
 
 ## Et ensuite
 
-- [Concepts](../concepts/) — le modèle de rejeu, les backends, l'historique d'événements, en français courant.
-- [Écrire un workflow](../workflows/) — l'API complète : signaux, requêtes, mises à jour, workflows enfants, minuteurs.
-- [Écrire des activités](../activities/) — `ActivityOptions`, réessais, délais, injection de dépendances.
-- [Tester des workflows](../testing/) — `DurableTestCase`, `ActivitySpy`, `DurableBundleTestTrait`.
-- [Référence de configuration](../configuration/) — chaque clé de `durable.yaml`, expliquée.
-- [Backends](../backends/) — en mémoire, DBAL, Illuminate et Temporal : quand choisir lequel, et la mise en place Docker Compose.
+- [Concepts](../concepts/) couvre le modèle de rejeu, les backends et l'historique d'événements, en français courant.
+- [Écrire un workflow](../workflows/) couvre l'API complète : signaux, requêtes, mises à jour, workflows enfants, minuteurs.
+- [Écrire des activités](../activities/) couvre `ActivityOptions`, réessais, délais et injection de dépendances.
+- [Tester des workflows](../testing/) couvre `DurableTestCase`, `ActivitySpy` et `DurableBundleTestTrait`.
+- [Référence de configuration](../configuration/) explique chaque clé de `durable.yaml`.
+- [Backends](../backends/) couvre la mémoire, DBAL, Illuminate et Temporal : quand choisir lequel, et la mise en place Docker Compose.

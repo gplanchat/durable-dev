@@ -8,7 +8,7 @@
             <p class="card-description">{{ s.description }}</p>
             <div class="card-actions">
                 <a href="{{ path('durable_samples_run', { id: s.id }) }}" class="btn btn-primary">
-                    ▶ Synchrone
+                    ▶ Synchronous
                 </a>
                 <a href="{{ path('durable_samples_run', { id: s.id, wait: '0' }) }}" class="btn btn-ghost">
                     ⚡ Async
@@ -16,6 +16,6 @@
             </div>
         </article>
     {% else %}
-        <p style="color: var(--c-muted);">Aucun scénario enregistré.</p>
+        <p style="color: var(--c-muted);">No scenario registered.</p>
     {% endfor %}
 </div>

@@ -9,7 +9,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
 /**
- * Smoke test : la commande durable:sample exécute un workflow enregistré (Messenger in-memory en test).
+ * Smoke test: the durable:sample command executes a registered workflow (in-memory Messenger in test).
  *
  * @internal
  */

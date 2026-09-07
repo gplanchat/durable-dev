@@ -7,11 +7,11 @@ namespace Gplanchat\DurableProbe\Workflow\Activity;
 use Gplanchat\Durable\Attribute\AsActivityMethod;
 
 /**
- * Le contrat de la démonstration : la panne que l'intégration existe pour retirer,
- * réduite à trois étapes — encaisser, réserver, notifier.
+ * The demonstration's contract: the failure the integration exists to remove,
+ * reduced to three steps — charge, reserve, notify.
  *
- * C'est l'exemple d'OST003 mot pour mot : « a consumer that dies half way through
- * an order ». La commande est encaissée, le stock ne l'est pas.
+ * It is OST003's example word for word: "a consumer that dies half way through
+ * an order". The order is charged, the stock is not.
  */
 interface OrderActivities
 {

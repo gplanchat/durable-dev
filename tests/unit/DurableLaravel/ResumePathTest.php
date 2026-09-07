@@ -24,7 +24,7 @@ use unit\DurableLaravel\Fixtures\FakeQueueFactory;
 use unit\DurableLaravel\Fixtures\GreetingWorkflow;
 
 /**
- * Ce qui rejoue une exécution, et le minuteur qui la réveille.
+ * What replays an execution, and the timer that wakes it up.
  */
 final class ResumePathTest extends TestCase
 {
@@ -33,16 +33,16 @@ final class ResumePathTest extends TestCase
         $app = $this->container();
         (new DurableServiceProvider($app))->register();
 
-        // Huit collaborateurs, tous résolus depuis la configuration : ce paquet assemble le
-        // handler du cœur, il n'en écrit pas un second.
+        // Eight collaborators, all resolved from the configuration: this package assembles the
+        // core's handler, it does not write a second one.
         self::assertInstanceOf(ResumeWorkflowHandler::class, $app->make(ResumeWorkflowHandler::class));
     }
 
     public function testAResumeJobActuallyReplaysTheExecution(): void
     {
-        // `ResumeWorkflowHandler` est `final` : pas de double. On lui donne donc un vrai
-        // workflow et de vrais magasins en mémoire, et on regarde le résultat — ce qui prouve
-        // davantage qu'un espion, puisque c'est le rejeu du cœur qui tourne.
+        // `ResumeWorkflowHandler` is `final`: no double. So it is given a real workflow and
+        // real in-memory stores, and the result is what gets looked at — which proves more than
+        // a spy would, since it is the core's replay that runs.
         $app = $this->container([GreetingWorkflow::class]);
         (new DurableServiceProvider($app))->register();
 
@@ -67,7 +67,7 @@ final class ResumePathTest extends TestCase
         $timers->dispatchTimerFire('exec-1', 2400);
 
         self::assertInstanceOf(ResumeWorkflowJob::class, $queue->pushed[0]['job']);
-        // Arrondi au-dessus : un workflow réveillé trop tôt reprend avant son échéance.
+        // Rounded up: a workflow woken too early resumes before its due date.
         self::assertSame(3, $queue->pushed[0]['delay']);
         self::assertSame('durable', $queue->pushed[0]['queue']);
     }
@@ -82,7 +82,7 @@ final class ResumePathTest extends TestCase
 
     public function testTheTimerPortIsBoundToTheQueueBackedOne(): void
     {
-        // Backend `illuminate` : le minuteur est celui de la file.
+        // `illuminate` backend: the timer is the queue-backed one.
         $app = new Container();
         $app->instance('config', new \ArrayObject(
             ['durable' => ['backend' => 'illuminate', 'workflows' => []]],

@@ -8,19 +8,19 @@ use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\Filesystem\Driver\File;
 
 /**
- * L'implémentation des cas, avec un compteur sur disque.
+ * The implementation of the cases, with a counter on disk.
  *
- * ⚠ **Le compteur ne peut pas vivre en mémoire.** Une reprise d'activité peut être servie par un
- * autre processus que la tentative qui a échoué — c'est le point même de Temporal — donc un champ
- * d'instance ferait échouer `flaky` indéfiniment sur un banc à deux workers, et réussir du premier
- * coup sur un banc à un seul. Un fichier par exécution donne le même scénario dans les deux cas.
+ * ⚠ **The counter cannot live in memory.** An activity retry can be served by a process other than
+ * the attempt that failed — that is Temporal's very point — so an instance field would make
+ * `flaky` fail forever on a two-worker bench, and succeed first time on a single-worker one. One
+ * file per execution gives the same scenario in both cases.
  */
 /*
- * Pas `final` : le conteneur l'instancie, donc il engendre un `Interceptor` qui l'étend.
+ * Not `final`: the container instantiates it, so it generates an `Interceptor` extending it.
  */
 class ProbeEveryCaseActivities implements EveryCaseActivities
 {
-    /** Deux échecs puis une réussite : assez pour voir la reprise, assez court pour ne pas attendre. */
+    /** Two failures then a success: enough to see the retry, short enough not to wait. */
     private const ATTEMPTS_BEFORE_SUCCESS = 3;
 
     public function __construct(
@@ -53,7 +53,7 @@ class ProbeEveryCaseActivities implements EveryCaseActivities
     }
 
     /**
-     * Le rang de la tentative en cours, compté sur disque.
+     * The rank of the current attempt, counted on disk.
      */
     private function countAttempt(string $caseId): int
     {

@@ -8,30 +8,30 @@
     <testsuites>
         <testsuite name="unit">
             <directory>tests/unit</directory>
-            <!-- rector/rector embarque son propre nikic/php-parser, non préfixé. Sous couverture,
-                 php-code-coverage charge celui du projet et les deux se déclarent : « Cannot declare
-                 class PhpParser\Node\Scalar\Float_ ». D'où une suite à part, écartée de la
-                 couverture — src/DurableRector n'est de toute façon pas dans <source>. -->
+            <!-- rector/rector ships its own nikic/php-parser, unprefixed. Under coverage,
+                 php-code-coverage loads the project's and both declare themselves: "Cannot declare
+                 class PhpParser\Node\Scalar\Float_". Hence a suite of its own, left out of
+                 coverage — src/DurableRector is not in <source> anyway. -->
             <exclude>tests/unit/DurableRector</exclude>
-            <!-- Et le paquet Laravel, qui a sa propre suite pour que la matrice « Laravel x /
-                 PHP y » puisse l'exercer contre une ligne d'illuminate/* épinglée. PHPUnit refuse
-                 le même fichier dans deux suites : « Cannot add file … to test suite "laravel" as
-                 it was already added to test suite "unit" ». `composer test` les lance toutes,
-                 donc la QA le voit toujours. -->
+            <!-- And the Laravel package, which has a suite of its own so the "Laravel x / PHP y"
+                 matrix can exercise it against a pinned illuminate/* line. PHPUnit refuses the same
+                 file in two suites: "Cannot add file … to test suite \"laravel\" as it was already
+                 added to test suite \"unit\"". `composer test` runs them all, so QA always sees
+                 it. -->
             <exclude>tests/unit/DurableLaravel</exclude>
         </testsuite>
         <testsuite name="rector">
             <directory>tests/unit/DurableRector</directory>
         </testsuite>
-        <!-- Le paquet d'intégration Laravel, isolé pour que la matrice « Laravel x / PHP y »
-             puisse l'exercer seule contre une ligne d'illuminate/* épinglée. -->
+        <!-- The Laravel integration package, isolated so the "Laravel x / PHP y" matrix can
+             exercise it on its own against a pinned illuminate/* line. -->
         <testsuite name="laravel">
             <directory>tests/unit/DurableLaravel</directory>
         </testsuite>
         <testsuite name="plugin">
             <directory>src/DurablePlugin/tests</directory>
         </testsuite>
-        <!-- Contre un vrai serveur Temporal ; voir tests/integration/Temporal/TemporalServerTestCase.php -->
+        <!-- Against a real Temporal server; see tests/integration/Temporal/TemporalServerTestCase.php -->
         <testsuite name="integration">
             <directory>tests/integration</directory>
         </testsuite>

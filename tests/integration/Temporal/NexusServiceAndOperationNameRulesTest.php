@@ -31,23 +31,22 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Sonde, et non fonctionnalité : seconde moitié de §1.1, celle que la sonde d'endpoint ne pouvait
- * pas atteindre. Les noms de service et d'opération voyagent dans la commande
- * `ScheduleNexusOperation`, il faut donc un endpoint qui existe et une tâche de workflow complétée
- * pour les soumettre au serveur.
+ * A probe, not a feature: the second half of §1.1, the half the endpoint probe could not reach. The
+ * service and operation names travel inside the `ScheduleNexusOperation` command, so an endpoint
+ * that exists and a completed workflow task are needed to submit them to the server.
  *
- * Verdict, contre Temporal 1.31.2 : **le serveur n'en valide aucun**. Vide, un espace, blancs en
- * bord, tabulation, caractère de contrôle, barre oblique, accent, mille caractères — tout est
- * accepté, et `NEXUS_OPERATION_SCHEDULED` enregistre le nom **verbatim**.
+ * Verdict, against Temporal 1.31.2: **the server validates neither of them**. Empty, a space, edge
+ * whitespace, a tab, a control character, a slash, an accent, a thousand characters — everything is
+ * accepted, and `NEXUS_OPERATION_SCHEDULED` records the name **verbatim**.
  *
- * C'est l'exact opposé de l'endpoint, dont le serveur énonce la regex et qu'il refuse à la
- * création — et c'est le mode de défaillance de {@see \Gplanchat\Durable\TaskQueue}, à la lettre :
- * accepté sans broncher, jamais servi. Une opération planifiée sur un service mal nommé attend un
- * gestionnaire qui ne correspondra jamais, sans une ligne d'erreur.
+ * This is the exact opposite of the endpoint, whose regex the server states and which it refuses at
+ * creation time — and it is the failure mode of {@see \Gplanchat\Durable\TaskQueue}, to the letter:
+ * accepted without a flinch, never served. An operation scheduled on a badly named service waits
+ * for a handler that will never match it, without a single line of error.
  *
- * Conséquence pour §2 : `NexusService` et `NexusOperationName` doivent être **plus stricts que le
- * serveur**, comme `TaskQueue` et à l'inverse de `NexusEndpoint`. Les trois noms d'une même
- * commande ne suivent donc pas la même règle, et §2.1 ne peut pas les traiter d'un bloc.
+ * Consequence for §2: `NexusService` and `NexusOperationName` must be **stricter than the server**,
+ * like `TaskQueue` and unlike `NexusEndpoint`. The three names of one and the same command
+ * therefore do not follow the same rule, and §2.1 cannot treat them as a block.
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §1.1
  */
@@ -68,7 +67,7 @@ final class NexusServiceAndOperationNameRulesTest extends TestCase
     {
         $address = getenv('DURABLE_TEMPORAL_ADDRESS');
         if (false === $address || '' === $address) {
-            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS non défini : pas de serveur Temporal.');
+            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS not set: no Temporal server.');
         }
 
         $queue = 'nexus-names-' . bin2hex(random_bytes(5));
@@ -82,8 +81,8 @@ final class NexusServiceAndOperationNameRulesTest extends TestCase
         $this->client = WorkflowServiceClientFactory::create($this->connection);
         $this->operator = new OperatorServiceClient($address, ['credentials' => \Grpc\ChannelCredentials::createInsecure()]);
 
-        // Un endpoint réel : sans lui la commande serait refusée pour l'endpoint (cf. §1.2) et on
-        // ne saurait rien des deux autres noms.
+        // A real endpoint: without one the command would be refused for the endpoint (cf. §1.2)
+        // and we would learn nothing about the two other names.
         $this->endpointName = 'probe-names-' . bin2hex(random_bytes(4));
         $worker = new Worker();
         $worker->setNamespace($this->connection->namespace->name());
@@ -151,14 +150,14 @@ final class NexusServiceAndOperationNameRulesTest extends TestCase
 
         $scheduled = $this->scheduleAndReadBack($service, $operation);
 
-        self::assertNotNull($scheduled, 'Le serveur a refusé la commande : il valide donc ces noms.');
-        self::assertSame($service, $scheduled->getService(), 'Le service n’est pas enregistré verbatim.');
-        self::assertSame($operation, $scheduled->getOperation(), 'L’opération n’est pas enregistrée verbatim.');
+        self::assertNotNull($scheduled, 'The server refused the command: it does validate these names, then.');
+        self::assertSame($service, $scheduled->getService(), 'The service is not recorded verbatim.');
+        self::assertSame($operation, $scheduled->getOperation(), 'The operation is not recorded verbatim.');
     }
 
     /**
-     * Planifie l'opération, puis relit l'événement que le serveur en a tiré.
-     * Rend null si le serveur a refusé la commande.
+     * Schedules the operation, then reads back the event the server drew from it.
+     * Returns null if the server refused the command.
      */
     private function scheduleAndReadBack(string $service, string $operation): ?\Temporal\Api\History\V1\NexusOperationScheduledEventAttributes
     {

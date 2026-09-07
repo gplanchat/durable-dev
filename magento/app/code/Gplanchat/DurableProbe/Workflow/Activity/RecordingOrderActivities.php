@@ -8,11 +8,11 @@ use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\Filesystem\Driver\File;
 
 /**
- * L'implémentation qui laisse une trace, pour que « la carte n'est pas débitée deux fois » soit
- * une mesure et non une croyance.
+ * The implementation that leaves a trace, so that "the card is not charged twice" is a measurement
+ * and not a belief.
  */
 /*
- * Pas `final` : le conteneur l'instancie, donc il engendre un `Interceptor` qui l'étend.
+ * Not `final`: the container instantiates it, so it generates an `Interceptor` extending it.
  */
 class RecordingOrderActivities implements SlowOrderActivities
 {
@@ -36,8 +36,8 @@ class RecordingOrderActivities implements SlowOrderActivities
 
     public function reserveStock(string $orderId, int $pauseSeconds): string
     {
-        // La fenêtre pendant laquelle on tue le processus. La carte est déjà débitée, le stock ne
-        // l'est pas : c'est exactement l'instant qu'OST003 décrit.
+        // The window during which the process is killed. The card is already charged, the stock
+        // is not: this is exactly the moment OST003 describes.
         sleep($pauseSeconds);
 
         return 'reserve:' . $orderId;

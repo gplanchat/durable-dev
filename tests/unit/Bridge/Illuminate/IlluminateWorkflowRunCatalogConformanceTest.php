@@ -22,13 +22,13 @@ use Illuminate\Database\Capsule\Manager;
 use Illuminate\Database\Connection;
 
 /**
- * Les crochets d'amorçage écrivent par les décorateurs du cœur, comme le ferait un vrai worker :
- * le catalogue lit une projection, jamais le journal directement (DUR037).
+ * The bootstrapping hooks write through the core decorators, as a real worker would: the catalog
+ * reads a projection, never the journal directly (DUR037).
  *
- * Et ces décorateurs ne connaissent pas Illuminate. Ils attendent un
- * {@see \Gplanchat\Durable\Observation\WorkflowRunProjectionInterface}, que ce catalogue implémente
- * en étant sa propre projection — c'est la seule chose qu'un troisième backend a eu à fournir pour
- * hériter de toute l'observabilité (DUR043).
+ * And those decorators know nothing of Illuminate. They expect a
+ * {@see \Gplanchat\Durable\Observation\WorkflowRunProjectionInterface}, which this catalog
+ * implements by being its own projection — that is the only thing a third backend had to supply
+ * to inherit the whole of the observability (DUR043).
  *
  * @see DUR041
  */
@@ -71,7 +71,7 @@ final class IlluminateWorkflowRunCatalogConformanceTest extends WorkflowRunCatal
                 'failureCode' => 0,
                 'context' => [],
             ]),
-            WorkflowRunStatus::Running => self::fail('Running n\'est pas une issue'),
+            WorkflowRunStatus::Running => self::fail('Running is not an outcome'),
         });
     }
 

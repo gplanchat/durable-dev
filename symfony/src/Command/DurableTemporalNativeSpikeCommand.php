@@ -21,7 +21,7 @@ use Symfony\Component\Uid\Uuid;
  */
 #[AsCommand(
     name: 'durable:temporal:native-spike',
-    description: 'Exécute le spike d’exécution Temporal native (DUR024) — une activité visible dans l’UI',
+    description: 'Run the native Temporal execution spike (DUR024) — one activity visible in the UI',
 )]
 final class DurableTemporalNativeSpikeCommand extends Command
 {
@@ -31,13 +31,13 @@ final class DurableTemporalNativeSpikeCommand extends Command
             'dsn',
             null,
             InputOption::VALUE_REQUIRED,
-            'DSN temporal:// (sinon variable d’environnement DURABLE_DSN)',
+            'temporal:// DSN (otherwise the DURABLE_DSN environment variable)',
         );
         $this->addOption(
             'workflow-id',
             null,
             InputOption::VALUE_REQUIRED,
-            'Identifiant d’exécution Temporal (défaut: UUID)',
+            'Temporal execution id (default: UUID)',
         );
     }
 
@@ -49,12 +49,12 @@ final class DurableTemporalNativeSpikeCommand extends Command
             ?: getenv('DURABLE_DSN')
             ?: '';
         if ('' === trim((string) $dsn)) {
-            $io->error('Définissez --dsn= ou la variable d’environnement DURABLE_DSN.');
+            $io->error('Set --dsn= or the DURABLE_DSN environment variable.');
 
             return Command::FAILURE;
         }
         if (!extension_loaded('grpc')) {
-            $io->error('L’extension PHP grpc est requise.');
+            $io->error('The grpc PHP extension is required.');
 
             return Command::FAILURE;
         }
@@ -68,7 +68,7 @@ final class DurableTemporalNativeSpikeCommand extends Command
         $io->comment('Types: '.NativeExecutionSpike::WORKFLOW_TYPE.' / '.NativeExecutionSpike::ACTIVITY_TYPE);
 
         $runId = $spike->run($workflowId);
-        $io->success('Terminé. run_id='.$runId.' — vérifiez l’historique dans Temporal UI (activités).');
+        $io->success('Done. run_id='.$runId.' — check the history in the Temporal UI (activities).');
 
         return Command::SUCCESS;
     }

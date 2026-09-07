@@ -14,8 +14,8 @@ use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Inspiré de samples-php LocalActivity : timeouts serrés (équivalent start-to-close court).
- * Côté Durable, l’activité reste planifiée comme les autres ; pas de stub « local » distinct.
+ * Inspired by samples-php LocalActivity: tight timeouts (the equivalent of a short start-to-close).
+ * On the Durable side, the activity is still scheduled like the others; no distinct "local" stub.
  */
 #[AsWorkflow('Samples_LocalActivity_Greeting')]
 final class LocalActivityGreetingWorkflow

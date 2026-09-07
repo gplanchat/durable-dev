@@ -25,7 +25,7 @@ final class HistoryPageMerger
     ) {}
 
     /**
-     * Historique complet via API serveur (aucun worker requis pour la lecture).
+     * Full history via the server API (no worker required for reading).
      */
     public function fullHistoryForExecution(WorkflowExecution $execution): History
     {

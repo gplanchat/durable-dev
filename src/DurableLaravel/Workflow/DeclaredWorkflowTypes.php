@@ -8,18 +8,19 @@ use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
 
 /**
- * Le registre des workflows, plus la seule chose que le cœur ne peut pas dire à sa place.
+ * The workflow registry, plus the one thing the core cannot say in its place.
  *
- * `WorkflowRegistry::getHandler()` échoue sur « Unknown workflow type: X », ce qui nomme le type et
- * s'arrête là. Sous Laravel, la question suivante du lecteur a une réponse — *où* déclare-t-on un
- * type ? — et c'est ce paquet qui la connaît, pas le cœur, qui ignore jusqu'à l'existence d'un
- * `config/durable.php`.
+ * `WorkflowRegistry::getHandler()` fails on "Unknown workflow type: X", which names the type and
+ * stops there. Under Laravel, the reader's next question has an answer — *where* does one declare
+ * a type? — and it is this package that knows it, not the core, which does not even know that a
+ * `config/durable.php` exists.
  *
- * Un message qui nomme la panne sans nommer le remède fait ouvrir le code d'un paquet installé.
+ * A message that names the failure without naming the remedy makes someone open the code of an
+ * installed package.
  */
 final class DeclaredWorkflowTypes
 {
-    /** @param list<class-string> $declared les classes que `config/durable.php` nomme */
+    /** @param list<class-string> $declared the classes `config/durable.php` names */
     public function __construct(
         private readonly WorkflowRegistry $registry,
         private readonly array $declared = [],

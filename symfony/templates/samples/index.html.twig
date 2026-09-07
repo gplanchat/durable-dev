@@ -1,38 +1,38 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Samples — Durable pour Symfony{% endblock %}
+{% block title %}Samples — Durable for Symfony{% endblock %}
 
 {% block body %}
 <div class="container">
     <section class="hero">
-        <div class="hero__label">Durable pour Symfony</div>
-        <h1>Workflows durables, execution fiable, supervision unifiee</h1>
+        <div class="hero__label">Durable for Symfony</div>
+        <h1>Durable workflows, reliable execution, unified supervision</h1>
         <p>
-            Durable orchestre vos workflows sans SDK Temporal PHP officiel ni RoadRunner,
-            avec une execution orientee event sourcing et un suivi explicite des etats.
+            Durable orchestrates your workflows with no official Temporal PHP SDK and no RoadRunner,
+            with event-sourced execution and explicit state tracking.
         </p>
         <ul class="hero__points">
-            <li>Execution synchrone pour valider rapidement un scenario de bout en bout.</li>
-            <li>Execution asynchrone pour deleguer le run a des workers dedies.</li>
-            <li>Journal d'evenements consultable dans le profiler et le dashboard.</li>
+            <li>Synchronous execution to validate a scenario end to end, fast.</li>
+            <li>Asynchronous execution to delegate the run to dedicated workers.</li>
+            <li>Event journal readable in the profiler and the dashboard.</li>
         </ul>
         <div class="hstack">
-            <a href="{{ path('durable_documentation') }}" class="btn btn-primary">Lire la documentation</a>
-            <a href="{{ path('app_dashboard') }}" class="btn btn-ghost">Ouvrir le dashboard</a>
+            <a href="{{ path('durable_documentation') }}" class="btn btn-primary">Read the documentation</a>
+            <a href="{{ path('app_dashboard') }}" class="btn btn-ghost">Open the dashboard</a>
         </div>
     </section>
 
     <div class="page-intro">
         <h2>Samples workflows</h2>
         <p>
-            Scénarios portés depuis
+            Scenarios ported from
             <a href="https://github.com/temporalio/samples-php/tree/master/app/src">temporalio/samples-php</a>,
-            réécrits pour le moteur Durable (sans SDK Temporal PHP officiel ni RoadRunner).
+            rewritten for the Durable engine (with no official Temporal PHP SDK and no RoadRunner).
         </p>
         <p>
-            <strong>▶ Synchrone</strong> — la page attend la fin du run (drain des transports dans la même requête) ;
-            résultat et journal disponibles immédiatement dans le profiler.
-            <strong>⚡ Async</strong> — envoi seul (fire &amp; forget) ; le workflow s'exécute dans des workers séparés.
+            <strong>▶ Synchronous</strong> — the page waits for the run to finish (the transports are drained in the same request);
+            result and journal are immediately available in the profiler.
+            <strong>⚡ Async</strong> — dispatch only (fire &amp; forget); the workflow runs in separate workers.
         </p>
     </div>
 

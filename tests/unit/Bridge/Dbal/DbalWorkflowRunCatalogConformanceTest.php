@@ -23,8 +23,8 @@ use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Testing\WorkflowRunCatalogConformanceTestCase;
 
 /**
- * Les crochets d'amorçage écrivent par les stores projetants, comme le ferait un vrai worker : le
- * catalogue lit une projection, jamais le journal directement (DUR037).
+ * The bootstrapping hooks write through the projecting stores, as a real worker would: the
+ * catalog reads a projection, never the journal directly (DUR037).
  *
  * @see DUR041
  * @see DUR030
@@ -62,7 +62,7 @@ final class DbalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalogConf
                 'failureCode' => 0,
                 'context' => [],
             ]),
-            WorkflowRunStatus::Running => self::fail('Running n\'est pas une issue'),
+            WorkflowRunStatus::Running => self::fail('Running is not an outcome'),
         });
     }
 
