@@ -37,7 +37,7 @@ final class ExecutionRuntime
     private ?ActivityMessageProcessor $activityMessageProcessor = null;
 
     /**
-     * Budget de temps du drain synchrone : c'est un harnais en ligne, pas un worker — il ne peut
+     * Budget de temps du drain synchrone : c'est un harnais en ligne, pas un worker ; il ne peut
      * pas dormir indéfiniment sur le backoff d'une activité qui échoue toujours.
      */
     public const DEFAULT_DRAIN_BUDGET_SECONDS = 5.0;
@@ -190,7 +190,7 @@ final class ExecutionRuntime
      * rien à faire » alors qu'une retentative était planifiée quelques secondes plus tard, si
      * bien que la politique de retry ne s'appliquait pas du tout dans le harness de test.
      *
-     * ponytail: le backoff est attendu pour de vrai — ce drain est synchrone et dans le même
+     * ponytail: le backoff est attendu pour de vrai ; ce drain est synchrone et dans le même
      * processus. Une horloge virtuelle partagée avec le transport permettrait de l'avancer.
      */
     public function runUntilIdle(ExecutionContext $context, ?float $budgetSeconds = null): void
@@ -223,7 +223,7 @@ final class ExecutionRuntime
 
     /**
      * Timer : {@see ResumeWorkflowHandler} envoie {@see \Gplanchat\Durable\Transport\FireWorkflowTimersMessage} (pas un resume direct).
-     * Activité : faux — {@see ActivityMessageProcessor} appelle {@see \Gplanchat\Durable\Port\WorkflowResumeDispatcher::dispatchResume}
+     * Activité : faux, car {@see ActivityMessageProcessor} appelle {@see \Gplanchat\Durable\Port\WorkflowResumeDispatcher::dispatchResume}
      * à la fin de l’activité ; un {@code dispatchResume} depuis le handler workflow avec transport **sync/in-memory** bouclerait à l’infini.
      * Signal / update : seuls {@see DeliverWorkflowSignalHandler} etc. doivent relancer.
      *

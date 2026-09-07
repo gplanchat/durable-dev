@@ -57,7 +57,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         private readonly string $executionId,
         /**
          * Source des `scheduledEventId` réels pour {@see cancelActivity()}. Absente, l'annulation
-         * ciblée d'activité n'est pas émise — voir la note de cette méthode.
+         * ciblée d'activité n'est pas émise ; voir la note de cette méthode.
          */
         private readonly ?TemporalExecutionHistory $history = null,
     ) {}
@@ -115,7 +115,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
                 $retryPolicy->setMaximumAttempts($options->retryLimit->maxAttempts());
             }
             if ([] !== $options->nonRetryableExceptions) {
-                // Already a list<class-string> (per ActivityOptions) — pass as-is.
+                // Already a list<class-string> (per ActivityOptions); pass as-is.
                 $retryPolicy->setNonRetryableErrorTypes($options->nonRetryableExceptions);
             }
             $attrs->setRetryPolicy($retryPolicy);
@@ -195,7 +195,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     public function completeWorkflow(mixed $result): void
     {
         // Le résultat est encodé tel quel : il était enveloppé dans ['result' => …] alors que ni
-        // WorkflowClient::pollForCompletion() ni TemporalEventConverter ne déballent — l'appelant
+        // WorkflowClient::pollForCompletion() ni TemporalEventConverter ne déballent ; l'appelant
         // recevait ['result' => x] au lieu de x, et le driver in-memory n'enveloppe pas non plus.
         $attrs = new CompleteWorkflowExecutionCommandAttributes();
         $attrs->setResult(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($result)));
@@ -207,7 +207,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     }
 
     /**
-     * Le marqueur de version, dans la forme exacte que le serveur enregistre — relevée sur
+     * Le marqueur de version, dans la forme exacte que le serveur enregistre, relevée sur
      * l'historique d'un workflow versionné du SDK Go, puis réémise d'ici et acceptée (tâches
      * 1.1–1.2). Une exécution Durable versionnée se lit donc dans l'UI Temporal comme une Go.
      *
@@ -250,7 +250,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
      * La carte `map<string, T>` que les attributs protobuf attendent.
      *
      * Quatre commandes de ce fichier en construisent une, à l'identique. Une seule fabrique parce
-     * que Psalm se trompe sur les constantes `GPBType` — ce sont des entiers, il attend un `long` —
+     * que Psalm se trompe sur les constantes `GPBType` (ce sont des entiers, il attend un `long`)
      * et qu'un seul endroit à faire taire vaut mieux que quatre.
      *
      * @param class-string $valueClass
@@ -299,7 +299,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
      * `scheduledEventId` doit désigner l'événement ACTIVITY_TASK_SCHEDULED réel : il était
      * auparavant tiré d'un compteur local partant de 1000, donc sans rapport avec l'historique.
      * Le serveur rejette une tâche portant un identifiant inconnu, et l'identifiant n'existait
-     * de toute façon que pour les activités planifiées dans la tâche courante — jamais celles
+     * de toute façon que pour les activités planifiées dans la tâche courante, jamais celles
      * qu'on annule, planifiées lors d'une tâche antérieure.
      *
      * ponytail: une activité planifiée dans la tâche COURANTE n'a pas encore d'identifiant
@@ -392,7 +392,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     }
 
     /**
-     * COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION — seule réponse qui clôt réellement une exécution
+     * COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION : seule réponse qui clôt réellement une exécution
      * dont l'annulation a été demandée. Sans elle le serveur replanifie une tâche de workflow
      * et l'exécution continue de tourner.
      *
@@ -413,7 +413,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     /**
      * Marqueur d'annulation livrée : l'historique Temporal ne peut pas porter la *raison* d'une
      * annulation d'opération, si bien qu'au rejeu un ACTIVITY_TASK_CANCELED se relit en
-     * ActivitySupersededException — le `catch (WorkflowCancelledFailure)` du workflow ne
+     * ActivitySupersededException ; le `catch (WorkflowCancelledFailure)` du workflow ne
      * matcherait plus et la compensation divergerait d'une tâche à l'autre.
      *
      * @param list<string> $targetIds
@@ -423,7 +423,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $attrs = new \Temporal\Api\Command\V1\RecordMarkerCommandAttributes();
         $attrs->setMarkerName(TemporalExecutionHistory::MARKER_CANCELLATION_DELIVERED);
 
-        /** @psalm-suppress InvalidArgument — les stubs google/protobuf typent les constantes GPBType en `long` */
+        /** @psalm-suppress InvalidArgument (les stubs google/protobuf typent les constantes GPBType en `long`) */
         $details = self::protobufMap(\Temporal\Api\Common\V1\Payloads::class);
         $details['targets'] = JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($targetIds));
         $attrs->setDetails($details);
@@ -439,7 +439,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
      * n'a pas de verdict : il revient en attente, et l'annulation est redemandée.
      *
      * Sur le journal SQL {@see \Gplanchat\Durable\Store\EventStoreCommandBuffer::cancelTimer()}
-     * s'en garde depuis longtemps — au pire un événement en double. Ici Temporal rejette la tâche
+     * s'en garde depuis longtemps : au pire un événement en double. Ici Temporal rejette la tâche
      * entière (`BadCancelTimerAttributes: invalid history builder state for action:
      * add-timer-canceled-event`), le worker meurt, et la tâche redélivrée le tue à nouveau : une
      * seule exécution empoisonne toute la file.
@@ -470,7 +470,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
      * Les trois bornes ne sont posées que si le domaine en porte une. Sondé (§1.3), le serveur
      * n'applique aucun défaut et n'enregistre que ce qu'on lui donne : en poser une « pour
      * remplir » inventerait une contrainte que l'appelant n'a pas demandée. Une enveloppe infinie
-     * part en `0`, qui est la façon dont Temporal écrit « pas de borne » — et qui, mesuré, ne
+     * part en `0`, qui est la façon dont Temporal écrit « pas de borne », et qui, mesuré, ne
      * rabote pas les sous-bornes.
      *
      * Pas d'en-tête Nexus : rien côté domaine n'en porte encore, et un champ vide n'est pas un
@@ -492,7 +492,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         // Une opération Nexus porte UN payload, là où une activité en porte une liste : le
         // champ est un Payload, pas un Payloads.
         // La charge de l'appelant, nue. Elle portait jusqu'ici une enveloppe
-        // `{operationId, payload}` qui servait à corréler — et qu'un gestionnaire d'un autre SDK
+        // `{operationId, payload}` qui servait à corréler, et qu'un gestionnaire d'un autre SDK
         // recevait à la place des champs qu'il attend. Mesuré (tâche 1.1) : un gestionnaire Go
         // recevait `{"name":""}` et répondait sur du vide, sans que rien ne lève.
         //
@@ -537,7 +537,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     {
         // Même règle que pour une activité : le serveur veut l'eventId réel de la planification,
         // et rejette la tâche entière si l'identifiant ne correspond à rien. Une opération qu'on
-        // ne retrouve pas dans l'historique n'a rien à annuler — on se tait plutôt que d'inventer.
+        // ne retrouve pas dans l'historique n'a rien à annuler : on se tait plutôt que d'inventer.
         $scheduledEventId = $this->history?->scheduledEventIdForNexusOperation($operationId);
         if (null === $scheduledEventId) {
             return;

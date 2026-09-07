@@ -7,8 +7,8 @@ namespace Gplanchat\Bridge\Temporal;
 /**
  * Contract for driving Temporal workflow executions from application code.
  *
- * Abstracting {@see WorkflowClient} (final) behind this interface allows consumers —
- * including symfony/ sample application code and unit tests — to substitute a test
+ * Abstracting {@see WorkflowClient} (final) behind this interface allows consumers
+ * (including symfony/ sample application code and unit tests) to substitute a test
  * double without subclassing the concrete gRPC-bound class.
  *
  * @see WorkflowClient concrete Temporal gRPC implementation

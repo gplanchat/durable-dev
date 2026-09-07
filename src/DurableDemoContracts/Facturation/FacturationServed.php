@@ -10,7 +10,7 @@ use Gplanchat\Durable\Attribute\AsNexusService;
 /**
  * Ce que le métier sait répondre tout de suite.
  *
- * Vérifier, c'est appliquer des règles sur des données qu'on a déjà. Encaisser, non — d'où la
+ * Vérifier, c'est appliquer des règles sur des données qu'on a déjà. Encaisser, non : d'où la
  * séparation en deux interfaces.
  */
 #[AsNexusService('facturation')]

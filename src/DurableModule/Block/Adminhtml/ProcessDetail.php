@@ -16,13 +16,13 @@ use Magento\Backend\Block\Template\Context;
  * Rien de spécifique à Magento ici : `readHistory()` est le même port que le tableau de bord Sylius
  * interroge, et {@see RunTimeline} est la même projection. Une observation, une surface par hôte.
  *
- * Ce bloc en dérivait autrefois la sienne — regroupement, découpe en segments, mise à l'échelle,
+ * Ce bloc en dérivait autrefois la sienne : regroupement, découpe en segments, mise à l'échelle,
  * infobulles, mise en forme de la charge utile, nom d'action par ligne. Tout cela vit désormais
  * dans le cœur, et pour une raison qui se mesurait sur l'écran : Sylius empilait des blocs sans
  * position, ne distinguait pas la file du travail, et rendait un dépliant vide sur une charge
  * mal encodée. Deux moitiés du même modèle, sur le même journal.
  *
- * Ce qui reste ici est ce qui appartient à l'hôte : la **mise à l'échelle** — elle demande de
+ * Ce qui reste ici est ce qui appartient à l'hôte : la **mise à l'échelle** ; elle demande de
  * connaître la largeur d'une colonne, et la projection ne rend que des secondes.
  */
 /*
@@ -50,7 +50,7 @@ class ProcessDetail extends Template
     }
 
     /**
-     * L'exécution demandée, ou `null` si le backend ne la connaît pas — un identifiant collé à la
+     * L'exécution demandée, ou `null` si le backend ne la connaît pas : un identifiant collé à la
      * main dans la barre d'adresse, ou une exécution que la rétention a effacée.
      *
      * ⚠ La fenêtre est **celle de la grille**, littéralement la même constante : deux fenêtres de
@@ -97,7 +97,7 @@ class ProcessDetail extends Template
      * à l'échelle demande de connaître la largeur d'une colonne, ce qu'une projection partagée avec
      * une surface sans balisage ne peut pas savoir.
      *
-     * Sans durée — une seule action, ou tout dans la même microseconde — tout se pose à gauche.
+     * Sans durée (une seule action, ou tout dans la même microseconde), tout se pose à gauche.
      * Étaler par rang ferait passer un ordre pour une durée.
      */
     public function scale(float $seconds): string

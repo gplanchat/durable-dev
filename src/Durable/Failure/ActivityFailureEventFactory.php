@@ -26,7 +26,7 @@ final class ActivityFailureEventFactory
             try {
                 json_encode($e->toActivityFailureContext(), \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE);
             } catch (\JsonException) {
-                // DUR011: explicit branch — declared context not JSON-serializable → catastrophic event (no silent swallow).
+                // DUR011: explicit branch; declared context not JSON-serializable → catastrophic event (no silent swallow).
                 return ActivityCatastrophicFailure::forThrowable(
                     $executionId,
                     $activityId,
@@ -67,7 +67,7 @@ final class ActivityFailureEventFactory
         try {
             json_encode($failed->payload(), \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE);
         } catch (\JsonException) {
-            // DUR011: intentional predicate (non-JSON payload) — caller falls through to ActivityCatastrophicFailure.
+            // DUR011: intentional predicate (non-JSON payload); caller falls through to ActivityCatastrophicFailure.
             return false;
         }
 

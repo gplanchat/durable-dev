@@ -15,13 +15,13 @@ use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Illuminate\Database\Connection;
 
 /**
- * Quelles exécutions existent, et ce qu'elles sont devenues — côté Laravel.
+ * Quelles exécutions existent, et ce qu'elles sont devenues (côté Laravel).
  *
  * Lecture **et** écriture dans le même objet, comme le catalogue in-memory et contrairement au pont
  * DBAL qui sépare `DbalWorkflowRunProjection` de son catalogue. Ce n'est pas une simplification :
  * les deux moitiés vivent sur une seule connexion et une seule table, il n'y a rien à partager
- * entre elles qu'un nom de table. Les décorateurs du cœur — {@see \Gplanchat\Durable\Store\ProjectingEventStore}
- * et {@see \Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore} — attendent un
+ * entre elles qu'un nom de table. Les décorateurs du cœur ({@see \Gplanchat\Durable\Store\ProjectingEventStore}
+ * et {@see \Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore}) attendent un
  * {@see WorkflowRunProjectionInterface} et se branchent donc dessus sans rien savoir d'Illuminate.
  *
  * Le curseur est un couple `(started_at, execution_id)` encodé en base64, exactement comme côté

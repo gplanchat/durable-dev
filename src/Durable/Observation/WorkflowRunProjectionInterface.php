@@ -14,7 +14,7 @@ namespace Gplanchat\Durable\Observation;
  * Deux méthodes, et c'est tout ce que les décorateurs
  * {@see \Gplanchat\Durable\Store\ProjectingEventStore} et
  * {@see \Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore} appellent. Elles portaient déjà
- * ces noms côté SQL avant d'être une interface — l'extraire n'a rien renommé.
+ * ces noms côté SQL avant d'être une interface : l'extraire n'a rien renommé.
  *
  * @see DUR037
  */

@@ -24,7 +24,7 @@ use Gplanchat\Durable\WorkflowRegistry;
 
 /*
  * Descendu du paquet du bundle vers le cœur. Ce n'était pas un adaptateur d'hôte : sur 138 lignes,
- * quinze imports venaient du cœur et six de Symfony, ces six-là ne servant qu'à deux choses — un
+ * quinze imports venaient du cœur et six de Symfony, ces six-là ne servant qu'à deux choses : un
  * identifiant v7, que `ExecutionId` fabrique déjà, et le réveil des minuteries, qui est désormais
  * un port. Six hôtes du sélecteur ne passent pas par le bundle ; les y laisser aurait voulu dire
  * autant de copies de la sémantique de reprise, divergentes à la première correction.

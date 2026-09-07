@@ -16,7 +16,7 @@ use Illuminate\Contracts\Queue\Factory as QueueFactory;
  * reprise est un message, un nouveau run enregistre d'abord ses métadonnées puis en devient une.
  *
  * **Ce que le pendant Symfony obtient d'un `DispatchAfterCurrentBusStamp`, celui-ci l'obtient de la
- * file elle-même** — à une condition, et c'est pourquoi le provider refuse la connexion `sync` au
+ * file elle-même**, à une condition, et c'est pourquoi le provider refuse la connexion `sync` au
  * démarrage : sur `sync`, `push()` exécute le job sur place, et une reprise qui en dispatche une
  * autre récurserait dans le même processus jusqu'à la pile.
  */

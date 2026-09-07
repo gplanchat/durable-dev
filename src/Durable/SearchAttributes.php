@@ -7,13 +7,13 @@ namespace Gplanchat\Durable;
 /**
  * Les attributs de recherche d'une exécution : ce sur quoi on pourra la retrouver.
  *
- * C'était un `?array` libre — et, plus grave, un tableau qui n'atteignait jamais le serveur : il
+ * C'était un `?array` libre, et, plus grave, un tableau qui n'atteignait jamais le serveur : il
  * était journalisé dans les métadonnées puis oublié, aucune commande ne le posant.
  *
  * Trois règles serveur, sondées une par une, dont deux sont vérifiables ici :
- * - la valeur doit correspondre au type enregistré ({@see SearchAttributeType}) — vérifié ;
- * - certains attributs système sont en lecture seule ({@see READ_ONLY}) — vérifié ;
- * - l'attribut doit être enregistré dans le namespace — **non** vérifiable localement, cela
+ * - la valeur doit correspondre au type enregistré ({@see SearchAttributeType}) : vérifié ;
+ * - certains attributs système sont en lecture seule ({@see READ_ONLY}) : vérifié ;
+ * - l'attribut doit être enregistré dans le namespace : **non** vérifiable localement, cela
  *   demanderait de lire le registre du namespace. Le serveur répond alors
  *   « has no mapping defined for search attribute ».
  */

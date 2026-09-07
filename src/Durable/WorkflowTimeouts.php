@@ -7,7 +7,7 @@ namespace Gplanchat\Durable;
 /**
  * Les bornes temporelles d'un workflow, prises ensemble.
  *
- * Comme pour les activités, chacune borne un segment différent — et c'est leur emboîtement qui
+ * Comme pour les activités, chacune borne un segment différent, et c'est leur emboîtement qui
  * a un sens :
  *
  *     exécution ─┬─ run 1 ─┬─ run 2 (continue-as-new, retry) ─ …

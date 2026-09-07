@@ -12,7 +12,7 @@ use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
  *
  * Le pourquoi est {@see NexusOperationFailureKind} : quatre natures qui appellent quatre gestes
  * différents. Le où est le triplet endpoint / service / opération, exigé par le spec pour qu'un
- * échec non rattrapé nomme le site d'appel — sans lui, un workflow qui parle à trois endpoints
+ * échec non rattrapé nomme le site d'appel : sans lui, un workflow qui parle à trois endpoints
  * tombe sans dire lequel.
  *
  * Le comportement de reprise ne voyage que sur {@see NexusOperationFailureKind::HandlerError} :

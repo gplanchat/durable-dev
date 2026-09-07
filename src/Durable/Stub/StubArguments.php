@@ -7,7 +7,7 @@ namespace Gplanchat\Durable\Stub;
 /**
  * Ce qu'un stub `__call` fait des arguments qu'on lui a passés.
  *
- * Les trois stubs — activité, opération Nexus, workflow enfant — appellent tous une méthode d'un
+ * Les trois stubs (activité, opération Nexus, workflow enfant) appellent tous une méthode d'un
  * contrat par `__call`, et doivent tous transformer les arguments reçus en une charge nommée, parce
  * que c'est nommé que ça voyage dans le journal. Ils le faisaient chacun de leur côté, à
  * l'identique, et avec le même défaut.
@@ -19,16 +19,16 @@ namespace Gplanchat\Durable\Stub;
  * prompt vide et attendait un message qui ne viendrait jamais.
  *
  * **Le second défaut, du même ordre : `??` confond « absent » et « null ».** Passer explicitement
- * `null` à un paramètre nullable donnait sa valeur par défaut plutôt que `null` — c'est-à-dire
+ * `null` à un paramètre nullable donnait sa valeur par défaut plutôt que `null`, c'est-à-dire
  * l'inverse de ce qui était demandé. D'où `array_key_exists` plutôt que `??`.
  *
  * **Et ce que PHP refuse, le stub le refuse.** Sur un appel ordinaire, PHP lève sur un argument
  * nommé inconnu (`Unknown named parameter`), sur un argument requis manquant (`ArgumentCountError`)
  * et sur un paramètre servi deux fois, en positionnel puis en nommé (`Named parameter $x overwrites
  * previous argument`). Un stub qui avale l'un des trois rend une faute indiscernable d'une valeur
- * voulue — et la fait voyager jusque dans le journal, où elle sera rejouée à l'identique. Les trois
- * lèvent donc ici aussi. Le type diffère de celui de PHP — `\BadMethodCallException` plutôt que
- * `\Error` ou `\ArgumentCountError` — parce que l'appel passe par `__call` : c'est l'exception que
+ * voulue, et la fait voyager jusque dans le journal, où elle sera rejouée à l'identique. Les trois
+ * lèvent donc ici aussi. Le type diffère de celui de PHP (`\BadMethodCallException` plutôt que
+ * `\Error` ou `\ArgumentCountError`) parce que l'appel passe par `__call` : c'est l'exception que
  * la SPL réserve à une méthode appelée de travers, et elle reste rattrapable.
  */
 final class StubArguments
