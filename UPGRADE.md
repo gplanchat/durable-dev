@@ -51,6 +51,100 @@ forme mécanique.
 Ces exceptions sont déterministes : rejouées à l'identique à chaque redélivrance, elles brûlent les
 tentatives de Messenger jusqu'au transport d'échec. Configurez-en un.
 
+### Onze services internes du bundle passent en privé
+
+**Qui est concerné** : une application qui tire l'un de ces onze identifiants du conteneur par
+`$container->get()`. Pas celle qui les reçoit par autowiring, ni celle qui passe par leur interface.
+
+Les implémentations concrètes derrière un alias et les décorateurs de projection n'ont pas à être
+des points d'entrée du conteneur : un service public échappe à l'*inlining* et à la suppression des
+définitions inutilisées, et devient une promesse de compatibilité que personne n'a voulu prendre.
+
+| Devenu privé | À demander à la place |
+| --- | --- |
+| `durable.event_store.dbal`, `durable.event_store.temporal`, `durable.event_store.inner`, `durable.event_store.*.projecting` | `Gplanchat\Durable\Store\EventStoreInterface` |
+| `durable.workflow_metadata_store.inner`, `durable.workflow_metadata_store.*.projecting` | `Gplanchat\Durable\Store\WorkflowMetadataStore` |
+| `durable.run_catalog.dbal`, `durable.run_catalog.in_memory`, `durable.run_catalog.temporal` | `Gplanchat\Durable\Port\WorkflowRunCatalogInterface` |
+
+Les trois interfaces restent **publiques** et autowirables, et elles pointent la même instance : ce
+qui change est le chemin pour y arriver, pas ce qu'on obtient. Le reste de la surface publique du
+bundle est inchangé — les workers Temporal, le magasin de liens parent/enfant, le collecteur de
+profil et les classes du moteur restent joignables par leur identifiant.
+
+Rector ne peut rien : réécrire un `$container->get('durable.event_store.dbal')` en une injection
+demande de savoir où l'objet est utilisé, ce qu'aucune règle ne devine. Le tableau ci-dessus est la
+procédure.
+
+### `WorkflowHistorySourceInterface` gagne `hasSideEffectForSlot()`
+
+**Qui est concerné** : uniquement qui **implémente** `WorkflowHistorySourceInterface` — c'est-à-dire
+qui écrit un backend. Une application qui appelle `sideEffect()` n'a rien à changer ; elle gagne le
+correctif sans rien faire.
+
+**Ce qui était cassé.** `findSideEffectForSlot()` rend `mixed` et signalait « rien d'enregistré » par
+`null`. Une closure qui rend légitimement `null` était donc indistinguable d'un slot vide : elle
+était **ré-exécutée à chaque passe de rejeu**, et le journal grossissait d'un `SideEffectRecorded`
+par passe. C'est la garantie même que `sideEffect()` existe pour offrir. Les valeurs `false`, `0`,
+`''` et `[]` n'étaient pas touchées — la comparaison était un `!==` strict.
+
+**Ce qu'il faut écrire.** Une méthode qui répond *le slot existe-t-il*, sans regarder ce qu'il porte.
+Rector ne peut rien ici : la réponse dépend de la façon dont votre backend range ses slots, et lui
+en faire deviner une produirait un adaptateur qui compile et ment. Les deux implémentations livrées
+donnent les deux formes attendues.
+
+Sur un journal parcouru :
+
+```php
+public function hasSideEffectForSlot(int $slot): bool
+{
+    $index = 0;
+    foreach ($this->eventStore->readStream($this->executionId) as $event) {
+        if ($event instanceof SideEffectRecorded) {
+            if ($index === $slot) {
+                return true;
+            }
+            ++$index;
+        }
+    }
+
+    return false;
+}
+```
+
+Sur un tableau indexé par slot — et c'est `array_key_exists()`, jamais `isset()`, qui rouvrirait
+exactement le trou que ce correctif ferme :
+
+```php
+public function hasSideEffectForSlot(int $slot): bool
+{
+    return \array_key_exists($slot, $this->sideEffects);
+}
+```
+
+`findSideEffectForSlot()` ne change pas de signature et garde son comportement : elle rend la valeur,
+et rend `null` aussi bien pour un slot absent que pour un slot portant `null`. C'est désormais écrit
+dans son contrat, et c'est `hasSideEffectForSlot()` qui décide s'il faut exécuter la closure.
+
+
+### `version()` cesse de basculer une exécution en vol
+
+**Qui est concerné** : toute application qui appelle `version()`. Rien à écrire ; le comportement
+change, en mieux, et il faut savoir en quoi.
+
+`version()` décide de rendre l'ancien comportement quand l'exécution est encore en train de
+rejouer. Ce signal se déduisait des quatre types de slot qui savent dire leur présence — activité,
+minuteur, workflow enfant, opération Nexus — et laissait les effets de bord de côté, pour la raison
+même que le correctif ci-dessus vient de lever : leur présence ne se lisait pas sans lire leur
+valeur.
+
+Conséquence : une exécution dont le travail restant devant elle n'était fait que d'effets de bord
+était vue comme arrivée au bout de son historique. Elle prenait la branche **neuve** au milieu d'un
+rejeu et y écrivait son marqueur de version — dans une histoire écrite avant que le point de
+changement existe. `hasSideEffectForSlot()` étant désormais au port, ce cas rejoint les autres.
+
+Une exécution qui a déjà écrit un marqueur de version garde le sien : `versionForChangeId()` est
+consulté en premier, et rien de ce commit ne le touche.
+
 ## 0.1.0-alpha8
 
 ### La garde de divergence compare aussi la charge
