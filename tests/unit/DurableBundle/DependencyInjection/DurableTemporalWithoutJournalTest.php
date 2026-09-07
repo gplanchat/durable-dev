@@ -24,7 +24,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  */
 final class DurableTemporalWithoutJournalTest extends TestCase
 {
-    private const DSN = 'temporal://127.0.0.1:7233?namespace=demo-boutique&tls=0';
+    private const DSN = 'temporal://127.0.0.1:7233?namespace=demo-shop&tls=0';
 
     public function testADbalJournalAndATemporalDsnAreStillRefusedWhenTemporalClaimsTheJournal(): void
     {

@@ -2,8 +2,8 @@
 
 **These files are not covered by the repository's MIT licence.**
 
-Every SVG in this directory reproduces a mark belonging to its owner. They are used **nominatively**
-— to name the projects Durable integrates with, in a picker whose whole purpose is to say *which
+Every SVG in this directory reproduces a mark belonging to its owner. They are used **nominatively**,
+to name the projects Durable integrates with, in a picker whose whole purpose is to say *which
 stack are you on*. Naming a project that way is ordinary and expected. Shipping its mark under a
 grant that says "do what you like with this" is a different act, and [WA004](../../../documentation/wa/WA004-mit-license-distribution.md)
 declares the repository and its Composer packages MIT without carving anything out.
@@ -15,7 +15,7 @@ to the marks below, which remain the property of their respective owners.**
 
 Not one of these files is the mark as its owner publishes it. Each has had its brand colour replaced
 by `currentColor`, its background dropped, and its artwork cropped to a square 24 box. That is what
-lets a mark follow the page's theme and accent instead of sitting on a white rectangle in dark mode —
+lets a mark follow the page's theme and accent instead of sitting on a white rectangle in dark mode,
 and it is also precisely what a brand guideline is most likely to forbid.
 
 ## Provenance
@@ -25,7 +25,7 @@ and it is also precisely what a brand guideline is most likely to forbid.
 | `php`, `doctrine`, `temporal`, `symfony`, `laravel`, `magento`, `shopware`, `pimcore`, `filament`, `statamic`, `typo3` | [Simple Icons](https://github.com/simple-icons/simple-icons) |
 | `akeneo`, `sulu`, `api-platform`, `bagisto`, `aimeos` | extracted from each project's own published asset |
 | `sylius` | drawn here from the published mark |
-| `illuminate` | **not a mark.** A generic database glyph written for this repository — see below |
+| `illuminate` | **not a mark.** A generic database glyph written for this repository; see below |
 
 ### Simple Icons is CC0, and that settles less than it sounds
 
@@ -42,7 +42,7 @@ convenient, not cleared.
 
 `Illuminate\Database\Connection` is Laravel's database layer and has no mark of its own. This file
 was briefly a byte-for-byte copy of `laravel.svg`, which used Laravel's mark to label something that
-is not the Laravel framework — and put two identical marks on one page. It is now a generic
+is not the Laravel framework, and put two identical marks on one page. It is now a generic
 three-tier database glyph written for this repository, reproducing nothing.
 
 ## What was checked, and what it said
@@ -51,7 +51,7 @@ Checked 2026-08-27. Findings, not legal advice.
 
 | Project | Published policy | What it says |
 |---|---|---|
-| **API Platform** | [Trademark and logo policy](https://api-platform.com/trademark-policy/) | Permits *"use of our Marks on websites to name or accurately describe Les-Tilleuls.coop's products, services or technology"* — which covers the **name**. It grants nothing further for the logo, and names the drawing separately: *"Use or reproduction of Les-Tilleuls.coop's original works of authorship, including the API Platform 'Webby' spider design is prohibited without prior approval from Les-Tilleuls.coop."* **`api-platform.svg` is Webby.** See below. |
+| **API Platform** | [Trademark and logo policy](https://api-platform.com/trademark-policy/) | Permits *"use of our Marks on websites to name or accurately describe Les-Tilleuls.coop's products, services or technology"*, which covers the **name**. It grants nothing further for the logo, and names the drawing separately: *"Use or reproduction of Les-Tilleuls.coop's original works of authorship, including the API Platform 'Webby' spider design is prohibited without prior approval from Les-Tilleuls.coop."* **`api-platform.svg` is Webby.** See below. |
 | **TYPO3** | [Trademark Usage Policy](https://docs.typo3.org/m/typo3/guide-policy/main/en-us/Association/TrademarkUsagePolicy.html), [brand guidelines](https://typo3.com/typo3-cms/the-brand/brand-guidelines) | The shield is not a registered trademark but its use is governed by the brand guidelines; the figurative mark may be used without the wordmark as a design element. Modification is not addressed. Questions go to `trademark@typo3.org`. |
 | **Akeneo** | Brand assets and a style guide, no usage policy located | Nothing found that permits or forbids modification. |
 | **Sulu**, **Aimeos**, **Bagisto** | None located | Absence of a policy is not permission; it is absence of a policy. |
@@ -64,7 +64,7 @@ requiring prior approval. We have not asked.
 
 Two things make this one different from every other row above:
 
-- **It is not a trademark question.** Nominative use — naming a project you integrate with — is the
+- **It is not a trademark question.** Nominative use, naming a project you integrate with, is the
   defence that carries the rest of this directory, and the policy grants it in as many words. Webby
   is claimed as an *original work of authorship*: a drawing, under copyright, where "we are only
   naming you" is not an answer.
@@ -84,6 +84,6 @@ A notice cannot fix this one: the policy asks for approval, not attribution.
 
 ## If you own one of these marks
 
-If a mark here is yours and this use is not one you want — the modification, the placement, anything
-— open an issue or write to the address in the repository's `composer.json` and it will be removed.
+If a mark here is yours and this use is not one you want (the modification, the placement, anything),
+open an issue or write to the address in the repository's `composer.json` and it will be removed.
 Nothing in this directory is worth an argument with the project it names.

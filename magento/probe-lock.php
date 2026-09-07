@@ -32,8 +32,8 @@ $name = $argv[2] ?? 'durable-probe';
 switch ($mode) {
     case 'which':
         $env = require __DIR__ . '/app/etc/env.php';
-        echo 'configuré  : lock.provider = ', $env['lock']['provider'] ?? '(absent, défaut du framework)', "\n";
-        echo 'instancié  : ', get_class($locks), "\n";
+        echo 'configured : lock.provider = ', $env['lock']['provider'] ?? '(absent, the framework default)', "\n";
+        echo 'instantiated: ', get_class($locks), "\n";
         // Le conteneur rend une `Lock\\Proxy` : elle ne dit rien du backend tant
         // qu'on ne l'a pas fait travailler. Un appel la force à le construire,
         // et la réflexion le nomme. Un module qui voudrait refuser un verrou
@@ -42,7 +42,7 @@ switch ($mode) {
         foreach ((new \ReflectionObject($locks))->getProperties() as $property) {
             $value = $property->getValue($locks);
             if ($value instanceof \Magento\Framework\Lock\LockManagerInterface) {
-                echo 'derrière   : ', get_class($value), "\n";
+                echo 'behind      : ', get_class($value), "\n";
             }
         }
         echo 'pid        : ', getmypid(), "\n";
@@ -57,7 +57,7 @@ switch ($mode) {
         }
         sleep($seconds);
         $locks->unlock($name);
-        echo getmypid(), " hold  $name -> relâché après {$seconds}s\n";
+        echo getmypid(), " hold  $name -> released after {$seconds}s\n";
         break;
 
     case 'try':

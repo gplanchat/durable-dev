@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Durable\Workflow\ReserverStockWorkflow;
+use App\Durable\Workflow\ReserveStockWorkflow;
 use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -15,21 +15,21 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
- * Démarre l'appelant de la démonstration : le métier demande du stock à la boutique.
+ * Starts the caller of the demonstration: the business asks the shop for stock.
  *
- * Elle ne parle pas à la boutique. Elle démarre un workflow dans `demo-metier`, et c'est ce
- * workflow qui appelle l'opération Nexus — le seul lien entre les deux applications est l'endpoint,
- * créé par `bin/demo-nexus`, et le contrat qu'elles se partagent.
+ * It does not speak to the shop. It starts a workflow in `demo-business`, and it is that workflow
+ * which calls the Nexus operation — the only link between the two applications is the endpoint,
+ * created by `bin/demo-nexus`, and the contract they share.
  */
 #[AsCommand(
     name: 'durable:demo:nexus',
-    description: 'Demande à la boutique de retenir du stock, à travers Nexus',
+    description: 'Ask the shop to hold stock, through Nexus',
 )]
 final class DemoNexusStockCommand extends Command
 {
     public function __construct(
-        // Optionnel : sans DSN Temporal, ce service n'existe pas, et la commande doit pouvoir se
-        // charger quand même — sinon le conteneur du banc de test refuse de compiler.
+        // Optional: with no Temporal DSN this service does not exist, and the command still has to
+        // load — otherwise the test bench's container refuses to compile.
         private readonly ?WorkflowClientInterface $client = null,
     ) {
         parent::__construct();
@@ -38,9 +38,9 @@ final class DemoNexusStockCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument('commande', InputArgument::REQUIRED, 'Identifiant de commande — c\'est lui qui rend la réservation idempotente')
-            ->addArgument('lignes', InputArgument::IS_ARRAY | InputArgument::REQUIRED, 'REFERENCE=quantité, une ou plusieurs')
-            ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Secondes d\'attente du verdict', '60')
+            ->addArgument('order', InputArgument::REQUIRED, 'The order identifier — it is what makes the reservation idempotent')
+            ->addArgument('lines', InputArgument::IS_ARRAY | InputArgument::REQUIRED, 'REFERENCE=quantity, one or more')
+            ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Seconds to wait for the verdict', '60')
         ;
     }
 
@@ -50,47 +50,47 @@ final class DemoNexusStockCommand extends Command
 
         if (null === $this->client) {
             $io->error([
-                'Aucun client de workflow : ce profil n\'a pas de DSN Temporal.',
-                'Un appel Nexus part d\'un workflow, et un workflow a besoin du cluster pour l\'ordonnancer.',
+                'No workflow client: this profile has no Temporal DSN.',
+                'A Nexus call leaves from a workflow, and a workflow needs the cluster to schedule it.',
             ]);
 
             return Command::FAILURE;
         }
 
-        $commande = (string) $input->getArgument('commande');
-        $lignes = [];
-        foreach ((array) $input->getArgument('lignes') as $ligne) {
-            if (!\is_string($ligne) || !str_contains($ligne, '=')) {
-                $io->error(\sprintf('« %s » n\'est pas au format REFERENCE=quantité.', (string) $ligne));
+        $order = (string) $input->getArgument('order');
+        $lines = [];
+        foreach ((array) $input->getArgument('lines') as $line) {
+            if (!\is_string($line) || !str_contains($line, '=')) {
+                $io->error(\sprintf('"%s" is not in the REFERENCE=quantity format.', (string) $line));
 
                 return Command::INVALID;
             }
-            [$reference, $quantite] = explode('=', $ligne, 2);
-            $lignes[$reference] = (int) $quantite;
+            [$reference, $quantity] = explode('=', $line, 2);
+            $lines[$reference] = (int) $quantity;
         }
 
-        $io->comment(\sprintf('commande %s — %s', $commande, json_encode($lignes, \JSON_THROW_ON_ERROR)));
+        $io->comment(\sprintf('order %s — %s', $order, json_encode($lines, \JSON_THROW_ON_ERROR)));
 
-        // Les clés de la charge sont les noms des paramètres du workflow, pas leur position :
-        // `mapInputToArguments` associe par nom, et un renommage d'un seul côté donnerait `null`.
+        // The payload keys are the workflow's parameter names, not their positions:
+        // `mapInputToArguments` matches by name, and a rename on one side only would hand `null`.
         $this->client->startAsync(
-            ReserverStockWorkflow::TYPE,
-            ['commande' => $commande, 'lignes' => $lignes],
-            $commande,
+            ReserveStockWorkflow::TYPE,
+            ['order' => $order, 'lines' => $lines],
+            $order,
         );
 
-        $secondes = max(1, (int) $input->getOption('timeout'));
-        $verdict = $this->client->pollForCompletion($commande, 500, $secondes * 2);
+        $seconds = max(1, (int) $input->getOption('timeout'));
+        $verdict = $this->client->pollForCompletion($order, 500, $seconds * 2);
 
         $io->writeln(json_encode($verdict, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE));
 
-        if (\is_array($verdict) && true === ($verdict['reserve'] ?? null)) {
-            $io->success('La boutique a retenu le stock.');
+        if (\is_array($verdict) && true === ($verdict['reserved'] ?? null)) {
+            $io->success('The shop held the stock.');
 
             return Command::SUCCESS;
         }
 
-        $io->warning('La boutique n\'a pas pu tout retenir.');
+        $io->warning('The shop could not hold everything.');
 
         return Command::SUCCESS;
     }
