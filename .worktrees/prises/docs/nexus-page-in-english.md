@@ -10,4 +10,4 @@
   Depends on #290: until that merges, these pages would describe symbols the repository has not
   got. Touches the same files as #286 and #288, which will need a trivial rebase whichever lands
   second.
-- **State**: in progress.
+- **State**: in review — PR #291.
