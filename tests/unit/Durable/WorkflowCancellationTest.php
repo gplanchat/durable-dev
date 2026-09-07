@@ -27,7 +27,7 @@ use PHPUnit\Framework\TestCase;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
- * L'annulation est livrée DANS le fiber, au point d'attente — équivalent du CanceledFailure
+ * L'annulation est livrée DANS le fiber, au point d'attente, équivalent du CanceledFailure
  * Temporal. Auparavant elle empêchait le fiber de démarrer, donc aucun workflow ne pouvait
  * compenser.
  */
@@ -99,7 +99,7 @@ final class WorkflowCancellationTest extends TestCase
         $this->resumeExpectingSuspension('exec-2', $handler);
         $this->drainActivities('exec-2');
 
-        // Tâche 2 : rejeu — la compensation est réglée par le journal, puis l'annulation ressort.
+        // Tâche 2 : rejeu ; la compensation est réglée par le journal, puis l'annulation ressort.
         try {
             $this->engine->resume('exec-2', $handler);
             self::fail('la compensation terminée, l’annulation doit ressortir');
@@ -141,7 +141,7 @@ final class WorkflowCancellationTest extends TestCase
     public function testRaceLosersKeepTheirOwnCancellationSemantics(): void
     {
         // Garde : une activité perdante d'un any() ne doit pas être confondue avec une
-        // annulation de workflow — même événement, raison différente.
+        // annulation de workflow. Même événement, raison différente.
         $this->executor->register('fast', static fn(): string => 'winner');
         $runner = new \Gplanchat\Durable\InMemoryWorkflowRunner($this->eventStore, $this->transport, $this->executor);
 

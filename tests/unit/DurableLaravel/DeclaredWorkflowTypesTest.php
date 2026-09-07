@@ -18,7 +18,7 @@ final class DeclaredWorkflowTypesTest extends TestCase
 {
     public function testAWorkflowWrittenForTheBundleResolvesHereUnmodified(): void
     {
-        // GreetingWorkflow n'importe que `Gplanchat\Durable\` — aucun symbole de Laravel ni de
+        // GreetingWorkflow n'importe que `Gplanchat\Durable\` : aucun symbole de Laravel ni de
         // Symfony. C'est ce qui rend la phrase « sans modification » vérifiable plutôt que promise.
         $types = $this->declaring([GreetingWorkflow::class]);
 

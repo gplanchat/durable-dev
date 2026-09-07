@@ -21,7 +21,7 @@ use unit\DurableModule\Fixture\RecordingOrderActivities;
  *
  * Magento n'atteint que deux backends, et ce n'est pas une timidité : il ne livre aucun des deux
  * types de connexion auxquels les ponts SQL se lient. Le choix entre les deux ne revient donc pas
- * à un nom de backend recopié dans une configuration — la 2.3 a retiré cette surface — mais à la
+ * à un nom de backend recopié dans une configuration (la 2.3 a retiré cette surface), mais à la
  * **présence d'un DSN**. Pas de DSN, pas de grappe : le journal vit dans le processus et meurt
  * avec lui. Un DSN, et il vit dans le cluster.
  *
@@ -52,7 +52,7 @@ final class RuntimeFactoryTest extends TestCase
      * Le catalogue n'est **pas** dérivable du magasin d'événements : `InMemoryWorkflowRunCatalog`
      * tient sa propre liste, alimentée par `recordStart()`/`recordOutcome()` dans le processus qui
      * exécute. Une requête d'administration n'exécute rien, donc elle n'a rien à y lire. Lister les
-     * exécutions d'une grappe, c'est demander à la grappe — et le pont livre déjà la classe qui
+     * exécutions d'une grappe, c'est demander à la grappe, et le pont livre déjà la classe qui
      * sait le faire.
      */
     public function testTheCatalogAsksTheClusterWhenThereIsOne(): void
@@ -103,7 +103,7 @@ final class RuntimeFactoryTest extends TestCase
     /**
      * Ce qui manquait pour que l'ordre reparte.
      *
-     * La §5.3 avait mesuré la moitié qui compte — la carte n'est pas re-débitée — et la moitié qui
+     * La §5.3 avait mesuré la moitié qui compte (la carte n'est pas re-débitée) et la moitié qui
      * manquait : l'exécution restait suspendue parce que son activité avait été distribuée dans le
      * transport en mémoire d'un processus mort. Sur Temporal, une activité est une tâche que
      * quelqu'un doit dépiler, et ce quelqu'un est ce worker.

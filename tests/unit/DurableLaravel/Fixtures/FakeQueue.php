@@ -7,7 +7,7 @@ namespace unit\DurableLaravel\Fixtures;
 use Illuminate\Contracts\Queue\Job;
 
 /**
- * Une file de test qui retient ce qu'on lui pousse. Elle n'implémente pas le contrat entier —
+ * Une file de test qui retient ce qu'on lui pousse. Elle n'implémente pas le contrat entier :
  * seules `push`, `later` et `pop` sont sur le chemin du transport, et un double qui implémente ce
  * qu'il n'utilise pas raconte une histoire plus riche que le code.
  */

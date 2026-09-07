@@ -22,7 +22,7 @@ use unit\DurableLaravel\Fixtures\FakeQueueFactory;
 use unit\DurableLaravel\Fixtures\GreetingWorkflow;
 
 /**
- * §4 — une reprise à la fois par exécution, dans la forme que §1.2 a mesurée.
+ * §4 : une reprise à la fois par exécution, dans la forme que §1.2 a mesurée.
  */
 final class OneResumeAtATimeTest extends TestCase
 {

@@ -10,12 +10,12 @@ use PHPUnit\Framework\TestCase;
  * L'extension est vérifiée en lançant PHPStan sur une fixture, avec puis sans elle.
  *
  * Un test qui n'exercerait que la classe en isolation prouverait qu'elle répond correctement à des
- * questions posées par le test lui-même — pas qu'elle change ce que PHPStan voit. C'est le
+ * questions posées par le test lui-même, pas qu'elle change ce que PHPStan voit. C'est le
  * contraste qui est le test.
  *
  * Et ce contraste n'est pas celui qu'on imagine. Sans extension, PHPStan n'est pas aveugle : il
  * signale **tous** les appels de stub, corrects compris. Le défaut n'est donc pas le silence mais
- * le bruit — deux fausses erreurs pour deux vraies, qu'on met en ligne de base d'un bloc en
+ * le bruit : deux fausses erreurs pour deux vraies, qu'on met en ligne de base d'un bloc en
  * perdant les vraies avec. Ces tests épinglent ce fait, parce que c'est lui qui justifie le
  * paquet.
  */
@@ -32,7 +32,7 @@ final class StubMethodsExtensionTest extends TestCase
         self::assertNotSame(
             [],
             $this->matching($errors, 'charge()'),
-            'sans extension, un appel correct doit être signalé — c\'est le défaut à corriger',
+            'sans extension, un appel correct doit être signalé : c\'est le défaut à corriger',
         );
         self::assertNotSame([], $this->matching($errors, 'run()'));
     }
@@ -112,7 +112,7 @@ final class StubMethodsExtensionTest extends TestCase
     {
         // La fixture déclare ses stubs `readonly` **sans** annotation `@var`. Si ce test passe,
         // c'est que PHPStan suit le paramètre générique du constructeur au point d'appel tout
-        // seul — mesuré, parce que le README a d'abord affirmé l'inverse.
+        // seul. Mesuré, parce que le README a d'abord affirmé l'inverse.
         $errors = $this->analyse(withExtension: true);
 
         foreach ($this->matching($errors, 'undefined method') as $message) {
@@ -125,7 +125,7 @@ final class StubMethodsExtensionTest extends TestCase
         $errors = $this->analyse(withExtension: true);
 
         // Le contrat déclare `: string`, mais le stub planifie et rend un Awaitable. Rendre la
-        // réflexion du contrat telle quelle ferait refuser le `await()` qui suit — une faute qui
+        // réflexion du contrat telle quelle ferait refuser le `await()` qui suit, une faute qui
         // n'en est pas une.
         self::assertSame(
             [],

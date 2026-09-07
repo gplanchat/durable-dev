@@ -35,7 +35,7 @@ final class NexusOnLaravelTest extends TestCase
 
     public function testADeclaredHandlerIsRefusedOnABackendThatCannotRoute(): void
     {
-        // Le refus vient du cœur, et il arrive à l'enregistrement — pas au premier appel, quand
+        // Le refus vient du cœur, et il arrive à l'enregistrement, pas au premier appel, quand
         // l'application est en production et qu'un appelant attend une réponse.
         $app = $this->container('illuminate', [BillingHandler::class => BillingService::class]);
         (new DurableServiceProvider($app))->register();
@@ -97,7 +97,7 @@ final class NexusOnLaravelTest extends TestCase
         // La panne que ce refus remplace est muette : la charge est clée par nom des deux côtés,
         // donc `$ammount` recevrait `null` sans qu'aucune erreur ne soit levée. Symfony refuse
         // depuis sa passe de compilation ; l'hôte qui lit un fichier de configuration doit refuser
-        // au même moment — à l'enregistrement, pas au premier appel.
+        // au même moment : à l'enregistrement, pas au premier appel.
         $app = $this->container(
             'temporal',
             [DeferredBillingHandler::class => DeferredBillingService::class],

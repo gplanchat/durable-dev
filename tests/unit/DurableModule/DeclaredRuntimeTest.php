@@ -15,7 +15,7 @@ use unit\DurableModule\Fixture\RecordingOrderActivities;
  *
  * Ce qui se prouve ici sans Magento : qu'une classe **déclarée** tourne, que ses activités sont
  * résolues depuis `#[AsActivityMethod]` et non depuis des chaînes recopiées à la main, et qu'une
- * classe **non déclarée** échoue en le disant. La fabrique est du PHP ordinaire — c'est ce qui
+ * classe **non déclarée** échoue en le disant. La fabrique est du PHP ordinaire : c'est ce qui
  * permet à la CI de garder ce mécanisme, là où le reste du module demande un banc.
  */
 final class DeclaredRuntimeTest extends TestCase

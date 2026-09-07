@@ -54,7 +54,7 @@ final class LaravelWorkflowResumeDispatcherTest extends TestCase
     {
         $app = new Container();
         // La garde lit le **driver configuré**, pas la classe de la connexion : `SyncQueue` vit
-        // dans `illuminate/queue`, que ce paquet n'exige pas — voir la matrice Laravel de la CI.
+        // dans `illuminate/queue`, que ce paquet n'exige pas (voir la matrice Laravel de la CI).
         $app->instance('config', new \ArrayObject(
             [
                 'durable' => ['backend' => 'illuminate'],

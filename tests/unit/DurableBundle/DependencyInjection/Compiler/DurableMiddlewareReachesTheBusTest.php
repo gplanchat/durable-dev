@@ -16,7 +16,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  * Cette balise n'existe pas dans Symfony : rien n'appelle `findTaggedServiceIds()` dessus, et
  * `UnusedTagsPass` ne la connaît pas. Le service était donc défini et **installé dans aucun bus**,
  * en silence, alors que la documentation promet qu'il l'est automatiquement et que c'est la seule
- * garde du backend contre deux reprises concurrentes de la même exécution — activités dupliquées,
+ * garde du backend contre deux reprises concurrentes de la même exécution : activités dupliquées,
  * journal forké.
  *
  * Le test ne nomme aucune passe : il joue celles que le bundle enregistre et regarde le paramètre

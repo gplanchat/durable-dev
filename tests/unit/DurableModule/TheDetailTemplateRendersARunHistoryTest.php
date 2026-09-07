@@ -16,12 +16,12 @@ use PHPUnit\Framework\TestCase;
  *
  * ⚠ **Rien ne le vérifiait, et rien ne pouvait le vérifier.** PHPStan et Psalm tournent contre les
  * vraies classes de Magento dans la CI, mais aucun des deux n'analyse un `.phtml`. Ce gabarit vient
- * d'être réécrit sur une API d'objets — `$action->durationLabel`, `$row->actionLabel`,
- * `$row->renderedDetails` — là où il lisait des tableaux : une propriété mal nommée n'y casse rien à
+ * d'être réécrit sur une API d'objets (`$action->durationLabel`, `$row->actionLabel`,
+ * `$row->renderedDetails`) là où il lisait des tableaux : une propriété mal nommée n'y casse rien à
  * l'installation et rend un écran vide, sur celui qu'un exploitant est venu regarder.
  *
  * Le bloc, lui, est typé et la CI le voit. C'est le gabarit qui n'avait pas de filet ; il en a un,
- * et il n'a besoin ni de Magento ni d'une base — un double qui répond aux méthodes appelées suffit,
+ * et il n'a besoin ni de Magento ni d'une base : un double qui répond aux méthodes appelées suffit,
  * et c'est ce qui rend ce test tenable dans la suite ordinaire.
  */
 final class TheDetailTemplateRendersARunHistoryTest extends TestCase
@@ -82,7 +82,7 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
             require __DIR__ . '/../../../src/DurableModule/view/adminhtml/templates/process/detail.phtml';
         } finally {
             // `finally` et non la suite du flot : une erreur dans le gabarit laisserait sinon le
-            // tampon ouvert, et PHPUnit signale alors un test « risqué » par-dessus l'échec réel —
+            // tampon ouvert, et PHPUnit signale alors un test « risqué » par-dessus l'échec réel :
             // deux messages pour une cause, dont celui qui compte n'est pas le premier.
             $page = ob_get_clean();
         }
@@ -95,7 +95,7 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
 
 /**
  * Ce que le gabarit appelle sur son bloc, et rien de plus. Le vrai bloc étend `Template`, qui
- * réclame le conteneur de Magento — absent de cette suite, et il n'a rien à y faire.
+ * réclame le conteneur de Magento, absent de cette suite, et il n'a rien à y faire.
  */
 final class DetailBlockDouble
 {

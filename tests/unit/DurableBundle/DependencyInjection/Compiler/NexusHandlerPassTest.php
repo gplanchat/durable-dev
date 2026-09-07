@@ -133,7 +133,7 @@ final class NexusHandlerPassTest extends TestCase
 
     /**
      * Le trou que les autres tests laissaient : ils vérifient que l'appel est **ajouté** à la
-     * définition, jamais qu'il s'exécute. Entre les deux vivaient deux `TypeError` — la charge
+     * définition, jamais qu'il s'exécute. Entre les deux vivaient deux `TypeError` : la charge
      * entière passée en argument #1, et un retour ordinaire là où `dispatch()` attend un
      * {@see NexusOperationResponse}. Le conteneur est donc compilé, et l'opération vraiment
      * appelée.
@@ -160,7 +160,7 @@ final class NexusHandlerPassTest extends TestCase
             ['order' => 'CMD-1'],
         );
 
-        // La charge est clée par nom de paramètre — c'est ce que `NexusStub` écrit —, et le
+        // La charge est clée par nom de paramètre (c'est ce que `NexusStub` écrit), et le
         // gestionnaire rend le type que son contrat déclare. L'emballage est l'affaire de la
         // plomberie, pas de celui qui écrit le gestionnaire.
         self::assertTrue($response->isImmediate);
@@ -171,7 +171,7 @@ final class NexusHandlerPassTest extends TestCase
      * Le mode d'échec le plus silencieux de Nexus, et le seul que rien n'attrapait.
      *
      * La charge est clée par nom à l'écriture et relue par nom à l'arrivée. Un paramètre de
-     * workflow qui ne correspond à aucun paramètre du contrat n'est pas une erreur — il reçoit
+     * workflow qui ne correspond à aucun paramètre du contrat n'est pas une erreur : il reçoit
      * `null`. Le workflow démarre, s'exécute, et rend un résultat calculé sur du vide.
      */
     public function testAWorkflowWhoseParameterNamesDoNotMatchTheContractIsRefused(): void
@@ -217,8 +217,8 @@ final class NexusHandlerPassTest extends TestCase
      * Le mode d'échec : un conteneur qui compile et une application qui ne démarre pas.
      *
      * En mode dev, Symfony réécrit le conteneur en XML à chaque réchauffage. Un objet-valeur passé
-     * tel quel en argument d'appel de méthode n'est pas sérialisable, et le message qui sort
-     * — « Unable to dump a service container if a parameter is an object or a resource » — ne parle
+     * tel quel en argument d'appel de méthode n'est pas sérialisable, et le message qui sort,
+     * « Unable to dump a service container if a parameter is an object or a resource », ne parle
      * ni de Nexus, ni de la passe qui l'a posé. Ce test est la seule chose qui l'attrape avant que
      * quelqu'un ne vide son cache.
      */

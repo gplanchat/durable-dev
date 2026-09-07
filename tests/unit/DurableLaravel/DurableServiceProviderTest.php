@@ -29,7 +29,7 @@ use PHPUnit\Framework\TestCase;
  * Le provider de l'intégration Laravel, sans application Laravel autour.
  *
  * Un conteneur nu suffit, et c'est délibéré : ce que le provider fait doit être vrai dans un
- * worker autonome et dans un test, pas seulement sous un kernel complet — la leçon que
+ * worker autonome et dans un test, pas seulement sous un kernel complet, la leçon que
  * `ResumeLock` a déjà apprise en évitant `Lock::block()` et son `now()` global.
  */
 final class DurableServiceProviderTest extends TestCase
@@ -102,7 +102,7 @@ final class DurableServiceProviderTest extends TestCase
     public function testALockStoreThatLocksIsAccepted(): void
     {
         $app = $this->containerWithConnection(['backend' => 'memory']);
-        // `array` n'exclut que dans un processus, et c'est la commande de worker qui le jugera —
+        // `array` n'exclut que dans un processus, et c'est la commande de worker qui le jugera :
         // le démarrage ne refuse que ce qui n'est juste dans aucun déploiement (§1.3).
         $app->instance('cache', $this->cacheManagerReturning(new ArrayStore()));
 

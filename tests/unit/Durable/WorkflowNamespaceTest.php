@@ -12,12 +12,12 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Contrairement à {@see TaskQueue}, une erreur de namespace ne se tait pas : le serveur répond
- * `NOT_FOUND`. L'apport est donc surtout le typage — namespace et file de tâches étaient deux
+ * `NOT_FOUND`. L'apport est donc surtout le typage : namespace et file de tâches étaient deux
  * chaînes voisines dans les mêmes constructeurs.
  *
  * Verdicts serveur sondés : seul « non vide » est exigé ; espaces, majuscules, accents,
  * tabulations et plus de 255 caractères sont acceptés. Mais la comparaison est faite octet pour
- * octet — `DURABLE-TEST` et `durable-test ` sont introuvables quand `durable-test` existe.
+ * octet : `DURABLE-TEST` et `durable-test ` sont introuvables quand `durable-test` existe.
  */
 final class WorkflowNamespaceTest extends TestCase
 {

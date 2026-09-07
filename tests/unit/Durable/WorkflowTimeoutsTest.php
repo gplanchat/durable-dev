@@ -20,7 +20,7 @@ final class WorkflowTimeoutsTest extends TestCase
     public function testARunLongerThanTheExecutionIsRejected(): void
     {
         // Vérifié contre un vrai serveur : demander execution=10s + run=60s fait enregistrer
-        // run=10s. La configuration est réécrite en silence — autant la refuser tout haut.
+        // run=10s. La configuration est réécrite en silence ; autant la refuser tout haut.
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/cannot exceed execution timeout/');
 

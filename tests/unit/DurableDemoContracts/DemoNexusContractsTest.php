@@ -36,7 +36,7 @@ final class DemoNexusContractsTest extends TestCase
 
     /**
      * The failure mode: an operation declared on the served interface and invisible from the
-     * caller's contract — declared, served, and unreachable. That is why the resolver walks the
+     * caller's contract. Declared, served, and unreachable. That is why the resolver walks the
      * parent interfaces, and it is what this assertion holds.
      */
     public function testTheCallerSeesTheInheritedOperationsToo(): void
@@ -45,7 +45,7 @@ final class DemoNexusContractsTest extends TestCase
 
         self::assertSame(['reserve' => 'reserve'], $resolver->operations(StockContract::class));
 
-        // Sorted: the order is the one reflection returns — own methods before inherited ones —
+        // Sorted: the order is the one reflection returns (own methods before inherited ones),
         // and it is not something the routing reads.
         $billing = $resolver->operations(BillingContract::class);
         ksort($billing);
@@ -61,7 +61,7 @@ final class DemoNexusContractsTest extends TestCase
 
     /**
      * The failure mode: an object as a parameter or as a return. A Nexus payload is plain JSON,
-     * decoded into an associative array on the other side of the boundary — a parameter typed
+     * decoded into an associative array on the other side of the boundary: a parameter typed
      * `Order` would receive an array, and that is a `TypeError` at the moment the handler is
      * called, not when the contract is written. The constraint is also what lets a handler written
      * in Go or in TypeScript read the same fields.

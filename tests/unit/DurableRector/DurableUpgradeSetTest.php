@@ -11,8 +11,8 @@ use Rector\Testing\PHPUnit\AbstractRectorTestCase;
  * Le set qui fait passer un projet d'une version de Durable à la suivante.
  *
  * `temporal-sdk.php` fait entrer un projet dans Durable ; celui-ci l'y fait avancer. Les deux
- * existent pour la même raison — un nom qui bouge sans procédure est une rupture qu'on découvre
- * en production —, et la règle du dépôt est explicite : Rector d'abord, script sinon, et de la
+ * existent pour la même raison (un nom qui bouge sans procédure est une rupture qu'on découvre
+ * en production), et la règle du dépôt est explicite : Rector d'abord, script sinon, et de la
  * documentation dans tous les cas.
  */
 final class DurableUpgradeSetTest extends AbstractRectorTestCase

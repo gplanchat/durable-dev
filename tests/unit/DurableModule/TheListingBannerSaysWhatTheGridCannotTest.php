@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
  * ⚠ **Une grille vide ne dit rien toute seule.** Elle se lit pareil quand rien n'a tourné, quand la
  * grappe est tombée, et quand le journal ne survit pas à la requête qui rend la page. Cet écran ne
  * sondait pas : une grappe morte y rendait une grille vide et sereine, et l'exploitant en concluait
- * qu'il n'y avait rien à voir. Une grille n'a pas d'endroit où dire ça — la bannière, si.
+ * qu'il n'y avait rien à voir. Une grille n'a pas d'endroit où dire ça : la bannière, si.
  *
  * Comme pour le gabarit de détail, aucun outil de la CI n'analyse un `.phtml`.
  */

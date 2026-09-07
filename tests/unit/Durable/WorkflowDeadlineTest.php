@@ -86,7 +86,7 @@ final class WorkflowDeadlineTest extends TestCase
     public function testASignalWaitGivesUpOnItsDeadlineInTheHarness(): void
     {
         // Le premier test qu'écrira quiconque se sert de la fonctionnalité : personne ne délivre
-        // le signal, et c'est l'échéance qui doit conclure — pas le garde d'absence de progrès du
+        // le signal, et c'est l'échéance qui doit conclure, pas le garde d'absence de progrès du
         // runner.
         $env = WorkflowTestEnvironment::inMemory([]);
 

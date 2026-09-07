@@ -60,19 +60,19 @@ final class ApprovalWorkflow
 }
 
 /**
- * Dispatch des handlers de signal et d'update — bloc 3 du change
- * workflow-conditions-and-handler-dispatch.
+ * Dispatch des handlers de signal et d'update (bloc 3 du change
+ * workflow-conditions-and-handler-dispatch).
  *
  * Note aux relectures : ce fichier est ROUGE par construction, `onSignal()` et le dispatch de
  * `#[AsSignalMethod]` arrivant au bloc 5. Deux exceptions assumées : le cas 3.3 passe au vert sans
- * une ligne de code neuve — un signal que personne ne consomme dort déjà dans l'historique — et
+ * une ligne de code neuve (un signal que personne ne consomme dort déjà dans l'historique), et
  * les deux cas d'update sont explicitement incomplets, faute d'une décision de transport qui
  * appartient au bloc 5.
  */
 final class WorkflowHandlerDispatchTest extends TestCase
 {
     // -------------------------------------------------------------------------
-    // 3.1 / 3.2 — les deux façons de déclarer un handler
+    // 3.1 / 3.2 : les deux façons de déclarer un handler
     // -------------------------------------------------------------------------
 
     public function testAnAnnotatedMethodHandlesTheSignalItNames(): void
@@ -113,7 +113,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // 3.3 — un message sans handler
+    // 3.3 : un message sans handler
     // -------------------------------------------------------------------------
 
     public function testAMessageWithNoDeclaredHandlerIsRecordedAndIgnored(): void
@@ -129,7 +129,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // 3.4 / 3.5 / 3.6 — ordre, répétition, et le message arrivé trop tôt
+    // 3.4 / 3.5 / 3.6 : ordre, répétition, et le message arrivé trop tôt
     // -------------------------------------------------------------------------
 
     public function testTwoSignalsAreHandledInRecordedOrder(): void
@@ -208,7 +208,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // 3.7 / 3.8 — les updates, en attente d'une décision de transport
+    // 3.7 / 3.8 : les updates, en attente d'une décision de transport
     // -------------------------------------------------------------------------
 
     public function testAnUpdateHandlerReturnValueReachesTheCaller(): void
@@ -231,7 +231,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
             return 'terminé';
         };
 
-        // L'update arrive hors journal, pour cette passe seulement — comme sur la tâche Temporal.
+        // L'update arrive hors journal, pour cette passe seulement, comme sur la tâche Temporal.
         $pending = new PendingUpdate('approve', ['by' => 'alice']);
 
         self::assertSame('terminé', $engine->resume('upd-1', $handler, null, [$pending]));
@@ -278,7 +278,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
     public function testAFailedUpdateReplayedDoesNotFailTheWorkflow(): void
     {
         // Le chemin que seul un vrai serveur avait révélé : au replay, le handler d'un update en
-        // échec rejoue et relève de nouveau. Sa défaillance est déjà partie chez l'appelant —
+        // échec rejoue et relève de nouveau. Sa défaillance est déjà partie chez l'appelant :
         // la laisser remonter ferait échouer une exécution que l'original avait laissée vivante.
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
@@ -315,7 +315,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
     {
         // L'ordre, et pas seulement le contenu : l'issue doit précéder ce que le workflow fait
         // en réponse, sinon un replay les appliquerait dans l'autre sens. C'est l'ordre que
-        // Temporal produit — l'acceptation avant les commandes du workflow (ADR DUR035).
+        // Temporal produit : l'acceptation avant les commandes du workflow (ADR DUR035).
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
         $store->append(new ExecutionStarted('upd-4', []));

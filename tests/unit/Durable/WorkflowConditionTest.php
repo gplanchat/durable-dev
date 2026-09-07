@@ -21,21 +21,21 @@ use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Attendre une condition sur l'état du workflow — bloc 2 du change
- * workflow-conditions-and-handler-dispatch.
+ * Attendre une condition sur l'état du workflow (bloc 2 du change
+ * workflow-conditions-and-handler-dispatch).
  *
  * Les cas de verdict sont joués sur un journal écrit à la main puis rejoué : c'est le seul moyen
  * d'atteindre l'ordre d'événements qui compte, et c'est le chemin de replay que le verdict doit
  * traverser.
  *
  * Note aux relectures : ces tests sont ROUGES par construction. `await(condition)` et
- * `onSignal()` n'existent pas encore — ils arrivent aux blocs 4 et 5. Ce fichier fixe la forme
+ * `onSignal()` n'existent pas encore : ils arrivent aux blocs 4 et 5. Ce fichier fixe la forme
  * publique visée, pas une régression.
  */
 final class WorkflowConditionTest extends TestCase
 {
     // -------------------------------------------------------------------------
-    // 2.1 — une condition déjà vraie
+    // 2.1 : une condition déjà vraie
     // -------------------------------------------------------------------------
 
     public function testAConditionThatAlreadyHoldsDoesNotSuspend(): void
@@ -54,7 +54,7 @@ final class WorkflowConditionTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // 2.2 / 2.3 — un message rend la condition vraie, et le replay repart au même endroit
+    // 2.2 / 2.3 : un message rend la condition vraie, et le replay repart au même endroit
     // -------------------------------------------------------------------------
 
     public function testAConditionBecomesTrueOnADeliveredMessage(): void
@@ -88,7 +88,7 @@ final class WorkflowConditionTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // 2.4 — la garantie DUR032, réénoncée sur une condition
+    // 2.4 : la garantie DUR032, réénoncée sur une condition
     // -------------------------------------------------------------------------
 
     public function testAMessageRecordedAfterTheDeadlineDoesNotUndoTheTimeout(): void
@@ -121,7 +121,7 @@ final class WorkflowConditionTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // 2.5 — les messages sont appliqués un par un
+    // 2.5 : les messages sont appliqués un par un
     // -------------------------------------------------------------------------
 
     public function testTwoMessagesAreAppliedOneAtATime(): void
@@ -155,7 +155,7 @@ final class WorkflowConditionTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // 2.6 — une condition qui ne peut jamais devenir vraie
+    // 2.6 : une condition qui ne peut jamais devenir vraie
     // -------------------------------------------------------------------------
 
     public function testAConditionThatCanNeverHoldIsReportedNotHung(): void
@@ -177,7 +177,7 @@ final class WorkflowConditionTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // 2.7 — une valeur non reproductible se consigne avant d'être lue
+    // 2.7 : une valeur non reproductible se consigne avant d'être lue
     // -------------------------------------------------------------------------
 
     public function testANonReproducibleValueIsReadBackIdenticallyOnReplay(): void

@@ -20,7 +20,7 @@ use PHPUnit\Framework\TestCase;
  * forme typée ne sait pas exprimer ce qu'on veut : c'est pour ça que l'application d'exemple
  * lançait ses deux enfants parallèles en les nommant par une chaîne.
  *
- * DUR033 l'avait déjà tranché — « await() est la seule méthode qui attend » — mais il énumérait
+ * DUR033 l'avait déjà tranché (« await() est la seule méthode qui attend »), mais il énumérait
  * les méthodes de l'environnement, pas celles du stub.
  *
  * @see openspec/changes/child-workflow-surface

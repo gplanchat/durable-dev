@@ -22,7 +22,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  * Le troisième cas a changé de réponse, et l'argument qu'il portait mérite d'être gardé plutôt
  * qu'effacé. Il disait : sans backend lisible, **rien** ne doit être enregistré, parce qu'un
  * catalogue qui ne sait rien lire afficherait une page vide là où l'exploitant doit lire « aucun
- * backend lisible n'est configuré » — et l'in-memory était ce cas, son journal vivant et mourant
+ * backend lisible n'est configuré », et l'in-memory était ce cas, son journal vivant et mourant
  * avec le processus qui sert la requête.
  *
  * La moitié qui tient toujours : sous PHP-FPM, la requête qui rend la page n'a rien exécuté, donc
@@ -105,7 +105,7 @@ final class DurableRunCatalogWiringTest extends TestCase
     /**
      * Le risque du câblage n'est pas qu'un service manque : c'est que trois services corrects
      * pointent sur deux objets différents. Les décorateurs doivent alimenter **le** catalogue que
-     * la page lira, et le catalogue doit lire le journal **non décoré** — sinon le conteneur
+     * la page lira, et le catalogue doit lire le journal **non décoré**, sinon le conteneur
      * boucle.
      */
     public function testTheThreeInMemoryServicesShareOneCatalogAndOneJournal(): void

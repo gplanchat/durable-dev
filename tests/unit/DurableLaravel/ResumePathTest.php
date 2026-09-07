@@ -41,7 +41,7 @@ final class ResumePathTest extends TestCase
     public function testAResumeJobActuallyReplaysTheExecution(): void
     {
         // `ResumeWorkflowHandler` est `final` : pas de double. On lui donne donc un vrai
-        // workflow et de vrais magasins en mémoire, et on regarde le résultat — ce qui prouve
+        // workflow et de vrais magasins en mémoire, et on regarde le résultat, ce qui prouve
         // davantage qu'un espion, puisque c'est le rejeu du cœur qui tourne.
         $app = $this->container([GreetingWorkflow::class]);
         (new DurableServiceProvider($app))->register();

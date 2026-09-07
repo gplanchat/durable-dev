@@ -87,11 +87,11 @@ final class StubCallSites
         // Correct : la méthode d'entrée de l'enfant.
         $this->environment->await($this->child->run('bonjour'));
 
-        // FAUTIF — faute de frappe. C'est le cas qui motive l'extension : sans elle, aucune
+        // FAUTIF. Faute de frappe. C'est le cas qui motive l'extension : sans elle, aucune
         // erreur d'analyse, et un BadMethodCallException à l'exécution.
         $this->environment->await($this->orders->chrage($orderId, 100));
 
-        // FAUTIF — déclarée par le contrat, mais sans #[AsActivityMethod] : ce n'est pas une
+        // FAUTIF. Déclarée par le contrat, mais sans #[AsActivityMethod] : ce n'est pas une
         // activité, et le stub la refuse.
         $this->environment->await($this->orders->helper());
 
@@ -102,13 +102,13 @@ final class StubCallSites
         // ce cas possible, et l'extension doit la suivre comme le résolveur la suit.
         $this->environment->await($this->billing->verify($orderId));
 
-        // FAUTIF — déclarée par le contrat Nexus, mais sans #[AsNexusOperation].
+        // FAUTIF. Déclarée par le contrat Nexus, mais sans #[AsNexusOperation].
         $this->environment->await($this->billing->rateCard());
 
-        // FAUTIF — faute de frappe sur une opération Nexus.
+        // FAUTIF. Faute de frappe sur une opération Nexus.
         $this->environment->await($this->billing->chagre($orderId, 1200));
 
-        // FAUTIF — mauvais nombre d'arguments. Ne devient visible que parce que l'extension a
+        // FAUTIF. Mauvais nombre d'arguments. Ne devient visible que parce que l'extension a
         // rendu la méthode connue : c'est le gain de second ordre.
         return $this->environment->await($this->orders->charge($orderId));
     }

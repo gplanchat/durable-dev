@@ -31,7 +31,7 @@ final class DurableTemporalTransportFactoryPassTest extends TestCase
 
         (new DurableTemporalTransportFactoryPass())->process($container);
 
-        // Aucune exception levée — le pass a bien ignoré l'absence du service.
+        // Aucune exception levée : le pass a bien ignoré l'absence du service.
         $this->assertTrue(true);
     }
 

@@ -41,7 +41,7 @@ final class LaravelActivityTransportTest extends TestCase
             retryDelay: Duration::seconds(2.4),
         ));
 
-        // Le report devient celui de la file — arrondi au-dessus, parce qu'attendre moins que
+        // Le report devient celui de la file, arrondi au-dessus, parce qu'attendre moins que
         // demandé est la seule erreur qui compte ici.
         self::assertSame(3, $queue->pushed[0]['delay']);
 

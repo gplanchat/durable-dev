@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
  * Le backend Temporal, servi plutôt que refusé.
  *
  * Ce que ces tests ne font pas : parler à un cluster. Ils vérifient que le paquet **assemble** le
- * pont — la suite d'intégration, elle, tourne contre un vrai serveur.
+ * pont ; la suite d'intégration, elle, tourne contre un vrai serveur.
  */
 final class TemporalBackendTest extends TestCase
 {
