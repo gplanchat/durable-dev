@@ -25,10 +25,10 @@ $factory = $om->get(\Gplanchat\DurableModule\Runtime\RuntimeFactory::class);
 $workflow = \Gplanchat\DurableProbe\Workflow\EveryCaseWorkflow::class;
 
 if ('here' === $mode) {
-    printf("%s exécuté ici même -> %s\n", $caseId, var_export($factory->create()->run($workflow, ['caseId' => $caseId]), true));
+    printf("%s run right here -> %s\n", $caseId, var_export($factory->create()->run($workflow, ['caseId' => $caseId]), true));
 
     exit(0);
 }
 
 $factory->workflowClient()->startAsync($workflow, ['caseId' => $caseId], $caseId);
-printf("%s démarré sur la grappe — `bin/magento durable:worker` doit tourner\n", $caseId);
+printf("%s started on the cluster — `bin/magento durable:worker` has to be running\n", $caseId);

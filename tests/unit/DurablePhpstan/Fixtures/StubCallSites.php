@@ -30,21 +30,21 @@ interface OrderActivities
     public function helper(): string;
 }
 
-#[AsNexusService('facturation')]
-interface FacturationServed
+#[AsNexusService('billing')]
+interface BillingServed
 {
-    #[AsNexusOperation('verifier')]
-    public function verifier(string $ordre): string;
+    #[AsNexusOperation('verify')]
+    public function verify(string $order): string;
 }
 
-#[AsNexusService('facturation')]
-interface Facturation extends FacturationServed
+#[AsNexusService('billing')]
+interface BillingContract extends BillingServed
 {
-    #[AsNexusOperation('encaisser')]
-    public function encaisser(string $ordre, int $montant): string;
+    #[AsNexusOperation('charge')]
+    public function charge(string $order, int $amount): string;
 
     /** Sans attribut : du code de contrat, pas une opération appelable. */
-    public function bareme(): string;
+    public function rateCard(): string;
 }
 
 #[AsWorkflow(name: 'child')]
@@ -68,14 +68,14 @@ final class StubCallSites
 
     private readonly ChildWorkflowStub $child;
 
-    private readonly NexusStub $facturation;
+    private readonly NexusStub $billing;
 
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
         $this->orders = $environment->activityStub(OrderActivities::class);
         $this->child = $environment->childWorkflowStub(ChildWorkflow::class);
-        $this->facturation = $environment->nexusStub(Facturation::class, 'paiements');
+        $this->billing = $environment->nexusStub(BillingContract::class, 'payments');
     }
 
     #[AsWorkflowMethod]
@@ -96,17 +96,17 @@ final class StubCallSites
         $this->environment->await($this->orders->helper());
 
         // Correct : déclarée par le contrat Nexus et marquée.
-        $this->environment->await($this->facturation->encaisser($orderId, 1200));
+        $this->environment->await($this->billing->charge($orderId, 1200));
 
         // Correct : **héritée** du contrat servi. C'est la séparation en deux interfaces qui rend
         // ce cas possible, et l'extension doit la suivre comme le résolveur la suit.
-        $this->environment->await($this->facturation->verifier($orderId));
+        $this->environment->await($this->billing->verify($orderId));
 
         // FAUTIF — déclarée par le contrat Nexus, mais sans #[AsNexusOperation].
-        $this->environment->await($this->facturation->bareme());
+        $this->environment->await($this->billing->rateCard());
 
         // FAUTIF — faute de frappe sur une opération Nexus.
-        $this->environment->await($this->facturation->encasser($orderId, 1200));
+        $this->environment->await($this->billing->chagre($orderId, 1200));
 
         // FAUTIF — mauvais nombre d'arguments. Ne devient visible que parce que l'extension a
         // rendu la méthode connue : c'est le gain de second ordre.

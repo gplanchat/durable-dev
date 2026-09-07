@@ -20,7 +20,7 @@ durable:
             - App\Durable\Activity\GreetingActivityInterface
             - App\Durable\Activity\EchoActivityInterface
             - App\Durable\Activity\TickActivityInterface
-            - App\Durable\Activity\EncaissementActivityInterface
+            - App\Durable\Activity\ChargeActivityInterface
 
 when@dev:
     durable:

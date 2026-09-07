@@ -1,6 +1,6 @@
 {% extends '@WebProfiler/Profiler/layout.html.twig' %}
 
-{# Macros réutilisables pour les bandeaux time frame #}
+{# Macros shared by the time frame bands #}
 {% macro timeframe_segment_row(seg) %}
     <div class="durable-timeframe-row">
         <div class="durable-timeframe-label">
@@ -121,7 +121,7 @@
         .durable-cat--effect { background: #eceff1; color: #455a64; }
         .durable-cat--default { background: #eceff1; color: #546e7a; }
         .durable-summary-table code { font-size: 11px; }
-        /* Inspiration : vue « Workflow » / historique d’événements (Temporal UI OSS) */
+        /* Modelled on the "Workflow" view and its event history (Temporal UI OSS) */
         .durable-exec-header {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -174,7 +174,7 @@
             <span>{{ collector.dispatchCount }}</span>
         </div>
         <div class="sf-toolbar-info-piece">
-            <b>Événements (journal)</b>
+            <b>Events (journal)</b>
             <span>{{ collector.journalEventCount }}</span>
         </div>
     {% endset %}
@@ -193,29 +193,30 @@
 {% endblock %}
 
 {% block panel %}
-    <h2>Durable — exécutions &amp; historique</h2>
+    <h2>Durable — executions &amp; history</h2>
 
     <p class="help">
-        Pour charger le journal d’une exécution absente de la trace (worker, autre requête, etc.), il faut que
-        <strong>la requête HTTP profilée</strong> (celle qui ouvre la barre de debug), et non l’URL du panneau profiler après coup,
-        contienne <code>durable_execution</code> avec l’UUID (virgules si plusieurs). Rechargez donc la page applicative concernée
-        avec ce paramètre pour générer un nouveau profil incluant le journal persisté.
+        To load the journal of an execution the trace does not carry (a worker, another request, and so on),
+        it is <strong>the profiled HTTP request</strong> — the one that opens the debug bar, not the profiler URL
+        opened afterwards — that must carry <code>durable_execution</code> with the UUID (comma-separated if there
+        are several). Reload the application page with that parameter to produce a new profile that includes the
+        persisted journal.
     </p>
 
     <p>
-        Vue proche de l’<a href="https://github.com/temporalio/ui" rel="noopener noreferrer" target="_blank">Temporal Web UI</a> (OSS) :
-        les <strong>executionId</strong> collectés viennent des dispatches Messenger sur cette requête ; l’<strong>historique</strong> (runs, activités, timers…)
-        est lu dans l’<strong>event store</strong>, même si le workflow s’est exécuté dans un worker ou une autre requête.
+        A view close to the <a href="https://github.com/temporalio/ui" rel="noopener noreferrer" target="_blank">Temporal Web UI</a> (OSS):
+        the <strong>executionId</strong> values collected come from the Messenger dispatches on this request; the <strong>history</strong> (runs, activities, timers…)
+        is read from the <strong>event store</strong>, even when the workflow ran in a worker or in another request.
     </p>
     <p class="help">
-        Libellés « métier » via <code>DurableProfilerEventPresentation</code> ; la colonne « Type d’événement » reprend le nom de classe PHP
-        (comme l’Event Type dans Temporal). Pas d’horodatage mural : l’index du journal correspond à l’ordre d’append (équivalent partiel de l’Event ID).
+        Reading labels come from <code>DurableProfilerEventPresentation</code>; the "Event type" column keeps the PHP class name
+        (the Event Type of Temporal). There is no wall clock: the journal index is the append order, a partial equivalent of the Event ID.
     </p>
     {% if collector.dispatchCount > 0 and collector.journalEventCount == 0 %}
         <p class="help" style="background:#fffbeb;border:1px solid #fcd34d">
-            <strong>Journal encore vide</strong> pour les executionId collectés : le message est peut‑être encore en file ou aucun événement
-            n’a été persisté (autre base, autre environnement). Si des workers consomment la file ailleurs, le journal apparaîtra ici dès que la même
-            base <code>durable_events</code> contiendra des lignes pour ces identifiants.
+            <strong>Journal still empty</strong> for the collected executionId values: the message may still be queued, or no event
+            was persisted at all (another database, another environment). If workers consume the queue elsewhere, the journal shows up here as soon as
+            the same <code>durable_events</code> database holds rows for those identifiers.
         </p>
     {% endif %}
 
@@ -225,10 +226,10 @@
 
     <div class="sf-tabs">
         <div class="tab">
-            <h3 class="tab-title">Résumé <span class="badge">{{ executionsDetail|length }}</span></h3>
+            <h3 class="tab-title">Summary <span class="badge">{{ executionsDetail|length }}</span></h3>
             <div class="tab-content">
                 {% if executionsDetail is empty %}
-                    <p class="help">Aucune exécution identifiée sur cette requête (trace vide et aucun <code>executionId</code> collecté).</p>
+                    <p class="help">No execution identified on this request (empty trace, and no <code>executionId</code> collected).</p>
                 {% else %}
                     <table class="durable-summary-table">
                         <thead>
@@ -236,9 +237,9 @@
                                 <th>Workflow ID</th>
                                 <th>Type</th>
                                 <th>Statut</th>
-                                <th>Entrée (input)</th>
+                                <th>Input</th>
                                 <th>Trace processus (segments)</th>
-                                <th>Événements</th>
+                                <th>Events</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -252,8 +253,8 @@
                                     <td><span class="text-muted">{{ ex.payloadSummary|default('—') }}</span></td>
                                     <td>{{ ex.processTraceCount }} segment(s)</td>
                                     <td>
-                                        {{ ex.storeEventCount }} évén.
-                                        {% if ex.storeTruncated %}<span class="text-muted">(tronqué)</span>{% endif %}
+                                        {{ ex.storeEventCount }} ev.
+                                        {% if ex.storeTruncated %}<span class="text-muted">(truncated)</span>{% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -262,14 +263,14 @@
                 {% endif %}
 
                 {% if collector.runSnapshots|length > 0 %}
-                    <h4>Instantanés au dispatch</h4>
-                    <p class="help">État des métadonnées au moment où un <code>WorkflowRunMessage</code> a été observé.</p>
+                    <h4>Snapshots at dispatch</h4>
+                    <p class="help">The state of the metadata at the moment a <code>WorkflowRunMessage</code> was observed.</p>
                     <table>
                         <thead>
                             <tr>
                                 <th>executionId</th>
-                                <th>Métadonnées</th>
-                                <th>Événements (compte)</th>
+                                <th>Metadata</th>
+                                <th>Events (count)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -294,17 +295,17 @@
         </div>
 
         <div class="tab">
-            <h3 class="tab-title">Exécutions</h3>
+            <h3 class="tab-title">Executions</h3>
             <div class="tab-content">
                 {% if executionsDetail is empty %}
-                    <p class="help">Aucune exécution à afficher.</p>
+                    <p class="help">No execution to show.</p>
                 {% else %}
                     <div class="sf-tabs">
                         {% for ex in executionsDetail %}
                             <div class="tab">
                                 <h3 class="tab-title">
                                     {% set _wf = ex.workflowType|default('') %}
-                                    {% if _wf %}{{ _wf }}{% else %}<span class="text-muted">(sans type)</span>{% endif %}
+                                    {% if _wf %}{{ _wf }}{% else %}<span class="text-muted">(no type)</span>{% endif %}
                                     <small><code>{{ ex.executionId|slice(0, 8) }}…</code></small>
                                 </h3>
                                 <div class="tab-content">
@@ -324,10 +325,10 @@
                                             </dd>
                                         </div>
                                         <div>
-                                            <dt>Événements (historique)</dt>
+                                            <dt>Events (history)</dt>
                                             <dd>
-                                                {{ ex.storeEventCount }} dans le journal
-                                                {% if ex.storeTruncated %}<span class="text-muted"> — affichage tronqué</span>{% endif %}
+                                                {{ ex.storeEventCount }} in the journal
+                                                {% if ex.storeTruncated %}<span class="text-muted"> — display truncated</span>{% endif %}
                                             </dd>
                                         </div>
                                         <div style="grid-column: 1 / -1;">
@@ -343,17 +344,17 @@
                                     {% endif %}
 
                                     {% if ex.storeRows|length > 0 %}
-                                        <h4 class="durable-section-title">Historique des événements</h4>
-                                        <p class="help">Équivalent à l’onglet <em>Event history</em> de Temporal : ordre chronologique du journal, type d’événement, payload.</p>
+                                        <h4 class="durable-section-title">Event history</h4>
+                                        <p class="help">The equivalent of Temporal's <em>Event history</em> tab: the journal in chronological order, the event type, the payload.</p>
                                         <table>
                                             <thead>
                                                 <tr>
                                                     <th>ID</th>
                                                     <th>Heure (journal)</th>
-                                                    <th>Type d’événement</th>
-                                                    <th>Catégorie</th>
-                                                    <th>Résumé</th>
-                                                    <th>Détail</th>
+                                                    <th>Event type</th>
+                                                    <th>Category</th>
+                                                    <th>Summary</th>
+                                                    <th>Detail</th>
                                                     <th>Payload</th>
                                                 </tr>
                                             </thead>
@@ -375,19 +376,19 @@
 
                                     {% set st = ex.storeTimeline %}
                                     {% if st is not null and st.bounds is not null and st.segments is not empty %}
-                                        <h4 class="durable-section-title">Timeline du journal (séquentielle)</h4>
-                                        <p class="help">Représentation visuelle de l’ordre des événements (sans horodatage mural).
-                                            {% if st.truncated %}<strong>Tronqué</strong> à 500 événements.{% endif %}
+                                        <h4 class="durable-section-title">Journal timeline (sequential)</h4>
+                                        <p class="help">A visual reading of the event order (no wall clock).
+                                            {% if st.truncated %}<strong>Truncated</strong> at 500 events.{% endif %}
                                         </p>
                                         <div class="durable-timeframe-wrap">
                                             <div class="durable-timeframe-legend">
                                                 <span><span class="durable-timeframe-swatch" style="background:#4a90d9"></span> Planification</span>
                                                 <span><span class="durable-timeframe-swatch" style="background:#9b59b6"></span> Cycle de vie workflow</span>
-                                                <span><span class="durable-timeframe-swatch" style="background:#27ae60"></span> Effets / complétions</span>
+                                                <span><span class="durable-timeframe-swatch" style="background:#27ae60"></span> Effects / completions</span>
                                             </div>
                                             <div class="durable-timeframe-axis">
-                                                <span>{{ st.eventCount }} événement(s)</span>
-                                                <span>ordre du journal</span>
+                                                <span>{{ st.eventCount }} event(s)</span>
+                                                <span>journal order</span>
                                             </div>
                                             {% for seg in st.segments %}
                                                 {{ _self.timeframe_segment_row(seg) }}
@@ -397,13 +398,13 @@
 
                                     {% set ptf = ex.processTimeframe|default({}) %}
                                     {% if ptf.bounds is not null and ptf.segments is not empty %}
-                                        <h4 class="durable-section-title">Avancement sur cette requête (timing processus)</h4>
-                                        <p class="help">Enchaînement observé dans ce processus : envoi Messenger, tours du moteur (start / reprise), activités exécutées ici (dont worker d’activité). L’historique détaillé reste le journal ci‑dessus.</p>
+                                        <h4 class="durable-section-title">Progress on this request (process timing)</h4>
+                                        <p class="help">What this process was observed doing: the Messenger dispatch, the engine turns (start / resume), the activities run here (an activity worker included). The detailed history stays the journal above.</p>
                                         <div class="durable-timeframe-wrap">
                                             <div class="durable-timeframe-legend">
                                                 <span><span class="durable-timeframe-swatch" style="background:#4a90d9"></span> Messenger (WorkflowRunMessage)</span>
                                                 <span><span class="durable-timeframe-swatch" style="background:#9b59b6"></span> Run workflow (moteur)</span>
-                                                <span><span class="durable-timeframe-swatch" style="background:#27ae60"></span> Activité</span>
+                                                <span><span class="durable-timeframe-swatch" style="background:#27ae60"></span> Activity</span>
                                             </div>
                                             <div class="durable-timeframe-axis">
                                                 <span>0&nbsp;ms</span>
@@ -414,18 +415,18 @@
                                             {% endfor %}
                                         </div>
                                     {% else %}
-                                        <p class="help">Aucune trace processus pour cet executionId sur cette requête (workflow / activités ailleurs, ou id ajouté seulement via <code>durable_execution</code> sans activité dans ce processus).</p>
+                                        <p class="help">No process trace for this executionId on this request (the workflow or its activities ran elsewhere, or the id was added through <code>durable_execution</code> alone with no activity in this process).</p>
                                     {% endif %}
 
                                     {% if ex.timelineEntries|length > 0 %}
-                                        <h4 class="durable-section-title">Trace processus (détail)</h4>
+                                        <h4 class="durable-section-title">Process trace (detail)</h4>
                                         <table>
                                             <thead>
                                                 <tr>
                                                     <th>#</th>
                                                     <th>Type</th>
-                                                    <th>Détail</th>
-                                                    <th>Durée</th>
+                                                    <th>Detail</th>
+                                                    <th>Duration</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -433,7 +434,7 @@
                                                     <tr>
                                                         <td>{{ e.seq }}</td>
                                                         <td>
-                                                            {% if e.kind == 'dispatch' %}Messenger{% elseif e.kind == 'workflow' %}Workflow{% elseif e.kind == 'activity' %}Activité{% else %}{{ e.kind|default('?') }}{% endif %}
+                                                            {% if e.kind == 'dispatch' %}Messenger{% elseif e.kind == 'workflow' %}Workflow{% elseif e.kind == 'activity' %}Activity{% else %}{{ e.kind|default('?') }}{% endif %}
                                                         </td>
                                                         <td>
                                                             {% if e.kind == 'dispatch' %}
@@ -487,13 +488,13 @@
                 {% endfor %}
 
                 {% if collector.timeline|length > 0 %}
-                    <h4>Dispatches Messenger (cette requête)</h4>
+                    <h4>Messenger dispatches (this request)</h4>
                     <table>
                         <thead>
                             <tr>
                                 <th>#</th>
                                 <th>executionId</th>
-                                <th>Événement</th>
+                                <th>Event</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -505,7 +506,7 @@
                                         {% if e.kind == 'dispatch' %}
                                             {{ e.dispatchSummary|default('dispatch ' ~ e.workflowType|default('')) }}
                                         {% elseif e.kind == 'workflow' %}
-                                            workflow {{ e.workflowType }} {% if e.isResume %}(reprise){% else %}(démarrage){% endif %}
+                                            workflow {{ e.workflowType }} {% if e.isResume %}(resume){% else %}(start){% endif %}
                                         {% elseif e.kind == 'activity' %}
                                             {{ e.activityName }} — {{ (e.durationSeconds * 1000)|number_format(2) }} ms
                                         {% else %}
@@ -519,7 +520,7 @@
                 {% endif %}
 
                 {% if collector.timeline|length == 0 and executionsDetail is empty %}
-                    <p class="help">Aucune donnée pour cette requête.</p>
+                    <p class="help">No data for this request.</p>
                 {% endif %}
             </div>
         </div>
