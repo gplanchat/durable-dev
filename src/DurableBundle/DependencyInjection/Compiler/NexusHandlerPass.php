@@ -17,23 +17,23 @@ use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
 
 /**
- * Enregistre sur {@see NexusOperationRegistry} les opérations servies, lues **depuis le contrat**.
+ * Registers on {@see NexusOperationRegistry} the served operations, read **from the contract**.
  *
- * La balise ne porte que le contrat. Les noms de service et d'opération vivent dans le contrat, une
- * seule fois, et l'appelant lit le même objet : une faute de frappe est une erreur de type, pas une
- * opération qui attend un gestionnaire dont le nom ne correspondra jamais.
+ * The tag carries nothing but the contract. The service and operation names live in the contract,
+ * once, and the caller reads the same object: a typo is a type error, not an operation waiting on
+ * a handler whose name will never match.
  *
- * **Le refus se fait au démarrage, et c'est la raison d'être de cette passe.** Côté appelant, un
- * appel Nexus sur un backend qui ne sait pas router échoue au moment de l'appel — c'est là que la
- * faute devient visible. Servir est l'inverse : un gestionnaire déclaré sur un backend sans route
- * n'est pas un appel qui échoue, c'est un service qui **ne reçoit jamais rien**, sans une ligne de
- * log. Il n'y a pas de requête à faire échouer plus tard.
+ * **The refusal happens at startup, and that is this pass's reason to exist.** On the caller's
+ * side, a Nexus call on a backend that cannot route fails at the moment of the call — that is
+ * where the fault becomes visible. Serving is the reverse: a handler declared on a backend with no
+ * route is not a call that fails, it is a service that **never receives anything**, without a line
+ * of log. There is no request to fail later.
  *
- * **Cette passe n'est pas le seul garde, et ne doit pas l'être.** {@see NexusOperationRegistry}
- * refuse de son côté, dans le cœur : celui-ci n'attrape que Symfony, alors que le module Magento et
- * le pont Illuminate montent leurs services autrement. Les deux se complètent — la passe échoue
- * **plus tôt** et nomme les services fautifs, ce qu'un registre n'a pas les moyens de faire ; le
- * registre rattrape tous les hôtes que la passe ne voit pas.
+ * **This pass is not the only guard, and must not be.** {@see NexusOperationRegistry} refuses on
+ * its side, in the core: this one only catches Symfony, whereas the Magento module and the
+ * Illuminate bridge wire their services differently. The two complement each other — the pass
+ * fails **earlier** and names the services at fault, which a registry has no means of doing; the
+ * registry catches all the hosts the pass does not see.
  */
 final class NexusHandlerPass implements CompilerPassInterface
 {
@@ -81,22 +81,22 @@ final class NexusHandlerPass implements CompilerPassInterface
                     ));
                 }
 
-                // Pas de `is_a($handlerClass, $contract)` ici, et c'est délibéré. La balise peut
-                // nommer le contrat **complet** — celui que l'appelant lit —, dont le gestionnaire
-                // n'implémente que la part servie ; les opérations différées n'ont pas de corps.
-                // C'est précisément pourquoi le contrat se sépare en deux interfaces, PHP ne sachant
-                // pas dire « implémente partiellement ». La couverture se vérifie donc opération par
-                // opération, plus bas — et une classe qui n'en sert aucune s'y fait prendre.
+                // No `is_a($handlerClass, $contract)` here, and that is deliberate. The tag may
+                // name the **whole** contract — the one the caller reads — of which the handler
+                // only implements the served part; deferred operations have no body. That is
+                // precisely why the contract splits into two interfaces, PHP having no way to say
+                // "implements partially". Coverage is therefore checked operation by operation,
+                // further down — and a class that serves none of them gets caught there.
 
                 $serviceName = $resolver->serviceName($contract);
 
                 foreach ($resolver->operations($contract) as $method => $operation) {
                     if (method_exists($handlerClass, $method)) {
-                        // Pas la méthode elle-même : le registre appelle son gestionnaire avec la
-                        // charge entière en argument #1 et attend un `NexusOperationResponse`,
-                        // quand le gestionnaire a écrit la signature de son contrat. L'invocateur
-                        // est ce qui tient entre les deux, et il tient dans le cœur pour que
-                        // Magento et le pont Illuminate en héritent le jour où ils routent.
+                        // Not the method itself: the registry calls its handler with the whole
+                        // payload as argument #1 and expects a `NexusOperationResponse`, when the
+                        // handler wrote the signature of its contract. The invoker is what stands
+                        // between the two, and it stands in the core so that Magento and the
+                        // Illuminate bridge inherit it the day they route.
                         $invokerId = 'durable.nexus_invoker.' . hash('xxh128', $serviceId . $contract . $method);
                         $container->register($invokerId, NexusHandlerInvoker::class)
                             ->setArguments([
@@ -120,9 +120,9 @@ final class NexusHandlerPass implements CompilerPassInterface
                     if (null !== $workflowClass) {
                         NexusFulfilmentParameterNames::assertMatch(self::TAG, $contract, $method, $operation, $workflowClass);
 
-                        // Déclarée : rien à appeler, le worker démarrera ce workflow. On lui passe
-                        // le **type** et non le FQCN — c'est le nom que le serveur connaît, et
-                        // celui que le journal enregistre.
+                        // Declared: nothing to call, the worker will start this workflow. It is
+                        // handed the **type** and not the FQCN — that is the name the server
+                        // knows, and the one the journal records.
                         $registry->addMethodCall('registerFulfilment', [
                             self::named(NexusService::class, $serviceName),
                             self::named(NexusOperationName::class, $operation),
@@ -132,8 +132,8 @@ final class NexusHandlerPass implements CompilerPassInterface
                         continue;
                     }
 
-                    // Ni implémentée, ni réclamée : personne ne la sert. L'appelant attendrait un
-                    // résultat que rien ne produit, et le serveur n'a rien à en dire.
+                    // Neither implemented nor claimed: nobody serves it. The caller would wait on
+                    // a result nothing produces, and the server has nothing to say about it.
                     throw new \LogicException(\sprintf(
                         '%s: operation "%s" of contract %s is served by nobody — handler "%s" does not implement %s() and no workflow claims it with #[FulfilsNexusOperation]. A caller would wait on a result nothing produces.',
                         self::TAG,
@@ -149,16 +149,16 @@ final class NexusHandlerPass implements CompilerPassInterface
     }
 
     /**
-     * Un objet-valeur passé comme **définition**, et non comme instance.
+     * A value object passed as a **definition**, and not as an instance.
      *
-     * Le conteneur d'un projet Symfony en mode dev est écrit en XML à chaque réchauffage, par
-     * `ContainerBuilderDebugDumpPass`. Un argument d'appel de méthode qui est un objet déjà
-     * construit n'est pas sérialisable : « Unable to dump a service container if a parameter is an
-     * object or a resource ». La passe compilait donc parfaitement, et l'application ne démarrait
-     * pas — pour un nom de service Nexus.
+     * The container of a Symfony project in dev mode is written out as XML on every warmup, by
+     * `ContainerBuilderDebugDumpPass`. A method call argument that is an already built object is
+     * not serializable: "Unable to dump a service container if a parameter is an object or a
+     * resource". The pass therefore compiled perfectly, and the application did not boot — over a
+     * Nexus service name.
      *
-     * Une {@see Definition} en ligne dit la même chose sans instancier : le dumper l'écrit comme un
-     * service anonyme, et l'objet naît au moment de l'appel.
+     * An inline {@see Definition} says the same thing without instantiating: the dumper writes it
+     * as an anonymous service, and the object is born at the moment of the call.
      *
      * @param class-string $class
      */
@@ -171,21 +171,21 @@ final class NexusHandlerPass implements CompilerPassInterface
     }
 
     /**
-     * Les opérations qu'un workflow réclame, lues sur la balise que l'autoconfiguration a posée.
+     * The operations a workflow claims, read from the tag the autoconfiguration added.
      *
-     * La déclaration vit sur le workflow et non sur le contrat : le contrat est lu par l'appelant,
-     * qui n'a pas à connaître la classe qui le sert — l'y nommer ferait fuir l'implémentation à
-     * travers la frontière que Nexus existe pour poser.
+     * The declaration lives on the workflow and not on the contract: the contract is read by the
+     * caller, which has no business knowing the class that serves it — naming it there would leak
+     * the implementation across the very boundary Nexus exists to draw.
      *
-     * **Par la balise, et non en balayant le conteneur.** La version qui parcourait toutes les
-     * définitions appelait `class_exists()` sur chacune, donc chargeait chaque classe du conteneur
-     * pour lire ses attributs. Il suffit qu'une seule d'entre elles étende un parent absent — un
-     * bundle de développement à moitié installé, et `Symfony\Bundle\MakerBundle\Maker\AbstractMaker`
-     * est le cas réel qui l'a montré — pour que le chargement fasse une erreur fatale, dans une
-     * passe de compilation qui n'avait rien à voir. La balise dit exactement ce qu'on cherche, et
-     * `DurableBundle::build()` la pose déjà pour ça.
+     * **Through the tag, and not by sweeping the container.** The version that walked every
+     * definition called `class_exists()` on each one, and so loaded every class of the container
+     * to read its attributes. It only takes one of them extending a missing parent — a
+     * half-installed development bundle, and `Symfony\Bundle\MakerBundle\Maker\AbstractMaker` is
+     * the real case that showed it — for the loading to raise a fatal error, in a compiler pass
+     * that had nothing to do with it. The tag says exactly what we are looking for, and
+     * `DurableBundle::build()` already adds it for that.
      *
-     * @return array<string, array<string, class-string>> contrat => opération => classe du workflow
+     * @return array<string, array<string, class-string>> contract => operation => workflow class
      */
     private function operationsClaimedByWorkflows(ContainerBuilder $container): array
     {

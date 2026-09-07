@@ -11,8 +11,8 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 
 /**
- * Injecte {@see TemporalTransportFactory} après toutes les extensions / autowiring :
- * le bundle Durable modifiait le service trop tôt ou l'autowiring remettait les args optionnels à null.
+ * Injects {@see TemporalTransportFactory} after all the extensions / autowiring:
+ * the Durable bundle used to modify the service too early, or the autowiring reset the optional args to null.
  */
 final class DurableTemporalTransportFactoryPass implements CompilerPassInterface
 {

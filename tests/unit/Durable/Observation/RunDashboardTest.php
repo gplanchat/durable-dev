@@ -15,11 +15,11 @@ use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Le modèle de vue du tableau de bord, bâti sur le port et sur rien d'autre.
+ * The dashboard's view model, built on the port and on nothing else.
  *
- * Deux exigences du spec se vérifient ici et nulle part ailleurs : un fait qu'un backend n'a pas
- * est **absent** du modèle, pas rendu en chaîne vide ; et sans backend lisible, la page le dit sans
- * nommer Temporal, qui peut n'avoir jamais été de la partie.
+ * Two requirements of the spec are checked here and nowhere else: a fact a backend does not have
+ * is **absent** from the model, not rendered as an empty string; and with no readable backend, the
+ * page says so without naming Temporal, which may never have been part of it.
  *
  * @see openspec/specs/workflow-run-observation/spec.md
  */
@@ -32,7 +32,7 @@ final class RunDashboardTest extends TestCase
         self::assertFalse($view['backend']['available']);
         self::assertNotSame('', $view['backend']['message']);
         self::assertStringNotContainsStringIgnoringCase('temporal', $view['backend']['message']);
-        self::assertArrayNotHasKey('name', $view['backend'], 'sans backend, nommer un serveur enverrait sur une fausse piste');
+        self::assertArrayNotHasKey('name', $view['backend'], 'with no backend, naming a server would send the reader down a false trail');
         self::assertSame([], $view['runs']);
     }
 
@@ -68,8 +68,8 @@ final class RunDashboardTest extends TestCase
     }
 
     /**
-     * Une issue sans compteur compte quand même dans le total : les compteurs cessent alors de
-     * s'additionner, et c'est une application faite de workflows longs qui s'en aperçoit.
+     * An outcome with no counter still counts in the total: the counters then stop adding up, and
+     * it is an application made of long workflows that notices.
      */
     public function testEveryOutcomeHasItsOwnCounter(): void
     {
@@ -81,7 +81,7 @@ final class RunDashboardTest extends TestCase
         self::assertSame(
             $view['kpis']['total'],
             array_sum(array_diff_key($view['kpis'], ['total' => null])),
-            'la somme des issues doit faire le total',
+            'the sum of the outcomes must make the total',
         );
     }
 
@@ -89,8 +89,8 @@ final class RunDashboardTest extends TestCase
     {
         $view = $this->viewOver([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)])->build();
 
-        self::assertArrayNotHasKey('taskQueue', $view['runs'][0], 'une colonne vide ferait croire que l\'exécution n\'a pas de file');
-        self::assertArrayNotHasKey('groupId', $view['runs'][0], 'DBAL n\'a pas de regroupement : absent, pas nul');
+        self::assertArrayNotHasKey('taskQueue', $view['runs'][0], 'an empty column would suggest the execution has no queue');
+        self::assertArrayNotHasKey('groupId', $view['runs'][0], 'DBAL has no grouping: absent, not null');
     }
 
     public function testAGroupingIdentifierIsCarriedWhenTheBackendHasOne(): void
@@ -122,9 +122,9 @@ final class RunDashboardTest extends TestCase
     }
 
     /**
-     * « Un catalogue est enregistré » et « le backend répond » sont deux questions distinctes. Une
-     * base tombée donnait une page vide et sereine, ce qui est la pire des deux erreurs possibles :
-     * l'exploitant en conclut qu'il n'y a rien à voir.
+     * "A catalog is registered" and "the backend answers" are two distinct questions. A downed
+     * database gave a serene, empty page, which is the worse of the two possible errors: the
+     * operator concludes there is nothing to see.
      */
     public function testAnUnreachableBackendIsNotPresentedAsAnEmptyDashboard(): void
     {
@@ -138,8 +138,8 @@ final class RunDashboardTest extends TestCase
         $view = (new RunDashboard($catalog))->build();
 
         self::assertFalse($view['backend']['available']);
-        self::assertSame([], $view['runs'], 'ne rien lister vaut mieux que lister le vide d\'une base muette');
-        self::assertNull($catalog->askedCursor, 'inutile de demander une page à un backend qui ne répond pas');
+        self::assertSame([], $view['runs'], 'listing nothing is better than listing the emptiness of a mute database');
+        self::assertNull($catalog->askedCursor, 'no point asking a page of a backend that does not answer');
     }
 
     public function testAReachableBackendNamesItselfAndSaysWhenItWasChecked(): void
@@ -171,10 +171,10 @@ final class RunDashboardTest extends TestCase
 
     public function testANexusOperationGetsItsOwnLineAndSaysWhereTheWaitHappens(): void
     {
-        // Une opération Nexus est le seul point d'une exécution où l'attente est servie **ailleurs**.
-        // Fondue dans le reste, elle laisse un exploitant chercher la panne dans son propre système
-        // alors qu'elle est chez quelqu'un d'autre — d'où sa ligne, et d'où une étiquette qui nomme
-        // l'endpoint plutôt que le type d'événement.
+        // A Nexus operation is the only point in an execution where the wait is served **elsewhere**.
+        // Blended into the rest, it leaves an operator hunting for the failure in their own system
+        // when it lies at somebody else's — hence its own row, and hence a label that names the
+        // endpoint rather than the event type.
         $catalog = new FakeRunCatalog(
             [$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)],
             [
@@ -191,9 +191,9 @@ final class RunDashboardTest extends TestCase
 
     public function testAnEventCarriesWhatTheBackendRecordedWithIt(): void
     {
-        // La frise répond « quoi ». « Avec quoi » est la question suivante, à chaque fois : les
-        // arguments d'appel d'une activité, ce qu'elle a rendu. Sans ce fait dans le modèle, le
-        // dépliant du gabarit s'ouvrirait sur du vide.
+        // The frieze answers "what". "With what" is the next question, every time: an activity's
+        // call arguments, what it returned. Without that fact in the model, the template's
+        // unfoldable would open onto nothing.
         $catalog = new FakeRunCatalog(
             [$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)],
             [
@@ -217,9 +217,9 @@ final class RunDashboardTest extends TestCase
 
     public function testAnEventWithNothingRecordedHasNoDetailsKeyAtAll(): void
     {
-        // Même règle que le reste du modèle : un fait absent est absent, pas vide. C'est ce qui
-        // permet au gabarit de laisser une ligne simple plutôt qu'un dépliant qui ne s'ouvre
-        // sur rien.
+        // Same rule as the rest of the model: an absent fact is absent, not empty. That is what
+        // lets the template leave a plain row rather than an unfoldable that opens onto
+        // nothing.
         $catalog = new FakeRunCatalog(
             [$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)],
             [new WorkflowRunEvent(1, new \DateTimeImmutable('@1700000000'), WorkflowRunEventKind::Execution, 'Started')],
@@ -244,8 +244,8 @@ final class RunDashboardTest extends TestCase
 
     public function testAJournalThatCannotOutliveTheRequestIsAThirdStateAndNotAFailure(): void
     {
-        // Ni « injoignable » — il répond — ni « joignable » tout court, sous lequel une liste vide
-        // apprend à l'exploitant qu'aucun workflow n'a tourné, ce qui est faux.
+        // Neither "unreachable" — it answers — nor plain "reachable", under which an empty list
+        // teaches the operator that no workflow has run, which is false.
         $view = (new RunDashboard(new FakeRunCatalog([], [], null, ephemeral: true)))->build();
 
         self::assertTrue($view['backend']['available']);

@@ -6,4 +6,4 @@
   la présence d'un slot est un état, pas une valeur.
 - **Entrées** : `Port/WorkflowHistorySourceInterface`, ses deux implémentations,
   `ExecutionContext::sideEffect()`, un test, `UPGRADE.md`. Rien d'autre.
-- **État** : RED.
+- **État** : GREEN, en revue — PR #273.

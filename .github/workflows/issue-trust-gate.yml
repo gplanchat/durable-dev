@@ -1,0 +1,70 @@
+name: Issue trust gate
+
+# The loop reads open issues and decides what to work on. This repository is public, so anyone can
+# put text in front of it: 12 of the 25 issues open when this was written were authored by accounts
+# with no association to the repository. `gh issue list` reports no author at all, so a stranger's
+# issue and the owner's reached the loop identical.
+#
+# This workflow supplies the missing signal, at the boundary rather than on every tick — one label
+# per issue at submission time, instead of the same judgement re-made on every heartbeat.
+#
+# There is deliberately NO model here. Author association is metadata: it cannot be argued with,
+# cannot be spoofed by the issue text, costs nothing, and needs no API key. Putting an LLM in a
+# workflow that reads attacker-controlled text, holds a token and has `issues: write` is the
+# classic pwn-request shape; the model-assisted injection scan stays in loop/triage.md, where the
+# text is read anyway and the blast radius is a throwaway worktree. See WA007.
+on:
+  issues:
+    types: [opened, edited, reopened, transferred]
+  # The event triggers only ever see new activity, so on the day this lands every already-open
+  # issue is unlabelled and the loop's reading list is empty. Dispatch once to backfill them.
+  workflow_dispatch:
+  # The classification is a security decision; it is tested on every change to itself.
+  pull_request:
+    paths:
+      - 'bin/issue-trust-gate.sh'
+      - 'bin/issue-trust-gate-test.sh'
+      - '.github/workflows/issue-trust-gate.yml'
+
+permissions:
+  contents: read
+  issues: write
+
+# Rapid edits must not race each other into a contradictory label set.
+concurrency:
+  group: issue-trust-gate-${{ github.event.issue.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Label by author association
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Before touching the remote: the gate checks itself, offline. It decides what an autonomous
+      # loop may read unsupervised, and "fails closed" is a claim worth a test rather than a
+      # comment.
+      - name: Check the gate
+        run: bin/issue-trust-gate-test.sh
+
+      # A pull request only runs the test above — there is no issue to label, and a PR from a fork
+      # must never reach a step holding `issues: write`.
+      - name: Label the issue
+        if: github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          # Values cross into the script as environment variables and positional arguments, never
+          # as `${{ }}` interpolated into a shell line.
+          NUMBER: ${{ github.event.issue.number }}
+          ASSOC: ${{ github.event.issue.author_association }}
+          ACTION: ${{ github.event.action }}
+        run: bin/issue-trust-gate.sh --apply "$NUMBER" "$ASSOC" "$ACTION"
+
+      - name: Backfill every open issue
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: bin/issue-trust-gate.sh --backfill

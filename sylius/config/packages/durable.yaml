@@ -1,6 +1,6 @@
-# Le tableau de bord lit le backend configuré ici. DBAL plutôt que Temporal : une boutique Sylius
-# n'a pas de cluster, et le pont Temporal exigerait ext-grpc — c'est précisément ce que le plugin a
-# cessé d'imposer (DUR037 ; DUR035 est `await()` et les conditions, sans rapport).
+# The dashboard reads the backend configured here. DBAL rather than Temporal: a Sylius shop has no
+# cluster, and the Temporal bridge would require ext-grpc — which is exactly what the plugin
+# stopped imposing (DUR037; DUR035 is `await()` and conditions, unrelated).
 durable:
     dbal:
         connection: doctrine.dbal.default_connection
@@ -13,35 +13,35 @@ durable:
         parent_link_store:
             type: dbal
 
-# Deux profils de démonstration, et rien dans `dev`, `prod` ni `test`.
+# Two demonstration profiles, and nothing in `dev`, `prod` or `test`.
 #
-# Ce n'est pas de la prudence : un transport Messenger `temporal://` déclaré sans DSN fait échouer
-# `doctrine:schema:create`, l'écouteur de schéma de Doctrine parcourant **tous** les transports. Le
-# message est « Invalid temporal:// DSN », loin de Nexus et loin de Messenger. Un environnement qui
-# n'a pas de cluster n'a donc ni DSN, ni transport, ni gestionnaire.
+# This is not caution: a Messenger `temporal://` transport declared without a DSN makes
+# `doctrine:schema:create` fail, Doctrine's schema listener walking **every** transport. The
+# message is "Invalid temporal:// DSN", far from Nexus and far from Messenger. An environment that
+# has no cluster therefore has no DSN, no transport and no handler.
 
-# `demo` — la boutique **sert** `stock`.
+# `demo` — the shop **serves** `stock`.
 #
-# `journal: false` est la ligne qui compte. Sans elle, poser un DSN veut dire « le cluster est le
-# journal » — l'extension refuse alors le couple avec un event_store DBAL, et à raison : il n'y
-# aurait pas de source de vérité unique. Avec elle, la phrase se sépare en deux, et le tableau de
-# bord continue de lire exactement ce qu'il lisait.
+# `journal: false` is the line that counts. Without it, setting a DSN means "the cluster is the
+# journal" — the extension then refuses the pairing with a DBAL event_store, and rightly so: there
+# would be no single source of truth. With it, the sentence splits in two, and the dashboard goes
+# on reading exactly what it was reading.
 when@demo:
     durable:
         temporal:
             dsn: '%env(DURABLE_TEMPORAL_DSN)%'
             journal: false
 
-# `demo_appelant` — la boutique **appelle** `facturation`.
+# `demo_caller` — the shop **calls** `billing`.
 #
-# Un appel Nexus part d'un workflow, et un workflow ne peut ordonnancer une opération que si son
-# journal est le cluster : `EventStoreCommandBuffer` refuse en le disant, parce qu'un journal SQL
-# n'a pas de serveur à qui adresser l'ordonnancement. Servir et appeler ne tiennent donc pas dans
-# la même configuration Durable.
+# A Nexus call starts from a workflow, and a workflow can only schedule an operation if its
+# journal is the cluster: `EventStoreCommandBuffer` refuses and says so, because an SQL journal has
+# no server to address the scheduling to. Serving and calling therefore do not fit in the same
+# Durable configuration.
 #
-# Ce n'est pas un contournement, c'est ce à quoi ressemble un vrai déploiement : le processus qui
-# rend le tableau de bord et celui qui exécute les workflows sont deux déploiements du même code.
-when@demo_appelant:
+# This is not a workaround, it is what a real deployment looks like: the process that renders the
+# dashboard and the one that runs the workflows are two deployments of the same code.
+when@demo_caller:
     durable:
         event_store:
             type: in_memory

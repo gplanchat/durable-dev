@@ -29,7 +29,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var list<string> activity IDs in schedule order */
     private array $scheduledActivityIds = [];
 
-    /** @var list<string> identités d'opérations Nexus, dans l'ordre de planification */
+    /** @var list<string> Nexus operation identities, in schedule order */
     /** @var list<string> */
     private array $childWorkflowTypes = [];
 
@@ -38,20 +38,29 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 
     private array $scheduledNexusOperationIds = [];
 
-    /** @var array<string, int> identité applicative → eventId du NEXUS_OPERATION_SCHEDULED */
+    /** @var array<string, int> application identity → eventId of the NEXUS_OPERATION_SCHEDULED */
     private array $nexusOperationToScheduledEventId = [];
 
     /** @var array<int, array{operationId: string, endpoint: string, service: string, operation: string}> */
     private array $nexusOperationCallSites = [];
 
-    /** @var array<int, array{result: mixed, failed: \Throwable|null}> eventId de planification → issue */
+    /** @var array<int, array{result: mixed, failed: \Throwable|null}> scheduling eventId → outcome */
     private array $nexusOperationOutcomes = [];
 
     /** @var array<string, int> activity ID → scheduled event ID */
     private array $activityIdToScheduledEventId = [];
 
-    /** @var array<string, string> activityId → nom d'activité (pour typer les échecs) */
+    /** @var array<string, string> activityId → activity name (to type the failures) */
     private array $activityNames = [];
+
+    /** @var array<string, array<string, mixed>> activityId => scheduled payload (DUR042 guard) */
+    private array $activityPayloads = [];
+
+    /** @var array<int, array<string, mixed>> slot => scheduled Nexus payload (DUR042 guard) */
+    private array $nexusOperationPayloads = [];
+
+    /** @var array<int, array<string, mixed>> slot → input du workflow enfant (garde DUR042) */
+    private array $childWorkflowInputs = [];
 
     /** @var array<int, string> scheduled event ID → activity ID */
     private array $scheduledEventIdToActivityId = [];
@@ -74,10 +83,10 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var array<string, float> timer ID → scheduled-at */
     private array $timerScheduledAt = [];
 
-    /** @var array<string, int> timer ID → eventId of its TIMER_FIRED (l'ordre du journal tranche le verdict d'une échéance) */
+    /** @var array<string, int> timer ID → eventId of its TIMER_FIRED (the journal order settles a deadline's verdict) */
     private array $firedTimerIds = [];
 
-    /** @var array<string, true> minuteurs que le workflow a lui-même annulés (perdants d'une course) */
+    /** @var array<string, true> timers the workflow cancelled itself (losers of a race) */
     private array $cancelledTimerIds = [];
 
     /** @var array<int, mixed> slot index → side effect result (MARKER_RECORDED events) */
@@ -102,14 +111,14 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var array<string, mixed> */
     private array $startInput = [];
 
-    /** Cause du WORKFLOW_EXECUTION_CANCEL_REQUESTED, si le serveur en a enregistré un. */
+    /** Cause of the WORKFLOW_EXECUTION_CANCEL_REQUESTED, if the server recorded one. */
     private ?string $cancelRequestedCause = null;
 
     public const MARKER_SIDE_EFFECT = 'SideEffect';
 
     public const MARKER_CANCELLATION_DELIVERED = 'WorkflowCancellationDelivered';
 
-    /** @var array<string, true> identifiants d'opérations retirées par l'annulation du workflow */
+    /** @var array<string, true> ids of the operations withdrawn by the workflow cancellation */
     private array $cancellationDeliveredTargets = [];
 
     /**
@@ -159,36 +168,47 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
             case EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED:
                 $attr = $event->getNexusOperationScheduledEventAttributes();
                 if (null !== $attr) {
-                    // Temporal n'a pas de champ d'identité applicative pour une opération Nexus :
-                    // le tampon la glisse dans le payload d'entrée, et c'est là qu'on la relit.
-                    // L'identité d'une opération Nexus est l'eventId que le serveur assigne, et
-                    // non un identifiant que l'appelant glisserait dans la charge : celle-ci
-                    // appartient à l'utilisateur, et un gestionnaire d'un autre SDK y cherche ses
-                    // propres champs.
+                    // Temporal has no application identity field for a Nexus operation: the
+                    // buffer slips it into the input payload, and that is where it is read back.
+                    // A Nexus operation's identity is the eventId the server assigns, and not an
+                    // id the caller would slip into the payload: the payload belongs to the user,
+                    // and a handler from another SDK looks for its own fields in it.
                     $operationId = (string) $eventId;
                     if ('' !== $operationId) {
                         $this->scheduledNexusOperationIds[] = $operationId;
                         $this->nexusOperationToScheduledEventId[$operationId] = (int) $eventId;
-                        // Le site d'appel n'est écrit qu'ici : les événements terminaux ne portent
-                        // que l'eventId. Sans le retenir, un échec ne pourrait pas dire d'où il
-                        // vient, et le spec l'exige.
+                        // The call site is written only here: the terminal events carry nothing
+                        // but the eventId. Without keeping it, a failure could not say where it
+                        // comes from, and the spec demands it.
                         $this->nexusOperationCallSites[(int) $eventId] = [
                             'operationId' => $operationId,
                             'endpoint' => (string) $attr->getEndpoint(),
                             'service' => (string) $attr->getService(),
                             'operation' => (string) $attr->getOperation(),
                         ];
+
+                        // The caller's payload, **bare**: a Nexus operation carries a `Payload`
+                        // and not `Payloads`, and the `{operationId, payload}` envelope was removed
+                        // from the buffer (task 1.1). Decoding anything else here would compare a
+                        // shape the wire no longer carries.
+                        $nexusInput = $attr->getInput();
+                        if (null !== $nexusInput) {
+                            $decodedInput = JsonPlainPayload::decode($nexusInput);
+                            if (\is_array($decodedInput)) {
+                                $this->nexusOperationPayloads[\count($this->scheduledNexusOperationIds) - 1] = $decodedInput;
+                            }
+                        }
                     }
                 }
                 break;
 
             case EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED:
-                // Rien à faire. Le jeton dit que le gestionnaire répondra plus tard, par rappel ;
-                // la sonde 1.4 a mesuré que le serveur pose `callback: temporal://system` et
-                // corrèle lui-même l'issue sur cette exécution, par `scheduledEventId`. L'attente
-                // reste donc ouverte jusqu'à l'événement terminal, que les branches suivantes
-                // lisent. Enregistrer une issue ici — même un échec « non supporté » — tuerait un
-                // workflow sur une opération qui allait répondre.
+                // Nothing to do. The token says the handler will answer later, by callback; the
+                // 1.4 probe measured that the server sets `callback: temporal://system` and
+                // itself correlates the outcome onto this execution, by `scheduledEventId`. The
+                // wait therefore stays open until the terminal event, which the branches below
+                // read. Recording an outcome here — even an "unsupported" failure — would kill a
+                // workflow on an operation that was about to answer.
                 break;
 
             case EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED:
@@ -241,6 +261,20 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     $this->activityIdToScheduledEventId[$activityId] = $eventId;
                     $this->activityNames[$activityId] = (string) ($attr->getActivityType()?->getName() ?? '');
                     $this->scheduledEventIdToActivityId[$eventId] = $activityId;
+
+                    // The input carries the envelope written by TemporalActivityScheduleInput; its
+                    // `payload` slot holds the arguments. Missing or unreadable, nothing is recorded:
+                    // the guard then has nothing to compare, which is its resting case.
+                    $input = $attr->getInput();
+                    if (null !== $input) {
+                        $payloads = $input->getPayloads();
+                        if ($payloads->count() > 0) {
+                            $envelope = JsonPlainPayload::decode($payloads[0]);
+                            if (\is_array($envelope) && \is_array($envelope['payload'] ?? null)) {
+                                $this->activityPayloads[$activityId] = $envelope['payload'];
+                            }
+                        }
+                    }
                 }
                 break;
 
@@ -272,10 +306,10 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                         $failure = $attr->getFailure();
                         $message = null !== $failure ? $failure->getMessage() : 'Activity task failed';
                         $type = $failure?->getApplicationFailureInfo()?->getType();
-                        // Un RuntimeException nu était relevé dans le fiber : le classifieur le
-                        // rangeait en workflow_handler_failure, et le workflow perdait le nom de
-                        // l'activité fautive — là où le backend in-memory relève un
-                        // DurableActivityFailedException complet.
+                        // A bare RuntimeException used to be raised in the fiber: the classifier
+                        // filed it under workflow_handler_failure, and the workflow lost the name
+                        // of the faulty activity — where the in-memory backend raises a complete
+                        // DurableActivityFailedException.
                         $this->activityFailures[$activityId] = new DurableActivityFailedException(
                             $activityId,
                             $this->activityNames[$activityId] ?? '',
@@ -345,9 +379,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     }
                     break;
                 }
-                // Le marqueur de version, avant celui des effets de bord et pour la raison que
-                // le commentaire suivant donne : sans branche à lui, il consommerait un slot
-                // d'effet de bord et décalerait le replay de tous les suivants.
+                // The version marker, before the side-effect one and for the reason the next
+                // comment gives: without a branch of its own, it would consume a side-effect
+                // slot and shift the replay of every following one.
                 if (null !== $attr && ChangePoint::MARKER_NAME === $attr->getMarkerName()) {
                     $details = $attr->getDetails();
                     $changeIdPayload = null !== $details && $details->offsetExists(ChangePoint::DETAIL_CHANGE_ID)
@@ -362,8 +396,8 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     }
                     break;
                 }
-                // Filtrer sur le nom : sans ça, TOUT marqueur consommait un slot de side effect
-                // et décalait le replay de tous les suivants.
+                // Filter on the name: without this, EVERY marker consumed a side effect slot
+                // and shifted the replay of every following one.
                 if (null !== $attr && self::MARKER_SIDE_EFFECT === $attr->getMarkerName()) {
                     $details = $attr->getDetails();
                     $resultPayload = null;
@@ -397,8 +431,8 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     if (null !== $request) {
                         $input = $request->getInput();
                         $updateName = null !== $input ? $input->getName() : '';
-                        // `accepted_request` réécho la requête d'origine : les arguments sont
-                        // donc relisibles au replay, comme la charge utile d'un signal.
+                        // `accepted_request` echoes the original request back: the arguments are
+                        // therefore readable again on replay, like a signal's payload.
                         $arguments = [];
                         $args = $input?->getArgs()?->getPayloads();
                         if (null !== $args && $args->count() > 0) {
@@ -430,9 +464,23 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 $attr = $event->getStartChildWorkflowExecutionInitiatedEventAttributes();
                 if (null !== $attr) {
                     $this->childExecutionIds[] = (string) $attr->getWorkflowId();
-                    // Le type, en parallèle et au même index : c'est lui l'identité du slot,
-                    // l'identifiant d'exécution étant engendré.
+                    // The type, in parallel and at the same index: it is the slot's identity,
+                    // the execution id being generated.
                     $this->childWorkflowTypes[] = (string) ($attr->getWorkflowType()?->getName() ?? '');
+
+                    // `singlePayloads(encode($input))` on the buffer side: a one-element list whose
+                    // first item is the bare input. One shape more than Nexus (a bare Payload) and
+                    // than the activity (an envelope); the three look alike and are not equal.
+                    $childInput = $attr->getInput();
+                    if (null !== $childInput) {
+                        $childPayloads = $childInput->getPayloads();
+                        if ($childPayloads->count() > 0) {
+                            $decodedChild = JsonPlainPayload::decode($childPayloads[0]);
+                            if (\is_array($decodedChild)) {
+                                $this->childWorkflowInputs[\count($this->childExecutionIds) - 1] = $decodedChild;
+                            }
+                        }
+                    }
                 }
                 break;
 
@@ -481,9 +529,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
             return null;
         }
 
-        // Prioritaire sur tout le reste : une fois l'annulation livrée pour cette opération,
-        // elle doit se relire à l'identique, même si le serveur a finalement enregistré une
-        // complétion arrivée entre-temps.
+        // Takes priority over everything else: once the cancellation is delivered for this
+        // operation, it must read back identically, even if the server ended up recording a
+        // completion that arrived in the meantime.
         if (isset($this->cancellationDeliveredTargets[$activityId])) {
             return ['result' => null, 'failed' => new WorkflowCancelledFailure($this->durableExecutionId() ?? '', ActivityCancellationReason::WORKFLOW_CANCELLED)];
         }
@@ -517,12 +565,32 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
             return null;
         }
 
-        // L'indexation ci-dessus ramène un type d'activité absent à la chaîne vide. Une chaîne
-        // vide n'est pas un nom : c'est « l'historique n'a rien dit ». La rendre telle quelle
-        // ferait diverger tout slot dont le type manque, ce qui est le contraire d'une garde.
+        // The indexing above brings a missing activity type down to the empty string. An empty
+        // string is not a name: it is "the history said nothing". Returning it as-is would make
+        // every slot whose type is missing diverge, which is the opposite of a guard.
         $name = $this->activityNames[$activityId] ?? '';
 
         return '' === $name ? null : $name;
+    }
+
+    public function nexusOperationPayloadForSlot(int $slot): ?array
+    {
+        return $this->nexusOperationPayloads[$slot] ?? null;
+    }
+
+    public function childWorkflowInputForSlot(int $slot): ?array
+    {
+        return $this->childWorkflowInputs[$slot] ?? null;
+    }
+
+    public function activityPayloadForSlot(int $slot): ?array
+    {
+        $activityId = $this->scheduledActivityIds[$slot] ?? null;
+        if (null === $activityId) {
+            return null;
+        }
+
+        return $this->activityPayloads[$activityId] ?? null;
     }
 
     public function findTimerSlotResult(int $slot): ?array
@@ -546,11 +614,11 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     }
 
     /**
-     * Le minuteur a-t-il déjà une issue dans l'historique — tiré ou annulé ?
+     * Does the timer already have an outcome in the history — fired or cancelled?
      *
-     * Un minuteur annulé reste absent de {@see findTimerSlotResult()} : le perdant d'une course
-     * n'a pas de verdict à annoncer, il revient donc en attente à chaque reprise. Sans ce garde,
-     * le workflow réémettrait `CANCEL_TIMER` à chaque tâche.
+     * A cancelled timer stays absent from {@see findTimerSlotResult()}: the loser of a race has
+     * no verdict to announce, so it comes back to waiting on every resume. Without this guard,
+     * the workflow would re-emit `CANCEL_TIMER` on every task.
      */
     public function isTimerSettled(string $timerId): bool
     {
@@ -625,8 +693,8 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 
     public function messageAt(int $index): ?array
     {
-        // Deux tableaux séparés côté Temporal, un seul ordre côté workflow : la fusion se fait
-        // par eventId, sinon tous les signaux passeraient avant tous les updates.
+        // Two separate arrays on the Temporal side, a single order on the workflow side: the
+        // merge is done by eventId, otherwise every signal would come before every update.
         $messages = [];
         foreach ($this->signals as $signal) {
             $messages[] = [
@@ -675,14 +743,14 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
      * @return array<string, mixed>
      */
     /**
-     * Cause de l'annulation demandée par le serveur, ou null si aucune ne l'a été.
+     * Cause of the cancellation the server requested, or null if none was requested.
      */
     /**
-     * Identifiant de l'événement ACTIVITY_TASK_SCHEDULED de cette activité, ou null si elle n'a
-     * pas encore été planifiée dans l'historique.
+     * Id of this activity's ACTIVITY_TASK_SCHEDULED event, or null if it has not been scheduled
+     * in the history yet.
      *
-     * Attendu par {@code RequestCancelActivityTaskCommandAttributes::scheduledEventId} : un
-     * identifiant qui ne correspond à aucun événement fait rejeter la tâche par le serveur.
+     * Expected by {@code RequestCancelActivityTaskCommandAttributes::scheduledEventId}: an id
+     * that matches no event makes the server reject the task.
      */
     public function scheduledEventIdForActivity(string $activityId): ?int
     {
@@ -690,8 +758,8 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     }
 
     /**
-     * `RecordMarkerCommandAttributes::details` est une map<string, Payloads> : la valeur est une
-     * enveloppe, pas un Payload.
+     * `RecordMarkerCommandAttributes::details` is a map<string, Payloads>: the value is an
+     * envelope, not a Payload.
      */
     private static function decodeMarkerDetail(\Temporal\Api\Common\V1\Payloads $detail): mixed
     {
@@ -706,8 +774,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     }
 
     /**
-     * Vrai si l'annulation a déjà été relevée dans le fiber lors d'une tâche antérieure : au
-     * rejeu, c'est le rejet des opérations retirées qui la reporte, pas une nouvelle livraison.
+     * True if the cancellation was already raised in the fiber during an earlier task: on
+     * replay, it is the rejection of the withdrawn operations that carries it over, not a new
+     * delivery.
      */
     public function cancellationAlreadyDelivered(): bool
     {
@@ -720,12 +789,11 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     }
 
     /**
-     * L'échec typé d'une opération, avec sa nature et son site d'appel.
+     * The typed failure of an operation, with its kind and its call site.
      *
-     * §3.6 avait construit l'exception, §4.3 lisait les événements, et rien ne reliait les deux :
-     * la lecture rendait des `RuntimeException` nues, si bien que la branche Nexus du
-     * classificateur ne pouvait jamais se déclencher. Un workflow tombé sur une opération ne
-     * disait donc pas laquelle.
+     * §3.6 had built the exception, §4.3 read the events, and nothing linked the two: the reading
+     * returned bare `RuntimeException`s, so that the classifier's Nexus branch could never fire.
+     * A workflow brought down on an operation therefore did not say which one.
      */
     private function nexusFailure(int $scheduledEventId, NexusOperationFailureKind $kind): DurableNexusOperationFailedException
     {
@@ -741,10 +809,10 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     }
 
     /**
-     * L'issue enregistrée de l'opération au slot N, ou null tant qu'elle est en vol.
+     * The recorded outcome of the operation at slot N, or null while it is in flight.
      *
-     * « Planifiée » n'est pas « réglée », et les confondre ferait conclure le workflow sur une
-     * opération qui n'a pas répondu.
+     * "Scheduled" is not "settled", and confusing the two would make the workflow conclude on an
+     * operation that has not answered.
      *
      * @return array{result: mixed, failed: \Throwable|null}|null
      */
@@ -761,11 +829,11 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     }
 
     /**
-     * L'identité de l'opération planifiée au slot N, ou null si ce slot n'a rien.
+     * The identity of the operation scheduled at slot N, or null if that slot has nothing.
      *
-     * C'est ce qui empêche le replay de replanifier : le contexte n'émet la commande que si le
-     * slot est vide. Rendre `null` sans lire l'historique relancerait l'opération à chaque passe,
-     * en silence — et une opération Nexus qui repart est facturée à chaque fois.
+     * This is what stops replay from rescheduling: the context only emits the command if the slot
+     * is empty. Returning `null` without reading the history would restart the operation on every
+     * pass, in silence — and a Nexus operation that starts again is billed every time.
      */
     public function findScheduledNexusOperation(int $slot): ?string
     {
@@ -773,10 +841,10 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     }
 
     /**
-     * L'eventId du `NEXUS_OPERATION_SCHEDULED` de cette opération, ou null.
+     * The eventId of this operation's `NEXUS_OPERATION_SCHEDULED`, or null.
      *
-     * Attendu par `RequestCancelNexusOperationCommandAttributes` (§4.2) : un identifiant qui ne
-     * correspond à aucun événement fait rejeter la tâche par le serveur.
+     * Expected by `RequestCancelNexusOperationCommandAttributes` (§4.2): an id that matches no
+     * event makes the server reject the task.
      */
     public function scheduledEventIdForNexusOperation(string $operationId): ?int
     {

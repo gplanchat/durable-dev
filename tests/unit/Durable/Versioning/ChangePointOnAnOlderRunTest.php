@@ -15,16 +15,16 @@ use Gplanchat\Durable\Versioning\ChangePoint;
 use PHPUnit\Framework\TestCase;
 
 /**
- * L'exécution qui a dépassé ce point **avant qu'il n'existe**.
+ * The execution that went past this point **before it existed**.
  *
- * C'est le cas pour lequel le versioning est inventé, et le seul que le primitif ne couvrait pas.
- * Son journal ne porte aucun marqueur, parce qu'au moment où elle est passée là il n'y avait rien
- * à marquer. Lui donner le comportement neuf serait l'inverse exact de ce qu'on veut : elle a
- * commencé sur l'ancien, elle doit le finir sur l'ancien.
+ * This is the case versioning is invented for, and the only one the primitive did not cover. Its
+ * journal carries no marker, because at the moment it went through there was nothing to mark.
+ * Giving it the new behaviour would be the exact opposite of what is wanted: it started on the old
+ * one, it has to finish on the old one.
  *
- * La distinction se joue sur une seule question — le journal porte-t-il encore du travail que
- * cette passe n'a pas atteint ? Si oui, l'appel est dans le préfixe rejoué et l'exécution est plus
- * vieille que le point de changement. Sinon, elle y arrive pour la première fois.
+ * The distinction turns on a single question — does the journal still carry work this pass has
+ * not reached? If so, the call is in the replayed prefix and the execution is older than the
+ * change point. Otherwise, it is reaching it for the first time.
  */
 final class ChangePointOnAnOlderRunTest extends TestCase
 {
@@ -32,8 +32,8 @@ final class ChangePointOnAnOlderRunTest extends TestCase
 
     public function testARunThatPredatesTheChangePointKeepsTheOldBehaviour(): void
     {
-        // Deux activités déjà enregistrées : le code d'alors ne déclarait aucun point de
-        // changement. Le code d'aujourd'hui en déclare un AVANT elles.
+        // Two activities already recorded: the code of the time declared no change point.
+        // Today's code declares one BEFORE them.
         $context = $this->contextWithTwoRecordedActivities();
 
         $version = $context->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
@@ -41,7 +41,7 @@ final class ChangePointOnAnOlderRunTest extends TestCase
         self::assertSame(
             ChangePoint::DEFAULT_VERSION,
             $version,
-            "une exécution partie avant le point de changement garde l'ancien comportement",
+            'an execution started before the change point keeps the old behaviour',
         );
     }
 
@@ -56,7 +56,7 @@ final class ChangePointOnAnOlderRunTest extends TestCase
         self::assertSame(
             $before,
             iterator_count($store->readStream(self::EXECUTION)),
-            "rien n'est écrit : la réponse se déduit de l'historique, elle ne s'y ajoute pas",
+            'nothing is written: the answer is deduced from the history, it is not added to it',
         );
     }
 
@@ -69,20 +69,20 @@ final class ChangePointOnAnOlderRunTest extends TestCase
         $second = $this->context($store)->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
 
         self::assertSame(ChangePoint::DEFAULT_VERSION, $first);
-        self::assertSame($first, $second, 'déductible de l’historique, donc stable par construction');
+        self::assertSame($first, $second, 'deducible from the history, therefore stable by construction');
     }
 
     public function testAPointReachedPastTheRecordedWorkIsNew(): void
     {
-        // La même exécution, mais le point de changement est placé APRÈS son travail enregistré :
-        // elle y arrive pour la première fois maintenant, donc elle prend le neuf.
+        // The same execution, but the change point is placed AFTER its recorded work: it reaches
+        // it for the first time now, so it takes the new one.
         $context = $this->contextWithTwoRecordedActivities();
         $context->activity('chargeCard', []);
         $context->activity('shipOrder', []);
 
         $version = $context->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
 
-        self::assertSame(1, $version, 'passé le travail enregistré, le point est neuf pour elle');
+        self::assertSame(1, $version, 'past the recorded work, the point is new to it');
     }
 
     public function testAFreshRunIsNotMistakenForAnOldOne(): void
@@ -90,7 +90,7 @@ final class ChangePointOnAnOlderRunTest extends TestCase
         $version = $this->context(new InMemoryEventStore())
             ->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
 
-        self::assertSame(1, $version, "un journal vide n'est pas un préfixe rejoué");
+        self::assertSame(1, $version, 'an empty journal is not a replayed prefix');
     }
 
     private function seedTwoActivities(InMemoryEventStore $store): void

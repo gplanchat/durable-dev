@@ -1,28 +1,28 @@
-# Le banc Magento
+# The Magento bench
 
-Un **banc**, pas une application : de quoi faire tourner `gplanchat/durable-magento` dans un vrai
-Magento et regarder ce qu'il fait. Un module de palier 1 ne se teste contre rien de plus petit que
-Magento, donc ce dossier *est* le harnais.
+A **bench**, not an application: enough to run `gplanchat/durable-magento` inside a real Magento and
+watch what it does. A Tier 1 module is not tested against anything smaller than Magento, so this
+directory *is* the harness.
 
-Ce qui est au dépôt : `composer.json` et son verrou, `compose.yaml`, le script de précontrôle des
-extensions, deux sondes, et le module de sonde qu'elles pilotent. Rien de la distribution — voir
-`.gitignore`, qui explique pourquoi la règle y est inversée.
+What is in the repository: `composer.json` and its lock, `compose.yaml`, the extension pre-flight
+script, two probes, and the probe module they drive. Nothing of the distribution — see
+`.gitignore`, which explains why the rule is inverted there.
 
-## Ce qu'il faut avant de commencer
+## What is needed before starting
 
-Mage-OS s'installe sans identifiants Adobe, depuis `https://repo.mage-os.org/`. Le banc est épinglé
-sur `mage-os/product-community-edition:2.2.0`, compatible PHP 8.2, ce que le graphe de dépendances
-de Durable impose.
+Mage-OS installs without Adobe credentials, from `https://repo.mage-os.org/`. The bench is pinned on
+`mage-os/product-community-edition:2.2.0`, compatible with PHP 8.2, which Durable's dependency graph
+imposes.
 
 ```bash
 cd magento
 bash ./check-php-extensions.sh
 ```
 
-Le script mesure ; la liste qu'il porte est plus fiable que celle d'un README. Sur Debian ou Ubuntu,
-`ext-pdo_mysql` s'ajoute par `sudo apt-get install -y php8.2-mysql`.
+The script measures; the list it carries is more reliable than a README's. On Debian or Ubuntu,
+`ext-pdo_mysql` is added by `sudo apt-get install -y php8.2-mysql`.
 
-## Amorcer
+## Bootstrapping
 
 ```bash
 cd magento
@@ -31,24 +31,24 @@ docker compose up -d
 composer install
 ```
 
-Les ports sont **décalés exprès**, pour ne pas se disputer ceux des bancs voisins :
+The ports are **shifted on purpose**, so as not to fight over those of the neighbouring benches:
 
-| service | hôte |
+| service | host |
 |---|---|
 | MySQL | `33306` |
 | OpenSearch | `9201` |
 | Temporal | `7234` |
 | Temporal UI | `8088` |
-| la boutique et son admin | `8080` |
+| the shop and its admin | `8080` |
 
-Puis l'installation, si la base est vide :
+Then the installation, if the database is empty:
 
 ```bash
 bin/magento setup:install \
   --base-url=http://127.0.0.1:8080/ \
   --db-host=127.0.0.1:33306 --db-name=magento --db-user=magento --db-password=magento \
   --admin-firstname=Durable --admin-lastname=Ops --admin-email=durable@example.com \
-  --admin-user=durable --admin-password='<votre mot de passe>' \
+  --admin-user=durable --admin-password='<your password>' \
   --language=en_US --currency=USD --timezone=UTC --use-rewrites=1 \
   --search-engine=opensearch --opensearch-host=127.0.0.1 --opensearch-port=9201 \
   --backend-frontname=admin
@@ -58,23 +58,23 @@ bin/magento setup:upgrade
 bin/magento cache:flush
 ```
 
-Le module s'appelle **`Gplanchat_DurableModule`** et son paquet Composer
-**`gplanchat/durable-magento`** — les deux conventions ne se croisent pas, et le
-`registration.php` du module explique pourquoi.
+The module is called **`Gplanchat_DurableModule`** and its Composer package
+**`gplanchat/durable-magento`** — the two conventions do not cross, and the
+module's `registration.php` explains why.
 
-Le banc en active un second, **`Gplanchat_DurableProbe`**, qui vit dans
-`app/code`. C'est lui qui porte la démonstration et les sondes : le paquet publié
-ne déclare **aucun** workflow, et ses deux tableaux de `di.xml` sont vides. Un
-module d'intégration n'a pas à faire porter à un projet des workflows qui ne sont
-pas les siens.
+The bench enables a second one, **`Gplanchat_DurableProbe`**, which lives in
+`app/code`. It is the one that carries the demonstration and the probes: the
+published package declares **no** workflow, and its two `di.xml` arrays are
+empty. An integration module has no business making a project carry workflows
+that are not its own.
 
 ```bash
 bin/magento module:enable Gplanchat_DurableModule Gplanchat_DurableProbe
 ```
 
-## Le voir tourner
+## Seeing it run
 
-**En ligne de commande**, le chemin le plus court :
+**On the command line**, the shortest path:
 
 ```bash
 bin/magento durable:demo ORD-4242
@@ -84,49 +84,48 @@ bin/magento durable:demo ORD-4242
 #   → 'notify:charge:ORD-4242'
 ```
 
-Les trois lignes ne sont pas des étiquettes écrites dans la commande : ce sont les noms que
-`#[ActivityMethod]` porte sur le contrat, résolus au moment où le module assemble son moteur.
+The three lines are not labels written into the command: they are the names `#[ActivityMethod]`
+carries on the contract, resolved at the moment the module assembles its engine.
 
-**Et Magento sait appeler les deux autres maquettes du dépôt**, par Nexus, sur un troisième
-namespace :
+**And Magento knows how to call the repository's two other mockups**, through Nexus, on a third
+namespace:
 
 ```bash
 MAGENTO_DC_DURABLE__TEMPORAL__DSN='temporal://127.0.0.1:7239?namespace=demo-magento&tls=0' \
   bin/magento durable:demo:nexus MAG-1 1200 MUG_BLUE=1
 ```
 
-`CommandeNexusWorkflow` fait vérifier la facture par la maquette Symfony, retenir le stock par la
-maquette Sylius, puis encaisser — la dernière étant remplie par un workflow d'en face, qui met une
-quinzaine de secondes. Le banc ne **sert** aucune opération : appeler ne demande rien à l'hôte,
-servir demanderait un registre de gestionnaires et une file Nexus, qui n'existent pas ici.
+`OrderNexusWorkflow` has the invoice verified by the Symfony mockup, the stock held by the Sylius
+mockup, then charges — the charge being fulfilled by a workflow on the other side, which takes some
+fifteen seconds. The bench **serves** no operation: calling asks nothing of the host, serving would
+ask for a handler registry and a Nexus queue, which do not exist here.
 
-Elle ne tourne pas seule : les cinq autres workers, les deux endpoints et les prérequis sont dans
-[`demo/README.md`](../demo/README.md). La grappe du `compose.yaml` ci-dessus ne convient pas — ses
-API Nexus sont désactivées.
+It does not run on its own: the five other workers, the two endpoints and the prerequisites are in
+[`demo/README.md`](../demo/README.md). The cluster of the `compose.yaml` above does not fit — its
+Nexus APIs are disabled.
 
-**Dans le back-office** — Magento livre son propre serveur de développement, il n'y a rien à
-installer :
+**In the back office** — Magento ships its own development server, there is nothing to
+install:
 
 ```bash
 php -S 127.0.0.1:8080 -t pub/ phpserver/router.php
 ```
 
-Puis `http://127.0.0.1:8080/admin`, et **`System > Durable processes > Process history`**. L'écran
-est en lecture seule : ce qu'un exploitant vient y chercher est de savoir si une commande est
-passée, pas de la relancer à la main — reprendre depuis un navigateur contournerait le verrou par
-exécution.
+Then `http://127.0.0.1:8080/admin`, and **`System > Durable processes > Process history`**. The
+screen is read-only: what an operator comes there for is to know whether an order went through, not
+to restart it by hand — resuming from a browser would bypass the per-execution lock.
 
-Un compte d'administration s'ajoute par `bin/magento admin:user:create`. Si la double
-authentification gêne en local : `bin/magento module:disable Magento_TwoFactorAuth`.
+An administration account is added by `bin/magento admin:user:create`. If two-factor authentication
+gets in the way locally: `bin/magento module:disable Magento_TwoFactorAuth`.
 
-## Où vit le journal
+## Where the journal lives
 
-Magento n'atteint que deux backends, **et c'est définitif** : `memory` et `temporal`. Les ponts SQL
-sont refusés à l'installation par un `conflict` dans le `composer.json` du module, parce que
-`ResourceConnection` n'est ni une connexion Doctrine DBAL ni celle d'Illuminate.
+Magento reaches only two backends, **and that is final**: `memory` and `temporal`. The SQL bridges
+are refused at installation by a `conflict` in the module's `composer.json`, because
+`ResourceConnection` is neither a Doctrine DBAL connection nor an Illuminate one.
 
-Ce n'est pas un nom de backend qui choisit, c'est **la présence d'un DSN** dans `app/etc/env.php`,
-à côté de `lock` et `queue` :
+It is not a backend name that chooses, it is **the presence of a DSN** in `app/etc/env.php`, next
+to `lock` and `queue`:
 
 ```php
 'durable' => [
@@ -134,69 +133,69 @@ Ce n'est pas un nom de backend qui choisit, c'est **la présence d'un DSN** dans
 ],
 ```
 
-Sans lui, le journal vit dans le processus qui l'écrit et meurt avec lui — la grille du back-office
-est alors vide, **et c'est la bonne réponse** : une requête d'administration ouvre un processus
-neuf. La page le dit elle-même plutôt que de laisser croire à une panne.
+Without it, the journal lives in the process that writes it and dies with it — the back-office grid
+is then empty, **and that is the right answer**: an administration request opens a fresh process.
+The page says so itself rather than letting one believe in a failure.
 
-Avec lui, la grille lit la grappe :
+With it, the grid reads the cluster:
 
 ```
 Run                                   | Workflow       | Status  | Started
 d81bfb25-af86-43b9-a310-9d9d34695a30  | DurableJournal | running | 2026-08-28 09:23:45
 ```
 
-⚠ **Deux réserves à connaître.** Le nom affiché est `DurableJournal` : c'est le type Temporal qui
-*porte* le journal d'une exécution, pas le type métier. Et le statut reste `running` — **aucun
-worker ne draine encore la file de tâches**, donc rien ne clôt les journaux. C'est la suite de la
-tâche 5 du change `magento-module`.
+⚠ **Two caveats to know.** The name displayed is `DurableJournal`: it is the Temporal type that
+*carries* an execution's journal, not the business type. And the status stays `running` — **no
+worker drains the task queue yet**, so nothing closes the journals. That is the sequel to task 5 of
+the `magento-module` change.
 
-## Les sondes
+## The probes
 
-Deux scripts, gardés parce qu'ils se rejouent, et un module de sonde dans `app/code` qui porte le
-sujet de file qu'ils pilotent — hors du paquet publié, parce qu'un sujet dont le gestionnaire ne
-fait que dormir n'a rien à y faire.
+Two scripts, kept because they replay, and a probe module in `app/code` that carries the queue topic
+they drive — outside the published package, because a topic whose handler does nothing but sleep has
+no business being in it.
 
 ```bash
-php probe-lock.php which                      # le verrou est-il partagé entre processus ?
-php probe-queue.php publish <étiquette> <s>   # un message qui traîne
-php probe-queue.php state                     # l'état des messages, en clair
-php probe-queue.php recover                   # la tâche cron qui rattrape les IN_PROGRESS
-php probe-queue.php unlock                    # la tâche cron qui vide queue_lock
-php probe-queue.php purge                     # écarte les messages des campagnes passées
+php probe-lock.php which                   # is the lock shared across processes?
+php probe-queue.php publish <label> <s>    # a message that lingers
+php probe-queue.php state                  # the state of the messages, in plain words
+php probe-queue.php recover                # the cron task that catches up the IN_PROGRESS
+php probe-queue.php unlock                 # the cron task that empties queue_lock
+php probe-queue.php purge                  # sets aside the messages of past campaigns
 ```
 
-⚠ **Mesurer sur une file sale répond à côté** : un consommateur prend le plus ancien candidat, pas
-le vôtre. `purge` avant toute campagne.
+⚠ **Measuring on a dirty queue answers beside the point**: a consumer takes the oldest candidate,
+not yours. `purge` before any campaign.
 
-## Ce qui mord, et que rien ne dit
+## What bites, and what nothing tells you
 
-Six contraintes d'hôte trouvées en construisant. Chacune a coûté un tour de débogage, et aucune ne
-se manifeste là où elle est commise.
+Six host constraints found while building. Each one cost a round of debugging, and none of them
+shows up where it is committed.
 
-- **Magento interdit `final`** sur toute classe que son conteneur instancie : il engendre un
-  `Interceptor` qui l'étend. Le message — *« cannot extend final class »* — ne dit pas que le
-  mot-clé est en cause.
-- **Mage-OS audite les dépôts de chemin.** `composer-dependency-version-audit-plugin` refuse un
-  paquet résolu localement quand un plus récent existe sur packagist.org. Le banc le désactive pour
-  lui-même ; un projet consommateur doit le garder.
-- **Un module d'`app/code` ne s'autocharge pas** sur cette distribution : le `composer.json` racine
-  de Mage-OS ne porte pas le `psr-0: {"": ["app/code/"]}` d'un Magento classique. Enregistrer un
-  composant et autocharger ses classes sont deux mécanismes distincts, et seul le premier est
-  automatique.
-- **Un contrôleur se résout par convention depuis le nom du module**, pas depuis l'autochargement :
-  `Gplanchat_DurableModule` + `\Controller\Adminhtml\…`. Le module ajoute donc une seconde entrée `psr-4`
-  pour ce seul dossier. Sans elle, la route est déclarée, **le menu s'affiche**, et Magento sert son
-  404 dans le châssis d'admin — tous les symptômes désignent la déclaration, qui est juste.
-- **Un argument de constructeur optionnel n'est pas auto-câblé** : Magento prend son défaut. Il faut
-  le nommer dans `di.xml`, sinon la dépendance reste `null` sans une ligne d'erreur.
-- **Renommer une classe que le conteneur instancie** laisse un intercepteur périmé dans
-  `generated/code/`, que `setup:upgrade --keep-generated` ne retire pas. Symptôme : *« There are no
-  commands defined in the "durable" namespace »*.
+- **Magento forbids `final`** on any class its container instantiates: it generates an
+  `Interceptor` that extends it. The message — *"cannot extend final class"* — does not say that the
+  keyword is the cause.
+- **Mage-OS audits path repositories.** `composer-dependency-version-audit-plugin` refuses a package
+  resolved locally when a more recent one exists on packagist.org. The bench disables it for
+  itself; a consuming project must keep it.
+- **A module in `app/code` does not autoload itself** on this distribution: Mage-OS's root
+  `composer.json` does not carry the `psr-0: {"": ["app/code/"]}` of a classic Magento. Registering
+  a component and autoloading its classes are two distinct mechanisms, and only the first is
+  automatic.
+- **A controller is resolved by convention from the module name**, not from autoloading:
+  `Gplanchat_DurableModule` + `\Controller\Adminhtml\…`. The module therefore adds a second `psr-4` entry
+  for that one directory. Without it, the route is declared, **the menu shows**, and Magento serves
+  its 404 in the admin chrome — every symptom points at the declaration, which is right.
+- **An optional constructor argument is not autowired**: Magento takes its default. It has to be
+  named in `di.xml`, otherwise the dependency stays `null` without a line of error.
+- **Renaming a class that the container instantiates** leaves a stale interceptor in
+  `generated/code/`, which `setup:upgrade --keep-generated` does not remove. Symptom: *There are no
+  commands defined in the "durable" namespace*.
 
-## Quand le module change et que le banc ne suit pas
+## When the module changes and the bench does not follow
 
-Les dépôts de chemin sont en `"symlink": false` : éditer `src/DurableModule` ne change **rien** à
-`magento/vendor/gplanchat/durable-magento` tant qu'on n'a pas réinstallé.
+The path repositories are `"symlink": false`: editing `src/DurableModule` changes **nothing** in
+`magento/vendor/gplanchat/durable-magento` until it has been reinstalled.
 
 ```bash
 composer update gplanchat/durable-magento gplanchat/durable-bridge-temporal
@@ -205,21 +204,21 @@ bin/magento setup:upgrade
 bin/magento cache:flush
 ```
 
-Composer relit le paquet de chemin depuis la **copie principale** du dépôt, pas depuis un worktree :
-un changement fait dans un worktree n'arrivera au banc qu'une fois fusionné.
+Composer reads the path package again from the repository's **main copy**, not from a worktree: a
+change made in a worktree will only reach the bench once it has been merged.
 
-## Autres pannes d'amorçage
+## Other bootstrap failures
 
 - **`Class "Magento\Setup\Mvc\Bootstrap\InitParamListener" not found`** — `composer dump-autoload`
-  dans `magento/` ; l'overlay déclare `Magento\Setup\` dans son `composer.json`.
-- **`You do not have the SUPER privilege … CREATE TRIGGER`** — l'overlay lance MySQL avec
-  `--log-bin-trust-function-creators=1` ; recréer le service :
+  in `magento/`; the overlay declares `Magento\Setup\` in its `composer.json`.
+- **`You do not have the SUPER privilege … CREATE TRIGGER`** — the overlay starts MySQL with
+  `--log-bin-trust-function-creators=1`; recreate the service:
   `docker compose up -d --force-recreate magento-db`.
-- **`Could not validate a connection to the OpenSearch`** — `docker compose ps opensearch`, et
-  vérifier le port `9201`.
+- **`Could not validate a connection to the OpenSearch`** — `docker compose ps opensearch`, and
+  check port `9201`.
 
 ## Notes
 
-- Ce dépôt ne livre pas de distribution Magento préinstallée.
-- Le banc est Mage-OS. Que le module tourne sans modification sur la distribution d'Adobe est une
-  question ouverte, que personne n'a mesurée.
+- This repository does not ship a preinstalled Magento distribution.
+- The bench is Mage-OS. Whether the module runs unmodified on Adobe's distribution is an open
+  question, which nobody has measured.

@@ -3,23 +3,23 @@
 declare(strict_types=1);
 
 /*
- * Sonde — que laisse un consommateur qui meurt au milieu d'un message ?
+ * Probe — what does a consumer that dies in the middle of a message leave behind?
  *
- * Le banc n'a pas d'AMQP : `compose.yaml` monte MySQL, OpenSearch, Redis et
- * Temporal, rien d'autre. C'est donc `Magento\MysqlMq` qui répond, et sa
- * redélivrance n'a pas les règles d'AMQP — les déduire de la documentation
- * d'AMQP serait exactement l'erreur que le §1.3 existe pour éviter.
+ * The bench has no AMQP: `compose.yaml` brings up MySQL, OpenSearch, Redis and
+ * Temporal, nothing else. So it is `Magento\MysqlMq` that answers, and its
+ * redelivery does not have AMQP's rules — deducing them from AMQP's
+ * documentation would be exactly the mistake §1.3 exists to avoid.
  *
- *   php probe-queue.php publish <étiquette> <secondes>   met un message qui traîne
- *   php probe-queue.php state                            l'état des messages, en clair
- *   php probe-queue.php recover                          la tâche cron qui rattrape les IN_PROGRESS
- *   php probe-queue.php unlock                           la tâche cron qui vide `queue_lock`
- *   php probe-queue.php purge                            écarte les messages des campagnes passées
- *   php probe-queue.php config                           les réglages qui décident de la reprise
+ *   php probe-queue.php publish <label> <seconds>   puts a message that lingers
+ *   php probe-queue.php state                       the state of the messages, in plain words
+ *   php probe-queue.php recover                     the cron task that catches up the IN_PROGRESS
+ *   php probe-queue.php unlock                      the cron task that empties `queue_lock`
+ *   php probe-queue.php purge                       sets aside the messages of past campaigns
+ *   php probe-queue.php config                      the settings that decide the resume
  *
- * Puis, dans un autre terminal :
+ * Then, in another terminal:
  *   php bin/magento queue:consumers:start durable.probe --max-messages=1
- * et on le tue entre le DÉBUT et la FIN de `var/log/durable-probe.log`.
+ * and it is killed between the START and the END in `var/log/durable-probe.log`.
  */
 
 require __DIR__ . '/app/bootstrap.php';
@@ -43,7 +43,7 @@ switch ($argv[1] ?? 'state') {
         $seconds = (int) ($argv[3] ?? 30);
         $om->get(\Magento\Framework\MessageQueue\PublisherInterface::class)
             ->publish('gplanchat.durable.probe', $label . ':' . $seconds);
-        echo "publié : $label:$seconds\n";
+        echo "published: $label:$seconds\n";
         break;
 
     case 'state':
@@ -58,42 +58,43 @@ switch ($argv[1] ?? 'state') {
                 ->order('s.id ASC')
         );
         if ($rows === []) {
-            echo "aucun message dans durable_probe\n";
+            echo "no message in durable_probe\n";
             break;
         }
         foreach ($rows as $row) {
             printf(
-                "%-14s essais=%-3d maj=%s  %s\n",
+                "%-14s tries=%-3d updated=%s  %s\n",
                 $statuses[(int) $row['status']] ?? $row['status'],
                 (int) $row['number_of_trials'],
                 $row['updated_at'],
                 $row['body'],
             );
         }
-        printf("(maintenant, côté base : %s)\n", $db->fetchOne('SELECT NOW()'));
+        printf("(now, on the database side: %s)\n", $db->fetchOne('SELECT NOW()'));
         break;
 
     case 'recover':
-        // Exactement ce que la tâche cron `mysqlmq_clean_messages` appelle —
-        // `etc/crontab.xml` de Magento_MysqlMq la déclare sur cette classe et
-        // cette méthode, à 6h30 et 15h30. On appelle son point d'entrée, pas
-        // son ordonnanceur : la sonde mesure l'effet, elle ne réimplémente rien.
+        // Exactly what the cron task `mysqlmq_clean_messages` calls —
+        // Magento_MysqlMq's `etc/crontab.xml` declares it on this class and this
+        // method, at 6:30 and 15:30. Its entry point is called, not its
+        // scheduler: the probe measures the effect, it reimplements nothing.
         $om->get(\Magento\MysqlMq\Model\Observer::class)->cleanupMessages();
-        echo "mysqlmq_clean_messages exécutée\n";
+        echo "mysqlmq_clean_messages ran\n";
         break;
 
     case 'unlock':
-        // La tâche cron `messagequeue_clean_outdated_locks`, toutes les heures.
-        // Elle vide `queue_lock` — et c'est elle, pas la reprise, qui décide si
-        // un message redélivré sera traité ou acquitté sans rien faire.
+        // The cron task `messagequeue_clean_outdated_locks`, every hour. It
+        // empties `queue_lock` — and it is that task, not the resume, that
+        // decides whether a redelivered message is processed or acknowledged
+        // without doing anything.
         $om->get(\Magento\Framework\MessageQueue\Lock\WriterInterface::class)->releaseOutdatedLocks();
-        echo "messagequeue_clean_outdated_locks exécutée\n";
+        echo "messagequeue_clean_outdated_locks ran\n";
         break;
 
     case 'purge':
-        // Les campagnes précédentes laissent des messages derrière elles, et un
-        // consommateur prend le plus ancien candidat, pas le vôtre : une file
-        // sale répond à côté de la question posée. Mesuré à mes dépens.
+        // Previous campaigns leave messages behind them, and a consumer takes
+        // the oldest candidate, not yours: a dirty queue answers beside the
+        // question that was asked. Measured the hard way.
         $connection = $om->get(\Magento\Framework\App\ResourceConnection::class);
         $db = $connection->getConnection();
         $ids = $db->fetchCol(
@@ -106,7 +107,7 @@ switch ($argv[1] ?? 'state') {
             $om->get(\Magento\MysqlMq\Model\QueueManagement::class)
                 ->changeStatus($ids, \Magento\MysqlMq\Model\QueueManagement::MESSAGE_STATUS_COMPLETE);
         }
-        printf("%d message(s) de sonde retiré(s) du chemin\n", count($ids));
+        printf("%d probe message(s) taken out of the way\n", count($ids));
         break;
 
     case 'config':
@@ -122,6 +123,6 @@ switch ($argv[1] ?? 'state') {
         break;
 
     default:
-        fwrite(STDERR, "usage: php probe-queue.php publish <étiquette> <secondes>|state|config\n");
+        fwrite(STDERR, "usage: php probe-queue.php publish <label> <seconds>|state|config\n");
         exit(2);
 }

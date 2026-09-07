@@ -17,16 +17,16 @@ use unit\DurableModule\Fixture\OrderWorkflow;
 use unit\DurableModule\Fixture\RecordingOrderActivities;
 
 /**
- * Où vit le journal, et qui le décide.
+ * Where the journal lives, and who decides that.
  *
- * Magento n'atteint que deux backends, et ce n'est pas une timidité : il ne livre aucun des deux
- * types de connexion auxquels les ponts SQL se lient. Le choix entre les deux ne revient donc pas
- * à un nom de backend recopié dans une configuration — la 2.3 a retiré cette surface — mais à la
- * **présence d'un DSN**. Pas de DSN, pas de grappe : le journal vit dans le processus et meurt
- * avec lui. Un DSN, et il vit dans le cluster.
+ * Magento reaches only two backends, and that is no timidity: it ships neither of the two
+ * connection types the SQL bridges bind to. The choice between the two therefore does not come
+ * down to a backend name copied into a configuration — 2.3 removed that surface — but to the
+ * **presence of a DSN**. No DSN, no cluster: the journal lives in the process and dies with it.
+ * A DSN, and it lives in the cluster.
  *
- * C'est la même règle que pour les ponts SQL, un cran plus bas : ce qui est installé et configuré
- * décide, pas une chaîne qu'on peut écrire de travers.
+ * It is the same rule as for the SQL bridges, one notch lower: what is installed and configured
+ * decides, not a string that can be written crooked.
  */
 final class RuntimeFactoryTest extends TestCase
 {
@@ -47,13 +47,13 @@ final class RuntimeFactoryTest extends TestCase
     }
 
     /**
-     * Ce que l'écran d'administration interroge.
+     * What the administration screen queries.
      *
-     * Le catalogue n'est **pas** dérivable du magasin d'événements : `InMemoryWorkflowRunCatalog`
-     * tient sa propre liste, alimentée par `recordStart()`/`recordOutcome()` dans le processus qui
-     * exécute. Une requête d'administration n'exécute rien, donc elle n'a rien à y lire. Lister les
-     * exécutions d'une grappe, c'est demander à la grappe — et le pont livre déjà la classe qui
-     * sait le faire.
+     * The catalog is **not** derivable from the event store: `InMemoryWorkflowRunCatalog` keeps
+     * its own list, fed by `recordStart()`/`recordOutcome()` in the process that executes. An
+     * administration request executes nothing, so it has nothing to read there. Listing the
+     * executions of a cluster means asking the cluster — and the bridge already ships the class
+     * that knows how to do it.
      */
     public function testTheCatalogAsksTheClusterWhenThereIsOne(): void
     {
@@ -72,11 +72,11 @@ final class RuntimeFactoryTest extends TestCase
     }
 
     /**
-     * Ce qui manquait pour que les journaux se closent.
+     * What was missing for the journals to close.
      *
-     * Sans worker, une exécution appendue au cluster y reste `running` pour toujours : personne ne
-     * répond aux tâches de sa file. Le pont livre les quatre objets ; le module n'a qu'à les
-     * assembler et à boucler.
+     * With no worker, an execution appended to the cluster stays `running` there forever: nobody
+     * answers the tasks in its queue. The bridge ships the four objects; the module has only to
+     * assemble them and to loop.
      */
     public function testAJournalWorkerIsAssembledWhenThereIsACluster(): void
     {
@@ -89,8 +89,8 @@ final class RuntimeFactoryTest extends TestCase
     }
 
     /**
-     * Un worker de journal sans grappe ne serait pas inutile, il serait trompeur : il tournerait,
-     * ne trouverait jamais rien, et l'exploitant croirait avoir un worker.
+     * A journal worker with no cluster would not be useless, it would be deceptive: it would
+     * run, would never find anything, and the operator would believe they had a worker.
      */
     public function testAskingForAJournalWorkerWithoutAClusterFailsSayingSo(): void
     {
@@ -101,12 +101,12 @@ final class RuntimeFactoryTest extends TestCase
     }
 
     /**
-     * Ce qui manquait pour que l'ordre reparte.
+     * What was missing for the order to start moving again.
      *
-     * La §5.3 avait mesuré la moitié qui compte — la carte n'est pas re-débitée — et la moitié qui
-     * manquait : l'exécution restait suspendue parce que son activité avait été distribuée dans le
-     * transport en mémoire d'un processus mort. Sur Temporal, une activité est une tâche que
-     * quelqu'un doit dépiler, et ce quelqu'un est ce worker.
+     * §5.3 had measured the half that counts — the card is not charged a second time — and the
+     * half that was missing: the execution stayed suspended because its activity had been
+     * dispatched into the in-memory transport of a dead process. On Temporal, an activity is a
+     * task somebody has to pop off, and that somebody is this worker.
      */
     public function testAnActivityWorkerIsAssembledWhenThereIsACluster(): void
     {
@@ -119,8 +119,8 @@ final class RuntimeFactoryTest extends TestCase
     }
 
     /**
-     * Et de quoi démarrer une exécution **sur la grappe** plutôt que dans ce processus-ci :
-     * `MagentoRuntime::run()` exécute ici, donc ses activités ne quittent jamais la mémoire.
+     * And what it takes to start an execution **on the cluster** rather than in this process
+     * here: `MagentoRuntime::run()` executes here, so its activities never leave memory.
      */
     public function testAWorkflowCanBeStartedOnTheClusterRatherThanInThisProcess(): void
     {
@@ -144,8 +144,8 @@ final class RuntimeFactoryTest extends TestCase
     }
 
     /**
-     * La déclaration de la 3.1 ne doit rien savoir du backend : c'est le même `di.xml` des deux
-     * côtés, et un workflow déclaré une fois tourne sur l'un comme sur l'autre.
+     * The declaration of 3.1 must know nothing of the backend: it is the same `di.xml` on both
+     * sides, and a workflow declared once runs on the one as on the other.
      */
     public function testDeclarationIsOrthogonalToWhereTheJournalLives(): void
     {

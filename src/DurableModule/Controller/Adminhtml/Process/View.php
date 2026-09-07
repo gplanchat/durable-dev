@@ -11,13 +11,13 @@ use Magento\Framework\Controller\ResultInterface;
 use Magento\Framework\View\Result\PageFactory;
 
 /**
- * L'historique d'une exécution — ce qu'une ligne de grille ne peut pas tenir.
+ * An execution's history — what a grid row cannot hold.
  *
- * En lecture seule comme la liste, et pour la même raison : reprendre depuis un navigateur
- * contournerait le verrou par exécution.
+ * Read-only like the listing, and for the same reason: resuming from a browser would bypass the
+ * per-execution lock.
  */
 /*
- * Pas `final` : le conteneur l'instancie, donc il engendre un `Interceptor` qui l'étend.
+ * Not `final`: the container instantiates it, so it generates an `Interceptor` extending it.
  */
 class View extends Action implements HttpGetActionInterface
 {
@@ -33,18 +33,18 @@ class View extends Action implements HttpGetActionInterface
     public function execute(): ResultInterface
     {
         /*
-         * ⚠ `Magento\Framework\View\Result\PageFactory` ne rend pas une page de framework dans
-         * l'aire d'administration : `module-backend/etc/adminhtml/di.xml` lui passe
-         * `instanceName = Magento\Backend\Model\View\Result\Page`, et c'est cette page-là qui
-         * porte `setActiveMenu()`. L'annotation dit à l'analyse ce que le conteneur fait, plutôt
-         * que de faire taire l'erreur : c'est vérifiable dans le `di.xml` cité.
+         * ⚠ `Magento\Framework\View\Result\PageFactory` does not return a framework page in the
+         * admin area: `module-backend/etc/adminhtml/di.xml` passes it
+         * `instanceName = Magento\Backend\Model\View\Result\Page`, and that is the page which
+         * carries `setActiveMenu()`. The annotation tells static analysis what the container does,
+         * rather than silencing the error: it is verifiable in the `di.xml` cited.
          */
         /** @var \Magento\Backend\Model\View\Result\Page $page */
         $page = $this->pageFactory->create();
         $page->setActiveMenu('Gplanchat_DurableModule::process_history');
-        // `Title::prepend()` déclare `string` ; `__()` rend une `Phrase`. Le rendu a lieu ici de
-        // toute façon — le titre part dans la page — donc la conversion ne coûte aucune traduction
-        // tardive et respecte le contrat écrit.
+        // `Title::prepend()` declares `string`; `__()` returns a `Phrase`. Rendering happens here
+        // anyway — the title goes into the page — so the conversion costs no late translation and
+        // honours the written contract.
         $page->getConfig()->getTitle()->prepend(
             (string) __('Execution %1', (string) $this->getRequest()->getParam('run_id')),
         );

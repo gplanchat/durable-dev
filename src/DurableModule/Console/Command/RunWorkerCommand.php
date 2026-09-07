@@ -11,31 +11,30 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * `bin/magento durable:worker` — la boucle qui fait avancer les exécutions.
+ * `bin/magento durable:worker` — the loop that makes executions advance.
  *
- * **Un processus, une file, un rôle.** `--role=journal` répond aux tâches de workflow, `--role=activity`
- * dépile les tâches d'activité. Les séparer n'est pas une préférence : ce sont deux files distinctes
- * côté Temporal, et un exploitant règle leur parallélisme séparément — une activité lente ne doit pas
- * retarder la reprise d'un journal.
+ * **One process, one queue, one role.** `--role=journal` answers workflow tasks, `--role=activity`
+ * drains activity tasks. Separating them is not a preference: these are two distinct queues on the
+ * Temporal side, and an operator tunes their concurrency apart — a slow activity must not delay the
+ * resume of a journal.
  *
- * Sans le rôle `journal`, une exécution appendue au cluster n'avance pas : son historique se
- * remplit et personne ne répond à ses tâches. Sans le rôle `activity`, elle avance jusqu'à sa
- * première activité et s'y arrête — c'est exactement ce que le §5.3 avait mesuré, une commande
- * débitée dont le stock n'était jamais réservé.
+ * Without the `journal` role, an execution appended to the cluster does not advance: its history
+ * fills and no one answers its tasks. Without the `activity` role, it advances up to its first
+ * activity and stops there — which is exactly what §5.3 had measured, an order charged whose stock
+ * was never reserved.
  *
- * **Pourquoi une commande, et pas un consommateur de la file de Magento.** Un worker tient sa tâche
- * par une longue interrogation, donc par construction plus longtemps qu'un message ordinaire — et
- * le §1.5 a mesuré ce que Magento fait d'un message tenu trop longtemps : la minuterie de reprise
- * ne demande à personne s'il a fini et le redistribue, deux processus traitant le même message en
- * même temps. Un worker ne peut donc pas être un message de file. Il est un processus long, drainé
- * par ce qu'un exploitant supervise déjà — systemd, supervisor, ou la même chose que ses
- * consommateurs.
+ * **Why a command, and not a consumer of Magento's queue.** A worker holds its task by long poll,
+ * so by construction longer than an ordinary message — and §1.5 measured what Magento does with a
+ * message held too long: the retry timer asks no one whether it has finished and redistributes it,
+ * two processes handling the same message at the same time. So a worker cannot be a queue message.
+ * It is a long-running process, drained by whatever an operator already supervises — systemd,
+ * supervisor, or the same thing as their consumers.
  *
- * Les deux bornes existent pour cette supervision : un superviseur redémarre, il ne veut pas d'un
- * processus immortel qui garde une connexion gRPC vieille d'une semaine.
+ * The two bounds exist for that supervision: a supervisor restarts, and it does not want an
+ * immortal process holding a gRPC connection a week old.
  */
 /*
- * Pas `final` : le conteneur l'instancie, donc il engendre un `Interceptor` qui l'étend.
+ * Not `final`: the container instantiates it, so it generates an `Interceptor` extending it.
  */
 class RunWorkerCommand extends Command
 {
@@ -83,12 +82,12 @@ class RunWorkerCommand extends Command
         $maxTasks = (int) $input->getOption(self::OPTION_MAX_TASKS);
         $timeLimit = (int) $input->getOption(self::OPTION_TIME_LIMIT);
 
-        // Le refus tombe ici plutôt qu'à la première itération : un worker sans grappe tournerait,
-        // ne trouverait jamais rien, et aurait l'air parfaitement sain.
+        // The refusal falls here rather than at the first iteration: a worker with no cluster
+        // would run, would never find anything, and would look perfectly healthy.
         $role = (string) $input->getOption(self::OPTION_ROLE);
-        // Les deux workers du pont ne nomment pas leur tour de la même façon — `processOne()` pour
-        // le journal, `pollOnce()` pour les activités — et ce n'est pas à cette commande de leur
-        // imposer un nom commun. Elle prend un tour, quel qu'il s'appelle.
+        // The bridge's two workers do not name their turn the same way — `processOne()` for the
+        // journal, `pollOnce()` for activities — and it is not for this command to impose a common
+        // name on them. It takes a turn, whatever it is called.
         $tick = match ($role) {
             self::ROLE_JOURNAL => $this->runtimeFactory->journalWorker()->processOne(...),
             self::ROLE_ACTIVITY => $this->runtimeFactory->activityWorker()->pollOnce(...),
@@ -99,9 +98,9 @@ class RunWorkerCommand extends Command
                 self::ROLE_ACTIVITY,
             )),
         };
-        // La borne est une option de console, donc un entier de secondes ; `microtime()` rend un
-        // flottant. Le cast est explicite parce que mélanger les deux en silence est exactement ce
-        // qu'une analyse stricte refuse de laisser passer.
+        // The bound is a console option, so an integer of seconds; `microtime()` returns a float.
+        // The cast is explicit because silently mixing the two is exactly what a strict analysis
+        // refuses to let through.
         $deadline = $timeLimit > 0 ? microtime(true) + (float) $timeLimit : null;
 
         $output->writeln(sprintf(

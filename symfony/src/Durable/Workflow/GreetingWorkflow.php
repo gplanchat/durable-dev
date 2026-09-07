@@ -20,7 +20,7 @@ final class GreetingWorkflow
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
-        // Stubs initialisés au constructeur ; options retry/gestion d'erreur configurables ici
+        // Stubs initialized in the constructor; retry / error-handling options configurable here
         $this->greeting = $environment->activityStub(
             GreetingActivityInterface::class,
             new ActivityOptions(RetryLimit::ofAttempts(3)),

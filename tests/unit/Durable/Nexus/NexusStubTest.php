@@ -24,81 +24,81 @@ final class NexusStubTest extends TestCase
         $scheduler = new RecordingNexusScheduler();
         $stub = new NexusStub(
             $scheduler,
-            FacturationContract::class,
+            BillingContractFixture::class,
             new NexusContractResolver(),
-            NexusEndpoint::named('paiements'),
+            NexusEndpoint::named('payments'),
         );
 
-        $stub->encaisser('cmd-1', 1200);
+        $stub->charge('order-1', 1200);
 
-        self::assertSame('paiements', $scheduler->endpoint?->name());
-        self::assertSame('facturation', $scheduler->service?->name());
-        self::assertSame('encaisser', $scheduler->operation?->name());
+        self::assertSame('payments', $scheduler->endpoint?->name());
+        self::assertSame('billing', $scheduler->service?->name());
+        self::assertSame('charge', $scheduler->operation?->name());
     }
 
     public function testNamedArgumentsBecomeTheCallersPayload(): void
     {
-        // La charge voyage telle que l'appelant l'a écrite — pas d'enveloppe (1b.2). Les noms des
-        // clés sont ceux des paramètres du contrat, donc un gestionnaire d'un autre SDK y trouve
-        // les champs qu'il déclare.
+        // The payload travels as the caller wrote it — no envelope (1b.2). The key names are
+        // those of the contract's parameters, so a handler from another SDK finds in there the
+        // fields it declares.
         $scheduler = new RecordingNexusScheduler();
         $stub = new NexusStub(
             $scheduler,
-            FacturationContract::class,
+            BillingContractFixture::class,
             new NexusContractResolver(),
-            NexusEndpoint::named('paiements'),
+            NexusEndpoint::named('payments'),
         );
 
-        $stub->encaisser('cmd-1', 1200);
+        $stub->charge('order-1', 1200);
 
-        self::assertSame(['ordre' => 'cmd-1', 'montant' => 1200], $scheduler->payload);
+        self::assertSame(['order' => 'order-1', 'amount' => 1200], $scheduler->payload);
     }
 
     public function testAnInheritedOperationIsCallable(): void
     {
-        // Le contrat de l'appelant étend celui que le gestionnaire implémente : sans les méthodes
-        // héritées, l'appelant ne saurait pas appeler ce que le gestionnaire sert.
+        // The caller's contract extends the one the handler implements: without the inherited
+        // methods, the caller would not know how to call what the handler serves.
         $scheduler = new RecordingNexusScheduler();
         $stub = new NexusStub(
             $scheduler,
-            FacturationContract::class,
+            BillingContractFixture::class,
             new NexusContractResolver(),
-            NexusEndpoint::named('paiements'),
+            NexusEndpoint::named('payments'),
         );
 
-        $stub->verifier('cmd-1');
+        $stub->verify('order-1');
 
-        self::assertSame('verifier', $scheduler->operation?->name());
+        self::assertSame('verify', $scheduler->operation?->name());
     }
 
     public function testAMethodThatIsNotAnOperationIsRefused(): void
     {
         $stub = new NexusStub(
             new RecordingNexusScheduler(),
-            FacturationContract::class,
+            BillingContractFixture::class,
             new NexusContractResolver(),
-            NexusEndpoint::named('paiements'),
+            NexusEndpoint::named('payments'),
         );
 
         $this->expectException(\BadMethodCallException::class);
-        $this->expectExceptionMessageMatches('/inexistante/');
+        $this->expectExceptionMessageMatches('/notAnOperation/');
 
-        $stub->inexistante();
+        $stub->notAnOperation();
     }
 }
 
-#[AsNexusService('facturation')]
-interface FacturationServed
+#[AsNexusService('billing')]
+interface BillingServedFixture
 {
-    #[AsNexusOperation('verifier')]
-    public function verifier(string $ordre): string;
+    #[AsNexusOperation('verify')]
+    public function verify(string $order): string;
 }
 
-#[AsNexusService('facturation')]
-interface FacturationContract extends FacturationServed
+#[AsNexusService('billing')]
+interface BillingContractFixture extends BillingServedFixture
 {
-    #[AsNexusOperation('encaisser')]
-    public function encaisser(string $ordre, int $montant): string;
+    #[AsNexusOperation('charge')]
+    public function charge(string $order, int $amount): string;
 }
 
 final class RecordingNexusScheduler implements NexusOperationSchedulerInterface

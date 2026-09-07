@@ -49,18 +49,18 @@ final class MessengerActivityTransportTest extends TestCase
         self::assertSame('hello messenger', $result);
 
         $events = iterator_to_array($eventStore->readStream($executionId));
-        // Le journal en comptait quatre quand ce test a été écrit. `ActivityTaskStarted` et
-        // `ActivityTaskCompleted` s'y sont ajoutés depuis : la tentative d'exécution est
-        // désormais consignée à part de l'issue de l'activité, ce qui est ce qui permet de
-        // distinguer une retentative d'un premier essai. La séquence est écrite en entier plutôt
-        // que comptée, pour qu'un événement de plus se voie plutôt que de faire tomber un nombre.
-        // Sans ces deux lignes, le test est vert avec **n'importe quel** transport : mesuré, en
-        // remplaçant `MessengerActivityTransport` par `InMemoryActivityTransport`. Il portait un
-        // `#[CoversClass]` qu'il n'honorait pas — c'est le journal du moteur qu'il observait, pas
-        // le passage par Messenger. Ce qui distingue ce transport des autres, c'est qu'une
-        // enveloppe part sur le transport Symfony et y est acquittée.
-        self::assertCount(1, $symfonyTransport->getSent(), 'une enveloppe part sur le transport Symfony');
-        self::assertCount(1, $symfonyTransport->getAcknowledged(), 'et elle y est acquittée');
+        // The journal held four of them when this test was written. `ActivityTaskStarted` and
+        // `ActivityTaskCompleted` have been added since: the execution attempt is now recorded
+        // apart from the outcome of the activity, which is what makes it possible to tell a
+        // retry from a first try. The sequence is written out in full rather than counted, so
+        // that one extra event shows itself rather than knocking a number over.
+        // Without these two lines, the test is green with **any** transport: measured, by
+        // replacing `MessengerActivityTransport` with `InMemoryActivityTransport`. It carried a
+        // `#[CoversClass]` it did not honour — what it observed was the engine journal, not the
+        // trip through Messenger. What sets this transport apart from the others is that an
+        // envelope leaves on the Symfony transport and is acknowledged there.
+        self::assertCount(1, $symfonyTransport->getSent(), 'one envelope leaves on the Symfony transport');
+        self::assertCount(1, $symfonyTransport->getAcknowledged(), 'and it is acknowledged there');
 
         self::assertSame([
             ExecutionStarted::class,

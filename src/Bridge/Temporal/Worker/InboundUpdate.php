@@ -8,11 +8,11 @@ use Gplanchat\Durable\Workflow\PendingUpdate;
 use Temporal\Api\Update\V1\Request as UpdateRequest;
 
 /**
- * Un update reçu sur la tâche, et ce qu'il faut pour y répondre.
+ * An update received on the task, and what it takes to answer it.
  *
- * L'acceptation doit réécho la requête d'origine et dire à quel message et à quel événement elle
- * répond — c'est ce que le serveur écrit ensuite dans `WORKFLOW_EXECUTION_UPDATE_ACCEPTED`, et
- * c'est ce qui rend la requête relisible au replay.
+ * The acceptance must echo the original request back and say which message and which event it
+ * answers — that is what the server then writes into `WORKFLOW_EXECUTION_UPDATE_ACCEPTED`, and
+ * that is what makes the request readable again on replay.
  */
 final class InboundUpdate
 {

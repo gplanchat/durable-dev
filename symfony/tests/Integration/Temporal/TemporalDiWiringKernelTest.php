@@ -12,14 +12,14 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 
 /**
- * Vérifie que le câblage DI Temporal est correct lorsque DURABLE_DSN est configuré.
+ * Verifies that the Temporal DI wiring is correct when DURABLE_DSN is configured.
  *
- * Ce test détecte les régressions comme :
- * - DurableTemporalTransportFactoryPass non enregistré → TemporalActivityWorker null dans TemporalTransportFactory
- * - Transport durable_temporal_activity qui échoue à l'instanciation (exit code 1 des workers)
+ * This test catches regressions such as:
+ * - DurableTemporalTransportFactoryPass not registered → TemporalActivityWorker null in TemporalTransportFactory
+ * - durable_temporal_activity transport failing to instantiate (workers exiting with code 1)
  *
- * Prérequis : DURABLE_DSN doit être défini dans l'environnement et l'extension PHP grpc doit être chargée.
- * Exécution : DURABLE_DSN=temporal://127.0.0.1:7233?namespace=default&tls=0 php bin/phpunit --group temporal-integration
+ * Prerequisites: DURABLE_DSN must be defined in the environment and the PHP grpc extension must be loaded.
+ * Run: DURABLE_DSN=temporal://127.0.0.1:7233?namespace=default&tls=0 php bin/phpunit --group temporal-integration
  *
  * @internal
  */
@@ -27,12 +27,12 @@ use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 final class TemporalDiWiringKernelTest extends KernelTestCase
 {
     /**
-     * On démarre en env 'dev' car c'est là que durable.temporal.dsn = DURABLE_DSN.
-     * En env 'test', durable.temporal.dsn est null et les services Temporal ne sont pas enregistrés.
+     * We boot in the 'dev' env because that is where durable.temporal.dsn = DURABLE_DSN.
+     * In the 'test' env, durable.temporal.dsn is null and the Temporal services are not registered.
      *
-     * Note : en env 'dev', framework.test n'est pas actif, donc self::getContainer() (qui nécessite
-     * test.service_container) n'est pas disponible. On utilise self::$kernel->getContainer() à la place,
-     * ce qui ne donne accès qu'aux services publics — suffisant pour notre vérification.
+     * Note: in the 'dev' env, framework.test is not active, so self::getContainer() (which requires
+     * test.service_container) is not available. We use self::$kernel->getContainer() instead,
+     * which only gives access to the public services — enough for our check.
      */
     protected static function createKernel(array $options = []): \Symfony\Component\HttpKernel\KernelInterface
     {
@@ -46,19 +46,19 @@ final class TemporalDiWiringKernelTest extends KernelTestCase
         $dsn = (string) (getenv('DURABLE_DSN') ?: '');
         if ('' === trim($dsn)) {
             self::markTestSkipped(
-                'Définissez DURABLE_DSN pour exécuter les tests d\'intégration DI Temporal. '
-                . 'Ex. : DURABLE_DSN=temporal://127.0.0.1:7233?namespace=default&tls=0',
+                'Set DURABLE_DSN to run the Temporal DI integration tests. '
+                . 'E.g. DURABLE_DSN=temporal://127.0.0.1:7233?namespace=default&tls=0',
             );
         }
         if (!extension_loaded('grpc')) {
-            self::markTestSkipped('L\'extension PHP grpc est requise pour les tests DI Temporal.');
+            self::markTestSkipped('The PHP grpc extension is required for the Temporal DI tests.');
         }
     }
 
     /**
-     * Régression couverte : DurableTemporalTransportFactoryPass non enregistré dans DurableBundle::build()
-     * → durable.temporal.activity_worker non injecté dans TemporalTransportFactory
-     * → crash workers messenger:consume durable_temporal_activity (exit code 1).
+     * Regression covered: DurableTemporalTransportFactoryPass not registered in DurableBundle::build()
+     * → durable.temporal.activity_worker not injected into TemporalTransportFactory
+     * → messenger:consume durable_temporal_activity workers crash (exit code 1).
      */
     public function testTemporalActivityWorkerServiceIsAvailableInDevContainer(): void
     {
@@ -67,8 +67,8 @@ final class TemporalDiWiringKernelTest extends KernelTestCase
 
         self::assertTrue(
             $container->has('durable.temporal.activity_worker'),
-            'Le service public durable.temporal.activity_worker doit être enregistré en env dev. '
-            . 'Vérifiez DurableExtension::registerTemporalMirrorInfrastructure().',
+            'The public durable.temporal.activity_worker service must be registered in the '
+            . 'dev env. Check DurableExtension::registerTemporalMirrorInfrastructure().',
         );
     }
 
@@ -80,18 +80,18 @@ final class TemporalDiWiringKernelTest extends KernelTestCase
         self::assertInstanceOf(
             TemporalActivityWorker::class,
             $worker,
-            'durable.temporal.activity_worker doit être une instance de TemporalActivityWorker.',
+            'durable.temporal.activity_worker must be an instance of TemporalActivityWorker.',
         );
     }
 
     /**
-     * Régression couverte, et elle a coûté une CI rouge : `durable.temporal.nexus_worker` était
-     * enregistré avec une référence à `WorkflowServiceNexusRpc`, service que rien n'enregistrait.
-     * Le conteneur ne se construisait plus du tout — `cache:clear` échouait avant le moindre test,
-     * dans toutes les versions de la matrice à la fois.
+     * Regression covered, and it cost a red CI: `durable.temporal.nexus_worker` was registered
+     * with a reference to `WorkflowServiceNexusRpc`, a service that nothing registered.
+     * The container stopped building at all — `cache:clear` failed before the very first test,
+     * across every version of the matrix at once.
      *
-     * Les tests unitaires de la passe de compilation ne pouvaient pas l'attraper : ils montent un
-     * ContainerBuilder nu, où l'extension n'a jamais tourné. Seul un vrai noyau le voit.
+     * The compiler pass unit tests could not catch it: they set up a bare
+     * ContainerBuilder, where the extension never ran. Only a real kernel sees it.
      */
     public function testTemporalNexusWorkerServiceIsAvailableInDevContainer(): void
     {
@@ -100,7 +100,7 @@ final class TemporalDiWiringKernelTest extends KernelTestCase
 
         self::assertTrue(
             $container->has('durable.temporal.nexus_worker'),
-            'Le service public durable.temporal.nexus_worker doit être enregistré en env dev.',
+            'The public durable.temporal.nexus_worker service must be registered in the dev env.',
         );
         self::assertInstanceOf(
             TemporalNexusWorker::class,
@@ -109,9 +109,9 @@ final class TemporalDiWiringKernelTest extends KernelTestCase
     }
 
     /**
-     * Vérifie que TemporalTransportFactory peut créer le transport durable_temporal_activity
-     * sans lever d'exception. Si DurableTemporalTransportFactoryPass n'est pas enregistré, le worker
-     * est null et createTransport() lève InvalidArgumentException.
+     * Verifies that TemporalTransportFactory can create the durable_temporal_activity transport
+     * without throwing an exception. If DurableTemporalTransportFactoryPass is not registered, the
+     * worker is null and createTransport() throws InvalidArgumentException.
      */
     public function testDurableTemporalActivityTransportCanBeCreatedFromWorker(): void
     {
@@ -134,11 +134,11 @@ final class TemporalDiWiringKernelTest extends KernelTestCase
     }
 
     /**
-     * Vérifie via la réflexion que TemporalTransportFactory dans le container a bien reçu
-     * TemporalActivityWorker via le compiler pass.
+     * Verifies through reflection that the TemporalTransportFactory in the container did receive
+     * TemporalActivityWorker through the compiler pass.
      *
-     * Ce test nécessite que TemporalTransportFactory soit accessible depuis le container public.
-     * Si le service est inliné/optimisé (non-partagé), ce test est ignoré gracieusement.
+     * This test requires TemporalTransportFactory to be reachable from the public container.
+     * If the service is inlined/optimized (non-shared), this test is skipped gracefully.
      */
     public function testTemporalTransportFactoryHasActivityWorkerInjectedViaReflection(): void
     {
@@ -147,9 +147,9 @@ final class TemporalDiWiringKernelTest extends KernelTestCase
 
         if (!$container->has(TemporalTransportFactory::class)) {
             self::markTestSkipped(
-                'TemporalTransportFactory n\'est pas accessible depuis le container public en env dev '
-                . '(probablement inliné lors de la compilation). La vérification comportementale de '
-                . 'testDurableTemporalActivityTransportCanBeCreatedFromWorker est suffisante.',
+                'TemporalTransportFactory is not reachable from the public container in the dev env '
+                . '(probably inlined during compilation). The behavioural check of '
+                . 'testDurableTemporalActivityTransportCanBeCreatedFromWorker is sufficient.',
             );
         }
 
@@ -162,8 +162,8 @@ final class TemporalDiWiringKernelTest extends KernelTestCase
         self::assertInstanceOf(
             TemporalActivityWorker::class,
             $worker,
-            'TemporalTransportFactory::$activityWorker doit être injecté via DurableTemporalTransportFactoryPass. '
-            . 'Si null : le compiler pass n\'est pas enregistré dans DurableBundle::build().',
+            'TemporalTransportFactory::$activityWorker must be injected through DurableTemporalTransportFactoryPass. '
+            . 'If null: the compiler pass is not registered in DurableBundle::build().',
         );
     }
 }

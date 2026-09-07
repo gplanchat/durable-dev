@@ -15,16 +15,16 @@ use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 
 /**
- * Le catalogue des exécutions, lu dans la projection.
+ * The catalog of executions, read from the projection.
  *
- * La pagination est **par clé**, pas par décalage. `started_at` est stocké à la seconde et la table
- * grossit pendant qu'on la lit : un `OFFSET` ferait glisser la fenêtre à chaque exécution démarrée
- * entre deux pages, et l'exploitant verrait des lignes deux fois ou pas du tout. Le curseur porte
- * donc la dernière position lue — date *et* id —, et l'id départage les exécutions de la même
- * seconde, ce qui est le cas courant et non le cas limite.
+ * Pagination is **by key**, not by offset. `started_at` is stored to the second and the table grows
+ * while it is being read: an `OFFSET` would shift the window for every execution started between
+ * two pages, and the operator would see rows twice or not at all. The cursor therefore carries the
+ * last position read — date *and* id —, and the id breaks ties between executions of the same
+ * second, which is the common case and not the edge case.
  *
- * `groupId` reste absent : le backend DBAL n'a pas de notion de regroupement entre les exécutions
- * d'une même chaîne de continue-as-new, et l'inventer serait mentir à l'exploitant.
+ * `groupId` stays absent: the DBAL backend has no notion of grouping between the executions of a
+ * single continue-as-new chain, and inventing one would be lying to the operator.
  *
  * @see DUR030
  */
@@ -61,8 +61,8 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
             $params[] = $executionId;
         }
 
-        // Une ligne de plus que demandé : c'est elle, et elle seule, qui dit s'il y a une suite.
-        // Sans elle, une page exactement pleine promettrait une page vide.
+        // One row more than asked for: it, and it alone, tells whether there is a continuation.
+        // Without it, an exactly full page would promise an empty page.
         $rows = $this->connection->fetchAllAssociative(
             \sprintf(
                 'SELECT execution_id, workflow_type, status, started_at, ended_at FROM %s%s ORDER BY started_at DESC, execution_id ASC LIMIT %d',
@@ -114,8 +114,8 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         $checkedAt = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
         try {
-            // L'ordre le plus creux que le dialecte accepte : on sonde la connexion, pas le schéma.
-            // Passer par `ensure()` transformerait une base joignable mais vide en échec.
+            // The emptiest statement the dialect accepts: we probe the connection, not the schema.
+            // Going through `ensure()` would turn a reachable but empty database into a failure.
             $this->connection->executeQuery($this->connection->getDatabasePlatform()->getDummySelectSQL());
         } catch (\Throwable $failure) {
             return new BackendHealth(

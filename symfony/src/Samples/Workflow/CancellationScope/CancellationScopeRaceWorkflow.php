@@ -12,8 +12,8 @@ use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Inspiré de samples-php CancellationScope : plusieurs salutations en parallèle, le workflow retourne
- * la première terminée (`WorkflowEnvironment::any`).
+ * Inspired by samples-php CancellationScope: several greetings in parallel, the workflow returns
+ * the first one to finish (`WorkflowEnvironment::any`).
  */
 #[AsWorkflow('Samples_CancellationScope_Race')]
 final class CancellationScopeRaceWorkflow

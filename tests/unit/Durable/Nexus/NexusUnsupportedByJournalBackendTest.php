@@ -16,13 +16,13 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Nexus est inter-namespace par nature : appeler une opération servie par une autre équipe n'a
- * aucun équivalent dans un journal local. La proposition l'écrit — le backend journal **refuse**
- * l'appel avec une erreur explicite plutôt que de faire semblant.
+ * Nexus is cross-namespace by nature: calling an operation served by another team has no
+ * equivalent in a local journal. The proposal writes it down — the journal backend **refuses** the
+ * call with an explicit error rather than pretending.
  *
- * Ce refus n'est pas une lacune à combler plus tard : c'est le comportement voulu. Un backend qui
- * accepterait la commande et n'en ferait rien laisserait le workflow attendre un résultat que
- * personne ne produira — la panne muette, encore.
+ * This refusal is not a gap to fill in later: it is the intended behaviour. A backend that
+ * accepted the command and did nothing with it would leave the workflow waiting for a result
+ * nobody will ever produce — the silent failure, again.
  *
  * @see openspec/changes/temporal-nexus-support/proposal.md
  * @see openspec/changes/temporal-nexus-support/tasks.md §3.4
@@ -54,12 +54,12 @@ final class NexusUnsupportedByJournalBackendTest extends TestCase
 
     public function testTheErrorNamesTheBackendAndPointsAtTemporal(): void
     {
-        // Le message doit dire quoi faire, pas seulement que c'est impossible : le lecteur est un
-        // développeur qui vient d'écrire un appel Nexus et ne sait pas encore que son backend ne
-        // peut pas le servir.
+        // The message must say what to do, not only that it is impossible: the reader is a
+        // developer who has just written a Nexus call and does not yet know that their backend
+        // cannot serve it.
         try {
             $this->buffer()->cancelNexusOperation('op-1', 'peu importe');
-            self::fail('Le backend journal a accepté une opération Nexus.');
+            self::fail('The journal backend accepted a Nexus operation.');
         } catch (NexusUnsupportedByBackendException $e) {
             self::assertStringContainsString('Temporal', $e->getMessage());
         }

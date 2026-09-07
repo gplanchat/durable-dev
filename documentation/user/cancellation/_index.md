@@ -6,7 +6,7 @@ weight: 27
 # Cancellation
 
 Cancelling an execution does not kill it. The cancellation is **raised inside the workflow, at the
-point where it is waiting**, so the workflow can compensate before it ends — the equivalent of
+point where it is waiting**, so the workflow can compensate before it ends. This is the equivalent of
 Temporal's `CanceledFailure`.
 
 ---
@@ -51,7 +51,7 @@ Three outcomes, all legitimate:
 | The workflow… | Outcome |
 |---|---|
 | rethrows the failure | the execution ends **cancelled** |
-| swallows it and returns | the execution **completes** normally — a workflow may ignore cancellation |
+| swallows it and returns | the execution **completes** normally; a workflow may ignore cancellation |
 | never awaits anything | the cancellation is never observed and the workflow completes |
 
 The operation being awaited is cancelled at the same time. In a race, every pending branch is.
@@ -71,9 +71,9 @@ the same place. The workflow therefore takes the same branch on every replay.
 
 ## Requesting cancellation
 
-- **From a parent** — a child scheduled with `ParentClosePolicy::RequestCancel` is asked to cancel
+- **From a parent.** A child scheduled with `ParentClosePolicy::RequestCancel` is asked to cancel
   when the parent closes.
-- **From outside, on Temporal** — `temporal workflow cancel`, or any client calling
+- **From outside, on Temporal.** `temporal workflow cancel`, or any client calling
   `RequestCancelWorkflowExecution`. The server records the request and reschedules a workflow task;
   the worker answers it.
 
@@ -88,7 +88,7 @@ the same place. The workflow therefore takes the same branch on every replay.
 | `ActivityCancelled` / `TimerCancelled` with reason `workflow_cancelled` | the awaited operation was removed |
 
 A race loser is cancelled with reason `race_superseded` instead, and surfaces as
-`ActivitySupersededException` — a different situation that stays distinguishable.
+`ActivitySupersededException`, a different situation that stays distinguishable.
 
 ---
 
@@ -110,12 +110,12 @@ raises `DeadlineExceededException`.
 
 **The time bound is the deadline on `await()`, not a third branch.** A timer racing the providers
 would look like a winner: `any()` resolves to the winning *value* and nothing else, so a provider
-that legitimately answers `null` becomes indistinguishable from thirty seconds of silence — and a
+that legitimately answers `null` becomes indistinguishable from thirty seconds of silence, and a
 compensation path meant for the timeout runs on the empty answer too.
 
-`timer()` does return an `Awaitable`, exactly like a stub call, so it *can* be a branch — put it
+`timer()` does return an `Awaitable`, exactly like a stub call, so it *can* be a branch. Put it
 there when the timer is a real outcome (send a nudge, take the fallback path), never when it is a
 deadline in disguise. When you only want to wait, `sleep()` says so in its name and awaits for you.
 
 See [Creating a workflow](../workflows/#bounding-a-wait-in-time), where the deadline is written
-out with what the exception carries — `deadline()` and `awaited()`.
+out with what the exception carries: `deadline()` and `awaited()`.

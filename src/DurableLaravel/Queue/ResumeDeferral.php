@@ -7,17 +7,17 @@ namespace Gplanchat\Durable\Laravel\Queue;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 
 /**
- * Ce qu'on fait d'une reprise dont le tour est pris : la reposer plus tard, un nombre borné de
- * fois.
+ * What is done with a resume whose turn is taken: put it down again for later, a bounded number
+ * of times.
  *
- * **Le délai est un réglage, et §1.5 dit pourquoi.** Sur une exécution froide — beaucoup de
- * workflows en vol, une poignée de workers — les collisions sont une erreur d'arrondi : 0,6 % à
- * seize exécutions par worker. Sur une exécution chaude, celle qu'un signal ou un minuteur réveille
- * sans cesse, elles montent à 98,8 %, et là le délai **est** la latence : une seconde de report a
- * transformé 32 s de travail en 148 s d'horloge.
+ * **The delay is a setting, and §1.5 says why.** On a cold execution — many workflows in flight, a
+ * handful of workers — the collisions are a rounding error: 0,6 % at sixteen executions per
+ * worker. On a hot execution, the one a signal or a timer wakes ceaselessly, they rise to 98,8 %,
+ * and there the delay **is** the latency: one second of deferral turned 32 s of work into 148 s of
+ * clock.
  *
- * **Et le plafond est bruyant, pas silencieux.** Un report sans fin ressemble à une exécution qui
- * avance ; une exception nomme l'exécution et le nombre d'essais, ce qui se voit dans
+ * **And the ceiling is noisy, not silent.** An endless deferral looks like an execution that is
+ * making progress; an exception names the execution and the number of attempts, which shows up in
  * `failed_jobs`.
  */
 final class ResumeDeferral

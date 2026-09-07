@@ -31,11 +31,11 @@ use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Le worker vu depuis le fil : ce qu'il envoie au serveur pour chaque forme de réponse.
+ * The worker seen from the wire: what it sends to the server for each shape of answer.
  *
- * Le client gRPC est simulé, donc rien ici ne dépend d'un serveur — c'est le niveau où les quatre
- * branches (vide, immédiate, différée, refusée) se lisent d'un coup d'œil. Ce que ces tests ne
- * peuvent pas prouver, c'est que le serveur accepte ce qu'on lui envoie : c'est le rôle de
+ * The gRPC client is simulated, so nothing here depends on a server — this is the level where the
+ * four branches (empty, immediate, deferred, refused) read at a glance. What these tests cannot
+ * prove is that the server accepts what is sent to it: that is the job of
  * {@see \integration\Temporal\NexusServedOperationTest}.
  */
 #[RequiresPhpExtension('grpc')]
@@ -50,8 +50,8 @@ final class TemporalNexusWorkerTest extends TestCase
 
     public function testAnEmptyPollDoesNothingAtAll(): void
     {
-        // §1.2 : une file vide rend un jeton vide après ~11 s, et c'est un succès. Le traiter
-        // comme une erreur ferait tourner la boucle à vide en criant.
+        // §1.2: an empty queue returns an empty token after ~11 s, and that is a success.
+        // Treating it as an error would make the loop spin empty while shouting.
         $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call(new PollNexusTaskQueueResponse()));
         $this->grpc->expects($this->never())->method('RespondNexusTaskCompleted');
         $this->grpc->expects($this->never())->method('RespondNexusTaskFailed');
@@ -84,15 +84,15 @@ final class TemporalNexusWorkerTest extends TestCase
 
         self::assertSame('jeton-de-tache', $sent?->getTaskToken());
         $sync = $sent?->getResponse()?->getStartOperation()?->getSyncSuccess();
-        self::assertNotNull($sync, 'Une réponse immédiate doit partir en syncSuccess.');
+        self::assertNotNull($sync, 'An immediate answer must leave as a syncSuccess.');
         self::assertSame(['charged' => 10], JsonPlainPayload::decode($sync->getPayload()));
     }
 
     public function testADeferredAnswerStartsTheWorkflowCarryingTheTasksCallbackBeforeAnswering(): void
     {
-        // §3.1, mesuré : c'est le callback attaché au workflow qui règle l'opération, et
-        // `completion_callbacks` ne se pose qu'au démarrage. Répondre d'abord laisserait
-        // l'appelant attendre une issue qui n'arriverait jamais.
+        // §3.1, measured: it is the callback attached to the workflow that settles the
+        // operation, and `completion_callbacks` is only set at start. Answering first would leave
+        // the caller waiting for an outcome that would never arrive.
         $registry = NexusOperationRegistry::routedBy('temporal');
         $registry->register(
             NexusService::named('billing'),
@@ -123,24 +123,24 @@ final class TemporalNexusWorkerTest extends TestCase
 
         $this->worker($registry)->pollOnce();
 
-        self::assertSame(['start', 'respond'], $order, 'Le workflow doit démarrer avant la réponse.');
+        self::assertSame(['start', 'respond'], $order, 'The workflow must start before the answer.');
 
         self::assertSame('charge-1', $started?->getWorkflowId());
         self::assertSame('ChargeWorkflow', $started?->getWorkflowType()?->getName());
         $callbacks = $started?->getCompletionCallbacks();
         self::assertNotNull($callbacks);
-        self::assertCount(1, $callbacks, "Sans callback attaché, l'appelant n'apprend jamais l'issue.");
+        self::assertCount(1, $callbacks, 'Without an attached callback, the caller never learns the outcome.');
         self::assertSame('temporal://system', $callbacks[0]->getNexus()?->getUrl());
 
         $async = $answered?->getResponse()?->getStartOperation()?->getAsyncSuccess();
-        self::assertNotNull($async, 'Une réponse différée doit partir en asyncSuccess.');
+        self::assertNotNull($async, 'A deferred answer must leave as an asyncSuccess.');
         self::assertSame('charge-1', $async->getOperationToken());
     }
 
     public function testAnOperationNobodyServesIsRefusedWithoutRetry(): void
     {
-        // §2.4 et §1b.3 : NOT_IMPLEMENTED est terminale. Réessayable, la même opération
-        // reviendrait toutes les ~9 s pendant tout son budget, pour la même réponse.
+        // §2.4 and §1b.3: NOT_IMPLEMENTED is terminal. Made retryable, the same operation would
+        // come back every ~9 s for its whole budget, for the same answer.
         $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call($this->startTask([])));
 
         $sent = null;
@@ -162,8 +162,8 @@ final class TemporalNexusWorkerTest extends TestCase
 
     public function testAHandlerThatRaisesIsReportedAsRetryableInternal(): void
     {
-        // Ce que font tous les autres SDK : une exception ordinaire vaut INTERNAL. Un
-        // gestionnaire qui veut un refus définitif doit le dire avec son type.
+        // What every other SDK does: an ordinary exception counts as INTERNAL. A handler that
+        // wants a final refusal must say so with its type.
         $registry = NexusOperationRegistry::routedBy('temporal');
         $registry->register(
             NexusService::named('billing'),
@@ -193,8 +193,9 @@ final class TemporalNexusWorkerTest extends TestCase
 
     public function testACancellationCancelsTheWorkflowNamedByTheToken(): void
     {
-        // Sonde §4 : la tâche d'annulation nomme le jeton rendu au démarrage, et ce jeton est le
-        // workflow que ce worker a démarré. Annuler l'opération, c'est annuler ce workflow.
+        // Probe §4: the cancellation task names the token returned at start, and that token is
+        // the workflow this worker started. Cancelling the operation means cancelling that
+        // workflow.
         $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call($this->cancelTask('charge-1')));
 
         $cancelled = null;
@@ -218,14 +219,14 @@ final class TemporalNexusWorkerTest extends TestCase
         self::assertSame('charge-1', $cancelled?->getWorkflowExecution()?->getWorkflowId());
         self::assertNotNull(
             $answered?->getResponse()?->getCancelOperation(),
-            "L'annulation doit être acquittée, sinon la tâche revient toutes les ~9 s.",
+            'The cancellation must be acknowledged, otherwise the task comes back every ~9 s.',
         );
     }
 
     public function testAWorkflowThatAlreadyEndedStillAcknowledgesTheCancellation(): void
     {
-        // Le workflow a pu se terminer entre la demande et nous. L'opération est déjà réglée :
-        // insister ferait redemander la tâche pendant tout le budget, pour rien.
+        // The workflow may have ended between the request and us. The operation is already
+        // settled: insisting would ask for the task again for the whole budget, for nothing.
         $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call($this->cancelTask('charge-1')));
         $this->grpc->method('RequestCancelWorkflowExecution')
             ->willReturn($this->call(null, \Grpc\STATUS_NOT_FOUND));

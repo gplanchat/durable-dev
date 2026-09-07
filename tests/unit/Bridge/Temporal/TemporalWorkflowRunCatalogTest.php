@@ -19,17 +19,17 @@ use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Ce que le catalogue Temporal dit d'une réponse de visibilité.
+ * What the Temporal catalog says of a visibility response.
  *
- * Ce fichier était un test de **parité** : il lisait la même réponse serveur avec le fournisseur du
- * plugin et avec ce catalogue, pour prouver que déplacer le code derrière le port ne changeait rien
- * — sauf là où le port sait dire mieux. Le fournisseur ayant rejoint le pont puis disparu, la
- * comparaison n'a plus de second terme, et il ne reste que le contrat de l'adaptateur.
+ * This file was a **parity** test: it read the same server response with the plugin's provider and
+ * with this catalog, to prove that moving the code behind the port changed nothing — except where
+ * the port knows how to say it better. The provider having joined the bridge and then disappeared,
+ * the comparison has no second term any more, and only the adapter's contract is left.
  *
- * Ce qui reste vaut d'être rappelé : le fournisseur rangeait **tout** ce qui n'était ni en cours ni
- * terminé sous « failed ». Une exécution annulée ou passée en continue-as-new s'affichait donc en
- * échec, et un workflow long virait au rouge à chaque roulement. Les deux tests qui portent encore
- * `IsNoLongerReportedAsFailed` gardent cette correction.
+ * What remains is worth recalling: the provider filed **everything** that was neither running nor
+ * completed under "failed". A cancelled execution, or one moved to continue-as-new, therefore
+ * showed as a failure, and a long workflow turned red at every roll-over. The two tests that still
+ * carry `IsNoLongerReportedAsFailed` guard that correction.
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/tasks.md §2.9 §5.1
  */
@@ -62,7 +62,7 @@ final class TemporalWorkflowRunCatalogTest extends TestCase
     }
 
     /**
-     * La divergence assumée : ce que le port sait dire et que le fournisseur ne savait pas.
+     * The deliberate divergence: what the port knows how to say and the provider did not.
      */
     public function testACancelledRunIsNoLongerReportedAsFailed(): void
     {

@@ -1,5 +1,5 @@
-# Journal : EventStore in-memory + bridge Temporal (WorkflowTaskRunner/WorkflowTaskProcessor) si durable.temporal.dsn est défini.
-# Pas de persistance SQL pour le journal.
+# Journal: in-memory EventStore + Temporal bridge (WorkflowTaskRunner/WorkflowTaskProcessor) if durable.temporal.dsn is set.
+# No SQL persistence for the journal.
 durable:
     event_store:
         type: in_memory
@@ -20,7 +20,7 @@ durable:
             - App\Durable\Activity\GreetingActivityInterface
             - App\Durable\Activity\EchoActivityInterface
             - App\Durable\Activity\TickActivityInterface
-            - App\Durable\Activity\EncaissementActivityInterface
+            - App\Durable\Activity\ChargeActivityInterface
 
 when@dev:
     durable:

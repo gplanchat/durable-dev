@@ -21,16 +21,16 @@ framework:
 #                # For more Messenger testing tools, see https://github.com/zenstruck/messenger-test
 #                async: 'in-memory://'
 
-# Le transport Nexus vit dans le profil qui sert, et le transport de journal dans celui qui appelle.
-# Les deux sont `temporal://` : les déclarer ailleurs ferait échouer `doctrine:schema:create`, faute
-# de DSN (voir `durable.yaml`).
+# The Nexus transport lives in the profile that serves, and the journal transport in the one that
+# calls. Both are `temporal://`: declaring them elsewhere would make `doctrine:schema:create` fail,
+# for want of a DSN (see `durable.yaml`).
 when@demo:
     framework:
         messenger:
             transports:
-                # Receive-only : chaque `get()` long-poll une tâche Nexus entrante et la sert par
-                # `TemporalNexusWorker`. Il n'y a pas de file Sylius derrière — le nom désigne une
-                # boucle de poll, pas une file de messages.
+                # Receive-only: each `get()` long-polls an incoming Nexus task and serves it
+                # through `TemporalNexusWorker`. There is no Sylius queue behind it — the name
+                # designates a poll loop, not a message queue.
                 #
                 #   bin/console messenger:consume durable_temporal_nexus
                 durable_temporal_nexus:
@@ -38,12 +38,12 @@ when@demo:
                     options:
                         purpose: nexus_worker
 
-when@demo_appelant:
+when@demo_caller:
     framework:
         messenger:
             transports:
-                # Le worker de tâches de workflow du profil appelant. C'est lui qui fait avancer
-                # `CommandeWorkflow` entre ses deux appels — et qui le reprend après l'attente, sans
-                # que ce soit forcément le même processus qui l'avait démarré.
+                # The workflow task worker of the calling profile. It is the one that drives
+                # `OrderWorkflow` between its two calls — and that resumes it after the wait,
+                # without it necessarily being the same process that had started it.
                 durable_temporal_journal:
                     dsn: '%env(DURABLE_TEMPORAL_DSN)%'

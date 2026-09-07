@@ -22,16 +22,16 @@ use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Une exécution qui finit mal doit rester descriptible.
+ * An execution that ends badly must stay describable.
  *
- * C'est la raison d'être du change : `ResumeWorkflowHandler` supprime la ligne de métadonnées sur
- * échec, annulation et continue-as-new, et `ExecutionStarted` ne porte pas le type de workflow —
- * une exécution en échec n'a donc de nom nulle part. Or un tableau de bord d'exploitation est
- * d'abord une liste d'échecs.
+ * That is the change's reason to exist: `ResumeWorkflowHandler` deletes the metadata row on
+ * failure, cancellation and continue-as-new, and `ExecutionStarted` does not carry the workflow
+ * type — a failed execution therefore has a name nowhere. Yet an operations dashboard is first of
+ * all a list of failures.
  *
- * Les scénarios couverts vivent dans
+ * The scenarios covered live in
  * `openspec/changes/backend-neutral-workflow-dashboard/specs/workflow-run-observation/spec.md`,
- * sous « A run stays describable after it ends badly ».
+ * under "A run stays describable after it ends badly".
  *
  * @see DUR030
  */
@@ -82,8 +82,8 @@ final class DbalWorkflowRunCatalogTest extends TestCase
     {
         $this->startRun('exec-first', 'App\\ReportWorkflow');
         $this->eventStore()->append(new WorkflowContinuedAsNew('exec-first', 'App\\ReportWorkflow', ['page' => 2]));
-        // Le successeur naît d'un `save()` sous un nouvel id : le composant traite déjà
-        // un continue-as-new comme une exécution neuve.
+        // The successor is born of a `save()` under a new id: the component already treats
+        // a continue-as-new as a brand-new execution.
         $this->startRun('exec-second', 'App\\ReportWorkflow');
 
         $byId = $this->indexById($this->catalog()->listRuns()->runs);

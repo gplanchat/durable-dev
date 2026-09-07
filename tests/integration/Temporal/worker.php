@@ -3,13 +3,12 @@
 declare(strict_types=1);
 
 /**
- * Worker d'intégration : un processus, une file, un rôle (workflow ou activité).
+ * Integration worker: one process, one queue, one role (workflow or activity).
  *
- * Les deux rôles font des long-polls de plusieurs dizaines de secondes ; les alterner dans un
- * seul processus revient à affamer l'un pendant que l'autre attend. Comme en production, ils
- * tournent donc séparément.
+ * Both roles long-poll for several tens of seconds; alternating them inside a single process
+ * amounts to starving one while the other waits. As in production, they therefore run separately.
  *
- * Usage : php worker.php <address> <namespace> <taskQueue> <workflow|activity>
+ * Usage: php worker.php <address> <namespace> <taskQueue> <workflow|activity>
  */
 
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
@@ -44,8 +43,8 @@ $client = WorkflowServiceClientFactory::create($connection);
 if ('workflow' === $role) {
     $registry = new WorkflowRegistry();
     IntegrationWorkflows::registerWorkflows($registry);
-    // Le même type de workflow, deux corps : c'est ce qu'un déploiement fait à une exécution en
-    // vol, et le seul moyen d'observer la garde de divergence contre un vrai serveur.
+    // The same workflow type, two bodies: that is what a deployment does to an in-flight
+    // execution, and the only way to observe the divergence guard against a real server.
     IntegrationWorkflows::registerDivergentPair($registry, getenv('DURABLE_WORKER_VARIANT') ?: 'default');
 
     $processor = new WorkflowTaskProcessor(

@@ -1,0 +1,3 @@
+# Per-tick scratch, not institutional memory.
+memory/last-worker.json
+memory/cron.log

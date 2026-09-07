@@ -49,8 +49,8 @@ interface WorkflowClientInterface
     /**
      * Delivers an external signal to a running workflow.
      *
-     * Le nom se donne en {@see \BackedEnum} comme du côté workflow ; la chaîne nue reste
-     * acceptée pour les émetteurs qui ne sont pas du PHP (ADR DUR034).
+     * The name is given as a {@see \BackedEnum}, as on the workflow side; the bare string stays
+     * accepted for emitters that are not PHP (ADR DUR034).
      *
      * @param array<string, mixed> $args Signal arguments.
      */
