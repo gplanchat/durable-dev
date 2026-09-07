@@ -524,7 +524,7 @@ final class Billing implements BillingServed
 // Plus tard, pour tout ce qui est réel : un workflow réclame l'opération et produit le résultat.
 #[AsWorkflow]
 #[FulfilsNexusOperation(BillingContract::class, 'charge')]
-final class Encaissement { /* … */ }
+final class Charge { /* … */ }
 ```
 
 Les neuf secondes ne sont pas une limite de Durable mais le `request-timeout` de la tâche, mesuré :
