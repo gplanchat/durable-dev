@@ -23,7 +23,7 @@
                     tout ce qu'il fait est servi ailleurs, donc le banc n'a pas de worker
                     d'activité à lancer pour lui.
                 -->
-                <item name="demo_commande_nexus" xsi:type="string">Gplanchat\DurableProbe\Workflow\CommandeNexusWorkflow</item>
+                <item name="demo_order_nexus" xsi:type="string">Gplanchat\DurableProbe\Workflow\OrderNexusWorkflow</item>
             </argument>
             <argument name="activityHandlers" xsi:type="array">
                 <item name="probe_order" xsi:type="object">Gplanchat\DurableProbe\Workflow\Activity\RecordingOrderActivities</item>

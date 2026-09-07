@@ -10,21 +10,20 @@ use Doctrine\ORM\EntityManagerInterface;
 use Gplanchat\Durable\Demo\Contracts\Stock\StockServed;
 
 /**
- * La boutique répond à `stock/reserver`, depuis son propre modèle de stock.
+ * The shop answers `stock/reserve`, out of its own stock model.
  *
- * Elle implémente `StockServed` et non `StockContract` : un gestionnaire n'implémente que la part
- * du contrat à laquelle il répond **tout de suite**. Ici les deux se confondent encore, mais la
- * ligne est déjà à sa place pour le jour où l'appelant verra une opération que la boutique remplira
- * par un workflow.
+ * It implements `StockServed` and not `StockContract`: a handler implements only the part of the
+ * contract it answers **right away**. The two still coincide here, but the line is already in place
+ * for the day the caller sees an operation the shop fulfils with a workflow.
  *
- * La balise `durable.nexus_handler` est posée par `config/services.yaml`, sous `when@demo`, et non
- * par `#[AsNexusServiceHandler]`. L'attribut vaudrait dans tous les environnements, et la boutique
- * n'a de cluster que dans son profil de démonstration : un gestionnaire déclaré sans route est
- * refusé au démarrage, à raison. `symfony/` garde l'attribut, son banc ayant un DSN partout.
+ * The `durable.nexus_handler` tag is set by `config/services.yaml`, under `when@demo`, and not by
+ * `#[AsNexusServiceHandler]`. The attribute would hold in every environment, and the shop only has a
+ * cluster in its demonstration profile: a handler declared with no route is refused at boot, and
+ * rightly so. `symfony/` keeps the attribute, its bench having a DSN everywhere.
  *
- * Le budget est d'environ neuf secondes — celui de la tâche, pas celui de l'opération. Deux lectures
- * indexées et une écriture y tiennent ; un appel à un prestataire, non, et c'est ce que
- * `#[FulfilsNexusOperation]` existe pour porter.
+ * The budget is about nine seconds — the task's, not the operation's. Two indexed reads and one
+ * write fit in it; a call to a provider does not, and that is what `#[FulfilsNexusOperation]` exists
+ * to carry.
  */
 final readonly class StockHandler implements StockServed
 {
@@ -33,60 +32,60 @@ final readonly class StockHandler implements StockServed
     ) {}
 
     /**
-     * @param array<string, int> $lignes
+     * @param array<string, int> $lines
      *
-     * @return array{reserve: bool, manquants: array<string, int>}
+     * @return array{reserved: bool, missing: array<string, int>}
      */
-    public function reserver(string $commande, array $lignes): array
+    public function reserve(string $order, array $lines): array
     {
-        $deja = $this->entityManager->find(StockReservation::class, $commande);
-        if (null !== $deja) {
-            // Redélivrance : la première livraison a déjà décidé, et remettre du stock de côté une
-            // seconde fois serait invisible pour l'appelant, qui aurait sa réponse.
-            return $deja->verdict();
+        $already = $this->entityManager->find(StockReservation::class, $order);
+        if (null !== $already) {
+            // A redelivery: the first delivery has already decided, and setting stock aside a second
+            // time would be invisible to the caller, which would have its answer.
+            return $already->verdict();
         }
 
-        $manquants = [];
-        $aTenir = [];
+        $missing = [];
+        $toHold = [];
 
-        foreach ($lignes as $reference => $quantite) {
-            $variante = $this->entityManager->getRepository(ProductVariant::class)
+        foreach ($lines as $reference => $quantity) {
+            $variant = $this->entityManager->getRepository(ProductVariant::class)
                 ->findOneBy(['code' => (string) $reference]);
 
-            if (null === $variante) {
-                // Une référence que la boutique ne connaît pas manque entièrement : dire « zéro
-                // disponible » est plus utile à l'appelant qu'une erreur, qui serait réessayée.
-                $manquants[(string) $reference] = (int) $quantite;
+            if (null === $variant) {
+                // A reference the shop does not know is missing entirely: saying "zero available" is
+                // more useful to the caller than an error, which would be retried.
+                $missing[(string) $reference] = (int) $quantity;
 
                 continue;
             }
 
-            if (!$variante->isTracked()) {
+            if (!$variant->isTracked()) {
                 continue;
             }
 
-            $disponible = (int) $variante->getOnHand() - (int) $variante->getOnHold();
-            if ($disponible < (int) $quantite) {
-                $manquants[(string) $reference] = (int) $quantite - max(0, $disponible);
+            $available = (int) $variant->getOnHand() - (int) $variant->getOnHold();
+            if ($available < (int) $quantity) {
+                $missing[(string) $reference] = (int) $quantity - max(0, $available);
 
                 continue;
             }
 
-            $aTenir[] = [$variante, (int) $quantite];
+            $toHold[] = [$variant, (int) $quantity];
         }
 
-        $reserve = [] === $manquants;
-        if ($reserve) {
-            // Tout ou rien : une réservation partielle laisserait l'appelant décider quoi faire
-            // d'un demi-panier, et le contrat ne lui donne pas de quoi le dire.
-            foreach ($aTenir as [$variante, $quantite]) {
-                $variante->setOnHold((int) $variante->getOnHold() + $quantite);
+        $reserved = [] === $missing;
+        if ($reserved) {
+            // All or nothing: a partial reservation would leave the caller deciding what to do with
+            // half a basket, and the contract gives it no way to say so.
+            foreach ($toHold as [$variant, $quantity]) {
+                $variant->setOnHold((int) $variant->getOnHold() + $quantity);
             }
         }
 
-        $this->entityManager->persist(new StockReservation($commande, $lignes, $reserve, $manquants));
+        $this->entityManager->persist(new StockReservation($order, $lines, $reserved, $missing));
         $this->entityManager->flush();
 
-        return ['reserve' => $reserve, 'manquants' => $manquants];
+        return ['reserved' => $reserved, 'missing' => $missing];
     }
 }

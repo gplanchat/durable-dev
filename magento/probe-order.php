@@ -26,7 +26,7 @@ $productRepository = $om->get(\Magento\Catalog\Api\ProductRepositoryInterface::c
 
 try {
     $product = $productRepository->get($sku, true);
-    echo "produit  : $sku (déjà là)\n";
+    echo "product : $sku (already there)\n";
 } catch (\Magento\Framework\Exception\NoSuchEntityException) {
     /** @var \Magento\Catalog\Model\Product $product */
     $product = $om->create(\Magento\Catalog\Model\Product::class);
@@ -39,7 +39,7 @@ try {
         ->setPrice(19.99)
         ->setStockData(['use_config_manage_stock' => 0, 'qty' => 1000, 'is_in_stock' => 1]);
     $product = $productRepository->save($product);
-    echo "produit  : $sku (créé)\n";
+    echo "product : $sku (created)\n";
 }
 
 // Sans site ni source d'inventaire, le produit existe et n'est pas *vendable* — et le message que
@@ -56,7 +56,7 @@ $sourceItem->setSku($sku);
 $sourceItem->setQuantity(1000);
 $sourceItem->setStatus(\Magento\InventoryApi\Api\Data\SourceItemInterface::STATUS_IN_STOCK);
 $sourceItems->execute([$sourceItem]);
-echo "stock    : 1000 sur la source par défaut\n";
+echo "stock   : 1000 on the default source\n";
 
 $cartManagement = $om->get(\Magento\Quote\Api\GuestCartManagementInterface::class);
 $cartRepository = $om->get(\Magento\Quote\Api\CartRepositoryInterface::class);
