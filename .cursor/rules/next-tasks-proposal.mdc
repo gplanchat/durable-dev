@@ -25,9 +25,9 @@ En fin de réponse, après avoir résumé ce qui a été fait, ajouter une secti
 ```
 ## Prochaines tâches proposées
 
-1. **[#XXX]** Titre — raison courte
-2. **[#YYY]** Titre — raison courte
-3. **[#ZZZ]** Titre — raison courte
+1. **[#XXX]** Titre : raison courte
+2. **[#YYY]** Titre : raison courte
+3. **[#ZZZ]** Titre : raison courte
 ```
 
 S'il ne reste aucune tâche identifiée, ne pas inventer de tâches ; indiquer simplement qu'aucune prochaine tâche n'est identifiée dans le contexte actuel.

@@ -3,7 +3,7 @@
 # Une image PHP qui porte déjà `grpc` et `protobuf`.
 #
 # Ces deux extensions se compilent depuis les sources. Mesuré pour `8.3-cli-alpine` sur une machine
-# de développement : **6 min 58 s**, pour 126 Mo d'image — grpc 1.83 traîne abseil, boringssl, re2 et
+# de développement : **6 min 58 s**, pour 126 Mo d'image ; grpc 1.83 traîne abseil, boringssl, re2 et
 # upb, et se compile en C++17. `install-php-extensions` ne fait pas de miracle : il fait le travail
 # correctement, pas instantanément. Le payer une fois en CI et le publier, c'est tout l'objet ici.
 #

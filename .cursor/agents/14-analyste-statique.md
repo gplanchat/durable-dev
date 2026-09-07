@@ -221,7 +221,7 @@ const name = environments.find(e => e.id === id)?.name ?? 'Unknown';
 | HIVE001 | strict_types | `grep -L "declare(strict_types=1)"` |
 | HIVE024 | Enum naming | Vérifier PascalCase cases |
 
-## Gestion GitHub Project V2 — OBLIGATIONS CRITIQUES
+## Gestion GitHub Project V2 : OBLIGATIONS CRITIQUES
 
 **Tu DOIS obligatoirement :**
 1. **Assigner l'issue à l'itération courante** quand tu la prends en charge

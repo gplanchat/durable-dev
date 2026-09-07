@@ -163,7 +163,7 @@ Quand le travail est terminé :
 - **JAMAIS** force push sur `develop` ou `main`
 - **JAMAIS** commencer à travailler sur une issue sans l'assigner à l'itération courante
 
-### OBLIGATOIRE pour l'agent — Gestion du Projet GitHub
+### OBLIGATOIRE pour l'agent : Gestion du Projet GitHub
 
 **CRITIQUE** : Ces obligations permettent un suivi fluide du projet et sont NON NÉGOCIABLES.
 
@@ -206,7 +206,7 @@ gh project item-edit --project-id "$PROJECT_ID" --id "<ITEM_ID>" \
   --field-id "$ITERATION_FIELD_ID" --iteration-id "<ITERATION_ID>"
 ```
 
-### OBLIGATOIRE pour l'agent — Commits et PR
+### OBLIGATOIRE pour l'agent : Commits et PR
 
 - **TOUJOURS** créer des commits atomiques (plus petite unité logique possible)
 - **TOUJOURS** utiliser Conventional Commits : `type(scope): description #numero`

@@ -109,7 +109,7 @@ jobs:
               run: |
                   set -euo pipefail
                   if [ -z "${SPLITSH_PUSH_TOKEN:-}" ]; then
-                    echo "::notice::SPLITSH_PUSH_TOKEN is not set — splitsh will dry-run (no push to satellites)."
+                    echo "::notice::SPLITSH_PUSH_TOKEN is not set: splitsh will dry-run (no push to satellites)."
                     exit 0
                   fi
                   code="$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${SPLITSH_PUSH_TOKEN}" https://api.github.com/user)"
@@ -126,7 +126,7 @@ jobs:
                   set -euo pipefail
                   chmod +x ./bin/splitsh-publish.sh
                   if [ -z "${SPLITSH_PUSH_TOKEN:-}" ]; then
-                    echo "::notice::SPLITSH_PUSH_TOKEN is not set — splitsh runs in dry-run mode (no push to satellites)."
+                    echo "::notice::SPLITSH_PUSH_TOKEN is not set: splitsh runs in dry-run mode (no push to satellites)."
                   fi
                   echo "GITHUB_REF=${GITHUB_REF}"
                   case "${GITHUB_REF}" in

@@ -267,7 +267,7 @@ import { useAuth } from '@authentication/infrastructure/providers/AuthProvider';
 import type { Region } from '@cloud-management/domain/models/Region';
 ```
 
-## Gestion GitHub Project V2 — OBLIGATIONS CRITIQUES
+## Gestion GitHub Project V2 : OBLIGATIONS CRITIQUES
 
 **Tu DOIS obligatoirement :**
 1. **Assigner l'issue à l'itération courante** quand tu la prends en charge

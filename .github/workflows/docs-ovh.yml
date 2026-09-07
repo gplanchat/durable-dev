@@ -43,7 +43,7 @@ jobs:
           hugo-version: '0.159.2'
           extended: true
 
-      # Le thème embarque mermaid, katex et asciinema — 4,4 Mo copiés dans la
+      # Le thème embarque mermaid, katex et asciinema : 4,4 Mo copiés dans la
       # sortie même inutilisés. On les retire, mais seulement tant qu'aucune page
       # ne les appelle : cette garde échoue le jour où ce ne sera plus vrai.
       - name: Guard — aucune page n'utilise les bibliothèques élaguées
@@ -57,13 +57,13 @@ jobs:
       - name: Guard — l'import refuserait d'écraser une correction à la main
         # WA005 : trois correctifs écrits dans layouts/index.html et perdus, sans un bruit.
         # La garde vit dans import-design.py ; ce pas ne vérifie que la garde elle-même,
-        # puisque l'import n'est jamais joué en CI — il n'y a pas de canevas ici.
+        # puisque l'import n'est jamais joué en CI : il n'y a pas de canevas ici.
         run: python3 hugo-docs/import-design.py --self-test
 
       - name: Guard — la page servie est bien celle du canevas
         # WA005 point 2, écrivable depuis que le canevas est au dépôt : rejouer l'import
         # et échouer sur la moindre différence. Une correction écrite dans layouts/ et pas
-        # dans le canevas rougit ici, avec son diff — avant la régénération, pas après.
+        # dans le canevas rougit ici, avec son diff (avant la régénération, pas après).
         run: |
             cd hugo-docs
             cp layouts/index.html /tmp/committed-en.html
@@ -133,11 +133,11 @@ jobs:
           if [ -n "$KNOWN_HOSTS" ]; then
             printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           else
-            echo "::warning::OVH_SSH_KNOWN_HOSTS absent — empreinte du serveur acceptée à l'aveugle."
+            echo "::warning::OVH_SSH_KNOWN_HOSTS absent : empreinte du serveur acceptée à l'aveugle."
             ssh-keyscan -H "$SFTP_HOST" > ~/.ssh/known_hosts 2>/dev/null
           fi
           if [ ! -s ~/.ssh/known_hosts ]; then
-            echo "::error::Aucune clé d'hôte pour $SFTP_HOST — SSH/SFTP est-il activé sur l'hébergement ?"
+            echo "::error::Aucune clé d'hôte pour $SFTP_HOST : SSH/SFTP est-il activé sur l'hébergement ?"
             exit 1
           fi
           echo "Cible : $SFTP_USER@$SFTP_HOST:$SERVER_DIR"

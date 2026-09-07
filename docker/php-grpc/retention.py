@@ -3,7 +3,7 @@
 
 Le workflow reconstruit seize images chaque lundi et pose, à chaque publication, une étiquette
 glissante (`8.4-zts`) et une étiquette datée (`8.4-zts-20260828`). Les glissantes sont seize pour
-toujours ; les datées, elles, s'accumulent — environ huit cents par an, et rien ne les élague.
+toujours ; les datées, elles, s'accumulent : environ huit cents par an, et rien ne les élague.
 
 Ce script ne supprime rien : il lit la liste des versions et écrit les identifiants à supprimer. Ce
 qui décide se relit en une phrase, et c'est voulu, parce que se tromper ici retire des images
@@ -39,7 +39,7 @@ def a_supprimer(versions: list[dict], garder: int) -> list[dict]:
     for version in versions:
         etiquettes = version.get('tags') or []
         if not etiquettes:
-            continue  # attestations buildx — voir le docstring
+            continue  # attestations buildx, voir le docstring
         correspondances = [DATEE.match(e) for e in etiquettes]
         if not all(correspondances):
             continue  # au moins une étiquette glissante : la version est en service

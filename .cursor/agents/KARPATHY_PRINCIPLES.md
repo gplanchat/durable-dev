@@ -6,7 +6,7 @@ Basé sur [andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpat
 > "Les modèles font des hypothèses incorrectes en votre nom et les suivent sans vérifier.
 > Ils ne gèrent pas leur confusion, ne demandent pas de clarifications, ne présentent pas
 > les compromis, ne contestent pas quand ils le devraient."
-> — Andrej Karpathy
+> Andrej Karpathy
 
 ---
 
@@ -18,7 +18,7 @@ Basé sur [andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpat
 
 Avant d'implémenter :
 - **Énoncer les hypothèses explicitement**. Si incertain, demander.
-- **Si plusieurs interprétations existent**, les présenter — ne pas choisir silencieusement.
+- **Si plusieurs interprétations existent**, les présenter, ne pas choisir silencieusement.
 - **Si une approche plus simple existe**, le dire. Contester si justifié.
 - **Si quelque chose n'est pas clair**, s'arrêter. Nommer ce qui est confus. Demander.
 
@@ -42,7 +42,7 @@ Lors de l'édition de code existant :
 - ❌ Ne pas "améliorer" le code adjacent, les commentaires ou le formatage
 - ❌ Ne pas refactoriser ce qui n'est pas cassé
 - ✅ Correspondre au style existant, même si vous feriez différemment
-- ✅ Si vous remarquez du code mort non lié, le mentionner — ne pas le supprimer
+- ✅ Si vous remarquez du code mort non lié, le mentionner, ne pas le supprimer
 
 Quand vos changements créent des orphelins :
 - ✅ Supprimer imports/variables/fonctions que VOS changements ont rendus inutilisés

@@ -14,7 +14,7 @@ set -euo pipefail
 REPO="${REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "")}"
 
 # CONTRIBUTOR means one merged pull request, not team membership, so it stays outside. Anything
-# unrecognised — a new association GitHub adds later, an empty value, a malformed payload — is
+# unrecognised (a new association GitHub adds later, an empty value, a malformed payload) is
 # untrusted. A trust gate that fails open is not a trust gate.
 classify() {
   case "${1:-}" in
@@ -37,7 +37,7 @@ apply() {
 
   # An edit invalidates any clearance. Otherwise the gate is trivially defeated: open something
   # harmless, wait for a human to clear it, then edit the text. Clearance is a statement about
-  # content that was read, so changing the content withdraws it. A backfill never withdraws one —
+  # content that was read, so changing the content withdraws it. A backfill never withdraws one:
   # it is labelling history, not reacting to a change.
   if [ "$action" = "edited" ]; then
     drop="$drop,loop:cleared"

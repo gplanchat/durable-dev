@@ -317,7 +317,7 @@ docker compose exec php bin/phpunit --coverage-html=var/coverage
 docker compose exec php bin/infection --threads=4 --min-msi=80
 ```
 
-## Gestion GitHub Project V2 — OBLIGATIONS CRITIQUES
+## Gestion GitHub Project V2 : OBLIGATIONS CRITIQUES
 
 **Tu DOIS obligatoirement :**
 1. **Assigner l'issue à l'itération courante** quand tu la prends en charge

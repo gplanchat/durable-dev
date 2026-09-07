@@ -1,11 +1,11 @@
-# Index — Durable documentation
+# Index of the Durable documentation
 
-This repository documents the **Durable** component (durable execution orchestrated with Temporal, without the official PHP SDK or RoadRunner — see [DUR006](adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md)). Symfony Messenger integration is covered in **DUR021**. **Commands-only** orchestration is **DUR026**; the **gRPC bridge** is **DUR019**; the **fiber-based interpreter** (`WorkflowTaskRunner`) is **DUR027**; the **fiber and replay model** is **DUR003**. **[DUR025](adr/DUR025-temporal-grpc-workflowservice-messages-and-implementation-map.md)** maps **WorkflowService** gRPC RPCs to this codebase.
+This repository documents the **Durable** component (durable execution orchestrated with Temporal, without the official PHP SDK or RoadRunner; see [DUR006](adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md)). Symfony Messenger integration is covered in **DUR021**. **Commands-only** orchestration is **DUR026**; the **gRPC bridge** is **DUR019**; the **fiber-based interpreter** (`WorkflowTaskRunner`) is **DUR027**; the **fiber and replay model** is **DUR003**. **[DUR025](adr/DUR025-temporal-grpc-workflowservice-messages-and-implementation-map.md)** maps **WorkflowService** gRPC RPCs to this codebase.
 
-**Language:** All normative documents in `documentation/adr/`, `documentation/wa/`, tracking, and Cursor rules are **English** — see [WA001](wa/WA001-english-language-documentation.md). **Development** follows **TDD** (Red → Green → Refactor) — see [WA002](wa/WA002-test-driven-development.md). **GitHub** epics, tasks, stories, and project usage follow **[WA003](wa/WA003-github-epics-tasks-and-project-tracking.md)**. **Licensing:** the repository and first-party Composer packages are **MIT** — see [WA004](wa/WA004-mit-license-distribution.md) and the root [`LICENSE`](../LICENSE) file.
+**Language:** All normative documents in `documentation/adr/`, `documentation/wa/`, tracking, and Cursor rules are **English**. See [WA001](wa/WA001-english-language-documentation.md). **Development** follows **TDD** (Red → Green → Refactor); see [WA002](wa/WA002-test-driven-development.md). **GitHub** epics, tasks, stories, and project usage follow **[WA003](wa/WA003-github-epics-tasks-and-project-tracking.md)**. **Licensing:** the repository and first-party Composer packages are **MIT** (see [WA004](wa/WA004-mit-license-distribution.md) and the root [`LICENSE`](../LICENSE) file).
 
 > **Attribute names in the records below predate v0.1.0-alpha8.** Every declaration attribute
-> gained the `As` prefix in that version — `#[Workflow]` became `#[AsWorkflow]`, `#[ActivityMethod]`
+> gained the `As` prefix in that version: `#[Workflow]` became `#[AsWorkflow]`, `#[ActivityMethod]`
 > became `#[AsActivityMethod]`, and `#[AsDurableActivity]` left the Symfony bundle for the core as
 > `#[AsActivityHandler]`. The records are **not** rewritten: an ADR states what was decided when it
 > was written, and editing the code samples inside one would falsify that. The mapping, and the
@@ -93,11 +93,11 @@ This repository documents the **Durable** component (durable execution orchestra
 - [Work journal](journal/README.md)
 - [Document lifecycle](LIFECYCLE.md)
 - [Hugo user guide](HUGO.md) (built from `documentation/user/` only; ADRs/WAs are not mirrored)
-- [User documentation source (Markdown)](user/) — content published by Hugo as the end-user site
-  - [Getting started](user/getting-started/) — installation, Symfony bundle config, first workflow
-  - [Backends](user/backends/) — In-Memory vs Temporal: Docker Compose setup, DSN format
-  - [Concepts](user/concepts/) — workflows, activities, replay, backends
-  - [Creating a workflow](user/workflows/) — `WorkflowEnvironment`, attributes, signals, queries, updates
-  - [Creating activities](user/activities/) — `ActivityMethod`, `ActivityOptions`, DI, serialization
-  - [Testing workflows](user/testing/) — `DurableTestCase`, `ActivitySpy`, `WorkflowTestEnvironment`, `DurableBundleTestTrait`
-  - [Configuration reference](user/configuration/) — every `durable.yaml` key explained
+- [User documentation source (Markdown)](user/) (content published by Hugo as the end-user site)
+  - [Getting started](user/getting-started/) (installation, Symfony bundle config, first workflow)
+  - [Backends](user/backends/) (In-Memory vs Temporal: Docker Compose setup, DSN format)
+  - [Concepts](user/concepts/) (workflows, activities, replay, backends)
+  - [Creating a workflow](user/workflows/) (`WorkflowEnvironment`, attributes, signals, queries, updates)
+  - [Creating activities](user/activities/) (`ActivityMethod`, `ActivityOptions`, DI, serialization)
+  - [Testing workflows](user/testing/) (`DurableTestCase`, `ActivitySpy`, `WorkflowTestEnvironment`, `DurableBundleTestTrait`)
+  - [Configuration reference](user/configuration/) (every `durable.yaml` key explained)

@@ -36,8 +36,8 @@ jobs:
 
     symfony-matrix:
         # Le job `qa` installe la résolution du composer.lock : il ne voit qu'une ligne Symfony.
-        # Or le seul bug de compatibilité trouvé jusqu'ici — `#[\Override]` sur une méthode que
-        # le DataCollector de Symfony 6.4 ne déclare pas, fatale à partir de PHP 8.3 — n'était
+        # Or le seul bug de compatibilité trouvé jusqu'ici (`#[\Override]` sur une méthode que
+        # le DataCollector de Symfony 6.4 ne déclare pas, fatale à partir de PHP 8.3) n'était
         # visible qu'au *croisement* d'une vieille ligne Symfony et d'un PHP récent. D'où une
         # matrice explicite plutôt qu'un produit cartésien : chaque entrée est un bord qui a une
         # raison d'exister.
@@ -105,8 +105,8 @@ jobs:
         # entrée par *bord* qui a une raison d'exister, pas un produit cartésien.
         #
         # Ce que cette matrice mesure et qu'aucune autre ne peut : `gplanchat/durable-laravel`
-        # s'appuie sur `illuminate/*`, dont les lignes 11, 12 et 13 ne demandent pas le même PHP —
-        # 13 exige ^8.3 quand la baseline du dépôt est 8.2 — et dont les contrats bougent d'une
+        # s'appuie sur `illuminate/*`, dont les lignes 11, 12 et 13 ne demandent pas le même PHP
+        # (13 exige ^8.3 quand la baseline du dépôt est 8.2) et dont les contrats bougent d'une
         # ligne à l'autre. La suite `unit` ne prouve que la ligne du lock.
         #
         # ⚠ Ce paquet ne requiert **pas** `illuminate/queue`, et ce n'est pas un oubli : Laravel 11+
@@ -139,7 +139,7 @@ jobs:
                   php-version: ${{ matrix.php-version }}
                   # grpc comme la matrice Symfony : la racine requiert le pont Temporal, qui exige
                   # ext-grpc. Sans elle, `composer update` échoue avant d'avoir résolu quoi que ce
-                  # soit d'Illuminate — la matrice mesurerait l'absence d'une extension.
+                  # soit d'Illuminate : la matrice mesurerait l'absence d'une extension.
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
 
@@ -169,7 +169,7 @@ jobs:
         #
         # Hors de la matrice principale, et pour deux raisons qui ne se contournent pas : Sylius
         # Standard 2.2 exige PHP ^8.3 quand la baseline du dépôt est 8.2, et la boutique a besoin
-        # d'un vrai MySQL. C'est justement ce dernier qui a révélé deux fautes que SQLite avalait —
+        # d'un vrai MySQL. C'est justement ce dernier qui a révélé deux fautes que SQLite avalait :
         # un booléen lié sans type, et un upsert qui comptait les lignes affectées par un UPDATE.
         name: Boutique Sylius (le tableau de bord, rendu)
         runs-on: ubuntu-latest
@@ -194,7 +194,7 @@ jobs:
                   # 8.3 : plancher de Sylius Standard 2.2. Le plugin, lui, reste en >=8.2.
                   php-version: '8.3'
                   # grpc : la boutique sert une opération Nexus, et le pont Temporal en dépend.
-                  # Son tableau de bord, lui, n'en a toujours pas besoin — c'est DUR037, et
+                  # Son tableau de bord, lui, n'en a toujours pas besoin ; c'est DUR037, et
                   # `temporal.journal: false` est ce qui garde les deux séparés.
                   extensions: intl, gd, pdo_mysql, mbstring, zip, curl, sodium, exif, fileinfo, grpc
                   coverage: none
@@ -222,13 +222,13 @@ jobs:
     magento-matrix:
         # Le pendant de la matrice Symfony, pour l'autre hôte à conteneur étranger. Même principe :
         # chaque entrée est un **bord qui a une raison**, pas un produit cartésien. Ce que le job
-        # prouve est la résolution — que la contrainte du module (`php >=8.2`,
+        # prouve est la résolution : que la contrainte du module (`php >=8.2`,
         # `magento/framework ^103.0`) est honnête face à ce que chaque ligne de Mage-OS exige. Ce
         # qu'il ne prouve pas est le démarrage : installer la distribution coûte ~1 Go et plusieurs
         # minutes par entrée, et c'est le travail du job d'intégration, pas d'une matrice.
         #
         # Le garde discrimine, vérifié en local avant d'être écrit ici : 2.2.0 sur PHP 8.2 résout
-        # (code 0), 3.4.0 sur PHP 8.2 échoue en nommant la cause — « requires php ~8.3.0||~8.4.0||
+        # (code 0), 3.4.0 sur PHP 8.2 échoue en nommant la cause, « requires php ~8.3.0||~8.4.0||
         # ~8.5.0 -> your php version (8.2.33) does not satisfy that requirement ».
         name: Module Magento (Mage-OS ${{ matrix.mageos }} / PHP ${{ matrix.php-version }})
         runs-on: ubuntu-latest
@@ -292,7 +292,7 @@ jobs:
                 JSON
 
             # `--dry-run` : la résolution est ce qu'on teste, le téléchargement ne l'est pas.
-            # Le plugin d'audit des dépôts de chemin est désactivé pour la même raison qu'au banc —
+            # Le plugin d'audit des dépôts de chemin est désactivé pour la même raison qu'au banc :
             # `gplanchat/durable` est à la fois publié et fourni par chemin, et ici le chemin est la
             # source de vérité.
             - name: La ligne Mage-OS accepte-t-elle le module ?
@@ -302,11 +302,11 @@ jobs:
     magento-boot:
         # Le pendant de « Boutique Sylius » pour l'autre hôte : un seul job, non matricé, qui
         # **démarre** vraiment Magento. Il existe parce que jusqu'ici toute affirmation sur ce
-        # module reposait sur un transcript produit à la main sur le banc d'un poste — et la
+        # module reposait sur un transcript produit à la main sur le banc d'un poste, et la
         # matrice Mage-OS × PHP, elle, ne prouve que la résolution.
         #
         # Il est cher : la distribution pèse ~1 Go et l'installation prend des minutes. C'est
-        # justement pourquoi il n'est pas matricé — un bord, celui du banc, épinglé par le lock
+        # justement pourquoi il n'est pas matricé : un bord, celui du banc, épinglé par le lock
         # suivi de `magento/`.
         name: Module Magento (il démarre pour de vrai)
         runs-on: ubuntu-latest
@@ -329,7 +329,7 @@ jobs:
                 image: opensearchproject/opensearch:2.12.0
                 env:
                     discovery.type: single-node
-                    # Le nom que 2.12 comprend — le banc l'a réglé ainsi, et c'est le réglage
+                    # Le nom que 2.12 comprend : le banc l'a réglé ainsi, et c'est le réglage
                     # dont on sait qu'il marche. `plugins.security.disabled` est ignoré ici.
                     DISABLE_SECURITY_PLUGIN: 'true'
                     OPENSEARCH_JAVA_OPTS: '-Xms512m -Xmx512m'
@@ -370,13 +370,13 @@ jobs:
             # L'analyse statique du module vit **ici**, et pas dans le job qui la porte pour les
             # autres paquets. La raison est celle qui a fait exister ce job : le module parle à des
             # classes que le dépôt n'installe pas, et la seule machine qui les a est celle qui vient
-            # de payer l'installation de la distribution. L'alternative — des bouchons écrits à la
-            # main pour les seize classes de Magento que le module touche — n'aurait pas fait
+            # de payer l'installation de la distribution. L'alternative (des bouchons écrits à la
+            # main pour les seize classes de Magento que le module touche) n'aurait pas fait
             # d'erreur : elle en aurait caché, parce qu'un bouchon approximatif rend l'analyse
             # d'accord avec lui-même.
             #
             # ⚠ `--ignore-platform-req=ext-grpc` : le pont Temporal exige l'extension en dur, et ce
-            # job ne l'installe pas. Analyser n'en a pas besoin — les classes `Grpc\` viennent du
+            # job ne l'installe pas. Analyser n'en a pas besoin : les classes `Grpc\` viennent du
             # paquet Composer, et le pont n'est ici que *scanné*, jamais exécuté ni analysé.
             - name: Composer install (racine, pour les outils d'analyse)
               run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req=ext-grpc
@@ -387,7 +387,7 @@ jobs:
             - name: Psalm (src/DurableModule, contre les vraies classes de Magento)
               run: composer psalm-magento
 
-            # ⚠ Le squelette n'est pas au dépôt — `magento/.gitignore` n'y garde que l'overlay, et
+            # ⚠ Le squelette n'est pas au dépôt : `magento/.gitignore` n'y garde que l'overlay, et
             # le poste de développement l'avait obtenu une fois par `create-project`. Après un
             # `composer install` nu, `bin/magento` n'existe donc pas. `mage-os/magento2-base` porte
             # ces fichiers ; on les déploie comme le ferait le plugin d'installation, sans écraser
@@ -415,7 +415,7 @@ jobs:
               working-directory: magento
               run: |
                 # Deux modules, et la distinction est le sujet : `Gplanchat_DurableModule` est le paquet
-                # publié — il ne déclare aucun workflow. `Gplanchat_DurableProbe` est le module du
+                # publié. Il ne déclare aucun workflow. `Gplanchat_DurableProbe` est le module du
                 # **banc**, qui porte la démonstration et les sondes, et qui n'ira jamais chez un
                 # utilisateur. C'est lui qui fournit `durable:demo` à l'étape suivante.
                 bin/magento module:enable Gplanchat_DurableModule Gplanchat_DurableProbe
@@ -496,7 +496,7 @@ jobs:
               with:
                   php-version: ${{ matrix.php-version }}
                   # ext-grpc : le pont Temporal l'exige en dur, et le leg 8.0 résout (composer update)
-                  # au lieu d'installer depuis le lock — la contrainte plateforme y est donc vérifiée.
+                  # au lieu d'installer depuis le lock ; la contrainte plateforme y est donc vérifiée.
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
 
@@ -576,7 +576,7 @@ jobs:
             # local sur 7233. En CI il n'y a rien à côtoyer : on publie sur 7233, le port
             # que le DSN et les docblocs des tests annoncent. Sans ce pilotage, compose
             # écoutait 7234, le DSN visait 7233, et les neuf tests qui parlent au serveur
-            # sautaient — le job restait vert en ne testant rien.
+            # sautaient : le job restait vert en ne testant rien.
             - name: Démarrer PostgreSQL + Temporal (symfony/compose.yaml)
               working-directory: symfony
               env:

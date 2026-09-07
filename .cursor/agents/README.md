@@ -1,4 +1,4 @@
-# Agents Cursor — Projet Hive
+# Agents Cursor : Projet Hive
 
 Ce dossier contient les définitions des 27 sous-agents Cursor pour l'automatisation du développement du projet Hive.
 
@@ -72,7 +72,7 @@ Tous les agents DOIVENT suivre les **Principes Karpathy** définis dans [KARPATH
 - L'agent **NE PEUT PAS** passer directement en "Done"
 - **Seul un humain** peut valider et merger
 
-### Gestion du Projet GitHub V2 — OBLIGATIONS
+### Gestion du Projet GitHub V2 : OBLIGATIONS
 
 **CRITIQUE** : Chaque agent qui prend en charge une issue DOIT :
 1. **Placer l'issue dans l'itération courante** (sprint actif)

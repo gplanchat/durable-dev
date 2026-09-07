@@ -5,7 +5,7 @@
 # une compilation C++ de plusieurs minutes à chaque pull request qui touche une ligne de PHP.
 #
 # **Pourquoi ces images existent, alors que la CI n'en a pas besoin.** Mesuré sur ce dépôt :
-# `shivammathur/setup-php` installe `grpc` en **cinq secondes**, binaire préconstruit à l'appui —
+# `shivammathur/setup-php` installe `grpc` en **cinq secondes**, binaire préconstruit à l'appui :
 # le job « Tests d'intégration Temporal » démarre PHP aussi vite que celui de Sylius, qui ne demande
 # pas l'extension. Pour GitHub Actions, le problème est réglé et une chaîne de construction serait
 # une redite.
@@ -37,7 +37,7 @@ on:
         types: [php-grpc-images]
     push:
         # `main` seulement. Sans ce filtre, une branche de travail publie ses images sous les
-        # étiquettes glissantes — `8.3-cli` finit par désigner un essai non relu.
+        # étiquettes glissantes : `8.3-cli` finit par désigner un essai non relu.
         branches: [main]
         paths:
             - 'docker/php-grpc/**'
@@ -48,7 +48,7 @@ on:
             - '.github/workflows/php-grpc-images.yml'
     schedule:
         # Toutes les semaines. Deux choses vieillissent ici et pas au même rythme : les paquets
-        # système de la base, et PHP lui-même — dont les versions correctives sortent chaque mois.
+        # système de la base, et PHP lui-même, dont les versions correctives sortent chaque mois.
         # Une cadence hebdomadaire fait que l'écart entre `php:8.4-cli` et notre image se compte en
         # jours. Le cache Buildx rend la reconstruction bon marché quand rien n'a bougé en amont.
         - cron: '17 4 * * 1'
@@ -90,7 +90,7 @@ jobs:
                   password: ${{ secrets.GITHUB_TOKEN }}
 
             # `github.repository_owner` plutôt que le nom du dépôt : ces images ne sont pas celles de
-            # Durable, ce sont celles de son auteur — d'autres projets peuvent les consommer.
+            # Durable, ce sont celles de son auteur ; d'autres projets peuvent les consommer.
             - name: Étiquettes
               id: meta
               run: |
@@ -139,7 +139,7 @@ jobs:
 
             # Ce qui décide tient dans une fonction, et elle est vérifiée avant d'être appliquée.
             # Le cas qui compte : le lundi de la publication, `8.4-zts` et `8.4-zts-20260828`
-            # désignent le même manifeste — retirer « l'étiquette datée » retirerait l'image que
+            # désignent le même manifeste ; retirer « l'étiquette datée » retirerait l'image que
             # l'étiquette glissante désigne.
             - name: La règle se vérifie avant de s'appliquer
               run: python3 docker/php-grpc/retention.py --self-test
@@ -148,7 +148,7 @@ jobs:
               env:
                   # L'API de suppression de paquets n'accepte pas le `GITHUB_TOKEN` : elle demande
                   # un jeton personnel classique portant `read:packages` et `delete:packages`. Sans
-                  # le secret, le job avertit et s'arrête — un échec hebdomadaire finirait par être
+                  # le secret, le job avertit et s'arrête : un échec hebdomadaire finirait par être
                   # ignoré, et avec lui les vrais.
                   GH_TOKEN: ${{ secrets.GHCR_RETENTION_TOKEN }}
                   OWNER: ${{ github.repository_owner }}

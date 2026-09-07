@@ -210,7 +210,7 @@ $this->sideEffectBus->dispatch(new SendEmailSideEffect(
 ));
 ```
 
-## Gestion GitHub Project V2 — OBLIGATIONS CRITIQUES
+## Gestion GitHub Project V2 : OBLIGATIONS CRITIQUES
 
 **Tu DOIS obligatoirement :**
 1. **Assigner l'issue à l'itération courante** quand tu la prends en charge

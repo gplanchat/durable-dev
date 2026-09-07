@@ -2,9 +2,9 @@
 #
 # Starts the four-application Nexus demonstration, and says what it is doing.
 #
-# Eight processes — five for the two Symfony mockups, one for the Magento bench, two for the Laravel
-# mockup — and the order does not matter: a worker that starts late makes things wait, it does not
-# make them fail. That is the very subject of the demonstration — the probe showed it live, a
+# Eight processes (five for the two Symfony mockups, one for the Magento bench, two for the Laravel
+# mockup), and the order does not matter: a worker that starts late makes things wait, it does not
+# make them fail. That is the very subject of the demonstration; the probe showed it live, a
 # `charge` having sat four minutes in `NEXUS_OPERATION_STARTED` while its worker was off, then
 # finishing without the caller having held anything open.
 #
@@ -37,10 +37,10 @@ DSN_SHOP_CALLS="temporal://$ADDRESS?namespace=demo-shop&tls=0"
 DSN_BUSINESS="temporal://$ADDRESS?namespace=demo-business&nexus_task_queue=demo-business-nexus&journal_task_queue=durable-journal&tls=0"
 # No `nexus_task_queue`: Magento serves nothing, so there is nothing to poll. The DSN enters the
 # bench through `MAGENTO_DC_…`, Magento's convention for overriding `app/etc/env.php` from the
-# environment — the bench thus keeps the DSN of its own cluster, whose Nexus APIs are disabled.
+# environment; the bench thus keeps the DSN of its own cluster, whose Nexus APIs are disabled.
 DSN_MAGENTO="temporal://$ADDRESS?namespace=demo-magento&tls=0"
 # The only one of the four to carry `nexus_task_queue` without being a Symfony mockup: the logistics
-# serves `delivery`, and its two workers read the same DSN — one polls the Nexus queue, the other
+# serves `delivery`, and its two workers read the same DSN: one polls the Nexus queue, the other
 # the workflow task queue.
 DSN_LARAVEL="temporal://$ADDRESS?namespace=demo-laravel&nexus_task_queue=demo-laravel-nexus&tls=0"
 
@@ -55,7 +55,7 @@ status() {
             echo "  ● $name (pid $pid)"
             alive=$((alive + 1))
         else
-            echo "  ○ $name — off"
+            echo "  ○ $name (off)"
             rm -f "$pidf"
         fi
     done
@@ -121,7 +121,7 @@ case "${1:-}" in
 esac
 
 if ! temporal --address "$ADDRESS" operator nexus endpoint get --name demo-shop-stock >/dev/null 2>&1; then
-    echo "The endpoint demo-shop-stock does not exist — run bin/demo-nexus first." >&2
+    echo "The endpoint demo-shop-stock does not exist. Run bin/demo-nexus first." >&2
     echo "A server answering \"Nexus APIs are disabled\" is not enough: see demo/README.md." >&2
     exit 1
 fi
@@ -136,13 +136,13 @@ consume business-workflows      symfony dev        durable_temporal_journal  "DU
 consume business-activities     symfony dev        durable_temporal_activity "DURABLE_DSN=$DSN_BUSINESS"
 
 echo "the Magento bench (magento/)"
-# One worker only: Magento's workflow has no activity — everything it does is served elsewhere. An
+# One worker only: Magento's workflow has no activity. Everything it does is served elsewhere. An
 # activity worker would do nothing but poll an empty queue.
 spawn magento-workflows magento "$PHP_MAGENTO bin/magento durable:worker --role=journal" \
     "MAGENTO_DC_DURABLE__TEMPORAL__DSN=$DSN_MAGENTO"
 
 echo "the logistics (laravel/)"
-# Two workers, and not three: `ShipWorkflow` has no activity — what it waits for, it waits for from
+# Two workers, and not three: `ShipWorkflow` has no activity. What it waits for, it waits for from
 # a timer and from a Nexus operation served elsewhere.
 spawn logistics-serves-delivery laravel "$PHP_LARAVEL artisan durable:nexus-worker" \
     "DURABLE_DSN=$DSN_LARAVEL"
@@ -151,17 +151,17 @@ spawn logistics-workflows       laravel "$PHP_LARAVEL artisan durable:temporal-w
 
 cat <<END
 
-The logs are in demo/var/. Three calls to try — the third crosses all four mockups:
+The logs are in demo/var/. Three calls to try (the third crosses all four mockups):
 
-  # the business asks the shop for stock — an immediate answer
+  # the business asks the shop for stock: an immediate answer
   cd symfony && DURABLE_DSN='$DSN_BUSINESS' \\
     bin/console durable:demo:nexus CMD-1 MUG_BLUE=2
 
-  # the shop has the business bill an order — immediate verification, deferred charge
+  # the shop has the business bill an order: immediate verification, deferred charge
   cd sylius && APP_ENV=demo_caller DURABLE_TEMPORAL_DSN='$DSN_SHOP_CALLS' \\
     DATABASE_URL='$SHOP_DB' bin/console durable:demo:bill BILL-1 1200
 
-  # Magento asks the shop for stock **and** is billed by the business — while serving nothing
+  # Magento asks the shop for stock **and** is billed by the business, while serving nothing
   cd magento && MAGENTO_DC_DURABLE__TEMPORAL__DSN='$DSN_MAGENTO' \\
     $PHP_MAGENTO bin/magento durable:demo:nexus MAG-1 1200 MUG_BLUE=1
 

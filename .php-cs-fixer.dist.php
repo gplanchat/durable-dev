@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /*
- * Style du dépôt : PER Coding Style, décidé par l'ADR DUR008 — la référence PHP-FIG qui succède
+ * Style du dépôt : PER Coding Style, décidé par l'ADR DUR008, la référence PHP-FIG qui succède
  * à PSR-12.
  *
  * La révision est **épinglée**, pas suivie au fil de l'eau : l'ADR demande de « planifier une mise

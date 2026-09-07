@@ -5,7 +5,7 @@
 # that is only ever exercised in production is a boundary nobody has tested.
 #
 # `--classify` is pure, so most of this runs with no network and no token. The one case that has a
-# side effect — an edit withdrawing a human's clearance — is exercised against a stubbed `gh`.
+# side effect (an edit withdrawing a human's clearance) is exercised against a stubbed `gh`.
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

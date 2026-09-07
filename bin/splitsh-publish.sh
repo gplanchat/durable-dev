@@ -6,11 +6,11 @@
 #   ./bin/splitsh-publish.sh tag <tag>
 #       Checkout <tag>, split each prefix, push each split SHA to refs/tags/<tag> on satellites.
 # Environment:
-#   SPLITSH_PUSH_TOKEN — GitHub PAT with contents:write on each satellite (optional; dry-run if unset).
-#   SPLITSH_GITHUB_ORG — GitHub org or user (default: gplanchat).
-#   SPLITSH_TARGET_BRANCH — Satellite default branch (default: main).
-#   SPLITSH_LITE — Path to splitsh-lite binary (default: splitsh-lite on PATH).
-#   SPLITSH_FORCE — If 1, branch push uses --force (dangerous).
+#   SPLITSH_PUSH_TOKEN: GitHub PAT with contents:write on each satellite (optional; dry-run if unset).
+#   SPLITSH_GITHUB_ORG: GitHub org or user (default: gplanchat).
+#   SPLITSH_TARGET_BRANCH: Satellite default branch (default: main).
+#   SPLITSH_LITE: Path to splitsh-lite binary (default: splitsh-lite on PATH).
+#   SPLITSH_FORCE: If 1, branch push uses --force (dangerous).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -21,7 +21,7 @@ TOKEN="${SPLITSH_PUSH_TOKEN:-}"
 ORG="${SPLITSH_GITHUB_ORG:-gplanchat}"
 BRANCH="${SPLITSH_TARGET_BRANCH:-main}"
 
-# prefix|repo — GitHub repository name under SPLITSH_GITHUB_ORG
+# prefix|repo: GitHub repository name under SPLITSH_GITHUB_ORG
 SPLITS=(
     "src/Durable/|durable"
     "src/DurableBundle/|durable-bundle"
@@ -32,7 +32,7 @@ SPLITS=(
     "src/DurableLaravel/|durable-laravel"
     # Le satellite porte déjà un `main` : le split de mars 2026, quand ce préfixe tenait un tout
     # autre module (`Api`, `Model`, une commande de consommation). Il est un ancêtre du split
-    # d'aujourd'hui — même préfixe, même histoire amont — donc la première poussée avance sans
+    # d'aujourd'hui (même préfixe, même histoire amont), donc la première poussée avance sans
     # forcer. Si elle est refusée, c'est que l'histoire amont a bougé entre-temps : la sortie est le
     # `workflow_dispatch` avec `force`, qui archive la tête sous `refs/heads/archive/` avant de la
     # remplacer, et non une suppression du dépôt.
@@ -42,7 +42,7 @@ SPLITS=(
 )
 
 # Push using Authorization: Basic so the credential helper from CI (GITHUB_TOKEN) cannot override
-# pushes to other repositories — embed-only URLs are sometimes ignored when a global helper matches github.com.
+# pushes to other repositories: embed-only URLs are sometimes ignored when a global helper matches github.com.
 satellite_url() {
     printf 'https://github.com/%s/%s.git' "$ORG" "$1"
 }
@@ -79,7 +79,7 @@ remote_tag_sha() {
 #
 # The head must be fetched before it can be pushed anywhere: `git push <url> <sha>:<ref>` needs the
 # object *locally*, and the heads worth archiving are exactly the ones the current prefix does not
-# reproduce — so the runner does not have them. Fetching the ref rather than the SHA also closes the
+# reproduce, so the runner does not have them. Fetching the ref rather than the SHA also closes the
 # window between reading the head and archiving it.
 #
 # Returns non-zero when the head exists but could not be archived: the caller must then leave that
@@ -200,7 +200,7 @@ push_tag_mode() {
             continue
         fi
         # Already published at this SHA: skip. Without this, a re-run dies on "already exists" at the
-        # first satellite and the remaining ones are never pushed — a partial publish stays stuck.
+        # first satellite and the remaining ones are never pushed: a partial publish stays stuck.
         # A tag pointing elsewhere still fails loudly: that is a real divergence, not a retry.
         if [[ "$(remote_tag_sha "$repo" "$tag")" == "$sha" ]]; then
             echo "[tag] $repo already at $sha for $tag"

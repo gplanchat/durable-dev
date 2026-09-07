@@ -5,7 +5,7 @@ name: Issue trust gate
 # with no association to the repository. `gh issue list` reports no author at all, so a stranger's
 # issue and the owner's reached the loop identical.
 #
-# This workflow supplies the missing signal, at the boundary rather than on every tick — one label
+# This workflow supplies the missing signal, at the boundary rather than on every tick: one label
 # per issue at submission time, instead of the same judgement re-made on every heartbeat.
 #
 # There is deliberately NO model here. Author association is metadata: it cannot be argued with,
@@ -48,7 +48,7 @@ jobs:
       - name: Check the gate
         run: bin/issue-trust-gate-test.sh
 
-      # A pull request only runs the test above — there is no issue to label, and a PR from a fork
+      # A pull request only runs the test above; there is no issue to label, and a PR from a fork
       # must never reach a step holding `issues: write`.
       - name: Label the issue
         if: github.event_name == 'issues'

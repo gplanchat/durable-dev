@@ -8,12 +8,12 @@
 #
 # ⚠ There are four namespaces and **three** endpoints, and that is not an omission: an endpoint says
 # where a service is served, and the Magento mockup serves none. Creating one nobody would poll
-# would give a caller waiting for nothing — the exact breakdown this script exists to avoid. The
+# would give a caller waiting for nothing, the exact breakdown this script exists to avoid. The
 # Laravel mockup does serve `delivery`: it therefore has both.
 #
 # The endpoint is the piece one forgets. Without it the calling workflow leaves, the server does not
 # know where to route the operation, and the caller's history stops on a failure naming an
-# unreachable endpoint — not the contract, not the handler.
+# unreachable endpoint, not the contract, not the handler.
 #
 #   bin/demo-nexus                     # creates what is missing, touches nothing that exists
 #   bin/demo-nexus --address host:port # against a cluster other than 127.0.0.1:7233
@@ -47,7 +47,7 @@ while [ $# -gt 0 ]; do
 done
 
 if ! command -v temporal >/dev/null 2>&1; then
-    echo "temporal (the CLI) is not on the PATH — https://docs.temporal.io/cli" >&2
+    echo "temporal (the CLI) is not on the PATH: https://docs.temporal.io/cli" >&2
     exit 1
 fi
 
@@ -92,7 +92,7 @@ create_endpoint() {
     done
 
     echo "could not create the endpoint $name" >&2
-    echo "a server answering \"Nexus APIs are disabled\" is not enough — see demo/README.md" >&2
+    echo "a server answering \"Nexus APIs are disabled\" is not enough; see demo/README.md" >&2
     exit 1
 }
 
@@ -104,13 +104,13 @@ cat <<END
 
 Eight processes, four namespaces. All four mockups call, three of them serve.
 
-  # the shop serves "stock" — demo profile, DBAL journal, dashboard unchanged
+  # the shop serves "stock": demo profile, DBAL journal, dashboard unchanged
   cd sylius
   export APP_ENV=demo
   export DURABLE_TEMPORAL_DSN='temporal://$ADDRESS?namespace=$SHOP&nexus_task_queue=$QUEUE_SHOP&tls=0'
   bin/console messenger:consume durable_temporal_nexus
 
-  # the shop calls "billing" — demo_caller profile, journal on the cluster
+  # the shop calls "billing": demo_caller profile, journal on the cluster
   cd sylius
   export APP_ENV=demo_caller
   export DURABLE_TEMPORAL_DSN='temporal://$ADDRESS?namespace=$SHOP&tls=0'
@@ -128,13 +128,13 @@ Eight processes, four namespaces. All four mockups call, three of them serve.
   cd symfony
   bin/console durable:demo:nexus CMD-1 MUG_BLUE=2
 
-  # Magento calls the three services — and serves none
+  # Magento calls the three services, and serves none
   cd magento
   export MAGENTO_DC_DURABLE__TEMPORAL__DSN='temporal://$ADDRESS?namespace=$MAGENTO&tls=0'
   bin/magento durable:worker --role=journal
   bin/magento durable:demo:nexus MAG-1 1200 MUG_BLUE=1
 
-  # the logistics serves "delivery", including "ship" which a workflow fulfils — and which calls
+  # the logistics serves "delivery", including "ship" which a workflow fulfils, and which calls
   # "stock" while it serves
   cd laravel
   export DURABLE_DSN='temporal://$ADDRESS?namespace=$LARAVEL&nexus_task_queue=$QUEUE_LARAVEL&tls=0'

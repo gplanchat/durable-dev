@@ -11,8 +11,8 @@ The static site under **`hugo-docs/`** publishes **user documentation** only: pr
 
 | Role | Location |
 |------|-----------|
-| **User guide (Hugo)** | `documentation/user/` — edit Markdown here; the next `hugo` build updates the site. |
-| **Architecture / process** | `documentation/adr/`, `documentation/wa/`, `INDEX.md`, `LIFECYCLE.md` — stay in Git; link from the repo or from prose in `documentation/user/` when users need pointers. |
+| **User guide (Hugo)** | `documentation/user/`. Edit Markdown here; the next `hugo` build updates the site. |
+| **Architecture / process** | `documentation/adr/`, `documentation/wa/`, `INDEX.md`, `LIFECYCLE.md` stay in Git; link from the repo or from prose in `documentation/user/` when users need pointers. |
 
 ## Mount
 

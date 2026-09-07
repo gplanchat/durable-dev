@@ -34,7 +34,7 @@ RUN php -m | grep -qx grpc && php -m | grep -qx protobuf
 ```
 
 Le chemin est nommé en entier plutôt que copié en bloc, à dessein : `COPY` du dossier
-`extensions/` réussit même quand le nom du dossier de la base est différent — le `.so` atterrit dans
+`extensions/` réussit même quand le nom du dossier de la base est différent ; le `.so` atterrit dans
 un dossier que PHP ne lit pas, et la panne attend l'exécution. Le chemin explicite échoue au
 `docker build`.
 
@@ -45,11 +45,11 @@ casse la construction. La troisième n'y est pas : Debian et Alpine partagent le
 `RUN php -m` final, qui rattrape ce cas-là et lui seul.
 
 Une quatrième condition ne se voit nulle part dans les chemins : grpc est du C++ et réclame
-`libstdc++`. Les bases Debian l'embarquent toutes ; les bases Alpine, pas toutes — l'image Sylius
+`libstdc++`. Les bases Debian l'embarquent toutes ; les bases Alpine, pas toutes : l'image Sylius
 ci-dessus l'a, `php:8.3-fpm-alpine` ne l'a pas et demande un `apk add --no-cache libstdc++`. Là
 encore, c'est le `RUN php -m` qui le dit.
 
-**Le guide utilisateur détaille tout cela** — recettes pour php-fpm derrière Nginx ou Caddy, pour
+**Le guide utilisateur détaille tout cela**, recettes pour php-fpm derrière Nginx ou Caddy, pour
 Apache avec mod_php, et pour FrankenPHP (qui est thread-safe, donc `zts`) :
 <https://durable.rocks/docs/container-images/>.
 
@@ -75,7 +75,7 @@ real    6m58s      image finale : 126 Mo
 ```
 
 Sept minutes par construction, par version de PHP, par distribution, sur chaque machine et dans
-chaque pipeline qui en a besoin. C'est ce que publier l'image supprime — grpc 1.83 traînant derrière
+chaque pipeline qui en a besoin. C'est ce que publier l'image supprime : grpc 1.83 traînant derrière
 lui abseil, boringssl, re2 et upb, et se compilant en C++17.
 
 ## Comment elles sont construites
@@ -116,7 +116,7 @@ bien avant de coûter quoi que ce soit.
 
 Le job `retention` s'exécute après chaque publication réussie et garde, **par série**
 (`8.4-zts`, `8.2-cli-alpine`, …), les **huit étiquettes datées les plus récentes** en plus de
-l'image courante — soit deux mois de points d'épinglage. Simulé sur soixante semaines : 144 versions
+l'image courante, soit deux mois de points d'épinglage. Simulé sur soixante semaines : 144 versions
 et 160 étiquettes au régime permanent, contre 960 et 976 sans rien faire.
 
 Ce que le script protège, et qui n'est pas évident : **une version est épargnée dès qu'elle porte
@@ -132,7 +132,7 @@ qui supprime.
 > **Un secret est nécessaire.** L'API de suppression de paquets n'accepte pas le `GITHUB_TOKEN` :
 > elle demande un jeton personnel *classique* portant `read:packages` et `delete:packages`, à
 > déposer dans le secret `GHCR_RETENTION_TOKEN`. Sans lui, le job pose un avertissement et s'arrête
-> sans échouer — un échec hebdomadaire finirait par être ignoré, et les vrais avec lui.
+> sans échouer : un échec hebdomadaire finirait par être ignoré, et les vrais avec lui.
 
 Un essai à blanc est disponible : `workflow_dispatch` avec `dry_run` (activé par défaut) liste ce
 qui serait retiré sans rien retirer.

@@ -1,4 +1,4 @@
-# Workflow Orchestrator — Guide d'Orchestration Multi-Agents
+# Workflow Orchestrator : Guide d'Orchestration Multi-Agents
 
 Ce document définit les règles d'orchestration entre les agents du projet Hive pour une automatisation complète des tâches de développement.
 

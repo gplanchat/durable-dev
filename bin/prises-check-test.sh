@@ -79,8 +79,8 @@ cas pr-fermee-branche-absente "closed"      ""  perimee
 cas plusieurs-fermees         "closed closed" 0 perimee
 
 # Le faux positif structurel, signalé par la session Laravel. Entre la fusion d'une tranche et le
-# premier commit de la suivante, une branche de chantier réutilisée réunit les trois conditions —
-# PR fermées, rien devant `main`, parfois branche supprimée — alors que le travail continue. Le
+# premier commit de la suivante, une branche de chantier réutilisée réunit les trois conditions :
+# PR fermées, rien devant `main`, parfois branche supprimée, alors que le travail continue. Le
 # chantier, lui, sait qu'il n'est pas fini.
 cas chantier-en-cours         "closed"      0   vivante  change  reste
 cas chantier-en-cours-sans-branche "closed" ""  vivante  change  reste

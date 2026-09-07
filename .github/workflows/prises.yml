@@ -3,7 +3,7 @@ name: Registre des prises
 # Deux déclencheurs, deux rôles distincts.
 #
 # `pull_request` **filtré sur `.worktrees/prises/**`** : une session qui pose ou retire une prise
-# est contrôlée sur-le-champ. Le filtre est essentiel — sans lui, une prise oubliée par quelqu'un
+# est contrôlée sur-le-champ. Le filtre est essentiel : sans lui, une prise oubliée par quelqu'un
 # d'autre bloquerait des PR qui n'y sont pour rien, et un check qui punit l'innocent finit désarmé.
 #
 # `schedule` : le retrait oublié ne se voit dans aucune PR, par définition. C'est le balayage
