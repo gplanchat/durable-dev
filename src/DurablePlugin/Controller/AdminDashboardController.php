@@ -11,8 +11,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Twig\Environment;
 
 /**
- * La page ne fait plus que transporter : le filtre et le curseur vers le catalogue, le modèle de
- * vue vers le gabarit. Tout ce qui savait parler gRPC a rejoint le pont Temporal.
+ * The page now does nothing but carry: the filter and the cursor to the catalogue, the view model
+ * to the template. Everything that knew how to speak gRPC has moved to the Temporal bridge.
  */
 final class AdminDashboardController
 {

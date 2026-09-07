@@ -11,29 +11,29 @@ use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
 /**
- * Une reprise de workflow, et une seule à la fois par exécution.
+ * A workflow resume, and only one at a time per execution.
  *
- * Deux workers qui reprennent la **même** exécution la rejouent tous les deux, chacun croit
- * découvrir les commandes qu'elle produit, et ces commandes partent en double. Le journal ne
- * l'empêche pas : il enregistre fidèlement ce qu'on lui donne, deux fois comprises.
+ * Two workers resuming the **same** execution both replay it, each believes it is discovering the
+ * commands it produces, and those commands go out twice. The journal does not prevent it: it
+ * faithfully records what it is given, the two of them included.
  *
- * **Ce job ne se remet pas en file, il en redispatche un autre — et c'est délibéré.**
- * `$this->release()` demande le trait `InteractsWithQueue`, donc `illuminate/queue`, donc
- * `symfony/process ^7.2` : le paquet deviendrait irréconciliable avec la ligne Symfony 6.4 que la
- * matrice du dépôt teste encore. Mais l'argument n'est pas seulement d'emballage — §1.2 a mesuré
- * que `release()` **consomme un essai**, si bien qu'à `--tries=5`, quinze reprises sur vingt
- * finissaient dans `failed_jobs` sans avoir tourné une seule fois : la contention y devenait
- * indiscernable d'un bug. Un job neuf repart avec un budget d'essais neuf, et `tries` retrouve son
- * sens — le nombre de fois qu'un plantage est toléré.
+ * **This job does not put itself back on the queue, it dispatches another one — and that is
+ * deliberate.** `$this->release()` requires the `InteractsWithQueue` trait, hence
+ * `illuminate/queue`, hence `symfony/process ^7.2`: the package would become irreconcilable with
+ * the Symfony 6.4 line the repository's matrix still tests. But the argument is not only about
+ * packaging — §1.2 measured that `release()` **consumes an attempt**, so much so that at
+ * `--tries=5`, fifteen resumes out of twenty ended up in `failed_jobs` without having run a single
+ * time: contention there became indistinguishable from a bug. A fresh job starts again with a fresh
+ * budget of attempts, and `tries` recovers its meaning — the number of times a crash is tolerated.
  *
- * Le prix, et il est réel : rien ne borne plus le report côté file. C'est `$deferrals` qui le
- * borne ici, et le dépassement est bruyant.
+ * The price, and it is real: nothing bounds the deferral on the queue side any more. It is
+ * `$deferrals` that bounds it here, and going over is noisy.
  */
 final class ResumeWorkflowJob implements ShouldQueue
 {
     public function __construct(
         public readonly ResumeWorkflowMessage $message,
-        /** Combien de fois cette reprise a déjà trouvé le tour pris. */
+        /** How many times this resume has already found the turn taken. */
         public readonly int $deferrals = 0,
     ) {}
 
@@ -51,7 +51,7 @@ final class ResumeWorkflowJob implements ShouldQueue
             return;
         }
 
-        // Le tour était pris : un autre worker rejoue cette exécution en ce moment même.
+        // The turn was taken: another worker is replaying this execution at this very moment.
         $deferral->defer($this, $queue);
     }
 }

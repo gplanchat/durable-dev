@@ -13,16 +13,17 @@ use PHPStan\Type\Generic\GenericObjectType;
 use PHPStan\Type\Type;
 
 /**
- * La méthode du contrat, vue à travers le stub.
+ * The contract method, seen through the stub.
  *
- * Un contrat déclare ce que l'activité **rend** — `charge(string $id): string`. Le stub, lui, ne
- * l'exécute pas : il la planifie et rend un `Awaitable` que l'appelant attend. Rendre la réflexion
- * du contrat telle quelle ferait donc croire à PHPStan que `$this->orders->charge($id)` vaut une
- * chaîne, et il refuserait le `await()` qui suit — en signalant une faute qui n'en est pas une.
+ * A contract declares what the activity **returns** — `charge(string $id): string`. The stub does
+ * not execute it: it schedules it and returns an `Awaitable` the caller awaits. Handing back the
+ * contract's reflection as it stands would therefore have PHPStan believe that
+ * `$this->orders->charge($id)` is a string, and it would refuse the `await()` that follows —
+ * reporting a fault that is not one.
  *
- * Ce décorateur ne change qu'une chose : le type de retour devient `Awaitable<T>` où `T` est ce
- * que le contrat déclarait. Les paramètres, eux, sont ceux du contrat, ce qui est exactement le
- * but — c'est là que la vérification a lieu.
+ * This decorator changes one thing only: the return type becomes `Awaitable<T>` where `T` is what
+ * the contract declared. The parameters stay the contract's own, which is exactly the point — that
+ * is where the checking happens.
  */
 final class SchedulingMethodReflection implements ExtendedMethodReflection
 {
@@ -66,7 +67,7 @@ final class SchedulingMethodReflection implements ExtendedMethodReflection
         return new GenericObjectType(Awaitable::class, [$inner]);
     }
 
-    // --- Tout le reste est le contrat, inchangé. ---------------------------------------------
+    // --- Everything else is the contract, unchanged. -----------------------------------------
 
     public function getDeclaringClass(): ClassReflection
     {
