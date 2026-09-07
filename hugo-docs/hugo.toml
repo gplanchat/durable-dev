@@ -43,6 +43,12 @@ target = 'content'
 source = '../documentation/user'
 target = 'content/docs'
 
+# The blog. Outside `BookSection`, so hugo-book renders it with its own `list.html`
+# (`book-post` markup, pagination, dated meta) instead of the book menu tree. No layout of ours.
+[[module.mounts]]
+source = '../documentation/blog'
+target = 'content/posts'
+
 [params]
 BookRepo = 'https://github.com/gplanchat/durable-dev'
 BookEditPath = 'edit/main/documentation/user'
