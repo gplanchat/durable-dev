@@ -38,7 +38,7 @@ when@demo:
                     options:
                         purpose: nexus_worker
 
-when@demo_appelant:
+when@demo_caller:
     framework:
         messenger:
             transports:
