@@ -1,8 +1,8 @@
-# WA005 — The canvas is the source, `layouts/index.html` is output
+# WA005: The canvas is the source, `layouts/index.html` is output
 
 ## Status
 
-Accepted — the rule holds today; the CI guard that enforces it is the follow-up named below.
+Accepted; the rule holds today, the CI guard that enforces it is the follow-up named below.
 
 ## Context
 
@@ -12,7 +12,7 @@ correction is faster to make where the file already is.
 
 **That has now cost the same thing three times in one night.** The "coming soon" wording, the
 default backend, and a fix stopping the picker from offering unpublished packages were each written
-into `layouts/index.html`, and each was lost — twice to a regeneration that did not know about them,
+into `layouts/index.html`, and each was lost: twice to a regeneration that did not know about them,
 once to a rebase. The third loss happened *inside the hour* after a pull request comment predicted
 it in as many words.
 
@@ -23,7 +23,7 @@ right**, and nothing in the repository said which one was.
 
 **The canvas is the source. `hugo-docs/layouts/index.html` is output, and nobody edits it by hand.**
 
-A correction to the page — text, chip state, default selection, a logo, a package name — is made in
+A correction to the page (text, chip state, default selection, a logo, a package name) is made in
 the canvas and re-imported. Slower for a one-word change, and that is the trade: a regeneration
 stops being an event to fear, because there is nothing in the output that the source does not have.
 
@@ -31,16 +31,16 @@ stops being an event to fear, because there is nothing in the output that the so
 
 The rule is unenforceable while the canvas lives outside the repository. Making it real means:
 
-1. ~~**Committing the canvas source** — the `.dc.html` file — next to the script that reads it.~~
+1. ~~**Committing the canvas source**, the `.dc.html` file, next to the script that reads it.~~
    **Done.** `hugo-docs/variant-b-narrative.dc.html` and `…-fr.dc.html`, exported from the
    *Durable landing design* project by `designer handoff`, which is the only export that returns the
-   canvas source rather than the served page — `designer fetch` returns the latter, and
+   canvas source rather than the served page: `designer fetch` returns the latter, and
    `import-design.py` refuses it with *racine introuvable*.
 
    **And committing them measured the drift for the first time.** Regenerating both pages from the
    canvas as it stands today would delete, from each language:
 
-   - the whole **Nexus section** — the nav entry and `<section id="nexus">`, some ninety lines —
+   - the whole **Nexus section**, the nav entry and `<section id="nexus">`, some ninety lines,
      written straight into the pages and never into the canvas;
    - the two package rows added by #202 and #206, `gplanchat/durable-bridge-illuminate` and
      `gplanchat/durable-laravel`, with the badge that counts the backends.
@@ -51,7 +51,7 @@ The rule is unenforceable while the canvas lives outside the repository. Making 
    reconciles the two.
 2. ~~**A CI check** that re-runs `import-design.py` on the committed source and fails if the result
    differs from the committed `layouts/index.html`.~~ **Done, and not that way.** Re-running the
-   import in CI needs the canvas, which (1) has not delivered — so the guard was put where the loss
+   import in CI needs the canvas, which (1) has not delivered, so the guard was put where the loss
    actually happens instead: **inside `import-design.py`, at the moment it is about to write.**
 
    The script now records the fingerprint of every page it writes, in `hugo-docs/imported.json`.
@@ -83,8 +83,8 @@ Converging in either direction alone regresses something real.
 | where | which side is ahead | what regresses if you take the other |
 |---|---|---|
 | the Nexus section, the package rows, the six integrations removed, the Laravel chips | **the repository** | ninety lines of section, and a chooser offering packages nobody publishes |
-| `--accent2` | **the repository** — `PALETTE` lives in `import-design.py`; the canvas hard-codes `accent2: dark ? '#6bb0a6' : '#2f6f6b'` and does not follow the accent variant | dark theme falls to 2.98 contrast on `bg2`, below AA |
-| `DIST_ALLOWED.none` | **the canvas** — it offers `illuminate`, the page does not | a bridge that works standalone (its own conformance suite runs on Capsule, no framework) becomes unreachable, and the page contradicts its own `WHYNOT.none`: *"on plain PHP both SQL bridges are open"* |
+| `--accent2` | **the repository**: `PALETTE` lives in `import-design.py`; the canvas hard-codes `accent2: dark ? '#6bb0a6' : '#2f6f6b'` and does not follow the accent variant | dark theme falls to 2.98 contrast on `bg2`, below AA |
+| `DIST_ALLOWED.none` | **the canvas**: it offers `illuminate`, the page does not | a bridge that works standalone (its own conformance suite runs on Capsule, no framework) becomes unreachable, and the page contradicts its own `WHYNOT.none`: *"on plain PHP both SQL bridges are open"* |
 
 So "the canvas is the source" is true of **markup and layout**, and false of anything the script owns
 (the palette) or that a product decision moved (the chooser's data). A regeneration is therefore not
@@ -92,17 +92,17 @@ a mechanical replay: it is a family-by-family arbitration, and the guard in `imp
 to force that arbitration to happen in daylight rather than at write time.
 
 **Both were had.** A neighbouring session held its pull request so nobody wrote in `layouts/`, and
-the arbitration was made family by family, regenerating and measuring after each — eight passes, the
+the arbitration was made family by family, regenerating and measuring after each: eight passes, the
 count falling 114 → 29 substantive lines. What is left is the canvas being ahead, and it is meant to
 be: the newer column template, `text-wrap: balance` on the badges, a dashed border, the API Platform
 icon, two French sentences, and `illuminate` reachable from the frameworkless option.
 
 **Two of the four commits needed nothing at all.** The palette lives in `PALETTE` inside
-`import-design.py`, not in the canvas, so the two accent commits were already in the pipeline —
+`import-design.py`, not in the canvas, so the two accent commits were already in the pipeline,
 measured, the regenerated `:root` was byte-identical before a single line was ported.
 
 **The reconciliation repaired three things nobody had reported**, which is the argument for doing it
-rather than living with the drift: two dead hover classes (`dz-h64`, `dz-h65` — the attribute copied
+rather than living with the drift: two dead hover classes (`dz-h64`, `dz-h65`, where the attribute copied
 from a neighbour without its rule), an unlocalised link (`/docs/nexus/` on the French page, sending a
 French reader to the English one), and a chooser that contradicted its own copy.
 
@@ -112,7 +112,7 @@ doing the normal thing.
 
 ### What stays hand-written
 
-Everything that is not the landing page. `assets/logos/*.svg` are inputs to the import, not output —
+Everything that is not the landing page. `assets/logos/*.svg` are inputs to the import, not output:
 they are edited in the repository and the import inlines them. `import-design.py` itself, its
 guards, and `layout-head.html` are ordinary code.
 
@@ -126,13 +126,13 @@ guards, and `layout-head.html` are ordinary code.
 - **`check_packages_resolve()` keeps its job.** It catches a class the diff cannot: a command the
   picker can build that names a package nobody publishes. Structural agreement and semantic
   correctness are different guards.
-- **This agreement is falsifiable.** If the canvas cannot be committed — a format that does not
-  survive git, a tool that will not read a file from disk — then decision (1) fails and the honest
+- **This agreement is falsifiable.** If the canvas cannot be committed (a format that does not
+  survive git, a tool that will not read a file from disk) then decision (1) fails and the honest
   answer is the other branch: retire `import-design.py` and let the page live in git like the rest
   of the site. That is stated here so the fallback is a decision rather than a drift.
 
 ## References
 
-- [WA001 — English language for project documentation](WA001-english-language-documentation.md)
-- `hugo-docs/import-design.py` — the import, and the guards it already carries
+- [WA001: English language for project documentation](WA001-english-language-documentation.md)
+- `hugo-docs/import-design.py` holds the import, and the guards it already carries
 - [documentation/HUGO.md](../HUGO.md)

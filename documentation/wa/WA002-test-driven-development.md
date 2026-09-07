@@ -1,4 +1,4 @@
-# WA002 — Test-driven development (TDD)
+# WA002: Test-driven development (TDD)
 
 ## Status
 
@@ -14,9 +14,9 @@ The Durable component needs **safe iteration** on deterministic workflows, adapt
 
 For **behaviour-changing** work on production code, follow this loop until the feature or fix is complete:
 
-1. **Red** — Add or extend an **automated test** that fails and expresses the **next** desired behaviour (one small step).
-2. **Green** — Implement the **minimum** production code required to make that test pass.
-3. **Refactor** — Improve structure and names with **all** relevant tests still passing.
+1. **Red**: Add or extend an **automated test** that fails and expresses the **next** desired behaviour (one small step).
+2. **Green**: Implement the **minimum** production code required to make that test pass.
+3. **Refactor**: Improve structure and names with **all** relevant tests still passing.
 
 Repeat. Do not skip **Red** for new behaviour.
 
@@ -34,8 +34,8 @@ Repeat. Do not skip **Red** for new behaviour.
 
 ### Relationship to other normative documents
 
-- **DUR009** — Framework (PHPUnit), determinism, doubles, isolation: **quality** of tests.
-- **DUR010** — **Pyramid** (unit vs integration vs E2E): TDD applies within each layer; it does not replace layering choices.
+- **DUR009**: Framework (PHPUnit), determinism, doubles, isolation: **quality** of tests.
+- **DUR010**: **Pyramid** (unit vs integration vs E2E): TDD applies within each layer; it does not replace layering choices.
 
 ### Out of scope (exceptions)
 
@@ -57,9 +57,9 @@ Reviewers treat **this WA** as a **first-class** check alongside **ADRs** and **
 
 | Finding | Typical severity |
 |--------|------------------|
-| Production behaviour added/changed **without** tests that encode it | **Blocking** — request tests first (TDD), or document an approved exception |
-| Tests present but **unclear** intent, weak names, or oversized methods | **Non-blocking** — suggest refactor per DUR009 |
-| PR bundles unrelated refactors with behaviour change | **Non-blocking** — suggest smaller follow-ups |
+| Production behaviour added/changed **without** tests that encode it | **Blocking**: request tests first (TDD), or document an approved exception |
+| Tests present but **unclear** intent, weak names, or oversized methods | **Non-blocking**: suggest refactor per DUR009 |
+| PR bundles unrelated refactors with behaviour change | **Non-blocking**: suggest smaller follow-ups |
 
 Use **Conventional Comments** (e.g. `issue (blocking):` / `suggestion:`) so authors can triage quickly.
 
@@ -72,9 +72,9 @@ Use **Conventional Comments** (e.g. `issue (blocking):` / `suggestion:`) so auth
 
 ## References
 
-- [DUR009 — Testing standards](../adr/DUR009-testing-standards.md)
-- [DUR010 — Test pyramid](../adr/DUR010-test-pyramid.md)
-- [WA001 — English language for project documentation](WA001-english-language-documentation.md)
+- [DUR009: Testing standards](../adr/DUR009-testing-standards.md)
+- [DUR010: Test pyramid](../adr/DUR010-test-pyramid.md)
+- [WA001: English language for project documentation](WA001-english-language-documentation.md)
 - [documentation/LIFECYCLE.md](../LIFECYCLE.md)
 - [documentation/INDEX.md](../INDEX.md)
 - Cursor: `.cursor/rules/code-review-wa002-tdd.mdc` (review and self-review must apply this WA)

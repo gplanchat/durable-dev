@@ -1,4 +1,4 @@
-# WA001 — English language for project documentation
+# WA001: English language for project documentation
 
 ## Status
 
@@ -12,9 +12,9 @@ The Durable repository is developed in an international context and relies on sh
 
 **All** of the following **must be written in English**:
 
-1. **Tracking and journals** — e.g. `documentation/journal/` (inbox entries, README), session notes used as project memory, unless explicitly exempted.
-2. **Specifications and architecture** — ADRs (`documentation/adr/`), working agreements (`documentation/wa/`), OSTs, PRDs, and `documentation/LIFECYCLE.md` (and updates to `documentation/INDEX.md`).
-3. **Cursor rules** — files under `.cursor/rules/` (`.mdc` and related rule documents).
+1. **Tracking and journals**: e.g. `documentation/journal/` (inbox entries, README), session notes used as project memory, unless explicitly exempted.
+2. **Specifications and architecture**: ADRs (`documentation/adr/`), working agreements (`documentation/wa/`), OSTs, PRDs, and `documentation/LIFECYCLE.md` (and updates to `documentation/INDEX.md`).
+3. **Cursor rules**: files under `.cursor/rules/` (`.mdc` and related rule documents).
 
 ### Scope clarification
 
