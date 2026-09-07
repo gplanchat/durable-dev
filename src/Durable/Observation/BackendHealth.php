@@ -9,9 +9,9 @@ namespace Gplanchat\Durable\Observation;
  *
  * Distinct de « un backend est configuré » : un catalogue enregistré dont la base est tombée
  * afficherait sinon un tableau de bord vide et serein, ce qui est la pire des deux erreurs
- * possibles — l'exploitant conclut qu'il n'y a rien à voir.
+ * possibles : l'exploitant conclut qu'il n'y a rien à voir.
  *
- * `backend` nomme ce qui a été sondé — « SQL database », « Temporal » — parce qu'un exploitant qui
+ * `backend` nomme ce qui a été sondé (« SQL database », « Temporal ») parce qu'un exploitant qui
  * lit « injoignable » a besoin de savoir quoi aller rallumer. C'est l'inverse exact du cas où
  * *aucun* backend n'est configuré : là, nommer un serveur qui n'a jamais été de la partie
  * l'enverrait sur une fausse piste.
@@ -22,8 +22,8 @@ namespace Gplanchat\Durable\Observation;
  * sous « joignable », ce cas apprend à l'exploitant qu'aucun workflow n'a tourné, ce qui est faux ;
  * rangé sous « injoignable », il l'envoie rallumer un serveur qui n'existe pas.
  *
- * Le défaut est `false` : les trois catalogues qui écrivent hors du processus — SQL, Illuminate,
- * Temporal — n'ont pas à déclarer ce qui est vrai d'eux par construction.
+ * Le défaut est `false` : les trois catalogues qui écrivent hors du processus (SQL, Illuminate,
+ * Temporal) n'ont pas à déclarer ce qui est vrai d'eux par construction.
  */
 final readonly class BackendHealth
 {

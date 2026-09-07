@@ -13,7 +13,7 @@ use Illuminate\Contracts\Queue\Job;
  * Le port de transport des activités, sur la file de Laravel.
  *
  * Même adaptation que {@see \Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport} :
- * `enqueue` pousse, `dequeue` dépile et acquitte. Ce qui change est le vocabulaire — `later()` au
+ * `enqueue` pousse, `dequeue` dépile et acquitte. Ce qui change est le vocabulaire : `later()` au
  * lieu d'un `DelayStamp`, `pop()` au lieu d'un `ReceiverInterface`.
  *
  * **Le report devient celui de la file, puis disparaît du message.** C'est le contrat que le
@@ -21,8 +21,8 @@ use Illuminate\Contracts\Queue\Job;
  * mise en file serait attendu deux fois.
  *
  * En production personne n'appelle la moitié « pull » de ce port : `queue:work` pousse le job dans
- * `handle()`. Elle est implémentée quand même, parce qu'un drain synchrone — un test, une commande
- * qui vide la file à la main — a le droit d'exister, et qu'un `isEmpty()` qui mentirait ferait
+ * `handle()`. Elle est implémentée quand même, parce qu'un drain synchrone (un test, une commande
+ * qui vide la file à la main) a le droit d'exister, et qu'un `isEmpty()` qui mentirait ferait
  * conclure « plus rien à faire » à un appelant qui a encore du travail.
  */
 final class LaravelActivityTransport implements ActivityTransportInterface

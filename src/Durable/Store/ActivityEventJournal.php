@@ -84,8 +84,8 @@ final class ActivityEventJournal
      *
      * ⚠ Cette classe portait déjà deux notions de « terminal » qui se contredisaient.
      * {@see self::hasTerminalOutcomeForActivity()} sait qu'un `ActivityFailed` en
-     * {@see ActivityRetryState::InProgress} n'est pas terminal — la tentative suivante doit
-     * réellement s'exécuter — mais {@see self::lastTerminalOutcome()} rend le même événement sans
+     * {@see ActivityRetryState::InProgress} n'est pas terminal (la tentative suivante doit
+     * réellement s'exécuter), mais {@see self::lastTerminalOutcome()} rend le même événement sans
      * cette réserve. Le worker Temporal interrogeait la seconde **avant** de traiter, pour ne pas
      * réexécuter une tâche redélivrée : il répondait donc au serveur l'échec de la tentative 1 pour
      * les tentatives 2 et 3, sans jamais rappeler le code de l'activité. Trois tentatives brûlées
@@ -97,8 +97,8 @@ final class ActivityEventJournal
      * est une reprise, qui doit s'exécuter.
      *
      * Une issue autre qu'un échec en cours de reprise est terminale quel que soit son rang : une
-     * activité terminée, annulée ou irrémédiablement cassée ne se rejoue pas. Un `retryState` nul —
-     * journal ancien, politique non renseignée — n'est pas `InProgress` et reste donc terminal :
+     * activité terminée, annulée ou irrémédiablement cassée ne se rejoue pas. Un `retryState` nul
+     * (journal ancien, politique non renseignée) n'est pas `InProgress` et reste donc terminal :
      * dans le doute, on ne rejoue pas un effet de bord.
      */
     public static function settledOutcomeForDelivery(

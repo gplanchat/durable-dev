@@ -17,7 +17,7 @@ use Gplanchat\Durable\WorkflowRegistry;
 
 /**
  * Le palier « replay » de DUR041 : au lieu d'écrire des événements fabriqués, il en fait produire
- * par un vrai workflow — activité, minuteur, deux effets de bord dont un payload imbriqué — puis
+ * par un vrai workflow (activité, minuteur, deux effets de bord dont un payload imbriqué) puis
  * compare ce que le replay relit de l'adaptateur à ce qu'il relit de la référence.
  *
  * Un adaptateur qui pilote un workflow en ligne étend cette classe et hérite des deux paliers. Un
@@ -55,7 +55,7 @@ abstract class EventStoreReplayConformanceTestCase extends EventStoreConformance
     }
 
     /**
-     * `EventStoreHistorySource` relit le flux à chaque interrogation de slot — c'est le chemin que
+     * `EventStoreHistorySource` relit le flux à chaque interrogation de slot : c'est le chemin que
      * le replay emprunte réellement, et il est plus exigeant qu'une lecture unique.
      */
     public function testReplaySlotLookupsAgreeWithTheReference(): void
@@ -88,7 +88,7 @@ abstract class EventStoreReplayConformanceTestCase extends EventStoreConformance
      * Ils sont sur le même port que les recherches de slot ci-dessus, mais ils ne répondent pas à
      * la même question : « qu'est-ce qui s'est passé ici » d'un côté, « qu'est-ce que c'était » de
      * l'autre. Un adaptateur peut très bien rendre le bon résultat au bon slot et se tromper
-     * d'identité — et une garde qui compare la mauvaise identité vaut moins que pas de garde,
+     * d'identité, et une garde qui compare la mauvaise identité vaut moins que pas de garde,
      * puisqu'elle refuserait des replays fidèles.
      *
      * Ici plutôt que dans un test de parité dédié à un adaptateur : tout store qui étend cette
@@ -130,7 +130,7 @@ abstract class EventStoreReplayConformanceTestCase extends EventStoreConformance
      * La version qu'une exécution a enregistrée doit survivre à l'aller-retour dans le store.
      *
      * C'est la propriété dont dépend tout le versioning : au replay, la réponse vient du journal.
-     * Un adaptateur qui la perdrait ferait reprendre à une exécution en vol l'autre branche — sans
+     * Un adaptateur qui la perdrait ferait reprendre à une exécution en vol l'autre branche, sans
      * rien signaler, puisque la garde de divergence, elle, verrait un code cohérent avec sa
      * nouvelle version.
      */
@@ -182,7 +182,7 @@ abstract class EventStoreReplayConformanceTestCase extends EventStoreConformance
             // Un point de changement dans le workflow de conformité : c'est ce qui oblige chaque
             // adaptateur à faire l'aller-retour du marqueur de version, et pas seulement la
             // référence. Un store qui perdrait `VersionMarked` ferait rebasculer une exécution en
-            // vol sur l'autre branche — en silence.
+            // vol sur l'autre branche, en silence.
             $wf->version('conformance-change', ChangePoint::DEFAULT_VERSION, 1);
             $nested = $wf->sideEffect(static fn(): array => ['nested' => ['deep' => true], 'ratio' => 0.1]);
             $quote = $wf->await($wf->activityStub(ConformanceActivities::class)->quote(['a', 'b']));

@@ -14,8 +14,8 @@ use Gplanchat\Durable\ChildWorkflowOptions;
  * pour la même raison : le stub recevait l'environnement entier, ce qui obligeait à garder
  * publique la forme qui nomme le type d'enfant par une chaîne.
  *
- * Le port **démarre** et rend un awaitable ; il n'attend pas. C'est la règle de DUR033 — `await()`
- * est la seule méthode qui attend — dont le stub s'était écarté.
+ * Le port **démarre** et rend un awaitable ; il n'attend pas. C'est la règle de DUR033 (`await()`
+ * est la seule méthode qui attend) dont le stub s'était écarté.
  */
 interface ChildWorkflowSchedulerInterface
 {

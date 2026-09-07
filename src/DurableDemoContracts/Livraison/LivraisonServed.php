@@ -11,7 +11,7 @@ use Gplanchat\Durable\Attribute\AsNexusService;
  * Ce que la logistique sait répondre tout de suite.
  *
  * Choisir un créneau et un transporteur est un calcul sur des données qu'on a déjà : cela tient
- * dans les ~9 s d'une tâche Nexus. Sortir la marchandise, non — c'est
+ * dans les ~9 s d'une tâche Nexus. Sortir la marchandise, non : c'est
  * {@see LivraisonContract::expedier()}, et c'est un workflow qui la remplit.
  */
 #[AsNexusService('livraison')]

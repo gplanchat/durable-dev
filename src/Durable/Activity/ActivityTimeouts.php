@@ -9,7 +9,7 @@ use Gplanchat\Durable\Duration;
 /**
  * Les bornes temporelles d'une activité, prises ensemble.
  *
- * Elles ne se lisent pas isolément — chacune borne un segment différent de la vie d'une
+ * Elles ne se lisent pas isolément. Chacune borne un segment différent de la vie d'une
  * activité, et c'est leur composition qui a un sens :
  *
  *     planifiée ──schedule-to-start──▶ démarrée ──start-to-close──▶ terminée

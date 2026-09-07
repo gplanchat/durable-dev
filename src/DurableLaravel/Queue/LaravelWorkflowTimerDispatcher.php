@@ -14,7 +14,7 @@ use Illuminate\Contracts\Queue\Factory as QueueFactory;
  * Réveiller une exécution « dans n millisecondes » est une reprise différée, et rien d'autre : le
  * port ne demande pas un mécanisme séparé. Le pendant Symfony obtient la même chose d'un
  * `DelayStamp` ; ici c'est `later()`, arrondi **au-dessus** parce qu'attendre moins que demandé est
- * la seule erreur qui compte — un workflow réveillé trop tôt reprend avant son échéance.
+ * la seule erreur qui compte : un workflow réveillé trop tôt reprend avant son échéance.
  */
 final class LaravelWorkflowTimerDispatcher implements WorkflowTimerDispatcher
 {

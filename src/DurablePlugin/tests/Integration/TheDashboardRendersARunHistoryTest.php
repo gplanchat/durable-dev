@@ -24,7 +24,7 @@ use Twig\TwigFunction;
  *
  * Les autres assertions de ce dossier lisent le fichier ; celle-ci l'exécute. La différence n'est
  * pas cosmétique : la frise vient désormais du cœur, et le gabarit traverse `action.events`, puis
- * `mark.event.label` — un chemin qu'aucune lecture de texte n'éprouve. Une propriété mal nommée
+ * `mark.event.label`, un chemin qu'aucune lecture de texte n'éprouve. Une propriété mal nommée
  * dans cette chaîne ne casse rien à l'installation et rend une page vide en production, sur
  * précisément l'écran qu'un exploitant est venu regarder.
  */
@@ -62,7 +62,7 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
 
     public function testTheActionsArePlacedInTimeAndNotMerelyStacked(): void
     {
-        // Empiler des blocs répond « dans quel ordre », jamais « pendant combien de temps » — et la
+        // Empiler des blocs répond « dans quel ordre », jamais « pendant combien de temps », et la
         // seconde est la question qu'un exploitant devant une exécution lente vient poser.
         $page = $this->render();
 
@@ -102,7 +102,7 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
     {
         // La frise compose son infobulle dans le cœur, avec le fuseau de l'événement ; le filtre
         // `date` de Twig, lui, applique celui du serveur. Sur une machine à Paris, le même
-        // événement se lisait 22:13:20 au survol et 23:13:20 dans la ligne juste dessous — dans une
+        // événement se lisait 22:13:20 au survol et 23:13:20 dans la ligne juste dessous, dans une
         // page dont toute la raison d'être est qu'un exploitant n'ait rien à convertir de tête.
         $was = date_default_timezone_get();
         date_default_timezone_set('Europe/Paris');

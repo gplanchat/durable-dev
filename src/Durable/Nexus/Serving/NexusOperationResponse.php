@@ -10,13 +10,13 @@ namespace Gplanchat\Durable\Nexus\Serving;
  * **Le contrat de la forme différée est « démarre ce workflow », et non « rends un jeton ».** La
  * sonde 3.1 l'a mesuré contre un serveur réel, dans les deux sens : ce qui fait revenir la
  * complétion à l'appelant, c'est le `callback` de la tâche attaché au workflow qui remplit
- * l'opération, via `completion_callbacks` — un champ qui ne se pose qu'au démarrage. Sans lui,
+ * l'opération, via `completion_callbacks`, un champ qui ne se pose qu'au démarrage. Sans lui,
  * l'historique de l'appelant s'arrête à `NEXUS_OPERATION_STARTED` et plus rien n'arrive, quel que
  * soit le jeton rendu.
  *
  * Le jeton n'est donc pas le mécanisme, seulement l'identifiant. Un gestionnaire qui devrait le
  * fabriquer lui-même choisirait la seule pièce qui ne corrèle rien, et la plomberie ne pourrait
- * plus attacher le callback à temps — le démarrage est déjà passé.
+ * plus attacher le callback à temps : le démarrage est déjà passé.
  *
  * Une fois le workflow démarré avec ce callback, le gestionnaire n'est plus sollicité : c'est le
  * serveur qui corrèle la fin du workflow à l'opération.

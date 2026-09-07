@@ -12,7 +12,7 @@ namespace Gplanchat\Durable\Event;
  * {@see \Gplanchat\Durable\Timer\TimerWakeDelayCalculator} de réveiller
  * l'exécution pour une échéance morte.
  *
- * ponytail: le slot de replay reste consommé par le minuteur annulé — le régler comme
+ * ponytail: le slot de replay reste consommé par le minuteur annulé ; le régler comme
  * « terminé » le ferait apparaître comme *parti* au replay et pourrait désigner le mauvais
  * gagnant d'un `any()`. Réclamer le slot demanderait un slotting nommé, pas positionnel.
  */

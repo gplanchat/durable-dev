@@ -7,12 +7,12 @@ namespace Gplanchat\Durable\Nexus;
 /**
  * Le nom d'un endpoint Nexus : où une opération est routée.
  *
- * **Cet objet n'est pas plus strict que le serveur, et c'est délibéré** — l'inverse du choix fait
+ * **Cet objet n'est pas plus strict que le serveur, et c'est délibéré**, l'inverse du choix fait
  * pour {@see \Gplanchat\Durable\TaskQueue}. Une file mal nommée est acceptée par le serveur puis
  * n'est jamais servie : le travail y dort, rien n'apparaît dans les logs, et seule une règle plus
  * stricte que le serveur peut l'empêcher. Un endpoint mal nommé n'a pas cette panne muette : le
  * serveur le refuse net à la création. Inventer ici une règle supplémentaire ne préviendrait donc
- * aucune faute — elle ne ferait que rejeter des noms parfaitement valides.
+ * aucune faute ; elle ne ferait que rejeter des noms parfaitement valides.
  *
  * La règle est celle que le serveur énonce lui-même, observée sur Temporal 1.31.2 (tâche 1.1) et
  * épinglée par `NexusEndpointNameRulesTest` : `^[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9]$`, 200

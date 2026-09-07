@@ -47,7 +47,7 @@ use Magento\Framework\App\DeploymentConfig;
 /*
  * Pas `final` : Magento engendre un `Interceptor` qui étend toute classe que son
  * conteneur instancie, pour porter les plugins. Une classe finale fait échouer la
- * compilation du conteneur — « cannot extend final class » — et le message ne dit
+ * compilation du conteneur (« cannot extend final class »), et le message ne dit
  * pas que c'est la faute du mot-clé. C'est la maison qui écrit `final` partout ;
  * ici l'hôte l'interdit, et le dire vaut mieux que de le laisser deviner.
  */
@@ -64,7 +64,7 @@ class RuntimeFactory
      *                                              est une déclaration qu'on ne peut pas écrire de
      *                                              travers.
      * @param int                $maxActivityRetries Plafond quand une activité n'en fixe pas. `0`
-     *                                              ne plafonne rien — et une activité sans
+     *                                              ne plafonne rien, et une activité sans
      *                                              `RetryLimit` réessaie indéfiniment, ce qui est
      *                                              le défaut de Temporal.
      * @param float              $budgetSeconds      Borne globale d'une exécution. Elle existe
@@ -78,12 +78,12 @@ class RuntimeFactory
      *
      * ⚠ **Une seule fenêtre, pour la grille comme pour le détail.** Elles étaient deux littéraux
      * distincts, et deux fenêtres de tailles différentes rendent possible d'être listé d'un côté et
-     * introuvable de l'autre — un lien qui mène à « exécution inconnue » depuis la ligne qui vient
+     * introuvable de l'autre : un lien qui mène à « exécution inconnue » depuis la ligne qui vient
      * de la nommer.
      *
      * ponytail: fenêtre bornée parce que la grille pagine par décalage et le backend par curseur de
      * continuation, et que les deux ne se traduisent pas sans état. Le jour où ça gêne, la sortie
-     * est de mémoriser les curseurs par page dans la session de l'administrateur — pas d'agrandir
+     * est de mémoriser les curseurs par page dans la session de l'administrateur, pas d'agrandir
      * la fenêtre.
      */
     public const OBSERVATION_WINDOW = 200;
@@ -95,7 +95,7 @@ class RuntimeFactory
         /**
          * Lu depuis `env.php`, à côté de `lock` et `queue` : c'est là que Magento range ce qui
          * doit être lisible avant qu'une base réponde. Nullable et par défaut absent pour que la
-         * fabrique reste construisible **sans Magento** — c'est ce qui met la décision de backend
+         * fabrique reste construisible **sans Magento** : c'est ce qui met la décision de backend
          * sous la garde de la CI, là où le reste du module demande un banc.
          */
         private readonly ?DeploymentConfig $deploymentConfig = null,
@@ -142,7 +142,7 @@ class RuntimeFactory
      *
      * La 2.3 a retiré la surface de configuration du backend : ce n'est donc pas un nom recopié
      * qui choisit, c'est **la présence d'un DSN** sous `durable/temporal/dsn` dans `env.php`.
-     * Absent, le journal vit dans ce processus et meurt avec lui — ce qui est un choix légitime
+     * Absent, le journal vit dans ce processus et meurt avec lui, ce qui est un choix légitime
      * pour une commande, et ruineux pour un consommateur. Présent, il vit dans le cluster, et
      * c'est le seul journal persistant que Magento atteigne : l'hôte ne livre aucun des deux
      * types de connexion auxquels les ponts SQL se lient.
@@ -161,7 +161,7 @@ class RuntimeFactory
      *
      * Un catalogue ne se **dérive pas** d'un journal : `InMemoryWorkflowRunCatalog` tient sa propre
      * carte, alimentée par `recordStart()`/`recordOutcome()` dans le processus qui exécute. Une
-     * requête d'administration n'exécute rien — elle n'a donc rien à y lire, et une grille bâtie
+     * requête d'administration n'exécute rien ; elle n'a donc rien à y lire, et une grille bâtie
      * dessus est vide sans être en panne. Lister les exécutions d'une grappe, c'est demander à la
      * grappe, et le pont livre déjà la classe qui sait le faire.
      */
@@ -176,9 +176,9 @@ class RuntimeFactory
         $client = WorkflowServiceClientFactory::create($settings);
 
         // Le curseur d'historique n'est pas décoratif : `listRuns()` ne rend que le statut du
-        // workflow Temporal — celui du journal, qui est **long par construction** et donc
-        // éternellement `running`. Ce qui distingue une exécution finie d'une exécution en cours se
-        // lit dans ses événements, et c'est le curseur qui les donne.
+        // workflow Temporal (celui du journal, qui est **long par construction** et donc
+        // éternellement `running`). Ce qui distingue une exécution finie d'une exécution en cours
+        // se lit dans ses événements, et c'est le curseur qui les donne.
         return new TemporalWorkflowRunCatalog(
             $client,
             $settings,
@@ -191,7 +191,7 @@ class RuntimeFactory
      *
      * Sans lui, une exécution appendue au cluster y reste `running` pour toujours : le journal
      * existe, son historique se remplit, et personne ne le fait avancer. C'est exactement ce que
-     * la grille du back-office montrait — et elle avait raison de le montrer.
+     * la grille du back-office montrait, et elle avait raison de le montrer.
      *
      * Les quatre objets viennent du pont, et l'assemblage est le même que celui du transport
      * Messenger côté Symfony. Ce qui change ici, c'est seulement qui tourne la boucle : une
@@ -263,7 +263,7 @@ class RuntimeFactory
      * `MagentoRuntime::run()` exécute ici et maintenant : ses activités partent dans le transport
      * en mémoire quel que soit le journal en dessous, et meurent avec le processus. Pour qu'une
      * activité devienne une tâche Temporal, l'exécution doit être lancée sur la grappe et menée
-     * par les workers — c'est le partage que la tâche 5 décrit, et ce client en est la porte.
+     * par les workers : c'est le partage que la tâche 5 décrit, et ce client en est la porte.
      */
     public function workflowClient(): WorkflowClient
     {
@@ -323,7 +323,7 @@ class RuntimeFactory
     /**
      * Le pendant Magento de la passe de compilation du bundle : mêmes deux objets du cœur,
      * `ActivityContractResolver` pour les noms et `PayloadToContractMethodInvoker` pour l'appel.
-     * Ce qui change est seulement d'où vient la liste — un argument de `di.xml` plutôt qu'un tag.
+     * Ce qui change est seulement d'où vient la liste : un argument de `di.xml` plutôt qu'un tag.
      *
      * Le même exécuteur sert au moteur en processus et au worker d'activités : ce sont les mêmes
      * activités, résolues une fois, quel que soit qui les appelle. C'est ce qui garantit qu'un

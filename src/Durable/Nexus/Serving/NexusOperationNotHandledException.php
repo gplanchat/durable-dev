@@ -12,7 +12,7 @@ use Gplanchat\Durable\Nexus\NexusService;
  *
  * L'erreur est **terminale**, et c'est le point : `NOT_IMPLEMENTED` est du côté non réessayable de
  * la table de 1b.3. La dire réessayable ferait redemander la même opération toutes les ~9 secondes
- * pendant tout le budget de l'opération (sonde 1.7), pour une réponse qui ne changera pas — le
+ * pendant tout le budget de l'opération (sonde 1.7), pour une réponse qui ne changera pas : le
  * gestionnaire n'apparaîtra pas entre deux tentatives.
  */
 final class NexusOperationNotHandledException extends \RuntimeException

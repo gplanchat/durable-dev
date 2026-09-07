@@ -21,7 +21,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  *
  * `StartWorkflowExecution` figure ici avec les trois autres, et ce n'est pas un fourre-tout : la
  * sonde 3.1 a montré que ce qui règle une opération différée est le `callback` de la tâche attaché
- * au workflow qui la remplit, via `completion_callbacks` — un champ qui ne se pose qu'au démarrage.
+ * au workflow qui la remplit, via `completion_callbacks`, un champ qui ne se pose qu'au démarrage.
  * Démarrer ce workflow fait donc partie du geste de réponse, pas d'un autre.
  *
  * `RequestCancelWorkflowExecution` y figure pour la même raison : la sonde §4 a montré que la

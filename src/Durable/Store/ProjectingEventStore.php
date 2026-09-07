@@ -15,8 +15,8 @@ use Gplanchat\Durable\Observation\WorkflowRunStatus;
 /**
  * Décore le journal pour y lire l'issue des exécutions.
  *
- * Les quatre fins arrivent ici typées et en un seul endroit — `EventStoreWorkflowLifecycle` les
- * ajoute toutes —, là où le magasin de métadonnées les confond dans un même `delete()`. C'est ce
+ * Les quatre fins arrivent ici typées et en un seul endroit (`EventStoreWorkflowLifecycle` les
+ * ajoute toutes), là où le magasin de métadonnées les confond dans un même `delete()`. C'est ce
  * qui rend un décorateur possible ici et impossible là-bas.
  *
  * Ce cycle de vie est celui du backend journal ; Temporal utilise `TemporalWorkflowLifecycle`,

@@ -57,7 +57,7 @@ final class TemporalActivityHeartbeatSender implements ActivityHeartbeatSenderIn
             $resp = $this->activityRpc->recordActivityTaskHeartbeat($req);
             $this->cancelRequested = $resp->getCancelRequested();
         } catch (\Throwable) {
-            // Heartbeat failures are non-fatal — the activity continues running.
+            // Heartbeat failures are non-fatal: the activity continues running.
             // Temporal will time out the activity if heartbeat_timeout elapses without a heartbeat.
         }
 
