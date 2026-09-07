@@ -69,7 +69,7 @@ final class StubMethodsExtensionTest extends TestCase
         $errors = $this->analyse(withExtension: true);
 
         foreach ($this->matching($errors, 'undefined method') as $message) {
-            self::assertStringNotContainsString('::encaisser()', $message);
+            self::assertStringNotContainsString('::charge()', $message);
         }
     }
 
@@ -81,7 +81,7 @@ final class StubMethodsExtensionTest extends TestCase
         $errors = $this->analyse(withExtension: true);
 
         foreach ($this->matching($errors, 'undefined method') as $message) {
-            self::assertStringNotContainsString('::verifier()', $message);
+            self::assertStringNotContainsString('::verify()', $message);
         }
     }
 
@@ -89,14 +89,14 @@ final class StubMethodsExtensionTest extends TestCase
     {
         $errors = $this->analyse(withExtension: true);
 
-        self::assertNotSame([], $this->matching($errors, 'encasser'), 'la faute de frappe doit rester signalée');
+        self::assertNotSame([], $this->matching($errors, 'chagre'), 'la faute de frappe doit rester signalée');
     }
 
     public function testANexusContractMethodWithoutTheAttributeIsNotCallable(): void
     {
         $errors = $this->analyse(withExtension: true);
 
-        self::assertNotSame([], $this->matching($errors, 'bareme'));
+        self::assertNotSame([], $this->matching($errors, 'rateCard'));
     }
 
     public function testTheArgumentCountIsCheckedOnceTheMethodIsKnown(): void
