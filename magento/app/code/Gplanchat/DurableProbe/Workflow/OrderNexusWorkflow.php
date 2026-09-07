@@ -32,7 +32,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
  * est que les noms passés aux méthodes du stub soient ceux du contrat, ce que la signature typée du
  * contrat vérifie déjà.
  */
-final class CommandeNexusWorkflow
+final class OrderNexusWorkflow
 {
     /** L'endpoint de la boutique, créé par `bin/demo-nexus`. */
     public const ENDPOINT_STOCK = 'demo-boutique-stock';
