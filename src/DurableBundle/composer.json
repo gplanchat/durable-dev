@@ -30,7 +30,8 @@
     "suggest": {
         "phpunit/phpunit": "Required by the shipped test helper (Testing\\DurableBundleTestTrait)",
         "symfony/framework-bundle": "Required by consumers of the shipped test helper (Testing\\DurableBundleTestTrait), whose static::getContainer() resolves against a KernelTestCase",
-        "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)"
+        "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)",
+        "doctrine/orm": "Declares the DBAL journal tables to doctrine:schema:update and doctrine:migrations:diff, which would otherwise generate DROP TABLE for them (SchemaListener\\DurableSchemaListener)"
     },
     "autoload": {
         "psr-4": {
