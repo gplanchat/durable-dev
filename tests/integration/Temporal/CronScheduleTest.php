@@ -11,12 +11,12 @@ use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\EventType;
 
 /**
- * Un cron Temporal n'est pas un planificateur externe : c'est la même exécution logique, que le
- * serveur relance à chaque échéance avec un historique neuf.
+ * A Temporal cron is not an external scheduler: it is the same logical execution, which the server
+ * relaunches at each deadline with a fresh history.
  */
 final class CronScheduleTest extends TemporalServerTestCase
 {
-    /** Expressions dont le verdict serveur a été sondé, et que le validateur local doit rendre. */
+    /** Expressions whose server verdict was probed, and which the local validator must match. */
     private const PROBED_EXPRESSIONS = [
         '0 9 * * 1-5' => true,
         '*/15 * * * *' => true,
@@ -49,17 +49,17 @@ final class CronScheduleTest extends TemporalServerTestCase
         $executionId = 'cron-' . bin2hex(random_bytes(4));
         $this->workflowClient()->startCron('Ticking', ['value' => 5], $executionId, '@every 2s');
 
-        // Le premier run doit se terminer, puis le serveur en enchaîne un second : deux runs
-        // distincts sous le même workflowId.
+        // The first run must finish, then the server chains a second one: two distinct runs under
+        // the same workflowId.
         $runIds = $this->distinctRunIdsWithin($executionId, 2, 60.0);
 
-        self::assertCount(2, $runIds, 'le serveur doit relancer une seconde exécution');
+        self::assertCount(2, $runIds, 'the server must relaunch a second execution');
     }
 
     public function testTheLocalValidatorAgreesWithTheServer(): void
     {
-        // Le validateur de CronSchedule a été calibré expression par expression contre ce
-        // serveur. Ce test empêche les deux de diverger : c'est le serveur qui fait autorité.
+        // The CronSchedule validator was calibrated expression by expression against this server.
+        // This test keeps the two from diverging: the server is the authority.
         $disagreements = [];
 
         foreach (self::PROBED_EXPRESSIONS as $expression => $serverAccepts) {
@@ -71,9 +71,9 @@ final class CronScheduleTest extends TemporalServerTestCase
             }
 
             if ($locallyAccepts !== $this->serverAccepts($expression)) {
-                $disagreements[] = \sprintf('%s (local=%s, serveur=%s)', $expression, $locallyAccepts ? 'OK' : 'rejet', $this->serverAccepts($expression) ? 'OK' : 'rejet');
+                $disagreements[] = \sprintf('%s (local=%s, server=%s)', $expression, $locallyAccepts ? 'OK' : 'rejected', $this->serverAccepts($expression) ? 'OK' : 'rejected');
             }
-            self::assertSame($serverAccepts, $locallyAccepts, \sprintf('verdict attendu pour "%s"', $expression));
+            self::assertSame($serverAccepts, $locallyAccepts, \sprintf('expected verdict for "%s"', $expression));
         }
 
         self::assertSame([], $disagreements);
@@ -81,8 +81,8 @@ final class CronScheduleTest extends TemporalServerTestCase
 
     public function testCronOnAChildWorkflowReachesTheStartCommand(): void
     {
-        // Le cron enfant passe par les schedulingMetadata ; on vérifie la traduction, sans
-        // attendre une seconde occurrence côté serveur.
+        // The child cron travels through the schedulingMetadata; we check the translation, without
+        // waiting for a second occurrence on the server side.
         $options = new ChildWorkflowOptions(cronSchedule: CronSchedule::parse('0 * * * *'));
 
         self::assertSame('0 * * * *', $options->toSchedulingMetadata()['cron_schedule'] ?? null);
@@ -90,7 +90,7 @@ final class CronScheduleTest extends TemporalServerTestCase
     }
 
     /**
-     * Le serveur accepte-t-il cette expression ? Une tentative de démarrage réelle.
+     * Does the server accept this expression? A real start attempt.
      */
     private function serverAccepts(string $expression): bool
     {
