@@ -152,14 +152,19 @@ when@dev:
 
 ### Tag workflows
 
-Any class annotated with `#[AsWorkflow]` in your workflow namespace is auto-registered when you tag the folder:
+Nothing to write. A class carrying `#[AsWorkflow]` is registered as soon as it is a service, which
+with the default `autoconfigure: true` of a Symfony application it already is.
+
+Earlier versions required tagging the folder by hand:
 
 ```yaml
-# config/services.yaml
+# config/services.yaml — no longer needed
 App\Workflow\:
     resource: '../src/Workflow/'
     tags: [durable.workflow]
 ```
+
+The tag still works, so an application that writes it keeps working; it is simply redundant.
 
 ### Register activity implementations
 

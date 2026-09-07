@@ -152,14 +152,20 @@ when@dev:
 
 ### Marquer les workflows
 
-Toute classe portant `#[AsWorkflow]` dans votre espace de noms de workflows est enregistrée automatiquement dès que vous marquez le dossier :
+Rien à écrire. Une classe portant `#[AsWorkflow]` est enregistrée dès qu'elle est un service — ce
+qu'avec l'`autoconfigure: true` par défaut d'une application Symfony elle est déjà.
+
+Les versions précédentes demandaient de marquer le dossier à la main :
 
 ```yaml
-# config/services.yaml
+# config/services.yaml — désormais inutile
 App\Workflow\:
     resource: '../src/Workflow/'
     tags: [durable.workflow]
 ```
+
+La balise fonctionne toujours : une application qui l'écrit continue de marcher, elle fait
+simplement double emploi.
 
 ### Déclarer les implémentations d'activité
 
