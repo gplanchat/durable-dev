@@ -30,13 +30,12 @@ use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * L'historique Temporal, lu derrière le port.
+ * The Temporal history, read behind the port.
  *
- * Deux pièges de rangement que le code déplacé avait, et qu'il ne faut pas emporter : le type
- * d'événement d'un signal (`WORKFLOW_EXECUTION_SIGNALED`) contient `WORKFLOW_`, et celui d'un
- * workflow enfant (`START_CHILD_WORKFLOW_EXECUTION_INITIATED`) aussi. Tester `WORKFLOW_` en premier
- * range donc les signaux et les enfants sur la voie de l'exécution — ce que le fournisseur du
- * plugin fait aujourd'hui.
+ * Two filing traps the moved code had, and that must not be carried over: the event type of a
+ * signal (`WORKFLOW_EXECUTION_SIGNALED`) contains `WORKFLOW_`, and so does that of a child workflow
+ * (`START_CHILD_WORKFLOW_EXECUTION_INITIATED`). Testing `WORKFLOW_` first therefore files signals
+ * and children on the execution lane — which is what the plugin's provider does today.
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/tasks.md §5.1
  */
@@ -95,8 +94,8 @@ final class TemporalWorkflowRunHistoryTest extends TestCase
 
     public function testARunWithoutItsGroupingIdentifierHasNoReadableHistory(): void
     {
-        // Temporal exige le workflow id pour retrouver une histoire : sans lui, il n'y a rien à
-        // demander au serveur, et inventer un appel vide serait pire que de le dire.
+        // Temporal requires the workflow id to find a history back: without it there is nothing
+        // to ask the server for, and inventing an empty call would be worse than saying so.
         $catalog = new TemporalWorkflowRunCatalog(
             $this->client($this->historyResponse()),
             $this->connection(),
@@ -111,10 +110,10 @@ final class TemporalWorkflowRunHistoryTest extends TestCase
      */
     public function testAChildWorkflowIsOneActionAndNotTwo(): void
     {
-        // La fin d'une exécution enfant porte `initiatedEventId` **et** `startedEventId`. Cherché
-        // dans le mauvais ordre, `startedEventId` désigne le démarrage de l'enfant et non
-        // l'événement qui l'a fondée : l'enfant occupait alors deux lignes de frise, dont aucune
-        // ne disait sa durée. Mesuré sur la sonde de tous les cas avant d'être corrigé ici.
+        // The ending of a child execution carries `initiatedEventId` **and** `startedEventId`.
+        // Looked up in the wrong order, `startedEventId` names the start of the child and not the
+        // event that founded it: the child then took two frieze lines, neither of which said its
+        // duration. Measured on the all-cases probe before being fixed here.
         $history = $this->readHistory(
             $this->childInitiated(1, 'App\\ShipmentWorkflow'),
             $this->childStarted(2, initiatedEventId: 1),
@@ -122,13 +121,13 @@ final class TemporalWorkflowRunHistoryTest extends TestCase
         );
 
         self::assertSame($history[0]->actionKey, $history[1]->actionKey);
-        self::assertSame($history[0]->actionKey, $history[2]->actionKey, "la fin de l'enfant rejoint sa demande");
+        self::assertSame($history[0]->actionKey, $history[2]->actionKey, 'the ending of the child joins its request');
     }
 
     public function testATimerIsNamedByItsDelay(): void
     {
-        // « TIMER STARTED » nomme la classe d'événement. Un minuteur n'a pas de nom métier : son
-        // délai est le seul fait qu'il porte, donc c'est son nom.
+        // "TIMER STARTED" names the class of event. A timer has no business name: its delay is
+        // the only fact it carries, so that is its name.
         $history = $this->readHistory($this->timerStarted(1, 5));
 
         self::assertSame('timer 5.0 s', $history[0]->label);
