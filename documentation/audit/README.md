@@ -1,4 +1,4 @@
-# Audit de relecture — cœur, bundle Symfony, plugin Sylius
+# Audit de relecture : cœur, bundle Symfony, plugin Sylius
 
 **3 septembre 2026**, sur `main` à `8fdc5ec4`.
 
@@ -27,11 +27,11 @@ les axes sur lesquels le périmètre est sain plutôt que d'inventer un constat 
 
 | Chemin | Contenu |
 |---|---|
-| `src/Durable/` | cœur — 207 fichiers, ~16 300 lignes |
-| `src/DurableBundle/` | bundle Symfony — 23 fichiers, ~3 600 lignes |
-| `src/DurablePlugin/` | plugin Sylius — 9 fichiers, ~550 lignes |
+| `src/Durable/` | cœur : 207 fichiers, ~16 300 lignes |
+| `src/DurableBundle/` | bundle Symfony : 23 fichiers, ~3 600 lignes |
+| `src/DurablePlugin/` | plugin Sylius : 9 fichiers, ~550 lignes |
 | `src/Bridge/Dbal/` | journal Doctrine DBAL |
-| `src/Bridge/Temporal/` | **la partie écrite à la main seulement** — 94 fichiers sur 774 ; les 680 fichiers protobuf générés sont exclus |
+| `src/Bridge/Temporal/` | **la partie écrite à la main seulement** : 94 fichiers sur 774 ; les 680 fichiers protobuf générés sont exclus |
 | `documentation/`, `symfony/`, `sylius/` | documentation et les deux bancs d'essai |
 
 Hors périmètre : les paquets Laravel et Magento.
@@ -67,11 +67,11 @@ Deux corrections apportées après la relecture croisée des PR, le 4 septembre 
 
 - **[13](13-documentation.md), C3** affirmait que le mot « Psalm » n'apparaissait qu'une seule fois
   dans tout le dépôt. C'est faux : `psalm.xml`, `psalm-baseline.xml`, `psalm-magento.xml` et deux
-  passages de `.github/workflows/ci.yml` le portent — et **[07](07-compatibilite-statique.md)**, dans
-  ce même versement, consacre un constat entier à la baseline Psalm. Le constat de fond tient — le
-  `suggest` ne cite qu'une extension, et l'ADR renvoyé est le mauvais — c'est sa preuve qui était
-  fausse, et elle est retirée. Deux rapports d'un même audit ne peuvent pas s'appuyer sur des faits
-  incompatibles sans que le lecteur ait le droit de le savoir.
+  passages de `.github/workflows/ci.yml` le portent ; et **[07](07-compatibilite-statique.md)**,
+  dans ce même versement, consacre un constat entier à la baseline Psalm. Le constat de fond tient
+  (le `suggest` ne cite qu'une extension, et l'ADR renvoyé est le mauvais) : c'est sa preuve qui
+  était fausse, et elle est retirée. Deux rapports d'un même audit ne peuvent pas s'appuyer sur des
+  faits incompatibles sans que le lecteur ait le droit de le savoir.
 
 ## Ce que l'audit n'a pas vu
 
@@ -85,13 +85,13 @@ issues ouvertes du dépôt, qui sont des rapports d'exploitation, en portent des
   requête web et meurt avec le process, il faut l'avoir vécu.
 
 Symétriquement, les rapports d'exploitation ne signalent pas ce qui se paie en latence plutôt qu'en
-erreur — un rejeu quadratique — ni ce qui attend un outil que personne n'a encore lancé — un
-`doctrine:migrations:diff` sur un journal que Doctrine ne connaît pas.
+erreur (un rejeu quadratique) ni ce qui attend un outil que personne n'a encore lancé (un
+`doctrine:migrations:diff` sur un journal que Doctrine ne connaît pas).
 
 ## Suites engagées
 
 - **DUR041** décrivait une couverture de conformité qui n'existe pas ; repris.
-- **`backend-data-parity`** — change OpenSpec ouvert à partir des constats sur l'identité d'une
+- **`backend-data-parity`** : change OpenSpec ouvert à partir des constats sur l'identité d'une
   exécution et sur la parité entre les quatre backends.
 
 Les autres constats n'ont pas tous de suite : les rapports sont un état des lieux daté, pas une
