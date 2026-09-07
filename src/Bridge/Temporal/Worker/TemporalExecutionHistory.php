@@ -53,10 +53,10 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var array<string, string> activityId → activity name (to type the failures) */
     private array $activityNames = [];
 
-    /** @var array<string, array<string, mixed>> activityId → charge planifiée (garde DUR042) */
+    /** @var array<string, array<string, mixed>> activityId => scheduled payload (DUR042 guard) */
     private array $activityPayloads = [];
 
-    /** @var array<int, array<string, mixed>> slot → charge Nexus planifiée (garde DUR042) */
+    /** @var array<int, array<string, mixed>> slot => scheduled Nexus payload (DUR042 guard) */
     private array $nexusOperationPayloads = [];
 
     /** @var array<int, array<string, mixed>> slot → input du workflow enfant (garde DUR042) */
@@ -187,10 +187,10 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                             'operation' => (string) $attr->getOperation(),
                         ];
 
-                        // La charge de l'appelant, **nue** : une opération Nexus porte un
-                        // `Payload` et non des `Payloads`, et l'enveloppe `{operationId, payload}`
-                        // a été retirée du tampon (tâche 1.1). Décoder autre chose ici comparerait
-                        // une forme que le fil ne porte plus.
+                        // The caller's payload, **bare**: a Nexus operation carries a `Payload`
+                        // and not `Payloads`, and the `{operationId, payload}` envelope was removed
+                        // from the buffer (task 1.1). Decoding anything else here would compare a
+                        // shape the wire no longer carries.
                         $nexusInput = $attr->getInput();
                         if (null !== $nexusInput) {
                             $decodedInput = JsonPlainPayload::decode($nexusInput);
@@ -262,9 +262,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     $this->activityNames[$activityId] = (string) ($attr->getActivityType()?->getName() ?? '');
                     $this->scheduledEventIdToActivityId[$eventId] = $activityId;
 
-                    // L'entrée porte l'enveloppe écrite par TemporalActivityScheduleInput ; sa case
-                    // `payload` tient les arguments. Absente ou illisible, on n'enregistre rien :
-                    // la garde n'a alors rien à comparer, ce qui est son cas de repos.
+                    // The input carries the envelope written by TemporalActivityScheduleInput; its
+                    // `payload` slot holds the arguments. Missing or unreadable, nothing is recorded:
+                    // the guard then has nothing to compare, which is its resting case.
                     $input = $attr->getInput();
                     if (null !== $input) {
                         $payloads = $input->getPayloads();
@@ -468,9 +468,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     // the execution id being generated.
                     $this->childWorkflowTypes[] = (string) ($attr->getWorkflowType()?->getName() ?? '');
 
-                    // `singlePayloads(encode($input))` côté tampon : une liste d'un élément, dont
-                    // le premier est l'input nu. Une forme de plus que Nexus (Payload nu) et que
-                    // l'activité (enveloppe) — les trois se ressemblent et ne se valent pas.
+                    // `singlePayloads(encode($input))` on the buffer side: a one-element list whose
+                    // first item is the bare input. One shape more than Nexus (a bare Payload) and
+                    // than the activity (an envelope); the three look alike and are not equal.
                     $childInput = $attr->getInput();
                     if (null !== $childInput) {
                         $childPayloads = $childInput->getPayloads();
@@ -628,6 +628,11 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     public function findScheduledTimerId(int $slot): ?string
     {
         return $this->scheduledTimerIds[$slot] ?? null;
+    }
+
+    public function hasSideEffectForSlot(int $slot): bool
+    {
+        return \array_key_exists($slot, $this->sideEffects);
     }
 
     public function findSideEffectForSlot(int $slot): mixed
