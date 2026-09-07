@@ -16,4 +16,4 @@
   that are not.
 - **English only.** Only `layouts/index.fr.html` is translated; the guide is not duplicated
   under `/fr/`, and a post follows the guide.
-- **State**: in progress.
+- **State**: in review — PR #298.
