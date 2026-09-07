@@ -154,7 +154,7 @@ final class DurableExtension extends Extension
         if ($eventStoreDbal) {
             $container->register('durable.event_store.dbal', DbalEventStore::class)
                 ->setArguments([$connection, $schema, $config['event_store']['table_name']])
-                ->setPublic(true)
+                ->setPublic(false)
             ;
             $container->setAlias(EventStoreInterface::class, 'durable.event_store.dbal')->setPublic(true);
 
@@ -169,7 +169,7 @@ final class DurableExtension extends Extension
         if ($metadataDbal) {
             $container->register('durable.workflow_metadata_store.inner', DbalWorkflowMetadataStore::class)
                 ->setArguments([$connection, $schema, $config['workflow_metadata']['table_name']])
-                ->setPublic(true)
+                ->setPublic(false)
             ;
             $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.inner')->setPublic(true);
         }
@@ -207,7 +207,7 @@ final class DurableExtension extends Extension
 
         $container->register('durable.event_store.dbal.projecting', ProjectingEventStore::class)
             ->setArguments([new Reference('durable.event_store.dbal'), $projection])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
         $container->setAlias(EventStoreInterface::class, 'durable.event_store.dbal.projecting')->setPublic(true);
 
@@ -224,13 +224,13 @@ final class DurableExtension extends Extension
 
         $container->register('durable.workflow_metadata_store.projecting', ProjectingWorkflowMetadataStore::class)
             ->setArguments([new Reference('durable.workflow_metadata_store.inner'), $projection])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
         $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.projecting')->setPublic(true);
 
         $container->register('durable.run_catalog.dbal', DbalWorkflowRunCatalog::class)
             ->setArguments([$connection, $schema])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
         $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.dbal')->setPublic(true);
     }
@@ -260,14 +260,14 @@ final class DurableExtension extends Extension
 
         $container->register('durable.run_catalog.in_memory', InMemoryWorkflowRunCatalog::class)
             ->setArguments([new Reference('durable.event_store.inner')])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
         $catalog = new Reference('durable.run_catalog.in_memory');
         $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.in_memory')->setPublic(true);
 
         $container->register('durable.event_store.in_memory.projecting', ProjectingEventStore::class)
             ->setArguments([new Reference('durable.event_store.inner'), $catalog])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
         $container->setAlias(EventStoreInterface::class, 'durable.event_store.in_memory.projecting')->setPublic(true);
 
@@ -281,7 +281,7 @@ final class DurableExtension extends Extension
 
         $container->register('durable.workflow_metadata_store.in_memory.projecting', ProjectingWorkflowMetadataStore::class)
             ->setArguments([new Reference('durable.workflow_metadata_store.inner'), $catalog])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
         $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.in_memory.projecting')->setPublic(true);
     }
@@ -330,7 +330,7 @@ final class DurableExtension extends Extension
      */
     private function registerEventStore(ContainerBuilder $container, array $config): void
     {
-        $container->register('durable.event_store.inner', InMemoryEventStore::class)->setPublic(true);
+        $container->register('durable.event_store.inner', InMemoryEventStore::class)->setPublic(false);
 
         $temporalConfig = $config['temporal'] ?? [];
         $dsn = $temporalConfig['dsn'] ?? null;
@@ -378,7 +378,7 @@ final class DurableExtension extends Extension
                     new Reference('durable.temporal.connection'),
                     new Reference(TemporalHistoryCursor::class),
                 ])
-                ->setPublic(true)
+                ->setPublic(false)
             ;
             if ($journal) {
                 $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.temporal')->setPublic(true);
@@ -417,7 +417,7 @@ final class DurableExtension extends Extension
                     new Reference(TemporalHistoryCursor::class),
                     new Reference(WorkflowClientInterface::class),
                 ])
-                ->setPublic(true)
+                ->setPublic(false)
             ;
 
             if ($journal) {
