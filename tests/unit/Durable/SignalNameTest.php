@@ -21,8 +21,8 @@ enum SampleSignal: string
 }
 
 /**
- * Le nom d'un signal se donne en enum adossée : une faute de frappe relève du moteur de types,
- * plus d'une attente qui ne se règle jamais. Sur le fil, c'est toujours la valeur adossée.
+ * A signal name is given as a backed enum: a typo is now the type engine's business, no longer
+ * that of a wait which never settles. On the wire, it is always the backed value.
  */
 final class SignalNameTest extends TestCase
 {
@@ -35,7 +35,7 @@ final class SignalNameTest extends TestCase
         );
 
         $store->append(new ExecutionStarted('signal-enum-1', []));
-        // Journalisé sous la valeur adossée, comme le ferait n'importe quel émetteur externe.
+        // Journalled under the backed value, as any external sender would do.
         $store->append(new WorkflowSignalReceived('signal-enum-1', 'approve', ['by' => 'alice']));
 
         $result = $engine->resume(
@@ -58,7 +58,7 @@ final class SignalNameTest extends TestCase
 
     public function testTheMessengerMessageCarriesTheBackedValue(): void
     {
-        // L'émetteur type son intention ; le message, lui, est sérialisé et ne transporte qu'une chaîne.
+        // The sender types its intent; the message itself is serialized and carries only a string.
         $message = new DeliverWorkflowSignalMessage('exec-1', SampleSignal::Approve, ['by' => 'bob']);
 
         self::assertSame('approve', $message->signalName);

@@ -26,7 +26,7 @@ durable:
         type: in_memory                      # 'in_memory' (défaut) ou 'dbal'
         table_name: durable_workflow_metadata
     activity_transport:
-        type: messenger                      # 'in_memory' est le DÉFAUT — mettre 'messenger' pour router
+        type: messenger                      # 'in_memory' est le DÉFAUT, mettre 'messenger' pour router
         transport_name: durable_activities
         table_name: durable_activity_outbox
     max_activity_retries: 0                  # réessais automatiques maximum avant de marquer une activité en échec
@@ -59,7 +59,7 @@ ci-dessous vaut `dbal` ; ignoré sinon, le laisser à ses défauts ne coûte don
 | Clé | Type | Défaut | Description |
 |-----|------|--------|-------------|
 | `connection` | identifiant de service | `doctrine.dbal.default_connection` | La `Doctrine\DBAL\Connection` dans laquelle les magasins écrivent. |
-| `lock_factory` | identifiant de service | `lock.factory` | La `LockFactory` qui sérialise les reprises d'une même exécution. **Elle ne vaut que ce que vaut votre magasin de verrous** — une fabrique en mémoire ou locale au processus, avec plusieurs workers, vous redonne la panne que le verrou existe pour empêcher. |
+| `lock_factory` | identifiant de service | `lock.factory` | La `LockFactory` qui sérialise les reprises d'une même exécution. **Elle ne vaut que ce que vaut votre magasin de verrous** : une fabrique en mémoire ou locale au processus, avec plusieurs workers, vous redonne la panne que le verrou existe pour empêcher. |
 
 Le compromis que fait ce backend, et pourquoi le verrou est porteur, sont sur la page
 [Backends](../backends/#le-backend-dbal).
@@ -72,7 +72,7 @@ Détermine où l'historique d'événements du workflow est stocké.
 
 | Clé | Valeurs | Défaut | Description |
 |-----|---------|--------|-------------|
-| `type` | `in_memory`, `dbal` | `in_memory` | Le backend de stockage. `in_memory` garde les événements dans le processus PHP — ce qui convient aux tests et à Temporal natif (Temporal étant la vraie source de l'historique). `dbal` les persiste en SQL, et c'est ce qui fait survivre une exécution à un redémarrage sans cluster. |
+| `type` | `in_memory`, `dbal` | `in_memory` | Le backend de stockage. `in_memory` garde les événements dans le processus PHP, ce qui convient aux tests et à Temporal natif (Temporal étant la vraie source de l'historique). `dbal` les persiste en SQL, et c'est ce qui fait survivre une exécution à un redémarrage sans cluster. |
 | `table_name` | chaîne | `durable_events` | Table dans laquelle le magasin `dbal` écrit. Créée à la première écriture. |
 
 ### Avec Temporal
@@ -89,7 +89,7 @@ profileur Symfony fonctionne d'un processus à l'autre.
 | Clé | Valeurs | Défaut | Description |
 |-----|---------|--------|-------------|
 | `dsn` | `temporal://hôte:port?…` ou `null` | `null` | À `null` : backend Messenger en mémoire. Défini : active le backend gRPC Temporal (`ext-grpc` requis). |
-| `journal` | `true` / `false` | `true` | `false` dit que le cluster est joignable **sans** être le journal : `event_store` reste la source de vérité, et le tableau de bord continue de la lire. C'est ainsi qu'une application dont le journal est DBAL sert une opération Nexus — voir [Opérations Nexus](../nexus/). Poser un DSN avec `journal: true` à côté d'`event_store.type: dbal` est refusé : le journal ne peut pas avoir deux sources de vérité. |
+| `journal` | `true` / `false` | `true` | `false` dit que le cluster est joignable **sans** être le journal : `event_store` reste la source de vérité, et le tableau de bord continue de la lire. C'est ainsi qu'une application dont le journal est DBAL sert une opération Nexus ; voir [Opérations Nexus](../nexus/). Poser un DSN avec `journal: true` à côté d'`event_store.type: dbal` est refusé : le journal ne peut pas avoir deux sources de vérité. |
 
 ### Format du DSN
 
@@ -137,7 +137,7 @@ d'activité.
 
 | Clé | Valeurs | Défaut | Description |
 |-----|---------|--------|-------------|
-| `type` | `in_memory`, `messenger` | **`in_memory`** | `in_memory` exécute les activités **de façon synchrone dans le gestionnaire de tâche de workflow** — c'est ce que vous obtenez quand la clé est absente. `messenger` route les messages d'activité par Symfony Messenger vers le transport configuré. |
+| `type` | `in_memory`, `messenger` | **`in_memory`** | `in_memory` exécute les activités **de façon synchrone dans le gestionnaire de tâche de workflow**, c'est ce que vous obtenez quand la clé est absente. `messenger` route les messages d'activité par Symfony Messenger vers le transport configuré. |
 | `transport_name` | chaîne | `durable_activities` | Nom du transport Messenger employé quand `type: messenger`. Doit correspondre à un transport défini dans `messenger.yaml`. |
 | `table_name` | chaîne | `durable_activity_outbox` | Nom de la table d'outbox. |
 
@@ -180,7 +180,7 @@ durable:
 ```
 
 Plafond sur les réessais automatiques, appliqué aux activités qui n'en posent pas elles-mêmes. `0`
-signifie **aucun plafond** — et comme une activité sans `RetryLimit` réessaie indéfiniment (le défaut
+signifie **aucun plafond**, et comme une activité sans `RetryLimit` réessaie indéfiniment (le défaut
 de Temporal), laisser les deux non définis revient à ce qu'une activité en échec ne fasse jamais
 échouer le workflow. Posez une borne par activité avec `RetryLimit::ofAttempts()` ou
 `RetryLimit::once()` ; voir [Options et objets valeur](../options/#retrylimit).
@@ -256,6 +256,6 @@ when@test:
 
 ## Voir aussi
 
-- [Backends](../backends/) — en mémoire ou Temporal : mise en place Docker, workers, paramètres du DSN.
-- [Premiers pas](../getting-started/) — la configuration du routage Messenger.
-- [Tester des workflows](../testing/) — `DurableBundleTestTrait` et la configuration de test en mémoire.
+- [Backends](../backends/) compare la mémoire et Temporal : mise en place Docker, workers, paramètres du DSN.
+- [Premiers pas](../getting-started/) couvre la configuration du routage Messenger.
+- [Tester des workflows](../testing/) couvre `DurableBundleTestTrait` et la configuration de test en mémoire.

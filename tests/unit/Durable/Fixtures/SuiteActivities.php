@@ -7,19 +7,18 @@ namespace unit\Durable\Fixtures;
 use Gplanchat\Durable\Attribute\AsActivityMethod;
 
 /**
- * Les activités que la suite planifie, déclarées une fois.
+ * The activities the suite schedules, declared once.
  *
- * La suite nommait ses activités par des chaînes — `$env->activity('double', ['value' => 2])`, sans contrat —
- * la forme que la bibliothèque n'enseigne plus. Ces noms sont des accessoires de test, pas des
- * contrats métier, mais ce sont quand même du code de workflow : la règle vaut pour eux.
+ * The suite named its activities by strings — `$env->activity('double', ['value' => 2])`, with no contract —
+ * the form the library no longer teaches. These names are test props, not business contracts, but
+ * they are workflow code all the same: the rule holds for them.
  *
- * **Le nom du paramètre est la clé de la charge.** `ActivityStub` construit la charge depuis les
- * paramètres déclarés ici, donc un paramètre renommé change ce que reçoit le double. C'est le
- * seul piège de ce fichier, et il est silencieux : la charge devient fausse, le test ne rougit
- * pas.
+ * **The parameter name is the payload key.** `ActivityStub` builds the payload from the parameters
+ * declared here, so a renamed parameter changes what the double receives. It is the only trap in
+ * this file, and it is a silent one: the payload turns wrong, the test does not go red.
  *
- * Le nom transmis reste celui de l'attribut, ce qui laisse `task-a` et `task-b` s'écrire
- * `taskA()` et `taskB()` sans changer un octet de ce qui part sur le fil.
+ * The name sent stays the one on the attribute, which lets `task-a` and `task-b` be written
+ * `taskA()` and `taskB()` without changing a byte of what goes on the wire.
  */
 interface SuiteActivities
 {
@@ -42,8 +41,8 @@ interface SuiteActivities
     #[AsActivityMethod('quote')]
     public function quote(array $lines): mixed;
 
-    // Accessoires d'ordonnancement : ces noms ne décrivent aucun métier, ils servent à faire
-    // gagner ou perdre une branche dans une course. Ils n'ont donc pas d'argument.
+    // Scheduling props: these names describe no business at all, they serve to make a branch win
+    // or lose a race. So they take no argument.
     #[AsActivityMethod('fast')]
     public function fast(): mixed;
 
@@ -53,11 +52,11 @@ interface SuiteActivities
     #[AsActivityMethod('work')]
     public function work(): mixed;
 
-    /** Rend une valeur vide : `empty` est une construction du langage, pas un nom de méthode. */
+    /** Returns an empty value: `empty` is a language construct, not a method name. */
     #[AsActivityMethod('empty')]
     public function emptyResult(): mixed;
 
-    /** Échoue puis réussit : sert aux tests de retentative. */
+    /** Fails then succeeds: used by the retry tests. */
     #[AsActivityMethod('flaky')]
     public function flaky(): mixed;
 
@@ -70,8 +69,8 @@ interface SuiteActivities
     #[AsActivityMethod('doWork')]
     public function doWork(): mixed;
 
-    // Le trait d'union n'est pas un nom de méthode PHP ; l'attribut porte le nom transmis, donc
-    // rien ne bouge sur le fil.
+    // The hyphen is not a PHP method name; the attribute carries the name that is sent, so
+    // nothing moves on the wire.
     #[AsActivityMethod('task-a')]
     public function taskA(): mixed;
 
@@ -81,7 +80,7 @@ interface SuiteActivities
     #[AsActivityMethod('ping')]
     public function ping(): mixed;
 
-    /** Échoue toujours : sert aux tests de retentative sans issue. */
+    /** Always fails: used by the retry tests that have no way out. */
     #[AsActivityMethod('always')]
     public function always(): mixed;
 
@@ -94,7 +93,7 @@ interface SuiteActivities
     #[AsActivityMethod('task')]
     public function task(string $name): mixed;
 
-    /** Rend ce qu'on lui donne : sert à distinguer deux branches d'une même course. */
+    /** Returns what it is given: used to tell two branches of the same race apart. */
     #[AsActivityMethod('id')]
     public function id(mixed $v): mixed;
 
@@ -104,16 +103,16 @@ interface SuiteActivities
     #[AsActivityMethod('explode')]
     public function explodeNow(): never;
 
-    /** Une étape d'une séquence : appelée plusieurs fois, elle rend un résultat différent. */
+    /** One step of a sequence: called several times, it returns a different result. */
     #[AsActivityMethod('step')]
     public function step(): mixed;
 
     #[AsActivityMethod('compute')]
     public function compute(int $a, int $b): int;
 
-    // Branches nues d'une composition : `a`, `b`, `c` ne nomment rien d'autre que leur place
-    // dans un assemblage. Le contrat ne les rend pas plus expressives — il les rend seulement
-    // atteignables sans nommer une chaîne.
+    // Bare branches of a composition: `a`, `b`, `c` name nothing but their place in an assembly.
+    // The contract does not make them any more expressive — it only makes them reachable without
+    // naming a string.
     #[AsActivityMethod('a')]
     public function a(): mixed;
 
@@ -129,7 +128,7 @@ interface SuiteActivities
     #[AsActivityMethod('ok')]
     public function ok(mixed $n = null): mixed;
 
-    /** Échoue : sert aux compositions où une branche doit tomber. */
+    /** Fails: used by the compositions where one branch has to fall. */
     #[AsActivityMethod('boom')]
     public function boom(): never;
 }

@@ -18,15 +18,15 @@ use Temporal\Api\History\V1\NexusOperationScheduledEventAttributes;
 use Temporal\Api\History\V1\NexusOperationTimedOutEventAttributes;
 
 /**
- * Le chaînon manquant entre §3.6 et §4.3.
+ * The missing link between §3.6 and §4.3.
  *
- * §3.6 a construit `DurableNexusOperationFailedException`, qui distingue quatre natures et nomme le
- * site d'appel ; §4.3 a appris à relire les événements. Mais la lecture rendait des
- * `RuntimeException` nues : l'exception typée existait sans que rien ne la lève jamais, et sa
- * branche dans le classificateur était donc morte.
+ * §3.6 built `DurableNexusOperationFailedException`, which tells four kinds apart and names the
+ * call site; §4.3 learnt to read the events back. But the reading returned bare
+ * `RuntimeException`s: the typed exception existed without anything ever raising it, and its
+ * branch in the classifier was therefore dead.
  *
- * Ce que le spec exige, et que ce test tient : « The failure SHALL carry the endpoint, service and
- * operation names so an unhandled one names the call site. »
+ * What the spec requires, and what this test holds: "The failure SHALL carry the endpoint, service
+ * and operation names so an unhandled one names the call site."
  */
 final class NexusTypedFailureTest extends TestCase
 {
@@ -53,7 +53,7 @@ final class NexusTypedFailureTest extends TestCase
 
         $failure = $slot['failed'];
         self::assertInstanceOf(DurableNexusOperationFailedException::class, $failure);
-        self::assertSame($expected, $failure->kind(), 'la nature de la fin doit survivre à la lecture');
+        self::assertSame($expected, $failure->kind(), 'the kind of the ending must survive the reading');
         self::assertSame('paiements', $failure->endpoint());
         self::assertSame('facturation', $failure->service());
         self::assertSame('encaisser', $failure->operation());
@@ -61,7 +61,7 @@ final class NexusTypedFailureTest extends TestCase
 
     public function testAnUnhandledFailureNamesItsOriginThroughTheClassifier(): void
     {
-        // Le bout de la chaîne : ce que voit celui qui lit un workflow tombé.
+        // The end of the chain: what someone reading a workflow that fell over sees.
         $history = TemporalExecutionHistory::fromEvents([
             $this->scheduled(5, 'op-un'),
             $this->terminal(EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED, 7),

@@ -13,8 +13,8 @@ use Gplanchat\Durable\WorkflowTimeouts;
 use Temporal\Api\Enums\V1\EventType;
 
 /**
- * Les chemins d'échec vus par le serveur : le `kind` doit survivre à l'aller-retour, et une
- * exception déclarée non-retryable doit vraiment arrêter la RetryPolicy côté serveur.
+ * The failure paths as the server sees them: the `kind` must survive the round trip, and an
+ * exception declared non-retryable must really stop the server-side RetryPolicy.
  */
 final class WorkflowFailurePathsTest extends TemporalServerTestCase
 {
@@ -30,8 +30,8 @@ final class WorkflowFailurePathsTest extends TemporalServerTestCase
 
     public function testTheFailureKindSurvivesTheRoundTripThroughTheServer(): void
     {
-        // Le kind voyage dans les details de l'ApplicationFailureInfo : c'est ce qui permet de
-        // reconstruire un WorkflowExecutionFailed typé depuis l'historique.
+        // The kind travels in the ApplicationFailureInfo details: that is what makes it possible
+        // to rebuild a typed WorkflowExecutionFailed from the history.
         $executionId = $this->startWorkflow('FailsOnActivity', []);
         $event = $this->waitForHistoryEvent($executionId, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_FAILED);
 
@@ -44,12 +44,12 @@ final class WorkflowFailurePathsTest extends TemporalServerTestCase
 
     public function testAnActivityWithoutMaxAttemptsRetriesIndefinitely(): void
     {
-        // Référence de l'alignement in-memory : sans maximum_attempts, le serveur retente sans
-        // fin et le workflow ne se termine jamais.
+        // Reference for the in-memory alignment: without maximum_attempts, the server retries
+        // endlessly and the workflow never finishes.
         $executionId = $this->startWorkflow('UnboundedRetry', []);
         $this->waitForHistoryEvent($executionId, EventType::EVENT_TYPE_ACTIVITY_TASK_SCHEDULED);
 
-        // Après plusieurs secondes, toujours aucune issue terminale.
+        // After several seconds, still no terminal outcome.
         sleep(4);
         $names = $this->historyEventNames($executionId);
 
@@ -59,9 +59,9 @@ final class WorkflowFailurePathsTest extends TemporalServerTestCase
 
     public function testTheServerRewritesARunTimeoutLongerThanTheExecutionTimeout(): void
     {
-        // Justification empirique de l'invariant porté par WorkflowTimeouts : demander
-        // execution=10s + run=60s ne produit pas d'erreur, le serveur réécrit run à 10s en
-        // silence. Le domaine refuse donc la configuration au lieu de la laisser être réécrite.
+        // Empirical justification for the invariant carried by WorkflowTimeouts: asking for
+        // execution=10s + run=60s produces no error, the server silently rewrites run to 10s. The
+        // domain therefore refuses the configuration instead of letting it be rewritten.
         $executionId = 'runcap-' . bin2hex(random_bytes(4));
         $this->workflowClient()->startAsync('Plain', ['value' => 1], $executionId, new WorkflowStartOptions(
             timeouts: new WorkflowTimeouts(execution: Duration::seconds(10.0), run: Duration::seconds(10.0)),
@@ -77,8 +77,8 @@ final class WorkflowFailurePathsTest extends TemporalServerTestCase
 
     public function testNonRetryableExceptionStopsTheServerRetryPolicy(): void
     {
-        // RetryLimit::ofAttempts(5) dans la RetryPolicy, mais l'exception est déclarée non-retryable :
-        // le serveur ne doit planifier qu'une seule tentative.
+        // RetryLimit::ofAttempts(5) in the RetryPolicy, but the exception is declared non-retryable:
+        // the server must schedule a single attempt only.
         $executionId = $this->startWorkflow('NonRetryable', []);
         $this->waitForHistoryEvent($executionId, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_FAILED);
 
@@ -87,6 +87,6 @@ final class WorkflowFailurePathsTest extends TemporalServerTestCase
             static fn(string $name): bool => 'EVENT_TYPE_ACTIVITY_TASK_STARTED' === $name,
         );
 
-        self::assertCount(1, $starts, 'une exception non-retryable ne doit pas être retentée');
+        self::assertCount(1, $starts, 'a non-retryable exception must not be retried');
     }
 }

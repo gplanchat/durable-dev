@@ -22,14 +22,14 @@ use PHPUnit\Framework\TestCase;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
- * Deux régressions du passage au chemin d'activité unique et au pilote de fiber unique.
+ * Two regressions from the move to the single activity path and the single fiber driver.
  */
 final class DriverParityRegressionTest extends TestCase
 {
     public function testDelayedRetriesAreExecutedByTheSynchronousDrain(): void
     {
-        // isEmpty() ne signale que l'absence de message *prêt* : boucler dessus concluait
-        // « plus rien à faire » et la politique de retry ne s'appliquait pas du tout.
+        // isEmpty() only reports the absence of a *ready* message: looping on it concluded
+        // "nothing left to do" and the retry policy did not apply at all.
         $runs = 0;
         $env = WorkflowTestEnvironment::inMemory([
             'flaky' => static function () use (&$runs): never {
@@ -47,12 +47,12 @@ final class DriverParityRegressionTest extends TestCase
         } catch (\Throwable) {
         }
 
-        self::assertSame(3, $runs, 'les retentatives différées doivent être exécutées');
+        self::assertSame(3, $runs, 'the delayed retries must be executed');
     }
 
     public function testDelayedRetryIsNotDequeuedBeforeItsDueTime(): void
     {
-        // Le backoff est réellement respecté : une retentative n'est pas consommée d'avance.
+        // The backoff is genuinely respected: a retry is not consumed ahead of its due time.
         $transport = new InMemoryActivityTransport();
         $transport->enqueue(new \Gplanchat\Durable\Transport\ActivityMessage(
             'exec-1',
@@ -63,14 +63,14 @@ final class DriverParityRegressionTest extends TestCase
         ));
 
         self::assertNull($transport->dequeue());
-        self::assertTrue($transport->isEmpty(), 'aucun message prêt');
-        self::assertNotNull($transport->nextDueAt(), 'mais la file n’est pas vide pour autant');
+        self::assertTrue($transport->isEmpty(), 'no ready message');
+        self::assertNotNull($transport->nextDueAt(), 'but the queue is not empty for all that');
     }
 
     public function testARaceBetweenAnActivityAndATimerSchedulesATimerWake(): void
     {
-        // Testé par un simple instanceof, un any(activity, timer) ne planifiait aucun réveil :
-        // l'exécution ne repartait jamais si l'activité n'aboutissait pas.
+        // Tested by a plain instanceof, an any(activity, timer) scheduled no wake at all: the
+        // execution never restarted if the activity did not succeed.
         $eventStore = new InMemoryEventStore();
         $transport = new InMemoryActivityTransport();
         $executor = new RegistryActivityExecutor();
@@ -85,18 +85,18 @@ final class DriverParityRegressionTest extends TestCase
                 $env->activityStub(SuiteActivities::class)->slow(),
                 $env->timer(3600.0),
             )));
-            self::fail('le workflow devait suspendre');
+            self::fail('the workflow was to suspend');
         } catch (WorkflowSuspendedException $e) {
-            self::assertTrue($e->waitingOnTimer(), 'la course porte une échéance à réveiller');
+            self::assertTrue($e->waitingOnTimer(), 'the race carries a deadline to wake');
             self::assertTrue($e->shouldDispatchResume());
         }
     }
 
     public function testSleepWaitsWhileTimerComposes(): void
     {
-        // Deux méthodes voisines de la même façade avaient des contrats opposés : activity()
-        // rendait un awaitable, timer() attendait sur place et rendait void. Les noms disent
-        // maintenant lequel fait quoi.
+        // Two neighbouring methods of the same facade had opposite contracts: activity()
+        // returned an awaitable, timer() waited on the spot and returned void. The names now say
+        // which one does what.
         $env = WorkflowTestEnvironment::inMemory(['echo' => static fn(): string => 'done']);
 
         $result = $env->run(static function (WorkflowEnvironment $wf): array {
@@ -126,8 +126,8 @@ final class DriverParityRegressionTest extends TestCase
 
     public function testTheHarnessSkipsTimeInsteadOfWaitingForIt(): void
     {
-        // Sans saut d'horloge, aucun workflow qui dort n'est testable : le harnais n'a personne
-        // pour lui livrer un réveil de minuteur.
+        // Without a clock skip, no sleeping workflow is testable: the harness has nobody to
+        // deliver a timer wake to it.
         $env = WorkflowTestEnvironment::inMemory(['ping' => static fn(): string => 'pong']);
 
         $startedAt = microtime(true);
@@ -140,13 +140,13 @@ final class DriverParityRegressionTest extends TestCase
         }, 'skip-1');
 
         self::assertSame('pong', $result);
-        self::assertLessThan(1.0, microtime(true) - $startedAt, '25 heures de sommeil ne doivent coûter aucun temps réel');
+        self::assertLessThan(1.0, microtime(true) - $startedAt, '25 hours of sleep must cost no real time');
     }
 
     public function testTimeIsNotSkippedWhileAnActivityCanStillWin(): void
     {
-        // Le saut ne doit intervenir que lorsque plus rien d'autre ne progresse : sauter plus tôt
-        // ferait gagner le minuteur de toute course qu'une activité était en train de remporter.
+        // The skip must only happen once nothing else progresses: skipping earlier would make
+        // the timer win any race an activity was in the middle of winning.
         $env = WorkflowTestEnvironment::inMemory(['fast' => static fn(): string => 'winner']);
 
         $result = $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->any(
@@ -175,8 +175,8 @@ final class DriverParityRegressionTest extends TestCase
 
     public function testTheHarnessReportsAnActivityThatRetriesForever(): void
     {
-        // Les tentatives étant désormais illimitées par défaut, le harnais doit échouer avec un
-        // message actionnable au lieu de tourner sans fin.
+        // Attempts now being unlimited by default, the harness must fail with an actionable
+        // message instead of running forever.
         $env = WorkflowTestEnvironment::inMemory(
             ['always' => static function (): never {
                 throw new \RuntimeException('boom');

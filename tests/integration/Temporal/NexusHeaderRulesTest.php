@@ -33,18 +33,17 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Sonde §1.1 et §1.2 du change `nexus-operation-headers` : que le serveur accepte-t-il comme
- * en-tête Nexus, et rend-il ce qu'on lui donne ?
+ * Probe for §1.1 and §1.2 of the `nexus-operation-headers` change: what does the server accept as a
+ * Nexus header, and does it return what it is given?
  *
- * La règle de la maison veut qu'on sonde avant d'encoder le moindre invariant. Un objet-valeur
- * plus strict que le serveur refuserait des en-têtes parfaitement valides ; plus laxiste, il
- * laisserait passer ce que le serveur réécrit en silence — et un en-tête réécrit ne se voit
- * qu'en relisant un historique.
+ * The house rule is to probe before encoding the least invariant. A value object stricter than the
+ * server would refuse perfectly valid headers; more lenient, it would let through what the server
+ * silently rewrites — and a rewritten header can only be seen by reading a history back.
  *
- * Le tampon du pont n'envoie pas encore d'en-tête : c'est tout l'objet du change. La commande est
- * donc assemblée à la main, comme l'a fait la sonde de l'endpoint inconnu.
+ * The bridge's buffer does not send a header yet: that is the whole point of the change. The
+ * command is therefore assembled by hand, as the unknown endpoint probe did.
  *
- * **Prérequis** : un endpoint Nexus, que ce test crée et supprime lui-même.
+ * **Prerequisite**: a Nexus endpoint, which this test creates and deletes itself.
  *
  * @see openspec/changes/nexus-operation-headers/tasks.md §1.1 §1.2
  */
@@ -63,7 +62,7 @@ final class NexusHeaderRulesTest extends TestCase
     {
         $address = getenv('DURABLE_TEMPORAL_ADDRESS');
         if (false === $address || '' === $address) {
-            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS non défini : pas de serveur Temporal.');
+            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS not set: no Temporal server.');
         }
 
         $queue = 'nexus-hdr-' . bin2hex(random_bytes(5));
@@ -124,17 +123,17 @@ final class NexusHeaderRulesTest extends TestCase
 
     public function testWhatTheServerKeepsVerbatim(): void
     {
-        // Tout ce que le serveur accepte tel quel. Rien ici ne justifie qu'un objet-valeur soit
-        // plus strict : refuser ces cas rejetterait des en-têtes parfaitement valides.
+        // Everything the server accepts as is. Nothing here justifies a value object being
+        // stricter: refusing these cases would reject perfectly valid headers.
         foreach ([
-            'ordinaire' => ['x-correlation' => 'abc-123'],
-            'valeur vide' => ['x-vide' => ''],
-            'clé vide' => ['' => 'valeur'],
-            'blanc en bord de valeur' => ['x-bord' => ' abc '],
-            'saut de ligne dans la valeur' => ['x-nl' => "a\nb"],
-            'clé avec espace' => ['x avec espace' => 'v'],
-            'valeur de 1000 caractères' => ['x-long' => str_repeat('a', 1000)],
-            'deux en-têtes' => ['x-un' => '1', 'x-deux' => '2'],
+            'ordinary' => ['x-correlation' => 'abc-123'],
+            'empty value' => ['x-vide' => ''],
+            'empty key' => ['' => 'valeur'],
+            'whitespace at the value edges' => ['x-bord' => ' abc '],
+            'newline in the value' => ['x-nl' => "a\nb"],
+            'key with a space' => ['x avec espace' => 'v'],
+            '1000-character value' => ['x-long' => str_repeat('a', 1000)],
+            'two headers' => ['x-un' => '1', 'x-deux' => '2'],
         ] as $label => $header) {
             $expected = $header;
             ksort($expected);
@@ -144,8 +143,8 @@ final class NexusHeaderRulesTest extends TestCase
 
     public function testTheServerLowercasesEveryKey(): void
     {
-        // La réécriture silencieuse que §1.2 cherchait. Un appelant qui relit sa propre clé
-        // croirait avoir envoyé `X-Correlation`.
+        // The silent rewrite §1.2 was looking for. A caller reading its own key back would
+        // believe it had sent `X-Correlation`.
         self::assertSame(
             ['x-correlation' => 'abc-123'],
             $this->roundTrip(['X-Correlation' => 'abc-123']),
@@ -155,12 +154,12 @@ final class NexusHeaderRulesTest extends TestCase
 
     public function testTwoKeysDifferingOnlyByCaseSilentlyLoseOne(): void
     {
-        // La conséquence, et c'est elle qui doit gouverner §2.1 : deux en-têtes entrent, un seul
-        // sort. Aucune erreur, aucune trace — la panne muette que les objets-valeurs de ce
-        // composant existent pour rendre impossible.
+        // The consequence, and it is the one that must govern §2.1: two headers go in, only one
+        // comes out. No error, no trace — the silent breakage that this component's value objects
+        // exist to make impossible.
         $back = $this->roundTrip(['X-Choc' => 'majuscule', 'x-choc' => 'minuscule']);
 
-        self::assertCount(1, $back, 'Le serveur a gardé les deux : la collision n’existe pas.');
+        self::assertCount(1, $back, 'The server kept both: the collision does not exist.');
         self::assertArrayHasKey('x-choc', $back);
     }
 
@@ -172,7 +171,7 @@ final class NexusHeaderRulesTest extends TestCase
     private function roundTrip(array $header): array
     {
         $verdict = $this->probe($header);
-        self::assertIsArray($verdict, \sprintf('Le serveur a refusé : %s', json_encode($header)));
+        self::assertIsArray($verdict, \sprintf('The server refused: %s', json_encode($header)));
 
         return $verdict;
     }
@@ -208,7 +207,7 @@ final class NexusHeaderRulesTest extends TestCase
         try {
             $attrs->setNexusHeader($map);
         } catch (\Throwable $e) {
-            return 'refusé côté protobuf : ' . $e->getMessage();
+            return 'refused on the protobuf side: ' . $e->getMessage();
         }
 
         $command = new Command();
@@ -224,7 +223,7 @@ final class NexusHeaderRulesTest extends TestCase
         /** @var array{0: mixed, 1: \stdClass} $pair */
         $pair = $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000])->wait();
         if (0 !== (int) ($pair[1]->code ?? -1)) {
-            return \sprintf('refusé [%d] : %s', (int) $pair[1]->code, substr((string) ($pair[1]->details ?? ''), 0, 90));
+            return \sprintf('refused [%d]: %s', (int) $pair[1]->code, substr((string) ($pair[1]->details ?? ''), 0, 90));
         }
 
         $cursor = new TemporalHistoryCursor($this->client, $this->connection);
@@ -235,8 +234,8 @@ final class NexusHeaderRulesTest extends TestCase
                     $back[(string) $k] = (string) $v;
                 }
 
-                // La map protobuf ne garantit pas l'ordre : on trie avant de rendre, sans quoi
-                // tout en-tête multiple paraîtrait réécrit.
+                // The protobuf map guarantees no order: we sort before returning, failing which
+                // any multiple header would look rewritten.
 
                 ksort($back);
 
@@ -244,6 +243,6 @@ final class NexusHeaderRulesTest extends TestCase
             }
         }
 
-        return 'accepté, mais aucun NEXUS_OPERATION_SCHEDULED';
+        return 'accepted, but no NEXUS_OPERATION_SCHEDULED';
     }
 }

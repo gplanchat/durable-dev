@@ -9,11 +9,11 @@ en entier à chaque fois. Ici on rejoue la commande.
 
 Cinq choses séparent une page du canevas d'une page servie par Hugo :
 
-1. `{{ … }}` — le canevas et Hugo partagent la syntaxe. Laissées en place,
+1. `{{ … }}` : le canevas et Hugo partagent la syntaxe. Laissées en place,
    Hugo tenterait de les exécuter et la compilation échouerait. Il ne doit
    donc plus en rester une seule en sortie ; c'est vérifié.
 2. La palette est interpolée dans un attribut `style` en ligne, donc
-   impossible à surcharger par une feuille de style — un style en ligne
+   impossible à surcharger par une feuille de style, car un style en ligne
    l'emporte. On la sort du balisage et on l'écrit en `:root`, ce qui rend le
    thème sombre exprimable.
 3. `style-hover` est un attribut du canevas, ignoré par les navigateurs. Sans
@@ -46,12 +46,12 @@ HERE = pathlib.Path(__file__).parent
 # `#8a3f7a` prune). Le canevas en tire `#207460` en clair et `#68d5bb` en
 # sombre ; ce sont ces deux valeurs-là, pas la graine, qui s'écrivent ici.
 # Changer de variante, c'est rejouer `themeAccent(graine, dark)` du canevas sur
-# la nouvelle graine — et penser au `--dz-accent` de `assets/_custom.scss`, qui
+# la nouvelle graine, et penser au `--dz-accent` de `assets/_custom.scss`, qui
 # porte la même paire pour les pages de documentation.
 #
 # `accent2` est le second accent : les pastilles « Nexus · works today »,
 # « bundle today · plugin planned », le bord de l'encadré « With it ». Le canevas
-# le fige — il ne suit pas la variante d'accent — et il ne passait pas par cette
+# le fige (il ne suit pas la variante d'accent) et il ne passait pas par cette
 # table : les 24 `var(--accent2, #2f6f6b)` du balisage tombaient donc tous sur
 # leur valeur de repli, y compris en thème sombre, où ce vert-bleu ne tenait que
 # 2,98 de contraste sur `bg2`. Il entre ici, donc il a maintenant ses deux
@@ -80,7 +80,7 @@ SCALARS = {"ts": "1", "sp": "1"}
 
 # Le design a longtemps posé 26 ou 30 px sur ses logos, illisibles à cette
 # taille, et un plancher de 48 px était imposé ici. Le canevas pose maintenant
-# 48 lui-même — et 22 sur les deux marques minuscules qui servent de puce
+# 48 lui-même, et 22 sur les deux marques minuscules qui servent de puce
 # « Symfony app » à côté d'un nom d'application. Un plancher les gonflerait à
 # plus du double : la taille redevient un choix du canevas, entièrement.
 
@@ -89,7 +89,7 @@ SCALARS = {"ts": "1", "sp": "1"}
 # le sujet, ancre comprise ; les ancres sont vérifiées à l'exécution.
 # Quatre chaînes que le script écrit lui-même : elles ne viennent pas du
 # canevas, donc rien ne les traduisait. Elles atterrissaient en anglais au
-# milieu de la page française — le bouton de thème disait « Dark » et le
+# milieu de la page française : le bouton de thème disait « Dark » et le
 # panneau d'annotation « Hover any line ».
 #
 # La langue se déduit du nom du fichier source (`…-fr.dc.html`), et la sortie
@@ -179,7 +179,7 @@ def convert_handlers(root: str) -> str:
 def inline_logos(root: str) -> str:
     """Un SVG externe ne suit pas le thème ; incorporé, il l'hérite.
 
-    Le design a déjà changé de mécanique une fois — d'un `<img>` vers un couple
+    Le design a déjà changé de mécanique une fois, d'un `<img>` vers un couple
     « emplacement à peindre + glyphe de repli », les deux masqués en attendant
     un script. Les deux formes sont donc reconnues, et l'absence de l'une comme
     de l'autre est une erreur : la fois où elle est passée inaperçue, ce sont
@@ -190,7 +190,7 @@ def inline_logos(root: str) -> str:
         box = match.groupdict().get("box")
         path = HERE / "assets" / "logos" / f"{name}.svg"
         if not path.exists():
-            die(f"logo absent : {path} — voir assets/logos/")
+            die(f"logo absent : {path}, voir assets/logos/")
         svg = path.read_text().strip()
         # La taille vient du `data-box` du design. Sylius est une signature
         # typographique, ratio 3,1:1 : lui imposer la même valeur dans les deux
@@ -220,7 +220,7 @@ def inline_logos(root: str) -> str:
 
     # La garde est délibérément plus large que les deux motifs ci-dessus, et c'est
     # tout son travail : elle doit attraper les noms qu'ils ratent. Elle était aussi
-    # étroite qu'eux, donc `logo-api-platform.svg` n'était ni incorporé ni signalé —
+    # étroite qu'eux, donc `logo-api-platform.svg` n'était ni incorporé ni signalé :
     # le glyphe de repli passait en production en silence. Élargir les trois de la
     # même façon aurait refermé le tiret et laissé la classe ouverte : un chiffre,
     # un underscore ou une capitale repassait pareil.
@@ -245,19 +245,19 @@ def rewrite_links(root: str, lang: str) -> str:
 
     # Le guide existe en français depuis la PR #147, aux mêmes ancres. Une page
     # française qui renvoie vers `/docs/` envoie son lecteur sur l'anglais alors
-    # que la traduction est là — et les ancres qu'elle cite
+    # que la traduction est là, et les ancres qu'elle cite
     # (`#bounding-a-wait-in-time`…) sont précisément celles qui ont été épinglées
     # pour survivre à la traduction.
     if lang != "en":
         root = re.sub(r'href="/(docs/)', rf'href="/{lang}/\1', root)
 
     # Le pied de page du canevas porte un lien « Variants » vers son autre planche,
-    # `index.dc.html`. Le canevas sait le suivre ; le site servi rend un 404 — il l'a
+    # `index.dc.html`. Le canevas sait le suivre ; le site servi rend un 404, et il l'a
     # rendu jusqu'au 2026-08-27. C'est le sixième écart entre une page de canevas et
     # une page servie, et le seul qui ne se voyait qu'en cliquant.
     # Le retrait vise le lien, pas son libellé : la page française dit
     # « Variantes », et s'accrocher au mot anglais laissait passer la version
-    # traduite — c'est la garde ci-dessous qui l'a rattrapée.
+    # traduite : c'est la garde ci-dessous qui l'a rattrapée.
     root = re.sub(r'<a\b[^>]*href="[^"]*\.dc\.html"[^>]*>.*?</a>', "", root, flags=re.S)
 
     # La garde compte plus que le retrait, et elle doit rester plus large que lui :
@@ -311,13 +311,13 @@ def palette_css() -> str:
 def paint_initial_command(root: str, script: str) -> str:
     """Le balisage statique doit porter la commande de l'état initial.
 
-    Le canevas y laisse une valeur figée — `composer require gplanchat/durable-bundle`
-    — alors que l'état de départ est `Symfony · Temporal`. Avant que `paint()` ne
+    Le canevas y laisse une valeur figée, `composer require gplanchat/durable-bundle`,
+    alors que l'état de départ est `Symfony · Temporal`. Avant que `paint()` ne
     tourne, la page affichait donc la commande d'un autre choix que celui qu'elle
     montrait comme sélectionné, et un lecteur qui copie vite emporte la mauvaise.
 
-    Elle est recalculée depuis les mêmes données que `paint()` — `state`, `BASE`,
-    `DIST_BASE`, `BRIDGE`, `TWO_ECO` — plutôt que corrigée à l'œil, pour qu'un
+    Elle est recalculée depuis les mêmes données que `paint()` (`state`, `BASE`,
+    `DIST_BASE`, `BRIDGE`, `TWO_ECO`) plutôt que corrigée à l'œil, pour qu'un
     changement de défaut dans le canevas la suive tout seul.
     """
     def table(name: str) -> dict[str, str]:
@@ -358,7 +358,7 @@ def language_of(src_path: pathlib.Path, out_path: pathlib.Path) -> str:
     if out_lang != lang:
         wanted = "index.html" if lang == "en" else f"index.{lang}.html"
         die(f"source en « {lang} » écrite dans {out_path.name}, qui sert « {out_lang} » "
-            f"— attendu {wanted}")
+            f"(attendu {wanted})")
     return lang
 
 
@@ -467,18 +467,18 @@ def guard_hand_edits(out_path: pathlib.Path, new_text: str, force: bool) -> None
 
     C'est la panne que WA005 raconte : trois correctifs écrits dans
     `layouts/index.html` et perdus, deux à une régénération qui ne les
-    connaissait pas, un à un rebasage. Aucun n'a fait de bruit — c'est tout le
+    connaissait pas, un à un rebasage. Aucun n'a fait de bruit, et c'est tout le
     problème. Une régénération qui ne sait pas ce qu'elle détruit le détruit en
     silence.
 
     La garde ne demande pas que le canevas soit dans le dépôt ; elle demande
     seulement de savoir ce que le dernier import avait écrit. Si le fichier ne
     porte plus cette empreinte, quelqu'un l'a corrigé à la main, et cette
-    correction n'est pas dans le canevas — sinon elle serait dans la sortie.
+    correction n'est pas dans le canevas, sinon elle serait dans la sortie.
 
     ponytail: une empreinte plutôt qu'une copie de l'ancienne sortie. Le diff
     montré compare l'état courant à ce qui va être écrit, ce qui est exactement
-    ce que la régénération changerait — les corrections perdues comprises.
+    ce que la régénération changerait, les corrections perdues comprises.
     """
     if not out_path.exists():
         return
@@ -494,7 +494,7 @@ def guard_hand_edits(out_path: pathlib.Path, new_text: str, force: bool) -> None
         die(
             f"aucune empreinte connue pour {out_path.name} : ce fichier existe, et rien ne dit\n"
             "ce que le dernier import y avait écrit. Il peut donc porter des corrections faites à\n"
-            "la main, absentes du canevas — c'est l'état dans lequel WA005 a trouvé le dépôt.\n"
+            "la main, absentes du canevas : c'est l'état dans lequel WA005 a trouvé le dépôt.\n"
             "Relisez-le, reportez ce qui manque dans le canevas, puis `--force` une fois : "
             "l'empreinte\nsera enregistrée et les imports suivants sauront quoi comparer."
         )
@@ -508,7 +508,7 @@ def guard_hand_edits(out_path: pathlib.Path, new_text: str, force: bool) -> None
     ))
 
     if force:
-        print(f"⚠ {out_path.name} a été modifié à la main depuis le dernier import — "
+        print(f"⚠ {out_path.name} a été modifié à la main depuis le dernier import : "
               f"{sum(1 for l in diff if l.startswith(('+', '-')) and not l.startswith(('+++', '---')))} "
               f"lignes écrasées, --force donné.")
         return
@@ -517,7 +517,7 @@ def guard_hand_edits(out_path: pathlib.Path, new_text: str, force: bool) -> None
     die(
         f"{out_path.name} a été modifié à la main depuis le dernier import.\n"
         "Ces lignes ne sont pas dans le canevas : les écraser les perdrait, comme les\n"
-        "trois correctifs de WA005. Reportez-les dans le canevas, puis relancez — ou\n"
+        "trois correctifs de WA005. Reportez-les dans le canevas, puis relancez, ou\n"
         "`--force` si vous savez qu'elles sont déjà dedans."
     )
 
@@ -597,8 +597,8 @@ def check_packages_resolve(root: str, script: str) -> None:
 
     C'est la même faute que le logo non incorporé, un étage plus haut : la page
     donne une instruction, un lecteur la copie, et elle échoue. Elle est arrivée
-    trois fois — `gplanchat/durable-laravel`, `gplanchat/durable-bridge-illuminate`,
-    et quatre noms portant un `?` de brouillon — dont une atteignable en deux clics.
+    trois fois : `gplanchat/durable-laravel`, `gplanchat/durable-bridge-illuminate`,
+    et quatre noms portant un `?` de brouillon, dont une atteignable en deux clics.
 
     La garde énumère ce que le sélecteur laisse réellement atteindre : une puce
     `planned` est refusée par le gestionnaire de clic, donc elle ne compte pas. Ce
@@ -668,11 +668,11 @@ def check_commands_agree(source: str) -> None:
     Elles vivent aux deux endroits, et une page d'accueil qui installe autre
     chose que sa documentation est pire qu'une page d'accueil muette : le
     lecteur suit la première et se fait démentir par la seconde. La ligne
-    Sylius a déjà changé une fois en une journée — un lien entre les deux
+    Sylius a déjà changé une fois en une journée ; un lien entre les deux
     pages signale la référence, il n'empêche pas la dérive.
 
     Averti, pas fatal : la page Packages a le droit de documenter une commande
-    que le sélecteur ne propose pas — « aucun framework », par exemple.
+    que le sélecteur ne propose pas : « aucun framework », par exemple.
     """
     reference = HERE / COMMANDS_REFERENCE
     if not reference.exists():

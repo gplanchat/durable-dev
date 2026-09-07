@@ -5,7 +5,7 @@ weight: 16
 
 # gRPC dans votre image de conteneur
 
-Le backend Temporal parle au cluster en gRPC, il lui faut donc `ext-grpc` — et `ext-grpc` ne fournit
+Le backend Temporal parle au cluster en gRPC, il lui faut donc `ext-grpc`, et `ext-grpc` ne fournit
 aucun binaire préconstruit. `install-php-extensions grpc protobuf` la compile depuis les sources :
 mesuré sur ce dépôt, **6 min 58 s** pour `php:8.3-cli-alpine`, parce que grpc traîne abseil,
 boringssl, re2 et upb, et se compile en C++17. Votre construction d'image paie cela à chaque fois,
@@ -17,18 +17,18 @@ Les extensions compilées sont donc publiées, et vous les copiez dans votre ima
 ghcr.io/gplanchat/php-grpc:8.4-cli
 ```
 
-PHP 8.2, 8.3, 8.4 et 8.5, chacun en quatre formes — `cli`, `cli-alpine`, `zts`, `zts-alpine`.
+PHP 8.2, 8.3, 8.4 et 8.5, chacun en quatre formes : `cli`, `cli-alpine`, `zts`, `zts-alpine`.
 Publiques, sans authentification.
 
 Les recettes ci-dessous utilisent les étiquettes glissantes, **reconstruites tous les lundis** pour
 suivre les versions correctives de PHP et les mises à jour de sécurité de leur base. Si vous
 préférez que votre construction ne bouge pas sous vos pieds, chaque publication pose aussi une
-étiquette datée — `8.4-cli-20260828` — et l'épingler tient en un mot. Une étiquette datée n'est
+étiquette datée comme `8.4-cli-20260828`, et l'épingler tient en un mot. Une étiquette datée n'est
 jamais reconstruite.
 
 Les étiquettes datées sont élaguées : les **huit plus récentes** sont conservées pour chaque couple
 version-et-forme, soit environ deux mois de points d'épinglage. Épinglez pour une version que vous
-êtes sur le point de livrer, pas pour une image de base dont vous partirez encore l'an prochain —
+êtes sur le point de livrer, pas pour une image de base dont vous partirez encore l'an prochain ;
 pour cela, c'est l'étiquette glissante qui continue de fonctionner.
 
 ---
@@ -36,16 +36,16 @@ pour cela, c'est l'étiquette glissante qui continue de fonctionner.
 ## Choisir l'étiquette : trois choses doivent correspondre
 
 Une extension est un objet partagé compilé pour un PHP précis. Trois propriétés de ce PHP doivent
-s'aligner — et elles échouent de trois façons différentes, c'est la partie qui vaut d'être sue :
+s'aligner, et elles échouent de trois façons différentes, c'est la partie qui vaut d'être sue :
 
 | Doit correspondre | Ce qui se passe sinon | Quand vous l'apprenez |
 |---|---|---|
 | **Version mineure de PHP** | le dossier d'extensions n'existe pas dans votre base, le `COPY` ne trouve rien | au `docker build`, tout de suite |
-| **Thread-safety** (ZTS / NTS) | pareil — le nom du dossier la porte | au `docker build`, tout de suite |
+| **Thread-safety** (ZTS / NTS) | pareil, le nom du dossier la porte | au `docker build`, tout de suite |
 | **libc** (glibc / musl) | **le chemin est identique**, le fichier se copie sans broncher, et PHP refuse de le charger | à l'exécution, sauf si vous vérifiez |
 
 La version corrective, elle, n'a *pas* besoin de correspondre : `php:8.4.22` charge une extension
-construite contre `8.4.25`. La mineure, si — 8.3 et 8.4 sont deux ABI différentes.
+construite contre `8.4.25`. La mineure, si : 8.3 et 8.4 sont deux ABI différentes.
 
 Le nom du dossier encode les deux premières :
 
@@ -108,7 +108,7 @@ RUN php -m | grep -qx grpc && php -m | grep -qx protobuf
 ```
 
 **Sur Alpine, vérifiez `libstdc++`.** grpc est du C++ et réclame cette bibliothèque au chargement.
-Toutes les bases Debian l'embarquent ; les bases Alpine, non — `php:8.4-fpm-alpine` ne l'a pas,
+Toutes les bases Debian l'embarquent ; les bases Alpine, non : `php:8.4-fpm-alpine` ne l'a pas,
 l'image Alpine de FrankenPHP l'a :
 
 ```dockerfile
@@ -125,7 +125,7 @@ RUN php -m | grep -qx grpc && php -m | grep -qx protobuf
 ```
 
 Sans ce `apk add`, la construction échoue sur la dernière ligne avec `Error loading shared library
-libstdc++.so.6` — c'est la vérification qui fait son travail.
+libstdc++.so.6`, c'est la vérification qui fait son travail.
 
 ### Apache avec mod_php
 
@@ -147,8 +147,8 @@ RUN php -m | grep -qx grpc && php -m | grep -qx protobuf
 ### FrankenPHP
 
 FrankenPHP embarque PHP dans le processus du serveur et fait tourner plusieurs workers dans un même
-processus : il est donc construit **thread-safe**. Une extension NTS ne s'y chargera pas — c'est le
-cas pour lequel les images `zts` existent. Notez le `zts` dans les chemins — `no-debug-zts-20240924`, et non `no-debug-non-zts-20240924` :
+processus : il est donc construit **thread-safe**. Une extension NTS ne s'y chargera pas, c'est le
+cas pour lequel les images `zts` existent. Notez le `zts` dans les chemins : `no-debug-zts-20240924`, et non `no-debug-non-zts-20240924` :
 
 ```dockerfile
 FROM ghcr.io/gplanchat/php-grpc:8.4-zts AS ext
@@ -163,7 +163,7 @@ RUN php -m | grep -qx grpc && php -m | grep -qx protobuf
 ```
 
 Sur `dunglas/frankenphp:1-php8.4-alpine`, copiez plutôt depuis `8.4-zts-alpine`. Celle-là embarque
-déjà `libstdc++` et n'a donc pas besoin d'`apk add` — les bases Alpine ne se ressemblent pas sur ce
+déjà `libstdc++` et n'a donc pas besoin d'`apk add` ; les bases Alpine ne se ressemblent pas sur ce
 point, et c'est la ligne `RUN php -m` qui vous dit laquelle vous avez.
 
 ---
@@ -181,7 +181,7 @@ docker run --rm --entrypoint sh <votre-image-de-base> -c \
 ```
 
 Trois réponses, les trois colonnes du tableau plus haut. Si aucune étiquette publiée ne satisfait
-les trois, compilez — c'est la section suivante.
+les trois, compilez : c'est la section suivante.
 
 ---
 

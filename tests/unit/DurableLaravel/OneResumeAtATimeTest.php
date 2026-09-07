@@ -22,7 +22,7 @@ use unit\DurableLaravel\Fixtures\FakeQueueFactory;
 use unit\DurableLaravel\Fixtures\GreetingWorkflow;
 
 /**
- * §4 — une reprise à la fois par exécution, dans la forme que §1.2 a mesurée.
+ * §4 — one resume at a time per execution, in the shape §1.2 measured.
  */
 final class OneResumeAtATimeTest extends TestCase
 {
@@ -34,7 +34,7 @@ final class OneResumeAtATimeTest extends TestCase
         $metadata->save('exec-1', GreetingWorkflow::class, []);
 
         $store = new ArrayStore();
-        // Un autre worker tient déjà le tour de cette exécution.
+        // Another worker already holds this execution's turn.
         $store->lock(ResumeLock::nameFor('exec-1'), 300)->get();
 
         $queue = new FakeQueue();
@@ -45,9 +45,9 @@ final class OneResumeAtATimeTest extends TestCase
             new ResumeDeferral(2),
         );
 
-        // Rien n'a été rejoué…
+        // Nothing was replayed…
         self::assertFalse($metadata->get('exec-1')['completed'] ?? false);
-        // …et la reprise est reposée pour plus tard, avec son compteur de reports.
+        // …and the resume is put back for later, with its deferral counter.
         self::assertCount(1, $queue->pushed);
         self::assertSame(2, $queue->pushed[0]['delay']);
         self::assertSame(1, $queue->pushed[0]['job']->deferrals);
@@ -69,7 +69,7 @@ final class OneResumeAtATimeTest extends TestCase
         );
 
         self::assertTrue($metadata->get('exec-2')['completed'] ?? false);
-        self::assertSame([], $queue->pushed, 'un tour libre ne se repose pas');
+        self::assertSame([], $queue->pushed, 'a free turn does not put itself back');
     }
 
     public function testTheLockIsReleasedSoTheNextResumeGetsItsTurn(): void
@@ -86,8 +86,8 @@ final class OneResumeAtATimeTest extends TestCase
             new ResumeDeferral(),
         );
 
-        // Un verrou rendu, pas un verrou tenu jusqu'au TTL : sinon la reprise suivante
-        // attendrait cinq minutes pour rien.
+        // A lock given back, not a lock held until the TTL: otherwise the next resume would
+        // wait five minutes for nothing.
         self::assertTrue($store->lock(ResumeLock::nameFor('exec-3'), 300)->get());
     }
 
@@ -118,15 +118,15 @@ final class OneResumeAtATimeTest extends TestCase
 
     public function testThatSameStoreIsFineForTheInMemoryBackend(): void
     {
-        // §1.3 : `array` est le cache de test par défaut de Laravel, et exclure dans un seul
-        // processus est exactement ce qu'un test veut.
+        // §1.3: `array` is Laravel's default test cache, and excluding inside one process is
+        // exactly what a test wants.
         $app = $this->container();
         $app->instance('cache', $this->cacheReturning(new ArrayStore()));
         $provider = new DurableServiceProvider($app);
         $provider->register();
         $provider->boot();
 
-        self::assertTrue(true, 'aucun refus sous le backend memory');
+        self::assertTrue(true, 'no refusal under the memory backend');
     }
 
     public function testAStoreThatGrantsEveryLockIsStillRefused(): void

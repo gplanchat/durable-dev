@@ -12,15 +12,15 @@ use Illuminate\Support\Facades\Facade;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Les deux façons de créer les tables doivent créer les mêmes.
+ * The two ways of creating the tables must create the same ones.
  *
- * Le pont en a deux : {@see DurableSchema} les monte à la demande — ce dont vivent les tests et un
- * worker qui démarre sur une base vide — et la migration publiée les monte par `php artisan
- * migrate`, ce dont vivra une application. Deux chemins vers le même schéma, c'est deux occasions
- * de diverger, et la divergence ne se verrait ni à la migration ni au test : elle se verrait en
- * production, sur une colonne absente ou trop courte.
+ * The bridge has two: {@see DurableSchema} raises them on demand — what the tests and a worker
+ * starting on an empty database live off — and the published migration raises them through `php
+ * artisan migrate`, what an application will live off. Two paths to the same schema is two
+ * chances to diverge, and the divergence would show up neither at the migration nor at the test:
+ * it would show up in production, on a column that is missing or too short.
  *
- * Ce test monte les deux sur deux connexions et compare colonne par colonne.
+ * This test raises both on two connections and compares column by column.
  */
 final class MigrationMatchesSchemaTest extends TestCase
 {
@@ -32,20 +32,20 @@ final class MigrationMatchesSchemaTest extends TestCase
     ];
 
     /**
-     * La comparaison se fait sur le **DDL**, pas sur l'introspection.
+     * The comparison is made on the **DDL**, not on introspection.
      *
-     * SQLite jette les longueurs : une colonne déclarée `varchar(32)` s'y relit `varchar`, et
-     * `status` raccourci à huit caractères passait donc inaperçu — en tronquant
-     * `continued_as_new`, dix-huit caractères, dès qu'une vraie application tourne sur MySQL.
-     * Laravel sait rendre le DDL sans l'exécuter et sans serveur : la grammaire MySQL, elle, porte
-     * les longueurs **et** les index.
+     * SQLite throws the lengths away: a column declared `varchar(32)` reads back there as
+     * `varchar`, and `status` shortened to eight characters therefore went unnoticed — truncating
+     * `continued_as_new`, eighteen characters, as soon as a real application runs on MySQL.
+     * Laravel can render the DDL without executing it and without a server: the MySQL grammar,
+     * for its part, carries the lengths **and** the indexes.
      */
     public function testTheMigrationAndTheOnDemandSchemaEmitTheSameDdl(): void
     {
         self::assertSame(
             self::ddl(static fn(Connection $connection) => (new DurableSchema($connection))->ensure()),
             self::ddl(static fn(Connection $connection) => self::migration($connection)->up()),
-            'la migration et le schéma à la demande ne montent pas les mêmes tables',
+            'the migration and the on-demand schema do not raise the same tables',
         );
     }
 
@@ -56,7 +56,7 @@ final class MigrationMatchesSchemaTest extends TestCase
         foreach (self::TABLES as $table) {
             self::assertTrue(
                 $migrated->getSchemaBuilder()->hasTable($table),
-                \sprintf('la migration oublie %s', $table),
+                \sprintf('the migration forgets %s', $table),
             );
         }
     }
@@ -71,7 +71,7 @@ final class MigrationMatchesSchemaTest extends TestCase
         foreach (self::TABLES as $table) {
             self::assertFalse(
                 $connection->getSchemaBuilder()->hasTable($table),
-                \sprintf('%s survit à down()', $table),
+                \sprintf('%s survives down()', $table),
             );
         }
     }
@@ -85,9 +85,9 @@ final class MigrationMatchesSchemaTest extends TestCase
     }
 
     /**
-     * La migration parle par la façade `Schema`. Hors application Laravel, il faut donc lui donner
-     * un conteneur — c'est tout ce que `Facade::setFacadeApplication()` demande, et c'est aussi ce
-     * qui rend ce test possible sans monter une application entière.
+     * The migration speaks through the `Schema` facade. Outside a Laravel application it must
+     * therefore be given a container — that is all `Facade::setFacadeApplication()` asks for, and
+     * it is also what makes this test possible without raising a whole application.
      */
     private static function migration(Connection $connection): object
     {
@@ -116,9 +116,9 @@ final class MigrationMatchesSchemaTest extends TestCase
     }
 
     /**
-     * Le DDL rendu par les deux chemins, sur une connexion MySQL jamais ouverte : `pretend()`
-     * n'exécute rien et `select()` rend un tableau vide, donc `hasTable()` conclut que rien
-     * n'existe et les quatre tables sont émises.
+     * The DDL rendered by both paths, on a MySQL connection that is never opened: `pretend()`
+     * executes nothing and `select()` returns an empty array, so `hasTable()` concludes that
+     * nothing exists and the four tables are emitted.
      *
      * @param callable(Connection): void $build
      *
@@ -138,10 +138,9 @@ final class MigrationMatchesSchemaTest extends TestCase
             $build($connection);
         });
 
-        // `pretend()` journalise **toutes** les requêtes, lectures comprises : les quatre
-        // `hasTable()` de `DurableSchema` arriveraient ici comme quatre `select` de plus, et la
-        // comparaison porterait sur le chemin emprunté plutôt que sur les tables obtenues. Seul
-        // le DDL compte.
+        // `pretend()` logs **every** query, reads included: the four `hasTable()` calls of
+        // `DurableSchema` would arrive here as four more `select`s, and the comparison would bear
+        // on the path taken rather than on the tables obtained. Only the DDL counts.
         return array_values(array_filter(
             array_map(static fn(array $query): string => $query['query'], $queries),
             static fn(string $query): bool => (bool) preg_match('/^(create|alter|drop)\s/i', $query),
@@ -149,9 +148,9 @@ final class MigrationMatchesSchemaTest extends TestCase
     }
 
     /**
-     * Le nom d'une colonne ne suffit pas. `status` raccourci de 32 à 8 caractères passait la
-     * comparaison des seuls noms — et tronquait `continued_as_new`, dix-huit caractères, sur
-     * MySQL. Le type déclaré et la nullabilité entrent donc dans la comparaison.
+     * A column's name is not enough. `status` shortened from 32 to 8 characters passed the
+     * comparison of names alone — and truncated `continued_as_new`, eighteen characters, on
+     * MySQL. The declared type and the nullability therefore enter the comparison.
      *
      * @return array<string, string>
      */

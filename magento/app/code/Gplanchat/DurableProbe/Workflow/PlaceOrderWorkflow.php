@@ -10,12 +10,12 @@ use Gplanchat\DurableProbe\Workflow\Activity\OrderActivities;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Un workflow ordinaire — et c'est tout l'argument.
+ * An ordinary workflow — and that is the whole argument.
  *
- * Rien ici ne sait qu'il tourne dans Magento : pas d'import du framework, pas de
- * `ObjectManager`, pas de `ResourceConnection`. La même classe tourne sous le
- * bundle Symfony sans être touchée, parce que tout ce qui est sous les ports est
- * `gplanchat/durable` inchangé.
+ * Nothing here knows it runs inside Magento: no framework import, no
+ * `ObjectManager`, no `ResourceConnection`. The same class runs under the
+ * Symfony bundle without being touched, because everything below the ports is
+ * `gplanchat/durable` unchanged.
  */
 #[AsWorkflow(name: 'durable.demo.place-order')]
 final class PlaceOrderWorkflow

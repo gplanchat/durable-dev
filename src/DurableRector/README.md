@@ -31,10 +31,10 @@ return Rector\Config\RectorConfig::configure()
 
 ---
 
-## Monter de version à l'intérieur de Durable
+## Upgrading inside Durable
 
-Le tableau ci-dessus fait **entrer** un projet dans Durable, une fois. `durable-upgrade.php` l'y
-fait **avancer**, à chaque montée de version :
+The table above brings a project **into** Durable, once. `durable-upgrade.php` moves it **forward**
+in there, on every upgrade:
 
 ```php
 // rector.php
@@ -43,10 +43,10 @@ return Rector\Config\RectorConfig::configure()
     ->withSets([__DIR__ . '/vendor/gplanchat/durable-rector/config/sets/durable-upgrade.php']);
 ```
 
-Il est cumulatif — le passer une fois rattrape toutes les versions franchies. Ce qu'il contient, et
-surtout ce qu'il **ne peut pas** faire tout seul (un conteneur Symfony compilé garde les noms
-pleinement qualifiés, et veut son `cache:clear`), est écrit version par version dans
-[`UPGRADE.md`](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md) à la racine du dépôt.
+It is cumulative — running it once catches up every version crossed. What it contains, and above
+all what it **cannot** do on its own (a compiled Symfony container holds the fully qualified names,
+and wants its `cache:clear`), is written version by version, at the root of the repository, in
+[`UPGRADE.md`](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md).
 
 ---
 

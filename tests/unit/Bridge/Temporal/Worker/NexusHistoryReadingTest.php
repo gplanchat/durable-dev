@@ -20,13 +20,13 @@ use Temporal\Api\History\V1\NexusOperationStartedEventAttributes;
 use Temporal\Api\History\V1\NexusOperationTimedOutEventAttributes;
 
 /**
- * §4.3 — relire les événements `NEXUS_OPERATION_*` depuis l'historique Temporal.
+ * §4.3 — reading the `NEXUS_OPERATION_*` events back from the Temporal history.
  *
- * C'est ce qui manque pour que le replay retombe sur l'opération déjà lancée. Tant que la lecture
- * n'existe pas, `findScheduledNexusOperation()` ne peut pas rendre `null` sans danger : le
- * contexte n'émet la commande que si le slot est vide, donc un `null` systématique replanifie
- * l'opération à **chaque passe** — et une opération Nexus qui repart est facturée à chaque fois.
- * C'est pourquoi le stub levait plutôt que de rendre `null`.
+ * This is what is missing for replay to land back on the operation already launched. As long as
+ * the reading does not exist, `findScheduledNexusOperation()` cannot return `null` safely: the
+ * context emits the command only if the slot is empty, so a systematic `null` reschedules the
+ * operation on **every pass** — and a Nexus operation that starts again is billed every time.
+ * That is why the stub raised rather than returning `null`.
  */
 final class NexusHistoryReadingTest extends TestCase
 {
@@ -44,8 +44,8 @@ final class NexusHistoryReadingTest extends TestCase
 
     public function testAnOperationStillInFlightHasNoResultYet(): void
     {
-        // La distinction qui compte : « planifiée » n'est pas « réglée ». Confondre les deux
-        // ferait conclure le workflow sur une opération qui n'a pas répondu.
+        // The distinction that matters: "scheduled" is not "settled". Confusing the two would
+        // make the workflow conclude on an operation that has not answered.
         $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
 
         self::assertSame('5', $history->findScheduledNexusOperation(0));
@@ -95,15 +95,15 @@ final class NexusHistoryReadingTest extends TestCase
 
         $slot = $history->findNexusOperationSlotResult(0);
         self::assertNotNull($slot);
-        // La nature, pas le libellé : un message est une formulation, une nature est un contrat.
+        // The kind, not the wording: a message is a phrasing, a kind is a contract.
         self::assertInstanceOf(DurableNexusOperationFailedException::class, $slot['failed']);
         self::assertSame($expected, $slot['failed']->kind());
     }
 
     public function testTheScheduledEventIdIsRecoverableForCancellation(): void
     {
-        // §4.2 en dépend : `RequestCancelNexusOperation` exige l'eventId réel, et un identifiant
-        // qui ne correspond à rien fait rejeter la tâche par le serveur.
+        // §4.2 depends on it: `RequestCancelNexusOperation` requires the real eventId, and an
+        // identifier that matches nothing makes the server reject the task.
         $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
 
         self::assertSame(5, $history->scheduledEventIdForNexusOperation('5'));
@@ -112,7 +112,7 @@ final class NexusHistoryReadingTest extends TestCase
 
     public function testCancellingUsesTheRealScheduledEventId(): void
     {
-        // §4.2 : la commande d'annulation ne part que si l'historique connaît l'opération.
+        // §4.2: the cancellation command only leaves if the history knows the operation.
         $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
         $buffer = new \Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer(
             new \Gplanchat\Bridge\Temporal\TemporalConnection('localhost:7233', 'test'),
@@ -133,7 +133,7 @@ final class NexusHistoryReadingTest extends TestCase
 
     public function testCancellingAnUnknownOperationEmitsNothing(): void
     {
-        // Un eventId inventé ferait rejeter la tâche entière par le serveur : mieux vaut se taire.
+        // An invented eventId would make the server reject the whole task: better to stay silent.
         $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
         $buffer = new \Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer(
             new \Gplanchat\Bridge\Temporal\TemporalConnection('localhost:7233', 'test'),
@@ -148,10 +148,10 @@ final class NexusHistoryReadingTest extends TestCase
 
     public function testAnOperationStartedWithATokenIsStillInFlight(): void
     {
-        // 1.4 a mesuré ce que fait le serveur : il enregistre NEXUS_OPERATION_STARTED, pose
-        // `callback: temporal://system`, et corrèle lui-même la complétion sur cette exécution.
-        // Le jeton dit « le gestionnaire répondra plus tard », pas « personne ne répondra ».
-        // Refuser ici, c'est refuser la forme asynchrone entière.
+        // 1.4 measured what the server does: it records NEXUS_OPERATION_STARTED, sets
+        // `callback: temporal://system`, and correlates the completion onto this execution itself.
+        // The token says "the handler will answer later", not "nobody will answer".
+        // Refusing here means refusing the whole asynchronous form.
         $started = new NexusOperationStartedEventAttributes();
         $started->setScheduledEventId(5);
         $started->setOperationToken('jeton-asynchrone');
@@ -163,14 +163,14 @@ final class NexusHistoryReadingTest extends TestCase
 
         self::assertNull(
             $history->findNexusOperationSlotResult(0),
-            'Une opération asynchrone démarrée est en vol, pas en échec.',
+            'An asynchronous operation that has started is in flight, not failed.',
         );
     }
 
     public function testAnAsynchronousOperationRendersTheResultTheServerDelivers(): void
     {
-        // Le serveur corrèle par `scheduledEventId` : la complétion arrive sur cette exécution,
-        // longtemps après le démarrage, et c'est elle qui règle le slot.
+        // The server correlates by `scheduledEventId`: the completion arrives on this execution,
+        // long after the start, and it is what settles the slot.
         $started = new NexusOperationStartedEventAttributes();
         $started->setScheduledEventId(5);
         $started->setOperationToken('jeton-asynchrone');
@@ -186,13 +186,13 @@ final class NexusHistoryReadingTest extends TestCase
 
         $slot = $history->findNexusOperationSlotResult(0);
         self::assertNotNull($slot);
-        self::assertNull($slot['failed'], "Le démarrage asynchrone ne doit plus laisser d'échec derrière lui.");
+        self::assertNull($slot['failed'], 'The asynchronous start must no longer leave a failure behind it.');
         self::assertSame(['montant' => 42], $slot['result']);
     }
 
     public function testAnAsynchronousOperationThatFailsIsClassifiedLikeAnyOther(): void
     {
-        // 3.3 : l'échec livré par rappel n'est pas d'une autre nature que l'échec synchrone.
+        // 3.3: the failure delivered by callback is of no other kind than the synchronous one.
         $started = new NexusOperationStartedEventAttributes();
         $started->setScheduledEventId(5);
         $started->setOperationToken('jeton-asynchrone');
@@ -213,8 +213,9 @@ final class NexusHistoryReadingTest extends TestCase
 
     public function testAnOperationStartedWithoutATokenIsNotAFailure(): void
     {
-        // Sans jeton, l'opération est synchrone : elle a démarré, elle répondra sur cette
-        // exécution, et il n'y a rien à signaler. Confondre les deux refuserait le cas nominal.
+        // Without a token, the operation is synchronous: it has started, it will answer on this
+        // execution, and there is nothing to report. Confusing the two would refuse the nominal
+        // case.
         $started = new NexusOperationStartedEventAttributes();
         $started->setScheduledEventId(5);
 
@@ -223,7 +224,7 @@ final class NexusHistoryReadingTest extends TestCase
             $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_STARTED, 7, static fn(HistoryEvent $e) => $e->setNexusOperationStartedEventAttributes($started)),
         ]);
 
-        self::assertNull($history->findNexusOperationSlotResult(0), 'Une opération synchrone démarrée est encore en vol, pas en échec.');
+        self::assertNull($history->findNexusOperationSlotResult(0), 'A synchronous operation that has started is still in flight, not failed.');
     }
 
     public function testACompletionAfterAStartWithoutTokenStillWins(): void
@@ -252,10 +253,10 @@ final class NexusHistoryReadingTest extends TestCase
         $attrs->setEndpoint('paiements');
         $attrs->setService('facturation');
         $attrs->setOperation('encaisser');
-        // L'identité applicative voyage dans le payload d'entrée, faute de champ dédié côté
-        // Temporal — c'est ce que le tampon de commandes y met.
-        // La charge de l'appelant, nue : l'identité est l'eventId que le serveur assigne, et
-        // la charge appartient à l'utilisateur (tâche 1b.2).
+        // The application identity travels in the input payload, for want of a dedicated field
+        // on the Temporal side — that is what the command buffer puts there.
+        // The caller's payload, bare: the identity is the eventId the server assigns, and the
+        // payload belongs to the user (task 1b.2).
         $attrs->setInput(JsonPlainPayload::encode(['amount' => 10]));
 
         return $this->event(EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED, $eventId, static fn(HistoryEvent $e) => $e->setNexusOperationScheduledEventAttributes($attrs));

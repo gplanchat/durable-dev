@@ -7,11 +7,11 @@ namespace Gplanchat\Durable\Bundle\Profiler;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 
 /**
- * Trace processus pour une requête HTTP : envois {@see \Gplanchat\Durable\Transport\WorkflowRunMessage}
- * (middleware Messenger), puis {@see WorkflowExecutionObserverInterface} (runs moteur, activités exécutées).
+ * Process trace for one HTTP request: {@see \Gplanchat\Durable\Transport\WorkflowRunMessage} dispatches
+ * (Messenger middleware), then {@see WorkflowExecutionObserverInterface} (engine runs, executed activities).
  *
- * L’historique persistant reste dans l’event store ; cette trace sert au bandeau temporel « cette requête »
- * (worker d’activité inclus) et complète le journal quand tout s’exécute dans le même processus.
+ * The persistent history stays in the event store; this trace feeds the "this request" time band
+ * (activity worker included) and completes the journal when everything runs in the same process.
  */
 final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
 {
@@ -27,7 +27,7 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
     }
 
     /**
-     * Enregistre un envoi de {@see \Gplanchat\Durable\Transport\WorkflowRunMessage} sur le bus (sans exécuter le workflow dans ce processus si le handler tourne ailleurs).
+     * Records a dispatch of {@see \Gplanchat\Durable\Transport\WorkflowRunMessage} on the bus (without executing the workflow in this process if the handler runs elsewhere).
      *
      * @param array<string, mixed> $payload
      */

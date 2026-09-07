@@ -7,17 +7,17 @@ namespace unit\Gplanchat\Durable;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Le cœur ne dépend d'aucun hôte, et cette garde existe parce qu'il en dépendait.
+ * The core depends on no host, and this guard exists because it once did.
  *
- * `gplanchat/durable` ne requiert ni le bundle Symfony ni aucun pont : c'est la promesse du
- * composant, et ce qui rend « le même workflow tourne partout » vrai plutôt qu'aspirationnel. Une
- * seule ligne l'avait rompue — `InMemoryWorkflowRunner` important
- * `Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator` — et rien ne le disait : sous
- * Symfony le bundle est là, donc tout marche. La panne n'apparaît que sur un hôte qui ne l'installe
- * pas, au moment d'une reprise, sous la forme d'une erreur fatale de classe introuvable. Magento
- * l'a trouvée en rejouant une commande tuée au milieu.
+ * `gplanchat/durable` requires neither the Symfony bundle nor any bridge: that is the component's
+ * promise, and what makes "the same workflow runs everywhere" true rather than aspirational. A
+ * single line had broken it — `InMemoryWorkflowRunner` importing
+ * `Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator` — and nothing said so: under
+ * Symfony the bundle is there, so everything works. The breakage only shows on a host that does
+ * not install it, at the moment of a resume, as a fatal class-not-found error. Magento found it by
+ * replaying a command killed halfway through.
  *
- * Les `@see` en bloc de documentation sont tolérés : ils ne se chargent pas.
+ * `@see` references in documentation blocks are tolerated: they do not load.
  */
 final class CoreDependsOnNoHostTest extends TestCase
 {

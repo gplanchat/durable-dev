@@ -19,7 +19,7 @@ use unit\DurableLaravel\Fixtures\MistypedSettleWorkflow;
 use unit\DurableLaravel\Fixtures\SettleWorkflow;
 
 /**
- * Servir des opérations Nexus depuis une application Laravel.
+ * Serving Nexus operations from a Laravel application.
  */
 final class NexusOnLaravelTest extends TestCase
 {
@@ -35,8 +35,8 @@ final class NexusOnLaravelTest extends TestCase
 
     public function testADeclaredHandlerIsRefusedOnABackendThatCannotRoute(): void
     {
-        // Le refus vient du cœur, et il arrive à l'enregistrement — pas au premier appel, quand
-        // l'application est en production et qu'un appelant attend une réponse.
+        // The refusal comes from the core, and it lands at registration — not on the first call,
+        // when the application is in production and a caller is waiting for an answer.
         $app = $this->container('illuminate', [BillingHandler::class => BillingService::class]);
         (new DurableServiceProvider($app))->register();
 
@@ -47,8 +47,8 @@ final class NexusOnLaravelTest extends TestCase
 
     public function testAnApplicationThatServesNothingGetsARegistryAnyway(): void
     {
-        // Sans gestionnaire déclaré, rien ne doit rougir : appeler une opération Nexus ne se
-        // déclare pas ici, et c'est le cas le plus courant.
+        // With no handler declared, nothing must go red: calling a Nexus operation is not
+        // declared here, and that is the most common case.
         $app = $this->container('illuminate', []);
         (new DurableServiceProvider($app))->register();
 
@@ -94,10 +94,10 @@ final class NexusOnLaravelTest extends TestCase
 
     public function testAWorkflowWhoseParameterNamesDoNotMatchTheContractIsRefused(): void
     {
-        // La panne que ce refus remplace est muette : la charge est clée par nom des deux côtés,
-        // donc `$ammount` recevrait `null` sans qu'aucune erreur ne soit levée. Symfony refuse
-        // depuis sa passe de compilation ; l'hôte qui lit un fichier de configuration doit refuser
-        // au même moment — à l'enregistrement, pas au premier appel.
+        // The breakdown this refusal replaces is a silent one: the payload is keyed by parameter
+        // name at both ends, so `$ammount` would silently receive null without any error being
+        // raised. Symfony refuses from its compiler pass; a host that reads a configuration file
+        // has to refuse at the same moment — at registration, not on the first call.
         $app = $this->container(
             'temporal',
             [DeferredBillingHandler::class => DeferredBillingService::class],
@@ -114,8 +114,8 @@ final class NexusOnLaravelTest extends TestCase
 
     public function testAnOptionalExtraParameterIsAllowed(): void
     {
-        // `$dryRun` n'est pas au contrat, mais il a une valeur par défaut : son absence est une
-        // décision, pas un oubli.
+        // `$dryRun` is not on the contract, but it has a default value: its absence is a
+        // decision, not an oversight.
         $app = $this->container(
             'temporal',
             [DeferredBillingHandler::class => DeferredBillingService::class],

@@ -13,7 +13,7 @@ use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Port de samples-php PolymorphicActivity : deux contrats d’activité distincts (préfixes de noms d’activité).
+ * Port of samples-php PolymorphicActivity: two distinct activity contracts (activity name prefixes).
  *
  * @return list<string>
  */

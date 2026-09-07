@@ -9,11 +9,11 @@ use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Les verdicts de la sonde §1.3, rendus impossibles à subir.
+ * The verdicts of probe §1.3, made impossible to suffer.
  *
- * Le serveur rabote en silence : demander 60 s de `startToClose` sous 10 s de `scheduleToClose`
- * fait enregistrer 10 s, sans erreur. L'objet-valeur refuse la combinaison à la construction —
- * c'est la seule différence entre une borne qu'on croit avoir et une borne qu'on a.
+ * The server trims in silence: asking for 60 s of `startToClose` under 10 s of `scheduleToClose`
+ * records 10 s, with no error. The value object refuses the combination at construction — that is
+ * the only difference between a bound you believe you have and a bound you have.
  *
  * @see openspec/changes/temporal-nexus-support/design.md
  * @see tests/integration/Temporal/NexusOperationBoundsTest.php
@@ -65,8 +65,9 @@ final class NexusOperationTimeoutsTest extends TestCase
 
     public function testAnInfiniteEnvelopeClampsNothing(): void
     {
-        // Sur le fil, cette enveloppe s'écrit 0 — que le serveur lit « pas de borne » et qui ne
-        // rabote rien. L'infini du domaine dit la même chose sans le déguiser en zéro seconde.
+        // On the wire, this envelope is written 0 — which the server reads as "no bound" and
+        // which trims nothing. The domain's infinity says the same thing without disguising it as
+        // zero seconds.
         $timeouts = new NexusOperationTimeouts(
             scheduleToClose: Duration::infinity(),
             startToClose: Duration::seconds(3600),

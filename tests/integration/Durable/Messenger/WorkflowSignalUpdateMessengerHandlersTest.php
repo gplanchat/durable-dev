@@ -19,7 +19,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Handler « livraison » d'un signal : même contrat qu’avec Messenger en prod, reprise pilotée par callback.
+ * Signal "delivery" handler: same contract as with Messenger in production, resume driven by a callback.
  *
  * @internal
  */
@@ -35,13 +35,14 @@ final class WorkflowSignalUpdateMessengerHandlersTest extends TestCase
         $harness = StepwiseWorkflowHarness::create($eventStore, $activityTransport, $activityExecutor);
         $executionId = (string) Uuid::v7();
 
-        // `waitSignal()` n'existe plus : un signal enregistre un handler qui mute l'état, et
-        // une condition passée à `await()` observe cet état. Le handler est réenregistré à chaque
-        // passe, y compris au replay — c'est ce qui reconstruit `$payload` à la reprise.
+        // `waitSignal()` no longer exists: a signal registers a handler that mutates the state,
+        // and a condition passed to `await()` observes that state. The handler is re-registered on
+        // every pass, replay included — that is what rebuilds `$payload` on resume.
         //
-        // La condition est une closure avec `use (&$payload)`, **pas** une fonction fléchée : une
-        // fléchée capture par valeur au moment où elle est écrite, donc elle observerait à jamais
-        // le `null` initial. Le handler muterait bien la variable et l'attente ne finirait jamais.
+        // The condition is a closure with `use (&$payload)`, **not** an arrow function: an arrow
+        // function captures by value at the point where it is written, so it would forever observe
+        // the initial `null`. The handler would indeed mutate the variable and the wait would
+        // never end.
         $workflow = static function (WorkflowEnvironment $env) {
             $payload = null;
             $env->onSignal('go', static function (array $received) use (&$payload): void {
@@ -60,13 +61,13 @@ final class WorkflowSignalUpdateMessengerHandlersTest extends TestCase
                 ++$resumeCount;
                 self::assertSame($executionId, $id);
                 $stillSuspended = $harness->resume($id, $workflow);
-                self::assertFalse($stillSuspended, 'le workflow doit terminer après réception du signal');
+                self::assertFalse($stillSuspended, 'the workflow must finish once the signal is received');
             },
         );
 
         $handler = new DeliverWorkflowSignalHandler($eventStore, $dispatcher);
 
-        self::assertTrue($harness->start($executionId, $workflow), 'suspendu en attente du signal');
+        self::assertTrue($harness->start($executionId, $workflow), 'suspended waiting for the signal');
 
         $handler->__invoke(new DeliverWorkflowSignalMessage($executionId, 'go', ['ticket' => 'A-12']));
 

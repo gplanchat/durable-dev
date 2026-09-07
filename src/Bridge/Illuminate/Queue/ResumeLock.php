@@ -8,65 +8,65 @@ use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 
 /**
- * Une reprise à la fois par exécution.
+ * One resume at a time per execution.
  *
- * C'est la seule chose que le stockage ne peut pas fournir, et sans elle rien de ce paquet ne tient
- * : deux workers qui reprennent la **même** exécution la rejouent tous les deux, chacun croit
- * découvrir les commandes qu'elle produit, et elles partent en double. Le journal ne l'empêche pas
- * — il enregistre fidèlement ce qu'on lui donne, y compris deux fois. Le docblock de
- * `DbalEventStore` le dit depuis toujours ; côté Symfony c'est un middleware Messenger adossé à
- * `symfony/lock`, ici c'est le verrou atomique du cache.
+ * This is the one thing storage cannot provide, and without it nothing in this package holds
+ * together: two workers resuming the **same** execution both replay it, each believing it is
+ * discovering the commands the execution produces, and those commands go out twice. The journal
+ * does not prevent that — it faithfully records whatever it is given, twice included. The
+ * `DbalEventStore` docblock has said so from the start; on the Symfony side it is a Messenger
+ * middleware backed by `symfony/lock`, here it is the cache's atomic lock.
  *
- * **Pourquoi une fermeture plutôt qu'un middleware de job.** Un middleware Laravel s'accroche à une
- * classe de job, et ce paquet n'en fournit aucune : ce sont des magasins. Le paquet d'intégration
- * en aura, et il lui suffira d'envelopper son `handle()` avec ceci. Une commande artisan ou un
- * worker écrit à la main y arrivent aussi, sans rien avoir à hériter.
+ * **Why a closure rather than a job middleware.** A Laravel middleware hooks onto a job class, and
+ * this package provides none: these are stores. The integration package will have some, and all it
+ * needs is to wrap its `handle()` with this. An artisan command or a hand-written worker gets
+ * there too, without having to inherit anything.
  *
- * **Pourquoi `LockProvider` et pas le cache.** C'est le seul contrat dont ce verrou a besoin, et il
- * vient d'`illuminate/contracts` que `illuminate/database` tire déjà.
+ * **Why `LockProvider` and not the cache.** It is the only contract this lock needs, and it comes
+ * from `illuminate/contracts`, which `illuminate/database` already pulls in.
  *
- * ⚠ **Le type ne filtre rien, contrairement à ce que ce bloc affirmait.** Sur Laravel 12, neuf
- * stores implémentent `LockProvider` — `file` compris, et il verrouille correctement entre
- * processus — dont `NullStore`, dont le `NoLock::acquire()` retourne `true` sans condition.
- * Mesuré sur vingt reprises d'une exécution et quatre `queue:work` : `database` et `file` ne
- * laissent aucun chevauchement, `array` et `null` en laissent quinze sur vingt, à concurrence 4.
- * Le choix du store est donc à l'appelant, et c'est le seul de ce paquet qui fait diverger un
- * journal en silence quand il est mauvais.
+ * ⚠ **The type filters nothing, contrary to what this block used to claim.** On Laravel 12, nine
+ * stores implement `LockProvider` — `file` included, and it does lock correctly across
+ * processes — among them `NullStore`, whose `NoLock::acquire()` returns `true` unconditionally.
+ * Measured over twenty resumes of one execution and four `queue:work`: `database` and `file`
+ * leave no overlap at all, `array` and `null` leave fifteen out of twenty, at concurrency 4.
+ * The choice of store is therefore the caller's, and it is the only one in this package that
+ * silently makes a journal diverge when it is wrong.
  *
  * ```php
  * $lock->around($executionId, fn() => $runner->resume($executionId));
  * ```
  *
- * **Pourquoi l'attente est écrite ici plutôt que déléguée à `Lock::block()`.** `block()` appelle un
- * `now()` **global**, que seule une application Laravel complète définit — `illuminate/support` ne
- * le publie que sous son propre espace de noms. Un paquet qui s'en sert marche dans une application
- * et casse dans un worker autonome ou un test, ce qui est le pire des deux mondes : la panne
- * n'arrive que là où personne ne regarde. Huit lignes d'attente bornée n'ont pas cette dépendance.
+ * **Why the wait is written here rather than delegated to `Lock::block()`.** `block()` calls a
+ * **global** `now()`, which only a full Laravel application defines — `illuminate/support` only
+ * publishes it under its own namespace. A package that uses it works inside an application and
+ * breaks in a standalone worker or a test, which is the worst of both worlds: the failure only
+ * happens where nobody is looking. Eight lines of bounded wait carry no such dependency.
  *
- * ponytail: sondage toutes les 100 ms plutôt qu'une notification. Un verrou de reprise se prend
- * pour la durée d'un pas de workflow ; si un jour la contention le justifie, Redis sait notifier.
+ * ponytail: polling every 100 ms rather than a notification. A resume lock is held for the length
+ * of one workflow step; if contention ever justifies it, Redis knows how to notify.
  *
- * ponytail: attente bornée par `$waitSeconds`. Un worker qui attend son tour est ce qu'on
- * veut ; un worker qui attend indéfiniment sur un verrou qu'un processus mort n'a jamais relâché ne
- * l'est pas — d'où le TTL, qui est le vrai filet.
+ * ponytail: wait bounded by `$waitSeconds`. A worker that waits for its turn is what we want; a
+ * worker that waits indefinitely on a lock that a dead process never released is not — hence the
+ * TTL, which is the real safety net.
  *
- * @see \Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware le pendant Symfony
+ * @see \Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware the Symfony counterpart
  */
 final class ResumeLock
 {
-    /** Entre deux tentatives : assez court pour ne pas retarder, assez long pour ne pas brûler. */
+    /** Between two attempts: short enough not to hold things up, long enough not to burn CPU. */
     private const POLL_MICROSECONDS = 100_000;
 
     public function __construct(
         private readonly LockProvider $locks,
-        /** Durée de vie du verrou : ce qui le libère si le processus qui le tient meurt. */
+        /** The lock's time to live: what releases it if the process holding it dies. */
         private readonly int $ttlSeconds = 300,
-        /** Combien de temps un worker accepte d'attendre son tour avant d'abandonner. */
+        /** How long a worker is willing to wait for its turn before giving up. */
         private readonly int $waitSeconds = 10,
     ) {}
 
     /**
-     * Exécute `$work` en tenant le verrou de cette exécution, et le relâche quoi qu'il arrive.
+     * Runs `$work` while holding this execution's lock, and releases it whatever happens.
      *
      * @template T
      *
@@ -74,7 +74,7 @@ final class ResumeLock
      *
      * @return T
      *
-     * @throws \Illuminate\Contracts\Cache\LockTimeoutException si le tour n'est pas venu à temps
+     * @throws \Illuminate\Contracts\Cache\LockTimeoutException if the turn did not come in time
      */
     public function around(string $executionId, callable $work): mixed
     {
@@ -102,17 +102,17 @@ final class ResumeLock
     }
 
     /**
-     * Exécute `$work` si le tour est libre, et rend `false` sans attendre s'il ne l'est pas.
+     * Runs `$work` if the turn is free, and returns `false` without waiting if it is not.
      *
-     * **C'est l'entrée que §1.2 a mesurée, et `around()` est celle qu'elle disqualifie pour un
-     * worker.** Un worker Laravel est un processus, pas une coroutine : `around()` y tient un
-     * créneau pendant toute son attente — quinze secondes-worker pour quatre secondes de travail,
-     * sur vingt reprises d'une même exécution. Et sa fenêtre d'attente est un plafond de
-     * *profondeur de file* déguisé en réglage de latence : dès que profondeur × durée la dépasse,
-     * elle lève.
+     * **This is the entry point §1.2 measured, and `around()` is the one it disqualifies for
+     * a worker.** A Laravel worker is a process, not a coroutine: `around()` holds a slot
+     * there for the whole of its wait — fifteen worker-seconds for four seconds of work, over
+     * twenty resumes of one and the same execution. And its wait window is a *queue depth*
+     * ceiling disguised as a latency setting: as soon as depth × duration exceeds it, it
+     * throws.
      *
-     * Ici le verrou dit seulement que le tour est pris. Ce que l'appelant en fait — se remettre en
-     * file plus tard, abandonner, journaliser — est sa décision, pas celle du verrou.
+     * Here the lock only says that the turn is taken. What the caller does with that — queueing it
+     * again for later, giving up, journalling — is its decision, not the lock's.
      *
      * @template T
      *
@@ -136,11 +136,11 @@ final class ResumeLock
     }
 
     /**
-     * Le nom du verrou d'une exécution.
+     * The name of an execution's lock.
      *
-     * Exposé parce qu'un appelant peut vouloir le poser lui-même — une commande qui reprend une
-     * exécution à la main doit prendre **le même** verrou que le worker, et deviner son nom est la
-     * façon dont deux processus finissent par croire qu'ils s'excluent alors que non.
+     * Exposed because a caller may want to take it themselves — a command that resumes an execution
+     * by hand must take **the same** lock as the worker, and guessing its name is how two processes
+     * end up believing they exclude each other when they do not.
      */
     public static function nameFor(string $executionId): string
     {

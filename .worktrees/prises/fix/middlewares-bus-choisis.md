@@ -7,4 +7,4 @@
 - **Entrées** : `Configuration`, `DurableExtension`, `RegisterDurableMiddlewarePass`, un test neuf
   (pas `DurableMiddlewareReachesTheBusTest`, que la PR #277 modifie déjà), la référence de
   configuration.
-- **État** : rédaction.
+- **État** : en revue — PR #279.

@@ -20,9 +20,9 @@ use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\StartChildWorkflowExecutionInitiatedEventAttributes;
 
 /**
- * Les workflows enfants n'étaient pas utilisables sur le driver Temporal : l'ExecutionContext y
- * était construit sans runner d'enfant, donc executeChildWorkflow() levait une LogicException et
- * la commande START_CHILD_WORKFLOW_EXECUTION n'était atteinte par aucun appelant.
+ * Child workflows were not usable on the Temporal driver: the ExecutionContext was built there
+ * without a child runner, so executeChildWorkflow() raised a LogicException and the
+ * START_CHILD_WORKFLOW_EXECUTION command was reached by no caller.
  */
 final class TemporalChildWorkflowTest extends TestCase
 {
@@ -33,7 +33,7 @@ final class TemporalChildWorkflowTest extends TestCase
 
         $awaitable = $context->executeChildWorkflow('ChildType', ['a' => 1]);
 
-        self::assertFalse($awaitable->isSettled(), 'le parent doit attendre l’issue portée par l’historique');
+        self::assertFalse($awaitable->isSettled(), 'the parent must wait for the outcome carried by the history');
         $commands = $buffer->peek();
         self::assertCount(1, $commands);
         self::assertSame(CommandType::COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION, $commands[0]->getCommandType());
@@ -52,7 +52,7 @@ final class TemporalChildWorkflowTest extends TestCase
 
         self::assertTrue($awaitable->isSettled());
         self::assertSame('child-result', $awaitable->getResult());
-        self::assertSame([], $buffer->peek(), 'aucune commande ne doit être réémise au replay');
+        self::assertSame([], $buffer->peek(), 'no command must be re-emitted at replay');
     }
 
     // -------------------------------------------------------------------------

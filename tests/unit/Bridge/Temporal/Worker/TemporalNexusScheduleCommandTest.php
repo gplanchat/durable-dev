@@ -18,11 +18,11 @@ use Temporal\Api\Command\V1\ScheduleNexusOperationCommandAttributes;
 use Temporal\Api\Enums\V1\CommandType;
 
 /**
- * La commande `ScheduleNexusOperation` telle que le pont la construit.
+ * The `ScheduleNexusOperation` command as the bridge builds it.
  *
- * Les bornes suivent le verdict de la sonde §1.3 : le serveur n'en défausse aucune, et une borne
- * absente doit le rester. Les poser à zéro « pour remplir » changerait le sens — zéro veut dire
- * « pas de borne », pas « zéro seconde ».
+ * The bounds follow the verdict of the §1.3 probe: the server discards none of them, and an absent
+ * bound must stay absent. Setting them to zero "to fill them in" would change the meaning — zero
+ * means "no bound", not "zero seconds".
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §4.1
  * @see tests/integration/Temporal/NexusOperationBoundsTest.php
@@ -42,7 +42,7 @@ final class TemporalNexusScheduleCommandTest extends TestCase
 
     public function testAnAbsentBoundStaysAbsent(): void
     {
-        // Sondé : le serveur n'applique aucun défaut et n'enregistre que ce qu'on lui donne.
+        // Probed: the server applies no default and records only what it is given.
         $attrs = $this->schedule(NexusOperationTimeouts::none());
 
         self::assertNull($attrs->getScheduleToCloseTimeout());
@@ -65,8 +65,8 @@ final class TemporalNexusScheduleCommandTest extends TestCase
 
     public function testAnInfiniteEnvelopeIsSentAsZeroBecauseThatIsHowTemporalSpellsUnbounded(): void
     {
-        // Duration::infinity() côté domaine, 0 sur le fil : c'est la convention du serveur, mesurée
-        // en §1.3 — un scheduleToClose à 0 ne rabote pas les sous-bornes.
+        // Duration::infinity() on the domain side, 0 on the wire: that is the server's convention,
+        // measured in §1.3 — a scheduleToClose at 0 does not trim the sub-bounds.
         $attrs = $this->schedule(new NexusOperationTimeouts(scheduleToClose: Duration::infinity()));
 
         self::assertSame(0, $attrs->getScheduleToCloseTimeout()?->getSeconds());

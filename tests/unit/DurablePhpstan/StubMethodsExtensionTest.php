@@ -7,17 +7,15 @@ namespace unit\DurablePhpstan;
 use PHPUnit\Framework\TestCase;
 
 /**
- * L'extension est vérifiée en lançant PHPStan sur une fixture, avec puis sans elle.
+ * The extension is checked by running PHPStan over a fixture, with it and then without it.
  *
- * Un test qui n'exercerait que la classe en isolation prouverait qu'elle répond correctement à des
- * questions posées par le test lui-même — pas qu'elle change ce que PHPStan voit. C'est le
- * contraste qui est le test.
+ * A test that exercised the class in isolation would prove it answers correctly the questions the
+ * test itself asks — not that it changes what PHPStan sees. The contrast is the test.
  *
- * Et ce contraste n'est pas celui qu'on imagine. Sans extension, PHPStan n'est pas aveugle : il
- * signale **tous** les appels de stub, corrects compris. Le défaut n'est donc pas le silence mais
- * le bruit — deux fausses erreurs pour deux vraies, qu'on met en ligne de base d'un bloc en
- * perdant les vraies avec. Ces tests épinglent ce fait, parce que c'est lui qui justifie le
- * paquet.
+ * And the contrast is not the one you would imagine. Without the extension PHPStan is not blind: it
+ * reports **every** stub call, the correct ones included. The defect is therefore not silence but
+ * noise — two false errors for two real ones, baselined in one block and losing the real ones with
+ * them. These tests pin that fact down, because it is what justifies the package.
  */
 final class StubMethodsExtensionTest extends TestCase
 {
@@ -27,12 +25,12 @@ final class StubMethodsExtensionTest extends TestCase
     {
         $errors = $this->analyse(withExtension: false);
 
-        // `charge()` est déclarée par le contrat et marquée : l'appel est juste, et PHPStan le
-        // refuse quand même. C'est le faux positif que l'extension supprime.
+        // `charge()` is declared by the contract and marked: the call is right, and PHPStan
+        // refuses it anyway. That is the false positive the extension removes.
         self::assertNotSame(
             [],
             $this->matching($errors, 'charge()'),
-            'sans extension, un appel correct doit être signalé — c\'est le défaut à corriger',
+            'without the extension, a correct call must be reported — that is the defect to fix',
         );
         self::assertNotSame([], $this->matching($errors, 'run()'));
     }
@@ -52,15 +50,15 @@ final class StubMethodsExtensionTest extends TestCase
         $errors = $this->analyse(withExtension: true);
 
         $typo = $this->matching($errors, 'chrage');
-        self::assertNotSame([], $typo, 'la faute de frappe doit rester signalée');
+        self::assertNotSame([], $typo, 'the typo must stay reported');
     }
 
     public function testAContractMethodWithoutTheAttributeIsNotSchedulable(): void
     {
         $errors = $this->analyse(withExtension: true);
 
-        // Déclarée par le contrat mais non marquée : le stub la refuse à l'exécution, l'analyse
-        // doit la refuser aussi.
+        // Declared by the contract but not marked: the stub refuses it at run time, and the
+        // analysis must refuse it too.
         self::assertNotSame([], $this->matching($errors, 'helper'));
     }
 
@@ -69,19 +67,19 @@ final class StubMethodsExtensionTest extends TestCase
         $errors = $this->analyse(withExtension: true);
 
         foreach ($this->matching($errors, 'undefined method') as $message) {
-            self::assertStringNotContainsString('::encaisser()', $message);
+            self::assertStringNotContainsString('::charge()', $message);
         }
     }
 
     public function testAnInheritedNexusOperationIsCallableThroughTheStub(): void
     {
-        // Le contrat de l'appelant **étend** celui que le gestionnaire implémente. L'extension
-        // doit suivre l'héritage comme le résolveur le suit, sans quoi PHPStan refuserait les
-        // opérations que le gestionnaire sert vraiment.
+        // The caller's contract **extends** the one the handler implements. The extension must
+        // follow that inheritance as the resolver follows it, or PHPStan would refuse the
+        // operations the handler really serves.
         $errors = $this->analyse(withExtension: true);
 
         foreach ($this->matching($errors, 'undefined method') as $message) {
-            self::assertStringNotContainsString('::verifier()', $message);
+            self::assertStringNotContainsString('::verify()', $message);
         }
     }
 
@@ -89,30 +87,30 @@ final class StubMethodsExtensionTest extends TestCase
     {
         $errors = $this->analyse(withExtension: true);
 
-        self::assertNotSame([], $this->matching($errors, 'encasser'), 'la faute de frappe doit rester signalée');
+        self::assertNotSame([], $this->matching($errors, 'chagre'), 'the typo must stay reported');
     }
 
     public function testANexusContractMethodWithoutTheAttributeIsNotCallable(): void
     {
         $errors = $this->analyse(withExtension: true);
 
-        self::assertNotSame([], $this->matching($errors, 'bareme'));
+        self::assertNotSame([], $this->matching($errors, 'rateCard'));
     }
 
     public function testTheArgumentCountIsCheckedOnceTheMethodIsKnown(): void
     {
         $errors = $this->analyse(withExtension: true);
 
-        // `charge()` attend deux arguments et n'en reçoit qu'un. Cette erreur n'existe que parce
-        // que l'extension a rendu la méthode connue : c'est le gain que le bruit masquait.
+        // `charge()` expects two arguments and gets one. This error only exists because the
+        // extension made the method known: it is the gain the noise was hiding.
         self::assertNotSame([], $this->matching($errors, 'invoked with 1 parameter, 2 required'));
     }
 
     public function testAReadonlyPropertyIsEnoughToCarryTheContract(): void
     {
-        // La fixture déclare ses stubs `readonly` **sans** annotation `@var`. Si ce test passe,
-        // c'est que PHPStan suit le paramètre générique du constructeur au point d'appel tout
-        // seul — mesuré, parce que le README a d'abord affirmé l'inverse.
+        // The fixture declares its stubs `readonly` **without** a `@var` annotation. If this test
+        // passes, PHPStan follows the constructor's generic parameter to the call site on its own —
+        // measured, because the README first claimed the opposite.
         $errors = $this->analyse(withExtension: true);
 
         foreach ($this->matching($errors, 'undefined method') as $message) {
@@ -124,9 +122,9 @@ final class StubMethodsExtensionTest extends TestCase
     {
         $errors = $this->analyse(withExtension: true);
 
-        // Le contrat déclare `: string`, mais le stub planifie et rend un Awaitable. Rendre la
-        // réflexion du contrat telle quelle ferait refuser le `await()` qui suit — une faute qui
-        // n'en est pas une.
+        // The contract declares `: string`, but the stub schedules and returns an Awaitable.
+        // Returning the contract's reflection as it stands would refuse the `await()` that follows
+        // — an error that is not one.
         self::assertSame(
             [],
             $this->matching($errors, '$awaitable of method'),
@@ -155,7 +153,7 @@ final class StubMethodsExtensionTest extends TestCase
             $pipes,
             $root,
         );
-        self::assertIsResource($process, 'PHPStan n\'a pas pu être lancé');
+        self::assertIsResource($process, 'PHPStan could not be started');
 
         $out = stream_get_contents($pipes[1]);
         fclose($pipes[1]);

@@ -20,14 +20,14 @@ use Temporal\Api\History\V1\NexusOperationScheduledEventAttributes;
 use Temporal\Api\History\V1\NexusOperationTimedOutEventAttributes;
 
 /**
- * §4.4 — les opérations Nexus deviennent visibles au profileur.
+ * §4.4 — Nexus operations become visible to the profiler.
  *
- * Sans conversion, une exécution qui appelle un service externe montre un trou : l'historique
- * Temporal porte les neuf événements `NEXUS_OPERATION_*`, le profileur n'en voit aucun, et
- * l'appel le plus lent d'un workflow est justement celui qu'on ne peut pas regarder.
+ * Without conversion, an execution that calls an external service shows a hole: the Temporal
+ * history carries the nine `NEXUS_OPERATION_*` events, the profiler sees none of them, and the
+ * slowest call of a workflow is precisely the one nobody can look at.
  *
- * Les états terminaux se distinguent parce qu'ils ne se lisent pas pareil : un échec appelle une
- * cause, un dépassement de borne appelle laquelle, une annulation n'appelle rien.
+ * The terminal states are told apart because they do not read the same way: a failure calls for a
+ * cause, a bound overrun calls for which bound, a cancellation calls for nothing.
  */
 final class NexusEventConversionTest extends TestCase
 {
@@ -46,8 +46,8 @@ final class NexusEventConversionTest extends TestCase
         self::assertSame('paiements', $event->endpoint());
         self::assertSame('facturation', $event->service());
         self::assertSame('encaisser', $event->operation());
-        // L'identité côté Temporal est l'eventId de la planification : c'est par lui que les
-        // événements terminaux se rattachent à leur opération.
+        // The identity on the Temporal side is the eventId of the scheduling: it is through it
+        // that the terminal events attach back to their operation.
         self::assertSame(12, $event->scheduledEventId());
     }
 
@@ -82,8 +82,8 @@ final class NexusEventConversionTest extends TestCase
 
     public function testEveryTerminalStateNamesTheOperationItCloses(): void
     {
-        // Le rattachement est la seule chose qui permette au profileur de recomposer la ligne de
-        // vie d'une opération : sans lui, quatre événements flottants.
+        // The attachment is the only thing that lets the profiler recompose the life line of an
+        // operation: without it, four floating events.
         foreach ([
             EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED,
             EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED,
@@ -99,8 +99,8 @@ final class NexusEventConversionTest extends TestCase
                 };
             });
 
-            self::assertNotNull($event, EventType::name($type) . ' non converti');
-            self::assertSame(12, $event->scheduledEventId(), EventType::name($type) . ' ne nomme pas son opération');
+            self::assertNotNull($event, EventType::name($type) . ' not converted');
+            self::assertSame(12, $event->scheduledEventId(), EventType::name($type) . ' does not name its operation');
         }
     }
 

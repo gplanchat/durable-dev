@@ -8,8 +8,8 @@ use Gplanchat\Durable\Duration;
 use PHPUnit\Framework\TestCase;
 
 /**
- * L'unité vivait dans le nom du champ (`…Seconds`), jamais dans le type ; les comparaisons du
- * domaine étaient redites à chaque lecteur.
+ * The unit lived in the field name (`…Seconds`), never in the type; the comparisons of the domain
+ * were restated to every reader.
  */
 final class DurationTest extends TestCase
 {
@@ -32,7 +32,7 @@ final class DurationTest extends TestCase
 
     public function testAcceptsANativeInterval(): void
     {
-        // Couvre CarbonInterval sans dépendre de Carbon : il étend DateInterval.
+        // Covers CarbonInterval without depending on Carbon: it extends DateInterval.
         self::assertSame(30.0, Duration::of(new \DateInterval('PT30S'))->toSeconds());
         self::assertSame(150.0, Duration::of(new \DateInterval('PT2M30S'))->toSeconds());
         self::assertSame(86400.0, Duration::of(new \DateInterval('P1D'))->toSeconds());
@@ -40,7 +40,7 @@ final class DurationTest extends TestCase
 
     public function testAnInstantBecomesADurationOnlyRelativeToAnother(): void
     {
-        // Un DateTimeInterface — Carbon compris — est un instant, pas une longueur.
+        // A DateTimeInterface — Carbon included — is an instant, not a length.
         $from = new \DateTimeImmutable('2026-01-01 12:00:00');
         $deadline = new \DateTimeImmutable('2026-01-01 12:01:30');
 
@@ -83,7 +83,7 @@ final class DurationTest extends TestCase
 
     public function testWireDecodingTreatsZeroAndAbsentAsNoBound(): void
     {
-        // Convention Temporal : un timeout à 0 vaut « non renseigné ».
+        // Temporal convention: a timeout of 0 means "not set".
         self::assertNull(Duration::fromWireValue(null));
         self::assertNull(Duration::fromWireValue(0));
         self::assertNull(Duration::fromWireValue(-5));
@@ -96,14 +96,14 @@ final class DurationTest extends TestCase
 
         self::assertTrue($forever->isInfinite());
         self::assertFalse(Duration::seconds(1.0)->isInfinite());
-        // Ce que null ne savait pas faire : se comparer aux autres durees.
+        // What null could not do: compare itself to other durations.
         self::assertEquals(Duration::seconds(30.0), $forever->shortest(Duration::seconds(30.0)));
         self::assertTrue($forever->isLongerThan(Duration::seconds(1e12)));
     }
 
     public function testAComputedInfinityIsRefusedRatherThanAccepted(): void
     {
-        // Un INF arrive d'une faute d'arithmetique bien plus souvent que d'une intention.
+        // An INF comes from an arithmetic mistake far more often than from an intention.
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/finite number of seconds/');
 
