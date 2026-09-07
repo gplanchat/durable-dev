@@ -51,6 +51,37 @@ payment stayed down for four minutes. The operation stayed in `NEXUS_OPERATION_S
 consumed nothing, and everything completed normally when the worker came back. No connection, no
 process, no transaction was waiting. Repeated from Magento: 49 seconds, same result.
 
+## Read as a context map
+
+Explicit Architecture forbids the synchronous cross-context call, and the reason it gives is
+availability: B down means A fails, so it reaches for events and eventual consistency instead. The
+four-minute measurement above removes that reason. It leaves every other one standing.
+
+What these four applications make operational is the strategic vocabulary:
+
+| DDD | what it is here |
+|---|---|
+| Bounded context | a Temporal namespace, with its own workers, storage and release cadence |
+| Published language | a `#[AsNexusService]` contract and its `#[AsNexusOperation]` methods |
+| Context map relationship | a Nexus **endpoint**, created by an operator, pointing a name at a namespace and a task queue |
+| Direction of the relationship | which side has an endpoint at all |
+
+Four namespaces, **three endpoints**. An endpoint says where a service is served, so the Magento
+bench — which calls three services and serves none — sits on the map with arrows leaving it and
+none arriving. The context map is `temporal operator nexus endpoint list`.
+
+**Nine seconds decide the shape of an operation.** A start task carries `request-timeout=8.998s`,
+which bounds the answer to *this task* and not the operation; past it the task is redelivered and
+the handler starts over. An implemented method is therefore a **query across the boundary** —
+`verifier` applies invoicing rules to data the business side already holds — and anything longer is
+a **saga step** the other context owns, which is what `#[FulfilsNexusOperation]` declares. The
+caller reads one contract and cannot tell which of the two it got.
+
+**Events would have cost a correlation.** Nexus has one — the fulfilling workflow's id *is* the
+operation token — but the server owns it, and what delivers the answer is the callback attached at
+start. Model the same exchange as a pair of events and that identifier becomes yours to invent,
+store, expire, and wrap in a state machine that holds the wait.
+
 ## What it does not bring
 
 **Not compensation.** None of the three contracts has an operation that gives back what it took. The
@@ -63,6 +94,17 @@ six-parcel order was **charged** before logistics refused to carry it.
 writes its verdict to `app_durable_stock_reservation`, keyed by order id — replaying the same order
 returns the same verdict and does not hold stock twice. That was written by hand; Durable did not
 provide it.
+
+**Not an anti-corruption layer.** `CommandeWorkflow` reads `$verdict['acceptee']` straight off the
+stub, so another context's payload shape sits inside the shop's own decision. The demonstration is
+flat on purpose, to put the two operation forms side by side. An application would keep the stub in
+a driven adapter, declare its port in its own language, and let that adapter build its value
+objects: the contracts carry scalars and arrays because the wire is plain JSON, and something has
+to turn them into a model.
+
+**Not a small shared kernel.** `src/DurableDemoContracts/` is one, and what keeps it defensible is a
+rule rather than a mechanism — it carries operation names and payload shapes, and no domain type
+from either side.
 
 ## How to run it
 
@@ -93,6 +135,8 @@ Two prerequisites you would not guess, detailed in
   here says what a Nexus queue does under real load.
 - **Recovery from a failing serving handler.** What was measured is a worker that was *down* — not a
   handler that throws halfway through its work.
+- **The layered shape.** Every call here is written from workflow code onto a stub. Nothing in the
+  repository demonstrates the port-and-adapter arrangement the section above recommends.
 - **Security.** The four namespaces sit on the same server with no mTLS and no authorization.
   Cross-team isolation, which is half the Nexus argument, is not demonstrated.
 

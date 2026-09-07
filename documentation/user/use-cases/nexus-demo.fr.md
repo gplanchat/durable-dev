@@ -52,6 +52,40 @@ l'encaissement est resté éteint quatre minutes. L'opération est restée en
 worker est revenu. Aucune connexion, aucun processus, aucune transaction n'attendait. Refait depuis
 Magento : 49 secondes, même résultat.
 
+## Lue comme une carte de contextes
+
+L'architecture explicite interdit l'appel synchrone entre contextes, et la raison qu'elle en donne
+est la disponibilité : B tombe, A échoue, donc elle passe par des événements et de la cohérence à
+terme. La mesure des quatre minutes ci-dessus retire cette raison-là. Elle laisse toutes les autres
+debout.
+
+Ce que ces quatre applications rendent opérationnel, c'est le vocabulaire stratégique :
+
+| DDD | ce que c'est ici |
+|---|---|
+| Contexte borné | un namespace Temporal, avec ses workers, son stockage et son rythme de livraison |
+| Langage publié | un contrat `#[AsNexusService]` et ses méthodes `#[AsNexusOperation]` |
+| Relation de la carte | un **endpoint** Nexus, créé par un opérateur, qui pointe un nom vers un namespace et une file |
+| Sens de la relation | quel côté a un endpoint, tout simplement |
+
+Quatre namespaces, **trois endpoints**. Un endpoint dit où un service est servi : le banc Magento —
+qui appelle trois services et n'en sert aucun — figure donc sur la carte avec des flèches qui en
+partent et aucune qui y arrive. La carte de contextes, c'est `temporal operator nexus endpoint list`.
+
+**Neuf secondes décident de la forme d'une opération.** Une tâche de démarrage porte
+`request-timeout=8.998s`, qui borne la réponse à *cette tâche* et non l'opération ; passé ce délai
+la tâche est redélivrée et le gestionnaire recommence. Une méthode implémentée est donc une
+**requête qui traverse la frontière** — `verifier` applique des règles de facturation à des données
+que le métier a déjà — et tout ce qui dure plus longtemps est une **étape de saga** que l'autre
+contexte possède, ce que déclare `#[FulfilsNexusOperation]`. L'appelant lit un seul contrat et ne
+sait pas laquelle des deux il a obtenue.
+
+**Des événements auraient coûté une corrélation.** Nexus en a une — l'identifiant du workflow qui
+remplit l'opération *est* le jeton de celle-ci — mais c'est le serveur qui la tient, et ce qui livre
+la réponse est le callback attaché au démarrage. Modélisez le même échange en deux événements et cet
+identifiant devient le vôtre : à inventer, à stocker, à faire expirer, et à envelopper dans une
+machine à états qui tient l'attente.
+
 ## Ce qu'il n'apporte pas
 
 **Pas la compensation.** Aucun des trois contrats n'a d'opération qui rende ce qu'il a pris. La
@@ -65,6 +99,18 @@ retenait le stock avant de se faire refuser la facture, et une commande de six c
 de `stock` écrit son verdict dans `app_durable_stock_reservation`, clé par identifiant de commande —
 rejouer la même commande rend le même verdict et ne retient pas de stock une seconde fois. Ça a
 été écrit à la main, Durable ne l'a pas fourni.
+
+**Pas la couche anticorruption.** `CommandeWorkflow` lit `$verdict['acceptee']` directement sur le
+stub : la forme de charge d'un autre contexte se retrouve donc au cœur de la décision de la
+boutique. La démonstration est plate à dessein, pour montrer les deux formes d'opération côte à
+côte. Une application garderait le stub dans un adaptateur secondaire, déclarerait son port dans son
+propre langage, et laisserait cet adaptateur fabriquer ses objets-valeurs : les contrats portent des
+scalaires et des tableaux parce que le fil est du JSON nu, et il faut bien que quelqu'un en fasse un
+modèle.
+
+**Pas un noyau partagé petit.** `src/DurableDemoContracts/` en est un, et ce qui le rend tenable est
+une règle plutôt qu'un mécanisme — il porte des noms d'opération et des formes de charge, et aucun
+type de domaine de l'un ou l'autre côté.
 
 ## Comment on la lance
 
@@ -97,6 +143,8 @@ Deux prérequis qui ne se devinent pas, et que
   la fois. Rien ici ne dit ce que fait une file Nexus sous charge réelle.
 - **La reprise après un échec du gestionnaire servant.** Ce qui a été mesuré, c'est un worker
   *éteint* — pas un gestionnaire qui lève au milieu de son travail.
+- **La forme en couches.** Tous les appels sont écrits depuis du code de workflow, sur un stub.
+  Rien dans le dépôt ne démontre l'arrangement port/adaptateur que la section ci-dessus recommande.
 - **La sécurité.** Les quatre namespaces sont sur le même serveur sans mTLS ni autorisation. Le
   cloisonnement inter-équipes, qui est la moitié de l'argument Nexus, n'est pas démontré.
 
