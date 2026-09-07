@@ -8,4 +8,4 @@
   Symfony demonstration and `laravel/config/durable.php` both name the complete contract.
 - **Entry points**: `documentation/user/nexus/_index.md`, `documentation/user/comparison/_index.md`
   and their `.fr.md` twins. Code blocks only, no prose, no source change.
-- **State**: in progress.
+- **State**: in review — PR #288.
