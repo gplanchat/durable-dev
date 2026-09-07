@@ -1,4 +1,4 @@
-# WA003 — GitHub epics, tasks, and project tracking
+# WA003: GitHub epics, tasks, and project tracking
 
 ## Status
 
@@ -69,7 +69,7 @@ Adapt fields if a template is mandated by the repository (e.g. GitHub issue form
 
 ## References
 
-- [WA001 — English language for project documentation](WA001-english-language-documentation.md)
+- [WA001: English language for project documentation](WA001-english-language-documentation.md)
 - [documentation/LIFECYCLE.md](../LIFECYCLE.md)
 - [documentation/INDEX.md](../INDEX.md)
 

@@ -1,4 +1,4 @@
-# WA007 — The agentic loop and its ledgers
+# WA007: The agentic loop and its ledgers
 
 ## Status
 
@@ -33,13 +33,13 @@ rather than a script someone added to `bin/`:
 
 | Seat | Tools | Writes code | Set by |
 |------|-------|-------------|--------|
-| Conductor | `Read,Grep,Glob` — read-only | never | `CONDUCTOR_MODEL` |
+| Conductor | `Read,Grep,Glob`, read-only | never | `CONDUCTOR_MODEL` |
 | Worker | read, edit, scoped `git`/`composer`/`vendor/bin` | yes, in a worktree | `WORKER_MODEL` |
 | Verifier | none; sees a spec and a diff, nothing else | no | `VERIFIER_MODEL` |
 | Gate | `loop/guardrails/verify.sh` | no | not a model |
 
 The separation is **physical**, not advisory: `--allowedTools` makes the conductor unable to write
-a file whatever it decides. This was tested, not assumed — a conductor asked to write a file has
+a file whatever it decides. This was tested, not assumed: a conductor asked to write a file has
 the attempt recorded in `permission_denials` and produces no file.
 
 The seats are **variables**. A model outage, a price change, or a compliance ruling is then a
@@ -49,14 +49,14 @@ default here is `claude-opus-5`, at half the input rate and the same 1M context,
 
 ### What earns autonomy
 
-Autonomy is granted **per skill** — a stable category of work such as `fix-cs` or `triage-issues` —
+Autonomy is granted **per skill**, a stable category of work such as `fix-cs` or `triage-issues`,
 and only from logged evidence in `loop/memory/trust.tsv`. A skill runs unattended after **20 runs
 at a 95% verified pass rate**, and is demoted automatically, and loudly, the moment it drops below
 its tier's floor. Never globally, never on faith, and never restored by hand.
 
 ### What the loop may and may not touch
 
-`loop/contract.md` holds the three lists — runs solo, needs sign-off, pages me. The supervised-only
+`loop/contract.md` holds the three lists: runs solo, needs sign-off, pages me. The supervised-only
 paths are in `CLAUDE.md`, and two of them are worth restating because they are specific to this
 repository:
 
@@ -80,18 +80,18 @@ itself. A human who picks up a loop branch and takes it further posts a prise th
 ### The reading list is gated at the boundary
 
 This repository is **public**, and its issues are the loop's reading list. When this was written,
-**12 of 25 open issues were authored by accounts with no association to the repository** — and
+**12 of 25 open issues were authored by accounts with no association to the repository**, and
 `gh issue list` reports no author at all, so a stranger's issue and the owner's reached the
 conductor as the same thing.
 
-A CI workflow labels every issue by its `author_association` — `loop:trusted` for OWNER, MEMBER and
-COLLABORATOR, `loop:untrusted` for everyone else — and `loop.sh` reads only issues carrying
+A CI workflow labels every issue by its `author_association`, `loop:trusted` for OWNER, MEMBER and
+COLLABORATOR and `loop:untrusted` for everyone else, and `loop.sh` reads only issues carrying
 `loop:trusted` or a human's `loop:cleared`. Four properties are the point:
 
 - **The gate is metadata, not judgement.** Author association cannot be spoofed by the issue text,
   which is the one thing an attacker controls. It needs no model, no API key, and no interpretation.
-- **It fails closed.** Any association that is not one of the three known team roles — including an
-  empty value, a lowercase spelling, or a role GitHub invents later — classifies as untrusted.
+- **It fails closed.** Any association that is not one of the three known team roles, including an
+  empty value, a lowercase spelling, or a role GitHub invents later, classifies as untrusted.
   `bin/issue-trust-gate-test.sh` asserts exactly that, and CONTRIBUTOR is the trap it guards: it
   reads like membership and means one merged pull request.
 - **An edit withdraws clearance.** Otherwise the gate is defeated by opening something harmless,
@@ -107,12 +107,12 @@ unsupervised, whatever it says. The model-assisted injection scan stays in `loop
 the text has to be read anyway and the blast radius is a throwaway worktree.
 
 What this does **not** cover, and should be revisited: issue **comments**. The loop currently reads
-issue titles only, so a comment is not yet in its context — but the moment bodies or comments enter
+issue titles only, so a comment is not yet in its context; but the moment bodies or comments enter
 the reading list, a trusted issue becomes a place a stranger can write.
 
 ### Prompt injection is a standing threat
 
-The loop reads issues, commit messages and CI logs — text written by people who are not on this
+The loop reads issues, commit messages and CI logs, text written by people who are not on this
 project. Anyone who can file an issue can put text in front of the agent. Four mitigations, all
 required, none sufficient alone:
 
@@ -122,7 +122,7 @@ required, none sufficient alone:
 2. Tool allowlists per seat, which make the separation physical.
 3. Blast radius: a worktree, a `loop/*` branch, draft PRs, and no merge to `main` without a human.
 4. Egress: the loop's environment holds no production credential. **This is not yet true on the
-   development machine** — a GitHub OAuth token sits in the global Composer configuration and is
+   development machine**: a GitHub OAuth token sits in the global Composer configuration and is
    readable by any process the loop spawns. Moving the loop to a low-privilege user with its own
    Composer home is a precondition for week 3 of the rollout below.
 
@@ -152,9 +152,9 @@ understanding, so once a month something comes out.
 
 ## Relationship to other normative documents
 
-- **WA001 / WA006** — English everywhere; these ledgers included.
-- **WA002** — TDD is not suspended for the loop: the worker prompt requires the failing test first,
+- **WA001 / WA006**: English everywhere; these ledgers included.
+- **WA002**: TDD is not suspended for the loop: the worker prompt requires the failing test first,
   and the verifier fails a diff that weakens one.
-- **WA003** — issues and epics are the loop's reading list, which is also its injection surface.
-- **DUR000** — why `documentation/adr/` is supervised-only.
-- **DUR008 / DUR009 / DUR010** — what the gate actually enforces.
+- **WA003**: issues and epics are the loop's reading list, which is also its injection surface.
+- **DUR000**: why `documentation/adr/` is supervised-only.
+- **DUR008 / DUR009 / DUR010**: what the gate actually enforces.

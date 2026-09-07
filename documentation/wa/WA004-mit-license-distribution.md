@@ -1,4 +1,4 @@
-# WA004 — MIT license for the repository and Composer packages
+# WA004: MIT license for the repository and Composer packages
 
 ## Status
 
@@ -58,13 +58,13 @@ The root **README** (and package READMEs where relevant) **should** state that t
 ### The documented exception: third-party marks
 
 `hugo-docs/assets/logos/` holds eighteen SVG files, and every one reproduces a mark belonging to
-somebody else. They are used nominatively — naming the projects Durable integrates with — which is
+somebody else. They are used nominatively, naming the projects Durable integrates with, which is
 ordinary. Shipping them under a grant that says *do what you like with this* is not, and this
 working agreement would otherwise say exactly that by omission.
 
 [`hugo-docs/assets/logos/README.md`](../../hugo-docs/assets/logos/README.md) is that exception: it
 records each mark's provenance, states that the MIT grant does not extend to them, and lists what
-each project's published policy says. **It also records one that a notice cannot settle** — API
+each project's published policy says. **It also records one that a notice cannot settle**: API
 Platform's policy names its "Webby" design as requiring prior approval, which has not been asked
 for. That is a decision, not an attribution.
 
@@ -77,5 +77,5 @@ for. That is a decision, not an attribution.
 ## References
 
 - [MIT License (OSI)](https://opensource.org/licenses/MIT)
-- [DUR020 — Monorepo, splitsh, and satellite repositories](../adr/DUR020-monorepo-splitsh-and-satellite-repositories.md)
+- [DUR020: Monorepo, splitsh, and satellite repositories](../adr/DUR020-monorepo-splitsh-and-satellite-repositories.md)
 - [documentation/INDEX.md](../INDEX.md)
