@@ -11,7 +11,7 @@ This page introduces the vocabulary and mental model behind Durable. Read it bef
 
 ## Durable execution
 
-**Durable execution** means that a long-running process — one that may span seconds, hours, or days — survives restarts, crashes, and deployments. The runtime records every decision (activity result, timer expiry, signal received) into a **history**, then **replays** that history to restore the exact state the program was in.
+**Durable execution** means that a long-running process, one that may span seconds, hours, or days, survives restarts, crashes, and deployments. The runtime records every decision (activity result, timer expiry, signal received) into a **history**, then **replays** that history to restore the exact state the program was in.
 
 From the developer's perspective this feels like writing ordinary sequential PHP: `await` an activity, receive the result, continue. The runtime handles fault tolerance transparently.
 
@@ -30,7 +30,7 @@ A **workflow** is pure orchestration logic. It:
 A workflow function must be **deterministic**: given the same history, re-executing it must produce the same sequence of commands. This is what makes replay possible.
 
 **What does NOT belong in a workflow:**
-- HTTP calls, database queries, random numbers, timestamps — all non-deterministic.
+- HTTP calls, database queries, random numbers, timestamps: all non-deterministic.
 - Filesystem access, environment variable reads.
 - Any I/O that would produce a different result on replay.
 
@@ -62,7 +62,7 @@ ExecutionStarted
             └─ ExecutionCompleted(result: "done")
 ```
 
-When the workflow process restarts — or when Temporal schedules a new workflow task — the runtime **replays** the workflow function against this history:
+When the workflow process restarts, or when Temporal schedules a new workflow task, the runtime **replays** the workflow function against this history:
 
 ```
 Replay step 1: await activity("charge-order")
@@ -71,7 +71,7 @@ Replay step 2: return "done"
   → history has ExecutionCompleted → workflow is finished
 ```
 
-Because the result is in history, the activity handler is **not called again** during replay. The function simply continues from where it left off.
+Because the result is in history, the activity handler is **not called again** during replay. The function continues from where it left off.
 
 ### Event types
 
@@ -94,7 +94,7 @@ Because the result is in history, the activity handler is **not called again** d
 
 ## Await and Awaitables
 
-`WorkflowEnvironment::await()` is the single primitive for suspending the workflow. It accepts an **`Awaitable`** — a lightweight placeholder for a future result — and blocks (conceptually) until that result is available.
+`WorkflowEnvironment::await()` is the single primitive for suspending the workflow. It accepts an **`Awaitable`**, a lightweight placeholder for a future result, and blocks (conceptually) until that result is available.
 
 Under the hood, Durable uses **PHP Fibers** to suspend execution without blocking the OS thread. The fiber resumes when the orchestrator delivers the awaited result in a subsequent workflow task.
 
@@ -189,8 +189,8 @@ $env->await(function () use (&$approvals): bool { return [] !== $approvals; });
 
 Use signals for: approval flows, pause/resume, external triggers.
 
-**Name signals with a string-backed enum**, not a literal. Both ends take a `BackedEnum` — the
-handler that consumes the signal and the client that sends it — so one enum enumerates a workflow's
+**Name signals with a string-backed enum**, not a literal. Both ends take a `BackedEnum`, the
+handler that consumes the signal and the client that sends it, so one enum enumerates a workflow's
 signal surface and a typo is a type error instead of a wait that never settles (see **DUR034**):
 
 ```php
@@ -202,7 +202,7 @@ or a service written in another language. The enum types the inside; it cannot t
 
 > [!IMPORTANT]
 > **Migrating from `waitSignal()`.** The method is gone. It read history directly, which is why it
-> needed a positional slot, a per-name counter, and a rule for a wait that gave up — machinery a
+> needed a positional slot, a per-name counter, and a rule for a wait that gave up: machinery a
 > handler plus a condition replaces outright (see **DUR035**).
 >
 > ```php
@@ -231,7 +231,7 @@ An **update** is a transactional message: the workflow processes it and **return
 the caller. The interaction is recorded in history. Updates combine signal semantics (state change)
 with query semantics (return value).
 
-The handler's return value *is* the response — that is the whole difference from a signal, which
+The handler's return value *is* the response, which is the whole difference from a signal, which
 has none:
 
 ```php
@@ -244,7 +244,7 @@ public function greet(array $arguments): string
 }
 ```
 
-A handler that raises makes the **update** fail — the caller receives the failure, and the
+A handler that raises makes the **update** fail: the caller receives the failure, and the
 execution carries on. On replay the handler runs again to rebuild the state it mutated, while the
 recorded outcome stays the one the caller already received.
 
@@ -309,7 +309,7 @@ Durable runs on four backends that share the same workflow and activity code:
 ### Illuminate
 
 - The same four stores and the same trade, on `Illuminate\Database\Connection` rather than
-  Doctrine's — a store on `DB::connection()` is inside `DB::transaction()` by construction.
+  Doctrine's; a store on `DB::connection()` is inside `DB::transaction()` by construction.
 - It is not a fourth value of `event_store.type` and never will be: a Laravel application does not
   read the bundle's YAML. What binds it is `gplanchat/durable-laravel`, through its own
   `config/durable.php`.
@@ -317,14 +317,14 @@ Durable runs on four backends that share the same workflow and activity code:
 ### Temporal
 
 - Production-grade orchestration with a real Temporal cluster.
-- Full history persistence, durable retries, Temporal UI — and the three things no journal backend
+- Full history persistence, durable retries, Temporal UI, and the three things no journal backend
   has: search attributes, cron schedules, and Nexus.
 - Workers poll Temporal over gRPC, through whatever the host runs its workers with.
 - Requires the `ext-grpc` PHP extension.
 
 > [!NOTE]
 > **On Magento, only two of the four are reachable.** `gplanchat/durable-magento` declares a Composer
-> `conflict` on both SQL bridges — `Magento\Framework\App\ResourceConnection` is neither Doctrine
+> `conflict` on both SQL bridges: `Magento\Framework\App\ResourceConnection` is neither Doctrine
 > DBAL nor Illuminate's connection, so neither has anything to bind to. The state lives in a Temporal
 > cluster, or it lives in one process, and the presence of `durable/temporal/dsn` in `app/etc/env.php`
 > decides which.
@@ -338,15 +338,15 @@ For setup details, see [Backends](../backends/).
 Durable brings no transport of its own. Workflow and activity work rides what the host already has,
 and each host says so differently:
 
-**Symfony** — **Messenger**. `ResumeWorkflowMessage` routes to the workflow task queue,
+**Symfony** uses **Messenger**. `ResumeWorkflowMessage` routes to the workflow task queue,
 `ActivityMessage` to the activity task queue, and signals, updates and timer fires go on the
-synchronous bus. With the Temporal backend the transport is a **gRPC-backed polling transport** —
+synchronous bus. With the Temporal backend the transport is a **gRPC-backed polling transport**:
 the same consumer interface, a different underlying protocol.
 
-**Laravel** — the **queue the application already drains**. Activities and resumes are jobs, a timer
+**Laravel** uses the **queue the application already drains**. Activities and resumes are jobs, a timer
 is a deferred resume on the queue's own delay, and `php artisan queue:work` is the only worker.
 
-**Magento** — neither. Workers are `bin/magento durable:worker --role=journal|activity` commands
+**Magento** uses neither. Workers are `bin/magento durable:worker --role=journal|activity` commands
 that poll the backend directly; nothing rides Magento's own `MessageQueue`, because on Temporal an
 activity is already a Temporal command and a resume a workflow task.
 
@@ -367,18 +367,18 @@ The **replay contract** is the core constraint: any code inside `#[AsWorkflowMet
 - Pure computation on workflow-local variables
 
 **Not allowed in a workflow (do in activities instead):**
-- `new \DateTime()` / `time()` / `random_int()` — non-deterministic
+- `new \DateTime()` / `time()` / `random_int()`: non-deterministic
 - `file_get_contents()`, `curl_exec()`, database queries
 - `static` or global mutable state shared across workflow executions
-- `sleep()` (the PHP function) — use `$env->sleep()`, which suspends durably instead of blocking the worker
+- `sleep()` (the PHP function): use `$env->sleep()`, which suspends durably instead of blocking the worker
 
 ---
 
 ## Going deeper
 
-- [Getting started](../getting-started/) — install, configure, write your first workflow end-to-end.
-- [Backends](../backends/) — In-Memory, DBAL, Illuminate and Temporal, Docker setup, DSN reference.
-- [Creating a workflow](../workflows/) — full workflow API with signals, queries, updates, child workflows.
-- [Creating activities](../activities/) — `ActivityOptions`, retries, timeouts, dependency injection.
-- [Testing workflows](../testing/) — `DurableTestCase`, `ActivitySpy`, `DurableBundleTestTrait`.
-- [Configuration reference](../configuration/) — every `durable.yaml` key.
+- [Getting started](../getting-started/) covers install, configuration and a first workflow end-to-end.
+- [Backends](../backends/) covers In-Memory, DBAL, Illuminate and Temporal, Docker setup, DSN reference.
+- [Creating a workflow](../workflows/) covers the full workflow API with signals, queries, updates, child workflows.
+- [Creating activities](../activities/) covers `ActivityOptions`, retries, timeouts, dependency injection.
+- [Testing workflows](../testing/) covers `DurableTestCase`, `ActivitySpy` and `DurableBundleTestTrait`.
+- [Configuration reference](../configuration/) lists every `durable.yaml` key.
