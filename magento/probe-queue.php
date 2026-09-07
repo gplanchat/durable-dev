@@ -43,7 +43,7 @@ switch ($argv[1] ?? 'state') {
         $seconds = (int) ($argv[3] ?? 30);
         $om->get(\Magento\Framework\MessageQueue\PublisherInterface::class)
             ->publish('gplanchat.durable.probe', $label . ':' . $seconds);
-        echo "publié : $label:$seconds\n";
+        echo "published: $label:$seconds\n";
         break;
 
     case 'state':
@@ -70,7 +70,7 @@ switch ($argv[1] ?? 'state') {
                 $row['body'],
             );
         }
-        printf("(maintenant, côté base : %s)\n", $db->fetchOne('SELECT NOW()'));
+        printf("(now, on the database side: %s)\n", $db->fetchOne('SELECT NOW()'));
         break;
 
     case 'recover':
@@ -79,7 +79,7 @@ switch ($argv[1] ?? 'state') {
         // cette méthode, à 6h30 et 15h30. On appelle son point d'entrée, pas
         // son ordonnanceur : la sonde mesure l'effet, elle ne réimplémente rien.
         $om->get(\Magento\MysqlMq\Model\Observer::class)->cleanupMessages();
-        echo "mysqlmq_clean_messages exécutée\n";
+        echo "mysqlmq_clean_messages ran\n";
         break;
 
     case 'unlock':
@@ -87,7 +87,7 @@ switch ($argv[1] ?? 'state') {
         // Elle vide `queue_lock` — et c'est elle, pas la reprise, qui décide si
         // un message redélivré sera traité ou acquitté sans rien faire.
         $om->get(\Magento\Framework\MessageQueue\Lock\WriterInterface::class)->releaseOutdatedLocks();
-        echo "messagequeue_clean_outdated_locks exécutée\n";
+        echo "messagequeue_clean_outdated_locks ran\n";
         break;
 
     case 'purge':
@@ -106,7 +106,7 @@ switch ($argv[1] ?? 'state') {
             $om->get(\Magento\MysqlMq\Model\QueueManagement::class)
                 ->changeStatus($ids, \Magento\MysqlMq\Model\QueueManagement::MESSAGE_STATUS_COMPLETE);
         }
-        printf("%d message(s) de sonde retiré(s) du chemin\n", count($ids));
+        printf("%d probe message(s) taken out of the way\n", count($ids));
         break;
 
     case 'config':
@@ -122,6 +122,6 @@ switch ($argv[1] ?? 'state') {
         break;
 
     default:
-        fwrite(STDERR, "usage: php probe-queue.php publish <étiquette> <secondes>|state|config\n");
+        fwrite(STDERR, "usage: php probe-queue.php publish <label> <seconds>|state|config\n");
         exit(2);
 }
