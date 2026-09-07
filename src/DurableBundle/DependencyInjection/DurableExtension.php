@@ -104,6 +104,13 @@ final class DurableExtension extends Extension
         $this->registerRuntime($container, $config);
         $this->registerWorkflowMessengerServices($container, $config);
         $this->registerParentChildCoordinator($container);
+        // The pass that installs the middleware runs well after the extensions; it reads this
+        // choice back here rather than rediscovering it.
+        $container->setParameter(
+            RegisterDurableMiddlewarePass::BUSES_PARAMETER,
+            $config['messenger']['buses'] ?? [],
+        );
+
         $this->registerActivityContractResolver($container, $config);
         $this->registerEngine($container, $config);
         $this->registerActivityContractCacheWarmer($container, $config);

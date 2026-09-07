@@ -30,6 +30,8 @@ durable:
         transport_name: durable_activities
         table_name: durable_activity_outbox
     max_activity_retries: 0                  # réessais automatiques maximum avant de marquer une activité en échec
+    messenger:
+        buses: []                            # [] = tous les bus (défaut)
     activity_contracts:
         cache: cache.app                     # pool de cache PSR-6 pour les métadonnées de contrat (défaut : null, pas de cache)
         contracts:
@@ -143,6 +145,30 @@ d'activité.
 dans `messenger.yaml` ne le sélectionne pas : sans `type: messenger`, le transport reste vide et
 l'activité a déjà tourné en ligne, prenant le temps de la tâche de workflow avec elle et perdant la
 sémantique de réessai que le transport apporte.
+
+---
+
+## `messenger`
+
+```yaml
+durable:
+    messenger:
+        buses:
+            - messenger.bus.durable
+```
+
+Les bus Messenger sur lesquels le bundle installe ses middlewares — le verrou de reprise DBAL, et
+le middleware de profil en debug.
+
+**Le défaut est tous les bus**, ce que les versions précédentes faisaient sans condition. Ce défaut
+ne peut pas être plus fin : le bundle ne sait pas vers quel bus votre application route
+`ResumeWorkflowMessage`, et deviner retirerait le verrou de reprise du bus qui porte réellement le
+travail — une perte silencieuse de la garantie pour laquelle ce verrou existe.
+
+Nommer les bus vaut la peine dès que vous en avez plusieurs. Un bus de commandes métier ne
+transporte aucun message durable, et y prendre un verrou par exécution est une contention que
+personne n'a demandée. Un identifiant qui ne nomme aucun bus déclaré est refusé à la compilation,
+plutôt que de ne rien faire en silence.
 
 ---
 
