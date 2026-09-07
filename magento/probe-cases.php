@@ -3,14 +3,14 @@
 declare(strict_types=1);
 
 /*
- * Sonde — une exécution qui contient tous les cas que l'écran d'observation doit savoir montrer.
+ * Probe — one execution that holds every case the observation screen has to know how to show.
  *
- * Le banc n'avait qu'un chemin heureux. Une frise validée sur trois activités qui réussissent ne
- * prouve rien d'un échec, d'un minuteur ni d'un enfant : cette sonde produit les six formes d'un
- * coup, pour que la page de détail soit jugée sur ce qu'elle rend et non sur ce qu'on imagine.
+ * The bench only had a happy path. A frieze validated on three activities that succeed proves
+ * nothing of a failure, of a timer or of a child: this probe produces the six shapes in one go, so
+ * that the detail page is judged on what it renders and not on what one imagines.
  *
- *   php probe-cases.php cluster <identifiant>   lance sur la grappe (workers requis)
- *   php probe-cases.php here    <identifiant>   exécute dans ce processus, en mémoire
+ *   php probe-cases.php cluster <identifier>   starts on the cluster (workers required)
+ *   php probe-cases.php here    <identifier>   runs in this process, in memory
  */
 
 require __DIR__ . '/app/bootstrap.php';
