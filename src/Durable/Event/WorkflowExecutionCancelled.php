@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Event;
 
 /**
- * Fin d'exécution sur annulation — contrepartie terminale de {@see WorkflowCancellationRequested},
+ * Fin d'exécution sur annulation, contrepartie terminale de {@see WorkflowCancellationRequested},
  * qui n'en avait aucune : un enfant en {@see \Gplanchat\Durable\ParentClosePolicy::RequestCancel}
  * restait « actif » pour toujours aux yeux de
  * {@see \Gplanchat\Durable\ParentChildWorkflowCoordinator::isChildRunActive()}.

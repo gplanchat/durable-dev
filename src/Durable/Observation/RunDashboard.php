@@ -7,18 +7,18 @@ namespace Gplanchat\Durable\Observation;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 
 /**
- * Ce que la page a besoin de savoir, tiré du port et de rien d'autre — **pour toutes les surfaces**.
+ * Ce que la page a besoin de savoir, tiré du port et de rien d'autre, **pour toutes les surfaces**.
  *
  * Ce modèle vivait dans le greffon Sylius, et Magento en dérivait sa propre moitié : la santé du
  * backend d'un côté, la frise placée dans le temps de l'autre, et le même run se lisait donc
- * différemment selon l'application ouverte. Il n'a rien de Sylius, et n'en avait déjà rien — il ne
+ * différemment selon l'application ouverte. Il n'a rien de Sylius, et n'en avait déjà rien : il ne
  * dépend que du port et des faits d'observation. C'est un contrat de **données** : une surface qui
  * ne rend aucun balisage sert les mêmes panneaux.
  *
  * @see DUR049 une projection, plusieurs habillages
  *
  * Le catalogue est nullable, et c'est le cas normal : le conteneur n'en enregistre aucun quand
- * aucun backend n'est lisible. La page dit alors qu'aucun backend n'est configuré — **sans nommer
+ * aucun backend n'est lisible. La page dit alors qu'aucun backend n'est configuré, **sans nommer
  * Temporal**, qui peut n'avoir jamais été de la partie sur cette application.
  *
  * Un fait que le backend n'a pas est **absent** du modèle, pas rendu en chaîne vide : une colonne
@@ -60,7 +60,7 @@ final class RunDashboard
         }
 
         // « Un catalogue est enregistré » et « le backend répond » sont deux questions distinctes.
-        // Sans cette seconde, une base tombée donnerait une page vide et sereine — la pire des deux
+        // Sans cette seconde, une base tombée donnerait une page vide et sereine, la pire des deux
         // erreurs possibles, puisque l'exploitant en conclut qu'il n'y a rien à voir.
         $health = $this->catalog->checkHealth();
         if (!$health->reachable) {
@@ -91,7 +91,7 @@ final class RunDashboard
                 'available' => true,
                 // Le troisième état : il répond, et sa réponse est vide par construction parce que
                 // son journal ne survit pas au processus. Vide est alors la bonne réponse, pas une
-                // panne — et une surface a besoin de le **lire** pour le dire.
+                // panne, et une surface a besoin de le **lire** pour le dire.
                 'ephemeral' => $health->ephemeral,
                 'message' => $health->message,
                 'name' => $health->backend,
@@ -156,8 +156,8 @@ final class RunDashboard
     /**
      * Un compteur par issue, toutes les issues, sur **l'ensemble qu'on lui donne**.
      *
-     * Publique parce qu'un hôte qui pagine autrement — la grille standard de Magento pagine par
-     * décalage dans une fenêtre bornée — compte le même ensemble avec les mêmes seaux. C'est
+     * Publique parce qu'un hôte qui pagine autrement (la grille standard de Magento pagine par
+     * décalage dans une fenêtre bornée) compte le même ensemble avec les mêmes seaux. C'est
      * précisément le trou qu'une liste figée creuse : l'appelant qui écrit ses seaux à la main en
      * oublie un, et les compteurs cessent de s'additionner sans que rien ne le dise.
      *

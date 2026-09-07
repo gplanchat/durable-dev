@@ -21,7 +21,7 @@ enum ActivityRetryState: string
     /** Timeout schedule-to-start / schedule-to-close : plus aucune tentative n'est autorisée. */
     case Timeout = 'timeout';
 
-    /** Toutes les tentatives autorisées ont été consommées — « ActivityStalled ». */
+    /** Toutes les tentatives autorisées ont été consommées : « ActivityStalled ». */
     case MaximumAttemptsReached = 'maximum_attempts_reached';
 
     /**

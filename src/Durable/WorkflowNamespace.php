@@ -8,11 +8,11 @@ namespace Gplanchat\Durable;
  * Le namespace : la frontière d'isolation dans laquelle vivent exécutions, files et attributs de
  * recherche.
  *
- * Nommé `WorkflowNamespace` faute de mieux — `namespace` est un mot réservé du langage.
+ * Nommé `WorkflowNamespace` faute de mieux : `namespace` est un mot réservé du langage.
  *
  * Contrairement à {@see TaskQueue}, une erreur ici ne passe pas inaperçue : le serveur répond
  * `NOT_FOUND, Namespace "…" is not found`, un namespace devant exister avant usage. Cet objet
- * apporte donc surtout du **typage** — namespace et file de tâches sont deux chaînes voisines
+ * apporte donc surtout du **typage** : namespace et file de tâches sont deux chaînes voisines
  * dans les mêmes constructeurs, et les intervertir ne se voyait qu'à l'exécution.
  *
  * Sondé : le serveur n'exige que « non vide ». Il accepte espaces, majuscules, accents,

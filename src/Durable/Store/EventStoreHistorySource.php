@@ -359,7 +359,7 @@ final class EventStoreHistorySource implements WorkflowHistorySourceInterface
     /**
      * Toujours null : le tampon de ce backend refuse de planifier une opération Nexus
      * ({@see \Gplanchat\Durable\Nexus\NexusUnsupportedByBackendException}), donc aucune ne peut
-     * figurer dans son journal. Ce n'est pas une implémentation en attente — il n'y a rien à
+     * figurer dans son journal. Ce n'est pas une implémentation en attente : il n'y a rien à
      * relire parce qu'il n'y a rien eu à écrire.
      */
     public function findNexusOperationSlotResult(int $slot): ?array

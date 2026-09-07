@@ -22,7 +22,7 @@ interface StockServed
      * @param array<string, int> $lines reference => quantity asked for
      *
      * @return array{reserved: bool, missing: array<string, int>} `missing` is empty when `reserved`
-     *                                  is `true` — the caller therefore has one field to read to
+     *                                  is `true`, so the caller has one field to read to
      *                                  decide, and the second one to explain
      */
     #[AsNexusOperation('reserve')]

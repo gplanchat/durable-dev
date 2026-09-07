@@ -12,7 +12,7 @@ use Temporal\Api\Protocol\V1\Message;
  * Value object returned by WorkflowTaskRunner::run().
  *
  * Carries the commands to send back to Temporal, the protocol messages that ride alongside them
- * (acceptance and response of an update — voir {@see UpdateProtocol}), and the query handlers of
+ * (acceptance and response of an update, voir {@see UpdateProtocol}), and the query handlers of
  * the execution (needed to answer queries after replay).
  */
 final class WorkflowTaskResult

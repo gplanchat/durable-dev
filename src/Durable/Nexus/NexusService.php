@@ -7,11 +7,11 @@ namespace Gplanchat\Durable\Nexus;
 /**
  * Le nom du service Nexus visé : quel contrat l'endpoint doit servir.
  *
- * **Cet objet est plus strict que le serveur, et c'est délibéré** — comme
+ * **Cet objet est plus strict que le serveur, et c'est délibéré**, comme
  * {@see \Gplanchat\Durable\TaskQueue}, et à l'inverse de {@see NexusEndpoint}.
  *
  * Sondé sur Temporal 1.31.2 (tâche 1.1) : le serveur ne valide **rien** ici. Vide, un espace,
- * blancs en bord, tabulation interne, caractère de contrôle, mille caractères — tout est accepté,
+ * blancs en bord, tabulation interne, caractère de contrôle, mille caractères : tout est accepté,
  * et `NEXUS_OPERATION_SCHEDULED` enregistre le nom verbatim. Rien ne suit : l'opération reste
  * planifiée, à attendre un gestionnaire dont le nom ne correspondra jamais, sans une ligne
  * d'erreur. C'est exactement la panne muette d'une file de tâches mal nommée, et seule une règle
@@ -19,7 +19,7 @@ namespace Gplanchat\Durable\Nexus;
  *
  * Ce qui est refusé se limite à ce qui ne peut être qu'une faute : nom vide ou entièrement blanc,
  * blancs en bord, caractère de contrôle. **Aucune borne de longueur et aucun alphabet ne sont
- * imposés** — le serveur n'en a montré aucun, et la tâche 1.4 interdit d'écrire un invariant qui
+ * imposés** : le serveur n'en a montré aucun, et la tâche 1.4 interdit d'écrire un invariant qui
  * n'a pas été observé. Un point, une barre oblique ou une majuscule sont donc des noms légitimes.
  *
  * Comme partout ailleurs, la faute de frappe qui reste un nom plausible n'est pas attrapée :

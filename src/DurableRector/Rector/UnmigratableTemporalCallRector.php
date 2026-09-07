@@ -22,7 +22,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  *
  * It changes no behaviour: it writes a `durable-rector:` comment above the statement and leaves the
  * code alone. The point is to answer, before anybody rewrites a line, **whether the migration is
- * available at all** — a workflow built on `Workflow::async()` and `Workflow::runLocked()` is not a
+ * available at all**: a workflow built on `Workflow::async()` and `Workflow::runLocked()` is not a
  * long migration, it is a redesign.
  *
  * The list of what it accepts is an **allow-list**, and deliberately so. `Workflow::` carries forty
@@ -38,7 +38,7 @@ final class UnmigratableTemporalCallRector extends AbstractRector
     /**
      * The facade calls a Durable environment can answer. Everything else is reported.
      *
-     * They are not rewritten here — that is the execution-model half of the migration, and it needs
+     * They are not rewritten here: that is the execution-model half of the migration, and it needs
      * a receiver this class does not have. Listing them keeps the report about decisions rather
      * than about work a tool still owes.
      */

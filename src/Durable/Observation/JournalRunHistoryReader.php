@@ -39,7 +39,7 @@ use Gplanchat\Durable\Store\EventStoreInterface;
  *
  * Une seule passe avant suffit pour nommer les activités : la planification précède toujours la
  * complétion dans l'ordre d'enregistrement, donc le nom est connu quand on en a besoin. Une
- * complétion sans sa planification — journal purgé, reprise partielle — retombe sur l'identifiant :
+ * complétion sans sa planification (journal purgé, reprise partielle) retombe sur l'identifiant :
  * un id vaut mieux qu'une ligne sans nom.
  */
 final class JournalRunHistoryReader
@@ -62,7 +62,7 @@ final class JournalRunHistoryReader
         /** @var array<string, string> $activityNames */
         $activityNames = [];
         // Les événements terminaux d'une opération Nexus ne portent que le `scheduledEventId` :
-        // l'identité — endpoint, service, opération — n'est écrite que sur la planification. Même
+        // l'identité (endpoint, service, opération) n'est écrite que sur la planification. Même
         // contrainte que pour les activités, même remède.
         /** @var array<int, string> $nexusNames */
         $nexusNames = [];
@@ -105,12 +105,12 @@ final class JournalRunHistoryReader
                 self::labelOf($event, $activityNames, $nexusNames, $timerNames, $childNames, $workflowName),
                 // `payload()` est sur l'interface `Event` : c'est la forme sérialisée que
                 // l'événement se donne déjà pour être écrit puis relu. Rien à traduire, et rien à
-                // choisir non plus — filtrer ici reviendrait à décider à la place de l'exploitant
+                // choisir non plus : filtrer ici reviendrait à décider à la place de l'exploitant
                 // ce qui mérite d'être vu le jour où quelque chose ne va pas.
                 $event->payload(),
                 self::actionKeyOf($event),
                 // Même règle que le pont Temporal : l'événement par lequel le travail commence
-                // pour de bon. Ici il n'y en a que deux, et `ExecutionStarted` est inerte — il
+                // pour de bon. Ici il n'y en a que deux, et `ExecutionStarted` est inerte : il
                 // ouvre l'exécution, donc aucun intervalle ne le précède.
                 $event instanceof ActivityTaskStarted || $event instanceof ExecutionStarted,
                 self::isFailure($event),
@@ -124,12 +124,12 @@ final class JournalRunHistoryReader
      * Le nom d'un minuteur : son résumé s'il en a un, et **son délai dans tous les cas**.
      *
      * « TimerScheduled » nomme la classe, et un résumé seul dit pourquoi on attend sans dire
-     * combien de temps — or c'est le délai qu'un exploitant vient lire, et le déduire lui
+     * combien de temps ; or c'est le délai qu'un exploitant vient lire, et le déduire lui
      * demanderait de soustraire deux horodatages de deux lignes.
      *
      * ⚠ `scheduledAt()` est l'**échéance**, pas l'instant de la planification : le délai est donc
-     * la différence avec l'horodatage d'enregistrement. Sans cet horodatage — un journal qui ne
-     * l'a pas gardé — le minuteur reste sans délai plutôt que d'en annoncer un compté depuis
+     * la différence avec l'horodatage d'enregistrement. Sans cet horodatage (un journal qui ne
+     * l'a pas gardé), le minuteur reste sans délai plutôt que d'en annoncer un compté depuis
      * l'époque Unix, ce qui donnerait « 55 ans » sur une attente de cinq secondes.
      */
     private static function timerLabel(TimerScheduled $event, ?\DateTimeImmutable $recordedAt): string
@@ -151,7 +151,7 @@ final class JournalRunHistoryReader
      * `WorkflowExecutionCancelled` sont des issues demandées par quelqu'un ; les peindre comme des
      * pannes enverrait chercher un incident là où il n'y a qu'une décision, et le rouge cesserait
      * de vouloir dire quoi que ce soit. Le pont Temporal tient la même frontière, aux deux
-     * suffixes `_FAILED` et `_TIMED_OUT` — ⚠ et il écrit `CANCELED` à un seul « l » là où le
+     * suffixes `_FAILED` et `_TIMED_OUT`. ⚠ Et il écrit `CANCELED` à un seul « l » là où le
      * journal écrit `Cancelled`, ce qui fait rater une règle écrite d'un seul côté.
      */
     private static function isFailure(Event $event): bool
@@ -175,7 +175,7 @@ final class JournalRunHistoryReader
     private static function actionKeyOf(Event $event): ?string
     {
         // L'exécution elle-même est une action : son démarrage, sa fin, son annulation. Un signal
-        // reçu ou une mise à jour n'en font pas partie — ce sont des actions à part entière, et
+        // reçu ou une mise à jour n'en font pas partie : ce sont des actions à part entière, et
         // c'est pour cela que la liste est écrite plutôt que dérivée de la nature `Execution`.
         if ($event instanceof ExecutionStarted
             || $event instanceof ExecutionCompleted
@@ -263,7 +263,7 @@ final class JournalRunHistoryReader
     ): string {
         // Une ligne de frise porte le nom de son action, et l'action de l'exécution est
         // l'exécution : « ExecutionStarted » nomme une classe d'événement, pas ce qui tourne.
-        // Le journal ne connaît pas ce nom — il n'a qu'un flux — donc l'appelant le lui donne.
+        // Le journal ne connaît pas ce nom (il n'a qu'un flux), donc l'appelant le lui donne.
         if ($event instanceof ExecutionStarted && '' !== $workflowName) {
             return $workflowName;
         }
@@ -282,7 +282,7 @@ final class JournalRunHistoryReader
 
         $scheduledEventId = self::nexusScheduledEventIdOf($event);
         if (null !== $scheduledEventId) {
-            // Sans la planification — un journal tronqué, une lecture partielle — mieux vaut
+            // Sans la planification (un journal tronqué, une lecture partielle), mieux vaut
             // nommer l'identifiant que rendre une étiquette qui ne désigne rien.
             return $nexusNames[$scheduledEventId] ?? ('nexus #' . $scheduledEventId);
         }

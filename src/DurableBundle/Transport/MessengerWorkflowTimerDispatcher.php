@@ -12,7 +12,7 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Stamp\DispatchAfterCurrentBusStamp;
 
 /**
- * Le port des minuteries, tenu par Messenger — c'est tout ce que Symfony apportait à
+ * Le port des minuteries, tenu par Messenger : c'est tout ce que Symfony apportait à
  * l'orchestration de reprise, et c'est maintenant tout ce qu'il en reste ici.
  *
  * `DispatchAfterCurrentBusStamp` est ce qui donne au contrat son « après l'unité de travail

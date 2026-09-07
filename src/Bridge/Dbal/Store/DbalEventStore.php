@@ -11,13 +11,13 @@ use Gplanchat\Durable\Mapping\EventDataMapper;
 use Gplanchat\Durable\Store\EventStoreInterface;
 
 /**
- * Journal d'événements persisté en SQL — le pendant durable de
+ * Journal d'événements persisté en SQL, le pendant durable de
  * {@see \Gplanchat\Durable\Store\InMemoryEventStore}.
  *
  * La (dé)sérialisation passe entièrement par {@see EventDataMapper} : les lignes ont la même
  * forme que les enregistrements du journal Temporal, ce que le mapper documente déjà.
  *
- * ponytail: pas de colonne `sequence` — l'auto-increment porte l'ordre d'insertion.
+ * ponytail: pas de colonne `sequence`. L'auto-increment porte l'ordre d'insertion.
  * L'exclusion mutuelle entre deux reprises concurrentes d'une même exécution est en amont,
  * dans {@see \Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware} ; sans elle, deux
  * workers rejoueraient la même exécution et dupliqueraient ses commandes.

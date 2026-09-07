@@ -37,7 +37,7 @@ use Gplanchat\Durable\Store\EventStoreInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Suite de conformité d'{@see EventStoreInterface} — DUR041.
+ * Suite de conformité d'{@see EventStoreInterface} (DUR041).
  *
  * Un adaptateur prouve qu'il implémente le port en étendant cette classe et en rendant un store
  * neuf depuis {@see createEventStore()}. La référence, c'est
@@ -48,7 +48,7 @@ use PHPUnit\Framework\TestCase;
  * déforme un payload ne casse rien au moment de `append()` ; il casse le replay, plus tard, sur une
  * exécution qui reprend et lit autre chose que ce qu'elle avait écrit.
  *
- * ponytail: pas de fabrique d'événements paramétrable — la liste de {@see mappedEventFixtures()}
+ * ponytail: pas de fabrique d'événements paramétrable. La liste de {@see mappedEventFixtures()}
  * est en dur, et {@see testEveryEventTypeIsCoveredOrExplicitlyExcluded} la tient à jour à la place
  * d'une convention que personne ne relit.
  *
@@ -108,7 +108,7 @@ abstract class EventStoreConformanceTestCase extends TestCase
     /**
      * Le store DBAL rend un générateur adossé à une requête, le store in-memory un tableau. Les
      * deux moitiés comptent : une passe suffit, **et** un second appel repart du début. C'est la
-     * seconde qu'un adaptateur rate — un générateur mémorisé une fois ne rejoue pas.
+     * seconde qu'un adaptateur rate : un générateur mémorisé une fois ne rejoue pas.
      */
     public function testAStreamIsConsumableOnceAndRestartsOnTheNextCall(): void
     {
@@ -183,7 +183,7 @@ abstract class EventStoreConformanceTestCase extends TestCase
     }
 
     /**
-     * `recordedAt` est nullable par contrat — le store in-memory ne date rien. La suite garde donc
+     * `recordedAt` est nullable par contrat : le store in-memory ne date rien. La suite garde donc
      * la **forme** et l'ordre, pas une valeur.
      */
     public function testRecordedAtYieldsTheSameEventsInTheSameOrder(): void

@@ -66,7 +66,7 @@ final class TemporalActivityWorker
         $options = $message->options;
 
         // ⚠ **Redélivrance** d'une tâche déjà tranchée : répondre depuis le journal sans
-        // réexécuter — mais une *reprise* n'est pas une redélivrance, et la question posée ici
+        // réexécuter, mais une *reprise* n'est pas une redélivrance, et la question posée ici
         // doit porter sur cette livraison-ci. Interroger la dernière issue tout court faisait
         // répondre l'échec de la tentative 1 aux tentatives suivantes, sans jamais rappeler le
         // code de l'activité : trois tentatives consommées en deux secondes et une panne
@@ -97,7 +97,7 @@ final class TemporalActivityWorker
         }
 
         // Après traitement, la question est l'autre : **qu'est-ce que le processeur vient
-        // d'écrire ?** Un échec en cours de reprise en fait partie — c'est lui qu'il faut rendre
+        // d'écrire ?** Un échec en cours de reprise en fait partie : c'est lui qu'il faut rendre
         // au serveur pour qu'il ordonnance la tentative suivante.
         if ($this->respondIfSettled(
             ActivityEventJournal::lastTerminalOutcome($this->eventStore, $message->executionId, $message->activityId),

@@ -16,10 +16,10 @@ use Symfony\Component\Messenger\Middleware\StackInterface;
  *
  * Temporal sérialise les tâches d'un même workflow côté serveur ; le backend DBAL n'a pas de
  * serveur, donc deux consumers qui dépilent deux reprises de la même exécution rejoueraient le
- * même fiber en parallèle et écriraient deux fois les mêmes commandes — activités dupliquées,
+ * même fiber en parallèle et écriraient deux fois les mêmes commandes : activités dupliquées,
  * journal divergent. Ce verrou est la contrepartie de cette absence.
  *
- * ponytail: acquisition bloquante — le worker attend son tour plutôt que de renvoyer le message.
+ * ponytail: acquisition bloquante. Le worker attend son tour plutôt que de renvoyer le message.
  * Passer à un rejet + retry Messenger si l'attente occupe trop de workers.
  *
  * @see DUR030
