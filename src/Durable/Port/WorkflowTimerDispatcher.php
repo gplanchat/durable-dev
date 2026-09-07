@@ -15,7 +15,7 @@ namespace Gplanchat\Durable\Port;
  * C'est ce que `DispatchAfterCurrentBusStamp` garantit chez Symfony : le réveil ne doit pas être
  * délivré tant que la passe en cours n'a pas fini d'écrire son journal, sinon la reprise se
  * ré-entre elle-même et relit un journal à moitié écrit. Un hôte qui publie dans une file l'obtient
- * gratuitement — un autre processus consomme — mais il doit le savoir plutôt que le supposer.
+ * gratuitement (un autre processus consomme), mais il doit le savoir plutôt que le supposer.
  *
  * @see \Gplanchat\Durable\Transport\FireWorkflowTimersMessage
  */

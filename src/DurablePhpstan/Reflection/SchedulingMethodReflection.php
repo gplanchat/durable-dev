@@ -15,14 +15,14 @@ use PHPStan\Type\Type;
 /**
  * La méthode du contrat, vue à travers le stub.
  *
- * Un contrat déclare ce que l'activité **rend** — `charge(string $id): string`. Le stub, lui, ne
+ * Un contrat déclare ce que l'activité **rend** : `charge(string $id): string`. Le stub, lui, ne
  * l'exécute pas : il la planifie et rend un `Awaitable` que l'appelant attend. Rendre la réflexion
  * du contrat telle quelle ferait donc croire à PHPStan que `$this->orders->charge($id)` vaut une
- * chaîne, et il refuserait le `await()` qui suit — en signalant une faute qui n'en est pas une.
+ * chaîne, et il refuserait le `await()` qui suit, en signalant une faute qui n'en est pas une.
  *
  * Ce décorateur ne change qu'une chose : le type de retour devient `Awaitable<T>` où `T` est ce
  * que le contrat déclarait. Les paramètres, eux, sont ceux du contrat, ce qui est exactement le
- * but — c'est là que la vérification a lieu.
+ * but : c'est là que la vérification a lieu.
  */
 final class SchedulingMethodReflection implements ExtendedMethodReflection
 {

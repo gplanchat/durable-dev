@@ -8,7 +8,7 @@ use Illuminate\Database\Connection;
 use Illuminate\Database\Schema\Blueprint;
 
 /**
- * Les quatre tables, créées à la demande — le pendant Illuminate de
+ * Les quatre tables, créées à la demande : le pendant Illuminate de
  * {@see \Gplanchat\Bridge\Dbal\Schema\DurableSchema}, avec la même forme.
  *
  * « La même forme » n'est pas une intention : les deux ponts rejouent les suites de conformité de

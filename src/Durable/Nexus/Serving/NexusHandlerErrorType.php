@@ -8,7 +8,7 @@ namespace Gplanchat\Durable\Nexus\Serving;
  * Les types d'erreur que nexus-rpc définit, et ce que le serveur en fait.
  *
  * Rien n'est inventé ici : la table vient du SDK **nexus-rpc**, partagé par tous les langages, et
- * l'arbitrage 1b.3 l'a reprise telle quelle. La ligne de partage est *à qui la faute* — une requête
+ * l'arbitrage 1b.3 l'a reprise telle quelle. La ligne de partage est *à qui la faute* : une requête
  * malformée ou un droit manquant ne s'améliorera pas en réessayant ; une surcharge ou un délai en
  * amont, peut-être.
  *

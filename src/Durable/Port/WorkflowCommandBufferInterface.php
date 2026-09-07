@@ -16,7 +16,7 @@ use Gplanchat\Durable\Failure\FailureEnvelope;
  * The in-memory backend appends domain events; the Temporal backend builds protobuf Command objects.
  *
  * **This port carries value objects, not primitives.** An implementation receives the options the
- * caller constructed — with their invariants intact — and owns the translation to its own
+ * caller constructed (with their invariants intact) and owns the translation to its own
  * representation, including any serialisation to a wire format and any reading of a clock. See
  * ADR DUR031.
  *
@@ -63,7 +63,7 @@ interface WorkflowCommandBufferInterface
      * Records the outcome of an update the execution has just handled.
      *
      * Called at the moment the update is applied, so its record lands **before** whatever the
-     * workflow does in response — the same order Temporal produces, where the acceptance command
+     * workflow does in response: the same order Temporal produces, where the acceptance command
      * precedes the workflow's commands and the server writes the events.
      *
      * On the Temporal backend this is deliberately a no-op: there, the **server** writes

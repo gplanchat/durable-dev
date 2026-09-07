@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Awaitable;
 
 /**
- * Réglé dès qu'un membre l'est, quel qu'en soit le sort — le premier arrivé décide.
+ * Réglé dès qu'un membre l'est, quel qu'en soit le sort : le premier arrivé décide.
  *
  * C'est le quorum de un, mais il ne se dit pas comme un {@see QuorumAwaitable} : celui-ci compte
  * les membres aboutis et rend un tableau, là où une course rend la valeur de son gagnant.

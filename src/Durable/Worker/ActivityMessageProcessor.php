@@ -157,7 +157,7 @@ final class ActivityMessageProcessor
 
             // Le transport ne retente pas côté PHP (worker Temporal natif) : l'autorité sur les
             // retentatives appartient entièrement au serveur, donc le décompte de tentatives PHP
-            // n'y veut rien dire — seule la non-retryabilité, sur laquelle le serveur s'aligne via
+            // n'y veut rien dire ; seule la non-retryabilité, sur laquelle le serveur s'aligne via
             // nonRetryableErrorTypes, reste terminale. On journalise le VRAI échec en `InProgress` :
             // un échec terminal court-circuiterait la tentative suivante côté worker.
             $delegatedToTransport = !$nonRetryable && $this->activityTransport instanceof NoopActivityTransport;

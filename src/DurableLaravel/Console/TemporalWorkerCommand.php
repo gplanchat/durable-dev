@@ -8,10 +8,10 @@ use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Illuminate\Console\Command;
 
 /**
- * Le worker de tâches de workflow, pour le backend Temporal — et le seul que ce paquet ajoute.
+ * Le worker de tâches de workflow, pour le backend Temporal, et le seul que ce paquet ajoute.
  *
  * Sous `illuminate`, tout passe par `php artisan queue:work` et ce paquet n'ajoute aucune commande :
- * c'est la règle que §3.2 s'est donnée. Temporal la casse pour une raison qui lui appartient — ses
+ * c'est la règle que §3.2 s'est donnée. Temporal la casse pour une raison qui lui appartient : ses
  * tâches de workflow ne sont pas dans la file de l'application, elles sont dans le cluster, et
  * personne d'autre ne peut les en sortir.
  *

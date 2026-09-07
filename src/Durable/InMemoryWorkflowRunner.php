@@ -69,7 +69,7 @@ final class InMemoryWorkflowRunner
         );
         // Le moteur était construit sans runner d'enfant ni coordinateur parent/enfant :
         // un workflow à enfants levait une LogicException et ParentClosePolicy ne cascadait
-        // jamais — deux comportements de production absents du harness de test.
+        // jamais, deux comportements de production absents du harness de test.
         $engine = new ExecutionEngine(
             $this->eventStore,
             $runtime,
@@ -92,7 +92,7 @@ final class InMemoryWorkflowRunner
         try {
             return $engine->start($executionId, $handler);
         } catch (WorkflowSuspendedException $e) {
-            // DUR003: expected suspension (control flow), not an error — the while loop runs the worker then resumes.
+            // DUR003: expected suspension (control flow), not an error; the while loop runs the worker then resumes.
             $waitingOn = $e->waitingOn();
         }
 
@@ -111,14 +111,14 @@ final class InMemoryWorkflowRunner
             try {
                 return $engine->resume($executionId, $handler);
             } catch (WorkflowSuspendedException $e) {
-                // DUR003: same — suspension until activities have produced the events needed for replay.
+                // DUR003: same (suspension until activities have produced the events needed for replay).
                 $waitingOn = $e->waitingOn();
             }
 
             // Un tour qui n'ajoute rien au journal ne peut pas en ajouter au suivant : le
             // workflow attend quelque chose que ce runner ne produira jamais (signal non
             // délivré, update, minuteur lointain). Sans ce garde, la boucle tournait à vide
-            // indéfiniment — un test qui oublie de délivrer son signal gelait la suite.
+            // indéfiniment : un test qui oublie de délivrer son signal gelait la suite.
             // ponytail: détection par absence de progrès ; un vrai ordonnanceur de minuteurs
             // demanderait une horloge virtuelle.
             if ($this->eventStore->countEventsInStream($executionId) === $before) {
@@ -145,7 +145,7 @@ final class InMemoryWorkflowRunner
      * En production le worker fait l'inverse : il attend le réveil que lui planifie
      * {@see \Gplanchat\Durable\Timer\TimerWakeDelayCalculator}.
      *
-     * N'est appelé que lorsque plus rien d'autre ne progresse — sauter le temps tant qu'une
+     * N'est appelé que lorsque plus rien d'autre ne progresse : sauter le temps tant qu'une
      * activité peut encore aboutir ferait gagner le minuteur de tout `any(activité, minuteur)`.
      *
      * @return bool true si le temps a été avancé

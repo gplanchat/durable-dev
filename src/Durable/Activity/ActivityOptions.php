@@ -30,7 +30,7 @@ final readonly class ActivityOptions
 
     /**
      * Plafond du délai entre deux retentatives. Null applique le défaut Temporal,
-     * {@see DEFAULT_MAXIMUM_INTERVAL_FACTOR} × l'intervalle initial — indispensable dès lors que
+     * {@see DEFAULT_MAXIMUM_INTERVAL_FACTOR} × l'intervalle initial : indispensable dès lors que
      * les tentatives sont illimitées, sans quoi le backoff exponentiel diverge.
      */
     public ?Duration $maximumInterval;
@@ -73,7 +73,7 @@ final readonly class ActivityOptions
      * Le même objet, écrit comme on le pense.
      *
      * Le constructeur ordonne ses paramètres comme le fil les sérialise ; à l'usage, la question
-     * qu'on se pose d'abord est « combien de tentatives, et bornées à combien de temps ? » — deux
+     * qu'on se pose d'abord est « combien de tentatives, et bornées à combien de temps ? », deux
      * réponses qui vivaient aux positions 1 et 8, donc inatteignables sans arguments nommés.
      * Cette fabrique remet ces deux-là en tête et accepte les scalaires équivalents :
      *
@@ -133,8 +133,8 @@ final readonly class ActivityOptions
         }
 
         $factor = $this->backoffCoefficient ** (float) ($nextAttempt - 2);
-        // Sans borne de tentatives, l'exposant finit par dépasser le flottant — vers la
-        // millième tentative avec les défauts. Le produit est de toute façon plafonné : un
+        // Sans borne de tentatives, l'exposant finit par dépasser le flottant (vers la
+        // millième tentative avec les défauts). Le produit est de toute façon plafonné : un
         // facteur débordé veut dire « le plafond », pas une erreur d'arithmétique.
         if (is_infinite($factor)) {
             return $this->effectiveMaximumInterval();

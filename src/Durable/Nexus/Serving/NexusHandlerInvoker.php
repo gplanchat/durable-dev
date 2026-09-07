@@ -14,9 +14,9 @@ use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
  * argument #1** et attend un {@see NexusOperationResponse}, quand le gestionnaire a écrit la
  * signature de son contrat et rend le type que celui-ci déclare.
  *
- * L'association est celle des activités, au mot près — la charge est clée par nom de paramètre à
+ * L'association est celle des activités, au mot près ; la charge est clée par nom de paramètre à
  * l'écriture ({@see \Gplanchat\Durable\Nexus\NexusStub::argumentsToPayload()}) et relue par nom
- * ici —, d'où la réutilisation de {@see PayloadToContractMethodInvoker} plutôt qu'une seconde copie
+ * ici, d'où la réutilisation de {@see PayloadToContractMethodInvoker} plutôt qu'une seconde copie
  * de la même boucle.
  *
  * Ce qui reste en propre est l'emballage : un gestionnaire immédiat rend une valeur métier, et
