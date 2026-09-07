@@ -17,14 +17,14 @@ use Temporal\Api\Enums\V1\ParentClosePolicy as TemporalParentClosePolicy;
 use Temporal\Api\Enums\V1\WorkflowIdReusePolicy as TemporalIdReusePolicy;
 
 /**
- * Racine et enfant décrivent les mêmes réglages : ils ne doivent pas les traduire différemment.
+ * Root and child describe the same settings: they must not translate them differently.
  */
 final class TemporalPolicyMapperTest extends TestCase
 {
     /**
-     * Le mapper acceptait `mixed` parce que les valeurs traversaient un tableau avant d'arriver.
-     * Elles franchissent maintenant le port typées : chaque cas de l'énumération est couvert, et
-     * il n'y a plus de branche par défaut où une valeur inconnue pourrait se réfugier.
+     * The mapper accepted `mixed` because the values crossed an array before arriving. They now
+     * cross the port typed: every case of the enumeration is covered, and there is no longer a
+     * default branch where an unknown value could take shelter.
      */
     public function testEveryPolicyCaseIsMapped(): void
     {
