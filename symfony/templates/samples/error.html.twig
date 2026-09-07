@@ -1,13 +1,13 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Erreur — Durable{% endblock %}
+{% block title %}Error — Durable{% endblock %}
 
 {% block body %}
 <div class="container-sm">
     <div style="margin-bottom: 1.5rem;">
-        <a href="{{ path('durable_samples_index') }}" class="back-link">← Retour aux samples</a>
+        <a href="{{ path('durable_samples_index') }}" class="back-link">← Back to samples</a>
     </div>
-    <h1 style="margin-bottom: 1rem;">Erreur</h1>
+    <h1 style="margin-bottom: 1rem;">Error</h1>
     <div class="alert alert-danger">{{ message }}</div>
 </div>
 {% endblock %}
