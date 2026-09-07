@@ -95,12 +95,12 @@ writes its verdict to `app_durable_stock_reservation`, keyed by order id: replay
 returns the same verdict and does not hold stock twice. That was written by hand; Durable did not
 provide it.
 
-**Not an anti-corruption layer.** `OrderWorkflow` reads `$verdict['accepted']` straight off the
-stub, so another context's payload shape sits inside the shop's own decision. The demonstration is
-flat on purpose, to put the two operation forms side by side. An application would keep the stub in
-a driven adapter, declare its port in its own language, and let that adapter build its value
-objects: the contracts carry scalars and arrays because the wire is plain JSON, and something has
-to turn them into a model.
+**Not an anti-corruption layer.** It has to be written, and the shop now writes it: `OrderWorkflow`
+invokes a `PlaceOrder` use case through a `Payments` port, and `NexusPayments` is the only class in
+`sylius/` that knows a payload has a field called `accepted`. The three benches that call without
+that layer show what it costs to skip: `OrderNexusWorkflow` reads five payloads by key, in the code
+that decides. The contracts carry scalars and arrays because the wire is plain JSON, and something
+has to turn them into a model.
 
 **Not a small shared kernel.** `src/DurableDemoContracts/` is one, and what keeps it defensible is a
 rule rather than a mechanism: it carries operation names and payload shapes, and no domain type
@@ -135,8 +135,9 @@ Two prerequisites you would not guess, detailed in
   here says what a Nexus queue does under real load.
 - **Recovery from a failing serving handler.** What was measured is a worker that was *down*, not a
   handler that throws halfway through its work.
-- **The layered shape.** Every call here is written from workflow code onto a stub. Nothing in the
-  repository demonstrates the port-and-adapter arrangement the section above recommends.
+- **The layered shape, everywhere but the shop.** `sylius/` has its port, adapter and use case.
+  The Magento bench and the logistics mockup still call stubs from workflow code, so the
+  arrangement is demonstrated once rather than shown to hold across hosts.
 - **Security.** The four namespaces sit on the same server with no mTLS and no authorization.
   Cross-team isolation, which is half the Nexus argument, is not demonstrated.
 
