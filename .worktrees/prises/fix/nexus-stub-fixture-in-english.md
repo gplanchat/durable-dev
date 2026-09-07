@@ -15,4 +15,4 @@
   `encasser` is a typo, and the extension's tests assert that both are still reported. Their
   English names have to stay wrong in the same way, and the typo has to differ from the activity
   fixture's `chrage`.
-- **State**: in progress.
+- **State**: in review — PR #295.
