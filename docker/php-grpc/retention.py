@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
-"""Décide quelles versions du paquet `php-grpc` sur GHCR peuvent être supprimées.
+"""Decides which versions of the `php-grpc` package on GHCR may be deleted.
 
-Le workflow reconstruit seize images chaque lundi et pose, à chaque publication, une étiquette
-glissante (`8.4-zts`) et une étiquette datée (`8.4-zts-20260828`). Les glissantes sont seize pour
-toujours ; les datées, elles, s'accumulent — environ huit cents par an, et rien ne les élague.
+The workflow rebuilds sixteen images every Monday and places, on each publication, a rolling tag
+(`8.4-zts`) and a dated tag (`8.4-zts-20260828`). The rolling ones are sixteen forever; the dated
+ones accumulate — about eight hundred a year, and nothing prunes them.
 
-Ce script ne supprime rien : il lit la liste des versions et écrit les identifiants à supprimer. Ce
-qui décide se relit en une phrase, et c'est voulu, parce que se tromper ici retire des images
-publiées.
+This script deletes nothing: it reads the version list and writes the identifiers to delete. What
+decides reads back in a single sentence, and that is deliberate, because being wrong here removes
+published images.
 
-**Une version est protégée dès qu'elle porte une étiquette qui n'est pas datée.** Une version est un
-manifeste, et un manifeste porte souvent plusieurs étiquettes : le lundi de la publication,
-`8.4-zts` et `8.4-zts-20260828` désignent le même. Supprimer « l'étiquette datée » reviendrait à
-supprimer l'image que `8.4-zts` désigne. La règle est donc formulée sur la version, jamais sur
-l'étiquette.
+**A version is protected as soon as it carries a tag that is not dated.** A version is a manifest,
+and a manifest often carries several tags: on publication Monday, `8.4-zts` and `8.4-zts-20260828`
+designate the same one. Deleting "the dated tag" would amount to deleting the image `8.4-zts`
+designates. The rule is therefore stated on the version, never on the tag.
 
-**Une version sans aucune étiquette est protégée aussi.** Elle n'est pas orpheline : buildx publie
-les attestations de provenance en manifestes non étiquetés, référencés par l'index qui, lui, porte
-l'étiquette. Les supprimer casse l'image publiée.
+**A version with no tag at all is protected too.** It is not an orphan: buildx publishes provenance
+attestations as untagged manifests, referenced by the index which does carry the tag. Deleting them
+breaks the published image.
 """
 
 from __future__ import annotations
@@ -27,97 +26,97 @@ import json
 import re
 import sys
 
-# `8.4-zts-alpine-20260828` : version mineure, forme, puis la date de publication.
-DATEE = re.compile(r'^(?P<serie>\d+\.\d+-[a-z-]+)-(?P<date>\d{8})$')
+# `8.4-zts-alpine-20260828`: minor version, flavour, then the publication date.
+DATED = re.compile(r'^(?P<series>\d+\.\d+-[a-z-]+)-(?P<date>\d{8})$')
 
 
-def a_supprimer(versions: list[dict], garder: int) -> list[dict]:
-    """Les versions dont toutes les étiquettes sont datées, au-delà des `garder` plus récentes
-    de leur série. Renvoie des dicts `{id, tags, serie, date}`, les plus anciennes d'abord."""
+def to_delete(versions: list[dict], keep: int) -> list[dict]:
+    """The versions whose tags are all dated, beyond the `keep` most recent of their series.
+    Returns dicts `{id, tags, series, date}`, oldest first."""
     candidates: dict[str, list[dict]] = {}
 
     for version in versions:
-        etiquettes = version.get('tags') or []
-        if not etiquettes:
-            continue  # attestations buildx — voir le docstring
-        correspondances = [DATEE.match(e) for e in etiquettes]
-        if not all(correspondances):
-            continue  # au moins une étiquette glissante : la version est en service
-        # Une version peut porter plusieurs dates si deux publications ont donné le même manifeste.
-        # C'est la plus récente qui décide de son rang.
-        recente = max(correspondances, key=lambda m: m.group('date'))
-        candidates.setdefault(recente.group('serie'), []).append({
+        tags_of = version.get('tags') or []
+        if not tags_of:
+            continue  # buildx attestations — see the docstring
+        matches = [DATED.match(e) for e in tags_of]
+        if not all(matches):
+            continue  # at least one rolling tag: the version is in service
+        # A version can carry several dates if two publications produced the same manifest.
+        # It is the most recent one that decides its rank.
+        most_recent = max(matches, key=lambda m: m.group('date'))
+        candidates.setdefault(most_recent.group('series'), []).append({
             'id': version['id'],
-            'tags': etiquettes,
-            'serie': recente.group('serie'),
-            'date': recente.group('date'),
+            'tags': tags_of,
+            'series': most_recent.group('series'),
+            'date': most_recent.group('date'),
         })
 
-    surnuméraires = []
-    for serie in candidates.values():
-        serie.sort(key=lambda v: v['date'], reverse=True)
-        surnuméraires.extend(serie[garder:])
-    surnuméraires.sort(key=lambda v: (v['serie'], v['date']))
-    return surnuméraires
+    surplus = []
+    for series in candidates.values():
+        series.sort(key=lambda v: v['date'], reverse=True)
+        surplus.extend(series[keep:])
+    surplus.sort(key=lambda v: (v['series'], v['date']))
+    return surplus
 
 
-def _autotest() -> None:
-    protegee_car_glissante = {'id': 1, 'tags': ['8.4-zts', '8.4-zts-20260828']}
-    datee_seule = {'id': 2, 'tags': ['8.4-zts-20260821']}
-    plus_ancienne = {'id': 3, 'tags': ['8.4-zts-20260814']}
-    sans_etiquette = {'id': 4, 'tags': []}
-    autre_serie = {'id': 5, 'tags': ['8.2-cli-alpine-20260814']}
+def _self_test() -> None:
+    protected_by_rolling = {'id': 1, 'tags': ['8.4-zts', '8.4-zts-20260828']}
+    dated_only = {'id': 2, 'tags': ['8.4-zts-20260821']}
+    older = {'id': 3, 'tags': ['8.4-zts-20260814']}
+    untagged = {'id': 4, 'tags': []}
+    other_series = {'id': 5, 'tags': ['8.2-cli-alpine-20260814']}
 
-    toutes = [protegee_car_glissante, datee_seule, plus_ancienne, sans_etiquette, autre_serie]
+    all_of_them = [protected_by_rolling, dated_only, older, untagged, other_series]
 
-    # Le cas qui compte : la version que `8.4-zts` désigne n'est jamais candidate, même si elle
-    # porte aussi la plus vieille des étiquettes datées.
-    assert [v['id'] for v in a_supprimer(toutes, garder=99)] == []
-    assert [v['id'] for v in a_supprimer(toutes, garder=1)] == [3]
-    assert [v['id'] for v in a_supprimer(toutes, garder=0)] == [5, 3, 2]
+    # The case that matters: the version `8.4-zts` designates is never a candidate, even when it
+    # also carries the oldest of the dated tags.
+    assert [v['id'] for v in to_delete(all_of_them, keep=99)] == []
+    assert [v['id'] for v in to_delete(all_of_them, keep=1)] == [3]
+    assert [v['id'] for v in to_delete(all_of_them, keep=0)] == [5, 3, 2]
 
-    # `garder` compte par série, pas globalement : deux séries de deux gardent une chacune.
-    deux_series = [
+    # `keep` counts per series, not globally: two series of two keep one each.
+    two_series = [
         {'id': 10, 'tags': ['8.4-zts-20260828']}, {'id': 11, 'tags': ['8.4-zts-20260821']},
         {'id': 12, 'tags': ['8.2-cli-20260828']}, {'id': 13, 'tags': ['8.2-cli-20260821']},
     ]
-    assert sorted(v['id'] for v in a_supprimer(deux_series, garder=1)) == [11, 13]
+    assert sorted(v['id'] for v in to_delete(two_series, keep=1)) == [11, 13]
 
-    # Une version qui porte deux dates est classée sur la plus récente.
-    deux_dates = [
+    # A version that carries two dates is ranked on the most recent one.
+    two_dates = [
         {'id': 20, 'tags': ['8.4-zts-20260828', '8.4-zts-20260821']},
         {'id': 21, 'tags': ['8.4-zts-20260814']},
     ]
-    assert [v['id'] for v in a_supprimer(deux_dates, garder=1)] == [21]
+    assert [v['id'] for v in to_delete(two_dates, keep=1)] == [21]
 
-    # Une étiquette inattendue protège : mieux vaut garder une image de trop qu'en retirer une
-    # que quelqu'un utilise.
-    inattendue = [{'id': 30, 'tags': ['latest']}, {'id': 31, 'tags': ['8.4-zts-experimental']}]
-    assert a_supprimer(inattendue, garder=0) == []
+    # An unexpected tag protects: better to keep one image too many than remove one that
+    # somebody uses.
+    unexpected = [{'id': 30, 'tags': ['latest']}, {'id': 31, 'tags': ['8.4-zts-experimental']}]
+    assert to_delete(unexpected, keep=0) == []
 
-    print('autotest : ok')
+    print('self-test: ok')
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--keep', type=int, default=8,
-                        help='étiquettes datées conservées par série (défaut : 8, soit deux mois)')
+                        help='dated tags kept per series (default: 8, i.e. two months)')
     parser.add_argument('--self-test', action='store_true')
     args = parser.parse_args()
 
     if args.self_test:
-        _autotest()
+        _self_test()
         return 0
 
     versions = json.load(sys.stdin)
-    surnuméraires = a_supprimer(versions, args.keep)
+    surplus = to_delete(versions, args.keep)
 
-    print(f'{len(versions)} version(s) publiée(s), {len(surnuméraires)} à retirer '
-          f'(on garde les {args.keep} plus récentes de chaque série)', file=sys.stderr)
-    for v in surnuméraires:
+    print(f'{len(versions)} version(s) published, {len(surplus)} to remove '
+          f'(keeping the {args.keep} most recent of each series)', file=sys.stderr)
+    for v in surplus:
         print(f"  {v['id']}  {', '.join(v['tags'])}", file=sys.stderr)
 
-    for v in surnuméraires:
+    for v in surplus:
         print(v['id'])
     return 0
 

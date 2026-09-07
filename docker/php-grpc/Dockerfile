@@ -1,37 +1,36 @@
 # syntax=docker/dockerfile:1
 
-# Une image PHP qui porte déjà `grpc` et `protobuf`.
+# A PHP image that already carries `grpc` and `protobuf`.
 #
-# Ces deux extensions se compilent depuis les sources. Mesuré pour `8.3-cli-alpine` sur une machine
-# de développement : **6 min 58 s**, pour 126 Mo d'image — grpc 1.83 traîne abseil, boringssl, re2 et
-# upb, et se compile en C++17. `install-php-extensions` ne fait pas de miracle : il fait le travail
-# correctement, pas instantanément. Le payer une fois en CI et le publier, c'est tout l'objet ici.
+# Both extensions compile from source. Measured for `8.3-cli-alpine` on a development machine:
+# **6 min 58 s**, for a 126 MB image — grpc 1.83 drags abseil, boringssl, re2 and upb along, and
+# compiles as C++17. `install-php-extensions` works no miracle: it does the job properly, not
+# instantly. Paying for it once in CI and publishing the result is the whole point here.
 #
-# **Ce n'est pas une image d'application.** Elle ne contient ni votre code, ni Composer, ni un
-# serveur : elle sert de base, ou de source pour un `COPY --from` dans un montage multi-étapes.
+# **This is not an application image.** It contains neither your code, nor Composer, nor a
+# server: it serves as a base, or as the source of a `COPY --from` in a multi-stage build.
 
 ARG PHP_VERSION=8.3
 ARG FLAVOUR=cli
 
 FROM php:${PHP_VERSION}-${FLAVOUR}
 
-# Le script de mlocati plutôt qu'un `pecl install` écrit à la main : il connaît les paquets système
-# de chaque distribution, nettoie derrière lui, et suit les versions de PHP au fil des sorties.
+# mlocati's script rather than a hand-written `pecl install`: it knows each distribution's system
+# packages, cleans up behind itself, and follows PHP versions as they are released.
 COPY --from=mlocati/php-extension-installer:latest /usr/bin/install-php-extensions /usr/local/bin/
 
-# `protobuf` n'est pas décoratif à côté de `grpc` : sans lui, la sérialisation retombe sur
-# l'implémentation PHP pure, correcte mais nettement plus lente sur des messages volumineux.
+# `protobuf` is not decorative next to `grpc`: without it, serialisation falls back on the pure
+# PHP implementation, correct but markedly slower on large messages.
 RUN install-php-extensions grpc protobuf
 
-# Une image dont on ne peut pas vérifier le contenu ne sert à rien : ces deux lignes échouent au
-# build si l'extension n'est pas réellement chargeable, plutôt que de laisser le défaut au
-# consommateur.
+# An image whose contents cannot be checked is of no use: these two lines fail the build if the
+# extension is not genuinely loadable, rather than leaving the fault to the consumer.
 RUN php -m | grep -qx grpc && php -m | grep -qx protobuf
 
-# Et la thread-safety doit correspondre à l'étiquette qu'on s'apprête à poser. Une extension
-# compilée pour un PHP non thread-safe refuse de se charger dans un PHP thread-safe : publier un
-# binaire NTS sous `…-zts` parce que la base a été mal résolue donnerait une image verte et
-# inutilisable. `php -m` ne dit rien de cet axe-là, il faut le demander séparément.
+# And thread-safety must match the tag we are about to place. An extension compiled for a
+# non-thread-safe PHP refuses to load into a thread-safe PHP: publishing an NTS binary under
+# `…-zts` because the base resolved wrongly would give a green, unusable image. `php -m` says
+# nothing about that axis, it has to be asked separately.
 ARG FLAVOUR
 RUN attendu="$(case "$FLAVOUR" in zts*) echo enabled;; *) echo disabled;; esac)" \
  && php -i | grep -q "Thread Safety => $attendu"
