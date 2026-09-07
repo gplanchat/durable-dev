@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\Command;
 
+use Gplanchat\Durable\Observation\RecordedDetails;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
@@ -66,7 +67,10 @@ final class DiagnoseExecutionCommand extends Command
                 $sample[] = [
                     'type' => $short,
                     'recordedAt' => $recordedAt?->format(\DateTimeInterface::ATOM),
-                    'payload' => $event->payload(),
+                    // The same barrier as the profiler: the command reads a production journal,
+                    // and a payload that refuses encoding would bring down the very diagnosis
+                    // one came for.
+                    'payload' => RecordedDetails::storable($event->payload()),
                 ];
             }
         }

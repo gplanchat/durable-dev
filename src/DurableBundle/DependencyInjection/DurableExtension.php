@@ -44,6 +44,7 @@ use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
 use Gplanchat\Durable\Bundle\SchemaListener\DurableSchemaListener;
 use Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport;
 use Gplanchat\Durable\Bundle\Transport\MessengerWorkflowTimerDispatcher;
+use Gplanchat\Durable\Debug\NullWorkflowExecutionObserver;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
@@ -76,6 +77,7 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
@@ -95,7 +97,15 @@ final class DurableExtension extends Extension
         $asyncChildMessenger = (bool) ($config['child_workflow']['async_messenger'] ?? false);
         $container->setParameter('durable.child_workflow_async_messenger', $asyncChildMessenger);
 
-        $this->registerProfiler($container);
+        // A synthetic container, an extension test for instance, does not have this parameter;
+        // that does not make it production, hence the default to debug.
+        $debug = !$container->hasParameter('kernel.debug') || (bool) $container->getParameter('kernel.debug');
+
+        if ($debug) {
+            $this->registerProfiler($container);
+        } else {
+            $this->registerNullObserver($container);
+        }
         $this->registerChildWorkflowParentLinkStore($container);
         $this->registerWorkflowDefinitionLoader($container);
         $this->registerEventStore($container, $config);
@@ -677,7 +687,11 @@ final class DurableExtension extends Extension
                     new Reference(WorkflowClientInterface::class),
                     new Reference(WorkflowMetadataStore::class),
                     new Reference(WorkflowDefinitionLoader::class),
-                    new Reference('durable.execution_trace'),
+                    // Le profileur n'existe qu'en debug depuis ce correctif, et le constructeur
+                    // target declares the dependency `?DurableExecutionTrace $executionTrace = null`.
+                    // A bare reference would fail the production container's compilation as soon as
+                    // a `temporal.dsn` is configured.
+                    new Reference('durable.execution_trace', ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 ])
                 ->setPublic(true)
             ;
@@ -760,15 +774,59 @@ final class DurableExtension extends Extension
         ;
     }
 
+    /**
+     * The profiler is not neutral plumbing: its observer is injected into
+     * `ExecutionRuntime`, `ExecutionEngine` et `ActivityMessageProcessor`, donc il passe sur le
+     * hot path of every execution, and its trace is emptied only by a `kernel.request` listener,
+     * which `messenger:consume` never fires.
+     *
+     * Hors debug, on n'en enregistre donc rien du tout et l'observation retombe sur un objet nul.
+     * FrameworkBundle does the same for its own collectors, loaded from separate files under a
+     * condition.
+     */
+    private function registerNullObserver(ContainerBuilder $container): void
+    {
+        $container->register('durable.execution_observer.null', NullWorkflowExecutionObserver::class)
+            ->setPublic(false)
+        ;
+
+        self::aliaserObservateur($container, 'durable.execution_observer.null');
+    }
+
+    /**
+     * Aliases the observation interface, **without overwriting what the application already
+     * declared**.
+     *
+     * `UPGRADE.md` invites an application that wants to observe its executions in production to
+     * implement the contract and alias the interface onto its own service. The definitions in the
+     * application's `services.yaml` already exist when the extension loads, since
+     * `MergeExtensionConfigurationPass` runs at compilation, after the configuration is loaded, so
+     * an unconditional `setAlias()` erased that alias and the escape hatch did not work.
+     */
+    private static function aliaserObservateur(ContainerBuilder $container, string $service): void
+    {
+        if ($container->hasAlias(WorkflowExecutionObserverInterface::class)
+            || $container->hasDefinition(WorkflowExecutionObserverInterface::class)
+        ) {
+            return;
+        }
+
+        $container->setAlias(WorkflowExecutionObserverInterface::class, $service)
+            ->setPublic(true)
+        ;
+    }
+
     private function registerProfiler(ContainerBuilder $container): void
     {
         $container->register('durable.execution_trace', DurableExecutionTrace::class)
+            // `ResetDurableProfilerListener` ne borne que le cas HTTP. Dans un worker il n'y a pas
+            // request, and it is `services_resetter`, so this tag, that empties the trace between
+            // deux messages. Sans lui, un `messenger:consume` accumule la timeline tant qu'il vit.
+            ->addTag('kernel.reset', ['method' => 'reset'])
             ->setPublic(true)
         ;
 
-        $container->setAlias(WorkflowExecutionObserverInterface::class, 'durable.execution_trace')
-            ->setPublic(true)
-        ;
+        self::aliaserObservateur($container, 'durable.execution_trace');
 
         $container->register(ResetDurableProfilerListener::class)
             ->setArguments([new Reference('durable.execution_trace')])
