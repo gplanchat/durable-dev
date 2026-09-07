@@ -11,7 +11,7 @@ use Gplanchat\Durable\Attribute\AsNexusService;
  * What logistics already knows how to answer.
  *
  * Picking a slot and a carrier is a computation over data one already holds: it fits in the ~9 s of
- * a Nexus task. Getting the goods out of the door does not — that is
+ * a Nexus task. Getting the goods out of the door does not: that is
  * {@see DeliveryContract::ship()}, and a workflow is what fulfils it.
  */
 #[AsNexusService('delivery')]

@@ -12,7 +12,7 @@ use Gplanchat\Durable\Attribute\AsNexusService;
  *
  * `charge` has no handler body: a workflow claims it with
  * {@see \Gplanchat\Durable\Attribute\FulfilsNexusOperation}, and the server delivers that
- * workflow's result to the caller. It is what the contract splits for — PHP has no way of saying
+ * workflow's result to the caller. It is what the contract splits for: PHP has no way of saying
  * "partially implements".
  *
  * ⚠ **The parameter names declared here are the interface, not a reading convenience.** The payload

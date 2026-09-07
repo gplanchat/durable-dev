@@ -10,7 +10,7 @@ use Gplanchat\Durable\Attribute\AsNexusService;
 /**
  * What the business already knows how to answer.
  *
- * Verifying is applying rules to data one already holds. Charging is not — hence the split into two
+ * Verifying is applying rules to data one already holds. Charging is not, hence the split into two
  * interfaces.
  */
 #[AsNexusService('billing')]
