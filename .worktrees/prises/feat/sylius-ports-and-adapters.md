@@ -20,4 +20,4 @@
   documents. The value objects therefore carry `toWire()` as well.
 - **`done_when`**: the two sentences claiming the shape is absent are retired from the guide and
   the post, and the shop's unit suite runs in CI.
-- **State**: in progress.
+- **State**: in review — PR #300.
