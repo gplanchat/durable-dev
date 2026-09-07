@@ -35,7 +35,7 @@ switch ($mode) {
     case 'here':
         // L'ancien chemin : le workflow tourne dans CE processus. Ses activités partent dans le
         // transport en mémoire et meurent avec lui — c'est ce que le §5.3 avait mesuré.
-        printf("%d exécute %s ici même (pause %ds)\n", getmypid(), $executionId, $pauseSeconds);
+        printf("%d runs %s right here (pause %ds)\n", getmypid(), $executionId, $pauseSeconds);
         printf("%d termine -> %s\n", getmypid(), var_export(
             $factory->create()->run($workflow, $input, $executionId),
             true,
@@ -47,7 +47,7 @@ switch ($mode) {
         // workers. C'est la seule façon qu'une activité devienne une tâche que quelqu'un d'autre
         // puisse reprendre après une mort.
         $factory->workflowClient()->startAsync($workflow, $input, $executionId);
-        printf("%s démarré sur la grappe (pause %ds)\n", $executionId, $pauseSeconds);
+        printf("%s started on the cluster (pause %ds)\n", $executionId, $pauseSeconds);
         break;
 
     case 'await':

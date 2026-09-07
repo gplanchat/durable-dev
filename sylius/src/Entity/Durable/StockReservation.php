@@ -8,48 +8,51 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Ce que la boutique a déjà répondu pour une commande.
+ * What the shop has already answered for one order.
  *
- * Elle existe pour une raison précise : **une tâche Nexus est redélivrée**. Le gestionnaire dispose
- * d'environ neuf secondes ; passé ce délai le serveur redonne la même tâche à un autre worker, et
- * les redélivrances mesurées tombent à ~9,9 s, ~20,7 s, ~33,6 s. Sans trace de ce qui a déjà été
- * décidé, la deuxième livraison remettrait du stock de côté une deuxième fois, et l'appelant ne
- * verrait rien d'anormal — il aurait sa réponse.
+ * It exists for a precise reason: **a Nexus task is redelivered**. The handler has about nine
+ * seconds; past that the server hands the same task to another worker, and the redeliveries
+ * measured land at ~9.9 s, ~20.7 s, ~33.6 s. With no record of what was already decided, the second
+ * delivery would set stock aside a second time, and the caller would see nothing wrong — it would
+ * have its answer.
  *
- * La clé est donc l'identifiant de commande, celui que l'appelant écrit dans la charge : deux
- * livraisons de la même tâche portent le même, et la seconde relit ce que la première a décidé.
+ * The key is therefore the order identifier, the one the caller writes into the payload: two
+ * deliveries of the same task carry the same one, and the second reads back what the first decided.
+ *
+ * The property is `orderId` and not `order`: `order` is a reserved word in SQL, and Doctrine would
+ * emit the column name unquoted.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'app_durable_stock_reservation')]
 class StockReservation
 {
-    /** @param array<string, int> $manquants */
+    /** @param array<string, int> $missing */
     public function __construct(
         #[ORM\Id]
         #[ORM\Column(length: 128)]
-        private string $commande,
+        private string $orderId,
         #[ORM\Column(type: Types::JSON)]
-        private array $lignes,
+        private array $lines,
         #[ORM\Column]
-        private bool $reserve,
+        private bool $reserved,
         #[ORM\Column(type: Types::JSON)]
-        private array $manquants,
+        private array $missing,
     ) {}
 
-    public function commande(): string
+    public function orderId(): string
     {
-        return $this->commande;
+        return $this->orderId;
     }
 
     /** @return array<string, int> */
-    public function lignes(): array
+    public function lines(): array
     {
-        return $this->lignes;
+        return $this->lines;
     }
 
-    /** @return array{reserve: bool, manquants: array<string, int>} */
+    /** @return array{reserved: bool, missing: array<string, int>} */
     public function verdict(): array
     {
-        return ['reserve' => $this->reserve, 'manquants' => $this->manquants];
+        return ['reserved' => $this->reserved, 'missing' => $this->missing];
     }
 }

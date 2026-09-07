@@ -95,7 +95,7 @@ MAGENTO_DC_DURABLE__TEMPORAL__DSN='temporal://127.0.0.1:7239?namespace=demo-mage
   bin/magento durable:demo:nexus MAG-1 1200 MUG_BLUE=1
 ```
 
-`CommandeNexusWorkflow` fait vérifier la facture par la maquette Symfony, retenir le stock par la
+`OrderNexusWorkflow` fait vérifier la facture par la maquette Symfony, retenir le stock par la
 maquette Sylius, puis encaisser — la dernière étant remplie par un workflow d'en face, qui met une
 quinzaine de secondes. Le banc ne **sert** aucune opération : appeler ne demande rien à l'hôte,
 servir demanderait un registre de gestionnaires et une file Nexus, qui n'existent pas ici.
