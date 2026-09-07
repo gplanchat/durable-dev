@@ -9,7 +9,7 @@ use Gplanchat\DurableProbe\Workflow\Activity\SlowOrderActivities;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Le workflow du §5.3. Rien ne le distingue d'un workflow ordinaire — c'est le sujet : il ne sait
+ * Le workflow du §5.3. Rien ne le distingue d'un workflow ordinaire, et c'est le sujet : il ne sait
  * pas qu'on va tuer le processus entre son deuxième et son troisième pas.
  */
 final class SlowOrderWorkflow

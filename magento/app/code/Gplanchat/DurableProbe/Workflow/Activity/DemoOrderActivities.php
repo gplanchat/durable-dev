@@ -7,7 +7,7 @@ namespace Gplanchat\DurableProbe\Workflow\Activity;
 /**
  * L'implémentation de la démonstration : trois étapes qui ne font que se nommer.
  *
- * Elle n'a rien de Magento non plus, et c'est voulu — ce qu'elle sert à montrer est que les noms
+ * Elle n'a rien de Magento non plus, et c'est voulu : ce qu'elle sert à montrer est que les noms
  * d'activité viennent des attributs du contrat, pas de chaînes recopiées dans la commande.
  */
 /*

@@ -17,7 +17,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
  * The stock is held by the Sylius shop, the invoice is verified then charged by the Symfony
  * business, and the shipment is scheduled then made by the Laravel logistics. Four applications,
  * four namespaces, three frameworks, and this one has no Nexus handler, no Nexus task queue and no
- * compiler pass registering anything — because **calling needs none of them**.
+ * compiler pass registering anything, because **calling needs none of them**.
  * `WorkflowEnvironment::nexusStub()` reads the contract by reflection, and the worker that advances
  * this execution is the same `WorkflowTaskRunner` the two other mockups run under another name.
  *
@@ -107,7 +107,7 @@ final class OrderNexusWorkflow
         }
 
         // The two commitments, once the three possible refusals have been ruled out. `charge` is
-        // fulfilled by a workflow of the business, `ship` by a workflow of the logistics — which in
+        // fulfilled by a workflow of the business, `ship` by a workflow of the logistics, which in
         // turn calls the shop back while it serves. Three hosts, three frameworks, and the same
         // `await` for all five calls.
         return [

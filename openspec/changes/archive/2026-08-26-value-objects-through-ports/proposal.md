@@ -1,15 +1,15 @@
 ## Why
 
-The scheduling value objects — `ActivityOptions`, `RetryLimit`, `Duration`, `ActivityTimeouts`,
-`WorkflowTimeouts`, `TaskQueue`, `CronSchedule`, `SearchAttributes` — stop at the port. The core
+The scheduling value objects (`ActivityOptions`, `RetryLimit`, `Duration`, `ActivityTimeouts`,
+`WorkflowTimeouts`, `TaskQueue`, `CronSchedule`, `SearchAttributes`) stop at the port. The core
 flattens them to arrays and floats on the way out, and every driver rebuilds them on the way in:
 
 ```php
-// ExecutionContext:89 — the core flattens
+// ExecutionContext:89, the core flattens
 $metadata = null !== $options ? $options->toMetadata() : [];
 $this->commandBuffer->scheduleActivity($activityId, $name, $payload, $metadata);
 
-// TemporalWorkflowCommandBuffer:61 — the driver rehydrates, first line
+// TemporalWorkflowCommandBuffer:61, the driver rehydrates, first line
 $options = ActivityOptions::fromMetadata($metadata);
 ```
 
@@ -21,7 +21,7 @@ A round trip through primitives in the middle of the domain. The same happens fo
 Three costs, each already paid at least once in this codebase:
 
 - **Invariants do not travel.** `ActivityTimeouts` refuses a heartbeat longer than the attempt.
-  Flattened to an array, that guarantee is gone until something rebuilds the object — or never.
+  Flattened to an array, that guarantee is gone until something rebuilds the object, or never.
 - **Types disappear.** `TemporalPolicyMapper::parentClosePolicy()` accepts
   `ParentClosePolicy|string|null` **only** because the value crossed an array.
 - **The port misstates its contract.** `startTimer(string $timerId, float $scheduledAt, string
@@ -38,7 +38,7 @@ Three costs, each already paid at least once in this codebase:
 - `ActivityMessage` SHALL carry typed options rather than an untyped metadata array, keeping the
   attempt counter it already exposes.
 - Serialisation SHALL live in the adapters. `toMetadata()` / `fromMetadata()` stay on the value
-  objects — they are how the **wire** is written — but the core SHALL NOT call them to talk to a
+  objects (they are how the **wire** is written), but the core SHALL NOT call them to talk to a
   port.
 - **BREAKING** for anyone implementing `WorkflowCommandBufferInterface` or
   `WorkflowHistorySourceInterface` outside this repository. No behaviour changes for workflow

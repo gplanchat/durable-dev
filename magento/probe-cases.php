@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /*
- * Sonde — une exécution qui contient tous les cas que l'écran d'observation doit savoir montrer.
+ * Sonde : une exécution qui contient tous les cas que l'écran d'observation doit savoir montrer.
  *
  * Le banc n'avait qu'un chemin heureux. Une frise validée sur trois activités qui réussissent ne
  * prouve rien d'un échec, d'un minuteur ni d'un enfant : cette sonde produit les six formes d'un
@@ -31,4 +31,4 @@ if ('here' === $mode) {
 }
 
 $factory->workflowClient()->startAsync($workflow, ['caseId' => $caseId], $caseId);
-printf("%s started on the cluster — `bin/magento durable:worker` has to be running\n", $caseId);
+printf("%s started on the cluster. `bin/magento durable:worker` has to be running\n", $caseId);

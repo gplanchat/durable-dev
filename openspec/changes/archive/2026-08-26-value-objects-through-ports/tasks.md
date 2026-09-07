@@ -1,9 +1,9 @@
 ## 1. Establish the guard before moving anything
 
-- [x] 1.1 Run the integration suite against a real server and record the result — it is the only check that catches a replay break
+- [x] 1.1 Run the integration suite against a real server and record the result: it is the only check that catches a replay break
 - [x] 1.2 Add a test that reads a journal written by the current code and replays it, so the wire format is pinned independently of the port signatures
 
-## 2. Timers — the boundary that carries a real defect
+## 2. Timers: the boundary that carries a real defect
 
 - [x] 2.1 `WorkflowCommandBufferInterface::startTimer()` takes a `Duration` delay instead of a float deadline
 - [x] 2.2 `EventStoreCommandBuffer` derives the deadline from the delay and its clock
@@ -34,7 +34,7 @@
 ## 6. Prove the wire did not move
 
 - [x] 6.1 Integration suite green against the same server, same namespace
-- [ ] 6.2 An execution started before the change replays to completion after it — **left open on purpose**
+- [ ] 6.2 An execution started before the change replays to completion after it. **Left open on purpose**
 
       Not verifiable from the test suite: every test creates its executions on the fly, so they are
       always born under the current code. Ticking it would misstate what was checked.

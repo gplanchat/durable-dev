@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 /*
- * Sonde — `LockManagerInterface` est-il partagé entre processus ?
+ * Sonde : `LockManagerInterface` est-il partagé entre processus ?
  *
  * Tout le module repose là-dessus : deux `queue:consumers:start` peuvent
  * dépiler deux reprises d'une même exécution, et seul un verrou partagé les
- * sérialise. `Magento\Framework\Lock\Backend\Database` *devrait* l'être — un
- * `GET_LOCK` sur la base applicative — mais « devrait » est exactement ce
+ * sérialise. `Magento\Framework\Lock\Backend\Database` *devrait* l'être (un
+ * `GET_LOCK` sur la base applicative), mais « devrait » est exactement ce
  * qu'une sonde existe pour vérifier. Elle mesure à deux processus, elle ne lit
  * pas la classe : c'est ce qui est **configuré** sur l'hôte qui décide, pas ce
  * que le framework livre par défaut.
@@ -37,7 +37,7 @@ switch ($mode) {
         // Le conteneur rend une `Lock\\Proxy` : elle ne dit rien du backend tant
         // qu'on ne l'a pas fait travailler. Un appel la force à le construire,
         // et la réflexion le nomme. Un module qui voudrait refuser un verrou
-        // non partagé au démarrage devra passer par là — get_class() ment.
+        // non partagé au démarrage devra passer par là : get_class() ment.
         $locks->isLocked($name);
         foreach ((new \ReflectionObject($locks))->getProperties() as $property) {
             $value = $property->getValue($locks);

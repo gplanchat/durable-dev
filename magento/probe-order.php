@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 /*
- * Sonde — le §5.2 : une commande passée déclenche une exécution durable.
+ * Sonde du §5.2 : une commande passée déclenche une exécution durable.
  *
- * Elle fabrique ce qu'il faut pour qu'une commande puisse exister — un produit simple, un panier
- * invité, une adresse, un mode de livraison et un mode de paiement — puis la passe. Ce qui est
+ * Elle fabrique ce qu'il faut pour qu'une commande puisse exister (un produit simple, un panier
+ * invité, une adresse, un mode de livraison et un mode de paiement), puis la passe. Ce qui est
  * mesuré n'est pas le tunnel de commande : c'est que `sales_order_place_after`, l'événement que
  * `Magento\Sales\Model\Order::place()` émet pour de vrai, démarre une exécution **sur la grappe**.
  * Le même événement part du tunnel, de l'API REST et de l'admin.
@@ -42,7 +42,7 @@ try {
     echo "product : $sku (created)\n";
 }
 
-// Sans site ni source d'inventaire, le produit existe et n'est pas *vendable* — et le message que
+// Sans site ni source d'inventaire, le produit existe et n'est pas *vendable*, et le message que
 // Magento rend alors, « Product that you are trying to add is not available », ne dit ni lequel des
 // deux manque ni qu'il en manque un. Mesuré.
 $product->setWebsiteIds([1]);

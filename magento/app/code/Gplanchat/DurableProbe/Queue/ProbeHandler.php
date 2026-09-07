@@ -12,7 +12,7 @@ use Magento\Framework\Filesystem\Driver\File;
  *
  * Il ne fait qu'une chose utile : **traîner**. Le message dit combien de temps,
  * et la trace dit quand il a commencé et s'il a fini. Un consommateur tué entre
- * les deux lignes laisse une trace ouverte, et c'est ce que le §1.3 mesure —
+ * les deux lignes laisse une trace ouverte, et c'est ce que le §1.3 mesure,
  * la file rend-elle le message à quelqu'un d'autre, le met-elle en lettre
  * morte, ou se tait-elle ?
  *

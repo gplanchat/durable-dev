@@ -10,7 +10,7 @@ use Gplanchat\DurableProbe\Workflow\Activity\OrderActivities;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Un workflow ordinaire — et c'est tout l'argument.
+ * Un workflow ordinaire, et c'est tout l'argument.
  *
  * Rien ici ne sait qu'il tourne dans Magento : pas d'import du framework, pas de
  * `ObjectManager`, pas de `ResourceConnection`. La même classe tourne sous le

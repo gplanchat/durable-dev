@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The gate. The final vote belongs to a deterministic script — the one party in this system that
+# The gate. The final vote belongs to a deterministic script, the one party in this system that
 # cannot be talked into anything. It runs exactly what CI runs (.github/workflows/ci.yml, jobs
 # "QA (CS + tests)" and "Analyse statique"), so a tick that passes here passes on the PR.
 #
@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-# A worker runs in a fresh worktree, and vendor/ is gitignored — so it starts with no tools at
+# A worker runs in a fresh worktree, and vendor/ is gitignored, so it starts with no tools at
 # all. Without this the gate fails 127 on every tick and no work ever reaches a PR. The primary
 # checkout's vendor/ is hardlink-copied rather than reinstalled: it costs no disk and no network,
 # and composer's path repositories are *relative* symlinks (../../src/Durable/), so they resolve
@@ -33,7 +33,7 @@ run "Psalm"                  composer --quiet psalm
 # The baseline is not allowed to grow. Psalm exits 0 on a suppressed finding, so without this the
 # gate would happily green-light a worker that "fixed" static analysis by widening the baseline.
 if ! git diff --quiet HEAD -- psalm-baseline.xml; then
-  echo "GATE FAIL: psalm-baseline.xml was modified. See CLAUDE.md — fix the code, not the baseline." >&2
+  echo "GATE FAIL: psalm-baseline.xml was modified. See CLAUDE.md: fix the code, not the baseline." >&2
   exit 1
 fi
 

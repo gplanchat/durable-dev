@@ -6,7 +6,7 @@ that exits 0 while the finished work is still true and non-zero the moment it is
 Three rules decide whether a goal is worth having:
 
 - **Test the predicate against both states.** It must exit 0 on the fixed code and non-zero on the
-  broken code — check out the pre-fix commit and confirm. A predicate that cannot fail is
+  broken code. Check out the pre-fix commit and confirm. A predicate that cannot fail is
   decoration.
 - **Keep it cheap.** The whole set runs daily. `composer test` is the entire 1246-test suite and
   has no place in a predicate; use `vendor/bin/phpunit --filter` or a single `--testsuite`. If the

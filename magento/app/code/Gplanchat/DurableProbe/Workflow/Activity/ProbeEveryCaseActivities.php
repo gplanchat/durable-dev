@@ -11,7 +11,7 @@ use Magento\Framework\Filesystem\Driver\File;
  * L'implémentation des cas, avec un compteur sur disque.
  *
  * ⚠ **Le compteur ne peut pas vivre en mémoire.** Une reprise d'activité peut être servie par un
- * autre processus que la tentative qui a échoué — c'est le point même de Temporal — donc un champ
+ * autre processus que la tentative qui a échoué (c'est le point même de Temporal) donc un champ
  * d'instance ferait échouer `flaky` indéfiniment sur un banc à deux workers, et réussir du premier
  * coup sur un banc à un seul. Un fichier par exécution donne le même scénario dans les deux cas.
  */

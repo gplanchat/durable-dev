@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 /*
- * Sonde — que laisse un consommateur qui meurt au milieu d'un message ?
+ * Sonde : que laisse un consommateur qui meurt au milieu d'un message ?
  *
  * Le banc n'a pas d'AMQP : `compose.yaml` monte MySQL, OpenSearch, Redis et
  * Temporal, rien d'autre. C'est donc `Magento\MysqlMq` qui répond, et sa
- * redélivrance n'a pas les règles d'AMQP — les déduire de la documentation
+ * redélivrance n'a pas les règles d'AMQP ; les déduire de la documentation
  * d'AMQP serait exactement l'erreur que le §1.3 existe pour éviter.
  *
  *   php probe-queue.php publish <étiquette> <secondes>   met un message qui traîne
@@ -74,7 +74,7 @@ switch ($argv[1] ?? 'state') {
         break;
 
     case 'recover':
-        // Exactement ce que la tâche cron `mysqlmq_clean_messages` appelle —
+        // Exactement ce que la tâche cron `mysqlmq_clean_messages` appelle :
         // `etc/crontab.xml` de Magento_MysqlMq la déclare sur cette classe et
         // cette méthode, à 6h30 et 15h30. On appelle son point d'entrée, pas
         // son ordonnanceur : la sonde mesure l'effet, elle ne réimplémente rien.
@@ -84,7 +84,7 @@ switch ($argv[1] ?? 'state') {
 
     case 'unlock':
         // La tâche cron `messagequeue_clean_outdated_locks`, toutes les heures.
-        // Elle vide `queue_lock` — et c'est elle, pas la reprise, qui décide si
+        // Elle vide `queue_lock`, et c'est elle, pas la reprise, qui décide si
         // un message redélivré sera traité ou acquitté sans rien faire.
         $om->get(\Magento\Framework\MessageQueue\Lock\WriterInterface::class)->releaseOutdatedLocks();
         echo "messagequeue_clean_outdated_locks ran\n";

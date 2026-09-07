@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# INSTALL CONDITION: always. Weekly, via cron — a weekly cadence outlives the seven-day expiry on
+# INSTALL CONDITION: always. Weekly, via cron; a weekly cadence outlives the seven-day expiry on
 # Claude Code's recurring /loop tasks.
 #
 # Reads the week's exhaust (failures, demotions, goal violations, spend) and proposes AT MOST 3
-# changes: a new constitution law, a skill fix, or a standing goal. Proposals only — it writes to
+# changes: a new constitution law, a skill fix, or a standing goal. Proposals only: it writes to
 # STATE.md and never to CLAUDE.md. This is how the constitution evolves from evidence rather than
 # from mood. A clean week is reported as clean.
 set -euo pipefail
@@ -23,7 +23,7 @@ OUT=$(printf '%s' "$EXHAUST" | claude -p "You are reviewing one week of an auton
 Propose AT MOST 3 changes, each one of: a new CLAUDE.md law (must carry a number, a never, or a
 check command), a fix to a specific skill, or a new standing goal (must come with a shell
 predicate). Cite the evidence line for each proposal. If the week is clean, output exactly
-'CLEAN WEEK'. Propose only — you are not applying anything." \
+'CLEAN WEEK'. Propose only: you are not applying anything." \
   --model "$MODEL" --allowedTools "" --output-format json)
 
 ./scripts/log-cost.sh retro "$MODEL" "$OUT"

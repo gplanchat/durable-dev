@@ -1,4 +1,4 @@
-# The contract — where autonomy stops
+# The contract: where autonomy stops
 
 Three lists. The loop reads this file on every tick; a human reads it when deciding whether to
 widen the first list.
@@ -10,8 +10,8 @@ for existing behaviour; update `loop/memory/STATE.md`; label and triage issues.
 
 ## needs my sign-off
 
-any issue the trust gate labelled `loop:untrusted` — it reaches the reading list only once a
-human has read it and added `loop:cleared`, and an edit withdraws that clearance automatically;
+any issue the trust gate labelled `loop:untrusted` (it reaches the reading list only once a
+human has read it and added `loop:cleared`, and an edit withdraws that clearance automatically);
 anything under the supervised-only paths in `CLAUDE.md`; any skill below its trust threshold
 (`loop/memory/trust.tsv`); anything a classifier rerouted to another model; any change to a public
 package surface under `src/`; merging anything to `main`.

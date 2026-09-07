@@ -9,7 +9,7 @@
 #
 # TIERS. Only the top row is the article's: auto requires 20 runs at 95% verified. The tier table
 # in the source is a published image, so the middle thresholds below are this repository's choice,
-# not a transcription — they are deliberately conservative and meant to be re-tuned from the
+# not a transcription. They are deliberately conservative and meant to be re-tuned from the
 # ledger itself once it holds a month of data.
 #
 #   auto   runs >= 20 and rate >= 95%   runs unattended, may open a PR

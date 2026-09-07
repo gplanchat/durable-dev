@@ -5,7 +5,7 @@ Magento et regarder ce qu'il fait. Un module de palier 1 ne se teste contre rien
 Magento, donc ce dossier *est* le harnais.
 
 Ce qui est au dépôt : `composer.json` et son verrou, `compose.yaml`, le script de précontrôle des
-extensions, deux sondes, et le module de sonde qu'elles pilotent. Rien de la distribution — voir
+extensions, deux sondes, et le module de sonde qu'elles pilotent. Rien de la distribution : voir
 `.gitignore`, qui explique pourquoi la règle y est inversée.
 
 ## Ce qu'il faut avant de commencer
@@ -59,7 +59,7 @@ bin/magento cache:flush
 ```
 
 Le module s'appelle **`Gplanchat_DurableModule`** et son paquet Composer
-**`gplanchat/durable-magento`** — les deux conventions ne se croisent pas, et le
+**`gplanchat/durable-magento`** ; les deux conventions ne se croisent pas, et le
 `registration.php` du module explique pourquoi.
 
 Le banc en active un second, **`Gplanchat_DurableProbe`**, qui vit dans
@@ -96,15 +96,15 @@ MAGENTO_DC_DURABLE__TEMPORAL__DSN='temporal://127.0.0.1:7239?namespace=demo-mage
 ```
 
 `OrderNexusWorkflow` fait vérifier la facture par la maquette Symfony, retenir le stock par la
-maquette Sylius, puis encaisser — la dernière étant remplie par un workflow d'en face, qui met une
+maquette Sylius, puis encaisser, la dernière étant remplie par un workflow d'en face, qui met une
 quinzaine de secondes. Le banc ne **sert** aucune opération : appeler ne demande rien à l'hôte,
 servir demanderait un registre de gestionnaires et une file Nexus, qui n'existent pas ici.
 
 Elle ne tourne pas seule : les cinq autres workers, les deux endpoints et les prérequis sont dans
-[`demo/README.md`](../demo/README.md). La grappe du `compose.yaml` ci-dessus ne convient pas — ses
+[`demo/README.md`](../demo/README.md). La grappe du `compose.yaml` ci-dessus ne convient pas : ses
 API Nexus sont désactivées.
 
-**Dans le back-office** — Magento livre son propre serveur de développement, il n'y a rien à
+**Dans le back-office**, Magento livre son propre serveur de développement, il n'y a rien à
 installer :
 
 ```bash
@@ -113,7 +113,7 @@ php -S 127.0.0.1:8080 -t pub/ phpserver/router.php
 
 Puis `http://127.0.0.1:8080/admin`, et **`System > Durable processes > Process history`**. L'écran
 est en lecture seule : ce qu'un exploitant vient y chercher est de savoir si une commande est
-passée, pas de la relancer à la main — reprendre depuis un navigateur contournerait le verrou par
+passée, pas de la relancer à la main. Reprendre depuis un navigateur contournerait le verrou par
 exécution.
 
 Un compte d'administration s'ajoute par `bin/magento admin:user:create`. Si la double
@@ -134,7 +134,7 @@ Ce n'est pas un nom de backend qui choisit, c'est **la présence d'un DSN** dans
 ],
 ```
 
-Sans lui, le journal vit dans le processus qui l'écrit et meurt avec lui — la grille du back-office
+Sans lui, le journal vit dans le processus qui l'écrit et meurt avec lui ; la grille du back-office
 est alors vide, **et c'est la bonne réponse** : une requête d'administration ouvre un processus
 neuf. La page le dit elle-même plutôt que de laisser croire à une panne.
 
@@ -146,14 +146,14 @@ d81bfb25-af86-43b9-a310-9d9d34695a30  | DurableJournal | running | 2026-08-28 09
 ```
 
 ⚠ **Deux réserves à connaître.** Le nom affiché est `DurableJournal` : c'est le type Temporal qui
-*porte* le journal d'une exécution, pas le type métier. Et le statut reste `running` — **aucun
+*porte* le journal d'une exécution, pas le type métier. Et le statut reste `running` : **aucun
 worker ne draine encore la file de tâches**, donc rien ne clôt les journaux. C'est la suite de la
 tâche 5 du change `magento-module`.
 
 ## Les sondes
 
 Deux scripts, gardés parce qu'ils se rejouent, et un module de sonde dans `app/code` qui porte le
-sujet de file qu'ils pilotent — hors du paquet publié, parce qu'un sujet dont le gestionnaire ne
+sujet de file qu'ils pilotent, hors du paquet publié, parce qu'un sujet dont le gestionnaire ne
 fait que dormir n'a rien à y faire.
 
 ```bash
@@ -174,7 +174,7 @@ Six contraintes d'hôte trouvées en construisant. Chacune a coûté un tour de 
 se manifeste là où elle est commise.
 
 - **Magento interdit `final`** sur toute classe que son conteneur instancie : il engendre un
-  `Interceptor` qui l'étend. Le message — *« cannot extend final class »* — ne dit pas que le
+  `Interceptor` qui l'étend. Le message (*« cannot extend final class »*) ne dit pas que le
   mot-clé est en cause.
 - **Mage-OS audite les dépôts de chemin.** `composer-dependency-version-audit-plugin` refuse un
   paquet résolu localement quand un plus récent existe sur packagist.org. Le banc le désactive pour
@@ -186,7 +186,7 @@ se manifeste là où elle est commise.
 - **Un contrôleur se résout par convention depuis le nom du module**, pas depuis l'autochargement :
   `Gplanchat_DurableModule` + `\Controller\Adminhtml\…`. Le module ajoute donc une seconde entrée `psr-4`
   pour ce seul dossier. Sans elle, la route est déclarée, **le menu s'affiche**, et Magento sert son
-  404 dans le châssis d'admin — tous les symptômes désignent la déclaration, qui est juste.
+  404 dans le châssis d'admin ; tous les symptômes désignent la déclaration, qui est juste.
 - **Un argument de constructeur optionnel n'est pas auto-câblé** : Magento prend son défaut. Il faut
   le nommer dans `di.xml`, sinon la dépendance reste `null` sans une ligne d'erreur.
 - **Renommer une classe que le conteneur instancie** laisse un intercepteur périmé dans
@@ -210,12 +210,12 @@ un changement fait dans un worktree n'arrivera au banc qu'une fois fusionné.
 
 ## Autres pannes d'amorçage
 
-- **`Class "Magento\Setup\Mvc\Bootstrap\InitParamListener" not found`** — `composer dump-autoload`
+- **`Class "Magento\Setup\Mvc\Bootstrap\InitParamListener" not found`** : `composer dump-autoload`
   dans `magento/` ; l'overlay déclare `Magento\Setup\` dans son `composer.json`.
-- **`You do not have the SUPER privilege … CREATE TRIGGER`** — l'overlay lance MySQL avec
+- **`You do not have the SUPER privilege … CREATE TRIGGER`** : l'overlay lance MySQL avec
   `--log-bin-trust-function-creators=1` ; recréer le service :
   `docker compose up -d --force-recreate magento-db`.
-- **`Could not validate a connection to the OpenSearch`** — `docker compose ps opensearch`, et
+- **`Could not validate a connection to the OpenSearch`** : `docker compose ps opensearch`, et
   vérifier le port `9201`.
 
 ## Notes

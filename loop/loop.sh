@@ -19,14 +19,14 @@ MEM=memory
 STAMP=$(date +%F)
 
 # Prompts asking for bare output are instructions, not guarantees: both seats intermittently wrap
-# their answer in a markdown fence. Unfenced, two things break silently — a fenced "QUIET" never
+# their answer in a markdown fence. Unfenced, two things break silently: a fenced "QUIET" never
 # equals QUIET, so a quiet repository wakes the expensive seat on every tick, and a fenced work
 # order dies in jq halfway through. Strip the fence once, here, rather than trusting the prompt.
 unfence() { sed -e '/^[[:space:]]*```/d' ; }
 
 # The three seats. Variables, not constants: a model outage, a price change or a compliance
 # ruling is then a config edit rather than an incident (WA007). Defaults are the current
-# generation as of 2026-09-06 — the article's Fable 5 is the alternative decision seat, set
+# generation as of 2026-09-06; the article's Fable 5 is the alternative decision seat, set
 # CONDUCTOR_MODEL=claude-fable-5-1 for it.
 CONDUCTOR_MODEL="${CONDUCTOR_MODEL:-claude-opus-5}"
 WORKER_MODEL="${WORKER_MODEL:-claude-haiku-4-5}"
@@ -41,7 +41,7 @@ LOOP_PUSH="${LOOP_PUSH:-0}"
 
 # ---- 1. triage: cheap model reads the world ----------------------------
 # The reading list is gated, not raw. Only issues the CI trust gate labelled `loop:trusted`
-# (authored by the team) or that a human labelled `loop:cleared` reach the loop at all — see
+# (authored by the team) or that a human labelled `loop:cleared` reach the loop at all; see
 # .github/workflows/issue-trust-gate.yml and WA007. `gh issue list` reports no author, and this
 # repository is public, so the ungated list put a stranger's issue and the owner's in front of the
 # conductor as the same thing.
@@ -65,7 +65,7 @@ FINDINGS=$(printf '%s' "$TRIAGE" | jq -r '.result' | unfence | sed -e 's/[[:spac
 [ "$FINDINGS" = "QUIET" ] && { echo "$STAMP quiet"; exit 0; }
 
 # ---- 2. conductor: the decision seat (read-only, cached prefix first) ---
-# Stable prefix (constitution, contract, prompt) leads; volatile findings trail — this ordering
+# Stable prefix (constitution, contract, prompt) leads; volatile findings trail: this ordering
 # is the whole of the caching discount, and Layer 6 checks it held.
 ORDER=$(claude -p "$(cat ../CLAUDE.md contract.md conductor.md)
 
@@ -99,7 +99,7 @@ fi
 
 ./scripts/log-cost.sh conductor "$CONDUCTOR_MODEL" "$ORDER"
 
-# An unparseable decision is not something to iterate on — it is a rerouted or malformed seat.
+# An unparseable decision is not something to iterate on. It is a rerouted or malformed seat.
 DECISION=$(printf '%s' "$ORDER" | jq -r '.result' | unfence | jq -c '.' 2>/dev/null) || {
   echo "$STAMP ALERT conductor returned no parseable work order" >> $MEM/STATE.md
   printf '%s' "$ORDER" | jq -r '.result' | head -20 >> $MEM/STATE.md
@@ -115,7 +115,7 @@ printf '%s\t%s\t%s\n' "$STAMP" "$SKILL" "$ACTION" >> $MEM/dispatch.tsv
 # What the trust tier gates is the PR, not the attempt. Gating the attempt deadlocks the ledger:
 # a skill can only reach `auto` by accumulating runs, and it can only accumulate runs by running.
 # So every tier executes, in a throwaway worktree on a throwaway branch, and every outcome is
-# recorded — but only a skill at `auto` may open a PR without a human. Below that the branch is
+# recorded, but only a skill at `auto` may open a PR without a human. Below that the branch is
 # left sitting for someone to look at, which is exactly what weeks 1 and 2 of the rollout are.
 TIER=$(./scripts/trust-log.sh --tier "$SKILL")
 
@@ -135,7 +135,7 @@ BASE=$(cd "$WT" && git rev-parse HEAD)
 
 # ---- 4. verifier: fresh context judges spec against diff, nothing else --
 # Diff against the branch point, not the index. Plain `git diff` shows neither untracked files nor
-# anything the worker committed — and the worker prompt mandates TDD, so the new failing test is
+# anything the worker committed, and the worker prompt mandates TDD, so the new failing test is
 # precisely the untracked file that would go missing. The verifier would then be asked to judge
 # done_when against a diff with the test cut out of it. Verified: touch a new file and modify a
 # tracked one, and `git diff` reports one of the two.
@@ -143,10 +143,10 @@ DIFF=$(cd "$WT" && git add -A && git diff "$BASE")
 
 # A no-op must never reach the ledger. An empty diff satisfies the verifier vacuously (nothing in
 # it exceeds the spec) and passes the gate (the tree is unchanged), writing an unearned pass into
-# the trust ledger. Twenty of those and a skill that has done nothing is promoted to `auto` — the
+# the trust ledger. Twenty of those and a skill that has done nothing is promoted to `auto`: the
 # ledger that decides autonomy, poisoned by the loop idling. Not a run, so not recorded as one.
 if [ -z "$DIFF" ]; then
-  echo "$STAMP $SKILL produced no diff — not recorded as a run" >> $MEM/STATE.md
+  echo "$STAMP $SKILL produced no diff, not recorded as a run" >> $MEM/STATE.md
   exit 1
 fi
 VERDICT_JSON=$(printf 'SPEC:\n%s\n\nDIFF:\n%s' "$DECISION" "$DIFF" \
@@ -168,5 +168,5 @@ if printf '%s' "$VERDICT" | grep -q '^PASS'; then
   fi
 fi
 ./scripts/trust-log.sh "$SKILL" fail
-echo "$STAMP FAILED: $SKILL — $VERDICT" >> $MEM/STATE.md
+echo "$STAMP FAILED: $SKILL ($VERDICT)" >> $MEM/STATE.md
 exit 1

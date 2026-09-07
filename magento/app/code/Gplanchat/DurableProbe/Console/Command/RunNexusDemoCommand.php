@@ -13,7 +13,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * `bin/magento durable:demo:nexus <order> <amount> REF=qty …` — Magento calls the three others.
+ * `bin/magento durable:demo:nexus <order> <amount> REF=qty …`, and Magento calls the three others.
  *
  * **On the cluster, and not here.** `MagentoRuntime::run()` would execute the workflow in this
  * process, which is not what the demonstration shows: a Nexus operation is served by another
@@ -41,7 +41,7 @@ class RunNexusDemoCommand extends Command
     {
         $this->setName('durable:demo:nexus')
             ->setDescription('Gets billed, stocked and shipped by three other applications, through Nexus')
-            ->addArgument('order', InputArgument::REQUIRED, 'The order identifier — it is what makes the reservation idempotent')
+            ->addArgument('order', InputArgument::REQUIRED, 'The order identifier: it is what makes the reservation idempotent')
             ->addArgument('amount', InputArgument::REQUIRED, 'The amount to bill, in cents')
             ->addArgument('lines', InputArgument::IS_ARRAY | InputArgument::REQUIRED, 'REFERENCE=quantity, one or more')
             ->addOption('currency', null, InputOption::VALUE_REQUIRED, 'An ISO 4217 code', 'EUR')
@@ -67,7 +67,7 @@ class RunNexusDemoCommand extends Command
         // catching it here to rewrite it would only say it less well.
         $client = $this->runtimeFactory->workflowClient();
 
-        $output->writeln(sprintf('  order %s — %s', $order, json_encode($lines, \JSON_THROW_ON_ERROR)));
+        $output->writeln(sprintf('  order %s: %s', $order, json_encode($lines, \JSON_THROW_ON_ERROR)));
         $startedAt = microtime(true);
 
         // The payload keys are the workflow's parameter **names**, not their positions:
@@ -83,7 +83,7 @@ class RunNexusDemoCommand extends Command
             $order,
         );
 
-        $output->writeln('  started — Magento holds nothing open while the others work.');
+        $output->writeln('  started. Magento holds nothing open while the others work.');
 
         $seconds = max(1, (int) $input->getOption('timeout'));
         $result = $client->pollForCompletion($order, 500, $seconds * 2);
@@ -99,9 +99,9 @@ class RunNexusDemoCommand extends Command
             '<info>%.1f s%s</info>',
             microtime(true) - $startedAt,
             match (true) {
-                $shipped => ' — including two operations fulfilled by workflows, on two different hosts.',
-                $charged => ' — charged, but nothing left the warehouse.',
-                default => ' — nothing was charged.',
+                $shipped => ', including two operations fulfilled by workflows, on two different hosts.',
+                $charged => ': charged, but nothing left the warehouse.',
+                default => ': nothing was charged.',
             },
         ));
 

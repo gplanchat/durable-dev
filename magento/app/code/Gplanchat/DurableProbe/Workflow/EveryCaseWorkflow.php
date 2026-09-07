@@ -20,10 +20,10 @@ use Gplanchat\DurableProbe\Workflow\Activity\EveryCaseActivities;
  * Celui-ci est le véhicule de recette : ce qu'il produit est ce que la page doit rendre lisible.
  *
  * Ce qu'il contient, et pourquoi :
- * - une activité qui **réussit** — la ligne de référence ;
+ * - une activité qui **réussit**, la ligne de référence ;
  * - une activité **instable**, deux échecs puis une réussite : une action qui porte du rouge *et*
  *   se termine bien, ce qui prouve que la couleur marque l'événement et non l'action entière ;
- *   ⚠ **elle ne se reprend que sur le backend en mémoire** — sur Temporal les trois tentatives
+ *   ⚠ **elle ne se reprend que sur le backend en mémoire** ; sur Temporal les trois tentatives
  *   sont consommées en deux secondes sans que le code de l'activité soit rappelé. C'est cette
  *   sonde qui l'a trouvé, et le fait est rapporté dans l'issue #218 : ici il n'est pas contourné ;
  * - un **minuteur** de cinq secondes, qui doit annoncer sa durée sans qu'on ait à soustraire deux
@@ -33,10 +33,10 @@ use Gplanchat\DurableProbe\Workflow\Activity\EveryCaseActivities;
  *   termine, et l'échec reste visible dans son journal.
  *
  * ⚠ **Deux cas manquent, et c'est délibéré.** Un *signal* demande un émetteur, et le runtime de
- * l'hôte n'expose pas d'envoi — la sonde tourne sans surveillance, donc rien ne le lui enverrait.
+ * l'hôte n'expose pas d'envoi : la sonde tourne sans surveillance, donc rien ne le lui enverrait.
  * Une opération *Nexus* demande **deux applications en face** : elle est dans
  * {@see OrderNexusWorkflow}, qui appelle les maquettes Sylius et Symfony, et elle y reste. La
- * mettre ici rendrait cette sonde indémarrable seule — elle attendrait deux workers qui ne tournent
+ * mettre ici rendrait cette sonde indémarrable seule : elle attendrait deux workers qui ne tournent
  * que sous `demo/run.sh`. Un journal contenant les trois événements Nexus existe donc, il porte
  * juste un autre nom d'exécution.
  */
@@ -73,7 +73,7 @@ final class EveryCaseWorkflow
 
         // Rattrapée elle aussi, et pas par principe : sur le backend en mémoire elle se reprend et
         // rend « recovered after 3 attempts », sur Temporal elle échoue. La laisser propager ferait
-        // mourir l'exécution ici et priverait la page des quatre cas suivants — or c'est
+        // mourir l'exécution ici et priverait la page des quatre cas suivants, or c'est
         // précisément la page qu'on vient juger. La différence entre les deux backends est un fait
         // que cette sonde a trouvé, pas une raison de ne montrer qu'un backend.
         $trace['flaky'] = $this->caught(fn(): mixed => $this->environment->await($patient->flaky($caseId)));

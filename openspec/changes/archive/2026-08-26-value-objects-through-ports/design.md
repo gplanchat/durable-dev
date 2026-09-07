@@ -1,7 +1,7 @@
 ## Context
 
 Two drivers sit behind one core: an in-memory backend that journals domain events, and a Temporal
-backend that emits protobuf commands. They meet the core at two ports —
+backend that emits protobuf commands. They meet the core at two ports:
 `WorkflowCommandBufferInterface` (write) and `WorkflowHistorySourceInterface` (read).
 
 Both ports currently speak primitives. The evidence, read from the code rather than assumed:
@@ -33,7 +33,7 @@ And the round trip, in three places:
 - Changing anything a workflow author writes. `ActivityOptions`, `Duration` and the rest keep their
   current public shape.
 - Changing the journal or Temporal history bytes.
-- Typing the activity **payload**. It is caller data, genuinely `array` — this change is about
+- Typing the activity **payload**. It is caller data, genuinely `array`; this change is about
   scheduling options, not business input.
 - Introducing an intermediate "command" DTO layer between core and port. The value objects are the
   contract; wrapping them again would trade one indirection for another.
@@ -57,7 +57,7 @@ adapters, not the core. Moving them out into separate serialiser classes would s
 contract away from the type that defines it.
 
 **`ActivityMessage` carries typed options.**
-It crosses a transport, so it is serialised anyway — but by the transport, which is an adapter.
+It crosses a transport, so it is serialised anyway, but by the transport, which is an adapter.
 `attempt()` stays as it is: it is transport bookkeeping, not a scheduling option.
 
 **No new DTO layer.**
@@ -72,7 +72,7 @@ whose whole problem is that it already has one too many.
   the guard, and it must run before and after.
 - **The port is public API for anyone implementing a third driver.** This is a breaking change for
   them, with no deprecation window; the changed signatures are the migration guide.
-- **The change touches the two drivers at once.** It cannot be landed one driver at a time — the
+- **The change touches the two drivers at once.** It cannot be landed one driver at a time: the
   port signature is shared. Landing it means both adapters move in the same commit, which is a
   larger diff than this codebase usually takes in one step.
 - **A partial migration is worse than none.** Leaving `scheduleActivity` typed while

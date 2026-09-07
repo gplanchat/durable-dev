@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The daily sentinel. Finished work never closes here: it becomes an invariant re-checked every
-# day, forever. This script FINDS, it never REPAIRS — detection and repair stay separate parties,
+# day, forever. This script FINDS, it never REPAIRS: detection and repair stay separate parties,
 # and a violation is a page, not a work order the sentinel hands itself.
 #
 # Exit 1 if anything is violated.

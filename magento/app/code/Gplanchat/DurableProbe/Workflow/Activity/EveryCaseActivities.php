@@ -11,7 +11,7 @@ use Gplanchat\Durable\Attribute\AsActivityMethod;
  * d'observation doit savoir montrer.
  *
  * Le banc n'avait que des activités qui réussissent. Un écran qui n'a jamais vu d'échec n'a jamais
- * prouvé qu'il savait en montrer un — et « la couleur d'échec marche » ne se vérifie pas sur une
+ * prouvé qu'il savait en montrer un, et « la couleur d'échec marche » ne se vérifie pas sur une
  * exécution qui n'échoue nulle part.
  */
 interface EveryCaseActivities

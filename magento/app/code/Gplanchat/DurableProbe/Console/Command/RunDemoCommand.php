@@ -12,23 +12,23 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * `bin/magento durable:demo <orderId>` — la preuve que le module tourne.
+ * `bin/magento durable:demo <orderId>`, la preuve que le module tourne.
  *
  * Un bootstrap de palier 1 n'a pas de test unitaire qui prouve qu'il démarre :
  * un module Magento ne se teste contre rien de plus petit que Magento. Cette
- * commande est donc le harnais, et elle vaut assertion — elle sort en erreur si
+ * commande est donc le harnais, et elle vaut assertion : elle sort en erreur si
  * le workflow ne rend pas ce qu'il doit, et le journal qu'elle imprime dit
  * lequel des trois pas a eu lieu.
  *
  * Ce qu'elle ne prouve pas encore : rien de tout cela ne passe par la file de
- * Magento. Le backend est en mémoire, dans ce seul processus — donc rien ne
+ * Magento. Le backend est en mémoire, dans ce seul processus, donc rien ne
  * survit à la commande. C'est la tranche 4 qui met la file dessous, et la
  * tranche 5 qui met Temporal.
  */
 /*
  * Pas `final` : Magento engendre un `Interceptor` qui étend toute classe que son
  * conteneur instancie, pour porter les plugins. Une classe finale fait échouer la
- * compilation du conteneur — « cannot extend final class » — et le message ne dit
+ * compilation du conteneur (« cannot extend final class ») et le message ne dit
  * pas que c'est la faute du mot-clé. C'est la maison qui écrit `final` partout ;
  * ici l'hôte l'interdit, et le dire vaut mieux que de le laisser deviner.
  */

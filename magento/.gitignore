@@ -2,13 +2,13 @@
 #
 # Une distribution Magento installée pèse 769 Mo, dont 626 pour `vendor/`. Une
 # fois `vendor/` exclu par le `.gitignore` de la racine, il reste encore
-# **10 178 fichiers** que composer a écrits — `dev/` en apporte 7 256 à lui
+# **10 178 fichiers** que composer a écrits : `dev/` en apporte 7 256 à lui
 # seul. Rien de tout cela n'est du code de ce dépôt, et le suivre reviendrait à
 # versionner Mage-OS.
 #
 # On inverse donc la règle : tout est ignoré, et l'overlay se ré-autorise
 # nommément. Un fichier que composer ajoutera demain restera dehors sans que
-# personne ait à y penser — c'est ce qu'une liste d'exclusions ne sait pas
+# personne ait à y penser. C'est ce qu'une liste d'exclusions ne sait pas
 # faire.
 #
 # Ce que l'overlay contient, et pourquoi il est au dépôt :
@@ -32,16 +32,16 @@
 #                                  démarre-t-elle une exécution sur la grappe ?
 #   probe-cases.php                la sonde de l'écran d'observation : une exécution
 #                                  qui contient tous les cas que la page doit savoir
-#                                  montrer — échec, minuteur, enfant, reprise
+#                                  montrer : échec, minuteur, enfant, reprise
 #   app/code/Gplanchat/DurableProbe le module du banc. Il porte la
-#                                  **démonstration** — `PlaceOrderWorkflow`,
-#                                  `durable:demo` — et les sujets de file des
+#                                  **démonstration** (`PlaceOrderWorkflow`,
+#                                  `durable:demo`) et les sujets de file des
 #                                  sondes. Rien de tout cela n'a sa place dans le
 #                                  paquet publié : un module d'intégration ne
 #                                  doit pas faire porter à un projet des
 #                                  workflows qui ne sont pas les siens.
 #
-# `sylius/` fait l'inverse — liste d'exclusions — parce que là-bas le squelette
+# `sylius/` fait l'inverse (liste d'exclusions) parce que là-bas le squelette
 # applicatif **est** du code du projet : 220 fichiers écrits ici. Ici il y en a
 # six, et dix mille qui ne le sont pas.
 
