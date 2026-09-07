@@ -24,9 +24,9 @@ Deux classes, et **six lignes de configuration** :
 // config/durable.php
 'backend' => env('DURABLE_BACKEND', 'temporal'),
 'temporal' => ['dsn' => env('DURABLE_DSN')],
-'workflows' => [App\Durable\Workflow\ExpedierWorkflow::class],
+'workflows' => [App\Durable\Workflow\ShipWorkflow::class],
 'nexus' => ['handlers' => [
-    App\Durable\Nexus\LivraisonHandler::class => LivraisonContract::class,
+    App\Durable\Nexus\DeliveryHandler::class => DeliveryContract::class,
 ]],
 ```
 
@@ -42,7 +42,7 @@ même moment. Il a été écrit pour Symfony et n'y est resté que le temps d'un
 
 ## Le workflow qui sert **et** appelle
 
-`ExpedierWorkflow` remplit `livraison/expedier`, attend six secondes de préparation en entrepôt,
+`ShipWorkflow` remplit `delivery/ship`, attend six secondes de préparation en entrepôt,
 puis **appelle `stock/reserver` chez la boutique Sylius** avant de sortir la marchandise. Une même
 exécution porte donc une opération Nexus servie et une opération Nexus appelée, dans le même
 journal.
@@ -63,10 +63,10 @@ php8.2 artisan migrate            # sqlite : la table de cache porte l'idempoten
 
 DURABLE_DSN='temporal://127.0.0.1:7239?namespace=demo-laravel&nexus_task_queue=demo-laravel-nexus&tls=0' \
   php8.2 artisan durable:nexus-worker      # poll les tâches Nexus
-DURABLE_DSN='…' php8.2 artisan durable:temporal-worker  # fait avancer ExpedierWorkflow
+DURABLE_DSN='…' php8.2 artisan durable:temporal-worker  # fait avancer ShipWorkflow
 ```
 
-`demo/lancer.sh` démarre les deux avec les bonnes valeurs, en même temps que les six autres
+`demo/run.sh` démarre les deux avec les bonnes valeurs, en même temps que les six autres
 processus. Les prérequis de l'ensemble sont dans [`demo/README.md`](../demo/README.md).
 
 ## La sonde
