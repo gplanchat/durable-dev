@@ -32,7 +32,7 @@ l'ancien déploiement FTPS est emporté par le premier `--delete`.
 
 - **Quota.** L'hébergement est plafonné ; le job échoue si le site dépasse `SITE_QUOTA_KB`
   plutôt que de téléverser à moitié et laisser un site cassé en ligne.
-- **Élagage.** Le thème embarque mermaid, katex et asciinema — 4,4 Mo copiés dans la sortie même
+- **Élagage.** Le thème embarque mermaid, katex et asciinema : 4,4 Mo copiés dans la sortie même
   inutilisés. Ils sont retirés avant l'envoi, ce qui fait passer le site de 4,9 Mo à ~584 Ko.
   Une garde échoue le build si une page se met à utiliser l'un de ces shortcodes, pour que
   l'élagage ne casse rien en silence.
@@ -44,6 +44,6 @@ les en-têtes de sécurité, la compression et le cache. Chaque directive est pr
 `<IfModule>` : sur un mutualisé, une directive portant sur un module absent renvoie **500 pour tout
 le site**, pas seulement pour la page concernée.
 
-Le `max-age` HSTS est volontairement court (300 s) au démarrage. HSTS est difficile à défaire — le
+Le `max-age` HSTS est volontairement court (300 s) au démarrage. HSTS est difficile à défaire : le
 navigateur refuse `http://` pendant toute la durée annoncée, même si le certificat expire. Le
 passer à un an une fois le domaine stable.
