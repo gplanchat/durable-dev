@@ -11,9 +11,9 @@ use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Variante légère de samples-php Periodic : plusieurs salutations avec pause durable entre les tours
- * (sans continue-as-new ni sideEffect aléatoire). Les pauses utilisent des secondes entières : le transport
- * Symfony InMemory en test tronque les DelayStamp sous la seconde en 0 s (réveils trop tôt).
+ * Light variant of samples-php Periodic: several greetings with a durable pause between iterations
+ * (without continue-as-new or a random sideEffect). The pauses use whole seconds: in tests the Symfony
+ * InMemory transport truncates sub-second DelayStamps to 0 s (wake-ups too early).
  *
  * @return list<string>
  */

@@ -16,8 +16,8 @@ use PHPUnit\Framework\TestCase;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
- * Le minuteur perdant d'un `any()` restait planifié : son échéance réveillait ensuite
- * l'exécution pour rien (Messenger) ou faisait naître un TimerCompleted fantôme.
+ * The losing timer of an `any()` stayed scheduled: its deadline then woke the execution for
+ * nothing (Messenger) or gave birth to a phantom TimerCompleted.
  */
 final class TimerCancellationTest extends TestCase
 {
@@ -46,10 +46,10 @@ final class TimerCancellationTest extends TestCase
         self::assertSame('winner', $result);
 
         $cancelled = $this->eventsOf(TimerCancelled::class);
-        self::assertCount(1, $cancelled, 'le minuteur perdant doit être annulé une seule fois');
+        self::assertCount(1, $cancelled, 'the losing timer must be cancelled exactly once');
         self::assertSame([], $this->eventsOf(TimerCompleted::class));
 
-        // Le calcul de réveil Messenger ne doit plus voir d'échéance en attente.
+        // The Messenger wake calculation must no longer see a pending deadline.
         self::assertNull(TimerWakeDelayCalculator::millisecondsUntilNextTimerDue(
             $this->eventStore,
             'race-1',

@@ -33,16 +33,16 @@ final class NexusHandlerPassTest extends TestCase
 
         $calls = $container->getDefinition('durable.temporal.nexus_registry')->getMethodCalls();
         self::assertCount(1, $calls);
-        self::assertSame('billing', self::nom($calls[0][1][0], NexusService::class));
-        self::assertSame('verify', self::nom($calls[0][1][1], NexusOperationName::class));
+        self::assertSame('billing', self::nameOf($calls[0][1][0], NexusService::class));
+        self::assertSame('verify', self::nameOf($calls[0][1][1], NexusOperationName::class));
     }
 
     public function testAnOperationNobodyCoversIsRefusedAtStartup(): void
     {
-        // Le cœur de cette passe. `charge` est déclarée par le contrat de l'appelant, aucun
-        // gestionnaire ne l'implémente et aucun workflow ne la réclame : elle serait servie par
-        // personne, et l'appelant attendrait un résultat que rien ne produira. Comme il n'y a
-        // aucune requête à faire échouer plus tard, le refus a lieu au montage ou nulle part.
+        // The core of this compiler pass. `charge` is declared by the caller's contract, no
+        // handler implements it and no workflow claims it: it would be served by nobody, and the
+        // caller would wait for a result that nothing will produce. Since there is no request to
+        // fail later on, the refusal happens at startup or nowhere.
         $container = $this->containerWithRegistry();
         $container->register('app.billing', BillingFixture::class)
             ->addTag(NexusHandlerPass::TAG, ['contract' => BillingContractFixture::class]);
@@ -61,8 +61,8 @@ final class NexusHandlerPassTest extends TestCase
             ->addTag(NexusHandlerPass::TAG, ['contract' => BillingContractFixture::class]);
         $container->register('app.charge', ChargeWorkflowFixture::class)
             ->addTag('durable.workflow')
-            // La balise que `DurableBundle::build()` pose depuis #[FulfilsNexusOperation]. Le test
-            // la pose à la main parce qu'il n'y a pas d'autoconfiguration sur un ContainerBuilder nu.
+            // The tag that `DurableBundle::build()` lays down from #[FulfilsNexusOperation]. The
+            // test lays it by hand because a bare ContainerBuilder has no autoconfiguration.
             ->addTag(NexusHandlerPass::FULFILMENT_TAG, [
                 'contract' => BillingContractFixture::class,
                 'operation' => 'charge',
@@ -73,20 +73,20 @@ final class NexusHandlerPassTest extends TestCase
         $calls = $container->getDefinition('durable.temporal.nexus_registry')->getMethodCalls();
         $methods = array_column($calls, 0);
 
-        self::assertContains('register', $methods, 'l’opération implémentée s’enregistre normalement');
-        self::assertContains('registerFulfilment', $methods, 'la différée se déclare, pour que le worker sache quel workflow démarrer');
+        self::assertContains('register', $methods, 'the implemented operation registers as usual');
+        self::assertContains('registerFulfilment', $methods, 'the deferred one declares itself, so the worker knows which workflow to start');
 
         $fulfilment = $calls[array_search('registerFulfilment', $methods, true)];
-        self::assertSame('charge', self::nom($fulfilment[1][1], NexusOperationName::class));
-        // Le **type** de workflow, pas le FQCN : c'est ce nom que le serveur connaît.
+        self::assertSame('charge', self::nameOf($fulfilment[1][1], NexusOperationName::class));
+        // The workflow **type**, not the FQCN: that is the name the server knows.
         self::assertSame('ChargeWorkflowFixture', $fulfilment[1][2]);
     }
 
     public function testAHandlerThatServesNothingIsRefused(): void
     {
-        // Une classe qui n'implémente aucune opération du contrat se fait prendre par la
-        // couverture, opération par opération. Il n'y a pas de contrôle `is_a` : la balise peut
-        // nommer le contrat complet, dont le gestionnaire n'implémente que la part servie.
+        // A class that implements no operation of the contract is caught by the coverage check,
+        // operation by operation. There is no `is_a` check: the tag may name the complete
+        // contract, of which the handler implements only the served part.
         $container = $this->containerWithRegistry();
         $container->register('app.billing', NotAHandlerFixture::class)
             ->addTag(NexusHandlerPass::TAG, ['contract' => BillingServedFixture::class]);
@@ -132,11 +132,11 @@ final class NexusHandlerPassTest extends TestCase
     }
 
     /**
-     * Le trou que les autres tests laissaient : ils vérifient que l'appel est **ajouté** à la
-     * définition, jamais qu'il s'exécute. Entre les deux vivaient deux `TypeError` — la charge
-     * entière passée en argument #1, et un retour ordinaire là où `dispatch()` attend un
-     * {@see NexusOperationResponse}. Le conteneur est donc compilé, et l'opération vraiment
-     * appelée.
+     * The hole the other tests left: they check that the call is **added** to the definition,
+     * never that it runs. Two `TypeError`s lived in between — the whole payload passed as
+     * argument #1, and an ordinary return where `dispatch()` expects a
+     * {@see NexusOperationResponse}. So the container is compiled, and the operation really
+     * called.
      */
     public function testTheRegisteredHandlerIsActuallyCallableWithANexusPayload(): void
     {
@@ -160,19 +160,19 @@ final class NexusHandlerPassTest extends TestCase
             ['order' => 'CMD-1'],
         );
 
-        // La charge est clée par nom de paramètre — c'est ce que `NexusStub` écrit —, et le
-        // gestionnaire rend le type que son contrat déclare. L'emballage est l'affaire de la
-        // plomberie, pas de celui qui écrit le gestionnaire.
+        // The payload is keyed by parameter name — that is what `NexusStub` writes — and the
+        // handler returns the type its contract declares. The wrapping is the plumbing's business,
+        // not that of whoever writes the handler.
         self::assertTrue($response->isImmediate);
         self::assertSame('ok:CMD-1', $response->result);
     }
 
     /**
-     * Le mode d'échec le plus silencieux de Nexus, et le seul que rien n'attrapait.
+     * Nexus's most silent failure mode, and the only one nothing was catching.
      *
-     * La charge est clée par nom à l'écriture et relue par nom à l'arrivée. Un paramètre de
-     * workflow qui ne correspond à aucun paramètre du contrat n'est pas une erreur — il reçoit
-     * `null`. Le workflow démarre, s'exécute, et rend un résultat calculé sur du vide.
+     * The payload is keyed by name when written and read back by name on arrival. A workflow
+     * parameter that matches no parameter of the contract is not an error — it receives `null`.
+     * The workflow starts, runs, and returns a result computed on nothing.
      */
     public function testAWorkflowWhoseParameterNamesDoNotMatchTheContractIsRefused(): void
     {
@@ -193,8 +193,8 @@ final class NexusHandlerPassTest extends TestCase
     }
 
     /**
-     * Un paramètre que le contrat ignore mais qui a une valeur par défaut passe : l'absence est
-     * alors une décision, pas un oubli.
+     * A parameter the contract knows nothing about but that carries a default value passes: its
+     * absence is then a decision, not an oversight.
      */
     public function testAnOptionalExtraParameterIsAllowed(): void
     {
@@ -214,13 +214,13 @@ final class NexusHandlerPassTest extends TestCase
     }
 
     /**
-     * Le mode d'échec : un conteneur qui compile et une application qui ne démarre pas.
+     * The failure mode: a container that compiles and an application that does not start.
      *
-     * En mode dev, Symfony réécrit le conteneur en XML à chaque réchauffage. Un objet-valeur passé
-     * tel quel en argument d'appel de méthode n'est pas sérialisable, et le message qui sort
-     * — « Unable to dump a service container if a parameter is an object or a resource » — ne parle
-     * ni de Nexus, ni de la passe qui l'a posé. Ce test est la seule chose qui l'attrape avant que
-     * quelqu'un ne vide son cache.
+     * In dev mode, Symfony rewrites the container as XML on every cache warm-up. A value object
+     * passed as is as a method call argument is not serializable, and the message that comes out
+     * — "Unable to dump a service container if a parameter is an object or a resource" — speaks
+     * neither of Nexus, nor of the compiler pass that laid it down. This test is the only thing
+     * that catches it before someone clears their cache.
      */
     public function testTheContainerItLeavesBehindIsStillDumpable(): void
     {
@@ -239,10 +239,10 @@ final class NexusHandlerPassTest extends TestCase
         self::assertStringContainsString('billing', $xml);
     }
 
-    private static function nom(mixed $argument, string $classeAttendue): string
+    private static function nameOf(mixed $argument, string $expectedClass): string
     {
-        self::assertInstanceOf(Definition::class, $argument, 'un objet-valeur voyage en définition, pas en instance');
-        self::assertSame($classeAttendue, $argument->getClass());
+        self::assertInstanceOf(Definition::class, $argument, 'a value object travels as a definition, not as an instance');
+        self::assertSame($expectedClass, $argument->getClass());
 
         return $argument->getArgument(0);
     }
@@ -306,8 +306,8 @@ final class ChargeWithAnOptionFixture
 #[FulfilsNexusOperation(BillingContractFixture::class, 'charge')]
 final class MistypedChargeWorkflowFixture
 {
-    // `$amount` du contrat, écrit `$ammount` ici. Rien ne le signale sans le garde : le workflow
-    // démarre et encaisse zéro.
+    // The contract's `$amount`, written `$ammount` here. Nothing reports it without the guard:
+    // the workflow starts and charges zero.
     #[AsWorkflowMethod]
     public function run(string $order, int $ammount): string
     {

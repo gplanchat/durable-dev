@@ -24,15 +24,14 @@ use Temporal\Api\Update\V1\Meta as UpdateMeta;
 use Temporal\Api\Update\V1\Request as UpdateRequest;
 
 /**
- * Parité de dispatch entre les deux backends (tâche 7.1).
+ * Dispatch parity between the two backends (task 7.1).
  *
- * Le piège est structurel, pas cosmétique : le backend in-memory énumère un flux unique, où
- * signaux et updates sont déjà entremêlés ; le backend Temporal les tient dans **deux tableaux
- * séparés**. Les concaténer ferait passer tous les signaux avant tous les updates, quel que soit
- * l'ordre réel du journal — une divergence silencieuse, et exactement celle que ce change a
- * supprimée pour les rangs de signaux.
+ * The trap is structural, not cosmetic: the in-memory backend enumerates a single stream, where
+ * signals and updates are already interleaved; the Temporal backend holds them in **two separate
+ * arrays**. Concatenating them would put every signal before every update, whatever the real order
+ * of the journal — a silent divergence, and exactly the one this change removed for signal ranks.
  *
- * Le même journal doit donc rendre la même suite de messages des deux côtés.
+ * The same journal must therefore return the same sequence of messages on both sides.
  */
 #[RequiresPhpExtension('grpc')]
 final class HandlerDispatchParityTest extends TestCase
@@ -45,15 +44,15 @@ final class HandlerDispatchParityTest extends TestCase
             ['kind' => 'signal', 'name' => 'tick', 'payload' => ['n' => 2]],
         ];
 
-        self::assertSame($expected, self::drain($this->inMemoryHistory()), 'backend in-memory');
-        self::assertSame($expected, self::drain($this->temporalHistory()), 'backend Temporal');
+        self::assertSame($expected, self::drain($this->inMemoryHistory()), 'in-memory backend');
+        self::assertSame($expected, self::drain($this->temporalHistory()), 'Temporal backend');
     }
 
     public function testBothBackendsSituateADeadlineAgainstTheSameMessages(): void
     {
-        // La comparaison qui tranche un verdict d'échéance : le message est-il enregistré avant
-        // ou après le tir ? Les positions ne sont pas les mêmes d'un backend à l'autre — rang de
-        // flux ici, eventId là — et ce n'est pas ce qui compte. Ce qui compte est le classement.
+        // The comparison that decides a deadline verdict: is the message recorded before or
+        // after the firing? The positions are not the same from one backend to the other — stream
+        // rank here, eventId there — and that is not what counts. What counts is the ordering.
         foreach ([$this->inMemoryHistory(), $this->temporalHistory()] as $history) {
             $firedAt = $history->timerCompletionPosition('timer-a');
             self::assertNotNull($firedAt);

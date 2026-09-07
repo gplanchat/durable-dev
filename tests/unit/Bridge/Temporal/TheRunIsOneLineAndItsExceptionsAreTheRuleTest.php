@@ -8,16 +8,16 @@ use Gplanchat\Bridge\Temporal\Store\TemporalRunHistoryReader;
 use PHPUnit\Framework\TestCase;
 
 /**
- * L'exécution occupe une ligne, et **ce qui n'en fait pas partie est l'essentiel de la règle**.
+ * The execution takes one line, and **what is not part of it is the bulk of the rule**.
  *
- * `WORKFLOW_EXECUTION_SIGNALED` et la famille `WORKFLOW_EXECUTION_UPDATE_*` commencent par le même
- * préfixe que l'exécution sans en être : un signal reçu et une mise à jour sont des attentes à part
- * entière. Les workflows enfants et externes ne commencent pas par ce préfixe, et c'est tout ce qui
- * leur laisse leurs lignes.
+ * `WORKFLOW_EXECUTION_SIGNALED` and the `WORKFLOW_EXECUTION_UPDATE_*` family start with the same
+ * prefix as the execution without belonging to it: a received signal and an update are waits in
+ * their own right. Child and external workflows do not start with that prefix, and that is all
+ * that leaves them their lines.
  *
- * Le partage est donc éprouvé **type par type**, à partir de l'énumération du serveur et non de
- * mémoire : c'est ce qui empêche une version ultérieure de replier en silence un signal dans la
- * première ligne, où personne ne le chercherait.
+ * The split is therefore proven **type by type**, from the server's enumeration and not from
+ * memory: that is what stops a later version from silently folding a signal into the first line,
+ * where nobody would look for it.
  */
 final class TheRunIsOneLineAndItsExceptionsAreTheRuleTest extends TestCase
 {
@@ -43,13 +43,13 @@ final class TheRunIsOneLineAndItsExceptionsAreTheRuleTest extends TestCase
 
     /** @var list<string> */
     private const A_LINE_OF_ITS_OWN = [
-        // Le même préfixe, et pourtant pas l'exécution.
+        // The same prefix, and yet not the execution.
         'EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED',
         'EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED',
         'EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED',
         'EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED',
         'EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_REJECTED',
-        // Les enfants : ce sont eux que l'auteur a nommément demandé de ne pas replier.
+        // The children: they are the ones the author expressly asked not to fold.
         'EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED',
         'EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_FAILED',
         'EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED',
@@ -58,14 +58,14 @@ final class TheRunIsOneLineAndItsExceptionsAreTheRuleTest extends TestCase
         'EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED',
         'EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT',
         'EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED',
-        // Les workflows d'en face.
+        // The workflows on the other side.
         'EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_SIGNALED',
         'EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED',
         'EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED',
         'EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED',
         'EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED',
         'EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_FAILED',
-        // Et le reste, dont chaque occurrence est un fait que l'exploitant lit pour lui-même.
+        // And the rest, each occurrence of which is a fact the operator reads in its own right.
         'EVENT_TYPE_ACTIVITY_TASK_SCHEDULED',
         'EVENT_TYPE_ACTIVITY_TASK_STARTED',
         'EVENT_TYPE_ACTIVITY_TASK_COMPLETED',
@@ -95,32 +95,32 @@ final class TheRunIsOneLineAndItsExceptionsAreTheRuleTest extends TestCase
     public function testEveryEventOfTheRunItselfFoldsIntoTheFirstLine(): void
     {
         foreach (self::THE_RUN_ITSELF as $eventType) {
-            self::assertTrue($this->belongs($eventType), $eventType . ' appartient à l\'exécution');
+            self::assertTrue($this->belongs($eventType), $eventType . ' belongs to the execution');
         }
     }
 
     public function testEverythingElseKeepsItsOwnLine(): void
     {
         foreach (self::A_LINE_OF_ITS_OWN as $eventType) {
-            self::assertFalse($this->belongs($eventType), $eventType . ' garde sa ligne');
+            self::assertFalse($this->belongs($eventType), $eventType . ' keeps its line');
         }
     }
 
     public function testTheTwoListsCoverEveryTypeTheServerCanSend(): void
     {
-        // Un type que le partage ne nomme pas est un type dont personne n'a décidé la ligne. Le
-        // test le dit ici plutôt que de laisser un exploitant le découvrir dans une frise.
+        // A type the split does not name is a type whose line nobody has decided. The test says
+        // so here rather than leaving an operator to discover it in a frieze.
         $declared = array_merge(self::THE_RUN_ITSELF, self::A_LINE_OF_ITS_OWN);
 
         $missing = array_diff($this->everyEventTypeTheServerDeclares(), $declared);
 
-        self::assertSame([], array_values($missing), 'types non rangés : ' . implode(', ', $missing));
+        self::assertSame([], array_values($missing), 'unfiled types: ' . implode(', ', $missing));
     }
 
     public function testEveryFamilyOfFailureIsMarked(): void
     {
-        // Un échec par niveau : si un seul suffixe manquait à la règle, une famille entière
-        // sortirait de la page en noir alors qu'elle a mal tourné.
+        // One failure per level: if a single suffix were missing from the rule, a whole family
+        // would come out of the page in black although it went wrong.
         $failures = [
             'EVENT_TYPE_ACTIVITY_TASK_FAILED',
             'EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT',
@@ -137,15 +137,15 @@ final class TheRunIsOneLineAndItsExceptionsAreTheRuleTest extends TestCase
         ];
 
         foreach ($failures as $eventType) {
-            self::assertTrue($this->isFailure($eventType), $eventType . ' a mal tourné');
+            self::assertTrue($this->isFailure($eventType), $eventType . ' went wrong');
         }
     }
 
     public function testNoCancellationIsPaintedAsAFailure(): void
     {
-        // Une annulation est une issue, pas une panne. La liste vient de l'énumération du serveur
-        // et non de mémoire : un type d'annulation ajouté plus tard tombe dans ce test tout seul,
-        // et c'est le seul moyen que le rouge continue de vouloir dire quelque chose.
+        // A cancellation is an outcome, not a breakdown. The list comes from the server's
+        // enumeration and not from memory: a cancellation type added later falls into this test on
+        // its own, and that is the only way for red to keep meaning something.
         $outcomes = array_values(array_filter(
             $this->everyEventTypeTheServerDeclares(),
             static fn(string $type): bool => str_ends_with($type, '_CANCELED')
@@ -154,20 +154,20 @@ final class TheRunIsOneLineAndItsExceptionsAreTheRuleTest extends TestCase
                 || str_ends_with($type, '_TERMINATED'),
         ));
 
-        self::assertNotSame([], $outcomes, "l'énumération du serveur doit en déclarer");
+        self::assertNotSame([], $outcomes, 'the server enumeration must declare some');
 
         foreach ($outcomes as $eventType) {
-            self::assertFalse($this->isFailure($eventType), $eventType . ' est une issue, pas une panne');
+            self::assertFalse($this->isFailure($eventType), $eventType . ' is an outcome, not a breakdown');
         }
     }
 
     public function testACancellationThatCouldNotBeDeliveredIsAFailure(): void
     {
-        // Le piège que le test précédent a trouvé : ces deux types-là parlent d'annulation et
-        // finissent pourtant en `_FAILED`. Ce n'est pas l'annulation qui est une panne, c'est la
-        // demande d'annulation qui n'est **pas passée** — l'exécution visée continue de tourner
-        // alors que quelqu'un a demandé son arrêt, et c'est exactement le genre de fait qu'on ne
-        // veut pas voir sortir en noir.
+        // The trap the previous test found: those two types speak of cancellation and yet end in
+        // `_FAILED`. It is not the cancellation that is a breakdown, it is the cancellation
+        // request that **did not get through** — the targeted execution keeps running while
+        // somebody has asked for it to stop, and that is exactly the kind of fact one does not
+        // want to see come out in black.
         self::assertTrue($this->isFailure('EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_FAILED'));
         self::assertTrue($this->isFailure('EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUEST_FAILED'));
     }

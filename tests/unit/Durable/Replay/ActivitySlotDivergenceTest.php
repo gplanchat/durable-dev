@@ -15,14 +15,14 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Le journal dit qu'on a appelé A ; le code déployé demande B à la même position.
+ * The journal says A was called; the deployed code asks for B at the same position.
  *
- * Mesuré avant d'être corrigé (sonde 1.1 de `workflow-replay-divergence-guard`, serveur
- * `start-dev` 1.31.2) : le slot se résolvait **silencieusement** avec le résultat enregistré de
- * l'autre appel, et l'exécution se terminait **en succès** en le portant. Rien dans l'historique ne
- * marquait la divergence, et aucun moment ultérieur ne s'en apercevait.
+ * Measured before it was fixed (probe 1.1 of `workflow-replay-divergence-guard`, `start-dev`
+ * server 1.31.2): the slot resolved **silently** with the recorded result of the other call, and
+ * the execution ended **successfully** carrying it. Nothing in the history marked the divergence,
+ * and no later moment noticed it.
  *
- * DUR003 décrivait pourtant cette comparaison comme existante. Elle n'existait pas.
+ * DUR003 nonetheless described this comparison as existing. It did not exist.
  */
 final class ActivitySlotDivergenceTest extends TestCase
 {
@@ -42,22 +42,22 @@ final class ActivitySlotDivergenceTest extends TestCase
 
         try {
             $context->activity('reserveStock', ['sku' => 'ABC']);
-            self::fail('La divergence aurait dû être refusée.');
+            self::fail('The divergence should have been refused.');
         } catch (WorkflowTaskFailure $e) {
             $message = $e->getMessage();
         }
 
-        // Sans ces trois-là, le message coûte un bisect à qui le lit.
-        self::assertStringContainsString('chargeCard', $message, "Le nom enregistré manque : on ne sait pas ce que l'historique tient.");
-        self::assertStringContainsString('reserveStock', $message, 'Le nom demandé manque : on ne sait pas ce que le code voulait.');
-        self::assertStringContainsString(self::EXECUTION, $message, "L'exécution manque : la première chose qu'on fait est d'ouvrir son historique.");
+        // Without these three, the message costs a bisect to whoever reads it.
+        self::assertStringContainsString('chargeCard', $message, 'The recorded name is missing: we do not know what the history holds.');
+        self::assertStringContainsString('reserveStock', $message, 'The requested name is missing: we do not know what the code wanted.');
+        self::assertStringContainsString(self::EXECUTION, $message, 'The execution is missing: the first thing one does is open its history.');
     }
 
     public function testTheMessageCarriesTheFivePartsNeededToAct(): void
     {
-        // Ce que quelqu'un fait avec ce message, dans l'ordre : il ouvre l'historique de cette
-        // exécution, va à ce slot, et compare les deux noms. Les cinq morceaux sont donc un
-        // contrat, pas une formulation — c'est pour ça qu'ils ont leur test.
+        // What someone does with this message, in order: they open the history of that
+        // execution, go to that slot, and compare the two names. The five parts are therefore a
+        // contract, not a wording — that is why they have their own test.
         $store = new InMemoryEventStore();
         $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'chargeCard', ['sku' => 'ABC']));
         $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 42));
@@ -73,16 +73,16 @@ final class ActivitySlotDivergenceTest extends TestCase
 
         try {
             $context->activity('reserveStock', ['sku' => 'ABC']);
-            self::fail('La divergence aurait dû être refusée.');
+            self::fail('The divergence should have been refused.');
         } catch (WorkflowTaskFailure $e) {
             $message = $e->getMessage();
         }
 
-        self::assertStringContainsString('activity', $message, 'le type de slot');
-        self::assertStringContainsString('slot 1', $message, "l'index, et celui du second appel — pas 0 par accident");
-        self::assertStringContainsString(self::EXECUTION, $message, "l'exécution");
-        self::assertStringContainsString('"shipOrder"', $message, 'ce que le journal tient à CE slot');
-        self::assertStringContainsString('"reserveStock"', $message, 'ce que le code a demandé');
+        self::assertStringContainsString('activity', $message, 'the slot kind');
+        self::assertStringContainsString('slot 1', $message, "the index, and the second call's at that — not 0 by accident");
+        self::assertStringContainsString(self::EXECUTION, $message, 'the execution');
+        self::assertStringContainsString('"shipOrder"', $message, 'what the journal holds at THAT slot');
+        self::assertStringContainsString('"reserveStock"', $message, 'what the code asked for');
     }
 
     public function testAnUnchangedActivityStillResolvesFromHistory(): void
@@ -91,27 +91,27 @@ final class ActivitySlotDivergenceTest extends TestCase
 
         $awaitable = $context->activity('chargeCard', ['sku' => 'ABC']);
 
-        self::assertTrue($awaitable->isSettled(), 'Le slot enregistré doit toujours se résoudre : la garde ne doit rien coûter au cas normal.');
+        self::assertTrue($awaitable->isSettled(), 'The recorded slot must still resolve: the guard must cost the normal case nothing.');
     }
 
     public function testASlotNobodyRecordedIsNotADivergence(): void
     {
-        // Deuxième appel du workflow, premier passage : rien à cette position, donc rien à
-        // comparer. Une garde qui refuserait ici casserait tout workflow qui grandit.
+        // Second call of the workflow, first pass: nothing at that position, so nothing to
+        // compare. A guard that refused here would break every workflow that grows.
         $context = $this->contextReplaying('chargeCard', 'act-1', 42);
         $context->activity('chargeCard', ['sku' => 'ABC']);
 
         $second = $context->activity('shipOrder', ['sku' => 'ABC']);
 
-        self::assertFalse($second->isSettled(), 'Un slot neuf est planifié, pas refusé.');
+        self::assertFalse($second->isSettled(), 'A fresh slot is scheduled, not refused.');
     }
 
     public function testAnUnrecordedNameIsNotADivergence(): void
     {
-        // Un historique qui ne porte pas le nom de l'activité ne dit rien sur ce slot. La garde
-        // ne peut pas comparer, donc elle laisse passer : c'est le trou annoncé, pas un refus.
-        // Sans cette règle, la garde se déclencherait sur chaque slot dont l'identité manque —
-        // exactement le contraire de ce qu'on lui demande.
+        // A history that does not carry the activity name says nothing about that slot. The
+        // guard cannot compare, so it lets it through: this is the announced hole, not a refusal.
+        // Without this rule, the guard would fire on every slot whose identity is missing —
+        // exactly the opposite of what is asked of it.
         $store = new InMemoryEventStore();
         $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', '', ['sku' => 'ABC']));
         $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 42));
@@ -124,7 +124,7 @@ final class ActivitySlotDivergenceTest extends TestCase
 
         $awaitable = $context->activity('reserveStock', ['sku' => 'ABC']);
 
-        self::assertTrue($awaitable->isSettled(), 'Sans identité enregistrée, le slot se résout comme avant.');
+        self::assertTrue($awaitable->isSettled(), 'With no recorded identity, the slot resolves as before.');
     }
 
     private function contextReplaying(string $recordedName, string $activityId, mixed $result): ExecutionContext

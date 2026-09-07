@@ -295,9 +295,9 @@ final class WorkflowTaskProcessorTest extends TestCase
 
     public function testQueryIsAnsweredInResponse(): void
     {
-        // Une classe, et une query déclarée par attribut : c'est la seule forme désormais.
-        // L'enregistrement impératif depuis une closure court-circuitait la déclaration, et le
-        // moteur n'a plus de verbe à lui prêter pour ça.
+        // A class, and a query declared by attribute: that is the only form from now on. The
+        // imperative registration from a closure short-circuited the declaration, and the engine
+        // no longer has a verb to lend it for that.
         $registry = new WorkflowRegistry();
         $registry->registerClass(QueryableWorkflow::class);
 
@@ -391,11 +391,12 @@ final class WorkflowTaskProcessorTest extends TestCase
 
     public function testAnsweringAQueryLeavesTheCommandsUntouched(): void
     {
-        // Répondre à une query ne doit rien changer à l'exécution : le même poll, avec et sans
-        // query, produit les mêmes commandes. C'est ce qui rend la query rejouable — elle n'inscrit
-        // aucun fait dont un replay aurait à tenir compte.
+        // Answering a query must change nothing in the execution: the same poll, with and
+        // without a query, produces the same commands. That is what makes the query replayable —
+        // it records no fact a replay would have to take into account.
         //
-        // Lu dans le code, ce serait un argument. Ici c'est une assertion, et c'est la différence.
+        // Read in the code, that would be an argument. Here it is an assertion, and that is the
+        // difference.
         $registry = new WorkflowRegistry();
         $registry->registerClass(QueryableSchedulingWorkflow::class);
 
@@ -466,7 +467,7 @@ final class WorkflowTaskProcessorTest extends TestCase
             $capturedRequest->getQueryResults()['q4']->getResultType(),
         );
 
-        // L'exécution poursuit son chemin : la commande qu'elle avait à émettre part quand même.
+        // The execution carries on its way: the command it had to emit leaves all the same.
         self::assertCount(1, $capturedRequest->getCommands());
         self::assertSame(
             CommandType::COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK,
@@ -475,11 +476,11 @@ final class WorkflowTaskProcessorTest extends TestCase
     }
 
     /**
-     * Les commandes d'une réponse, sérialisées, identifiants d'activité neutralisés.
+     * The commands of a response, serialized, with activity identifiers neutralized.
      *
-     * L'identifiant est un UUIDv7 tiré à chaque exécution : deux exécutions de la même task ne
-     * peuvent pas être identiques au bit près, et ce n'est pas ce qu'on cherche à établir. Tout le
-     * reste — type de commande, nom d'activité, file, charge utile, délais — doit l'être.
+     * The identifier is a UUIDv7 drawn on every execution: two executions of the same task cannot
+     * be identical to the bit, and that is not what is being established. Everything else —
+     * command type, activity name, queue, payload, delays — must be.
      *
      * @return list<string>
      */
@@ -487,8 +488,8 @@ final class WorkflowTaskProcessorTest extends TestCase
     {
         $serialized = [];
         foreach ($request->getCommands() as $command) {
-            // Les charges utiles voyagent en base64 : sans les décoder, l'identifiant qu'elles
-            // répètent échapperait à la neutralisation et la comparaison ne dirait plus rien.
+            // The payloads travel in base64: without decoding them, the identifier they repeat
+            // would escape the neutralization and the comparison would no longer say anything.
             $readable = (string) preg_replace_callback(
                 '/"data":"([A-Za-z0-9+\/=]+)"/',
                 static fn(array $m): string => '"data":"' . base64_decode($m[1], true) . '"',
@@ -522,8 +523,8 @@ final class QueryableWorkflow
     #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]
     public function run(): string
     {
-        // Suspend sur une condition que rien ne satisfait dans cette task, ce qui laisse la query
-        // être posée sur une exécution encore en cours.
+        // Suspends on a condition nothing satisfies in this task, which lets the query be asked
+        // of an execution still running.
         $this->environment->await(static fn(): bool => false);
 
         return 'completed';
@@ -531,8 +532,8 @@ final class QueryableWorkflow
 }
 
 /**
- * Une exécution qui émet une commande *et* répond à une query : sans la commande, comparer les
- * réponses avec et sans query reviendrait à comparer deux listes vides.
+ * An execution that emits a command *and* answers a query: without the command, comparing the
+ * responses with and without a query would amount to comparing two empty lists.
  */
 #[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'queryable-scheduling')]
 final class QueryableSchedulingWorkflow

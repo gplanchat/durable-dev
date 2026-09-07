@@ -15,36 +15,36 @@ use Gplanchat\Durable\Workflow\ChildWorkflowStub;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Fixture analysée par {@see \unit\DurablePhpstan\StubMethodsExtensionTest}, jamais exécutée.
+ * A fixture analysed by {@see \unit\DurablePhpstan\StubMethodsExtensionTest}, never executed.
  *
- * Elle contient délibérément des appels corrects **et** fautifs : c'est ce que l'extension doit
- * distinguer, et c'est ce qu'un test qui se contenterait de vérifier « aucune erreur » ne
- * prouverait pas.
+ * It deliberately holds calls that are correct **and** calls that are wrong: telling those apart is
+ * what the extension has to do, and it is what a test content with checking "no errors" would not
+ * prove.
  */
 interface OrderActivities
 {
     #[AsActivityMethod('charge')]
     public function charge(string $orderId, int $amount): string;
 
-    /** Sans attribut : du code de contrat, pas une opération planifiable. */
+    /** No attribute: contract code, not a schedulable operation. */
     public function helper(): string;
 }
 
-#[AsNexusService('facturation')]
-interface FacturationServed
+#[AsNexusService('billing')]
+interface BillingServed
 {
-    #[AsNexusOperation('verifier')]
-    public function verifier(string $ordre): string;
+    #[AsNexusOperation('verify')]
+    public function verify(string $order): string;
 }
 
-#[AsNexusService('facturation')]
-interface Facturation extends FacturationServed
+#[AsNexusService('billing')]
+interface BillingContract extends BillingServed
 {
-    #[AsNexusOperation('encaisser')]
-    public function encaisser(string $ordre, int $montant): string;
+    #[AsNexusOperation('charge')]
+    public function charge(string $order, int $amount): string;
 
-    /** Sans attribut : du code de contrat, pas une opération appelable. */
-    public function bareme(): string;
+    /** No attribute: contract code, not a callable operation. */
+    public function rateCard(): string;
 }
 
 #[AsWorkflow(name: 'child')]
@@ -68,48 +68,48 @@ final class StubCallSites
 
     private readonly ChildWorkflowStub $child;
 
-    private readonly NexusStub $facturation;
+    private readonly NexusStub $billing;
 
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
         $this->orders = $environment->activityStub(OrderActivities::class);
         $this->child = $environment->childWorkflowStub(ChildWorkflow::class);
-        $this->facturation = $environment->nexusStub(Facturation::class, 'paiements');
+        $this->billing = $environment->nexusStub(BillingContract::class, 'payments');
     }
 
     #[AsWorkflowMethod]
     public function run(string $orderId): mixed
     {
-        // Correct : déclaré par le contrat et marqué.
+        // Correct: declared by the contract and marked.
         $this->environment->await($this->orders->charge($orderId, 100));
 
-        // Correct : la méthode d'entrée de l'enfant.
+        // Correct: the child's entry method.
         $this->environment->await($this->child->run('bonjour'));
 
-        // FAUTIF — faute de frappe. C'est le cas qui motive l'extension : sans elle, aucune
-        // erreur d'analyse, et un BadMethodCallException à l'exécution.
+        // WRONG — a typo. This is the case the extension exists for: without it, no analysis
+        // error, and a BadMethodCallException at run time.
         $this->environment->await($this->orders->chrage($orderId, 100));
 
-        // FAUTIF — déclarée par le contrat, mais sans #[AsActivityMethod] : ce n'est pas une
-        // activité, et le stub la refuse.
+        // WRONG — declared by the contract, but without #[AsActivityMethod]: it is not an
+        // activity, and the stub refuses it.
         $this->environment->await($this->orders->helper());
 
-        // Correct : déclarée par le contrat Nexus et marquée.
-        $this->environment->await($this->facturation->encaisser($orderId, 1200));
+        // Correct: declared by the Nexus contract and marked.
+        $this->environment->await($this->billing->charge($orderId, 1200));
 
-        // Correct : **héritée** du contrat servi. C'est la séparation en deux interfaces qui rend
-        // ce cas possible, et l'extension doit la suivre comme le résolveur la suit.
-        $this->environment->await($this->facturation->verifier($orderId));
+        // Correct: **inherited** from the served contract. It is the split into two interfaces
+        // that makes this case possible, and the extension must follow it as the resolver does.
+        $this->environment->await($this->billing->verify($orderId));
 
-        // FAUTIF — déclarée par le contrat Nexus, mais sans #[AsNexusOperation].
-        $this->environment->await($this->facturation->bareme());
+        // WRONG — declared by the Nexus contract, but without #[AsNexusOperation].
+        $this->environment->await($this->billing->rateCard());
 
-        // FAUTIF — faute de frappe sur une opération Nexus.
-        $this->environment->await($this->facturation->encasser($orderId, 1200));
+        // WRONG — a typo on a Nexus operation.
+        $this->environment->await($this->billing->chagre($orderId, 1200));
 
-        // FAUTIF — mauvais nombre d'arguments. Ne devient visible que parce que l'extension a
-        // rendu la méthode connue : c'est le gain de second ordre.
+        // WRONG — the wrong number of arguments. It only becomes visible because the extension
+        // made the method known: that is the second-order gain.
         return $this->environment->await($this->orders->charge($orderId));
     }
 }

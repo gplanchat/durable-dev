@@ -15,26 +15,26 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Illuminate\Contracts\Container\Container;
 
 /**
- * Ce que l'application déclare servir en Nexus, porté dans le registre du cœur.
+ * What the application declares it serves in Nexus, carried into the core's registry.
  *
- * C'est le pendant de `NexusHandlerPass` côté Symfony, et il fait le même travail par le même
- * chemin — `NexusContractResolver` pour lire le contrat, `NexusHandlerInvoker` pour tenir entre la
- * signature du gestionnaire et ce que le registre appelle. Ce qui change est la source : Symfony
- * lit des balises qu'une autoconfiguration a posées, Laravel lit `config/durable.php`, parce que
- * son conteneur n'a pas d'équivalent — la même raison qui fait déclarer les workflows.
+ * This is the counterpart of `NexusHandlerPass` on the Symfony side, and it does the same work by
+ * the same path — `NexusContractResolver` to read the contract, `NexusHandlerInvoker` to hold
+ * between the handler's signature and what the registry calls. What changes is the source: Symfony
+ * reads tags an autoconfiguration has set, Laravel reads `config/durable.php`, because its
+ * container has no equivalent — the same reason for which the workflows are declared.
  *
- * **Une opération sans corps n'est pas une opération manquante.** Un contrat Nexus se sépare en
- * deux interfaces parce que PHP ne sait pas dire « implémente partiellement » : ce que le
- * gestionnaire ne sert pas, un workflow le remplit, et c'est `#[FulfilsNexusOperation]` qui le
- * déclare. On enregistre alors le **type** du workflow et non sa classe — c'est le nom que le
- * serveur connaît et que le journal enregistre.
+ * **An operation without a body is not a missing operation.** A Nexus contract splits into two
+ * interfaces because PHP cannot say "partially implements": what the handler does not serve, a
+ * workflow fulfils, and it is `#[FulfilsNexusOperation]` that declares it. What is registered then
+ * is the **type** of the workflow and not its class — that is the name the server knows and the
+ * journal records.
  */
 final class DeclaredNexusOperations
 {
     /**
-     * @param array<class-string, class-string> $handlers gestionnaire => contrat qu'il sert
-     * @param list<class-string>                $workflows les workflows déclarés, où se lisent les
-     *                                                     opérations qu'ils remplissent
+     * @param array<class-string, class-string> $handlers handler => the contract it serves
+     * @param list<class-string>                $workflows the declared workflows, where the
+     *                                                     operations they fulfil are read
      */
     public function __construct(
         private readonly Container $container,
@@ -74,10 +74,10 @@ final class DeclaredNexusOperations
 
                 $workflowClass = $claimed[$contract][$operation] ?? null;
                 if (null !== $workflowClass) {
-                    // Le même refus que côté Symfony, par la même classe : lire une liste dans un
-                    // fichier ne dispense pas de vérifier ce qu'une passe de compilation vérifie.
-                    // Il tombe ici, à l'enregistrement, et pas à la première tâche — c'est le
-                    // dernier moment où quelqu'un regarde.
+                    // The same refusal as on the Symfony side, by the same class: reading a list
+                    // from a file does not excuse checking what a compiler pass checks. It falls
+                    // here, at registration, and not on the first task — that is the last moment
+                    // where somebody is looking.
                     NexusFulfilmentParameterNames::assertMatch(
                         'durable.nexus.handlers',
                         $contract,
@@ -86,8 +86,8 @@ final class DeclaredNexusOperations
                         $workflowClass,
                     );
 
-                    // Le **type**, pas le FQCN : c'est le nom que le serveur connaît et que le
-                    // journal enregistre.
+                    // The **type**, not the FQCN: that is the name the server knows and that the
+                    // journal records.
                     $registry->registerFulfilment(
                         $service,
                         $name,
@@ -109,7 +109,7 @@ final class DeclaredNexusOperations
         }
     }
 
-    /** @return array<class-string, array<string, string>> contrat => opération => type de workflow */
+    /** @return array<class-string, array<string, string>> contract => operation => workflow type */
     private function operationsClaimedByWorkflows(): array
     {
         $claimed = [];

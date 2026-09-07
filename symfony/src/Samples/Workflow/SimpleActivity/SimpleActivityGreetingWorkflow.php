@@ -14,7 +14,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
  * Port of temporalio/samples-php `app/src/SimpleActivity` (Greeting workflow + compose activity).
- * Type enregistré : premier argument de {@see AsWorkflow} (`Samples_SimpleActivity_Greeting`).
+ * Registered type: the first argument of {@see AsWorkflow} (`Samples_SimpleActivity_Greeting`).
  */
 #[AsWorkflow('Samples_SimpleActivity_Greeting')]
 final class SimpleActivityGreetingWorkflow

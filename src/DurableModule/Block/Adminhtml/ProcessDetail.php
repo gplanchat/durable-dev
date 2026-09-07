@@ -11,22 +11,22 @@ use Magento\Backend\Block\Template;
 use Magento\Backend\Block\Template\Context;
 
 /**
- * Ce qu'une exécution a fait, lu dans son journal.
+ * What an execution did, read from its journal.
  *
- * Rien de spécifique à Magento ici : `readHistory()` est le même port que le tableau de bord Sylius
- * interroge, et {@see RunTimeline} est la même projection. Une observation, une surface par hôte.
+ * Nothing Magento-specific here: `readHistory()` is the same port the Sylius dashboard queries,
+ * and {@see RunTimeline} is the same projection. One observation, one surface per host.
  *
- * Ce bloc en dérivait autrefois la sienne — regroupement, découpe en segments, mise à l'échelle,
- * infobulles, mise en forme de la charge utile, nom d'action par ligne. Tout cela vit désormais
- * dans le cœur, et pour une raison qui se mesurait sur l'écran : Sylius empilait des blocs sans
- * position, ne distinguait pas la file du travail, et rendait un dépliant vide sur une charge
- * mal encodée. Deux moitiés du même modèle, sur le même journal.
+ * This block once derived its own — grouping, cutting into segments, scaling, tooltips, payload
+ * formatting, an action name per row. All of it now lives in the core, for a reason that was
+ * measurable on the screen: Sylius stacked blocks with no position, did not tell the queue apart
+ * from the work, and rendered an empty expander on a badly encoded payload. Two halves of the same
+ * model, over the same journal.
  *
- * Ce qui reste ici est ce qui appartient à l'hôte : la **mise à l'échelle** — elle demande de
- * connaître la largeur d'une colonne, et la projection ne rend que des secondes.
+ * What is left here is what belongs to the host: the **scaling** — it needs to know the width of a
+ * column, and the projection returns only seconds.
  */
 /*
- * Pas `final` : le conteneur l'instancie, donc il engendre un `Interceptor` qui l'étend.
+ * Not `final`: the container instantiates it, so it generates an `Interceptor` extending it.
  */
 class ProcessDetail extends Template
 {
@@ -50,11 +50,11 @@ class ProcessDetail extends Template
     }
 
     /**
-     * L'exécution demandée, ou `null` si le backend ne la connaît pas — un identifiant collé à la
-     * main dans la barre d'adresse, ou une exécution que la rétention a effacée.
+     * The requested execution, or `null` if the backend does not know it — an id pasted by hand
+     * into the address bar, or an execution retention has erased.
      *
-     * ⚠ La fenêtre est **celle de la grille**, littéralement la même constante : deux fenêtres de
-     * tailles différentes rendaient possible d'être listé ici et introuvable là.
+     * ⚠ The window is **the grid's**, literally the same constant: two windows of different sizes
+     * made it possible to be listed here and not found there.
      */
     public function getRun(): ?WorkflowRunDescription
     {
@@ -75,8 +75,8 @@ class ProcessDetail extends Template
     }
 
     /**
-     * La frise et le journal, projetés une fois : le gabarit lit les deux, et sans mémoire ce
-     * serait un second aller-retour vers le backend pour la même réponse.
+     * The frieze and the journal, projected once: the template reads both, and without memoing
+     * this would be a second round trip to the backend for the same answer.
      */
     public function getTimeline(): RunTimeline
     {
@@ -91,14 +91,14 @@ class ProcessDetail extends Template
     }
 
     /**
-     * Des secondes vers un pourcentage de la piste.
+     * Seconds into a percentage of the track.
      *
-     * C'est la seule chose que l'hôte décide de la frise, et c'est normal qu'il la décide : mettre
-     * à l'échelle demande de connaître la largeur d'une colonne, ce qu'une projection partagée avec
-     * une surface sans balisage ne peut pas savoir.
+     * It is the only thing the host decides about the frieze, and it is right that it decides it:
+     * scaling needs to know the width of a column, which a projection shared with a surface that
+     * renders no markup cannot know.
      *
-     * Sans durée — une seule action, ou tout dans la même microseconde — tout se pose à gauche.
-     * Étaler par rang ferait passer un ordre pour une durée.
+     * With no duration — a single action, or everything in the same microsecond — everything sits
+     * on the left. Spreading by rank would pass an order off as a duration.
      */
     public function scale(float $seconds): string
     {

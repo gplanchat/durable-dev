@@ -11,7 +11,7 @@ use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Variante simplifiée de samples-php MoneyBatch : agrégation des montants (centimes) en une activité.
+ * Simplified variant of samples-php MoneyBatch: the amounts (cents) aggregated in a single activity.
  */
 #[AsWorkflow('Samples_MoneyBatch_Light')]
 final class MoneyBatchLightWorkflow

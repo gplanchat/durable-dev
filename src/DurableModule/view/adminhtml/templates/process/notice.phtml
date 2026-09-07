@@ -6,9 +6,9 @@
 $health = $block->getHealth();
 ?>
 <?php if (!$block->isReachable()): ?>
-    <?php /* Une grille vide sous une grappe morte apprend à l'exploitant qu'il n'y a rien à voir.
-             Le backend est nommé pour qu'il sache quoi aller rallumer, et daté pour qu'il sache de
-             quand date la réponse. */ ?>
+    <?php /* An empty grid under a dead cluster teaches the operator there is nothing to see. The
+             backend is named so they know what to go and restart, and dated so they know how old
+             the answer is. */ ?>
     <div class="message message-error">
         <span><?= $escaper->escapeHtml($health->message) ?></span>
         <span><?= $escaper->escapeHtml(__(
@@ -18,8 +18,8 @@ $health = $block->getHealth();
         )) ?></span>
     </div>
 <?php elseif ($block->isEphemeral()): ?>
-    <?php /* Le troisième état : il répond, et sa réponse est vide par construction. Ni une panne,
-             ni un fonctionnement dont il n'y aurait rien à dire. */ ?>
+    <?php /* The third state: it answers, and its answer is empty by construction. Neither an
+             outage, nor a working system with nothing to say about it. */ ?>
     <div class="message message-warning">
         <span><?= $escaper->escapeHtml(__(
             'No Temporal DSN is configured, so the journal lives in the process that writes it — and this admin request opened a fresh one. An empty list here is the correct answer, not a failure. Set durable/temporal/dsn in app/etc/env.php to read the cluster.'
@@ -38,9 +38,9 @@ $health = $block->getHealth();
 <?php if ($block->isReachable()): ?>
     <?php $counters = $block->getCounters(); ?>
     <div class="admin__page-section">
-        <?php /* La portée est dite : ces compteurs couvrent ce que cet écran lit, pas l'historique
-                 de la boutique. Un « total » sous lequel on lit vingt ferait croire qu'une boutique
-                 qui a enregistré cinq cents exécutions en a vingt. */ ?>
+        <?php /* The scope is stated: these counters cover what this screen reads, not the history
+                 of the store. A "total" with twenty under it would suggest a store that recorded
+                 five hundred runs has twenty. */ ?>
         <div class="admin__page-section-title">
             <span class="title"><?= $escaper->escapeHtml(__(
                 'Outcomes across the %1 most recent runs this screen reads',
@@ -61,7 +61,7 @@ $health = $block->getHealth();
         </table>
     </div>
     <?php if ($counters['total'] >= $block->getWindow()): ?>
-        <?php /* Une fenêtre bornée qui ne s'annonce pas se découvre par une exécution qui manque. */ ?>
+        <?php /* A bounded window that does not announce itself is discovered through a missing run. */ ?>
         <div class="message message-notice">
             <span><?= $escaper->escapeHtml(__(
                 'This screen reads the %1 most recent runs. Older ones are beyond what it can list or open.',

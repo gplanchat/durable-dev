@@ -5,7 +5,7 @@
 {% block body %}
 <div class="container-sm">
     <div style="margin-bottom: 1.5rem;">
-        <a href="{{ path('durable_samples_index') }}" class="back-link">← Retour aux samples</a>
+        <a href="{{ path('durable_samples_index') }}" class="back-link">← Back to samples</a>
     </div>
 
     <div class="page-intro">
@@ -15,7 +15,7 @@
 
     <div class="stack">
         <div class="result-card">
-            <div class="result-card-header">Exécution</div>
+            <div class="result-card-header">Execution</div>
             <div class="result-card-body">
                 <dl class="meta-list">
                     <dt>Type</dt>
@@ -25,7 +25,7 @@
                     <dt>Mode</dt>
                     <dd>
                         {% if waitedForCompletion %}
-                            ▶ Synchrone — résultat disponible
+                            ▶ Synchronous — result available
                         {% else %}
                             ⚡ Async — fire &amp; forget
                         {% endif %}
@@ -36,16 +36,16 @@
 
         {% if waitedForCompletion %}
             <div class="result-card">
-                <div class="result-card-header">Résultat</div>
+                <div class="result-card-header">Result</div>
                 <div class="result-card-body">
                     <pre>{% if result is iterable %}{{ result|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}{% else %}{{ result }}{% endif %}</pre>
                 </div>
             </div>
         {% else %}
             <div class="alert alert-info">
-                Workflow dispatché en mode async. Lancez des workers pour l'exécution :
+                Workflow dispatched in async mode. Start workers to execute it:
                 <br><code>php bin/console messenger:consume durable_workflows durable_activities</code>
-                <br>Pour suivre le journal dans le profiler : <code>?durable_execution={{ executionId }}</code>
+                <br>To follow the journal in the profiler: <code>?durable_execution={{ executionId }}</code>
             </div>
         {% endif %}
 
@@ -59,9 +59,9 @@
         {% endif %}
 
         <div class="hstack">
-            <a href="{{ path('durable_samples_run', { id: scenario.id }) }}" class="btn btn-primary">▶ Relancer (sync)</a>
-            <a href="{{ path('durable_samples_run', { id: scenario.id, wait: '0' }) }}" class="btn btn-ghost">⚡ Relancer (async)</a>
-            <a href="{{ path('durable_samples_index') }}" class="btn btn-ghost btn-sm" style="margin-left: auto;">← Tous les samples</a>
+            <a href="{{ path('durable_samples_run', { id: scenario.id }) }}" class="btn btn-primary">▶ Run again (sync)</a>
+            <a href="{{ path('durable_samples_run', { id: scenario.id, wait: '0' }) }}" class="btn btn-ghost">⚡ Run again (async)</a>
+            <a href="{{ path('durable_samples_index') }}" class="btn btn-ghost btn-sm" style="margin-left: auto;">← All samples</a>
         </div>
     </div>
 </div>

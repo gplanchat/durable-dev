@@ -66,9 +66,9 @@ use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
-// Et non celle de HttpKernel, qui n'en est qu'une sous-classe mince — `@internal` depuis
-// Symfony 7.1, dépréciée en 8.1 — et n'ajoute que les restes du cache de classes annotées.
-// Celle-ci existe depuis 6.4 : l'échange ne coûte aucune version supportée.
+// And not HttpKernel's, which is only a thin subclass of it — `@internal` since
+// Symfony 7.1, deprecated in 8.1 — and only adds the leftovers of the annotated class cache.
+// This one has existed since 6.4: the swap costs no supported version.
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Transport\NoopActivityTransport;
@@ -95,8 +95,8 @@ final class DurableExtension extends Extension
         $asyncChildMessenger = (bool) ($config['child_workflow']['async_messenger'] ?? false);
         $container->setParameter('durable.child_workflow_async_messenger', $asyncChildMessenger);
 
-        // Un conteneur synthétique — un test d'extension, par exemple — n'a pas ce paramètre ;
-        // il n'est pas en production pour autant, d'où le défaut à « debug ».
+        // A synthetic container, an extension test for instance, does not have this parameter;
+        // that does not make it production, hence the default to debug.
         $debug = !$container->hasParameter('kernel.debug') || (bool) $container->getParameter('kernel.debug');
 
         if ($debug) {
@@ -125,10 +125,10 @@ final class DurableExtension extends Extension
     }
 
     /**
-     * Remplace les stores in-memory par leurs équivalents SQL lorsque `type: dbal` est demandé.
+     * Replaces the in-memory stores with their SQL equivalents when `type: dbal` is asked for.
      *
-     * Appelé en dernier : les définitions in-memory sont déjà posées, on les écrase plutôt que de
-     * ramifier dans les trois méthodes qui les enregistrent.
+     * Called last: the in-memory definitions are already in place, we overwrite them rather than
+     * branch inside the three methods that register them.
      *
      * @param array<string, mixed> $config
      *
@@ -145,7 +145,7 @@ final class DurableExtension extends Extension
         }
 
         if ($eventStoreDbal && self::isTemporalNative($config)) {
-            throw new \LogicException('durable: event_store.type "dbal" et temporal.dsn sont exclusifs — le journal ne peut pas avoir deux sources de vérité. Une application qui a besoin du cluster sans lui confier son journal — servir une opération Nexus, par exemple — pose temporal.journal: false.');
+            throw new \LogicException('durable: event_store.type "dbal" and temporal.dsn are mutually exclusive — the journal cannot have two sources of truth. An application that needs the cluster without handing it the journal — serving a Nexus operation, for instance — sets temporal.journal: false.');
         }
 
         $connection = new Reference($config['dbal']['connection']);
@@ -168,7 +168,7 @@ final class DurableExtension extends Extension
             ;
             $container->setAlias(EventStoreInterface::class, 'durable.event_store.dbal')->setPublic(true);
 
-            // Sans serveur pour sérialiser les tâches d'une exécution, le verrou est obligatoire.
+            // With no server to serialize the tasks of one execution, the lock is mandatory.
             $container->register('durable.dbal.single_resume_lock', SingleResumeLockMiddleware::class)
                 ->setArguments([new Reference($config['dbal']['lock_factory'])])
                 ->addTag(RegisterDurableMiddlewarePass::TAG, ['priority' => 90])
@@ -191,19 +191,19 @@ final class DurableExtension extends Extension
             ;
         }
 
-        // La projection ne vaut que si le journal est en SQL : c'est de lui que viennent les issues.
-        // Un journal in-memory laisserait des lignes qui ne se terminent jamais.
+        // The projection is only worth it if the journal is in SQL: that is where the outcomes come
+        // from. An in-memory journal would leave rows that never finish.
         if ($eventStoreDbal) {
             $this->registerDbalRunCatalog($container, $connection, $schema);
         }
     }
 
     /**
-     * Le catalogue DBAL, et les deux plumes qui l'alimentent.
+     * The DBAL catalog, and the two pens that feed it.
      *
-     * Les décorateurs sont posés ici plutôt que dans les blocs qui enregistrent le journal et les
-     * métadonnées : le nom vient de `save()`, l'issue du journal, et les deux doivent pointer sur la
-     * **même** projection. Les séparer aurait invité à en instancier deux.
+     * The decorators are placed here rather than in the blocks that register the journal and the
+     * metadata: the name comes from `save()`, the outcome from the journal, and the two must point
+     * at the **same** projection. Separating them would have invited instantiating two of them.
      *
      * @see openspec/changes/backend-neutral-workflow-dashboard/design.md
      */
@@ -221,9 +221,9 @@ final class DurableExtension extends Extension
         ;
         $container->setAlias(EventStoreInterface::class, 'durable.event_store.dbal.projecting')->setPublic(true);
 
-        // Le journal peut être en SQL sans que les métadonnées le soient : dans ce cas le magasin
-        // en place — in-memory — devient l'intérieur du décorateur, plutôt que d'exiger une
-        // configuration que rien n'oblige à donner.
+        // The journal can be in SQL without the metadata being so: in that case the store already
+        // in place — in-memory — becomes the inside of the decorator, rather than demanding a
+        // configuration nothing forces anyone to give.
         if (!$container->hasDefinition('durable.workflow_metadata_store.inner')) {
             $container->setDefinition(
                 'durable.workflow_metadata_store.inner',
@@ -246,19 +246,19 @@ final class DurableExtension extends Extension
     }
 
     /**
-     * Le catalogue du backend in-memory, en dernier recours.
+     * The in-memory backend's catalog, as a last resort.
      *
-     * Il ne s'enregistre que si personne n'a déjà posé de catalogue : DBAL et Temporal passent
-     * avant, chacun dans son bloc, et le garde est l'alias qu'ils déposent. Un backend qui sait
-     * lire ses propres exécutions n'a rien à faire de celui-ci.
+     * It only registers itself if nobody has already placed a catalog: DBAL and Temporal come
+     * first, each in its own block, and the guard is the alias they leave behind. A backend that
+     * knows how to read its own executions has no use for this one.
      *
-     * Le catalogue lit le journal **non décoré** pour rendre un historique, et le décorateur
-     * l'alimente en écriture. Les deux pointent donc sur `durable.event_store.inner` plutôt que
-     * l'un sur l'autre — sans quoi le conteneur boucle.
+     * The catalog reads the **undecorated** journal to render a history, and the decorator feeds
+     * it on writes. The two therefore point at `durable.event_store.inner` rather than at each
+     * other — without which the container loops.
      *
-     * Ce que ça lève : le tableau de bord affichait « aucun backend lisible » sur in-memory, faute
-     * de catalogue, alors que le plugin se dit neutre vis-à-vis du backend. Il l'est vraiment
-     * maintenant, sur les trois.
+     * What this clears: the dashboard displayed "no readable backend" on in-memory, for want of a
+     * catalog, while the plugin claims to be neutral with respect to the backend. It really is
+     * now, on all three.
      *
      * @see DUR037
      */
@@ -281,8 +281,8 @@ final class DurableExtension extends Extension
         ;
         $container->setAlias(EventStoreInterface::class, 'durable.event_store.in_memory.projecting')->setPublic(true);
 
-        // Le magasin de métadonnées est enregistré sous son interface, pas sous un identifiant :
-        // il devient l'intérieur du décorateur, et l'interface pointe sur le décorateur.
+        // The metadata store is registered under its interface, not under an id: it becomes the
+        // inside of the decorator, and the interface points at the decorator.
         $container->setDefinition(
             'durable.workflow_metadata_store.inner',
             $container->getDefinition(WorkflowMetadataStore::class),
@@ -319,12 +319,12 @@ final class DurableExtension extends Extension
     }
 
     /**
-     * Temporal « natif » : le cluster **est** le journal.
+     * "Native" Temporal: the cluster **is** the journal.
      *
-     * Un DSN sans journal dit autre chose — le cluster est joignable pour ce qui en a besoin, et
-     * servir une opération Nexus en a besoin, mais la source de vérité reste celle d'`event_store`.
-     * Les deux ne peuvent pas partager le même drapeau : c'est lui qui débranche le transport
-     * d'activités, le répartiteur de reprise et les alias de lecture du tableau de bord.
+     * A DSN without a journal says something else — the cluster is reachable for whatever needs
+     * it, and serving a Nexus operation needs it, but the source of truth stays the one
+     * `event_store` names. The two cannot share the same flag: it is the flag that unplugs the
+     * activity transport, the resume dispatcher and the dashboard's read aliases.
      *
      * @param array<string, mixed> $config
      */
@@ -434,8 +434,8 @@ final class DurableExtension extends Extension
                 $container->setAlias(EventStoreInterface::class, 'durable.event_store.temporal')->setPublic(true);
             }
 
-            // Sans journal, on sort sans alias : `registerDbalStores` ou `registerInMemoryRunCatalog`
-            // poseront le leur, plus loin dans `load()`. C'est `event_store` qui dit lequel.
+            // With no journal, we leave without an alias: `registerDbalStores` or `registerInMemoryRunCatalog`
+            // will place theirs, further down in `load()`. It is `event_store` that says which one.
             return;
         }
 
@@ -621,15 +621,15 @@ final class DurableExtension extends Extension
     }
 
     /**
-     * Registre métadonnées workflow, {@see ResumeWorkflowHandler}, {@see WorkflowResumeDispatcher}, {@see ChildWorkflowRunner}, etc.
+     * Workflow metadata registry, {@see ResumeWorkflowHandler}, {@see WorkflowResumeDispatcher}, {@see ChildWorkflowRunner}, etc.
      *
-     * En mode Temporal natif (`durable.temporal.dsn` non vide), le {@see WorkflowResumeDispatcher} est
-     * {@see TemporalWorkflowResumeDispatcher} : il appelle `WorkflowClient::startAsync()` (gRPC
-     * `StartWorkflowExecution`) au lieu de dispatcher un message Messenger, et son `dispatchResume()`
-     * est un no-op (Temporal re-programme lui-même le prochain workflow task).
+     * In native Temporal mode (`durable.temporal.dsn` not empty), the {@see WorkflowResumeDispatcher}
+     * is {@see TemporalWorkflowResumeDispatcher}: it calls `WorkflowClient::startAsync()` (gRPC
+     * `StartWorkflowExecution`) instead of dispatching a Messenger message, and its
+     * `dispatchResume()` is a no-op (Temporal reschedules the next workflow task itself).
      *
-     * En mode in-memory, {@see MessengerWorkflowResumeDispatcher} est enregistré et
-     * {@see ResumeWorkflowHandler} traite les messages.
+     * In in-memory mode, {@see MessengerWorkflowResumeDispatcher} is registered and
+     * {@see ResumeWorkflowHandler} handles the messages.
      *
      * @param array<string, mixed> $config
      */
@@ -667,9 +667,9 @@ final class DurableExtension extends Extension
                     new Reference(WorkflowMetadataStore::class),
                     new Reference(WorkflowDefinitionLoader::class),
                     // Le profileur n'existe qu'en debug depuis ce correctif, et le constructeur
-                    // cible déclare la dépendance `?DurableExecutionTrace $executionTrace = null`.
-                    // Une référence nue ferait échouer la compilation du conteneur de production
-                    // dès qu'un `temporal.dsn` est configuré.
+                    // target declares the dependency `?DurableExecutionTrace $executionTrace = null`.
+                    // A bare reference would fail the production container's compilation as soon as
+                    // a `temporal.dsn` is configured.
                     new Reference('durable.execution_trace', ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 ])
                 ->setPublic(true)
@@ -754,14 +754,14 @@ final class DurableExtension extends Extension
     }
 
     /**
-     * Le profileur n'est pas de la plomberie neutre : son observateur est injecté dans
+     * The profiler is not neutral plumbing: its observer is injected into
      * `ExecutionRuntime`, `ExecutionEngine` et `ActivityMessageProcessor`, donc il passe sur le
-     * chemin chaud de chaque exécution, et sa trace n'est vidée que par un écouteur
-     * `kernel.request` — que `messenger:consume` ne déclenche jamais.
+     * hot path of every execution, and its trace is emptied only by a `kernel.request` listener,
+     * which `messenger:consume` never fires.
      *
      * Hors debug, on n'en enregistre donc rien du tout et l'observation retombe sur un objet nul.
-     * FrameworkBundle procède ainsi pour ses propres collecteurs, chargés depuis des fichiers
-     * séparés sous condition.
+     * FrameworkBundle does the same for its own collectors, loaded from separate files under a
+     * condition.
      */
     private function registerNullObserver(ContainerBuilder $container): void
     {
@@ -773,14 +773,14 @@ final class DurableExtension extends Extension
     }
 
     /**
-     * Aliase l'interface d'observation, **sans écraser ce que l'application a déjà déclaré**.
+     * Aliases the observation interface, **without overwriting what the application already
+     * declared**.
      *
-     * `UPGRADE.md` invite une application qui veut observer ses exécutions en production à
-     * implémenter le contrat et à aliaser l'interface sur son propre service. Les définitions du
-     * `services.yaml` de l'application existent déjà quand l'extension se charge — le
-     * `MergeExtensionConfigurationPass` tourne à la compilation, après le chargement de la
-     * configuration — si bien qu'un `setAlias()` inconditionnel effaçait cet alias-là, et
-     * l'échappatoire ne fonctionnait pas.
+     * `UPGRADE.md` invites an application that wants to observe its executions in production to
+     * implement the contract and alias the interface onto its own service. The definitions in the
+     * application's `services.yaml` already exist when the extension loads, since
+     * `MergeExtensionConfigurationPass` runs at compilation, after the configuration is loaded, so
+     * an unconditional `setAlias()` erased that alias and the escape hatch did not work.
      */
     private static function aliaserObservateur(ContainerBuilder $container, string $service): void
     {
@@ -799,7 +799,7 @@ final class DurableExtension extends Extension
     {
         $container->register('durable.execution_trace', DurableExecutionTrace::class)
             // `ResetDurableProfilerListener` ne borne que le cas HTTP. Dans un worker il n'y a pas
-            // de requête, et c'est `services_resetter` — donc ce tag — qui vide la trace entre
+            // request, and it is `services_resetter`, so this tag, that empties the trace between
             // deux messages. Sans lui, un `messenger:consume` accumule la timeline tant qu'il vit.
             ->addTag('kernel.reset', ['method' => 'reset'])
             ->setPublic(true)
@@ -814,7 +814,7 @@ final class DurableExtension extends Extension
 
         $container->register('durable.messenger.middleware.workflow_run_dispatch_profiler', WorkflowRunDispatchProfilerMiddleware::class)
             ->setArguments([new Reference('durable.execution_trace')])
-            // Au-dessus du verrou : ses mesures incluent alors l'attente que le verrou impose.
+            // Above the lock: its measurements then include the wait the lock imposes.
             ->addTag(RegisterDurableMiddlewarePass::TAG, ['priority' => 100])
         ;
 
@@ -856,9 +856,9 @@ final class DurableExtension extends Extension
             ->setPublic(true)
         ;
 
-        // Le registre existe dès que Temporal est configuré, même sans gestionnaire déclaré : c'est
-        // sa présence que NexusHandlerPass lit pour savoir si ce backend sait router. Sans elle, la
-        // passe refuse — et c'est le refus au démarrage que §5.3 demande.
+        // The registry exists as soon as Temporal is configured, even with no handler declared: it
+        // is its presence that NexusHandlerPass reads to know whether this backend can route.
+        // Without it, the pass refuses — and that is the startup refusal §5.3 asks for.
         $container->register('durable.temporal.nexus_registry', NexusOperationRegistry::class)
             ->setFactory([NexusOperationRegistry::class, 'routedBy'])
             ->setArguments(['temporal'])

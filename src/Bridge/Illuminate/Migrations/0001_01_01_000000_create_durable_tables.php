@@ -7,13 +7,13 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Les quatre tables de Durable, par `php artisan migrate`.
+ * Durable's four tables, through `php artisan migrate`.
  *
- * Elles ont exactement la forme que {@see \Gplanchat\Bridge\Illuminate\Schema\DurableSchema} crée à
- * la demande, et ce n'est pas une intention : `MigrationMatchesSchemaTest` monte les deux sur deux
- * connexions et compare colonne par colonne. Deux façons de créer les mêmes tables sont deux
- * occasions de diverger, et une divergence entre l'application migrée et le banc de test ne se
- * verrait qu'en production.
+ * They have exactly the shape that {@see \Gplanchat\Bridge\Illuminate\Schema\DurableSchema} creates
+ * on demand, and that is not a mere intention: `MigrationMatchesSchemaTest` builds both on two
+ * connections and compares them column by column. Two ways of creating the same tables are two
+ * chances to diverge, and a divergence between the migrated application and the test bench would
+ * only show up in production.
  *
  * @see DUR030
  */
@@ -21,7 +21,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('durable_events', function (Blueprint $table): void {
-            // Auto-increment : `readStream()` promet l'ordre d'insertion, l'id le porte.
+            // Auto-increment: `readStream()` promises insertion order, and the id carries it.
             $table->bigIncrements('id');
             $table->string('execution_id', 128)->index();
             $table->string('event_type', 255);
@@ -36,8 +36,8 @@ return new class extends Migration {
             $table->boolean('completed')->default(false);
         });
 
-        // Projection de lecture : le journal s'écrit à chaque pas et se lit par exécution, un
-        // tableau de bord lit en travers et ordonne par date. Deux motifs d'accès, deux tables.
+        // Read projection: the journal is written at every step and read per execution, while a
+        // dashboard reads across executions and orders by date. Two access patterns, two tables.
         Schema::create('durable_workflow_runs', function (Blueprint $table): void {
             $table->string('execution_id', 128)->primary();
             $table->string('workflow_type', 255);

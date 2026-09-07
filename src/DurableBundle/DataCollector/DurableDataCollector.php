@@ -36,13 +36,13 @@ use Symfony\Component\HttpKernel\DataCollector\DataCollector;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
- * Panneau profiler Durable : executionIds issus des dispatches Messenger sur la requête (ou query durable_execution),
- * puis historique lu dans l’event store.
+ * Durable profiler panel: executionIds coming from the Messenger dispatches on the request (or the durable_execution query),
+ * then the history read from the event store.
  *
- * La trace mémoire enregistre les envois WorkflowRunMessage, chaque run moteur ({@see WorkflowExecutionObserverInterface})
- * et chaque activité exécutée dans ce processus ; le détail complet du journal vient de l’event store.
+ * The in-memory trace records the WorkflowRunMessage dispatches, every engine run ({@see WorkflowExecutionObserverInterface})
+ * and every activity executed in this process; the full detail of the journal comes from the event store.
  *
- * Pour inclure un journal sans dispatch sur cette requête, ajouter durable_execution (UUID, virgules si plusieurs).
+ * To include a journal with no dispatch on this request, add durable_execution (UUID, commas if there are several).
  */
 final class DurableDataCollector extends DataCollector implements ResetInterface
 {
@@ -114,9 +114,9 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             ),
         ];
 
-        // La barrière, au seul endroit où `$this->data` est constitué. Elle s'applique **clé par
-        // clé** : une charge utile pathologique fait disparaître son panneau, pas le collecteur
-        // entier — ce que la barrière d'ensemble ne garantissait pas, `$this->data` étant typée
+        // The barrier, at the one place `$this->data` is built. It applies **key by key**: a
+        // pathological payload makes its own panel disappear, not the whole collector, which is
+        // what the blanket barrier did not guarantee, `$this->data` being typed
         // `array|Data` chez le parent.
         foreach ($this->data as $cle => $valeur) {
             $this->data[$cle] = RecordedDetails::storable($valeur);
@@ -182,7 +182,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                 'workflowType' => $wf,
                 'payloadSummary' => $this->summarizePayload($payload),
                 'executionStatus' => $statusCode,
-                'executionStatusLabel' => $this->executionStatusLabelFr($statusCode),
+                'executionStatusLabel' => $this->executionStatusLabel($statusCode),
                 'storeEventCount' => max($storeCountFromIndex, $storeCountLive),
                 'storeTruncated' => $storeTl['truncated'] ?? false,
                 'processTraceCount' => \count($processTf['segments']),
@@ -198,10 +198,10 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     }
 
     /**
-     * Statut : journal ({@see collectStoreEventRows}), puis métadonnées, puis relecture du store
-     * (même fichier SQLite / autre processus worker que la requête HTTP).
+     * Status: journal ({@see collectStoreEventRows}), then metadata, then a re-read of the store
+     * (same SQLite file / different worker process than the HTTP request).
      *
-     * @param list<array<string, mixed>>                                                        $rows     lignes {@see collectStoreEventRows} pour cet executionId
+     * @param list<array<string, mixed>>                                                        $rows     rows from {@see collectStoreEventRows} for this executionId
      * @param array{workflowType: string, payload: array<string, mixed>, completed?: bool}|null $metadata
      */
     private function resolveExecutionStatus(
@@ -266,14 +266,14 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             return null;
         }
 
-        return 'Un dispatch WorkflowRunMessage a été observé sur cette requête, mais le journal est encore vide : '
-            . 'le handler n’a probablement pas encore tourné dans ce processus (Messenger asynchrone). '
-            . 'Pour remplir le journal dans le même profil, utilisez la démo avec attente (drain) ou rechargez avec '
-            . '?durable_execution=&lt;uuid&gt; une fois les workers passés.';
+        return 'A WorkflowRunMessage dispatch was observed on this request, but the journal is still empty: '
+            . 'the handler has most likely not run in this process yet (asynchronous Messenger). '
+            . 'To fill the journal within the same profile, use the demo that waits (drain), or reload with '
+            . '?durable_execution=&lt;uuid&gt; once the workers have been through.';
     }
 
     /**
-     * @param list<array<string, mixed>> $rows lignes {@see collectStoreEventRows} pour cet executionId
+     * @param list<array<string, mixed>> $rows rows from {@see collectStoreEventRows} for this executionId
      */
     private function inferExecutionStatusFromLastStoreRow(array $rows): string
     {
@@ -298,18 +298,18 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         };
     }
 
-    private function executionStatusLabelFr(string $code): string
+    private function executionStatusLabel(string $code): string
     {
         return match ($code) {
-            'completed' => 'Terminé',
-            'failed' => 'Échec',
+            'completed' => 'Finished',
+            'failed' => 'Failed',
             'continued_as_new' => 'Continue as new',
-            'cancel_requested' => 'Annulation demandée',
-            'cancelled' => 'Annulé',
-            'running' => 'En cours',
-            'queued' => 'En file (pas encore de journal)',
-            'pending' => 'En attente',
-            default => 'Inconnu',
+            'cancel_requested' => 'Cancellation requested',
+            'cancelled' => 'Cancelled',
+            'running' => 'Running',
+            'queued' => 'Queued (no journal yet)',
+            'pending' => 'Pending',
+            default => 'Unknown',
         };
     }
 
@@ -400,12 +400,12 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             if ('workflow' === $kind) {
                 $wt = trim((string) ($e['workflowType'] ?? ''));
                 $timeline[$i]['dispatchSummary'] = ($e['isResume'] ?? false)
-                    ? 'Reprise moteur · ' . ('' !== $wt ? $wt : '(type inconnu)')
-                    : 'Démarrage moteur · ' . ('' !== $wt ? $wt : '(type inconnu)');
+                    ? 'Engine resume · ' . ('' !== $wt ? $wt : '(unknown type)')
+                    : 'Engine start · ' . ('' !== $wt ? $wt : '(unknown type)');
             }
             if ('activity' === $kind) {
                 $timeline[$i]['dispatchSummary'] = ($e['activityName'] ?? '?') . ' · ' . ($e['activityId'] ?? '?')
-                    . (empty($e['success']) && \array_key_exists('success', $e) ? ' · échec' : '');
+                    . (empty($e['success']) && \array_key_exists('success', $e) ? ' · failed' : '');
             }
         }
 
@@ -413,7 +413,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     }
 
     /**
-     * Identifiants issus de la trace processus (dispatch Messenger, run moteur, activités — ex. worker sans dispatch workflow sur cette requête).
+     * Identifiers coming from the process trace (Messenger dispatch, engine run, activities — e.g. a worker with no workflow dispatch on this request).
      *
      * @param list<array<string, mixed>> $timeline
      *
@@ -446,7 +446,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     }
 
     /**
-     * Inclut des exécutions à afficher depuis la query (journal event store même sans dispatch observé sur cette requête).
+     * Includes executions to display from the query (event store journal even with no dispatch observed on this request).
      *
      * @param array<string, bool> $executionIds
      *
@@ -753,7 +753,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     }
 
     /**
-     * Nombre total d’événements dans le journal (event store) pour tous les executionIds collectés.
+     * Total number of events in the journal (event store) for all the collected executionIds.
      */
     public function getJournalEventCount(): int
     {
@@ -843,8 +843,8 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     }
 
     /**
-     * Pas de `#[\Override]` : le DataCollector de Symfony ne déclare `__serialize()` qu'à partir
-     * de 7.0, et l'attribut ferait échouer le chargement de cette classe sur 6.4 (PHP ≥ 8.3).
+     * No `#[\Override]`: Symfony's DataCollector only declares `__serialize()` from 7.0 onwards,
+     * and the attribute would make loading this class fail on 6.4 (PHP ≥ 8.3).
      *
      * @return array<string, mixed>
      */

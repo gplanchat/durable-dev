@@ -26,11 +26,11 @@ use Illuminate\Database\Connection;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Le provider de l'intégration Laravel, sans application Laravel autour.
+ * The Laravel integration's service provider, with no Laravel application around it.
  *
- * Un conteneur nu suffit, et c'est délibéré : ce que le provider fait doit être vrai dans un
- * worker autonome et dans un test, pas seulement sous un kernel complet — la leçon que
- * `ResumeLock` a déjà apprise en évitant `Lock::block()` et son `now()` global.
+ * A bare container is enough, and that is deliberate: what the service provider does has to hold
+ * in a standalone worker and in a test, not only under a full kernel — the lesson `ResumeLock`
+ * has already learnt by avoiding `Lock::block()` and its global `now()`.
  */
 final class DurableServiceProviderTest extends TestCase
 {
@@ -52,8 +52,8 @@ final class DurableServiceProviderTest extends TestCase
 
         (new DurableServiceProvider($app))->register();
 
-        // Aucun port ne reste sur l'autre backend : un journal en mémoire sous un catalogue SQL
-        // n'est pas une configuration, c'est une panne.
+        // No port stays on the other backend: an in-memory journal under a SQL catalog is not a
+        // configuration, it is a breakdown.
         self::assertInstanceOf(InMemoryEventStore::class, $app->make(EventStoreInterface::class));
         self::assertInstanceOf(InMemoryWorkflowMetadataStore::class, $app->make(WorkflowMetadataStore::class));
         self::assertInstanceOf(InMemoryChildWorkflowParentLinkStore::class, $app->make(ChildWorkflowParentLinkStoreInterface::class));
@@ -102,8 +102,8 @@ final class DurableServiceProviderTest extends TestCase
     public function testALockStoreThatLocksIsAccepted(): void
     {
         $app = $this->containerWithConnection(['backend' => 'memory']);
-        // `array` n'exclut que dans un processus, et c'est la commande de worker qui le jugera —
-        // le démarrage ne refuse que ce qui n'est juste dans aucun déploiement (§1.3).
+        // `array` only excludes inside one process, and it is the worker command that will judge
+        // that — boot only refuses what is right in no deployment at all (§1.3).
         $app->instance('cache', $this->cacheManagerReturning(new ArrayStore()));
 
         $provider = new DurableServiceProvider($app);

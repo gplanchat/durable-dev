@@ -7,4 +7,4 @@
   et `__serialize()` les rend telles quelles ; un objet non sérialisable casse le profil entier.
 - **Entrées** : `DurableExtension::registerProfiler()`, `DurableDataCollector`, un observateur nul
   dans le cœur, les tests. Rien d'autre.
-- **État** : rédaction.
+- **État** : en revue — PR #275.

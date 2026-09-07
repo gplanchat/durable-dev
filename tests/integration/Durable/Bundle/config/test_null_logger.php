@@ -6,7 +6,7 @@ use Psr\Log\NullLogger;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
 /*
- * Remplace le logger par NullLogger pour supprimer les logs [info] pendant les tests.
+ * Replaces the logger with NullLogger to suppress the [info] logs during the tests.
  */
 return static function (ContainerConfigurator $container): void {
     $container->services()

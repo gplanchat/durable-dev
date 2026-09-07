@@ -27,9 +27,9 @@ use Temporal\Api\History\V1\WorkflowExecutionCancelRequestedEventAttributes;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
- * L'annulation Temporal est coopérative : le serveur n'enregistre qu'une demande et replanifie
- * une tâche. Le worker doit relever un CanceledFailure dans le fiber — pour laisser le workflow
- * compenser — puis répondre par COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION.
+ * Temporal cancellation is cooperative: the server only records a request and reschedules a
+ * task. The worker must raise a CanceledFailure inside the fiber — to let the workflow
+ * compensate — then answer with COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION.
  */
 final class TemporalWorkflowCancellationTest extends TestCase
 {
@@ -61,7 +61,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
             },
         );
 
-        self::assertInstanceOf(WorkflowCancelledFailure::class, $seen, 'le workflow doit pouvoir attraper l’annulation');
+        self::assertInstanceOf(WorkflowCancelledFailure::class, $seen, 'the workflow must be able to catch the cancellation');
         self::assertContains(CommandType::COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION, $this->commandTypes($commands));
     }
 
@@ -80,7 +80,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
             },
         );
 
-        // La compensation doit être planifiée : l'annulation ne se livre qu'une fois par tâche.
+        // The compensation must be scheduled: cancellation is delivered only once per task.
         $types = $this->commandTypes($commands);
         self::assertContains(CommandType::COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, $types);
         self::assertNotContains(CommandType::COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION, $types);
@@ -88,8 +88,8 @@ final class TemporalWorkflowCancellationTest extends TestCase
 
     public function testActivityCancellationCarriesTheRealScheduledEventId(): void
     {
-        // scheduledEventId doit désigner l'événement ACTIVITY_TASK_SCHEDULED réel : il sortait
-        // d'un compteur local partant de 1000, que le serveur aurait rejeté.
+        // scheduledEventId must name the real ACTIVITY_TASK_SCHEDULED event: it came out of a
+        // local counter starting at 1000, which the server would have rejected.
         $history = TemporalExecutionHistory::fromEvents([
             $this->activityScheduled(17, 'act-7', 'charge'),
             $this->cancelRequestedEvent('operator'),
@@ -110,15 +110,15 @@ final class TemporalWorkflowCancellationTest extends TestCase
             }
         }
 
-        self::assertNotNull($cancel, 'l’activité en attente doit être annulée côté serveur');
+        self::assertNotNull($cancel, 'the waiting activity must be cancelled on the server side');
         self::assertSame(17, $cancel->getScheduledEventId());
     }
 
     public function testDeliveryIsRecordedAndReplaysAsTheSameFailure(): void
     {
-        // L'historique Temporal ne porte pas la raison d'une annulation d'opération : sans
-        // marqueur, un ACTIVITY_TASK_CANCELED se relirait en ActivitySupersededException et le
-        // catch du workflow ne matcherait plus au rejeu.
+        // The Temporal history does not carry the reason for an operation cancellation: without
+        // a marker, an ACTIVITY_TASK_CANCELED would be read back as an ActivitySupersededException
+        // and the workflow's catch would no longer match at replay.
         $history = TemporalExecutionHistory::fromEvents([
             $this->activityScheduled(17, 'act-7', 'charge'),
             $this->cancelRequestedEvent('operator'),
@@ -140,8 +140,8 @@ final class TemporalWorkflowCancellationTest extends TestCase
         self::assertNotNull($marker);
         self::assertSame(TemporalExecutionHistory::MARKER_CANCELLATION_DELIVERED, $marker->getMarkerName());
 
-        // Tâche suivante : le marqueur est dans l'historique, l'annulation n'est plus relivrée
-        // et l'activité se relit avec la MÊME exception.
+        // Next task: the marker is in the history, the cancellation is no longer redelivered and
+        // the activity is read back with the SAME exception.
         $replayed = TemporalExecutionHistory::fromEvents([
             $this->activityScheduled(17, 'act-7', 'charge'),
             $this->cancelRequestedEvent('operator'),
@@ -155,7 +155,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
 
     public function testSideEffectMarkerRoundTripsThroughTheCommand(): void
     {
-        // details est une map<string, Payloads> : un Payload seul y était refusé par protobuf.
+        // details is a map<string, Payloads>: a lone Payload was refused there by protobuf.
         $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1');
         $buffer->recordSideEffect('se-1', ['value' => 7]);
 

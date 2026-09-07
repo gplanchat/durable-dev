@@ -7,12 +7,12 @@ namespace Gplanchat\Durable\Plugin\Tests\Integration;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Le gabarit ne doit plus rien savoir du backend qui l'alimente.
+ * The template must no longer know anything about the backend that feeds it.
  *
- * Ces assertions sont grossières — une lecture de fichier — et c'est assumé : elles gardent un
- * contrat de vocabulaire, pas un rendu. Ce qu'elles empêchent est précis : qu'un `temporal.` ou
- * une colonne « file de tâches » revienne par inadvertance dans une page qui doit servir deux
- * backends dont un seul a ces notions.
+ * These assertions are coarse — a file read — and that is deliberate: they guard a vocabulary
+ * contract, not a rendering. What they prevent is precise: that a `temporal.` or a "task queue"
+ * column comes back inadvertently into a page that has to serve two backends, only one of which
+ * has those notions.
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/tasks.md §6.3
  */
@@ -49,9 +49,9 @@ final class DashboardTemplateRenderTest extends TestCase
     }
 
     /**
-     * L'assertion porte sur les clés et non sur `kpis.<clé>` : la page les parcourt en boucle plutôt
-     * que de les écrire une à une, et exiger la forme pointée reviendrait à figer la manière de
-     * rendre au lieu du vocabulaire rendu.
+     * The assertion is about the keys and not about `kpis.<key>`: the page walks them in a loop
+     * rather than writing them one by one, and demanding the dotted form would amount to freezing
+     * the way of rendering instead of the vocabulary rendered.
      */
     public function testEveryOutcomeHasItsCounterOnThePage(): void
     {
@@ -59,7 +59,7 @@ final class DashboardTemplateRenderTest extends TestCase
             self::assertStringContainsString(
                 \sprintf("'%s'", $counter),
                 $this->template,
-                \sprintf('le compteur « %s » manque', $counter),
+                \sprintf('the "%s" counter is missing', $counter),
             );
         }
     }
@@ -68,7 +68,7 @@ final class DashboardTemplateRenderTest extends TestCase
     {
         self::assertFileDoesNotExist(
             \dirname(__DIR__, 2) . '/Dashboard/TemporalEventsDashboardDataProvider.php',
-            'le fournisseur gRPC a rejoint le pont Temporal ; le plugin ne parle plus à un backend',
+            'the gRPC provider moved to the Temporal bridge; the plugin no longer speaks to a backend',
         );
     }
 }

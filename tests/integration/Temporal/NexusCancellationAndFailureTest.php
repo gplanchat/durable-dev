@@ -37,14 +37,14 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * §6.3 et §6.4 — l'annulation atteint le serveur, et un échec dit d'où il vient.
+ * §6.3 and §6.4 — cancellation reaches the server, and a failure says where it comes from.
  *
- * Même montage que {@see NexusOperationRoundTripTest} : le test crée son propre endpoint Nexus,
- * le supprime en sortant, et pilote lui-même les tâches de workflow — aucun worker ne tourne.
+ * Same rig as {@see NexusOperationRoundTripTest}: the test creates its own Nexus endpoint, deletes
+ * it on the way out, and drives the workflow tasks itself — no worker is running.
  *
- * Ce que ces deux cas ajoutent au round-trip : l'annulation exige l'`eventId` **réel** de la
- * planification, qu'aucun test unitaire ne peut valider puisque c'est le serveur qui rejette un
- * identifiant inventé ; et l'échec doit remonter typé, avec son site d'appel, jusqu'au workflow.
+ * What these two cases add to the round trip: cancellation requires the **real** `eventId` of the
+ * scheduling, which no unit test can validate since it is the server that rejects a made-up
+ * identifier; and the failure must surface typed, with its call site, all the way to the workflow.
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §6.3 §6.4
  */
@@ -63,7 +63,7 @@ final class NexusCancellationAndFailureTest extends TestCase
     {
         $address = getenv('DURABLE_TEMPORAL_ADDRESS');
         if (false === $address || '' === $address) {
-            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS non défini : pas de serveur Temporal.');
+            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS not set: no Temporal server.');
         }
 
         $queue = 'nexus-cf-' . bin2hex(random_bytes(5));
@@ -127,39 +127,39 @@ final class NexusCancellationAndFailureTest extends TestCase
         $operationId = 'op-' . bin2hex(random_bytes(4));
         $this->scheduleOperation($operationId, new NexusOperationTimeouts(scheduleToClose: Duration::minutes(5)));
 
-        // Un signal force une nouvelle tâche : sans worker servant l'endpoint, rien d'autre ne
-        // relancerait l'exécution, et il n'y aurait pas de tâche où poser l'annulation.
+        // A signal forces a new task: with no worker serving the endpoint, nothing else would
+        // restart the execution, and there would be no task on which to place the cancellation.
         $this->signal();
         $task = $this->pollTask();
 
-        // Le tampon relit l'historique de CETTE tâche : c'est de là que sort l'eventId réel, et
-        // un identifiant inventé ferait rejeter la tâche entière par le serveur.
+        // The buffer reads back the history of THIS task: that is where the real eventId comes
+        // from, and a made-up identifier would make the server reject the whole task.
         $history = TemporalExecutionHistory::fromEvents(
             (new TemporalHistoryCursor($this->client, $this->connection))->eventsFromPoll($task),
         );
         $buffer = new TemporalWorkflowCommandBuffer($this->connection, 'exec-1', $history);
-        // Depuis 1b.2, l'identité d'une opération est l'eventId que le serveur assigne, et non
-        // l'identifiant applicatif passé à la planification : c'est l'historique qui la donne.
+        // Since 1b.2, the identity of an operation is the eventId the server assigns, and not the
+        // application identifier passed at scheduling time: it is the history that gives it.
         $identity = $history->findScheduledNexusOperation(0);
-        self::assertNotNull($identity, "L'opération planifiée est absente de l'historique de la tâche.");
+        self::assertNotNull($identity, "The scheduled operation is missing from the task's history.");
         $buffer->cancelNexusOperation($identity, 'race_superseded');
         $commands = $buffer->flush();
-        self::assertCount(1, $commands, "Le tampon n'a pas retrouvé l'opération dans l'historique.");
+        self::assertCount(1, $commands, 'The buffer did not find the operation in the history.');
 
         $this->respond($task, $commands);
 
         self::assertTrue(
             $this->historyHas(EventType::EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUESTED),
-            'Le serveur a accepté la commande sans enregistrer la demande d’annulation : '
+            'The server accepted the command without recording the cancellation request: '
             . implode(', ', $this->historyNames()),
         );
     }
 
     public function testATimedOutOperationSurfacesTypedWithItsOrigin(): void
     {
-        // Une borne d'une seconde sur un endpoint que personne ne sert : le serveur finit par
-        // écrire NEXUS_OPERATION_TIMED_OUT, et c'est le seul échec qu'on puisse provoquer sans
-        // handler. Ce que le test vérifie est en aval — que la lecture le rende typé.
+        // A one-second bound on an endpoint nobody serves: the server ends up writing
+        // NEXUS_OPERATION_TIMED_OUT, and that is the only failure that can be provoked without a
+        // handler. What the test checks is downstream — that the read returns it typed.
         $operationId = 'op-' . bin2hex(random_bytes(4));
         $this->scheduleOperation($operationId, new NexusOperationTimeouts(scheduleToClose: Duration::seconds(1.0)));
 
@@ -169,7 +169,7 @@ final class NexusCancellationAndFailureTest extends TestCase
         }
         self::assertTrue(
             $this->historyHas(EventType::EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT),
-            'Le serveur n’a pas fait expirer l’opération : ' . implode(', ', $this->historyNames()),
+            'The server did not time the operation out: ' . implode(', ', $this->historyNames()),
         );
 
         $history = TemporalExecutionHistory::fromEvents(
@@ -180,9 +180,9 @@ final class NexusCancellationAndFailureTest extends TestCase
         self::assertNotNull($slot);
 
         $failure = $slot['failed'];
-        self::assertInstanceOf(DurableNexusOperationFailedException::class, $failure, "L'échec doit être typé, pas nu.");
+        self::assertInstanceOf(DurableNexusOperationFailedException::class, $failure, 'The failure must be typed, not bare.');
         self::assertSame(NexusOperationFailureKind::Timeout, $failure->kind());
-        // Le spec l'exige : un échec non rattrapé doit nommer le site d'appel.
+        // The spec requires it: an uncaught failure must name the call site.
         self::assertSame($this->endpointName, $failure->endpoint());
         self::assertSame('billing', $failure->service());
         self::assertSame('charge', $failure->operation());
@@ -220,7 +220,7 @@ final class NexusCancellationAndFailureTest extends TestCase
         $poll->setIdentity($this->connection->identity);
 
         $task = GrpcUnary::wait($this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]));
-        self::assertNotSame('', $task->getTaskToken(), 'Aucune tâche de workflow servie.');
+        self::assertNotSame('', $task->getTaskToken(), 'No workflow task served.');
 
         return $task;
     }
@@ -239,7 +239,7 @@ final class NexusCancellationAndFailureTest extends TestCase
         self::assertSame(
             0,
             (int) ($pair[1]->code ?? -1),
-            \sprintf('Le serveur a refusé la commande : %s', (string) ($pair[1]->details ?? '')),
+            \sprintf('The server refused the command: %s', (string) ($pair[1]->details ?? '')),
         );
     }
 

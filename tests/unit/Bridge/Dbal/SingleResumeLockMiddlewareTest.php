@@ -14,9 +14,9 @@ use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
 use Symfony\Component\Messenger\Middleware\StackInterface;
 
 /**
- * Sans serveur pour sérialiser les tâches d'une exécution, ce verrou est la seule chose qui
- * empêche deux workers de rejouer le même fiber en parallèle. Un verrou pris mais jamais relâché
- * bloque l'exécution pour de bon ; un verrou jamais pris ne sert à rien.
+ * With no server to serialize the tasks of one execution, this lock is the only thing that keeps
+ * two workers from replaying the same fiber in parallel. A lock taken but never released blocks
+ * the execution for good; a lock that is never taken serves no purpose.
  *
  * @see DUR030
  */
@@ -25,7 +25,7 @@ final class SingleResumeLockMiddlewareTest extends TestCase
     protected function setUp(): void
     {
         if (!class_exists(LockFactory::class)) {
-            self::markTestSkipped('symfony/lock non installé (dépendance de gplanchat/durable-bridge-dbal).');
+            self::markTestSkipped('symfony/lock is not installed (a dependency of gplanchat/durable-bridge-dbal).');
         }
     }
 
@@ -36,16 +36,16 @@ final class SingleResumeLockMiddlewareTest extends TestCase
 
         $heldDuringHandling = null;
         $stack = $this->stackRunning(function () use ($factory, &$heldDuringHandling): void {
-            // Acquisition non bloquante depuis « un autre worker » : elle doit échouer.
+            // Non-blocking acquisition from "another worker": it must fail.
             $heldDuringHandling = !$factory->createLock('durable-resume-exec-1')->acquire(false);
         });
 
         $middleware->handle(new Envelope(new ResumeWorkflowMessage('exec-1')), $stack);
 
-        self::assertTrue($heldDuringHandling, 'le verrou doit être tenu pendant la reprise');
+        self::assertTrue($heldDuringHandling, 'the lock must be held during the resume');
         self::assertTrue(
             $factory->createLock('durable-resume-exec-1')->acquire(false),
-            'le verrou doit être relâché après la reprise',
+            'the lock must be released after the resume',
         );
     }
 
@@ -60,7 +60,7 @@ final class SingleResumeLockMiddlewareTest extends TestCase
 
         try {
             $middleware->handle(new Envelope(new ResumeWorkflowMessage('exec-1')), $stack);
-            self::fail('l’exception du handler doit remonter');
+            self::fail('the handler exception must propagate');
         } catch (\RuntimeException) {
         }
 

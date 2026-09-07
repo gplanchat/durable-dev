@@ -1,146 +1,145 @@
 #!/usr/bin/env bash
 #
-# Prépare le cluster pour la démonstration Nexus à quatre applications.
+# Prepares the cluster for the four-application Nexus demonstration.
 #
-# Sept choses n'existent pas tant que personne ne les crée, et aucune n'appartient au code : quatre
-# namespaces, et les trois endpoints qui disent où `stock`, `facturation` et `livraison` sont
-# servis. C'est du déploiement, et c'est pourquoi cela vit dans un script d'opérateur plutôt que
-# dans une classe.
+# Seven things do not exist until somebody creates them, and none of them belongs to the code: four
+# namespaces, and the three endpoints that say where `stock`, `billing` and `delivery` are served.
+# That is deployment, and it is why this lives in an operator's script rather than in a class.
 #
-# ⚠ Il y a quatre namespaces et **trois** endpoints, et ce n'est pas un oubli : un endpoint dit où
-# un service est servi, et la maquette Magento n'en sert aucun. Lui en créer un que personne ne
-# pollerait donnerait un appelant qui attend pour rien — l'exacte panne que ce script existe pour
-# éviter. La maquette Laravel, elle, sert `livraison` : elle a donc les deux.
+# ⚠ There are four namespaces and **three** endpoints, and that is not an omission: an endpoint says
+# where a service is served, and the Magento mockup serves none. Creating one nobody would poll
+# would give a caller waiting for nothing — the exact breakdown this script exists to avoid. The
+# Laravel mockup does serve `delivery`: it therefore has both.
 #
-# L'endpoint est la pièce que l'on oublie. Sans lui, le workflow appelant part, le serveur ne sait
-# pas où router l'opération, et l'historique de l'appelant s'arrête sur un échec qui nomme un
-# endpoint introuvable — pas le contrat, pas le gestionnaire.
+# The endpoint is the piece one forgets. Without it the calling workflow leaves, the server does not
+# know where to route the operation, and the caller's history stops on a failure naming an
+# unreachable endpoint — not the contract, not the handler.
 #
-#   bin/demo-nexus                     # crée ce qui manque, ne touche pas à ce qui existe
-#   bin/demo-nexus --address host:port # sur un autre cluster que 127.0.0.1:7233
+#   bin/demo-nexus                     # creates what is missing, touches nothing that exists
+#   bin/demo-nexus --address host:port # against a cluster other than 127.0.0.1:7233
 #
 set -euo pipefail
 
-ADRESSE="${TEMPORAL_ADDRESS:-127.0.0.1:7233}"
-BOUTIQUE="demo-boutique"
-METIER="demo-metier"
-# La troisième maquette, appelante seulement : elle a un namespace parce qu'une exécution vit
-# quelque part, et pas d'endpoint parce qu'elle ne sert rien.
+ADDRESS="${TEMPORAL_ADDRESS:-127.0.0.1:7233}"
+SHOP="demo-shop"
+BUSINESS="demo-business"
+# The third mockup, a caller only: it has a namespace because an execution lives somewhere, and no
+# endpoint because it serves nothing.
 MAGENTO="demo-magento"
 LARAVEL="demo-laravel"
-ENDPOINT_STOCK="demo-boutique-stock"
-ENDPOINT_FACTURATION="demo-metier-facturation"
-ENDPOINT_LIVRAISON="demo-laravel-livraison"
-# La file que le worker Nexus de la boutique poll. Elle est nommée dans son DSN
-# (`nexus_task_queue=`), et l'endpoint doit désigner la même : c'est le seul endroit où les deux
-# moitiés se rencontrent, et une faute de frappe y donne un appelant qui attend pour rien.
-FILE_BOUTIQUE="demo-boutique-nexus"
-FILE_METIER="demo-metier-nexus"
-FILE_LARAVEL="demo-laravel-nexus"
+ENDPOINT_STOCK="demo-shop-stock"
+ENDPOINT_BILLING="demo-business-billing"
+ENDPOINT_DELIVERY="demo-laravel-delivery"
+# The queue the shop's Nexus worker polls. It is named in its DSN (`nexus_task_queue=`), and the
+# endpoint must point at the same one: it is the only place the two halves meet, and a typo there
+# gives a caller waiting for nothing.
+QUEUE_SHOP="demo-shop-nexus"
+QUEUE_BUSINESS="demo-business-nexus"
+QUEUE_LARAVEL="demo-laravel-nexus"
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --address) ADRESSE="$2"; shift 2 ;;
-        --address=*) ADRESSE="${1#*=}"; shift ;;
+        --address) ADDRESS="$2"; shift 2 ;;
+        --address=*) ADDRESS="${1#*=}"; shift ;;
         -h|--help) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-        *) echo "option inconnue : $1" >&2; exit 2 ;;
+        *) echo "unknown option: $1" >&2; exit 2 ;;
     esac
 done
 
 if ! command -v temporal >/dev/null 2>&1; then
-    echo "temporal (le CLI) est introuvable — https://docs.temporal.io/cli" >&2
+    echo "temporal (the CLI) is not on the PATH — https://docs.temporal.io/cli" >&2
     exit 1
 fi
 
-tctl() { temporal --address "$ADRESSE" "$@"; }
+tctl() { temporal --address "$ADDRESS" "$@"; }
 
-creer_namespace() {
-    local nom="$1"
-    if tctl operator namespace describe "$nom" >/dev/null 2>&1; then
-        echo "  = namespace $nom"
+create_namespace() {
+    local name="$1"
+    if tctl operator namespace describe "$name" >/dev/null 2>&1; then
+        echo "  = namespace $name"
         return
     fi
-    tctl operator namespace create "$nom" >/dev/null
-    echo "  + namespace $nom"
+    tctl operator namespace create "$name" >/dev/null
+    echo "  + namespace $name"
 }
 
-echo "cluster $ADRESSE"
-creer_namespace "$BOUTIQUE"
-creer_namespace "$METIER"
-creer_namespace "$MAGENTO"
-creer_namespace "$LARAVEL"
+echo "cluster $ADDRESS"
+create_namespace "$SHOP"
+create_namespace "$BUSINESS"
+create_namespace "$MAGENTO"
+create_namespace "$LARAVEL"
 
-creer_endpoint() {
-    local nom="$1" namespace="$2" file="$3"
+create_endpoint() {
+    local name="$1" namespace="$2" queue="$3"
 
-    if tctl operator nexus endpoint get --name "$nom" >/dev/null 2>&1; then
-        echo "  = endpoint $nom"
+    if tctl operator nexus endpoint get --name "$name" >/dev/null 2>&1; then
+        echo "  = endpoint $name"
         return
     fi
 
-    # La création échoue tant que le namespace cible n'est pas encore propagé ; quelques secondes
-    # suffisent, et réessayer vaut mieux que d'exiger de l'opérateur qu'il relance le script.
-    local tentative
-    for tentative in 1 2 3 4 5; do
+    # The creation fails while the target namespace has not propagated yet; a few seconds are
+    # enough, and retrying beats asking the operator to run the script again.
+    local attempt
+    for attempt in 1 2 3 4 5; do
         if tctl operator nexus endpoint create \
-            --name "$nom" \
+            --name "$name" \
             --target-namespace "$namespace" \
-            --target-task-queue "$file" >/dev/null 2>&1; then
-            echo "  + endpoint $nom -> $namespace / $file"
+            --target-task-queue "$queue" >/dev/null 2>&1; then
+            echo "  + endpoint $name -> $namespace / $queue"
             return
         fi
         sleep 2
     done
 
-    echo "échec de la création de l'endpoint $nom" >&2
-    echo "un serveur qui répond « Nexus APIs are disabled » ne suffit pas — voir demo/README.md" >&2
+    echo "could not create the endpoint $name" >&2
+    echo "a server answering \"Nexus APIs are disabled\" is not enough — see demo/README.md" >&2
     exit 1
 }
 
-creer_endpoint "$ENDPOINT_STOCK" "$BOUTIQUE" "$FILE_BOUTIQUE"
-creer_endpoint "$ENDPOINT_FACTURATION" "$METIER" "$FILE_METIER"
-creer_endpoint "$ENDPOINT_LIVRAISON" "$LARAVEL" "$FILE_LARAVEL"
+create_endpoint "$ENDPOINT_STOCK" "$SHOP" "$QUEUE_SHOP"
+create_endpoint "$ENDPOINT_BILLING" "$BUSINESS" "$QUEUE_BUSINESS"
+create_endpoint "$ENDPOINT_DELIVERY" "$LARAVEL" "$QUEUE_LARAVEL"
 
-cat <<FIN
+cat <<END
 
-Huit processus, quatre namespaces. Les quatre maquettes appellent, trois d'entre elles servent.
+Eight processes, four namespaces. All four mockups call, three of them serve.
 
-  # la boutique sert « stock » — profil demo, journal DBAL, tableau de bord inchangé
+  # the shop serves "stock" — demo profile, DBAL journal, dashboard unchanged
   cd sylius
   export APP_ENV=demo
-  export DURABLE_TEMPORAL_DSN='temporal://$ADRESSE?namespace=$BOUTIQUE&nexus_task_queue=$FILE_BOUTIQUE&tls=0'
+  export DURABLE_TEMPORAL_DSN='temporal://$ADDRESS?namespace=$SHOP&nexus_task_queue=$QUEUE_SHOP&tls=0'
   bin/console messenger:consume durable_temporal_nexus
 
-  # la boutique appelle « facturation » — profil demo_appelant, journal sur le cluster
+  # the shop calls "billing" — demo_caller profile, journal on the cluster
   cd sylius
-  export APP_ENV=demo_appelant
-  export DURABLE_TEMPORAL_DSN='temporal://$ADRESSE?namespace=$BOUTIQUE&tls=0'
+  export APP_ENV=demo_caller
+  export DURABLE_TEMPORAL_DSN='temporal://$ADDRESS?namespace=$SHOP&tls=0'
   bin/console messenger:consume durable_temporal_journal
-  bin/console durable:demo:facturer CMD-1 1200
+  bin/console durable:demo:bill CMD-1 1200
 
-  # le métier sert « facturation », dont « encaisser » qu'un workflow remplit
+  # the business serves "billing", including "charge" which a workflow fulfils
   cd symfony
-  export DURABLE_DSN='temporal://$ADRESSE?namespace=$METIER&nexus_task_queue=$FILE_METIER&tls=0'
+  export DURABLE_DSN='temporal://$ADDRESS?namespace=$BUSINESS&nexus_task_queue=$QUEUE_BUSINESS&tls=0'
   bin/console messenger:consume durable_temporal_nexus
   bin/console messenger:consume durable_temporal_journal
   bin/console messenger:consume durable_temporal_activity
 
-  # le métier appelle « stock »
+  # the business calls "stock"
   cd symfony
   bin/console durable:demo:nexus CMD-1 MUG_BLUE=2
 
-  # Magento appelle les trois services — et n'en sert aucun
+  # Magento calls the three services — and serves none
   cd magento
-  export MAGENTO_DC_DURABLE__TEMPORAL__DSN='temporal://$ADRESSE?namespace=$MAGENTO&tls=0'
+  export MAGENTO_DC_DURABLE__TEMPORAL__DSN='temporal://$ADDRESS?namespace=$MAGENTO&tls=0'
   bin/magento durable:worker --role=journal
   bin/magento durable:demo:nexus MAG-1 1200 MUG_BLUE=1
 
-  # la logistique sert « livraison », dont « expedier » qu'un workflow remplit — et qui appelle
-  # « stock » pendant qu'elle sert
+  # the logistics serves "delivery", including "ship" which a workflow fulfils — and which calls
+  # "stock" while it serves
   cd laravel
-  export DURABLE_DSN='temporal://$ADRESSE?namespace=$LARAVEL&nexus_task_queue=$FILE_LARAVEL&tls=0'
+  export DURABLE_DSN='temporal://$ADDRESS?namespace=$LARAVEL&nexus_task_queue=$QUEUE_LARAVEL&tls=0'
   php artisan durable:nexus-worker
   php artisan durable:temporal-worker
 
-\`demo/lancer.sh\` fait tout cela d'un coup.
-FIN
+\`demo/run.sh\` does all of that at once.
+END

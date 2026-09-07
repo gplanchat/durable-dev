@@ -9,10 +9,10 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Types\Types;
 
 /**
- * Tables du backend DBAL : journal, métadonnées d'exécution, lien parent/enfant.
+ * Tables of the DBAL backend: journal, execution metadata, parent/child link.
  *
- * L'auto-création suit le modèle du transport Doctrine de Messenger : la première écriture
- * crée ce qui manque. Pas de doctrine/migrations — la forme est figée par ce fichier.
+ * Auto-creation follows the model of Messenger's Doctrine transport: the first write creates
+ * what is missing. No doctrine/migrations — the shape is frozen by this file.
  *
  * @see DUR030
  */
@@ -29,7 +29,7 @@ final class DurableSchema
     ) {}
 
     /**
-     * Idempotent : ne crée que les tables absentes, et ne le vérifie qu'une fois par processus.
+     * Idempotent: creates only the missing tables, and checks that only once per process.
      */
     public function ensure(): void
     {
@@ -53,22 +53,22 @@ final class DurableSchema
     }
 
     /**
-     * Déclare les tables manquantes ; branché aussi sur `configureSchema` côté bundle.
+     * Declares the missing tables; also wired to `configureSchema` on the bundle side.
      *
-     * @param list<string> $skip tables déjà présentes
+     * @param list<string> $skip tables already present
      */
     public function addToSchema(Schema $schema, array $skip = []): void
     {
         if (!\in_array($this->eventsTable, $skip, true)) {
             $events = $schema->createTable($this->eventsTable);
-            // Auto-increment : `readStream()` promet l'ordre d'insertion, l'id le porte.
+            // Auto-increment: `readStream()` promises insertion order, the id carries it.
             $events->addColumn('id', Types::BIGINT)->setAutoincrement(true);
             $events->addColumn('execution_id', Types::STRING, ['length' => 128]);
             $events->addColumn('event_type', Types::STRING, ['length' => 255]);
             $events->addColumn('payload', Types::TEXT);
             $events->addColumn('recorded_at', Types::DATETIME_IMMUTABLE);
-            // setPrimaryKey() est déprécié en DBAL 4.3, mais son remplaçant n'existe pas en DBAL 3 :
-            // le paquet supporte les deux majeures, donc on garde l'appel commun.
+            // setPrimaryKey() is deprecated in DBAL 4.3, but its replacement does not exist in
+            // DBAL 3: the package supports both majors, so we keep the call they share.
             $events->setPrimaryKey(['id']);
             $events->addIndex(['execution_id'], $this->eventsTable . '_execution_idx');
         }
@@ -83,10 +83,10 @@ final class DurableSchema
         }
 
         if (!\in_array($this->runsTable, $skip, true)) {
-            // Projection de lecture : le journal est écrit à chaque pas et lu par id d'exécution,
-            // un tableau de bord lit en travers et ordonne par date. Deux motifs d'accès, et
-            // `durable_events` n'est indexée que sur `execution_id` — lister depuis lui serait un
-            // balayage par page, croissant avec le nombre total d'événements jamais écrits.
+            // Read projection: the journal is written at every step and read by execution id,
+            // while a dashboard reads across it and orders by date. Two access patterns, and
+            // `durable_events` is only indexed on `execution_id` — listing from it would be a
+            // scan per page, growing with the total number of events ever written.
             $runs = $schema->createTable($this->runsTable);
             $runs->addColumn('execution_id', Types::STRING, ['length' => 128]);
             $runs->addColumn('workflow_type', Types::STRING, ['length' => 255]);

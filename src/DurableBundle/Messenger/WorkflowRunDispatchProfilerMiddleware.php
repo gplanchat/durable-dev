@@ -12,7 +12,7 @@ use Symfony\Component\Messenger\Middleware\StackInterface;
 use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 
 /**
- * Enregistre dans le profiler chaque envoi de ResumeWorkflowMessage (y compris vers un transport asynchrone).
+ * Records in the profiler every dispatch of ResumeWorkflowMessage (including to an asynchronous transport).
  */
 final class WorkflowRunDispatchProfilerMiddleware implements MiddlewareInterface
 {

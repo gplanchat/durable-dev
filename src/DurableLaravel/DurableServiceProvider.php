@@ -59,15 +59,15 @@ use Illuminate\Database\Connection;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Lie les quatre ports de stockage depuis un seul fichier de configuration.
+ * Binds the four storage ports from a single configuration file.
  *
- * **Un choix de backend lie les quatre ports ensemble.** Un journal sur un backend et des
- * métadonnées sur un autre n'est pas une configuration, c'est une panne — d'où un seul `match`
- * plutôt que quatre réglages indépendants.
+ * **One choice of backend binds all four ports together.** A journal on one backend and metadata on
+ * another is not a configuration, it is a fault — hence a single `match` rather than four
+ * independent settings.
  *
- * Ce provider est celui du paquet d'**intégration**. Celui du pont,
- * `Gplanchat\Bridge\Illuminate\DurableIlluminateServiceProvider`, ne dit que où sont ses
- * migrations, et les deux se chargent côte à côte sans se marcher dessus.
+ * This provider is the **integration** package's. The bridge's own,
+ * `Gplanchat\Bridge\Illuminate\DurableIlluminateServiceProvider`, only says where its migrations
+ * are, and the two load side by side without stepping on each other.
  */
 final class DurableServiceProvider extends ServiceProvider
 {
@@ -79,7 +79,7 @@ final class DurableServiceProvider extends ServiceProvider
         $backend = $config['backend'] ?? 'illuminate';
 
         if (!\in_array($backend, self::BACKENDS, true)) {
-            // Nommer les deux : un message qui dit seulement « backend inconnu » fait ouvrir le code.
+            // Name both: a message that only says "unknown backend" makes someone open the code.
             throw new \InvalidArgumentException(\sprintf(
                 'Durable: unknown backend "%s". This package serves %s.',
                 \is_scalar($backend) ? (string) $backend : \get_debug_type($backend),
@@ -102,9 +102,9 @@ final class DurableServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // `ServiceProvider::$app` est documenté comme l'application complète, et ce paquet tient
-        // à ce que ce soit faux : un conteneur nu doit pouvoir enregistrer ces liaisons, dans un
-        // worker autonome comme dans un test. Seule la publication a besoin de `configPath()`.
+        // `ServiceProvider::$app` is documented as the full application, and this package insists
+        // that this be false: a bare container must be able to register these bindings, in a
+        // standalone worker as in a test. Only publishing needs `configPath()`.
         if (method_exists($this->app, 'configPath')) {
             $this->publishes(
                 [__DIR__ . '/config/durable.php' => $this->app->configPath('durable.php')],
@@ -112,16 +112,16 @@ final class DurableServiceProvider extends ServiceProvider
             );
         }
 
-        // §1.3 : `null` ne verrouille jamais, dans aucun déploiement. Le refus est donc sans risque
-        // au démarrage, là où `array` — correct dans un seul processus, et cache par défaut de
-        // l'environnement de test — ne peut être jugé que par la commande de worker.
+        // §1.3: `null` never locks, in any deployment. The refusal is therefore risk-free at
+        // boot, where `array` — correct inside a single process, and the default cache of the test
+        // environment — can only be judged by the worker command.
         if ($this->app->bound('cache')) {
             $this->refuseALockStoreThatCannotLock();
         }
 
-        // Et `sync` exécute le job sur place : une reprise qui en dispatche une autre récurserait
-        // dans le même processus. Le pendant Symfony s'en protège par un
-        // DispatchAfterCurrentBusStamp ; ici, c'est la connexion qui doit être une vraie file.
+        // And `sync` runs the job on the spot: a resume that dispatches another one would recurse
+        // in the same process. The Symfony counterpart protects itself with a
+        // DispatchAfterCurrentBusStamp; here, it is the connection that must be a real queue.
         $this->refuseAQueueThatRunsInline();
     }
 
@@ -187,15 +187,15 @@ final class DurableServiceProvider extends ServiceProvider
     }
 
     /**
-     * Le backend Temporal : le journal et le catalogue vivent dans le cluster.
+     * The Temporal backend: the journal and the catalog live in the cluster.
      *
-     * Les métadonnées et les liens parents restent en mémoire, comme côté Symfony — Temporal tient
-     * l'état durable, ces deux-là ne sont que du cache de processus.
+     * The metadata and the parent links stay in memory, as on the Symfony side — Temporal holds the
+     * durable state, those two are nothing but process cache.
      *
-     * **Ce que ce paquet ne réplique pas, et c'est délibéré :** les transports Messenger du pont.
-     * Les activités et les reprises continuent de voyager sur la file de l'application, qui les
-     * draine déjà ; Temporal possède le journal, Laravel possède la file. Le worker de tâches de
-     * workflow, lui, a son propre tour de boucle — `durable:temporal-worker`.
+     * **What this package does not replicate, and that is deliberate:** the bridge's Messenger
+     * transports. The activities and the resumes go on travelling on the application's queue, which
+     * already drains them; Temporal owns the journal, Laravel owns the queue. The workflow task
+     * worker, for its part, has its own loop turn — `durable:temporal-worker`.
      *
      * @param array<string, mixed> $config
      */
@@ -266,7 +266,7 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(WorkflowDefinitionLoader::class),
         ));
 
-        // Le journal lit à travers le cluster, avec un magasin en mémoire pour le tour courant.
+        // The journal reads through to the cluster, with an in-memory store for the current turn.
         $this->app->singleton(EventStoreInterface::class, fn($app) => new TemporalReadThroughEventStore(
             new InMemoryEventStore(),
             $app->make(TemporalHistoryCursor::class),
@@ -280,10 +280,10 @@ final class DurableServiceProvider extends ServiceProvider
         );
 
         if (method_exists($this->app, 'runningInConsole') && $this->app->runningInConsole()) {
-            // Nommée par une chaîne, et pas par `::class` : la classe étend
-            // `Illuminate\Console\Command`, qui ne peut pas entrer dans le graphe de la racine
-            // sans rendre la ligne Symfony 6.4 irrésoluble — voir phpstan.neon. Une référence
-            // `::class` ferait suivre l'analyseur jusque dans une classe qu'il ne peut pas lire.
+            // Named by a string, and not by `::class`: the class extends
+            // `Illuminate\Console\Command`, which cannot enter the root's graph without making
+            // the Symfony 6.4 line unresolvable — see phpstan.neon. A `::class` reference would
+            // make the analyser follow it into a class it cannot read.
             $this->commands([
                 'Gplanchat\\Durable\\Laravel\\Console\\TemporalWorkerCommand',
                 'Gplanchat\\Durable\\Laravel\\Console\\NexusWorkerCommand',
@@ -303,8 +303,8 @@ final class DurableServiceProvider extends ServiceProvider
     }
 
     /**
-     * Le transport suit le backend, comme les quatre magasins : « memory » ne sort pas du
-     * processus, « illuminate » voyage sur la file que l'application draine déjà.
+     * The transport follows the backend, like the four stores: "memory" does not leave the
+     * process, "illuminate" travels on the queue the application already drains.
      *
      * @param array<string, mixed> $config
      */
@@ -344,8 +344,8 @@ final class DurableServiceProvider extends ServiceProvider
             $registry = new WorkflowRegistry();
 
             foreach ($declared as $workflowClass) {
-                // Le registre indexe chaque classe deux fois : sous le nom que son attribut déclare
-                // et sous son FQCN. Une reprise qui n'a que l'un des deux résout quand même.
+                // The registry indexes each class twice: under the name its attribute declares
+                // and under its FQCN. A resume that has only one of the two still resolves.
                 $registry->registerClass($workflowClass);
             }
 
@@ -359,11 +359,12 @@ final class DurableServiceProvider extends ServiceProvider
     }
 
     /**
-     * Ce qui rejoue une exécution, et c'est le cœur qui le fait.
+     * What replays an execution, and it is the core that does it.
      *
-     * `ResumeWorkflowHandler` a quitté le bundle Symfony pour le cœur pour qu'un hôte sans bus
-     * puisse le rendre : ce paquet n'a donc qu'à l'assembler, pas à le réécrire. Un minuteur, lui,
-     * est une reprise différée — la file porte le délai, comme le `DelayStamp` de Messenger.
+     * `ResumeWorkflowHandler` left the Symfony bundle for the core so that a host without a bus
+     * could provide it: this package therefore only has to assemble it, not to rewrite it. A timer,
+     * for its part, is a deferred resume — the queue carries the delay, like Messenger's
+     * `DelayStamp`.
      *
      * @param array<string, mixed> $config
      */
@@ -373,14 +374,14 @@ final class DurableServiceProvider extends ServiceProvider
         $queue = $config['queue'] ?? [];
 
         $this->app->singleton(RegistryActivityExecutor::class, fn() => new RegistryActivityExecutor());
-        // Le port, pas seulement la classe : `RunActivityJob` demande un
-        // `ActivityMessageProcessor`, qui demande un `ActivityExecutor`. Sans cette ligne le
-        // conteneur essaie d'instancier une interface, et l'activité échoue au premier essai.
+        // The port, not only the class: `RunActivityJob` asks for an `ActivityMessageProcessor`,
+        // which asks for an `ActivityExecutor`. Without this line the container tries to
+        // instantiate an interface, and the activity fails on the first attempt.
         $this->app->singleton(ActivityExecutor::class, fn($app) => $app->make(RegistryActivityExecutor::class));
         $this->app->singleton(WorkflowDefinitionLoader::class, fn() => new WorkflowDefinitionLoader());
 
-        // Le minuteur suit le backend, comme le transport et le dispatcher de reprise : en
-        // mémoire, le drain est dans le processus et n'a personne à réveiller.
+        // The timer follows the backend, like the transport and the resume dispatcher: in memory,
+        // the drain is inside the process and has nobody to wake.
         $this->app->singleton(
             WorkflowTimerDispatcher::class,
             ($config['backend'] ?? 'illuminate') === 'illuminate'
@@ -396,8 +397,8 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(EventStoreInterface::class),
             $app->make(ActivityTransportInterface::class),
             $app->make(RegistryActivityExecutor::class),
-            // Les tentatives sont illimitées par défaut, sémantique Temporal ; `distributed: true`
-            // parce qu'ici le drain n'est pas dans le processus, c'est `queue:work`.
+            // Attempts are unlimited by default, Temporal semantics; `distributed: true` because
+            // here the drain is not inside the process, it is `queue:work`.
             0,
             null,
             true,
@@ -413,10 +414,10 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(ActivityTransportInterface::class),
             $app->make(ActivityExecutor::class),
             $app->make(WorkflowResumeDispatcher::class),
-            // Pas de battement de cœur : c'est une capacité de Temporal, et rien ici ne la sert.
+            // No heartbeat: that is a capability of Temporal, and nothing here serves it.
             new NullActivityHeartbeatSender(),
-            // Tentatives illimitées par défaut, sémantique Temporal. La politique de chaque
-            // activité l'emporte quand elle en déclare une.
+            // Unlimited attempts by default, Temporal semantics. Each activity's own policy wins
+            // when it declares one.
             0,
         ));
 
@@ -446,12 +447,12 @@ final class DurableServiceProvider extends ServiceProvider
     }
 
     /**
-     * Nexus : le registre existe toujours, et il sait dire pourquoi il ne peut pas router.
+     * Nexus: the registry always exists, and it knows how to say why it cannot route.
      *
-     * `routedBy('temporal')` sous Temporal, `unavailableOn($backend)` ailleurs — et le second refuse
-     * **à l'enregistrement**, pas au premier appel. C'est le cœur qui porte ce refus, précisément
-     * parce que la passe de compilation de Symfony n'attrape que Symfony : un hôte qui déclare un
-     * gestionnaire sur un backend qui ne route pas doit s'en entendre dire la raison, où qu'il soit.
+     * `routedBy('temporal')` under Temporal, `unavailableOn($backend)` elsewhere — and the second
+     * refuses **at registration**, not on the first call. It is the core that carries this refusal,
+     * precisely because Symfony's compiler pass only catches Symfony: a host that declares a
+     * handler on a backend that does not route must be told the reason, wherever it is.
      *
      * @param array<string, mixed> $config
      */
@@ -512,11 +513,11 @@ final class DurableServiceProvider extends ServiceProvider
         $queue = $config['queue'] ?? [];
         $name = $queue['connection'] ?? null;
 
-        // Le **nom du driver**, pas la classe de la connexion : `SyncQueue` vit dans
-        // `illuminate/queue`, dont Laravel 11+ tire `symfony/process ^7.2` — l'exiger rendrait ce
-        // paquet irréconciliable avec la ligne Symfony 6.4 que la matrice du dépôt teste encore.
-        // Lire la configuration dit la même chose, sans la dépendance, et sans avoir à résoudre la
-        // connexion pour la juger.
+        // The **driver name**, not the connection class: `SyncQueue` lives in `illuminate/queue`,
+        // from which Laravel 11+ pulls `symfony/process ^7.2` — requiring it would make this
+        // package irreconcilable with the Symfony 6.4 line the repository's matrix still tests.
+        // Reading the configuration says the same thing, without the dependency, and without
+        // having to resolve the connection in order to judge it.
         if ($this->driverOf($name) === 'sync') {
             throw new \InvalidArgumentException(\sprintf(
                 'Durable: the "%s" queue connection runs jobs inline, so a resume that dispatches '
@@ -551,10 +552,10 @@ final class DurableServiceProvider extends ServiceProvider
 
         $store = $this->app->make('cache')->store($name)->getStore();
 
-        // §1.3 laissait passer `array` au démarrage parce que c'est le cache de test par défaut de
-        // Laravel, et qu'exclure dans un seul processus est ce qu'un test veut. Sous le backend
-        // `illuminate`, ça ne peut plus être vrai : la reprise tourne dans un worker séparé du
-        // processus qui l'a dispatchée, donc deux verrous « array » ne se voient jamais.
+        // §1.3 let `array` through at boot because it is Laravel's default test cache, and because
+        // excluding inside a single process is what a test wants. Under the `illuminate` backend,
+        // that can no longer be true: the resume runs in a worker separate from the process that
+        // dispatched it, so two "array" locks never see each other.
         if ($store instanceof ArrayStore && ($this->durableConfig()['backend'] ?? 'illuminate') === 'illuminate') {
             throw new \InvalidArgumentException(\sprintf(
                 'Durable: the "%s" cache store only excludes inside one process, and a resume runs '

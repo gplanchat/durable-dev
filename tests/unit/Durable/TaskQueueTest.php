@@ -11,11 +11,11 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Une file mal nommée ne produit aucune erreur : le travail y est déposé et personne ne vient le
- * chercher. L'objet est donc plus strict que le serveur sur ce qui ne peut être qu'une faute.
+ * A misnamed queue produces no error: work is dropped into it and nobody comes to fetch it. The
+ * object is therefore stricter than the server about what can only be a mistake.
  *
- * Les verdicts serveur ci-dessous ont été sondés : non vide, mille caractères au plus, et tout
- * le reste accepté — y compris `" "` et les blancs en bord.
+ * The server verdicts below have been probed: non-empty, a thousand characters at most, and
+ * everything else accepted — including `" "` and whitespace at the edges.
  */
 final class TaskQueueTest extends TestCase
 {
@@ -42,8 +42,8 @@ final class TaskQueueTest extends TestCase
     #[DataProvider('namesWithEdgeWhitespace')]
     public function testWhitespaceAtTheEdgesIsRejected(string $name): void
     {
-        // Le serveur conserve le nom tel quel : un worker qui poll la version « propre » ne
-        // serait jamais apparié, sans le moindre message.
+        // The server keeps the name as it is: a worker polling the "clean" version would never
+        // be matched, without the slightest message.
         $this->expectExceptionMessageMatches('/leading or trailing whitespace/');
 
         TaskQueue::named($name);
@@ -68,7 +68,7 @@ final class TaskQueueTest extends TestCase
 
     public function testAnInternalSpaceIsAcceptedBecauseTheServerAcceptsIt(): void
     {
-        // Inhabituel, mais valide : ne pas inventer de règle que le serveur n'a pas.
+        // Unusual, but valid: do not invent a rule the server does not have.
         self::assertSame('my queue', TaskQueue::named('my queue')->name());
     }
 
@@ -104,8 +104,8 @@ final class TaskQueueTest extends TestCase
 
     public function testConnectionQueuesAreValidatedAtAssembly(): void
     {
-        // Les noms viennent d'un DSN : la faute y est invisible jusqu'à ce qu'une exécution
-        // reste en attente pour toujours.
+        // The names come from a DSN: the mistake is invisible there until an execution stays
+        // waiting forever.
         $connection = new TemporalConnection(target: 'localhost:7233', namespace: 'test');
         self::assertSame('durable-workflows', $connection->workflowTaskQueue->name());
         self::assertSame('durable-activities', $connection->activityTaskQueue->name());

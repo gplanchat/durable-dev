@@ -3,9 +3,9 @@
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
 
     <!--
-        La commande entre dans la liste de `bin/magento`. C'est le seul point où
-        le module touche Magento : tout le reste est du PHP ordinaire que le
-        conteneur instancie sans rien savoir de Durable.
+        The command joins `bin/magento`'s list. It is the only point where the
+        module touches Magento: everything else is ordinary PHP that the
+        container instantiates knowing nothing about Durable.
     -->
     <type name="Magento\Framework\Console\CommandListInterface">
         <arguments>
@@ -16,19 +16,18 @@
     </type>
 
     <!--
-        La déclaration, faute de tags. Le conteneur de Magento n'a pas d'équivalent de
-        l'autoconfiguration par attribut de Symfony : une classe de workflow se nomme, un
-        gestionnaire d'activités se pose. Ce qui ne se déclare **pas**, c'est le contrat d'un
-        gestionnaire — la fabrique lit ses interfaces et garde celles qui portent des
-        `#[ActivityMethod]`. Une déclaration de moins est une déclaration qu'on ne peut pas écrire
-        de travers, et les noms restent ceux des attributs.
+        Declaration, for want of tags. Magento's container has no equivalent of Symfony's
+        attribute autoconfiguration: a workflow class is named, an activity handler is placed.
+        What is **not** declared is a handler's contract — the factory reads its interfaces and
+        keeps those carrying `#[ActivityMethod]`. One declaration fewer to get wrong, and the
+        names stay the attributes'.
 
-        Les deux tableaux sont **vides** dans le paquet publié, et c'est délibéré : un module
-        d'intégration n'a pas à livrer des workflows de démonstration que tout projet consommateur
-        porterait ensuite pour rien. La démonstration vit dans le banc de ce dépôt
-        (`magento/app/code/Gplanchat/DurableProbe`), qui montre exactement ces deux déclarations.
+        Both arrays are **empty** in the published package, and that is deliberate: an integration
+        module has no business shipping demonstration workflows that every consuming project would
+        then carry for nothing. The demonstration lives in this repository's bench
+        (`magento/app/code/Gplanchat/DurableProbe`), which shows exactly these two declarations.
 
-        C'est ici qu'un projet ajoute les siens :
+        This is where a project adds its own:
 
             <item name="place_order" xsi:type="string">Acme\Shop\Workflow\PlaceOrder</item>
             <item name="order" xsi:type="object">Acme\Shop\Activity\OrderActivities</item>
@@ -38,11 +37,11 @@
             <argument name="workflowClasses" xsi:type="array">
             </argument>
             <!--
-                ⚠ Un argument de constructeur **optionnel** n'est pas auto-câblé : Magento prend
-                son défaut. Sans cette ligne, `deploymentConfig` reste `null`, le DSN n'est jamais
-                lu, et le module sert un journal en mémoire alors qu'`env.php` demande le cluster —
-                sans une ligne d'erreur nulle part. Le nullable existe pour que la fabrique reste
-                construisible hors Magento, sous test unitaire ; le conteneur, lui, doit le dire.
+                ⚠ An **optional** constructor argument is not autowired: Magento takes its
+                default. Without this line, `deploymentConfig` stays `null`, the DSN is never read,
+                and the module serves an in-memory journal while `env.php` asks for the cluster —
+                with not one line of error anywhere. The nullable exists so the factory stays
+                constructible outside Magento, under unit test; the container has to say it.
             -->
             <argument name="deploymentConfig" xsi:type="object">Magento\Framework\App\DeploymentConfig</argument>
             <argument name="activityHandlers" xsi:type="array">

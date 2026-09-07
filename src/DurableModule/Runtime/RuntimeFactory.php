@@ -32,59 +32,56 @@ use Gplanchat\Durable\WorkflowRegistry;
 use Magento\Framework\App\DeploymentConfig;
 
 /**
- * Assemble le moteur pour un processus Magento.
+ * Assembles the engine for a Magento process.
  *
- * Cinq objets, aucun framework : c'est exactement ce que `WorkflowTestEnvironment`
- * assemble pour un test, et c'est ce qui rend un hôte de palier 1 possible du tout.
- * Le composant ne demande ni conteneur ni bus ; ce qu'un hôte doit fournir, c'est
- * un endroit où poser ces cinq-là et de quoi les atteindre.
+ * Five objects, no framework: it is exactly what `WorkflowTestEnvironment`
+ * assembles for a test, and it is what makes a Tier 1 host possible at all. The
+ * component asks for neither a container nor a bus; what a host has to supply is
+ * somewhere to put those five and a way to reach them.
  *
- * Cette fabrique est délibérément un objet Magento ordinaire plutôt qu'un
- * `di.xml` qui câblerait les cinq : le runner prend deux scalaires en plus des
- * quatre dépendances, et les exprimer en `<argument>` les aurait éloignés de la
- * seule ligne qui explique ce qu'ils bornent.
+ * This factory is deliberately an ordinary Magento object rather than a `di.xml`
+ * that would wire the five: the runner takes two scalars on top of the four
+ * dependencies, and expressing them as `<argument>` would have moved them away
+ * from the one line that explains what they bound.
  */
 /*
- * Pas `final` : Magento engendre un `Interceptor` qui étend toute classe que son
- * conteneur instancie, pour porter les plugins. Une classe finale fait échouer la
- * compilation du conteneur — « cannot extend final class » — et le message ne dit
- * pas que c'est la faute du mot-clé. C'est la maison qui écrit `final` partout ;
- * ici l'hôte l'interdit, et le dire vaut mieux que de le laisser deviner.
+ * Not `final`: Magento generates an `Interceptor` extending every class its
+ * container instantiates, to carry the plugins. A final class makes container
+ * compilation fail — "cannot extend final class" — and the message does not say
+ * that the keyword is to blame. The house style writes `final` everywhere; here
+ * the host forbids it, and saying so beats leaving it to be guessed.
  */
 class RuntimeFactory
 {
     /**
-     * @param list<class-string> $workflowClasses    Les classes portant `#[AsWorkflow]`, déclarées
-     *                                              nommément : le conteneur de Magento n'a pas les
-     *                                              tags de Symfony, donc rien ne les ramasse seul.
-     * @param list<object>       $activityHandlers   Les gestionnaires d'activités. **Leur contrat
-     *                                              ne se déclare pas** : on lit leurs interfaces et
-     *                                              on garde celles qui portent des
-     *                                              `#[AsActivityMethod]`. Une déclaration de moins
-     *                                              est une déclaration qu'on ne peut pas écrire de
-     *                                              travers.
-     * @param int                $maxActivityRetries Plafond quand une activité n'en fixe pas. `0`
-     *                                              ne plafonne rien — et une activité sans
-     *                                              `RetryLimit` réessaie indéfiniment, ce qui est
-     *                                              le défaut de Temporal.
-     * @param float              $budgetSeconds      Borne globale d'une exécution. Elle existe
-     *                                              parce que le point précédent rend « ça ne finit
-     *                                              jamais » atteignable sans erreur.
+     * @param list<class-string> $workflowClasses    The classes carrying `#[AsWorkflow]`, declared
+     *                                              by name: Magento's container has no Symfony
+     *                                              tags, so nothing picks them up on its own.
+     * @param list<object>       $activityHandlers   The activity handlers. **Their contract is not
+     *                                              declared**: their interfaces are read and those
+     *                                              carrying `#[AsActivityMethod]` are kept. One
+     *                                              declaration fewer to get wrong.
+     * @param int                $maxActivityRetries Ceiling when an activity sets none. `0` caps
+     *                                              nothing — and an activity without a
+     *                                              `RetryLimit` retries indefinitely, which is
+     *                                              Temporal's default.
+     * @param float              $budgetSeconds      Global bound on an execution. It exists
+     *                                              because the previous point makes "it never
+     *                                              finishes" reachable without an error.
      */
     private const TEMPORAL_DSN_CONFIG_PATH = 'durable/temporal/dsn';
 
     /**
-     * Combien d'exécutions les écrans d'administration lisent d'un coup.
+     * How many executions the admin screens read at once.
      *
-     * ⚠ **Une seule fenêtre, pour la grille comme pour le détail.** Elles étaient deux littéraux
-     * distincts, et deux fenêtres de tailles différentes rendent possible d'être listé d'un côté et
-     * introuvable de l'autre — un lien qui mène à « exécution inconnue » depuis la ligne qui vient
-     * de la nommer.
+     * ⚠ **One window only, for the grid as for the detail.** They were two distinct literals, and
+     * two windows of different sizes make it possible to be listed on one side and not found on
+     * the other — a link that leads to "unknown execution" from the very row that just named it.
      *
-     * ponytail: fenêtre bornée parce que la grille pagine par décalage et le backend par curseur de
-     * continuation, et que les deux ne se traduisent pas sans état. Le jour où ça gêne, la sortie
-     * est de mémoriser les curseurs par page dans la session de l'administrateur — pas d'agrandir
-     * la fenêtre.
+     * ponytail: a bounded window because the grid pages by offset and the backend by continuation
+     * cursor, and the two do not translate without state. The day it gets in the way, the way out
+     * is to remember the cursors per page in the administrator's session — not to enlarge the
+     * window.
      */
     public const OBSERVATION_WINDOW = 200;
 
@@ -93,10 +90,10 @@ class RuntimeFactory
         private readonly array $activityHandlers = [],
         private readonly ?string $temporalDsn = null,
         /**
-         * Lu depuis `env.php`, à côté de `lock` et `queue` : c'est là que Magento range ce qui
-         * doit être lisible avant qu'une base réponde. Nullable et par défaut absent pour que la
-         * fabrique reste construisible **sans Magento** — c'est ce qui met la décision de backend
-         * sous la garde de la CI, là où le reste du module demande un banc.
+         * Read from `env.php`, beside `lock` and `queue`: that is where Magento puts what has to
+         * be readable before a database answers. Nullable and absent by default so the factory
+         * stays constructible **without Magento** — which is what puts the backend decision under
+         * CI's guard, where the rest of the module asks for a bench.
          */
         private readonly ?DeploymentConfig $deploymentConfig = null,
         private readonly int $maxActivityRetries = 0,
@@ -128,8 +125,8 @@ class RuntimeFactory
             $runtime->registerWorkflow($workflowClass);
         }
 
-        // Par le runtime et non par l'exécuteur : c'est lui qui tient la liste que l'écran et la
-        // commande de démonstration rendent.
+        // Through the runtime and not the executor: it is the runtime that holds the list the
+        // screen and the demonstration command render.
         foreach ($this->activityBindings() as $activityName => $invoker) {
             $runtime->registerActivity($activityName, $invoker);
         }
@@ -138,14 +135,14 @@ class RuntimeFactory
     }
 
     /**
-     * Où vit le journal, et qui le décide.
+     * Where the journal lives, and who decides.
      *
-     * La 2.3 a retiré la surface de configuration du backend : ce n'est donc pas un nom recopié
-     * qui choisit, c'est **la présence d'un DSN** sous `durable/temporal/dsn` dans `env.php`.
-     * Absent, le journal vit dans ce processus et meurt avec lui — ce qui est un choix légitime
-     * pour une commande, et ruineux pour un consommateur. Présent, il vit dans le cluster, et
-     * c'est le seul journal persistant que Magento atteigne : l'hôte ne livre aucun des deux
-     * types de connexion auxquels les ponts SQL se lient.
+     * §2.3 removed the backend configuration surface: so it is not a copied-out name that
+     * chooses, it is **the presence of a DSN** under `durable/temporal/dsn` in `env.php`. Absent,
+     * the journal lives in this process and dies with it — a legitimate choice for a command, and
+     * ruinous for a consumer. Present, it lives in the cluster, and it is the only persistent
+     * journal Magento reaches: the host ships neither of the two connection types the SQL bridges
+     * bind to.
      */
     private function eventStore(): EventStoreInterface
     {
@@ -157,13 +154,13 @@ class RuntimeFactory
     }
 
     /**
-     * Ce que l'écran d'administration interroge, et pourquoi ce n'est pas le magasin d'événements.
+     * What the admin screen queries, and why it is not the event store.
      *
-     * Un catalogue ne se **dérive pas** d'un journal : `InMemoryWorkflowRunCatalog` tient sa propre
-     * carte, alimentée par `recordStart()`/`recordOutcome()` dans le processus qui exécute. Une
-     * requête d'administration n'exécute rien — elle n'a donc rien à y lire, et une grille bâtie
-     * dessus est vide sans être en panne. Lister les exécutions d'une grappe, c'est demander à la
-     * grappe, et le pont livre déjà la classe qui sait le faire.
+     * A catalog is **not derived** from a journal: `InMemoryWorkflowRunCatalog` holds its own map,
+     * fed by `recordStart()`/`recordOutcome()` in the process that executes. An admin request
+     * executes nothing — so it has nothing to read there, and a grid built on it is empty without
+     * being broken. Listing a cluster's executions means asking the cluster, and the bridge
+     * already ships the class that knows how.
      */
     public function catalog(): WorkflowRunCatalogInterface
     {
@@ -175,10 +172,10 @@ class RuntimeFactory
 
         $client = WorkflowServiceClientFactory::create($settings);
 
-        // Le curseur d'historique n'est pas décoratif : `listRuns()` ne rend que le statut du
-        // workflow Temporal — celui du journal, qui est **long par construction** et donc
-        // éternellement `running`. Ce qui distingue une exécution finie d'une exécution en cours se
-        // lit dans ses événements, et c'est le curseur qui les donne.
+        // The history cursor is not decorative: `listRuns()` returns only the Temporal workflow's
+        // status — the journal's, which is **long by construction** and therefore eternally
+        // `running`. What tells a finished execution apart from a running one is read in its
+        // events, and it is the cursor that gives them.
         return new TemporalWorkflowRunCatalog(
             $client,
             $settings,
@@ -187,15 +184,15 @@ class RuntimeFactory
     }
 
     /**
-     * Le worker qui répond aux tâches de la file du journal.
+     * The worker that answers the journal queue's tasks.
      *
-     * Sans lui, une exécution appendue au cluster y reste `running` pour toujours : le journal
-     * existe, son historique se remplit, et personne ne le fait avancer. C'est exactement ce que
-     * la grille du back-office montrait — et elle avait raison de le montrer.
+     * Without it, an execution appended to the cluster stays `running` there forever: the journal
+     * exists, its history fills, and no one makes it advance. That is exactly what the back-office
+     * grid was showing — and it was right to show it.
      *
-     * Les quatre objets viennent du pont, et l'assemblage est le même que celui du transport
-     * Messenger côté Symfony. Ce qui change ici, c'est seulement qui tourne la boucle : une
-     * commande `bin/magento`, drainée par ce qu'un exploitant supervise déjà, plutôt qu'un
+     * The four objects come from the bridge, and the assembly is the same as the Messenger
+     * transport's on the Symfony side. All that changes here is who turns the loop: a
+     * `bin/magento` command, drained by whatever an operator already supervises, rather than a
      * `messenger:consume`.
      */
     public function journalWorker(): WorkflowTaskProcessor
@@ -226,15 +223,15 @@ class RuntimeFactory
     }
 
     /**
-     * Le worker qui dépile les tâches d'activité.
+     * The worker that drains activity tasks.
      *
-     * Sur Temporal, ordonnancer une activité produit une **tâche** que quelqu'un doit prendre.
-     * Personne ne le faisait, et c'est ce que le §5.3 avait mesuré sans le nommer : la carte
-     * n'était pas re-débitée, mais l'ordre ne repartait pas non plus.
+     * On Temporal, scheduling an activity produces a **task** somebody has to take. Nobody was
+     * doing it, and that is what §5.3 had measured without naming it: the card was not charged
+     * again, but the order did not move on either.
      *
-     * Son journal est un `InMemoryEventStore` de travail, et ce n'est pas un raccourci : sur cette
-     * voie le résultat d'une activité repart par le RPC de Temporal, pas par le journal. Le worker
-     * d'intégration du dépôt fait exactement le même choix, pour la même raison.
+     * Its journal is a scratch `InMemoryEventStore`, and that is not a shortcut: on this path an
+     * activity's result goes back through Temporal's RPC, not through the journal. The
+     * repository's integration worker makes exactly the same choice, for the same reason.
      */
     public function activityWorker(): TemporalActivityWorker
     {
@@ -258,12 +255,12 @@ class RuntimeFactory
     }
 
     /**
-     * De quoi démarrer une exécution **sur la grappe**, plutôt que dans ce processus-ci.
+     * What it takes to start an execution **on the cluster**, rather than in this process.
      *
-     * `MagentoRuntime::run()` exécute ici et maintenant : ses activités partent dans le transport
-     * en mémoire quel que soit le journal en dessous, et meurent avec le processus. Pour qu'une
-     * activité devienne une tâche Temporal, l'exécution doit être lancée sur la grappe et menée
-     * par les workers — c'est le partage que la tâche 5 décrit, et ce client en est la porte.
+     * `MagentoRuntime::run()` executes here and now: its activities go into the in-memory
+     * transport whatever the journal underneath, and die with the process. For an activity to
+     * become a Temporal task, the execution has to be started on the cluster and carried by the
+     * workers — that is the split task 5 describes, and this client is its door.
      */
     public function workflowClient(): WorkflowClient
     {
@@ -293,7 +290,7 @@ class RuntimeFactory
     }
 
     /**
-     * `null` quand aucun DSN n'est configuré : le journal vit alors dans ce processus.
+     * `null` when no DSN is configured: the journal then lives in this process.
      */
     private function temporalSettings(): ?TemporalConnection
     {
@@ -321,13 +318,13 @@ class RuntimeFactory
     }
 
     /**
-     * Le pendant Magento de la passe de compilation du bundle : mêmes deux objets du cœur,
-     * `ActivityContractResolver` pour les noms et `PayloadToContractMethodInvoker` pour l'appel.
-     * Ce qui change est seulement d'où vient la liste — un argument de `di.xml` plutôt qu'un tag.
+     * The Magento counterpart of the bundle's compiler pass: the same two core objects,
+     * `ActivityContractResolver` for the names and `PayloadToContractMethodInvoker` for the call.
+     * All that changes is where the list comes from — a `di.xml` argument rather than a tag.
      *
-     * Le même exécuteur sert au moteur en processus et au worker d'activités : ce sont les mêmes
-     * activités, résolues une fois, quel que soit qui les appelle. C'est ce qui garantit qu'un
-     * worker exécute exactement ce que le module a déclaré, et rien d'autre.
+     * The same executor serves the in-process engine and the activity worker: they are the same
+     * activities, resolved once, whoever calls them. That is what guarantees a worker executes
+     * exactly what the module declared, and nothing else.
      */
     private function activityExecutor(): RegistryActivityExecutor
     {
@@ -341,8 +338,8 @@ class RuntimeFactory
     }
 
     /**
-     * Les activités déclarées, résolues une seule fois : le moteur en processus et le worker les
-     * lisent toutes deux d'ici, donc ils exécutent forcément la même chose.
+     * The declared activities, resolved just once: the in-process engine and the worker both read
+     * them from here, so they necessarily execute the same thing.
      *
      * @return array<string, callable(array<string, mixed>): mixed>
      */

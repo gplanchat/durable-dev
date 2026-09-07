@@ -11,8 +11,8 @@ hésitez encore ; la [page d'accueil](/fr/) plaide la même chose, de façon int
 
 | | |
 |---|---|
-| [Pourquoi Durable](why/) | le problème qu'il résout, ce qu'il remplace — et quand vous n'en avez pas besoin |
-| [Paquets](packages/) | la bibliothèque, le bundle, le pilote Temporal — quoi installer, et quand |
+| [Pourquoi Durable](why/) | le problème qu'il résout, ce qu'il remplace, et quand vous n'en avez pas besoin |
+| [Paquets](packages/) | la bibliothèque, le bundle, le pilote Temporal : quoi installer, et quand |
 | [Premiers pas](getting-started/) | installation, configuration Symfony, un premier workflow, les commandes du worker |
 | [Concepts](concepts/) | workflows, activités, rejeu et backends, en français courant |
 | [Backends](backends/) | en mémoire ou Temporal, et ce que chacun sait faire |
@@ -20,7 +20,7 @@ hésitez encore ; la [page d'accueil](/fr/) plaide la même chose, de façon int
 | [Écrire des activités](activities/) | contrats d'activité, injection de dépendances, le stub typé |
 | [Échecs et réessais](failures/) | ce que le journal enregistre, et pourquoi une activité a cessé de réessayer |
 | [Annulation](cancellation/) | lever l'annulation dans le workflow pour qu'il puisse compenser |
-| [Opérations Nexus](nexus/) | appeler une opération servie par une autre équipe — et en servir |
+| [Opérations Nexus](nexus/) | appeler une opération servie par une autre équipe, et en servir une |
 | [Options et objets valeur](options/) | limites de réessai, délais, planifications cron, attributs de recherche |
 | [Tester des workflows](testing/) | des tests unitaires sans serveur, et la suite qui tourne contre un vrai |
 | [Référence de configuration](configuration/) | chaque clé de `durable.yaml` |
