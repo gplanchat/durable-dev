@@ -31,6 +31,9 @@ use Gplanchat\Durable\Workflow\QueryHandlerRegistry;
 
 final class ExecutionContext
 {
+    /** Ce qu'un message de divergence montre d'une empreinte de charge avant de la couper. */
+    private const DIVERGENCE_PRINT_LIMIT = 256;
+
     private ?QueryHandlerRegistry $queryHandlers = null;
 
     /** @var array<string, \Gplanchat\Durable\Awaitable\Deferred> */
@@ -100,6 +103,13 @@ final class ExecutionContext
     {
         $slotIndex = $this->activitySlotIndex++;
         $this->refuseActivityDivergence($slotIndex, $name);
+        $this->refusePayloadDivergence(
+            'activity',
+            $slotIndex,
+            $name,
+            $this->historySource->activityPayloadForSlot($slotIndex),
+            $payload,
+        );
         $replay = $this->historySource->findActivitySlotResult($slotIndex);
         if (null !== $replay) {
             $deferred = new \Gplanchat\Durable\Awaitable\Deferred();
@@ -158,6 +168,13 @@ final class ExecutionContext
             $slotIndex,
             $this->historySource->nexusOperationSignatureForSlot($slotIndex),
             \sprintf('%s/%s/%s', $endpoint->name(), $service->name(), $operation->name()),
+        );
+        $this->refusePayloadDivergence(
+            'Nexus operation',
+            $slotIndex,
+            \sprintf('%s/%s/%s', $endpoint->name(), $service->name(), $operation->name()),
+            $this->historySource->nexusOperationPayloadForSlot($slotIndex),
+            $payload,
         );
         $scheduled = $this->historySource->findScheduledNexusOperation($slotIndex);
         $operationId = $scheduled ?? $this->uuid();
@@ -275,6 +292,154 @@ final class ExecutionContext
     }
 
     /**
+     * Refuse a slot whose **identity** matches but whose **payload** changed on replay.
+     *
+     * The name alone let half the problem through: the journal served the old result, the freshly
+     * computed payload went in the bin, and the execution finished successfully having lied about
+     * what it asked for. Measured: nine payloads computed, three journaled, six divergences
+     * swallowed without a word.
+     *
+     * The comparison goes through {@see canonicalPayload()}, which shows both sides **what the
+     * journal can hold** and nothing more. That is the rule that avoids false positives: an object
+     * the journal keeps nothing of must not make a faithful replay diverge, or production would
+     * stop executions that are perfectly sound.
+     *
+     * The rule, once, for the three slot types that carry a payload, as {@see refuseDivergence()}
+     * does for the three that carry an identity. `$slotKind` and `$identity` come from the caller
+     * because what identifies a slot is not the same kind of thing everywhere: a name for an
+     * activity, a type for a child, a triple for Nexus.
+     *
+     * @param array<string, mixed>|null $recorded
+     * @param array<string, mixed>      $requested
+     *
+     * @throws WorkflowTaskFailure when the code asks for the same call again with another payload
+     */
+    private function refusePayloadDivergence(
+        string $slotKind,
+        int $slotIndex,
+        string $identity,
+        ?array $recorded,
+        array $requested,
+    ): void {
+        if (null === $recorded) {
+            // Nothing recorded here: a new slot, or a history written before the payload became
+            // readable. Refusing would fail exactly the executions this guard exists to protect.
+            return;
+        }
+
+        $recordedPrint = $this->canonicalPayload($recorded);
+        $requestedPrint = $this->canonicalPayload($requested);
+        if (null === $recordedPrint || null === $requestedPrint || $recordedPrint === $requestedPrint) {
+            // A payload the journal cannot make comparable proves nothing, so the guard stays quiet.
+            return;
+        }
+
+        $at = self::firstDifference($recordedPrint, $requestedPrint);
+
+        throw new WorkflowTaskFailure(\sprintf(
+            'Replay divergence at %s slot %d of execution "%s": "%s" is still the same %s, '
+            . 'but its payload changed at byte %d. History recorded %s, code scheduled %s '
+            . '(%d and %d bytes). '
+            . 'This is non-deterministic workflow code — the payload is rebuilt on every replay pass, '
+            . 'so something in it reads the clock, draws a random value, or is resolved from outside '
+            . 'the journal. This is not a version skew: a declared change point would have changed '
+            . 'the identity or the slot, not the payload alone.',
+            $slotKind,
+            $slotIndex,
+            $this->executionId,
+            $identity,
+            $slotKind,
+            $at,
+            self::windowAround($recordedPrint, $at),
+            self::windowAround($requestedPrint, $at),
+            \strlen($recordedPrint),
+            \strlen($requestedPrint),
+        ));
+    }
+
+    /**
+     * Returns the print the journal would keep of a payload, or null when it has none.
+     *
+     * Both sides come through here, and that is the whole point: the recorded side made the
+     * store's JSON round trip, the fresh side did not. Without this normalisation an object with
+     * private properties, which is the house style, renders `{}` on one side and `[]` on the other,
+     * and every execution carrying one would diverge on every resume. Measured before it was
+     * written.
+     *
+     * Keys are sorted because a JSON object has no order, so seeing it change proves nothing.
+     * Lists keep theirs, where the order is the information.
+     *
+     * Null means incomparable: a resource, a NAN, a recursion. The guard then stays quiet rather
+     * than accusing a payload it cannot read.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function canonicalPayload(array $payload): ?string
+    {
+        try {
+            $throughTheJournal = json_decode(
+                json_encode($payload, \JSON_THROW_ON_ERROR),
+                true,
+                512,
+                \JSON_THROW_ON_ERROR,
+            );
+
+            self::sortKeysDeeply($throughTheJournal);
+
+            return json_encode($throughTheJournal, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return null;
+        }
+    }
+
+    private static function sortKeysDeeply(mixed &$value): void
+    {
+        if (!\is_array($value)) {
+            return;
+        }
+
+        ksort($value);
+        foreach ($value as &$nested) {
+            self::sortKeysDeeply($nested);
+        }
+    }
+
+    /**
+     * The first byte at which the two prints stop matching.
+     *
+     * It is what makes the message usable: an agent payload weighs kilobytes, and two identical
+     * prefixes teach the reader nothing. Measured before it was written: the first message showed
+     * the leading 256 bytes, and both sides looked the same.
+     */
+    private static function firstDifference(string $recorded, string $requested): int
+    {
+        $shortest = min(\strlen($recorded), \strlen($requested));
+        $at = 0;
+        while ($at < $shortest && $recorded[$at] === $requested[$at]) {
+            ++$at;
+        }
+
+        return $at;
+    }
+
+    /**
+     * Returns the window of the print around the divergence, with enough on each side to place it.
+     */
+    private static function windowAround(string $print, int $at): string
+    {
+        $margin = intdiv(self::DIVERGENCE_PRINT_LIMIT, 4);
+        $from = max(0, $at - $margin);
+        $window = substr($print, $from, self::DIVERGENCE_PRINT_LIMIT);
+
+        return \sprintf(
+            '%s%s%s',
+            $from > 0 ? '…' : '',
+            $window,
+            $from + \strlen($window) < \strlen($print) ? '…' : '',
+        );
+    }
+
+    /**
      * The rule, once, for the three slot types that carry an identity.
      *
      * `$recorded` at null means "the history said nothing there" — either the slot is new, or
@@ -363,6 +528,13 @@ final class ExecutionContext
             $slotIndex,
             $this->historySource->childWorkflowTypeForSlot($slotIndex),
             $childWorkflowType,
+        );
+        $this->refusePayloadDivergence(
+            'child workflow',
+            $slotIndex,
+            $childWorkflowType,
+            $this->historySource->childWorkflowInputForSlot($slotIndex),
+            $input,
         );
         $replay = $this->historySource->findChildWorkflowForSlot($slotIndex);
         $deferred = new \Gplanchat\Durable\Awaitable\Deferred();

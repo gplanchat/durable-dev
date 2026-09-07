@@ -127,6 +127,57 @@ final class EventStoreHistorySource implements WorkflowHistorySourceInterface
         return null;
     }
 
+    public function activityPayloadForSlot(int $slot): ?array
+    {
+        $index = 0;
+        foreach ($this->eventStore->readStream($this->executionId) as $event) {
+            if ($event instanceof ActivityScheduled) {
+                if ($index === $slot) {
+                    // `payload()` rend l'enveloppe de l'événement ; les arguments de l'activité en
+                    // sont une case. Un non-tableau vaut « rien à comparer », pas « tableau vide ».
+                    $arguments = $event->payload()['payload'] ?? null;
+
+                    return \is_array($arguments) ? $arguments : null;
+                }
+                ++$index;
+            }
+        }
+
+        return null;
+    }
+
+    public function childWorkflowInputForSlot(int $slot): ?array
+    {
+        $index = 0;
+        foreach ($this->eventStore->readStream($this->executionId) as $event) {
+            if ($event instanceof ChildWorkflowScheduled) {
+                if ($index === $slot) {
+                    $input = $event->payload()['input'] ?? null;
+
+                    return \is_array($input) ? $input : null;
+                }
+                ++$index;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Toujours null, et ce n'est pas un oubli.
+     *
+     * Ce backend refuse les opérations Nexus par construction (DUR036) : aucun de ses historiques
+     * n'en porte une que le workflow aurait planifiée. Le seul `NexusOperationScheduled` qui puisse
+     * traverser un flux vient du convertisseur du profileur, qui l'écrit pour l'affichage — et cet
+     * événement ne porte que le site d'appel, jamais la charge. Il n'y a donc rien à comparer.
+     *
+     * La garde s'exerce là où Nexus existe : {@see \Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory}.
+     */
+    public function nexusOperationPayloadForSlot(int $slot): ?array
+    {
+        return null;
+    }
+
     public function childWorkflowTypeForSlot(int $slot): ?string
     {
         $index = 0;
