@@ -74,6 +74,6 @@ final class TheConsoleSurfaceSpeaksEnglishTest extends TestCase
      */
     private static function french(array $texts): array
     {
-        return array_values(array_filter($texts, static fn (string $t): bool => 1 === preg_match(self::ACCENTED, $t)));
+        return array_values(array_filter($texts, static fn(string $t): bool => 1 === preg_match(self::ACCENTED, $t)));
     }
 }

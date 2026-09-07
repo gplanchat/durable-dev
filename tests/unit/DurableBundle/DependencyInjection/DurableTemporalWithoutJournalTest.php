@@ -29,7 +29,7 @@ final class DurableTemporalWithoutJournalTest extends TestCase
     public function testADbalJournalAndATemporalDsnAreStillRefusedWhenTemporalClaimsTheJournal(): void
     {
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessageMatches('/exclusifs/');
+        $this->expectExceptionMessageMatches('/mutually exclusive/');
 
         $this->load([
             'event_store' => ['type' => 'dbal'],
@@ -46,7 +46,7 @@ final class DurableTemporalWithoutJournalTest extends TestCase
                 'event_store' => ['type' => 'dbal'],
                 'temporal' => ['dsn' => self::DSN],
             ]);
-            self::fail('Le conteneur devait refuser.');
+            self::fail('The container was supposed to refuse.');
         } catch (\LogicException $refus) {
             self::assertStringContainsString('temporal.journal: false', $refus->getMessage());
         }
