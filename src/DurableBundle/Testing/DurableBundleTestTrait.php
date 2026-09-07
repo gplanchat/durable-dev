@@ -135,7 +135,7 @@ trait DurableBundleTestTrait
             if (!$hasFailed) {
                 throw new \RuntimeException(
                     \sprintf(
-                        'Le workflow "%s" ne s\'est pas terminé dans le délai imparti (%ss).',
+                        'The workflow "%s" did not finish within the allotted time (%ss).',
                         $executionId,
                         self::$durableMaxDrainSeconds,
                     ),
@@ -159,12 +159,12 @@ trait DurableBundleTestTrait
         }
         Assert::assertNotNull(
             $completed,
-            \sprintf('Le workflow "%s" ne s\'est pas terminé (aucun ExecutionCompleted dans le journal).', $executionId),
+            \sprintf('The workflow "%s" did not finish (no ExecutionCompleted in the journal).', $executionId),
         );
         Assert::assertEquals(
             $expectedResult,
             $completed->result(),
-            \sprintf('Le résultat du workflow "%s" ne correspond pas à l\'attendu.', $executionId),
+            \sprintf('The workflow "%s" did not return what was expected.', $executionId),
         );
     }
 
@@ -185,14 +185,14 @@ trait DurableBundleTestTrait
         }
         Assert::assertNotNull(
             $failed,
-            \sprintf('Le workflow "%s" n\'a pas échoué (aucun WorkflowExecutionFailed dans le journal).', $executionId),
+            \sprintf('The workflow "%s" did not fail (no WorkflowExecutionFailed in the journal).', $executionId),
         );
 
         if ('' !== $expectedFailureClass) {
             Assert::assertSame(
                 $expectedFailureClass,
                 $failed->failureClass(),
-                \sprintf('La classe d\'échec du workflow "%s" ne correspond pas.', $executionId),
+                \sprintf('The workflow "%s" failed with another class than the expected one.', $executionId),
             );
         }
     }

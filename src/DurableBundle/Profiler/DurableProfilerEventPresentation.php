@@ -26,24 +26,24 @@ use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
 
 /**
- * Libellés « métier » pour le profiler Web (titres + sous-titres + catégorie d’affichage).
+ * Reading labels for the web profiler (title + subtitle + display category).
  *
- * Les noms de classes PHP restent en payload ; ici on privilégie une lecture humaine en français.
+ * The PHP class names stay in the payload; these are the words a human reads above them.
  */
 final class DurableProfilerEventPresentation
 {
     /**
-     * @param array<string, mixed> $entry entrée {@see DurableExecutionTrace}
+     * @param array<string, mixed> $entry one {@see DurableExecutionTrace} entry
      *
      * @return array{title: string, subtitle: string, category: string}
      */
     /**
-     * Libellé pour le tableau « Ordre chronologique » et les détails dispatch.
+     * The label for the "chronological order" table and for the dispatch details.
      *
-     * Les reprises {@see \Gplanchat\Durable\Transport\WorkflowRunMessage::isResume} n’incluent pas le type de
-     * workflow dans le message (vide) : le handler le lit depuis les métadonnées.
+     * A resume {@see \Gplanchat\Durable\Transport\WorkflowRunMessage::isResume} carries no workflow type
+     * in the message (it is empty): the handler reads it back from the metadata.
      *
-     * @param array<string, mixed> $entry entrée {@see DurableExecutionTrace}
+     * @param array<string, mixed> $entry one {@see DurableExecutionTrace} entry
      */
     public static function dispatchTimelineLabel(array $entry): string
     {
@@ -53,22 +53,22 @@ final class DurableProfilerEventPresentation
 
         $parts = [];
         if ($isResume) {
-            $parts[] = 'Reprise Messenger (WorkflowRunMessage)';
-            $parts[] = 'sans type dans le message — résolu au handler depuis les métadonnées';
+            $parts[] = 'Messenger resume (WorkflowRunMessage)';
+            $parts[] = 'no type in the message — resolved at the handler from the metadata';
         } elseif ('' !== $wt) {
-            $parts[] = 'Nouveau run « ' . $wt . ' » (WorkflowRunMessage)';
+            $parts[] = 'New run "' . $wt . '" (WorkflowRunMessage)';
         } else {
-            $parts[] = 'WorkflowRunMessage (type non renseigné dans le message)';
+            $parts[] = 'WorkflowRunMessage (no type given in the message)';
         }
         if ('' !== $tn) {
-            $parts[] = 'transports : ' . $tn;
+            $parts[] = 'transports: ' . $tn;
         }
 
         return implode(' · ', $parts);
     }
 
     /**
-     * @param array<string, mixed> $entry entrée {@see DurableExecutionTrace}
+     * @param array<string, mixed> $entry one {@see DurableExecutionTrace} entry
      *
      * @return array{title: string, subtitle: string, category: string}
      */
@@ -79,30 +79,30 @@ final class DurableProfilerEventPresentation
         return match ($kind) {
             'dispatch' => [
                 'title' => (bool) ($entry['isResume'] ?? false)
-                    ? 'Reprise Messenger'
+                    ? 'Messenger resume'
                     : ('' !== trim((string) ($entry['workflowType'] ?? ''))
-                        ? 'Nouveau run Messenger'
-                        : 'Message WorkflowRunMessage'),
+                        ? 'New Messenger run'
+                        : 'WorkflowRunMessage message'),
                 'subtitle' => self::dispatchTimelineLabel($entry),
                 'category' => 'messenger',
             ],
             'workflow' => [
-                'title' => !empty($entry['isResume']) ? 'Reprise du workflow' : 'Démarrage du workflow',
+                'title' => !empty($entry['isResume']) ? 'Workflow resumed' : 'Workflow started',
                 'subtitle' => (string) ($entry['workflowType'] ?? ''),
                 'category' => 'workflow',
             ],
             'activity' => [
-                'title' => 'Exécution d’activité',
+                'title' => 'Activity execution',
                 'subtitle' => \sprintf(
                     '%s · id %s%s',
                     $entry['activityName'] ?? '?',
                     $entry['activityId'] ?? '?',
-                    empty($entry['success']) ? ' · échec' : '',
+                    empty($entry['success']) ? ' · failed' : '',
                 ),
                 'category' => 'activity',
             ],
             default => [
-                'title' => '' !== $kind ? $kind : 'Événement',
+                'title' => '' !== $kind ? $kind : 'Event',
                 'subtitle' => '',
                 'category' => 'default',
             ],
@@ -118,8 +118,8 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof ExecutionStarted) {
             return [
-                'title' => 'Démarrage de l’exécution',
-                'subtitle' => 'Le moteur rejoue le workflow à partir du journal (event sourcing).',
+                'title' => 'Execution started',
+                'subtitle' => 'The engine replays the workflow from the journal (event sourcing).',
                 'category' => 'lifecycle',
                 'technical' => $technical,
             ];
@@ -127,8 +127,8 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof ExecutionCompleted) {
             return [
-                'title' => 'Fin de l’exécution',
-                'subtitle' => 'Résultat final enregistré dans le journal.',
+                'title' => 'Execution finished',
+                'subtitle' => 'Final result written to the journal.',
                 'category' => 'lifecycle',
                 'technical' => $technical,
             ];
@@ -136,8 +136,8 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof WorkflowExecutionFailed) {
             return [
-                'title' => 'Échec du workflow',
-                'subtitle' => 'Voir le payload pour le détail de l’erreur.',
+                'title' => 'Workflow failed',
+                'subtitle' => 'See the payload for the detail of the failure.',
                 'category' => 'lifecycle',
                 'technical' => $technical,
             ];
@@ -146,7 +146,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof WorkflowContinuedAsNew) {
             return [
                 'title' => 'Continue as new',
-                'subtitle' => 'Nouvelle exécution : ' . $event->nextWorkflowType(),
+                'subtitle' => 'New execution: ' . $event->nextWorkflowType(),
                 'category' => 'lifecycle',
                 'technical' => $technical,
             ];
@@ -154,7 +154,7 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof ActivityScheduled) {
             return [
-                'title' => 'Activité mise en file',
+                'title' => 'Activity queued',
                 'subtitle' => $event->activityName() . ' · id ' . $event->activityId(),
                 'category' => 'scheduling',
                 'technical' => $technical,
@@ -163,7 +163,7 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof ActivityCompleted) {
             return [
-                'title' => 'Activité terminée avec succès',
+                'title' => 'Activity succeeded',
                 'subtitle' => 'id ' . $event->activityId(),
                 'category' => 'activity',
                 'technical' => $technical,
@@ -177,7 +177,7 @@ final class DurableProfilerEventPresentation
             }
 
             return [
-                'title' => 'Activité en échec',
+                'title' => 'Activity failed',
                 'subtitle' => ('' !== $event->activityName() ? $event->activityName() . ' · ' : '') . $msg,
                 'category' => 'activity',
                 'technical' => $technical,
@@ -186,7 +186,7 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof ActivityCancelled) {
             return [
-                'title' => 'Activité annulée',
+                'title' => 'Activity cancelled',
                 'subtitle' => 'id ' . $event->activityId() . ' · ' . $event->reason(),
                 'category' => 'activity',
                 'technical' => $technical,
@@ -195,7 +195,7 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof TimerScheduled) {
             return [
-                'title' => 'Minuteur programmé',
+                'title' => 'Timer scheduled',
                 'subtitle' => 'id ' . $event->timerId() . ('' !== $event->summary() ? ' · ' . $event->summary() : ''),
                 'category' => 'timer',
                 'technical' => $technical,
@@ -204,7 +204,7 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof TimerCompleted) {
             return [
-                'title' => 'Minuteur déclenché',
+                'title' => 'Timer fired',
                 'subtitle' => 'id ' . $event->timerId(),
                 'category' => 'timer',
                 'technical' => $technical,
@@ -213,7 +213,7 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof SideEffectRecorded) {
             return [
-                'title' => 'Effet de bord enregistré',
+                'title' => 'Side effect recorded',
                 'subtitle' => 'id ' . $event->sideEffectId(),
                 'category' => 'effect',
                 'technical' => $technical,
@@ -222,7 +222,7 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof ChildWorkflowScheduled) {
             return [
-                'title' => 'Workflow enfant planifié',
+                'title' => 'Child workflow scheduled',
                 'subtitle' => $event->childWorkflowType() . ' · enfant ' . $event->childExecutionId(),
                 'category' => 'child',
                 'technical' => $technical,
@@ -231,7 +231,7 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof ChildWorkflowCompleted) {
             return [
-                'title' => 'Workflow enfant terminé',
+                'title' => 'Child workflow finished',
                 'subtitle' => 'enfant ' . $event->childExecutionId(),
                 'category' => 'child',
                 'technical' => $technical,
@@ -240,7 +240,7 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof WorkflowSignalReceived) {
             return [
-                'title' => 'Signal reçu',
+                'title' => 'Signal received',
                 'subtitle' => '« ' . $event->signalName() . ' »',
                 'category' => 'signal',
                 'technical' => $technical,
@@ -249,7 +249,7 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof WorkflowUpdateHandled) {
             return [
-                'title' => 'Update traitée',
+                'title' => 'Update handled',
                 'subtitle' => '« ' . $event->updateName() . ' »',
                 'category' => 'signal',
                 'technical' => $technical,
@@ -258,9 +258,9 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof ActivityTaskFailed) {
             return [
-                'title' => $event->willRetry() ? 'Tentative d’activité échouée' : 'Dernière tentative d’activité échouée',
+                'title' => $event->willRetry() ? 'Activity attempt failed' : 'Last activity attempt failed',
                 'subtitle' => \sprintf(
-                    '%s · tentative %d · %s',
+                    '%s · attempt %d · %s',
                     $event->activityName(),
                     $event->attempt(),
                     $event->failureMessage(),
@@ -272,7 +272,7 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof TimerCancelled) {
             return [
-                'title' => 'Minuteur annulé',
+                'title' => 'Timer cancelled',
                 'subtitle' => $event->reason(),
                 'category' => 'activity',
                 'technical' => $technical,
@@ -281,7 +281,7 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof WorkflowExecutionCancelled) {
             return [
-                'title' => 'Exécution annulée',
+                'title' => 'Execution cancelled',
                 'subtitle' => $event->reason(),
                 'category' => 'lifecycle',
                 'technical' => $technical,
@@ -290,7 +290,7 @@ final class DurableProfilerEventPresentation
 
         if ($event instanceof WorkflowCancellationRequested) {
             return [
-                'title' => 'Annulation demandée',
+                'title' => 'Cancellation requested',
                 'subtitle' => $event->reason(),
                 'category' => 'lifecycle',
                 'technical' => $technical,
@@ -299,7 +299,7 @@ final class DurableProfilerEventPresentation
 
         return [
             'title' => $technical,
-            'subtitle' => 'Événement du journal — voir le payload pour le détail.',
+            'subtitle' => 'Journal event — see the payload for the detail.',
             'category' => 'default',
             'technical' => $technical,
         ];
