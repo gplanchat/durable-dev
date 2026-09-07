@@ -22,11 +22,11 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Une activité planifiée, démarrée puis terminée est **une action et trois événements**.
+ * An activity scheduled, started and then finished is **one action and three events**.
  *
- * Une frise rangée par nature — « les activités », « les signaux » — obligeait l'exploitant à
- * recoller trois repères de l'œil pour savoir combien de temps celle-là avait duré. Le lien
- * existait pourtant déjà dans le journal ; c'est la traduction qui le jetait.
+ * A frieze filed by kind — "the activities", "the signals" — forced the operator to piece three
+ * marks back together by eye to know how long that one had taken. The link did already exist in
+ * the journal; it was the translation that threw it away.
  */
 final class TheTimelineGroupsByActionTest extends TestCase
 {
@@ -44,8 +44,8 @@ final class TheTimelineGroupsByActionTest extends TestCase
 
     public function testTwoActivitiesAreTwoActions(): void
     {
-        // Le regroupement doit distinguer, sinon la frise met sur une seule ligne deux attentes
-        // qui n'ont rien à voir et fait passer leur somme pour une durée.
+        // The grouping must tell them apart, otherwise the frieze puts two unrelated waits on a
+        // single row and passes their sum off as a duration.
         $history = $this->read([
             new ActivityScheduled('exec-1', 'act-1', 'charge', [], []),
             new ActivityScheduled('exec-1', 'act-2', 'notify', [], []),
@@ -67,21 +67,21 @@ final class TheTimelineGroupsByActionTest extends TestCase
 
     public function testATimerIsNamedByItsSummaryAndNotByItsClass(): void
     {
-        // « TimerScheduled » nomme la classe, pas l'attente. Une ligne de frise porte le nom de son
-        // action, et c'est celui-là qu'un exploitant est venu lire.
+        // "TimerScheduled" names the class, not the wait. A frieze row carries the name of its
+        // action, and that is the one an operator came to read.
         $history = $this->read([
             new TimerScheduled('exec-1', 'tim-1', 1700000000.0, 'avant relance'),
             new TimerCompleted('exec-1', 'tim-1'),
         ]);
 
         self::assertSame('avant relance', $history[0]->label);
-        self::assertSame('avant relance', $history[1]->label, 'la suite emprunte le nom de sa planification');
+        self::assertSame('avant relance', $history[1]->label, 'the follow-up borrows the name of its scheduling');
     }
 
     public function testAnEventThatIsItsOwnActionSaysSoWithNull(): void
     {
-        // `null` est une réponse — « cet événement est à lui seul son action » — et c'est ce qui
-        // permet à la frise de lui donner sa ligne sans inventer une clé.
+        // `null` is an answer — "this event is its own action all by itself" — and that is what
+        // lets the frieze give it its row without inventing a key.
         $history = $this->read([
             new WorkflowSignalReceived('exec-1', 'orderApproved', []),
         ]);
@@ -91,8 +91,8 @@ final class TheTimelineGroupsByActionTest extends TestCase
 
     public function testTheRunsOwnEventsAreTheFirstAction(): void
     {
-        // Une tâche de workflow n'est pas un fait métier, c'est le mécanisme par lequel le moteur
-        // avance. Une ligne par occurrence noyait les actions intéressantes sous la plomberie.
+        // A workflow task is not a business fact, it is the mechanism by which the engine moves
+        // forward. One row per occurrence drowned the interesting actions under the plumbing.
         $history = $this->read([
             new ExecutionStarted('exec-1', []),
             new ActivityScheduled('exec-1', 'act-1', 'charge', [], []),
@@ -101,14 +101,14 @@ final class TheTimelineGroupsByActionTest extends TestCase
         ], 'App\\OrderWorkflow');
 
         self::assertSame('workflow', $history[0]->actionKey);
-        self::assertSame('workflow', $history[3]->actionKey, 'la fin de l\'exécution rejoint son début');
+        self::assertSame('workflow', $history[3]->actionKey, 'the end of the execution joins its start');
         self::assertSame('activity:act-1', $history[1]->actionKey);
     }
 
     public function testASignalIsNotPartOfTheRunsOwnAction(): void
     {
-        // Le piège est là : un signal reçu porte le même vocabulaire que l'exécution. Rangé avec
-        // elle, il disparaît dans la première ligne au lieu d'être l'attente qu'il est.
+        // The trap is here: a received signal carries the same vocabulary as the execution. Filed
+        // with it, it disappears into the first row instead of being the wait that it is.
         $history = $this->read([
             new ExecutionStarted('exec-1', []),
             new WorkflowSignalReceived('exec-1', 'orderApproved', []),
@@ -120,8 +120,8 @@ final class TheTimelineGroupsByActionTest extends TestCase
 
     public function testTheRunsLineIsNamedByTheWorkflowAndNotByAnEventClass(): void
     {
-        // Le journal ne connaît qu'un flux : le nom vient de l'appelant, qui tient la description
-        // de l'exécution. Sans lui, la première ligne s'appellerait « ExecutionStarted ».
+        // The journal only knows a stream: the name comes from the caller, which holds the
+        // execution's description. Without it, the first row would be called "ExecutionStarted".
         $history = $this->read([new ExecutionStarted('exec-1', [])], 'App\\OrderWorkflow');
 
         self::assertSame('App\\OrderWorkflow', $history[0]->label);
@@ -137,33 +137,33 @@ final class TheTimelineGroupsByActionTest extends TestCase
 
         self::assertSame('child:child-1', $history[1]->actionKey);
         self::assertSame($history[1]->actionKey, $history[2]->actionKey);
-        self::assertNotSame($history[0]->actionKey, $history[1]->actionKey, "l'enfant n'est pas le parent");
+        self::assertNotSame($history[0]->actionKey, $history[1]->actionKey, 'the child is not the parent');
         self::assertSame('App\\ShipmentWorkflow', $history[1]->label);
-        self::assertSame('App\\ShipmentWorkflow', $history[2]->label, 'la suite emprunte le nom de sa planification');
+        self::assertSame('App\\ShipmentWorkflow', $history[2]->label, 'the follow-up borrows the name of its scheduling');
     }
 
     public function testTheStartOfTheWorkIsMarked(): void
     {
-        // Ce qui précède une prise en charge n'est pas du travail, c'est une file. Sans ce fait,
-        // la frise dessine deux barres identiques pour « le worker a mis vingt secondes à
-        // répondre » et « l'activité a mis vingt secondes à s'exécuter », et l'exploitant devant
-        // une exécution lente ne sait pas s'il doit regarder son code ou ses workers.
+        // What precedes being picked up is not work, it is a queue. Without that fact, the frieze
+        // draws two identical bars for "the worker took twenty seconds to answer" and "the
+        // activity took twenty seconds to execute", and the operator facing a slow execution does
+        // not know whether to look at their code or at their workers.
         $history = $this->read([
             new ActivityScheduled('exec-1', 'act-1', 'charge', [], []),
             new ActivityTaskStarted('exec-1', 'act-1', 'charge', 1),
             new ActivityCompleted('exec-1', 'act-1', ['receipt' => 'r-1']),
         ]);
 
-        self::assertFalse($history[0]->started, 'planifier, ce n\'est pas commencer');
+        self::assertFalse($history[0]->started, 'scheduling is not starting');
         self::assertTrue($history[1]->started);
-        self::assertFalse($history[2]->started, 'terminer non plus');
+        self::assertFalse($history[2]->started, 'nor is finishing');
     }
 
     public function testATimerAnnouncesItsDelay(): void
     {
-        // Un résumé dit pourquoi on attend sans dire combien de temps, et c'est le combien que
-        // l'exploitant vient lire. Le déduire lui demanderait de soustraire deux horodatages de
-        // deux lignes.
+        // A summary says why we wait without saying how long, and it is the how long that the
+        // operator comes to read. Working it out would ask them to subtract two timestamps from
+        // two rows.
         $history = $this->read([
             new TimerScheduled('exec-1', 'tim-1', microtime(true) + 30.0, 'avant relance'),
         ]);
@@ -173,9 +173,9 @@ final class TheTimelineGroupsByActionTest extends TestCase
 
     public function testATimerWhoseDeadlineHasPassedAnnouncesNoDelayRatherThanFiftyYears(): void
     {
-        // `scheduledAt()` est une **échéance absolue**, pas un délai : soustraire sans garde ferait
-        // annoncer un demi-siècle d'attente à un minuteur dont l'échéance est derrière nous — et
-        // c'est la même garde qui couvre le journal sans horodatage d'enregistrement.
+        // `scheduledAt()` is an **absolute deadline**, not a delay: subtracting without a guard
+        // would have a timer whose deadline is behind us announce half a century of waiting — and
+        // it is the same guard that covers the journal with no recording timestamp.
         $history = $this->read([
             new TimerScheduled('exec-1', 'tim-1', 1735689630.0, 'avant relance'),
         ]);
@@ -185,17 +185,17 @@ final class TheTimelineGroupsByActionTest extends TestCase
 
     public function testAFailureIsMarkedAndACancellationIsNot(): void
     {
-        // Le rouge ne veut plus rien dire dès qu'il couvre les deux : un échec est une panne, une
-        // annulation est une issue que quelqu'un a demandée.
+        // Red stops meaning anything as soon as it covers both: a failure is a breakdown, a
+        // cancellation is an outcome somebody asked for.
         $history = $this->read([
             new ActivityScheduled('exec-1', 'act-1', 'charge', [], []),
             new ActivityTaskFailed('exec-1', 'act-1', 'charge', 1, 'RuntimeException', 'boom'),
             new ActivityCancelled('exec-1', 'act-1', 'cancellation_requested'),
         ]);
 
-        self::assertFalse($history[0]->failed, 'planifier ne rate rien');
+        self::assertFalse($history[0]->failed, 'scheduling fails at nothing');
         self::assertTrue($history[1]->failed);
-        self::assertFalse($history[2]->failed, 'une annulation est une issue, pas une panne');
+        self::assertFalse($history[2]->failed, 'a cancellation is an outcome, not a failure');
     }
 
     /**

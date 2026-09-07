@@ -10,16 +10,16 @@ use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use PHPUnit\Framework\TestCase;
 
 /**
- * « Joignable » et « injoignable » ne suffisent pas : il en existe un **troisième**.
+ * "Reachable" and "unreachable" are not enough: there is a **third** one.
  *
- * Un journal in-memory répond parfaitement, et sa réponse est vide — la requête qui rend le tableau
- * de bord n'a jamais exécuté le moindre workflow. Vide est donc la bonne réponse, pas une panne.
- * Rangé sous « joignable », ce cas apprend à l'exploitant qu'aucun workflow n'a tourné, ce qui est
- * faux ; rangé sous « injoignable », il l'envoie rallumer un serveur qui n'existe pas.
+ * An in-memory journal answers perfectly, and its answer is empty — the request that renders the
+ * dashboard has never executed a single workflow. Empty is therefore the right answer, not a
+ * failure. Filed under "reachable", this case teaches the operator that no workflow has run, which
+ * is false; filed under "unreachable", it sends them to restart a server that does not exist.
  *
- * Le fait était déjà dit — en prose, dans le message de santé du catalogue in-memory, et dans un
- * bandeau écrit à la main côté Magento. Une phrase n'est pas un état : une surface ne peut pas la
- * lire pour décider quoi afficher, et les deux autres ne l'avaient pas.
+ * The fact was already said — in prose, in the health message of the in-memory catalog, and in a
+ * banner written by hand on the Magento side. A sentence is not a state: a surface cannot read it
+ * to decide what to display, and the two others did not have it.
  */
 final class TheThirdBackendStateTest extends TestCase
 {
@@ -27,13 +27,14 @@ final class TheThirdBackendStateTest extends TestCase
     {
         $health = (new InMemoryWorkflowRunCatalog(new InMemoryEventStore()))->checkHealth();
 
-        self::assertTrue($health->reachable, 'il répond : ce n\'est pas une panne');
+        self::assertTrue($health->reachable, 'it answers: this is not a failure');
         self::assertTrue($health->ephemeral);
     }
 
     public function testItSaysWhatToConfigureToReadAcrossProcesses(): void
     {
-        // Sans cette moitié, l'exploitant sait que la liste ment sans savoir quoi y faire.
+        // Without this half, the operator knows the list is lying without knowing what to do
+        // about it.
         $health = (new InMemoryWorkflowRunCatalog(new InMemoryEventStore()))->checkHealth();
 
         self::assertMatchesRegularExpression('/SQL|Temporal/', $health->message);
@@ -41,8 +42,8 @@ final class TheThirdBackendStateTest extends TestCase
 
     public function testABackendThatSaysNothingIsTakenToOutliveTheRequest(): void
     {
-        // Le défaut couvre les trois catalogues qui écrivent hors du processus — SQL, Illuminate,
-        // Temporal. Aucun n'a à déclarer ce qui est vrai de lui par construction.
+        // The default covers the three catalogs that write outside the process — SQL,
+        // Illuminate, Temporal. None of them has to declare what is true of it by construction.
         $health = new BackendHealth('SQL database', true, 'The SQL database answers.', new \DateTimeImmutable());
 
         self::assertFalse($health->ephemeral);
