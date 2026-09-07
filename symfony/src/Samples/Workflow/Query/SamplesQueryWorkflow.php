@@ -11,8 +11,8 @@ use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Inspiré de samples-php Query : pause durable puis salutation (les « queries » Temporal côté client
- * ne sont pas rejouées ici ; voir {@see \Gplanchat\Durable\Query\WorkflowQueryEvaluator} pour la lecture du journal).
+ * Inspired by samples-php Query: a durable pause then a greeting (the client-side Temporal "queries"
+ * are not replayed here; see {@see \Gplanchat\Durable\Query\WorkflowQueryEvaluator} for reading the journal).
  */
 #[AsWorkflow('Samples_Query_Greeting')]
 final class SamplesQueryWorkflow
