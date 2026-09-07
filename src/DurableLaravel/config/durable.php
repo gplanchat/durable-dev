@@ -7,9 +7,9 @@ declare(strict_types=1);
  * dans l'application. Un seul fichier pour les deux, donc rien a faire diverger.
  *
  * ATTENTION : aucun appel a `env()` ici. Le provider charge ce fichier comme jeu de valeurs par
- * defaut, y compris dans un worker autonome et dans un test — ou `env()` existe, puisqu'il vient
+ * defaut, y compris dans un worker autonome et dans un test (ou `env()` existe, puisqu'il vient
  * d'`illuminate/support`, mais explose sur `PhpOption\Option` que seul `vlucas/phpdotenv`
- * fournit. C'est la panne exacte que le docblock de `ResumeLock` decrit a propos de
+ * fournit). C'est la panne exacte que le docblock de `ResumeLock` decrit a propos de
  * `Lock::block()` : elle n'arrive que la ou personne ne regarde. Votre copie publiee, elle,
  * tourne toujours dans une application : mettez-y les `env()` que vous voulez.
  */
@@ -25,7 +25,7 @@ return [
 
     /*
      * La connexion de base de données, au sens de config/database.php. `null` prend celle par
-     * défaut de l'application — ce qui est le point de DUR030 : l'ajout au journal et l'écriture
+     * défaut de l'application, ce qui est le point de DUR030 : l'ajout au journal et l'écriture
      * métier tiennent dans une seule transaction parce que c'est la même connexion.
      */
     'connection' => null,
@@ -83,14 +83,14 @@ return [
     ],
 
     /*
-     * Les opérations Nexus que cette application **sert** — appeler une opération n'a rien à
+     * Les opérations Nexus que cette application **sert** : appeler une opération n'a rien à
      * déclarer ici, c'est le workflow qui la demande.
      *
      * La clé est la classe du gestionnaire, la valeur le contrat qu'il sert :
      *
      *     'handlers' => [App\Nexus\BillingHandler::class => App\Contracts\BillingService::class],
      *
-     * Ce qu'un gestionnaire ne sert pas, un workflow le remplit — il porte alors
+     * Ce qu'un gestionnaire ne sert pas, un workflow le remplit : il porte alors
      * `#[FulfilsNexusOperation]`, et il suffit qu'il soit dans la liste `workflows` ci-dessus.
      *
      * ⚠ Servir du Nexus exige le backend « temporal » : c'est le cluster qui route. Sous un autre
@@ -120,8 +120,8 @@ return [
         /*
          * Le report d'une reprise dont le tour est pris, en secondes.
          *
-         * Mesuré (§1.5) : sur une exécution chaude — réveillée sans cesse par des signaux ou des
-         * minuteurs — 98,8 % des reprises entrent en collision, et ce délai **est** alors la
+         * Mesuré (§1.5) : sur une exécution chaude (réveillée sans cesse par des signaux ou des
+         * minuteurs), 98,8 % des reprises entrent en collision, et ce délai **est** alors la
          * latence : une seconde a transformé 32 s de travail en 148 s d'horloge. Sur un parc de
          * beaucoup d'exécutions, les collisions tombent à 0,6 % et le réglage n'a plus d'effet.
          */

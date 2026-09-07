@@ -14,7 +14,7 @@ use Gplanchat\Durable\Attribute\AsNexusService;
  * un workflow se déclare **ici**, où le gestionnaire n'a pas à lui écrire de corps vide.
  *
  * L'appelant lit donc toujours `StockContract`, y compris tant que les deux interfaces portent les
- * mêmes opérations — sans quoi le jour où l'une diverge, c'est chaque appelant qu'il faudrait
+ * mêmes opérations, sans quoi le jour où l'une diverge, c'est chaque appelant qu'il faudrait
  * retoucher.
  */
 #[AsNexusService('stock')]

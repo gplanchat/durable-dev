@@ -16,7 +16,7 @@ use Gplanchat\Durable\Port\WorkflowLifecycleInterface;
  * {@code RespondWorkflowTaskCompleted}.
  *
  * Aucune méthode ne lève : une tâche de workflow se termine en rendant ses commandes, pas en
- * remontant une exception — c'est la divergence de fond avec le backend in-memory.
+ * remontant une exception. C'est la divergence de fond avec le backend in-memory.
  */
 final readonly class TemporalWorkflowLifecycle implements WorkflowLifecycleInterface
 {
@@ -36,7 +36,7 @@ final readonly class TemporalWorkflowLifecycle implements WorkflowLifecycleInter
     /**
      * L'annulation Temporal est **coopérative** : le serveur ne fait qu'enregistrer
      * WORKFLOW_EXECUTION_CANCEL_REQUESTED et replanifier une tâche de workflow. C'est au worker
-     * d'y répondre — ici en relevant un {@see WorkflowCancelledFailure} dans le fiber, puis par
+     * d'y répondre, ici en relevant un {@see WorkflowCancelledFailure} dans le fiber, puis par
      * COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION si le handler ne l'avale pas.
      *
      * L'historique Temporal ne peut pas porter la *raison* d'une annulation d'opération : la trace
@@ -77,7 +77,7 @@ final readonly class TemporalWorkflowLifecycle implements WorkflowLifecycleInter
     {
         // Une divergence de replay n'est pas un échec du workflow : c'est cette tentative-là qui
         // ne peut pas aboutir. La relever la fait remonter jusqu'au processeur, qui répondra
-        // `RespondWorkflowTaskFailed` — aucune commande, donc rien dans l'historique, donc une
+        // `RespondWorkflowTaskFailed` : aucune commande, donc rien dans l'historique, donc une
         // exécution qui repart dès que le code qui l'a écrite est remis.
         if ($failure instanceof WorkflowTaskFailure) {
             throw $failure;

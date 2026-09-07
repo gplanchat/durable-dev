@@ -11,7 +11,7 @@ namespace Gplanchat\Durable\Observation;
  * telle quelle dans une URL de filtre : la valeur fait partie du contrat, pas seulement le cas.
  *
  * `ContinuedAsNew` est une fin **normale**, distincte de `Failed` : le composant traite un
- * continue-as-new comme une exécution neuve — nouvel id, nouvelles métadonnées, redispatch — et
+ * continue-as-new comme une exécution neuve (nouvel id, nouvelles métadonnées, redispatch), et
  * l'exécution qui passe la main s'est terminée sans erreur. Les confondre ferait apparaître en
  * rouge des workflows longs parfaitement sains.
  */

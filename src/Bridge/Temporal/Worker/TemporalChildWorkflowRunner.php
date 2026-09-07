@@ -10,7 +10,7 @@ use Gplanchat\Durable\Port\ChildWorkflowRunnerInterface;
 /**
  * Côté Temporal, un workflow enfant n'est jamais exécuté en ligne par le worker : le parent émet
  * COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION et le serveur pilote la suite, jusqu'à écrire
- * CHILD_WORKFLOW_EXECUTION_COMPLETED / _FAILED dans l'historique du parent — que
+ * CHILD_WORKFLOW_EXECUTION_COMPLETED / _FAILED dans l'historique du parent, que
  * {@see TemporalExecutionHistory} sait déjà relire.
  *
  * Sans cette implémentation, {@see \Gplanchat\Durable\ExecutionContext::executeChildWorkflow()}

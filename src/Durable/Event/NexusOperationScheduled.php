@@ -7,7 +7,7 @@ namespace Gplanchat\Durable\Event;
 /**
  * Une opération Nexus a été planifiée.
  *
- * Porte le site d'appel — endpoint, service, opération — parce que c'est ce qu'on cherche en
+ * Porte le site d'appel (endpoint, service, opération) parce que c'est ce qu'on cherche en
  * ouvrant un profil : quel service externe cette exécution appelle, et lequel a coûté cher.
  *
  * L'identité est l'`eventId` de la planification. Ce n'est pas un choix : c'est par lui que

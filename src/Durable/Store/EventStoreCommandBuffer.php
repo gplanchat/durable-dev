@@ -56,7 +56,7 @@ final class EventStoreCommandBuffer implements WorkflowCommandBufferInterface
 
     public function scheduleActivity(string $activityId, string $activityName, array $payload, ?ActivityOptions $options): void
     {
-        // C'est ici, dans l'adaptateur, que les options prennent leur forme de fil — et que la
+        // C'est ici, dans l'adaptateur, que les options prennent leur forme de fil, et que la
         // mise en file est horodatée, avec l'horloge de ce backend.
         $queuedAt = ($this->clock)();
         $metadata = ($options?->toMetadata() ?? []) + [

@@ -11,8 +11,8 @@ use Gplanchat\Durable\WorkflowRegistry;
  * Le registre des workflows, plus la seule chose que le cœur ne peut pas dire à sa place.
  *
  * `WorkflowRegistry::getHandler()` échoue sur « Unknown workflow type: X », ce qui nomme le type et
- * s'arrête là. Sous Laravel, la question suivante du lecteur a une réponse — *où* déclare-t-on un
- * type ? — et c'est ce paquet qui la connaît, pas le cœur, qui ignore jusqu'à l'existence d'un
+ * s'arrête là. Sous Laravel, la question suivante du lecteur a une réponse (*où* déclare-t-on un
+ * type ?), et c'est ce paquet qui la connaît, pas le cœur, qui ignore jusqu'à l'existence d'un
  * `config/durable.php`.
  *
  * Un message qui nomme la panne sans nommer le remède fait ouvrir le code d'un paquet installé.

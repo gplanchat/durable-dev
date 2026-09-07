@@ -10,8 +10,8 @@ use Gplanchat\Durable\Observation\WorkflowRunProjectionInterface;
  * Décore le magasin de métadonnées pour semer le nom dans la projection.
  *
  * Seul `save()` est observé, et c'est délibéré : c'est le seul appel non ambigu, et le seul qui
- * porte le type de workflow. `delete()` veut dire trois choses selon le site qui l'appelle —
- * continue-as-new, annulation, échec — donc l'issue se lit dans le journal, pas ici. Le cycle de
+ * porte le type de workflow. `delete()` veut dire trois choses selon le site qui l'appelle
+ * (continue-as-new, annulation, échec), donc l'issue se lit dans le journal, pas ici. Le cycle de
  * vie des métadonnées n'en est pas modifié d'un iota.
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/design.md

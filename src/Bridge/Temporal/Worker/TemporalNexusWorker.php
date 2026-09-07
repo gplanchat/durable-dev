@@ -43,12 +43,12 @@ use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
  *
  * Trois mesures de sonde le façonnent, et aucune n'est un détail :
  *
- * - **§1.2** — une file vide rend un jeton vide et une requête nulle, après ~11 s. C'est un succès,
+ * - **§1.2** : une file vide rend un jeton vide et une requête nulle, après ~11 s. C'est un succès,
  *   pas une erreur : la boucle repart.
- * - **§1.7** — deux budgets. `request-timeout` (~9 s) borne la réponse à *cette tâche* ;
+ * - **§1.7** : deux budgets. `request-timeout` (~9 s) borne la réponse à *cette tâche* ;
  *   `operation-timeout` borne l'opération. Un gestionnaire qui travaille plus de neuf secondes voit
  *   sa tâche redélivrée et son travail recommencer. C'est ce que la forme différée évite.
- * - **§3.1** — ce qui règle une opération différée est le `callback` de la tâche, attaché au
+ * - **§3.1** : ce qui règle une opération différée est le `callback` de la tâche, attaché au
  *   workflow qui la remplit. Retiré, l'appelant reste à `NEXUS_OPERATION_STARTED` pour toujours.
  *   D'où l'ordre ici : on démarre le workflow **avant** de répondre, parce que `completion_callbacks`
  *   ne se pose qu'au démarrage.
@@ -110,7 +110,7 @@ final readonly class TemporalNexusWorker
 
             return;
         } catch (\Throwable $raised) {
-            // §1b.3 : une exception ordinaire vaut INTERNAL, donc réessayable — comme dans tous les
+            // §1b.3 : une exception ordinaire vaut INTERNAL, donc réessayable, comme dans tous les
             // autres SDK. Un gestionnaire qui veut un refus définitif le dit avec son type.
             $this->respondFailed($taskToken, NexusHandlerErrorType::Internal, $raised->getMessage());
 
@@ -130,13 +130,13 @@ final readonly class TemporalNexusWorker
      * Annuler l'opération, c'est annuler le workflow qui la porte.
      *
      * La sonde §4 l'a mesuré dans les deux moitiés. §1.5 avait vu la négative : tant que
-     * l'opération n'a pas démarré, aucune tâche n'arrive ici — il n'y a rien à annuler. La
+     * l'opération n'a pas démarré, aucune tâche n'arrive ici : il n'y a rien à annuler. La
      * positive se lit maintenant qu'une opération peut démarrer en asynchrone : la tâche arrive,
      * et elle **nomme le jeton rendu au démarrage**. Ce jeton est l'identifiant du workflow que ce
      * worker a démarré, donc la tâche nous rend exactement la prise dont on a besoin.
      *
      * Le gestionnaire n'est pas resollicité, et ce n'est pas un manque : ce qui porte l'opération
-     * est un workflow, et un workflow observe déjà son annulation — avec ses compensations. Un
+     * est un workflow, et un workflow observe déjà son annulation, avec ses compensations. Un
      * crochet de gestionnaire dupliquerait ce chemin sans rien y ajouter.
      */
     private function cancelTheWorkflowCarryingTheOperation(string $taskToken, CancelOperationRequest $cancel): void

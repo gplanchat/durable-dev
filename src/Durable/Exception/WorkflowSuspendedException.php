@@ -8,7 +8,7 @@ namespace Gplanchat\Durable\Exception;
  * Levée lorsque le workflow doit s'arrêter et être re-dispatché
  * (mode distribué, activité en attente).
  *
- * {@see shouldDispatchResume()} : faux pour signaux / updates — seuls les handlers
+ * {@see shouldDispatchResume()} : faux pour signaux / updates, car seuls les handlers
  * {@see \Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler} (etc.) doivent
  * relancer ; sinon transport Messenger **sync** boucle à l’infini.
  *

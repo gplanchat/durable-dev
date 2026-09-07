@@ -25,11 +25,11 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  * Rewrites a Temporal SDK activity contract onto Durable's attributes, **keeping the activity type
  * names the server already knows**.
  *
- * The SDK's type is `prefix . (AsActivityMethod::$name ?? methodName)` — one concatenation, no
+ * The SDK's type is `prefix . (AsActivityMethod::$name ?? methodName)`: one concatenation, no
  * separator inserted (`Temporal\Internal\Declaration\Reader\ActivityReader::activityName()`).
  * Durable's is `AsActivity::$name . '.' . AsActivityMethod::$name`, and the dot is not optional
  * ({@see \Gplanchat\Durable\Activity\ActivityContractResolver}). The two agree on exactly two
- * prefixes — the empty one, and one ending in a dot — and this rule refuses the rest rather than
+ * prefixes (the empty one, and one ending in a dot), and this rule refuses the rest rather than
  * rename an activity in flight.
  *
  * It also adds `#[AsActivityMethod]` to methods that carry none: every public method of an
@@ -80,7 +80,7 @@ AFTER,
 
         $prefix = $this->literalArgument($contract, 'prefix', 0);
         if (false === $prefix) {
-            // A computed prefix — a constant, a concatenation. Renaming on a guess is the one
+            // A computed prefix: a constant, a concatenation. Renaming on a guess is the one
             // mistake this rule exists to avoid.
             return null;
         }

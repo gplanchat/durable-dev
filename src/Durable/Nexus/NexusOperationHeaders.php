@@ -10,11 +10,11 @@ namespace Gplanchat\Durable\Nexus;
  * **Cet objet n'est pas plus strict que le serveur**, sauf sur un point, et l'écart est mesuré.
  * Sondé sur Temporal 1.31.2, le serveur accepte tel quel une clé vide, une valeur vide, des
  * blancs en bord, un saut de ligne, un espace dans la clé, mille caractères. Refuser tout cela
- * rejetterait des en-têtes qu'il porte sans broncher — l'erreur inverse de celle que
+ * rejetterait des en-têtes qu'il porte sans broncher, l'erreur inverse de celle que
  * {@see \Gplanchat\Durable\TaskQueue} évite.
  *
  * Une seule chose lui échappe, et elle est muette : **il minuscule les clés**. Deux clés qui ne
- * diffèrent que par la casse entrent donc en collision — deux en-têtes entrent, un seul sort, sans
+ * diffèrent que par la casse entrent donc en collision : deux en-têtes entrent, un seul sort, sans
  * erreur et sans rien dans l'historique pour dire lequel a sauté.
  *
  * D'où les deux seules règles d'ici, toutes deux tirées de cette observation :

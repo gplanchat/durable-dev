@@ -13,7 +13,7 @@ namespace Gplanchat\Durable\Observation;
  * tête. Elle se prend donc une fois, à côté du modèle d'observation dont elle décrit les faits.
  *
  * C'est de la mise en forme dans le cœur, et c'est assumé : `WorkflowRunEvent::$label` en est déjà,
- * pour la même raison — ce que plusieurs hôtes doivent dire pareil se décide en un seul endroit.
+ * pour la même raison. Ce que plusieurs hôtes doivent dire pareil se décide en un seul endroit.
  */
 final class ReadableDuration
 {

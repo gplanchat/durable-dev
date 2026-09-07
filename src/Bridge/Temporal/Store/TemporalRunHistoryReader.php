@@ -52,8 +52,8 @@ final class TemporalRunHistoryReader
      * ⚠ **`getInitiatedEventId` passe avant `getStartedEventId`**, et ce n'est pas cosmétique : la
      * fin d'une exécution enfant porte les deux, et `startedEventId` désigne le *démarrage* de
      * l'enfant, pas l'événement qui l'a fondée. Dans l'ordre inverse, chaque workflow enfant
-     * occupait **deux lignes** de frise — sa demande et son démarrage sur l'une, sa fin sur
-     * l'autre — et aucune des deux ne disait sa durée. Mesuré sur la sonde de tous les cas :
+     * occupait **deux lignes** de frise (sa demande et son démarrage sur l'une, sa fin sur
+     * l'autre), et aucune des deux ne disait sa durée. Mesuré sur la sonde de tous les cas :
      * 9 actions pour 2 enfants là où il en fallait 7.
      *
      * @var list<string>
@@ -97,7 +97,7 @@ final class TemporalRunHistoryReader
                 self::actionKeyOf($event, $type),
                 // Un suffixe suffit : Temporal nomme `_STARTED` tout événement par lequel un
                 // worker prend la main. `WORKFLOW_EXECUTION_STARTED` y tombe aussi, et c'est
-                // inerte — c'est l'événement 1, rien ne le précède, donc aucun intervalle ne peut
+                // inerte : c'est l'événement 1, rien ne le précède, donc aucun intervalle ne peut
                 // être compté comme attente devant lui. Le journal maison retient ici la même
                 // règle, `ExecutionStarted` compris, pour que les deux backends ne divergent pas
                 // sur un cas qui ne change rien.
@@ -110,18 +110,18 @@ final class TemporalRunHistoryReader
     }
 
     /**
-     * L'action dont l'événement fait partie — celle dont il est le troisième acte, ou le premier.
+     * L'action dont l'événement fait partie : celle dont il est le troisième acte, ou le premier.
      *
      * Temporal corrèle par **numéro d'événement** : tout ce qui arrive après une planification la
      * désigne par `scheduledEventId`, `startedEventId` ou `initiatedEventId` selon la famille. La
-     * clé est donc l'événement fondateur, et les trois accesseurs se cherchent dans cet ordre —
+     * clé est donc l'événement fondateur, et les trois accesseurs se cherchent dans cet ordre :
      * une tâche de workflow terminée porte les deux premiers, et c'est la planification qui ouvre
      * l'action.
      *
      * Un événement fondateur qui ne désigne personne se désigne lui-même : sans quoi une activité
      * planifiée n'appartiendrait pas à l'action qu'elle ouvre.
      *
-     * ⚠ `getParentInitiatedEventId` — que porte le démarrage d'une exécution enfant — n'est
+     * ⚠ `getParentInitiatedEventId` (que porte le démarrage d'une exécution enfant) n'est
      * volontairement pas dans la liste : il pointe vers l'histoire du **parent**, pas vers une
      * action de celle-ci. Le confondre rattacherait le démarrage à un numéro d'un autre journal.
      */
@@ -165,12 +165,12 @@ final class TemporalRunHistoryReader
      * Ce qui a mal tourné, et rien d'autre.
      *
      * Temporal suffixe `_FAILED` tout échec et `_TIMED_OUT` toute échéance dépassée, à tous les
-     * niveaux — activité, minuteur, enfant, workflow externe, tâche de workflow. Deux suffixes
+     * niveaux : activité, minuteur, enfant, workflow externe, tâche de workflow. Deux suffixes
      * couvrent donc le jeu entier sans table à tenir.
      *
      * ⚠ **`_CANCELED` et `_TERMINATED` n'en sont pas**, et c'est une décision : ce sont des issues,
      * demandées par quelqu'un. Les peindre comme des pannes enverrait un exploitant chercher un
-     * incident là où il n'y a qu'une annulation — et le rouge ne veut plus rien dire dès qu'il
+     * incident là où il n'y a qu'une annulation, et le rouge ne veut plus rien dire dès qu'il
      * couvre les deux. ⚠ Temporal écrit `CANCELED` à un seul « l » là où le journal maison écrit
      * `Cancelled` : une règle écrite d'un seul côté rate l'autre en silence.
      */
@@ -182,13 +182,13 @@ final class TemporalRunHistoryReader
     /**
      * L'exécution elle-même est **une action** : son démarrage, ses tâches de workflow, sa fin.
      *
-     * Une tâche de workflow n'est pas un fait métier — c'est le mécanisme par lequel le moteur
+     * Une tâche de workflow n'est pas un fait métier : c'est le mécanisme par lequel le moteur
      * fait avancer l'exécution. Lui donner une ligne par occurrence noyait les quatre lignes
      * intéressantes d'une commande sous quatre lignes de plomberie portant le même nom.
      *
      * ⚠ **Les exceptions sont l'essentiel de cette règle**, et le même piège que pour le rangement
      * en natures : `WORKFLOW_EXECUTION_SIGNALED` et la famille `WORKFLOW_EXECUTION_UPDATE_*`
-     * commencent par le même préfixe et ne sont pas l'exécution — un signal reçu et une mise à jour
+     * commencent par le même préfixe et ne sont pas l'exécution. Un signal reçu et une mise à jour
      * sont des actions à part entière, avec leur propre ligne. Les workflows **enfants**
      * (`CHILD_WORKFLOW_EXECUTION_*`, `START_CHILD_WORKFLOW_EXECUTION_*`) et les workflows
      * **externes** (`EXTERNAL_`, `REQUEST_CANCEL_EXTERNAL_`, `SIGNAL_EXTERNAL_`) ne commencent pas
@@ -213,8 +213,8 @@ final class TemporalRunHistoryReader
      *
      * Les attributs sont un `oneof` : un seul des cinquante accesseurs répond, et le nom du champ
      * choisi se lit sur `getAttributes()`. La sérialisation JSON du message donne alors tout ce que
-     * l'interface de Temporal montre elle-même — type d'activité, file, délais, tentative, message
-     * d'échec — sans que nous ayons à énumérer les cinquante formes.
+     * l'interface de Temporal montre elle-même (type d'activité, file, délais, tentative, message
+     * d'échec) sans que nous ayons à énumérer les cinquante formes.
      *
      * ⚠ **Une charge utile y arriverait en base64**, parce que `Payload.data` est un champ `bytes`.
      * Les champs qui en portent sont donc relus par-dessus avec le codec du pont, celui-là même qui
@@ -227,7 +227,7 @@ final class TemporalRunHistoryReader
      */
     private static function detailsOf(HistoryEvent $event): array
     {
-        // `whichOneof` rend le nom du champ renseigné, ou la chaîne vide quand aucun ne l'est —
+        // `whichOneof` rend le nom du champ renseigné, ou la chaîne vide quand aucun ne l'est,
         // ce qui arrive pour un type d'événement plus récent que les stubs générés.
         $which = $event->getAttributes();
         if ('' === $which) {
@@ -259,7 +259,7 @@ final class TemporalRunHistoryReader
             try {
                 $details[$field] = JsonPlainPayload::decodePayloads($payloads);
             } catch (\Throwable) {
-                // Une charge utile qui n'est pas du `json/plain` — un autre encodage, un autre
+                // Une charge utile qui n'est pas du `json/plain` : un autre encodage, un autre
                 // producteur. La forme base64 de la sérialisation reste en place : moins lisible,
                 // mais présente, et c'est encore la meilleure des deux réponses possibles.
             }
@@ -291,8 +291,8 @@ final class TemporalRunHistoryReader
      */
     private static function labelOf(HistoryEvent $event, string $eventType): string
     {
-        // Une ligne de frise porte le nom de son action. Les événements qui ouvrent une exécution —
-        // la sienne, celle d'un enfant — nomment leur type de workflow, et c'est ce nom-là que
+        // Une ligne de frise porte le nom de son action. Les événements qui ouvrent une exécution
+        // (la sienne, celle d'un enfant) nomment leur type de workflow, et c'est ce nom-là que
         // l'exploitant cherche, pas « WORKFLOW EXECUTION STARTED » en capitales.
         $workflowType = self::workflowTypeOf($event);
         if (null !== $workflowType) {
@@ -335,7 +335,7 @@ final class TemporalRunHistoryReader
      * Le type de workflow que l'événement nomme, s'il en nomme un.
      *
      * `getWorkflowType()` est porté par le démarrage d'une exécution comme par les événements d'un
-     * workflow enfant — une seule règle nomme donc la ligne de l'exécution et celles de ses
+     * workflow enfant : une seule règle nomme donc la ligne de l'exécution et celles de ses
      * enfants, sans table de correspondance à tenir.
      */
     private static function workflowTypeOf(HistoryEvent $event): ?string
@@ -379,7 +379,7 @@ final class TemporalRunHistoryReader
      * garder que les secondes écrasait tout ce qu'une exécution rapide a fait : seize événements
      * séparés de quelques millisecondes se lisaient au même instant. Une frise construite là-dessus
      * empile tous ses repères au même endroit et ne dit plus rien. PHP s'arrête à la microseconde,
-     * donc c'est là que la troncature a lieu — assumée, et six ordres de grandeur plus bas.
+     * donc c'est là que la troncature a lieu (assumée, et six ordres de grandeur plus bas).
      */
     private static function recordedAt(HistoryEvent $event): \DateTimeImmutable
     {

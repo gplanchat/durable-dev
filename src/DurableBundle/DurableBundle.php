@@ -36,7 +36,7 @@ final class DurableBundle extends Bundle
         );
 
         // Un workflow qui réclame une opération différée n'a rien à enregistrer sur le registre :
-        // la plomberie le démarre. La balise sert à ce que la passe le **voie** — sans quoi elle
+        // la plomberie le démarre. La balise sert à ce que la passe le **voie**, sans quoi elle
         // conclurait que l'opération n'est servie par personne et refuserait au démarrage.
         $container->registerAttributeForAutoconfiguration(
             FulfilsNexusOperation::class,

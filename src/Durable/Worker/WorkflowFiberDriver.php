@@ -17,8 +17,8 @@ use Gplanchat\Durable\WorkflowEnvironment;
  * Pilote unique du fiber d'un run : démarrage, replay des awaitables déjà réglés, arrêt sur
  * commande nouvelle, terminaison.
  *
- * Cette boucle existait en deux exemplaires — {@see \Gplanchat\Durable\ExecutionEngine} et
- * le runner Temporal — écrits séparément, avec des chaînes de `catch` divergentes : les issues
+ * Cette boucle existait en deux exemplaires ({@see \Gplanchat\Durable\ExecutionEngine} et
+ * le runner Temporal), écrits séparément, avec des chaînes de `catch` divergentes : les issues
  * de cycle de vie ajoutées à l'un manquaient à l'autre. Elles passent désormais par
  * {@see WorkflowLifecycleInterface}, dont chaque backend est une implémentation.
  */
@@ -68,7 +68,7 @@ final class WorkflowFiberDriver
                 // Annulation demandée alors que le fiber attend : la livrer ICI, comme Temporal
                 // livre un CanceledFailure, pour que le workflow puisse compenser. L'opération en
                 // attente est annulée avec la raison workflow_cancelled, qui sert aussi de trace
-                // de livraison — au replay, l'awaitable est rejeté par le journal au même endroit.
+                // de livraison : au replay, l'awaitable est rejeté par le journal au même endroit.
                 if (!$cancellationDelivered && $this->lifecycle->isCancellationPending($executionId)) {
                     $cancellationDelivered = true;
                     $failure = new WorkflowCancelledFailure($executionId, ActivityCancellationReason::WORKFLOW_CANCELLED);
