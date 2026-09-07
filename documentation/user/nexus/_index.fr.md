@@ -101,7 +101,7 @@ interface BillingContract extends BillingServed // + ce qu'un workflow remplit
     public function charge(string $ordre, int $montant): array;
 }
 
-#[AsWorkflow('Encaissement')]
+#[AsWorkflow('Charge')]
 #[FulfilsNexusOperation(BillingContract::class, 'charge')]
 final class Encaissement { /* … */ }
 ```
