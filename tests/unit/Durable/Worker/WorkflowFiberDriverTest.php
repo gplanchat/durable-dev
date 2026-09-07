@@ -21,9 +21,9 @@ use PHPUnit\Framework\TestCase;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
- * Le pilotage du fiber existait en double (ExecutionEngine / WorkflowTaskRunner) avec des
- * chaînes de `catch` divergentes. Ce test verrouille la boucle unique : quelle que soit
- * l'implémentation du port, c'est le même hook qui est appelé pour la même issue.
+ * Driving the fiber existed twice over (ExecutionEngine / WorkflowTaskRunner) with diverging
+ * `catch` chains. This test locks down the single loop: whatever the implementation of the
+ * port, it is the same hook that is called for the same outcome.
  */
 final class WorkflowFiberDriverTest extends TestCase
 {
@@ -110,7 +110,7 @@ final class WorkflowFiberDriverTest extends TestCase
                 return 'x';
             });
         } finally {
-            self::assertFalse($ran, 'le handler ne doit pas démarrer');
+            self::assertFalse($ran, 'the handler must not start');
         }
     }
 
