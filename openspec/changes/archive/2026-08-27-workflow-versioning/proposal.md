@@ -8,8 +8,8 @@ at start, so `#[Workflow('checkout')]` → `#[Workflow('checkout-v2')]` genuinel
 
 It works, and it is expensive. A one-line fix to a branch taken in month two of a six-week run costs
 a second class, a second registration, and a drain window nobody can shorten. Temporal's own SDKs
-answer this with `getVersion($changeId, $min, $max)` — the PHP SDK included, on
-`WorkflowContextInterface` — which lets one class carry both behaviours and lets history decide
+answer this with `getVersion($changeId, $min, $max)` (the PHP SDK included, on
+`WorkflowContextInterface`), which lets one class carry both behaviours and lets history decide
 which one a given run sees.
 
 This change asks for that primitive, and it asks for it **second**. `workflow-replay-divergence-guard`
@@ -28,7 +28,7 @@ needs a rule to except.
   record that fact.
 - The marker SHALL be a legitimate divergence: the replay guard SHALL NOT report it.
 - Removing a branch that no live run can still see SHALL be possible without breaking those runs,
-  and the way to know whether any can SHALL be observable — a version marker nobody has recorded
+  and the way to know whether any can SHALL be observable: a version marker nobody has recorded
   in a live run is one nobody needs.
 - The wire representation SHALL be whatever the Temporal server already understands for this, so a
   run started by Durable and inspected in the Temporal UI reads normally. What that is, is the first
@@ -37,7 +37,7 @@ needs a rule to except.
 
 ### Not in scope
 
-- **Worker-level versioning** — build ids, deployment names, pinning a run to a worker version.
+- **Worker-level versioning**: build ids, deployment names, pinning a run to a worker version.
   That is an operational mechanism, it lives in the worker and the task queue rather than in
   workflow code, and it answers a different question.
 - **Automatic detection of a behaviour change.** The marker is deliberate. A library that guessed
@@ -59,11 +59,11 @@ needs a rule to except.
 
 - **Domain** (`src/Durable`): a version marker on the workflow authoring surface; a journal event
   recording the version a run resolved; `ExecutionContext` resolving from history on replay.
-- **Temporal bridge**: the marker maps to whatever the server already records for this — task 1.
+- **Temporal bridge**: the marker maps to whatever the server already records for this (task 1).
 - **DBAL bridge**: same primitive, journal-local. No asymmetry here: nothing routes anywhere.
 - **Replay guard**: the marker is the one place a slot may legitimately differ from history; the
   guard learns about it rather than the marker working around the guard.
-- **Test suite**: a run started on old code and replayed on new must keep its version — the test
-  that matters, and the one that needs two workflow classes in the same test.
+- **Test suite**: a run started on old code and replayed on new must keep its version (the test
+  that matters, and the one that needs two workflow classes in the same test).
 - **ADR**: a new DUR; the comparison page's versioning row stops describing a gap.
 - **Dependencies**: `workflow-replay-divergence-guard`, which must land first.

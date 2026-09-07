@@ -9,7 +9,7 @@ Durable workflow as the caller. It shows the wire itself rather than a mirror of
 
 **A full round trip works today.** A raw poller answered `RespondNexusTaskCompleted` with a sync
 payload and the calling workflow received `['greeting' => 'hello ada']`. Serving Nexus needs no new
-gRPC plumbing — `PollNexusTaskQueue`, `RespondNexusTaskCompleted` and `RespondNexusTaskFailed` are
+gRPC plumbing: `PollNexusTaskQueue`, `RespondNexusTaskCompleted` and `RespondNexusTaskFailed` are
 generated and functional. What is missing is the poll loop, the dispatch, and the declaration
 surface.
 
@@ -28,7 +28,7 @@ header        : request-timeout=8.998s , operation-timeout=89997ms
 ```
 
 **Two budgets, not one, and this is the finding that shapes the worker.** `request-timeout` (~9 s)
-bounds the response to *this task*. `operation-timeout` (90 s here — the caller's
+bounds the response to *this task*. `operation-timeout` (90 s here, the caller's
 schedule-to-close) bounds the whole operation. A handler with real work to do cannot hold the task:
 it has roughly nine seconds to answer, whatever the operation's budget. That is what the
 asynchronous shape is for, and it means "synchronous only" is a much narrower option than it
@@ -41,7 +41,7 @@ afterwards.
 ### The asynchronous shape: accepted by the server, refused by our own caller
 
 Answering `RespondNexusTaskCompleted` with an `asyncSuccess` carrying an operation token **is
-accepted** — the caller's history records `NEXUS_OPERATION_STARTED`. Then the calling workflow
+accepted**: the caller's history records `NEXUS_OPERATION_STARTED`. Then the calling workflow
 failed, on purpose, with our own message:
 
 > Nexus operation … started asynchronously: the handler returned a token and will complete by
@@ -56,18 +56,18 @@ an asynchronous operation, the caller must learn to receive the completion. Two 
 
 | What the handler does | What the server does |
 |---|---|
-| `RespondNexusTaskFailed(INTERNAL)` | accepted; task **redelivered** — 3 times in 25 s |
+| `RespondNexusTaskFailed(INTERNAL)` | accepted; task **redelivered**, 3 times in 25 s |
 | nothing at all | redelivered at ~9.9 s, ~20.7 s, ~33.6 s |
 
 Redelivery follows the ~9 s `request-timeout`, not the operation timeout. An `INTERNAL` handler
-error is therefore **retryable** and does not fail the operation — so a handler that raises on bad
+error is therefore **retryable** and does not fail the operation, so a handler that raises on bad
 input would be retried until the operation times out. Distinguishing retryable from terminal
 handler errors is real work, not a detail.
 
 ### Cancellation reaches the handler only for a started operation
 
 Cancelling the caller wrote `NEXUS_OPERATION_CANCEL_REQUESTED` in its history and the run cancelled
-cleanly — but **no `cancel_operation` task arrived** on the handler's queue in 40 s. The operation
+cleanly, but **no `cancel_operation` task arrived** on the handler's queue in 40 s. The operation
 had never been started: no token, nothing to cancel handler-side.
 
 So the handler's cancellation path is coupled to the asynchronous shape. No async, no cancel task.
@@ -77,9 +77,9 @@ So the handler's cancellation path is coupled to the asynchronous shape. No asyn
 A poll on an idle queue returned after 11.2 s with an **empty task token and a null request**. The
 loop must treat that as "nothing to do", not as a failure.
 
-### The Go cross-check, done — and it closes the loop 1.1 opened
+### The Go cross-check is done, and it closes the loop 1.1 opened
 
-Task 1.1 asked for a Go handler as reference. It was not needed to read the wire — but one finding
+Task 1.1 asked for a Go handler as reference. It was not needed to read the wire, but one finding
 makes it more valuable, not less. **Our caller wraps the user payload**:
 `TemporalWorkflowCommandBuffer::scheduleNexusOperation()` sends
 `{"operationId": …, "payload": …}`, a Durable-private envelope, because
@@ -88,7 +88,7 @@ makes it more valuable, not less. **Our caller wraps the user payload**:
 A handler written with any other SDK receives that envelope, not the caller's payload.
 
 **Measured (task 1.1), and the result decides it.** A Nexus operation served by the Go SDK and
-called from a Durable workflow **completes** — and the handler receives an empty payload:
+called from a Durable workflow **completes**, and the handler receives an empty payload:
 
 ```
 handler declares : Greeting{ Name string `json:"name"` }
@@ -100,7 +100,7 @@ Nothing raises. Not the server, not the Go SDK, not us. The caller gets a well-f
 from nothing.
 
 That settles the question the paragraph above left open. Teaching handlers our envelope would only
-fix *our* handlers and leave every other SDK's quietly wrong — and the symmetric case is just as
+fix *our* handlers and leave every other SDK's quietly wrong, and the symmetric case is just as
 bad: a Durable handler would look for an `operationId` a Go caller never sent.
 
 **The envelope has to go.** The scheduled event id, which history already carries, is the
@@ -109,8 +109,8 @@ caller-side change and it breaks the wire format for in-flight Nexus operations,
 task 1b.2 and not a footnote.
 
 **And the symmetric half is now measured too (§6.2).** A Go SDK caller invoked an operation served
-by `TemporalNexusWorker`. The handler received `{"name":"ada"}` — the caller's own fields, no
-envelope — and its answer deserialised cleanly into the Go caller's declared type. The two
+by `TemporalNexusWorker`. The handler received `{"name":"ada"}` (the caller's own fields, no
+envelope), and its answer deserialised cleanly into the Go caller's declared type. The two
 histories are identical event for event. What 1.1 found broken in one direction works in both.
 
 ## The worker is new plumbing, not an extension
@@ -133,7 +133,7 @@ it lives, which is the thing this design knows least about.
 Hypothesis, to be falsified: the handler responds once, naming a workflow, and the server correlates
 that workflow's completion to the operation without the handler being involved again.
 
-**Measured (§3.1 probe), and it holds — but the mechanism is not the one the wording suggests.**
+**Measured (§3.1 probe), and it holds, but the mechanism is not the one the wording suggests.**
 A raw poller answered a start task asynchronously, having first started a second workflow carrying
 the task's `callback` and `callbackHeader` in `StartWorkflowExecutionRequest.completion_callbacks`.
 Completing that workflow wrote `NEXUS_OPERATION_COMPLETED` into the *caller's* history with the
@@ -152,7 +152,7 @@ and by the time it returned, the start it needed to influence would already have
 
 The caller side already classifies Nexus failures. A handler produces failures on the other side of
 the same wire, and the default is that the same vocabulary describes both. Where it does not, the
-answer is to record which distinction is missing and why — not to grow a parallel hierarchy that
+answer is to record which distinction is missing and why, not to grow a parallel hierarchy that
 means almost the same thing.
 
 ## Refusing to serve, at registration
@@ -160,7 +160,7 @@ means almost the same thing.
 The caller side refuses a Nexus call at call time on a backend that cannot route, because that is
 when the mistake becomes visible. A handler is different: registration happens at startup, and a
 handler registered on a backend with no route is not a call that fails, it is a service that
-silently never receives anything. So the refusal belongs at **registration**, not at request time —
+silently never receives anything. So the refusal belongs at **registration**, not at request time:
 there is no request to fail.
 
 ## Alternatives considered
@@ -172,4 +172,4 @@ there is no request to fail.
 - **Synchronous completion only, asynchronous later.** Tempting, and it halves the unknowns. It also
   ships the half that a plain HTTP endpoint already does, and defers the half that is the reason to
   use Nexus at all. If the probe shows the asynchronous shape is much larger than expected, this
-  becomes the right split — but as a finding, not as an opening move.
+  becomes the right split, but as a finding, not as an opening move.

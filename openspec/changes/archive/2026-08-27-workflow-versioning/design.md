@@ -19,13 +19,13 @@ EVENT_TYPE_MARKER_RECORDED
 That is the whole convention: a `RECORD_MARKER` command, one fixed marker name, two named payload
 lists in `details`. Nothing exotic, and nothing the server itself interprets.
 
-### The server accepts it from us — the fallback is not needed
+### The server accepts it from us: the fallback is not needed
 
 The bridge emitted exactly that marker and `RespondWorkflowTaskCompleted` was **accepted**. The
 resulting history is byte-identical to the Go SDK's on all three fields: marker name, change id,
 version.
 
-Task 1.3's fallback — a Durable-owned journal event, at the cost of Temporal UI legibility — is
+Task 1.3's fallback (a Durable-owned journal event, at the cost of Temporal UI legibility) is
 therefore **not needed**. A Durable run using this primitive will read in the Temporal UI exactly
 like a Go one.
 
@@ -50,7 +50,7 @@ temporal workflow list --query 'TemporalChangeVersion = "ajout-remise-1"'
 ```
 
 This is the answer to "which live executions are still bound to a given behaviour of a change
-point" — the question task 4.3 was going to investigate. **It is a query, not a feature**, provided
+point", the question task 4.3 was going to investigate. **It is a query, not a feature**, provided
 the marker is accompanied by that upsert. Writing the marker without it would work and would silently
 cost the only practical way to know when an old branch can be deleted.
 
@@ -65,7 +65,7 @@ is judged against them:
 2. **A run that never reached the marker is not bound by it.** It resolves on the deployed code the
    first time it gets there.
 3. **The marker is not a divergence.** The guard has to know about it, or the guard fires on every
-   versioned workflow — which would make the two changes mutually exclusive instead of sequential.
+   versioned workflow, which would make the two changes mutually exclusive instead of sequential.
 
 ## Why not an attribute
 
@@ -77,7 +77,7 @@ The primitive has to be positional because the problem is.
 ## The interaction with the guard, stated plainly
 
 The guard compares recorded identity to requested identity at each slot. A version marker changes
-what the code requests at slots *after* it — that is its entire purpose. So the guard cannot simply
+what the code requests at slots *after* it; that is its entire purpose. So the guard cannot simply
 be told "ignore markers"; it has to accept that the branch a run takes is itself a recorded fact,
 and compare against what that run recorded.
 
@@ -89,8 +89,8 @@ using it, which is the same bug the guard exists to catch, in the mechanism mean
 
 The reason to record versions rather than infer them is that removal has to be safe. A branch may be
 deleted once no live run can still resolve to it, and "can still" is a question about journals, not
-about calendars. Whether the existing run observation projection can answer it — *which live runs
-recorded version 1 of change point X* — is worth checking before inventing anything: if it can, the
+about calendars. Whether the existing run observation projection can answer it (*which live runs
+recorded version 1 of change point X*) is worth checking before inventing anything: if it can, the
 answer is a query, not a feature.
 
 ## Alternatives considered

@@ -16,7 +16,7 @@ Java, Python, TypeScript and .NET, and none for PHP.
 
 So the caller side we shipped already made this component the only way a PHP workflow calls a Nexus
 operation. Serving one is the other half, and no PHP implementation offers it today. The reason to
-build it is not parity with the SDK — there is nothing to reach. It is that a PHP service currently
+build it is not parity with the SDK: there is nothing to reach. It is that a PHP service currently
 cannot participate in a Nexus topology as anything but a consumer, which makes it a leaf in every
 architecture that uses one.
 
@@ -25,14 +25,14 @@ architecture that uses one.
 - A component SHALL be able to declare that it serves a Nexus operation, and the runtime SHALL
   route an incoming request for that operation to the declared handler.
 - An operation SHALL be able to complete **synchronously**, returning a result to the caller, and
-  **asynchronously**, by starting a workflow whose eventual result becomes the operation's — the
+  **asynchronously**, by starting a workflow whose eventual result becomes the operation's, the
   two shapes Nexus defines.
 - A handler that fails SHALL fail the caller's operation with a failure the caller can classify,
   using the same classification the caller side already implements rather than a second vocabulary.
 - A caller that cancels SHALL reach the handler, and a handler SHALL be able to observe the
   cancellation rather than discovering it by writing a result nobody wants.
 - Serving SHALL require the Temporal backend, and the backends that cannot route SHALL refuse to
-  register a handler at startup — loudly, at the moment of the mistake, rather than at the moment
+  register a handler at startup: loudly, at the moment of the mistake, rather than at the moment
   a request never arrives.
 - **BREAKING** no. Nothing already shipped changes shape; a component that declares no handler
   behaves exactly as it does today.
@@ -50,18 +50,18 @@ architecture that uses one.
 
 ### Modified Capabilities
 
-- `nexus-operations`: gains the handler side — declaring a served operation, the two completion
-  shapes, cancellation reaching the handler, and the backend rule for serving.
+- `nexus-operations`: gains the handler side (declaring a served operation, the two completion
+  shapes, cancellation reaching the handler, and the backend rule for serving).
 
 ## Impact
 
 - **Domain** (`src/Durable`): a declaration surface for served operations, and a dispatch that is
   the mirror of the one the caller already has.
-- **Temporal bridge**: a Nexus task worker — poll loop, dispatch, the two respond calls. This is
+- **Temporal bridge**: a Nexus task worker (poll loop, dispatch, the two respond calls). This is
   the bulk of the work and it is new plumbing, not an extension of the workflow task worker.
 - **Symfony bundle**: registering handlers, and a worker command for the new task queue.
 - **Backends without a route**: refusal at registration.
-- **Test suite**: the caller and the handler in the same integration test, against a real server —
+- **Test suite**: the caller and the handler in the same integration test, against a real server,
   the only place a round trip can be observed end to end.
 - **ADR**: a new DUR; DUR036's "separate change" becomes a forward pointer.
 - **Dependencies**: none beyond what the caller side already requires.

@@ -9,7 +9,7 @@ a timer; the `v1` worker is then killed and a `v2` worker takes over the timer's
 
 ### 1. Does the server reject a divergent command sequence? **No.** (assumption confirmed)
 
-The `v2` code asked for `append('CODE-V2')` — a string. It received `42`, the recorded result of
+The `v2` code asked for `append('CODE-V2')`, a string. It received `42`, the recorded result of
 `double(21)`, and the run **completed successfully**:
 
 ```
@@ -19,7 +19,7 @@ history: … ACTIVITY_TASK_COMPLETED, …, TIMER_FIRED, WORKFLOW_TASK_COMPLETED,
 ```
 
 No rejection, no task failure, nothing in history marking the divergence. The resolution happens
-client-side before any command is emitted, exactly as assumed — so **this guard is the only line of
+client-side before any command is emitted, exactly as assumed, so **this guard is the only line of
 defence**, not the second.
 
 It is also worse than the proposal claimed. The proposal said wrong data enters the workflow. What
@@ -28,7 +28,7 @@ that success. There is no later moment at which anything notices.
 
 ### 2. Does a failure leave the run resumable? **No, and not the way this design assumed.** (refuted)
 
-Throwing from workflow code — which is what the guard was going to do — produced:
+Throwing from workflow code (which is what the guard was going to do) produced:
 
 ```
 … WORKFLOW_TASK_COMPLETED, WORKFLOW_EXECUTION_FAILED
@@ -42,14 +42,14 @@ The cause is in the tree: `RespondWorkflowTaskFailed` exists in `src/Bridge/Temp
 generated gRPC stub and **is never called** anywhere in the bridge. There is no task-failure path
 at all today.
 
-**Consequence for this change.** "Fail the task, not the run" — the property the section below
-rests on — is not something the guard can obtain by raising. It requires the bridge to gain the
+**Consequence for this change.** "Fail the task, not the run" (the property the section below
+rests on) is not something the guard can obtain by raising. It requires the bridge to gain the
 ability to respond `RespondWorkflowTaskFailed` instead of emitting a failure command, and that is a
 prerequisite, not a detail. Section 2 of `tasks.md` gains it.
 
 Without it the guard is still worth having, and the trade should be stated rather than assumed: a
-guard that raises converts *silent corruption* into a *dead run*. That is an improvement — a dead
-run is visible and its history is intact — but it is not the revert-and-resume story, and it must
+guard that raises converts *silent corruption* into a *dead run*. That is an improvement (a dead
+run is visible and its history is intact), but it is not the revert-and-resume story, and it must
 not be sold as one.
 
 ### 3. What identity does each scheduling event already carry?
@@ -62,7 +62,7 @@ not be sold as one.
 | `TimerScheduled` | `timerId`, `scheduledAt`, `summary` | **no** |
 
 Timers carry nothing comparable, as the design anticipated. `timerId` is generated,
-`scheduledAt` is an **absolute due date** — `EventStoreCommandBuffer::startTimer()` stores
+`scheduledAt` is an **absolute due date**: `EventStoreCommandBuffer::startTimer()` stores
 `clock() + delay`, so a replay cannot recompute it and the original delay is not recorded anywhere.
 `summary` is author-supplied and defaults to `''`: a guard resting on it would cover only labelled
 timers and would fire on a relabel, which is not a divergence.
@@ -80,7 +80,7 @@ DURABLE_TEMPORAL_ADDRESS=127.0.0.1:7233 vendor/bin/phpunit --testsuite integrati
 
 The tempting design adds a `slotIdentity` field to every scheduling event and compares that. It is
 also the wrong one: it changes the journal format, which means old histories have no such field and
-the guard cannot check the very runs it exists to protect — the ones started before the change.
+the guard cannot check the very runs it exists to protect, the ones started before the change.
 
 So the comparison uses identity that is **already recorded**:
 
@@ -88,11 +88,11 @@ Section 3 above measured what each event holds: activities, Nexus operations and
 carry usable identity; **timers do not**. The guard therefore covers four slot kinds, and the fifth
 is a stated gap rather than a widened journal.
 
-## Failing the task, not the run — which the bridge cannot do yet
+## Failing the task, not the run (which the bridge cannot do yet)
 
 A divergence is a deployment mistake, and deployment mistakes get reverted. If the guard failed the
 **run**, reverting would not help: the run would already be dead. Failing the **workflow task**
-leaves the history intact and the run resumable — put the old code back, the next poll replays
+leaves the history intact and the run resumable: put the old code back, the next poll replays
 cleanly, and nothing was lost but the time between the two deploys.
 
 **The probe showed the bridge had no way to do this** (section 2 above), and task 2.1 built it:
@@ -122,7 +122,7 @@ history.
 ## What the guard costs, measured
 
 `EventStoreHistorySource` re-reads the whole event stream on every slot lookup, and the guard adds
-one lookup per slot. So **yes, the comparison forces a second pass** — the question the task asked.
+one lookup per slot. So **yes, the comparison forces a second pass** (the question the task asked).
 What it costs is not what that sentence suggests.
 
 Replaying N completed activity slots on the journal backend, three runs each, same machine:
@@ -135,7 +135,7 @@ Replaying N completed activity slots on the journal backend, three runs each, sa
 
 **+26 % at 400 slots**, and stable across runs.
 
-**The guard did not make replay quadratic — it already was.** Without it, doubling the slot count
+**The guard did not make replay quadratic; it already was.** Without it, doubling the slot count
 quadruples the time (3.3 → 12.6 → 45.2), because every one of the pre-existing slot lookups re-reads
 the stream too. The guard adds a constant factor to an existing O(n²), it does not change the
 complexity class.
@@ -151,9 +151,9 @@ a long history is quadratic in the number of slots, guard or no guard.
 ## Alternatives considered
 
 - **Comparing the whole command buffer against history after the fiber completes.** Later, cheaper
-  to write, and it emits the wrong value into the workflow's own variables before catching it — the
+  to write, and it emits the wrong value into the workflow's own variables before catching it: the
   workflow may have branched on it already. The guard has to bite at resolution.
 - **Warning instead of failing.** A warning in a worker log is not read until someone is already
   investigating corrupt data, which is the situation the guard exists to prevent.
 - **Hashing the call site (file and line).** Stable against renames, unstable against every
-  refactor that moves a line — it would fire on changes that are not divergences at all.
+  refactor that moves a line; it would fire on changes that are not divergences at all.

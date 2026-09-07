@@ -27,7 +27,7 @@ an existing one, deploy while runs are in flight, and replay resolves the new ca
 call's recorded result. No error is raised. Wrong data enters the workflow and is journaled as if
 it had always been there.
 
-This is the failure mode this codebase treats as the most expensive — DUR036 refused a silent
+This is the failure mode this codebase treats as the most expensive: DUR036 refused a silent
 fallback for exactly this reason and made the DBAL backend refuse Nexus out loud instead. The same
 argument applies here, and here it is not a design choice: it is a guard the ADR already claims.
 
@@ -41,13 +41,13 @@ it to except.
   that slot, for every kind of slot, and SHALL fail the workflow task when they differ.
 - The failure SHALL name the slot, what history holds and what the code asked for. A divergence
   that is merely reported as "non-deterministic" costs the reader the diff they need.
-- The comparison SHALL rest on identity already present in history — the activity name, the Nexus
-  triple, the child workflow type — and SHALL NOT introduce a new event field. If a slot kind holds
+- The comparison SHALL rest on identity already present in history (the activity name, the Nexus
+  triple, the child workflow type) and SHALL NOT introduce a new event field. If a slot kind holds
   no such identity today, that gap is stated rather than filled by widening the journal.
 - DUR003 SHALL be brought into agreement with the code, whichever way the work lands.
 - **BREAKING** no for correct workflows: a run whose code has not changed produces the same
   comparison result at every slot. A run whose code has changed stops resolving wrong values and
-  starts failing instead — which is the point, and which will surface existing latent breakage.
+  starts failing instead, which is the point, and which will surface existing latent breakage.
 
 ### Not in scope
 
@@ -72,7 +72,7 @@ it to except.
 
 - **Domain** (`src/Durable`): `WorkflowHistorySourceInterface` gains identity accessors per slot
   kind; `ExecutionContext` compares before resolving at four call sites.
-- **Temporal bridge**: the divergence surfaces as a failed workflow task, not a failed workflow —
+- **Temporal bridge**: the divergence surfaces as a failed workflow task, not a failed workflow;
   the run stays resumable once the code is put back.
 - **DBAL bridge**: same guard, same driver; the backend asymmetry does not apply here.
 - **Test suite**: a replay test per slot kind, driven by changing the workflow class between two

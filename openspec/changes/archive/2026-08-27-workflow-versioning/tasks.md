@@ -9,7 +9,7 @@
       history is byte-identical to the Go SDK's on marker name, change id and version.
 - [x] 1.3 **Not needed.** 1.2 succeeded, so the Durable-owned fallback and its loss of Temporal UI
       legibility do not apply. Recorded as a finding rather than a decision deferred.
-- [x] 1.4 `design.md`'s assumption section replaced by what was measured — including the difference
+- [x] 1.4 `design.md`'s assumption section replaced by what was measured, including the difference
       found on the way: the Go SDK also upserts the standard `TemporalChangeVersion` search
       attribute, which is what makes "who is still on version N" a query rather than a feature.
       That moved work **into** the primitive (2.2) and **out of** 4.3.
@@ -19,13 +19,13 @@
 - [x] 2.1 A run that passed this point **before it existed** keeps the old behaviour.
       Its journal holds no marker, and the answer is `DEFAULT_VERSION`.
       **The signal this needed turned out to already be there.** Temporal knows because its SDK
-      tracks whether the current task is replaying; this engine has no such flag — but it does not
+      tracks whether the current task is replaying; this engine has no such flag, but it does not
       need one. The question "is this call inside the replayed prefix" is answerable from the port
       as it stands: if the **next** slot of any kind is already recorded, there is work ahead that
       this pass has not reached, so the call sits in the prefix. Four existing lookups, no new port
       method.
       Deduced rather than stored, so it is deterministic: two replays of the same history answer
-      the same, which is the only property versioning needs. And nothing is written — an old run
+      the same, which is the only property versioning needs. And nothing is written: an old run
       is not marked, it is recognised.
       **The gap, stated:** side effects are not consulted. `findSideEffectForSlot()` returns
       `mixed`, and a recorded value may legitimately be `null`, so "nothing here" and "here, the
@@ -35,22 +35,22 @@
 - [x] 2.2 GREEN: `WorkflowEnvironment::version()`, `VersionMarked` in the journal, resolution from
       history on replay, and the `TemporalChangeVersion` upsert alongside the marker.
       Verified against a real server: a versioned Durable workflow produces a history **identical**
-      to the Go SDK's — same events, `markerName: Version`, `change-id`/`version`, and the search
+      to the Go SDK's. Same events, `markerName: Version`, `change-id`/`version`, and the search
       attribute as a `KeywordList ["ajout-remise-1"]`. Both runs come back from the same
       `temporal workflow list --query 'TemporalChangeVersion = …'`.
       Two things the bridge forced: the `Version` marker needs its **own branch before** the
-      side-effect one, or it consumes a side-effect slot and shifts every later replay — the file
-      already carried a comment warning of exactly that; and the four protobuf map constructions
+      side-effect one, or it consumes a side-effect slot and shifts every later replay (the file
+      already carried a comment warning of exactly that); and the four protobuf map constructions
       became one factory, which removed a Psalm baseline entry rather than growing it.
 - [x] 2.3 RED/GREEN: a run reaching the marker for the first time sees the newest supported version
-      and records it — once, not on every call.
+      and records it (once, not on every call).
 - [x] 2.4 RED/GREEN: the same run replayed twice sees the same version twice, and a newer deployed
       code does not move it. A second test pins that two change points are independent: an execution
       can be on the old side of one and the new side of another.
 
 ## 3. The guard sanctions it
 
-- [x] 3.1 The guard does **not** fire on a branch the version decided — guard in place, not stubbed.
+- [x] 3.1 The guard does **not** fire on a branch the version decided: guard in place, not stubbed.
       Both directions are held: a run on version 1 takes the new branch and its slot resolves, and a
       run on `DEFAULT_VERSION` takes the old one and its slot resolves too. Both branches are
       legitimate, each for the execution it concerns.
@@ -62,7 +62,7 @@
       raises. The exception covers only what it names.
 
 **What this section found: nothing had to be built.** The design expected the guard to need teaching
-about version markers. It does not, and the reason is worth recording — the guard compares what the
+about version markers. It does not, and the reason is worth recording: the guard compares what the
 code asks for against what history recorded, and a versioned run asks for exactly what it recorded,
 *because its version came from that same history*. The sanctioned exception is not a special case in
 the guard; it falls out of both mechanisms reading the same journal.
@@ -74,10 +74,10 @@ behaviour fails one, and recording the version after the slot instead of before 
 
 - [x] 4.1 Not a DBAL-specific test: the conformance workflow now **declares a change point**, and
       `EventStoreReplayConformanceTestCase` asserts the recorded version survives the round trip
-      through the store. Every adapter that extends it inherits the check — DBAL today, whatever
+      through the store. Every adapter that extends it inherits the check: DBAL today, whatever
       comes next tomorrow.
       A store that lost `VersionMarked` would put an in-flight execution back on the other branch
-      **in silence** — the divergence guard would see code consistent with the new version and say
+      **in silence**: the divergence guard would see code consistent with the new version and say
       nothing. That is why this belongs in the shared suite rather than in one adapter's tests.
       The suite also pins that an undeclared change point answers `null` and not `0`: an adapter
       that returned `0` would hand the old branch to an execution that never earned it.
@@ -94,21 +94,21 @@ behaviour fails one, and recording the version after the slot instead of before 
 - [x] 4.3 Answered by the probe, and not where it was expected: the **server** answers it, through
       the standard `TemporalChangeVersion` search attribute the Go SDK upserts beside the marker.
       `temporal workflow list --query 'TemporalChangeVersion = "<change-id>-<version>"'` was run and
-      returns the matching executions. No feature — a query, conditional on 2.2 writing the upsert.
+      returns the matching executions. No feature: a query, conditional on 2.2 writing the upsert.
       On the journal backends, which have no search attributes, this stays an open question and the
       user page should say so.
 
 ## 5. Say it in the documentation
 
-- [x] 5.1 **DUR044** — the primitive, why an execution older than the point is *recognised* rather
+- [x] 5.1 **DUR044**: the primitive, why an execution older than the point is *recognised* rather
       than marked, the wire representation as it was probed, why the search-attribute upsert is part
       of the primitive rather than decoration, and the removal rule with the backends that cannot
       answer it.
 - [x] 5.2 The user page `documentation/user/deploying/` gains change points beside the two answers
       it already gave: the branch, the three things to know before using it (the change id lives in
       the journal, an older run gets `DEFAULT_VERSION`, the guard still applies elsewhere), and how
-      to know when the old branch can go — a query on Temporal, and **no equivalent** on the journal
-      backends, said plainly.
+      to know when the old branch can go (a query on Temporal, and **no equivalent** on the journal
+      backends), said plainly.
 - [x] 5.3 The comparison page's versioning row is gone from *Where the SDK is ahead*. It became
       section 7, **Workflow versioning: no longer a gap**, with the two differences that remain and
       are not about the primitive: worker versioning, and knowing when a branch is dead on a backend
