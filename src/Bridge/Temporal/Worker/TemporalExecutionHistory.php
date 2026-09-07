@@ -187,7 +187,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 // la sonde 1.4 a mesuré que le serveur pose `callback: temporal://system` et
                 // corrèle lui-même l'issue sur cette exécution, par `scheduledEventId`. L'attente
                 // reste donc ouverte jusqu'à l'événement terminal, que les branches suivantes
-                // lisent. Enregistrer une issue ici — même un échec « non supporté » — tuerait un
+                // lisent. Enregistrer une issue ici (même un échec « non supporté ») tuerait un
                 // workflow sur une opération qui allait répondre.
                 break;
 
@@ -274,7 +274,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                         $type = $failure?->getApplicationFailureInfo()?->getType();
                         // Un RuntimeException nu était relevé dans le fiber : le classifieur le
                         // rangeait en workflow_handler_failure, et le workflow perdait le nom de
-                        // l'activité fautive — là où le backend in-memory relève un
+                        // l'activité fautive, là où le backend in-memory relève un
                         // DurableActivityFailedException complet.
                         $this->activityFailures[$activityId] = new DurableActivityFailedException(
                             $activityId,
@@ -546,7 +546,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     }
 
     /**
-     * Le minuteur a-t-il déjà une issue dans l'historique — tiré ou annulé ?
+     * Le minuteur a-t-il déjà une issue dans l'historique (tiré ou annulé) ?
      *
      * Un minuteur annulé reste absent de {@see findTimerSlotResult()} : le perdant d'une course
      * n'a pas de verdict à annoncer, il revient donc en attente à chaque reprise. Sans ce garde,
@@ -760,7 +760,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
      *
      * C'est ce qui empêche le replay de replanifier : le contexte n'émet la commande que si le
      * slot est vide. Rendre `null` sans lire l'historique relancerait l'opération à chaque passe,
-     * en silence — et une opération Nexus qui repart est facturée à chaque fois.
+     * en silence, et une opération Nexus qui repart est facturée à chaque fois.
      */
     public function findScheduledNexusOperation(int $slot): ?string
     {

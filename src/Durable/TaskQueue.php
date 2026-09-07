@@ -8,14 +8,14 @@ namespace Gplanchat\Durable;
  * Le nom d'une file de tâches : où le travail est déposé, et donc où un worker doit venir le
  * chercher.
  *
- * Le serveur n'exige presque rien — non vide, mille caractères au plus. Sondé, il accepte `" "`,
+ * Le serveur n'exige presque rien : non vide, mille caractères au plus. Sondé, il accepte `" "`,
  * les espaces en bord, les tabulations et les sauts de ligne. Or une file mal nommée ne produit
  * aucune erreur : le travail y est déposé et personne ne vient le chercher. L'exécution reste
  * simplement en attente, sans rien dans les logs.
  *
  * Cet objet est donc **plus strict que le serveur** sur ce qui ne peut être qu'une faute :
  * blancs en bord, nom entièrement blanc, caractères de contrôle. Il n'attrape pas la faute de
- * frappe qui reste un nom valide (`durable-activites` pour `durable-activities`) — seul un
+ * frappe qui reste un nom valide (`durable-activites` pour `durable-activities`) : seul un
  * registre des files réellement servies le pourrait.
  */
 final readonly class TaskQueue

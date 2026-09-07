@@ -8,18 +8,18 @@ namespace Gplanchat\Durable;
  * Une récurrence : quand relancer une exécution.
  *
  * Une expression cron est une grammaire, pas une chaîne. Passée telle quelle, une faute de
- * frappe ne se manifeste qu'au retour du serveur — c'est-à-dire en production, à la première
+ * frappe ne se manifeste qu'au retour du serveur, c'est-à-dire en production, à la première
  * tentative de démarrage. Elle est donc validée à la construction.
  *
  * Trois formes, celles que le serveur Temporal accepte :
- * - cinq champs — `minute heure jour-du-mois mois jour-de-semaine` ;
- * - un raccourci — `@hourly`, `@daily`, `@weekly`, `@monthly`, `@yearly` ;
- * - un intervalle — `@every 90s`, `@every 1h30m`.
+ * - cinq champs : `minute heure jour-du-mois mois jour-de-semaine` ;
+ * - un raccourci : `@hourly`, `@daily`, `@weekly`, `@monthly`, `@yearly` ;
+ * - un intervalle : `@every 90s`, `@every 1h30m`.
  *
  * Chacune peut être préfixée d'un fuseau : `CRON_TZ=Europe/Paris 0 9 * * 1-5`.
  *
  * La validation reproduit celle du serveur, sondée expression par expression : nombre de champs,
- * caractères, bornes, et **atteignabilité** — le serveur refuse `0 0 31 4 *` (« no time can be
+ * caractères, bornes, et **atteignabilité**. Le serveur refuse `0 0 31 4 *` (« no time can be
  * found to satisfy the schedule »), avril n'ayant que trente jours.
  *
  * `?` y est un synonyme de `*`, accepté dans n'importe quel champ. Le jour de semaine va de 0 à
@@ -119,7 +119,7 @@ final readonly class CronSchedule
     /**
      * Le même horaire, lu dans un autre fuseau.
      *
-     * Sans fuseau, le serveur interprète l'expression en UTC — ce qui n'est presque jamais ce
+     * Sans fuseau, le serveur interprète l'expression en UTC, ce qui n'est presque jamais ce
      * qu'on veut d'un « tous les jours à 9 h ».
      */
     public function inTimeZone(\DateTimeZone|string $timeZone): self

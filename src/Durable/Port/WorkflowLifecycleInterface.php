@@ -11,8 +11,8 @@ use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 /**
  * Issues du cycle de vie d'un run, telles que le backend les enregistre.
  *
- * {@see \Gplanchat\Durable\Worker\WorkflowFiberDriver} pilote le fiber — démarrage, replay,
- * suspension, terminaison — de façon identique pour tous les backends ; ce port porte les seules
+ * {@see \Gplanchat\Durable\Worker\WorkflowFiberDriver} pilote le fiber (démarrage, replay,
+ * suspension, terminaison) de façon identique pour tous les backends ; ce port porte les seules
  * décisions qui leur appartiennent en propre : le backend in-memory journalise des événements
  * ({@see \Gplanchat\Durable\Store\EventStoreWorkflowLifecycle}), le backend Temporal empile des
  * commandes ({@see \Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowLifecycle}).

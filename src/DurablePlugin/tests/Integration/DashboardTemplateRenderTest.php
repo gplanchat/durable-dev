@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Le gabarit ne doit plus rien savoir du backend qui l'alimente.
  *
- * Ces assertions sont grossières — une lecture de fichier — et c'est assumé : elles gardent un
+ * Ces assertions sont grossières (une lecture de fichier), et c'est assumé : elles gardent un
  * contrat de vocabulaire, pas un rendu. Ce qu'elles empêchent est précis : qu'un `temporal.` ou
  * une colonne « file de tâches » revienne par inadvertance dans une page qui doit servir deux
  * backends dont un seul a ces notions.

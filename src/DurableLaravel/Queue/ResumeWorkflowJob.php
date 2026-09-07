@@ -17,14 +17,14 @@ use Illuminate\Contracts\Queue\ShouldQueue;
  * découvrir les commandes qu'elle produit, et ces commandes partent en double. Le journal ne
  * l'empêche pas : il enregistre fidèlement ce qu'on lui donne, deux fois comprises.
  *
- * **Ce job ne se remet pas en file, il en redispatche un autre — et c'est délibéré.**
+ * **Ce job ne se remet pas en file, il en redispatche un autre, et c'est délibéré.**
  * `$this->release()` demande le trait `InteractsWithQueue`, donc `illuminate/queue`, donc
  * `symfony/process ^7.2` : le paquet deviendrait irréconciliable avec la ligne Symfony 6.4 que la
- * matrice du dépôt teste encore. Mais l'argument n'est pas seulement d'emballage — §1.2 a mesuré
+ * matrice du dépôt teste encore. Mais l'argument n'est pas seulement d'emballage : §1.2 a mesuré
  * que `release()` **consomme un essai**, si bien qu'à `--tries=5`, quinze reprises sur vingt
  * finissaient dans `failed_jobs` sans avoir tourné une seule fois : la contention y devenait
  * indiscernable d'un bug. Un job neuf repart avec un budget d'essais neuf, et `tries` retrouve son
- * sens — le nombre de fois qu'un plantage est toléré.
+ * sens : le nombre de fois qu'un plantage est toléré.
  *
  * Le prix, et il est réel : rien ne borne plus le report côté file. C'est `$deferrals` qui le
  * borne ici, et le dépassement est bruyant.

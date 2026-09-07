@@ -16,7 +16,7 @@ final class AwaitableInspector
      *
      * Doit traverser les composites ({@see CompositeAwaitable}) : un `any(activity, timer)`
      * attend bien une échéance, et le tester par un simple `instanceof TimerAwaitable` laissait
-     * l'exécution sans réveil planifié — elle ne repartait jamais si l'activité n'aboutissait
+     * l'exécution sans réveil planifié ; elle ne repartait jamais si l'activité n'aboutissait
      * pas.
      *
      * @param Awaitable<mixed> $awaitable

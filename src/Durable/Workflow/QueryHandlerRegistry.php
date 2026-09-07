@@ -7,7 +7,7 @@ namespace Gplanchat\Durable\Workflow;
 /**
  * Les handlers de query d'une exécution, tenus par le moteur.
  *
- * Ils vivaient sur {@see \Gplanchat\Durable\WorkflowEnvironment} — l'objet que le moteur avait
+ * Ils vivaient sur {@see \Gplanchat\Durable\WorkflowEnvironment}, l'objet que le moteur avait
  * sous la main, pas celui qui en avait besoin. Un auteur de workflow pouvait donc enregistrer,
  * sonder et invoquer un handler, c'est-à-dire court-circuiter la déclaration `#[AsQueryMethod]`
  * qu'il est censé écrire.

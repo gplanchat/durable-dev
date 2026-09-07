@@ -13,7 +13,7 @@ use Gplanchat\Durable\WorkflowRegistry;
  * Le moteur, tel qu'un processus Magento le tient.
  *
  * Il ne fait rien que le composant ne fasse déjà : il tient les cinq objets
- * ensemble et donne à l'hôte les trois gestes dont il a besoin — déclarer une
+ * ensemble et donne à l'hôte les trois gestes dont il a besoin : déclarer une
  * activité, déclarer un workflow, lancer une exécution.
  *
  * Ce qui est **absent** est le sujet. Il n'y a pas d'autoconfiguration par

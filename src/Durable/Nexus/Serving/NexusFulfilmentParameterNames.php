@@ -16,22 +16,22 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
  * l'enregistrement, avant qu'une tâche n'arrive.
  *
  * **Pourquoi le garde est ici et non chez un hôte.** Il l'a été : `NexusHandlerPass` le portait en
- * privé, donc le refus n'existait que pour les applications Symfony. Un second hôte servant —
- * `gplanchat/durable-laravel`, qui déclare ses gestionnaires dans `config/durable.php` — l'aurait
+ * privé, donc le refus n'existait que pour les applications Symfony. Un second hôte servant
+ * (`gplanchat/durable-laravel`, qui déclare ses gestionnaires dans `config/durable.php`) l'aurait
  * réécrit à l'identique, ou, plus probablement, ne l'aurait pas écrit du tout. Deux réflexions et
  * une lecture de `#[AsWorkflowMethod]` ne demandent aucun conteneur : rien dans ce contrôle
  * n'appartenait à un framework.
  *
  * **Un paramètre facultatif passe**, et ce n'est pas une tolérance : donner une valeur par défaut à
- * un paramètre que le contrat ne porte pas est une décision — c'est dire « si personne ne me
+ * un paramètre que le contrat ne porte pas est une décision. C'est dire « si personne ne me
  * l'envoie, voici ce que je fais ». C'est l'absence de défaut qui trahit l'attente déçue.
  */
 final class NexusFulfilmentParameterNames
 {
     /**
      * @param string       $refusedBy      ce que le lecteur doit aller corriger : la balise Symfony,
-     *                                     la clé de configuration Laravel — le mécanisme qui refuse,
-     *                                     pas la classe qui l'implémente
+     *                                     la clé de configuration Laravel (le mécanisme qui refuse,
+     *                                     pas la classe qui l'implémente)
      * @param class-string $contract
      * @param class-string $workflowClass
      *

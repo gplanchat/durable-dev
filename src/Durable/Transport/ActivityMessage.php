@@ -11,7 +11,7 @@ use Gplanchat\Durable\Duration;
  * Une tentative d'activité en transit vers un worker.
  *
  * Les options franchissent le transport telles que l'appelant les a construites ; la comptabilité
- * de transport — numéro de tentative, première mise en file, délai avant reprise — a chacune son
+ * de transport (numéro de tentative, première mise en file, délai avant reprise) a chacune son
  * champ plutôt qu'une clé dans un tableau opaque.
  *
  * {@see toWireMetadata()} et {@see fromWireMetadata()} donnent aux transports la forme plate dont
@@ -34,7 +34,7 @@ final readonly class ActivityMessage
         public ?float $firstQueuedAt = null,
         /**
          * Délai à respecter avant de reprendre. Consommé par le transport, qui le traduit dans
-         * son propre mécanisme de report, puis l'oublie — il ne survit pas à la mise en file.
+         * son propre mécanisme de report, puis l'oublie : il ne survit pas à la mise en file.
          */
         public ?Duration $retryDelay = null,
     ) {}

@@ -9,8 +9,8 @@ namespace Gplanchat\Durable\Activity;
  *
  * Remplace l'entier `maxAttempts` où 0 signifiait « illimité » : une valeur magique que chaque
  * site d'appel devait retraduire, et qui laissait l'arithmétique de comparaison se disperser
- * dans le processeur d'activité et le runtime. La question du domaine — « cette tentative
- * est-elle encore permise ? » — se pose désormais à l'objet lui-même
+ * dans le processeur d'activité et le runtime. La question du domaine (« cette tentative
+ * est-elle encore permise ? ») se pose désormais à l'objet lui-même
  * ({@see allowsAttempt()}).
  *
  * Sur le fil, la représentation reste l'entier Temporal (`maximum_attempts`, 0 = illimité) :
@@ -59,7 +59,7 @@ final readonly class RetryLimit
      *
      * Vocabulaire du plafond bundle (`max_activity_retries`), qui compte les reprises et non les
      * tentatives. Zéro retentative n'y a jamais voulu dire « une seule tentative » mais
-     * « aucun plafond » — d'où {@see unlimited()}.
+     * « aucun plafond », d'où {@see unlimited()}.
      */
     public static function ofRetries(int $retries): self
     {

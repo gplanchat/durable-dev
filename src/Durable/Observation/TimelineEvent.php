@@ -27,7 +27,7 @@ namespace Gplanchat\Durable\Observation;
  * lui-même : laisser la case vide ferait croire à un trou.
  *
  * `renderedDetails` est {@see RecordedDetails::of()} appliqué une fois. `null` veut dire « rien à
- * déplier » — et c'est ce qui permet à l'hôte de laisser une ligne simple plutôt qu'un dépliant qui
+ * déplier », et c'est ce qui permet à l'hôte de laisser une ligne simple plutôt qu'un dépliant qui
  * s'ouvre sur du vide. Le fait brut reste sur `$event->details`, pour une surface qui sert des
  * données plutôt qu'une page.
  */

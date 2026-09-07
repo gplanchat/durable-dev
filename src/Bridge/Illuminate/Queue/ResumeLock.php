@@ -12,8 +12,8 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
  *
  * C'est la seule chose que le stockage ne peut pas fournir, et sans elle rien de ce paquet ne tient
  * : deux workers qui reprennent la **même** exécution la rejouent tous les deux, chacun croit
- * découvrir les commandes qu'elle produit, et elles partent en double. Le journal ne l'empêche pas
- * — il enregistre fidèlement ce qu'on lui donne, y compris deux fois. Le docblock de
+ * découvrir les commandes qu'elle produit, et elles partent en double. Le journal ne l'empêche
+ * pas : il enregistre fidèlement ce qu'on lui donne, y compris deux fois. Le docblock de
  * `DbalEventStore` le dit depuis toujours ; côté Symfony c'est un middleware Messenger adossé à
  * `symfony/lock`, ici c'est le verrou atomique du cache.
  *
@@ -26,8 +26,8 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
  * vient d'`illuminate/contracts` que `illuminate/database` tire déjà.
  *
  * ⚠ **Le type ne filtre rien, contrairement à ce que ce bloc affirmait.** Sur Laravel 12, neuf
- * stores implémentent `LockProvider` — `file` compris, et il verrouille correctement entre
- * processus — dont `NullStore`, dont le `NoLock::acquire()` retourne `true` sans condition.
+ * stores implémentent `LockProvider` (`file` compris, et il verrouille correctement entre
+ * processus), dont `NullStore`, dont le `NoLock::acquire()` retourne `true` sans condition.
  * Mesuré sur vingt reprises d'une exécution et quatre `queue:work` : `database` et `file` ne
  * laissent aucun chevauchement, `array` et `null` en laissent quinze sur vingt, à concurrence 4.
  * Le choix du store est donc à l'appelant, et c'est le seul de ce paquet qui fait diverger un
@@ -38,7 +38,7 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
  * ```
  *
  * **Pourquoi l'attente est écrite ici plutôt que déléguée à `Lock::block()`.** `block()` appelle un
- * `now()` **global**, que seule une application Laravel complète définit — `illuminate/support` ne
+ * `now()` **global**, que seule une application Laravel complète définit : `illuminate/support` ne
  * le publie que sous son propre espace de noms. Un paquet qui s'en sert marche dans une application
  * et casse dans un worker autonome ou un test, ce qui est le pire des deux mondes : la panne
  * n'arrive que là où personne ne regarde. Huit lignes d'attente bornée n'ont pas cette dépendance.
@@ -48,7 +48,7 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
  *
  * ponytail: attente bornée par `$waitSeconds`. Un worker qui attend son tour est ce qu'on
  * veut ; un worker qui attend indéfiniment sur un verrou qu'un processus mort n'a jamais relâché ne
- * l'est pas — d'où le TTL, qui est le vrai filet.
+ * l'est pas ; d'où le TTL, qui est le vrai filet.
  *
  * @see \Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware le pendant Symfony
  */
@@ -106,13 +106,13 @@ final class ResumeLock
      *
      * **C'est l'entrée que §1.2 a mesurée, et `around()` est celle qu'elle disqualifie pour un
      * worker.** Un worker Laravel est un processus, pas une coroutine : `around()` y tient un
-     * créneau pendant toute son attente — quinze secondes-worker pour quatre secondes de travail,
-     * sur vingt reprises d'une même exécution. Et sa fenêtre d'attente est un plafond de
+     * créneau pendant toute son attente (quinze secondes-worker pour quatre secondes de travail,
+     * sur vingt reprises d'une même exécution). Et sa fenêtre d'attente est un plafond de
      * *profondeur de file* déguisé en réglage de latence : dès que profondeur × durée la dépasse,
      * elle lève.
      *
-     * Ici le verrou dit seulement que le tour est pris. Ce que l'appelant en fait — se remettre en
-     * file plus tard, abandonner, journaliser — est sa décision, pas celle du verrou.
+     * Ici le verrou dit seulement que le tour est pris. Ce que l'appelant en fait (se remettre en
+     * file plus tard, abandonner, journaliser) est sa décision, pas celle du verrou.
      *
      * @template T
      *
@@ -138,7 +138,7 @@ final class ResumeLock
     /**
      * Le nom du verrou d'une exécution.
      *
-     * Exposé parce qu'un appelant peut vouloir le poser lui-même — une commande qui reprend une
+     * Exposé parce qu'un appelant peut vouloir le poser lui-même : une commande qui reprend une
      * exécution à la main doit prendre **le même** verrou que le worker, et deviner son nom est la
      * façon dont deux processus finissent par croire qu'ils s'excluent alors que non.
      */
