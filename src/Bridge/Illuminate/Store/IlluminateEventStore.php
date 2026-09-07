@@ -11,25 +11,25 @@ use Gplanchat\Durable\Store\EventStoreInterface;
 use Illuminate\Database\Connection;
 
 /**
- * Journal d'événements sur la connexion que Laravel possède déjà.
+ * Event journal on the connection Laravel already owns.
  *
- * C'est le point de tout le pont, et pas seulement une commodité d'idiome : DUR030 vend l'exécution
- * durable sur **une** base sans cluster, ce qui ne paie que si l'ajout au journal et l'écriture
- * métier tombent dans la même transaction. Une activité qui écrit par Eloquent pendant qu'un
- * journal Doctrine écrit par un second PDO, ce sont deux portées transactionnelles : le processus
- * meurt entre les deux, le replay rejoue l'activité, et la garantie qu'on annonçait n'a jamais
- * existé. Ici le store est sur `DB::connection()`, donc `DB::transaction()` referme sur les deux.
+ * This is the whole point of the bridge, and not merely idiomatic convenience: DUR030 sells durable
+ * execution on **one** database without a cluster, which only pays off if the journal append and
+ * the business write fall inside the same transaction. An activity writing through Eloquent while a
+ * Doctrine journal writes through a second PDO is two transactional scopes: the process dies
+ * between the two, replay replays the activity, and the guarantee being advertised never existed.
+ * Here the store sits on `DB::connection()`, so `DB::transaction()` closes over both.
  *
- * La (dé)sérialisation passe entièrement par {@see EventDataMapper} : les lignes ont la même forme
- * que celles du pont DBAL et que les enregistrements du journal Temporal. Ce n'est pas une
- * convention d'écriture mais une exigence prouvée — les deux ponts rejouent
- * {@see \Gplanchat\Durable\Testing\EventStoreConformanceTestCase}, dont le cas de fidélité compare
- * l'enregistrement relu à l'enregistrement écrit sur les vingt-trois types que le mapper connaît.
+ * (De)serialization goes entirely through {@see EventDataMapper}: the rows have the same shape as
+ * those of the DBAL bridge and as the records of the Temporal journal. This is not a writing
+ * convention but a proven requirement — both bridges replay
+ * {@see \Gplanchat\Durable\Testing\EventStoreConformanceTestCase}, whose fidelity case compares the
+ * record read back with the record written, over the twenty-three types the mapper knows.
  *
- * ponytail: pas de colonne `sequence` — l'auto-increment porte l'ordre d'insertion, comme côté
- * DBAL. L'exclusion mutuelle entre deux reprises concurrentes d'une même exécution est en amont,
- * dans la file : côté Laravel c'est `WithoutOverlapping` ou un verrou de cache atomique, et aucun
- * choix de stockage ne la fournit.
+ * ponytail: no `sequence` column — the auto-increment carries insertion order, as on the DBAL side.
+ * Mutual exclusion between two concurrent resumes of the same execution lives upstream, in the
+ * queue: on the Laravel side that is `WithoutOverlapping` or an atomic cache lock, and no storage
+ * choice provides it.
  *
  * @see DUR030
  * @see DUR041
@@ -68,9 +68,9 @@ final class IlluminateEventStore implements EventStoreInterface
     {
         $this->schema->ensure();
 
-        // `cursor()` plutôt que `get()` : le flux se lit une fois, sans matérialiser une exécution
-        // longue en mémoire. Un second appel repart d'une nouvelle requête, ce que la conformité
-        // exige explicitement.
+        // `cursor()` rather than `get()`: the stream is read once, without materializing a long
+        // execution in memory. A second call starts from a fresh query, which conformance
+        // explicitly requires.
         $rows = $this->connection->table($this->table)
             ->select(['event_type', 'payload', 'recorded_at'])
             ->where('execution_id', $executionId)

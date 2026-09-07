@@ -4,39 +4,43 @@ declare(strict_types=1);
 
 namespace App\Durable\Workflow;
 
+use App\Application\UseCase\PlaceOrder;
+use App\Domain\Payment\Money;
+use App\Domain\Payment\OrderId;
+use App\Infrastructure\Nexus\NexusPayments;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
-use Gplanchat\Durable\Demo\Contracts\Billing\BillingContract;
-use Gplanchat\Durable\Nexus\NexusStub;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
  * The shop has an order billed by the business.
  *
- * Both shapes, in the same workflow and through the same stub. `verify` comes back right away,
+ * Both shapes, in the same execution and through the same stub. `verify` comes back right away,
  * answered by a method the business wrote; `charge` is fulfilled by a workflow on the other side,
- * which takes some fifteen seconds. **Nothing here tells the two apart.** That is the one point this
- * class exists to show: the caller writes two calls, awaits two results, and does not know which one
- * cost somebody else twelve seconds.
+ * which takes some fifteen seconds. **Nothing tells the two apart**, and after this class was
+ * layered that is truer than before: the code that decides no longer knows that either one is a
+ * Nexus call.
  *
- * While it waits, this workflow holds nothing open — no connection, no process, no transaction. It
- * is not in memory: the worker that resumes it may not be the one that started it.
+ * This is a **primary adapter**. Like a controller or a console command it translates something
+ * arriving, here three scalars from `durable:demo:bill`, into the application's own types, invokes
+ * one use case, and turns the answer back into a payload. Unlike a controller it may be replayed
+ * from the top at any time, which is why everything it reaches that touches the outside world goes
+ * through a port whose adapter is a Nexus operation.
+ *
+ * While it waits, this workflow holds nothing open: no connection, no process, no transaction. It
+ * is not in memory, and the worker that resumes it may not be the one that started it.
  */
 #[AsWorkflow(self::TYPE)]
 final class OrderWorkflow
 {
     public const TYPE = 'OrderWorkflow';
 
-    /** The business's endpoint, created by `bin/demo-nexus`. */
-    public const ENDPOINT = 'demo-business-billing';
-
-    /** @var NexusStub<BillingContract> */
-    private readonly NexusStub $billing;
+    private readonly PlaceOrder $placeOrder;
 
     public function __construct(
-        private readonly WorkflowEnvironment $environment,
+        WorkflowEnvironment $environment,
     ) {
-        $this->billing = $environment->nexusStub(BillingContract::class, endpoint: self::ENDPOINT);
+        $this->placeOrder = new PlaceOrder(new NexusPayments($environment));
     }
 
     /**
@@ -47,16 +51,6 @@ final class OrderWorkflow
     #[AsWorkflowMethod]
     public function run(string $order, int $amount, string $currency = 'EUR'): array
     {
-        $verdict = $this->environment->await($this->billing->verify($order, $amount, $currency));
-
-        if (true !== ($verdict['accepted'] ?? false)) {
-            // Refused: nothing to charge, and nothing to compensate either.
-            return ['verified' => $verdict, 'charge' => null];
-        }
-
-        return [
-            'verified' => $verdict,
-            'charge' => $this->environment->await($this->billing->charge($order, $amount, $currency)),
-        ];
+        return ($this->placeOrder)(OrderId::fromString($order), Money::of($amount, $currency))->toWire();
     }
 }

@@ -9,13 +9,13 @@ use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Illuminate\Database\Connection;
 
 /**
- * Le type et le payload d'une exécution, pour la reprise.
+ * The type and payload of an execution, for resuming.
  *
- * La subtilité du port tient en une phrase : `markCompleted()` **ne supprime pas**. Le type reste
- * lisible après le succès — un tableau de bord et un profiler en vivent — et c'est
- * `hasActiveWorkflowMetadata()`, pas `get()`, qui dit si une reprise s'applique encore. Confondre
- * les deux rend un workflow terminé éternellement reprenable, ou fait disparaître son type d'une
- * page. Les deux sens sont des cas de {@see \Gplanchat\Durable\Testing\WorkflowMetadataStoreConformanceTestCase}.
+ * The subtlety of the port fits in one sentence: `markCompleted()` **does not delete**. The type
+ * stays readable after success — a dashboard and a profiler live off it — and it is
+ * `hasActiveWorkflowMetadata()`, not `get()`, that says whether a resume still applies. Confusing
+ * the two makes a finished workflow eternally resumable, or makes its type vanish from a page. Both
+ * directions are cases of {@see \Gplanchat\Durable\Testing\WorkflowMetadataStoreConformanceTestCase}.
  *
  * @see DUR021
  * @see DUR041
@@ -32,9 +32,9 @@ final class IlluminateWorkflowMetadataStore implements WorkflowMetadataStore
     {
         $this->schema->ensure();
 
-        // `save()` sert aussi à repartir d'un continue-as-new : c'est un upsert, et il remet
-        // `completed` à faux. `updateOrInsert()` interroge avant d'écrire, donc il ne dépend pas
-        // du comptage de lignes affectées — que SQLite et MySQL ne comptent pas de la même façon.
+        // `save()` also serves to restart from a continue-as-new: it is an upsert, and it resets
+        // `completed` to false. `updateOrInsert()` queries before writing, so it does not depend on
+        // the affected-row count — which SQLite and MySQL do not count the same way.
         $this->connection->table($this->table)->updateOrInsert(
             ['execution_id' => $executionId],
             [

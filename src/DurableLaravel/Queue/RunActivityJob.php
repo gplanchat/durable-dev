@@ -9,15 +9,15 @@ use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
 /**
- * Une activité, sur la file que l'application draine déjà.
+ * An activity, on the queue the application already drains.
  *
- * Le job ne fait rien lui-même : il porte le message et le rend au processeur du cœur, celui-là
- * même que le handler Messenger du bundle Symfony appelle. Les délais d'attente, le journal, la
- * reprise du workflow et la politique de retentative vivent là, une fois, pour tous les hôtes.
+ * The job does nothing itself: it carries the message and hands it back to the core's processor,
+ * the very one the Messenger handler of the Symfony bundle calls. The timeouts, the journal, the
+ * workflow resume and the retry policy live there, once, for every host.
  *
- * **Aucun trait de file.** `Queueable` et `InteractsWithQueue` servent à `dispatch()` et à
- * `release()` ; ce job est poussé par le transport et ne se remet jamais en file lui-même. Le job
- * de reprise, lui, en aura besoin — c'est là que le paquet prendra `illuminate/queue`.
+ * **No queue trait.** `Queueable` and `InteractsWithQueue` serve `dispatch()` and `release()`; this
+ * job is pushed by the transport and never puts itself back on the queue. The resume job, for its
+ * part, will need them — that is where the package will take `illuminate/queue`.
  */
 final class RunActivityJob implements ShouldQueue
 {

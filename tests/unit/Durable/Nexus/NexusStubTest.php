@@ -38,9 +38,9 @@ final class NexusStubTest extends TestCase
 
     public function testNamedArgumentsBecomeTheCallersPayload(): void
     {
-        // La charge voyage telle que l'appelant l'a écrite — pas d'enveloppe (1b.2). Les noms des
-        // clés sont ceux des paramètres du contrat, donc un gestionnaire d'un autre SDK y trouve
-        // les champs qu'il déclare.
+        // The payload travels as the caller wrote it — no envelope (1b.2). The key names are
+        // those of the contract's parameters, so a handler from another SDK finds in there the
+        // fields it declares.
         $scheduler = new RecordingNexusScheduler();
         $stub = new NexusStub(
             $scheduler,
@@ -56,8 +56,8 @@ final class NexusStubTest extends TestCase
 
     public function testAnInheritedOperationIsCallable(): void
     {
-        // Le contrat de l'appelant étend celui que le gestionnaire implémente : sans les méthodes
-        // héritées, l'appelant ne saurait pas appeler ce que le gestionnaire sert.
+        // The caller's contract extends the one the handler implements: without the inherited
+        // methods, the caller would not know how to call what the handler serves.
         $scheduler = new RecordingNexusScheduler();
         $stub = new NexusStub(
             $scheduler,

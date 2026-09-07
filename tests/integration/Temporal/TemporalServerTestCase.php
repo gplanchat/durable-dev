@@ -20,15 +20,15 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Socle des tests exécutés contre un **vrai** serveur Temporal.
+ * Base for the tests run against a **real** Temporal server.
  *
- * Le driver n'était vérifié qu'au niveau protobuf : des commandes bien formées, jamais soumises
- * à un serveur. Ici elles doivent être acceptées.
+ * The driver was only ever checked at the protobuf level: well-formed commands, never submitted to
+ * a server. Here they must be accepted.
  *
  *     temporal server start-dev --namespace durable-test --port 7233
  *     DURABLE_TEMPORAL_ADDRESS=127.0.0.1:7233 vendor/bin/phpunit --testsuite integration
  *
- * Ignoré si l'adresse n'est pas fournie.
+ * Skipped if the address is not provided.
  */
 #[RequiresPhpExtension('grpc')]
 abstract class TemporalServerTestCase extends TestCase
@@ -36,7 +36,7 @@ abstract class TemporalServerTestCase extends TestCase
     protected TemporalConnection $connection;
     protected WorkflowServiceClient $client;
 
-    /** @var list<string> les exécutions que ce test a démarrées, à terminer en sortant */
+    /** @var list<string> the executions this test started, to be terminated on the way out */
     private array $startedExecutionIds = [];
 
     /** @var list<resource> */
@@ -49,10 +49,10 @@ abstract class TemporalServerTestCase extends TestCase
     {
         $address = getenv('DURABLE_TEMPORAL_ADDRESS');
         if (false === $address || '' === $address) {
-            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS non défini : pas de serveur Temporal.');
+            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS not set: no Temporal server.');
         }
 
-        // Une file par test : les workers d'un cas ne volent pas les tâches d'un autre.
+        // One queue per test: the workers of one case do not steal another case's tasks.
         $taskQueue = 'durable-it-' . bin2hex(random_bytes(6));
 
         $this->connection = new TemporalConnection(
@@ -70,7 +70,7 @@ abstract class TemporalServerTestCase extends TestCase
 
     protected function tearDown(): void
     {
-        // Sans ça, un worker qui meurt au démarrage se manifeste par un simple timeout muet.
+        // Without this, a worker that dies at startup shows up as a plain silent timeout.
         if (!$this->status()->isSuccess()) {
             fwrite(\STDERR, $this->workerOutput());
         }
@@ -95,20 +95,19 @@ abstract class TemporalServerTestCase extends TestCase
     }
 
     /**
-     * Termine ce que le test a démarré et n'a pas mené à son terme.
+     * Terminates what the test started and did not carry through to its end.
      *
-     * Sans ça, une exécution inachevée reste `Running` **indéfiniment** sur un serveur que
-     * plusieurs sessions partagent : le worker qui la servait meurt avec le test, ses tâches ne
-     * sont donc plus prises, et le serveur les replanifie sans fin. Un test dont le sujet est
-     * précisément une tâche qui échoue en boucle laisse ainsi derrière lui une exécution qui
-     * échoue en boucle, pour toujours.
+     * Without this, an unfinished execution stays `Running` **indefinitely** on a server that
+     * several sessions share: the worker that served it dies with the test, so its tasks are no
+     * longer taken, and the server reschedules them without end. A test whose very subject is a
+     * task that fails in a loop thus leaves behind an execution that fails in a loop, forever.
      *
-     * Mesuré le 2026-08-27 : **plus de cent exécutions abandonnées** s'étaient accumulées, dont une
-     * qui retentait sa tâche depuis trois heures. Le nettoyage n'est pas une politesse, c'est ce
-     * qui empêche une suite de dégrader l'environnement de la suivante.
+     * Measured on 2026-08-27: **more than a hundred abandoned executions** had piled up, one of
+     * which had been retrying its task for three hours. Cleaning up is not a courtesy, it is what
+     * stops one suite from degrading the environment of the next.
      *
-     * Les échecs de terminaison sont avalés : une exécution déjà terminée est le cas normal, et
-     * faire échouer un `tearDown` là-dessus masquerait le vrai résultat du test.
+     * Termination failures are swallowed: an already terminated execution is the normal case, and
+     * failing a `tearDown` over that would mask the test's real result.
      */
     private function terminateStartedWorkflows(): void
     {
@@ -121,7 +120,7 @@ abstract class TemporalServerTestCase extends TestCase
             try {
                 GrpcUnary::wait($this->client->TerminateWorkflowExecution($request, [], ['timeout' => 5_000_000]));
             } catch (\Throwable) {
-                // Déjà terminée, ou serveur indisponible : ni l'un ni l'autre n'est le sujet du test.
+                // Already terminated, or server unavailable: neither is the subject of the test.
             }
         }
 
@@ -139,7 +138,7 @@ abstract class TemporalServerTestCase extends TestCase
     }
 
     /**
-     * Démarre le workflow et rend son résultat, ou échoue avec le message porté par l'historique.
+     * Starts the workflow and returns its result, or fails with the message carried by the history.
      *
      * @param array<string, mixed> $input
      */
@@ -169,7 +168,7 @@ abstract class TemporalServerTestCase extends TestCase
     }
 
     /**
-     * Attend qu'un événement du type donné apparaisse dans l'historique, et le rend.
+     * Waits for an event of the given type to appear in the history, and returns it.
      */
     protected function waitForHistoryEvent(string $executionId, int $eventType, float $timeoutSeconds = 30.0): HistoryEvent
     {
@@ -187,7 +186,7 @@ abstract class TemporalServerTestCase extends TestCase
         }
 
         self::fail(\sprintf(
-            'Événement %s absent de l’historique de "%s" après %.0f s : %s',
+            'Event %s missing from the history of "%s" after %.0f s: %s',
             EventType::name($eventType),
             $executionId,
             $timeoutSeconds,
@@ -228,11 +227,11 @@ abstract class TemporalServerTestCase extends TestCase
     }
 
     /**
-     * Remplace le worker de workflow par un autre, sur une variante de code différente.
+     * Replaces the workflow worker with another one, on a different code variant.
      *
-     * C'est un déploiement, joué en petit : l'ancien processus meurt, le nouveau reprend la même
-     * file et la même exécution. Le worker d'activité, lui, ne bouge pas — ce n'est pas lui qu'on
-     * redéploie.
+     * This is a deployment, played out in miniature: the old process dies, the new one takes over
+     * the same queue and the same execution. The activity worker, for its part, does not move — it
+     * is not the one being redeployed.
      */
     protected function redeployWorkflowWorker(string $variant): void
     {
@@ -258,11 +257,11 @@ abstract class TemporalServerTestCase extends TestCase
     }
 
     /**
-     * Démarre un worker, éventuellement sur une **variante de code**.
+     * Starts a worker, possibly on a **code variant**.
      *
-     * Une divergence de replay demande deux versions du même type de workflow, et un worker vit
-     * dans son propre processus : la variante voyage donc par l'environnement, comme un déploiement
-     * la ferait voyager par une image.
+     * A replay divergence needs two versions of the same workflow type, and a worker lives in its
+     * own process: the variant therefore travels through the environment, the way a deployment
+     * would make it travel through an image.
      */
     protected function spawnWorker(string $role, string $variant = 'default'): void
     {
@@ -283,7 +282,7 @@ abstract class TemporalServerTestCase extends TestCase
         );
 
         if (!\is_resource($process)) {
-            self::fail(\sprintf('Impossible de démarrer le worker %s.', $role));
+            self::fail(\sprintf('Unable to start the %s worker.', $role));
         }
 
         foreach ($pipes as $pipe) {

@@ -24,9 +24,9 @@ budget that separates a boundary-crossing query from a saga step, and the orderi
 compensation reduces to. This post is about the part it does not cover: where the call belongs in
 your own code.
 
-## The flat version, and why it is a counter-example
+## The flat version, and why it was a counter-example
 
-Here is the shop's order workflow from the demonstration:
+Here is the shop's order workflow as it stood until recently:
 
 ```php
 #[AsWorkflow(self::TYPE)]
@@ -187,11 +187,15 @@ here" will re-execute on replay. Hexagonal discipline is what makes replay safe.
 
 ## Where this stands
 
-The layered shape above is not in the repository. The demonstration keeps its calls flat so that
-the two operation forms sit side by side in one screen, and
-[its own page](/docs/use-cases/nexus-demo/) lists the port-and-adapter arrangement under what
-it does not prove. Read this as the shape we would write in an application, not as code you can
-check out.
+The shop ships this now. `sylius/src/Domain/Payment/` holds the values, `Application/Port/Payments`
+the port, `Application/UseCase/PlaceOrder` the rule about asking before committing, and
+`Infrastructure/Nexus/NexusPayments` the adapter. The snippets above are trimmed for reading: the
+real adapter guards against an answer that is not an array at all, and the real workflow is four
+lines because everything else moved.
+
+The other three mockups still call their stubs from workflow code, and
+[the demonstration's page](/docs/use-cases/nexus-demo/) says so. The arrangement is demonstrated
+once, not proven to hold across hosts.
 
 What the demonstration does prove is the premise: the reason you were given for not making the call
 is gone, and the reasons you were not given are still yours to handle.

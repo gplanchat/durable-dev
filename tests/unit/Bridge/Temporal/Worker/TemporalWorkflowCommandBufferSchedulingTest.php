@@ -17,9 +17,9 @@ use Temporal\Api\Enums\V1\ParentClosePolicy as TemporalParentClosePolicy;
 use Temporal\Api\Enums\V1\WorkflowIdReusePolicy as TemporalIdReusePolicy;
 
 /**
- * Un StartTimer sans `start_to_fire_timeout` est rejeté par le serveur, et un
- * StartChildWorkflowExecution sans ParentClosePolicy retombe sur le défaut serveur :
- * dans les deux cas l'option choisie par l'appelant était silencieusement perdue.
+ * A StartTimer without `start_to_fire_timeout` is rejected by the server, and a
+ * StartChildWorkflowExecution without a ParentClosePolicy falls back on the server
+ * default: in both cases the option chosen by the caller was silently lost.
  */
 final class TemporalWorkflowCommandBufferSchedulingTest extends TestCase
 {
@@ -30,8 +30,8 @@ final class TemporalWorkflowCommandBufferSchedulingTest extends TestCase
 
     public function testStartTimerCarriesTheDelayItWasGiven(): void
     {
-        // Le port passe un délai, plus une échéance : aucune soustraction d'horloge ici, et donc
-        // plus de dérive due à la latence de poll.
+        // The port passes a delay, no longer a deadline: no clock subtraction here, and therefore
+        // no more drift due to poll latency.
         $buffer = $this->buffer();
         $buffer->startTimer('timer-1', Duration::seconds(42), '');
 

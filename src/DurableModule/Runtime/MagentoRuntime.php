@@ -10,16 +10,16 @@ use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\WorkflowRegistry;
 
 /**
- * Le moteur, tel qu'un processus Magento le tient.
+ * The engine, as a Magento process holds it.
  *
- * Il ne fait rien que le composant ne fasse déjà : il tient les cinq objets
- * ensemble et donne à l'hôte les trois gestes dont il a besoin — déclarer une
- * activité, déclarer un workflow, lancer une exécution.
+ * It does nothing the component does not already do: it holds the five objects
+ * together and gives the host the three gestures it needs — declare an activity,
+ * declare a workflow, start an execution.
  *
- * Ce qui est **absent** est le sujet. Il n'y a pas d'autoconfiguration par
- * attribut : le conteneur de Magento n'a pas d'équivalent des tags de Symfony,
- * donc une classe se déclare. C'est le coût du palier 1, et le nommer ici évite
- * de le redécouvrir dans chaque classe qui s'en étonne.
+ * What is **absent** is the point. There is no attribute autoconfiguration:
+ * Magento's container has no equivalent of Symfony's tags, so a class is
+ * declared. That is the cost of Tier 1, and naming it here saves rediscovering
+ * it in every class that is surprised by it.
  */
 final class MagentoRuntime
 {
@@ -67,10 +67,10 @@ final class MagentoRuntime
     }
 
     /**
-     * Les noms d'activité que la déclaration a produits, dans l'ordre où les contrats les portent.
+     * The activity names declaration produced, in the order the contracts carry them.
      *
-     * C'est ce qui permet de dire, sans lire le code, que les noms viennent de `#[AsActivityMethod]`
-     * et non de chaînes recopiées à côté.
+     * This is what makes it possible to say, without reading the code, that the names come from
+     * `#[AsActivityMethod]` and not from strings copied out beside them.
      *
      * @return list<string>
      */

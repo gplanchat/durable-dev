@@ -11,24 +11,25 @@ use Magento\Backend\Block\Template;
 use Magento\Backend\Block\Template\Context;
 
 /**
- * L'état du backend, ce que l'écran compte, et jusqu'où il lit — au-dessus de la grille.
+ * The state of the backend, what the screen counts, and how far it reads — above the grid.
  *
- * ⚠ **Une grille vide ne dit rien toute seule.** Elle se lit pareil quand rien n'a tourné, quand la
- * grappe est tombée, et quand le journal ne survit pas à la requête. Cet écran ne sondait pas : une
- * grappe morte y rendait une grille vide et sereine — la pire des deux erreurs possibles, puisque
- * l'exploitant en conclut qu'il n'y a rien à voir. Trois états, donc, et le port les distingue déjà.
+ * ⚠ **An empty grid says nothing on its own.** It reads the same when nothing has run, when the
+ * cluster is down, and when the journal does not outlive the request. This screen did not probe: a
+ * dead cluster rendered a serene empty grid here — the worse of the two possible errors, since the
+ * operator concludes there is nothing to see. Three states, then, and the port already tells them
+ * apart.
  *
- * Les compteurs portent sur **la fenêtre que cet écran lit**, pas sur l'historique de la boutique,
- * et la bannière le dit. Un intitulé « total » sous lequel on lit vingt apprend à l'exploitant
- * qu'une application qui a enregistré cinq cents exécutions en a vingt.
+ * The counters cover **the window this screen reads**, not the store's history, and the banner
+ * says so. A label reading "total" under which one reads twenty teaches the operator that an
+ * application which has recorded five hundred executions has twenty.
  *
- * ponytail: la fenêtre est lue une seconde fois ici, la grille ayant déjà lu la sienne. Deux appels
- * sur un écran d'administration, contre un fournisseur de données qui devrait rendre des compteurs
- * que le châssis de la grille ne sait pas afficher. Si ça pèse, la sortie est un cache de requête
- * autour du catalogue, pas un couplage entre la bannière et la grille.
+ * ponytail: the window is read a second time here, the grid having already read its own. Two calls
+ * on an admin screen, against a data provider that would have to return counters the grid chrome
+ * cannot display. If it ever weighs, the way out is a request cache around the catalog, not a
+ * coupling between the banner and the grid.
  */
 /*
- * Pas `final` : le conteneur l'instancie, donc il engendre un `Interceptor` qui l'étend.
+ * Not `final`: the container instantiates it, so it generates an `Interceptor` extending it.
  */
 class ProcessHistory extends Template
 {
@@ -51,11 +52,11 @@ class ProcessHistory extends Template
     }
 
     /**
-     * Le journal de cet hôte vit-il dans ce processus ? Alors il est né avec cette requête et
-     * mourra avec elle, et la grille sera vide — ce qui est la bonne réponse.
+     * Does this host's journal live in this process? Then it was born with this request and will
+     * die with it, and the grid will be empty — which is the right answer.
      *
-     * Le fait vient désormais du port et non de `hasCluster()` : c'est le catalogue in-memory qui
-     * sait qu'il est éphémère, pas l'hôte qui le devine à l'absence d'un DSN.
+     * The fact now comes from the port and not from `hasCluster()`: it is the in-memory catalog
+     * that knows it is ephemeral, not the host guessing it from the absence of a DSN.
      */
     public function isEphemeral(): bool
     {
@@ -68,7 +69,7 @@ class ProcessHistory extends Template
     }
 
     /**
-     * Un compteur par issue, sur la fenêtre que cet écran lit.
+     * One counter per outcome, over the window this screen reads.
      *
      * @return array<string, int>
      */

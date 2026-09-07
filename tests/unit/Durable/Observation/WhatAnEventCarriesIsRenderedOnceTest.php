@@ -8,13 +8,13 @@ use Gplanchat\Durable\Observation\RecordedDetails;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Ce qu'un backend a enregistré avec un événement, mis en forme **une fois**.
+ * What a backend recorded with an event, formatted **once**.
  *
- * Le contenu est le vocabulaire du backend et n'est pas normalisé : un journal maison peut donc
- * tenir une charge utile qui ne survit pas au rendu. Magento le savait — son bloc tolérait la
- * sortie partielle et retombait sur une ligne simple — et Sylius, non : son gabarit passait la
- * charge à `json_encode` sans tolérance, obtenait `false`, et rendait un **dépliant vide**. Soit
- * précisément l'écran qu'un exploitant ouvre en dernier recours, et qui ne s'ouvre sur rien.
+ * The content is the backend's vocabulary and is not normalized: a homegrown journal can therefore
+ * hold a payload that does not survive rendering. Magento knew it — its block tolerated partial
+ * output and fell back on a plain row — and Sylius did not: its template passed the payload to
+ * `json_encode` without tolerance, got `false`, and rendered an **empty unfoldable**. Which is
+ * precisely the screen an operator opens as a last resort, and that opens onto nothing.
  */
 final class WhatAnEventCarriesIsRenderedOnceTest extends TestCase
 {
@@ -29,14 +29,14 @@ final class WhatAnEventCarriesIsRenderedOnceTest extends TestCase
 
         self::assertIsString($rendered);
         self::assertStringContainsString('cus-42', $rendered);
-        self::assertStringContainsString("\n", $rendered, 'un exploitant lit une charge utile, il ne la déchiffre pas');
+        self::assertStringContainsString("\n", $rendered, 'an operator reads a payload, they do not decipher it');
     }
 
     public function testABadlyEncodedValueDoesNotTakeTheWholeLineDownWithIt(): void
     {
-        // Le cas atteignable : une chaîne d'octets qui n'est pas de l'UTF-8 valide. Sans tolérance,
-        // `json_encode` rend `false` — et le reste de la charge utile, parfaitement lisible,
-        // disparaissait avec l'octet fautif.
+        // The reachable case: a byte string that is not valid UTF-8. Without tolerance,
+        // `json_encode` returns `false` — and the rest of the payload, perfectly readable,
+        // disappeared along with the offending byte.
         $rendered = RecordedDetails::of(['blob' => "\xB1\x31", 'orderId' => 'ORD-7']);
 
         self::assertIsString($rendered);
@@ -45,9 +45,9 @@ final class WhatAnEventCarriesIsRenderedOnceTest extends TestCase
 
     public function testAValueOfATypeJsonCannotHoldIsShownAsAbsentAndNotAsAnError(): void
     {
-        // Une ressource, un objet fermé : la sortie partielle les rend `null`, et le reste de la
-        // charge utile arrive entier. C'est mieux que la ligne simple que le contrat autorise —
-        // l'exploitant voit ce qui a été enregistré **et** qu'un champ n'a pas pu l'être.
+        // A resource, a closed object: partial output renders them as `null`, and the rest of the
+        // payload arrives whole. That is better than the plain row the contract allows — the
+        // operator sees what was recorded **and** that one field could not be.
         $handle = fopen('php://memory', 'r');
         self::assertIsResource($handle);
 

@@ -17,8 +17,8 @@ final class GrpcUnary
         $pair = $call->wait();
         [$response, $status] = $pair;
         if (\Grpc\STATUS_OK !== ($status->code ?? -1)) {
-            // Le code gRPC devient le code de l'exception : NOT_FOUND (5) est bénin sur les
-            // RespondActivityTask*, et le distinguer par le message serait de l'analyse de chaîne.
+            // The gRPC code becomes the exception code: NOT_FOUND (5) is benign on the
+            // RespondActivityTask*, and telling it apart by the message would be string parsing.
             throw new \RuntimeException(
                 \sprintf('Temporal gRPC error [%s]: %s', (string) ($status->code ?? '?'), (string) ($status->details ?? '')),
                 (int) ($status->code ?? -1),

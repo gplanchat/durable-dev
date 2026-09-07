@@ -1,6 +1,6 @@
-# Enregistrement automatique via phpstan/extension-installer.
+# Registered automatically through phpstan/extension-installer.
 #
-# Sans lui, ajouter à la main dans phpstan.neon :
+# Without it, add it by hand to phpstan.neon:
 #
 #     includes:
 #         - vendor/gplanchat/durable-phpstan/extension.neon

@@ -87,9 +87,9 @@ final class TemporalEventConverter
                     return null;
                 }
 
-                // L'identité d'une opération Nexus est l'eventId de sa planification : c'est par
-                // lui que Temporal rattache les états terminaux, et donc la seule clé qui
-                // permette de recomposer une ligne de vie dans le profileur.
+                // The identity of a Nexus operation is the eventId of its scheduling: it is what
+                // Temporal attaches the terminal states to, and therefore the only key that makes
+                // it possible to recompose a lifeline in the profiler.
                 return new NexusOperationScheduled(
                     $this->executionId,
                     $eventId,
@@ -257,8 +257,8 @@ final class TemporalEventConverter
                 $failure = null !== $attr ? $attr->getFailure() : null;
                 $msg = null !== $failure ? $failure->getMessage() : 'Workflow execution failed';
 
-                // Le worker sérialise le payload du WorkflowExecutionFailed dans les details
-                // de l'ApplicationFailureInfo : on récupère ici le `kind` d'origine.
+                // The worker serializes the WorkflowExecutionFailed payload into the details of
+                // the ApplicationFailureInfo: this is where the original `kind` is read back.
                 $stored = self::decodeApplicationFailureDetails($failure);
                 if (null !== $stored) {
                     return WorkflowExecutionFailed::fromStoredPayload($this->executionId, $stored);

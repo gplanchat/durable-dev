@@ -10,31 +10,31 @@ use Magento\Framework\Api\Filter;
 use Magento\Ui\DataProvider\AbstractDataProvider;
 
 /**
- * La source de la grille standard, pour une donnée qui n'est pas une collection SQL.
+ * The source of the standard grid, for data that is not an SQL collection.
  *
- * `AbstractDataProvider` est l'échappatoire documentée : il implémente les quinze méthodes du
- * contrat au-dessus d'une collection, et trois d'entre elles se redéfinissent quand il n'y en a
- * pas. C'est ce qui permet d'avoir le châssis d'admin — colonnes, tri, pagination, signets, export
- * — sans inventer une table dont l'état ne serait qu'une copie en retard de la grappe.
+ * `AbstractDataProvider` is the documented escape hatch: it implements the contract's fifteen
+ * methods over a collection, and three of them are overridden when there is no collection. That is
+ * what gives the admin chrome — columns, sorting, paging, bookmarks, export — without inventing a
+ * table whose state would only be a stale copy of the cluster.
  *
- * ⚠ **La pagination est le point de friction, et il est borné plutôt que caché.** La grille pagine
- * par décalage (`setLimit($offset, $size)`) ; la grappe pagine par **curseur de continuation**. Les
- * deux ne se traduisent pas l'un dans l'autre sans état. Ce fournisseur lit donc une **fenêtre**
- * bornée et pagine dedans.
+ * ⚠ **Paging is the point of friction, and it is bounded rather than hidden.** The grid pages by
+ * offset (`setLimit($offset, $size)`); the cluster pages by **continuation cursor**. The two do not
+ * translate into one another without state. So this provider reads a bounded **window** and pages
+ * inside it.
  *
- * La taille de cette fenêtre vit sur {@see RuntimeFactory::OBSERVATION_WINDOW}, et pas ici : l'écran
- * de détail lit la même, et deux littéraux distincts rendaient possible d'être listé ici et
- * introuvable là. Elle est **dite à l'exploitant** par la bannière au-dessus de la grille — une
- * fenêtre bornée qui ne s'annonce pas se découvre par une exécution qui manque.
+ * The size of that window lives on {@see RuntimeFactory::OBSERVATION_WINDOW}, and not here: the
+ * detail screen reads the same one, and two distinct literals made it possible to be listed here
+ * and not found there. It is **told to the operator** by the banner above the grid — a bounded
+ * window that does not announce itself is discovered through an execution that is missing.
  */
 /*
- * Pas `final` : le conteneur l'instancie, donc il engendre un `Interceptor` qui l'étend.
+ * Not `final`: the container instantiates it, so it generates an `Interceptor` extending it.
  */
 class ProcessListing extends AbstractDataProvider
 {
     /**
-     * Le rendu d'un fait que **cette exécution** n'a pas, dans une grille à colonnes fixes. Le même
-     * que celui de l'écran de détail, et c'est tout l'intérêt de le nommer.
+     * How a fact **this execution** does not have is rendered, in a grid with fixed columns. The
+     * same as the detail screen's, and that is the whole point of naming it.
      */
     private const ABSENT = '—';
 
@@ -71,10 +71,10 @@ class ProcessListing extends AbstractDataProvider
                 'run_id' => $run->runId,
                 'workflow_name' => $run->workflowName,
                 'status' => $run->status->value,
-                // ⚠ Un tiret cadratin, pas une chaîne vide. Une exécution en cours n'a pas de date
-                // de fin, et la colonne existe pour toutes les autres : une case vide se lit comme
-                // un rendu qui a échoué, là où le tiret dit « rien ici ». C'est l'inverse du fait
-                // dont le backend n'a **pas la notion** — celui-là n'a pas de colonne du tout.
+                // ⚠ An em dash, not an empty string. A running execution has no end date, and the
+                // column exists for all the others: an empty cell reads as a rendering that
+                // failed, where the dash says "nothing here". It is the opposite of the fact the
+                // backend has **no notion of** — that one has no column at all.
                 'started_at' => $run->startedAt?->format('Y-m-d H:i:s') ?? self::ABSENT,
                 'ended_at' => $run->endedAt?->format('Y-m-d H:i:s') ?? self::ABSENT,
             ], $window),
@@ -82,16 +82,17 @@ class ProcessListing extends AbstractDataProvider
     }
 
     /**
-     * Le filtre porte sur ce que la fenêtre contient, pas sur la grappe : la visibilité de Temporal
-     * a sa propre langue de requête, et la traduire depuis les filtres de la grille serait une
-     * surface à part entière. Dire lequel des deux on filtre vaut mieux que laisser croire.
+     * The filter applies to what the window contains, not to the cluster: Temporal's visibility
+     * has a query language of its own, and translating the grid's filters into it would be a
+     * surface in its own right. Saying which of the two is filtered beats letting someone believe
+     * otherwise.
      */
     public function addFilter(Filter $filter): void
     {
-        // ⚠ `Filter::getValue()` est annoté `@return string` en amont, et c'est faux : le filtre
-        // d'état est un `ui-select`, qui rend un **tableau** dès que l'exploitant coche plus d'une
-        // case, et une chaîne quand il n'en coche qu'une. Les deux formes ont été mesurées ici.
-        // L'annotation dit ce qui arrive vraiment, plutôt que de faire taire l'analyse.
+        // ⚠ `Filter::getValue()` is annotated `@return string` upstream, and that is false: the
+        // status filter is a `ui-select`, which returns an **array** as soon as the operator ticks
+        // more than one box, and a string when they tick only one. Both forms were measured here.
+        // The annotation says what actually arrives, rather than silencing the analysis.
         /** @var mixed $value */
         $value = $filter->getValue();
         $this->filters[$filter->getField()] = \is_array($value)
@@ -136,9 +137,9 @@ class ProcessListing extends AbstractDataProvider
 
     public function addOrder($field, $direction): void
     {
-        // La grappe rend déjà les exécutions les plus récentes en tête, et le catalogue le
-        // garantit en retriant. Un tri par colonne demanderait de trier la fenêtre, ce qui
-        // mentirait dès que la fenêtre est plus petite que le total.
+        // The cluster already returns the most recent executions first, and the catalog
+        // guarantees it by re-sorting. Sorting by column would mean sorting the window, which
+        // would lie as soon as the window is smaller than the total.
     }
 
     public function setLimit($offset, $size): void

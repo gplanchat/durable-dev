@@ -10,11 +10,11 @@ use Symfony\Component\Messenger\Exception\LogicException;
 use Symfony\Component\Messenger\Transport\TransportInterface;
 
 /**
- * Receive-only : un {@see get()} long-poll une tâche Nexus et la sert via {@see TemporalNexusWorker}.
+ * Receive-only: one {@see get()} long-polls a Nexus task and serves it via {@see TemporalNexusWorker}.
  *
- * Même forme que {@see TemporalActivityWorkerTransport}, et pour la même raison : `messenger:consume`
- * sait déjà tenir une boucle, la relancer, la borner en temps et la superviser. Une commande console
- * dédiée redirait tout cela moins bien.
+ * Same shape as {@see TemporalActivityWorkerTransport}, and for the same reason: `messenger:consume`
+ * already knows how to hold a loop, restart it, bound it in time and supervise it. A dedicated
+ * console command would redo all of that less well.
  */
 final class TemporalNexusWorkerTransport implements TransportInterface
 {

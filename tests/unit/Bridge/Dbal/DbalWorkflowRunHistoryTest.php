@@ -22,12 +22,12 @@ use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use PHPUnit\Framework\TestCase;
 
 /**
- * L'historique d'une exécution, tel qu'un exploitant le lit.
+ * The history of an execution, as an operator reads it.
  *
- * Le point qui coûte : seul `ActivityScheduled` porte le **nom** de l'activité ; la complétion et
- * l'échec n'ont que son id. Rendre l'id sur ces lignes-là donnerait une frise illisible
- * (`Activity: 42f1dd58-…` au lieu de `Activity: SendWelcomeEmail`), ce qui est exactement le défaut
- * que le tableau de bord Temporal avait déjà corrigé de son côté.
+ * The part that costs: only `ActivityScheduled` carries the activity's **name**; the completion
+ * and the failure have nothing but its id. Rendering the id on those rows would give an unreadable
+ * frieze (`Activity: 42f1dd58-…` instead of `Activity: SendWelcomeEmail`), which is exactly the
+ * flaw the Temporal dashboard had already fixed on its own side.
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/specs/workflow-run-observation/spec.md
  */
@@ -91,7 +91,7 @@ final class DbalWorkflowRunHistoryTest extends TestCase
 
     public function testACompletionWithoutItsSchedulingFallsBackToTheIdentifier(): void
     {
-        // Journal tronqué — purge, reprise partielle : la complétion n'a que l'id sous la main.
+        // Truncated journal — a purge, a partial resume: the completion has only the id at hand.
         $this->eventStore()->append(new ActivityCompleted('exec-1', 'act-orphan', null));
 
         $history = $this->catalog()->readHistory($this->describedRun('exec-1'));
@@ -107,7 +107,7 @@ final class DbalWorkflowRunHistoryTest extends TestCase
 
         $history = $this->catalog()->readHistory($this->describedRun('exec-1'));
 
-        self::assertCount(2, $history, 'un événement sans voie ne doit pas disparaître de la liste');
+        self::assertCount(2, $history, 'an event with no lane must not vanish from the list');
         self::assertSame(WorkflowRunEventKind::Other, $history[1]->kind);
     }
 

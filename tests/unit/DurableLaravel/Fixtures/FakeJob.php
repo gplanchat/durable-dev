@@ -7,9 +7,9 @@ namespace unit\DurableLaravel\Fixtures;
 use Illuminate\Contracts\Queue\Job;
 
 /**
- * Le contrat `Job` en entier, parce que le transport le type — mais seules `payload()` et
- * `delete()` sont sur son chemin. Le reste est là pour que PHP soit content, et le dire vaut mieux
- * que de faire croire à un double riche.
+ * The whole `Job` contract, because the transport types it — but only `payload()` and `delete()`
+ * are on its path. The rest is there to keep PHP happy, and saying so is better than passing the
+ * double off as a rich one.
  */
 final class FakeJob implements Job
 {

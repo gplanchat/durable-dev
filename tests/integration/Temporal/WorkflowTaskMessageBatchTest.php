@@ -24,23 +24,23 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Sonde, et non fonctionnalité : le change « workflow-conditions-and-handler-dispatch » fait de
- * l'entrelacement — appliquer un message, puis réévaluer les conditions pendantes — le cœur de sa
- * boucle (§4.2). Cette boucle n'a de sens que si un **unique** workflow task peut transporter
- * plusieurs messages journalisés : sinon l'ordre serait imposé par le serveur, une tâche par
- * message, et il n'y aurait rien à entrelacer côté domaine.
+ * A probe, not a feature: the "workflow-conditions-and-handler-dispatch" change makes interleaving
+ * — applying a message, then re-evaluating the pending conditions — the core of its loop (§4.2).
+ * That loop only makes sense if a **single** workflow task can carry several journalled messages:
+ * otherwise the order would be imposed by the server, one task per message, and there would be
+ * nothing to interleave on the domain side.
  *
- * La propriété se MESURE contre un vrai serveur et ne se déduit pas des protos : ce que
- * `PollWorkflowTaskQueueResponse` sait représenter ne dit pas ce que le serveur émet.
+ * The property is MEASURED against a real server and cannot be deduced from the protos: what
+ * `PollWorkflowTaskQueueResponse` is able to represent does not say what the server emits.
  *
- * ⚠ Ce que la sonde établit est que le régime groupé est **atteignable**, pas qu'il soit garanti :
- * la même sonde avec un worker en écoute rend un signal par tâche, celui-ci réclamant chaque tâche
- * avant l'arrivée du suivant. Le nombre de messages par tâche est un artefact de disponibilité du
- * worker, non un contrat — et c'est précisément ce qui interdit d'ordonner les messages par
- * frontière de tâche. Voir la section « probed » du design.
+ * ⚠ What the probe establishes is that the batched regime is **reachable**, not that it is
+ * guaranteed: the same probe with a worker listening returns one signal per task, that worker
+ * claiming each task before the next one arrives. The number of messages per task is an artefact of
+ * worker availability, not a contract — and that is precisely what forbids ordering messages by
+ * task boundary. See the "probed" section of the design.
  *
- * Aucun worker n'est démarré ici, à dessein — c'est ce qui laisse les signaux s'accumuler sur la
- * tâche en attente. Le test poll la file lui-même et lit le lot que le serveur lui rend.
+ * No worker is started here, deliberately — that is what lets the signals pile up on the pending
+ * task. The test polls the queue itself and reads the batch the server hands it.
  *
  * @see openspec/changes/workflow-conditions-and-handler-dispatch/tasks.md §1.2
  * @see openspec/changes/workflow-conditions-and-handler-dispatch/design.md
@@ -58,7 +58,7 @@ final class WorkflowTaskMessageBatchTest extends TestCase
     {
         $address = getenv('DURABLE_TEMPORAL_ADDRESS');
         if (false === $address || '' === $address) {
-            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS non défini : pas de serveur Temporal.');
+            self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS not set: no Temporal server.');
         }
 
         $taskQueue = 'durable-probe-' . bin2hex(random_bytes(6));
@@ -79,7 +79,7 @@ final class WorkflowTaskMessageBatchTest extends TestCase
             return;
         }
 
-        // L'exécution n'a aucun worker : sans terminaison elle resterait ouverte sur le serveur.
+        // The execution has no worker: without termination it would stay open on the server.
         $req = new TerminateWorkflowExecutionRequest();
         $req->setNamespace($this->connection->namespace->name());
         $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $this->workflowId]));
@@ -89,7 +89,7 @@ final class WorkflowTaskMessageBatchTest extends TestCase
         try {
             GrpcUnary::wait($this->client->TerminateWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
         } catch (\RuntimeException) {
-            // Le nettoyage ne doit pas masquer le verdict du test.
+            // Cleanup must not mask the test's verdict.
         }
     }
 
@@ -97,10 +97,10 @@ final class WorkflowTaskMessageBatchTest extends TestCase
     {
         $this->workflowId = $this->startWithoutWorker();
 
-        // Première tâche : le démarrage. On la complète sans commande, pour que l'exécution reste
-        // ouverte et qu'aucune tâche ne soit en vol quand les signaux arrivent.
+        // First task: the start. We complete it with no command, so that the execution stays open
+        // and no task is in flight when the signals arrive.
         $first = $this->pollOnce();
-        self::assertNotSame('', $first->getTaskToken(), 'Aucune tâche de workflow rendue pour le démarrage.');
+        self::assertNotSame('', $first->getTaskToken(), 'No workflow task returned for the start.');
         $this->completeWithoutCommands($first);
 
         for ($i = 0; $i < self::SIGNAL_COUNT; ++$i) {
@@ -108,11 +108,11 @@ final class WorkflowTaskMessageBatchTest extends TestCase
         }
 
         $second = $this->pollOnce();
-        self::assertNotSame('', $second->getTaskToken(), 'Aucune tâche de workflow rendue après les signaux.');
+        self::assertNotSame('', $second->getTaskToken(), 'No workflow task returned after the signals.');
 
-        // Le poll rend l'historique COMPLET : compter les signaux sur tout le lot prouverait
-        // seulement qu'il y en a eu plusieurs depuis le début, pas qu'UNE tâche les porte tous.
-        // Seul compte le segment que cette tâche doit traiter — ce qui suit le dernier
+        // The poll returns the COMPLETE history: counting the signals over the whole batch would
+        // only prove that there have been several since the start, not that ONE task carries them
+        // all. Only the segment this task has to process counts — what follows the last
         // WORKFLOW_TASK_COMPLETED.
         $segment = $this->pendingSegment($second);
         $signalled = $this->countIn($segment, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED);
@@ -121,15 +121,15 @@ final class WorkflowTaskMessageBatchTest extends TestCase
         self::assertSame(
             1,
             $started,
-            'Le segment en attente porte plusieurs tâches : la mesure ne dirait plus ce qu’UNE tâche transporte.',
+            'The pending segment carries several tasks: the measurement would no longer say what ONE task carries.',
         );
         self::assertSame(
             self::SIGNAL_COUNT,
             $signalled,
             \sprintf(
-                'Une tâche de workflow n’a pas transporté les %d messages : %d dans son segment. '
-                . "L'entrelacement serait alors imposé par le serveur, une tâche par message, et §4.2 n’aurait "
-                . 'plus d’objet. Segment : %s',
+                'A single workflow task did not carry the %d messages: %d in its segment. '
+                . 'Interleaving would then be imposed by the server, one task per message, and §4.2 would '
+                . 'have no object left. Segment: %s',
                 self::SIGNAL_COUNT,
                 $signalled,
                 implode(', ', array_map(EventType::name(...), $segment)),
@@ -146,8 +146,8 @@ final class WorkflowTaskMessageBatchTest extends TestCase
             new WorkflowServiceExecutionRpc($this->client),
         );
 
-        // Le type n'a pas à exister : le serveur journalise le démarrage sans rien exécuter tant
-        // qu'aucun worker ne poll — ce qui est précisément la situation voulue.
+        // The type does not have to exist: the server journals the start without running anything
+        // as long as no worker polls — which is precisely the situation we want.
         return $client->startAsync('ProbeMessageBatch', [], 'probe-' . bin2hex(random_bytes(4)));
     }
 
@@ -188,8 +188,8 @@ final class WorkflowTaskMessageBatchTest extends TestCase
     }
 
     /**
-     * Les types d'événements qui suivent le dernier WORKFLOW_TASK_COMPLETED : ce que cette tâche
-     * a à traiter, par opposition à l'historique déjà traité que le poll rend aussi.
+     * The event types that follow the last WORKFLOW_TASK_COMPLETED: what this task has to
+     * process, as opposed to the already processed history that the poll also returns.
      *
      * @return list<int>
      */

@@ -173,7 +173,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                 'workflowType' => $wf,
                 'payloadSummary' => $this->summarizePayload($payload),
                 'executionStatus' => $statusCode,
-                'executionStatusLabel' => $this->executionStatusLabelFr($statusCode),
+                'executionStatusLabel' => $this->executionStatusLabel($statusCode),
                 'storeEventCount' => max($storeCountFromIndex, $storeCountLive),
                 'storeTruncated' => $storeTl['truncated'] ?? false,
                 'processTraceCount' => \count($processTf['segments']),
@@ -257,10 +257,10 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             return null;
         }
 
-        return 'Un dispatch WorkflowRunMessage a été observé sur cette requête, mais le journal est encore vide : '
-            . 'le handler n’a probablement pas encore tourné dans ce processus (Messenger asynchrone). '
-            . 'Pour remplir le journal dans le même profil, utilisez la démo avec attente (drain) ou rechargez avec '
-            . '?durable_execution=&lt;uuid&gt; une fois les workers passés.';
+        return 'A WorkflowRunMessage dispatch was observed on this request, but the journal is still empty: '
+            . 'the handler has most likely not run in this process yet (asynchronous Messenger). '
+            . 'To fill the journal within the same profile, use the demo that waits (drain), or reload with '
+            . '?durable_execution=&lt;uuid&gt; once the workers have been through.';
     }
 
     /**
@@ -289,18 +289,18 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         };
     }
 
-    private function executionStatusLabelFr(string $code): string
+    private function executionStatusLabel(string $code): string
     {
         return match ($code) {
-            'completed' => 'Terminé',
-            'failed' => 'Échec',
+            'completed' => 'Finished',
+            'failed' => 'Failed',
             'continued_as_new' => 'Continue as new',
-            'cancel_requested' => 'Annulation demandée',
-            'cancelled' => 'Annulé',
-            'running' => 'En cours',
-            'queued' => 'En file (pas encore de journal)',
-            'pending' => 'En attente',
-            default => 'Inconnu',
+            'cancel_requested' => 'Cancellation requested',
+            'cancelled' => 'Cancelled',
+            'running' => 'Running',
+            'queued' => 'Queued (no journal yet)',
+            'pending' => 'Pending',
+            default => 'Unknown',
         };
     }
 
@@ -391,12 +391,12 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             if ('workflow' === $kind) {
                 $wt = trim((string) ($e['workflowType'] ?? ''));
                 $timeline[$i]['dispatchSummary'] = ($e['isResume'] ?? false)
-                    ? 'Reprise moteur · ' . ('' !== $wt ? $wt : '(type inconnu)')
-                    : 'Démarrage moteur · ' . ('' !== $wt ? $wt : '(type inconnu)');
+                    ? 'Engine resume · ' . ('' !== $wt ? $wt : '(unknown type)')
+                    : 'Engine start · ' . ('' !== $wt ? $wt : '(unknown type)');
             }
             if ('activity' === $kind) {
                 $timeline[$i]['dispatchSummary'] = ($e['activityName'] ?? '?') . ' · ' . ($e['activityId'] ?? '?')
-                    . (empty($e['success']) && \array_key_exists('success', $e) ? ' · échec' : '');
+                    . (empty($e['success']) && \array_key_exists('success', $e) ? ' · failed' : '');
             }
         }
 

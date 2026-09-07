@@ -35,23 +35,23 @@ use Temporal\Api\Workflowservice\V1\RespondNexusTaskFailedRequest;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
 
 /**
- * Poll la file de tâches Nexus, route vers le gestionnaire déclaré, et répond.
+ * Polls the Nexus task queue, routes to the declared handler, and answers.
  *
- * Ce worker ne partage rien avec {@see WorkflowTaskProcessor} sinon la forme « poll et réponds » :
- * pas d'historique, pas de rejeu, pas de déterminisme, pas de slots. Le faire passer par le worker
- * de workflow traînerait un moteur de rejeu dans un chemin qui ne rejoue jamais.
+ * This worker shares nothing with {@see WorkflowTaskProcessor} but the "poll and answer" shape:
+ * no history, no replay, no determinism, no slots. Running it through the workflow worker would
+ * drag a replay engine into a path that never replays.
  *
- * Trois mesures de sonde le façonnent, et aucune n'est un détail :
+ * Three probe measurements shape it, and none of them is a detail:
  *
- * - **§1.2** — une file vide rend un jeton vide et une requête nulle, après ~11 s. C'est un succès,
- *   pas une erreur : la boucle repart.
- * - **§1.7** — deux budgets. `request-timeout` (~9 s) borne la réponse à *cette tâche* ;
- *   `operation-timeout` borne l'opération. Un gestionnaire qui travaille plus de neuf secondes voit
- *   sa tâche redélivrée et son travail recommencer. C'est ce que la forme différée évite.
- * - **§3.1** — ce qui règle une opération différée est le `callback` de la tâche, attaché au
- *   workflow qui la remplit. Retiré, l'appelant reste à `NEXUS_OPERATION_STARTED` pour toujours.
- *   D'où l'ordre ici : on démarre le workflow **avant** de répondre, parce que `completion_callbacks`
- *   ne se pose qu'au démarrage.
+ * - **§1.2** — an empty queue returns an empty token and a null request, after ~11 s. That is a
+ *   success, not an error: the loop starts again.
+ * - **§1.7** — two budgets. `request-timeout` (~9 s) bounds the answer to *this task*;
+ *   `operation-timeout` bounds the operation. A handler that works for more than nine seconds sees
+ *   its task redelivered and its work start over. That is what the deferred shape avoids.
+ * - **§3.1** — what settles a deferred operation is the task's `callback`, attached to the
+ *   workflow that fulfils it. Dropped, the caller stays at `NEXUS_OPERATION_STARTED` forever.
+ *   Hence the order here: the workflow is started **before** answering, because
+ *   `completion_callbacks` is only set at start.
  */
 final readonly class TemporalNexusWorker
 {
@@ -62,7 +62,7 @@ final readonly class TemporalNexusWorker
     ) {}
 
     /**
-     * Un long-poll ; si une tâche arrive, routage et réponse.
+     * One long poll; if a task arrives, routing and answer.
      */
     public function pollOnce(): void
     {
@@ -75,7 +75,7 @@ final readonly class TemporalNexusWorker
 
         $taskToken = (string) $task->getTaskToken();
         if ('' === $taskToken) {
-            // §1.2 : rien à faire. Le traiter en erreur ferait boucler sur un cas nominal.
+            // §1.2: nothing to do. Treating it as an error would loop on a nominal case.
             return;
         }
 
@@ -88,8 +88,8 @@ final readonly class TemporalNexusWorker
 
         $start = $task->getRequest()?->getStartOperation();
         if (null === $start) {
-            // Une variante que ce worker ne sert pas. La refuser nommément vaut mieux que de
-            // laisser la tâche expirer en silence.
+            // A variant this worker does not serve. Refusing it by name is better than letting
+            // the task expire in silence.
             $this->respondFailed($taskToken, NexusHandlerErrorType::NotImplemented, 'This worker serves start_operation and cancel_operation tasks only.');
 
             return;
@@ -105,13 +105,13 @@ final readonly class TemporalNexusWorker
                 $this->decodePayload($start),
             );
         } catch (NexusOperationNotHandledException $refusal) {
-            // §2.4 : la réponse dit que personne ne sert, et la boucle continue de servir le reste.
+            // §2.4: the answer says nobody serves it, and the loop keeps serving the rest.
             $this->respondFailed($taskToken, $refusal->type(), $refusal->getMessage());
 
             return;
         } catch (\Throwable $raised) {
-            // §1b.3 : une exception ordinaire vaut INTERNAL, donc réessayable — comme dans tous les
-            // autres SDK. Un gestionnaire qui veut un refus définitif le dit avec son type.
+            // §1b.3: an ordinary exception is worth INTERNAL, hence retryable — as in every
+            // other SDK. A handler that wants a definitive refusal says so with its type.
             $this->respondFailed($taskToken, NexusHandlerErrorType::Internal, $raised->getMessage());
 
             return;
@@ -127,17 +127,17 @@ final readonly class TemporalNexusWorker
     }
 
     /**
-     * Annuler l'opération, c'est annuler le workflow qui la porte.
+     * Cancelling the operation means cancelling the workflow that carries it.
      *
-     * La sonde §4 l'a mesuré dans les deux moitiés. §1.5 avait vu la négative : tant que
-     * l'opération n'a pas démarré, aucune tâche n'arrive ici — il n'y a rien à annuler. La
-     * positive se lit maintenant qu'une opération peut démarrer en asynchrone : la tâche arrive,
-     * et elle **nomme le jeton rendu au démarrage**. Ce jeton est l'identifiant du workflow que ce
-     * worker a démarré, donc la tâche nous rend exactement la prise dont on a besoin.
+     * The §4 probe measured it in both halves. §1.5 had seen the negative one: as long as the
+     * operation has not started, no task arrives here — there is nothing to cancel. The positive
+     * one reads now that an operation can start asynchronously: the task arrives, and it **names
+     * the token returned at start**. That token is the id of the workflow this worker started, so
+     * the task hands us exactly the handle we need.
      *
-     * Le gestionnaire n'est pas resollicité, et ce n'est pas un manque : ce qui porte l'opération
-     * est un workflow, et un workflow observe déjà son annulation — avec ses compensations. Un
-     * crochet de gestionnaire dupliquerait ce chemin sans rien y ajouter.
+     * The handler is not solicited again, and that is no gap: what carries the operation is a
+     * workflow, and a workflow already observes its own cancellation — with its compensations. A
+     * handler hook would duplicate that path without adding anything to it.
      */
     private function cancelTheWorkflowCarryingTheOperation(string $taskToken, CancelOperationRequest $cancel): void
     {
@@ -158,9 +158,9 @@ final readonly class TemporalNexusWorker
         try {
             $this->nexusRpc->requestCancelWorkflowExecution($request);
         } catch (\RuntimeException $error) {
-            // Le workflow a pu se terminer entre la demande et nous. Ce n'est pas une erreur du
-            // gestionnaire : l'opération est déjà réglée, et insister la ferait redemander toutes
-            // les ~9 s pour rien.
+            // The workflow may have ended between the request and us. That is not a handler
+            // error: the operation is already settled, and insisting would have it asked for
+            // again every ~9 s for nothing.
             $this->respondCancelled($taskToken);
 
             return;
@@ -208,14 +208,14 @@ final readonly class TemporalNexusWorker
     ): void {
         $workflowId = $response->workflowId ?? \sprintf('nexus-%s', bin2hex(random_bytes(8)));
 
-        // L'ordre compte : `completion_callbacks` ne se pose qu'au démarrage (§3.1). Répondre
-        // d'abord et démarrer ensuite laisserait l'appelant attendre une issue qui n'arriverait
-        // jamais, sans que rien ne le signale.
+        // The order matters: `completion_callbacks` is only set at start (§3.1). Answering first
+        // and starting afterwards would leave the caller waiting for an outcome that would never
+        // arrive, with nothing to signal it.
         $nexusCallback = new NexusCallback();
         $nexusCallback->setUrl((string) $task->getCallback());
-        // `getCallbackHeader()` rend toujours une MapField, vide au besoin : il n'y a pas de cas
-        // « pas d'en-tête » à distinguer, et le recopier tel quel est ce qui préserve ce que le
-        // serveur a mis dedans.
+        // `getCallbackHeader()` always returns a MapField, empty if need be: there is no "no
+        // header" case to tell apart, and copying it as-is is what preserves what the server put
+        // in it.
         $nexusCallback->setHeader($task->getCallbackHeader());
         $callback = new Callback();
         $callback->setNexus($nexusCallback);
