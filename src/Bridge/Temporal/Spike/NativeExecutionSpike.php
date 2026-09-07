@@ -35,7 +35,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  */
 final class NativeExecutionSpike
 {
-    /** gRPC call deadline (microseconds) — long polls require an explicit timeout (Temporal / grpc-php). */
+    /** gRPC call deadline (microseconds): long polls require an explicit timeout (Temporal / grpc-php). */
     private const GRPC_LONG_POLL_TIMEOUT_US = 120_000_000;
 
     private const GRPC_SHORT_TIMEOUT_US = 60_000_000;

@@ -12,7 +12,7 @@ use Doctrine\DBAL\Types\Types;
  * Tables du backend DBAL : journal, métadonnées d'exécution, lien parent/enfant.
  *
  * L'auto-création suit le modèle du transport Doctrine de Messenger : la première écriture
- * crée ce qui manque. Pas de doctrine/migrations — la forme est figée par ce fichier.
+ * crée ce qui manque. Pas de doctrine/migrations : la forme est figée par ce fichier.
  *
  * @see DUR030
  */
@@ -85,7 +85,7 @@ final class DurableSchema
         if (!\in_array($this->runsTable, $skip, true)) {
             // Projection de lecture : le journal est écrit à chaque pas et lu par id d'exécution,
             // un tableau de bord lit en travers et ordonne par date. Deux motifs d'accès, et
-            // `durable_events` n'est indexée que sur `execution_id` — lister depuis lui serait un
+            // `durable_events` n'est indexée que sur `execution_id` : lister depuis lui serait un
             // balayage par page, croissant avec le nombre total d'événements jamais écrits.
             $runs = $schema->createTable($this->runsTable);
             $runs->addColumn('execution_id', Types::STRING, ['length' => 128]);

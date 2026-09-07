@@ -106,7 +106,7 @@ final class WorkflowDefinitionLoader
      * Les paramètres de la méthode de workflow, dans l'ordre, avec ce qui les rend facultatifs.
      *
      * Publique parce que l'entrée d'un workflow est **clée par nom** : quiconque fabrique cette
-     * charge ailleurs — une opération Nexus remplie par ce workflow, par exemple — a besoin de
+     * charge ailleurs (une opération Nexus remplie par ce workflow, par exemple) a besoin de
      * savoir quels noms il doit écrire, et n'a pas à refaire la recherche de `#[AsWorkflowMethod]`
      * pour l'apprendre.
      *

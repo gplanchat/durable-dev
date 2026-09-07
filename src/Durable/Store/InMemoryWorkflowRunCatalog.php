@@ -13,7 +13,7 @@ use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 
 /**
- * Catalogue d'exécutions pour le backend in-memory — le pendant de
+ * Catalogue d'exécutions pour le backend in-memory : le pendant de
  * {@see \Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunCatalog}.
  *
  * Côté SQL, la projection est une table qu'un décorateur alimente à l'écriture, et le catalogue la
@@ -28,10 +28,10 @@ use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
  * **Ce qu'il ne peut pas faire, et qu'il dit lui-même.** Un journal in-memory vit et meurt avec le
  * processus. Sous PHP-FPM, la requête qui rend le tableau de bord n'a jamais exécuté le moindre
  * workflow : la liste sera vide, toujours. C'est pourquoi {@see checkHealth()} ne se contente pas
- * de dire « joignable » — son message porte la raison, et le tableau de bord l'affiche. Une liste
+ * de dire « joignable » : son message porte la raison, et le tableau de bord l'affiche. Une liste
  * vide sans explication apprendrait à l'exploitant qu'aucun workflow n'a tourné, ce qui est faux ;
- * c'est le même souci que DUR037 traite pour les faits absents. Sur un worker long — FrankenPHP en
- * mode worker, une commande de consommation — le catalogue voit ce que son processus a exécuté, et
+ * c'est le même souci que DUR037 traite pour les faits absents. Sur un worker long (FrankenPHP en
+ * mode worker, une commande de consommation), le catalogue voit ce que son processus a exécuté, et
  * c'est là qu'il sert.
  *
  * ponytail: l'ordre est celui des démarrages, index d'insertion en départage, et le curseur est le

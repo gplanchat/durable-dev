@@ -8,7 +8,7 @@ namespace Gplanchat\Durable\Nexus;
  * Pourquoi une opération Nexus n'a pas abouti.
  *
  * Les quatre natures ne sont pas un confort de lecture : elles appellent des gestes différents.
- * Un appelant compense sur {@see self::OperationFailed} — le handler a tourné et a dit non. Il
+ * Un appelant compense sur {@see self::OperationFailed} : le handler a tourné et a dit non. Il
  * peut réessayer sur {@see self::HandlerError}, où le handler n'a pas tourné du tout et où le
  * serveur dit lui-même si la reprise a un sens. Il ne fait ni l'un ni l'autre sur
  * {@see self::Cancellation}, qu'il a le plus souvent demandée. Et {@see self::Timeout} dit que la

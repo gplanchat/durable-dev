@@ -9,7 +9,7 @@ use Gplanchat\Durable\ExecutionContext;
 /**
  * Retire de la file les opérations encore en attente sous un awaitable.
  *
- * Deux appelants en avaient besoin — l'annulation du workflow, qui vide ce sur quoi le fiber
+ * Deux appelants en avaient besoin : l'annulation du workflow, qui vide ce sur quoi le fiber
  * était suspendu, et un composite qui a atteint son verdict et n'a plus rien à faire de ses
  * branches perdantes. Ils en avaient chacun leur version, et elles ne descendaient pas à la même
  * profondeur : celle du composite s'arrêtait au premier niveau, si bien qu'un `all()` borné par

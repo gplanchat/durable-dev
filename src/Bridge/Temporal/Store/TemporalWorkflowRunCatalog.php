@@ -26,7 +26,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  *
  * Temporal conserve le workflow id à travers les continuations et donne à chaque exécution son
  * propre run id : le run id est l'identité, le workflow id le regroupement. Le backend DBAL n'a pas
- * cette seconde notion et laisse `groupId` absent — c'est un fait qu'un backend a et que l'autre
+ * cette seconde notion et laisse `groupId` absent : c'est un fait qu'un backend a et que l'autre
  * n'a pas, pas une lacune.
  *
  * Le curseur transporte tel quel le jeton de page du serveur, encodé pour survivre à une URL.
@@ -108,7 +108,7 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
 
         try {
             // Une page d'une ligne : la sonde emprunte le même appel que le tableau de bord, donc
-            // elle échoue aussi quand le serveur répond mais que le namespace n'existe pas — ce qui
+            // elle échoue aussi quand le serveur répond mais que le namespace n'existe pas, ce qui
             // est exactement ce que l'exploitant a besoin de savoir.
             $request = new ListWorkflowExecutionsRequest();
             $request->setNamespace($this->connection->namespace->name());

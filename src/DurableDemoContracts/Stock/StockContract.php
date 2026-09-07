@@ -14,7 +14,7 @@ use Gplanchat\Durable\Attribute\AsNexusService;
  * **here**, where the handler does not have to write an empty body for it.
  *
  * The caller therefore always reads `StockContract`, including while both interfaces carry the same
- * operations — otherwise the day one of them diverges, every caller would need touching.
+ * operations, since otherwise the day one of them diverges, every caller would need touching.
  */
 #[AsNexusService('stock')]
 interface StockContract extends StockServed {}

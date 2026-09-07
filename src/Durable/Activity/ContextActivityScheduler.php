@@ -12,7 +12,7 @@ use Gplanchat\Durable\ExecutionContext;
  *
  * Construit par {@see \Gplanchat\Durable\WorkflowEnvironment::activityStub()} et jamais rendu :
  * c'est ce qui fait qu'un auteur de workflow ne peut pas l'atteindre. Le contexte, lui, expose
- * bien `activity()` — mais un workflow ne reçoit jamais le contexte, il reçoit l'environnement.
+ * bien `activity()`, mais un workflow ne reçoit jamais le contexte, il reçoit l'environnement.
  *
  * @internal
  */

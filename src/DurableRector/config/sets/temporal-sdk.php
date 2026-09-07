@@ -17,7 +17,7 @@ use Rector\Renaming\Rector\Name\RenameClassRector;
  *
  * The execution model comes with it: the static facade becomes an injected `WorkflowEnvironment`,
  * and `yield` goes, along with any `\Generator` return type it left behind. What is **not**
- * synthesised is a real return type — the SDK could not declare one, and inventing it here would be
+ * synthesised is a real return type: the SDK could not declare one, and inventing it here would be
  * a guess with a `TypeError` behind it.
  *
  * And whatever cannot be migrated is said out loud rather than left looking done:

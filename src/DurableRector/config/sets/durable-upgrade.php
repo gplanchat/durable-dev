@@ -17,7 +17,7 @@ use Rector\Renaming\Rector\Name\RenameClassRector;
  * séparés parce qu'on ne les charge pas au même moment : le premier une fois, le second à chaque
  * montée de version.
  *
- * La règle du dépôt est explicite — **toute rupture publique vient avec sa procédure de
+ * La règle du dépôt est explicite. **Toute rupture publique vient avec sa procédure de
  * migration** : Rector d'abord, un script quand Rector ne peut pas, et de la documentation dans
  * tous les cas. Un renommage de classe est précisément le cas où Rector peut, donc il n'y a pas
  * d'excuse à laisser un projet le découvrir par une erreur d'autochargement.
@@ -29,17 +29,17 @@ use Rector\Renaming\Rector\Name\RenameClassRector;
  */
 return RectorConfig::configure()
     ->withConfiguredRule(RenameClassRector::class, [
-        // 0.1.0-alpha8 — l'adaptateur charge utile → méthode de contrat descend du paquet du
+        // 0.1.0-alpha8 : l'adaptateur charge utile → méthode de contrat descend du paquet du
         // bundle vers le cœur : il n'importait rien de Symfony, et Magento en a besoin mot pour
         // mot. Après cette montée, vider le cache du conteneur (`bin/console cache:clear`), sans
         // quoi le conteneur compilé continue de demander l'ancien nom.
         'Gplanchat\Durable\Bundle\Activity\PayloadToContractMethodInvoker' => PayloadToContractMethodInvoker::class,
-        // 0.1.0-alpha8 — le calcul du prochain réveil de minuterie descend lui aussi au cœur, et
+        // 0.1.0-alpha8 : le calcul du prochain réveil de minuterie descend lui aussi au cœur, et
         // pour une raison plus grave : `InMemoryWorkflowRunner`, qui **est** du cœur, l'appelait.
         // Un hôte qui n'installe pas le bundle prenait une erreur fatale à la première reprise.
         'Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator' => TimerWakeDelayCalculator::class,
 
-        // 0.1.0-alpha8 — l'orchestration de reprise descend au cœur. Sur 279 lignes, 21 touchaient
+        // 0.1.0-alpha8 : l'orchestration de reprise descend au cœur. Sur 279 lignes, 21 touchaient
         // Symfony, et elles ne servaient qu'à deux choses : un identifiant v7 et le réveil des
         // minuteries. La première est déjà dans le cœur, la seconde est devenue un port. Six hôtes
         // du sélecteur ne passent pas par le bundle et auraient dû en porter chacun une copie.
@@ -47,7 +47,7 @@ return RectorConfig::configure()
         'Gplanchat\Durable\Bundle\Handler\FireWorkflowTimersHandler' => FireWorkflowTimersHandler::class,
         'Gplanchat\Durable\Bundle\Support\AsyncChildWorkflowFailureProjector' => AsyncChildWorkflowFailureProjector::class,
 
-        // 0.1.0-alpha8 — tout attribut de déclaration prend le préfixe `As`. Le dépôt en portait
+        // 0.1.0-alpha8 : tout attribut de déclaration prend le préfixe `As`. Le dépôt en portait
         // deux conventions : le cœur nommait ses attributs sans préfixe, le bundle Symfony en avait
         // un seul, préfixé, et ni le pont Illuminate ni le module Magento n'en avaient. Servir Nexus
         // demandait d'en ajouter, donc de choisir. Les attributs de méthode suivent, pour qu'il n'y

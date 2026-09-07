@@ -17,7 +17,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
  *
  * **Aucun trait de file.** `Queueable` et `InteractsWithQueue` servent à `dispatch()` et à
  * `release()` ; ce job est poussé par le transport et ne se remet jamais en file lui-même. Le job
- * de reprise, lui, en aura besoin — c'est là que le paquet prendra `illuminate/queue`.
+ * de reprise, lui, en aura besoin : c'est là que le paquet prendra `illuminate/queue`.
  */
 final class RunActivityJob implements ShouldQueue
 {

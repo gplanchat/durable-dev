@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Observation;
 
 /**
- * L'historique d'une exécution, projeté en frise — **une fois, pour toutes les surfaces**.
+ * L'historique d'une exécution, projeté en frise (**une fois, pour toutes les surfaces**).
  *
  * Deux tableaux de bord la dérivaient chacun du sien : Magento plaçait les actions dans le temps et
  * distinguait la file du travail, Sylius empilait des blocs sans position. Le même run, enregistré
- * par le même backend, se lisait donc différemment selon l'application ouverte — et les deux
+ * par le même backend, se lisait donc différemment selon l'application ouverte, et les deux
  * surfaces qui restent à écrire n'avaient d'autre source de vérité que celle que leur auteur
  * ouvrirait en premier.
  *
  * ⚠ **Cette projection mesure, elle ne dessine pas.** Tout est en secondes : `span`, `offset`,
  * `duration`. Le bloc Magento dont elle est issue rendait des flottants de 0 à 100, c'est-à-dire des
- * largeurs CSS — le cœur se serait mis à dessiner pour une surface qui ne rend aucun balisage. Mettre
+ * largeurs CSS : le cœur se serait mis à dessiner pour une surface qui ne rend aucun balisage. Mettre
  * à l'échelle est le métier de l'hôte, et c'est aussi chez lui que vit la règle qui va avec : une
  * attente de quatre millisecondes ne doit pas dessiner plus large que six millisecondes de travail.
  *
