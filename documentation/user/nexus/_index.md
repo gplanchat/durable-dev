@@ -69,7 +69,7 @@ A handler implements the contract — or the part of it that it answers immediat
 ```php
 use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
 
-#[AsNexusServiceHandler(contract: BillingServed::class)]
+#[AsNexusServiceHandler(contract: BillingContract::class)]
 final class Billing implements BillingServed
 {
     public function verify(string $order): array
@@ -100,7 +100,7 @@ interface BillingContract extends BillingServed // + what a workflow fulfils
     public function charge(string $order, int $amount): array;
 }
 
-#[AsWorkflow]
+#[AsWorkflow('Charge')]
 #[FulfilsNexusOperation(BillingContract::class, 'charge')]
 final class Charge { /* … */ }
 ```
@@ -118,6 +118,7 @@ There are two forms, and choosing between them is the one decision that matters.
 public function verify(string $order): array { … }
 
 // Later — a workflow claims the operation, and produces the result.
+#[AsWorkflow('Charge')]
 #[FulfilsNexusOperation(BillingContract::class, 'charge')]
 final class Charge { … }
 ```
