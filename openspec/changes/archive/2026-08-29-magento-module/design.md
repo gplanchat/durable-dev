@@ -10,27 +10,27 @@ probed yet**, and the design says where it is therefore guessing.
 
 | | |
 |---|---|
-| `git ls-files magento` | **0** — the overlay is untracked. `sylius/` returns 220. |
+| `git ls-files magento` | **0**: the overlay is untracked. `sylius/` returns 220. |
 | `magento/composer.json` | requires `mage-os/product-community-edition:2.2.0`, `gplanchat/durable-bridge-temporal:@dev`, `gplanchat/durable-module:@dev` |
 | its path repositories | `../src/DurableModule`, `../src/Bridge/Temporal`, `../src/Durable` |
 | `src/DurableModule` | **does not exist** |
-| `magento/vendor/mage-os/` | **363 packages** — the install completed. An earlier line here said the opposite, having looked under `vendor/magento/`, which Mage-OS does not use |
+| `magento/vendor/mage-os/` | **363 packages**: the install completed. An earlier line here said the opposite, having looked under `vendor/magento/`, which Mage-OS does not use |
 | `magento/compose.yaml` | MySQL, OpenSearch, Redis, Temporal, Temporal UI |
 
 **Not measured, and therefore not encoded as invariants below:**
 
 - ~~whether `mage-os/product-community-edition:2.2.0` installs on this PHP and reaches a working
-  `bin/magento`~~ — **answered by §1.2**: it does, and it was already installed. What was broken
+  `bin/magento`~~, **answered by §1.2**: it does, and it was already installed. What was broken
   was the bench's default ports, held by the benches beside it;
-- ~~what a `queue_consumer.xml` consumer does when its process dies mid-message~~ — **answered by
+- ~~what a `queue_consumer.xml` consumer does when its process dies mid-message~~, **answered by
   §1.3**: *silence*, then a redelivery that takes a day and can swallow the message whole. Below;
-- ~~whether `LockManagerInterface`'s default implementation is shared across consumer processes~~ —
+- ~~whether `LockManagerInterface`'s default implementation is shared across consumer processes~~,
   **answered by §1.4**: it is, and the answer came with a caveat the design had not seen. The bench
   configures `lock.provider: db`; the container hands out a `Lock\Proxy` that names nothing until
   it has worked, and `Backend\Database` behind it refuses a second process the lock a first holds.
   A `SIGKILL`ed holder releases it, because `GET_LOCK` dies with its connection. The caveat:
   `Backend\Database::lock()` **returns `true` without locking** when `isDbAvailable()` is false;
-- ~~how a Magento consumer behaves against a long-poll transport~~ — **answered by §1.5**: it holds
+- ~~how a Magento consumer behaves against a long-poll transport~~, **answered by §1.5**: it holds
   the message fine, and the queue hands the same message to a second consumer while it is still
   working it. Below.
 
@@ -45,14 +45,14 @@ weight is Symfony doing the work. Against Magento's container none of that is fr
 
 | What Symfony gives | What Magento needs instead |
 |---|---|
-| `#[Workflow]` / `#[Activity]` autoconfiguration by tag | A discovery mechanism — `di.xml` argument injection over an explicit list, or a compiler-pass equivalent |
+| `#[Workflow]` / `#[Activity]` autoconfiguration by tag | A discovery mechanism: `di.xml` argument injection over an explicit list, or a compiler-pass equivalent |
 | Messenger routing in `messenger.yaml` | `communication.xml`, `queue_topology.xml`, `queue_publisher.xml`, `queue_consumer.xml` |
 | `messenger:consume` | `bin/magento queue:consumers:start`, plus whatever `cron:run` has to trigger |
 | `symfony/lock` with a configured store | `Magento\Framework\Lock\LockManagerInterface`, over a store shared by every consumer |
 | `Handler/ResumeWorkflowHandler` and its four siblings | Magento consumer classes with the same five roles |
 
 The module's job is to provide the right-hand column and **nothing else**. Everything below the
-ports — replay, the command buffer, the journal, failure classification — is `gplanchat/durable`
+ports (replay, the command buffer, the journal, failure classification) is `gplanchat/durable`
 unchanged, exactly as the DBAL bridge leaves it unchanged.
 
 ## Six host constraints, found by trying
@@ -62,30 +62,30 @@ None was in the design before the module was written, and each cost a debugging 
 **Magento's container forbids `final`.** It generates an `Interceptor` subclass for every class it
 instantiates, to carry plugins. A `final` class fails compilation with *"cannot extend final
 class"*, and the message does not say the keyword is the cause. This repository writes `final`
-everywhere; inside the module, the classes the container builds cannot. The ones it does not build —
-the workflow, the runtime it assembles — stay `final`.
+everywhere; inside the module, the classes the container builds cannot. The ones it does not build
+(the workflow, the runtime it assembles) stay `final`.
 
 **Mage-OS audits path repositories.** `composer-dependency-version-audit-plugin` refuses a package
-resolved from a local path when a higher version of the same name exists on packagist.org — a
+resolved from a local path when a higher version of the same name exists on packagist.org, a
 dependency-confusion guard. `gplanchat/durable` is both published and provided by path here, so it
 trips on every bench install. The bench disables the plugin for itself, which is defensible because
 the path repositories *are* its source of truth; a consumer's project should keep it on.
 
 **A module in `app/code` does not autoload on this distribution.** Found while putting §1.3's probe
-subject in the bench rather than in the published package. `ComponentRegistrar` registers it —
-`module:status` says *enabled* — and the classes still do not resolve: Mage-OS's root
+subject in the bench rather than in the published package. `ComponentRegistrar` registers it
+(`module:status` says *enabled*), and the classes still do not resolve: Mage-OS's root
 `composer.json` declares `Magento\Setup\` and nothing else, where a classic Magento install carried
 `psr-0: {"": ["app/code/"]}` and made every vendor under `app/code` resolvable for free. Registering
 a component and autoloading its classes are two different mechanisms, and only the first is
 automatic. The bench adds its own `psr-4` entry; anyone bootstrapping a Mage-OS bench with a local
 module will hit this and read it as a broken module.
 
-### What Magento's queue can carry — §4.1, measured before declaring
+### What Magento's queue can carry (§4.1, measured before declaring)
 
 The four XML files need a decided `request` type, and the design had never said which. Two
 measurements settled it, and both failed in the direction this repository keeps finding: silently.
 
-**A Durable transport object as the topic's type does not throw — it empties the message.**
+**A Durable transport object as the topic's type does not throw; it empties the message.**
 `ResumeWorkflowMessage` carries public `readonly` properties and no getters, where
 `DataObjectProcessor` walks getters:
 
@@ -113,8 +113,8 @@ The keys are dropped, the nesting is flattened into a warning, and again nothing
 
 **So the topics are `request="string"`, and the module encodes JSON itself.** Magento's encoder
 exists to move Magento service contracts, and Durable's payloads are not that. The queue is used as
-a byte pipe, which is what it can be relied on to be. The alternative — giving the core's transport
-objects Magento-shaped getters — is the one thing this integration must not do: those objects run
+a byte pipe, which is what it can be relied on to be. The alternative (giving the core's transport
+objects Magento-shaped getters) is the one thing this integration must not do: those objects run
 unmodified on every host, and that is the whole argument.
 
 The payloads are the **ports' own arguments**, not the message classes: `WorkflowResumeDispatcher`
@@ -122,24 +122,24 @@ already speaks `string $executionId` and an array of pending updates. The messag
 Messenger detail, and Magento has no reason to learn them.
 
 **One consequence for the order of work.** `queue_consumer.xml` names a handler method, and
-`setup:upgrade` refuses a consumer whose method it cannot resolve — *"Service method specified in
+`setup:upgrade` refuses a consumer whose method it cannot resolve: *"Service method specified in
 the definition of handler … is not available"*. A declaration therefore cannot land inert: §4.1
 carries real handlers for the roles it declares, and §4.2 adds the remaining roles rather than
 adding behaviour under a declaration that already shipped.
 
-### Three more, found by putting a screen in the admin — §5.1
+### Three more, found by putting a screen in the admin (§5.1)
 
 **Magento resolves a controller by convention from the *module name*, not from the autoloader.**
 `ActionList::get()` composes `Gplanchat_Durable` + `\Controller\Adminhtml\…`, so the class must be
-`Gplanchat\Durable\Controller\…` — while the package autoloads under
+`Gplanchat\Durable\Controller\…`, while the package autoloads under
 `Gplanchat\Durable\Magento\`. That is the bill for the two conventions this design chose on
 purpose (family-first package name, Magento-first module name), and it comes due in exactly one
 place. The module's `composer.json` therefore carries a second `psr-4` entry for `Controller/`
 alone. Until it did, the route was declared, `getRouteFrontName()` answered `durable`, **the menu
-rendered**, and Magento served its 404 *inside the admin chrome* — every symptom pointing at the
+rendered**, and Magento served its 404 *inside the admin chrome*, every symptom pointing at the
 declaration, which was correct.
 
-**An optional constructor argument is not auto-wired — Magento uses its default.**
+**An optional constructor argument is not auto-wired; Magento uses its default.**
 `RuntimeFactory` takes `?DeploymentConfig $deploymentConfig = null` so it stays constructible
 without Magento, which is what puts the backend decision under CI. The container obligingly passed
 `null`: the DSN was never read, and the module served an in-memory journal while `env.php` asked for
@@ -150,35 +150,35 @@ the cluster, without one line of error. `di.xml` names the argument explicitly n
 *"There are no commands defined in the `durable` namespace."* The module's own command had simply
 stopped existing. `rm -rf generated/code/<Vendor>/` is the fix, and it belongs in any bench note.
 
-### The worker, and a status that is not the one you want — §5.1
+### The worker, and a status that is not the one you want (§5.1)
 
 `bin/magento durable:worker` polls the journal task queue and completes workflow tasks. Four objects
 from the bridge, assembled exactly as the Symfony Messenger transport assembles them; what differs
-is only who turns the loop — a console command an operator supervises like anything else, rather
+is only who turns the loop: a console command an operator supervises like anything else, rather
 than `messenger:consume`.
 
 It is a **command and not a queue consumer**, and §1.5 is the reason: a worker holds its task by
 long poll, therefore longer than an ordinary message, and Magento's retry timer never asks whether
 the first consumer has finished before handing the message to a second. A worker cannot be a queue
-message. Two bounds — `--max-tasks`, `--time-limit` — exist for the supervisor that will restart it.
+message. Two bounds (`--max-tasks`, `--time-limit`) exist for the supervisor that will restart it.
 ⚠ They are checked **between** tasks, so a poll already in flight runs to its own timeout; the
 process can outlive its limit by one long poll.
 
 **And a correction worth keeping.** The admin grid shows every run as `running`, and this design
-first said the cause was the missing worker. It is not. With the worker draining the queue —
-measured: it completes the pending task, then finds nothing for twenty seconds — the cluster still
+first said the cause was the missing worker. It is not. With the worker draining the queue
+(measured: it completes the pending task, then finds nothing for twenty seconds), the cluster still
 answers `WORKFLOW_EXECUTION_STATUS_RUNNING` for every `DurableJournal`. That is correct: the journal
 workflow is **long-lived by construction**, it is the durable log itself, and it does not close
 because an execution finished.
 
 The consequence is that `listRuns()`'s status column, which maps the Temporal workflow status, can
 only ever read `running` on this host. What separates a finished execution from a running one lives
-in the journal's **events**, which `TemporalRunHistoryReader` reads through a `TemporalHistoryCursor`
-— now passed to the catalog. Turning that into a truthful Status column is the dashboard change's
-work, not this one's, but the reason is written here so nobody hunts a worker bug that does not
-exist.
+in the journal's **events**, which `TemporalRunHistoryReader` reads through a
+`TemporalHistoryCursor`, now passed to the catalog. Turning that into a truthful Status column is
+the dashboard change's work, not this one's, but the reason is written here so nobody hunts a
+worker bug that does not exist.
 
-### An order starts an execution — §5.2, and a correction to what this design said twice
+### An order starts an execution (§5.2), and a correction to what this design said twice
 
 ```
 12:01:29 000000001 -> exécution order-000000001 démarrée sur la grappe
@@ -186,8 +186,8 @@ durable-order-000000001 | WORKFLOW_EXECUTION_STATUS_RUNNING
 order-000000001 -> 'notify:charge:000000001'      (débits : 1)
 ```
 
-`sales_order_place_after` — the event `Magento\Sales\Model\Order::place()` actually emits, the same
-one whether the order comes from the checkout, the REST API or the admin — starts the execution
+`sales_order_place_after` (the event `Magento\Sales\Model\Order::place()` actually emits, the same
+one whether the order comes from the checkout, the REST API or the admin) starts the execution
 **on the cluster** and returns. Starting it in the request would kill it with the request, which is
 precisely OST003's failure: the customer paid, the process stopped, nobody resumed.
 
@@ -195,11 +195,11 @@ The observer never throws. A placed order stays placed: a workflow that fails to
 operations incident, not a reason to refuse a sale that is already paid.
 
 It lives in the **bench**, not the published package: which workflow starts on which order is a
-project's decision. What the module ships is the door — `RuntimeFactory::workflowClient()`.
+project's decision. What the module ships is the door: `RuntimeFactory::workflowClient()`.
 
 **And the correction.** This design said twice that the admin grid could only ever read `running`,
 because a `DurableJournal` workflow is long-lived. That is true of the **in-process** path, where the
-journal is a container workflow — and false of the cluster path. Executions started with
+journal is a container workflow, and false of the cluster path. Executions started with
 `startAsync()` *are* the business workflow, so the grid now reads what one wants it to read:
 
 ```
@@ -207,17 +207,17 @@ Run                                   | Workflow                                
 1a17fed1-796a-4b12-83b2-7e33a295c591  | Gplanchat\DurableProbe\Workflow\SlowOrderWorkflow | completed | 12:01:53
 ```
 
-The business type, and a real end time. Nothing in the grid changed — what changed is how the
+The business type, and a real end time. Nothing in the grid changed; what changed is how the
 executions were started. The reservation stands only for anything still started in-process, and
 §5.2 is the reason to stop doing that.
 
 ⚠ What the bench needed before an order could exist at all, and what no message said: a product is
 not *salable* without both a website assignment and an inventory source item, and Magento answers
-*"Product that you are trying to add is not available"* without saying which of the two is missing —
+*"Product that you are trying to add is not available"* without saying which of the two is missing,
 or that either is. Reindexing `inventory` was needed on top. It is in `probe-order.php`, commented,
 so nobody pays for it twice.
 
-### The acceptance test, green — §5.3
+### The acceptance test, green (§5.3)
 
 ```
 === 1. la commande part sur la grappe, réservation de 45 s
@@ -240,7 +240,7 @@ débits pour acceptation-1787917138 : 1  (1 attendu)
 **The failure OST003 names is gone.** A consumer dies half way through an order; the order is not
 charged twice, and it finishes.
 
-**What the half-green run was missing was two things, not one.** An activity worker, obviously — on
+**What the half-green run was missing was two things, not one.** An activity worker, obviously: on
 Temporal an activity is a *task* somebody must take, and nobody was taking it. But also a way to
 **start an execution on the cluster**: `MagentoRuntime::run()` executes here and now, so its
 activities go into the in-process transport whatever journal sits underneath, and they die with the
@@ -248,16 +248,16 @@ process. The first fix alone would have changed nothing. `WorkflowClient::startA
 and the workers do the rest.
 
 `durable:worker` therefore takes a `--role`: `journal` answers workflow tasks, `activity` drains
-activity tasks. One process, one queue, one role — and not a preference: they are two distinct
+activity tasks. One process, one queue, one role, and not a preference: they are two distinct
 Temporal queues, and an operator tunes their concurrency apart, so that a slow activity never delays
 a journal's resume.
 
 *(Method, paid for a second time: the first cluster run recorded three charges, which looked like a
-duplicate until the log was read rather than counted — three **different** orders, leftovers of
+duplicate until the log was read rather than counted. Three **different** orders, leftovers of
 earlier attempts still queued. The §1.5 lesson, in another costume: a dirty queue answers a
 different question.)*
 
-### The half-green run that preceded it — §5.3, for the record
+### The half-green run that preceded it (§5.3, for the record)
 
 OST003's failure, run for real: an order is charged, the process is `kill -9`ed while the stock
 reservation sleeps, and the same execution id is started again.
@@ -270,7 +270,7 @@ débits enregistrés : 1
 ```
 
 **The safety property holds, and it is the one the integration exists for: the card is not charged
-twice.** Three resumes, one charge. The journal replays what it recorded instead of re-running it —
+twice.** Three resumes, one charge. The journal replays what it recorded instead of re-running it;
 measured separately too: a completed execution re-run under its own id grows its stream by **one**
 event, not by another full set of thirteen.
 
@@ -280,10 +280,10 @@ event, not by another full set of thirteen.
 WorkflowStuckException: Workflow … is suspended on something the in-memory runner cannot settle
 ```
 
-The reason is precise. `charge` was recorded, `reserve` was *scheduled* — and dispatched into the
+The reason is precise. `charge` was recorded, `reserve` was *scheduled*, and dispatched into the
 dead process's `InMemoryActivityTransport`. The journal knows an activity is pending; nothing in the
 new process will ever settle it. **Resuming needs the activity dispatch to be durable too**, which
-is task 4 — Magento's own queue carrying activity dispatch — or a Temporal activity worker. This
+is task 4 (Magento's own queue carrying activity dispatch) or a Temporal activity worker. This
 result is therefore not a defect to fix here; it is the measurement that says why task 4 exists.
 
 ### The core depended on the Symfony bundle, and only a non-Symfony host could see it
@@ -291,11 +291,11 @@ result is therefore not a defect to fix here; it is the measurement that says wh
 Found on the way. `src/Durable/InMemoryWorkflowRunner.php` imported
 `Gplanchat\Durable\Bundle\Messenger\TimerWakeDelayCalculator`, and `gplanchat/durable` requires
 neither the bundle nor any bridge. Under Symfony the class is always there, so nothing showed. On
-Magento, the first resume that had to skip to the next timer died on **class not found** — a fatal
+Magento, the first resume that had to skip to the next timer died on **class not found**, a fatal
 error on a core code path, on every host that does not install the bundle. Laravel would have been
 next.
 
-The class imported nothing from Symfony — timer events and the event-store port — so it moved to
+The class imported nothing from Symfony (timer events and the event-store port), so it moved to
 `Gplanchat\Durable\Timer\`, with its Rector entry and its `UPGRADE.md` section. Seven other core
 files name the bundle, all in `@see` blocks that never load, and the guard tolerates those: one test
 now walks the 183 files of `src/Durable` and fails on any real `use` of a host or a bridge.
@@ -305,14 +305,14 @@ now walks the 183 files of `src/Durable` and fails on any real `use` of a host o
 **Author's decision, 28/08.** Nothing of Durable rides Magento's `MessageQueue`.
 
 `TemporalWorkflowCommandBuffer` schedules an activity as a `ScheduleActivityTaskCommandAttributes`:
-a Temporal command, on a Temporal task queue. `EventStoreCommandBuffer` — the one that puts an
-`ActivityMessage` on the host's queue — is the **non-Temporal** path. And Magento has no native
+a Temporal command, on a Temporal task queue. `EventStoreCommandBuffer` (the one that puts an
+`ActivityMessage` on the host's queue) is the **non-Temporal** path. And Magento has no native
 journal, nor will it: `memory` and `temporal`, decided.
 
 So with Temporal the host's queue carries neither activities nor resumes, and with `memory`
 everything is one process, where a queue carries nothing that outlives it. Tasks 4 and 5 were never
 a sequence; they were alternatives, and only one is reachable here. §5.3 had measured the
-consequence a day before anyone named it — the execution stuck because its activity had been
+consequence a day before anyone named it: the execution stuck because its activity had been
 dispatched in-process, and the answer is a Temporal activity worker, not a Magento topic.
 
 **What is deleted with it.** The `ActivityMessage` codec, its exception and its four tests. They
@@ -321,20 +321,20 @@ lying about what it does. What the codec was *built on* stays, because it is a m
 code: Magento's encoder empties a transport object **without throwing**, and `string[]` drops
 associative keys. Both are below, and both remain true of this host.
 
-### What the encoder measurement found — §4.1, kept for the record
+### What the encoder measurement found (§4.1, kept for the record)
 
 The codec §4.1 designed is written and gated: `ActivityMessage` ⇄ JSON, with the rule the encoder
-measurement earned — **what it cannot round-trip, it names**. `options` and `retryDelay` are refused
-rather than dropped, because a message that loses its retry policy comes back looking healthy and
-behaves differently. Measured first, so the refusal costs nothing today: a plain activity carries
-`options: NULL` and `retryDelay: NULL`.
+measurement earned. **What it cannot round-trip, it names.** `options` and `retryDelay` are
+refused rather than dropped, because a message that loses its retry policy comes back looking
+healthy and behaves differently. Measured first, so the refusal costs nothing today: a plain
+activity carries `options: NULL` and `retryDelay: NULL`.
 
 **And then the rest of task 4 turned out not to be adapter work.** The five roles are not five thin
 handlers:
 
 | handler | lines | core imports |
 |---|---|---|
-| `ActivityRunHandler` | 23 | thin — a wrapper over `ActivityMessageProcessor` |
+| `ActivityRunHandler` | 23 | thin: a wrapper over `ActivityMessageProcessor` |
 | `DeliverWorkflowSignalHandler` | 31 | thin |
 | `DeliverWorkflowUpdateHandler` | 34 | thin |
 | `FireWorkflowTimersHandler` | 86 | orchestration |
@@ -343,16 +343,16 @@ handlers:
 `ResumeWorkflowHandler` reads the metadata store, resolves the workflow type, rebuilds pending
 updates, calls `ExecutionEngine::resume()`, and handles suspension, cancellation, continue-as-new,
 timers and child-workflow links. Fifteen of its imports are the **core**; the Symfony ones are a
-message bus, two stamps and a UUID. This is not a host adapter — it is the engine's resume
+message bus, two stamps and a UUID. This is not a host adapter; it is the engine's resume
 orchestration, wearing a Symfony jacket.
 
 So implementing the resume role on Magento means one of two things, and it is an arbitration rather
 than a detail:
 
-- **duplicate** those 224 lines in `gplanchat/durable-magento` — two copies of the engine's
+- **duplicate** those 224 lines in `gplanchat/durable-magento`: two copies of the engine's
   resume semantics, drifting the day one of them is fixed;
 - **extract** them to `gplanchat/durable`, leaving the bundle a thin wrapper, which is the same
-  move as `TimerWakeDelayCalculator` and `PayloadToContractMethodInvoker` — twice already — but an
+  move as `TimerWakeDelayCalculator` and `PayloadToContractMethodInvoker` (twice already), but an
   order of magnitude larger, and touching a class every Symfony user runs.
 
 The guard added at §5.3 says the core may not import a host. It does not say the reverse: a host may
@@ -361,7 +361,7 @@ not be where the core's logic lives. This is where that shows.
 ## The one hazard that is not a port
 
 Temporal serialises workflow tasks for one execution server-side. Magento's queue does not, and
-neither does the DBAL backend — which is why DUR030 carries `SingleResumeLockMiddleware` and a
+neither does the DBAL backend, which is why DUR030 carries `SingleResumeLockMiddleware` and a
 warning that it *"is only as safe as your lock store"*.
 
 The same sentence has to be true here, and the same failure is available: two `queue:consumers:start`
@@ -370,29 +370,29 @@ its own commands. Duplicated activities, forked journal.
 
 So the module was to carry a per-execution lock over `LockManagerInterface`, failing at startup
 rather than at the moment of the collision if the configured provider were not shared. Magento's
-default `Magento\Framework\Lock\Backend\Database` is shared by construction — a `GET_LOCK` on the
-application database — which is a better default than Symfony's, but the module would not have
+default `Magento\Framework\Lock\Backend\Database` is shared by construction (a `GET_LOCK` on the
+application database), which is a better default than Symfony's, but the module would not have
 assumed the default is what is configured.
 
 ⚠ **It carries none, and the reason is the paragraph above read one step further.** Every sentence
 of it starts from *two `queue:consumers:start` processes dequeue two resumes*. Once task 4 was
-abandoned — nothing of Durable rides Magento's `MessageQueue`, because on the only durable backend
-this host reaches there is nothing for it to carry — that premise is gone: a resume is a Temporal
+abandoned (nothing of Durable rides Magento's `MessageQueue`, because on the only durable backend
+this host reaches there is nothing for it to carry), that premise is gone: a resume is a Temporal
 workflow task, and Temporal serialises workflow tasks for one execution server-side, which is the
 very first sentence of this section. The hazard was the queue's, and the queue left.
 
 What §1.4 measured stands and is worth keeping: `LockManagerInterface` **is** shared across
 processes, a holder killed releases because `GET_LOCK` dies with its connection, and the container
-hands out a `Lock\Proxy` that names no backend — so a startup refusal could not have been founded on
-`get_class()`. ⚠ That is the note to re-read the day a host-native journal arrives; the requirement
-and its two scenarios left the spec delta with the queue, not because the hazard became acceptable
-but because this host cannot reach it.
+hands out a `Lock\Proxy` that names no backend, so a startup refusal could not have been founded
+on `get_class()`. ⚠ That is the note to re-read the day a host-native journal arrives; the
+requirement and its two scenarios left the spec delta with the queue, not because the hazard
+became acceptable but because this host cannot reach it.
 
-### What a dying consumer leaves — §1.3, measured
+### What a dying consumer leaves (§1.3, measured)
 
 The bench has no AMQP, so this is `Magento\MysqlMq`, and none of it reads like AMQP.
 
-The instrument is a bench-local module, `magento/app/code/Gplanchat/DurableProbe` — a topic whose
+The instrument is a bench-local module, `magento/app/code/Gplanchat/DurableProbe`, a topic whose
 handler does nothing but sleep. It stays out of `gplanchat/durable-magento` on purpose: §4.1's five
 roles will be written in the published module, and this is not one of them.
 
@@ -404,36 +404,36 @@ Getting it back needs **two** cron jobs, and they are not the same job:
 
 | | schedule | what it does |
 |---|---|---|
-| `mysqlmq_clean_messages` | `30 6,15 * * *` | `IN_PROGRESS` → `RETRY_REQUIRED`, once `retry_inprogress_after` has passed — **1440 minutes**, a day |
+| `mysqlmq_clean_messages` | `30 6,15 * * *` | `IN_PROGRESS` → `RETRY_REQUIRED`, once `retry_inprogress_after` has passed: **1440 minutes**, a day |
 | `messagequeue_clean_outdated_locks` | hourly | empties `queue_lock` |
 
 **And their order decides whether the message is run or silently swallowed.** If the retry lands
 while the lock is still there, `MessageController::lock()` throws `MessageLockException`, and
-`Consumer` catches it by **acknowledging the message without dispatching it** — the row goes
+`Consumer` catches it by **acknowledging the message without dispatching it**: the row goes
 `COMPLETE`, the handler never runs, nothing is logged. Measured: with `retry_inprogress_after`
 lowered to one minute, the redelivered message went `COMPLETE` in about a second and the handler's
 trace stayed shut. The lock row was `md5('durable.probe-1')` to the character.
 
 Purge the lock first and redelivery works as advertised: the handler restarted **from the
-beginning**, `number_of_trials` at 1. Nothing resumes mid-handler — which is exactly why the journal
+beginning**, `number_of_trials` at 1. Nothing resumes mid-handler, which is exactly why the journal
 has to be what resumes, and not the message.
 
 So the shipped configuration is saved by its own sloth: a day of retry delay outlives an hourly lock
 purge. **A shop that shortens `retry_inprogress_after` to recover faster walks straight into the
-silent drop** — and the message it would drop is a workflow resume. The module cannot leave that to
+silent drop**, and the message it would drop is a workflow resume. The module cannot leave that to
 chance, and §4.3's test is where it gets pinned.
 
 *(Read, not measured: `releaseOutdatedLocks()` computes its cutoff with `$date->add()` where `sub()`
 would be the sane reading, so the hourly job deletes **every** lock rather than the outdated ones.
-Consistent with what the run did — it removed a four-minute-old lock.)*
+Consistent with what the run did: it removed a four-minute-old lock.)*
 
-### What a long message costs — §1.5, measured
+### What a long message costs (§1.5, measured)
 
 Two of the three worries were unfounded, and the third is worse than the worry.
 
 **The runner does not mind.** A handler holding a message for 200 s ran to completion, `FIN` in the
 trace, row `COMPLETE`. `queue:consumers:start` imposes no deadline of its own. **Nor does MySQL**:
-the bench's `wait_timeout` is `28800` — eight hours, against a long poll measured in seconds.
+the bench's `wait_timeout` is `28800` (eight hours), against a long poll measured in seconds.
 
 **But the retry timer never asks whether the first consumer finished.** It looks at `updated_at` and
 nothing else. With `retry_inprogress_after` shortened to a minute, one message produced this:
@@ -443,14 +443,14 @@ nothing else. With `retry_inprogress_after` shortened to a minute, one message p
 01:02:03 worker-longue-poll DÉBUT   pid=445235 tient=200s     ← 442111 travaille toujours
 ```
 
-Two live processes, one message body, both handlers running. Not a redelivery after a failure — a
+Two live processes, one message body, both handlers running. Not a redelivery after a failure: a
 **duplication during a success**.
 
 The consequence names the worker's shape. A long-poll worker holds its message by construction, and
 it outlives a day the way any worker does; the shipped 1440-minute delay is therefore not a floor
 that saves it, only the hour at which the duplicate arrives. **So the worker cannot be a queue
 message.** §5.1 already says the workers are `bin/magento` commands drained by the operator's own
-supervisor — that was a preference before this measurement, and it is a constraint after it.
+supervisor; that was a preference before this measurement, and it is a constraint after it.
 
 And for task 4: **Magento's queue offers no mutual exclusion whatsoever**, not even one delivery at a
 time for one message. §1.4's per-execution lock is not a refinement on top of the queue's guarantees;
@@ -460,10 +460,10 @@ it is the only thing standing between two consumers and a forked journal.
 picked up an older leftover message instead of the one under test, and the trace looked like a
 non-result. `probe-queue.php purge` exists because of it.)*
 
-## The one hazard that is not a port — inherited, and now with a second one under it
+## The one hazard that is not a port (inherited, and now with a second one under it)
 
 This is the design's only real invariant, and it is inherited rather than discovered. **§1.4 probed
-it and it holds** — two processes, `magento/probe-lock.php`, the second refused while the first
+it and it holds**: two processes, `magento/probe-lock.php`, the second refused while the first
 holds. A killed holder releases it too, so a crashed consumer costs a resume, not a wedged
 execution.
 
@@ -471,7 +471,7 @@ What the probe found that reading the class would not: the container hands out a
 `Magento\Framework\Lock\Proxy`, which names no backend until it has been made to work. A startup
 refusal cannot read `get_class()` on the lock manager and conclude anything. And
 `Backend\Database::lock()` returns `true` **without taking any lock** when
-`DeploymentConfig::isDbAvailable()` is false — a lock that always says yes, which is exactly the
+`DeploymentConfig::isDbAvailable()` is false, a lock that always says yes, which is exactly the
 failure this section exists to prevent and the shape §2.3's refusal has to recognise.
 
 ## Backends: two, and the reason is not laziness
@@ -483,10 +483,10 @@ reason in the wizard itself:
 
 That is accurate. `Magento\Framework\App\ResourceConnection` is neither Doctrine DBAL nor
 Illuminate's connection, and the two SQL bridges bind to those two types. Making the journal speak
-`ResourceConnection` is a fourth adapter family — a change of its own, with the wizard,
+`ResourceConnection` is a fourth adapter family: a change of its own, with the wizard,
 `ALLOWED.magento` and OST003 to update behind it.
 
-Until then the module refuses a DBAL or Illuminate configuration — **and Composer is what refuses
+Until then the module refuses a DBAL or Illuminate configuration, **and Composer is what refuses
 it**, not code. `gplanchat/durable-magento` declares:
 
 ```json
@@ -498,7 +498,7 @@ it**, not code. `gplanchat/durable-magento` declares:
 
 Measured on the bench: `composer require gplanchat/durable-bridge-dbal` beside the module ends in
 *"Conclusion: remove gplanchat/durable-magento (conflict analysis result)"*, and nothing is written.
-The incoherent installation never exists, so no process ever boots into it — earlier and harder than
+The incoherent installation never exists, so no process ever boots into it, earlier and harder than
 any check the module could run, and it costs six lines of metadata instead of a value object, an
 exception, a guard and a test.
 
@@ -508,20 +508,20 @@ constraint the package manager can express does not belong in a runtime that onl
 after someone has already installed the wrong thing.
 
 ⚠ The one thing Composer's refusal does not carry is **why**. It names the packages that cannot
-coexist, not the reason Magento cannot reach a SQL journal — that reason lives in the selector on the
-home page, in `ALLOWED.magento`, and in this design. A `conflict` entry has nowhere to put a
+coexist, not the reason Magento cannot reach a SQL journal; that reason lives in the selector on
+the home page, in `ALLOWED.magento`, and in this design. A `conflict` entry has nowhere to put a
 sentence.
 
 And because there is no configuration surface for the backend at all, there is nothing to
 mistype and nothing to refuse at boot: the module wires what it wires. §5 is what gives it a second
-backend, and that is the point at which a choice — and therefore a way to get the choice wrong —
+backend, and that is the point at which a choice (and therefore a way to get the choice wrong)
 starts to exist.
 
-## Declaration, since there are no tags — §3.1, built
+## Declaration, since there are no tags (§3.1, built)
 
 Symfony's `ActivityHandlerPass` walks tagged services and registers what their contracts declare.
 Magento has no tags, so the list comes from `di.xml`: one array of workflow class names, one array
-of activity handler objects. **The contract is deliberately not in it** — the factory reads each
+of activity handler objects. **The contract is deliberately not in it**: the factory reads each
 handler's interfaces and keeps those carrying `#[ActivityMethod]`. A declaration that cannot be
 written is a declaration that cannot be written wrong, and the activity names stay the attributes'
 rather than becoming strings repeated in two places.
@@ -531,7 +531,7 @@ Below the list, the two hosts are the same code: `ActivityContractResolver` for 
 importing nothing from Symfony; it moved down to `gplanchat/durable` rather than being copied.
 
 **And the refusal is the mechanism, not a nicety.** `MagentoRuntime::run()` registered an unknown
-workflow on the fly, so any class ran whether or not `di.xml` named it — the declaration declared
+workflow on the fly, so any class ran whether or not `di.xml` named it: the declaration declared
 nothing, and the spec's *"an undeclared workflow fails at the moment of the mistake"* had been false
 since §3.2 without anyone noticing. It now throws, naming the class and the argument where classes
 are named. The forgotten deployment fails on the machine that forgot it, not in production.

@@ -35,13 +35,13 @@ long poll, and Magento's retry timer never asks whether the first consumer has f
 handing the same message to a second.
 
 Nor does work travel on Magento's `MessageQueue`. On the only durable backend this host reaches,
-activity dispatch is a Temporal command on a Temporal task queue, and a resume is a workflow task —
-neither is a message the host could carry. A queue here would be the second queue this requirement
+activity dispatch is a Temporal command on a Temporal task queue, and a resume is a workflow task.
+Neither is a message the host could carry. A queue here would be the second queue this requirement
 forbids.
 
 Nothing follows from this about two consumers replaying one execution concurrently. That collision
 needs two resumes of the same execution to be two queue messages, and here a resume is never a
-message at all — so the capability carries no locking requirement, not because the hazard is
+message at all, so the capability carries no locking requirement, not because the hazard is
 tolerated but because this host cannot reach it. ⚠ It returns the day a host-native journal does.
 
 #### Scenario: A worker is supervised like any other Magento process

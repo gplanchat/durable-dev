@@ -1,7 +1,7 @@
 ## Why
 
 [OST003 §3](../../../documentation/ost/OST003-php-ecosystem-integrations.md) puts Magento in
-Tier 1 — *foreign container, foreign queue, a package written from the bootstrap up* — and states
+Tier 1 (*foreign container, foreign queue, a package written from the bootstrap up*) and states
 the failure the integration exists to remove:
 
 > Cron plus `MessageQueue` consumers, and the failure every integrator has seen is a consumer that
@@ -19,9 +19,9 @@ bootstrap"* with nothing in its **Blocked on** column. This change is that boots
 
 OST004's claim that the bench is *"already in `magento/`"* is true on a developer machine and false
 in the repository: `git ls-files magento` returns **zero** files, where `sylius/` returns 220. The
-overlay exists — `composer.json` pinned to `mage-os/product-community-edition:2.2.0`, a
+overlay exists (`composer.json` pinned to `mage-os/product-community-edition:2.2.0`, a
 `compose.yaml` with MySQL, OpenSearch, Redis, Temporal and the Temporal UI, a README, and a
-host-extension check script — but nobody who clones this repository has one.
+host-extension check script), but nobody who clones this repository has one.
 
 It also names a package that does not exist. Its `composer.json` requires `gplanchat/durable-module`
 from the path repository `../src/DurableModule`, and `src/DurableModule` is not there.
@@ -37,11 +37,11 @@ So the bootstrap has two halves: **write the module**, and **land the bench that
   `communication.xml`, `queue_topology.xml`, `queue_publisher.xml` and `queue_consumer.xml`, rather
   than a second queue introduced beside it.
 - Workers SHALL be `bin/magento` console commands, drained by the consumer runner an operator
-  already supervises — `magento cron:run` and `queue:consumers:start`, not a process model to learn.
+  already supervises, `magento cron:run` and `queue:consumers:start`, not a process model to learn.
 - ~~Two consumers SHALL NOT replay the same execution at once, over `LockManagerInterface`.~~
   **Withdrawn 28/08**, with the queue it protected. The hazard
   [DUR030](../../../documentation/adr/DUR030-dbal-backend-simplified-durable-execution.md) names for
-  the DBAL backend — a forked journal, duplicated activities — needs two resumes of one execution to
+  the DBAL backend (a forked journal, duplicated activities) needs two resumes of one execution to
   be two queue messages. On the only durable backend this host reaches, a resume is a Temporal
   workflow task the server already serialises, and nothing of Durable rides Magento's queue. ⚠ The
   bullet returns with a host-native journal, if one is ever added.
@@ -58,7 +58,7 @@ The repository currently gives three answers, and no two agree:
 
 | Where | Name |
 |---|---|
-| The published home page selector | `gplanchat/durable-magento?` — the `?` marks it undecided |
+| The published home page selector | `gplanchat/durable-magento?` (the `?` marks it undecided) |
 | `magento/composer.json`, and its path repository `../src/DurableModule` | `gplanchat/durable-module` |
 | Magento's own convention for a module package | `gplanchat/module-durable` |
 
@@ -71,7 +71,7 @@ developer's eye expects in `vendor/`).
 This change picks **`gplanchat/durable-magento`**: the family prefix is what a reader of the site,
 the docs and Packagist has already learned, and the four shipped packages all lead with it. The
 Magento convention governs the *directory* under `app/code` and the module's declared name in
-`registration.php` — `Gplanchat_Durable` — which is where a Magento developer actually looks.
+`registration.php` (`Gplanchat_Durable`), which is where a Magento developer actually looks.
 
 The bench and the home page both follow. Neither is source of truth today; after this change the
 proposal is.

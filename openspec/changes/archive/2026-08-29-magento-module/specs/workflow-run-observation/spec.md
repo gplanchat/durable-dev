@@ -5,24 +5,24 @@
 ### Requirement: Reading a run's recorded history
 
 An operator SHALL be able to select a run and see the history recorded for it: its events in
-recorded order, a timeline of the **actions** the run performed, and — for each event — what the
+recorded order, a timeline of the **actions** the run performed, and, for each event, what the
 backend recorded with it.
 
 An action is not an event. An activity scheduled, started and completed is one action and three
 events; so is a timer, so is a Nexus operation. A timeline that ranks events by kind makes the
-operator recompose an action from three rows to answer the question they came with — how long did
+operator recompose an action from three rows to answer the question they came with: how long did
 *that one* take. The observation model SHALL therefore carry, for each event, the action it belongs
 to, and SHALL say plainly when an event is an action on its own rather than leaving the surface to
 guess.
 
-A line answers *what happened*. The next question an operator asks, every time, is *with what* —
+A line answers *what happened*. The next question an operator asks, every time, is *with what*:
 the input an activity was called with, the value it returned, the class and message of a failure.
 An event model that carries only a label cannot answer it, and a surface built over such a model
 offers an expander that opens onto nothing.
 
 A duration is not one fact but two. Time spent waiting for someone to pick the work up and time
 spent doing the work draw the same rectangle, and the first question an operator asks of a slow run
-is which of the two they are looking at — their own code, or nobody at the other end. The
+is which of the two they are looking at: their own code, or nobody at the other end. The
 observation model SHALL therefore say, for each event, whether the work begins there, so that an
 interval ending on such an event can be shown as a queue rather than as work.
 
@@ -30,16 +30,16 @@ Not every event names what it belongs to. Only the event that opens an action ca
 the activity, the child workflow or the operation; the ones that follow carry a number. A history
 that shows each event's own label therefore hides, on two rows out of three, the very name the
 operator is looking for. Each event SHALL be presented alongside the name of the action it belongs
-to. A timer has no business name at all — its delay is the only fact it carries, and that delay
+to. A timer has no business name at all; its delay is the only fact it carries, and that delay
 SHALL be what names it, rather than the class of the event that started it.
 
 What went wrong SHALL be distinguishable at a glance, on the event and not on the action: an
 activity that failed twice and succeeded on the third try both carries a failure and ends well. A
-cancellation and a termination SHALL NOT be presented as failures — they are outcomes somebody
+cancellation and a termination SHALL NOT be presented as failures: they are outcomes somebody
 asked for, and presenting both alike leaves the distinction meaning nothing.
 
 What the event carries SHALL be the backend's own vocabulary. Normalising it would mean deciding,
-for every backend, which of its facts deserve a common name — a decision worth making once
+for every backend, which of its facts deserve a common name, a decision worth making once
 operators have said what they look for, and a fabrication before then.
 
 #### Scenario: Selecting a run shows its events
@@ -69,13 +69,13 @@ operators have said what they look for, and a fabrication before then.
 #### Scenario: The run itself is the first line, and its children are not part of it
 
 - **WHEN** an operator selects a run that ran workflow tasks and started a child workflow
-- **THEN** the events of the run itself — its start, its workflow tasks, its end — are on a single
+- **THEN** the events of the run itself (its start, its workflow tasks, its end) are on a single
   line, the first
 - **AND** that line is labelled with the name of the workflow, not with the name of an event
 - **AND** the child workflow has a line of its own, labelled with the child's workflow type
 - **AND** a signal received and an update handled are lines of their own, not folded into the run's
-- **AND** an interval during which the run recorded nothing — waiting for a worker, waiting for a
-  reply — is still readable inside its line, and says how long it lasted
+- **AND** an interval during which the run recorded nothing (waiting for a worker, waiting for a
+  reply) is still readable inside its line, and says how long it lasted
 
 #### Scenario: An event that is an action on its own
 
