@@ -1,9 +1,9 @@
-# Le gabarit du tableau de bord étend la mise en page de l'admin Sylius, qui demande à Encore ses
-# points d'entrée. Sans `yarn build`, le fichier `entrypoints.json` n'existe pas et toute la page
-# meurt en 500 — y compris les parties qui n'ont rien à voir avec les assets.
+# The dashboard template extends the Sylius admin layout, which asks Encore for its entry points.
+# Without `yarn build`, the `entrypoints.json` file does not exist and the whole page dies in a
+# 500 — including the parts that have nothing to do with the assets.
 #
-# Le test fonctionnel porte sur le contenu de notre page, pas sur le pipeline d'assets de Sylius :
-# en mode non strict, un point d'entrée absent ne rend rien au lieu de lever. Une vérification
-# visuelle réelle, elle, demanderait un `yarn build` — c'est un autre besoin.
+# The functional test is about the content of our page, not about the Sylius asset pipeline: in
+# non-strict mode, a missing entry point renders nothing instead of throwing. A real visual check
+# would ask for a `yarn build` — that is another need.
 webpack_encore:
     strict_mode: false

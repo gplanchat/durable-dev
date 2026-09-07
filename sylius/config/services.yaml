@@ -35,8 +35,8 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
-    # Les workflows se déclarent par une balise et non par un attribut : c'est elle que lit
-    # WorkflowPass. Sans elle, un #[AsWorkflow] est une classe que personne n'enregistre.
+    # Workflows are declared by a tag and not by an attribute: the tag is what WorkflowPass reads.
+    # Without it, an #[AsWorkflow] is a class that nobody registers.
     App\Durable\Workflow\:
         resource: '../src/Durable/Workflow/'
         tags: [durable.workflow]
@@ -47,19 +47,19 @@ services:
         resource: '../src/Controller'
         tags: ['controller.service_arguments']
 
-# La balise Nexus est posée ici, et non par `#[AsNexusServiceHandler]` sur la classe.
+# The Nexus tag is placed here, and not by `#[AsNexusServiceHandler]` on the class.
 #
-# L'attribut vaudrait dans **tous** les environnements, et un gestionnaire déclaré sur un backend
-# sans route est refusé au démarrage — à raison, puisqu'il ne recevrait jamais rien. Or la boutique
-# n'a de cluster que dans son profil de démonstration. La balise dit donc ce qui est vrai : elle
-# sert `stock` en `demo`, et nulle part ailleurs.
+# The attribute would hold in **every** environment, and a handler declared on a backend with no
+# route is refused at boot — rightly so, since it would never receive anything. But the shop only
+# has a cluster in its demonstration profile. The tag therefore says what is true: it serves
+# `stock` in `demo`, and nowhere else.
 #
-# `symfony/` garde l'attribut, lui : son banc a un DSN en dev comme en prod.
+# `symfony/` does keep the attribute: its bench has a DSN in dev as in prod.
 when@demo:
     services:
-        # `autowire` explicitement : redéfinir un service dans un bloc `when@` **remplace** la
-        # définition venue du chargement de `App\`, et les `_defaults` du bloc principal ne s'y
-        # appliquent pas. Sans cette ligne, le constructeur ne reçoit rien.
+        # `autowire` explicitly: redefining a service in a `when@` block **replaces** the
+        # definition that came from loading `App\`, and the `_defaults` of the main block do not
+        # apply to it. Without this line, the constructor receives nothing.
         App\Durable\Nexus\StockHandler:
             autowire: true
             tags:
