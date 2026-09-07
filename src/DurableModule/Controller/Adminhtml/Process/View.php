@@ -11,7 +11,7 @@ use Magento\Framework\Controller\ResultInterface;
 use Magento\Framework\View\Result\PageFactory;
 
 /**
- * L'historique d'une exécution — ce qu'une ligne de grille ne peut pas tenir.
+ * L'historique d'une exécution : ce qu'une ligne de grille ne peut pas tenir.
  *
  * En lecture seule comme la liste, et pour la même raison : reprendre depuis un navigateur
  * contournerait le verrou par exécution.
@@ -43,7 +43,7 @@ class View extends Action implements HttpGetActionInterface
         $page = $this->pageFactory->create();
         $page->setActiveMenu('Gplanchat_DurableModule::process_history');
         // `Title::prepend()` déclare `string` ; `__()` rend une `Phrase`. Le rendu a lieu ici de
-        // toute façon — le titre part dans la page — donc la conversion ne coûte aucune traduction
+        // toute façon (le titre part dans la page), donc la conversion ne coûte aucune traduction
         // tardive et respecte le contrat écrit.
         $page->getConfig()->getTitle()->prepend(
             (string) __('Execution %1', (string) $this->getRequest()->getParam('run_id')),

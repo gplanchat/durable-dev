@@ -8,7 +8,7 @@ namespace Gplanchat\Durable\Awaitable;
  * Réglé quand **un nombre donné** de ses membres a abouti (ADR DUR033).
  *
  * Généralise le cas courant que `all()` exprimait en attendant tout : trois fournisseurs de prix
- * sur huit suffisent à décider, et attendre les cinq autres ne fait que payer leur latence — ou
+ * sur huit suffisent à décider, et attendre les cinq autres ne fait que payer leur latence, ou
  * leur panne. Le quorum est la borne entre les deux : `all()` est le quorum plein, et un quorum
  * partiel dit à quel moment on a assez de réponses.
  *
@@ -17,7 +17,7 @@ namespace Gplanchat\Durable\Awaitable;
  * régleraient l'attente en relevant la première d'entre elles, alors que le quorum existe
  * précisément pour survivre à des membres qui tombent. Le corollaire tient en une ligne : dès
  * qu'il reste trop peu de membres en course pour atteindre le quorum, l'attente est réglée par
- * l'échec — sans quoi elle ne se réglerait jamais.
+ * l'échec, sans quoi elle ne se réglerait jamais.
  *
  * Le résultat est un tableau **indexé par la position de déclaration**, pour que l'appelant
  * sache lesquels ont répondu. `all()` rend donc la liste dans l'ordre, ce que la déstructuration
@@ -95,8 +95,8 @@ final class QuorumAwaitable implements CompositeAwaitable
 
     /**
      * Les membres aboutis, leur nombre d'échecs, et le premier de ces échecs dans l'ordre de
-     * déclaration — celui qui a fait basculer le quorum hors d'atteinte du point de vue de
-     * l'appelant.
+     * déclaration (celui qui a fait basculer le quorum hors d'atteinte du point de vue de
+     * l'appelant).
      *
      * @return array{array<int, mixed>, int, ?\Throwable}
      */

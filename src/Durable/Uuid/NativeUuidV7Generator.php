@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Uuid;
 
 /**
- * Pure-PHP UUID v7 generator (RFC 9562) — no framework dependency.
+ * Pure-PHP UUID v7 generator (RFC 9562); no framework dependency.
  *
  * Layout (128 bits):
  *   [48-bit ms timestamp][4-bit ver=0x7][12-bit rand_a][2-bit variant=0b10][62-bit rand_b]

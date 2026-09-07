@@ -38,7 +38,7 @@ final class TemporalConnection
      * File des tâches Nexus servies par ce composant.
      *
      * Elle n'a pas de défaut à elle : elle **suit la file de workflow**. Un endpoint Nexus vise une
-     * file, et le serveur n'y livre que si quelqu'un y poll — une file par défaut que personne ne
+     * file, et le serveur n'y livre que si quelqu'un y poll. Une file par défaut que personne ne
      * sert donnerait un endpoint qui ne répond jamais, sans la moindre erreur. Suivre la file de
      * workflow fait tomber juste le montage le plus courant : un worker, une file.
      */

@@ -19,7 +19,7 @@ use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
  * Cron / message : fait progresser les timers d'un run puis relance si besoin.
  *
  * If no timers fire on this pass (because the transport delivered the message before
- * the scheduled time elapsed — typically the in-memory transport in tests ignores
+ * the scheduled time elapsed; typically the in-memory transport in tests ignores
  * DelayStamp), the handler re-dispatches the check message with a fresh delay so
  * the workflow eventually resumes once the timer actually expires.
  */

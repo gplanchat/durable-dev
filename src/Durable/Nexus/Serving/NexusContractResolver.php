@@ -13,7 +13,7 @@ use Psr\Cache\CacheItemPoolInterface;
  *
  * **Il descend les interfaces parentes**, là où {@see \Gplanchat\Durable\Activity\ActivityContractResolver}
  * les ignore. Ce n'est pas une divergence gratuite : un contrat Nexus se sépare en deux, celui que
- * le gestionnaire implémente — les opérations auxquelles il répond tout de suite — et celui qui
+ * le gestionnaire implémente (les opérations auxquelles il répond tout de suite) et celui qui
  * l'étend pour l'appelant. C'est cette séparation qui évite d'écrire des méthodes vides pour les
  * opérations qu'un workflow remplit. Sauter les méthodes héritées ferait disparaître de la vue de
  * l'appelant les opérations déclarées sur le contrat servi : déclarées, servies, et introuvables.

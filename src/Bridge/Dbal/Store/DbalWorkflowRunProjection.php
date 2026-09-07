@@ -28,7 +28,7 @@ final class DbalWorkflowRunProjection implements WorkflowRunProjectionInterface
     ) {}
 
     /**
-     * Une exécution démarre — ou reprend sous le même id.
+     * Une exécution démarre, ou reprend sous le même id.
      *
      * `started_at` n'est écrit qu'à l'insertion : le magasin de métadonnées fait un upsert, et
      * réécrire la date à chaque passage ferait rajeunir une exécution longue à chaque reprise.

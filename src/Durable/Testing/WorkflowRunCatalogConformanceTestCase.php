@@ -12,11 +12,11 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Suite de conformité de {@see WorkflowRunCatalogInterface} — DUR041.
+ * Suite de conformité de {@see WorkflowRunCatalogInterface} (DUR041).
  *
  * Ce port est en **lecture seule** : la suite ne peut donc pas se remplir elle-même, et demande
  * deux crochets d'amorçage à l'adaptateur. C'est la forme qu'une suite de conformité prend quand le
- * port n'a pas d'écriture — les crochets disent « fais exister une exécution dans cet état », pas
+ * port n'a pas d'écriture : les crochets disent « fais exister une exécution dans cet état », pas
  * « écris cette ligne ».
  *
  * **Ce que la suite n'exige pas :** un ordre précis entre deux exécutions démarrées dans la même

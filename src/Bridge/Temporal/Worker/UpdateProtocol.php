@@ -23,7 +23,7 @@ use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
  *
  * Sondé contre un vrai serveur (tâche 1.3 du change workflow-conditions-and-handler-dispatch) :
  * un update n'arrive **pas** par l'historique. Il vient à côté, en message de protocole sur la
- * tâche, et le worker l'accepte *et* y répond sur cette **même** tâche — une `Acceptance` portée
+ * tâche, et le worker l'accepte *et* y répond sur cette **même** tâche : une `Acceptance` portée
  * par une commande `PROTOCOL_MESSAGE`, une `Response` qui porte l'issue. Le serveur écrit ensuite
  * `WORKFLOW_EXECUTION_UPDATE_ACCEPTED` puis `..._UPDATE_COMPLETED`, les deux événements que
  * {@see TemporalExecutionHistory} lit déjà.
@@ -109,7 +109,7 @@ final class UpdateProtocol
 
             // Une commande par message. L'acceptation seule suffit au serveur pour ouvrir
             // l'update, mais laisse la réponse hors de la séquence : si le workflow se termine
-            // sur la même tâche — ce qu'un update débloquant provoque justement — le serveur
+            // sur la même tâche (ce qu'un update débloquant provoque justement), le serveur
             // clôt l'exécution avant d'avoir délivré l'issue, et l'appelant reçoit « the
             // Workflow completed before the Update completed ».
             $commands[] = self::protocolCommand($acceptMessage->getId());

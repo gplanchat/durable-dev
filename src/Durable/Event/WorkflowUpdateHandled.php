@@ -26,7 +26,7 @@ final readonly class WorkflowUpdateHandled implements Event
         /**
          * L'update a échoué : l'appelant reçoit la défaillance, le workflow continue.
          *
-         * Un champ nullable plutôt qu'un événement frère — comme `ActivityFailed` en est un de
+         * Un champ nullable plutôt qu'un événement frère, comme `ActivityFailed` en est un de
          * `ActivityCompleted`. La raison est dans le protocole : Temporal n'écrit qu'un
          * `WORKFLOW_EXECUTION_UPDATE_COMPLETED`, dont l'`Outcome` est soit un succès soit un
          * échec (ADR DUR035, sonde 1.3).

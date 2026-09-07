@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
 /**
  * Draine les opérations Nexus que le cluster route vers cette application.
  *
- * Le pont n'expose qu'un `pollOnce()` — un tour, et rien de plus : la boucle, son critère d'arrêt
+ * Le pont n'expose qu'un `pollOnce()` (un tour, et rien de plus) : la boucle, son critère d'arrêt
  * et ce qu'elle fait d'une erreur appartiennent à l'hôte. Celle-ci s'arrête sur `--max-time`, comme
  * `durable:temporal-worker`, pour qu'un superviseur puisse la recycler.
  */

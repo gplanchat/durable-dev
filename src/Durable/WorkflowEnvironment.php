@@ -34,7 +34,7 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 
 /**
  * Façade par exécution : encapsule ExecutionContext et ExecutionRuntime.
- * Seule API workflow côté applicatif — pas de fonctions libres ni scope TLS.
+ * Seule API workflow côté applicatif : pas de fonctions libres ni scope TLS.
  */
 final class WorkflowEnvironment
 {
@@ -121,22 +121,22 @@ final class WorkflowEnvironment
      * Attend le règlement d'un awaitable, éventuellement sous échéance.
      *
      * L'échéance par défaut est {@see Duration::infinity()} : une attente non bornée dure ce
-     * qu'il faut. C'est une valeur du domaine et non un `null` — elle se compare, se transporte
+     * qu'il faut. C'est une valeur du domaine et non un `null` : elle se compare, se transporte
      * et se calcule comme n'importe quelle autre durée, si bien qu'un appelant qui compose son
      * échéance n'a plus de cas particulier à écrire pour « pas de borne ».
      *
      * Sous une échéance finie, l'attente est bornée : si l'échéance s'écoule d'abord, elle relève
-     * {@see DeadlineExceededException} plutôt que de rendre une valeur — `null` est une réponse
+     * {@see DeadlineExceededException} plutôt que de rendre une valeur. `null` est une réponse
      * qu'un travail borné a le droit de rendre (ADR DUR032).
      *
      * L'échéance annule ce qu'elle bornait, et le règlement annule l'échéance. L'annulation
      * d'une activité reste *best effort* : le workflow ne sera plus réveillé par elle, mais la
-     * tentative en cours peut continuer côté serveur — Temporal reçoit une *demande*
+     * tentative en cours peut continuer côté serveur. Temporal reçoit une *demande*
      * d'annulation ({@see \Gplanchat\Durable\Activity\ActivityCancellationType}).
      *
      * Une `Closure` est acceptée à la place d'un awaitable : c'est une **condition** sur l'état
      * du workflow, et l'exécution repart dès qu'elle est vraie. Elle doit être fonction du seul
-     * état du workflow — ce qu'un replay ne reproduit pas se consigne d'abord avec
+     * état du workflow : ce qu'un replay ne reproduit pas se consigne d'abord avec
      * {@see sideEffect()}. Attention, `fn()` capture par valeur : une condition sur une variable
      * locale s'écrit `function () use (&$…)`.
      *
@@ -155,7 +155,7 @@ final class WorkflowEnvironment
         $deadline = null === $deadline ? Duration::infinity() : Duration::from($deadline);
 
         // Une échéance infinie ne planifie pas de minuteur : le seul écart entre les deux
-        // chemins, et il est irréductible — un minuteur qui ne tire jamais serait une commande
+        // chemins, et il est irréductible. Un minuteur qui ne tire jamais serait une commande
         // de plus dans l'historique, pour un réveil qui n'arrive pas.
         if ($deadline->isInfinite()) {
             $this->applyMessagesUntil($awaitable, null);
@@ -179,7 +179,7 @@ final class WorkflowEnvironment
      *
      * C'est la boucle d'entrelacement : chaque message est appliqué, son handler appelé, puis
      * l'attente retestée avant de passer au suivant. La faire d'un bloc suffirait au premier
-     * passage et donnerait le verdict inverse au replay — un message enregistré après le tir
+     * passage et donnerait le verdict inverse au replay : un message enregistré après le tir
      * d'une échéance réglerait la condition que cette échéance avait déjà tranchée.
      *
      * Elle est pilotée ici, avant que le composite n'atteigne le runtime : `isSettled()` d'un
@@ -246,7 +246,7 @@ final class WorkflowEnvironment
 
         // Consigné ici, et pas par l'appelant de la passe : l'enregistrement doit précéder ce
         // que le workflow fait en réponse, sinon un replay les appliquerait dans l'autre ordre.
-        // C'est l'ordre que Temporal produit — l'acceptation avant les commandes du workflow.
+        // C'est l'ordre que Temporal produit : l'acceptation avant les commandes du workflow.
         $this->context->recordUpdateHandled($message['name'], $message['payload'], $pending->result, $pending->failure);
     }
 
@@ -265,7 +265,7 @@ final class WorkflowEnvironment
     {
         // Le composite reste un CancellingCompositeAwaitable enveloppant un AnyAwaitable :
         // c'est ce que traverse AwaitableInspector::waitsOnTimer(), et sans lui aucun réveil
-        // n'est planifié — l'échéance ne partirait jamais.
+        // n'est planifié. L'échéance ne partirait jamais.
         $composite = new CancellingCompositeAwaitable($this->context, new AnyAwaitable([$awaitable, $timer]));
 
         try {
@@ -323,7 +323,7 @@ final class WorkflowEnvironment
      * (ADR DUR033).
      *
      * Rend un {@see Awaitable} et n'attend rien : c'est {@see await()} qui bloque, et lui seul.
-     * Un assembleur qui attendrait à votre place ne se composerait pas — impossible d'en border
+     * Un assembleur qui attendrait à votre place ne se composerait pas : impossible d'en border
      * un par une échéance, ou d'en mettre un dans un autre, alors que ce sont là les deux seules
      * raisons de l'écrire.
      *
@@ -346,7 +346,7 @@ final class WorkflowEnvironment
      * Un assemblage réglé dès qu'**un** membre l'est, quel qu'en soit le sort, et qui rend la
      * valeur de ce gagnant.
      *
-     * Les branches perdantes encore en vol — activités comme minuteurs — sont retirées de la
+     * Les branches perdantes encore en vol (activités comme minuteurs) sont retirées de la
      * file : sans cela, un `any(timer, timer)` laissait une échéance morte réveiller
      * l'exécution.
      *
@@ -364,7 +364,7 @@ final class WorkflowEnvironment
     }
 
     /**
-     * Un assemblage réglé quand **$count** membres ont abouti — trois prix sur huit suffisent à
+     * Un assemblage réglé quand **$count** membres ont abouti : trois prix sur huit suffisent à
      * décider, et les cinq autres ne coûtent plus que leur latence.
      *
      *     $prices = $env->await($env->some(3, ...$providers), Duration::seconds(2));
@@ -440,7 +440,7 @@ final class WorkflowEnvironment
      * Deux points de changement sont indépendants : une exécution peut être du vieux côté de l'un
      * et du neuf côté de l'autre.
      *
-     * @param string $changeId     le nom de ce point, stable dans le temps — il vit dans l'historique
+     * @param string $changeId     le nom de ce point, stable dans le temps : il vit dans l'historique
      * @param int    $minSupported la plus ancienne version que ce code sait encore jouer
      * @param int    $maxSupported la plus récente, celle qu'une exécution neuve prendra
      */
@@ -475,7 +475,7 @@ final class WorkflowEnvironment
 
     /**
      * Appelle une opération Nexus : une opération servie par une autre équipe, un autre namespace,
-     * un autre déploiement — et qu'on attend comme une activité.
+     * un autre déploiement, et qu'on attend comme une activité.
      *
      * Les trois noms sont des objets-valeurs parce que le serveur ne protège que le premier :
      * sondé, il refuse net un endpoint mal formé, et accepte sans broncher un service ou une
