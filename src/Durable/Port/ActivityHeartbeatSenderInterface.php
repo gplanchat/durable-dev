@@ -12,7 +12,7 @@ namespace Gplanchat\Durable\Port;
  *  2. Check if Temporal has requested cancellation.
  *
  * Replaces the pcntl_fork-based TemporalActivityHeartbeatFork mechanism (which is forbidden).
- * The heartbeat is sent synchronously (cooperative, not background) — the activity handler
+ * The heartbeat is sent synchronously (cooperative, not background); the activity handler
  * is responsible for calling sendHeartbeat() at appropriate checkpoints.
  *
  * @see DUR027 Activity heartbeat cooperative model

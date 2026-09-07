@@ -14,8 +14,8 @@ use Magento\Ui\DataProvider\AbstractDataProvider;
  *
  * `AbstractDataProvider` est l'échappatoire documentée : il implémente les quinze méthodes du
  * contrat au-dessus d'une collection, et trois d'entre elles se redéfinissent quand il n'y en a
- * pas. C'est ce qui permet d'avoir le châssis d'admin — colonnes, tri, pagination, signets, export
- * — sans inventer une table dont l'état ne serait qu'une copie en retard de la grappe.
+ * pas. C'est ce qui permet d'avoir le châssis d'admin (colonnes, tri, pagination, signets, export)
+ * sans inventer une table dont l'état ne serait qu'une copie en retard de la grappe.
  *
  * ⚠ **La pagination est le point de friction, et il est borné plutôt que caché.** La grille pagine
  * par décalage (`setLimit($offset, $size)`) ; la grappe pagine par **curseur de continuation**. Les
@@ -24,7 +24,7 @@ use Magento\Ui\DataProvider\AbstractDataProvider;
  *
  * La taille de cette fenêtre vit sur {@see RuntimeFactory::OBSERVATION_WINDOW}, et pas ici : l'écran
  * de détail lit la même, et deux littéraux distincts rendaient possible d'être listé ici et
- * introuvable là. Elle est **dite à l'exploitant** par la bannière au-dessus de la grille — une
+ * introuvable là. Elle est **dite à l'exploitant** par la bannière au-dessus de la grille : une
  * fenêtre bornée qui ne s'annonce pas se découvre par une exécution qui manque.
  */
 /*
@@ -74,7 +74,7 @@ class ProcessListing extends AbstractDataProvider
                 // ⚠ Un tiret cadratin, pas une chaîne vide. Une exécution en cours n'a pas de date
                 // de fin, et la colonne existe pour toutes les autres : une case vide se lit comme
                 // un rendu qui a échoué, là où le tiret dit « rien ici ». C'est l'inverse du fait
-                // dont le backend n'a **pas la notion** — celui-là n'a pas de colonne du tout.
+                // dont le backend n'a **pas la notion** ; celui-là n'a pas de colonne du tout.
                 'started_at' => $run->startedAt?->format('Y-m-d H:i:s') ?? self::ABSENT,
                 'ended_at' => $run->endedAt?->format('Y-m-d H:i:s') ?? self::ABSENT,
             ], $window),

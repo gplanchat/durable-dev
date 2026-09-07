@@ -10,8 +10,8 @@ use Illuminate\Contracts\Queue\Factory as QueueFactory;
  * Ce qu'on fait d'une reprise dont le tour est pris : la reposer plus tard, un nombre borné de
  * fois.
  *
- * **Le délai est un réglage, et §1.5 dit pourquoi.** Sur une exécution froide — beaucoup de
- * workflows en vol, une poignée de workers — les collisions sont une erreur d'arrondi : 0,6 % à
+ * **Le délai est un réglage, et §1.5 dit pourquoi.** Sur une exécution froide (beaucoup de
+ * workflows en vol, une poignée de workers), les collisions sont une erreur d'arrondi : 0,6 % à
  * seize exécutions par worker. Sur une exécution chaude, celle qu'un signal ou un minuteur réveille
  * sans cesse, elles montent à 98,8 %, et là le délai **est** la latence : une seconde de report a
  * transformé 32 s de travail en 148 s d'horloge.

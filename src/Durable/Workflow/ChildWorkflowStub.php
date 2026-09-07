@@ -11,7 +11,7 @@ use Gplanchat\Durable\Stub\StubArguments;
  * Proxy de planification côté workflow pour exécuter un workflow enfant typé.
  *
  * Chaque appel à la méthode WorkflowMethod démarre l'enfant et rend un `Awaitable` : c'est
- * l'appelant qui attend, ce qui rend l'enfant composable — une course, un quorum, une
+ * l'appelant qui attend, ce qui rend l'enfant composable : une course, un quorum, une
  * échéance. Un stub qui attendait pour l'appelant ne pouvait entrer dans aucun assemblage.
  *
  * @template TWorkflow of object

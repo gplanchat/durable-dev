@@ -136,7 +136,7 @@ final class ExecutionContext
      * Planifie une opération Nexus et rend l'attente de son résultat.
      *
      * Même discipline de slot que {@see activity()} : le rang de l'appel identifie l'opération
-     * d'une passe de replay à l'autre. La différence de conséquence mérite d'être dite — une
+     * d'une passe de replay à l'autre. La différence de conséquence mérite d'être dite : une
      * activité replanifiée par erreur retombe sur un worker à soi, une opération Nexus part chez
      * un tiers, où le doublon est le sien.
      *
@@ -200,8 +200,8 @@ final class ExecutionContext
      * vol garde son comportement quoi qu'on déploie après elle. C'est ce qui distingue le
      * versioning de la devinette.
      *
-     * Deux points de changement sont indépendants — ils sont indexés par leur identifiant, pas par
-     * une position —, donc une exécution peut être du vieux côté de l'un et du neuf côté de
+     * Deux points de changement sont indépendants (ils sont indexés par leur identifiant, pas par
+     * une position), donc une exécution peut être du vieux côté de l'un et du neuf côté de
      * l'autre.
      *
      * @param string $changeId     le nom de ce point de changement, stable dans le temps
@@ -217,7 +217,7 @@ final class ExecutionContext
 
         // Aucun marqueur, et du travail enregistré encore devant : cette exécution est passée
         // ici avant que le point n'existe. Elle garde donc l'ancien comportement, et rien n'est
-        // écrit — la réponse se déduit de l'historique plutôt que de s'y ajouter, ce qui la rend
+        // écrit : la réponse se déduit de l'historique plutôt que de s'y ajouter, ce qui la rend
         // stable par construction.
         if ($this->hasRecordedWorkAhead()) {
             return ChangePoint::DEFAULT_VERSION;
@@ -240,7 +240,7 @@ final class ExecutionContext
      * seule propriété dont le versioning a besoin.
      *
      * Les effets de bord ne sont pas consultés : `findSideEffectForSlot()` rend `mixed`, et une
-     * valeur enregistrée peut légitimement être `null` — on ne peut pas distinguer « rien ici » de
+     * valeur enregistrée peut légitimement être `null` ; on ne peut pas distinguer « rien ici » de
      * « ici, la valeur null ». Un workflow dont le seul travail avant un point de changement est
      * un effet de bord sera donc traité comme neuf. C'est le trou, il est étroit, et il est écrit.
      */
@@ -257,14 +257,14 @@ final class ExecutionContext
      *
      * Les slots sont positionnels : le slot N est le N-ième appel, pas le N-ième appel *à cette
      * activité-là*. Insérer un appel avant un autre décale donc tout ce qui suit, et le replay
-     * rendait jusqu'ici le résultat enregistré du voisin — sans un mot. Mesuré contre un vrai
+     * rendait jusqu'ici le résultat enregistré du voisin, sans un mot. Mesuré contre un vrai
      * serveur : l'exécution se terminait **en succès** en portant la mauvaise valeur.
      *
      * La comparaison ne s'appuie que sur ce que l'historique porte déjà. Ajouter un champ aux
      * événements aurait laissé sans garde exactement les exécutions que la garde protège : les
      * anciennes.
      *
-     * Un slot que personne n'a enregistré n'est pas une divergence — c'est un workflow qui
+     * Un slot que personne n'a enregistré n'est pas une divergence : c'est un workflow qui
      * grandit, et le refuser casserait le cas normal.
      *
      * @throws WorkflowTaskFailure si le code demande autre chose que ce que le journal tient
@@ -277,7 +277,7 @@ final class ExecutionContext
     /**
      * La règle, une fois, pour les trois types de slot qui portent une identité.
      *
-     * `$recorded` à null veut dire « l'historique n'a rien dit là » — soit le slot est neuf, soit
+     * `$recorded` à null veut dire « l'historique n'a rien dit là » : soit le slot est neuf, soit
      * le journal ne porte pas cette identité. Dans les deux cas il n'y a rien à comparer, et
      * refuser casserait le cas normal. Les minuteurs sont dans ce cas par nature : leur échéance
      * est absolue et leur libellé facultatif (sonde 1.4).
@@ -395,7 +395,7 @@ final class ExecutionContext
             $result = $this->childWorkflowRunner->runChild($childExecutionId, $childWorkflowType, $input, $this->executionId);
             // L'issue de l'ENFANT, pas celle du run courant : completeWorkflow() ici clôturait le
             // journal du parent avec le résultat de l'enfant, et n'écrivait jamais le
-            // ChildWorkflowCompleted que findChildWorkflowForSlot() cherche au replay — l'enfant
+            // ChildWorkflowCompleted que findChildWorkflowForSlot() cherche au replay. L'enfant
             // était donc réexécuté à chaque reprise du parent.
             $this->commandBuffer->completeChildWorkflow($childExecutionId, $result);
             $deferred->resolve($result);
@@ -419,7 +419,7 @@ final class ExecutionContext
      *
      * Un par un, jamais par lot : un message enregistré après le tir d'une échéance ne doit pas
      * régler la condition qu'elle bornait, et une condition satisfaite par le premier de deux
-     * messages doit reprendre en n'ayant vu que celui-là. Les deux sortent de la même règle —
+     * messages doit reprendre en n'ayant vu que celui-là. Les deux sortent de la même règle :
      * le verdict est une position dans le journal (ADR DUR035).
      *
      * `pending` porte l'update hors journal quand c'en est un, et null quand le message est relu
@@ -578,7 +578,7 @@ final class ExecutionContext
 
         if (null === $scheduled) {
             // Le délai part tel quel : transformer une durée en échéance demande une horloge, et
-            // le cœur n'en a pas — c'est une décision de backend.
+            // le cœur n'en a pas : c'est une décision de backend.
             $this->commandBuffer->startTimer($timerId, $delay, $timerSummary);
         }
 

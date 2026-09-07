@@ -6,7 +6,7 @@ namespace Gplanchat\Durable\Awaitable;
 
 /**
  * Enveloppe d'un awaitable issu de la planification d'une opération Nexus, pour permettre son
- * annulation — celle d'un perdant de {@see any()} / {@see race()} comme celle d'un workflow annulé.
+ * annulation : celle d'un perdant de {@see any()} / {@see race()} comme celle d'un workflow annulé.
  *
  * Même rôle que {@see ActivityAwaitable}, et pour la même raison : sans identité transportée,
  * {@see AwaitableCancellation} n'a rien à quoi s'adresser et l'opération continue chez le
@@ -15,7 +15,7 @@ namespace Gplanchat\Durable\Awaitable;
  * oublie chez soi.
  *
  * L'identité portée est celle du domaine. Le pont Temporal la traduit en `scheduledEventId` réel,
- * lu dans l'historique, au moment d'émettre `RequestCancelNexusOperation` — un compteur inventé
+ * lu dans l'historique, au moment d'émettre `RequestCancelNexusOperation` ; un compteur inventé
  * localement a déjà fait taire cette commande une fois, pour les activités.
  *
  * @implements Awaitable<mixed>

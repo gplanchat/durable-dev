@@ -20,7 +20,7 @@ use Temporal\Api\Enums\V1\WorkflowIdReusePolicy as TemporalIdReusePolicy;
  * Partagées par le buffer de commandes (workflows enfants) et le client (démarrage racine) :
  * racine et enfant décrivent les mêmes réglages, ils ne doivent pas les traduire différemment.
  *
- * Les signatures acceptaient `mixed` — non par souplesse, mais parce que les valeurs traversaient
+ * Les signatures acceptaient `mixed`, non par souplesse, mais parce que les valeurs traversaient
  * un tableau avant d'arriver. Depuis qu'elles franchissent le port typées, le `match` est
  * exhaustif et le compilateur en répond.
  */
@@ -47,8 +47,8 @@ final class TemporalPolicyMapper
     }
 
     /**
-     * Pose les bornes temporelles sur n'importe quel message qui les accepte — requête de
-     * démarrage, commande d'enfant, commande de continue-as-new : ils exposent les mêmes
+     * Pose les bornes temporelles sur n'importe quel message qui les accepte (requête de
+     * démarrage, commande d'enfant, commande de continue-as-new) : ils exposent les mêmes
      * setters, et ne doivent pas traduire les mêmes options différemment.
      *
      * @param object $target message protobuf exposant setWorkflowExecutionTimeout /
@@ -71,7 +71,7 @@ final class TemporalPolicyMapper
      * Pose les attributs de recherche sur un message qui les accepte.
      *
      * Le type accompagne chaque valeur dans les métadonnées de la charge utile. Le serveur
-     * applique en réalité celui de son registre — mais l'annoncer rend l'intention lisible pour
+     * applique en réalité celui de son registre, mais l'annoncer rend l'intention lisible pour
      * qui inspecte l'historique.
      */
     public static function applySearchAttributes(SearchAttributes $attributes, object $target): void

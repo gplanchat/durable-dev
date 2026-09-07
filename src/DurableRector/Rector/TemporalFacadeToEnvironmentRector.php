@@ -34,7 +34,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  * Three things happen together because none of them is separable from the others.
  *
  * **The receiver does not exist in the source.** `Workflow::` is static; `$this->environment` is
- * not, so the rule adds a promoted `WorkflowEnvironment` constructor parameter. It prepends it —
+ * not, so the rule adds a promoted `WorkflowEnvironment` constructor parameter. It prepends it:
  * position is free, because Durable resolves the constructor by **type**
  * ({@see \Gplanchat\Durable\Workflow\WorkflowDefinitionLoader::instantiate()}), and prepending is
  * the one position that never puts a required parameter after an optional one.
@@ -46,7 +46,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  *
  * **A de-yielded method may no longer declare `\Generator`.** The type is removed, never replaced:
  * the SDK could not declare what the method actually returns, and inventing it here would be a
- * guess with a `TypeError` behind it. An interface that declared `\Generator` loses it too —
+ * guess with a `TypeError` behind it. An interface that declared `\Generator` loses it too;
  * stripping only the class would make the class widen its own contract, which is fatal.
  *
  * What it will not do is rewrite in a **static** method: there is no `$this` to route through. It
@@ -57,7 +57,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  * interceptor in `temporalio/samples-php` yields reflection attributes out of a plain iterator, and
  * an earlier draft of this rule turned that into `await()`. A class qualifies only if it implements
  * an `#[WorkflowInterface]` contract or calls the facade somewhere. Inside one that qualifies,
- * every non-static method is rewritten — an SDK workflow is generator-coloured throughout, helpers
+ * every non-static method is rewritten: an SDK workflow is generator-coloured throughout, helpers
  * included, which is the colouring problem this migration exists to remove. The one shape to check
  * by hand afterwards is a plain iterator generator living inside a workflow class.
  */
@@ -168,7 +168,7 @@ AFTER,
 
     /**
      * `yield` belongs to PHP before it belongs to Temporal. A class earns the rewrite by implementing
-     * an SDK workflow contract, or by calling the facade — never by containing a generator.
+     * an SDK workflow contract, or by calling the facade, never by containing a generator.
      */
     private function isWorkflowCode(Class_ $class): bool
     {
@@ -248,7 +248,7 @@ AFTER,
 
         $this->traverseNodesWithCallable($method->stmts, function (Node $node) use (&$used, &$deYielded): ?Node {
             if ($node instanceof YieldFrom) {
-                // `yield from $this->helper()` — the helper stopped being a generator with its caller.
+                // `yield from $this->helper()`: the helper stopped being a generator with its caller.
                 $deYielded = true;
 
                 return $node->expr;

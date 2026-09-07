@@ -8,13 +8,13 @@ namespace Gplanchat\Durable\Activity;
  * Adapte un appel worker (payload tableau, clés = noms des paramètres du contrat) vers la méthode du handler.
  *
  * Il vivait dans le paquet du bundle Symfony, sans en importer une ligne. Magento en a besoin du
- * mot pour mot — son conteneur n'a pas les tags, mais une fois le contrat résolu l'adaptation est
- * la même — et le recopier serait la duplication que ce dépôt refuse ailleurs. Il descend donc à
+ * mot pour mot (son conteneur n'a pas les tags, mais une fois le contrat résolu l'adaptation est
+ * la même), et le recopier serait la duplication que ce dépôt refuse ailleurs. Il descend donc à
  * côté de {@see ActivityContractResolver}, qui le nourrit.
  *
  * Nexus s'en sert aussi, à travers {@see \Gplanchat\Durable\Nexus\Serving\NexusHandlerInvoker} :
- * une opération servie et une activité posent le même problème — une charge clée par nom, une
- * méthode de contrat à appeler. Il reste donc dans `Activity\` par son histoire, mais son texte ne
+ * une opération servie et une activité posent le même problème (une charge clée par nom, une
+ * méthode de contrat à appeler). Il reste donc dans `Activity\` par son histoire, mais son texte ne
  * dit plus « activité » là où il parle des deux.
  */
 final class PayloadToContractMethodInvoker

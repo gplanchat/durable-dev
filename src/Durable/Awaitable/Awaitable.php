@@ -7,7 +7,7 @@ namespace Gplanchat\Durable\Awaitable;
 /**
  * Un travail dont on peut demander s'il est réglé, et lire le résultat quand il l'est.
  *
- * Deux méthodes, et pas de `then()` / `otherwise()` — l'interface en a porté un, que seules ses
+ * Deux méthodes, et pas de `then()` / `otherwise()` : l'interface en a porté un, que seules ses
  * six implémentations s'appelaient entre elles. Un callback n'a pas sa place ici pour une raison
  * qui n'est pas de goût : il n'est pas journalisé. Au replay, l'awaitable se règle depuis
  * l'historique et le callback repart ; tout effet de bord qui y vivrait s'exécuterait à chaque

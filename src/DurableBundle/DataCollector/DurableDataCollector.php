@@ -404,7 +404,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     }
 
     /**
-     * Identifiants issus de la trace processus (dispatch Messenger, run moteur, activités — ex. worker sans dispatch workflow sur cette requête).
+     * Identifiants issus de la trace processus (dispatch Messenger, run moteur, activités ; ex. worker sans dispatch workflow sur cette requête).
      *
      * @param list<array<string, mixed>> $timeline
      *

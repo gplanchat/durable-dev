@@ -19,16 +19,16 @@ use PHPStan\Reflection\MethodsClassReflectionExtension;
  *
  * `ActivityStub`, `ChildWorkflowStub` et `NexusStub` résolvent leurs appels par `__call()`. Sans
  * extension,
- * PHPStan ne voit que des objets sans méthode et signale **tous** les appels de stub — les
+ * PHPStan ne voit que des objets sans méthode et signale **tous** les appels de stub, les
  * corrects comme les fautifs :
  *
  * ```php
- * $this->orders->charge($orderId, 100);   // sans extension : « undefined method » — faux
- * $this->orders->chrage($orderId, 100);   // sans extension : « undefined method » — vrai
+ * $this->orders->charge($orderId, 100);   // sans extension : « undefined method » (faux)
+ * $this->orders->chrage($orderId, 100);   // sans extension : « undefined method » (vrai)
  * ```
  *
  * Le défaut n'est donc pas le silence, c'est le bruit. Quatre erreurs dont deux fausses se mettent
- * en ligne de base ou s'ignorent d'un bloc, et les deux vraies partent avec — ce qui revient au
+ * en ligne de base ou s'ignorent d'un bloc, et les deux vraies partent avec, ce qui revient au
  * même que ne rien vérifier, en plus coûteux.
  *
  * L'extension **distingue**. Elle débloque au passage une vérification que le bruit masquait : une
@@ -39,8 +39,8 @@ use PHPStan\Reflection\MethodsClassReflectionExtension;
  * dire quelles méthodes ce contrat déclare : celles marquées {@see AsActivityMethod} pour une
  * activité, {@see AsWorkflowMethod} pour un enfant, {@see AsNexusOperation} pour une opération Nexus.
  *
- * Le cas Nexus ajoute l'héritage. Un contrat Nexus se sépare en deux interfaces — celle que le
- * gestionnaire implémente, et celle qui l'étend pour l'appelant — et le stub appelle les deux.
+ * Le cas Nexus ajoute l'héritage. Un contrat Nexus se sépare en deux interfaces (celle que le
+ * gestionnaire implémente, et celle qui l'étend pour l'appelant), et le stub appelle les deux.
  * `hasNativeMethod()` suit déjà la hiérarchie ; c'est `getAttributes()` sur la réflexion native
  * qui ne la suivrait pas si on lisait la méthode sur la mauvaise classe, d'où la lecture par
  * `getNativeReflection()->getMethod()`, qui la résout.
@@ -106,7 +106,7 @@ final class StubMethodsExtension implements MethodsClassReflectionExtension
     /**
      * Le contrat porté par le stub, lu de son paramètre générique.
      *
-     * Sans paramètre — un `ActivityStub` écrit sans préciser son contrat — il n'y a rien à
+     * Sans paramètre (un `ActivityStub` écrit sans préciser son contrat), il n'y a rien à
      * résoudre. L'appel reste alors inconnu plutôt que d'être accepté à l'aveugle : mieux vaut un
      * faux positif qu'une vérification silencieusement désactivée.
      */

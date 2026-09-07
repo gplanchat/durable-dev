@@ -11,7 +11,7 @@ use Gplanchat\Durable\ExecutionContext;
  * Le port d'ordonnancement Nexus, câblé sur le contexte d'exécution.
  *
  * Construit par {@see \Gplanchat\Durable\WorkflowEnvironment::nexusStub()} et jamais rendu. Le
- * contexte, lui, expose bien `nexusOperation()` — mais un workflow ne reçoit jamais le contexte.
+ * contexte, lui, expose bien `nexusOperation()`, mais un workflow ne reçoit jamais le contexte.
  *
  * @internal
  */

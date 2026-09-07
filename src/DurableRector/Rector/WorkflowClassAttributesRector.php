@@ -34,7 +34,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  *
  * The workflow type travels with it. The SDK's is `AsWorkflowMethod::$name ?? interfaceShortName`
  * ({@see \Temporal\Internal\Declaration\Reader\WorkflowReader}); Durable's `#[AsWorkflow]` is
- * **optional** and falls back to the class's short name — so a class migrated without an explicit
+ * **optional** and falls back to the class's short name, so a class migrated without an explicit
  * name compiles, passes its tests, and stops resolving every run already in flight. That fallback
  * is why this rule always writes the name out.
  *

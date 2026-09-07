@@ -22,11 +22,11 @@ use Illuminate\Database\Connection;
  *
  * La (dé)sérialisation passe entièrement par {@see EventDataMapper} : les lignes ont la même forme
  * que celles du pont DBAL et que les enregistrements du journal Temporal. Ce n'est pas une
- * convention d'écriture mais une exigence prouvée — les deux ponts rejouent
+ * convention d'écriture mais une exigence prouvée : les deux ponts rejouent
  * {@see \Gplanchat\Durable\Testing\EventStoreConformanceTestCase}, dont le cas de fidélité compare
  * l'enregistrement relu à l'enregistrement écrit sur les vingt-trois types que le mapper connaît.
  *
- * ponytail: pas de colonne `sequence` — l'auto-increment porte l'ordre d'insertion, comme côté
+ * ponytail: pas de colonne `sequence` ; l'auto-increment porte l'ordre d'insertion, comme côté
  * DBAL. L'exclusion mutuelle entre deux reprises concurrentes d'une même exécution est en amont,
  * dans la file : côté Laravel c'est `WithoutOverlapping` ou un verrou de cache atomique, et aucun
  * choix de stockage ne la fournit.

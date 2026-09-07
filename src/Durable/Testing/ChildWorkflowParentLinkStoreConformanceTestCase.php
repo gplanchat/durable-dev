@@ -8,7 +8,7 @@ use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Suite de conformité de {@see ChildWorkflowParentLinkStoreInterface} — DUR041.
+ * Suite de conformité de {@see ChildWorkflowParentLinkStoreInterface} (DUR041).
  *
  * Le contrat dit « ordre non garanti » pour les enfants d'un parent. La suite le respecte en triant
  * avant de comparer : figer un ordre que le port ne promet pas ferait échouer un adaptateur correct,

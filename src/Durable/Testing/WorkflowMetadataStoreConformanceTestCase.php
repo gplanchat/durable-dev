@@ -8,11 +8,11 @@ use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Suite de conformité de {@see WorkflowMetadataStore} — DUR041.
+ * Suite de conformité de {@see WorkflowMetadataStore} (DUR041).
  *
  * Ce port a une subtilité qui vaut une suite à elle seule : `markCompleted()` **ne supprime pas**.
  * Le type et le payload restent lisibles après le succès pour le profiler et l'observabilité, et
- * c'est `hasActiveWorkflowMetadata()` — pas `get()` — qui dit si une reprise doit encore avoir
+ * c'est `hasActiveWorkflowMetadata()`, pas `get()`, qui dit si une reprise doit encore avoir
  * lieu. Un adaptateur qui confond les deux rend un workflow terminé éternellement reprenable, ou
  * fait disparaître son type d'un tableau de bord.
  *
