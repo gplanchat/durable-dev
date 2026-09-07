@@ -241,7 +241,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof WorkflowSignalReceived) {
             return [
                 'title' => 'Signal received',
-                'subtitle' => '« ' . $event->signalName() . ' »',
+                'subtitle' => '"' . $event->signalName() . '"',
                 'category' => 'signal',
                 'technical' => $technical,
             ];
@@ -250,7 +250,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof WorkflowUpdateHandled) {
             return [
                 'title' => 'Update handled',
-                'subtitle' => '« ' . $event->updateName() . ' »',
+                'subtitle' => '"' . $event->updateName() . '"',
                 'category' => 'signal',
                 'technical' => $technical,
             ];

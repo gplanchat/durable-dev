@@ -8,7 +8,7 @@ use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Symfony\Component\HttpKernel\CacheWarmer\CacheWarmerInterface;
 
 /**
- * Pré-charge les métadonnées des contrats d'activité en cache lors du warmup.
+ * Pre-loads the activity contract metadata into the cache during warmup.
  */
 final class ActivityContractCacheWarmer implements CacheWarmerInterface
 {

@@ -10,7 +10,7 @@ use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage;
 
 /**
- * Append {@see WorkflowSignalReceived} puis {@see WorkflowResumeDispatcher::dispatchResume()}.
+ * Append {@see WorkflowSignalReceived} then {@see WorkflowResumeDispatcher::dispatchResume()}.
  */
 final class DeliverWorkflowSignalHandler
 {

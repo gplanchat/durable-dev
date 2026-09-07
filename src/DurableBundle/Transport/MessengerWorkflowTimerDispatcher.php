@@ -12,12 +12,12 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Stamp\DispatchAfterCurrentBusStamp;
 
 /**
- * Le port des minuteries, tenu par Messenger — c'est tout ce que Symfony apportait à
- * l'orchestration de reprise, et c'est maintenant tout ce qu'il en reste ici.
+ * The timer port, held by Messenger — that is all Symfony brought to resume orchestration, and
+ * that is now all that is left of it here.
  *
- * `DispatchAfterCurrentBusStamp` est ce qui donne au contrat son « après l'unité de travail
- * courante » : sans lui le réveil se délivre au milieu de la passe en cours, qui relit alors un
- * journal à moitié écrit.
+ * `DispatchAfterCurrentBusStamp` is what gives the contract its "after the current unit of work":
+ * without it the wake-up is delivered in the middle of the pass under way, which then re-reads a
+ * half-written journal.
  */
 final class MessengerWorkflowTimerDispatcher implements WorkflowTimerDispatcher
 {
