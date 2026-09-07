@@ -52,4 +52,45 @@ final class RecordedDetails
         // over on the very event you came to look at.
         return false === $rendered ? null : $rendered;
     }
+
+    /**
+     * The same degradation, rendered as **structure** rather than as text.
+     *
+     * {@see self::of()} serves the surfaces that show a fold-out: they want text, once. The Symfony
+     * profiler has to *store* what it observed before the Profiler serialises the whole profile, and
+     * a payload that refuses `serialize()` does not break the Durable panel there, it breaks the
+     * request's profile, other bundles' panels included. The need is the same but for a type, and the
+     * degradation decision must stay here: it is what this class is for.
+     *
+     * Three departures from `of()`, each one measured:
+     *
+     * - **`json_encode` can throw.** It calls the payload's `jsonSerialize()`, so business code. No
+     *   flag covers that case, and an exception surfacing from here kills the request from
+     *   `kernel.response`, earlier and more visibly than the defect being fixed. Hence the `catch`.
+     * - **`JSON_PRESERVE_ZERO_FRACTION`.** Without it a `float` holding a whole value comes back as
+     *   an `int`, and the timeline bounds (`tMin`, `tMax`, `spanSec`), which declare `float`, lie
+     *   about their type.
+     * - **Depth.** Past 512 levels `json_decode` returns `null` where the encoding had produced
+     *   text. The caller therefore applies this method **key by key**: the pathological payload
+     *   disappears on its own, and the rest of the panel holds.
+     *
+     * @return mixed the value brought back to the types JSON holds; `null` when nothing survived
+     */
+    public static function storable(mixed $value): mixed
+    {
+        try {
+            $rendered = json_encode(
+                $value,
+                \JSON_INVALID_UTF8_SUBSTITUTE | \JSON_PARTIAL_OUTPUT_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION,
+            );
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (false === $rendered) {
+            return null;
+        }
+
+        return json_decode($rendered, true);
+    }
 }

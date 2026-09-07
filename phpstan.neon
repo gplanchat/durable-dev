@@ -63,6 +63,13 @@ parameters:
         # de StubMethodsExtensionTest qui le diront.
         - identifier: phpstanApi.interface
           path: src/DurablePhpstan/Reflection/SchedulingMethodReflection.php
+        # `json_encode` appelle le `jsonSerialize()` de la valeur qu'on lui passe : du code
+        # applicatif, qui peut lever. PHPStan modélise la fonction comme incapable de lever, et
+        # déclare donc le `catch` mort. Il ne l'est pas — `RecordedDetailsStorableTest` le
+        # contredit en exécution, et sans ce `catch` l'exception remonte jusqu'à `collect()`,
+        # c'est-à-dire `kernel.response`, et emporte la requête.
+        - identifier: catch.neverThrown
+          path: src/Durable/Observation/RecordedDetails.php
         # DurableBundleTestTrait is consumed by application tests, not by library code
         - identifier: trait.unused
           path: src/DurableBundle/Testing/DurableBundleTestTrait.php
