@@ -11,37 +11,37 @@ use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Gplanchat\Durable\Port\WorkflowLifecycleInterface;
 
 /**
- * Issues de cycle de vie du backend Temporal : chacune devient une commande de la tâche courante,
- * poussée dans {@see TemporalWorkflowCommandBuffer} puis renvoyée au serveur via
+ * Lifecycle outcomes of the Temporal backend: each one becomes a command of the current task,
+ * pushed into {@see TemporalWorkflowCommandBuffer} then handed back to the server via
  * {@code RespondWorkflowTaskCompleted}.
  *
- * Aucune méthode ne lève : une tâche de workflow se termine en rendant ses commandes, pas en
- * remontant une exception — c'est la divergence de fond avec le backend in-memory.
+ * No method raises: a workflow task ends by returning its commands, not by propagating an
+ * exception — that is the deep divergence from the in-memory backend.
  */
 final readonly class TemporalWorkflowLifecycle implements WorkflowLifecycleInterface
 {
     public function __construct(
         private TemporalWorkflowCommandBuffer $commandBuffer,
-        /** Cause lue dans l'historique ({@see TemporalExecutionHistory::cancellationRequestedCause()}). */
+        /** Cause read from the history ({@see TemporalExecutionHistory::cancellationRequestedCause()}). */
         private ?string $cancellationRequestedCause = null,
-        /** Une tâche antérieure a déjà relevé l'annulation dans le fiber. */
+        /** An earlier task already raised the cancellation in the fiber. */
         private bool $cancellationAlreadyDelivered = false,
     ) {}
 
     public function onBeforeRun(string $executionId): void
     {
-        // Rien à pré-empter : l'annulation est livrée dans le fiber, au point d'attente.
+        // Nothing to pre-empt: the cancellation is delivered in the fiber, at the wait point.
     }
 
     /**
-     * L'annulation Temporal est **coopérative** : le serveur ne fait qu'enregistrer
-     * WORKFLOW_EXECUTION_CANCEL_REQUESTED et replanifier une tâche de workflow. C'est au worker
-     * d'y répondre — ici en relevant un {@see WorkflowCancelledFailure} dans le fiber, puis par
-     * COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION si le handler ne l'avale pas.
+     * Temporal cancellation is **cooperative**: the server only records
+     * WORKFLOW_EXECUTION_CANCEL_REQUESTED and reschedules a workflow task. Answering it is up to
+     * the worker — here by raising a {@see WorkflowCancelledFailure} in the fiber, then by
+     * COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION if the handler does not swallow it.
      *
-     * L'historique Temporal ne peut pas porter la *raison* d'une annulation d'opération : la trace
-     * de livraison passe donc par un marqueur, que {@see TemporalExecutionHistory} relit pour
-     * rejeter les mêmes opérations avec la même exception au rejeu.
+     * Temporal history cannot carry the *reason* of an operation cancellation: the delivery trace
+     * therefore goes through a marker, which {@see TemporalExecutionHistory} reads back to reject
+     * the same operations with the same exception on replay.
      */
     public function isCancellationPending(string $executionId): bool
     {
@@ -65,7 +65,7 @@ final readonly class TemporalWorkflowLifecycle implements WorkflowLifecycleInter
 
     public function onSuspended(string $executionId, Awaitable $pending): void
     {
-        // La commande est déjà dans le buffer ; la tâche se termine en la renvoyant.
+        // The command is already in the buffer; the task ends by handing it back.
     }
 
     public function onContinuedAsNew(string $executionId, ContinueAsNewRequested $request): void
@@ -75,10 +75,10 @@ final readonly class TemporalWorkflowLifecycle implements WorkflowLifecycleInter
 
     public function onFailed(string $executionId, \Throwable $failure): void
     {
-        // Une divergence de replay n'est pas un échec du workflow : c'est cette tentative-là qui
-        // ne peut pas aboutir. La relever la fait remonter jusqu'au processeur, qui répondra
-        // `RespondWorkflowTaskFailed` — aucune commande, donc rien dans l'historique, donc une
-        // exécution qui repart dès que le code qui l'a écrite est remis.
+        // A replay divergence is not a workflow failure: it is this attempt that cannot succeed.
+        // Raising it propagates it up to the processor, which will answer
+        // `RespondWorkflowTaskFailed` — no command, hence nothing in the history, hence an
+        // execution that starts again as soon as the code that wrote it is put back.
         if ($failure instanceof WorkflowTaskFailure) {
             throw $failure;
         }

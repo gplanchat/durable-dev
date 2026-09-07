@@ -8,7 +8,7 @@ use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Attribute\FulfilsNexusOperation;
 
-/** Les noms coïncident avec ceux du contrat, et l'extra est facultatif. */
+/** The names match those of the contract, and the extra one is optional. */
 #[AsWorkflow('SettleWorkflow')]
 #[FulfilsNexusOperation(DeferredBillingService::class, 'settle')]
 final class SettleWorkflow

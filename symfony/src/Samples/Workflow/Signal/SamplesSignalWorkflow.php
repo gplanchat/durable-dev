@@ -12,8 +12,8 @@ use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Port minimal de samples-php Signal : un handler reçoit le signal, le corps reprend quand l'état
- * qu'il a muté satisfait sa condition, puis compose la salutation.
+ * Minimal port of samples-php Signal: a handler receives the signal, the body resumes when
+ * the state it mutated satisfies its condition, then composes the greeting.
  */
 #[AsWorkflow('Samples_Signal_Approve')]
 final class SamplesSignalWorkflow
@@ -42,7 +42,7 @@ final class SamplesSignalWorkflow
     #[AsWorkflowMethod]
     public function run(): string
     {
-        // Sur une propriété, la forme courte suffit : c'est `$this` qui est capturé, pas la valeur.
+        // On a property, the short form is enough: it is `$this` that gets captured, not the value.
         $this->environment->await(fn(): bool => null !== $this->name);
 
         return $this->environment->await($this->greeting->composeGreeting($this->name));

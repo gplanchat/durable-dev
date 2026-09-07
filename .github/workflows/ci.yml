@@ -205,6 +205,13 @@ jobs:
               working-directory: sylius
               run: composer install --no-interaction --prefer-dist --no-progress
 
+            # The shop's layers: value objects, the Payments port's use case and the factories
+            # that translate a Nexus payload. No kernel, no database, so it runs before both and
+            # fails in seconds when it fails.
+            - name: PHPUnit — the shop's own layers
+              working-directory: sylius
+              run: vendor/bin/phpunit tests/Unit
+
             - name: Base de test
               working-directory: sylius
               env:

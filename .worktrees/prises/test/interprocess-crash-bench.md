@@ -13,4 +13,5 @@
   expected to change; if any does, that *is* the finding and it gets its own slice.
 - **Ne touche pas** : `src/Durable/` behaviour, the agent maquette, and PR #282's guard — the bench
   assumes that guard merged, since without it a two-process run can go green while diverging.
-- **État** : à démarrer.
+- **État** : en revue — PR #283. Bench green: the core survives process death, so the discriminant says a
+  later failure with the agent would live in the maquette, not the core.

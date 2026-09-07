@@ -20,8 +20,8 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
- * Mode distribué + transport Messenger **sync** : pas de boucle infinie sur attente d'un signal,
- * complétion après livraison des messages de contrôle.
+ * Distributed mode + **sync** Messenger transport: no infinite loop while waiting for a signal,
+ * completion once the control messages have been delivered.
  *
  * @internal
  */
@@ -56,20 +56,20 @@ final class DurableDistributedMessengerIntegrationTest extends KernelTestCase
         $meta = $container->get(WorkflowMetadataStore::class);
         $store = $container->get(EventStoreInterface::class);
 
-        // Démarrer n'est plus un message : `ResumeWorkflowMessage` ne fait que *reprendre*.
-        // Le démarrage passe par le dispatcher, qui persiste les métadonnées avant de publier la
-        // reprise — c'est aussi ce que fait l'application d'exemple.
+        // Starting is no longer a message: `ResumeWorkflowMessage` only ever *resumes*.
+        // Starting goes through the dispatcher, which persists the metadata before publishing the
+        // resume — which is also what the example application does.
         $container->get(WorkflowResumeDispatcher::class)->dispatchNewWorkflowRun($executionId, 'OrderWait', []);
 
-        self::assertSame(false, $meta->get($executionId)['completed'] ?? null, 'workflow suspendu');
+        self::assertSame(false, $meta->get($executionId)['completed'] ?? null, 'workflow suspended');
         self::assertNull($this->lastExecutionCompletedResult($store, $executionId));
 
         $bus->dispatch(new DeliverWorkflowSignalMessage($executionId, 'approved', ['ref' => 'PO-9']));
 
-        // Les métadonnées ne disparaissent plus à la complétion : DUR037 a fait de l'observation
-        // d'un run une projection, et un run terminé reste un fait qu'on peut lire. Le marqueur
-        // remplace l'effacement.
-        self::assertTrue($meta->get($executionId)['completed'] ?? false, 'workflow terminé');
+        // The metadata no longer disappears on completion: DUR037 turned the observation of a run
+        // into a projection, and a finished run remains a fact one can read. The marker replaces
+        // the erasure.
+        self::assertTrue($meta->get($executionId)['completed'] ?? false, 'workflow finished');
         self::assertSame(['ref' => 'PO-9'], $this->lastExecutionCompletedResult($store, $executionId));
     }
 

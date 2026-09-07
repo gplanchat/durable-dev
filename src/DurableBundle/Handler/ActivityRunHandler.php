@@ -8,7 +8,7 @@ use Gplanchat\Durable\Transport\ActivityMessage;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 
 /**
- * Consomme {@see ActivityMessage} via Symfony Messenger (transport activités configuré).
+ * Consumes {@see ActivityMessage} through Symfony Messenger (configured activities transport).
  */
 final class ActivityRunHandler
 {

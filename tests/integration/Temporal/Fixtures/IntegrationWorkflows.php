@@ -15,10 +15,10 @@ use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
 
 /**
- * Workflows et activités partagés entre le processus de test et les processus worker.
+ * Workflows and activities shared between the test process and the worker processes.
  *
- * Les workers tournent dans des processus séparés — comme en production —, ils ne peuvent donc
- * pas recevoir de closures définies dans le test.
+ * The workers run in separate processes — as in production — so they cannot receive closures
+ * defined inside the test.
  */
 final class IntegrationWorkflows
 {
@@ -40,9 +40,9 @@ final class IntegrationWorkflows
     {
         $registry->registerFactory('Plain', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['echo' => $input['value'] ?? null]);
 
-        // Une classe et non une fabrique : c'est ce qu'un stub d'enfant sait résoudre, et
-        // `registerClass()` l'enregistre sous son alias comme sous son FQCN — les tests qui la
-        // démarrent par « Doubler » ne changent pas.
+        // A class rather than a factory: that is what a child stub knows how to resolve, and
+        // `registerClass()` registers it under its alias as well as under its FQCN — the tests
+        // that start it by "Doubler" do not change.
         $registry->registerClass(DoublerWorkflow::class);
 
         $registry->registerFactory('TwoActivities', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): array {
@@ -51,15 +51,15 @@ final class IntegrationWorkflows
             return ['text' => $env->await($env->activityStub(IntegrationActivities::class, self::options())->append((string) $doubled))];
         });
 
-        // Un run de cron : il doit se terminer pour que le serveur planifie le suivant.
+        // One cron run: it must finish for the server to schedule the next one.
         $registry->registerFactory('Ticking', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['tick' => $env->await($env->activityStub(
             IntegrationActivities::class,
             self::options(),
         )->double((int) ($input['value'] ?? 1)))]);
 
-        // Le cas qu'aucun faux serveur ne peut trancher : le signal est livré *après* le tir de
-        // l'échéance, et chaque tâche de workflow rejoue tout depuis le début — si le verdict
-        // venait d'ailleurs que de l'ordre du journal, le replay lirait l'inverse (ADR DUR032).
+        // The case no fake server can settle: the signal is delivered *after* the deadline fired,
+        // and every workflow task replays everything from the start — if the verdict came from
+        // anywhere but the journal order, the replay would read the opposite (ADR DUR032).
         $registry->registerFactory('SignalDeadline', static fn(array $input) => static function (WorkflowEnvironment $env): array {
             $approvals = [];
             $env->onSignal('approve', static function (array $payload) use (&$approvals): void {
@@ -76,8 +76,8 @@ final class IntegrationWorkflows
                 $first = ['timeout'];
             }
 
-            // Laisse au signal en retard le temps d'être enregistré pendant que l'exécution est
-            // encore ouverte.
+            // Leaves the late signal the time to be recorded while the execution is still
+            // open.
             $env->sleep(Duration::seconds(5));
 
             try {
@@ -90,8 +90,8 @@ final class IntegrationWorkflows
             return ['first' => $first, 'second' => $second];
         });
 
-        // Un update qui répond : le retour du handler *est* la réponse de l'appelant, et il
-        // débloque en même temps la condition que le corps attend.
+        // An update that answers: the handler's return value *is* the caller's answer, and it
+        // unblocks at the same time the condition the body is waiting on.
         $registry->registerFactory('Updatable', static fn(array $input) => static function (WorkflowEnvironment $env): array {
             $answer = null;
             $env->onUpdate('approve', static function (array $args) use (&$answer): array {
@@ -120,8 +120,8 @@ final class IntegrationWorkflows
             return ['side' => $env->sideEffect(static fn(): int => ((int) ($input['seed'] ?? 0)) + 1)];
         });
 
-        // maxAttempts borné : sans lui le serveur applique sa RetryPolicy par défaut et retente
-        // indéfiniment — le workflow n'échouerait jamais.
+        // A bounded maxAttempts: without it the server applies its default RetryPolicy and
+        // retries indefinitely — the workflow would never fail.
         $registry->registerFactory('FailsOnActivity', static fn(array $input) => static fn(WorkflowEnvironment $env): mixed => $env->await($env->activityStub(IntegrationActivities::class, new ActivityOptions(
             RetryLimit::once(),
             timeouts: self::attemptTimeout(),
@@ -148,15 +148,15 @@ final class IntegrationWorkflows
             }
         });
 
-        // Les deux branches doivent partir dans la MÊME workflow task : c'est ce que le passage
-        // de N suspensions de fiber à une seule ne doit pas avoir changé (ADR DUR033).
+        // Both branches must leave in the SAME workflow task: that is what going from N fiber
+        // suspensions down to a single one must not have changed (ADR DUR033).
         $registry->registerFactory('Assembled', static fn(array $input) => static fn(WorkflowEnvironment $env): array => ['both' => $env->await($env->all(
             $env->activityStub(IntegrationActivities::class, self::options())->double((int) ($input['value'] ?? 0)),
             $env->activityStub(IntegrationActivities::class, self::options())->append('x'),
         ))]);
 
-        // Quorum atteint par les activités ; les minuteurs perdants doivent être retirés côté
-        // serveur, sans quoi l'exécution attendrait une heure.
+        // Quorum reached by the activities; the losing timers must be removed on the server
+        // side, failing which the execution would wait an hour.
         $registry->registerFactory('Quorum', static fn(array $input) => static function (WorkflowEnvironment $env): array {
             $reached = $env->await($env->some(
                 2,
@@ -176,20 +176,20 @@ final class IntegrationWorkflows
         });
     }
 
-    /** Exposé pour {@see DoublerWorkflow}, qui vit hors de cette classe. */
+    /** Exposed for {@see DoublerWorkflow}, which lives outside this class. */
     public static function stubOptions(): ActivityOptions
     {
         return self::options();
     }
 
     /**
-     * Le même type de workflow, deux corps, choisis par la variante du worker.
+     * The same workflow type, two bodies, chosen by the worker variant.
      *
-     * `default` planifie `double` au slot d'activité 0 ; `divergent` y planifie `append`. Une
-     * exécution démarrée sur l'un puis reprise par l'autre est exactement ce qu'un déploiement fait
-     * à une exécution en vol — et le seul montage qui met la garde de DUR042 sous un vrai serveur.
+     * `default` schedules `double` at activity slot 0; `divergent` schedules `append` there. An
+     * execution started on one and then resumed by the other is exactly what a deployment does to
+     * an in-flight execution — and the only rig that puts the DUR042 guard under a real server.
      *
-     * Le minuteur entre les deux ouvre la fenêtre : c'est là qu'on remplace le worker.
+     * The timer between the two opens the window: that is where the worker gets replaced.
      */
     public static function registerDivergentPair(WorkflowRegistry $registry, string $variant): void
     {

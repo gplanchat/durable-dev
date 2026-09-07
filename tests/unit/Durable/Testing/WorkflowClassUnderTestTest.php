@@ -17,17 +17,17 @@ use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Le harnais doit savoir lancer un workflow **classe**, dans la forme de production.
+ * The harness has to know how to run a **class** workflow, in the production form.
  *
- * Aujourd'hui il ne prend qu'un `callable`, donc un workflow de test est une closure qui reçoit
- * l'environnement — une signature qu'aucun vrai workflow n'a depuis que l'environnement est passé
- * au constructeur. C'est la seule raison pour laquelle quarante-sept appels de la suite utilisent
- * encore `activity()` : dans une closure, il n'y a pas de constructeur où bâtir un stub.
+ * Today it only takes a `callable`, so a test workflow is a closure that receives the environment
+ * — a signature no real workflow has had since the environment moved to the constructor. That is
+ * the only reason forty-seven calls in the suite still use `activity()`: in a closure, there is no
+ * constructor in which to build a stub.
  *
- * Tant que ces tests échouent, `activity()` ne peut pas quitter la surface publique — il n'y
- * aurait aucun remplacement à proposer aux tests.
+ * As long as these tests fail, `activity()` cannot leave the public surface — there would be no
+ * replacement to offer the tests.
  *
- * @see openspec/changes/workflow-authoring-surface — tâches 2.1 à 2.4
+ * @see openspec/changes/workflow-authoring-surface — tasks 2.1 to 2.4
  */
 final class WorkflowClassUnderTestTest extends TestCase
 {
@@ -50,8 +50,8 @@ final class WorkflowClassUnderTestTest extends TestCase
         $env->runWorkflowClass(GreetingWorkflow::class, ['name' => 'Bob']);
 
         $spy->assertCalledTimes(1);
-        // Le stub reconstruit la charge depuis les paramètres nommés du contrat : c'est ce qui
-        // rend la faute de frappe impossible, et c'est ce que le test doit constater.
+        // The stub rebuilds the payload from the named parameters of the contract: that is what
+        // makes the typo impossible, and that is what the test has to establish.
         $spy->assertCalledWith(['name' => 'Bob']);
     }
 
@@ -63,9 +63,9 @@ final class WorkflowClassUnderTestTest extends TestCase
             },
         ]);
 
-        // Une activité qui échoue sans que le workflow l'attrape est rapportée comme une faute
-        // d'algorithme, et le message nomme la cause — c'est ce qui rend le test lisible quand il
-        // casse, et ça vaut d'être épinglé.
+        // An activity that fails without the workflow catching it is reported as an algorithm
+        // fault, and the message names the cause — that is what makes the test readable when it
+        // breaks, and it is worth pinning.
         $this->expectException(DurableWorkflowAlgorithmFailureException::class);
         $this->expectExceptionMessage('AsWorkflow did not handle activity failure');
         $this->expectExceptionMessage('DomainException: greeting refused');
@@ -75,8 +75,8 @@ final class WorkflowClassUnderTestTest extends TestCase
 
     public function testAWorkflowThatCallsNoActivityNeedsNothingConfigured(): void
     {
-        // Aucun handler d'activité, donc aucun résolveur de contrat à configurer : un workflow
-        // qui ne planifie rien doit pouvoir tourner sur un harnais nu.
+        // No activity handler, so no contract resolver to configure: a workflow that schedules
+        // nothing must be able to run on a bare harness.
         $result = WorkflowTestEnvironment::inMemory()->runWorkflowClass(
             EchoWorkflow::class,
             ['text' => 'quiet'],
@@ -91,9 +91,9 @@ final class WorkflowClassUnderTestTest extends TestCase
             'greet' => static fn(array $p): string => 'Hello, ' . $p['name'] . '!',
         ]);
 
-        // La forme anonyme reste : un test qui veut trois lignes ne doit pas déclarer une classe
-        // et un contrat pour les écrire. Ce qui change, c'est qu'elle est la forme du harnais et
-        // non celle d'un workflow.
+        // The anonymous form stays: a test that wants three lines must not have to declare a
+        // class and a contract in order to write them. What changes is that it is the form of the
+        // harness and not that of a workflow.
         $result = $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->await(
             $wf->activityStub(GreetingActivities::class)->greet('Dave'),
         ));
@@ -116,8 +116,8 @@ final class GreetingWorkflow
     public function __construct(
         private readonly WorkflowEnvironment $environment,
     ) {
-        // Une tentative : par défaut les activités retentent indéfiniment, et un échec ne
-        // remonterait jamais — le workflow resterait bloqué jusqu'à épuisement du budget.
+        // One attempt: by default activities retry indefinitely, and a failure would never
+        // surface — the workflow would stay blocked until the budget ran out.
         $this->greetings = $environment->activityStub(
             GreetingActivities::class,
             ActivityOptions::of(retryLimit: 1),

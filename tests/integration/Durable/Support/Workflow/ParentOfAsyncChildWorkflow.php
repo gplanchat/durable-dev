@@ -18,8 +18,8 @@ final class ParentOfAsyncChildWorkflow
     #[AsWorkflowMethod]
     public function run(): int
     {
-        // `executeChildWorkflow()` a quitté la surface : un enfant se démarre par un stub typé, et
-        // l'appel du stub *assemble* — c'est `await()` qui attend (DUR038).
+        // `executeChildWorkflow()` has left the surface: a child is started through a typed stub,
+        // and the stub call *assembles* — it is `await()` that waits (DUR038).
         return $this->environment->await(
             $this->environment->childWorkflowStub(ChildMiniWorkflow::class)->run(4),
         );

@@ -16,14 +16,14 @@ use Temporal\Api\History\V1\TimerCanceledEventAttributes;
 use Temporal\Api\History\V1\TimerStartedEventAttributes;
 
 /**
- * Une échéance réglée par l'autre branche fait annuler le minuteur perdant. Le replay repasse par
- * cette annulation à chaque reprise, et un minuteur annulé n'a pas de verdict à annoncer : il
- * revient en attente, et l'annulation est redemandée.
+ * A deadline settled by the other branch cancels the losing timer. Replay goes through that
+ * cancellation again at every resumption, and a cancelled timer has no verdict to announce: it
+ * comes back to waiting, and the cancellation is asked for again.
  *
- * Le journal SQL s'en gardait déjà — au pire un `TimerCancelled` en double. Le pont ne s'en
- * gardait pas, et Temporal ne pardonne pas : la tâche entière est rejetée
- * (`BadCancelTimerAttributes`), le worker meurt, la tâche est redélivrée, le worker meurt encore.
- * Une seule exécution empoisonnait toute la file.
+ * The SQL journal already guarded against it — at worst a duplicate `TimerCancelled`. The bridge
+ * did not, and Temporal does not forgive: the whole task is rejected
+ * (`BadCancelTimerAttributes`), the worker dies, the task is redelivered, the worker dies again.
+ * A single execution poisoned the whole queue.
  */
 final class TimerCancelNotRepeatedTest extends TestCase
 {
@@ -35,7 +35,7 @@ final class TimerCancelNotRepeatedTest extends TestCase
 
         $buffer->cancelTimer(self::TIMER, ActivityCancellationReason::RACE_SUPERSEDED);
 
-        self::assertSame([], $buffer->flush(), 'Une seconde annulation part au serveur et fait rejeter la tâche.');
+        self::assertSame([], $buffer->flush(), 'A second cancellation goes to the server and gets the task rejected.');
     }
 
     public function testATimerThatAlreadyFiredIsNotCancelledEither(): void

@@ -19,10 +19,10 @@ use Gplanchat\Durable\WorkflowRegistry;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Un enfant exécuté **inline** (ChildWorkflowRunner sans démarrage différé Messenger)
- * journalisait son issue avec completeWorkflow()/failWorkflow() sur le buffer du PARENT :
- * le journal du parent était clôturé avec le résultat de l'enfant, et le
- * ChildWorkflowCompleted que le replay recherche n'existait jamais.
+ * A child executed **inline** (ChildWorkflowRunner without a deferred Messenger start) journalled
+ * its outcome with completeWorkflow()/failWorkflow() on the PARENT's buffer: the parent's journal
+ * was closed with the child's result, and the ChildWorkflowCompleted that replay looks for never
+ * existed.
  */
 final class SyncChildWorkflowTest extends TestCase
 {
@@ -60,7 +60,7 @@ final class SyncChildWorkflowTest extends TestCase
             $types,
         );
 
-        // Un seul ExecutionCompleted, et il porte le résultat du PARENT.
+        // A single ExecutionCompleted, and it carries the PARENT's result.
         $completed = array_values(array_filter(
             iterator_to_array($this->eventStore->readStream('parent-1'), false),
             static fn(object $e): bool => $e instanceof ExecutionCompleted,
@@ -86,9 +86,9 @@ final class SyncChildWorkflowTest extends TestCase
         $this->engine->start('parent-2', $handler);
         self::assertSame(1, $childRuns);
 
-        // Le replay doit relire ChildWorkflowCompleted, pas relancer l'enfant.
+        // The replay must read ChildWorkflowCompleted back, not restart the child.
         $this->engine->resume('parent-2', $handler);
-        self::assertSame(1, $childRuns, 'l’enfant ne doit pas être réexécuté au replay du parent');
+        self::assertSame(1, $childRuns, 'the child must not be re-executed when the parent replays');
     }
 
     public function testFailingChildLandsAsChildWorkflowFailedNotAsAParentFailure(): void
@@ -99,7 +99,7 @@ final class SyncChildWorkflowTest extends TestCase
             $this->engine->start('parent-3', static fn(WorkflowEnvironment $env): mixed
                 => $env->await($env->childWorkflowStub(ExplodingChild::class)->run()));
         } catch (\Throwable) {
-            // Le parent ne gère pas l'échec de l'enfant : c'est attendu ici.
+            // The parent does not handle the child's failure: that is expected here.
         }
 
         $types = $this->shortNames('parent-3');
@@ -125,7 +125,7 @@ final class SyncChildWorkflowTest extends TestCase
             return $child;
         });
 
-        self::assertTrue($seenActive, 'le parent ne doit pas être vu comme terminé pendant son propre run');
+        self::assertTrue($seenActive, 'the parent must not be seen as finished during its own run');
         self::assertNotEmpty(array_filter(
             iterator_to_array($this->eventStore->readStream('parent-4'), false),
             static fn(object $e): bool => $e instanceof ChildWorkflowCompleted,

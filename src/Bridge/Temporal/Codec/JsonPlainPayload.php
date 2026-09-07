@@ -22,9 +22,9 @@ final class JsonPlainPayload
     }
 
     /**
-     * Encode en ajoutant des métadonnées à celles de l'encodage.
+     * Encode while adding metadata on top of the encoding's own.
      *
-     * Sert notamment aux attributs de recherche, dont chaque valeur annonce son type.
+     * Used notably for search attributes, where every value announces its type.
      *
      * @param array<string, string> $extraMetadata
      */

@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 /**
- * Résout vendor/autoload_runtime.php : soit ./vendor (installation classique),
- * soit ../../durable-symfony-vendor quand composer.json définit vendor-dir hors du dépôt path (monorepo).
+ * Resolves vendor/autoload_runtime.php: either ./vendor (classic installation),
+ * or ../../durable-symfony-vendor when composer.json sets vendor-dir outside the path repository (monorepo).
  */
 $symfonyRoot = __DIR__;
 $candidates = [

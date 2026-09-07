@@ -15,12 +15,12 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use App\Entity\User\AdminUser;
 
 /**
- * Le tableau de bord, rendu par une vraie application Sylius.
+ * The dashboard, rendered by a real Sylius application.
  *
- * Tout le change `backend-neutral-workflow-dashboard` a été vérifié au niveau unitaire et statique,
- * et son ADR le dit : la page n'avait jamais été rendue. Ce test est ce qui lève cette limite. Il
- * fait donc ce qu'aucun test unitaire ne peut faire — monter le noyau Sylius, authentifier un
- * administrateur, et demander la page par HTTP.
+ * The whole `backend-neutral-workflow-dashboard` change was verified at the unit and static level,
+ * and its ADR says so: the page had never been rendered. This test is what lifts that limit. It
+ * therefore does what no unit test can do — boot the Sylius kernel, authenticate an
+ * administrator, and request the page over HTTP.
  */
 final class DurableDashboardTest extends WebTestCase
 {
@@ -33,8 +33,8 @@ final class DurableDashboardTest extends WebTestCase
         $crawler = $client->request('GET', self::ROUTE);
 
         self::assertResponseIsSuccessful();
-        // Sur le HTML complet et non sur `filter('h1')` : la mise en page de l'admin Sylius pose
-        // ses propres titres, et viser le premier `h1` testerait leur ordre plutôt que notre page.
+        // On the full HTML and not on `filter('h1')`: the Sylius admin layout lays down its own
+        // headings, and aiming at the first `h1` would test their order rather than our page.
         self::assertStringContainsString('Durable Workflow Dashboard', $crawler->html());
     }
 
@@ -44,7 +44,7 @@ final class DurableDashboardTest extends WebTestCase
 
         $client->request('GET', self::ROUTE);
 
-        self::assertResponseStatusCodeSame(302, 'la route admin doit renvoyer vers la connexion');
+        self::assertResponseStatusCodeSame(302, 'the admin route must redirect to the login');
     }
 
     public function testAFailedRunIsListedWithItsNameAndOutcome(): void
@@ -68,8 +68,8 @@ final class DurableDashboardTest extends WebTestCase
         $crawler = $client->request('GET', self::ROUTE . '?run=exec-render-2');
 
         self::assertResponseIsSuccessful();
-        // L'étiquette est le nom de l'activité, pas son identifiant : c'est ce que le lecteur
-        // d'historique promet, et la page est le seul endroit où on le voit vraiment.
+        // The label is the name of the activity, not its identifier: that is what the history
+        // reader promises, and the page is the only place where you actually see it.
         self::assertStringContainsString('SendWelcomeEmail', $crawler->html());
     }
 
@@ -113,8 +113,8 @@ final class DurableDashboardTest extends WebTestCase
     {
         $container = static::getContainer();
 
-        // Le nom vient du magasin de métadonnées, l'issue du journal : les deux plumes de DUR035,
-        // exercées ici à travers le conteneur réel plutôt qu'assemblées à la main.
+        // The name comes from the metadata store, the outcome from the journal: the two pens of
+        // DUR035, exercised here through the real container rather than assembled by hand.
         $container->get(WorkflowMetadataStore::class)->save($executionId, $workflowType, []);
 
         $journal = $container->get(EventStoreInterface::class);

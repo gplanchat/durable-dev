@@ -25,14 +25,15 @@ use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskFailedResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Échouer la **tâche** de workflow, et non l'exécution.
+ * Failing the workflow **task**, and not the execution.
  *
- * Mesuré contre un vrai serveur (sonde 1.2 de `workflow-replay-divergence-guard`) : lever depuis le
- * code de workflow produit `WORKFLOW_TASK_COMPLETED` puis `WORKFLOW_EXECUTION_FAILED`, et remettre
- * l'ancien code ne ressuscite rien. `RespondWorkflowTaskFailed` n'existait que comme stub généré.
+ * Measured against a real server (probe 1.2 of `workflow-replay-divergence-guard`): raising from
+ * workflow code produces `WORKFLOW_TASK_COMPLETED` then `WORKFLOW_EXECUTION_FAILED`, and putting
+ * the old code back resurrects nothing. `RespondWorkflowTaskFailed` existed only as a generated
+ * stub.
  *
- * Sans ce chemin, une garde de replay ne peut qu'échanger une corruption silencieuse contre une
- * exécution morte. Avec lui, l'historique reste intact et la tâche est rejouée.
+ * Without that path, a replay guard can only trade a silent corruption for a dead execution. With
+ * it, the history stays intact and the task is replayed.
  */
 final class WorkflowTaskFailedResponseTest extends TestCase
 {
@@ -62,8 +63,8 @@ final class WorkflowTaskFailedResponseTest extends TestCase
             ->method('PollWorkflowTaskQueue')
             ->willReturn($this->makeUnaryCallReturning($poll));
 
-        // Le point de tout l'exercice : aucune commande n'est envoyée, donc aucune commande
-        // d'échec de workflow. L'exécution n'apprend rien de cette tentative.
+        // The point of the whole exercise: no command is sent, therefore no workflow failure
+        // command. The execution learns nothing from that attempt.
         $this->grpcClient
             ->expects($this->never())
             ->method('RespondWorkflowTaskCompleted');
@@ -92,7 +93,7 @@ final class WorkflowTaskFailedResponseTest extends TestCase
         self::assertStringContainsString(
             'replay divergence at activity slot 2',
             $captured->getFailure()?->getMessage() ?? '',
-            'Le message de la garde doit voyager : sans lui, la tâche échoue sans dire pourquoi.',
+            'The guard message must travel: without it, the task fails without saying why.',
         );
     }
 
@@ -113,7 +114,7 @@ final class WorkflowTaskFailedResponseTest extends TestCase
             ->method('PollWorkflowTaskQueue')
             ->willReturn($this->makeUnaryCallReturning($poll));
 
-        // La distinction est le sujet : seule `WorkflowTaskFailure` échoue la tâche.
+        // The distinction is the subject: only `WorkflowTaskFailure` fails the task.
         $this->grpcClient
             ->expects($this->never())
             ->method('RespondWorkflowTaskFailed');

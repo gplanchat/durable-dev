@@ -8,16 +8,16 @@ use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\Filesystem\Driver\File;
 
 /**
- * Gestionnaire du sujet de sonde `gplanchat.durable.probe`.
+ * Handler of the `gplanchat.durable.probe` probe topic.
  *
- * Il ne fait qu'une chose utile : **traîner**. Le message dit combien de temps,
- * et la trace dit quand il a commencé et s'il a fini. Un consommateur tué entre
- * les deux lignes laisse une trace ouverte, et c'est ce que le §1.3 mesure —
- * la file rend-elle le message à quelqu'un d'autre, le met-elle en lettre
- * morte, ou se tait-elle ?
+ * It does only one useful thing: **drag on**. The message says for how long,
+ * and the trace says when it started and whether it finished. A consumer killed
+ * between the two lines leaves an open trace, and that is what §1.3 measures —
+ * does the queue hand the message back to somebody else, does it put it in a
+ * dead letter, or does it say nothing?
  *
- * Pas `final` : le conteneur l'instancie, donc il engendre un `Interceptor` qui
- * l'étend. C'est la contrainte d'hôte que le design a trouvée en essayant.
+ * Not `final`: the container instantiates it, so it generates an `Interceptor`
+ * extending it. That is the host constraint the design found by trying.
  */
 class ProbeHandler
 {
@@ -27,15 +27,15 @@ class ProbeHandler
     ) {}
 
     /**
-     * @param string $payload `<étiquette>:<secondes à tenir>`
+     * @param string $payload `<label>:<seconds to hold>`
      */
     public function process(string $payload): void
     {
         [$label, $seconds] = array_pad(explode(':', $payload, 2), 2, '0');
 
-        $this->trace(sprintf('%s DÉBUT   pid=%d tient=%ds', $label, getmypid(), (int) $seconds));
+        $this->trace(sprintf('%s START   pid=%d holds=%ds', $label, getmypid(), (int) $seconds));
         sleep((int) $seconds);
-        $this->trace(sprintf('%s FIN     pid=%d', $label, getmypid()));
+        $this->trace(sprintf('%s END     pid=%d', $label, getmypid()));
     }
 
     private function trace(string $line): void

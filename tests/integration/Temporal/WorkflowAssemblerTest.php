@@ -7,12 +7,12 @@ namespace integration\Temporal;
 use Temporal\Api\Enums\V1\EventType;
 
 /**
- * Les assembleurs contre un vrai serveur (ADR DUR033).
+ * The assemblers against a real server (ADR DUR033).
  *
- * Ce que les tests unitaires ne peuvent pas voir : ils jouent la vidange synchrone, où il n'y a
- * ni fiber suspendu ni workflow task. Or `all()` est passé de N suspensions à une seule — la
- * séquence de commandes ne change pas, les frontières de tâches si, et c'est le serveur qui les
- * découpe.
+ * What the unit tests cannot see: they play the synchronous drain, where there is neither a
+ * suspended fiber nor a workflow task. Yet `all()` went from N suspensions down to a single one —
+ * the command sequence does not change, the task boundaries do, and it is the server that cuts
+ * them.
  */
 final class WorkflowAssemblerTest extends TemporalServerTestCase
 {
@@ -26,22 +26,22 @@ final class WorkflowAssemblerTest extends TemporalServerTestCase
 
         $names = $this->historyEventNames($executionId);
         $scheduled = array_keys($names, EventType::name(EventType::EVENT_TYPE_ACTIVITY_TASK_SCHEDULED), true);
-        self::assertCount(2, $scheduled, 'les deux branches doivent être planifiées');
+        self::assertCount(2, $scheduled, 'both branches must be scheduled');
 
-        // Une workflow task se referme sur WORKFLOW_TASK_COMPLETED, suivi des commandes qu'elle a
-        // produites. Un tel événement entre les deux planifications voudrait dire deux tours.
+        // A workflow task closes on WORKFLOW_TASK_COMPLETED, followed by the commands it has
+        // produced. Such an event between the two schedulings would mean two engine turns.
         $between = \array_slice($names, $scheduled[0], $scheduled[1] - $scheduled[0]);
         self::assertNotContains(
             EventType::name(EventType::EVENT_TYPE_WORKFLOW_TASK_COMPLETED),
             $between,
-            "les deux branches ont été planifiées en deux tours : \n" . implode("\n", $names),
+            "the two branches were scheduled in two engine turns: \n" . implode("\n", $names),
         );
     }
 
     public function testAQuorumCompletesAndTheServerCancelsTheLosingBranches(): void
     {
-        // Les perdants sont des minuteurs d'une et deux heures : sans annulation effective côté
-        // serveur, l'exécution ne se terminerait pas.
+        // The losers are one- and two-hour timers: without effective cancellation on the server
+        // side, the execution would not finish.
         $executionId = $this->startWorkflow('Quorum', []);
         self::assertSame(
             ['keys' => [0, 1], 'values' => [2, 4]],
@@ -52,12 +52,12 @@ final class WorkflowAssemblerTest extends TemporalServerTestCase
         self::assertCount(
             2,
             array_keys($names, EventType::name(EventType::EVENT_TYPE_TIMER_STARTED), true),
-            'les deux minuteurs perdants doivent avoir été démarrés',
+            'both losing timers must have been started',
         );
         self::assertCount(
             2,
             array_keys($names, EventType::name(EventType::EVENT_TYPE_TIMER_CANCELED), true),
-            'et retirés une fois le quorum atteint',
+            'and removed once the quorum is reached',
         );
     }
 }

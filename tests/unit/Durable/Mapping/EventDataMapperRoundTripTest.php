@@ -15,8 +15,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * `event_type` persiste le FQCN : une clé de payload manquante côté relecture perd la donnée
- * en silence, sans erreur nulle part.
+ * `event_type` persists the FQCN: a payload key missing on the read-back side loses the data
+ * silently, with no error anywhere.
  */
 final class EventDataMapperRoundTripTest extends TestCase
 {

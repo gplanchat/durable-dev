@@ -5,8 +5,8 @@ weight: 32
 
 # Options et objets valeur
 
-Les options de planification — limites de réessai, délais, files de tâches, planifications cron,
-attributs de recherche — sont des **objets valeur**, pas des primitives. Chacun valide ce qu'il peut
+Les options de planification (limites de réessai, délais, files de tâches, planifications cron,
+attributs de recherche) sont des **objets valeur**, pas des primitives. Chacun valide ce qu'il peut
 à la construction, si bien qu'une erreur se manifeste là où vous l'avez écrite, plutôt qu'en rejet
 du serveur, en valeur réécrite en silence, ou en exécution qui attend indéfiniment.
 
@@ -28,7 +28,7 @@ Duration::milliseconds(250);
 Duration::minutes(2.5);
 Duration::hours(1);
 Duration::zero();                       // aucune attente
-Duration::infinity();                   // aucune borne — l'échéance par défaut d'await()
+Duration::infinity();                   // aucune borne : l'échéance par défaut d'await()
 ```
 
 `infinity()` est une **valeur**, pas une absence. Elle se compare (`shortest()`, `isLongerThan()`),
@@ -51,7 +51,7 @@ $duration->toDateInterval();
 `of()` prend une **longueur**, `until()` prend un **instant**. Un `DateTimeInterface` ne devient une
 durée qu'une fois mesuré contre un autre instant : d'où deux méthodes et non une seule.
 
-Une durée négative est refusée, tout comme un `INF` ou un `NAN` calculé — une durée infinie se
+Une durée négative est refusée, tout comme un `INF` ou un `NAN` calculé, car une durée infinie se
 demande par son nom. Les unités calendaires (années, mois) n'ont pas de longueur fixe et sont
 résolues contre une ancre UTC fixe : préférez les jours, les heures et les minutes pour une borne.
 
@@ -66,14 +66,14 @@ use Gplanchat\Durable\Activity\RetryLimit;
 
 RetryLimit::unlimited();        // aucune borne sur le nombre de tentatives (le défaut)
 RetryLimit::ofAttempts(3);      // trois tentatives au total
-RetryLimit::ofRetries(2);       // deux réessais — donc trois tentatives
+RetryLimit::ofRetries(2);       // deux réessais, donc trois tentatives
 RetryLimit::once();             // tout échec est définitif
 ```
 
 > [!WARNING]
 > **L'illimité est le défaut**, à l'image d'une `RetryPolicy` Temporal sans `maximum_attempts`. Une
 > activité qui échoue systématiquement sans borner ses tentatives **ne fera pas échouer le
-> workflow** — elle réessaiera indéfiniment. Seuls une exception non réessayable, un dépassement de
+> workflow** ; elle réessaiera indéfiniment. Seuls une exception non réessayable, un dépassement de
 > délai ou une annulation l'arrêtent.
 >
 > Passez `RetryLimit::once()` quand vous voulez qu'un échec soit définitif.
@@ -85,7 +85,7 @@ signifie « pas de plafond », le sens que ce réglage a toujours eu dans la con
 
 ## `ActivityTimeouts`
 
-Les quatre bornes d'une activité, prises ensemble — parce que chacune borne un segment différent de
+Les quatre bornes d'une activité, prises ensemble, parce que chacune borne un segment différent de
 sa vie :
 
 ```
@@ -112,7 +112,7 @@ ActivityTimeouts::attempt(Duration::seconds(30));      // le cas courant : borne
 Un battement plus long que `startToClose` est refusé : la tentative se terminerait avant le premier
 battement manqué, et la borne serait donc morte.
 
-Temporal exige une borne de clôture. Quand aucune n'est posée, le pont en fournit une par défaut —
+Temporal exige une borne de clôture. Quand aucune n'est posée, le pont en fournit une par défaut, et
 ce repli s'appelle `executionBoundOr()` plutôt que d'être caché dans la construction de la commande.
 
 ---
@@ -127,7 +127,7 @@ $options = ActivityOptions::of(3, 30, 1, [PaymentRefusedException::class], 'paym
 ```
 
 `of()` est le constructeur écrit dans l'ordre où l'on pense : combien de tentatives, et combien de
-temps chacune peut prendre. Il accepte les équivalents scalaires — un **entier** est un nombre de
+temps chacune peut prendre. Il accepte les équivalents scalaires : un **entier** est un nombre de
 tentatives, une **durée** nue est la borne `startToClose` d'une tentative, un **flottant** est un
 nombre de secondes. Rien n'est magique : `of(0)` est refusé plutôt que lu comme « illimité ». La
 forme longue reste disponible et strictement équivalente, pour quand vous voulez nommer chaque
@@ -153,7 +153,7 @@ $result = $this->environment->await($orders->charge($orderId));
 
 L'intervalle de réessai croît selon `backoffCoefficient` et se plafonne. Sans plafond explicite,
 c'est le défaut de Temporal qui s'applique : **100 × l'intervalle initial**. Ce plafond compte dès
-lors que les tentatives sont illimitées — sans lui, un recul exponentiel diverge.
+lors que les tentatives sont illimitées : sans lui, un recul exponentiel diverge.
 
 ---
 
@@ -200,12 +200,12 @@ WorkflowNamespace::named('billing');
 ```
 
 Les deux refusent un nom vide, des espaces en bordure et des caractères de contrôle. Le serveur
-accepte les trois, mais ils ne sont jamais intentionnels — et pour une file de tâches la conséquence
+accepte les trois, mais ils ne sont jamais intentionnels, et pour une file de tâches la conséquence
 est silencieuse : le travail est mis en file sous un nom que personne n'interroge, et l'exécution
 attend, sans rien dans les journaux.
 
 > [!NOTE]
-> Ni l'un ni l'autre n'attrape une faute de frappe qui reste un nom valide —
+> Ni l'un ni l'autre n'attrape une faute de frappe qui reste un nom valide, tel que
 > `payments-activites` pour `payments-activities`. Une file de tâches échoue en silence ; un espace
 > de noms échoue bruyamment, en `NOT_FOUND`. Attraper la première demanderait un registre des files
 > réellement servies.
@@ -217,7 +217,7 @@ La comparaison d'espaces de noms est **sensible à la casse**, comme sur le serv
 
 ## `CronSchedule`
 
-Une récurrence, validée à la construction — sans quoi une faute de frappe n'apparaîtrait qu'au refus
+Une récurrence, validée à la construction, sans quoi une faute de frappe n'apparaîtrait qu'au refus
 du premier démarrage par le serveur.
 
 ```php
@@ -231,11 +231,11 @@ CronSchedule::dailyAt(9)->inTimeZone('Europe/Paris');
 ```
 
 > [!WARNING]
-> Sans fuseau horaire, le serveur lit l'expression en **UTC** — rarement ce que « tous les jours à
+> Sans fuseau horaire, le serveur lit l'expression en **UTC**, rarement ce que « tous les jours à
 > 9 h » est censé vouloir dire. `inTimeZone()` émet le préfixe `CRON_TZ=` que le serveur attend.
 
 La validation reproduit celle du serveur, expression par expression : nombre de champs, caractères,
-plages, et **atteignabilité** — `0 0 31 4 *` est refusé parce qu'avril compte trente jours. Le jour
+plages, et **atteignabilité** : `0 0 31 4 *` est refusé parce qu'avril compte trente jours. Le jour
 de la semaine va de 0 à 6, donc `7` pour dimanche est refusé. `?` est accepté partout comme synonyme
 de `*`.
 
@@ -271,7 +271,7 @@ L'objet est immuable : chaque appel renvoie une nouvelle instance.
 
 Deux des trois règles du serveur sont vérifiées localement :
 
-- **la valeur doit correspondre au type** — un `Int` à qui l'on donne une chaîne est refusé avant
+- **la valeur doit correspondre au type** : un `Int` à qui l'on donne une chaîne est refusé avant
   l'aller-retour ;
 - **seize attributs système sont en lecture seule** (`RunId`, `WorkflowId`, `TaskQueue`,
   `StartTime`, …). `BuildIds`, `BinaryChecksums` et `TemporalChangeVersion` n'en font *pas* partie
@@ -303,7 +303,7 @@ $client->startAsync('NightlyReconciliation', $input, $executionId, new WorkflowS
 
 Un cron Temporal n'est **pas un ordonnanceur externe** : c'est la même exécution logique, relancée
 par le serveur avec un historique neuf à chaque échéance. Le run suivant ne démarre pas tant que le
-précédent n'est pas terminé — une occurrence manquée est **sautée, pas rattrapée**.
+précédent n'est pas terminé ; une occurrence manquée est **sautée, pas rattrapée**.
 
 Les workflows enfants acceptent la même planification par `ChildWorkflowOptions`.
 
@@ -322,7 +322,7 @@ immédiatement et bruyamment, jamais en silence.
 |---|---|
 | `maxAttempts: 3` | `RetryLimit::ofAttempts(3)` en premier argument |
 | `maxAttempts: 1` | `RetryLimit::once()` |
-| `maxAttempts: 0` | `RetryLimit::unlimited()` — et c'est le défaut |
+| `maxAttempts: 0` | `RetryLimit::unlimited()`, et c'est le défaut |
 | `->withMaxAttempts(3)` | `->withRetryLimit(RetryLimit::ofAttempts(3))` |
 | `initialIntervalSeconds: 1.0` | `initialInterval: Duration::seconds(1)` |
 | `maximumIntervalSeconds: 60.0` | `maximumInterval: Duration::seconds(60)` |

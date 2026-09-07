@@ -7,25 +7,25 @@ namespace Gplanchat\Bridge\Illuminate;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Publie les migrations du pont, et rien d'autre.
+ * Publishes the bridge's migrations, and nothing else.
  *
- * Ce n'est **pas** le service provider de l'intégration Laravel : il n'enregistre aucun magasin, ne
- * lie aucune interface, n'ajoute aucune commande. Un jeu de magasins ne décide pas comment une
- * application les câble — ça, c'est le travail du paquet d'intégration, et le README le dit depuis
- * le premier jour.
+ * This is **not** the Laravel integration's service provider: it registers no store, it binds
+ * no interface, it adds no command. A set of stores does not decide how an application wires
+ * them — that is the integration package's job, and the README has said so since the very
+ * first day.
  *
- * Ce qu'il fait est ce qu'aucun autre paquet ne peut faire à sa place : dire à Laravel où sont
- * **ses** migrations. Sans lui, chaque application les copierait à la main, et une correction de
- * schéma ne remonterait jamais aux applications déjà installées.
+ * What it does is what no other package can do in its place: tell Laravel where **its** migrations
+ * are. Without it, every application would copy them by hand, and a schema fix would never reach
+ * the applications already installed.
  *
  * ```bash
  * php artisan vendor:publish --tag=durable-migrations
  * php artisan migrate
  * ```
  *
- * Publier n'est pas obligatoire : les migrations sont déjà chargées depuis le paquet, donc
- * `php artisan migrate` suffit. On publie quand on veut les modifier — et à partir de là, elles
- * appartiennent à l'application.
+ * Publishing is not mandatory: the migrations are already loaded from the package, so
+ * `php artisan migrate` is enough. You publish when you want to modify them — and from then on,
+ * they belong to the application.
  */
 final class DurableIlluminateServiceProvider extends ServiceProvider
 {

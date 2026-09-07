@@ -63,11 +63,11 @@ final class WorkflowClient implements WorkflowClientInterface
     }
 
     /**
-     * Démarre une exécution **récurrente** : le serveur en relance une à chaque échéance cron.
+     * Starts a **recurring** execution: the server relaunches one at every cron deadline.
      *
-     * Un cron Temporal n'est pas un planificateur externe — c'est la même exécution logique,
-     * relancée avec un historique neuf. La suivante n'est pas démarrée tant que la précédente
-     * n'est pas terminée : une échéance manquée est sautée, pas rattrapée.
+     * A Temporal cron is not an external scheduler — it is the same logical execution,
+     * relaunched with a fresh history. The next one is not started as long as the previous one
+     * has not finished: a missed deadline is skipped, not caught up.
      *
      * @param array<string, mixed> $payload
      */
@@ -159,9 +159,9 @@ final class WorkflowClient implements WorkflowClientInterface
     /**
      * Delivers an external signal to a running workflow.
      *
-     * Le nom se donne en {@see \BackedEnum} comme du côté workflow
-     * ({@see \Gplanchat\Durable\WorkflowEnvironment::onSignal()}), pour que l'émetteur et
-     * l'attente partagent une même énumération plutôt que deux littéraux à garder d'accord.
+     * The name is given as a {@see \BackedEnum}, as on the workflow side
+     * ({@see \Gplanchat\Durable\WorkflowEnvironment::onSignal()}), so that the emitter and the
+     * wait share one and the same enumeration rather than two literals to keep in agreement.
      *
      * @param array<string, mixed> $args Signal arguments.
      */
@@ -229,7 +229,7 @@ final class WorkflowClient implements WorkflowClientInterface
             $input->setArgs(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($args)));
         }
         $updateRequest = new \Temporal\Api\Update\V1\Request();
-        // Sans meta, le serveur refuse net : « Update meta is not set on request ».
+        // Without meta, the server flatly refuses: "Update meta is not set on request".
         $updateRequest->setMeta(new \Temporal\Api\Update\V1\Meta([
             'update_id' => bin2hex(random_bytes(16)),
             'identity' => $this->settings->identity,
@@ -243,8 +243,8 @@ final class WorkflowClient implements WorkflowClientInterface
         $response = $this->executionRpc->updateWorkflowExecution($request);
         $outcome = $response->getOutcome();
         if (null !== $outcome && null !== $outcome->getFailure()) {
-            // L'update a échoué, pas l'exécution : l'appelant reçoit la défaillance, et le
-            // workflow continue son chemin.
+            // The update failed, not the execution: the caller receives the failure, and the
+            // workflow carries on its way.
             throw new DurableUpdateFailedException($updateName, (string) $outcome->getFailure()->getMessage());
         }
         if (null !== $outcome && null !== $outcome->getSuccess()) {

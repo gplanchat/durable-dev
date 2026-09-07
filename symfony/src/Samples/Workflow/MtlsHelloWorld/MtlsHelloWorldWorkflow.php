@@ -10,7 +10,7 @@ use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-/** Équivalent minimal de samples-php MtlsHelloWorld (salutation ; le mTLS est côté infra Temporal). */
+/** Minimal equivalent of samples-php MtlsHelloWorld (a greeting; mTLS lives on the Temporal infrastructure side). */
 #[AsWorkflow('Samples_MtlsHelloWorld_Greeting')]
 final class MtlsHelloWorldWorkflow
 {

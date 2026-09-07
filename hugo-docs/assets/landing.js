@@ -3,7 +3,7 @@
  * la bascule de thème et les annotations ligne à ligne de l'exemple.
  *
  * Les deux marqueurs sont remplacés par ./import-design.py, qui lit les
- * annotations dans le composant d'origine plutôt que de les recopier — les
+ * annotations dans le composant d'origine plutôt que de les recopier : les
  * laisser en double se serait payé au premier changement du design.
  */
 (function () {

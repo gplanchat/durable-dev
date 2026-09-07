@@ -9,7 +9,7 @@ use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
- * Enregistre les workflows tagués durable.workflow dans le registre.
+ * Registers the workflows tagged durable.workflow in the registry.
  */
 final class WorkflowPass implements CompilerPassInterface
 {

@@ -9,21 +9,21 @@ Durable supports four execution backends: In-Memory, plus the three bridges you 
 
 | Backend | Use case |
 |---------|----------|
-| **In-Memory** | Unit tests, functional tests, local exploration — no server needed. |
-| **DBAL** | Production without an orchestration cluster — one SQL database, no `ext-grpc`. |
+| **In-Memory** | Unit tests, functional tests, local exploration; no server needed. |
+| **DBAL** | Production without an orchestration cluster: one SQL database, no `ext-grpc`. |
 | **Illuminate** | The same, on Laravel's connection rather than Doctrine's. |
-| **Temporal** | Production and staging at scale, realistic integration tests — `ext-grpc` + a Temporal cluster required. |
+| **Temporal** | Production and staging at scale, realistic integration tests; `ext-grpc` and a Temporal cluster required. |
 
 > [!NOTE]
 > **On Magento, neither SQL row exists.** `gplanchat/durable-magento` declares a Composer
 > `conflict` on both SQL bridges: `Magento\Framework\App\ResourceConnection` is neither Doctrine
 > DBAL nor Illuminate's connection, so neither bridge has anything to bind to. The state lives in a
-> Temporal cluster, or it lives in one process — and the choice is made by the presence of
+> Temporal cluster, or it lives in one process, and the choice is made by the presence of
 > `durable/temporal/dsn` in `app/etc/env.php`, not by a setting.
 
 All four run the **same fiber driver** and the same workflow and activity code. Three of them are
 chosen with `durable.event_store.type` (and `DURABLE_DSN` for Temporal); **Illuminate is not one of
-its values** and never will be — see [the Illuminate backend](#illuminate-backend) for what binds it
+its values** and never will be; see [the Illuminate backend](#illuminate-backend) for what binds it
 instead.
 
 ---
@@ -104,7 +104,7 @@ php -m | grep grpc
 
 **In a container image, don't compile it again.** `pecl install grpc` takes about seven minutes, and
 your image build pays it on every branch. Prebuilt extensions are published for PHP 8.2 to 8.5, in
-thread-safe and non-thread-safe forms — see [gRPC in your container image](../container-images/)
+thread-safe and non-thread-safe forms; see [gRPC in your container image](../container-images/)
 for the `COPY --from` recipes, including php-fpm, mod_php and FrankenPHP.
 
 ### Docker Compose setup (local / CI)
@@ -193,12 +193,12 @@ SQL database** through Doctrine DBAL. There is no orchestration server, no sidec
 
 ### How it works
 
-- The three process-local stores become SQL tables; everything else — replay, command buffer,
-  lifecycle — is the code the In-Memory backend already runs.
+- The three process-local stores become SQL tables; everything else (replay, command buffer,
+  lifecycle) is the code the In-Memory backend already runs.
 - Resumes and activities ride **Symfony Messenger**, so use a durable transport (Doctrine, Redis,
   AMQP). An `in-memory://` transport throws away what the SQL journal just persisted.
 - Timers ride Messenger `DelayStamp` through `FireWorkflowTimersHandler`.
-- Tables are created on **first write** — no migration to run, no `doctrine/migrations` dependency.
+- Tables are created on **first write**: no migration to run, no `doctrine/migrations` dependency.
 
 ### Configuration
 
@@ -221,13 +221,13 @@ durable:
 
 framework:
     lock:
-        default: '%env(LOCK_DSN)%'   # doctrine://default, redis://… — must be shared across workers
+        default: '%env(LOCK_DSN)%'   # doctrine://default, redis://…, must be shared across workers
 ```
 
 Setting `event_store.type: dbal` together with a non-empty `temporal.dsn` throws at compile time:
 the journal cannot have two sources of truth.
 
-### One resume at a time — the thing to get right
+### One resume at a time, the thing to get right {#one-resume-at-a-time--the-thing-to-get-right}
 
 Temporal serialises workflow tasks for one execution server-side. There is no server here, so two
 consumers can dequeue two resumes of the same execution and replay the same fiber in parallel,
@@ -240,7 +240,7 @@ lock exists to prevent. Configure a shared one.
 
 ### When to use it
 
-- **Production without operating a cluster** — a Symfony app that already has a database and a
+- **Production without operating a cluster.** A Symfony app that already has a database and a
   Messenger transport.
 - Long-running workflows that must survive deploys and restarts, at a scale one database can hold.
 
@@ -253,7 +253,7 @@ cluster gives you. See the capability matrix below.
 
 The same four stores exist on `Illuminate\Database\Connection`, as
 [`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate--the-laravel-backend)
-— same journal, same trade against Temporal.
+with the same journal and the same trade against Temporal.
 
 **The trade against Temporal is the DBAL one, word for word.** What changes is the connection, and
 why: a store on `DB::connection()` is inside `DB::transaction()` by construction, which is what
@@ -265,7 +265,7 @@ It is **not a fourth value of `event_store.type`**, and it never will be: a Lara
 not read this page's YAML. The bridge is the storage half, and **what binds it is
 `gplanchat/durable-laravel`**, through its own published `config/durable.php`.
 
-That package carries the queue side too — activities and resumes as jobs, a timer as a deferred
+That package carries the queue side too: activities and resumes as jobs, a timer as a deferred
 resume on the queue's own delay, and the per-execution exclusion the DBAL section describes. Its
 own [Packages entry](../packages/#gplanchatdurable-laravel--the-laravel-integration) has the
 configuration, the three settings it refuses rather than tolerates, and the two behaviours that read
@@ -280,7 +280,7 @@ like bugs and are not.
 | Unit tests | In-Memory (`DurableTestCase`) |
 | Integration tests | In-Memory (`DurableBundleTestTrait` + `KernelTestCase`) |
 | CI with Temporal | Temporal (`temporal-integration` group) |
-| Local dev | Any — In-Memory for speed, a journal backend for realism |
+| Local dev | Any: In-Memory for speed, a journal backend for realism |
 | Production, no cluster | DBAL on Symfony, Illuminate on Laravel |
 | Production, at scale | Temporal |
 
@@ -310,7 +310,7 @@ sit on, so they answer alike everywhere but the transport.
 
 No backend but Temporal has a scheduler or a cross-namespace boundary, so cron and Nexus have no
 equivalent on the other three. Where a capability is missing it **fails explicitly** rather
-than being silently ignored — for a Nexus *call*, at the call; for a Nexus *handler*, when the
+than being silently ignored: for a Nexus *call*, at the call; for a Nexus *handler*, when the
 container is built, since a handler with no route is not a call that fails but a service that never
 receives anything.
 
@@ -318,7 +318,7 @@ receives anything.
 
 ## Retry semantics are identical
 
-An activity with no attempt bound retries **indefinitely** on every backend — the Temporal default.
+An activity with no attempt bound retries **indefinitely** on every backend, which is the Temporal default.
 The bundle's `max_activity_retries` still acts as a ceiling when an activity does not set its own;
 at `0` it caps nothing.
 
@@ -332,7 +332,7 @@ Two ports define a backend: `WorkflowCommandBufferInterface` for what a workflow
 `WorkflowHistorySourceInterface` for what already happened.
 
 Both carry **value objects**, not primitives. An implementation receives the options as the caller
-built them — retry limits, timeouts, task queues, cron schedules — and owns the translation to its
+built them (retry limits, timeouts, task queues, cron schedules) and owns the translation to its
 own representation, including serialisation and any reading of a clock.
 
 `startTimer()` receives a **delay**, not a deadline: turning it into an instant is your decision,
@@ -345,6 +345,6 @@ The contributor decision record is [DUR031](https://github.com/gplanchat/durable
 
 ## See also
 
-- [Configuration reference](../configuration/) — full `durable.yaml` key list.
-- [Getting started](../getting-started/) — Messenger routing and worker commands.
-- [Testing workflows](../testing/) — using the In-Memory backend in tests.
+- [Configuration reference](../configuration/) lists every `durable.yaml` key.
+- [Getting started](../getting-started/) covers Messenger routing and worker commands.
+- [Testing workflows](../testing/) shows the In-Memory backend used in tests.

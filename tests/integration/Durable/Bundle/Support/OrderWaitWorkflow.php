@@ -11,7 +11,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
 #[AsWorkflow('OrderWait')]
 final class OrderWaitWorkflow
 {
-    /** @var array<string, mixed>|null la charge du signal, posée par son handler */
+    /** @var array<string, mixed>|null the signal payload, set by its handler */
     private ?array $approval = null;
 
     public function __construct(
@@ -24,8 +24,8 @@ final class OrderWaitWorkflow
     #[AsWorkflowMethod]
     public function run(): array
     {
-        // `waitSignal()` a disparu avec le modèle des conditions : le handler mute l'état, une
-        // condition l'observe. Le handler est réenregistré à chaque passe, replay compris.
+        // `waitSignal()` went away with the condition model: the handler mutates the state and a
+        // condition observes it. The handler is re-registered on every pass, replay included.
         $this->environment->onSignal('approved', function (array $payload): void {
             $this->approval = $payload;
         });

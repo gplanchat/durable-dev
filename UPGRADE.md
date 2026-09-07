@@ -22,6 +22,35 @@ vendor/bin/rector process src
 Le set est **cumulatif** : le passer une fois rattrape toutes les versions franchies d'un coup. Il
 ne contient que ce que Rector sait faire sans deviner ; tout le reste est écrit à la main ci-dessous.
 
+## Non publié
+
+### Les stubs refusent ce que PHP refuse
+
+**Qui est concerné** : toute application qui appelle un contrat d'activité, d'opération Nexus ou de
+workflow enfant par un stub. Rien à écrire ; des appels qui passaient en silence lèvent désormais,
+et c'est le but.
+
+Les trois stubs transforment les arguments reçus par `__call` en une charge nommée. Trois fautes
+d'appel y disparaissaient sans un mot, et voyageaient jusque dans le journal — où elles se rejouent
+à l'identique, passe après passe, loin de l'appel fautif :
+
+| L'appel | Avant | Maintenant | Ce que PHP fait sur l'appel ordinaire |
+|---|---|---|---|
+| argument nommé inconnu | ignoré | `BadMethodCallException` | `Error: Unknown named parameter` |
+| paramètre requis non fourni | vaut `null` | `BadMethodCallException` | `ArgumentCountError` |
+| paramètre servi en positionnel **et** en nommé | le positionnel gagne | `BadMethodCallException` | `Error: Named parameter overwrites previous argument` |
+
+Le type est `\BadMethodCallException` et non celui de PHP parce que l'appel passe par `__call` :
+c'est l'exception que la SPL réserve à une méthode appelée de travers, et elle reste rattrapable.
+
+**Si une de ces exceptions apparaît en production**, elle désigne un appel qui était déjà faux : un
+workflow enfant démarré avec un paramètre manquant partait avec `null` et attendait un message qui
+ne venait jamais. Rector ne peut rien ici — la correction est dans votre code d'appel, pas dans une
+forme mécanique.
+
+Ces exceptions sont déterministes : rejouées à l'identique à chaque redélivrance, elles brûlent les
+tentatives de Messenger jusqu'au transport d'échec. Configurez-en un.
+
 ## 0.1.0-alpha8
 
 ### Laravel refuse au démarrage un workflow dont les noms de paramètres divergent du contrat
