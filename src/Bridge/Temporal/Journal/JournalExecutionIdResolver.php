@@ -9,8 +9,8 @@ use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\History;
 
 /**
- * Lit {@code durableExecutionId} dans le memo de {@code WorkflowExecutionStarted}
- * (posé par {@see \Gplanchat\Bridge\Temporal\WorkflowClient} via {@code StartWorkflowExecution}).
+ * Reads {@code durableExecutionId} from the memo of {@code WorkflowExecutionStarted}
+ * (set by {@see \Gplanchat\Bridge\Temporal\WorkflowClient} via {@code StartWorkflowExecution}).
  */
 final class JournalExecutionIdResolver
 {

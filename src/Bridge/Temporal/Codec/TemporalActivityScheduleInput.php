@@ -10,8 +10,8 @@ use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueResponse;
 
 /**
- * Enveloppe JSON unique pour les entrées d’activité planifiées par l’interpréteur journal
- * (executionId + identifiants + payload + metadata), décodée par {@see \Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker}.
+ * Single JSON envelope for the activity inputs scheduled by the journal interpreter
+ * (executionId + identifiers + payload + metadata), decoded by {@see \Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker}.
  */
 final class TemporalActivityScheduleInput
 {
@@ -71,7 +71,7 @@ final class TemporalActivityScheduleInput
         /* @var array<string, mixed> $payload */
         /* @var array<string, mixed> $metadata */
 
-        // Le serveur tient le compteur de tentatives : il fait autorité sur celui du fil.
+        // The server holds the attempt counter: it is authoritative over the one on the wire.
         $metadata['attempt'] = $poll->getAttempt();
 
         return ActivityMessage::fromWireMetadata(

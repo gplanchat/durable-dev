@@ -37,16 +37,16 @@ $timeline = $block->getTimeline();
             <div class="admin__page-section-title">
                 <span class="title"><?= $escaper->escapeHtml(__('Timeline')) ?></span>
             </div>
-            <?php /* Une feuille de style à déployer pour quelques règles coûterait plus cher à
-                     l'exploitant qu'elle ne rapporte : un `<style>` ici suit le gabarit. */ ?>
+            <?php /* A stylesheet to deploy for a handful of rules would cost the operator more than
+                     it returns: a `<style>` here travels with the template. */ ?>
             <style>
                 .durable-frieze { margin: 0 0 1rem; }
                 .durable-frieze-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .3rem; }
                 .durable-frieze-name { flex: 0 0 16rem; text-align: right; font-size: 1.2rem; color: #303030; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                 .durable-frieze-track { position: relative; flex: 1 1 auto; height: 1.8rem; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: .3rem; }
-                /* `min-width` uniforme, et c'est ce qui tient la règle : quatre millisecondes de
-                   file ne doivent pas dessiner plus large que six millisecondes de travail. Un
-                   minimum appliqué aux deux les rend égales sous le seuil, jamais inversées. */
+                /* One `min-width` for both, and that is what holds the rule: four milliseconds of
+                   queue must not draw wider than six milliseconds of work. A minimum applied to
+                   both makes them equal under the threshold, never inverted. */
                 .durable-frieze-bar { position: absolute; top: .4rem; height: 1rem; min-width: .2rem; border-radius: .5rem; opacity: .35; background: #007bdb; }
                 .durable-frieze-mark { position: absolute; top: .55rem; width: .7rem; height: .7rem; margin-left: -.35rem; border-radius: 50%; background: #007bdb; }
                 .durable-frieze-bar.execution, .durable-frieze-mark.execution { background: #514943; }
@@ -55,23 +55,23 @@ $timeline = $block->getTimeline();
                 .durable-frieze-bar.update, .durable-frieze-mark.update { background: #7c5ac1; }
                 .durable-frieze-bar.nexus, .durable-frieze-mark.nexus { background: #008000; }
                 .durable-frieze-bar.other, .durable-frieze-mark.other { background: #a79d95; }
-                /* Après les règles de nature, et pas avant : celles-ci posent `background` en
-                   raccourci, qui remet `background-image` à zéro. L'opacité est relevée parce
-                   qu'une file d'attente de quelques millisecondes tient dans deux pixels, et que
-                   des hachures translucides sur deux pixels ne se distinguent plus de rien. */
+                /* After the per-kind rules, not before: those set `background` as a shorthand,
+                   which resets `background-image`. The opacity is raised because a queue of a few
+                   milliseconds fits in two pixels, and translucent hatching over two pixels is no
+                   longer distinguishable from nothing at all. */
                 .durable-frieze-bar.waiting {
                     opacity: .75;
                     background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, .9) 0 1px, rgba(255, 255, 255, 0) 1px 3px);
                 }
-                /* `background-color` et non `background` : le raccourci effacerait la trame, et une
-                   attente qui finit en échec est les deux à la fois. */
+                /* `background-color` and not `background`: the shorthand would wipe the hatching,
+                   and a wait that ends in a failure is both at once. */
                 .durable-frieze-bar.failed { background-color: #e02b27; opacity: .75; }
                 .durable-frieze-mark.failed { background-color: #e02b27; }
                 .durable-journal-failed td { color: #e02b27; }
                 .durable-frieze-took { flex: 0 0 6rem; font-size: 1.1rem; color: #757575; }
                 .durable-frieze-scale { display: flex; justify-content: space-between; font-size: 1.1rem; color: #757575; padding: 0 6.75rem 0 16.75rem; }
                 .durable-frieze-key { display: flex; align-items: center; gap: .5rem; margin-top: .6rem; padding-left: 16.75rem; font-size: 1.1rem; color: #757575; }
-                /* La pastille de légende sort du positionnement absolu des barres de la frise. */
+                /* The legend swatch steps out of the absolute positioning the frieze bars use. */
                 .durable-frieze-key .durable-frieze-bar { position: static; top: auto; flex: 0 0 3rem; }
             </style>
             <div class="durable-frieze">
@@ -98,7 +98,7 @@ $timeline = $block->getTimeline();
                     <span>0</span>
                     <span><?= $escaper->escapeHtml($timeline->spanLabel) ?></span>
                 </div>
-                <?php /* Une hachure sans légende est une devinette. */ ?>
+                <?php /* Hatching with no legend is a guessing game. */ ?>
                 <div class="durable-frieze-key">
                     <span class="durable-frieze-bar waiting other"></span>
                     <?= $escaper->escapeHtml(__('Hatched: waiting to be picked up — the work had been asked for, but nobody had started it yet.')) ?>
@@ -138,16 +138,16 @@ $timeline = $block->getTimeline();
                         <td><?= (int) $event->sequence ?></td>
                         <td><?= $escaper->escapeHtml($event->recordedAt->format('Y-m-d H:i:s')) ?></td>
                         <td><?= $escaper->escapeHtml($event->kind->value) ?></td>
-                        <?php /* Le nom de l'action, pas celui de l'événement : les suites d'une
-                                activité ne portent qu'un numéro, et l'exploitant cherche le nom.
-                                C'est la même chaîne que le libellé de la ligne de frise. */ ?>
+                        <?php /* The name of the action, not of the event: the follow-ups of an
+                                activity carry only a number, and the operator is looking for the
+                                name. It is the same string as the frieze row label. */ ?>
                         <td><?= $escaper->escapeHtml($row->actionLabel) ?></td>
                         <td>
                             <?php if ($row->renderedDetails === null): ?>
                                 <?= $escaper->escapeHtml($event->label) ?>
                             <?php else: ?>
-                                <?php /* `<details>` natif : le navigateur sait replier, et un écran
-                                        d'exploitation n'a pas besoin d'un composant pour ça. */ ?>
+                                <?php /* Native `<details>`: the browser knows how to fold, and an
+                                        operations screen needs no component for that. */ ?>
                                 <details>
                                     <summary style="cursor: pointer;"><?= $escaper->escapeHtml($event->label) ?></summary>
                                     <pre style="margin: .5rem 0 0; white-space: pre-wrap; word-break: break-word;"><?= $escaper->escapeHtml($row->renderedDetails) ?></pre>

@@ -72,7 +72,7 @@ final class StubMethodsExtension implements MethodsClassReflectionExtension
         $method = $this->resolve($classReflection, $methodName);
         if (null === $method) {
             throw new \LogicException(\sprintf(
-                'getMethod(%s) appelée alors que hasMethod() l\'a refusée.',
+                'getMethod(%s) was called although hasMethod() refused it.',
                 $methodName,
             ));
         }

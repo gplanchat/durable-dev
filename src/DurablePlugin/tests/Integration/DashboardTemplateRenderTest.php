@@ -68,7 +68,7 @@ final class DashboardTemplateRenderTest extends TestCase
     {
         self::assertFileDoesNotExist(
             \dirname(__DIR__, 2) . '/Dashboard/TemporalEventsDashboardDataProvider.php',
-            'le fournisseur gRPC a rejoint le pont Temporal ; le plugin ne parle plus à un backend',
+            'the gRPC provider moved to the Temporal bridge; the plugin no longer speaks to a backend',
         );
     }
 }
