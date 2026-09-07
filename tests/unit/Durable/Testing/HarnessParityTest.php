@@ -20,10 +20,10 @@ use PHPUnit\Framework\TestCase;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
- * Le harness public exécutait les activités par un chemin distinct de la production
- * (ni marqueurs worker, ni timeouts, ni politique de retry par activité) et construisait son
- * moteur sans runner d'enfant ni coordinateur parent/enfant. Un workflow s'appuyant sur l'un
- * de ces comportements passait en test et divergeait en production.
+ * The public harness ran activities through a path distinct from production
+ * (no worker markers, no timeouts, no per-activity retry policy) and built its
+ * engine with no child runner and no parent/child coordinator. A workflow relying on
+ * any one of these behaviours passed in test and diverged in production.
  */
 final class HarnessParityTest extends TestCase
 {
@@ -65,10 +65,10 @@ final class HarnessParityTest extends TestCase
             $env->run(static fn(WorkflowEnvironment $wf): mixed
                 => $wf->await($wf->activityStub(SuiteActivities::class, $options)->flaky()), 'exec-2');
         } catch (\Throwable) {
-            // Le workflow ne gère pas l'échec : attendu ici.
+            // The workflow does not handle the failure: expected here.
         }
 
-        self::assertSame(1, $runs, 'une exception non-retryable ne doit pas être retentée');
+        self::assertSame(1, $runs, 'a non-retryable exception must not be retried');
         $failed = $this->firstOf($env, 'exec-2', ActivityFailed::class);
         self::assertNotNull($failed);
         self::assertSame(ActivityRetryState::NonRetryableFailure, $failed->retryState());
@@ -112,14 +112,14 @@ final class HarnessParityTest extends TestCase
     public function testParentClosePolicyCascadesInTheHarness(): void
     {
         $env = WorkflowTestEnvironment::inMemory([]);
-        // L'enfant reste bloqué sur une condition que rien ne peut satisfaire : le runner le
-        // signale (WorkflowStuckException), son journal reste sans issue terminale, il est donc
-        // encore actif à la clôture du parent.
+        // The child stays blocked on a condition nothing can satisfy: the runner reports it
+        // (WorkflowStuckException), its journal stays with no terminal outcome, so it is still
+        // active when the parent closes.
         $env->registerWorkflowClass(PendingChild::class);
 
         $env->run(static function (WorkflowEnvironment $wf): string {
-            // Démarré et jamais attendu : c'est le sujet du test, et c'est justement ce qu'un
-            // stub qui attendait pour l'appelant ne savait pas exprimer.
+            // Started and never awaited: that is the subject of the test, and it is exactly what
+            // a stub that awaited on the caller's behalf could not express.
             $wf->childWorkflowStub(PendingChild::class, new ChildWorkflowOptions(
                 parentClosePolicy: ParentClosePolicy::Terminate,
             ))->run();
@@ -136,7 +136,7 @@ final class HarnessParityTest extends TestCase
         self::assertNotNull($scheduled);
 
         $terminated = $this->firstOf($env, $scheduled, WorkflowExecutionFailed::class);
-        self::assertNotNull($terminated, 'ParentClosePolicy::Terminate doit clôturer l’enfant encore actif');
+        self::assertNotNull($terminated, 'ParentClosePolicy::Terminate must close the child that is still active');
         self::assertSame(WorkflowExecutionFailed::KIND_TERMINATED_BY_PARENT, $terminated->kind());
     }
 
@@ -199,8 +199,8 @@ final class WorkingChild
 }
 
 /**
- * Reste bloqué sur une condition que rien ne peut satisfaire : son journal n'a pas d'issue
- * terminale, il est donc encore actif à la clôture du parent.
+ * Stays blocked on a condition nothing can satisfy: its journal has no terminal outcome, so it is
+ * still active when the parent closes.
  */
 #[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'Pending')]
 final class PendingChild

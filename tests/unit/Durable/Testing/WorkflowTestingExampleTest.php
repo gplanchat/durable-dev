@@ -14,15 +14,15 @@ use PHPUnit\Framework\Attributes\Test;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
- * Exemples d'utilisation de l'infrastructure de test in-memory.
+ * Examples of how to use the in-memory testing infrastructure.
  *
- * Ce fichier sert à la fois de validation fonctionnelle et de documentation
- * par l'exemple pour les utilisateurs du composant.
+ * This file serves both as functional validation and as documentation
+ * by example for the users of the component.
  */
 final class WorkflowTestingExampleTest extends DurableTestCase
 {
     // -------------------------------------------------------------------------
-    // 1. Test unitaire pur : DurableTestCase + ActivitySpy
+    // 1. Pure unit test: DurableTestCase + ActivitySpy
     // -------------------------------------------------------------------------
 
     #[Test]
@@ -82,7 +82,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
     #[Test]
     public function workflowWithRetryHandlesActivityFailure(): void
     {
-        // Les Throwable dans la séquence sont levés lors de l'appel correspondant
+        // The Throwables in the sequence are thrown on the corresponding call
         $spy = ActivitySpy::returnsSequence(
             new \RuntimeException('Temporary failure'),
             new \RuntimeException('Still failing'),
@@ -119,8 +119,8 @@ final class WorkflowTestingExampleTest extends DurableTestCase
 
         $env->run(
             static function (WorkflowEnvironment $wf): void {
-                // RetryLimit::once() — sans borne, les tentatives sont illimitées (sémantique
-                // Temporal) et l'activité serait retentée au lieu de faire échouer le workflow.
+                // RetryLimit::once() — with no bound, attempts are unlimited (Temporal
+                // semantics) and the activity would be retried instead of failing the workflow.
                 $wf->await($wf->activityStub(SuiteActivities::class, new ActivityOptions(RetryLimit::once()))->validate('invalid'));
             },
             $executionId,
@@ -144,14 +144,14 @@ final class WorkflowTestingExampleTest extends DurableTestCase
                 $executionId,
             );
         } catch (\Throwable) {
-            // L'exception remonte ; on vérifie que l'event store contient WorkflowExecutionFailed
+            // The exception propagates; we check the event store contains WorkflowExecutionFailed
         }
 
         $this->assertWorkflowFailed($executionId);
     }
 
     // -------------------------------------------------------------------------
-    // 2. ActivitySpy : séquence de retours
+    // 2. ActivitySpy: sequence of return values
     // -------------------------------------------------------------------------
 
     #[Test]
@@ -187,7 +187,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
                 return [
                     $wf->await($wf->activityStub(SuiteActivities::class)->step()),
                     $wf->await($wf->activityStub(SuiteActivities::class)->step()),
-                    $wf->await($wf->activityStub(SuiteActivities::class)->step()), // séquence épuisée : répète la dernière
+                    $wf->await($wf->activityStub(SuiteActivities::class)->step()), // sequence exhausted: repeats the last one
                 ];
             },
         );
@@ -196,7 +196,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
     }
 
     // -------------------------------------------------------------------------
-    // 3. WorkflowTestEnvironment standalone (sans DurableTestCase)
+    // 3. Standalone WorkflowTestEnvironment (without DurableTestCase)
     // -------------------------------------------------------------------------
 
     #[Test]
@@ -217,7 +217,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
 
         self::assertSame(7, $result);
 
-        // Inspection directe du journal
+        // Direct inspection of the journal
         $hasCompleted = false;
         foreach ($env->getEventStore()->readStream($executionId) as $event) {
             if ($event instanceof \Gplanchat\Durable\Event\ExecutionCompleted) {
@@ -225,7 +225,7 @@ final class WorkflowTestingExampleTest extends DurableTestCase
                 break;
             }
         }
-        self::assertTrue($hasCompleted, 'Le journal doit contenir ExecutionCompleted');
+        self::assertTrue($hasCompleted, 'The journal must contain ExecutionCompleted');
     }
 
     // -------------------------------------------------------------------------
