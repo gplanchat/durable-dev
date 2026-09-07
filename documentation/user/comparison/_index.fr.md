@@ -169,7 +169,7 @@ DURABLE_TEMPORAL_ADDRESS=127.0.0.1:7233 vendor/bin/phpunit --testsuite integrati
 
 La suite est ignorée quand `DURABLE_TEMPORAL_ADDRESS` n'est pas défini.
 
-La différence avec le SDK, c'est **quels tests en ont besoin**. Ce
+La différence avec le SDK n'est pas « pas de serveur » : c'est **quels tests en ont besoin**. Ce
 palier existe pour prouver que les commandes du pont sont acceptées par un vrai serveur :
 aller-retours, chemins d'échec, échéances, mises à jour, planifications cron, attributs de
 recherche, Nexus. Il est délibérément étroit, et il porte sur le *pont*, pas sur votre logique
@@ -566,7 +566,7 @@ et [DUR045](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr
 |---|---|
 | **Maintenance** | Projet officiel de Temporal, tenu en parité avec les SDK des autres langages |
 | **Maturité** | Un long historique en production. Durable est en `0.1.0-alpha`, avec des ruptures d'une alpha à l'autre |
-| **Saga** | Un utilitaire dédié. Durable n'en a pas : la forme est une échéance et un chemin de compensation, écrits en toutes lettres dans [Écrire un workflow](../workflows/#bounding-a-wait-in-time) : ce qui manque est le sucre, pas la capacité |
+| **Saga** | Un utilitaire dédié. Durable n'en a pas ; la forme est une échéance et un chemin de compensation, écrits en toutes lettres dans [Écrire un workflow](../workflows/#bounding-a-wait-in-time), si bien que ce qui manque est le sucre, pas la capacité |
 | **Couverture de l'API** | Large. Durable couvre les attributs de recherche, les planifications cron, les mises à jour, les échéances et les workflows enfants, mais les attributs de recherche sont ici des **options de démarrage**, là où le SDK laisse aussi un workflow en cours mettre à jour les siens ; au-delà, cela vaut d'être vérifié dans la [référence de configuration](../configuration/) avant de s'engager |
 
 Une comparaison sans colonne de pertes est du marketing. Celles-ci sont réelles, et la maturité

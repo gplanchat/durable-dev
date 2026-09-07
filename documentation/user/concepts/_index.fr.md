@@ -71,7 +71,7 @@ Rejeu, étape 2 : return "done"
   → l'historique porte ExecutionCompleted → le workflow est terminé
 ```
 
-Parce que le résultat est dans l'historique, l'implémentation de l'activité **n'est pas rappelée** pendant le rejeu. La fonction reprend simplement là où elle s'était arrêtée.
+Parce que le résultat est dans l'historique, l'implémentation de l'activité **n'est pas rappelée** pendant le rejeu. La fonction reprend là où elle s'était arrêtée.
 
 ### Les types d'événements
 

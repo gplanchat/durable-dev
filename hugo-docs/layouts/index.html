@@ -584,7 +584,7 @@
             <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent, #b4552f);">01</span>
             <h4 style="margin: 0; font-family: 'Public Sans', system-ui, sans-serif; font-weight: 600; font-size: calc(17px * var(--ts, 1)); line-height: 1.35; color: var(--fg, #1d1a16); text-wrap: balance;">The model does not answer the same thing twice</h4>
             <span></span>
-            <p style="margin: 0; font-size: calc(15.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459); text-wrap: pretty;">Under replay the workflow must see the same answer, or it walks into a different branch and the history lies. So the model call is an activity, not inline code. This is the condition for an agent to be resumable at all.</p>
+            <p style="margin: 0; font-size: calc(15.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459); text-wrap: pretty;">Under replay the workflow must see the same answer, or it walks into a different branch and the history lies. So the model call is an activity, not inline code. This is not an implementation detail: it is the condition for an agent to be resumable at all.</p>
           </div>
           <div data-reveal data-delay="0.10" style="display: grid; grid-template-columns: 26px minmax(0, 1fr); column-gap: 14px; row-gap: 7px; align-items: baseline; align-content: start; transition: transform 0.28s cubic-bezier(.2,.7,.2,1);" class="dz-h49" data-dzh="49">
             <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent, #b4552f);">02</span>
@@ -596,7 +596,7 @@
             <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent, #b4552f);">03</span>
             <h4 style="margin: 0; font-family: 'Public Sans', system-ui, sans-serif; font-weight: 600; font-size: calc(17px * var(--ts, 1)); line-height: 1.35; color: var(--fg, #1d1a16); text-wrap: balance;">Human in the loop</h4>
             <span></span>
-            <p style="margin: 0; font-size: calc(15.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459); text-wrap: pretty;">“I am about to refund €4,200, confirm?” is one bounded wait that survives deploys. In a handler you cannot await; you store state and let a webhook find it again.</p>
+            <p style="margin: 0; font-size: calc(15.5px * var(--ts, 1)); line-height: 1.7; color: var(--fg2, #6c6459); text-wrap: pretty;">“I am about to refund €4,200. Confirm?” is one bounded wait that survives deploys. In a handler you cannot await; you store state and let a webhook find it again.</p>
           </div>
         </div>
         <div style="border-left: 3px solid var(--ck, #a1341f); background: var(--bg2, #efe9df); border-radius: 0 5px 5px 0; padding: 17px 22px; max-width: 900px;">

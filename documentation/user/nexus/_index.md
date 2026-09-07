@@ -216,7 +216,7 @@ The container refuses to build, and names what is missing:
 
 ```
 durable.nexus_handler: a Nexus handler is declared, but this backend cannot route
-Nexus operations. Nexus needs the Temporal backend, set durable.temporal.dsn.
+Nexus operations. Nexus needs the Temporal backend — set durable.temporal.dsn.
 Declared by: app.encaisser.
 ```
 

@@ -165,7 +165,7 @@ DURABLE_TEMPORAL_ADDRESS=127.0.0.1:7233 vendor/bin/phpunit --testsuite integrati
 
 The suite is skipped when `DURABLE_TEMPORAL_ADDRESS` is unset.
 
-The difference from the SDK is **which tests need one**. This tier exists to
+The difference from the SDK is not "no server": it is **which tests need one**. This tier exists to
 prove that the bridge's commands are accepted by a real server: round trips, failure paths,
 deadlines, updates, cron schedules, search attributes, Nexus. It is deliberately narrow, and it is
 about the *bridge*, not about your business logic. Your workflows are covered by the unit tier, which
@@ -352,7 +352,7 @@ private function chargeWithRetry(string $orderId)
 }
 ```
 
-A retry policy would normally do this for you, and `ActivityOptions` carries one on both sides, and
+A retry policy would normally do this for you; `ActivityOptions` carries one on both sides, and
 [Failures and retries](../failures/) is where it belongs. What the example is about is the
 **extraction**: three lines moved out of a workflow method into a helper. Two return types
 disappear, and the call site changes to `yield from`. Neither is a detail; they are what the

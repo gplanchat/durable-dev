@@ -129,7 +129,7 @@ a change point would only make one workflow carry two workflows.
 ## What is not checked
 
 **Timers.** A timer records an absolute due date, not the delay that produced it, and its label is
-optional, and nothing in the journal that identifies *which* timer a position holds. Changing
+optional, and there is nothing in the journal that identifies *which* timer a position holds. Changing
 only timer durations therefore replays without being reported.
 
 The gap is narrower than it sounds: a shift escapes the check only if it touches timers **alone**.

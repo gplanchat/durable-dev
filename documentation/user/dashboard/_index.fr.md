@@ -55,7 +55,7 @@ l'application. Chaque surface dit lequel, parce que cela dépend de la façon do
 Un intitulé « Total » sous lequel on lit vingt vous apprendrait qu'une application ayant enregistré
 cinq cents exécutions en a vingt.
 
-### 4. L'historique d'une exécution, une ligne par **action**
+### 4. L'historique d'une exécution, une ligne par **action** {#4-lhistorique-dune-exécution--une-ligne-par-action}
 
 Une action n'est pas un événement. Une activité planifiée, démarrée puis terminée est **une action et
 trois événements** ; un minuteur aussi, une opération Nexus aussi. Une frise rangée par nature, « les

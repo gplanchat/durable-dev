@@ -15,7 +15,7 @@ There are two entry points depending on whether you write framework-agnostic tes
 
 ---
 
-## Unit and functional tests with `DurableTestCase`
+## Unit and functional tests with `DurableTestCase` {#unit-and-functional-tests--durabletestcase}
 
 `DurableTestCase` is an abstract PHPUnit `TestCase` that wires an **in-memory backend** for you.
 Subclass it, call `createWorkflowTestEnvironment()`, run your workflow, and use the built-in assertions.
@@ -110,7 +110,7 @@ final class GreetingWorkflow
 
 ---
 
-## Controlling activity behaviour with `ActivitySpy`
+## Controlling activity behaviour with `ActivitySpy` {#controlling-activity-behaviour--activityspy}
 
 `ActivitySpy` is a **callable test double** for activities. You can preset its return value, make it throw, or give it a sequence of results to simulate retries.
 
@@ -154,7 +154,7 @@ $spy->assertNeverCalled();
 
 ---
 
-## Low-level environment: `WorkflowTestEnvironment`
+## Low-level environment: `WorkflowTestEnvironment` {#low-level-environment--workflowtestenvironment}
 
 `WorkflowTestEnvironment` is the backing object that `DurableTestCase` uses. You can use it directly when you do not want to subclass `DurableTestCase`, for instance in test-support helper classes.
 
@@ -186,7 +186,7 @@ assert($result === 'HELLO');
 
 ---
 
-## Symfony integration tests with `DurableBundleTestTrait`
+## Symfony integration tests with `DurableBundleTestTrait` {#symfony-integration-tests--durablebundletesttrait}
 
 For tests that boot your Symfony application kernel, use `DurableBundleTestTrait` in any class that extends `KernelTestCase`. The trait assumes that your **Messenger transports** in the `test` environment are configured as **in-memory** (see [Getting started](../getting-started/)).
 

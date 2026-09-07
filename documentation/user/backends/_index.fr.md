@@ -242,7 +242,7 @@ framework:
 Poser `event_store.type: dbal` en même temps qu'un `temporal.dsn` non vide lève à la compilation :
 le journal ne peut pas avoir deux sources de vérité.
 
-### Une reprise à la fois, la chose à ne pas rater
+### Une reprise à la fois, la chose à ne pas rater {#une-reprise-à-la-fois--la-chose-à-ne-pas-rater}
 
 Temporal sérialise les tâches de workflow d'une exécution côté serveur. Ici il n'y a pas de serveur :
 deux consommateurs peuvent donc défiler deux reprises de la même exécution et rejouer la même fibre
@@ -268,7 +268,7 @@ visibilité qu'apporte un cluster Temporal. Voir la matrice de capacités plus b
 ## Le backend Illuminate {#illuminate-backend}
 
 Les mêmes quatre stockages existent sur `Illuminate\Database\Connection`, sous le nom
-[`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate-le-backend-laravel)
+[`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate--le-backend-laravel)
 avec le même journal et le même échange face à Temporal.
 
 **L'échange face à Temporal est celui du pont DBAL, mot pour mot.** Ce qui change est la connexion,
@@ -283,7 +283,7 @@ lie, c'est `gplanchat/durable-laravel`**, par son propre `config/durable.php` pu
 
 Ce paquet porte aussi le côté file : activités et reprises en jobs, un minuteur comme reprise
 différée sur le délai natif de la file, et l'exclusion par exécution que décrit la section DBAL. Son
-[entrée dans la page Paquets](../packages/#gplanchatdurable-laravel-lintégration-laravel)
+[entrée dans la page Paquets](../packages/#gplanchatdurable-laravel--lintégration-laravel)
 donne la configuration, les trois réglages qu'il refuse plutôt que de les tolérer, et les deux
 comportements qui ressemblent à des bugs sans en être.
 

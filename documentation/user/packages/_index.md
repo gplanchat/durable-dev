@@ -37,7 +37,7 @@ The last two are **development-time tools**, `require-dev` rather than `require`
 
 ---
 
-## `gplanchat/durable`, the library
+## `gplanchat/durable`, the library {#gplanchatdurable--the-library}
 
 ```bash
 composer require gplanchat/durable
@@ -60,7 +60,7 @@ tests use, and it needs nothing installed.
 
 ---
 
-## `gplanchat/durable-bundle`, the Symfony integration
+## `gplanchat/durable-bundle`, the Symfony integration {#gplanchatdurable-bundle--the-symfony-integration}
 
 ```bash
 composer require gplanchat/durable-bundle
@@ -84,7 +84,7 @@ Configuration is one file, documented key by key in the
 
 ---
 
-## `gplanchat/durable-bridge-temporal`, the Temporal driver
+## `gplanchat/durable-bridge-temporal`, the Temporal driver {#gplanchatdurable-bridge-temporal--the-temporal-driver}
 
 ```bash
 composer require gplanchat/durable-bridge-temporal
@@ -113,7 +113,7 @@ temporal server start-dev --namespace durable-test --port 7233
 
 ---
 
-## `gplanchat/durable-bridge-dbal`, the SQL backend
+## `gplanchat/durable-bridge-dbal`, the SQL backend {#gplanchatdurable-bridge-dbal--the-sql-backend}
 
 ```bash
 composer require gplanchat/durable-bridge-dbal
@@ -139,7 +139,7 @@ up, one migration, and no extension to compile.
 
 ---
 
-## `gplanchat/durable-bridge-illuminate`, the Laravel backend
+## `gplanchat/durable-bridge-illuminate`, the Laravel backend {#gplanchatdurable-bridge-illuminate--the-laravel-backend}
 
 ```bash
 composer require gplanchat/durable gplanchat/durable-bridge-illuminate
@@ -172,13 +172,13 @@ worker can all use it.
 > **This bridge is the storage half, not a wiring.** Nothing here binds the ports, and there is no
 > worker command and no job: `DurableIlluminateServiceProvider` registers exactly one thing: where
 > the migrations live. What binds it is
-> [`gplanchat/durable-laravel`](#gplanchatdurable-laravel-the-laravel-integration), the section
+> [`gplanchat/durable-laravel`](#gplanchatdurable-laravel--the-laravel-integration), the section
 > below. Take the bridge alone and you wire the stores yourself, the way a framework-less
 > application does.
 
 ---
 
-## `gplanchat/durable-laravel`, the Laravel integration
+## `gplanchat/durable-laravel`, the Laravel integration {#gplanchatdurable-laravel--the-laravel-integration}
 
 ```bash
 composer require gplanchat/durable-laravel
@@ -212,7 +212,7 @@ what you want, take it.
 
 What this package sells is the **backend choice**: the same workflow code against a Temporal cluster
 *or* against one SQL database, and a mixed Symfony / Sylius / Laravel estate sharing a single engine.
-A workflow class written for `gplanchat/durable-bundle` runs here unmodified, and that is the whole
+A workflow class written for `gplanchat/durable-bundle` runs here unmodified. That is the whole
 claim, and it is the one the other package does not make.
 
 Two neighbouring names on Packagist deserve the sentence rather than the hope that nobody notices.
@@ -277,7 +277,7 @@ require, suggest or detect Filament.
 
 ---
 
-## `gplanchat/durable-plugin`, the Sylius dashboard
+## `gplanchat/durable-plugin`, the Sylius dashboard {#gplanchatdurable-plugin--the-sylius-dashboard}
 
 ```bash
 composer require gplanchat/durable-plugin
@@ -300,7 +300,7 @@ catalog it reads, so the command above is the whole install.
 > still installs, the route and the menu entry still work, and the dashboard renders its degraded
 > state instead of live runs.
 
-## `gplanchat/durable-magento`, the Magento integration
+## `gplanchat/durable-magento`, the Magento integration {#gplanchatdurable-magento--the-magento-integration}
 
 ```bash
 composer require gplanchat/durable-magento
@@ -423,7 +423,7 @@ Each line names the integration only: the bundle pulls the library in, and the p
 bundle in. Without a framework you name the library yourself, and you wire the workers yourself too.
 
 The Laravel line names the library rather than an integration, and that is now a *choice* rather
-than a gap: `gplanchat/durable-laravel` exists: a service provider binding the four storage ports,
+than a gap. `gplanchat/durable-laravel` exists: a service provider binding the four storage ports,
 workflows declared in `config/durable.php`, work riding the queue the application already drains.
 Until it is tagged, the bridge installs on its own and you wire it yourself; see the section above
 for what the integration takes off your hands.

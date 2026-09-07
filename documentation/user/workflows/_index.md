@@ -322,5 +322,5 @@ You never instantiate activity implementations inside the workflow body.
 
 ## See also
 
-- [Concepts](../concepts/) covers workflow against activity, replay and backends.
+- [Concepts](../concepts/) covers workflow vs activity, replay and backends.
 - [Creating activities](../activities/) covers activity interfaces, `#[AsActivityMethod]` and **`ActivityInvoker`**.

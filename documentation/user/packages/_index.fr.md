@@ -39,7 +39,7 @@ Les deux derniers sont des **outils de développement**, en `require-dev` plutô
 
 ---
 
-## `gplanchat/durable`, la bibliothèque
+## `gplanchat/durable`, la bibliothèque {#gplanchatdurable--la-bibliothèque}
 
 ```bash
 composer require gplanchat/durable
@@ -64,7 +64,7 @@ qu'emploient vos tests unitaires, et cela ne demande rien à installer.
 
 ---
 
-## `gplanchat/durable-bundle`, l'intégration Symfony
+## `gplanchat/durable-bundle`, l'intégration Symfony {#gplanchatdurable-bundle--lintégration-symfony}
 
 ```bash
 composer require gplanchat/durable-bundle
@@ -89,7 +89,7 @@ La configuration tient en un fichier, documenté clé par clé dans la
 
 ---
 
-## `gplanchat/durable-bridge-temporal`, le pilote Temporal
+## `gplanchat/durable-bridge-temporal`, le pilote Temporal {#gplanchatdurable-bridge-temporal--le-pilote-temporal}
 
 ```bash
 composer require gplanchat/durable-bridge-temporal
@@ -122,7 +122,7 @@ temporal server start-dev --namespace durable-test --port 7233
 
 ---
 
-## `gplanchat/durable-bridge-dbal`, le backend SQL
+## `gplanchat/durable-bridge-dbal`, le backend SQL {#gplanchatdurable-bridge-dbal--le-backend-sql}
 
 ```bash
 composer require gplanchat/durable-bridge-dbal
@@ -148,7 +148,7 @@ sauvegardez déjà, une migration, et aucune extension à compiler.
 
 ---
 
-## `gplanchat/durable-bridge-illuminate`, le backend Laravel
+## `gplanchat/durable-bridge-illuminate`, le backend Laravel {#gplanchatdurable-bridge-illuminate--le-backend-laravel}
 
 ```bash
 composer require gplanchat/durable gplanchat/durable-bridge-illuminate
@@ -182,13 +182,13 @@ commande artisan ou un worker écrit à la main peuvent tous s'en servir.
 > **Ce pont est la moitié stockage, pas un câblage.** Rien ici ne lie les ports, et il n'y a ni
 > commande de worker ni job : `DurableIlluminateServiceProvider` enregistre exactement une chose :
 > où sont ses migrations. Ce qui le lie, c'est
-> [`gplanchat/durable-laravel`](#gplanchatdurable-laravel-lintégration-laravel), la section
+> [`gplanchat/durable-laravel`](#gplanchatdurable-laravel--lintégration-laravel), la section
 > ci-dessous. Le pont seul, et vous câblez les stockages vous-même, comme le fait une application
 > sans framework.
 
 ---
 
-## `gplanchat/durable-laravel`, l'intégration Laravel
+## `gplanchat/durable-laravel`, l'intégration Laravel {#gplanchatdurable-laravel--lintégration-laravel}
 
 ```bash
 composer require gplanchat/durable-laravel
@@ -225,7 +225,7 @@ votre file existante est ce que vous cherchez, prenez-le.
 Ce que ce paquet vend, c'est le **choix du backend** : le même code de workflow contre un cluster
 Temporal *ou* contre une seule base SQL, et un parc mixte Symfony / Sylius / Laravel partageant un
 seul moteur. Une classe de workflow écrite pour `gplanchat/durable-bundle` tourne ici sans
-modification, et c'est toute la promesse, et c'est celle que l'autre paquet ne fait pas.
+modification. C'est toute la promesse, et c'est celle que l'autre paquet ne fait pas.
 
 Deux noms voisins sur Packagist méritent la phrase plutôt que l'espoir que personne ne remarque.
 
@@ -291,7 +291,7 @@ suggérera ni ne détectera jamais Filament.
 
 ---
 
-## `gplanchat/durable-plugin`, le tableau de bord Sylius
+## `gplanchat/durable-plugin`, le tableau de bord Sylius {#gplanchatdurable-plugin--le-tableau-de-bord-sylius}
 
 ```bash
 composer require gplanchat/durable-plugin
@@ -314,7 +314,7 @@ d'exécutions qu'il lit : la commande ci-dessus est donc toute l'installation.
 > intégrations. Sans backend, le plugin s'installe quand même, la route et l'entrée de menu
 > fonctionnent, et le tableau de bord affiche son état dégradé au lieu d'exécutions vivantes.
 
-## `gplanchat/durable-magento`, l'intégration Magento
+## `gplanchat/durable-magento`, l'intégration Magento {#gplanchatdurable-magento--lintégration-magento}
 
 ```bash
 composer require gplanchat/durable-magento
@@ -442,7 +442,7 @@ bundle. Sans framework, vous nommez la bibliothèque vous-même, et vous câblez
 vous-même.
 
 La ligne Laravel nomme la bibliothèque plutôt qu'une intégration, et c'est désormais un *choix* et
-non un manque : `gplanchat/durable-laravel` existe : un service provider qui lie les quatre ports de
+non un manque. `gplanchat/durable-laravel` existe : un service provider qui lie les quatre ports de
 stockage, des workflows déclarés dans `config/durable.php`, le travail sur la file que l'application
 draine déjà. Tant qu'il n'est pas tagué, le pont s'installe seul et vous le câblez vous-même ; la
 section ci-dessus dit ce que l'intégration vous retire des mains.

@@ -16,7 +16,7 @@ ou des tests d'intégration du bundle Symfony :
 
 ---
 
-## Tests unitaires et fonctionnels avec `DurableTestCase`
+## Tests unitaires et fonctionnels avec `DurableTestCase` {#tests-unitaires-et-fonctionnels--durabletestcase}
 
 `DurableTestCase` est un `TestCase` PHPUnit abstrait qui câble pour vous un **backend en mémoire**.
 Héritez-en, appelez `createWorkflowTestEnvironment()`, faites tourner votre workflow, et servez-vous
@@ -113,7 +113,7 @@ final class GreetingWorkflow
 
 ---
 
-## Piloter le comportement d'une activité avec `ActivitySpy`
+## Piloter le comportement d'une activité avec `ActivitySpy` {#piloter-le-comportement-dune-activité--activityspy}
 
 `ActivitySpy` est un **doublure de test appelable** pour les activités. Vous pouvez lui fixer une
 valeur de retour, la faire lever, ou lui donner une séquence de résultats pour simuler des réessais.
@@ -192,7 +192,7 @@ assert($result === 'HELLO');
 
 ---
 
-## Tests d'intégration Symfony avec `DurableBundleTestTrait`
+## Tests d'intégration Symfony avec `DurableBundleTestTrait` {#tests-dintégration-symfony--durablebundletesttrait}
 
 Pour les tests qui démarrent le noyau de votre application Symfony, employez `DurableBundleTestTrait`
 dans n'importe quelle classe héritant de `KernelTestCase`. Le trait suppose que vos **transports

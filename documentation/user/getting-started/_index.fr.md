@@ -27,9 +27,9 @@ configuration et son worker :
 | Votre application | À installer | À lire plutôt |
 |---|---|---|
 | **Symfony** (Sylius compris) | `gplanchat/durable-bundle` | cette page |
-| **Laravel** | `gplanchat/durable-laravel` | [Paquets](../packages/#gplanchatdurable-laravel-lintégration-laravel) |
-| **Magento 2.4 / Mage-OS** | `gplanchat/durable-magento` | [Paquets](../packages/#gplanchatdurable-magento-lintégration-magento) |
-| **Sans framework** | `gplanchat/durable` | [Paquets](../packages/#gplanchatdurable-la-bibliothèque) |
+| **Laravel** | `gplanchat/durable-laravel` | [Paquets](../packages/#gplanchatdurable-laravel--lintégration-laravel) |
+| **Magento 2.4 / Mage-OS** | `gplanchat/durable-magento` | [Paquets](../packages/#gplanchatdurable-magento--lintégration-magento) |
+| **Sans framework** | `gplanchat/durable` | [Paquets](../packages/#gplanchatdurable--la-bibliothèque) |
 
 Les concepts, l'API de workflow et l'API d'activité sont identiques sur les quatre ; seul le câblage
 ci-dessous est celui de Symfony.
@@ -169,7 +169,7 @@ Les classes d'implémentation d'activité sont des services Symfony ordinaires (
 
 ## Un premier workflow
 
-### 1. Définir un contrat d'activité
+### 1. Définir un contrat d'activité {#1--définir-un-contrat-dactivité}
 
 ```php
 <?php
@@ -187,7 +187,7 @@ interface GreetingActivities
 }
 ```
 
-### 2. Implémenter l'activité
+### 2. Implémenter l'activité {#2--implémenter-lactivité}
 
 ```php
 <?php
@@ -208,7 +208,7 @@ final class GreetingActivitiesHandler implements GreetingActivities
 }
 ```
 
-### 3. Définir le workflow
+### 3. Définir le workflow {#3--définir-le-workflow}
 
 ```php
 <?php
@@ -237,7 +237,7 @@ final class GreetWorkflow
 }
 ```
 
-### 4. Le déclencher depuis un contrôleur ou un service
+### 4. Le déclencher depuis un contrôleur ou un service {#4--le-déclencher-depuis-un-contrôleur-ou-un-service}
 
 ```php
 <?php

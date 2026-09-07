@@ -52,7 +52,7 @@ whole history. Each surface says which set that is, because it depends on how th
 A heading reading `Total` above a twenty would teach you that an application with five hundred runs
 has twenty.
 
-### 4. A run's recorded history, one line per *action*
+### 4. A run's recorded history, one line per *action* {#4-a-runs-recorded-history--one-line-per-action}
 
 An action is not an event. An activity scheduled, started and completed is **one action and three
 events**; so is a timer, so is a Nexus operation. A timeline ranked by kind, "the activities" then "the

@@ -175,7 +175,7 @@ docker run --rm --entrypoint sh <your-base-image> -c \
   '[ -f /etc/alpine-release ] && echo musl || echo glibc'
 ```
 
-Three answers, three columns of the table above. If no published tag matches all three, compile, which is
+Three answers, three columns of the table above. If no published tag matches all three, compile. That is
 the next section.
 
 ---

@@ -227,7 +227,7 @@ framework:
 Setting `event_store.type: dbal` together with a non-empty `temporal.dsn` throws at compile time:
 the journal cannot have two sources of truth.
 
-### One resume at a time, the thing to get right
+### One resume at a time, the thing to get right {#one-resume-at-a-time--the-thing-to-get-right}
 
 Temporal serialises workflow tasks for one execution server-side. There is no server here, so two
 consumers can dequeue two resumes of the same execution and replay the same fiber in parallel,
@@ -252,7 +252,7 @@ cluster gives you. See the capability matrix below.
 ## Illuminate backend
 
 The same four stores exist on `Illuminate\Database\Connection`, as
-[`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate-the-laravel-backend)
+[`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate--the-laravel-backend)
 with the same journal and the same trade against Temporal.
 
 **The trade against Temporal is the DBAL one, word for word.** What changes is the connection, and
@@ -267,7 +267,7 @@ not read this page's YAML. The bridge is the storage half, and **what binds it i
 
 That package carries the queue side too: activities and resumes as jobs, a timer as a deferred
 resume on the queue's own delay, and the per-execution exclusion the DBAL section describes. Its
-own [Packages entry](../packages/#gplanchatdurable-laravel-the-laravel-integration) has the
+own [Packages entry](../packages/#gplanchatdurable-laravel--the-laravel-integration) has the
 configuration, the three settings it refuses rather than tolerates, and the two behaviours that read
 like bugs and are not.
 

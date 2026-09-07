@@ -220,7 +220,7 @@ Le conteneur refuse de se construire, et nomme ce qui manque :
 
 ```
 durable.nexus_handler: a Nexus handler is declared, but this backend cannot route
-Nexus operations. Nexus needs the Temporal backend, set durable.temporal.dsn.
+Nexus operations. Nexus needs the Temporal backend — set durable.temporal.dsn.
 Declared by: app.encaisser.
 ```
 
@@ -342,8 +342,8 @@ ne dit pas un mot de Nexus.
 
 ⚠ **Le contrôle qui tient cela honnête vit au cœur, et non chez l'un des deux hôtes.** Un workflow
 remplissant dont un paramètre obligatoire ne correspond à rien dans la signature du contrat est
-refusé à l'enregistrement, et le message nomme les deux signatures, la charge étant clée par nom
-aux deux bouts, sans ce refus le paramètre recevrait simplement `null`. Symfony appelle le contrôle
+refusé à l'enregistrement, et le message nomme les deux signatures, car la charge est clée par nom
+aux deux bouts, et sans ce refus le paramètre recevrait `null`. Symfony appelle le contrôle
 depuis sa passe de compilation, Laravel depuis `durable.nexus.handlers` ; il a été écrit pour le
 premier hôte et a déménagé le jour où il en a eu un second.
 

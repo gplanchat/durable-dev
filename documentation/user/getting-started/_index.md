@@ -27,9 +27,9 @@ its own configuration file and its own worker:
 | Your application | Install | Read instead |
 |---|---|---|
 | **Symfony** (incl. Sylius) | `gplanchat/durable-bundle` | this page |
-| **Laravel** | `gplanchat/durable-laravel` | [Packages](../packages/#gplanchatdurable-laravel-the-laravel-integration) |
-| **Magento 2.4 / Mage-OS** | `gplanchat/durable-magento` | [Packages](../packages/#gplanchatdurable-magento-the-magento-integration) |
-| **No framework** | `gplanchat/durable` | [Packages](../packages/#gplanchatdurable-the-library) |
+| **Laravel** | `gplanchat/durable-laravel` | [Packages](../packages/#gplanchatdurable-laravel--the-laravel-integration) |
+| **Magento 2.4 / Mage-OS** | `gplanchat/durable-magento` | [Packages](../packages/#gplanchatdurable-magento--the-magento-integration) |
+| **No framework** | `gplanchat/durable` | [Packages](../packages/#gplanchatdurable--the-library) |
 
 The concepts, the workflow API and the activity API are identical on all four; only the wiring
 below is Symfony's.
@@ -46,7 +46,7 @@ composer require gplanchat/durable
 composer require gplanchat/durable-bundle
 ```
 
-The package declares `"type": "symfony-bundle"`, so **Symfony Flex registers it on its own**, so there
+The package declares `"type": "symfony-bundle"`, so **Symfony Flex registers it on its own**, and there
 is nothing to add to `config/bundles.php`. Without Flex, add the line yourself:
 
 ```php
@@ -169,7 +169,7 @@ Activity implementation classes are registered as normal Symfony services (autow
 
 ## First workflow
 
-### 1. Define an activity contract
+### 1. Define an activity contract {#1--define-an-activity-contract}
 
 ```php
 <?php
@@ -187,7 +187,7 @@ interface GreetingActivities
 }
 ```
 
-### 2. Implement the activity
+### 2. Implement the activity {#2--implement-the-activity}
 
 ```php
 <?php
@@ -208,7 +208,7 @@ final class GreetingActivitiesHandler implements GreetingActivities
 }
 ```
 
-### 3. Define the workflow
+### 3. Define the workflow {#3--define-the-workflow}
 
 ```php
 <?php
@@ -237,7 +237,7 @@ final class GreetWorkflow
 }
 ```
 
-### 4. Dispatch from a controller or service
+### 4. Dispatch from a controller or service {#4--dispatch-from-a-controller-or-service}
 
 ```php
 <?php
