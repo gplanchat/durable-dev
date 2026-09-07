@@ -1,7 +1,7 @@
 ## Why
 
-Two hosts render a Durable dashboard today — Sylius through `gplanchat/durable-plugin`, Magento
-through `gplanchat/durable-magento` — and two more are planned: a Filament panel and an API Platform
+Two hosts render a Durable dashboard today (Sylius through `gplanchat/durable-plugin`, Magento
+through `gplanchat/durable-magento`), and two more are planned: a Filament panel and an API Platform
 surface. Each was written on its own, and each answers the operator's questions with a different
 half of the same model.
 
@@ -20,7 +20,7 @@ Neither surface is the poorer one throughout, which is what makes this worth set
 copying. Sylius alone probes the backend and counts outcomes; Magento alone positions actions in
 time, tells a queue apart from work, and says when the journal cannot outlive the request. An
 operator moving between two applications of the same house reads the same run twice and learns
-different things about it — and the two surfaces still to be written have no source of truth to
+different things about it, and the two surfaces still to be written have no source of truth to
 follow but whichever one their author happens to open first.
 
 The observation model is not the problem. `WorkflowRunEvent` already carries `actionKey`, `started`,
@@ -30,8 +30,8 @@ what a surface shows**, and the statement that every host owes the same panels.
 
 ## What Changes
 
-- The timeline projection — actions positioned in time, one segment per interval, a queue interval
-  told apart from a working one, a mark per event — SHALL live **once**, beside the observation
+- The timeline projection (actions positioned in time, one segment per interval, a queue interval
+  told apart from a working one, a mark per event) SHALL live **once**, beside the observation
   model, and every surface SHALL render that projection rather than derive its own. It exists today
   only inside Magento's detail block.
 - Every surface SHALL report backend health, whichever host renders it. Magento's list does not,
@@ -41,12 +41,12 @@ what a surface shows**, and the statement that every host owes the same panels.
   third backend state, distinct from *reachable* and from *no readable backend*: the backend answers
   correctly, and the correct answer is empty. Only Magento says it today, and only in prose.
 - Counters SHALL be stated to count **the page in front of the operator**, not the application's
-  whole history — which is what they already do, unlabelled, under a heading that reads `Total`.
+  whole history, which is what they already do, unlabelled, under a heading that reads `Total`.
 - A run the surface lists SHALL be openable. Magento's list slices a fixed window and its detail
   screen scans another; a run past either is listed and cannot be opened, or is not listed at all.
   Where paging has a ceiling, the ceiling SHALL be stated rather than left to be discovered.
-- **The em dash is settled as the rendering of a fact that is absent for *this run*** — a run still
-  running has no end date — while a fact the **backend** has no notion of keeps its existing
+- **The em dash is settled as the rendering of a fact that is absent for *this run*** (a run still
+  running has no end date) while a fact the **backend** has no notion of keeps its existing
   treatment: no column at all. The shipped requirement forbids placeholders without drawing that
   line, and both surfaces already need both behaviours.
 - **BREAKING** no. Nothing an application declares changes shape; the contract added here is between
@@ -55,8 +55,8 @@ what a surface shows**, and the statement that every host owes the same panels.
 ### The contract is data, not markup
 
 API Platform has no Twig, no phtml and no CSS. Filament has neither. So what is settled here is the
-**projection and the panel inventory** — what a surface must be able to say and what it computes
-from — never a layout. A host renders it in its own chrome: Magento on the standard UI grid its
+**projection and the panel inventory** (what a surface must be able to say and what it computes
+from), never a layout. A host renders it in its own chrome: Magento on the standard UI grid its
 operators already filter, Sylius on Tabler cards, API Platform as JSON.
 
 ### Where the projection lives

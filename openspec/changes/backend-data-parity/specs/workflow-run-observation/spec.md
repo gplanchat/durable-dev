@@ -7,13 +7,13 @@
 An execution is named by whoever starts it. That name SHALL be what identifies the run afterwards,
 on every backend, and SHALL be carried by the description a catalogue returns.
 
-The identifier SHALL be the name the caller supplied, unaltered — not a value derived from it. A
+The identifier SHALL be the name the caller supplied, unaltered, not a value derived from it. A
 backend MAY derive its own internal keys from that name; a derivation that cannot be reversed, or
 that maps two distinct names onto one, SHALL NOT be presented as the identifier.
 
 The identifier SHALL be fixed for the life of the execution. A backend's own identity for a run MAY
-change while the execution continues — a backend that starts a fresh history on continuation gives
-that history a new identity — and SHALL remain available as a separate fact, because reading a
+change while the execution continues (a backend that starts a fresh history on continuation gives
+that history a new identity) and SHALL remain available as a separate fact, because reading a
 history can need it. It SHALL NOT be what the operator, a link, or another system uses to name the
 run.
 

@@ -19,7 +19,7 @@ templating language.
 
 Grouping events into actions, ordering them, telling a queue interval apart from a working one, and
 saying how long something took are **not** the host's business. They are decided once, from the
-recorded history, and every surface SHALL render that same result — otherwise the same run reads as
+recorded history, and every surface SHALL render that same result; otherwise the same run reads as
 two different runs to an operator who works on two applications of the same house.
 
 What is decided once SHALL be expressed as **times and durations**, not as a drawing: an offset from
@@ -63,7 +63,7 @@ looking at without reading the source:
 - **A backend is configured and cannot be reached.** Named, so the operator knows what to go and
   restart, and dated, so they know when the check was made.
 - **A backend answers, and its journal cannot outlive the request that renders the page.** The list
-  is empty and empty is the correct answer, not a failure — the request that renders the dashboard
+  is empty and empty is the correct answer, not a failure: the request that renders the dashboard
   is not the process that executed anything. This state SHALL say what to configure to read across
   processes.
 
@@ -129,13 +129,13 @@ be stated to the operator rather than left to be discovered by a run that will n
 ### Requirement: One bad value does not take a recorded payload down with it
 
 What a backend recorded with an event is the backend's own vocabulary, and a journal CAN hold a
-value that does not survive being rendered — a byte string that is not valid text, a handle, a
+value that does not survive being rendered: a byte string that is not valid text, a handle, a
 structure deeper than the encoder walks. What surrounds that value is ordinary and is what the
 operator came for. A surface SHALL therefore show the payload it can render and present the value it
 cannot as absent, rather than losing the whole payload to it.
 
 Every host SHALL degrade the same way. Where a payload cannot be rendered at all, the event SHALL be
-shown as a line without an expander — an expander that opens onto nothing sends the operator to open
+shown as a line without an expander; an expander that opens onto nothing sends the operator to open
 it again.
 
 #### Scenario: A payload holding one bad value still opens
@@ -156,7 +156,7 @@ it again.
 
 ### Requirement: A run stays describable after it ends badly
 
-A run SHALL remain describable — named, dated, and carrying its outcome — after it has failed,
+A run SHALL remain describable (named, dated, and carrying its outcome) after it has failed,
 after it has been cancelled, and after it has continued as new. Its description SHALL NOT depend on
 records that the end of the run removes.
 
@@ -199,7 +199,7 @@ of the requirement:
 
 - **The backend has no such notion.** A task queue on a backend that has none, a grouping across
   continuations on a backend that does not record one. Nothing is shown, and no column, field or
-  lane is offered either — an empty column would teach the operator that this run has no queue,
+  lane is offered either: an empty column would teach the operator that this run has no queue,
   when it is the backend that has no queues.
 - **The run does not have this fact yet, or will never have it.** A run still going has no end date;
   a backend that records end dates recorded none for it. Here the fact belongs to the model and the

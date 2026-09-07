@@ -5,21 +5,21 @@ not assumed.
 
 Where the caller's execution name lives, per backend:
 
-- `src/Durable/Store/InMemoryWorkflowRunCatalog.php:107` — `new WorkflowRunDescription($runId, …)`,
+- `src/Durable/Store/InMemoryWorkflowRunCatalog.php:107`: `new WorkflowRunDescription($runId, …)`,
   positional, `$runId` being the key of `$this->runs`.
-- `src/Bridge/Dbal/Store/DbalWorkflowRunCatalog.php:80` — `runId: (string) $row['execution_id']`.
+- `src/Bridge/Dbal/Store/DbalWorkflowRunCatalog.php:80`: `runId: (string) $row['execution_id']`.
   `execution_id` is the **primary key** of `durable_workflow_runs`
   (`src/Bridge/Dbal/Schema/DurableSchema.php:96`).
-- `src/Bridge/Illuminate/Store/IlluminateWorkflowRunCatalog.php:121` — the same column, the same
+- `src/Bridge/Illuminate/Store/IlluminateWorkflowRunCatalog.php:121`: the same column, the same
   shape, the same cursor encoding.
-- `src/Bridge/Temporal/Store/TemporalWorkflowRunCatalog.php:146-160` — `runId` is
+- `src/Bridge/Temporal/Store/TemporalWorkflowRunCatalog.php:146-160`: `runId` is
   `$execution->getRunId()`, `groupId` is `$execution->getWorkflowId()`. Neither is the caller's name.
 
 Where the caller's name actually is, on Temporal:
 
-- Written at `src/Bridge/Temporal/WorkflowClient.php:300-301` — the raw `$executionId` is encoded
+- Written at `src/Bridge/Temporal/WorkflowClient.php:300-301`: the raw `$executionId` is encoded
   into the `durableExecutionId` memo field on `StartWorkflowExecution`.
-- Read back at `src/Bridge/Temporal/Journal/JournalExecutionIdResolver.php` — from the memo on
+- Read back at `src/Bridge/Temporal/Journal/JournalExecutionIdResolver.php`: from the memo on
   `WorkflowExecutionStarted`, and the resolver throws rather than guessing when it is absent.
 - The workflow id is a **lossy** derivation of it (`WorkflowClient.php:263-268`):
   `'durable-' . substr(preg_replace('/[^a-zA-Z0-9._-]/', '-', $executionId), 0, 900)`. Characters
@@ -28,7 +28,7 @@ Where the caller's name actually is, on Temporal:
 
 Where identity is consumed today:
 
-- `src/Durable/Observation/RunDashboard.php:148` — `$run->runId === $selectedRunId`. The admin's
+- `src/Durable/Observation/RunDashboard.php:148`: `$run->runId === $selectedRunId`. The admin's
   `?run=` parameter is therefore the caller's name on three backends and a Temporal UUID on the
   fourth.
 - `WorkflowRunCatalogInterface::readHistory()` takes the whole description, and its docblock says
@@ -50,7 +50,7 @@ Where identity is consumed today:
 - Changing the wire format. The memo is already written and already read; nothing about in-flight
   executions changes.
 - Making `runId` mean the same thing everywhere. It is the backend's own identity and it is right
-  that it differs — the mistake was asking it to double as the caller's.
+  that it differs; the mistake was asking it to double as the caller's.
 - Replacing the cursor encodings with one shape. Three of them are good; only the property they must
   satisfy is missing.
 
@@ -68,7 +68,7 @@ Where identity is consumed today:
 
 Reading the memo in `listRuns()` costs nothing extra: `WorkflowExecutionInfo::getMemo()` exists
 (`src/Bridge/Temporal/Api/Workflow/V1/WorkflowExecutionInfo.php:527`) and `ListWorkflowExecutions`
-already returns that message — `describe()` reads it on the line where it already reads the workflow
+already returns that message; `describe()` reads it on the line where it already reads the workflow
 id.
 
 ### Probed and assumed
@@ -101,14 +101,14 @@ below hardens.
 
 If (1) is false the lookup needs an extra `ListWorkflowExecutions` call to find the current run id,
 which is a cost, not a blocker. If (2) is false, `listRuns()` cannot fill `executionId` without one
-`DescribeWorkflowExecution` per row — which **is** a blocker for a list page, and the fallback is to
+`DescribeWorkflowExecution` per row, which **is** a blocker for a list page, and the fallback is to
 promote the execution id to a **search attribute** instead of a memo. That fallback changes the
 Temporal client and belongs to this change if it is needed; §0.2 decides it.
 
 ### Why not derive `executionId` from `groupId` on Temporal
 
 Stripping the `durable-` prefix would recover the name only when it survived sanitisation intact. It
-is precisely the ids that did not survive — those holding `/`, `:`, spaces, or exceeding 900 bytes —
+is precisely the ids that did not survive (those holding `/`, `:`, spaces, or exceeding 900 bytes)
 whose owners most need a stable address. A derivation that is right most of the time produces an
 identifier that is wrong silently, which is worse than one that is absent.
 
@@ -117,6 +117,6 @@ identifier that is wrong silently, which is worse than one that is absent.
 Because `workflowId()` is not injective, `order/17` and `order-17` already start as the same Temporal
 workflow, today, before this change. Making the execution id a resource identifier turns a latent
 start-time collision into an addressing collision. The narrow fix is to refuse at `startAsync()` any
-execution id that sanitisation would alter — the fault is the caller's and the message can say so —
+execution id that sanitisation would alter (the fault is the caller's and the message can say so)
 rather than to make `workflowId()` injective with a hash suffix, which would change every workflow
 id in flight. §4 carries it.

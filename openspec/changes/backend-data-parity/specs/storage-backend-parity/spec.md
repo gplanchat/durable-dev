@@ -32,7 +32,7 @@ a defect of the same kind as a failing test: it makes a reader stop looking.
 ### Requirement: Conformance suites test what makes backends interchangeable
 
 A conformance suite SHALL exercise the properties on which a caller relies when it swaps one backend
-for another — identity, ordering, paging, and the meaning of an empty answer — and SHALL NOT be
+for another (identity, ordering, paging, and the meaning of an empty answer) and SHALL NOT be
 satisfied by re-testing several implementations that share one storage shape.
 
 A property SHALL be expressed as an observable outcome, never as a stored representation. Two
