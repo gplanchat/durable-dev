@@ -5,49 +5,49 @@
 - [x] 1.1 A Nexus operation served by the **Go SDK**, called from a Durable workflow. The question
       was whether a non-Durable handler can serve a Durable caller at all. The answer is worse than
       "no".
-      **It works, and it silently corrupts the payload.** The call completed end to end — the Go
+      **It works, and it silently corrupts the payload.** The call completed end to end: the Go
       handler was reached, ran, and its reply came back to the workflow. But the handler, declaring
       `Greeting{Name string \`json:"name"\`}`, received `{"name":""}` and answered `hello ` instead
       of `hello ada`.
       The cause is our envelope. The caller sends `{"operationId": …, "payload": {"name":"ada"}}`;
       the handler deserialises that into its own type, finds no `name` at the top level, and gets a
-      zero value. **No error is raised anywhere** — not by the server, not by the SDK, not by us.
+      zero value. **No error is raised anywhere**: not by the server, not by the SDK, not by us.
       A hard failure would have been better: it would have been found the first time. This is a
       wrong answer that looks like a right one, which is the failure mode this codebase treats as
       the most expensive (DUR036, DUR042).
       It also means the reverse is true and equally quiet: a **Durable handler** would receive a Go
       caller's bare payload and look for an `operationId` that is not there.
 - [x] 1.2 `PollNexusTaskQueue` semantics. Long-poll returns after ~11 s on an idle queue with an
-      **empty task token and null request** — a success, not an error.
+      **empty task token and null request**, a success, not an error.
 - [x] 1.3 `RespondNexusTaskCompleted` with a synchronous result. **Accepted, full round trip**: the
       calling workflow received the payload. No new gRPC plumbing is needed.
 - [x] 1.4 The asynchronous shape. The server **accepts** an async token and records
       `NEXUS_OPERATION_STARTED`; `callback: temporal://system` confirms the server correlates the
       completion and the handler is not involved again. **But our own caller refuses async**, by
-      design and loudly — so this shape needs caller-side work too. Scope correction, see 3.4.
+      design and loudly, so this shape needs caller-side work too. Scope correction, see 3.4.
 - [x] 1.5 Cancellation. A cancel task reaches the handler **only for a started operation**. With the
       start task still pending, cancelling the caller produced `NEXUS_OPERATION_CANCEL_REQUESTED`
       caller-side and **no handler task at all**. The cancel path is coupled to the async shape.
 - [x] 1.6 `RespondNexusTaskFailed`. An `INTERNAL` handler error is **retryable**: accepted, then the
-      task is redelivered — 3 times in 25 s. It does not fail the operation.
-- [x] 1.7 A handler that never responds: redelivered at ~9.9 s, ~20.7 s, ~33.6 s — on the ~9 s
+      task is redelivered, 3 times in 25 s. It does not fail the operation.
+- [x] 1.7 A handler that never responds: redelivered at ~9.9 s, ~20.7 s, ~33.6 s, on the ~9 s
       `request-timeout` clock, not the operation timeout.
 - [x] 1.8 `design.md` rewritten from what was measured.
 
 ## 1bis. What the probe added to the work
 
-- [x] 1b.1 **Two budgets — decided: both shapes ship together.** `request-timeout` (~9 s) bounds the
+- [x] 1b.1 **Two budgets, decided: both shapes ship together.** `request-timeout` (~9 s) bounds the
       answer to one task; `operation-timeout` bounds the operation. A handler cannot hold a task
       while it works.
       The design reserved a synchronous-only fallback. Nine seconds is what killed it: that split
-      would only serve handlers answering almost immediately — which a plain HTTP endpoint already
-      does — while deferring the shape that is the reason to use Nexus at all.
+      would only serve handlers answering almost immediately (which a plain HTTP endpoint already
+      does) while deferring the shape that is the reason to use Nexus at all.
       Cost accepted: the asynchronous shape also carries a **caller-side** prerequisite (3.4), so
       section 3 is larger than the milestone it belongs to. Taken knowingly rather than discovered.
       **Order, arbitrated after the fact:** section 3 leads. Section 2 lands the synchronous answer
-      afterwards, as the special case of the same worker — the one where the handler returns a value
+      afterwards, as the special case of the same worker, the one where the handler returns a value
       instead of a token. Nothing was removed from section 2; only its position moved.
-- [x] 1b.3 **Retryable versus terminal — decided: the nexus-rpc classification, verbatim.**
+- [x] 1b.3 **Retryable versus terminal, decided: the nexus-rpc classification, verbatim.**
       Not invented here. The rule lives in the **nexus-rpc** SDK, shared by every language, and has
       two tiers: an explicit `RetryBehavior` wins outright; failing that, the **error type** decides.
 
@@ -59,12 +59,12 @@
       The line is *whose fault is it*: a malformed request or a missing right will not improve by
       retrying; an overload or an upstream timeout might.
 
-      **An ordinary exception maps to `INTERNAL`, and therefore retries** — which is what every
+      **An ordinary exception maps to `INTERNAL`, and therefore retries**, which is what every
       other SDK does ("Arbitrary errors from handler methods are turned into
       `HandlerErrorTypeInternal`") and what probe 1.6 measured on the server: three redeliveries in
       25 s. A handler that raises on invalid input without saying so retries for the whole operation
       budget. That trap is real, it is the same everywhere, and it is **documented rather than
-      diverged from** — a handler written here behaves like its counterparts, which is the point of
+      diverged from**: a handler written here behaves like its counterparts, which is the point of
       an interoperability protocol.
 
       **A contradiction worth recording**, found while reading the source: the SDK's own comment says
@@ -76,77 +76,77 @@
 - [x] 2.1 **Routing exists, and it has no I/O.** `NexusOperationRegistry` declares a handler for a
       (service, operation) pair and dispatches a payload to it; `NexusOperationResponse` carries the
       two shapes; `NexusOperationNotHandledException` refuses an operation nobody serves, typed
-      `NOT_IMPLEMENTED` — the **terminal** side of 1b.3's table, so an unserved operation is not
+      `NOT_IMPLEMENTED`, the **terminal** side of 1b.3's table, so an unserved operation is not
       re-asked every ~9 s for the whole operation budget.
       The response contract is `fulfilledByWorkflow()`, not `startedAsynchronously($token)`, on the
-      probe's evidence — see §3.
+      probe's evidence (see §3).
       **Pulled forward out of order**, because 3.1 cannot exist without a dispatch surface. Section
       2's *synchronous response over gRPC* still lands after section 3, as 1b.1 arbitrated. The
       half of this task that says "a poll returning a task" belongs to the worker, 2.2.
       Spec note: the scenario *"and the component keeps serving its other operations"* is a poll-loop
       property and is **not covered** by this tranche.
 - [x] 2.2 **`TemporalNexusWorker::pollOnce()`.** Poll, route through the registry, respond. An empty
-      poll returns without a word (§1.2 — a success, not an error). The synchronous shape answers
+      poll returns without a word (§1.2, a success, not an error). The synchronous shape answers
       `syncSuccess`; the deferred one is 3.1 below, in the same method.
 - [x] 2.3 **Failure path.** A handler that raises answers `RespondNexusTaskFailed` typed `INTERNAL`
-      with `RETRYABLE` — what every other SDK does with an ordinary exception, per 1b.3. A handler
+      with `RETRYABLE`, what every other SDK does with an ordinary exception, per 1b.3. A handler
       that wants a terminal refusal says so with its own type.
-- [x] 2.4 **An operation nobody serves.** Answered `NOT_IMPLEMENTED` / `NON_RETRYABLE` — the
+- [x] 2.4 **An operation nobody serves.** Answered `NOT_IMPLEMENTED` / `NON_RETRYABLE`, the
       terminal side of 1b.3, so it is not re-asked every ~9 s for the whole operation budget. The
       server accepts that refusal: an integration test sends it against a real server, where a
       malformed one would be rejected. A task variant this worker does not serve yet (cancellation,
       §4) is refused the same way rather than left to expire in silence.
 
-## 3. The asynchronous shape — both sides
+## 3. The asynchronous shape: both sides
 
 - [x] 3.1 **A handler that fulfils an operation with a workflow.** Measured first, then built.
       `NexusAsynchronousFulfilmentTest` proved against a real server that a workflow started with
       the task's `callback` in `completion_callbacks` completes the caller's operation with its own
-      result, and that removing that attachment — nothing else — leaves the caller at
+      result, and that removing that attachment (nothing else) leaves the caller at
       `NEXUS_OPERATION_STARTED` forever. The worker now does it: it reads `callback` and
       `callbackHeader` off the start task, attaches them to the workflow it starts, and only then
-      answers `asyncSuccess`. The order is not cosmetic — `completion_callbacks` can only be set at
+      answers `asyncSuccess`. The order is not cosmetic: `completion_callbacks` can only be set at
       start, so answering first would leave the caller waiting on an outcome nobody would send.
 
 - [x] 3.2 **The caller receives that workflow's result.** `NexusServedOperationTest` runs the whole
-      path through `TemporalNexusWorker` — the production code, not a reconstruction — against a
+      path through `TemporalNexusWorker` (the production code, not a reconstruction) against a
       real server: the caller's history ends on `NEXUS_OPERATION_COMPLETED` carrying what the
       fulfilling workflow returned. Mutated (the callback attachment removed), the same test fails
       with the caller stuck at `1, 5, 6, 7, 48, 49`.
 - [x] 3.3 **The workflow fails: the caller sees a classified operation failure.** Covered at the
       level where it is decidable: `NexusHistoryReadingTest` shows an operation that started
       asynchronously and then failed resolving as `DurableNexusOperationFailedException` with
-      `NexusOperationFailureKind::OperationFailed` — the same classification a synchronous failure
+      `NexusOperationFailureKind::OperationFailed`, the same classification a synchronous failure
       gets, which is the point. The end-to-end variant would drive a fulfilling workflow to failure
       through the same path the completion test already exercises, and would prove nothing the
       terminal-event branch does not already prove: the caller reads `NEXUS_OPERATION_FAILED` by
       `scheduledEventId`, whatever failed on the other side.
 - [x] 3.4 **Caller side, found by the probe. Done.** The caller refused an async response: on
       `NEXUS_OPERATION_STARTED` carrying a token it recorded an *outcome*, and that outcome was a
-      failure — so a workflow died on an operation that was going to answer.
+      failure, so a workflow died on an operation that was going to answer.
       The refusal was removed, not replaced. Probe 1.4 measured that the server posts
       `callback: temporal://system` and correlates the outcome itself onto the calling execution by
-      `scheduledEventId` — the key the COMPLETED / FAILED / TIMED_OUT / CANCELED branches already
+      `scheduledEventId`, the key the COMPLETED / FAILED / TIMED_OUT / CANCELED branches already
       read. `findNexusOperationSlotResult()` returns `null` when there is no entry, and `null` is
       exactly "still in flight", so the branch now records nothing at all.
       **BREAKING:** `NexusAsynchronousOperationUnsupportedException` is deleted; nothing raises it.
       Proven by unit tests over synthesised histories: started-with-token stays pending, a later
       completion resolves it, a later failure classifies like any other. **Not yet observed end to
-      end from PHP** — that needs a handler that answers with a token, which is 3.1. This task is
+      end from PHP**: that needs a handler that answers with a token, which is 3.1. This task is
       the enabler, and its own text said so.
 
 ## 4. Cancellation
 
-- [x] 4.1 **A caller that cancels reaches the handler — measured.** 1.5 had only the negative half:
+- [x] 4.1 **A caller that cancels reaches the handler, measured.** 1.5 had only the negative half:
       with the start task still pending, cancelling the caller wrote `NEXUS_OPERATION_CANCEL_REQUESTED`
       and **no handler task arrived**, the operation never having started. The positive half could
       not be observed until an operation could start asynchronously. It can now:
       `NexusServedCancellationTest` shows a `cancel_operation` task arriving for a started
       operation, and **naming the operation token returned at start**.
-- [x] 4.2 **A handler observes the cancellation — through the workflow, not a hook.** The token this
+- [x] 4.2 **A handler observes the cancellation: through the workflow, not a hook.** The token this
       worker returns *is* the workflow it started, so the cancellation task hands back exactly the
       handle needed: the worker cancels that workflow and acknowledges the task. The handler
-      function is not called again, and that is not a gap — what carries the operation is a
+      function is not called again, and that is not a gap: what carries the operation is a
       workflow, and a workflow already observes its own cancellation, with its compensations. A
       handler-side hook would duplicate that path without adding to it.
       A cancellation carrying no token is refused `BAD_REQUEST`, terminal.
@@ -162,70 +162,70 @@
       on the implementation, `#[AsNexusService]` and `#[AsNexusOperation]` on the contract, and
       `#[FulfilsNexusOperation]` on a workflow that fulfils a deferred one. The tag carries the
       contract and nothing else: the names live in the contract, once, and the caller reads the same
-      object — a typo is a type error rather than an operation waiting for a handler whose name will
+      object; a typo is a type error rather than an operation waiting for a handler whose name will
       never match.
       **The pass verifies coverage.** Every operation of the contract is either implemented by the
       handler or claimed by a workflow; anything else is refused at container build, because a
       caller would otherwise wait on a result nothing produces.
       **A workflow claims its operation, and the registry is told.** `#[FulfilsNexusOperation]` is
-      autoconfigured into a tag the pass reads; the pass resolves the **workflow type** — not the
-      FQCN, since the type is the name the server knows — and calls `registerFulfilment()`. The
+      autoconfigured into a tag the pass reads; the pass resolves the **workflow type** (not the
+      FQCN, since the type is the name the server knows) and calls `registerFulfilment()`. The
       registry then answers `dispatch()` with the deferred response directly: no handler is called,
       and there is none to write.
-      **There is no `is_a()` check, deliberately.** The tag may name the *full* contract — the one
-      the caller reads — of which the handler implements only the served part; deferred operations
+      **There is no `is_a()` check, deliberately.** The tag may name the *full* contract (the one
+      the caller reads), of which the handler implements only the served part; deferred operations
       have no body. That is exactly why the contract splits in two, PHP being unable to say
       "implements partially". Coverage is therefore checked operation by operation, and a class that
       serves none of them is caught there.
-- [x] 5.2 **A worker for the Nexus task queue** — a Messenger transport, `purpose=nexus_worker`,
+- [x] 5.2 **A worker for the Nexus task queue**: a Messenger transport, `purpose=nexus_worker`,
       exactly as the activity worker is. `messenger:consume` already knows how to hold a loop,
       restart it, bound it in time and supervise it; a dedicated console command would say all of
       that again, less well. The queue comes from the connection: `nexus_task_queue` in the DSN,
-      **defaulting to the workflow task queue** rather than to a name of its own — a Nexus endpoint
+      **defaulting to the workflow task queue** rather than to a name of its own; a Nexus endpoint
       targets a queue, and a default queue nobody polls is an endpoint that never answers, silently.
-- [x] 5.3 **Refusal at startup, naming what is missing — in two places, deliberately.** `NexusHandlerPass` throws at container
-      compile time when a handler is declared and `durable.temporal.nexus_registry` is absent — the
+- [x] 5.3 **Refusal at startup, naming what is missing: in two places, deliberately.** `NexusHandlerPass` throws at container
+      compile time when a handler is declared and `durable.temporal.nexus_registry` is absent, the
       service the Temporal backend registers as soon as a DSN is configured. The message names the
       backend, the missing key, and the services that declared a handler.
       This is the asymmetry the design called out: the caller refuses at call time because that is
       when the mistake shows, while a handler with no route is not a call that fails but a service
       that never receives anything. There is no request to fail later.
-      A container with no handler at all is left alone — refusing there would break every
+      A container with no handler at all is left alone: refusing there would break every
       application that does not use Nexus.
       **And the core refuses too.** `NexusOperationRegistry` is built through `routedBy()` or
       `unavailableOn()`, and the second throws on `register()`. The compiler pass catches only
       Symfony; the Magento module and the Illuminate bridge wire their services otherwise and would
-      have had nothing — the very hosts whose users would meet the silence in production. The two
+      have had nothing, the very hosts whose users would meet the silence in production. The two
       complement rather than duplicate: the pass fails **earlier** and names the offending services,
       which a registry cannot do; the registry catches every host the pass never sees.
 
 ## 6. End to end
 
-- [x] 6.1 Caller and handler in the same integration test, against a real server, both shapes —
+- [x] 6.1 Caller and handler in the same integration test, against a real server, both shapes,
       `NexusServedOperationTest`, three cases: immediate, deferred, and unserved.
-- [x] 6.2 **Cross-check against the Go SDK — in the direction nobody had measured.** Probe 1.1 ran
+- [x] 6.2 **Cross-check against the Go SDK: in the direction nobody had measured.** Probe 1.1 ran
       Durable calling a Go handler and found the envelope corrupting the payload. The symmetric
-      half — a **Go caller against a Durable handler** — had never been run, and it is the half the
+      half (a **Go caller against a Durable handler**) had never been run, and it is the half the
       comparison page and the home page now claim.
       Measured against a live server, Go SDK v1.48.0: a `CallerWorkflow` declaring
       `Greeting{Name string \`json:"name"\`}` invoked `probe/greet` on an endpoint served by
-      `TemporalNexusWorker`. The handler **received `{"name":"ada"}`** — its own fields, no envelope
-      — answered `{"greeting":"hello ada"}`, and the Go caller deserialised that into its own
-      `Answer{Greeting string}` and printed it. Both directions now interoperate.
+      `TemporalNexusWorker`. The handler **received `{"name":"ada"}`** (its own fields, no
+      envelope), answered `{"greeting":"hello ada"}`, and the Go caller deserialised that into
+      its own `Answer{Greeting string}` and printed it. Both directions now interoperate.
       **Same messages, same order.** The Go caller's history and a Durable caller's history for the
       same operation are identical event for event: `WORKFLOW_EXECUTION_STARTED`, three
       `WORKFLOW_TASK` events, `NEXUS_OPERATION_SCHEDULED`, `NEXUS_OPERATION_COMPLETED`,
       `WORKFLOW_TASK_SCHEDULED`. They diverge only at the end, where the integration test terminates
-      its caller in `tearDown` and the Go one runs to `WORKFLOW_EXECUTION_COMPLETED` — a harness
+      its caller in `tearDown` and the Go one runs to `WORKFLOW_EXECUTION_COMPLETED`, a harness
       difference, not a behaviour one.
       **The Go program is not committed**, as probe 1.1's was not: the repository has no Go
-      toolchain and CI could not run it. Its shape is recorded here — a `worker.New` on its own task
+      toolchain and CI could not run it. Its shape is recorded here: a `worker.New` on its own task
       queue, `workflow.NewNexusClient(endpoint, "probe").ExecuteOperation(ctx, "greet", …)`, and a
       PHP script that creates the endpoint, serves one task through the registry, and deletes the
       endpoint on the way out.
 - [x] 6.3 **Full suites green.** Unit: 882 tests, 2294 assertions. Nexus integration against a live
       server: 54 tests, 238 assertions. PHPStan and php-cs-fixer clean. The example application's
-      container builds in all three environments — the check that catches what no unit test does.
+      container builds in all three environments, the check that catches what no unit test does.
 
 ## 7. Say it in the documentation
 
@@ -233,7 +233,7 @@
       Written from what was measured, including the three probes that overturned a hypothesis: the
       two budgets, what actually correlates a deferred answer, and the cancellation form.
 - [x] 7.2 **DUR036 corrected.** A superseded-on-one-point banner at the top, a forward pointer where
-      it said "serving is a separate change" — that change landed, and the split it predicted held.
+      it said "serving is a separate change": that change landed, and the split it predicted held.
       Its backend asymmetry and value-object rules stand unchanged. The INDEX row is retitled so the
       table does not keep announcing a caller-only component.
 - [x] 7.3 **A user page**, `documentation/user/nexus/`, in both languages. Calling and serving on one
@@ -241,40 +241,40 @@
       budget is stated as the thing that decides which response shape to use, since that is the one
       decision a handler author actually makes.
 - [x] 7.4 **The comparison page**, both languages: "caller only" is gone, a serving example is in,
-      and the section says what it now means that no other PHP implementation serves Nexus — a PHP
+      and the section says what it now means that no other PHP implementation serves Nexus: a PHP
       team was reachable over HTTP but not through the boundary Temporal gives to Go, Java, Python,
       TypeScript and .NET.
       **Found on the way, and repaired:** the backends capability matrix still read
-      `Nexus operations | ❌ | ❌ | ❌ (planned — caller side)` in both languages — stale twice over,
+      `Nexus operations | ❌ | ❌ | ❌ (planned — caller side)` in both languages, stale twice over,
       the caller side having shipped with DUR036. And `OST004` still carried `nexus-handler-side`
       at 7/32 as "the largest single piece of unbuilt work in the repository".
 
-**8.1 — 1b.2 left two integration tests behind, red on `main`.** Removing the
+**8.1: 1b.2 left two integration tests behind, red on `main`.** Removing the
 `{operationId, payload}` envelope changed two things these tests still asserted the old way:
 `NexusOperationRoundTripTest::testTheInputSurvivesTheRoundTrip` looked for `$decoded['payload']` in
 an input that is now the caller's bare payload, and
 `NexusCancellationAndFailureTest::testCancellationReachesTheServerWithTheRealScheduledEventId`
 cancelled by the application-level id passed at scheduling, when the identity is now the
-`scheduledEventId` the server assigns — so the buffer found nothing and emitted no command.
+`scheduledEventId` the server assigns, so the buffer found nothing and emitted no command.
 Both repaired here. The whole Nexus integration suite is now green against a real server:
-**47 tests, 193 assertions**. Neither test runs in CI, which is why they stayed red unnoticed —
+**47 tests, 193 assertions**. Neither test runs in CI, which is why they stayed red unnoticed:
 the same blind spot 7.3 of `query-plumbing-leaves-the-environment` found on the Symfony side.
 
-**8.2 — what the unit tests of the worker cannot prove.** They assert what the worker *sends*,
+**8.2: what the unit tests of the worker cannot prove.** They assert what the worker *sends*,
 against a mocked gRPC client. Whether the server **accepts** it is a different question: a malformed
 `syncSuccess` or a badly attached callback passes a mock assertion and is rejected on the wire. That
 is why every branch of the worker also has an integration case. Said here so nobody reads the unit
 suite as sufficient.
 
-**8.3 — the served-cancellation test costs a minute.** `pollOnce()` is one poll and one poll only:
+**8.3: the served-cancellation test costs a minute.** `pollOnce()` is one poll and one poll only:
 on an idle queue it returns after the long-poll deadline without a word (§1.2), and the cancellation
 task does not always present itself on the first call. The test therefore loops, and pays the
-long-poll wait. Worth knowing before this suite is ever added to CI — which, per 8.1, it is not.
+long-poll wait. Worth knowing before this suite is ever added to CI, which, per 8.1, it is not.
 
 ## 9. Announce it
 
 - [x] 9.1 **The home page says Nexus works.** A dedicated section between the capability stories and
-      the package table, in both languages, with the two halves side by side — calling through a
+      the package table, in both languages, with the two halves side by side: calling through a
       typed stub, serving through a contract. Plus an entry in the header nav and a highlighted chip
       in the capability list.
       The claim it makes is the measured one and no more: *a PHP service can now be on both ends of a

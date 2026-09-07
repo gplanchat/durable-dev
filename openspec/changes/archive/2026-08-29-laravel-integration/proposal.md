@@ -1,7 +1,7 @@
 ## Why
 
 [OST003 §3](../../../documentation/ost/OST003-php-ecosystem-integrations.md) puts Laravel in Tier 1
-— *foreign container, foreign queue, a package written from the bootstrap up* — and is unusually
+(*foreign container, foreign queue, a package written from the bootstrap up*) and is unusually
 blunt about what the entry cannot be:
 
 > `durable-workflow/workflow` (formerly `laravel-workflow/laravel-workflow`) is durable execution on
@@ -25,7 +25,7 @@ What it deliberately does not ship, its own README says in as many words:
 
 > **A queue, and jobs to put on it.** `ResumeLock` is the exclusion, not the plumbing.
 >
-> **The Durable service provider.** Registering stores, binding ports, adding worker commands —
+> **The Durable service provider.** Registering stores, binding ports, adding worker commands:
 > that belongs to the Laravel integration package.
 
 So OST004's row is stale by half: the adapter family is done, and what remains is the bootstrap
@@ -35,7 +35,7 @@ alone. This change is that bootstrap.
 
 The chooser on the published home page hands `composer require gplanchat/durable-laravel
 gplanchat/durable-bridge-illuminate` to anyone who picks Laravel. The second package exists. **The
-first does not.** The site is not wrong about the intent — it is early by one package, and this is
+first does not.** The site is not wrong about the intent: it is early by one package, and this is
 the one.
 
 ## What Changes
@@ -43,15 +43,15 @@ the one.
 - A Laravel package SHALL register workflow and activity classes with the Durable runtime. Laravel's
   container has no equivalent of Symfony's attribute autoconfiguration, so declaration is explicit,
   and a workflow class written for `durable-bundle` SHALL run here unmodified.
-- Activity dispatch and workflow resume SHALL ride **Laravel's own queue** — `illuminate/queue`
-  jobs, dispatched on the connection the application already configures — rather than a second queue
+- Activity dispatch and workflow resume SHALL ride **Laravel's own queue** (`illuminate/queue`
+  jobs, dispatched on the connection the application already configures) rather than a second queue
   introduced beside it.
 - The worker SHALL be the one an operator already supervises: `php artisan queue:work`. Any artisan
   command this package adds SHALL be for inspection, never a second process model to learn.
 - Timers SHALL ride the queue's own delay, the way the DBAL backend rides Messenger's `DelayStamp`.
 - Two workers SHALL NOT replay the same execution at once. The hazard is the one
-  [DUR030](../../../documentation/adr/DUR030-dbal-backend-simplified-durable-execution.md) names —
-  a forked journal and duplicated activities — and the exclusion already exists as
+  [DUR030](../../../documentation/adr/DUR030-dbal-backend-simplified-durable-execution.md) names
+  (a forked journal and duplicated activities), and the exclusion already exists as
   `Queue\ResumeLock`. **How a queued job should wait is a design question, not a given:** blocking a
   worker for ten seconds and releasing the job back to the queue are both defensible, and they are
   not equally cheap. `design.md` decides it, with a measurement.
@@ -60,8 +60,8 @@ the one.
 - The package SHALL support the **in-memory** and **Illuminate** backends. **Temporal on Laravel is
   not decided here**, and the reason is measured rather than assumed: `gplanchat/durable-bridge-temporal`
   requires `symfony/messenger`, `symfony/dependency-injection`, `symfony/http-kernel` and
-  `symfony/config`, used across seven files — a bundle, a DI extension, a services file and four
-  Messenger transports. Whether that is dead weight to accept, a split to make, or a combination to
+  `symfony/config`, used across seven files (a bundle, a DI extension, a services file and four
+  Messenger transports). Whether that is dead weight to accept, a split to make, or a combination to
   refuse is `design.md`'s question.
 - **BREAKING** no. Nothing already shipped changes shape.
 
@@ -78,7 +78,7 @@ The repository gives two answers, and a third is what the Laravel ecosystem woul
 This change picks **`gplanchat/durable-laravel`**, for the reason the Magento change picked
 `gplanchat/durable-magento` over `gplanchat/module-durable`: the family prefix is what a reader of
 the site, the docs and Packagist has already learned, and the six shipped packages all lead with it.
-The host's convention governs what a Laravel developer actually looks at — `config/durable.php`, a
+The host's convention governs what a Laravel developer actually looks at: `config/durable.php`, a
 `DurableServiceProvider` discovered by package auto-discovery, `php artisan vendor:publish
 --tag=durable-config`.
 
@@ -92,8 +92,8 @@ OST003's second consequence is a documentation duty, not a naming one: the docs 
 
   **And it is a separate *package*, decided here.** `gplanchat/durable-filament` SHALL require
   `gplanchat/durable-laravel`, and this package SHALL NOT require, suggest or detect Filament. The
-  precedent is exact and one-directional — `durable-plugin` requires `durable-bundle`, and
-  `durable-bundle` names the plugin nowhere — so a Laravel application without Filament never hears
+  precedent is exact and one-directional (`durable-plugin` requires `durable-bundle`, and
+  `durable-bundle` names the plugin nowhere), so a Laravel application without Filament never hears
   of it. Laravel makes it cleaner still: package auto-discovery registers the dashboard's provider
   on install, and not installing it leaves no trace, where Symfony needs a line in `bundles.php`.
 
@@ -103,15 +103,15 @@ OST003's second consequence is a documentation duty, not a naming one: the docs 
 
 - **A Telescope watcher, and a Pulse card.** Named here because the previous point does not cover
   them, and because they are the *other* pattern this repository uses. `durable-bundle` carries the
-  Symfony profiler panel **inside itself**, activated by `suggest: symfony/web-profiler-bundle` —
+  Symfony profiler panel **inside itself**, activated by `suggest: symfony/web-profiler-bundle`;
   a panel that grafts onto a tool the application already has does not earn its own package, where
   a whole interface does. So a Telescope watcher would live **in** `gplanchat/durable-laravel`
   under `suggest: laravel/telescope`, and Pulse recorders likewise. Neither is in this change:
-  Telescope is the better vehicle than the Symfony panel it would mirror — it records from requests,
+  Telescope is the better vehicle than the Symfony panel it would mirror (it records from requests,
   queued jobs *and* artisan commands, so an execution's timeline is continuous instead of stitched
-  back together from requests — and that is a reason to give it its own slice, not a corner of this
+  back together from requests), and that is a reason to give it its own slice, not a corner of this
   one.
-- **The API Platform state processor.** OST003 §3 makes it *"written once and collected twice"* —
+- **The API Platform state processor.** OST003 §3 makes it *"written once and collected twice"*:
   one processor over Symfony and Laravel. It is worth more as its own change than as a corner of
   this one, and it needs this package's wiring underneath before it can be collected the second time.
 - **Statamic and Bagisto.** OST003 §6 has them riding the Laravel integration rather than adding

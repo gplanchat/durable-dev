@@ -1,6 +1,6 @@
 ## Why
 
-DUR039 removed the scheduling primitive from `WorkflowEnvironment` and left three methods behind —
+DUR039 removed the scheduling primitive from `WorkflowEnvironment` and left three methods behind:
 `registerQueryHandler()`, `hasQueryHandler()`, `callQueryHandler()`. Its "Not decided here" section
 says why, and it is a reason about review order rather than about design:
 `workflow-conditions-and-handler-dispatch` had just landed on `main` with `onSignal()` and
@@ -31,7 +31,7 @@ The symmetry with signals and updates is real but shallow, and the difference is
 
 - Declaring a query handler SHALL be done with `#[QueryMethod]`, and there SHALL be no imperative
   form on the surface a workflow author reaches.
-- The handlers SHALL be held by a registry carried by `ExecutionContext` — the engine-side object a
+- The handlers SHALL be held by a registry carried by `ExecutionContext`, the engine-side object a
   workflow never receives. The definition loader writes to it; the Temporal task processor reads
   from it.
 - Registering a **signal** or an **update** handler imperatively SHALL remain available. The
@@ -69,7 +69,7 @@ The symmetry with signals and updates is real but shallow, and the difference is
   the environment; `WorkflowDefinitionLoader` registers into it.
 - **Temporal bridge** (`src/Bridge/Temporal`): `WorkflowTaskResult` carries the registry;
   `WorkflowTaskProcessor` answers queries from it.
-- **Test suite**: one bridge test registered a query from a closure — the form being removed. It
+- **Test suite**: one bridge test registered a query from a closure, the form being removed. It
   becomes a class with `#[QueryMethod]`, which is also the demonstration that the declarative path
   suffices.
 - **A closure-shaped workflow can no longer answer a query.** This is the cost, and it is stated
