@@ -501,7 +501,7 @@ Durable gets its own declared type back, and the two histories are identical eve
 A handler declares the operation it serves, and answers now or later:
 
 ```php
-#[AsNexusServiceHandler(contract: BillingServed::class)]
+#[AsNexusServiceHandler(contract: BillingContract::class)]
 final class Billing implements BillingServed
 {
     // Now, if you already have the answer: you have about nine seconds.
@@ -509,7 +509,7 @@ final class Billing implements BillingServed
 }
 
 // Later, for anything real: a workflow claims the operation and produces the result.
-#[AsWorkflow]
+#[AsWorkflow('Charge')]
 #[FulfilsNexusOperation(BillingContract::class, 'charge')]
 final class Charge { /* … */ }
 ```

@@ -44,11 +44,10 @@ return [
      * @var list<class-string>
      */
     'workflows' => [
-        // Celui qui remplit `livraison/expedier`. Il est déclaré ici et nulle part ailleurs : le
-        // conteneur de Laravel n'a pas d'autoconfiguration par attribut, et c'est aussi cette
-        // liste que `DeclaredNexusOperations` relit pour savoir quelles opérations un workflow
-        // réclame.
-        App\Durable\Workflow\ExpedierWorkflow::class,
+        // The one that fulfils `delivery/ship`. It is declared here and nowhere else: Laravel's
+        // container has no per-attribute autoconfiguration, and this list is also what
+        // `DeclaredNexusOperations` reads back to know which operations a workflow claims.
+        App\Durable\Workflow\ShipWorkflow::class,
     ],
 
     /*
@@ -107,10 +106,10 @@ return [
      */
     'nexus' => [
         'handlers' => [
-            // gestionnaire => contrat qu'il sert. Le contrat **complet**, celui que l'appelant lit,
-            // et non l'interface que la classe implémente : c'est ce qui permet de constater que
-            // `expedier` n'a pas de corps ici parce qu'un workflow la réclame.
-            App\Durable\Nexus\LivraisonHandler::class => Gplanchat\Durable\Demo\Contracts\Livraison\LivraisonContract::class,
+            // handler => the contract it serves. The **whole** contract, the one the caller reads,
+            // and not the interface the class implements: that is what makes it possible to find
+            // that `ship` has no body here because a workflow claims it.
+            App\Durable\Nexus\DeliveryHandler::class => Gplanchat\Durable\Demo\Contracts\Delivery\DeliveryContract::class,
         ],
     ],
 

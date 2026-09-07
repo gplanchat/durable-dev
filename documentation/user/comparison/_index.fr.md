@@ -514,7 +514,7 @@ sont identiques événement par événement.
 Un gestionnaire déclare l'opération qu'il sert, et répond maintenant ou plus tard :
 
 ```php
-#[AsNexusServiceHandler(contract: BillingServed::class)]
+#[AsNexusServiceHandler(contract: BillingContract::class)]
 final class Billing implements BillingServed
 {
     // Maintenant, si vous avez déjà la réponse : vous avez environ neuf secondes.
@@ -522,9 +522,9 @@ final class Billing implements BillingServed
 }
 
 // Plus tard, pour tout ce qui est réel : un workflow réclame l'opération et produit le résultat.
-#[AsWorkflow]
+#[AsWorkflow('Charge')]
 #[FulfilsNexusOperation(BillingContract::class, 'charge')]
-final class Encaissement { /* … */ }
+final class Charge { /* … */ }
 ```
 
 Les neuf secondes ne sont pas une limite de Durable mais le `request-timeout` de la tâche, mesuré :

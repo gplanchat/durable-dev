@@ -33,7 +33,7 @@ final class SamplesControllerSmokeTest extends WebTestCase
 
         $this->assertResponseIsSuccessful();
         $content = (string) $client->getResponse()->getContent();
-        $this->assertStringContainsString('Synchrone', $content);
+        $this->assertStringContainsString('Synchronous', $content);
         $this->assertStringContainsString('Async', $content);
     }
 
@@ -79,7 +79,7 @@ final class SamplesControllerSmokeTest extends WebTestCase
         $this->assertResponseIsSuccessful();
         $content = (string) $client->getResponse()->getContent();
         $this->assertStringContainsString('Hello, World!', $content);
-        $this->assertStringContainsString('Synchrone', $content);
+        $this->assertStringContainsString('Synchronous', $content);
     }
 
     public function testSamplesRunAsyncReturns200ForSimpleActivity(): void

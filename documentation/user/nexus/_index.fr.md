@@ -70,7 +70,7 @@ Un gestionnaire implémente le contrat, ou la part de celui-ci à laquelle il r�
 ```php
 use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
 
-#[AsNexusServiceHandler(contract: BillingServed::class)]
+#[AsNexusServiceHandler(contract: BillingContract::class)]
 final class Billing implements BillingServed
 {
     public function verify(string $ordre): array
@@ -101,9 +101,9 @@ interface BillingContract extends BillingServed // + ce qu'un workflow remplit
     public function charge(string $ordre, int $montant): array;
 }
 
-#[AsWorkflow]
+#[AsWorkflow('Charge')]
 #[FulfilsNexusOperation(BillingContract::class, 'charge')]
-final class Encaissement { /* … */ }
+final class Charge { /* … */ }
 ```
 
 Sans cette séparation, PHP exigerait un corps pour `charge()` sur le gestionnaire, une méthode
@@ -121,7 +121,7 @@ public function verify(string $ordre): array { … }
 
 // Plus tard : un workflow réclame l'opération, et produit le résultat.
 #[FulfilsNexusOperation(BillingContract::class, 'charge')]
-final class Encaissement { … }
+final class Charge { … }
 ```
 
 **Un gestionnaire dispose d'environ neuf secondes.** Ce n'est pas le budget de l'opération, c'est
@@ -221,7 +221,7 @@ Le conteneur refuse de se construire, et nomme ce qui manque :
 ```
 durable.nexus_handler: a Nexus handler is declared, but this backend cannot route
 Nexus operations. Nexus needs the Temporal backend — set durable.temporal.dsn.
-Declared by: app.encaisser.
+Declared by: app.charge.
 ```
 
 C'est délibéré, et ce n'est pas ainsi que se comporte le côté appelant. Un appel sur un backend sans
@@ -238,9 +238,9 @@ frameworks. Ce qu'elle montre se lit mieux qu'il ne se décrit.
 
 | | `sylius/`, la boutique | `symfony/`, le métier | `magento/`, le banc Magento | `laravel/`, la logistique |
 |---|---|---|---|---|
-| namespace | `demo-boutique` | `demo-metier` | `demo-magento` | `demo-laravel` |
-| sert | `stock` (`reserver`) | `facturation` (`verifier`, `encaisser`) | **rien** | `livraison` (`planifier`, `expedier`) |
-| appelle | `facturation` | `stock` | les trois services | `stock`, **depuis le workflow qui sert** |
+| namespace | `demo-shop` | `demo-business` | `demo-magento` | `demo-laravel` |
+| sert | `stock` (`reserve`) | `billing` (`verify`, `charge`) | **rien** | `delivery` (`schedule`, `ship`) |
+| appelle | `billing` | `stock` | les trois services | `stock`, **depuis le workflow qui sert** |
 | ce qui déclare le gestionnaire | une balise sous `when@demo` | `#[AsNexusServiceHandler]` | rien | six lignes de `config/durable.php` |
 
 Les quatre lisent le même paquet de contrats. Rien d'autre ne circule entre elles.
@@ -248,29 +248,29 @@ Les quatre lisent le même paquet de contrats. Rien d'autre ne circule entre ell
 Le workflow de commande de la boutique appelle les deux formes sur le même stub :
 
 ```php
-$verdict = $this->environment->await($this->facturation->verifier($commande, $montant, $devise));
+$verdict = $this->environment->await($this->billing->verify($order, $amount, $currency));
 
-if (true !== ($verdict['acceptee'] ?? false)) {
-    return ['verifiee' => $verdict, 'encaissement' => null];
+if (true !== ($verdict['accepted'] ?? false)) {
+    return ['verified' => $verdict, 'charge' => null];
 }
 
 return [
-    'verifiee' => $verdict,
-    'encaissement' => $this->environment->await($this->facturation->encaisser($commande, $montant, $devise)),
+    'verified' => $verdict,
+    'charge' => $this->environment->await($this->billing->charge($order, $amount, $currency)),
 ];
 ```
 
-`verifier` est répondue par une méthode que le métier a écrite. `encaisser` n'a aucun corps de
+`verify` est répondue par une méthode que le métier a écrite. `charge` n'a aucun corps de
 gestionnaire : un workflow la réclame, dort douze secondes, appelle une activité de paiement, et son
 résultat devient celui de l'opération. **Rien dans le code ci-dessus ne distingue les deux.**
 L'historique de l'appelant, si :
 
 ```
- 5  NexusOperationScheduled     verifier
- 6  NexusOperationCompleted     verifier      ← la même seconde
-10  NexusOperationScheduled     encaisser
-11  NexusOperationStarted       encaisser     ← un workflow l'a prise
-15  NexusOperationCompleted     encaisser     ← quatorze secondes plus tard
+ 5  NexusOperationScheduled     verify
+ 6  NexusOperationCompleted     verify    ← la même seconde
+10  NexusOperationScheduled     charge
+11  NexusOperationStarted       charge    ← un workflow l'a prise
+15  NexusOperationCompleted     charge    ← quatorze secondes plus tard
 19  WorkflowExecutionCompleted
 ```
 
@@ -305,11 +305,11 @@ un service est servi, donc une application qui ne fait qu'appeler n'en a pas.
 ```php
 // Le banc Magento, appelant trois services depuis un seul workflow. C'est tout ce que
 // l'intégration à l'hôte représente : trois stubs et cinq opérations attendues.
-$verdict = $this->environment->await($this->facturation->verifier($commande, $montant, $devise));
-$livraison = $this->environment->await($this->livraison->planifier($commande, $lignes));
-$reservation = $this->environment->await($this->stock->reserver($commande, $lignes));
-$recu = $this->environment->await($this->facturation->encaisser($commande, $montant, $devise));
-$suivi = $this->environment->await($this->livraison->expedier($commande, $livraison['creneau']));
+$verdict = $this->environment->await($this->billing->verify($order, $amount, $currency));
+$delivery = $this->environment->await($this->delivery->schedule($order, $lines));
+$reservation = $this->environment->await($this->stock->reserve($order, $lines));
+$receipt = $this->environment->await($this->billing->charge($order, $amount, $currency));
+$shipment = $this->environment->await($this->delivery->ship($order, $delivery['slot']));
 ```
 
 ⚠ **L'ordre de ces cinq appels n'est pas cosmétique.** Deux inversions ont été écrites d'abord, et
@@ -329,15 +329,15 @@ Messenger. Voici **tout** le câblage d'hôte, sur un framework qui n'a ni l'une
 // config/durable.php
 'backend' => env('DURABLE_BACKEND', 'temporal'),   // servir du Nexus exige la grappe : c'est elle qui route
 'temporal' => ['dsn' => env('DURABLE_DSN')],
-'workflows' => [App\Durable\Workflow\ExpedierWorkflow::class],
+'workflows' => [App\Durable\Workflow\ShipWorkflow::class],
 'nexus' => ['handlers' => [
-    App\Durable\Nexus\LivraisonHandler::class => LivraisonContract::class,
+    App\Durable\Nexus\DeliveryHandler::class => DeliveryContract::class,
 ]],
 ```
 
 `DeclaredNexusOperations` lit ce fichier comme `NexusHandlerPass` lit les balises de Symfony, par le
 même `NexusContractResolver` et le même `NexusHandlerInvoker` ; `php artisan durable:nexus-worker`
-poll la file. La classe du gestionnaire, elle, n'en sait rien : elle implémente `LivraisonServed` et
+poll la file. La classe du gestionnaire, elle, n'en sait rien : elle implémente `DeliveryServed` et
 ne dit pas un mot de Nexus.
 
 ⚠ **Le contrôle qui tient cela honnête vit au cœur, et non chez l'un des deux hôtes.** Un workflow
@@ -349,14 +349,14 @@ premier hôte et a déménagé le jour où il en a eu un second.
 
 ### Un workflow qui sert peut appeler
 
-`ExpedierWorkflow` remplit `livraison/expedier`. Avant de sortir la marchandise, il redemande son
-verdict à la boutique par `stock/reserver`, sur un endpoint qui n'est pas le sien, une même
+`ShipWorkflow` remplit `delivery/ship`. Avant de sortir la marchandise, il redemande son
+verdict à la boutique par `stock/reserve`, sur un endpoint qui n'est pas le sien, une même
 exécution porte donc une opération qu'elle sert et une opération qu'elle appelle :
 
 ```
  5  TimerStarted              ← les six secondes de préparation
  6  TimerFired
-10  NexusOperationScheduled   ← stock/reserver, chez la boutique
+10  NexusOperationScheduled   ← stock/reserve, chez la boutique
 11  NexusOperationCompleted
 15  WorkflowExecutionCompleted
 ```
@@ -364,7 +364,7 @@ exécution porte donc une opération qu'elle sert et une opération qu'elle appe
 Son identifiant d'exécution est le **jeton de l'opération** qu'elle remplit : un workflow démarré par
 une tâche Nexus n'est pas nommé par l'application qui l'exécute.
 
-L'appel est sans risque parce que `reserver` est idempotente par identifiant de commande : la
+L'appel est sans risque parce que `reserve` est idempotente par identifiant de commande : la
 boutique relit la décision prise à la commande au lieu d'en prendre une nouvelle, c'est pourquoi les
 lignes passées sont vides.
 
