@@ -72,48 +72,48 @@ verdict and does not hold stock a second time.
 **And that holds from any caller.** Repeated from Magento, with the facing worker off: 49 seconds in
 `NexusOperationStarted`, then the nominal result when the worker came back.
 
-## Prérequis
+## Prerequisites
 
-**Un serveur Temporal dont les API Nexus sont actives.** `temporal server start-dev` convient.
-`temporalio/auto-setup:1.25.2` — l'image du `compose.yaml` de `symfony/` — répond
-`Nexus APIs are disabled` à la création d'endpoint : elle ne suffit pas telle quelle.
+**A Temporal server whose Nexus APIs are enabled.** `temporal server start-dev` will do.
+`temporalio/auto-setup:1.25.2` — the image in the `compose.yaml` of `symfony/` — answers
+`Nexus APIs are disabled` on endpoint creation: it is not enough as it stands.
 
-**PHP 8.3 avec `ext-grpc`.** Mesuré en §0.1 du change : c'est la seule version qui l'ait sur le
-poste de référence, et il lui manque `curl`, réclamé par `stripe/stripe-php` et le pilote Chrome —
-deux paquets que la démonstration n'exécute pas. D'où :
+**PHP 8.3 with `ext-grpc`.** Measured in §0.1 of the change: it is the only version that has it on
+the reference machine, and it lacks `curl`, which `stripe/stripe-php` and the Chrome driver ask for
+— two packages the demonstration does not run. Hence:
 
 ```bash
 cd sylius && composer install --ignore-platform-req=ext-curl
 ```
 
-**PHP 8.2 pour les bancs Magento et Laravel**, et c'est la seule version du poste qui ait à la fois
-`grpc`, `pdo_mysql`, `pdo_sqlite`, `curl`, `soap` et `intl` — ce que Mage-OS et Laravel exigent.
-Les quatre maquettes tournent donc sur deux binaires PHP, et `demo/lancer.sh` a `PHP` (défaut
-`php8.3`), `PHP_MAGENTO` et `PHP_LARAVEL` (défaut `php8.2`).
+**PHP 8.2 for the Magento and Laravel benches**, and it is the only version on the machine that has
+`grpc`, `pdo_mysql`, `pdo_sqlite`, `curl`, `soap` and `intl` all at once — what Mage-OS and Laravel
+require. The four mockups therefore run on two PHP binaries, and `demo/run.sh` takes `PHP` (default
+`php8.3`), `PHP_MAGENTO` and `PHP_LARAVEL` (default `php8.2`).
 
-**Le banc Laravel installé.** Il n'a ni base à monter ni grappe à lui : SQLite suffit, et le DSN de
-la démonstration entre par l'environnement.
+**The Laravel bench installed.** It has neither a database to raise nor a cluster of its own: SQLite
+is enough, and the demonstration's DSN comes in through the environment.
 
 ```bash
 cd laravel && php8.2 composer install && php8.2 artisan migrate
 ```
 
-**Le banc Magento installé, ses conteneurs démarrés, et son autoloader à jour.** Le contrat partagé
-entre par une entrée `autoload` de `magento/composer.json` — pas par un dépôt path comme chez les
-deux autres, parce que les dépôts path du banc sont en `symlink: false` et copieraient le contrat.
-Après un `git pull` qui touche `magento/composer.json` :
+**The Magento bench installed, its containers started, and its autoloader current.** The shared
+contract comes in through an `autoload` entry of `magento/composer.json` — not through a path
+repository as for the two others, because the bench's path repositories are `symlink: false` and
+would copy the contract. After a `git pull` that touches `magento/composer.json`:
 
 ```bash
 cd magento && php8.2 composer dump-autoload
 docker compose up -d magento-db redis
 ```
 
-Son DSN n'a pas à être changé : `demo/lancer.sh` passe celui de la démonstration par
-`MAGENTO_DC_DURABLE__TEMPORAL__DSN`, la convention de Magento pour surcharger `app/etc/env.php` par
-l'environnement. La grappe du `compose.yaml` du banc — `temporalio/auto-setup:1.25.2` — ne convient
-pas : ses API Nexus sont désactivées.
+Its DSN does not need changing: `demo/run.sh` passes the demonstration's own through
+`MAGENTO_DC_DURABLE__TEMPORAL__DSN`, Magento's convention for overriding `app/etc/env.php` from the
+environment. The cluster in the bench's `compose.yaml` — `temporalio/auto-setup:1.25.2` — will not
+do: its Nexus APIs are disabled.
 
-**Une base pour la boutique.** PHP 8.3 n'a pas `pdo_mysql` sur ce poste, mais il a `pdo_pgsql` :
+**A database for the shop.** PHP 8.3 has no `pdo_mysql` on this machine, but it has `pdo_pgsql`:
 
 ```bash
 docker run -d --name durable-demo-pg \
@@ -125,7 +125,7 @@ export DATABASE_URL='pgsql://sylius:sylius@127.0.0.1:55432/sylius_demo?serverVer
 bin/console doctrine:schema:update --force --complete
 ```
 
-Puis deux variantes avec du stock, pour que la boutique ait quelque chose à retenir :
+Then two variants with stock, so the shop has something to hold:
 
 ```sql
 INSERT INTO sylius_product (id, code, created_at, enabled, variant_selection_method, average_rating)
@@ -136,73 +136,72 @@ VALUES (1, 1, 'MUG_BLUE', NOW(), 0, true, 1, 0, 5, true, true, false),
        (2, 1, 'MUG_RED',  NOW(), 1, true, 1, 0, 1, true, true, false);
 ```
 
-## Lancer
+## Running it
 
 ```bash
-temporal server start-dev --port 7239 --ui-port 8239     # si vous n'avez pas déjà un cluster
+temporal server start-dev --port 7239 --ui-port 8239     # if you have no cluster yet
 
 TEMPORAL_ADDRESS=127.0.0.1:7239 bin/demo-nexus           # namespaces + endpoints
-TEMPORAL_ADDRESS=127.0.0.1:7239 demo/lancer.sh           # les workers
+TEMPORAL_ADDRESS=127.0.0.1:7239 demo/run.sh              # the workers
 ```
 
-`bin/demo-nexus` et `demo/lancer.sh` impriment tous les deux les commandes d'appel avec les bonnes
-valeurs. `demo/lancer.sh --etat` dit qui tourne, `--arreter` éteint tout.
+`bin/demo-nexus` and `demo/run.sh` both print the call commands with the right values.
+`demo/run.sh --status` says who is running, `--stop` shuts everything down.
 
-### Si vous remettez le stock à zéro, redémarrez le worker de la boutique
+### If you reset the stock, restart the shop's worker
 
-Le worker Nexus de la boutique est un processus **long** : son `EntityManager` garde les
-`ProductVariant` dans sa carte d'identité, et un `UPDATE … SET on_hold = 0` passé en SQL sous ses
-pieds lui est invisible — il réécrit ensuite l'ancienne valeur augmentée. Deux relevés incohérents
-en sont sortis pendant la mise au point de ce banc, `on_hold` à 4 et à 5 pour des commandes de 2 et
-de 1. Après redémarrage du worker, le delta est exactement celui de la commande.
+The shop's Nexus worker is a **long-running** process: its `EntityManager` keeps the
+`ProductVariant` entities in its identity map, and an `UPDATE … SET on_hold = 0` run in SQL under its
+feet is invisible to it — it then writes the old value back, increased. Two inconsistent readings
+came out of it while this bench was being set up, `on_hold` at 4 and at 5 for orders of 2 and of 1.
+After restarting the worker, the delta is exactly the order's.
 
-### Les trois endpoints ne sont pas des résidus de test
+### The three endpoints are not test residue
 
-`demo-boutique-stock`, `demo-metier-facturation` et `demo-laravel-livraison` sont **stables**. La suite d'intégration en crée
-d'autres sur le même cluster, nommés `durable-sv-…`, et les supprime à la fin de chaque test : ce
-sont ceux-là qui sont éphémères. Un `nexus endpoint delete` de nettoyage ne doit pas emporter les
-`demo-*` — sans eux, l'appelant part et le serveur ne sait pas où router, ce qui donne un échec qui
-ne nomme ni le contrat ni le gestionnaire.
+`demo-shop-stock`, `demo-business-billing` and `demo-laravel-delivery` are **stable**. The
+integration suite creates others on the same cluster, named `durable-sv-…`, and deletes them at the
+end of every test: those are the ephemeral ones. A cleanup `nexus endpoint delete` must not take the
+`demo-*` ones with it — without them the caller leaves and the server does not know where to route,
+which gives a failure naming neither the contract nor the handler.
 
-## Huit processus, et non douze
+## Eight processes, and not twelve
 
-Le compte se fait par ce que chaque maquette a réellement à drainer, pas par une règle de trois
-workers par application.
+The count follows what each mockup actually has to drain, not a rule of three workers per
+application.
 
-| processus | maquette | profil | ce qu'il fait |
+| process | mockup | profile | what it does |
 |---|---|---|---|
-| `boutique-sert-stock` | `sylius/` | `demo` | poll les tâches Nexus de `demo-boutique` |
-| `boutique-workflows` | `sylius/` | `demo_appelant` | fait avancer `CommandeWorkflow` |
-| `metier-sert-facturation` | `symfony/` | `dev` | poll les tâches Nexus de `demo-metier` |
-| `metier-workflows` | `symfony/` | `dev` | `ReserverStockWorkflow`, `EncaissementWorkflow` |
-| `metier-activites` | `symfony/` | `dev` | l'activité de paiement |
-| `magento-workflows` | `magento/` | — | fait avancer `CommandeNexusWorkflow` |
-| `logistique-sert-livraison` | `laravel/` | — | poll les tâches Nexus de `demo-laravel` |
-| `logistique-workflows` | `laravel/` | — | fait avancer `ExpedierWorkflow` |
+| `shop-serves-stock` | `sylius/` | `demo` | polls the Nexus tasks of `demo-shop` |
+| `shop-workflows` | `sylius/` | `demo_caller` | advances `OrderWorkflow` |
+| `business-serves-billing` | `symfony/` | `dev` | polls the Nexus tasks of `demo-business` |
+| `business-workflows` | `symfony/` | `dev` | `ReserveStockWorkflow`, `ChargeWorkflow` |
+| `business-activities` | `symfony/` | `dev` | the payment activity |
+| `magento-workflows` | `magento/` | — | advances `OrderNexusWorkflow` |
+| `logistics-serves-delivery` | `laravel/` | — | polls the Nexus tasks of `demo-laravel` |
+| `logistics-workflows` | `laravel/` | — | advances `ShipWorkflow` |
 
-**Aucun worker d'activité pour la boutique, pour Magento ni pour la logistique**, et pour la même
-raison dans les trois cas : leurs workflows n'ont pas d'activité — ce qu'ils attendent, ils
-l'attendent d'un minuteur ou d'une opération servie ailleurs. Un worker de plus ne ferait que poller
-une file vide, et la démonstration mentirait sur ce qu'elle demande.
+**No activity worker for the shop, for Magento or for the logistics**, and for the same reason in all
+three cases: their workflows have no activity — what they wait for, they wait for from a timer or
+from an operation served elsewhere. One more worker would do nothing but poll an empty queue, and the
+demonstration would lie about what it asks for.
 
-**Aucun worker Nexus pour Magento** : il ne sert rien, donc rien à poller. C'est aussi pourquoi il
-n'a pas d'endpoint — quatre namespaces, trois endpoints.
+**No Nexus worker for Magento**: it serves nothing, so there is nothing to poll. It is also why it
+has no endpoint — four namespaces, three endpoints.
 
-## Pourquoi la boutique a deux profils, et pourquoi `dev` n'en est pas un
+## Why the shop has two profiles, and why `dev` is not one of them
 
-Servir et appeler ne tiennent pas dans la même configuration Durable, et ce n'est pas un
-contournement.
+Serving and calling do not fit in the same Durable configuration, and that is not a workaround.
 
-Un appel Nexus part d'un workflow, et un workflow ne peut ordonnancer une opération que si son
-journal est le cluster : `EventStoreCommandBuffer` refuse en le disant, parce qu'un journal SQL n'a
-pas de serveur à qui adresser l'ordonnancement. Or le profil qui **sert** garde son journal DBAL,
-puisque c'est ce que lit le tableau de bord de la boutique.
+A Nexus call leaves from a workflow, and a workflow can only schedule an operation if its journal is
+the cluster: `EventStoreCommandBuffer` refuses while saying so, because an SQL journal has no server
+to address the scheduling to. And the profile that **serves** keeps its DBAL journal, since that is
+what the shop's dashboard reads.
 
-Deux profils, donc, et c'est à cela que ressemble un vrai déploiement : le processus qui rend le
-tableau de bord et celui qui exécute les workflows sont deux déploiements du même code.
+Two profiles, then, and that is what a real deployment looks like: the process that renders the
+dashboard and the one that executes the workflows are two deployments of the same code.
 
-Ni l'un ni l'autre n'est `dev`, et cela aussi a une raison mesurée. Un transport Messenger
-`temporal://` déclaré sans DSN fait échouer `doctrine:schema:create` : l'écouteur de schéma de
-Doctrine parcourt **tous** les transports, et le message qui sort est « Invalid temporal:// DSN »,
-loin de Nexus et loin de Messenger. Un environnement sans cluster n'a donc ni DSN, ni transport, ni
-gestionnaire — et `dev`, `prod` et `test` restent exactement ce qu'ils étaient.
+Neither of them is `dev`, and that too has a measured reason. A `temporal://` Messenger transport
+declared with no DSN makes `doctrine:schema:create` fail: Doctrine's schema listener walks **every**
+transport, and the message that comes out is "Invalid temporal:// DSN", far from Nexus and far from
+Messenger. An environment with no cluster therefore has no DSN, no transport and no handler — and
+`dev`, `prod` and `test` stay exactly what they were.
