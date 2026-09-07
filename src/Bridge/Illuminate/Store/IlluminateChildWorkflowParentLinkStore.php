@@ -9,12 +9,12 @@ use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Illuminate\Database\Connection;
 
 /**
- * Le lien temporaire d'un run enfant vers son parent, pour finaliser le journal parent en mode
- * asynchrone.
+ * The temporary link from a child run to its parent, used to finalize the parent journal in
+ * asynchronous mode.
  *
- * Le contrat ne promet pas d'ordre sur les enfants d'un parent, et ce store n'en impose donc pas :
- * la suite de conformité trie avant de comparer, précisément pour qu'un adaptateur correct ne
- * tombe pas sur une promesse que le port n'a jamais faite.
+ * The contract promises no ordering over the children of a parent, so this store imposes none: the
+ * conformance suite sorts before comparing, precisely so that a correct adapter does not trip over
+ * a promise the port never made.
  *
  * @see DUR041
  */
@@ -30,8 +30,8 @@ final class IlluminateChildWorkflowParentLinkStore implements ChildWorkflowParen
     {
         $this->schema->ensure();
 
-        // Relier un enfant déjà relié le **déplace**, il ne le duplique pas : la clé primaire est
-        // l'enfant, et c'est ce que la conformité vérifie.
+        // Linking an already linked child **moves** it, it does not duplicate it: the primary key
+        // is the child, and that is what conformance checks.
         $this->connection->table($this->table)->updateOrInsert(
             ['child_execution_id' => $childExecutionId],
             ['parent_execution_id' => $parentExecutionId],

@@ -10,7 +10,7 @@ use Symfony\Component\Messenger\Exception\LogicException;
 use Symfony\Component\Messenger\Transport\TransportInterface;
 
 /**
- * Receive-only : un {@see get()} long-poll une tâche d’activité Temporal et l’exécute via {@see TemporalActivityWorker}.
+ * Receive-only: one {@see get()} long-polls a Temporal activity task and executes it via {@see TemporalActivityWorker}.
  */
 final class TemporalActivityWorkerTransport implements TransportInterface
 {

@@ -23,7 +23,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * Workflow task poll → execute → respond loop (Temporal native backend).
  *
  * Polls one workflow task, delegates replay to WorkflowTaskRunner, then sends commands
- * back via RespondWorkflowTaskCompleted, avec les messages de protocole qui les accompagnent
+ * back via RespondWorkflowTaskCompleted, along with the protocol messages that accompany them
  * ({@see UpdateProtocol}).
  *
  * Replaces JournalWorkflowTaskProcessor for the native execution path.
@@ -86,12 +86,12 @@ final class WorkflowTaskProcessor
     }
 
     /**
-     * Échoue la **tâche**, pas l'exécution : aucune commande n'est émise, donc l'historique
-     * n'apprend rien de cette tentative et le serveur redonne la tâche.
+     * Fails the **task**, not the execution: no command is emitted, so the history learns nothing
+     * of this attempt and the server hands the task back.
      *
-     * `cause` reste à sa valeur par défaut, `UNSPECIFIED` : les causes que le serveur énumère
-     * décrivent des fautes de protocole du worker, et une divergence de replay n'en est pas une.
-     * En inventer une dirait au serveur quelque chose de faux.
+     * `cause` stays at its default value, `UNSPECIFIED`: the causes the server enumerates describe
+     * worker protocol faults, and a replay divergence is not one of them. Inventing one would tell
+     * the server something false.
      */
     private function respondTaskFailed(string $taskToken, WorkflowTaskFailure $reason): void
     {

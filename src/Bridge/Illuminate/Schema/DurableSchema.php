@@ -8,20 +8,20 @@ use Illuminate\Database\Connection;
 use Illuminate\Database\Schema\Blueprint;
 
 /**
- * Les quatre tables, créées à la demande — le pendant Illuminate de
- * {@see \Gplanchat\Bridge\Dbal\Schema\DurableSchema}, avec la même forme.
+ * The four tables, created on demand — the Illuminate counterpart of
+ * {@see \Gplanchat\Bridge\Dbal\Schema\DurableSchema}, with the same shape.
  *
- * « La même forme » n'est pas une intention : les deux ponts rejouent les suites de conformité de
- * DUR041, et un journal dont les colonnes divergeraient casserait le replay en silence plutôt qu'à
- * l'écriture.
+ * "The same shape" is not a mere intention: both bridges replay the conformance suites of
+ * DUR041, and a journal whose columns diverged would break replay silently rather than at
+ * write time.
  *
- * ponytail: création à la demande plutôt qu'une migration publiée. Une application Laravel voudra
- * `php artisan migrate`, et le paquet devra publier ses migrations ; d'ici là ce garde-fou suffit
- * aux tests et à un worker qui démarre sur une base vide. Le drapeau `$ensured` évite l'aller-retour
- * à chaque écriture.
+ * ponytail: creation on demand rather than a published migration. A Laravel application will want
+ * `php artisan migrate`, and the package will have to publish its migrations; until then this
+ * safeguard is enough for the tests and for a worker starting on an empty database. The `$ensured`
+ * flag avoids the round trip on every write.
  *
- * @see DUR030 un seul socle SQL, pas de cluster
- * @see DUR041 les suites de conformité que les deux ponts rejouent
+ * @see DUR030 a single SQL foundation, no cluster
+ * @see DUR041 the conformance suites both bridges replay
  */
 final class DurableSchema
 {
@@ -46,7 +46,7 @@ final class DurableSchema
 
         if (!$builder->hasTable($this->eventsTable)) {
             $builder->create($this->eventsTable, function (Blueprint $table): void {
-                // Auto-increment : `readStream()` promet l'ordre d'insertion, l'id le porte.
+                // Auto-increment: `readStream()` promises insertion order, and the id carries it.
                 $table->bigIncrements('id');
                 $table->string('execution_id', 128)->index();
                 $table->string('event_type', 255);

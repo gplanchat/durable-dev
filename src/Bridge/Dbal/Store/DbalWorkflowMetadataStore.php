@@ -9,8 +9,8 @@ use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 
 /**
- * Métadonnées de reprise persistées en SQL : sans elles, un worker qui reçoit un
- * {@see \Gplanchat\Durable\Transport\ResumeWorkflowMessage} ne sait pas quel workflow rejouer.
+ * Resume metadata persisted in SQL: without it, a worker receiving a
+ * {@see \Gplanchat\Durable\Transport\ResumeWorkflowMessage} does not know which workflow to replay.
  *
  * @see DUR030
  */
@@ -32,17 +32,17 @@ final class DbalWorkflowMetadataStore implements WorkflowMetadataStore
             'completed' => false,
         ];
 
-        // Le type de `completed` est déclaré à chaque écriture : sans lui, PDO lie un `false` PHP
-        // comme chaîne vide, et MySQL en mode strict refuse `''` pour une colonne entière. SQLite
-        // l'accepte, ce qui laisse la faute invisible à toute la suite unitaire.
+        // The type of `completed` is declared on every write: without it, PDO binds a PHP `false`
+        // as an empty string, and MySQL in strict mode refuses `''` for an integer column. SQLite
+        // accepts it, which leaves the fault invisible to the whole unit suite.
         $types = ['completed' => 'boolean'];
 
-        // `save()` est aussi appelé pour repartir d'un continue-as-new : upsert, pas insert.
+        // `save()` is also called to start over from a continue-as-new: upsert, not insert.
         //
-        // L'existence est demandée plutôt que déduite du nombre de lignes affectées par l'UPDATE :
-        // SQLite compte les lignes *correspondantes*, MySQL les lignes *modifiées*. Ré-enregistrer
-        // des métadonnées identiques donne donc 0 sur MySQL, et l'INSERT qui suivait violait la
-        // clé primaire. Un aller-retour de plus, mais le même comportement partout.
+        // Existence is asked for rather than inferred from the number of rows affected by the
+        // UPDATE: SQLite counts *matching* rows, MySQL counts *changed* rows. Re-saving identical
+        // metadata therefore gives 0 on MySQL, and the INSERT that followed violated the primary
+        // key. One more round trip, but the same behaviour everywhere.
         $exists = false !== $this->connection->fetchOne(
             \sprintf('SELECT 1 FROM %s WHERE execution_id = ?', $this->table),
             [$executionId],

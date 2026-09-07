@@ -8,8 +8,8 @@ use Gplanchat\Durable\TaskQueue;
 use Gplanchat\Durable\WorkflowNamespace;
 
 /**
- * Connexion Temporal unique (cible, namespace, TLS, identité) + paramètres pour les différents accès
- * (worker journal, files applicatives, délégation Messenger transitoire).
+ * Single Temporal connection (target, namespace, TLS, identity) + settings for the various
+ * accesses (journal worker, application queues, transitional Messenger delegation).
  */
 final class TemporalConnection
 {
@@ -25,26 +25,26 @@ final class TemporalConnection
 
     public const DEFAULT_QUERY_READ_STREAM = 'readStream';
 
-    /** File du worker journal (poll workflow tasks). */
+    /** Journal worker queue (poll workflow tasks). */
     public readonly TaskQueue $journalTaskQueue;
 
-    /** File des tâches de workflow applicatives. */
+    /** Queue for the application workflow tasks. */
     public readonly TaskQueue $workflowTaskQueue;
 
-    /** File des tâches d'activité applicatives. */
+    /** Queue for the application activity tasks. */
     public readonly TaskQueue $activityTaskQueue;
 
     /**
-     * File des tâches Nexus servies par ce composant.
+     * Queue for the Nexus tasks served by this component.
      *
-     * Elle n'a pas de défaut à elle : elle **suit la file de workflow**. Un endpoint Nexus vise une
-     * file, et le serveur n'y livre que si quelqu'un y poll — une file par défaut que personne ne
-     * sert donnerait un endpoint qui ne répond jamais, sans la moindre erreur. Suivre la file de
-     * workflow fait tomber juste le montage le plus courant : un worker, une file.
+     * It has no default of its own: it **follows the workflow queue**. A Nexus endpoint targets
+     * a queue, and the server only delivers there if somebody polls it — a default queue nobody
+     * serves would give an endpoint that never answers, without the slightest error. Following
+     * the workflow queue gets the most common setup right: one worker, one queue.
      */
     public readonly TaskQueue $nexusTaskQueue;
 
-    /** Frontière d'isolation : exécutions, files et attributs de recherche y vivent. */
+    /** Isolation boundary: executions, queues and search attributes live inside it. */
     public readonly WorkflowNamespace $namespace;
 
     public function __construct(
@@ -60,13 +60,13 @@ final class TemporalConnection
         TaskQueue|string|null $activityTaskQueue = null,
         TaskQueue|string|null $nexusTaskQueue = null,
         /**
-         * DSN Messenger délégué tant que le transport applicatif n’est pas entièrement gRPC.
-         * Null pour le transport journal (receive-only) ; requis pour purpose=application.
+         * Delegated Messenger DSN as long as the application transport is not fully gRPC.
+         * Null for the journal transport (receive-only); required for purpose=application.
          */
         public readonly ?string $innerMessengerDsn = null,
     ) {
-        // Les noms de files viennent d'un DSN : une faute y crée une file où personne ne poll,
-        // sans la moindre erreur côté serveur. Ils sont validés ici, au montage.
+        // Queue names come from a DSN: a typo there creates a queue nobody polls, without the
+        // slightest error on the server side. They are validated here, at wiring time.
         $this->namespace = WorkflowNamespace::from($namespace);
         $this->journalTaskQueue = TaskQueue::from($journalTaskQueue ?? self::DEFAULT_JOURNAL_TASK_QUEUE);
         $this->workflowTaskQueue = TaskQueue::from($workflowTaskQueue ?? self::DEFAULT_WORKFLOW_TASK_QUEUE);
@@ -82,11 +82,11 @@ final class TemporalConnection
     }
 
     /**
-     * DSN unique {@code temporal://HOST:PORT?...} ; les schémas {@code temporal-journal://}
-     * et {@code temporal-application://} sont normalisés pour compatibilité ascendante.
+     * Single {@code temporal://HOST:PORT?...} DSN; the {@code temporal-journal://}
+     * and {@code temporal-application://} schemes are normalized for backward compatibility.
      *
-     * Paramètres de requête typiques : {@code namespace}, {@code tls}, {@code identity},
-     * {@code task_queue} ou {@code journal_task_queue}, {@code workflow_type},
+     * Typical query parameters: {@code namespace}, {@code tls}, {@code identity},
+     * {@code task_queue} or {@code journal_task_queue}, {@code workflow_type},
      * {@code workflow_task_queue}, {@code activity_task_queue}, {@code inner}.
      */
     public static function fromDsn(#[\SensitiveParameter] string $dsn): self
