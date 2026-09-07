@@ -1,4 +1,4 @@
-# CLAUDE.md, the constitution
+# CLAUDE.md: the constitution
 
 Read on every unattended run. Every rule below carries a number, a "never", or a command that
 checks it; anything softer belongs in `documentation/wa/`, not here. Rationale, and the decision
@@ -36,8 +36,8 @@ to run this loop at all, are in [WA007](documentation/wa/WA007-the-agentic-loop-
 - Conductor (decision seat): `$CONDUCTOR_MODEL`, effort high, read-only tools.
 - Workers: `$WORKER_MODEL`, effort medium.
 - Verifier: `$VERIFIER_MODEL`, fresh context, effort medium.
-- `xhigh`: one-shot deep reviews a human explicitly requests. Never inside an unattended loop,
-  because reasoning volume compounds per tick.
+- `xhigh`: one-shot deep reviews a human explicitly requests. Never inside an unattended loop.
+  Reasoning volume compounds per tick.
 - `max`: one-shot answers where being wrong costs more than the call.
 
 The three seats are set in `loop/loop.sh`. They are variables because a model outage is a config

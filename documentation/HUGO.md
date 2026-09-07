@@ -42,5 +42,5 @@ In `hugo-docs/hugo.toml`, set **`baseURL`** to the real site URL and adjust **`p
 
 ## References
 
-- [WA001 — English language for project documentation](wa/WA001-english-language-documentation.md)
+- [WA001: English language for project documentation](wa/WA001-english-language-documentation.md)
 - [documentation/INDEX.md](INDEX.md)
