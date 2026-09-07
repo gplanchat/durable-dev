@@ -100,13 +100,12 @@ de `stock` écrit son verdict dans `app_durable_stock_reservation`, clé par ide
 rejouer la même commande rend le même verdict et ne retient pas de stock une seconde fois. Ça a
 été écrit à la main, Durable ne l'a pas fourni.
 
-**Pas la couche anticorruption.** `OrderWorkflow` lit `$verdict['accepted']` directement sur le
-stub : la forme de charge d'un autre contexte se retrouve donc au cœur de la décision de la
-boutique. La démonstration est plate à dessein, pour montrer les deux formes d'opération côte à
-côte. Une application garderait le stub dans un adaptateur secondaire, déclarerait son port dans son
-propre langage, et laisserait cet adaptateur fabriquer ses objets-valeurs : les contrats portent des
-scalaires et des tableaux parce que le fil est du JSON nu, et il faut bien que quelqu'un en fasse un
-modèle.
+**Pas la couche anticorruption.** Il faut l'écrire, et la boutique l'écrit désormais :
+`OrderWorkflow` invoque un cas d'usage `PlaceOrder` à travers un port `Payments`, et
+`NexusPayments` est la seule classe de `sylius/` qui sache qu'une charge a un champ nommé
+`accepted`. Les trois autres maquettes montrent ce que coûte de s'en passer : `OrderNexusWorkflow`
+lit cinq charges par clé, dans le code qui décide. Les contrats portent des scalaires et des
+tableaux parce que le fil est du JSON nu, et il faut bien que quelqu'un en fasse un modèle.
 
 **Pas un noyau partagé petit.** `src/DurableDemoContracts/` en est un, et ce qui le rend tenable est
 une règle plutôt qu'un mécanisme : il porte des noms d'opération et des formes de charge, et aucun
@@ -143,8 +142,9 @@ Deux prérequis qui ne se devinent pas, et que
   la fois. Rien ici ne dit ce que fait une file Nexus sous charge réelle.
 - **La reprise après un échec du gestionnaire servant.** Ce qui a été mesuré, c'est un worker
   *éteint*, pas un gestionnaire qui lève au milieu de son travail.
-- **La forme en couches.** Tous les appels sont écrits depuis du code de workflow, sur un stub.
-  Rien dans le dépôt ne démontre l'arrangement port/adaptateur que la section ci-dessus recommande.
+- **La forme en couches, ailleurs que dans la boutique.** `sylius/` a son port, son adaptateur et
+  son cas d'usage. Le banc Magento et la maquette logistique appellent toujours des stubs depuis du
+  code de workflow : l'arrangement est démontré une fois, pas éprouvé sur plusieurs hôtes.
 - **La sécurité.** Les quatre namespaces sont sur le même serveur sans mTLS ni autorisation. Le
   cloisonnement inter-équipes, qui est la moitié de l'argument Nexus, n'est pas démontré.
 
