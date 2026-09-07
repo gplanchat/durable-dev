@@ -1,6 +1,6 @@
 # La maquette Laravel
 
-Une application Laravel 12 ordinaire — `composer create-project laravel/laravel` — qui **sert** un
+Une application Laravel 12 ordinaire (`composer create-project laravel/laravel`) qui **sert** un
 service Nexus à la démonstration à quatre applications.
 
 C'est ce qu'elle sert qui compte. Les trois autres maquettes prouvaient qu'appeler ne demande rien à
@@ -11,9 +11,9 @@ Nexus lancé par `php artisan`.
 | | |
 |---|---|
 | namespace | `demo-laravel` |
-| sert | `livraison` — `planifier` (tout de suite), `expedier` (par un workflow) |
+| sert | `livraison` : `planifier` (tout de suite), `expedier` (par un workflow) |
 | appelle | `stock`, depuis le workflow qui remplit `expedier` |
-| backend | `temporal` — servir du Nexus l'exige, c'est la grappe qui route |
+| backend | `temporal` (servir du Nexus l'exige, c'est la grappe qui route) |
 | PHP | 8.2, la seule version du poste qui ait `grpc` **et** `pdo_sqlite` |
 
 ## Ce qu'il a fallu écrire, et ce qu'il n'a pas fallu
@@ -32,12 +32,12 @@ Deux classes, et **six lignes de configuration** :
 
 Rien d'autre : ni provider à écrire, ni commande, ni passe de compilation.
 `gplanchat/durable-laravel` apporte `durable:nexus-worker` et `durable:temporal-worker`, et
-`DeclaredNexusOperations` fait le travail que `NexusHandlerPass` fait côté Symfony — lire le
+`DeclaredNexusOperations` fait le travail que `NexusHandlerPass` fait côté Symfony : lire le
 contrat, tenir entre la signature du gestionnaire et ce que le registre appelle.
 
 Et ce qu'il refuse, il le refuse comme Symfony : un workflow dont un paramètre obligatoire ne porte
 pas le nom déclaré par le contrat fait échouer l'enregistrement en nommant les deux signatures. Le
-contrôle vit au cœur — `NexusFulfilmentParameterNames` —, et les deux hôtes servants l'appellent au
+contrôle vit au cœur (`NexusFulfilmentParameterNames`), et les deux hôtes servants l'appellent au
 même moment. Il a été écrit pour Symfony et n'y est resté que le temps d'un second hôte.
 
 ## Le workflow qui sert **et** appelle
@@ -48,7 +48,7 @@ exécution porte donc une opération Nexus servie et une opération Nexus appel�
 journal.
 
 L'appel est sans risque parce que `reserver` est idempotente par identifiant de commande : la
-boutique relit la décision prise à la commande au lieu d'en prendre une nouvelle — c'est pourquoi
+boutique relit la décision prise à la commande au lieu d'en prendre une nouvelle. C'est pourquoi
 les lignes passées sont vides.
 
 ## Lancer
@@ -76,7 +76,7 @@ DURABLE_DSN='temporal://127.0.0.1:7999?namespace=sonde&nexus_task_queue=q&tls=0'
 ```
 
 Elle démarre l'application, prend le registre du cœur dans le conteneur et **dispatche les deux
-opérations** — la méthode même que le worker Nexus appelle quand une tâche arrive. Aucune grappe,
+opérations**, la méthode même que le worker Nexus appelle quand une tâche arrive. Aucune grappe,
 aucun endpoint, aucun processus en face : le DSN désigne un port fermé, et rien ne s'y connecte.
 C'est ce que la CI lance à chaque commit ; le bout en bout, lui, vit dans `demo/`.
 

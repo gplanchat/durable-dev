@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * `php probe-nexus.php` — what the mockup serves, with no cluster and no worker.
+ * `php probe-nexus.php`: what the mockup serves, with no cluster and no worker.
  *
  * The question it answers is the one that made this mockup exist: **are six lines of
  * `config/durable.php` enough for the core registry to know both operations of `delivery`?** The

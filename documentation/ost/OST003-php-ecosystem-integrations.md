@@ -1,15 +1,15 @@
-# OST003 — PHP ecosystem integrations: where Durable is worth wiring
+# OST003. PHP ecosystem integrations: where Durable is worth wiring
 
 ## Status
 
-Exploration — no decision. Feeds the roadmap published on the homepage
+Exploration, no decision. Feeds the roadmap published on the homepage
 (`hugo-docs/layouts/index.html`); an integration that lands should leave an ADR behind.
 
 ## Opportunity
 
 Two integrations exist today: `gplanchat/durable-bundle` (Symfony) and `gplanchat/durable-plugin`
 (Sylius). The homepage names Laravel and Magento as planned. The question this document answers is
-not "which PHP communities are large" — it is **which ones trigger which cost**, because the two
+not "which PHP communities are large"; it is **which ones trigger which cost**, because the two
 are uncorrelated and only the second is actionable.
 
 ---
@@ -18,26 +18,26 @@ are uncorrelated and only the second is actionable.
 
 An integration costs two things, and they behave differently:
 
-- **Wiring** — DI, queue transport, worker command, an admin view. Paid once.
-- **A CI bench** — a Docker stack, a pinned `composer.lock`, an image whose PHP version is not the
+- **Wiring**: DI, queue transport, worker command, an admin view. Paid once.
+- **A CI bench**: a Docker stack, a pinned `composer.lock`, an image whose PHP version is not the
   host's. See `sylius/` and `magento/`. Paid **on every upstream release, forever.**
 
 Sorting candidates by community size gets this backwards. Sorted by cost, they fall into three
-tiers, and the tier — not the popularity — is what decides the order of work.
+tiers, and the tier (not the popularity) is what decides the order of work.
 
 | Tier | What it means | Members |
 |---|---|---|
 | **0** | The host *is* a Symfony application. `durable-bundle` registers unchanged. Cost: wiring and an admin view. | Shopware 6, Sulu, PrestaShop 9 (partly), Ibexa |
 | **1** | Foreign container, foreign queue. A package has to be written from the bootstrap up. | Laravel, Magento, WordPress/WooCommerce, Drupal, TYPO3 (§3, and it is the cheap end by a distance). Filament, Statamic and Bagisto ride on the Laravel one rather than adding their own (§6). |
 | **2** | The host already owns a job abstraction. The integration **substitutes** a runtime under an existing model rather than introducing a second one. | Akeneo `BatchBundle`, Pimcore Generic Execution Engine, `php-etl/pipeline` |
-| **∅** | Not a host at all — a contract two hosts implement. Belongs to no tier and cuts across two. | API Platform (§3) |
+| **∅** | Not a host at all: a contract two hosts implement. Belongs to no tier and cuts across two. | API Platform (§3) |
 
 Tier 2 is the interesting one, and it is the tier this project has never written for. The row
-with no number is the one that changes another line of this document — see §3.
+with no number is the one that changes another line of this document; see §3.
 
 ---
 
-## 2. Tier 0 — Symfony applications
+## 2. Tier 0: Symfony applications
 
 | Target | Why it works today | Reservation |
 |---|---|---|
@@ -67,7 +67,7 @@ Shopware's own configuration.
 The second attempt made them **coming soon**, alongside Laravel and Magento. That was not right
 either, and it took printing it to see why: for a Tier 0 host, "coming soon" is **false**. The
 workflows run today, with `durable-bundle`, on a Symfony kernel. What is planned is the dedicated
-integration — and the label said the opposite of that.
+integration, and the label said the opposite of that.
 
 **The homepage now carries both facts at once: `bundle today · plugin planned`.** Neither earlier
 label could, because both were binary and the truth is not. The support objection stands only
@@ -75,26 +75,26 @@ against a label that says *installs and runs* and stops there; a badge that says
 integration is planned* in the same breath is a description, not an invitation.
 
 **What the badge does not settle, and this document has to keep saying.** Akeneo and Pimcore are
-**Tier 2**, not Tier 0. For them "bundle today" is literally true — they are Symfony applications —
+**Tier 2**, not Tier 0. For them "bundle today" is literally true (they are Symfony applications)
 and beside the point: the value is not that the bundle installs, it is that their job engines cannot
 resume (§4). The badge's second half carries that, and only just. If either row ever loses its
 "plugin planned", the page will be claiming something this document does not.
 
 ---
 
-## 3. Tier 1 — a package to write
+## 3. Tier 1: a package to write
 
-### API Platform — one processor, two frameworks
+### API Platform: one processor, two frameworks
 
 `api-platform/state` ships **one** `ApiPlatform\State\ProcessorInterface`, and `api-platform/laravel`
 (Laravel 11 and 12 since 4.2, Laravel 13 since 4.3) implements it against Eloquent the same way the
 Symfony package implements it against Doctrine. A processor that starts a workflow and returns a
-handle with `202 + Location` — instead of holding the request open for work that takes minutes — is
+handle with `202 + Location` (instead of holding the request open for work that takes minutes) is
 therefore **the same class on both frameworks**.
 
 What is *not* the same is everything under it. The processor is portable; the container that builds
 it, the queue that carries the activity, and the worker that drains it are not. So this is not a
-free Laravel integration — it is a shared front end over two different backs, and the Laravel back
+free Laravel integration; it is a shared front end over two different backs, and the Laravel back
 is exactly the Tier 1 package below.
 
 **But it changes what that package is for.** "A durable engine for Laravel" is taken (below). "An
@@ -106,17 +106,17 @@ It is also the only target in this document whose value **grows** with a second 
 than being duplicated by it. Everything else in §2 and §3 is a per-host cost. This one is written
 once and collected twice.
 
-### Laravel — the square is occupied
+### Laravel: the square is occupied
 
 `durable-workflow/workflow` (formerly `laravel-workflow/laravel-workflow`) is durable execution on
 Laravel queues: `yield` as the checkpoint, own storage, no server, explicitly inspired by Temporal
-and Azure Durable Functions, 1 000+ stars. `keepsuit/laravel-temporal` covers the other route —
+and Azure Durable Functions, 1 000+ stars. `keepsuit/laravel-temporal` covers the other route:
 official SDK, therefore RoadRunner, therefore out of scope under **DUR006**. Both are already
 recorded in [OST001 §6](OST001-alternative-durable-execution-backends.md).
 
 Two consequences, and neither is "don't go":
 
-1. **Positioning.** Durable's Laravel entry cannot be "a durable engine for Laravel" — that product
+1. **Positioning.** Durable's Laravel entry cannot be "a durable engine for Laravel"; that product
    exists and is good at it. The entry is the **backend choice**: the same workflow code against a
    Temporal cluster *or* against one SQL database (DUR030), and a mixed Symfony / Sylius / Akeneo
    estate sharing a single engine with the Laravel application.
@@ -126,7 +126,7 @@ Two consequences, and neither is "don't go":
 
 ### The Laravel backend: a fourth adapter behind the ports that already exist
 
-The port is exactly the two substitutions it looks like — Messenger out, Laravel's queue in;
+The port is exactly the two substitutions it looks like: Messenger out, Laravel's queue in;
 Doctrine out, Laravel's database layer in. And the seam it hangs on is **already cut**.
 
 Four interfaces make up the storage side of the hexagon, and three families already sit behind them
@@ -135,17 +135,17 @@ with their own constraints:
 | Port | In-memory | Temporal | DBAL |
 |---|---|---|---|
 | `EventStoreInterface` | `InMemoryEventStore` | `TemporalJournalEventStore`, `TemporalReadThroughEventStore` | `DbalEventStore` |
-| `WorkflowMetadataStore` | `InMemoryWorkflowMetadataStore` | — | `DbalWorkflowMetadataStore` |
-| `ChildWorkflowParentLinkStoreInterface` | `InMemoryChildWorkflowParentLinkStore` | — | `DbalChildWorkflowParentLinkStore` |
+| `WorkflowMetadataStore` | `InMemoryWorkflowMetadataStore` | none | `DbalWorkflowMetadataStore` |
+| `ChildWorkflowParentLinkStoreInterface` | `InMemoryChildWorkflowParentLinkStore` | none | `DbalChildWorkflowParentLinkStore` |
 | `WorkflowRunCatalogInterface` | `InMemoryWorkflowRunCatalog` | `TemporalWorkflowRunCatalog` | `DbalWorkflowRunCatalog` |
 
 Temporal already answers `EventStoreInterface` **twice**. Multiple adapters per backend, each with
-its own constraints, is not a departure here — it is what the code already does.
+its own constraints, is not a departure here; it is what the code already does.
 
-**One row of that table was a dash when this section was written**, and closing it is what turned
+**One row of that table had no adapter when this section was written**, and closing it is what turned
 the argument below from a plausible claim into a demonstrated one. `InMemoryWorkflowRunCatalog`
 (DUR043) was written *against* the DUR041 conformance suite rather than alongside it, and the two
-decorators that feed a projection — `ProjectingEventStore`, `ProjectingWorkflowMetadataStore` —
+decorators that feed a projection (`ProjectingEventStore`, `ProjectingWorkflowMetadataStore`)
 moved out of the DBAL bridge into the core, typed against a `WorkflowRunProjectionInterface` the
 in-memory catalog implements by being its own projection. **A fourth family is now a described
 procedure, not a hope:** implement four interfaces, run four suites, implement two more methods to
@@ -153,26 +153,26 @@ be observable.
 
 So a Laravel backend is **a fourth family behind the same four ports**, free to be written the way
 Laravel makes cheap: `DB::table()`, a JSON column, a published migration. Not a connection
-abstraction underneath one shared set of stores — that would put a seam *below* the hexagon's
+abstraction underneath one shared set of stores; that would put a seam *below* the hexagon's
 boundary, and hand two adapters one shared query strategy and one shared dialect assumption, which
 are precisely the things an adapter is supposed to own.
 
 **Eloquent or the query builder is then an adapter's business, not the engine's.** Worth noting all
 the same, because it is the one place the choice has a consequence: journal rows are append-only
-facts — `execution_id`, `event_type`, a JSON `payload`, `recorded_at`. `DB::table()` writes them
+facts (`execution_id`, `event_type`, a JSON `payload`, `recorded_at`). `DB::table()` writes them
 directly; an ActiveRecord model adds identity, events, casts and timestamps over a row whose entire
 contract is that it is never mutated. The adapter is free either way, and one of the two is less
 work.
 
-**What stops the journal from diverging is conformance, not shared code.** That objection —
-"two implementations of the journal shape is two places to drift" — is a testing argument dressed as
+**What stops the journal from diverging is conformance, not shared code.** That objection
+("two implementations of the journal shape is two places to drift") is a testing argument dressed as
 an architecture argument, and the guard already exists: `DbalBackendParityTest` runs a real workflow
 with an activity, a timer and a side effect against `InMemoryEventStore` and `DbalEventStore`, then
 compares what replay reads from each. A payload deformed by a SQL round trip breaks replay silently,
 not at write time, and that test is what catches it.
 
 **It is written for two named stores, and that is the gap.** Promoting it into a reusable
-conformance suite that every `EventStoreInterface` implementation runs — Temporal's two included —
+conformance suite that every `EventStoreInterface` implementation runs (Temporal's two included)
 is the work that makes a fourth adapter safe by construction. **That is the prerequisite for a
 Laravel backend, and it is worth doing whether or not one is ever written.** It is now
 [DUR041](../adr/DUR041-store-parity-is-a-suite-every-adapter-runs.md), and it is written: the four
@@ -184,7 +184,7 @@ way: four stores on `Illuminate\Database\Connection`, four conformance subclasse
 joining the replay tier so that what it stores is compared against the in-memory reference through
 a real workflow rather than merely against the contract. It implements
 `WorkflowRunProjectionInterface` too, which is all a backend has to do to inherit the core's two
-projecting decorators (DUR043) — no Laravel-shaped copy of the rule that says which four events end
+projecting decorators (DUR043): no Laravel-shaped copy of the rule that says which four events end
 a run.
 
 The paragraph above was a prediction when it was written. It is now a description, and the two
@@ -193,7 +193,7 @@ rather than a concrete class.
 
 **One constraint no adapter may drop, and Laravel's satisfies it for free.** DUR030 sells durable
 execution on one database with no cluster, and that only pays if the journal append and the business
-write land in one transaction — otherwise the activity writes, the process dies before the journal
+write land in one transaction; otherwise the activity writes, the process dies before the journal
 records that it did, and replay runs it twice. A native Laravel adapter is on `DB::connection()` by
 construction, so `DB::transaction()` closes over both. Reaching the same guarantee by handing
 Doctrine DBAL the PDO out of `DB::connection()->getPdo()` is possible, and it is a workaround where
@@ -203,11 +203,11 @@ the adapter is the plain answer.
 Symfony Messenger middleware, and `DbalEventStore`'s own docblock leans on it: without it, two
 workers replay the same execution and duplicate its commands. On Laravel that becomes
 `WithoutOverlapping` or an atomic `Cache::lock()`, and no storage choice supplies it. It is also why
-that middleware — and the hard requirement on `symfony/lock` and `symfony/messenger` in
-`durable-bridge-dbal`'s `composer.json` — belongs outside the bridge: a Laravel application should
+that middleware (and the hard requirement on `symfony/lock` and `symfony/messenger` in
+`durable-bridge-dbal`'s `composer.json`) belongs outside the bridge: a Laravel application should
 not install two Symfony components to get a SQL journal.
 
-### TYPO3 — every hard part of Tier 1 is already solved
+### TYPO3: every hard part of Tier 1 is already solved
 
 TYPO3 sits in Tier 1 because `durable-bundle` does not install: TYPO3 is not a Symfony kernel
 application, and the bundle's extension and compiler passes have no kernel to register with. That is
@@ -216,13 +216,13 @@ is absent here.
 
 Read from TYPO3's own `composer.json`:
 
-- **`doctrine/dbal ~4.4.3`** — `gplanchat/durable-bridge-dbal` (`^3.7 || ^4.0`) resolves untouched,
+- **`doctrine/dbal ~4.4.3`**: `gplanchat/durable-bridge-dbal` (`^3.7 || ^4.0`) resolves untouched,
   and the connection is already in the install. DUR030's "one SQL database, no cluster" needs no
   second connection here (§3, *the Laravel backend*, for why that matters).
-- **`symfony/messenger`, `symfony/dependency-injection`, `symfony/console`** — every component the
+- **`symfony/messenger`, `symfony/dependency-injection`, `symfony/console`**: every component the
   bundle wires is already a dependency. There is no foreign queue to adapt to and no foreign
   container to bootstrap.
-- **No `symfony/framework-bundle`** — and that single absence is the reason a package is needed at
+- **No `symfony/framework-bundle`**, and that single absence is the reason a package is needed at
   all.
 
 So the integration is a **TYPO3 extension that redoes what `DurableExtension` does**, over a
@@ -232,13 +232,13 @@ platform with no container): TYPO3 is a Tier 1 package whose expensive half does
 
 **What is still open** is the same question as everywhere else in this tier: the mutual exclusion
 that keeps two workers from replaying one execution. TYPO3 has Messenger, so the Symfony middleware
-is a candidate rather than a rewrite — but it has not been checked against TYPO3's own worker
+is a candidate rather than a rewrite, but it has not been checked against TYPO3's own worker
 lifecycle, and this document should not pretend otherwise.
 
-### Magento — built
+### Magento: built
 
 Cron plus `MessageQueue` consumers, and the failure every integrator has seen is a consumer that
-dies half way through an order. Conservative community, enterprise budgets, slow adoption — and
+dies half way through an order. Conservative community, enterprise budgets, slow adoption. And
 the bench is already in this repository (`magento/`).
 
 **That failure is gone, and it was measured rather than argued.** An order placed on the bench
@@ -249,7 +249,7 @@ Two things about the shape are worth carrying to the next host, because neither 
 
 - **nothing rides Magento's own queue.** On the only durable backend Magento reaches, an activity is
   a Temporal command and a resume is a workflow task. Its `MessageQueue` would be a second queue for
-  an operator to supervise, for nothing. The workers are `bin/magento` commands — measured
+  an operator to supervise, for nothing. The workers are `bin/magento` commands, measured
   necessary: Magento's retry timer redistributes a message held too long without asking whether the
   first consumer finished, and a worker holds its task by long poll;
 - **this integration corrected the core three times**, once fatally: `InMemoryWorkflowRunner`
@@ -274,16 +274,16 @@ Laravel, payoff below WordPress. Below WooCommerce in priority, not above it.
 
 ---
 
-## 4. Tier 2a — Akeneo and Pimcore, and the job models already there
+## 4. Tier 2a: Akeneo and Pimcore, and the job models already there
 
 Two PIM-shaped hosts, the same story twice: a job model that records what failed and cannot resume
-it. Neither needs a second runtime — both need theirs to survive a step.
+it. Neither needs a second runtime; both need theirs to survive a step.
 
 ### Akeneo
 
 Akeneo's `BatchBundle` has `JobInstance` / `JobExecution` / `StepExecution`, persisted status, and
 an admin screen that shows them. What it does **not** have is a resume. A job that dies mid-step is
-re-run whole; a stuck step is reset by hand from the administration UI — "Step never started" and
+re-run whole; a stuck step is reset by hand from the administration UI. "Step never started" and
 "Step timed out" are documented support procedures, not edge cases. On a catalogue import of any
 size, "re-run it from the top" is a several-hour answer to a one-row problem.
 
@@ -292,16 +292,16 @@ it:
 
 - **Not a parallel runtime.** A `Job` / `Step` implementation whose execution *is* a durable
   workflow. `JobExecution` stays the thing the admin displays; the workflow owns the restart.
-- **The bundle's real job** is keeping the two consistent — projecting workflow progress onto
-  `StepExecution` — not replacing either.
+- **The bundle's real job** is keeping the two consistent (projecting workflow progress onto
+  `StepExecution`), not replacing either.
 
 **The question that was the whole design, and its answer:** `BatchBundle`'s item step is per-item
 (reader → processor → writer). A durable journal entry per item on a million-row import is a journal
 nobody wants to store or replay.
 
 **One durable step per batch of N items, N configurable.** The journal then grows as rows ÷ N rather
-than as rows, which is the only shape that stays readable at import scale, and — the reason it was
-chosen over the alternatives — **the pipeline author decides nothing**. A batch size has a default;
+than as rows, which is the only shape that stays readable at import scale, and (the reason it was
+chosen over the alternatives) **the pipeline author decides nothing**. A batch size has a default;
 a checkpoint the author must remember to place does not, and an import that forgets one is not
 resumable while nothing says so.
 
@@ -312,11 +312,11 @@ it can state clearly to whoever writes a pipeline.
 
 The two rejected shapes are recorded because they are not wrong, only narrower. *One step per
 pipeline stage with a cursor in the journal* keeps the journal tiny, and assumes a source that can
-be re-read from a position — true of a file or an ordered query, false of a queue or an API paginated
+be re-read from a position: true of a file or an ordered query, false of a queue or an API paginated
 without a stable cursor. *Author-declared checkpoints* give the most control and are what Temporal
 assumes elsewhere; they also make "no checkpoint anywhere" a silent, valid program.
 
-### Pimcore — the retry that was switched off on purpose
+### Pimcore: the retry that was switched off on purpose
 
 Pimcore 12 is a Symfony 7.4 application with `symfony/messenger` already in the stack, so Tier 0 is
 free and beside the point. What matters is that it owns a job model of its own: the **Generic
@@ -326,7 +326,7 @@ Three things Pimcore documents about that engine make the argument better than w
 
 - `stop_on_first_error` halts the job at the step that failed;
 - **`max_retries: 0`**, configured that way *"to prevent data corruption"*;
-- a single step cannot be cancelled — only the whole run.
+- a single step cannot be cancelled, only the whole run.
 
 *We turned retries off because replaying a step corrupts data* is a precise statement of the
 problem durable execution solves. A journal makes a step safe to replay, because what already
@@ -338,7 +338,7 @@ the admin displays, and the integration keeping the two consistent rather than r
 
 ---
 
-## 5. Tier 2b — Gyroscops and `php-etl/pipeline`
+## 5. Tier 2b: Gyroscops and `php-etl/pipeline`
 
 `php-etl/pipeline` is an ETL pipeline built on generators: `extract()`, `transform()`, `load()`,
 composed fluently, each step a coroutine the runner drives; rejection handling and a
@@ -350,21 +350,21 @@ restartable by hand, per pipeline, by whoever wrote it.
 market size: the pipeline is *already* a coroutine chain, and Durable's interpreter is *already* a
 fiber driver over a journal. The two agree on what a step is. Mapping a pipeline step to a durable
 step, a loader write to an activity, and the item cursor to journal state is not an adaptation of
-one model to another — it is the same model with persistence added.
+one model to another; it is the same model with persistence added.
 
 For Gyroscops that is a product difference, not a feature: a pipeline that survives the process, a
 deployment, and the row that poisons it. **Resumable** and **re-runnable** are not the same offer.
 
 **The cost, stated honestly:** the granularity problem of §4 is the same problem here, one level
-down — a pipeline yields per item, and a journal per item is the wrong unit. Batching policy,
+down; a pipeline yields per item, and a journal per item is the wrong unit. Batching policy,
 checkpoint interval, and what a rejection does to the journal are one design question shared by
 Akeneo, Pimcore and `php-etl/pipeline`. **Whichever is written first pays for all three**, which is
-an argument for writing the smallest one first — and the count is what makes that argument worth
+an argument for writing the smallest one first, and the count is what makes that argument worth
 acting on rather than noting.
 
 **The granularity half is now settled** (§4): one durable step per batch of N, N configurable, and a
 crash replays up to N rows. What is *not* settled, and what the first implementation still has to
-answer, is what a **rejection** does — `php-etl/pipeline` rejects lines rather than failing, and a
+answer, is what a **rejection** does: `php-etl/pipeline` rejects lines rather than failing, and a
 rejected line inside a committed batch is neither a success the journal should record nor a failure
 that should undo the batch. That question does not exist on Akeneo or Pimcore, which is an argument
 for writing the pipeline integration first rather than second: it is the one that surfaces it.
@@ -375,71 +375,71 @@ for writing the pipeline integration first rather than second: it is the one tha
 
 | Target | Tier | What it needs | Verdict |
 |---|---|---|---|
-| Shopware 6, Sulu | 0 | Wiring and an admin view | **Planned.** Cheap — the bundle does the work — but announced as planned, not as working today (§2). |
-| API Platform | — | One state processor, two adapters | **Planned**, and the one to write before Laravel: it is the same class on both frameworks, and it gives the Laravel package a promise nobody else is making (§3). |
+| Shopware 6, Sulu | 0 | Wiring and an admin view | **Planned.** Cheap (the bundle does the work), but announced as planned, not as working today (§2). |
+| API Platform | **∅** | One state processor, two adapters | **Planned**, and the one to write before Laravel: it is the same class on both frameworks, and it gives the Laravel package a promise nobody else is making (§3). |
 | Akeneo | 2 | A `BatchBundle` bundle | **Planned.** Blocked on the checkpoint-granularity decision. |
-| Pimcore | 2 | A bundle under the Generic Execution Engine | **Planned.** Same decision, same blocker — and its own documentation makes the case (§4). |
+| Pimcore | 2 | A bundle under the Generic Execution Engine | **Planned.** Same decision, same blocker. And its own documentation makes the case (§4). |
 | `php-etl/pipeline` | 2 | A durable step runner | **Strongest fit.** Shares §4's decision; internal product, so the feedback loop is short. |
-| Laravel | 1 | Service provider, resume lock, published migrations | **The store family is written** — `gplanchat/durable-bridge-illuminate`, four ports, four suites (§3). What remains is the Laravel plumbing around it, the resume lock that no storage choice supplies, and the positioning: it has to answer `durable-workflow/workflow` first, and API Platform is the cheapest answer available. |
+| Laravel | 1 | Service provider, resume lock, published migrations | **The store family is written**: `gplanchat/durable-bridge-illuminate`, four ports, four suites (§3). What remains is the Laravel plumbing around it, the resume lock that no storage choice supplies, and the positioning: it has to answer `durable-workflow/workflow` first, and API Platform is the cheapest answer available. |
 | TYPO3 | 1 | An extension that redoes the bundle's wiring | **Planned.** Messenger, Doctrine DBAL and the Symfony container are already in the install; only the kernel is missing (§3). Cheapest package in the tier. |
 | Magento | 1 | Module, consumers | **Planned.** Bench already in the repository. |
 | WooCommerce | 1 | Everything, on a hostile platform | Not now. Right product (DBAL), wrong moment. |
 | Drupal | 1 | Module, queue | Not now. |
-| Filament, Statamic | 1 | Nothing of their own | **Behind `durable-laravel`.** Both are Laravel: an admin panel and a CMS. Neither needs a package — they need the Laravel one, and then they are configuration. Their marks are on the page because the picker names the stack a reader is on, not because either is a separate target. |
+| Filament, Statamic | 1 | Nothing of their own | **Behind `durable-laravel`.** Both are Laravel: an admin panel and a CMS. Neither needs a package; they need the Laravel one, and then they are configuration. Their marks are on the page because the picker names the stack a reader is on, not because either is a separate target. |
 | Bagisto | 1 | Nothing of its own | **Behind `durable-laravel`.** Laravel commerce, so the order and payment flows that make Sylius and Shopware worth doing, on a stack that already has the queue. Same shape as Filament: it is the Laravel package, applied. |
-| Aimeos | 0 / 1 | Depends on the base | **The odd one.** It ships on Symfony, on Laravel, on TYPO3 and standalone — the only target in this document whose tier is a property of the installation rather than of the project. Its picker chip carries a base selector for exactly that reason. Nothing to write that is not already written for each base. |
+| Aimeos | 0 / 1 | Depends on the base | **The odd one.** It ships on Symfony, on Laravel, on TYPO3 and standalone: the only target in this document whose tier is a property of the installation rather than of the project. Its picker chip carries a base selector for exactly that reason. Nothing to write that is not already written for each base. |
 | PrestaShop 9, Ibexa | 0 | A documentation line | When somebody asks. |
 
 **Non-goals.** Nothing here fixes an order of work. What the tiers buy is an estimate: three of
 these targets are a week of wiring on a stack the bundle already fits, two are a bootstrap, and two
-are the same design problem written twice. The homepage prints one word — *coming soon* — for all
+are the same design problem written twice. The homepage prints one word (*coming soon*) for all
 of them, and that is deliberate; this table is where the difference lives.
 
 ### The rule this table earns: a mark follows a decision, it does not make one
 
-**An ecosystem gets a logo and a chip once it has a row above — not before.**
+**An ecosystem gets a logo and a chip once it has a row above, not before.**
 
 This is written down because the reverse has now happened twice. Five ecosystems arrived as SVG
 assets in one commit (Aimeos, Bagisto, Filament, Pimcore, Statamic), and TYPO3 after them, each
 through the design canvas, none of them argued for anywhere. All six have since been argued for and
-have a row — Pimcore first, then TYPO3, then the four remaining together. That is what this rule
+have a row: Pimcore first, then TYPO3, then the four remaining together. That is what this rule
 asks for; the order it asks for it in is the part that was missing, and the next mark will follow
 it. Nobody did anything wrong: a canvas is
 where a layout gets tried, and trying a row of chips means drawing chips.
 
-But a mark in the wizard is a **public claim** — it tells a reader we intend to integrate with that
+But a mark in the wizard is a **public claim**: it tells a reader we intend to integrate with that
 project. When the claim ships before the argument, the argument has to be reconstructed afterwards
 against an asset that is already in the repository, which is a bad order to think in.
 
-Pimcore is the case that makes it concrete rather than theoretical. It **was** worth adding — and it
+Pimcore is the case that makes it concrete rather than theoretical. It **was** worth adding, and it
 was filed in the wrong tier until somebody actually read its documentation. Tier 0 on the first
 reading ("another Symfony application"), Tier 2 once the Generic Execution Engine turned up. The
 mark had been in the repository for a day by then, and the correction cost an issue and a pull
 request. A row in this table costs a paragraph.
 
 **What the rule is not:** it is not a veto on the canvas. Sketching an ecosystem there is exactly
-what a canvas is for. The rule is only that the sketch does not ship — no asset committed, no chip
-on the page — until the row exists. And it does not apply retroactively to the marks that predate
+what a canvas is for. The rule is only that the sketch does not ship (no asset committed, no chip
+on the page) until the row exists. And it does not apply retroactively to the marks that predate
 it; those are now here, and the four without a row are the backlog this rule exists to stop growing.
 
 **The backlog it was written against is now empty.** Every `hugo-docs/assets/logos/*.svg` names a
-target in the table above — twelve of them, TYPO3 and Pimcore included, and Filament, Statamic,
+target in the table above: twelve of them, TYPO3 and Pimcore included, and Filament, Statamic,
 Bagisto and Aimeos as of this section. Six legitimately never will, and they make a short, stable
 exception list: the language and the two backends (`php`, `doctrine`, `temporal`), the two
 integrations that already shipped (`symfony`, `sylius`), and `illuminate`, which names a layer
 rather than a target.
 
 **If it needs teeth**, the check is mechanical: compare the two lists, allow the six. Worth writing
-the day the rule is first forgotten — which, the backlog being empty, is now a question about the
+the day the rule is first forgotten, which, the backlog being empty, is now a question about the
 next mark rather than about a debt.
 
 ---
 
 ## References
 
-- [OST001 — Alternative durable execution backends](OST001-alternative-durable-execution-backends.md) §6 records the PHP competitive landscape.
+- [OST001. Alternative durable execution backends](OST001-alternative-durable-execution-backends.md) §6 records the PHP competitive landscape.
 - [DUR006 — No official Temporal PHP SDK or RoadRunner](../adr/DUR006-no-official-temporal-php-sdk-and-no-roadrunner.md)
 - [DUR030 — DBAL backend: simplified durable execution on a single SQL database](../adr/DUR030-dbal-backend-simplified-durable-execution.md)
-- Pimcore's Generic Execution Engine — [Jobs](https://docs.pimcore.com/platform/Pimcore/Development_Tools_and_Details/Generic_Execution_Engine/Jobs_and_Jobruns/Jobs/) and [Configuration](https://docs.pimcore.com/platform/next/Pimcore/Development_Tools_and_Details/Generic_Execution_Engine/Configuration/), where `max_retries: 0` and the reason given for it are stated.
+- Pimcore's Generic Execution Engine: [Jobs](https://docs.pimcore.com/platform/Pimcore/Development_Tools_and_Details/Generic_Execution_Engine/Jobs_and_Jobruns/Jobs/) and [Configuration](https://docs.pimcore.com/platform/next/Pimcore/Development_Tools_and_Details/Generic_Execution_Engine/Configuration/), where `max_retries: 0` and the reason given for it are stated.
 - [DUR043 — The projection is a port, and the in-memory backend reads its own runs](../adr/DUR043-the-projection-is-a-port-and-in-memory-reads-itself.md)
-- [DUR037 — Run observation is a projection](../adr/DUR037-run-observation-as-a-projection.md) — the pattern the Akeneo `StepExecution` projection would follow.
+- [DUR037 — Run observation is a projection](../adr/DUR037-run-observation-as-a-projection.md): the pattern the Akeneo `StepExecution` projection would follow.

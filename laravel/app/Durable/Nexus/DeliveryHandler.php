@@ -11,7 +11,7 @@ use Illuminate\Contracts\Cache\Repository as Cache;
  * Logistics answers `delivery/schedule`, right away.
  *
  * It implements `DeliveryServed` and not `DeliveryContract`: a handler writes only the part of the
- * contract it answers on the task. `ship` has no method here, and that is not an omission —
+ * contract it answers on the task. `ship` has no method here, and that is not an omission:
  * {@see \App\Durable\Workflow\ShipWorkflow} fulfils it.
  *
  * **What differs from the two other mockups is not the code, it is the declaration.** Symfony sets a
@@ -36,7 +36,7 @@ final readonly class DeliveryHandler implements DeliveryServed
     public function schedule(string $order, array $lines): array
     {
         // A Nexus task is redelivered: the second delivery must read back what the first decided,
-        // not decide a second time — a slot drawn twice would not be the same one.
+        // not decide a second time; a slot drawn twice would not be the same one.
         //
         // ponytail: the cache carries the idempotence because a slot is a reproducible decision with
         // no side effect; real logistics would keep it in its shipments table, and that is where it

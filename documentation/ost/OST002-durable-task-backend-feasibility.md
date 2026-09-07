@@ -1,8 +1,8 @@
-# OST002 — Durable Task / Dapr as a Durable backend: feasibility
+# OST002. Durable Task / Dapr as a Durable backend: feasibility
 
 ## Status
 
-Exploration — **leaning against**. The maintainer's reading after this study is that the
+Exploration, **leaning against**. The maintainer's reading after this study is that the
 contraindications outweigh the fit. Not a decision: closing the option formally would need an ADR,
 and nothing here forces one.
 
@@ -12,8 +12,8 @@ match was checked feature by feature.
 
 ## Opportunity
 
-Durable Task Framework — the engine under Azure Durable Functions and, via `dapr/durabletask-go`,
-under Dapr Workflow — is the only surveyed engine whose worker protocol has the same shape as
+Durable Task Framework (the engine under Azure Durable Functions and, via `dapr/durabletask-go`,
+under Dapr Workflow) is the only surveyed engine whose worker protocol has the same shape as
 Durable's own interpreter: a history of events in, a list of actions out.
 
 ```
@@ -23,7 +23,7 @@ rpc CompleteActivityTask(ActivityResponse) returns (CompleteTaskResponse);
 ```
 
 `OrchestratorRequest` carries `pastEvents` + `newEvents`; `OrchestratorResponse` carries `actions`
-and a `completionToken`. Replay in, commands out — the contract `WorkflowFiberDriver` already
+and a `completionToken`. Replay in, commands out: the contract `WorkflowFiberDriver` already
 implements. One bridge would reach three hosts: the Dapr sidecar, Azure Durable Task Scheduler, and
 self-hosted `durabletask-go` over SQLite or Postgres. The proto is public and explicitly meant for
 third-party SDKs.
@@ -34,7 +34,7 @@ That is the opportunity. The rest of this document is why it is probably not eno
 
 Everything below was read from
 [`microsoft/durabletask-protobuf`](https://github.com/microsoft/durabletask-protobuf)
-`protos/orchestrator_service.proto` (911 lines) and from Durable's own port implementations — not
+`protos/orchestrator_service.proto` (911 lines) and from Durable's own port implementations, not
 from documentation or from an SDK's behaviour. Where upstream documentation is the source, it is
 quoted.
 
@@ -56,7 +56,7 @@ slot in this order:
 4. completion
 
 Cancellation wins over a completion unconditionally, wherever the two sit in the stream.
-`findTimerSlotResult()` does the same — `WORKFLOW_CANCELLED` short-circuits before completion is
+`findTimerSlotResult()` does the same: `WORKFLOW_CANCELLED` short-circuits before completion is
 even consulted. A late completion cannot flip the branch, provided the bridge's own history source
 applies the same precedence, which it can because the bridge writes it.
 
@@ -84,7 +84,7 @@ ignore the result and move on."
 `ActivityCancelled` / `TimerCancelled` as its own events; on Durable Task those become self-addressed
 markers. The workflow-facing contract is preserved.
 
-**Residual cost — this is the one that hurts.** The activity **runs to completion**. Its side effects
+**Residual cost: this is the one that hurts.** The activity **runs to completion**. Its side effects
 happen. Every saga compensation must be idempotent *and* tolerate that the operation it compensates
 succeeded in the meantime. On Temporal, `REQUEST_CANCEL_ACTIVITY_TASK` gives a chance to stop it;
 here there is none.
@@ -95,7 +95,7 @@ No marker or side-effect event exists in the protocol. Two channels, and they do
 
 | | `SendEventAction` to self | dedicated `ScheduleTaskAction` |
 |---|---|---|
-| Ordering | **assumed** — nothing in the proto guarantees it for several events emitted in one action list | **guaranteed** by `taskId` correlation |
+| Ordering | **assumed**: nothing in the proto guarantees it for several events emitted in one action list | **guaranteed** by `taskId` correlation |
 | Execution | inside the fiber, in-process | on an **activity worker**, out of process |
 
 `ExecutionContext::sideEffect()` runs the closure and resolves the `Deferred` **immediately**, with
@@ -112,7 +112,7 @@ protocol does not owe it to us.
 ### 2.3 `carryoverEvents` corrupts markers at continue-as-new
 
 `CompleteOrchestrationAction.carryoverEvents` exists for continue-as-new. Upstream semantics:
-incomplete task results are **discarded**, while **unprocessed external events** are preserved —
+incomplete task results are **discarded**, while **unprocessed external events** are preserved,
 by default in the .NET SDK.
 
 If markers ride `SendEventAction`, they *are* external events. A marker in flight when
@@ -120,7 +120,7 @@ continue-as-new fires would be carried into the new run, whose side-effect slot 
 zero. Silent journal corruption.
 
 **Parade.** Never populate `carryoverEvents`, or filter a reserved name prefix. The bridge builds
-the action, so this is controllable — but it has to be a deliberate decision, and it is the kind of
+the action, so this is controllable, but it has to be a deliberate decision, and it is the kind of
 detail that is only obvious once it has already broken something.
 
 ---
@@ -137,7 +137,7 @@ detail that is only obvious once it has already broken something.
 | **`ParentClosePolicy`** | nothing | Emit `TerminateOrchestrationAction` on children when the parent closes. Workable. |
 | **Namespaces** | one task hub (`CreateTaskHub` / `DeleteTaskHub`) | Prefix `instanceId`, or one task hub per namespace. |
 
-Two of these — updates and heartbeats — have no parade at all. They would be the first Durable
+Two of these, updates and heartbeats, have no parade at all. They would be the first Durable
 capabilities that a backend simply does not have.
 
 ---
@@ -149,14 +149,14 @@ Filed here after being initially mis-ranked as gaps:
 - **Activity retries.** Zero occurrences of `retry` in the proto, because in Durable Task retrying is
   the *orchestrator's* job: timer plus reschedule. Our interpreter can do exactly that, and
   `TaskFailureDetails.isNonRetriable` carries the classification. Only `ActivityRetryState::InProgress`
-  disappears — it exists solely because Temporal retries server-side. A simplification, not a gap.
+  disappears: it exists solely because Temporal retries server-side. A simplification, not a gap.
 - **Activity timeouts.** Same shape: a timer racing the task, the standard Durable Task pattern. Only
   `schedule_to_start` is inexpressible.
 - **Task queues.** No queues, but `WorkItemFilters` with `OrchestrationFilter` / `ActivityFilter` by
   **name and version**: a worker chooses what it receives. Not queue routing, but it delivers worker
   specialisation.
 - **`WorkflowIdReusePolicy`.** `OrchestrationIdReusePolicy.replaceableStatus` is a list of replaceable
-  statuses — translatable from our enum.
+  statuses, translatable from our enum.
 - **Entity and lock events** (a third of the `HistoryEvent` oneof). Ignore them cleanly on replay.
   Tolerating unknown event types is required anyway to survive protocol evolution.
 
@@ -168,8 +168,8 @@ Recorded so the ledger is honest, not only the debit side.
 
 - **`tags` is a general-purpose channel.** A `map<string, string>` sits on `ScheduleTaskAction`,
   `CreateSubOrchestrationAction`, `ExecutionStartedEvent` **and** `ActivityRequest`, and it round-trips
-  into the matching history events. Everything the protocol does not model — `ActivityOptions`,
-  timeouts, retry policy, a logical task queue, `ParentClosePolicy` — can travel there deterministically,
+  into the matching history events. Everything the protocol does not model (`ActivityOptions`,
+  timeouts, retry policy, a logical task queue, `ParentClosePolicy`) can travel there deterministically,
   with no emulation. `TaskFailureDetails.properties` (`map<string, Value>`) offers the same on the
   failure side, alongside a chained `innerFailure` and `isNonRetriable`. Most of §4 dissolves into
   "pass our value objects through `tags`".
@@ -191,14 +191,14 @@ Count the contraindications by kind, not by number:
   The workflow sees its cancellation; the activity runs to completion anyway. Nothing fails, nothing
   warns, and the difference surfaces only in the side effects of a compensation that ran against an
   operation that had already succeeded.
-- **Two capabilities with no parade** — updates and heartbeats.
-- **Two silent-corruption traps** — self-addressed event ordering, and `carryoverEvents` at
+- **Two capabilities with no parade**: updates and heartbeats.
+- **Two silent-corruption traps**: self-addressed event ordering, and `carryoverEvents` at
   continue-as-new. Both are controllable; both are invisible until they are not.
 - **A long tail of work** that is real but uninteresting: retries, timeouts, policies, filters,
   entity-event tolerance.
 
 The user documentation states a principle: *"Where a capability is missing it **fails explicitly**
-rather than being silently ignored."* That principle holds for updates, heartbeats and queries — we
+rather than being silently ignored."* That principle holds for updates, heartbeats and queries: we
 would throw. It does **not** hold for cancellation, and cancellation is not a peripheral feature: it
 is the backbone of the saga and compensation story the documentation currently sells, diagrams
 included.
@@ -217,7 +217,7 @@ verdict.
 2. Is a durable-execution backend without workflow updates and without heartbeats worth shipping at
    all, given the two others have both?
 3. Would users accept "cancel means abandon-and-ignore, write idempotent compensations" as a
-   documented per-backend contract — or does per-backend semantics for cancellation break the promise
+   documented per-backend contract, or does per-backend semantics for cancellation break the promise
    that the authoring model is the same everywhere?
 
 ## 8. Position
@@ -231,9 +231,9 @@ churn. That is a risk that shows up in CI, not in a customer's compensation.
 
 ## References
 
-- [`microsoft/durabletask-protobuf` — `orchestrator_service.proto`](https://github.com/microsoft/durabletask-protobuf)
+- [`microsoft/durabletask-protobuf`: `orchestrator_service.proto`](https://github.com/microsoft/durabletask-protobuf)
 - [`dapr/durabletask-go`](https://github.com/dapr/durabletask-go) · [Dapr Workflow architecture](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/)
 - [Durable Task timers and cancellation semantics](https://learn.microsoft.com/en-us/azure/durable-task/common/durable-task-timers)
 - [Eternal orchestrations and continue-as-new](https://learn.microsoft.com/en-us/azure/durable-task/common/durable-task-eternal-orchestrations)
-- [OST001](OST001-alternative-durable-execution-backends.md) — the survey this deepens
-- [DUR030](../adr/DUR030-dbal-backend-simplified-durable-execution.md) — the backend that shipped instead
+- [OST001](OST001-alternative-durable-execution-backends.md): the survey this deepens
+- [DUR030](../adr/DUR030-dbal-backend-simplified-durable-execution.md): the backend that shipped instead

@@ -1,7 +1,7 @@
 # Runbook
 
 Every alarm this system can raise, and the exact response. The alarm rows are derived from the
-"pages me" list in `loop/contract.md` and from `loop.sh`'s exit codes — the article's own runbook
+"pages me" list in `loop/contract.md` and from `loop.sh`'s exit codes; the article's own runbook
 table is a published image, so this is built from the parts of the source that are text.
 
 Exit codes from `make tick`:
@@ -9,8 +9,8 @@ Exit codes from `make tick`:
 | Exit | Meaning | Response |
 |------|---------|----------|
 | 0 | quiet, or work done | Nothing. Read `make queue` in the morning. |
-| 1 | verifier or gate rejected the work | Read `memory/STATE.md` for the verdict. **Once** is normal — that is the gate working. **Twice on the same item** is a page: the spec is wrong, not the worker. Queue it for a human and stop re-running. |
-| 2 | classifier refused, or the model was swapped mid-run | Never build on output from a model you did not choose. Read the `REROUTE` line, re-run once; if it repeats, the prompt is tripping a classifier — check for anything asking the model to explain its reasoning. |
+| 1 | verifier or gate rejected the work | Read `memory/STATE.md` for the verdict. **Once** is normal: that is the gate working. **Twice on the same item** is a page: the spec is wrong, not the worker. Queue it for a human and stop re-running. |
+| 2 | classifier refused, or the model was swapped mid-run | Never build on output from a model you did not choose. Read the `REROUTE` line, re-run once; if it repeats, the prompt is tripping a classifier. Check for anything asking the model to explain its reasoning. |
 | 3 | daily budget breached | `make audit`. If cache reads are not most of conductor input, the stable-prefix ordering in `loop.sh` broke and you are paying full rate for what should be cached. Raise `LOOP_DAILY_BUDGET_USD` only after you know why. |
 | 4 | the conductor reached outside its read-only seat | **Page.** Either the triage input carried an injection, or the conductor drifted. Read the denied tool names in `STATE.md` and the findings that produced them. Do not re-run until you know which. |
 
@@ -28,7 +28,7 @@ Alarms written into `memory/STATE.md`:
 
 ## Cron
 
-Not installed by this branch — installing a crontab is a decision, not a side effect. From week 2
+Not installed by this branch: installing a crontab is a decision, not a side effect. From week 2
 of the rollout, and only with `LOOP_PUSH=1` deliberately set:
 
 ```cron

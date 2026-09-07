@@ -41,7 +41,7 @@
 # --- Cache ---------------------------------------------------------------
 # Les assets du thème portent leur empreinte dans le nom : leur contenu ne change
 # jamais sous une même URL, ils peuvent être gardés indéfiniment. Le HTML, lui,
-# est revalidé — c'est ce qui rend une republication visible tout de suite.
+# est revalidé : c'est ce qui rend une republication visible tout de suite.
 <IfModule mod_expires.c>
     ExpiresActive On
     ExpiresByType text/css "access plus 1 year"

@@ -19,12 +19,12 @@ use Gplanchat\Durable\WorkflowEnvironment;
  *
  * 1. **It fulfils an operation.** There is no handler method for `ship`: the plumbing starts this
  *    workflow with the task's callback attached, and the server delivers its result to the caller
- *    when it finishes. Six seconds of warehouse preparation are enough to show it — past the budget
+ *    when it finishes. Six seconds of warehouse preparation are enough to show it: past the budget
  *    of a Nexus task, short of a reader's patience.
  * 2. **It calls while it serves.** Before the goods leave, logistics asks the shop for its verdict
  *    again, through `stock/reserve`, on an endpoint that is not its own. The call is safe because
  *    `reserve` is idempotent per order identifier: the shop **reads back** the decision taken at
- *    order time instead of taking a new one — which is why the lines passed here are empty.
+ *    order time instead of taking a new one, which is why the lines passed here are empty.
  *
  * The resulting execution therefore carries one Nexus operation **served** and one Nexus operation
  * **called**, in the same journal, on the same host, and that host is Laravel.
@@ -60,7 +60,7 @@ final class ShipWorkflow
     public function run(string $order, string $slot): array
     {
         // The warehouse preparation. `sleep()` waits; `timer()` returns an awaitable that has to be
-        // awaited — confusing the two has already produced a `TimerStarted` with no `TimerFired` in
+        // awaited; confusing the two has already produced a `TimerStarted` with no `TimerFired` in
         // this repository.
         $this->environment->sleep(6.0, 'warehouse preparation');
 
@@ -70,7 +70,7 @@ final class ShipWorkflow
 
         if (true !== ($verdict['reserved'] ?? false)) {
             // The stock is no longer held: nothing leaves, and the caller learns it from the
-            // operation's result rather than from an exception — it is a business outcome, not a
+            // operation's result rather than from an exception. It is a business outcome, not a
             // breakdown.
             return ['shipped' => false, 'tracking' => ''];
         }
