@@ -14,21 +14,21 @@ parameters:
         - src/DurablePhpstan
         - src/DurableRector
     excludePaths:
-        # `illuminate/console` exige `symfony/console ^7.x` sur ses trois lignes, donc le faire
-        # entrer dans le graphe de la racine rendrait la ligne Symfony 6.4 irrésoluble — la même
-        # panne qu'`illuminate/queue` avait causée. La commande est réelle et tourne dans une
-        # application Laravel, qui embarque toujours illuminate/console ; c'est ici, et ici
-        # seulement, qu'elle ne peut pas être analysée.
+        # `illuminate/console` requires `symfony/console ^7.x` on all three of its lines, so
+        # bringing it into the root graph would make the Symfony 6.4 line unresolvable — the same
+        # breakage `illuminate/queue` had caused. The command is real and runs in a Laravel
+        # application, which always ships illuminate/console; it is here, and here only, that it
+        # cannot be analysed.
         - src/DurableLaravel/Console
         - src/Bridge/Temporal/Api
         - src/Bridge/Temporal/Generated
         - src/Bridge/Temporal/Spike
     reportUnmatchedIgnoredErrors: false
     ignoreErrors:
-        # ServiceProvider::$app est typé par PHPDoc comme l'application complète. Ce paquet tient à
-        # ce que ce soit faux : ses liaisons s'enregistrent aussi dans un conteneur nu — worker
-        # autonome, test — où configPath() n'existe pas. La garde est réelle, c'est le PHPDoc amont
-        # qui est optimiste.
+        # ServiceProvider::$app is typed by PHPDoc as the full application. This package depends
+        # on that being false: its bindings also register in a bare container — standalone worker,
+        # test — where configPath() does not exist. The guard is real, it is the upstream PHPDoc
+        # that is optimistic.
         - identifier: function.alreadyNarrowedType
           path: src/DurableLaravel/DurableServiceProvider.php
         # google/protobuf stubs type MapField incorrectly — constructor expects "long" but GPBType constants are int
@@ -55,12 +55,12 @@ parameters:
         # PHPStan resolves the concrete NullActivityHeartbeatSender stub to always-false
         - identifier: identical.alwaysFalse
           path: src/Durable/Worker/ActivityMessageProcessor.php
-        # Implémenter ExtendedMethodReflection sort de la promesse de compatibilité de PHPStan :
-        # l'interface peut changer sur une version mineure. C'est assumé et non contournable — la
-        # seule façon de dire qu'un appel de stub rend un Awaitable plutôt que le type du contrat
-        # est de décorer la réflexion. Le prix est connu : si une mineure casse SchedulingMethod-
-        # Reflection, ce sont ses 28 méthodes de délégation qu'il faut réaligner, et les six tests
-        # de StubMethodsExtensionTest qui le diront.
+        # Implementing ExtendedMethodReflection steps outside PHPStan's compatibility promise:
+        # the interface can change on a minor version. That is accepted and unavoidable — the only
+        # way to say that a stub call returns an Awaitable rather than the contract's type is to
+        # decorate the reflection. The price is known: if a minor breaks SchedulingMethod-
+        # Reflection, it is its 28 delegation methods that must be realigned, and the six tests of
+        # StubMethodsExtensionTest that will say so.
         - identifier: phpstanApi.interface
           path: src/DurablePhpstan/Reflection/SchedulingMethodReflection.php
         # `json_encode` appelle le `jsonSerialize()` de la valeur qu'on lui passe : du code

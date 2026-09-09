@@ -1,14 +1,15 @@
-name: Registre des prises
+name: Claims registry
 
-# Deux déclencheurs, deux rôles distincts.
+# Two triggers, two distinct roles.
 #
-# `pull_request` **filtré sur `.worktrees/prises/**`** : une session qui pose ou retire une prise
-# est contrôlée sur-le-champ. Le filtre est essentiel — sans lui, une prise oubliée par quelqu'un
-# d'autre bloquerait des PR qui n'y sont pour rien, et un check qui punit l'innocent finit désarmé.
+# `pull_request` **filtered on `.worktrees/prises/**`**: a session that places or releases a claim
+# is checked on the spot. The filter is essential — without it, a claim someone else forgot would
+# block PRs that have nothing to do with it, and a check that punishes the innocent ends up
+# disarmed.
 #
-# `schedule` : le retrait oublié ne se voit dans aucune PR, par définition. C'est le balayage
-# quotidien qui l'attrape. Un échec de workflow planifié notifie le propriétaire du dépôt, ce qui
-# est le seul canal qui ne demande à personne d'aller regarder.
+# `schedule`: a forgotten release shows up in no PR, by definition. It is the daily sweep that
+# catches it. A scheduled workflow failure notifies the repository owner, which is the only channel
+# that asks nobody to go and look.
 on:
   pull_request:
     paths:
@@ -30,17 +31,17 @@ concurrency:
 
 jobs:
   registre:
-    name: Prises périmées et titres
+    name: Stale claims and titles
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Avant d'interroger le distant : le contrôle se contrôle lui-même, hors-ligne. Sa première
-      # version déclarait périmée une prise vivante, et rien ne l'avait vu venir.
-      - name: Contrôler le contrôle
+      # Before querying the remote: the check checks itself, offline. Its first version declared a
+      # live claim stale, and nothing had seen it coming.
+      - name: Check the check
         run: bin/prises-check-test.sh
 
-      - name: Contrôler le registre
+      - name: Check the registry
         env:
           GH_TOKEN: ${{ github.token }}
         run: bin/prises-check.sh "${{ github.repository }}"

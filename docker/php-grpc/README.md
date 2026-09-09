@@ -1,25 +1,25 @@
 # `ghcr.io/gplanchat/php-grpc`
 
-Des images PHP qui portent déjà **`grpc`** et **`protobuf`**, construites une fois en CI plutôt
-qu'à chaque `docker build` d'un projet.
+PHP images that already carry **`grpc`** and **`protobuf`**, built once in CI rather than on every
+`docker build` of a project.
 
 ```
 ghcr.io/gplanchat/php-grpc:8.3-cli          ghcr.io/gplanchat/php-grpc:8.3-zts
 ghcr.io/gplanchat/php-grpc:8.3-cli-alpine   ghcr.io/gplanchat/php-grpc:8.3-zts-alpine
 ```
 
-PHP 8.2, 8.3, 8.4 et 8.5, en Debian et en Alpine, **avec et sans thread-safety**. Chaque
-publication pose aussi une étiquette datée (`8.3-cli-alpine-20260828`) pour qui veut épingler.
+PHP 8.2, 8.3, 8.4 and 8.5, on Debian and on Alpine, **with and without thread-safety**. Each
+publication also places a dated tag (`8.3-cli-alpine-20260828`) for whoever wants to pin.
 
-Les variantes `zts` ne sont pas un raffinement : une extension compilée pour un PHP non thread-safe
-refuse de se charger dans un PHP thread-safe, et réciproquement. Un runtime qui exécute plusieurs
-workers dans un même processus réclame `zts` ; le reste du monde PHP tourne en `cli`. Aucune des
-deux ne couvre l'autre, d'où les quatre déclinaisons.
+The `zts` variants are not a refinement: an extension compiled for a non-thread-safe PHP refuses to
+load into a thread-safe PHP, and the other way round. A runtime that runs several workers in a
+single process demands `zts`; the rest of the PHP world runs on `cli`. Neither of the two covers the
+other, hence the four variants.
 
-## Ce que ces images ne sont pas
+## What these images are not
 
-**Pas des images d'application.** Ni votre code, ni Composer, ni serveur web. Elles servent de base,
-ou de source dans un montage multi-étapes :
+**Not application images.** Neither your code, nor Composer, nor a web server. They serve as a base,
+or as a source in a multi-stage build:
 
 ```dockerfile
 FROM ghcr.io/gplanchat/php-grpc:8.3-cli-alpine AS ext
@@ -33,109 +33,107 @@ COPY --from=ext /usr/local/lib/php/extensions/no-debug-non-zts-20230831/protobuf
 RUN php -m | grep -qx grpc && php -m | grep -qx protobuf
 ```
 
-Le chemin est nommé en entier plutôt que copié en bloc, à dessein : `COPY` du dossier
-`extensions/` réussit même quand le nom du dossier de la base est différent — le `.so` atterrit dans
-un dossier que PHP ne lit pas, et la panne attend l'exécution. Le chemin explicite échoue au
+The path is named in full rather than copied wholesale, and deliberately so: a `COPY` of the
+`extensions/` directory succeeds even when the base's directory name differs — the `.so` lands in a
+directory PHP does not read, and the failure waits for runtime. The explicit path fails at
 `docker build`.
 
-Trois choses doivent correspondre entre les deux images : la **version mineure** de PHP, la
-**thread-safety**, et la **libc**. Les deux premières sont dans le nom du dossier, donc un écart
-casse la construction. La troisième n'y est pas : Debian et Alpine partagent le même chemin, un
-`.so` musl se copie sans un mot dans une base glibc et refuse de se charger ensuite. D'où le
-`RUN php -m` final, qui rattrape ce cas-là et lui seul.
+Three things must match between the two images: PHP's **minor version**, the **thread-safety**, and
+the **libc**. The first two are in the directory name, so a mismatch breaks the build. The third is
+not there: Debian and Alpine share the same path, a musl `.so` copies without a word into a glibc
+base and then refuses to load. Hence the final `RUN php -m`, which catches that case and only that
+one.
 
-Une quatrième condition ne se voit nulle part dans les chemins : grpc est du C++ et réclame
-`libstdc++`. Les bases Debian l'embarquent toutes ; les bases Alpine, pas toutes — l'image Sylius
-ci-dessus l'a, `php:8.3-fpm-alpine` ne l'a pas et demande un `apk add --no-cache libstdc++`. Là
-encore, c'est le `RUN php -m` qui le dit.
+A fourth condition shows up nowhere in the paths: grpc is C++ and demands `libstdc++`. The Debian
+bases all ship it; the Alpine bases, not all — the Sylius image above has it, `php:8.3-fpm-alpine`
+does not and needs an `apk add --no-cache libstdc++`. There again, it is the `RUN php -m` that says
+so.
 
-**Le guide utilisateur détaille tout cela** — recettes pour php-fpm derrière Nginx ou Caddy, pour
-Apache avec mod_php, et pour FrankenPHP (qui est thread-safe, donc `zts`) :
+**The user guide covers all of this** — recipes for php-fpm behind Nginx or Caddy, for Apache with
+mod_php, and for FrankenPHP (which is thread-safe, hence `zts`):
 <https://durable.rocks/docs/container-images/>.
 
-## Ce que ces images ne servent pas à résoudre
+## What these images are not there to solve
 
-**GitHub Actions n'en a pas besoin.** Mesuré sur ce dépôt : `shivammathur/setup-php` installe
-`grpc` en **cinq secondes**, binaire préconstruit à l'appui. Le job « Tests d'intégration Temporal »,
-qui demande l'extension, démarre PHP aussi vite que celui de Sylius, qui ne la demande pas :
+**GitHub Actions does not need them.** Measured on this repository: `shivammathur/setup-php`
+installs `grpc` in **five seconds**, on the strength of a prebuilt binary. The "Temporal
+integration tests" job, which asks for the extension, starts PHP as fast as the Sylius one, which
+does not:
 
-| job | étape « Setup PHP » | demande `grpc` |
+| job | "Setup PHP" step | asks for `grpc` |
 |---|---|---|
-| Tests d'intégration Temporal | 5 s | oui |
-| Boutique Sylius | 6 s | non |
+| Temporal integration tests | 5 s | yes |
+| Sylius shop | 6 s | no |
 
-Dans un workflow, écrivez donc `extensions: …, grpc` et n'y pensez plus. Ces images sont pour
-**Docker**, où `install-php-extensions` compile depuis les sources à chaque construction.
+In a workflow, then, write `extensions: …, grpc` and think no more of it. These images are for
+**Docker**, where `install-php-extensions` compiles from source on every build.
 
-**Combien de temps, exactement.** Mesuré en construisant `8.3-cli-alpine` sur une machine de
-développement ordinaire :
+**How long, exactly.** Measured by building `8.3-cli-alpine` on an ordinary development machine:
 
 ```
 real    6m58s      image finale : 126 Mo
 ```
 
-Sept minutes par construction, par version de PHP, par distribution, sur chaque machine et dans
-chaque pipeline qui en a besoin. C'est ce que publier l'image supprime — grpc 1.83 traînant derrière
-lui abseil, boringssl, re2 et upb, et se compilant en C++17.
+Seven minutes per build, per PHP version, per distribution, on every machine and in every pipeline
+that needs it. That is what publishing the image removes — grpc 1.83 dragging abseil, boringssl, re2
+and upb behind it, and compiling as C++17.
 
-## Comment elles sont construites
+## How they are built
 
-`install-php-extensions` de mlocati plutôt qu'un `pecl install` écrit à la main : il connaît les
-paquets système de chaque distribution, nettoie derrière lui, et suit les sorties de PHP. Publier
-l'image ne remplace pas cet outil, elle en amortit le coût.
+mlocati's `install-php-extensions` rather than a hand-written `pecl install`: it knows each
+distribution's system packages, cleans up behind itself, and follows PHP releases. Publishing the
+image does not replace that tool, it amortises its cost.
 
-Deux vérifications, et elles ne disent pas la même chose. Le `Dockerfile` échoue si l'extension
-n'est pas chargeable **dans la couche construite** ; le workflow relance ensuite `php -m` sur
-**l'image publiée**. Une image peut être construite juste et poussée mal.
+Two checks, and they do not say the same thing. The `Dockerfile` fails if the extension is not
+loadable **in the built layer**; the workflow then runs `php -m` again on **the published image**.
+An image can be built right and pushed wrong.
 
-## Reconstruire
+## Rebuilding
 
-Quatre façons de le déclencher :
+Four ways to trigger it:
 
-| Déclencheur | Quand |
+| Trigger | When |
 | --- | --- |
-| `workflow_dispatch` | à la main, depuis l'onglet Actions |
-| `repository_dispatch` | par webhook : `gh api repos/:owner/:repo/dispatches -f event_type=php-grpc-images` |
-| `push` sur `main` | le `Dockerfile` ou le workflow ont changé |
-| `schedule` | tous les lundis |
+| `workflow_dispatch` | by hand, from the Actions tab |
+| `repository_dispatch` | by webhook: `gh api repos/:owner/:repo/dispatches -f event_type=php-grpc-images` |
+| `push` on `main` | the `Dockerfile` or the workflow changed |
+| `schedule` | every Monday |
 
-La cadence hebdomadaire n'est pas du zèle. Deux choses vieillissent dans ces images, et pas au même
-rythme : les paquets système de la base, et PHP lui-même, dont les versions correctives sortent
-chaque mois. Reconstruire chaque semaine garde l'écart avec `php:8.4-cli` à quelques jours, et le
-cache Buildx rend la reconstruction bon marché quand rien n'a bougé en amont.
+The weekly cadence is not zeal. Two things age in these images, and not at the same rate: the base's
+system packages, and PHP itself, whose patch releases come out every month. Rebuilding every week
+keeps the gap with `php:8.4-cli` down to a few days, and the Buildx cache makes the rebuild cheap
+when nothing has moved upstream.
 
-La publication n'a lieu que depuis `main`. Sur une pull request, le workflow construit sans pousser :
-c'est la compilation qu'on veut vérifier, et une étiquette glissante ne doit pas désigner un essai
-non relu.
+Publication only happens from `main`. On a pull request the workflow builds without pushing: the
+compilation is what we want to check, and a rolling tag must not designate an unreviewed experiment.
 
-## Élaguer les étiquettes datées
+## Pruning the dated tags
 
-Seize images × une étiquette datée × chaque lundi, cela fait environ **huit cents étiquettes par
-an**. Le stockage est gratuit sur un paquet public, mais la liste des versions devient illisible
-bien avant de coûter quoi que ce soit.
+Sixteen images × one dated tag × every Monday makes about **eight hundred tags a year**. Storage is
+free on a public package, but the version list becomes unreadable well before it costs anything.
 
-Le job `retention` s'exécute après chaque publication réussie et garde, **par série**
-(`8.4-zts`, `8.2-cli-alpine`, …), les **huit étiquettes datées les plus récentes** en plus de
-l'image courante — soit deux mois de points d'épinglage. Simulé sur soixante semaines : 144 versions
-et 160 étiquettes au régime permanent, contre 960 et 976 sans rien faire.
+The `retention` job runs after every successful publication and keeps, **per series**
+(`8.4-zts`, `8.2-cli-alpine`, …), the **eight most recent dated tags** on top of the current
+image — that is two months of pinning points. Simulated over sixty weeks: 144 versions and 160 tags
+at steady state, against 960 and 976 with nothing done.
 
-Ce que le script protège, et qui n'est pas évident : **une version est épargnée dès qu'elle porte
-une étiquette non datée.** Le lundi de la publication, `8.4-zts` et `8.4-zts-20260828` désignent le
-même manifeste ; « supprimer l'étiquette datée » retirerait l'image que l'étiquette glissante
-désigne. La règle porte donc sur la version, jamais sur l'étiquette. Les versions **sans aucune
-étiquette** sont épargnées aussi : ce ne sont pas des orphelines mais les attestations de provenance
-de buildx, référencées par l'index qui, lui, est étiqueté.
+What the script protects, and it is not obvious: **a version is spared as soon as it carries a tag
+that is not dated.** On publication Monday, `8.4-zts` and `8.4-zts-20260828` designate the same
+manifest; "deleting the dated tag" would remove the image the rolling tag designates. The rule
+therefore bears on the version, never on the tag. Versions with **no tag at all** are spared too:
+these are not orphans but buildx's provenance attestations, referenced by the index which, itself,
+is tagged.
 
-`retention.py --self-test` vérifie ces deux cas, et le job le lance avant d'appeler quoi que ce soit
-qui supprime.
+`retention.py --self-test` checks these two cases, and the job runs it before calling anything that
+deletes.
 
-> **Un secret est nécessaire.** L'API de suppression de paquets n'accepte pas le `GITHUB_TOKEN` :
-> elle demande un jeton personnel *classique* portant `read:packages` et `delete:packages`, à
-> déposer dans le secret `GHCR_RETENTION_TOKEN`. Sans lui, le job pose un avertissement et s'arrête
-> sans échouer — un échec hebdomadaire finirait par être ignoré, et les vrais avec lui.
+> **A secret is required.** The package deletion API does not accept the `GITHUB_TOKEN`: it asks for
+> a *classic* personal token carrying `read:packages` and `delete:packages`, to be placed in the
+> `GHCR_RETENTION_TOKEN` secret. Without it, the job posts a warning and stops without failing — a
+> weekly failure would end up ignored, and the real ones with it.
 
-Un essai à blanc est disponible : `workflow_dispatch` avec `dry_run` (activé par défaut) liste ce
-qui serait retiré sans rien retirer.
+A dry run is available: `workflow_dispatch` with `dry_run` (on by default) lists what would be
+removed without removing anything.
 
-`arm64` est proposé en option et pas par défaut : il passe par QEMU, et émuler une compilation C++
-coûte bien plus que de la compiler.
+`arm64` is offered as an option and not by default: it goes through QEMU, and emulating a C++
+compilation costs far more than compiling it.

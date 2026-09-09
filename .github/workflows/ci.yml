@@ -1,4 +1,4 @@
-# Voir DUR009 (pyramide de tests), DUR008 (normes de code PHP-FIG).
+# See DUR009 (test pyramid), DUR008 (PHP-FIG coding standards).
 name: CI
 
 on:
@@ -8,6 +8,8 @@ on:
 
 jobs:
     qa:
+        # Do not rename: this is a required status check on `main`. Renaming it makes the required
+        # context never report, and every PR unmergeable until branch protection is updated too.
         name: QA (CS + tests)
         runs-on: ubuntu-latest
         strategy:
@@ -21,7 +23,7 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   php-version: ${{ matrix.php-version }}
-                  # ext-grpc : requis pour WorkflowTaskRunner, WorkflowTaskProcessor et TemporalHistoryCursor (DUR027).
+                  # ext-grpc: required by WorkflowTaskRunner, WorkflowTaskProcessor and TemporalHistoryCursor (DUR027).
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
 
@@ -35,29 +37,28 @@ jobs:
               run: composer test
 
     symfony-matrix:
-        # Le job `qa` installe la résolution du composer.lock : il ne voit qu'une ligne Symfony.
-        # Or le seul bug de compatibilité trouvé jusqu'ici — `#[\Override]` sur une méthode que
-        # le DataCollector de Symfony 6.4 ne déclare pas, fatale à partir de PHP 8.3 — n'était
-        # visible qu'au *croisement* d'une vieille ligne Symfony et d'un PHP récent. D'où une
-        # matrice explicite plutôt qu'un produit cartésien : chaque entrée est un bord qui a une
-        # raison d'exister.
+        # The `qa` job installs the composer.lock resolution: it only ever sees one Symfony line.
+        # Yet the only compatibility bug found so far — `#[\Override]` on a method that Symfony
+        # 6.4's DataCollector does not declare, fatal from PHP 8.3 on — was only visible at the
+        # *crossing* of an old Symfony line and a recent PHP. Hence an explicit matrix rather
+        # than a cartesian product: every entry is an edge that has a reason to exist.
         name: Symfony ${{ matrix.symfony }} / PHP ${{ matrix.php-version }}
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
             matrix:
                 include:
-                    # 6.4 LTS au plancher PHP de la bibliothèque.
+                    # 6.4 LTS at the library's PHP floor.
                     - { php-version: '8.2', symfony: '6.4.*', deps: 'lowest' }
-                    # 6.4 LTS sous un PHP récent : le croisement qui mord.
+                    # 6.4 LTS under a recent PHP: the crossing that bites.
                     - { php-version: '8.4', symfony: '6.4.*', deps: 'highest' }
-                    # Plancher *installable* de la ligne 7. La contrainte autorise ^7.0, mais
-                    # 7.0.x à 7.3.x sont en fin de vie et bloquées par les avis de sécurité de
-                    # Composer : les épingler ici ne testerait rien, ça échouerait à résoudre.
+                    # *Installable* floor of the 7 line. The constraint allows ^7.0, but
+                    # 7.0.x through 7.3.x are end of life and blocked by Composer's security
+                    # advisories: pinning them here would test nothing, it would fail to resolve.
                     - { php-version: '8.2', symfony: '7.4.*', deps: 'lowest' }
-                    # 7.4 LTS sous PHP récent : ce que le lock résout aujourd'hui.
+                    # 7.4 LTS under a recent PHP: what the lock resolves today.
                     - { php-version: '8.4', symfony: '7.4.*', deps: 'highest' }
-                    # Ligne 8 : exige PHP >= 8.4, donc jamais atteignable en local sur 8.2.
+                    # Line 8: requires PHP >= 8.4, so never reachable locally on 8.2.
                     - { php-version: '8.4', symfony: '8.0.*', deps: 'lowest' }
                     - { php-version: '8.5', symfony: '8.*', deps: 'highest' }
         steps:
@@ -70,64 +71,65 @@ jobs:
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
 
-            # Flex contraint *toutes* les dépendances symfony/*, y compris transitives, sur la
-            # ligne demandée. Sans lui il faudrait énumérer chaque paquet à la main, et la racine
-            # du monorepo n'en requiert plus aucun directement.
-            - name: Épingler la ligne Symfony (Flex)
+            # Flex constrains *all* symfony/* dependencies, transitive ones included, to the
+            # requested line. Without it every package would have to be listed by hand, and the
+            # monorepo root no longer requires any of them directly.
+            - name: Pin the Symfony line (Flex)
               run: |
                   composer global config --no-plugins allow-plugins.symfony/flex true
                   composer global require --no-progress --no-scripts --no-plugins symfony/flex
                   composer config --no-plugins allow-plugins.symfony/flex true
 
-            # Mise à jour partielle : seule la dimension Symfony bouge. Un `--prefer-lowest`
-            # non filtré abaisserait aussi phpunit et phpstan, et ferait échouer la matrice sur
-            # autre chose que ce qu'elle mesure.
-            - name: Résoudre la ligne Symfony demandée
+            # Partial update: only the Symfony dimension moves. An unfiltered `--prefer-lowest`
+            # would lower phpunit and phpstan too, and would make the matrix fail on something
+            # other than what it measures.
+            - name: Resolve the requested Symfony line
               env:
                   SYMFONY_REQUIRE: ${{ matrix.symfony }}
               run: |
                   composer update --no-interaction --prefer-dist --no-progress \
                     ${{ matrix.deps == 'lowest' && '--prefer-lowest' || '' }} 'symfony/*'
 
-            - name: Ligne Symfony effectivement installée
+            - name: Symfony line actually installed
               run: composer show symfony/messenger --no-ansi | head -n 3
 
             - name: PHPUnit
               run: composer test
 
-            # PHPStan est l'outil qui avait attrapé `#[\Override]` : sans lui, la matrice ne
-            # verrait le problème que si un test charge la classe fautive.
+            # PHPStan is the tool that caught `#[\Override]`: without it, the matrix would only
+            # see the problem if a test loaded the offending class.
             - name: PHPStan
               run: composer phpstan
 
     laravel:
-        # Le pendant de la matrice Symfony, pour l'autre famille d'hôtes. Même principe : une
-        # entrée par *bord* qui a une raison d'exister, pas un produit cartésien.
+        # The counterpart of the Symfony matrix, for the other host family. Same principle: one
+        # entry per *edge* that has a reason to exist, not a cartesian product.
         #
-        # Ce que cette matrice mesure et qu'aucune autre ne peut : `gplanchat/durable-laravel`
-        # s'appuie sur `illuminate/*`, dont les lignes 11, 12 et 13 ne demandent pas le même PHP —
-        # 13 exige ^8.3 quand la baseline du dépôt est 8.2 — et dont les contrats bougent d'une
-        # ligne à l'autre. La suite `unit` ne prouve que la ligne du lock.
+        # What this matrix measures and no other one can: `gplanchat/durable-laravel` builds on
+        # `illuminate/*`, whose lines 11, 12 and 13 do not ask for the same PHP — 13 requires ^8.3
+        # when the repository's baseline is 8.2 — and whose contracts move from one line to the
+        # next. The `unit` suite only proves the line in the lock.
         #
-        # ⚠ Ce paquet ne requiert **pas** `illuminate/queue`, et ce n'est pas un oubli : Laravel 11+
-        # en tire `symfony/process ^7.2`, ce qui le rendrait irréconciliable avec la ligne
-        # Symfony 6.4 que la matrice voisine teste encore. La garde contre la file `sync` lit donc
-        # le nom du driver dans la configuration plutôt que la classe de la connexion.
+        # ⚠ This package does **not** require `illuminate/queue`, and that is not an oversight:
+        # Laravel 11+ pulls `symfony/process ^7.2` in with it, which would make it irreconcilable
+        # with the Symfony 6.4 line the neighbouring matrix still tests. The guard against the
+        # `sync` queue therefore reads the driver name from the configuration rather than the
+        # connection class.
         name: Laravel ${{ matrix.laravel }} / PHP ${{ matrix.php-version }}
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
             matrix:
                 include:
-                    # 11 au plancher PHP commun aux deux.
+                    # 11 at the PHP floor common to both.
                     - { php-version: '8.2', laravel: '11.*', deps: 'lowest' }
-                    # 11 sous un PHP récent : le croisement qui mord, comme pour Symfony 6.4.
+                    # 11 under a recent PHP: the crossing that bites, as for Symfony 6.4.
                     - { php-version: '8.4', laravel: '11.*', deps: 'highest' }
-                    # 12 au plancher.
+                    # 12 at the floor.
                     - { php-version: '8.2', laravel: '12.*', deps: 'lowest' }
-                    # 12 sous PHP récent : ce que le lock résout aujourd'hui.
+                    # 12 under a recent PHP: what the lock resolves today.
                     - { php-version: '8.4', laravel: '12.*', deps: 'highest' }
-                    # 13 exige PHP ^8.3 : jamais atteignable au plancher du dépôt.
+                    # 13 requires PHP ^8.3: never reachable at the repository's floor.
                     - { php-version: '8.4', laravel: '13.*', deps: 'lowest' }
                     - { php-version: '8.5', laravel: '13.*', deps: 'highest' }
         steps:
@@ -137,16 +139,16 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   php-version: ${{ matrix.php-version }}
-                  # grpc comme la matrice Symfony : la racine requiert le pont Temporal, qui exige
-                  # ext-grpc. Sans elle, `composer update` échoue avant d'avoir résolu quoi que ce
-                  # soit d'Illuminate — la matrice mesurerait l'absence d'une extension.
+                  # grpc as in the Symfony matrix: the root requires the Temporal bridge, which
+                  # requires ext-grpc. Without it, `composer update` fails before having resolved
+                  # anything of Illuminate — the matrix would measure the absence of an extension.
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
 
-            # Mise à jour partielle, même raison que côté Symfony : seule la dimension Laravel
-            # bouge. Un `--prefer-lowest` non filtré abaisserait phpunit et phpstan, et la matrice
-            # échouerait sur autre chose que ce qu'elle mesure.
-            - name: Résoudre la ligne Laravel demandée
+            # Partial update, same reason as on the Symfony side: only the Laravel dimension
+            # moves. An unfiltered `--prefer-lowest` would lower phpunit and phpstan, and the
+            # matrix would fail on something other than what it measures.
+            - name: Resolve the requested Laravel line
               run: |
                   composer require --no-update --no-interaction --dev \
                     "illuminate/cache:${{ matrix.laravel }}" \
@@ -154,24 +156,24 @@ jobs:
                   composer update --no-interaction --prefer-dist --no-progress \
                     ${{ matrix.deps == 'lowest' && '--prefer-lowest' || '' }} 'illuminate/*'
 
-            - name: Ligne Laravel effectivement installée
+            - name: Laravel line actually installed
               run: composer show illuminate/database --no-ansi | head -n 3
 
-            - name: PHPUnit (le paquet d'intégration et le pont Illuminate)
+            - name: PHPUnit (the integration package and the Illuminate bridge)
               run: vendor/bin/phpunit --testsuite laravel
 
             - name: PHPStan
               run: composer phpstan
 
     sylius-shop:
-        # La seule vérification du dépôt qui rende vraiment une page. Tout le reste prouve que les
-        # pièces sont correctes ; celle-ci prouve qu'assemblées elles affichent quelque chose.
+        # The only check in the repository that really renders a page. Everything else proves the
+        # pieces are correct; this one proves that, assembled, they display something.
         #
-        # Hors de la matrice principale, et pour deux raisons qui ne se contournent pas : Sylius
-        # Standard 2.2 exige PHP ^8.3 quand la baseline du dépôt est 8.2, et la boutique a besoin
-        # d'un vrai MySQL. C'est justement ce dernier qui a révélé deux fautes que SQLite avalait —
-        # un booléen lié sans type, et un upsert qui comptait les lignes affectées par un UPDATE.
-        name: Boutique Sylius (le tableau de bord, rendu)
+        # Outside the main matrix, and for two reasons there is no way around: Sylius Standard 2.2
+        # requires PHP ^8.3 when the repository's baseline is 8.2, and the shop needs a real MySQL.
+        # It is precisely the latter that revealed two faults SQLite was swallowing — a boolean
+        # bound without a type, and an upsert that counted the rows affected by an UPDATE.
+        name: Sylius shop (the dashboard, rendered)
         runs-on: ubuntu-latest
         services:
             mysql:
@@ -191,16 +193,16 @@ jobs:
             - name: Setup PHP
               uses: shivammathur/setup-php@v2
               with:
-                  # 8.3 : plancher de Sylius Standard 2.2. Le plugin, lui, reste en >=8.2.
+                  # 8.3: Sylius Standard 2.2's floor. The plugin itself stays at >=8.2.
                   php-version: '8.3'
-                  # grpc : la boutique sert une opération Nexus, et le pont Temporal en dépend.
-                  # Son tableau de bord, lui, n'en a toujours pas besoin — c'est DUR037, et
-                  # `temporal.journal: false` est ce qui garde les deux séparés.
+                  # grpc: the shop serves a Nexus operation, and the Temporal bridge depends on it.
+                  # Its dashboard, for its part, still does not need it — that is DUR037, and
+                  # `temporal.journal: false` is what keeps the two apart.
                   extensions: intl, gd, pdo_mysql, mbstring, zip, curl, sodium, exif, fileinfo, grpc
                   coverage: none
 
-            # Les paquets du dépôt entrent par des dépôts `path` : la boutique lit `../src`, donc
-            # elle teste le code de ce commit et non une version publiée.
+            # The repository's packages come in through `path` repositories: the shop reads
+            # `../src`, so it tests the code of this commit and not a published version.
             - name: Composer install (sylius/)
               working-directory: sylius
               run: composer install --no-interaction --prefer-dist --no-progress
@@ -212,7 +214,7 @@ jobs:
               working-directory: sylius
               run: vendor/bin/phpunit tests/Unit
 
-            - name: Base de test
+            - name: Test database
               working-directory: sylius
               env:
                   APP_ENV: test
@@ -220,41 +222,41 @@ jobs:
                 bin/console doctrine:database:create --if-not-exists
                 bin/console doctrine:schema:create
 
-            - name: PHPUnit — le tableau de bord est rendu
+            - name: PHPUnit — the dashboard is rendered
               working-directory: sylius
               env:
                   APP_ENV: test
               run: vendor/bin/phpunit tests/Functional/DurableDashboardTest.php
 
     magento-matrix:
-        # Le pendant de la matrice Symfony, pour l'autre hôte à conteneur étranger. Même principe :
-        # chaque entrée est un **bord qui a une raison**, pas un produit cartésien. Ce que le job
-        # prouve est la résolution — que la contrainte du module (`php >=8.2`,
-        # `magento/framework ^103.0`) est honnête face à ce que chaque ligne de Mage-OS exige. Ce
-        # qu'il ne prouve pas est le démarrage : installer la distribution coûte ~1 Go et plusieurs
-        # minutes par entrée, et c'est le travail du job d'intégration, pas d'une matrice.
+        # The counterpart of the Symfony matrix, for the other foreign-container host. Same
+        # principle: every entry is an **edge that has a reason**, not a cartesian product. What
+        # the job proves is the resolution — that the module's constraint (`php >=8.2`,
+        # `magento/framework ^103.0`) is honest against what each Mage-OS line requires. What it
+        # does not prove is the boot: installing the distribution costs ~1 GB and several minutes
+        # per entry, and that is the integration job's work, not a matrix's.
         #
-        # Le garde discrimine, vérifié en local avant d'être écrit ici : 2.2.0 sur PHP 8.2 résout
-        # (code 0), 3.4.0 sur PHP 8.2 échoue en nommant la cause — « requires php ~8.3.0||~8.4.0||
-        # ~8.5.0 -> your php version (8.2.33) does not satisfy that requirement ».
-        name: Module Magento (Mage-OS ${{ matrix.mageos }} / PHP ${{ matrix.php-version }})
+        # The guard discriminates, verified locally before being written here: 2.2.0 on PHP 8.2
+        # resolves (code 0), 3.4.0 on PHP 8.2 fails naming the cause — "requires php ~8.3.0||~8.4.0||
+        # ~8.5.0 -> your php version (8.2.33) does not satisfy that requirement".
+        name: Magento module (Mage-OS ${{ matrix.mageos }} / PHP ${{ matrix.php-version }})
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
             matrix:
                 include:
-                    # La ligne la plus ancienne qui accepte encore le plancher PHP du module.
-                    # Elle éprouve `magento/framework: ^103.0` par le bas.
+                    # The oldest line that still accepts the module's PHP floor.
+                    # It puts `magento/framework: ^103.0` to the test from below.
                     - { php-version: '8.2', mageos: '1.3.0' }
-                    # L'épingle du banc, au plancher PHP : le couple sur lequel toutes les mesures
-                    # de ce change ont été faites.
+                    # The bench's pin, at the PHP floor: the pair on which every measurement in
+                    # this change was made.
                     - { php-version: '8.2', mageos: '2.2.0' }
-                    # Haut de la ligne 2 sous un PHP récent.
+                    # Top of the 2 line under a recent PHP.
                     - { php-version: '8.4', mageos: '2.3.0' }
-                    # Le bord qui mord : Mage-OS 3 refuse PHP 8.2 alors que le module l'autorise.
-                    # 8.3 est donc le plancher *atteignable* de cette ligne, pas celui du module.
+                    # The edge that bites: Mage-OS 3 refuses PHP 8.2 while the module allows it.
+                    # 8.3 is therefore this line's *reachable* floor, not the module's.
                     - { php-version: '8.3', mageos: '3.4.0' }
-                    # Le plus récent sur le plus récent.
+                    # The most recent on the most recent.
                     - { php-version: '8.5', mageos: '3.4.0' }
         steps:
             - uses: actions/checkout@v4
@@ -263,14 +265,14 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   php-version: ${{ matrix.php-version }}
-                  # Ce que le métapaquet réclame de l'hôte ; `magento/check-php-extensions.sh` en
-                  # est la liste de référence, tenue à jour par le banc.
+                  # What the metapackage demands of the host; `magento/check-php-extensions.sh` is
+                  # the reference list for it, kept up to date by the bench.
                   extensions: bcmath, ctype, curl, dom, gd, iconv, intl, mbstring, openssl, pdo_mysql, simplexml, soap, sodium, xsl, zip
                   coverage: none
 
-            # Un projet jetable plutôt que le banc : `magento/` porte un lock épinglé sur une seule
-            # ligne, et une matrice qui le réutiliserait ne testerait qu'elle.
-            - name: Projet de résolution
+            # A throwaway project rather than the bench: `magento/` carries a lock pinned to a
+            # single line, and a matrix reusing it would test only that line.
+            - name: Resolution project
               run: |
                 mkdir -p /tmp/resolve
                 cat > /tmp/resolve/composer.json <<JSON
@@ -298,24 +300,24 @@ jobs:
                 }
                 JSON
 
-            # `--dry-run` : la résolution est ce qu'on teste, le téléchargement ne l'est pas.
-            # Le plugin d'audit des dépôts de chemin est désactivé pour la même raison qu'au banc —
-            # `gplanchat/durable` est à la fois publié et fourni par chemin, et ici le chemin est la
-            # source de vérité.
-            - name: La ligne Mage-OS accepte-t-elle le module ?
+            # `--dry-run`: the resolution is what we test, the download is not.
+            # The path-repository audit plugin is disabled for the same reason as on the bench —
+            # `gplanchat/durable` is both published and provided by path, and here the path is the
+            # source of truth.
+            - name: Does the Mage-OS line accept the module?
               working-directory: /tmp/resolve
               run: composer update --dry-run --no-interaction --no-audit --no-progress
 
     magento-boot:
-        # Le pendant de « Boutique Sylius » pour l'autre hôte : un seul job, non matricé, qui
-        # **démarre** vraiment Magento. Il existe parce que jusqu'ici toute affirmation sur ce
-        # module reposait sur un transcript produit à la main sur le banc d'un poste — et la
-        # matrice Mage-OS × PHP, elle, ne prouve que la résolution.
+        # The counterpart of "Sylius shop" for the other host: a single, unmatrixed job that
+        # really **boots** Magento. It exists because until now every claim about this module
+        # rested on a transcript produced by hand on a workstation's bench — and the Mage-OS × PHP
+        # matrix, for its part, only proves the resolution.
         #
-        # Il est cher : la distribution pèse ~1 Go et l'installation prend des minutes. C'est
-        # justement pourquoi il n'est pas matricé — un bord, celui du banc, épinglé par le lock
-        # suivi de `magento/`.
-        name: Module Magento (il démarre pour de vrai)
+        # It is expensive: the distribution weighs ~1 GB and the install takes minutes. That is
+        # precisely why it is not matrixed — one edge, the bench's, pinned by the tracked lock of
+        # `magento/`.
+        name: Magento module (it really boots)
         runs-on: ubuntu-latest
         services:
             mysql:
@@ -327,8 +329,8 @@ jobs:
                     MYSQL_PASSWORD: magento
                 ports:
                     - 3306:3306
-                # `log_bin_trust_function_creators` : sans lui l'installation meurt sur
-                # « You do not have the SUPER privilege … CREATE TRIGGER ». Le banc le règle pareil.
+                # `log_bin_trust_function_creators`: without it the install dies on
+                # "You do not have the SUPER privilege … CREATE TRIGGER". The bench sets it the same way.
                 options: >-
                     --health-cmd="mysqladmin ping -h 127.0.0.1"
                     --health-interval=5s --health-timeout=5s --health-retries=20
@@ -336,8 +338,8 @@ jobs:
                 image: opensearchproject/opensearch:2.12.0
                 env:
                     discovery.type: single-node
-                    # Le nom que 2.12 comprend — le banc l'a réglé ainsi, et c'est le réglage
-                    # dont on sait qu'il marche. `plugins.security.disabled` est ignoré ici.
+                    # The name 2.12 understands — the bench set it this way, and it is the setting
+                    # we know works. `plugins.security.disabled` is ignored here.
                     DISABLE_SECURITY_PLUGIN: 'true'
                     OPENSEARCH_JAVA_OPTS: '-Xms512m -Xmx512m'
                 ports:
@@ -351,13 +353,13 @@ jobs:
             - name: Setup PHP
               uses: shivammathur/setup-php@v2
               with:
-                  # Le plancher du banc, et celui sur lequel toutes ses mesures ont été faites.
+                  # The bench's floor, and the one on which all its measurements were made.
                   php-version: '8.2'
                   extensions: bcmath, ctype, curl, dom, gd, iconv, intl, mbstring, openssl, pdo_mysql, simplexml, soap, sodium, xsl, zip
                   ini-values: memory_limit=-1
                   coverage: none
 
-            # Sans ce cache, chaque exécution retélécharge la distribution.
+            # Without this cache, every execution re-downloads the distribution.
             - name: Cache Composer
               uses: actions/cache@v4
               with:
@@ -365,48 +367,50 @@ jobs:
                   key: magento-boot-${{ hashFiles('magento/composer.lock') }}
                   restore-keys: magento-boot-
 
-            - name: MySQL accepte les déclencheurs
+            - name: MySQL accepts triggers
               run: mysql -h 127.0.0.1 -uroot -pmagento -e "SET GLOBAL log_bin_trust_function_creators = 1;"
 
-            # Les dépôts `path` de `magento/` lisent `../src` : le banc installe **ce commit**, pas
-            # une version publiée. C'est ce qui rend ce job capable de dire quelque chose du module.
+            # `magento/`'s `path` repositories read `../src`: the bench installs **this commit**,
+            # not a published version. That is what makes this job able to say something about
+            # the module.
             - name: Composer install (magento/)
               working-directory: magento
               run: composer install --no-interaction --prefer-dist --no-progress
 
-            # L'analyse statique du module vit **ici**, et pas dans le job qui la porte pour les
-            # autres paquets. La raison est celle qui a fait exister ce job : le module parle à des
-            # classes que le dépôt n'installe pas, et la seule machine qui les a est celle qui vient
-            # de payer l'installation de la distribution. L'alternative — des bouchons écrits à la
-            # main pour les seize classes de Magento que le module touche — n'aurait pas fait
-            # d'erreur : elle en aurait caché, parce qu'un bouchon approximatif rend l'analyse
-            # d'accord avec lui-même.
+            # The module's static analysis lives **here**, and not in the job that carries it for
+            # the other packages. The reason is the one that made this job exist: the module talks
+            # to classes the repository does not install, and the only machine that has them is
+            # the one that has just paid for installing the distribution. The alternative — stubs
+            # written by hand for the sixteen Magento classes the module touches — would not have
+            # made an error: it would have hidden some, because an approximate stub makes the
+            # analysis agree with itself.
             #
-            # ⚠ `--ignore-platform-req=ext-grpc` : le pont Temporal exige l'extension en dur, et ce
-            # job ne l'installe pas. Analyser n'en a pas besoin — les classes `Grpc\` viennent du
-            # paquet Composer, et le pont n'est ici que *scanné*, jamais exécuté ni analysé.
-            - name: Composer install (racine, pour les outils d'analyse)
+            # ⚠ `--ignore-platform-req=ext-grpc`: the Temporal bridge requires the extension
+            # outright, and this job does not install it. Analysing does not need it — the `Grpc\`
+            # classes come from the Composer package, and here the bridge is only *scanned*, never
+            # run nor analysed.
+            - name: Composer install (root, for the analysis tools)
               run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req=ext-grpc
 
-            - name: PHPStan (src/DurableModule, contre les vraies classes de Magento)
+            - name: PHPStan (src/DurableModule, against the real Magento classes)
               run: composer phpstan-magento
 
-            - name: Psalm (src/DurableModule, contre les vraies classes de Magento)
+            - name: Psalm (src/DurableModule, against the real Magento classes)
               run: composer psalm-magento
 
-            # ⚠ Le squelette n'est pas au dépôt — `magento/.gitignore` n'y garde que l'overlay, et
-            # le poste de développement l'avait obtenu une fois par `create-project`. Après un
-            # `composer install` nu, `bin/magento` n'existe donc pas. `mage-os/magento2-base` porte
-            # ces fichiers ; on les déploie comme le ferait le plugin d'installation, sans écraser
-            # ce que l'overlay a déjà posé (`-n`).
-            - name: Déployer le squelette Magento
+            # ⚠ The skeleton is not in the repository — `magento/.gitignore` keeps only the overlay
+            # there, and the development workstation had obtained it once through `create-project`.
+            # After a bare `composer install`, `bin/magento` therefore does not exist.
+            # `mage-os/magento2-base` carries those files; we deploy them the way the installer
+            # plugin would, without overwriting what the overlay has already laid down (`-n`).
+            - name: Deploy the Magento skeleton
               working-directory: magento
               run: |
                 cp -Rn vendor/mage-os/magento2-base/. . || true
                 test -f bin/magento
                 chmod +x bin/magento
 
-            - name: Installation de Magento
+            - name: Magento install
               working-directory: magento
               run: |
                 bin/magento setup:install \
@@ -418,29 +422,29 @@ jobs:
                   --search-engine=opensearch --opensearch-host=127.0.0.1 --opensearch-port=9200 \
                   --backend-frontname=admin --no-interaction
 
-            - name: Le module est là
+            - name: The module is there
               working-directory: magento
               run: |
-                # Deux modules, et la distinction est le sujet : `Gplanchat_DurableModule` est le paquet
-                # publié — il ne déclare aucun workflow. `Gplanchat_DurableProbe` est le module du
-                # **banc**, qui porte la démonstration et les sondes, et qui n'ira jamais chez un
-                # utilisateur. C'est lui qui fournit `durable:demo` à l'étape suivante.
+                # Two modules, and the distinction is the point: `Gplanchat_DurableModule` is the
+                # published package — it declares no workflow. `Gplanchat_DurableProbe` is the
+                # **bench**'s module, which carries the demonstration and the probes, and which will
+                # never reach a user. It is the one that provides `durable:demo` to the next step.
                 bin/magento module:enable Gplanchat_DurableModule Gplanchat_DurableProbe
                 bin/magento setup:upgrade --keep-generated
                 bin/magento module:status Gplanchat_DurableModule | tee /tmp/status.txt
                 grep -q 'Module is enabled' /tmp/status.txt
 
-            # L'assertion qui vaut le prix du job : un workflow écrit une fois tourne dans Magento,
-            # et ses activités viennent des attributs de son contrat, pas de chaînes recopiées.
-            - name: Un workflow tourne dedans
+            # The assertion worth the price of the job: a workflow written once runs inside
+            # Magento, and its activities come from its contract's attributes, not copied strings.
+            - name: A workflow runs inside it
               working-directory: magento
               run: |
                 bin/magento durable:demo ORD-4242 | tee /tmp/demo.txt
                 grep -q "notify:charge:ORD-4242" /tmp/demo.txt
                 grep -q "durable.demo.charge" /tmp/demo.txt
 
-            # Sans DSN, l'écran doit **dire** pourquoi il est vide plutôt que d'avoir l'air en panne.
-            - name: L'écran d'administration répond
+            # Without a DSN, the screen must **say** why it is empty rather than look broken.
+            - name: The admin screen responds
               working-directory: magento
               run: |
                 php -S 127.0.0.1:8080 -t pub/ phpserver/router.php > /tmp/httpd.log 2>&1 &
@@ -449,6 +453,8 @@ jobs:
                 grep -qi 'Magento Admin' /tmp/login.html
 
     static-analysis:
+        # Do not rename: this is a required status check on `main`. Renaming it makes the required
+        # context never report, and every PR unmergeable until branch protection is updated too.
         name: Analyse statique (PHPStan + Psalm)
         runs-on: ubuntu-latest
         steps:
@@ -457,8 +463,8 @@ jobs:
             - name: Setup PHP
               uses: shivammathur/setup-php@v2
               with:
-                  # grpc : le pont Temporal le requiert désormais en dur, `composer install`
-                  # échoue sans lui.
+                  # grpc: the Temporal bridge now requires it outright, `composer install`
+                  # fails without it.
                   php-version: '8.2'
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
@@ -466,7 +472,7 @@ jobs:
             - name: Install Composer dependencies
               run: composer install --no-interaction --prefer-dist --no-progress
 
-            - name: Versions outils (composer.lock)
+            - name: Tool versions (composer.lock)
               run: |
                 composer show phpstan/phpstan --no-ansi | head -n 5
                 composer show vimeo/psalm --no-ansi | head -n 5
@@ -480,14 +486,14 @@ jobs:
               run: composer psalm
 
     symfony-sample:
-        name: App exemple Symfony (composer + PHPUnit)
+        name: Symfony sample app (composer + PHPUnit)
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
             matrix:
                 php-version: ['8.2', '8.3', '8.4', '8.5']
                 symfony: ['7.4.*', '8.0.*']
-                # Symfony 8 exige PHP 8.4+ : pas d'entrée 8.0 sous 8.4.
+                # Symfony 8 requires PHP 8.4+: no 8.0 entry below 8.4.
                 exclude:
                     - php-version: '8.2'
                       symfony: '8.0.*'
@@ -502,13 +508,14 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   php-version: ${{ matrix.php-version }}
-                  # ext-grpc : le pont Temporal l'exige en dur, et le leg 8.0 résout (composer update)
-                  # au lieu d'installer depuis le lock — la contrainte plateforme y est donc vérifiée.
+                  # ext-grpc: the Temporal bridge requires it outright, and the 8.0 leg resolves
+                  # (composer update) instead of installing from the lock — so the platform
+                  # constraint is checked there.
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
 
-            # 7.4 : install, pour que le composer.lock versionné reste exercé (et scanné par Dependabot).
-            # 8.0 : update, SYMFONY_REQUIRE n'agissant qu'à la résolution, hors lock.
+            # 7.4: install, so the versioned composer.lock stays exercised (and scanned by Dependabot).
+            # 8.0: update, SYMFONY_REQUIRE only acting at resolution time, outside the lock.
             - name: Composer (symfony/, Symfony ${{ matrix.symfony }})
               working-directory: symfony
               run: composer ${{ matrix.symfony == '7.4.*' && 'install' || 'update' }} --no-interaction --prefer-dist --no-progress
@@ -543,7 +550,7 @@ jobs:
               run: vendor/bin/phpunit tests/unit/Bridge/Temporal/Worker/
 
     coverage:
-        name: Couverture (PCOV)
+        name: Coverage (PCOV)
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -559,41 +566,41 @@ jobs:
             - name: Install Composer dependencies
               run: composer install --no-interaction --prefer-dist --no-progress
 
-            - name: Rapport texte (src/)
+            - name: Text report (src/)
               run: composer test:coverage
 
     temporal-integration:
-        name: Tests d'intégration Temporal (gRPC + Temporal auto-setup)
+        name: Temporal integration tests (gRPC + Temporal auto-setup)
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
 
-            - name: Setup PHP (ext-grpc requis)
+            - name: Setup PHP (ext-grpc required)
               uses: shivammathur/setup-php@v2
               with:
                   php-version: '8.2'
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
 
-            - name: Installer les dépendances Composer (symfony/)
+            - name: Install Composer dependencies (symfony/)
               working-directory: symfony
               run: composer install --no-interaction --prefer-dist --no-progress
 
-            # `symfony/.env` publie la façade sur 7234, pour cohabiter avec un Temporal
-            # local sur 7233. En CI il n'y a rien à côtoyer : on publie sur 7233, le port
-            # que le DSN et les docblocs des tests annoncent. Sans ce pilotage, compose
-            # écoutait 7234, le DSN visait 7233, et les neuf tests qui parlent au serveur
-            # sautaient — le job restait vert en ne testant rien.
-            - name: Démarrer PostgreSQL + Temporal (symfony/compose.yaml)
+            # `symfony/.env` publishes the frontend on 7234, so it can sit next to a local
+            # Temporal on 7233. In CI there is nothing to sit next to: we publish on 7233,
+            # the port the DSN and the tests' docblocks announce. Without this steering,
+            # compose listened on 7234, the DSN aimed at 7233, and the nine tests that talk
+            # to the server were skipped — the job stayed green while testing nothing.
+            - name: Start PostgreSQL + Temporal (symfony/compose.yaml)
               working-directory: symfony
               env:
                   TEMPORAL_FRONTEND_PORT: '7233'
               run: docker compose up -d --wait --wait-timeout 300 database temporal
 
-            - name: La façade répond, sinon on ne teste rien
+            - name: The frontend responds, otherwise we test nothing
               run: timeout 30 bash -c 'until nc -z 127.0.0.1 7233; do sleep 1; done'
 
-            - name: PHPUnit — tests d'intégration Temporal (tout le répertoire)
+            - name: PHPUnit — Temporal integration tests (the whole directory)
               working-directory: symfony
               env:
                   DURABLE_DSN: 'temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0'
@@ -603,29 +610,29 @@ jobs:
                     --display-skipped \
                     tests/Integration/Temporal/
 
-            - name: Arrêt des conteneurs
+            - name: Stop the containers
               if: always()
               working-directory: symfony
               run: docker compose down -v
 
     docker-compose-stack:
-        name: Stack Docker (Temporal + UI)
+        name: Docker stack (Temporal + UI)
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
 
-            - name: Valider compose.yaml
+            - name: Validate compose.yaml
               run: docker compose -f symfony/compose.yaml config --quiet
 
-            - name: Démarrer PostgreSQL + Temporal + UI
+            - name: Start PostgreSQL + Temporal + UI
               run: docker compose -f symfony/compose.yaml up -d --wait --wait-timeout 180 database temporal temporal-ui
 
-            - name: Vérifier Temporal UI (exec interne)
+            - name: Check Temporal UI (internal exec)
               run: |
                   set -e
                   for i in $(seq 1 20); do
                     if docker compose -f symfony/compose.yaml exec -T temporal-ui wget -qO- http://localhost:8080/ > /dev/null 2>&1; then
-                      echo "Temporal UI OK (tentative $i)"
+                      echo "Temporal UI OK (attempt $i)"
                       exit 0
                     fi
                     sleep 5
@@ -633,6 +640,6 @@ jobs:
                   docker compose -f symfony/compose.yaml logs temporal-ui --tail 40
                   exit 1
 
-            - name: Arrêt des conteneurs
+            - name: Stop the containers
               if: always()
               run: docker compose -f symfony/compose.yaml down -v

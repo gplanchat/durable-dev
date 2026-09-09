@@ -24,8 +24,8 @@ permissions:
   contents: read
 
 env:
-  # Quota de l'hébergement mutualisé : 100 Mo. Le job échoue au-delà, plutôt que
-  # de téléverser à moitié et laisser un site cassé en ligne.
+  # Shared hosting quota: 100 MB. The job fails beyond it, rather than uploading
+  # half a site and leaving a broken one online.
   SITE_QUOTA_KB: 100000
 
 jobs:
@@ -43,27 +43,27 @@ jobs:
           hugo-version: '0.159.2'
           extended: true
 
-      # Le thème embarque mermaid, katex et asciinema — 4,4 Mo copiés dans la
-      # sortie même inutilisés. On les retire, mais seulement tant qu'aucune page
-      # ne les appelle : cette garde échoue le jour où ce ne sera plus vrai.
-      - name: Guard — aucune page n'utilise les bibliothèques élaguées
+      # The theme ships mermaid, katex and asciinema — 4.4 MB copied into the
+      # output even when unused. We strip them, but only for as long as no page
+      # calls them: this guard fails the day that stops being true.
+      - name: Guard — no page uses the pruned libraries
         run: |
           if grep -rlE '\{\{< *(mermaid|katex|math|asciinema)' documentation/user --include='*.md'; then
-            echo "::error::Une page utilise un shortcode dont la bibliothèque est élaguée au déploiement."
-            echo "Retirez le shortcode, ou retirez l'élagage dans l'étape « Prune »."
+            echo "::error::A page uses a shortcode whose library is pruned at deploy time."
+            echo "Remove the shortcode, or remove the pruning in the \"Prune\" step."
             exit 1
           fi
 
-      - name: Guard — l'import refuserait d'écraser une correction à la main
-        # WA005 : trois correctifs écrits dans layouts/index.html et perdus, sans un bruit.
-        # La garde vit dans import-design.py ; ce pas ne vérifie que la garde elle-même,
-        # puisque l'import n'est jamais joué en CI — il n'y a pas de canevas ici.
+      - name: Guard — the import would refuse to overwrite a hand-written fix
+        # WA005: three fixes written into layouts/index.html and lost, without a sound.
+        # The guard lives in import-design.py; this step only checks the guard itself,
+        # since the import is never played in CI — there is no canvas here.
         run: python3 hugo-docs/import-design.py --self-test
 
-      - name: Guard — la page servie est bien celle du canevas
-        # WA005 point 2, écrivable depuis que le canevas est au dépôt : rejouer l'import
-        # et échouer sur la moindre différence. Une correction écrite dans layouts/ et pas
-        # dans le canevas rougit ici, avec son diff — avant la régénération, pas après.
+      - name: Guard — the page served is the one from the canvas
+        # WA005 point 2, writable since the canvas landed in the repository: replay the import
+        # and fail on the slightest difference. A fix written into layouts/ and not into the
+        # canvas goes red here, with its diff — before the regeneration, not after.
         run: |
             cd hugo-docs
             cp layouts/index.html /tmp/committed-en.html
@@ -83,15 +83,15 @@ jobs:
         working-directory: hugo-docs/public
         run: |
           rm -rf mermaid.min.js katex asciinema
-          echo "Après élagage :" && du -sh .
+          echo "After pruning:" && du -sh .
 
-      - name: Guard — le site tient dans le quota
+      - name: Guard — the site fits within the quota
         working-directory: hugo-docs/public
         run: |
           SIZE_KB=$(du -sk . | cut -f1)
           echo "Site: ${SIZE_KB} Ko (quota ${SITE_QUOTA_KB} Ko)"
           if [ "$SIZE_KB" -gt "$SITE_QUOTA_KB" ]; then
-            echo "::error::Le site dépasse le quota d'hébergement (${SIZE_KB} Ko > ${SITE_QUOTA_KB} Ko)."
+            echo "::error::The site is over the hosting quota (${SIZE_KB} KB > ${SITE_QUOTA_KB} KB)."
             exit 1
           fi
 
@@ -124,7 +124,7 @@ jobs:
           SFTP_HOST: ${{ secrets.OVH_FTP_SERVER }}
           SFTP_USER: ${{ secrets.OVH_FTP_USERNAME }}
           SSHPASS: ${{ secrets.OVH_FTP_PASSWORD }}
-          # Racine web de l'hébergement mutualisé OVH.
+          # Web root of the OVH shared hosting.
           SERVER_DIR: ${{ vars.OVH_FTP_ROOT || './www/' }}
           KNOWN_HOSTS: ${{ secrets.OVH_SSH_KNOWN_HOSTS }}
         run: |
@@ -133,16 +133,16 @@ jobs:
           if [ -n "$KNOWN_HOSTS" ]; then
             printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           else
-            echo "::warning::OVH_SSH_KNOWN_HOSTS absent — empreinte du serveur acceptée à l'aveugle."
+            echo "::warning::OVH_SSH_KNOWN_HOSTS is absent — the server fingerprint is accepted blind."
             ssh-keyscan -H "$SFTP_HOST" > ~/.ssh/known_hosts 2>/dev/null
           fi
           if [ ! -s ~/.ssh/known_hosts ]; then
-            echo "::error::Aucune clé d'hôte pour $SFTP_HOST — SSH/SFTP est-il activé sur l'hébergement ?"
+            echo "::error::No host key for $SFTP_HOST — is SSH/SFTP enabled on the hosting?"
             exit 1
           fi
           echo "Cible : $SFTP_USER@$SFTP_HOST:$SERVER_DIR"
-          # lftp délègue SFTP à ssh, qui n'accepte pas de mot de passe sur stdin :
-          # sshpass le fournit depuis $SSHPASS. Le mot de passe passé à -u est ignoré.
+          # lftp delegates SFTP to ssh, which does not accept a password on stdin: sshpass
+          # supplies it from $SSHPASS. The password passed to -u is ignored.
           lftp -u "$SFTP_USER",ignored "sftp://$SFTP_HOST" -e "
             set sftp:connect-program 'sshpass -e ssh -a -x -o StrictHostKeyChecking=yes';
             mirror --reverse --delete --verbose ./site/ '$SERVER_DIR';
