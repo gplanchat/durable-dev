@@ -8,10 +8,10 @@ use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
-use Grpc\UnaryCall;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
@@ -22,7 +22,6 @@ use Temporal\Api\History\V1\WorkflowExecutionStartedEventAttributes;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskFailedRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskFailedResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Failing the workflow **task**, and not the execution.
@@ -37,12 +36,12 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  */
 final class WorkflowTaskFailedResponseTest extends TestCase
 {
-    private WorkflowServiceClient $grpcClient;
+    private WorkflowServiceClientInterface $grpcClient;
     private TemporalConnection $connection;
 
     protected function setUp(): void
     {
-        $this->grpcClient = $this->createMock(WorkflowServiceClient::class);
+        $this->grpcClient = $this->createMock(WorkflowServiceClientInterface::class);
         $this->connection = new TemporalConnection('localhost:7233', 'test-namespace');
     }
 
@@ -61,7 +60,7 @@ final class WorkflowTaskFailedResponseTest extends TestCase
         $this->grpcClient
             ->expects($this->once())
             ->method('PollWorkflowTaskQueue')
-            ->willReturn($this->makeUnaryCallReturning($poll));
+            ->willReturn($poll);
 
         // The point of the whole exercise: no command is sent, therefore no workflow failure
         // command. The execution learns nothing from that attempt.
@@ -76,7 +75,7 @@ final class WorkflowTaskFailedResponseTest extends TestCase
             ->willReturnCallback(function (RespondWorkflowTaskFailedRequest $req) use (&$captured) {
                 $captured = $req;
 
-                return $this->makeUnaryCallReturning(new RespondWorkflowTaskFailedResponse());
+                return new RespondWorkflowTaskFailedResponse();
             });
 
         $processor = new WorkflowTaskProcessor(
@@ -112,7 +111,7 @@ final class WorkflowTaskFailedResponseTest extends TestCase
         $this->grpcClient
             ->expects($this->once())
             ->method('PollWorkflowTaskQueue')
-            ->willReturn($this->makeUnaryCallReturning($poll));
+            ->willReturn($poll);
 
         // The distinction is the subject: only `WorkflowTaskFailure` fails the task.
         $this->grpcClient
@@ -122,9 +121,7 @@ final class WorkflowTaskFailedResponseTest extends TestCase
         $this->grpcClient
             ->expects($this->once())
             ->method('RespondWorkflowTaskCompleted')
-            ->willReturnCallback(fn() => $this->makeUnaryCallReturning(
-                new \Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedResponse(),
-            ));
+            ->willReturnCallback(fn() => new \Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedResponse());
 
         $processor = new WorkflowTaskProcessor(
             $this->grpcClient,
@@ -159,17 +156,5 @@ final class WorkflowTaskFailedResponseTest extends TestCase
         $poll->setNextPageToken('');
 
         return $poll;
-    }
-
-    private function makeUnaryCallReturning(object $response): UnaryCall
-    {
-        $status = new \stdClass();
-        $status->code = \Grpc\STATUS_OK;
-        $status->details = '';
-
-        $call = $this->createMock(UnaryCall::class);
-        $call->method('wait')->willReturn([$response, $status]);
-
-        return $call;
     }
 }
