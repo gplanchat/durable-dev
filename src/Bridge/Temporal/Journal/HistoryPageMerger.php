@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal\Journal;
 
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\History\V1\History;
 use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryRequest;
-use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryResponse;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * @internal
@@ -20,7 +18,7 @@ final class HistoryPageMerger
     private const GRPC_NOT_FOUND = 5;
 
     public function __construct(
-        private readonly WorkflowServiceClient $client,
+        private readonly WorkflowServiceClientInterface $client,
         private readonly string $namespace,
     ) {}
 
@@ -32,19 +30,15 @@ final class HistoryPageMerger
         $req = new GetWorkflowExecutionHistoryRequest();
         $req->setNamespace($this->namespace);
         $req->setExecution($execution);
-        $call = $this->client->GetWorkflowExecutionHistory($req);
-        /** @var array{0: GetWorkflowExecutionHistoryResponse|null, 1: \stdClass} $pair */
-        $pair = $call->wait();
-        [$response, $status] = $pair;
-        $code = $status->code ?? -1;
-        if (self::GRPC_NOT_FOUND === $code) {
-            return new History();
-        }
-        if (0 !== $code) {
-            throw new \RuntimeException(\sprintf('Temporal gRPC error [%s]: %s', (string) $code, (string) ($status->details ?? '')));
-        }
-        if (null === $response) {
-            throw new \RuntimeException('Temporal gRPC returned empty response.');
+
+        try {
+            $response = $this->client->GetWorkflowExecutionHistory($req);
+        } catch (\RuntimeException $e) {
+            if (self::GRPC_NOT_FOUND === $e->getCode()) {
+                return new History();
+            }
+
+            throw $e;
         }
         $base = $response->getHistory();
         if (null === $base) {
@@ -87,11 +81,7 @@ final class HistoryPageMerger
             $req->setNamespace($this->namespace);
             $req->setExecution($execution);
             $req->setNextPageToken($token);
-            $call = $this->client->GetWorkflowExecutionHistory($req);
-            $resp = GrpcUnary::wait($call);
-            if (!$resp instanceof GetWorkflowExecutionHistoryResponse) {
-                throw new \RuntimeException('Unexpected GetWorkflowExecutionHistory response type.');
-            }
+            $resp = $this->client->GetWorkflowExecutionHistory($req);
             $chunk = $resp->getHistory();
             if (null !== $chunk) {
                 $merged = [];

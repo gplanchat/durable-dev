@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Store;
 
 use Google\Protobuf\Timestamp;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
@@ -18,8 +18,6 @@ use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
 use Temporal\Api\Workflow\V1\WorkflowExecutionInfo;
 use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsRequest;
-use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * The catalog of executions as Temporal sees it, in the vocabulary of the component.
@@ -38,7 +36,7 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     private const BACKEND = 'Temporal';
 
     public function __construct(
-        private readonly WorkflowServiceClient $client,
+        private readonly WorkflowServiceClientInterface $client,
         private readonly TemporalConnection $connection,
         private readonly ?TemporalHistoryCursor $historyCursor = null,
     ) {}
@@ -55,15 +53,11 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
             $request->setNextPageToken(self::decodeCursor($cursor));
         }
 
-        $response = GrpcUnary::wait($this->client->ListWorkflowExecutions(
+        $response = $this->client->ListWorkflowExecutions(
             $request,
             [],
             ['timeout' => TemporalGrpcTimeouts::SHORT_US],
-        ));
-
-        if (!$response instanceof ListWorkflowExecutionsResponse) {
-            return new WorkflowRunPage([]);
-        }
+        );
 
         $runs = [];
         foreach ($response->getExecutions() as $info) {
@@ -114,11 +108,11 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
             $request->setNamespace($this->connection->namespace->name());
             $request->setPageSize(1);
 
-            GrpcUnary::wait($this->client->ListWorkflowExecutions(
+            $this->client->ListWorkflowExecutions(
                 $request,
                 [],
                 ['timeout' => TemporalGrpcTimeouts::SHORT_US],
-            ));
+            );
         } catch (\Throwable $failure) {
             return new BackendHealth(
                 self::BACKEND,
