@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal\Grpc;
 
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Temporal\Api\Workflowservice\V1\PollNexusTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollNexusTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RequestCancelWorkflowExecutionRequest;
@@ -14,7 +15,6 @@ use Temporal\Api\Workflowservice\V1\RespondNexusTaskFailedRequest;
 use Temporal\Api\Workflowservice\V1\RespondNexusTaskFailedResponse;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * The RPCs that concern the **Nexus tasks** served by this component.
@@ -33,7 +33,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final readonly class WorkflowServiceNexusRpc
 {
     public function __construct(
-        private WorkflowServiceClient $client,
+        private WorkflowServiceClientInterface $client,
     ) {}
 
     /**
@@ -46,8 +46,7 @@ final readonly class WorkflowServiceNexusRpc
         array $callOptions = [],
     ): PollNexusTaskQueueResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::LONG_POLL_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->PollNexusTaskQueue($request, $metadata, $opts));
-        \assert($r instanceof PollNexusTaskQueueResponse);
+        $r = $this->client->PollNexusTaskQueue($request, $metadata, $opts);
 
         return $r;
     }
@@ -62,8 +61,7 @@ final readonly class WorkflowServiceNexusRpc
         array $callOptions = [],
     ): RespondNexusTaskCompletedResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->RespondNexusTaskCompleted($request, $metadata, $opts));
-        \assert($r instanceof RespondNexusTaskCompletedResponse);
+        $r = $this->client->RespondNexusTaskCompleted($request, $metadata, $opts);
 
         return $r;
     }
@@ -78,8 +76,7 @@ final readonly class WorkflowServiceNexusRpc
         array $callOptions = [],
     ): RespondNexusTaskFailedResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->RespondNexusTaskFailed($request, $metadata, $opts));
-        \assert($r instanceof RespondNexusTaskFailedResponse);
+        $r = $this->client->RespondNexusTaskFailed($request, $metadata, $opts);
 
         return $r;
     }
@@ -94,8 +91,7 @@ final readonly class WorkflowServiceNexusRpc
         array $callOptions = [],
     ): StartWorkflowExecutionResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->StartWorkflowExecution($request, $metadata, $opts));
-        \assert($r instanceof StartWorkflowExecutionResponse);
+        $r = $this->client->StartWorkflowExecution($request, $metadata, $opts);
 
         return $r;
     }
@@ -110,8 +106,7 @@ final readonly class WorkflowServiceNexusRpc
         array $callOptions = [],
     ): RequestCancelWorkflowExecutionResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->RequestCancelWorkflowExecution($request, $metadata, $opts));
-        \assert($r instanceof RequestCancelWorkflowExecutionResponse);
+        $r = $this->client->RequestCancelWorkflowExecution($request, $metadata, $opts);
 
         return $r;
     }
