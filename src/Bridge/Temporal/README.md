@@ -1,6 +1,6 @@
 # `gplanchat/durable-bridge-temporal` (`src/Bridge/Temporal`)
 
-**gRPC** bridge (without the official Temporal PHP SDK) to persist the Durable journal in a **minimal Temporal workflow**.
+**gRPC** bridge (without the official Temporal PHP SDK) to persist the Durable journal in a **minimal Temporal workflow**. The wire is `ext-grpc` by default; every collaborator depends on `WorkflowServiceClientInterface`, so the sibling `durable-bridge-temporal-http` package can carry the same RPCs over curl.
 
 > **Read-only mirror.** This repository is a subtree-split of
 > **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
@@ -18,7 +18,7 @@ PHP namespace: **`Gplanchat\Bridge\Temporal`**.
 
 ## Requirements
 
-- PHP **ext-grpc**
+- PHP **ext-grpc** for the default transport, or the `gplanchat/durable-bridge-temporal-http` package for `transport=grpc-curl` (curl over HTTP/2, no extension) and `transport=http` (the server JSON gateway, client calls only)
 - A reachable Temporal frontend (e.g. `host:7233`)
 
 ## Components
@@ -37,7 +37,7 @@ PHP namespace: **`Gplanchat\Bridge\Temporal`**.
 temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&tls=0
 ```
 
-Query parameters: `namespace`, `task_queue` or `journal_task_queue`, `workflow_type`, `workflow_task_queue`, `activity_task_queue`, `identity`, `tls` (bool).
+Query parameters: `namespace`, `task_queue` or `journal_task_queue`, `workflow_type`, `workflow_task_queue`, `activity_task_queue`, `identity`, `tls` (bool), `transport` (`grpc`, `grpc-curl`, `http`).
 
 ### Journal (receive-only)
 

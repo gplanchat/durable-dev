@@ -88,7 +88,7 @@ profileur Symfony fonctionne d'un processus à l'autre.
 
 | Clé | Valeurs | Défaut | Description |
 |-----|---------|--------|-------------|
-| `dsn` | `temporal://hôte:port?…` ou `null` | `null` | À `null` : backend Messenger en mémoire. Défini : active le backend gRPC Temporal (`ext-grpc` requis). |
+| `dsn` | `temporal://hôte:port?…` ou `null` | `null` | À `null` : backend Messenger en mémoire. Défini : active le backend Temporal, via `ext-grpc` par défaut ou via curl seul avec `transport=grpc-curl` (voir les paramètres du DSN). |
 | `journal` | `true` / `false` | `true` | `false` dit que le cluster est joignable **sans** être le journal : `event_store` reste la source de vérité, et le tableau de bord continue de la lire. C'est ainsi qu'une application dont le journal est DBAL sert une opération Nexus ; voir [Opérations Nexus](../nexus/). Poser un DSN avec `journal: true` à côté d'`event_store.type: dbal` est refusé : le journal ne peut pas avoir deux sources de vérité. |
 
 ### Format du DSN
@@ -103,6 +103,7 @@ temporal://HÔTE:PORT?namespace=ESPACE&journal_task_queue=FILE&activity_task_que
 | `journal_task_queue` | oui | File des tâches de workflow (par exemple `durable-journal`). |
 | `activity_task_queue` | oui | File des tâches d'activité (par exemple `durable-activities`). |
 | `tls` | non (défaut `0`) | `tls=1` pour activer TLS sur la connexion gRPC. |
+| `transport` | non (défaut `grpc`) | `grpc` passe par `ext-grpc`. `grpc-curl` parle le même protocole gRPC à travers le curl de PHP (HTTP/2), sans extension, workers compris. `http` passe par la passerelle JSON du serveur (port `7243` par défaut) : appels client seulement, aucun worker ne peut y interroger sa file. Les deux derniers demandent `gplanchat/durable-bridge-temporal-http`. |
 
 **Exemple :**
 ```
