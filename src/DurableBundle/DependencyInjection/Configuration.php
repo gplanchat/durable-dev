@@ -36,7 +36,7 @@ final class Configuration implements ConfigurationInterface
             ->children()
             ->scalarNode('dsn')
             ->defaultNull()
-            ->info('A temporal://… DSN (for instance %env(DURABLE_DSN)%). When set, it turns on the native Temporal backend (gRPC); requires ext-grpc. No SQL/PDO.')
+            ->info('A temporal://… DSN (for instance %env(DURABLE_DSN)%). When set, it turns on the native Temporal backend (gRPC); needs ext-grpc, or gplanchat/durable-bridge-temporal-http with transport=grpc-curl. No SQL/PDO.')
             ->end()
             ->booleanNode('journal')
             ->defaultTrue()

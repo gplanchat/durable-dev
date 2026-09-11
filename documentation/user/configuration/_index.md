@@ -85,7 +85,7 @@ The `in_memory` event store is still correct when `temporal.dsn` is set. `Tempor
 
 | Key | Values | Default | Description |
 |-----|--------|---------|-------------|
-| `dsn` | `temporal://host:port?…` or `null` | `null` | When `null`: In-Memory Messenger backend. When set: activates the Temporal gRPC backend (`ext-grpc` required). |
+| `dsn` | `temporal://host:port?…` or `null` | `null` | When `null`: In-Memory Messenger backend. When set: activates the Temporal backend, over `ext-grpc` by default or over plain curl with `transport=grpc-curl` (see the DSN parameters). |
 | `journal` | `true` / `false` | `true` | `false` says the cluster is reachable **without** being the journal: `event_store` stays the source of truth, and the dashboard keeps reading it. That is how an application with a DBAL journal serves a Nexus operation; see [Nexus operations](../nexus/). Setting a DSN with `journal: true` alongside `event_store.type: dbal` is refused: the journal cannot have two sources of truth. |
 
 ### DSN format
@@ -100,6 +100,7 @@ temporal://HOST:PORT?namespace=NAMESPACE&journal_task_queue=QUEUE&activity_task_
 | `journal_task_queue` | yes | Task queue for workflow tasks (e.g. `durable-journal`). |
 | `activity_task_queue` | yes | Task queue for activity tasks (e.g. `durable-activities`). |
 | `tls` | no (default `0`) | Set `tls=1` to enable TLS for the gRPC connection. |
+| `transport` | no (default `grpc`) | `grpc` uses `ext-grpc`. `grpc-curl` speaks the same gRPC protocol through PHP curl (HTTP/2), no extension needed, workers included. `http` uses the server JSON gateway (port `7243` by default): client calls only, no worker can poll through it. The last two need `gplanchat/durable-bridge-temporal-http`. |
 
 **Example:**
 ```
