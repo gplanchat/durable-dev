@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace integration\Temporal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
 use Gplanchat\Durable\Nexus\NexusOperationHeaders;
@@ -46,7 +46,6 @@ use Temporal\Api\Workflowservice\V1\RespondNexusTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * §3.1 — the probe that settles the design's central hypothesis.
@@ -73,7 +72,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final class NexusAsynchronousFulfilmentTest extends TestCase
 {
     private TemporalConnection $connection;
-    private WorkflowServiceClient $client;
+    private WorkflowServiceClientInterface $client;
     private OperatorServiceClient $operator;
     private string $endpointName;
     private string $endpointId = '';
@@ -111,7 +110,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
         $request = new CreateNexusEndpointRequest();
         $request->setSpec($spec);
 
-        $created = GrpcUnary::wait($this->operator->CreateNexusEndpoint($request, [], ['timeout' => 10_000_000]));
+        $created = $this->operator->CreateNexusEndpoint($request, [], ['timeout' => 10_000_000]);
         $endpoint = $created->getEndpoint();
         self::assertNotNull($endpoint);
         $this->endpointId = $endpoint->getId();
@@ -127,7 +126,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
             $request->setReason('fin de la sonde');
 
             try {
-                GrpcUnary::wait($this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]));
+                $this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]);
             } catch (\RuntimeException) {
             }
         }
@@ -138,7 +137,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
             $request->setVersion($this->endpointVersion);
 
             try {
-                GrpcUnary::wait($this->operator->DeleteNexusEndpoint($request, [], ['timeout' => 10_000_000]));
+                $this->operator->DeleteNexusEndpoint($request, [], ['timeout' => 10_000_000]);
             } catch (\RuntimeException) {
             }
         }
@@ -222,7 +221,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
         $request->setRequestId(bin2hex(random_bytes(8)));
         $request->setCompletionCallbacks([$callback]);
 
-        GrpcUnary::wait($this->client->StartWorkflowExecution($request, [], ['timeout' => 10_000_000]));
+        $this->client->StartWorkflowExecution($request, [], ['timeout' => 10_000_000]);
         $this->started[] = $workflowId;
 
         return $workflowId;
@@ -242,14 +241,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
         $request->setIdentity($this->connection->identity);
         $request->setTaskToken($taskToken);
         $request->setResponse($response);
-
-        /** @var array{0: mixed, 1: \stdClass} $pair */
-        $pair = $this->client->RespondNexusTaskCompleted($request, [], ['timeout' => 20_000_000])->wait();
-        self::assertSame(
-            0,
-            (int) ($pair[1]->code ?? -1),
-            'The server refused the asynchronous answer: ' . (string) ($pair[1]->details ?? ''),
-        );
+        $this->client->RespondNexusTaskCompleted($request, [], ['timeout' => 20_000_000]);
     }
 
     /**
@@ -322,7 +314,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
             $poll->setTaskQueue(new TaskQueue(['name' => $this->connection->workflowTaskQueue->name()]));
             $poll->setIdentity($this->connection->identity);
 
-            $task = GrpcUnary::wait($this->client->PollNexusTaskQueue($poll, [], ['timeout' => 30_000_000]));
+            $task = $this->client->PollNexusTaskQueue($poll, [], ['timeout' => 30_000_000]);
             // §1.2: an empty queue returns an empty token and a null request. That is a success.
             if ('' !== (string) $task->getTaskToken()) {
                 return $task;
@@ -339,7 +331,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
         $poll->setTaskQueue(new TaskQueue(['name' => $this->connection->workflowTaskQueue->name()]));
         $poll->setIdentity($this->connection->identity);
 
-        return GrpcUnary::wait($this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]));
+        return $this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]);
     }
 
     /**
@@ -352,13 +344,6 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
         $done->setTaskToken($task->getTaskToken());
         $done->setIdentity($this->connection->identity);
         $done->setCommands($commands);
-
-        /** @var array{0: mixed, 1: \stdClass} $pair */
-        $pair = $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000])->wait();
-        self::assertSame(
-            0,
-            (int) ($pair[1]->code ?? -1),
-            'The server refused the workflow task: ' . (string) ($pair[1]->details ?? ''),
-        );
+        $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000]);
     }
 }

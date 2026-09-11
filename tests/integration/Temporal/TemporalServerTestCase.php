@@ -4,20 +4,18 @@ declare(strict_types=1);
 
 namespace integration\Temporal;
 
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\WorkflowStartOptions;
-use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Base for the tests run against a **real** Temporal server.
@@ -28,13 +26,13 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  *     temporal server start-dev --namespace durable-test --port 7233
  *     DURABLE_TEMPORAL_ADDRESS=127.0.0.1:7233 vendor/bin/phpunit --testsuite integration
  *
- * Skipped if the address is not provided.
+ * Skipped if the address is not provided. DURABLE_TEMPORAL_TRANSPORT (grpc, the default, or
+ * grpc-curl) picks the client the whole suite talks through, workers included.
  */
-#[RequiresPhpExtension('grpc')]
 abstract class TemporalServerTestCase extends TestCase
 {
     protected TemporalConnection $connection;
-    protected WorkflowServiceClient $client;
+    protected WorkflowServiceClientInterface $client;
 
     /** @var list<string> the executions this test started, to be terminated on the way out */
     private array $startedExecutionIds = [];
@@ -51,6 +49,9 @@ abstract class TemporalServerTestCase extends TestCase
         if (false === $address || '' === $address) {
             self::markTestSkipped('DURABLE_TEMPORAL_ADDRESS not set: no Temporal server.');
         }
+        if (TemporalConnection::TRANSPORT_GRPC === self::transportFromEnv() && !\extension_loaded('grpc')) {
+            self::markTestSkipped('ext-grpc is not loaded; set DURABLE_TEMPORAL_TRANSPORT=grpc-curl to run without it.');
+        }
 
         // One queue per test: the workers of one case do not steal another case's tasks.
         $taskQueue = 'durable-it-' . bin2hex(random_bytes(6));
@@ -61,11 +62,19 @@ abstract class TemporalServerTestCase extends TestCase
             identity: 'durable-integration',
             workflowTaskQueue: $taskQueue,
             activityTaskQueue: $taskQueue,
+            transport: self::transportFromEnv(),
         );
         $this->client = WorkflowServiceClientFactory::create($this->connection);
 
         $this->spawnWorker('workflow');
         $this->spawnWorker('activity');
+    }
+
+    public static function transportFromEnv(): string
+    {
+        $transport = getenv('DURABLE_TEMPORAL_TRANSPORT');
+
+        return \is_string($transport) && '' !== $transport ? $transport : TemporalConnection::TRANSPORT_GRPC;
     }
 
     protected function tearDown(): void
@@ -118,7 +127,7 @@ abstract class TemporalServerTestCase extends TestCase
             $request->setReason('fin du test');
 
             try {
-                GrpcUnary::wait($this->client->TerminateWorkflowExecution($request, [], ['timeout' => 5_000_000]));
+                $this->client->TerminateWorkflowExecution($request, [], ['timeout' => 5_000_000]);
             } catch (\Throwable) {
                 // Already terminated, or server unavailable: neither is the subject of the test.
             }
@@ -274,6 +283,7 @@ abstract class TemporalServerTestCase extends TestCase
                 $this->connection->namespace->name(),
                 $this->connection->workflowTaskQueue,
                 $role,
+                $this->connection->transport,
             ],
             $descriptors,
             $pipes,
