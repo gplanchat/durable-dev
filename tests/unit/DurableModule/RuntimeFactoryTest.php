@@ -28,6 +28,11 @@ use unit\DurableModule\Fixture\RecordingOrderActivities;
  * It is the same rule as for the SQL bridges, one notch lower: what is installed and configured
  * decides, not a string that can be written crooked.
  */
+/*
+ * The DSNs below name transport=grpc-curl: which client the factory builds is not what these
+ * tests measure, and the ext-grpc client cannot even be instantiated without the extension, so
+ * the curl one keeps the tests runnable in the CI job that deliberately has no ext-grpc.
+ */
 final class RuntimeFactoryTest extends TestCase
 {
     public function testWithoutADsnTheJournalLivesInTheProcessAndDiesWithIt(): void
@@ -40,7 +45,7 @@ final class RuntimeFactoryTest extends TestCase
     public function testADsnPutsTheJournalInTheCluster(): void
     {
         $runtime = (new RuntimeFactory(
-            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0',
+            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0&transport=grpc-curl',
         ))->create();
 
         self::assertInstanceOf(TemporalJournalEventStore::class, $runtime->eventStore());
@@ -58,7 +63,7 @@ final class RuntimeFactoryTest extends TestCase
     public function testTheCatalogAsksTheClusterWhenThereIsOne(): void
     {
         $catalog = (new RuntimeFactory(
-            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0',
+            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0&transport=grpc-curl',
         ))->catalog();
 
         self::assertInstanceOf(TemporalWorkflowRunCatalog::class, $catalog);
@@ -82,7 +87,7 @@ final class RuntimeFactoryTest extends TestCase
     {
         $worker = (new RuntimeFactory(
             workflowClasses: [OrderWorkflow::class],
-            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0',
+            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0&transport=grpc-curl',
         ))->journalWorker();
 
         self::assertInstanceOf(WorkflowTaskProcessor::class, $worker);
@@ -112,7 +117,7 @@ final class RuntimeFactoryTest extends TestCase
     {
         $worker = (new RuntimeFactory(
             activityHandlers: [new RecordingOrderActivities()],
-            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0',
+            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0&transport=grpc-curl',
         ))->activityWorker();
 
         self::assertInstanceOf(TemporalActivityWorker::class, $worker);
@@ -125,7 +130,7 @@ final class RuntimeFactoryTest extends TestCase
     public function testAWorkflowCanBeStartedOnTheClusterRatherThanInThisProcess(): void
     {
         $client = (new RuntimeFactory(
-            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0',
+            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0&transport=grpc-curl',
         ))->workflowClient();
 
         self::assertInstanceOf(WorkflowClient::class, $client);
@@ -159,6 +164,6 @@ final class RuntimeFactoryTest extends TestCase
             ['test.order.charge', 'test.order.reserve', 'test.order.notify'],
             $declared(null),
         );
-        self::assertSame($declared(null), $declared('temporal://127.0.0.1:7234?namespace=default&tls=0'));
+        self::assertSame($declared(null), $declared('temporal://127.0.0.1:7234?namespace=default&tls=0&transport=grpc-curl'));
     }
 }
