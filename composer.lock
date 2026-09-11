@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d5a30b88c750464826ffb257af16cc68",
+    "content-hash": "a9ab43ed64e65fe02d0d74572f5bcc01",
     "packages": [
         {
             "name": "brick/math",
@@ -650,10 +650,9 @@
             "dist": {
                 "type": "path",
                 "url": "src/Bridge/Temporal",
-                "reference": "c9faa1e201c1e56e477c3bfc4fc9e642774ebf09"
+                "reference": "aba77e8ebeb09e5c3351b162f6f7b73e561f2514"
             },
             "require": {
-                "ext-grpc": "*",
                 "google/common-protos": "^4.9",
                 "google/protobuf": "^4.31",
                 "gplanchat/durable": "self.version",
@@ -663,6 +662,10 @@
                 "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
                 "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
                 "symfony/messenger": "^6.4 || ^7.0 || ^8.0"
+            },
+            "suggest": {
+                "ext-grpc": "For transport=grpc (the default): the generated stub over the gRPC extension",
+                "gplanchat/durable-bridge-temporal-http": "For transport=grpc-curl or transport=http: the same RPCs without ext-grpc"
             },
             "type": "library",
             "extra": {
@@ -686,12 +689,62 @@
                     "email": "gregory@gyroscops.com"
                 }
             ],
-            "description": "Temporal journal EventStore + worker (gRPC only, no Temporal PHP SDK) for gplanchat/durable",
+            "description": "Temporal journal EventStore + worker (gRPC, no Temporal PHP SDK) for gplanchat/durable",
             "keywords": [
                 "durable-execution",
                 "grpc",
                 "long-running",
                 "nexus",
+                "orchestration",
+                "temporal",
+                "temporalio",
+                "workflow"
+            ],
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "gplanchat/durable-bridge-temporal-http",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "src/Bridge/TemporalHttp",
+                "reference": "038a730a0d9a1bd1c5b7c627d60ff05fd37468ae"
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-json": "*",
+                "google/protobuf": "^4.31",
+                "gplanchat/durable-bridge-temporal": "self.version",
+                "php": ">=8.2"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\Bridge\\TemporalHttp\\": "./"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "Temporal WorkflowService clients for gplanchat/durable without ext-grpc: gRPC over curl/HTTP2, and the server JSON gateway",
+            "keywords": [
+                "curl",
+                "durable-execution",
+                "grpc",
+                "http",
                 "orchestration",
                 "temporal",
                 "temporalio",
@@ -11844,6 +11897,7 @@
         "gplanchat/durable-bridge-dbal": 20,
         "gplanchat/durable-bridge-illuminate": 20,
         "gplanchat/durable-bridge-temporal": 20,
+        "gplanchat/durable-bridge-temporal-http": 20,
         "gplanchat/durable-bundle": 20,
         "gplanchat/durable-laravel": 20,
         "gplanchat/durable-phpstan": 20,
