@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace integration\Temporal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
+use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
@@ -110,7 +111,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
         $request = new CreateNexusEndpointRequest();
         $request->setSpec($spec);
 
-        $created = $this->operator->CreateNexusEndpoint($request, [], ['timeout' => 10_000_000]);
+        $created = GrpcUnary::wait($this->operator->CreateNexusEndpoint($request, [], ['timeout' => 10_000_000]));
         $endpoint = $created->getEndpoint();
         self::assertNotNull($endpoint);
         $this->endpointId = $endpoint->getId();
@@ -137,7 +138,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
             $request->setVersion($this->endpointVersion);
 
             try {
-                $this->operator->DeleteNexusEndpoint($request, [], ['timeout' => 10_000_000]);
+                GrpcUnary::wait($this->operator->DeleteNexusEndpoint($request, [], ['timeout' => 10_000_000]));
             } catch (\RuntimeException) {
             }
         }

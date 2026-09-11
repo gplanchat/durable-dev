@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace integration\Temporal;
 
 use Google\Protobuf\Duration;
+use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
@@ -95,7 +96,7 @@ final class NexusOperationBoundsTest extends TestCase
         $req = new CreateNexusEndpointRequest();
         $req->setSpec($spec);
 
-        $created = $this->operator->CreateNexusEndpoint($req, [], ['timeout' => 10_000_000]);
+        $created = GrpcUnary::wait($this->operator->CreateNexusEndpoint($req, [], ['timeout' => 10_000_000]));
         $endpoint = $created->getEndpoint();
         self::assertNotNull($endpoint);
         $this->endpointId = $endpoint->getId();
@@ -122,7 +123,7 @@ final class NexusOperationBoundsTest extends TestCase
             $req->setVersion($this->endpointVersion);
 
             try {
-                $this->operator->DeleteNexusEndpoint($req, [], ['timeout' => 10_000_000]);
+                GrpcUnary::wait($this->operator->DeleteNexusEndpoint($req, [], ['timeout' => 10_000_000]));
             } catch (\RuntimeException) {
             }
         }
