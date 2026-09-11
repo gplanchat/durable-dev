@@ -8,13 +8,12 @@ use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Nexus\Serving\NexusHandlerErrorType;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationResponse;
-use Grpc\UnaryCall;
-use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Nexus\V1\CancelOperationRequest;
 use Temporal\Api\Nexus\V1\Request as NexusRequest;
@@ -28,7 +27,6 @@ use Temporal\Api\Workflowservice\V1\RespondNexusTaskFailedRequest;
 use Temporal\Api\Workflowservice\V1\RespondNexusTaskFailedResponse;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * The worker seen from the wire: what it sends to the server for each shape of answer.
@@ -38,21 +36,20 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * prove is that the server accepts what is sent to it: that is the job of
  * {@see \integration\Temporal\NexusServedOperationTest}.
  */
-#[RequiresPhpExtension('grpc')]
 final class TemporalNexusWorkerTest extends TestCase
 {
-    private WorkflowServiceClient $grpc;
+    private WorkflowServiceClientInterface $grpc;
 
     protected function setUp(): void
     {
-        $this->grpc = $this->createMock(WorkflowServiceClient::class);
+        $this->grpc = $this->createMock(WorkflowServiceClientInterface::class);
     }
 
     public function testAnEmptyPollDoesNothingAtAll(): void
     {
         // §1.2: an empty queue returns an empty token after ~11 s, and that is a success.
         // Treating it as an error would make the loop spin empty while shouting.
-        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call(new PollNexusTaskQueueResponse()));
+        $this->grpc->method('PollNexusTaskQueue')->willReturn(new PollNexusTaskQueueResponse());
         $this->grpc->expects($this->never())->method('RespondNexusTaskCompleted');
         $this->grpc->expects($this->never())->method('RespondNexusTaskFailed');
         $this->grpc->expects($this->never())->method('StartWorkflowExecution');
@@ -69,15 +66,15 @@ final class TemporalNexusWorkerTest extends TestCase
             static fn(mixed $payload): NexusOperationResponse => NexusOperationResponse::completed(['charged' => $payload['amount']]),
         );
 
-        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call($this->startTask(['amount' => 10])));
+        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->startTask(['amount' => 10]));
         $this->grpc->expects($this->never())->method('StartWorkflowExecution');
 
         $sent = null;
         $this->grpc->expects($this->once())->method('RespondNexusTaskCompleted')
-            ->willReturnCallback(function (RespondNexusTaskCompletedRequest $request) use (&$sent): UnaryCall {
+            ->willReturnCallback(function (RespondNexusTaskCompletedRequest $request) use (&$sent): RespondNexusTaskCompletedResponse {
                 $sent = $request;
 
-                return $this->call(new RespondNexusTaskCompletedResponse());
+                return new RespondNexusTaskCompletedResponse();
             });
 
         $this->worker($registry)->pollOnce();
@@ -100,25 +97,25 @@ final class TemporalNexusWorkerTest extends TestCase
             static fn(): NexusOperationResponse => NexusOperationResponse::fulfilledByWorkflow('ChargeWorkflow', ['amount' => 10], 'charge-1'),
         );
 
-        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call($this->startTask(['amount' => 10])));
+        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->startTask(['amount' => 10]));
 
         $order = [];
         $started = null;
         $this->grpc->expects($this->once())->method('StartWorkflowExecution')
-            ->willReturnCallback(function (StartWorkflowExecutionRequest $request) use (&$order, &$started): UnaryCall {
+            ->willReturnCallback(function (StartWorkflowExecutionRequest $request) use (&$order, &$started): StartWorkflowExecutionResponse {
                 $order[] = 'start';
                 $started = $request;
 
-                return $this->call(new StartWorkflowExecutionResponse());
+                return new StartWorkflowExecutionResponse();
             });
 
         $answered = null;
         $this->grpc->expects($this->once())->method('RespondNexusTaskCompleted')
-            ->willReturnCallback(function (RespondNexusTaskCompletedRequest $request) use (&$order, &$answered): UnaryCall {
+            ->willReturnCallback(function (RespondNexusTaskCompletedRequest $request) use (&$order, &$answered): RespondNexusTaskCompletedResponse {
                 $order[] = 'respond';
                 $answered = $request;
 
-                return $this->call(new RespondNexusTaskCompletedResponse());
+                return new RespondNexusTaskCompletedResponse();
             });
 
         $this->worker($registry)->pollOnce();
@@ -141,14 +138,14 @@ final class TemporalNexusWorkerTest extends TestCase
     {
         // §2.4 and §1b.3: NOT_IMPLEMENTED is terminal. Made retryable, the same operation would
         // come back every ~9 s for its whole budget, for the same answer.
-        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call($this->startTask([])));
+        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->startTask([]));
 
         $sent = null;
         $this->grpc->expects($this->once())->method('RespondNexusTaskFailed')
-            ->willReturnCallback(function (RespondNexusTaskFailedRequest $request) use (&$sent): UnaryCall {
+            ->willReturnCallback(function (RespondNexusTaskFailedRequest $request) use (&$sent): RespondNexusTaskFailedResponse {
                 $sent = $request;
 
-                return $this->call(new RespondNexusTaskFailedResponse());
+                return new RespondNexusTaskFailedResponse();
             });
 
         $this->worker(NexusOperationRegistry::routedBy('temporal'))->pollOnce();
@@ -171,14 +168,14 @@ final class TemporalNexusWorkerTest extends TestCase
             static fn(): NexusOperationResponse => throw new \RuntimeException('la base est tombée'),
         );
 
-        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call($this->startTask([])));
+        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->startTask([]));
 
         $sent = null;
         $this->grpc->expects($this->once())->method('RespondNexusTaskFailed')
-            ->willReturnCallback(function (RespondNexusTaskFailedRequest $request) use (&$sent): UnaryCall {
+            ->willReturnCallback(function (RespondNexusTaskFailedRequest $request) use (&$sent): RespondNexusTaskFailedResponse {
                 $sent = $request;
 
-                return $this->call(new RespondNexusTaskFailedResponse());
+                return new RespondNexusTaskFailedResponse();
             });
 
         $this->worker($registry)->pollOnce();
@@ -196,22 +193,22 @@ final class TemporalNexusWorkerTest extends TestCase
         // Probe §4: the cancellation task names the token returned at start, and that token is
         // the workflow this worker started. Cancelling the operation means cancelling that
         // workflow.
-        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call($this->cancelTask('charge-1')));
+        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->cancelTask('charge-1'));
 
         $cancelled = null;
         $this->grpc->expects($this->once())->method('RequestCancelWorkflowExecution')
-            ->willReturnCallback(function (RequestCancelWorkflowExecutionRequest $request) use (&$cancelled): UnaryCall {
+            ->willReturnCallback(function (RequestCancelWorkflowExecutionRequest $request) use (&$cancelled): RequestCancelWorkflowExecutionResponse {
                 $cancelled = $request;
 
-                return $this->call(new RequestCancelWorkflowExecutionResponse());
+                return new RequestCancelWorkflowExecutionResponse();
             });
 
         $answered = null;
         $this->grpc->expects($this->once())->method('RespondNexusTaskCompleted')
-            ->willReturnCallback(function (RespondNexusTaskCompletedRequest $request) use (&$answered): UnaryCall {
+            ->willReturnCallback(function (RespondNexusTaskCompletedRequest $request) use (&$answered): RespondNexusTaskCompletedResponse {
                 $answered = $request;
 
-                return $this->call(new RespondNexusTaskCompletedResponse());
+                return new RespondNexusTaskCompletedResponse();
             });
 
         $this->worker(NexusOperationRegistry::routedBy('temporal'))->pollOnce();
@@ -227,12 +224,15 @@ final class TemporalNexusWorkerTest extends TestCase
     {
         // The workflow may have ended between the request and us. The operation is already
         // settled: insisting would ask for the task again for the whole budget, for nothing.
-        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call($this->cancelTask('charge-1')));
+        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->cancelTask('charge-1'));
         $this->grpc->method('RequestCancelWorkflowExecution')
-            ->willReturn($this->call(null, \Grpc\STATUS_NOT_FOUND));
+            ->willThrowException(new \RuntimeException(
+                sprintf('Temporal gRPC error [%d]: %s', 5, 'workflow execution already completed'),
+                5,
+            ));
 
         $this->grpc->expects($this->once())->method('RespondNexusTaskCompleted')
-            ->willReturn($this->call(new RespondNexusTaskCompletedResponse()));
+            ->willReturn(new RespondNexusTaskCompletedResponse());
         $this->grpc->expects($this->never())->method('RespondNexusTaskFailed');
 
         $this->worker(NexusOperationRegistry::routedBy('temporal'))->pollOnce();
@@ -240,15 +240,15 @@ final class TemporalNexusWorkerTest extends TestCase
 
     public function testACancellationWithoutATokenIsRefusedTerminally(): void
     {
-        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->call($this->cancelTask('')));
+        $this->grpc->method('PollNexusTaskQueue')->willReturn($this->cancelTask(''));
         $this->grpc->expects($this->never())->method('RequestCancelWorkflowExecution');
 
         $sent = null;
         $this->grpc->expects($this->once())->method('RespondNexusTaskFailed')
-            ->willReturnCallback(function (RespondNexusTaskFailedRequest $request) use (&$sent): UnaryCall {
+            ->willReturnCallback(function (RespondNexusTaskFailedRequest $request) use (&$sent): RespondNexusTaskFailedResponse {
                 $sent = $request;
 
-                return $this->call(new RespondNexusTaskFailedResponse());
+                return new RespondNexusTaskFailedResponse();
             });
 
         $this->worker(NexusOperationRegistry::routedBy('temporal'))->pollOnce();
@@ -301,16 +301,5 @@ final class TemporalNexusWorkerTest extends TestCase
         $task->setRequest($request);
 
         return $task;
-    }
-
-    private function call(mixed $response, int $code = \Grpc\STATUS_OK): UnaryCall
-    {
-        $call = $this->createMock(UnaryCall::class);
-        $status = new \stdClass();
-        $status->code = $code;
-        $status->details = '';
-        $call->method('wait')->willReturn([$response, $status]);
-
-        return $call;
     }
 }

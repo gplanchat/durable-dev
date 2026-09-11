@@ -9,11 +9,10 @@ use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
-use Grpc\UnaryCall;
-use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\WorkflowExecution;
@@ -30,27 +29,25 @@ use Temporal\Api\Query\V1\WorkflowQuery;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * Tests for WorkflowTaskProcessor — the poll → execute → respond loop.
  *
  * Strategy:
- * - Mock WorkflowServiceClient.PollWorkflowTaskQueue to return an inline-history PollResponse.
- * - Mock WorkflowServiceClient.RespondWorkflowTaskCompleted to capture the sent commands.
+ * - Mock WorkflowServiceClientInterface.PollWorkflowTaskQueue to return an inline-history PollResponse.
+ * - Mock WorkflowServiceClientInterface.RespondWorkflowTaskCompleted to capture the sent commands.
  * - Use a real WorkflowTaskRunner (final, can't mock) backed by the real TemporalHistoryCursor
  *   reading from the inline history (no gRPC pagination since next_page_token = '').
  */
-#[RequiresPhpExtension('grpc')]
 final class WorkflowTaskProcessorTest extends TestCase
 {
-    private WorkflowServiceClient $grpcClient;
+    private WorkflowServiceClientInterface $grpcClient;
     private TemporalConnection $connection;
 
     protected function setUp(): void
     {
-        $this->grpcClient = $this->createMock(WorkflowServiceClient::class);
+        $this->grpcClient = $this->createMock(WorkflowServiceClientInterface::class);
         $this->connection = new TemporalConnection('localhost:7233', 'test-namespace');
     }
 
@@ -64,18 +61,6 @@ final class WorkflowTaskProcessorTest extends TestCase
         $runner = new WorkflowTaskRunner($cursor, $registry, $this->connection);
 
         return new WorkflowTaskProcessor($this->grpcClient, $this->connection, $runner);
-    }
-
-    private function makeUnaryCallReturning(object $response): UnaryCall
-    {
-        $status = new \stdClass();
-        $status->code = \Grpc\STATUS_OK;
-        $status->details = '';
-
-        $call = $this->createMock(UnaryCall::class);
-        $call->method('wait')->willReturn([$response, $status]);
-
-        return $call;
     }
 
     private static function buildPoll(
@@ -166,7 +151,7 @@ final class WorkflowTaskProcessorTest extends TestCase
         $this->grpcClient
             ->expects($this->once())
             ->method('PollWorkflowTaskQueue')
-            ->willReturn($this->makeUnaryCallReturning($emptyPoll));
+            ->willReturn($emptyPoll);
 
         $this->grpcClient
             ->expects($this->never())
@@ -195,7 +180,7 @@ final class WorkflowTaskProcessorTest extends TestCase
         $this->grpcClient
             ->expects($this->once())
             ->method('PollWorkflowTaskQueue')
-            ->willReturn($this->makeUnaryCallReturning($poll));
+            ->willReturn($poll);
 
         $this->grpcClient
             ->expects($this->once())
@@ -203,7 +188,7 @@ final class WorkflowTaskProcessorTest extends TestCase
             ->willReturnCallback(function (RespondWorkflowTaskCompletedRequest $req) use (&$capturedRequest) {
                 $capturedRequest = $req;
 
-                return $this->makeUnaryCallReturning(new RespondWorkflowTaskCompletedResponse());
+                return new RespondWorkflowTaskCompletedResponse();
             });
 
         $processor = $this->makeProcessor($registry);
@@ -236,12 +221,12 @@ final class WorkflowTaskProcessorTest extends TestCase
 
         $capturedRequest = null;
         $this->grpcClient->method('PollWorkflowTaskQueue')
-            ->willReturn($this->makeUnaryCallReturning($poll));
+            ->willReturn($poll);
         $this->grpcClient->method('RespondWorkflowTaskCompleted')
             ->willReturnCallback(function (RespondWorkflowTaskCompletedRequest $req) use (&$capturedRequest) {
                 $capturedRequest = $req;
 
-                return $this->makeUnaryCallReturning(new RespondWorkflowTaskCompletedResponse());
+                return new RespondWorkflowTaskCompletedResponse();
             });
 
         $processor = $this->makeProcessor($registry);
@@ -274,12 +259,12 @@ final class WorkflowTaskProcessorTest extends TestCase
 
         $capturedRequest = null;
         $this->grpcClient->method('PollWorkflowTaskQueue')
-            ->willReturn($this->makeUnaryCallReturning($poll));
+            ->willReturn($poll);
         $this->grpcClient->method('RespondWorkflowTaskCompleted')
             ->willReturnCallback(function (RespondWorkflowTaskCompletedRequest $req) use (&$capturedRequest) {
                 $capturedRequest = $req;
 
-                return $this->makeUnaryCallReturning(new RespondWorkflowTaskCompletedResponse());
+                return new RespondWorkflowTaskCompletedResponse();
             });
 
         $processor = $this->makeProcessor($registry);
@@ -307,12 +292,12 @@ final class WorkflowTaskProcessorTest extends TestCase
 
         $capturedRequest = null;
         $this->grpcClient->method('PollWorkflowTaskQueue')
-            ->willReturn($this->makeUnaryCallReturning($poll));
+            ->willReturn($poll);
         $this->grpcClient->method('RespondWorkflowTaskCompleted')
             ->willReturnCallback(function (RespondWorkflowTaskCompletedRequest $req) use (&$capturedRequest) {
                 $capturedRequest = $req;
 
-                return $this->makeUnaryCallReturning(new RespondWorkflowTaskCompletedResponse());
+                return new RespondWorkflowTaskCompletedResponse();
             });
 
         $processor = $this->makeProcessor($registry);
@@ -347,12 +332,12 @@ final class WorkflowTaskProcessorTest extends TestCase
 
         $capturedRequest = null;
         $this->grpcClient->method('PollWorkflowTaskQueue')
-            ->willReturn($this->makeUnaryCallReturning($poll));
+            ->willReturn($poll);
         $this->grpcClient->method('RespondWorkflowTaskCompleted')
             ->willReturnCallback(function (RespondWorkflowTaskCompletedRequest $req) use (&$capturedRequest) {
                 $capturedRequest = $req;
 
-                return $this->makeUnaryCallReturning(new RespondWorkflowTaskCompletedResponse());
+                return new RespondWorkflowTaskCompletedResponse();
             });
 
         $processor = $this->makeProcessor($registry);
@@ -375,7 +360,7 @@ final class WorkflowTaskProcessorTest extends TestCase
         $this->grpcClient
             ->expects($this->exactly(3))
             ->method('PollWorkflowTaskQueue')
-            ->willReturn($this->makeUnaryCallReturning($emptyPoll));
+            ->willReturn($emptyPoll);
 
         $processor = $this->makeProcessor(new WorkflowRegistry());
 
@@ -410,8 +395,8 @@ final class WorkflowTaskProcessorTest extends TestCase
 
         $this->grpcClient->method('PollWorkflowTaskQueue')
             ->willReturnOnConsecutiveCalls(
-                $this->makeUnaryCallReturning($withQuery),
-                $this->makeUnaryCallReturning($withoutQuery),
+                $withQuery,
+                $withoutQuery,
             );
 
         $captured = [];
@@ -419,7 +404,7 @@ final class WorkflowTaskProcessorTest extends TestCase
             ->willReturnCallback(function (RespondWorkflowTaskCompletedRequest $req) use (&$captured) {
                 $captured[] = $req;
 
-                return $this->makeUnaryCallReturning(new RespondWorkflowTaskCompletedResponse());
+                return new RespondWorkflowTaskCompletedResponse();
             });
 
         $processor = $this->makeProcessor($registry);
@@ -450,12 +435,12 @@ final class WorkflowTaskProcessorTest extends TestCase
 
         $capturedRequest = null;
         $this->grpcClient->method('PollWorkflowTaskQueue')
-            ->willReturn($this->makeUnaryCallReturning($poll));
+            ->willReturn($poll);
         $this->grpcClient->method('RespondWorkflowTaskCompleted')
             ->willReturnCallback(function (RespondWorkflowTaskCompletedRequest $req) use (&$capturedRequest) {
                 $capturedRequest = $req;
 
-                return $this->makeUnaryCallReturning(new RespondWorkflowTaskCompletedResponse());
+                return new RespondWorkflowTaskCompletedResponse();
             });
 
         $processor = $this->makeProcessor($registry);
