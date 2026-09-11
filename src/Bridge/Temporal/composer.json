@@ -1,6 +1,6 @@
 {
     "name": "gplanchat/durable-bridge-temporal",
-    "description": "Temporal journal EventStore + worker (gRPC only, no Temporal PHP SDK) for gplanchat/durable",
+    "description": "Temporal journal EventStore + worker (gRPC, no Temporal PHP SDK) for gplanchat/durable",
     "keywords": [
         "temporal",
         "temporalio",
@@ -15,7 +15,6 @@
     "type": "library",
     "require": {
         "php": ">=8.2",
-        "ext-grpc": "*",
         "gplanchat/durable": "self.version",
         "google/common-protos": "^4.9",
         "google/protobuf": "^4.31",
@@ -24,6 +23,10 @@
         "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
         "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
         "symfony/config": "^6.4 || ^7.0 || ^8.0"
+    },
+    "suggest": {
+        "ext-grpc": "For transport=grpc (the default): the generated stub over the gRPC extension",
+        "gplanchat/durable-bridge-temporal-http": "For transport=grpc-curl or transport=http: the same RPCs without ext-grpc"
     },
     "autoload": {
         "psr-4": {
