@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
@@ -23,8 +22,6 @@ use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
 use Temporal\Api\Workflowservice\V1\SignalWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Client-side API for driving workflow executions from application code.
@@ -37,7 +34,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final class WorkflowClient implements WorkflowClientInterface
 {
     public function __construct(
-        private readonly WorkflowServiceClient $client,
+        private readonly WorkflowServiceClientInterface $client,
         private readonly TemporalConnection $settings,
         private readonly TemporalHistoryCursor $historyCursor,
         private readonly WorkflowServiceExecutionRpc $executionRpc,
@@ -176,7 +173,7 @@ final class WorkflowClient implements WorkflowClientInterface
             $req->setInput(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($args)));
         }
 
-        GrpcUnary::wait($this->client->SignalWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
+        $this->client->SignalWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
     }
 
     /**
@@ -300,28 +297,15 @@ final class WorkflowClient implements WorkflowClientInterface
         $memo->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] = JsonPlainPayload::encode($executionId);
         $req->setMemo($memo);
 
-        $call = $this->client->StartWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
-        /** @var array{0: object|null, 1: \stdClass} $pair */
-        $pair = $call->wait();
-        [$response, $status] = $pair;
-        $code = (int) ($status->code ?? -1);
-        if (0 === $code) {
-            if (!$response instanceof StartWorkflowExecutionResponse) {
-                throw new \RuntimeException('Unexpected StartWorkflowExecution response type.');
+        try {
+            $this->client->StartWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
+        } catch (\RuntimeException $e) {
+            if ($this->isWorkflowAlreadyStartedGrpcError($e->getCode(), $e->getMessage())) {
+                return;
             }
 
-            return;
+            throw $e;
         }
-
-        if ($this->isWorkflowAlreadyStartedGrpcError($code, (string) ($status->details ?? ''))) {
-            return;
-        }
-
-        throw new \RuntimeException(\sprintf(
-            'Temporal gRPC error starting workflow [%s]: %s',
-            (string) $code,
-            (string) ($status->details ?? ''),
-        ));
     }
 
     private function decodeCompletedResult(HistoryEvent $event): mixed

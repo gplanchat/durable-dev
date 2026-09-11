@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Journal\HistoryPageMerger;
 use Gplanchat\Bridge\Temporal\Journal\JournalStateResolver;
 use Gplanchat\Durable\Event\Event;
@@ -16,10 +15,7 @@ use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\WorkflowIdConflictPolicy;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
 use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionResponse;
 use Temporal\Api\Workflowservice\V1\SignalWithStartWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\SignalWithStartWorkflowExecutionResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * EventStore backed by a Temporal workflow journal (signals + server history).
@@ -37,7 +33,7 @@ final class TemporalJournalEventStore implements EventStoreInterface
     private readonly HistoryPageMerger $historyMerger;
 
     public function __construct(
-        private readonly WorkflowServiceClient $client,
+        private readonly WorkflowServiceClientInterface $client,
         private readonly TemporalConnection $settings,
     ) {
         $this->historyMerger = new HistoryPageMerger($client, $settings->namespace->name());
@@ -61,11 +57,7 @@ final class TemporalJournalEventStore implements EventStoreInterface
         $req->setIdentity($this->settings->identity);
         $req->setWorkflowIdConflictPolicy(WorkflowIdConflictPolicy::WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING);
 
-        $call = $this->client->SignalWithStartWorkflowExecution($req);
-        $started = GrpcUnary::wait($call);
-        if (!$started instanceof SignalWithStartWorkflowExecutionResponse) {
-            throw new \RuntimeException('Unexpected SignalWithStartWorkflowExecution response type.');
-        }
+        $started = $this->client->SignalWithStartWorkflowExecution($req);
 
         $runId = (string) $started->getRunId();
         if ('' !== $runId) {
@@ -131,19 +123,14 @@ final class TemporalJournalEventStore implements EventStoreInterface
         $exec->setRunId('');
         $req->setExecution($exec);
 
-        $call = $this->client->DescribeWorkflowExecution($req);
-        /** @var array{0: object|null, 1: \stdClass} $pair */
-        $pair = $call->wait();
-        [$response, $status] = $pair;
-        $code = $status->code ?? -1;
-        if (self::GRPC_NOT_FOUND === $code) {
-            return '';
-        }
-        if (0 !== $code) {
-            throw new \RuntimeException(\sprintf('Temporal gRPC error [%s]: %s', (string) $code, (string) ($status->details ?? '')));
-        }
-        if (!$response instanceof DescribeWorkflowExecutionResponse) {
-            return '';
+        try {
+            $response = $this->client->DescribeWorkflowExecution($req);
+        } catch (\RuntimeException $e) {
+            if (self::GRPC_NOT_FOUND === $e->getCode()) {
+                return '';
+            }
+
+            throw $e;
         }
         $info = $response->getWorkflowExecutionInfo();
         if (null === $info) {
