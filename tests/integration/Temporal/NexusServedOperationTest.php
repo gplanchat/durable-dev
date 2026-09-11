@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace integration\Temporal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
@@ -14,6 +13,7 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
 use Gplanchat\Durable\Nexus\NexusOperationHeaders;
@@ -41,7 +41,6 @@ use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * §6.1 — a Durable caller and a Durable handler, on a real server, in both forms.
@@ -58,7 +57,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final class NexusServedOperationTest extends TestCase
 {
     private TemporalConnection $connection;
-    private WorkflowServiceClient $client;
+    private WorkflowServiceClientInterface $client;
     private OperatorServiceClient $operator;
     private string $endpointName;
     private string $endpointId = '';
@@ -97,7 +96,7 @@ final class NexusServedOperationTest extends TestCase
         $request = new CreateNexusEndpointRequest();
         $request->setSpec($spec);
 
-        $created = GrpcUnary::wait($this->operator->CreateNexusEndpoint($request, [], ['timeout' => 10_000_000]));
+        $created = $this->operator->CreateNexusEndpoint($request, [], ['timeout' => 10_000_000]);
         $endpoint = $created->getEndpoint();
         self::assertNotNull($endpoint);
         $this->endpointId = $endpoint->getId();
@@ -113,7 +112,7 @@ final class NexusServedOperationTest extends TestCase
             $request->setReason('fin du test');
 
             try {
-                GrpcUnary::wait($this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]));
+                $this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]);
             } catch (\RuntimeException) {
             }
         }
@@ -124,7 +123,7 @@ final class NexusServedOperationTest extends TestCase
             $request->setVersion($this->endpointVersion);
 
             try {
-                GrpcUnary::wait($this->operator->DeleteNexusEndpoint($request, [], ['timeout' => 10_000_000]));
+                $this->operator->DeleteNexusEndpoint($request, [], ['timeout' => 10_000_000]);
             } catch (\RuntimeException) {
             }
         }
@@ -343,7 +342,7 @@ final class NexusServedOperationTest extends TestCase
         $poll->setTaskQueue(new TaskQueue(['name' => $this->queue]));
         $poll->setIdentity($this->connection->identity);
 
-        return GrpcUnary::wait($this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]));
+        return $this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]);
     }
 
     /**
@@ -356,13 +355,6 @@ final class NexusServedOperationTest extends TestCase
         $done->setTaskToken($task->getTaskToken());
         $done->setIdentity($this->connection->identity);
         $done->setCommands($commands);
-
-        /** @var array{0: mixed, 1: \stdClass} $pair */
-        $pair = $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000])->wait();
-        self::assertSame(
-            0,
-            (int) ($pair[1]->code ?? -1),
-            'The server refused the workflow task: ' . (string) ($pair[1]->details ?? ''),
-        );
+        $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000]);
     }
 }

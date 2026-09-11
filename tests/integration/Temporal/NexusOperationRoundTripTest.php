@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace integration\Temporal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
 use Gplanchat\Durable\Nexus\NexusOperationHeaders;
@@ -33,7 +33,6 @@ use Temporal\Api\Taskqueue\V1\TaskQueue;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Is the command the bridge builds accepted by a real server, and does it come back unchanged in
@@ -61,7 +60,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final class NexusOperationRoundTripTest extends TestCase
 {
     private TemporalConnection $connection;
-    private WorkflowServiceClient $client;
+    private WorkflowServiceClientInterface $client;
     private OperatorServiceClient $operator;
     private string $endpointName;
     private string $endpointId = '';
@@ -98,7 +97,7 @@ final class NexusOperationRoundTripTest extends TestCase
         $request = new CreateNexusEndpointRequest();
         $request->setSpec($spec);
 
-        $created = GrpcUnary::wait($this->operator->CreateNexusEndpoint($request, [], ['timeout' => 10_000_000]));
+        $created = $this->operator->CreateNexusEndpoint($request, [], ['timeout' => 10_000_000]);
         $endpoint = $created->getEndpoint();
         self::assertNotNull($endpoint);
         $this->endpointId = $endpoint->getId();
@@ -114,7 +113,7 @@ final class NexusOperationRoundTripTest extends TestCase
             $request->setReason('fin du test');
 
             try {
-                GrpcUnary::wait($this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]));
+                $this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]);
             } catch (\RuntimeException) {
             }
         }
@@ -125,7 +124,7 @@ final class NexusOperationRoundTripTest extends TestCase
             $request->setVersion($this->endpointVersion);
 
             try {
-                GrpcUnary::wait($this->operator->DeleteNexusEndpoint($request, [], ['timeout' => 10_000_000]));
+                $this->operator->DeleteNexusEndpoint($request, [], ['timeout' => 10_000_000]);
             } catch (\RuntimeException) {
             }
         }
@@ -233,7 +232,7 @@ final class NexusOperationRoundTripTest extends TestCase
         $poll->setNamespace($this->connection->namespace->name());
         $poll->setTaskQueue(new TaskQueue(['name' => $this->connection->workflowTaskQueue->name()]));
         $poll->setIdentity($this->connection->identity);
-        $task = GrpcUnary::wait($this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]));
+        $task = $this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]);
 
         $buffer = new TemporalWorkflowCommandBuffer($this->connection, 'exec-1');
         $buffer->scheduleNexusOperation(
@@ -251,14 +250,7 @@ final class NexusOperationRoundTripTest extends TestCase
         $done->setTaskToken($task->getTaskToken());
         $done->setIdentity($this->connection->identity);
         $done->setCommands($buffer->flush());
-
-        /** @var array{0: mixed, 1: \stdClass} $pair */
-        $pair = $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000])->wait();
-        self::assertSame(
-            0,
-            (int) ($pair[1]->code ?? -1),
-            \sprintf('The server refused the bridge command: %s', (string) ($pair[1]->details ?? '')),
-        );
+        $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000]);
 
         $cursor = new TemporalHistoryCursor($this->client, $this->connection);
         foreach ($cursor->events(new WorkflowExecution(['workflow_id' => (string) $this->workflowId])) as $event) {
