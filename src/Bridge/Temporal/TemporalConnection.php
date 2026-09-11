@@ -25,6 +25,17 @@ final class TemporalConnection
 
     public const DEFAULT_QUERY_READ_STREAM = 'readStream';
 
+    /** ext-grpc and the generated stub. */
+    public const TRANSPORT_GRPC = 'grpc';
+
+    /** gRPC framing over curl/HTTP2, no extension; needs gplanchat/durable-bridge-temporal-http. */
+    public const TRANSPORT_GRPC_CURL = 'grpc-curl';
+
+    /** The server JSON gateway (port 7243): client RPCs only, no task polling; same package. */
+    public const TRANSPORT_HTTP = 'http';
+
+    public const DEFAULT_HTTP_PORT = 7243;
+
     /** Journal worker queue (poll workflow tasks). */
     public readonly TaskQueue $journalTaskQueue;
 
@@ -64,7 +75,12 @@ final class TemporalConnection
          * Null for the journal transport (receive-only); required for purpose=application.
          */
         public readonly ?string $innerMessengerDsn = null,
+        /** One of the TRANSPORT_* constants: which client {@see WorkflowServiceClientFactory} builds. */
+        public readonly string $transport = self::TRANSPORT_GRPC,
     ) {
+        if (!\in_array($transport, [self::TRANSPORT_GRPC, self::TRANSPORT_GRPC_CURL, self::TRANSPORT_HTTP], true)) {
+            throw new \InvalidArgumentException(\sprintf('Unknown Temporal transport "%s", expected grpc, grpc-curl, or http.', $transport));
+        }
         // Queue names come from a DSN: a typo there creates a queue nobody polls, without the
         // slightest error on the server side. They are validated here, at wiring time.
         $this->namespace = WorkflowNamespace::from($namespace);
@@ -87,7 +103,8 @@ final class TemporalConnection
      *
      * Typical query parameters: {@code namespace}, {@code tls}, {@code identity},
      * {@code task_queue} or {@code journal_task_queue}, {@code workflow_type},
-     * {@code workflow_task_queue}, {@code activity_task_queue}, {@code inner}.
+     * {@code workflow_task_queue}, {@code activity_task_queue}, {@code inner},
+     * {@code transport} (grpc, grpc-curl, http).
      */
     public static function fromDsn(#[\SensitiveParameter] string $dsn): self
     {
@@ -97,11 +114,14 @@ final class TemporalConnection
             throw new \InvalidArgumentException('Invalid temporal:// DSN (or legacy temporal-journal / temporal-application).');
         }
 
-        $host = $parts['host'] ?? '127.0.0.1';
-        $port = isset($parts['port']) ? (int) $parts['port'] : 7233;
-        $target = $host . ':' . $port;
-
         parse_str($parts['query'] ?? '', $q);
+
+        $transport = \is_string($q['transport'] ?? null) ? $q['transport'] : self::TRANSPORT_GRPC;
+        // The JSON gateway listens on its own port; a DSN that names the transport but not the
+        // port would otherwise talk JSON to the gRPC listener and get an opaque HTTP/2 error.
+        $host = $parts['host'] ?? '127.0.0.1';
+        $port = isset($parts['port']) ? (int) $parts['port'] : (self::TRANSPORT_HTTP === $transport ? self::DEFAULT_HTTP_PORT : 7233);
+        $target = $host . ':' . $port;
 
         $namespace = \is_string($q['namespace'] ?? null) ? $q['namespace'] : 'default';
         $identity = \is_string($q['identity'] ?? null) ? $q['identity'] : 'durable-temporal-bridge-php';
@@ -135,6 +155,7 @@ final class TemporalConnection
             activityTaskQueue: $activityTaskQueue,
             nexusTaskQueue: $nexusTaskQueue,
             innerMessengerDsn: $inner,
+            transport: $transport,
         );
     }
 
