@@ -9,11 +9,10 @@ use Google\Protobuf\Timestamp;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEventKind;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
-use Grpc\UnaryCall;
-use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\ActivityType;
 use Temporal\Api\Common\V1\WorkflowType;
@@ -27,7 +26,6 @@ use Temporal\Api\History\V1\StartChildWorkflowExecutionInitiatedEventAttributes;
 use Temporal\Api\History\V1\TimerStartedEventAttributes;
 use Temporal\Api\History\V1\WorkflowExecutionSignaledEventAttributes;
 use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * The Temporal history, read behind the port.
@@ -39,7 +37,6 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/tasks.md §5.1
  */
-#[RequiresPhpExtension('grpc')]
 final class TemporalWorkflowRunHistoryTest extends TestCase
 {
     public function testActivitiesAreLabelledWithTheirTypeName(): void
@@ -258,17 +255,10 @@ final class TemporalWorkflowRunHistoryTest extends TestCase
         return new TemporalConnection('localhost:7233', 'durable-test');
     }
 
-    private function client(GetWorkflowExecutionHistoryResponse $response): WorkflowServiceClient
+    private function client(GetWorkflowExecutionHistoryResponse $response): WorkflowServiceClientInterface
     {
-        $status = new \stdClass();
-        $status->code = \Grpc\STATUS_OK;
-        $status->details = '';
-
-        $call = $this->createMock(UnaryCall::class);
-        $call->method('wait')->willReturn([$response, $status]);
-
-        $client = $this->createMock(WorkflowServiceClient::class);
-        $client->method('GetWorkflowExecutionHistory')->willReturn($call);
+        $client = $this->createMock(WorkflowServiceClientInterface::class);
+        $client->method('GetWorkflowExecutionHistory')->willReturn($response);
 
         return $client;
     }
