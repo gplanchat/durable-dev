@@ -6,11 +6,11 @@ namespace Gplanchat\Bridge\Temporal\Spike;
 
 use Google\Protobuf\Duration;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
@@ -25,7 +25,6 @@ use Temporal\Api\Workflowservice\V1\RespondActivityTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedResponse;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Minimal end-to-end proof of **native** Temporal execution (no journal signals):
@@ -49,7 +48,7 @@ final class NativeExecutionSpike
     public const ACTIVITY_TASK_QUEUE = 'durable-native-spike-activity';
 
     public function __construct(
-        private readonly WorkflowServiceClient $client,
+        private readonly WorkflowServiceClientInterface $client,
         private readonly WorkflowServiceActivityRpc $activityRpc,
         private readonly TemporalConnection $settings,
     ) {}
@@ -83,7 +82,7 @@ final class NativeExecutionSpike
         $start->setWorkflowRunTimeout($runTimeout);
 
         $callStart = $this->client->StartWorkflowExecution($start, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
-        $started = GrpcUnary::wait($callStart);
+        $started = $callStart;
         $runId = (string) $started->getRunId();
 
         $poll1 = $this->pollWorkflowOnce($ns, $identity);
@@ -158,11 +157,7 @@ final class NativeExecutionSpike
         $req->setCommands($commands);
         $req->setReturnNewWorkflowTask($returnNewWorkflowTask);
 
-        $call = $this->client->RespondWorkflowTaskCompleted($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
-        $out = GrpcUnary::wait($call);
-        if (!$out instanceof RespondWorkflowTaskCompletedResponse) {
-            throw new \RuntimeException('Unexpected RespondWorkflowTaskCompleted response type.');
-        }
+        $out = $this->client->RespondWorkflowTaskCompleted($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
 
         return $out;
     }
@@ -176,8 +171,7 @@ final class NativeExecutionSpike
 
         $resp = null;
         for ($i = 0; $i < 120; ++$i) {
-            $call = $this->client->PollWorkflowTaskQueue($req, [], ['timeout' => TemporalGrpcTimeouts::LONG_POLL_US]);
-            $resp = GrpcUnary::wait($call);
+            $resp = $this->client->PollWorkflowTaskQueue($req, [], ['timeout' => TemporalGrpcTimeouts::LONG_POLL_US]);
             if ($resp instanceof PollWorkflowTaskQueueResponse && '' !== $resp->getTaskToken()) {
                 return $resp;
             }
