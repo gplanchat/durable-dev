@@ -9,8 +9,8 @@ This page summarizes how you **author** activities in Durable. Normative detail 
 
 ## Two pieces
 
-1. **Activity contract interface** — methods the workflow may call, each marked with **`#[AsActivityMethod]`**. From the workflow you interact through **`ActivityStub`** (**ActivityInvoker** in ADRs).
-2. **Activity implementation class** — concrete class (often annotated with **`#[AsActivity]`** for naming) that **implements** the contract and performs real work.
+1. **Activity contract interface.** Methods the workflow may call, each marked with **`#[AsActivityMethod]`**. From the workflow you interact through **`ActivityStub`** (**ActivityInvoker** in ADRs).
+2. **Activity implementation class.** A concrete class carrying **`#[AsActivityHandler]`**, naming the contract it implements. That attribute is what registers the class: the bundle autoconfigures it, and without it the workflow finds no handler at run time.
 
 ## Example: activity contract and implementation
 
@@ -22,15 +22,19 @@ The **interface** lists methods the workflow may schedule. Each exposed method c
 declare(strict_types=1);
 
 use Gplanchat\Durable\Attribute\AsActivity;
+use Gplanchat\Durable\Attribute\AsActivityHandler;
 use Gplanchat\Durable\Attribute\AsActivityMethod;
 
+// `#[AsActivity]` is optional and belongs on the **contract**: it prefixes the names of the
+// activities declared below. On an implementation class nothing reads it.
+#[AsActivity(name: 'order-activities')]
 interface OrderActivities
 {
     #[AsActivityMethod(name: 'charge-order')]
     public function charge(string $orderId): string; // synchronous return type on the worker
 }
 
-#[AsActivity(name: 'order-activities')]
+#[AsActivityHandler(contract: OrderActivities::class)]
 final class OrderActivitiesHandler implements OrderActivities
 {
     public function __construct(
@@ -70,7 +74,7 @@ The **`ActivityStub`** type (see [Creating a workflow](../workflows/) for the **
 
 Pass **`ActivityOptions`** as the **second argument** to **`activityStub()`**. Every **`Awaitable`** returned by that stub uses these settings when the activity is scheduled.
 
-Retry limits and durations are **value objects**, not numbers — see [Options and value objects](../options/).
+Retry limits and durations are **value objects**, not numbers; see [Options and value objects](../options/).
 
 ```php
 <?php
@@ -94,21 +98,21 @@ $result = $this->environment->await($activities->charge($orderId));
 ```
 
 > [!WARNING]
-> With no `RetryLimit`, attempts are **unlimited** — Temporal's default. An activity that always
+> With no `RetryLimit`, attempts are **unlimited**, which is Temporal's default. An activity that always
 > fails retries forever instead of failing the workflow. Pass `RetryLimit::once()` when a failure
 > should be final.
 
 > [!NOTE]
 > **Two timeouts, two owners.** `ActivityTimeouts` bounds an activity **attempt** and is enforced
 > by the **backend**: it survives a worker crash, and it applies to that activity only. A
-> **deadline** passed to `await()` — over an awaitable or a condition — is enforced
+> **deadline** passed to `await()`, over an awaitable or a condition, is enforced
 > **workflow-side**: it bounds
-> *this* wait in *this* execution, and it covers what activity bounds cannot — a child workflow, a
+> *this* wait in *this* execution, and it covers what activity bounds cannot: a child workflow, a
 > signal, a composed group. Reach for `ActivityTimeouts` to bound a single attempt, and for a
 > deadline to bound anything else. See
 > [Bounding a wait in time](../workflows/#bounding-a-wait-in-time).
 
-Create **separate stubs** when different calls need different policies — one with aggressive
+Create **separate stubs** when different calls need different policies: one with aggressive
 retries for a flaky HTTP call, another with stricter timeouts for a fast path:
 
 ```php
@@ -136,7 +140,7 @@ $this->strict = $env->activityStub(PricingActivities::class, ActivityOptions::of
 > make through the stub: PHPStan infers the contract from `activityStub()` and can follow it to
 > the call site. A mutable property loses it, and then an explicit
 > `/** @var ActivityStub<Contract> */` is needed. Either way, a contract it cannot resolve leaves
-> the call unknown to the analyser — never silently accepted.
+> the call unknown to the analyser, never silently accepted.
 
 
 ## Dependency injection
@@ -162,9 +166,9 @@ Arguments and return values must be **serializable** across the orchestrator bou
 |-------|----------------|
 | Interface | `#[AsActivityMethod]` on callable methods; serializable types |
 | Implementation | I/O and DI; implements the interface |
-| Workflow | Uses **`activityStub()`** / **`ActivityStub`** from **`WorkflowEnvironment`** only — never `new` the activity class for durable effects; optional second arg **`ActivityOptions`** |
+| Workflow | Uses **`activityStub()`** / **`ActivityStub`** from **`WorkflowEnvironment`** only; never `new` the activity class for durable effects; optional second arg **`ActivityOptions`** |
 
 ## See also
 
-- [Creating a workflow](../workflows/) — **`WorkflowEnvironment`** and **`ActivityInvoker`**.
-- [Concepts](../concepts/) — why activities own side effects and replay.
+- [Creating a workflow](../workflows/) covers **`WorkflowEnvironment`** and **`ActivityInvoker`**.
+- [Concepts](../concepts/) explains why activities own side effects and replay.

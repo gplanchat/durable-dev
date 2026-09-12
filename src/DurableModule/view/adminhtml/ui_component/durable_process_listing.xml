@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <!--
-    La grille standard de Magento, pas un tableau écrit à la main : l'exploitant y retrouve la
-    pagination, les signets, la sélection de colonnes et l'export qu'il connaît de toutes les autres
-    grilles, et nous n'en réimplémentons aucun.
+    The standard Magento grid, not a hand-written table: the operator finds the paging, the
+    bookmarks, the column selection and the export they know from every other grid, and we
+    reimplement none of them.
 
-    La source n'est pas une collection SQL — elle interroge la grappe — d'où un fournisseur de
-    données maison. Voir `Ui\DataProvider\ProcessListing` pour ce que ça coûte : la grille pagine
-    par décalage, la grappe par curseur, donc la fenêtre est bornée et le dit.
+    The source is not an SQL collection — it queries the cluster — hence a bespoke data provider.
+    See `Ui\DataProvider\ProcessListing` for what that costs: the grid pages by offset, the cluster
+    by cursor, so the window is bounded and says so.
 -->
 <listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
@@ -45,9 +45,9 @@
         </settings>
         <paging name="listing_paging"/>
         <!--
-            Les filtres `select` deviennent des `ui-select` : plusieurs états à la fois plutôt qu'un
-            seul. C'est le gabarit que le cœur de Magento emploie pour la même chose, pas un
-            composant maison.
+            The `select` filters become `ui-select`: several states at once rather than a single
+            one. It is the template the Magento core uses for the same thing, not a bespoke
+            component.
         -->
         <filters name="listing_filters">
             <settings>

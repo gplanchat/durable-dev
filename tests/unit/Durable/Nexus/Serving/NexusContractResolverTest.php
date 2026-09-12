@@ -25,11 +25,11 @@ final class NexusContractResolverTest extends TestCase
 
     public function testAnInheritedOperationIsPartOfTheExtendingContract(): void
     {
-        // La différence qui compte avec le résolveur d'activité, qui ignore l'héritage. Ici le
-        // contrat complet **étend** le contrat servi : c'est ce qui permet au gestionnaire de
-        // n'implémenter que l'immédiat sans écrire une méthode vide. Sauter les méthodes héritées
-        // ferait disparaître `verifier` de la vue de l'appelant — une opération déclarée, servie,
-        // et que le stub ne saurait pas appeler.
+        // The difference that matters with the activity resolver, which ignores inheritance.
+        // Here the full contract **extends** the served contract: that is what lets the handler
+        // implement only the immediate part without writing an empty method. Skipping the
+        // inherited methods would make `verifier` disappear from the caller's view — an operation
+        // declared, served, and that the stub would not know how to call.
         $operations = (new NexusContractResolver())->operations(ContratComplet::class);
 
         self::assertSame(
@@ -45,10 +45,10 @@ final class NexusContractResolverTest extends TestCase
 
     public function testAContractWithoutAServiceNameIsRefused(): void
     {
-        // Contrairement à `#[AsActivity]`, qui est optionnel et retombe sur le nom de la méthode.
-        // Ici le nom de service **adresse** une tâche : un repli sur le nom court de l'interface
-        // produirait un nom que l'endpoint de l'appelant ne reconnaîtrait pas, et une opération qui
-        // attend un gestionnaire dont le nom ne correspondra jamais.
+        // Unlike `#[AsActivity]`, which is optional and falls back on the method name. Here the
+        // service name **addresses** a task: falling back on the interface's short name would
+        // produce a name the caller's endpoint would not recognize, and an operation waiting for a
+        // handler whose name will never match.
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessageMatches('/AsNexusService/');
 
@@ -57,8 +57,8 @@ final class NexusContractResolverTest extends TestCase
 
     public function testTwoOperationsSharingAnameAreRefused(): void
     {
-        // Le routage se fait par (service, opération) : deux méthodes du même nom d'opération
-        // rendraient l'aiguillage arbitraire, et le perdant ne serait jamais appelé.
+        // Routing happens by (service, operation): two methods with the same operation name
+        // would make the switching arbitrary, and the loser would never be called.
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessageMatches('/encaisser/');
 

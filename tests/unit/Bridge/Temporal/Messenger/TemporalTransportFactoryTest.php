@@ -14,9 +14,9 @@ use Symfony\Component\Messenger\Transport\TransportFactoryInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
 
 /**
- * Teste TemporalTransportFactory : sélection du purpose, validation DSN, erreurs de création.
+ * Tests TemporalTransportFactory: purpose selection, DSN validation, creation errors.
  *
- * Ces tests ne nécessitent pas d'extension gRPC ni de connexion Temporal.
+ * These tests require neither the gRPC extension nor a Temporal connection.
  *
  * @internal
  */
@@ -49,7 +49,7 @@ final class TemporalTransportFactoryTest extends TestCase
         self::assertSame($expected, $factory->supports($dsn, []));
     }
 
-    // ── createTransport() — cas d'erreur sans gRPC ────────────────────────
+    // ── createTransport() — error cases without gRPC ──────────────────────
 
     public function testCreateTransportForActivityWorkerPurposeWithoutWorkerThrows(): void
     {

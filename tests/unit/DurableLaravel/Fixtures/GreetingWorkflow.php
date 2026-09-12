@@ -9,11 +9,11 @@ use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 /**
- * Un workflow ordinaire, et c'est tout l'intérêt : il n'importe rien de Laravel ni de Symfony.
+ * An ordinary workflow, and that is the whole point: it imports nothing from Laravel or Symfony.
  *
- * Les seuls symboles qu'il connaît viennent de `Gplanchat\Durable\`, donc la même classe se déclare
- * au bundle Symfony et à ce paquet sans une ligne de différence. Ce que l'hôte change, c'est où le
- * journal atterrit et qui draine la file, jamais la classe.
+ * The only symbols it knows come from `Gplanchat\Durable\`, so the same class is declared to the
+ * Symfony bundle and to this package without a line of difference. What the host changes is where
+ * the journal lands and who drains the queue, never the class.
  */
 #[AsWorkflow('Greeting')]
 final class GreetingWorkflow

@@ -10,13 +10,12 @@ use Magento\Framework\View\Element\UiComponentFactory;
 use Magento\Ui\Component\Listing\Columns\Column;
 
 /**
- * La colonne qui mène au détail d'une exécution.
+ * The column that leads to an execution's detail.
  *
- * Une grille qui ne mène nulle part ne dit que ce qu'une ligne tient, et une ligne ne tient pas un
- * historique.
+ * A grid that leads nowhere says only what a row holds, and a row does not hold a history.
  */
 /*
- * Pas `final` : le conteneur l'instancie, donc il engendre un `Interceptor` qui l'étend.
+ * Not `final`: the container instantiates it, so it generates an `Interceptor` extending it.
  */
 class ProcessActions extends Column
 {
@@ -32,8 +31,8 @@ class ProcessActions extends Column
 
     public function prepareDataSource(array $dataSource): array
     {
-        // ⚠ Pas `?? []` ici : `foreach` sur un temporaire prend une référence qui ne mène nulle
-        // part, et la colonne rend alors des cellules vides sans lever. Mesuré.
+        // ⚠ No `?? []` here: `foreach` over a temporary takes a reference that leads nowhere,
+        // and the column then renders empty cells without throwing. Measured.
         if (!isset($dataSource['data']['items'])) {
             return $dataSource;
         }

@@ -27,11 +27,11 @@ use Temporal\Api\Workflowservice\V1\RespondActivityTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedRequest;
 
 /**
- * Poll la file d’activités Temporal, exécute le chemin {@see ActivityMessageProcessor} (journal + resume)
- * et répond au serveur ({@code RespondActivityTaskCompleted} / {@code RespondActivityTaskFailed}).
+ * Polls the Temporal activity queue, runs the {@see ActivityMessageProcessor} path (journal + resume)
+ * and answers the server ({@code RespondActivityTaskCompleted} / {@code RespondActivityTaskFailed}).
  *
- * À utiliser avec des tâches planifiées par {@see \Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor}
- * et une entrée {@see \Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput}.
+ * To be used with tasks scheduled by {@see \Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor}
+ * and a {@see \Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput} input.
  */
 final class TemporalActivityWorker
 {
@@ -47,7 +47,7 @@ final class TemporalActivityWorker
     ) {}
 
     /**
-     * Un long-poll ; si une tâche est reçue, traitement + réponse gRPC.
+     * One long poll; if a task is received, processing + gRPC response.
      */
     public function pollOnce(): void
     {
@@ -65,12 +65,12 @@ final class TemporalActivityWorker
         $message = TemporalActivityScheduleInput::toActivityMessage($resp);
         $options = $message->options;
 
-        // ⚠ **Redélivrance** d'une tâche déjà tranchée : répondre depuis le journal sans
-        // réexécuter — mais une *reprise* n'est pas une redélivrance, et la question posée ici
-        // doit porter sur cette livraison-ci. Interroger la dernière issue tout court faisait
-        // répondre l'échec de la tentative 1 aux tentatives suivantes, sans jamais rappeler le
-        // code de l'activité : trois tentatives consommées en deux secondes et une panne
-        // passagère devenue définitive.
+        // ⚠ **Redelivery** of an already settled task: answer from the journal without running
+        // again — but a *retry* is not a redelivery, and the question asked here must bear on
+        // this delivery. Asking for the last outcome plain and simple made the failure of
+        // attempt 1 be answered to the following attempts, without ever calling the activity
+        // code again: three attempts burnt in two seconds and a transient outage turned
+        // permanent.
         if ($this->respondIfSettled(
             ActivityEventJournal::settledOutcomeForDelivery(
                 $this->eventStore,
@@ -96,9 +96,9 @@ final class TemporalActivityWorker
             // Nothing to teardown in the cooperative model
         }
 
-        // Après traitement, la question est l'autre : **qu'est-ce que le processeur vient
-        // d'écrire ?** Un échec en cours de reprise en fait partie — c'est lui qu'il faut rendre
-        // au serveur pour qu'il ordonnance la tentative suivante.
+        // After processing, the question is the other one: **what has the processor just
+        // written?** A failure during a retry is part of it — that is what must be handed back
+        // to the server so that it schedules the next attempt.
         if ($this->respondIfSettled(
             ActivityEventJournal::lastTerminalOutcome($this->eventStore, $message->executionId, $message->activityId),
             $resp,
@@ -111,14 +111,14 @@ final class TemporalActivityWorker
     }
 
     /**
-     * Répond au serveur à partir d'une issue journalisée, si on lui en donne une.
+     * Answers the server from a journalled outcome, if one is given to it.
      *
-     * ⚠ L'issue est **passée en argument** plutôt que lue ici, et ce n'est pas un détail de
-     * plomberie : les deux appels de `pollOnce()` ne posent pas la même question. Avant traitement,
-     * « cette livraison a-t-elle déjà été tranchée ? » ; après, « qu'est-ce que le processeur vient
-     * d'écrire ? ». Les confondre est précisément ce qui empêchait toute reprise d'activité.
+     * ⚠ The outcome is **passed as an argument** rather than read here, and that is no plumbing
+     * detail: the two calls in `pollOnce()` do not ask the same question. Before processing, "has
+     * this delivery already been settled?"; after, "what has the processor just written?".
+     * Confusing the two is precisely what prevented any activity retry.
      *
-     * @return bool false quand il n'y a rien à répondre
+     * @return bool false when there is nothing to answer
      */
     private function respondIfSettled(
         ActivityCompleted|ActivityFailed|ActivityCatastrophicFailure|ActivityCancelled|null $terminal,
@@ -141,9 +141,9 @@ final class TemporalActivityWorker
 
                 return true;
             case $terminal instanceof ActivityCatastrophicFailure:
-                // Un payload d'échec non sérialisable ne le deviendra pas à la tentative
-                // suivante : inutile de laisser le serveur retenter. Sans cette branche, le
-                // worker levait au lieu de répondre et la tâche restait sans réponse.
+                // A failure payload that cannot be serialized will not become serializable on
+                // the next attempt: no point letting the server retry. Without this branch, the
+                // worker raised instead of answering and the task stayed unanswered.
                 $this->respondFailed(
                     $resp,
                     $terminal->exceptionClass(),

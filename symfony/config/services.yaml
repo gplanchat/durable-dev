@@ -24,7 +24,7 @@ services:
     App\:
         resource: '../src/'
 
-    # Tag workflows for auto-registration (voir aussi #[AsDurableActivity] sur les handlers)
+    # Tag workflows for auto-registration (see also #[AsDurableActivity] on the handlers)
     App\Durable\Workflow\:
         resource: '../src/Durable/Workflow/'
         tags: [durable.workflow]
@@ -57,21 +57,21 @@ services:
             $connection: '@?durable.temporal.connection'
             $historyCursor: '@?Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor'
 
-# Journal Temporal en dev/prod : durable.yaml when@dev / when@prod + DURABLE_DSN (temporal://…).
-# Prérequis : ext-grpc, stack docker compose, workers messenger durable_temporal_journal + durable_temporal_activity.
+# Temporal journal in dev/prod: durable.yaml when@dev / when@prod + DURABLE_DSN (temporal://…).
+# Prerequisites: ext-grpc, the docker compose stack, messenger workers durable_temporal_journal + durable_temporal_activity.
 
-# Le banc de test n'a pas de cluster : `temporal.dsn` y est nul, et un gestionnaire Nexus déclaré
-# sur un backend sans route est refusé au démarrage — à raison, puisqu'il ne recevrait jamais rien.
+# The test bench has no cluster: `temporal.dsn` is null there, and a Nexus handler declared on a
+# backend with no route is refused at startup — rightly so, since it would never receive anything.
 #
-# `autoconfigure: false` retire la balise sans retirer la classe : c'est l'attribut
-# `#[AsNexusServiceHandler]` qui la posait. Le service reste, personne ne le sert, et le refus n'a
-# plus de raison de se déclencher.
+# `autoconfigure: false` removes the tag without removing the class: it was the
+# `#[AsNexusServiceHandler]` attribute that put it there. The service stays, nobody serves it, and
+# the refusal no longer has a reason to fire.
 when@test:
     services:
-        # `autowire` explicitement : redéfinir un service dans un bloc `when@` **remplace** la
-        # définition venue du chargement de `App\`, et les `_defaults` du bloc principal ne s'y
-        # appliquent pas. Cette classe n'a pas de constructeur aujourd'hui ; le jour où elle en
-        # aura un, l'oubli se verrait par un `ArgumentCountError` dans la suite de test.
-        App\Durable\Nexus\FacturationHandler:
+        # `autowire` explicitly: redefining a service inside a `when@` block **replaces** the
+        # definition that came from loading `App\`, and the `_defaults` of the main block do not
+        # apply to it. This class has no constructor today; the day it gets one, the omission would
+        # show up as an `ArgumentCountError` in the test suite.
+        App\Durable\Nexus\BillingHandler:
             autowire: true
             autoconfigure: false

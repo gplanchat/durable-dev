@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Bundle\Profiler;
 
 /**
- * Construit les bornes temporelles des barres du profiler à partir d’horodatages réels
- * ({@see \DateTimeImmutable} côté event store, {@see microtime} côté trace processus).
+ * Builds the time bounds of the profiler bars from real timestamps
+ * ({@see \DateTimeImmutable} on the event store side, {@see microtime} on the process trace side).
  */
 final class DurableProfilerTimeframe
 {
     public const MIN_SEGMENT_SEC = 1e-6;
 
     /**
-     * Horodatages Unix (secondes, précision µs) alignés sur `recorded_at`, avec ordre strictement croissant.
+     * Unix timestamps (seconds, µs precision) aligned on `recorded_at`, with a strictly increasing order.
      *
      * @param list<array{recordedAt: \DateTimeImmutable|null}> $entries
      *

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Gplanchat\DurableModule\Runtime;
 
 /**
- * Une exécution a été lancée pour un type de workflow que le module n'a jamais reçu.
+ * An execution was started for a workflow type the module was never given.
  *
- * Le refus est le mécanisme. Sans lui, la déclaration ne déclare rien : `run()` enregistrait la
- * classe au vol, donc n'importe laquelle tournait, qu'elle fût dans `di.xml` ou non — et l'oubli
- * ne se voyait qu'en production, sur la seule machine où le workflow n'a pas été déployé.
+ * The refusal is the mechanism. Without it, declaration declares nothing: `run()` registered the
+ * class on the fly, so any class ran, whether it was in `di.xml` or not — and the omission only
+ * showed in production, on the one machine where the workflow had not been deployed.
  */
 final class UndeclaredWorkflowException extends \RuntimeException
 {

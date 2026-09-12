@@ -103,9 +103,11 @@ application on the `illuminate` backend has no use for them.
 `memory`, `artisan list` shows neither, and the error you get from calling one names the command,
 not the backend that would have provided it.
 
-⚠ **What Symfony checks and this package does not.** `NexusHandlerPass` refuses the container when a
-fulfilling workflow's parameter name diverges from the contract it claims. Reading a config file
-cannot do the same work: `durable.nexus.handlers` registers, it does not compare. A parameter
-renamed on one side only hands the workflow `null`, with no error and no trace.
+⚠ **A fulfilling workflow's parameter names are checked, and the check refuses.** If a required
+parameter of a workflow claiming an operation matches nothing in the contract's signature,
+registration fails and names both signatures. The payload is keyed by parameter name at both ends,
+so without that refusal the parameter would receive `null`, with no error and no trace. The check is
+`Gplanchat\Durable\Nexus\Serving\NexusFulfilmentParameterNames`, in the core: Symfony calls it from
+its compile pass, this package from `durable.nexus.handlers`.
 
 MIT. See [`LICENSE`](LICENSE).

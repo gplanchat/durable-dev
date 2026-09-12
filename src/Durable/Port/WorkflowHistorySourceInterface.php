@@ -43,6 +43,22 @@ interface WorkflowHistorySourceInterface
     public function activityNameForSlot(int $slot): ?string;
 
     /**
+     * Returns the payload recorded for activity slot N, or null if there is nothing to compare.
+     *
+     * Null and `[]` are different answers, and callers rely on it: `[]` is an activity that was
+     * genuinely scheduled with no arguments, null is "this journal says nothing here" — an empty
+     * slot, or a history written before the payload was readable. Only null waives the guard.
+     * Conflating the two is the {@see findSideEffectForSlot()} trap one file over.
+     *
+     * The name answers "what was this"; this one answers "with what". A replay that keeps the
+     * name and changes the arguments is non-deterministic workflow code, and without this the
+     * journal serves the old result while the freshly computed payload is dropped in silence.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function activityPayloadForSlot(int $slot): ?array;
+
+    /**
      * Returns the version this execution recorded for a declared change point, or null if it has
      * not reached that point yet.
      *
@@ -67,9 +83,9 @@ interface WorkflowHistorySourceInterface
     /**
      * Returns the recorded outcome for timer slot N, or null if it is still pending.
      *
-     * `failed` porte l'annulation du minuteur ({@see \Gplanchat\Durable\Event\TimerCancelled}) :
-     * sans ce canal, un minuteur annulé par l'annulation du workflow ne pouvait pas relever la
-     * même exception au replay.
+     * `failed` carries the timer's cancellation ({@see \Gplanchat\Durable\Event\TimerCancelled}):
+     * without that channel, a timer cancelled by the workflow's cancellation could not raise the
+     * same exception on replay.
      *
      * @return array{id: string, scheduledAt: float, failed: \Throwable|null}|null
      */
@@ -81,7 +97,25 @@ interface WorkflowHistorySourceInterface
     public function findScheduledTimerId(int $slot): ?string;
 
     /**
-     * Returns the recorded side effect result at slot N, or null if not yet recorded.
+     * Whether slot N holds a recorded side effect.
+     *
+     * Presence is a fact about the history; the recorded value is data. They must be asked
+     * separately, because a side effect legitimately records `null` — and inferring "not recorded"
+     * from a `null` result re-runs a non-deterministic closure on every replay and appends a
+     * `SideEffectRecorded` per pass, which is the one guarantee `sideEffect()` exists to give.
+     *
+     * The same separation already exists on this port for timers, where
+     * {@see findScheduledTimerId()} answers the state and {@see findTimerSlotResult()} the value,
+     * and for activities, child workflows and Nexus operations, whose three sibling methods wrap
+     * their result in an `array{result: mixed, ...}` for exactly this reason.
+     */
+    public function hasSideEffectForSlot(int $slot): bool;
+
+    /**
+     * Returns the recorded side effect result at slot N.
+     *
+     * Returns `null` both for a slot that recorded `null` and for a slot that recorded nothing;
+     * callers deciding whether to run a closure MUST ask {@see hasSideEffectForSlot()} first.
      */
     public function findSideEffectForSlot(int $slot): mixed;
 
@@ -106,6 +140,19 @@ interface WorkflowHistorySourceInterface
     public function childWorkflowTypeForSlot(int $slot): ?string;
 
     /**
+     * Returns the input recorded for child workflow slot N, or null if there is nothing to compare.
+     *
+     * Same null/`[]` rule as {@see activityPayloadForSlot()}: only null waives the guard.
+     *
+     * The type identifies the child; this is what it was started with. A replay that keeps the
+     * type and changes the input starts nothing new — the journal already holds the child's
+     * outcome — so the divergence would otherwise never surface.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function childWorkflowInputForSlot(int $slot): ?array;
+
+    /**
      * Returns the identity of the Nexus operation recorded at slot N, or null if none was.
      *
      * The identity is the **triple** — endpoint, service, operation — rendered as
@@ -113,6 +160,19 @@ interface WorkflowHistorySourceInterface
      * a different call, and comparing the operation name alone would let it through.
      */
     public function nexusOperationSignatureForSlot(int $slot): ?string;
+
+    /**
+     * Returns the payload recorded for Nexus operation slot N, or null if there is nothing to compare.
+     *
+     * Same null/`[]` rule as {@see activityPayloadForSlot()}: only null waives the guard.
+     *
+     * The identity above answers "which service"; this one answers "with what". Getting it wrong
+     * costs more here than anywhere else — a duplicated activity lands on a worker of one's own, a
+     * Nexus operation lands on a third party, where the duplicate is theirs.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function nexusOperationPayloadForSlot(int $slot): ?array;
 
     /**
      * Returns the Nth recorded message, in recorded order, or null past the end.

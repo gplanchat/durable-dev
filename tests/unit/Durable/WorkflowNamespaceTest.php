@@ -11,13 +11,13 @@ use Gplanchat\Durable\WorkflowNamespace;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Contrairement à {@see TaskQueue}, une erreur de namespace ne se tait pas : le serveur répond
- * `NOT_FOUND`. L'apport est donc surtout le typage — namespace et file de tâches étaient deux
- * chaînes voisines dans les mêmes constructeurs.
+ * Unlike {@see TaskQueue}, a namespace mistake does not stay silent: the server answers
+ * `NOT_FOUND`. What it brings is therefore mostly the typing — namespace and task queue were two
+ * neighbouring strings in the same constructors.
  *
- * Verdicts serveur sondés : seul « non vide » est exigé ; espaces, majuscules, accents,
- * tabulations et plus de 255 caractères sont acceptés. Mais la comparaison est faite octet pour
- * octet — `DURABLE-TEST` et `durable-test ` sont introuvables quand `durable-test` existe.
+ * Server verdicts probed: only "non-empty" is required; spaces, capitals, accents, tabulations
+ * and more than 255 characters are accepted. But the comparison is made byte for byte —
+ * `DURABLE-TEST` and `durable-test ` are not found when `durable-test` exists.
  */
 final class WorkflowNamespaceTest extends TestCase
 {
@@ -29,7 +29,7 @@ final class WorkflowNamespaceTest extends TestCase
 
     public function testComparisonIsCaseSensitiveLikeTheServer(): void
     {
-        // Sondé : démarrer dans « DURABLE-TEST » quand « durable-test » existe donne NOT_FOUND.
+        // Probed: starting in "DURABLE-TEST" when "durable-test" exists gives NOT_FOUND.
         self::assertFalse(WorkflowNamespace::named('durable-test')->equals(WorkflowNamespace::named('DURABLE-TEST')));
         self::assertTrue(WorkflowNamespace::named('durable-test')->equals(WorkflowNamespace::named('durable-test')));
     }
@@ -42,7 +42,7 @@ final class WorkflowNamespaceTest extends TestCase
 
     public function testEdgeWhitespaceIsRejected(): void
     {
-        // Sondé : « durable-test » (avec espace final) est un autre namespace, donc introuvable.
+        // Probed: "durable-test " (with a trailing space) is another namespace, hence not found.
         $this->expectExceptionMessageMatches('/byte for byte/');
 
         WorkflowNamespace::named('durable-test ');
@@ -63,11 +63,11 @@ final class WorkflowNamespaceTest extends TestCase
 
     public function testANamespaceAndATaskQueueCanNoLongerBeSwapped(): void
     {
-        // C'est l'apport principal : les deux étaient des chaînes voisines dans les mêmes
-        // constructeurs, et les intervertir ne se voyait qu'à l'exécution, côté serveur.
+        // This is the main gain: the two were neighbouring strings in the same constructors, and
+        // swapping them only showed at run time, server-side.
         $this->expectException(\TypeError::class);
 
-        /** @phpstan-ignore-next-line intentionnel : c'est le point du test */
+        /** @phpstan-ignore-next-line intentional: this is the point of the test */
         new TemporalConnection(target: 'localhost:7233', namespace: TaskQueue::named('durable-activities'));
     }
 

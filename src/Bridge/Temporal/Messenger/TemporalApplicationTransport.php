@@ -9,10 +9,10 @@ use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\TransportInterface;
 
 /**
- * Enveloppe un transport Symfony Messenger pour les messages applicatifs Durable.
+ * Wraps a Symfony Messenger transport for Durable application messages.
  *
- * Aujourd’hui : délégation pure vers {@see $inner} (DSN {@code temporal://...?inner=} ou {@code options.inner}).
- * Évolution : substituer la délégation par envoi / poll gRPC Temporal tout en conservant les mêmes DTOs et handlers.
+ * Today: pure delegation to {@see $inner} (DSN {@code temporal://...?inner=} or {@code options.inner}).
+ * Later: substitute the delegation with Temporal gRPC dispatch / poll while keeping the same DTOs and handlers.
  */
 final class TemporalApplicationTransport implements TransportInterface
 {

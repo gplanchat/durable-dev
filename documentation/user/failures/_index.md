@@ -15,7 +15,7 @@ whether to compensate, alert, or let the workflow die.
 | Event | Meaning |
 |---|---|
 | `ActivityScheduled` | the workflow asked for it |
-| `ActivityTaskStarted` | one attempt began — one per attempt |
+| `ActivityTaskStarted` | one attempt began, one row per attempt |
 | `ActivityTaskFailed` | **one attempt failed**, whether or not another follows |
 | `ActivityTaskCompleted` | one attempt succeeded |
 | `ActivityCompleted` | final outcome: success |
@@ -24,13 +24,13 @@ whether to compensate, alert, or let the workflow die.
 | `ActivityCatastrophicFailure` | the failure itself could not be safely journaled |
 
 `ActivityTaskFailed` matters: without it, an attempt that failed and was followed by a success left
-**no trace at all**. The first error simply vanished from the journal.
+**no trace at all**. The first error vanished from the journal.
 
 ---
 
 ## Why an activity stopped retrying
 
-`ActivityFailed` carries a `retryState` telling you which of four situations you are in — they
+`ActivityFailed` carries a `retryState` telling you which of four situations you are in. They
 used to be indistinguishable:
 
 ```php
@@ -42,11 +42,11 @@ $failed->isStalled();      // true when attempts were exhausted
 
 | State | Meaning |
 |---|---|
-| `NonRetryableFailure` | the exception is declared non-retryable — it will never be retried |
+| `NonRetryableFailure` | the exception is declared non-retryable, so it will never be retried |
 | `MaximumAttemptsReached` | every allowed attempt was consumed |
 | `Timeout` | a schedule-to-start or schedule-to-close bound elapsed |
 | `RetryPolicyNotSet` | no retry policy applied |
-| `InProgress` | not final — another attempt is expected |
+| `InProgress` | not final; another attempt is expected |
 
 `InProgress` is how a failure that is **not** an outcome is recorded. It appears when retry is
 delegated to the Temporal server, and it deliberately does not count as a terminal outcome, so the
@@ -66,14 +66,14 @@ ActivityOptions::of(5, nonRetryableExceptions: [PaymentRefusedException::class])
 ```
 
 A refused card will not get better on the third attempt. On the Temporal backend this becomes the
-retry policy's `nonRetryableErrorTypes`, so the **server** stops retrying too — not just the PHP
+retry policy's `nonRetryableErrorTypes`, so the **server** stops retrying too, not just the PHP
 worker.
 
 ---
 
 ## Attempt counting
 
-`RetryLimit::ofAttempts(3)` means **three executions in total**, as on Temporal — not three retries
+`RetryLimit::ofAttempts(3)` means **three executions in total**, as on Temporal, not three retries
 after a first try.
 
 > [!WARNING]

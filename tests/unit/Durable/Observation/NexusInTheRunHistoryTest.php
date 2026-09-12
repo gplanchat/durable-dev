@@ -13,12 +13,12 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Une opération Nexus est le seul endroit d'une exécution où l'attente est **servie par quelqu'un
- * d'autre**. Un exploitant qui voit un workflow bloqué sans voir cette opération cherchera la panne
- * dans son propre système, là où elle est à l'extérieur.
+ * A Nexus operation is the only place in an execution where the wait is **served by somebody
+ * else**. An operator who sees a stuck workflow without seeing that operation will hunt for the
+ * failure in their own system, when it lies outside.
  *
- * Elles tombaient jusqu'ici sur la voie `Other`, listées mais sans identité : ni endpoint, ni
- * service, ni nom d'opération — c'est-à-dire sans ce qui dit **chez qui** l'attente a lieu.
+ * Until now they fell on the `Other` lane, listed but with no identity: no endpoint, no service,
+ * no operation name — that is, without what says **at whose place** the wait happens.
  */
 final class NexusInTheRunHistoryTest extends TestCase
 {
@@ -44,9 +44,9 @@ final class NexusInTheRunHistoryTest extends TestCase
 
     public function testATerminalEventBorrowsTheIdentityOfItsScheduling(): void
     {
-        // Les événements terminaux ne portent que le `scheduledEventId` — la même contrainte que
-        // pour les activités, où le nom se lit sur la planification. Sans cette corrélation, la
-        // frise afficherait « NexusOperationCompleted » et l'exploitant ne saurait pas laquelle.
+        // Terminal events only carry the `scheduledEventId` — the same constraint as for
+        // activities, where the name is read off the scheduling. Without that correlation, the
+        // frieze would show "NexusOperationCompleted" and the operator would not know which one.
         $history = $this->read([
             new NexusOperationScheduled('exec-1', 5, 'paiements', 'facturation', 'encaisser', [], []),
             new NexusOperationCompleted('exec-1', 5, ['receipt' => 'r-1']),
@@ -59,9 +59,9 @@ final class NexusInTheRunHistoryTest extends TestCase
 
     public function testTheTemporalReaderUsesTheSameLane(): void
     {
-        // Les deux backends alimentent la même frise. Si l'un range Nexus sur sa voie et l'autre
-        // sur `Other`, le même workflow se lit différemment selon l'endroit où il tourne — et
-        // l'exploitant apprend à ne pas faire confiance à la voie.
+        // Both backends feed the same frieze. If one files Nexus on its lane and the other on
+        // `Other`, the same workflow reads differently depending on where it runs — and the
+        // operator learns not to trust the lane.
         $kind = (new \ReflectionMethod(TemporalRunHistoryReader::class, 'kindOf'));
         $kind->setAccessible(true);
 
@@ -77,7 +77,7 @@ final class NexusInTheRunHistoryTest extends TestCase
             self::assertSame(
                 WorkflowRunEventKind::Nexus,
                 $kind->invoke(null, $eventType),
-                $eventType . ' doit tomber sur la voie Nexus',
+                $eventType . ' must fall on the Nexus lane',
             );
         }
     }

@@ -1,89 +1,89 @@
-# La maquette Laravel
+# The Laravel mockup
 
-Une application Laravel 12 ordinaire — `composer create-project laravel/laravel` — qui **sert** un
-service Nexus à la démonstration à quatre applications.
+An ordinary Laravel 12 application — `composer create-project laravel/laravel` — that **serves** a
+Nexus service to the four-application demonstration.
 
-C'est ce qu'elle sert qui compte. Les trois autres maquettes prouvaient qu'appeler ne demande rien à
-l'hôte ; celle-ci est la première à montrer l'autre moitié **hors du conteneur de Symfony** : un
-gestionnaire déclaré par `config/durable.php`, un workflow qui remplit une opération, et un worker
-Nexus lancé par `php artisan`.
+What counts is what it serves. The three other mockups proved that calling asks nothing of the
+host; this one is the first to show the other half **outside Symfony's container**: a handler
+declared by `config/durable.php`, a workflow that fulfils an operation, and a Nexus worker started
+by `php artisan`.
 
 | | |
 |---|---|
 | namespace | `demo-laravel` |
-| sert | `livraison` — `planifier` (tout de suite), `expedier` (par un workflow) |
-| appelle | `stock`, depuis le workflow qui remplit `expedier` |
-| backend | `temporal` — servir du Nexus l'exige, c'est la grappe qui route |
-| PHP | 8.2, la seule version du poste qui ait `grpc` **et** `pdo_sqlite` |
+| serves | `delivery` — `schedule` (right away), `ship` (through a workflow) |
+| calls | `stock`, from the workflow that fulfils `ship` |
+| backend | `temporal` — serving Nexus requires it, it is the cluster that routes |
+| PHP | 8.2, the only version on this machine that has `grpc` **and** `pdo_sqlite` |
 
-## Ce qu'il a fallu écrire, et ce qu'il n'a pas fallu
+## What had to be written, and what did not
 
-Deux classes, et **six lignes de configuration** :
+Two classes, and **six lines of configuration**:
 
 ```php
 // config/durable.php
 'backend' => env('DURABLE_BACKEND', 'temporal'),
 'temporal' => ['dsn' => env('DURABLE_DSN')],
-'workflows' => [App\Durable\Workflow\ExpedierWorkflow::class],
+'workflows' => [App\Durable\Workflow\ShipWorkflow::class],
 'nexus' => ['handlers' => [
-    App\Durable\Nexus\LivraisonHandler::class => LivraisonContract::class,
+    App\Durable\Nexus\DeliveryHandler::class => DeliveryContract::class,
 ]],
 ```
 
-Rien d'autre : ni provider à écrire, ni commande, ni passe de compilation.
-`gplanchat/durable-laravel` apporte `durable:nexus-worker` et `durable:temporal-worker`, et
-`DeclaredNexusOperations` fait le travail que `NexusHandlerPass` fait côté Symfony — lire le
-contrat, tenir entre la signature du gestionnaire et ce que le registre appelle.
+Nothing else: no provider to write, no command, no compiler pass.
+`gplanchat/durable-laravel` brings `durable:nexus-worker` and `durable:temporal-worker`, and
+`DeclaredNexusOperations` does the work `NexusHandlerPass` does on the Symfony side — read the
+contract, hold between the handler's signature and what the registry calls.
 
-⚠ **Ce qu'il ne fait pas, et que Symfony fait :** refuser au démarrage un workflow dont un paramètre
-ne porte pas le nom déclaré par le contrat. La passe de compilation compare les deux listes ;
-`config/durable.php` ne compare rien. Sur cet hôte, un renommage d'un seul côté donne `null` au
-workflow, sans erreur et sans trace.
+And what it refuses, it refuses the way Symfony does: a workflow whose mandatory parameter does not
+carry the name declared by the contract fails registration by naming both signatures. The check
+lives in the core — `NexusFulfilmentParameterNames` — and both serving hosts call it at the same
+moment. It was written for Symfony and only stayed there until a second host came along.
 
-## Le workflow qui sert **et** appelle
+## The workflow that serves **and** calls
 
-`ExpedierWorkflow` remplit `livraison/expedier`, attend six secondes de préparation en entrepôt,
-puis **appelle `stock/reserver` chez la boutique Sylius** avant de sortir la marchandise. Une même
-exécution porte donc une opération Nexus servie et une opération Nexus appelée, dans le même
+`ShipWorkflow` fulfils `delivery/ship`, waits six seconds of warehouse preparation,
+then **calls `stock/reserve` at the Sylius shop** before releasing the goods. One and the same
+execution therefore carries a served Nexus operation and a called Nexus operation, in the same
 journal.
 
-L'appel est sans risque parce que `reserver` est idempotente par identifiant de commande : la
-boutique relit la décision prise à la commande au lieu d'en prendre une nouvelle — c'est pourquoi
-les lignes passées sont vides.
+The call is riskless because `reserve` is idempotent per order identifier: the shop reads back the
+decision taken at order time instead of taking a new one — which is why the lines passed in are
+empty.
 
-## Lancer
+## Running it
 
-Le banc n'a pas de grappe à lui, ni de base à installer : SQLite suffit, et le DSN de la
-démonstration entre par l'environnement.
+The bench has no cluster of its own, and no database to install: SQLite is enough, and the
+demonstration's DSN comes in through the environment.
 
 ```bash
 cd laravel
 php8.2 composer install
-php8.2 artisan migrate            # sqlite : la table de cache porte l'idempotence de planifier
+php8.2 artisan migrate            # sqlite: the cache table carries the idempotence of schedule
 
 DURABLE_DSN='temporal://127.0.0.1:7239?namespace=demo-laravel&nexus_task_queue=demo-laravel-nexus&tls=0' \
-  php8.2 artisan durable:nexus-worker      # poll les tâches Nexus
-DURABLE_DSN='…' php8.2 artisan durable:temporal-worker  # fait avancer ExpedierWorkflow
+  php8.2 artisan durable:nexus-worker      # polls Nexus tasks
+DURABLE_DSN='…' php8.2 artisan durable:temporal-worker  # drives ShipWorkflow forward
 ```
 
-`demo/lancer.sh` démarre les deux avec les bonnes valeurs, en même temps que les six autres
-processus. Les prérequis de l'ensemble sont dans [`demo/README.md`](../demo/README.md).
+`demo/run.sh` starts both with the right values, at the same time as the six other processes. The
+prerequisites for the whole thing are in [`demo/README.md`](../demo/README.md).
 
-## La sonde
+## The probe
 
 ```bash
-DURABLE_DSN='temporal://127.0.0.1:7999?namespace=sonde&nexus_task_queue=q&tls=0' php8.2 probe-nexus.php
+DURABLE_DSN='temporal://127.0.0.1:7999?namespace=probe&nexus_task_queue=q&tls=0' php8.2 probe-nexus.php
 ```
 
-Elle démarre l'application, prend le registre du cœur dans le conteneur et **dispatche les deux
-opérations** — la méthode même que le worker Nexus appelle quand une tâche arrive. Aucune grappe,
-aucun endpoint, aucun processus en face : le DSN désigne un port fermé, et rien ne s'y connecte.
-C'est ce que la CI lance à chaque commit ; le bout en bout, lui, vit dans `demo/`.
+It boots the application, takes the core's registry out of the container and **dispatches both
+operations** — the very method the Nexus worker calls when a task arrives. No cluster, no endpoint,
+no process on the other side: the DSN designates a closed port, and nothing connects to it. This is
+what CI runs on every commit; the end-to-end, for its part, lives in `demo/`.
 
-## Ce qu'elle n'est pas
+## What it is not
 
-**Un tableau de bord.** `gplanchat/durable-filament` en portera un ; ce banc n'a pas d'interface, et
-son `welcome.blade.php` est celui de Laravel.
+**A dashboard.** `gplanchat/durable-filament` will carry one; this bench has no interface, and its
+`welcome.blade.php` is Laravel's.
 
-**Une application métier.** Elle ne modélise pas une logistique : elle sert un contrat de
-démonstration, et son gestionnaire choisit un créneau par une règle de trois lignes.
+**A business application.** It does not model a logistics operation: it serves a demonstration
+contract, and its handler picks a slot by a three-line rule.

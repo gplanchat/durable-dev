@@ -8,11 +8,18 @@ use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\ActivityExecutor;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
+use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 
 /**
- * Enregistre sur {@see ActivityExecutor} les activités exposées par les services tagués durable.activity_handler.
+ * Registers on {@see ActivityExecutor} the activities exposed by the services tagged durable.activity_handler.
+ *
+ * Through a **service locator**, not through an array of callables. Passing
+ * `[new Reference($invoker), '__invoke']` would force the container to resolve every reference to
+ * build the argument: it would then instantiate every handler in the application, and their
+ * connections, HTTP clients and other dependencies, in order to call one. On a worker that handles
+ * one activity per message, that is paid on every message.
  */
 final class ActivityHandlerPass implements CompilerPassInterface
 {
@@ -38,6 +45,9 @@ final class ActivityHandlerPass implements CompilerPassInterface
 
         $executor = $container->findDefinition($executorId);
         $resolver = new ActivityContractResolver(null);
+
+        /** @var array<string, Reference> $handlerRefs */
+        $handlerRefs = [];
 
         foreach ($tagged as $serviceId => $tags) {
             foreach ($tags as $tag) {
@@ -72,17 +82,27 @@ final class ActivityHandlerPass implements CompilerPassInterface
                         ->setPublic(false)
                     ;
 
-                    $executor->addMethodCall('register', [
-                        $activityName,
-                        [new Reference($invokerId), '__invoke'],
-                    ]);
+                    // A reference in the locator, not a callable built at
+                    // compilation: building `[new Reference(...), '__invoke']` would force the
+                    // container to instantiate **every** invoker, so every handler and its
+                    // dependencies, in order to call one.
+                    $handlerRefs[$activityName] = new Reference($invokerId);
                 }
             }
         }
+
+        if ([] === $handlerRefs) {
+            return;
+        }
+
+        // The locator builds only what it is asked for, and `ServiceLocatorTagPass` deduplicates it
+        // across passes: it is the upstream mechanism for "many candidates, one called", the one
+        // `MessengerPass` uses for message handlers.
+        $executor->setArgument('$lazyHandlers', ServiceLocatorTagPass::register($container, $handlerRefs));
     }
 
     /**
-     * Les contrats d'activité sont des interfaces : {@see class_exists} retourne false pour elles.
+     * Activity contracts are interfaces: {@see class_exists} returns false for them.
      */
     private static function typeExists(string $fqcn): bool
     {

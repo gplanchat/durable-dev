@@ -9,12 +9,30 @@ weight: 10
 
 - **PHP 8.2+**
 - **Composer**
-- For tests and local development without Temporal: no additional infrastructure — the **In-Memory** backend runs fully inside PHP.
-- For production or realistic integration tests: a **Temporal** cluster (Docker image available) and the **`ext-grpc`** PHP extension — in a container image, copy it from a [prebuilt image](../container-images/) rather than compiling it.
+- For tests and local development: no additional infrastructure, since the **In-Memory** backend runs fully inside PHP.
+- For production **without a cluster**: one SQL database, through the **DBAL** backend on Symfony or the **Illuminate** backend on Laravel. No extension to compile.
+- For production **at scale**, or realistic integration tests: a **Temporal** cluster (Docker image available) and the **`ext-grpc`** PHP extension. In a container image, copy it from a [prebuilt image](../container-images/) rather than compiling it.
+
+The four backends run the same workflow code; [Backends](../backends/) compares what each one can
+offer.
 
 ---
 
 ## Install
+
+**This page walks through the Symfony integration.** Durable has three host integrations, and
+installing the wrong one is the mistake to avoid on the first line, because each has its own wiring,
+its own configuration file and its own worker:
+
+| Your application | Install | Read instead |
+|---|---|---|
+| **Symfony** (incl. Sylius) | `gplanchat/durable-bundle` | this page |
+| **Laravel** | `gplanchat/durable-laravel` | [Packages](../packages/#gplanchatdurable-laravel--the-laravel-integration) |
+| **Magento 2.4 / Mage-OS** | `gplanchat/durable-magento` | [Packages](../packages/#gplanchatdurable-magento--the-magento-integration) |
+| **No framework** | `gplanchat/durable` | [Packages](../packages/#gplanchatdurable--the-library) |
+
+The concepts, the workflow API and the activity API are identical on all four; only the wiring
+below is Symfony's.
 
 ### Core component only (framework-agnostic)
 
@@ -28,7 +46,7 @@ composer require gplanchat/durable
 composer require gplanchat/durable-bundle
 ```
 
-The package declares `"type": "symfony-bundle"`, so **Symfony Flex registers it on its own** — there
+The package declares `"type": "symfony-bundle"`, so **Symfony Flex registers it on its own**, and there
 is nothing to add to `config/bundles.php`. Without Flex, add the line yourself:
 
 ```php
@@ -66,7 +84,7 @@ durable:
     activity_contracts:
         cache: cache.app
         contracts:
-            - App\Workflow\Activity\OrderActivities   # list your activity interfaces here
+            - App\Workflow\Activity\GreetingActivities   # list your activity interfaces here
 ```
 
 Switch to Temporal at runtime by setting `DURABLE_DSN` in your environment:
@@ -92,7 +110,7 @@ framework:
         routing:
             Gplanchat\Durable\Transport\ResumeWorkflowMessage:        durable_workflows
             Gplanchat\Durable\Transport\ActivityMessage:              durable_activities
-            Gplanchat\Durable\Transport\FireWorkflowTimersMessage:    sync
+            Gplanchat\Durable\Transport\FireWorkflowTimersMessage:    durable_workflows
             Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage: sync
             Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage: sync
 ```
@@ -140,36 +158,24 @@ Any class annotated with `#[AsWorkflow]` in your workflow namespace is auto-regi
 # config/services.yaml
 App\Workflow\:
     resource: '../src/Workflow/'
+    exclude: '../src/Workflow/Activity/'
     tags: [durable.workflow]
 ```
 
+The `exclude` matters. The tag is not a filter: every service it matches is handed to the workflow
+registry, which requires exactly one `#[AsWorkflowMethod]` and throws otherwise. Tag a folder that
+also holds your activity handlers and the container stops building, with an error naming a class you
+never meant to register. Keep the tagged folder to workflows, or exclude what is not one.
+
 ### Register activity implementations
 
-Activity implementation classes are registered as normal Symfony services (autowiring applies). If you use `#[AsActivityHandler]` on the class, the bundle picks them up automatically when the service is tagged.
+Nothing to write. A class carrying `#[AsActivityHandler]` is picked up by the bundle's autoconfiguration as soon as it is a service, which, with the default `autoconfigure: true` of a Symfony application, it already is. This is where workflows above differ: those still need the tag.
 
 ---
 
 ## First workflow
 
-### 1 — Define an activity contract
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace App\Workflow\Activity;
-
-use Gplanchat\Durable\Attribute\AsActivityMethod;
-
-interface GreetingActivities
-{
-    #[AsActivityMethod(name: 'greet')]
-    public function greet(string $name): string;
-}
-```
-
-### 2 — Implement the activity
+### 1. Define an activity contract {#1--define-an-activity-contract}
 
 ```php
 <?php
@@ -179,8 +185,30 @@ declare(strict_types=1);
 namespace App\Workflow\Activity;
 
 use Gplanchat\Durable\Attribute\AsActivity;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
 
+// Optional: prefixes the names of the activities declared below.
 #[AsActivity(name: 'greeting-activities')]
+interface GreetingActivities
+{
+    #[AsActivityMethod(name: 'greet')]
+    public function greet(string $name): string;
+}
+```
+
+### 2. Implement the activity {#2--implement-the-activity}
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Workflow\Activity;
+
+use Gplanchat\Durable\Attribute\AsActivityHandler;
+
+// This attribute is what registers the class; the bundle autoconfigures it.
+#[AsActivityHandler(contract: GreetingActivities::class)]
 final class GreetingActivitiesHandler implements GreetingActivities
 {
     public function greet(string $name): string
@@ -190,7 +218,7 @@ final class GreetingActivitiesHandler implements GreetingActivities
 }
 ```
 
-### 3 — Define the workflow
+### 3. Define the workflow {#3--define-the-workflow}
 
 ```php
 <?php
@@ -219,7 +247,7 @@ final class GreetWorkflow
 }
 ```
 
-### 4 — Dispatch from a controller or service
+### 4. Dispatch from a controller or service {#4--dispatch-from-a-controller-or-service}
 
 ```php
 <?php
@@ -242,16 +270,86 @@ final class GreetController
         $executionId = 'greet-'.uniqid();
         $this->dispatcher->dispatchNewWorkflowRun($executionId, 'greet', ['name' => $name]);
 
-        return new JsonResponse(['executionId' => $executionId]);
+        // 202: the run is queued, not done. Answering 200 here is the first thing that makes a
+        // caller poll for a result that no consumer has produced yet.
+        return new JsonResponse(['executionId' => $executionId], JsonResponse::HTTP_ACCEPTED);
     }
 }
 ```
+
+### 5. Run a consumer, or nothing happens
+
+`dispatchNewWorkflowRun()` returns `void`, and does exactly what its name says: it *dispatches*. The
+workflow runs when something consumes the transports you configured above. Until then the execution
+sits in a queue, and a dashboard will call it `RUNNING`, which is true and unhelpful: it means *not
+finished*, not *someone is working on it*.
+
+```bash
+php bin/console messenger:consume durable_workflows durable_activities
+```
+
+Those two names are the transports **you** declared in `messenger.yaml`. No document can hand you
+this command without you having written that file first, which is why it is easy to look for the
+missing piece everywhere except in your own configuration.
+
+To see what the engine holds for one run:
+
+```bash
+php bin/console durable:execution:diagnose greet-abc123
+```
+
+#### Which profile are you in?
+
+Two configurations work. Mixing them is the usual first stumble, and it fails silently.
+
+**One process, for tests.** `in-memory://` transports with the in-memory stores. Dispatch, resume and
+activity all happen inside a single PHP process, so a test can dispatch and drain in one go. An
+in-memory transport **does not outlive its process**: dispatching from a web request and consuming
+in a separate worker cannot work here, and neither can replay: the journal the worker would need
+lives in the web process's memory.
+
+**Several processes, for local dev and production.** Real transports **and** a durable store. Both, or
+the worker picks up a queue entry naming a workflow whose journal it cannot see.
+
+This profile needs two packages the quick start above does not install: the DBAL journal, and
+DoctrineBundle for the `doctrine.dbal.default_connection` service it names:
+
+```bash
+composer require gplanchat/durable-bridge-dbal doctrine/doctrine-bundle
+```
+
+
+```yaml
+durable:
+    event_store:
+        type: dbal
+    workflow_metadata:
+        type: dbal
+    child_workflow:
+        parent_link_store:
+            type: dbal
+    dbal:
+        connection: doctrine.dbal.default_connection
+```
+
+```dotenv
+MESSENGER_DURABLE_WORKFLOW_DSN=doctrine://default
+MESSENGER_DURABLE_ACTIVITY_DSN=doctrine://default
+```
+
+The rule behind both profiles: **an execution survives exactly what its journal and its queue
+survive.** Route `ResumeWorkflowMessage` or `ActivityMessage` to a transport a separate worker
+cannot read, and the workflow replays inside the web request that started it and dies with the
+process, the very failure durable execution exists to remove.
 
 ---
 
 ## Start Temporal workers (production / dev mode)
 
-When `DURABLE_DSN` points to a Temporal server, start the Messenger consumers in separate processes:
+When `DURABLE_DSN` points to a Temporal server, start the Messenger consumers in separate processes.
+**These are the Symfony commands**; the other hosts poll the same cluster with their own:
+`php artisan durable:temporal-worker` on Laravel, `bin/magento durable:worker --role=journal` and
+`--role=activity` on Magento.
 
 ```bash
 # Workflow task worker (polls Temporal for workflow tasks)
@@ -275,9 +373,9 @@ workers:
 
 ## Next steps
 
-- [Concepts](../concepts/) — replay model, backends, event history in plain language.
-- [Creating a workflow](../workflows/) — full workflow API: signals, queries, updates, child workflows, timers.
-- [Creating activities](../activities/) — `ActivityOptions`, retries, timeouts, dependency injection.
-- [Testing workflows](../testing/) — `DurableTestCase`, `ActivitySpy`, `DurableBundleTestTrait`.
-- [Configuration reference](../configuration/) — every `durable.yaml` key explained.
-- [Backends](../backends/) — In-Memory vs Temporal: when to use each, Docker Compose setup.
+- [Concepts](../concepts/) covers the replay model, backends and event history in plain language.
+- [Creating a workflow](../workflows/) covers the full workflow API: signals, queries, updates, child workflows, timers.
+- [Creating activities](../activities/) covers `ActivityOptions`, retries, timeouts and dependency injection.
+- [Testing workflows](../testing/) covers `DurableTestCase`, `ActivitySpy` and `DurableBundleTestTrait`.
+- [Configuration reference](../configuration/) explains every `durable.yaml` key.
+- [Backends](../backends/) covers In-Memory, DBAL, Illuminate and Temporal: when to use each, Docker Compose setup.

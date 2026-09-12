@@ -8,7 +8,7 @@ defaultContentLanguageInSubdir = false
 enableGitInfo = true
 
 # La page d'accueil est le seul contenu traduit : `layouts/index.fr.html`. Le
-# guide reste anglais et n'est pas remonté sous /fr/ — un second exemplaire
+# guide reste anglais et n'est pas remonté sous /fr/ : un second exemplaire
 # complet de l'arbre servirait de l'anglais à des URL françaises.
 [languages]
 [languages.en]
@@ -19,7 +19,7 @@ label = 'Français'
 locale = 'fr'
 weight = 2
 
-# User-facing documentation only: ../documentation/user (not ADRs/WAs — see documentation/HUGO.md).
+# User-facing documentation only: ../documentation/user (not ADRs/WAs; see documentation/HUGO.md).
 
 [module]
 [[module.imports]]
@@ -32,7 +32,7 @@ path = 'github.com/alex-shpak/hugo-book'
 # Il est vide à dessein. La page d'accueil est **entièrement** dans
 # `layouts/index.html`, qui ne lit jamais `.Content` : un `content/_index.md`
 # n'y changerait rien, il ne ferait que dire autre chose que la page en ligne.
-# C'est arrivé — il annonçait « trois paquets » alors que le site en montrait
+# C'est arrivé : il annonçait « trois paquets » alors que le site en montrait
 # cinq, et quelqu'un l'a corrigé consciencieusement avant de s'apercevoir qu'il
 # n'était rendu nulle part.
 [[module.mounts]]
@@ -42,6 +42,12 @@ target = 'content'
 [[module.mounts]]
 source = '../documentation/user'
 target = 'content/docs'
+
+# The blog. Outside `BookSection`, so hugo-book renders it with its own `list.html`
+# (`book-post` markup, pagination, dated meta) instead of the book menu tree. No layout of ours.
+[[module.mounts]]
+source = '../documentation/blog'
+target = 'content/posts'
 
 [params]
 BookRepo = 'https://github.com/gplanchat/durable-dev'
@@ -53,13 +59,21 @@ BookTheme = 'auto'
 BookToC = true
 BookCollapsedLevel = 1
 
-[params.menu]
-[[params.menu.after]]
+# `[menu]`, not `[params.menu]`. The theme reads `.Site.Menus.after`, which Hugo builds from
+# `[menu]` alone; declared under `params` these three entries parse without error and render
+# nowhere, which is where the first two spent their life.
+[menu]
+[[menu.after]]
+name = 'Blog'
+url = '/posts/'
+weight = 5
+
+[[menu.after]]
 name = 'Repository'
 url = 'https://github.com/gplanchat/durable-dev'
 weight = 10
 
-[[params.menu.after]]
+[[menu.after]]
 name = 'Contributor docs (ADRs)'
 url = 'https://github.com/gplanchat/durable-dev/tree/main/documentation/adr'
 weight = 20
@@ -76,15 +90,15 @@ startLevel = 2
 # Le bloc de code de la home est fait de <div style="white-space: pre">, une
 # ligne par ligne de PHP : le minifieur HTML écrase leur indentation (il ne lit
 # pas les styles inline). On garde la minification CSS/JS, on lâche celle du
-# HTML — 150 Ko sur 5,2 Mo, sous un quota de 100 Mo.
+# HTML, 150 Ko sur 5,2 Mo, sous un quota de 100 Mo.
 [minify]
   disableHTML = true
 
-# Mesure d'audience — Matomo Cloud, en configuration exemptée de consentement.
+# Mesure d'audience : Matomo Cloud, en configuration exemptée de consentement.
 # Voir ../documentation/adr/DUR048-audience-measurement-without-a-banner.md, qui
 # porte les réglages serveur que ce fichier ne peut pas exprimer.
 #
 # Tant que ces deux valeurs sont vides, aucune balise n'est émise.
 [params.matomo]
-url = "https://durablerocks.matomo.cloud/"     # https://<instance>.matomo.cloud/  — la barre finale compte
+url = "https://durablerocks.matomo.cloud/"     # https://<instance>.matomo.cloud/  (la barre finale compte)
 siteId = "1"  # l'identifiant du site dans la console

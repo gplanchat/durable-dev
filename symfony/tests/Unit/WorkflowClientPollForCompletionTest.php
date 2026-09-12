@@ -20,10 +20,10 @@ use Temporal\Api\History\V1\WorkflowExecutionFailedEventAttributes;
 use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryResponse;
 
 /**
- * Tests unitaires pour {@see WorkflowClient::pollForCompletion()}.
+ * Unit tests for {@see WorkflowClient::pollForCompletion()}.
  *
- * Utilise {@see FakeWorkflowServiceClient} (défini dans TemporalHistoryCursorCloseEventTest.php)
- * pour contrôler les réponses gRPC sans connexion réseau.
+ * Uses {@see FakeWorkflowServiceClient} (defined in TemporalHistoryCursorCloseEventTest.php)
+ * to control the gRPC responses without a network connection.
  */
 final class WorkflowClientPollForCompletionTest extends TestCase
 {
@@ -228,9 +228,9 @@ final class WorkflowClientPollForCompletionTest extends TestCase
 }
 
 /**
- * Variante de {@see FakeWorkflowServiceClient} avec une file de réponses (une par appel).
+ * Variant of {@see FakeWorkflowServiceClient} with a queue of responses (one per call).
  *
- * Renvoie des réponses vides une fois la file épuisée.
+ * Returns empty responses once the queue is exhausted.
  *
  * @internal
  */

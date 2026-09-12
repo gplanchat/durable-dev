@@ -3,61 +3,61 @@
 declare(strict_types=1);
 
 /*
- * Les valeurs par defaut du paquet, et la copie que `vendor:publish --tag=durable-config` depose
- * dans l'application. Un seul fichier pour les deux, donc rien a faire diverger.
+ * The package defaults, and the copy that `vendor:publish --tag=durable-config` drops into the
+ * application. One file for both, so there is nothing to let diverge.
  *
- * ATTENTION : aucun appel a `env()` ici. Le provider charge ce fichier comme jeu de valeurs par
- * defaut, y compris dans un worker autonome et dans un test — ou `env()` existe, puisqu'il vient
- * d'`illuminate/support`, mais explose sur `PhpOption\Option` que seul `vlucas/phpdotenv`
- * fournit. C'est la panne exacte que le docblock de `ResumeLock` decrit a propos de
- * `Lock::block()` : elle n'arrive que la ou personne ne regarde. Votre copie publiee, elle,
- * tourne toujours dans une application : mettez-y les `env()` que vous voulez.
+ * WARNING: no `env()` call here. The provider loads this file as a set of default values, in a
+ * standalone worker and in a test too — where `env()` exists, since it comes from
+ * `illuminate/support`, but blows up on `PhpOption\Option`, which only `vlucas/phpdotenv`
+ * supplies. That is the exact failure the docblock of `ResumeLock` describes about
+ * `Lock::block()`: it only happens where nobody is watching. Your published copy, on the other
+ * hand, always runs inside an application: put in it whatever `env()` you want.
  */
 
 return [
     /*
-     * Le backend de stockage. Ce paquet en sert deux, et refuse les autres par leur nom plutôt que
-     * d'échouer à la première exécution : « illuminate » pose le journal sur la connexion que
-     * l'application possède déjà, « memory » ne survit pas au processus et n'est là que pour les
+     * The storage backend. This package serves two of them, and refuses the others by name rather
+     * than failing on the first execution: "illuminate" puts the journal on the connection the
+     * application already owns, "memory" does not survive the process and is only there for
      * tests.
      */
     'backend' => 'illuminate',
 
     /*
-     * La connexion de base de données, au sens de config/database.php. `null` prend celle par
-     * défaut de l'application — ce qui est le point de DUR030 : l'ajout au journal et l'écriture
-     * métier tiennent dans une seule transaction parce que c'est la même connexion.
+     * The database connection, in the sense of config/database.php. `null` takes the
+     * application's default one — which is the whole point of DUR030: the journal append and the
+     * business write land in one transaction because they are the same connection.
      */
     'connection' => null,
 
     /*
-     * Les classes de workflow que cette application déclare.
+     * The workflow classes this application declares.
      *
-     * Le conteneur de Laravel n'a pas d'équivalent de l'autoconfiguration par attribut de Symfony,
-     * donc la déclaration est explicite. Ce que ça ne change pas, c'est la classe : celle qui tourne
-     * sur `durable-bundle` tourne ici sans une ligne de différence.
+     * Laravel's container has no equivalent of Symfony's per-attribute autoconfiguration, so the
+     * declaration is explicit. What that does not change is the class: the one that runs on
+     * `durable-bundle` runs here without a line of difference.
      *
-     * Mesuré (§1.4) : cette liste coûte 0,14 ms et ne grandit pas avec l'application, là où un scan
-     * par réflexion coûte 15 ms à mille classes et les charge toutes, dans chaque processus, pour en
-     * trouver cinq.
+     * Measured (§1.4): this list costs 0,14 ms and does not grow with the application, where a
+     * reflection scan costs 15 ms on a thousand classes and loads them all, in every process, to
+     * find five.
      *
      * @var list<class-string>
      */
     'workflows' => [],
 
     /*
-     * Le cluster Temporal, quand `backend` vaut « temporal ».
+     * The Temporal cluster, when `backend` is "temporal".
      *
-     * Le DSN porte l'adresse, l'espace de noms et les deux files de tâches :
+     * The DSN carries the address, the namespace and the two task queues:
      *   temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities
      *
-     * Ce backend demande `gplanchat/durable-bridge-temporal`, qui est **suggéré et non exigé** :
-     * il installe un client gRPC et cinq composants Symfony qu'une application Laravel ne charge
-     * jamais. Le provider le dit par son nom si le paquet manque.
+     * This backend needs `gplanchat/durable-bridge-temporal`, which is **suggested rather than
+     * required**: it installs a gRPC client and five Symfony components a Laravel application never
+     * loads. The provider says so by name if the package is missing.
      *
-     * Le journal et le catalogue vivent alors dans le cluster ; les activités et les reprises
-     * continuent de voyager sur la file de l'application. Les tâches de workflow, elles, se
-     * drainent avec `php artisan durable:temporal-worker`.
+     * The journal and the catalog then live in the cluster; the activities and the resumes go on
+     * travelling on the application's queue. The workflow tasks, for their part, are drained with
+     * `php artisan durable:temporal-worker`.
      */
     'temporal' => [
         'dsn' => null,
@@ -71,11 +71,11 @@ return [
     ],
 
     /*
-     * La file qui porte les activités et les reprises, au sens de config/queue.php. `null` prend
-     * la connexion et la file par défaut de l'application.
+     * The queue that carries the activities and the resumes, in the sense of config/queue.php.
+     * `null` takes the application's default connection and queue.
      *
-     * Il n'y a pas de seconde file : le travail de Durable voyage sur celle que l'application
-     * draine déjà, avec `php artisan queue:work` pour seul worker.
+     * There is no second queue: Durable's work travels on the one the application already drains,
+     * with `php artisan queue:work` as its only worker.
      */
     'queue' => [
         'connection' => null,
@@ -83,19 +83,19 @@ return [
     ],
 
     /*
-     * Les opérations Nexus que cette application **sert** — appeler une opération n'a rien à
-     * déclarer ici, c'est le workflow qui la demande.
+     * The Nexus operations this application **serves** — calling an operation has nothing to
+     * declare here, it is the workflow that asks for it.
      *
-     * La clé est la classe du gestionnaire, la valeur le contrat qu'il sert :
+     * The key is the handler class, the value the contract it serves:
      *
      *     'handlers' => [App\Nexus\BillingHandler::class => App\Contracts\BillingService::class],
      *
-     * Ce qu'un gestionnaire ne sert pas, un workflow le remplit — il porte alors
-     * `#[FulfilsNexusOperation]`, et il suffit qu'il soit dans la liste `workflows` ci-dessus.
+     * What a handler does not serve, a workflow fulfils — it then carries
+     * `#[FulfilsNexusOperation]`, and it is enough for it to be in the `workflows` list above.
      *
-     * ⚠ Servir du Nexus exige le backend « temporal » : c'est le cluster qui route. Sous un autre
-     * backend, le registre refuse à l'enregistrement et dit pourquoi, plutôt que d'échouer au
-     * premier appel.
+     * ⚠ Serving Nexus requires the "temporal" backend: it is the cluster that routes. Under any
+     * other backend, the registry refuses at registration and says why, rather than failing on the
+     * first call.
      */
     'nexus' => [
         'handlers' => [],
@@ -103,41 +103,41 @@ return [
 
     'lock' => [
         /*
-         * Le magasin de cache qui porte le verrou de reprise, au sens de config/cache.php. `null`
-         * prend celui par défaut.
+         * The cache store that carries the resume lock, in the sense of config/cache.php. `null`
+         * takes the default one.
          *
-         * ⚠ Il doit verrouiller **entre processus**. Mesuré sur Laravel 12 avec quatre workers et
-         * vingt reprises d'une même exécution : `database` et `file` ne laissent aucun
-         * chevauchement, `array` en laisse quinze sur vingt (il n'exclut que dans un processus) et
-         * `null` autant (il n'exclut rien). Les quatre implémentent `LockProvider` : le typage ne
-         * vous protège pas, ce réglage si.
+         * ⚠ It must lock **across processes**. Measured on Laravel 12 with four workers and twenty
+         * resumes of one execution: `database` and `file` leave no overlap at all, `array` leaves
+         * fifteen out of twenty (it only excludes inside one process) and `null` as many (it
+         * excludes nothing). All four implement `LockProvider`: the typing does not protect you,
+         * this setting does.
          */
         'store' => null,
 
-        /* Ce qui libère le verrou quand le processus qui le tient meurt. */
+        /* What releases the lock when the process holding it dies. */
         'ttl' => 300,
 
         /*
-         * Le report d'une reprise dont le tour est pris, en secondes.
+         * The deferral of a resume whose turn is taken, in seconds.
          *
-         * Mesuré (§1.5) : sur une exécution chaude — réveillée sans cesse par des signaux ou des
-         * minuteurs — 98,8 % des reprises entrent en collision, et ce délai **est** alors la
-         * latence : une seconde a transformé 32 s de travail en 148 s d'horloge. Sur un parc de
-         * beaucoup d'exécutions, les collisions tombent à 0,6 % et le réglage n'a plus d'effet.
+         * Measured (§1.5): on a hot execution — woken ceaselessly by signals or timers — 98,8 % of
+         * the resumes collide, and this delay then **is** the latency: one second turned 32 s of
+         * work into 148 s of clock. On an estate of many executions, the collisions drop to 0,6 %
+         * and the setting no longer has any effect.
          */
         'backoff' => 1,
 
         /*
-         * Combien de fois de suite une reprise accepte de trouver le tour pris avant d'abandonner
-         * bruyamment. Un report sans fin ressemble à une exécution qui avance.
+         * How many times in a row a resume is willing to find the turn taken before giving up
+         * noisily. An endless deferral looks like an execution that is making progress.
          */
         'max_deferrals' => 50,
 
         /*
-         * Combien de temps une reprise accepte d'attendre son tour.
+         * How long a resume is willing to wait for its turn.
          *
-         * ⚠ C'est un plafond de **profondeur de file**, pas un réglage de latence : dès que
-         * profondeur × durée de la section critique dépasse cette valeur, les reprises lèvent.
+         * ⚠ This is a ceiling on **queue depth**, not a latency setting: as soon as depth ×
+         * critical section duration exceeds this value, the resumes throw.
          */
         'wait' => 10,
     ],

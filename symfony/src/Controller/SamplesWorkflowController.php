@@ -36,13 +36,13 @@ final class SamplesWorkflowController extends AbstractController
     {
         $scenario = SampleWorkflowCatalog::findById($id);
         if (null === $scenario) {
-            throw $this->createNotFoundException(\sprintf('Scénario inconnu: %s', $id));
+            throw $this->createNotFoundException(\sprintf('Unknown scenario: %s', $id));
         }
 
         $workflowType = $scenario['workflowType'];
         if (!$this->workflowRunner->hasWorkflow($workflowType)) {
             return $this->render('samples/error.html.twig', [
-                'message' => \sprintf('Le type de workflow « %s » n’est pas enregistré.', $workflowType),
+                'message' => \sprintf('The workflow type "%s" is not registered.', $workflowType),
             ], new Response('', Response::HTTP_INTERNAL_SERVER_ERROR));
         }
 

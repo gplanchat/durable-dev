@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Demo\Contracts;
 
 use Gplanchat\Durable\Attribute\AsNexusOperation;
-use Gplanchat\Durable\Demo\Contracts\Facturation\FacturationContract;
-use Gplanchat\Durable\Demo\Contracts\Facturation\FacturationServed;
+use Gplanchat\Durable\Demo\Contracts\Billing\BillingContract;
+use Gplanchat\Durable\Demo\Contracts\Billing\BillingServed;
 use Gplanchat\Durable\Demo\Contracts\Stock\StockContract;
 use Gplanchat\Durable\Demo\Contracts\Stock\StockServed;
 use Gplanchat\Durable\Nexus\Serving\NexusContractResolver;
@@ -14,15 +14,15 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Les contrats de la démonstration sont des déclarations : il n'y a pas de logique à éprouver, mais
- * il y a trois manières de les écrire faux, et les trois échouent en silence.
+ * The demonstration contracts are declarations: there is no logic to exercise, but there are three
+ * ways to write them wrong, and all three fail in silence.
  */
 final class DemoNexusContractsTest extends TestCase
 {
     /**
-     * Le mode d'échec : un nom de service qui diverge entre l'interface servie et celle que
-     * l'appelant lit. Le gestionnaire est enregistré sous un nom, l'appelant en adresse un autre,
-     * et la tâche part vers un service que personne ne sert. Rien ne lève, rien ne trace.
+     * The failure mode: a service name that diverges between the served interface and the one the
+     * caller reads. The handler is registered under one name, the caller addresses another, and the
+     * task leaves for a service nobody serves. Nothing throws, nothing is traced.
      */
     public function testTheTwoHalvesOfAContractNameTheSameService(): void
     {
@@ -30,41 +30,41 @@ final class DemoNexusContractsTest extends TestCase
 
         self::assertSame('stock', $resolver->serviceName(StockServed::class));
         self::assertSame('stock', $resolver->serviceName(StockContract::class));
-        self::assertSame('facturation', $resolver->serviceName(FacturationServed::class));
-        self::assertSame('facturation', $resolver->serviceName(FacturationContract::class));
+        self::assertSame('billing', $resolver->serviceName(BillingServed::class));
+        self::assertSame('billing', $resolver->serviceName(BillingContract::class));
     }
 
     /**
-     * Le mode d'échec : une opération déclarée sur l'interface servie et invisible depuis le
-     * contrat de l'appelant — déclarée, servie, et introuvable. C'est pourquoi le résolveur descend
-     * les interfaces parentes, et c'est ce que cette assertion tient.
+     * The failure mode: an operation declared on the served interface and invisible from the
+     * caller's contract — declared, served, and unreachable. That is why the resolver walks the
+     * parent interfaces, and it is what this assertion holds.
      */
     public function testTheCallerSeesTheInheritedOperationsToo(): void
     {
         $resolver = new NexusContractResolver();
 
-        self::assertSame(['reserver' => 'reserver'], $resolver->operations(StockContract::class));
+        self::assertSame(['reserve' => 'reserve'], $resolver->operations(StockContract::class));
 
-        // Trié : l'ordre est celui que rend la réflexion — les méthodes propres avant les héritées —
-        // et ce n'est pas quelque chose que le routage lit.
-        $facturation = $resolver->operations(FacturationContract::class);
-        ksort($facturation);
-        self::assertSame(['encaisser' => 'encaisser', 'verifier' => 'verifier'], $facturation);
+        // Sorted: the order is the one reflection returns — own methods before inherited ones —
+        // and it is not something the routing reads.
+        $billing = $resolver->operations(BillingContract::class);
+        ksort($billing);
+        self::assertSame(['charge' => 'charge', 'verify' => 'verify'], $billing);
     }
 
     /** @return iterable<string, array{class-string}> */
     public static function contracts(): iterable
     {
         yield 'stock' => [StockContract::class];
-        yield 'facturation' => [FacturationContract::class];
+        yield 'billing' => [BillingContract::class];
     }
 
     /**
-     * Le mode d'échec : un objet en paramètre ou en retour. La charge Nexus est du JSON simple,
-     * décodé en tableau associatif de l'autre côté de la frontière — un paramètre typé `Ordre`
-     * recevrait un tableau, et c'est un `TypeError` au moment où le gestionnaire est appelé, pas à
-     * l'écriture du contrat. La contrainte est aussi ce qui permet à un gestionnaire écrit en Go ou
-     * en TypeScript de lire les mêmes champs.
+     * The failure mode: an object as a parameter or as a return. A Nexus payload is plain JSON,
+     * decoded into an associative array on the other side of the boundary — a parameter typed
+     * `Order` would receive an array, and that is a `TypeError` at the moment the handler is
+     * called, not when the contract is written. The constraint is also what lets a handler written
+     * in Go or in TypeScript read the same fields.
      */
     #[DataProvider('contracts')]
     public function testEveryOperationTravelsAsPlainJson(string $contract): void
@@ -82,9 +82,9 @@ final class DemoNexusContractsTest extends TestCase
             }
 
             foreach ($types as $type) {
-                self::assertInstanceOf(\ReflectionNamedType::class, $type, $method->getName() . '() : chaque type est déclaré');
+                self::assertInstanceOf(\ReflectionNamedType::class, $type, $method->getName() . '(): every type is declared');
                 self::assertContains($type->getName(), $portables, \sprintf(
-                    '%s::%s() emploie %s, qui ne survit pas à l\'aller-retour JSON.',
+                    '%s::%s() uses %s, which does not survive the JSON round trip.',
                     $contract,
                     $method->getName(),
                     $type->getName(),

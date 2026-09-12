@@ -25,7 +25,7 @@ use Symfony\Component\Uid\Uuid;
 
 #[AsCommand(
     name: 'durable:sample',
-    description: 'Exécute un workflow exemple (équivalents légers des samples temporalio/samples-php)',
+    description: 'Run a sample workflow (light equivalents of the temporalio/samples-php samples)',
 )]
 final class RunDurableSampleCommand extends Command
 {
@@ -47,51 +47,51 @@ final class RunDurableSampleCommand extends Command
             ->addArgument(
                 'workflow',
                 InputArgument::OPTIONAL,
-                'Type enregistré dans WorkflowRegistry',
+                'A type registered in WorkflowRegistry',
                 DurableSampleWorkflows::GREETING,
             )
-            ->addOption('name', null, InputOption::VALUE_REQUIRED, 'Prénom (GreetingWorkflow)', 'World')
-            ->addOption('first', null, InputOption::VALUE_REQUIRED, 'Premier prénom (ParallelGreetingWorkflow)', 'Alice')
-            ->addOption('second', null, InputOption::VALUE_REQUIRED, 'Deuxième prénom (ParallelGreetingWorkflow)', 'Bob')
-            ->addOption('text', null, InputOption::VALUE_REQUIRED, 'Texte (Echo / ParentCallsEchoChild)', 'from-parent')
-            ->addOption('seconds', null, InputOption::VALUE_REQUIRED, 'Délai timer en secondes (TimerThenTickWorkflow)', '0.01')
+            ->addOption('name', null, InputOption::VALUE_REQUIRED, 'First name (GreetingWorkflow)', 'World')
+            ->addOption('first', null, InputOption::VALUE_REQUIRED, 'The first name (ParallelGreetingWorkflow)', 'Alice')
+            ->addOption('second', null, InputOption::VALUE_REQUIRED, 'The second name (ParallelGreetingWorkflow)', 'Bob')
+            ->addOption('text', null, InputOption::VALUE_REQUIRED, 'Text (Echo / ParentCallsEchoChild)', 'from-parent')
+            ->addOption('seconds', null, InputOption::VALUE_REQUIRED, 'Timer delay in seconds (TimerThenTickWorkflow)', '0.01')
             ->addOption(
                 'pause-seconds',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'Pause durable en secondes avant les enfants (ParallelChildEchoWorkflow ; 0 par défaut)',
+                'Durable pause in seconds before the children (ParallelChildEchoWorkflow; 0 by default)',
                 '0',
             )
-            ->addOption('execution-id', null, InputOption::VALUE_REQUIRED, 'UUID d’exécution (sinon généré)')
+            ->addOption('execution-id', null, InputOption::VALUE_REQUIRED, 'Execution UUID (generated when absent)')
             ->addOption(
                 'no-drain',
                 null,
                 InputOption::VALUE_NONE,
-                'Avec Messenger : n’exécute que le dispatch (consommateurs séparés : messenger:consume …)',
+                'With Messenger: only dispatch (separate consumers: messenger:consume …)',
             )
             ->setHelp(
                 <<<'HELP'
-Ce projet illustre <info>gplanchat/durable</info> avec <comment>Symfony Messenger</comment> : les reprises de
-workflow et les activités passent par les transports <info>durable_workflows</info> et
-<info>durable_activities</info> (Messenger, voir <comment>config/packages/messenger.yaml</comment>).
-En dev, le journal d’événements peut utiliser <comment>Temporal</comment> (voir <comment>.env.dev</comment>) sans base SQL pour Durable.
+This project shows <info>gplanchat/durable</info> with <comment>Symfony Messenger</comment>: workflow resumes
+and activities travel over the <info>durable_workflows</info> and <info>durable_activities</info>
+transports (Messenger, see <comment>config/packages/messenger.yaml</comment>).
+In dev the event journal can use <comment>Temporal</comment> (see <comment>.env.dev</comment>) with no SQL database for Durable.
 
-Workflows disponibles (voir <info>App\Durable\DurableSampleWorkflows</info>) :
+Available workflows (see <info>App\Durable\DurableSampleWorkflows</info>):
 
-  <info>GreetingWorkflow</info>              — comme <comment>SimpleActivity</comment>
-  <info>ParallelGreetingWorkflow</info>     — comme <comment>AsyncActivity</comment> (deux activités, <comment>all</comment>)
-  <info>EchoChildWorkflow</info>             — enfant : majuscules via activité
-  <info>ParentCallsEchoChildWorkflow</info>  — comme <comment>Child</comment>
-  <info>ParallelChildEchoWorkflow</info>     — deux sous-workflows <comment>EchoChildWorkflow</comment> en <comment>all</comment>
-  <info>TimerThenTickWorkflow</info>         — timer court puis activité
-  <info>SideEffectRandomIdWorkflow</info>   — <comment>sideEffect</comment> rejouable
+  <info>GreetingWorkflow</info>              — like <comment>SimpleActivity</comment>
+  <info>ParallelGreetingWorkflow</info>     — like <comment>AsyncActivity</comment> (two activities, <comment>all</comment>)
+  <info>EchoChildWorkflow</info>             — a child: uppercasing through an activity
+  <info>ParentCallsEchoChildWorkflow</info>  — like <comment>Child</comment>
+  <info>ParallelChildEchoWorkflow</info>     — two <comment>EchoChildWorkflow</comment> children under <comment>all</comment>
+  <info>TimerThenTickWorkflow</info>         — a short timer then an activity
+  <info>SideEffectRandomIdWorkflow</info>   — a replayable <comment>sideEffect</comment>
 
-Sans <comment>--no-drain</comment>, cette commande vide localement les transports (équivalent court de
+Without <comment>--no-drain</comment>, this command drains the transports locally (the short equivalent of
 <info>php bin/console messenger:consume durable_workflows durable_activities</info>).
 
-Démo HTTP + profiler Web : <info>php -S localhost:8000 -t public</info> puis ouvrir <info>/durable/profiler-demo</info>.
+HTTP demo + web profiler: <info>php -S localhost:8000 -t public</info> then open <info>/durable/profiler-demo</info>.
 
-Référence amont : https://github.com/temporalio/samples-php
+Upstream reference: https://github.com/temporalio/samples-php
 HELP
             )
         ;
@@ -123,7 +123,7 @@ HELP
         $this->workflowResumeDispatcher->dispatchNewWorkflowRun($executionId, $workflowType, $payload);
 
         if ($input->getOption('no-drain')) {
-            $io->note('ResumeWorkflowMessage dispatché. Lancez par exemple :');
+            $io->note('ResumeWorkflowMessage dispatched. Run for instance:');
             $io->text('  php bin/console messenger:consume durable_workflows durable_activities -vv');
 
             return Command::SUCCESS;
@@ -136,16 +136,16 @@ HELP
             $this->receiverLocator,
             $executionId,
         )) {
-            $io->warning('Drain Messenger : limite d’itérations atteinte ou exécution non terminée.');
+            $io->warning('Messenger drain: iteration limit reached, or the execution did not finish.');
         }
         $result = WorkflowQueryEvaluator::lastExecutionResult($this->eventStore, $executionId);
         if (null === $result) {
-            $io->error('Aucun ExecutionCompleted dans le journal (échec ou drain incomplet).');
+            $io->error('No ExecutionCompleted in the journal (a failure, or an incomplete drain).');
 
             return Command::FAILURE;
         }
 
-        $io->success(\sprintf('Exécution %s terminée.', $executionId));
+        $io->success(\sprintf('Execution %s finished.', $executionId));
         $io->writeln($this->formatResult($result));
 
         return Command::SUCCESS;

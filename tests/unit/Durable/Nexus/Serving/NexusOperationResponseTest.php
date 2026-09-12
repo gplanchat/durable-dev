@@ -21,8 +21,8 @@ final class NexusOperationResponseTest extends TestCase
 
     public function testADeferredAnswerNamesTheWorkflowThatFulfilsIt(): void
     {
-        // Le gestionnaire ne rend pas un jeton : la sonde 3.1 a montré que ce qui corrèle est le
-        // callback de la tâche attaché au workflow, et qu'il ne s'attache qu'au démarrage.
+        // The handler does not return a token: probe 3.1 showed that what correlates is the task
+        // callback attached to the workflow, and that it only attaches at start.
         $response = NexusOperationResponse::fulfilledByWorkflow('GreetingWorkflow', ['name' => 'ada'], 'greet-1');
 
         self::assertFalse($response->isImmediate);
@@ -49,7 +49,7 @@ final class NexusOperationResponseTest extends TestCase
             NexusHandlerErrorType::NotImplemented,
             NexusHandlerErrorType::Conflict,
         ] as $terminal) {
-            self::assertFalse($terminal->isRetryable(), $terminal->value . ' doit être terminale.');
+            self::assertFalse($terminal->isRetryable(), $terminal->value . ' must be terminal.');
         }
 
         foreach ([
@@ -59,7 +59,7 @@ final class NexusOperationResponseTest extends TestCase
             NexusHandlerErrorType::UpstreamTimeout,
             NexusHandlerErrorType::RequestTimeout,
         ] as $retryable) {
-            self::assertTrue($retryable->isRetryable(), $retryable->value . ' doit être réessayable.');
+            self::assertTrue($retryable->isRetryable(), $retryable->value . ' must be retryable.');
         }
     }
 }

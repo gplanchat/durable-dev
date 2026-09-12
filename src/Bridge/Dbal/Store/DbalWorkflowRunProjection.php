@@ -10,11 +10,11 @@ use Gplanchat\Durable\Observation\WorkflowRunProjectionInterface;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 
 /**
- * La ligne qu'une exécution laisse derrière elle, écrite à deux plumes.
+ * The row an execution leaves behind, written by two hands.
  *
- * Le **nom** ne peut venir que du magasin de métadonnées : `ExecutionStarted` ne porte pas le type
- * de workflow. L'**issue** ne peut venir que du journal : les trois fins anormales passent par le
- * même `delete()` côté métadonnées, et rien n'y distingue une annulation d'un échec.
+ * The **name** can only come from the metadata store: `ExecutionStarted` does not carry the workflow
+ * type. The **outcome** can only come from the journal: the three abnormal endings all go through
+ * the same `delete()` on the metadata side, and nothing there tells a cancellation from a failure.
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/design.md
  * @see DUR030
@@ -28,17 +28,17 @@ final class DbalWorkflowRunProjection implements WorkflowRunProjectionInterface
     ) {}
 
     /**
-     * Une exécution démarre — ou reprend sous le même id.
+     * An execution starts — or resumes under the same id.
      *
-     * `started_at` n'est écrit qu'à l'insertion : le magasin de métadonnées fait un upsert, et
-     * réécrire la date à chaque passage ferait rajeunir une exécution longue à chaque reprise.
+     * `started_at` is only written on insertion: the metadata store does an upsert, and rewriting
+     * the date on every pass would make a long execution grow younger at every resume.
      */
     public function recordStart(string $executionId, string $workflowType): void
     {
         $this->schema->ensure();
 
-        // Même piège que dans le magasin de métadonnées : le nombre de lignes affectées par un
-        // UPDATE ne dit pas la même chose sur SQLite et sur MySQL. L'existence se demande.
+        // Same trap as in the metadata store: the number of rows affected by an UPDATE does not
+        // say the same thing on SQLite and on MySQL. Existence is asked for.
         $exists = false !== $this->connection->fetchOne(
             \sprintf('SELECT 1 FROM %s WHERE execution_id = ?', $this->table),
             [$executionId],
@@ -65,10 +65,10 @@ final class DbalWorkflowRunProjection implements WorkflowRunProjectionInterface
     }
 
     /**
-     * L'exécution s'est terminée, d'une des quatre façons dont le journal sait parler.
+     * The execution has ended, in one of the four ways the journal knows how to speak of.
      *
-     * Sans effet si aucune ligne n'existe : une exécution dont le démarrage n'a pas été projeté
-     * n'a pas de nom, et une ligne sans nom serait pire qu'une absence.
+     * No effect if no row exists: an execution whose start was not projected has no name, and a
+     * row without a name would be worse than an absence.
      */
     public function recordOutcome(string $executionId, WorkflowRunStatus $status): void
     {

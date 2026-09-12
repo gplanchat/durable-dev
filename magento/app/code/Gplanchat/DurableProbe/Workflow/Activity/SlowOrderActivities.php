@@ -7,11 +7,11 @@ namespace Gplanchat\DurableProbe\Workflow\Activity;
 use Gplanchat\Durable\Attribute\AsActivityMethod;
 
 /**
- * Le contrat du §5.3 : encaisser, réserver, notifier — la panne qu'OST003 nomme, réduite à trois
- * étapes dont une traîne assez pour qu'on puisse tuer le processus au milieu.
+ * The §5.3 contract: charge, reserve, notify — the failure OST003 names, reduced to three steps,
+ * one of which drags on long enough for the process to be killed half way through.
  *
- * `charge` laisse une trace **observable** : c'est elle qui dit si la carte a été débitée deux
- * fois. Sans effet de bord, « ne re-débite pas » ne se mesure pas, il se croit.
+ * `charge` leaves an **observable** trace: it is the one that says whether the card was charged
+ * twice. With no side effect, "it does not charge again" is not measured, it is believed.
  */
 interface SlowOrderActivities
 {

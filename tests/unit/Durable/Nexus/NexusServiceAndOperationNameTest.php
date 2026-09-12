@@ -10,16 +10,16 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Les verdicts de la sonde §1.1 (moitié service/opération), rendus impossibles à subir.
+ * The verdicts of probe §1.1 (the service/operation half), made impossible to suffer.
  *
- * Le serveur n'en valide aucun : vide, blancs, tabulation, caractère de contrôle, mille
- * caractères — tout est accepté et enregistré verbatim, puis l'opération attend un gestionnaire
- * qui ne correspondra jamais, sans une ligne d'erreur. C'est la panne muette de
- * {@see \Gplanchat\Durable\TaskQueue}, et elle appelle le même remède : être plus strict que le
- * serveur sur ce qui ne peut être qu'une faute.
+ * The server validates none of them: empty, whitespace, tab, control character, a thousand
+ * characters — everything is accepted and recorded verbatim, and then the operation waits for a
+ * handler that will never match, without a single line of error. This is the silent failure of
+ * {@see \Gplanchat\Durable\TaskQueue}, and it calls for the same remedy: being stricter than the
+ * server about what can only be a mistake.
  *
- * À l'inverse de {@see \Gplanchat\Durable\Nexus\NexusEndpoint}, que le serveur refuse net et qui
- * n'a donc rien à inventer.
+ * Unlike {@see \Gplanchat\Durable\Nexus\NexusEndpoint}, which the server refuses outright and
+ * which therefore has nothing to invent.
  *
  * @see tests/integration/Temporal/NexusServiceAndOperationNameRulesTest.php
  */
@@ -57,7 +57,7 @@ final class NexusServiceAndOperationNameTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function acceptedNames(): iterable
     {
-        // Le serveur n'impose aucun alphabet : tout ce qui n'est pas une faute évidente passe.
+        // The server imposes no alphabet: anything that is not an obvious mistake goes through.
         yield 'simple' => ['checkout'];
         yield 'point' => ['com.example.checkout'];
         yield 'barre oblique' => ['example/checkout'];
@@ -79,8 +79,8 @@ final class NexusServiceAndOperationNameTest extends TestCase
 
     public function testNoLengthLimitIsInventedBecauseNoneWasObserved(): void
     {
-        // §1.4 : ne pas écrire d'invariant qui n'a pas été observé. Mille caractères ont été
-        // acceptés par le serveur et aucune borne haute n'a été trouvée — on n'en fabrique pas.
+        // §1.4: do not write an invariant that was not observed. A thousand characters were
+        // accepted by the server and no upper bound was found — so we do not make one up.
         $long = str_repeat('o', 5_000);
 
         self::assertSame($long, NexusOperationName::named($long)->name());

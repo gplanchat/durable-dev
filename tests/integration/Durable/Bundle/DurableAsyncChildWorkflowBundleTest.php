@@ -148,12 +148,12 @@ final class DurableAsyncChildWorkflowBundleTest extends KernelTestCase
             }
         }
 
-        self::fail('Trop d’itérations sur la file workflow');
+        self::fail('Too many iterations on the workflow queue');
     }
 
     /**
-     * Comme {@see flushWorkflowQueueUntilIdle} mais n’interrompt pas la boucle si le handler
-     * relève une exception (ex. parent après échec enfant rejoué).
+     * Like {@see flushWorkflowQueueUntilIdle} but does not break the loop if the handler
+     * raises an exception (e.g. parent resumed after a replayed child failure).
      */
     private function flushWorkflowQueueUntilIdleIgnoringHandlerFailures(
         MessageBusInterface $bus,
@@ -175,13 +175,13 @@ final class DurableAsyncChildWorkflowBundleTest extends KernelTestCase
                 try {
                     $bus->dispatch($envelope->with(new ReceivedStamp('workflow_jobs')));
                 } catch (\Throwable) {
-                    // ex. DurableChildWorkflowFailedException à la reprise du parent
+                    // e.g. DurableChildWorkflowFailedException when the parent resumes
                 }
                 $workflowTransport->ack($envelope);
             }
         }
 
-        self::fail('Trop d’itérations sur la file workflow');
+        self::fail('Too many iterations on the workflow queue');
     }
 
     private function drainAllPendingActivities(

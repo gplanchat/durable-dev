@@ -17,16 +17,16 @@ use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionResponse;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Les RPC qui concernent les **tâches Nexus** servies par ce composant.
+ * The RPCs that concern the **Nexus tasks** served by this component.
  *
- * `StartWorkflowExecution` figure ici avec les trois autres, et ce n'est pas un fourre-tout : la
- * sonde 3.1 a montré que ce qui règle une opération différée est le `callback` de la tâche attaché
- * au workflow qui la remplit, via `completion_callbacks` — un champ qui ne se pose qu'au démarrage.
- * Démarrer ce workflow fait donc partie du geste de réponse, pas d'un autre.
+ * `StartWorkflowExecution` sits here with the other three, and this is not a catch-all: probe 3.1
+ * showed that what settles a deferred operation is the task's `callback` attached to the workflow
+ * that fulfils it, through `completion_callbacks` — a field that can only be set at start.
+ * Starting that workflow is therefore part of the act of responding, not of another one.
  *
- * `RequestCancelWorkflowExecution` y figure pour la même raison : la sonde §4 a montré que la
- * tâche d'annulation nomme le jeton rendu au démarrage, et que ce jeton est le workflow qui porte
- * l'opération. Annuler l'opération, c'est annuler ce workflow.
+ * `RequestCancelWorkflowExecution` sits here for the same reason: probe §4 showed that the
+ * cancellation task names the token handed back at start, and that this token is the workflow that
+ * carries the operation. Cancelling the operation means cancelling that workflow.
  *
  * @see \Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker
  */

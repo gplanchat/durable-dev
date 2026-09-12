@@ -20,7 +20,7 @@ use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-/** Contrat métier — aucun attribut requis sur l'interface. */
+/** Contrat métier. Aucun attribut requis sur l'interface. */
 interface OrderWorkflowContract
 {
     public function run(string $orderId): mixed;
@@ -45,7 +45,7 @@ final class OrderWorkflow implements OrderWorkflowContract
 }
 ```
 
-`WorkflowEnvironment` fournit **`await`**, les assembleurs **`all`** / **`any`** / **`some`**, **`async`**, les minuteurs, les workflows enfants, les signaux, et le reste — voir la classe dans le dépôt pour l'API complète.
+`WorkflowEnvironment` fournit **`await`**, les assembleurs **`all`** / **`any`** / **`some`**, **`async`**, les minuteurs, les workflows enfants, les signaux, et le reste ; voir la classe dans le dépôt pour l'API complète.
 
 ### Attendre ou assembler {#waiting-versus-assembling}
 
@@ -54,7 +54,7 @@ Les appels de stub comme les assembleurs ci-dessous renvoient tous un `Awaitable
 main immédiatement.
 
 ```php
-$env->sleep(Duration::minutes(5));            // attendre, et rien d'autre — l'attente est faite pour vous
+$env->sleep(Duration::minutes(5));            // attendre, et rien d'autre ; l'attente est faite pour vous
 
 $winner = $env->await($env->any(              // assembler, puis attendre
     $activities->callProvider($orderId),
@@ -65,13 +65,13 @@ $winner = $env->await($env->any(              // assembler, puis attendre
 Trois assembleurs, selon le nombre de membres qui doivent aboutir :
 
 ```php
-$env->all($a, $b, $c)      // Awaitable de [$a, $b, $c] — tous les membres, dans l'ordre de déclaration
+$env->all($a, $b, $c)      // Awaitable de [$a, $b, $c] : tous les membres, dans l'ordre de déclaration
 $env->any($a, $b, $c)      // Awaitable du premier membre à se résoudre, quel que soit son sort
 $env->some(2, $a, $b, $c)  // Awaitable des 2 premiers membres à réussir, indexés par position
 ```
 
 Parce qu'ils renvoient un `Awaitable` et non une valeur, ils **se composent** : un assemblage
-s'imbrique dans un autre et — c'est ce qui compte le plus — un assemblage peut être borné par une
+s'imbrique dans un autre et, c'est ce qui compte le plus, un assemblage peut être borné par une
 échéance.
 
 ```php
@@ -83,8 +83,8 @@ du quorum, et dès qu'il n'en reste plus assez pour l'atteindre, l'attente écho
 jamais se résoudre. `all()` est le quorum complet : un seul membre en échec fait échouer tout
 l'assemblage. `any()` est une course : le premier membre à se résoudre gagne, même en échouant.
 
-Les branches perdantes sont annulées — activités retirées de la file, minuteurs empêchés de
-réveiller l'exécution — y compris les branches imbriquées dans un assemblage.
+Les branches perdantes sont annulées : activités retirées de la file, minuteurs empêchés de
+réveiller l'exécution, y compris les branches imbriquées dans un assemblage.
 
 `timer()` renvoie un `Awaitable` exactement comme un appel de stub : les deux se composent de la
 même façon. Les deux acceptent une `Duration`, un `DateInterval` (donc un `CarbonInterval`), une
@@ -92,7 +92,7 @@ même façon. Les deux acceptent une `Duration`, un `DateInterval` (donc un `Car
 
 ### Borner une attente dans le temps {#bounding-a-wait-in-time}
 
-Pour renoncer à une attente au bout d'un moment, passez une **échéance** à `await()` — ne courez
+Pour renoncer à une attente au bout d'un moment, passez une **échéance** à `await()` ; ne courez
 pas un minuteur à la main. `any()` se résout à la **valeur** gagnante et à rien d'autre : un
 fournisseur qui répond légitimement `null` devient indistinguable d'une échéance écoulée, et une
 saga qui compense au dépassement compenserait aussi sur une réponse vide.
@@ -103,12 +103,12 @@ use Gplanchat\Durable\Exception\DeadlineExceededException;
 try {
     $quote = $env->await($activities->callProvider($orderId), Duration::seconds(30));
 } catch (DeadlineExceededException $e) {
-    // Le fournisseur n'a pas répondu à temps — chemin de compensation.
+    // Le fournisseur n'a pas répondu à temps. Chemin de compensation.
     // $e->deadline() est l'échéance écoulée, $e->awaited() ce qu'elle bornait.
 }
 ```
 
-L'échéance vaut `Duration::infinity()` par défaut — une attente non bornée le dit par une valeur
+L'échéance vaut `Duration::infinity()` par défaut, si bien qu'une attente non bornée le dit par une valeur
 plutôt que par un argument manquant, si bien qu'un appelant qui calcule sa propre échéance n'a pas
 de cas « pas de borne » à traiter à part.
 
@@ -117,7 +117,7 @@ quand le travail se résout à temps.
 
 ### Attendre sur une condition
 
-`await()` prend aussi une **condition** — un prédicat sur l'état du workflow lui-même — partout où
+`await()` prend aussi une **condition**, un prédicat sur l'état du workflow lui-même, partout où
 elle prend un awaitable, avec la même échéance facultative. C'est ce qu'un gestionnaire de signal
 réveille :
 
@@ -133,9 +133,66 @@ try {
 
 C'est la forme canonique de la saga : attendre l'approbation, renoncer au bout d'une heure.
 
+#### Le gestionnaire est une méthode, l'attente aussi
+
+Dans un workflow écrit en classe, déclarez le gestionnaire avec `#[AsSignalMethod]`, que le moteur
+câble, et adjoignez-lui une petite méthode privée qui attend et consomme. Le corps se lit alors en
+une ligne, et le tampon est une propriété plutôt qu'une référence capturée :
+
+```php
+#[AsWorkflow('Order')]
+final class OrderWorkflow
+{
+    /** @var list<array<string, mixed>> */
+    private array $approvals = [];
+
+    public function __construct(private readonly WorkflowEnvironment $env) {}
+
+    #[AsSignalMethod(OrderSignal::Approve)]
+    public function approve(array $payload): void
+    {
+        $this->approvals[] = $payload;
+    }
+
+    #[AsWorkflowMethod]
+    public function run(string $orderId): string
+    {
+        $approval = $this->waitApproval(Duration::hours(48));
+
+        return $this->ship($orderId, $approval['by']);
+    }
+
+    /** @return array<string, mixed> */
+    private function waitApproval(Duration $deadline): array
+    {
+        $this->env->await(fn(): bool => [] !== $this->approvals, $deadline);
+
+        return array_shift($this->approvals);
+    }
+}
+```
+
+Parce que les livraisons sont **l'état du workflow**, un workflow qui attend trois fois le même
+signal garde trois entrées et les consomme à son rythme, et un signal arrivé alors que personne
+n'attendait est encore là à l'attente suivante. C'est ce que le `waitSignal()` supprimé approchait
+avec un compteur côté moteur ; ici c'est `array_shift()`.
+
+> [!WARNING]
+> Deux pièges, silencieux tous les deux.
+>
+> L'attribut est lu sur la **classe du workflow**, avec `ReflectionClass::getMethods()`. PHP
+> n'expose pas, à travers la classe qui l'implémente, un attribut déclaré sur une méthode
+> d'interface : `#[AsSignalMethod]` posé sur une interface de contrat n'enregistre donc **rien** :
+> le signal arrive, aucun gestionnaire ne tourne, et la condition ne se réalise jamais. L'attribut
+> va sur la classe.
+>
+> Et le gestionnaire est appelé avec **un** argument : le tableau de charge. Une signature comme
+> `approve(string $by)` échoue à la livraison du signal, pas au démarrage du worker.
+
+
 Une condition doit être fonction de **l'état du workflow et de rien d'autre**. Elle est réévaluée à
-chaque rejeu : tout ce qu'un rejeu ne peut pas reproduire — une horloge, un tirage aléatoire, une
-variable d'environnement — doit être enregistré une fois avec `sideEffect()` puis relu :
+chaque rejeu : tout ce qu'un rejeu ne peut pas reproduire (une horloge, un tirage aléatoire, une
+variable d'environnement) doit être enregistré une fois avec `sideEffect()` puis relu :
 
 ```php
 $threshold = $env->sideEffect(fn(): int => random_int(1, 10));   // enregistré une fois
@@ -148,10 +205,10 @@ non-déterminisme non plus, et `sideEffect()` est le mécanisme qu'il vous donne
 > [!WARNING]
 > `fn()` capture **par valeur**. Une condition portant sur une variable locale doit passer par la
 > forme longue : `function () use (&$approvals): bool { … }`. Sur `$this->propriété`, la forme
-> courte convient — c'est `$this` qui est capturé, pas la valeur.
+> courte convient : c'est `$this` qui est capturé, pas la valeur.
 
-Une condition qui ne peut jamais tenir — rien de ce qui est en attente ne peut changer l'état
-qu'elle lit — est signalée comme une exécution qui ne peut plus avancer, en nommant la condition
+Une condition qui ne peut jamais tenir, parce que rien de ce qui est en attente ne peut changer
+l'état qu'elle lit, est signalée comme une exécution qui ne peut plus avancer, en nommant la condition
 par son fichier et sa ligne, plutôt que de tourner à vide.
 
 La branche perdante, quelle qu'elle soit, est annulée : une échéance qui s'écoule annule le travail
@@ -162,7 +219,7 @@ tourner sur son worker. Ce que l'échéance garantit, c'est que sa complétion n
 workflow.
 
 Le verdict est lu depuis l'historique enregistré : un rejeu atteint donc le verdict qu'a atteint
-l'exécution d'origine — **y compris** quand le signal attendu est livré après l'échéance écoulée.
+l'exécution d'origine, **y compris** quand le signal attendu est livré après l'échéance écoulée.
 Un message enregistré après le déclenchement de l'échéance n'est jamais appliqué à l'attente que
 cette échéance a tranchée ; il reste disponible pour l'attente suivante, et son gestionnaire
 s'exécute à ce moment-là. Voir **DUR032** et **DUR035**.
@@ -178,12 +235,12 @@ $options = ActivityOptions::of(5, 120);   // 5 tentatives, 120 s chacune
 $activities = $this->environment->activityStub(OrderActivities::class, $options);
 ```
 
-D'autres cas de figure dans [Écrire des activités — ActivityOptions](../activities/#activityoptions-timeouts-retries-task-queue),
+D'autres cas de figure dans [Écrire des activités : ActivityOptions](../activities/#activityoptions-timeouts-retries-task-queue),
 et chaque option est décrite dans [Options et objets valeur](../options/).
 
 ### Nommage : `ActivityStub` ou `ActivityInvoker`
 
-Les ADR emploient le terme canonique **`ActivityInvoker`** pour ce motif. Dans le paquet actuel, le type s'appelle **`ActivityStub`** et vient de **`WorkflowEnvironment::activityStub()`** — même rôle : des appels typés qui renvoient un **`Awaitable`**. Le stub délègue à un port de planification étroit qu'un workflow ne reçoit jamais — c'est pourquoi désigner une activité par une chaîne n'est pas quelque chose que le code d'un workflow puisse faire.
+Les ADR emploient le terme canonique **`ActivityInvoker`** pour ce motif. Dans le paquet actuel, le type s'appelle **`ActivityStub`** et vient de **`WorkflowEnvironment::activityStub()`**, dans le même rôle : des appels typés qui renvoient un **`Awaitable`**. Le stub délègue à un port de planification étroit qu'un workflow ne reçoit jamais, c'est pourquoi désigner une activité par une chaîne n'est pas quelque chose que le code d'un workflow puisse faire.
 
 ## Exemple : deux méthodes d'entrée
 
@@ -193,7 +250,7 @@ Si vous exposez **deux** méthodes `#[AsWorkflowMethod]` sur le même type de wo
 #[AsWorkflowMethod]
 public function runMain(Input $input): mixed { /* ... */ }
 
-#[AsWorkflowMethod(default: true)] // à titre d'illustration — à activer quand l'attribut le prendra en charge
+#[AsWorkflowMethod(default: true)] // à titre d'illustration, à activer quand l'attribut le prendra en charge
 public function runAlternate(Input $input): mixed { /* ... */ }
 ```
 
@@ -203,7 +260,7 @@ Tant que **`default`** n'existe pas sur **`#[AsWorkflowMethod]`**, suivez les r�
 
 1. Une **interface de workflow** (contrat facultatif) et/ou une **classe** portant **`#[AsWorkflow]`** (l'attribut se pose sur la **classe** avec les chargeurs actuels). C'est le contrat typé, pour l'enregistrement et pour les tests.
 2. Une **classe concrète** qui **implémente** votre contrat et se déclare au moteur.
-3. **Exactement un** paramètre de constructeur sur l'implémentation : **`WorkflowEnvironment $environment`**. N'injectez **pas** de services, de dépôts ni d'autres dépendances applicatives dans la classe de workflow — les effets de bord appartiennent aux [activités](../activities/).
+3. **Exactement un** paramètre de constructeur sur l'implémentation : **`WorkflowEnvironment $environment`**. N'injectez **pas** de services, de dépôts ni d'autres dépendances applicatives dans la classe de workflow : les effets de bord appartiennent aux [activités](../activities/).
 
 ## Registre : alias et nom pleinement qualifié
 
@@ -213,23 +270,23 @@ Quand une classe de workflow est enregistrée, le moteur l'indexe sous **deux** 
 
 ## Entrée et gestionnaires facultatifs {#entry-and-optional-handlers}
 
-- Déclarez **au moins une** méthode portant **`#[AsWorkflowMethod]`** — votre entrée durable principale (le démarrage du scénario).
+- Déclarez **au moins une** méthode portant **`#[AsWorkflowMethod]`**, votre entrée durable principale (le démarrage du scénario).
 - Si vous exposez **plusieurs** méthodes `#[AsWorkflowMethod]` sur le même type de workflow, **exactement une** doit porter **`default: true`** pour que le moteur sache laquelle est l'entrée principale.
 - Ajoutez éventuellement :
-  - **`#[AsSignalMethod]`** — une entrée externe qui met à jour l'état du workflow de façon déterministe ;
-  - **`#[AsQueryMethod]`** — une vue en lecture seule de l'état (aucun effet de bord durable depuis le gestionnaire) ;
-  - **`#[AsUpdateMethod]`** — des mises à jour validées, avec sémantique de réponse quand elle est prise en charge.
+  - **`#[AsSignalMethod]`** porte une entrée externe qui met à jour l'état du workflow de façon déterministe ;
+  - **`#[AsQueryMethod]`** donne une vue en lecture seule de l'état (aucun effet de bord durable depuis le gestionnaire) ;
+  - **`#[AsUpdateMethod]`** porte des mises à jour validées, avec sémantique de réponse quand elle est prise en charge.
 
 Paramètres et types de retour doivent être **sérialisables** (voir l'ADR de sérialisation **DUR007**).
 
 ## `WorkflowEnvironment`
 
-Le moteur injecte **`WorkflowEnvironment`** dans votre constructeur. Voici toute sa surface — tout
+Le moteur injecte **`WorkflowEnvironment`** dans votre constructeur. Voici toute sa surface : tout
 ce qu'un workflow peut faire, et rien de ce que le moteur garde pour lui.
 
 | | |
 |---|---|
-| `await($awaitable, $deadline = null)` | La seule attente. Une échéance écoulée lève `DeadlineExceededException` — un échec, pas une valeur, pour qu'un travail rendant légitimement `null` reste distinguable. |
+| `await($awaitable, $deadline = null)` | La seule attente. Une échéance écoulée lève `DeadlineExceededException`, un échec et non une valeur, pour qu'un travail rendant légitimement `null` reste distinguable. |
 | `all(...$awaitables)` | Se résout quand tous les membres réussissent. Un seul échec fait tout échouer. |
 | `any(...$awaitables)` | Se résout au premier membre qui se résout ; les perdants sont annulés. |
 | `some($count, ...$awaitables)` | Se résout quand `$count` membres ont **réussi**, indexés par position de déclaration. Les autres sont annulés. |
@@ -237,8 +294,8 @@ ce qu'un workflow peut faire, et rien de ce que le moteur garde pour lui.
 | `sleep($duration, $summary = '')` | Attend, et fait l'attente pour vous. Dit ce qu'il fait. |
 | `activityStub($contract, $options = null)` | Un proxy typé sur un contrat d'activité. Construisez-le dans le constructeur ; tous ses appels portent `$options`. |
 | `childWorkflowStub($class, $options = null)` | Le même, pour un workflow enfant : résolu depuis la classe de l'enfant, et ses appels se composent comme les autres. |
-| `waitSignal($name, $deadline = null)` | Attend un signal. Le nom prend une énumération adossée, donc une faute de frappe est une erreur de type et non une attente qui ne se résout jamais. |
-| `waitUpdate($name)` | Attend une mise à jour. |
+| `onSignal($name, $handler)` | Enregistre un gestionnaire de signal. Le gestionnaire mute l'état du workflow et `await()` l'observe ; il n'y a pas d'attente séparée. Le nom prend une énumération adossée, donc une faute de frappe est une erreur de type et non une attente qui ne se résout jamais. |
+| `onUpdate($name, $handler)` | Le même pour une mise à jour, dont la valeur de retour du gestionnaire est la réponse rendue à l'appelant. |
 | `sideEffect($closure)` | Exécute une fois un travail local non déterministe et en journalise le résultat, pour que le rejeu le reproduise. |
 | `continueAsNew($type, $payload = [], $options = null)` | Termine cette exécution et démarre la suivante avec un historique neuf. |
 | `executionId()` | L'identifiant de cette exécution. |
@@ -249,7 +306,7 @@ jamais planifiée, au lieu d'une erreur que votre IDE et votre analyseur statiqu
 
 Les gestionnaires de requête, de signal et de mise à jour se déclarent par `#[AsQueryMethod]`,
 `#[AsSignalMethod]` et `#[AsUpdateMethod]`, et le moteur les câble. Signaux et mises à jour peuvent
-aussi s'enregistrer de façon impérative — `onSignal()`, `onUpdate()` — ce qu'un workflow exprimé
+aussi s'enregistrer de façon impérative, par `onSignal()` et `onUpdate()`, ce qu'un workflow exprimé
 sous forme de fermeture est obligé d'employer, une fermeture ne pouvant pas porter d'attribut.
 Préférez l'attribut : c'est la forme qu'un lecteur voit sans rien exécuter.
 
@@ -267,10 +324,10 @@ Vous n'instanciez jamais d'implémentation d'activité dans le corps du workflow
 | Constructeur | `WorkflowEnvironment` et rien d'autre |
 | Contrat | Interface + `#[AsWorkflow]` ; la classe l'implémente |
 | Entrée | Au moins une `#[AsWorkflowMethod]` ; `default: true` s'il y en a plusieurs |
-| E/S | Aucune dans le workflow — passez par des activités |
+| E/S | Aucune dans le workflow ; passez par des activités |
 | Appels au travail | Par un **`ActivityStub`**, construit dans le constructeur depuis un contrat d'activité |
 
 ## Voir aussi
 
-- [Concepts](../concepts/) — workflow contre activité, rejeu, backends.
-- [Écrire des activités](../activities/) — interfaces d'activité, `#[AsActivityMethod]`, et **`ActivityInvoker`**.
+- [Concepts](../concepts/) couvre workflow contre activité, rejeu et backends.
+- [Écrire des activités](../activities/) couvre les interfaces d'activité, `#[AsActivityMethod]` et **`ActivityInvoker`**.

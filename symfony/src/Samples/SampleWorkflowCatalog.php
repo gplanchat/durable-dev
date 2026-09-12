@@ -26,9 +26,9 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 /**
  * Scenarios ported from temporalio/samples-php — metadata for the Symfony samples UI.
  *
- * `workflowType` est l’**alias** Temporal (1er argument de `#[AsWorkflow]`, sinon nom court de classe) :
- * c’est ce qui est envoyé au serveur Temporal et stocké dans le journal ; le {@see WorkflowRegistry}
- * accepte aussi le FQCN pour le dispatch.
+ * `workflowType` is the Temporal **alias** (first argument of `#[AsWorkflow]`, otherwise the short class name):
+ * it is what gets sent to the Temporal server and stored in the journal; the {@see WorkflowRegistry}
+ * also accepts the FQCN for dispatch.
  *
  * @phpstan-type Scenario array{
  *     id: string,
@@ -80,7 +80,7 @@ final class SampleWorkflowCatalog
                 'sourceFolder' => 'SimpleActivity',
                 'label' => 'SimpleActivity (Greeting)',
                 'workflowType' => self::workflowAlias(SimpleActivityGreetingWorkflow::class),
-                'description' => 'Un appel d’activité composeGreeting(name) — équivalent samples-php SimpleActivity.',
+                'description' => 'One composeGreeting(name) activity call — the samples-php SimpleActivity equivalent.',
                 'defaultPayload' => ['name' => 'World'],
             ],
             [
@@ -88,31 +88,31 @@ final class SampleWorkflowCatalog
                 'sourceFolder' => 'ActivityRetry',
                 'label' => 'ActivityRetry',
                 'workflowType' => self::workflowAlias(ActivityRetryGreetingWorkflow::class),
-                'description' => 'Politique de retry (max 5, backoff, exceptions non réessayables) sur composeGreeting.',
+                'description' => 'A retry policy (max 5, backoff, non-retryable exceptions) on composeGreeting.',
                 'defaultPayload' => ['name' => 'World'],
             ],
             [
                 'id' => 'child',
                 'sourceFolder' => 'Child',
-                'label' => 'Child (parent → enfant)',
+                'label' => 'Child (parent → child)',
                 'workflowType' => self::workflowAlias(SamplesParentCallsEchoChildWorkflow::class),
-                'description' => 'Workflow parent qui appelle un SamplesEchoChildWorkflow (echoUpper via activité).',
+                'description' => 'A parent workflow calling a SamplesEchoChildWorkflow (echoUpper through an activity).',
                 'defaultPayload' => ['text' => 'child'],
             ],
             [
                 'id' => 'query',
                 'sourceFolder' => 'Query',
-                'label' => 'Query (timer + salutation)',
+                'label' => 'Query (timer + greeting)',
                 'workflowType' => self::workflowAlias(SamplesQueryWorkflow::class),
-                'description' => 'Pause durable 2 s puis salutation (les « queries » Temporal côté client ne sont pas reproduites ici).',
+                'description' => 'A durable 2 s pause then a greeting (Temporal client-side queries are not reproduced here).',
                 'defaultPayload' => ['name' => 'World'],
             ],
             [
                 'id' => 'signal',
                 'sourceFolder' => 'Signal',
-                'label' => 'Signal (approve → salutation)',
+                'label' => 'Signal (approve → greeting)',
                 'workflowType' => self::workflowAlias(SamplesSignalWorkflow::class),
-                'description' => 'Attend le signal « approve » avec payload { name }, puis composeGreeting. L’UI envoie le signal automatiquement après suspension.',
+                'description' => 'Awaits the "approve" signal with a { name } payload, then composeGreeting. The UI sends the signal automatically once suspended.',
                 'defaultPayload' => [],
                 'autoSignal' => [
                     'name' => 'approve',
@@ -124,7 +124,7 @@ final class SampleWorkflowCatalog
                 'sourceFolder' => 'LocalActivity',
                 'label' => 'LocalActivity',
                 'workflowType' => self::workflowAlias(LocalActivityGreetingWorkflow::class),
-                'description' => 'Salutation avec timeout start-to-close court (équivalent sémantique de l’exemple « local » Temporal).',
+                'description' => 'A greeting with a short start-to-close timeout (the semantic equivalent of Temporal\'s "local" sample).',
                 'defaultPayload' => ['name' => 'World'],
             ],
             [
@@ -132,31 +132,31 @@ final class SampleWorkflowCatalog
                 'sourceFolder' => 'PolymorphicActivity',
                 'label' => 'PolymorphicActivity',
                 'workflowType' => self::workflowAlias(PolymorphicGreetingWorkflow::class),
-                'description' => 'Deux contrats d’activité (hello / bye) avec noms d’activité distincts.',
+                'description' => 'Two activity contracts (hello / bye) with distinct activity names.',
                 'defaultPayload' => ['name' => 'World'],
             ],
             [
                 'id' => 'periodic',
                 'sourceFolder' => 'Periodic',
-                'label' => 'Periodic (boucle + timer)',
+                'label' => 'Periodic (loop + timer)',
                 'workflowType' => self::workflowAlias(PeriodicGreetingWorkflow::class),
-                'description' => 'Plusieurs salutations avec pause durable entre les itérations (sans continue-as-new).',
+                'description' => 'Several greetings with a durable pause between iterations (no continue-as-new).',
                 'defaultPayload' => ['name' => 'World', 'iterations' => 3],
             ],
             [
                 'id' => 'exception',
                 'sourceFolder' => 'Exception',
-                'label' => 'Exception (activité + catch)',
+                'label' => 'Exception (activity + catch)',
                 'workflowType' => self::workflowAlias(ExceptionHandledWorkflow::class),
-                'description' => 'Activité volontairement en échec ; le workflow retourne un message « Caught: … ».',
+                'description' => 'An activity that fails on purpose; the workflow returns a "Caught: …" message.',
                 'defaultPayload' => ['shouldFail' => true],
             ],
             [
                 'id' => 'money_batch',
                 'sourceFolder' => 'MoneyBatch',
-                'label' => 'MoneyBatch (léger)',
+                'label' => 'MoneyBatch (light)',
                 'workflowType' => self::workflowAlias(MoneyBatchLightWorkflow::class),
-                'description' => 'Somme d’une liste de centimes via une activité (variante simplifiée du batch Temporal).',
+                'description' => 'The sum of a list of cents through an activity (a simplified variant of the Temporal batch).',
                 'defaultPayload' => ['parts' => [100, 200, 300]],
             ],
             [
@@ -164,7 +164,7 @@ final class SampleWorkflowCatalog
                 'sourceFolder' => 'MoneyTransfer',
                 'label' => 'MoneyTransfer',
                 'workflowType' => self::workflowAlias(AccountTransferWorkflow::class),
-                'description' => 'Retrait puis dépôt sur deux comptes (activités withdraw / deposit).',
+                'description' => 'A withdrawal then a deposit on two accounts (withdraw / deposit activities).',
                 'defaultPayload' => [
                     'fromAccountId' => 'from',
                     'toAccountId' => 'to',
@@ -175,9 +175,9 @@ final class SampleWorkflowCatalog
             [
                 'id' => 'file_processing',
                 'sourceFolder' => 'FileProcessing',
-                'label' => 'FileProcessing (léger)',
+                'label' => 'FileProcessing (light)',
                 'workflowType' => self::workflowAlias(FileProcessingLightWorkflow::class),
-                'description' => 'Chaîne download → process → upload (sans file d’attente dynamique par worker).',
+                'description' => 'A download → process → upload chain (no dynamic per-worker queue).',
                 'defaultPayload' => [
                     'sourceUrl' => 'https://example.com/in/data.bin',
                     'destinationUrl' => 'https://example.com/out/data.bin',
@@ -188,7 +188,7 @@ final class SampleWorkflowCatalog
                 'sourceFolder' => 'BookingSaga',
                 'label' => 'BookingSaga (compensation)',
                 'workflowType' => self::workflowAlias(BookingSagaLightWorkflow::class),
-                'description' => 'Vol puis hôtel ; si l’hôtel échoue, annulation du vol (par défaut `failHotel` true).',
+                'description' => 'A flight then a hotel; if the hotel fails, the flight is cancelled (`failHotel` is true by default).',
                 'defaultPayload' => ['failHotel' => true],
             ],
             [
@@ -196,7 +196,7 @@ final class SampleWorkflowCatalog
                 'sourceFolder' => 'CancellationScope',
                 'label' => 'CancellationScope (race)',
                 'workflowType' => self::workflowAlias(CancellationScopeRaceWorkflow::class),
-                'description' => 'Trois salutations en parallèle ; résultat du premier terminé (`any`).',
+                'description' => 'Three greetings in parallel; the result of the first to finish (`any`).',
                 'defaultPayload' => [],
             ],
             [
@@ -204,7 +204,7 @@ final class SampleWorkflowCatalog
                 'sourceFolder' => 'MtlsHelloWorld',
                 'label' => 'MtlsHelloWorld',
                 'workflowType' => self::workflowAlias(MtlsHelloWorldWorkflow::class),
-                'description' => 'Salutation simple (le mTLS est côté client / infra Temporal, pas dans le workflow).',
+                'description' => 'A plain greeting (mTLS lives on the client and the Temporal infrastructure, not in the workflow).',
                 'defaultPayload' => ['name' => 'World'],
             ],
             [
@@ -212,12 +212,12 @@ final class SampleWorkflowCatalog
                 'sourceFolder' => 'Updates',
                 'label' => 'Updates (#[AsUpdateMethod] + greeting)',
                 'workflowType' => self::workflowAlias(SamplesUpdatesWorkflow::class),
-                'description' => 'Un #[AsUpdateMethod] « greet » répond et débloque le corps, puis composeGreeting ; l’UI livre l’update automatiquement après suspension.',
+                'description' => 'An #[AsUpdateMethod] "greet" answers and unblocks the body, then composeGreeting; the UI delivers the update automatically once suspended.',
                 'defaultPayload' => [],
                 'autoUpdate' => [
                     'name' => 'greet',
-                    // La réponse n'est plus fournie par l'appelant : le handler la produit à
-                    // partir de ces arguments.
+                    // The response is no longer supplied by the caller: the handler produces it
+                    // from these arguments.
                     'arguments' => ['name' => 'Temporal'],
                 ],
             ],

@@ -11,7 +11,7 @@ Cette page pose le vocabulaire et le modèle mental de Durable. À lire avant de
 
 ## L'exécution durable
 
-L'**exécution durable**, c'est un processus long — quelques secondes, quelques heures ou quelques jours — qui survit aux redémarrages, aux plantages et aux déploiements. Le moteur enregistre chaque décision (résultat d'activité, minuteur échu, signal reçu) dans un **historique**, puis **rejoue** cet historique pour restaurer l'état exact où le programme se trouvait.
+L'**exécution durable**, c'est un processus long (quelques secondes, quelques heures ou quelques jours) qui survit aux redémarrages, aux plantages et aux déploiements. Le moteur enregistre chaque décision (résultat d'activité, minuteur échu, signal reçu) dans un **historique**, puis **rejoue** cet historique pour restaurer l'état exact où le programme se trouvait.
 
 Vu du développeur, cela ressemble à du PHP séquentiel ordinaire : on `await` une activité, on reçoit le résultat, on continue. La tolérance aux pannes est prise en charge sans qu'on ait à s'en occuper.
 
@@ -30,7 +30,7 @@ Un **workflow** est de la pure logique d'orchestration. Il :
 Une fonction de workflow doit être **déterministe** : à historique identique, la ré-exécuter doit produire la même suite de commandes. C'est ce qui rend le rejeu possible.
 
 **Ce qui n'a rien à faire dans un workflow :**
-- appels HTTP, requêtes en base, nombres aléatoires, horodatages — tout cela est non déterministe ;
+- appels HTTP, requêtes en base, nombres aléatoires, horodatages : tout cela est non déterministe ;
 - accès au système de fichiers, lecture de variables d'environnement ;
 - toute E/S qui donnerait un résultat différent au rejeu.
 
@@ -62,7 +62,7 @@ ExecutionStarted
             └─ ExecutionCompleted(result: "done")
 ```
 
-Quand le processus du workflow redémarre — ou quand Temporal planifie une nouvelle tâche de workflow — le moteur **rejoue** la fonction du workflow contre cet historique :
+Quand le processus du workflow redémarre, ou quand Temporal planifie une nouvelle tâche de workflow, le moteur **rejoue** la fonction du workflow contre cet historique :
 
 ```
 Rejeu, étape 1 : await activity("charge-order")
@@ -71,7 +71,7 @@ Rejeu, étape 2 : return "done"
   → l'historique porte ExecutionCompleted → le workflow est terminé
 ```
 
-Parce que le résultat est dans l'historique, l'implémentation de l'activité **n'est pas rappelée** pendant le rejeu. La fonction reprend simplement là où elle s'était arrêtée.
+Parce que le résultat est dans l'historique, l'implémentation de l'activité **n'est pas rappelée** pendant le rejeu. La fonction reprend là où elle s'était arrêtée.
 
 ### Les types d'événements
 
@@ -94,7 +94,7 @@ Parce que le résultat est dans l'historique, l'implémentation de l'activité *
 
 ## `await` et les awaitables
 
-`WorkflowEnvironment::await()` est la primitive unique pour suspendre le workflow. Elle prend un **`Awaitable`** — un jeton léger qui tient la place d'un résultat futur — et bloque, conceptuellement, jusqu'à ce que ce résultat soit disponible.
+`WorkflowEnvironment::await()` est la primitive unique pour suspendre le workflow. Elle prend un **`Awaitable`**, un jeton léger qui tient la place d'un résultat futur, et bloque, conceptuellement, jusqu'à ce que ce résultat soit disponible.
 
 Sous le capot, Durable s'appuie sur les **fibres** de PHP pour suspendre l'exécution sans bloquer le fil d'exécution système. La fibre reprend quand l'orchestrateur livre le résultat attendu, dans une tâche de workflow ultérieure.
 
@@ -185,7 +185,7 @@ $env->await(function () use (&$approvals): bool { return [] !== $approvals; });
 
 Les signaux servent aux circuits d'approbation, aux pauses et reprises, aux déclenchements externes.
 
-**Nommez les signaux par une énumération adossée à une chaîne**, pas par un littéral. Les deux bouts prennent un `BackedEnum` — le gestionnaire qui consomme le signal comme le client qui l'envoie — de sorte qu'une énumération recense toute la surface de signaux d'un workflow, et qu'une faute de frappe devient une erreur de type plutôt qu'une attente qui ne se résout jamais (voir **DUR034**) :
+**Nommez les signaux par une énumération adossée à une chaîne**, pas par un littéral. Les deux bouts prennent un `BackedEnum`, le gestionnaire qui consomme le signal comme le client qui l'envoie, de sorte qu'une énumération recense toute la surface de signaux d'un workflow, et qu'une faute de frappe devient une erreur de type plutôt qu'une attente qui ne se résout jamais (voir **DUR034**) :
 
 ```php
 $client->signal($workflowId, OrderSignal::Approve, ['by' => 'alice']);
@@ -196,7 +196,7 @@ Une chaîne nue reste acceptée, et doit l'être : un signal peut arriver de `cu
 > [!IMPORTANT]
 > **Migrer depuis `waitSignal()`.** La méthode a disparu. Elle lisait l'historique directement, d'où
 > son besoin d'un emplacement positionnel, d'un compteur par nom, et d'une règle pour l'attente qui
-> renonce — toute une mécanique qu'un gestionnaire plus une condition remplacent purement et
+> renonce : toute une mécanique qu'un gestionnaire plus une condition remplacent purement et
 > simplement (voir **DUR035**).
 >
 > ```php
@@ -223,7 +223,7 @@ Les requêtes servent à suivre une progression, lire un compteur, inspecter une
 
 Une **mise à jour** est un message transactionnel : le workflow la traite et **renvoie une réponse** à l'appelant. L'échange est enregistré dans l'historique. Les mises à jour combinent la sémantique du signal (changement d'état) et celle de la requête (valeur de retour).
 
-La valeur de retour du gestionnaire *est* la réponse — c'est toute la différence avec un signal, qui n'en a pas :
+La valeur de retour du gestionnaire *est* la réponse, c'est toute la différence avec un signal, qui n'en a pas :
 
 ```php
 #[AsUpdateMethod('greet')]
@@ -262,52 +262,87 @@ Un workflow enfant peut tourner de façon **asynchrone** (on le lance et on l'ou
 
 ## Les backends
 
-Durable tourne sur deux backends qui partagent le même code de workflows et d'activités :
+Durable tourne sur quatre backends qui partagent le même code de workflows et d'activités :
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Code applicatif                         │
-│      (workflows, activités, WorkflowEnvironment)            │
-└────────────────────┬────────────────────────────────────────┘
-                     │ même API
-          ┌──────────┴──────────┐
-          ▼                     ▼
-   ┌─────────────┐       ┌──────────────┐
-   │  En mémoire │       │   Temporal   │
-   │  (tests,    │       │ (production, │
-   │   local)    │       │  recette)    │
-   └─────────────┘       └──────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                           Code applicatif                            │
+│             (workflows, activités, WorkflowEnvironment)              │
+└───────────────────────────────────┬──────────────────────────────────┘
+                                    │ même API
+      ┌──────────────┬──────────────┼──────────────┐
+      ▼              ▼              ▼              ▼
+┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐
+│ En mémoire│  │    DBAL   │  │ Illuminate│  │  Temporal │
+│   tests,  │  │  une base │  │  une base │  │un cluster,│
+│   local   │  │    SQL,   │  │    SQL,   │  │à l'échelle│
+│           │  │  Doctrine │  │  Laravel  │  │           │
+└───────────┘  └───────────┘  └───────────┘  └───────────┘
 ```
 
 ### En mémoire
 
 - Tourne entièrement dans un seul processus PHP.
-- Aucun serveur ni infrastructure externe.
-- Les transports Messenger en mémoire simulent l'envoi asynchrone des activités.
+- Aucun serveur externe, rien de persisté d'une requête à l'autre.
+- L'envoi asynchrone des activités est simulé par un transport en processus.
 - Le choix idéal pour tous les **tests automatisés** et les essais locaux rapides.
+
+### DBAL
+
+- Le journal, les métadonnées de reprise et les liens parent/enfant deviennent des tables dans **une
+  seule base SQL**, à travers Doctrine DBAL.
+- Aucun serveur d'orchestration, aucun sidecar, pas d'`ext-grpc`.
+- Survit aux redémarrages et aux déploiements, à l'échelle qu'une base peut tenir.
+
+### Illuminate
+
+- Les mêmes quatre magasins et le même compromis, sur `Illuminate\Database\Connection` plutôt que
+  sur celle de Doctrine ; un magasin sur `DB::connection()` est dans `DB::transaction()` par
+  construction.
+- Ce n'est pas une quatrième valeur d'`event_store.type`, et ce ne le sera jamais : une application
+  Laravel ne lit pas le YAML du bundle. Ce qui le branche, c'est `gplanchat/durable-laravel`, par son
+  propre `config/durable.php`.
 
 ### Temporal
 
 - Une orchestration de production, avec un vrai cluster Temporal.
-- Historique persisté intégralement, réessais durables, interface Temporal.
-- Les workers interrogent Temporal en gRPC, par deux consommateurs Symfony Messenger.
+- Historique persisté intégralement, réessais durables, interface Temporal, et les trois choses
+  qu'aucun backend à journal n'a : les attributs de recherche, les planifications cron, et Nexus.
+- Les workers interrogent Temporal en gRPC, par ce avec quoi l'hôte fait tourner ses workers.
 - Nécessite l'extension PHP `ext-grpc`.
+
+> [!NOTE]
+> **Sur Magento, deux des quatre seulement sont atteignables.** `gplanchat/durable-magento` déclare
+> un `conflict` Composer sur les deux ponts SQL : `Magento\Framework\App\ResourceConnection` n'est
+> ni Doctrine DBAL ni la connexion d'Illuminate, aucun des deux n'a donc de quoi se brancher. L'état
+> vit dans un cluster Temporal, ou il vit dans un processus, et c'est la présence de
+> `durable/temporal/dsn` dans `app/etc/env.php` qui tranche.
 
 Pour la mise en place, voir [Backends](../backends/).
 
 ---
 
-## L'intégration Symfony Messenger
+## Par où le travail atteint un worker
 
-Dans une application Symfony, Durable se sert de **Messenger** pour :
+Durable n'apporte aucun transport à lui. Le travail de workflow et d'activité roule sur ce que l'hôte
+a déjà, et chaque hôte le dit autrement :
 
-- router **`ResumeWorkflowMessage`** vers la file des tâches de workflow ;
-- router **`ActivityMessage`** vers la file des tâches d'activité ;
-- distribuer les **signaux**, les **mises à jour** et les messages d'**échéance de minuteur** sur le bus synchrone.
+**Symfony** se sert de **Messenger**. `ResumeWorkflowMessage` est routé vers la file des tâches de workflow,
+`ActivityMessage` vers celle des activités, et les signaux, les mises à jour et les échéances de
+minuteur partent sur le bus synchrone. Avec le backend Temporal, le transport est un **transport
+d'interrogation adossé à gRPC** : même interface de consommateur, protocole sous-jacent différent.
 
-Les workflows s'intègrent ainsi naturellement à l'infrastructure asynchrone de Symfony. Avec le backend Temporal, le transport Messenger est un **transport d'interrogation adossé à gRPC** — même interface de consommateur, protocole sous-jacent différent.
+**Laravel** se sert de la **file que l'application draine déjà**. Les activités et les reprises sont des jobs,
+un minuteur est une reprise différée sur le délai de la file, et `php artisan queue:work` est le seul
+worker.
 
-Pour la configuration, voir [Premiers pas](../getting-started/) et [Référence de configuration](../configuration/).
+**Magento** ne se sert ni de l'un ni de l'autre. Les workers sont des commandes
+`bin/magento durable:worker --role=journal|activity` qui interrogent le backend directement ; rien ne
+roule sur le `MessageQueue` de Magento, parce que sur Temporal une activité est déjà une commande
+Temporal et une reprise une tâche de workflow.
+
+Pour la configuration, voir [Premiers pas](../getting-started/) et
+[Référence de configuration](../configuration/).
 
 ---
 
@@ -322,19 +357,19 @@ Le **contrat de rejeu** est la contrainte centrale : tout code à l'intérieur d
 - lire l'état posé par `#[AsSignalMethod]` / `#[AsUpdateMethod]` ;
 - tout calcul pur sur des variables locales au workflow.
 
-**Interdit dans un workflow — à faire dans une activité :**
-- `new \DateTime()` / `time()` / `random_int()` — non déterministes ;
+**Interdit dans un workflow, à faire dans une activité :**
+- `new \DateTime()` / `time()` / `random_int()` : non déterministes ;
 - `file_get_contents()`, `curl_exec()`, requêtes en base ;
 - état mutable `static` ou global partagé entre exécutions de workflow ;
-- `sleep()`, la fonction PHP — utilisez `$env->sleep()`, qui suspend durablement au lieu de bloquer le worker.
+- `sleep()`, la fonction PHP : utilisez `$env->sleep()`, qui suspend durablement au lieu de bloquer le worker.
 
 ---
 
 ## Pour aller plus loin
 
-- [Premiers pas](../getting-started/) — installer, configurer, écrire un premier workflow de bout en bout.
-- [Backends](../backends/) — en mémoire ou Temporal, mise en place Docker, référence des DSN.
-- [Écrire un workflow](../workflows/) — l'API complète : signaux, requêtes, mises à jour, workflows enfants.
-- [Écrire des activités](../activities/) — `ActivityOptions`, réessais, délais, injection de dépendances.
-- [Tester des workflows](../testing/) — `DurableTestCase`, `ActivitySpy`, `DurableBundleTestTrait`.
-- [Référence de configuration](../configuration/) — chaque clé de `durable.yaml`.
+- [Premiers pas](../getting-started/) couvre l'installation, la configuration et un premier workflow de bout en bout.
+- [Backends](../backends/) couvre la mémoire, DBAL, Illuminate et Temporal, la mise en place Docker, la référence des DSN.
+- [Écrire un workflow](../workflows/) couvre l'API complète : signaux, requêtes, mises à jour, workflows enfants.
+- [Écrire des activités](../activities/) couvre `ActivityOptions`, réessais, délais, injection de dépendances.
+- [Tester des workflows](../testing/) couvre `DurableTestCase`, `ActivitySpy` et `DurableBundleTestTrait`.
+- [Référence de configuration](../configuration/) liste chaque clé de `durable.yaml`.

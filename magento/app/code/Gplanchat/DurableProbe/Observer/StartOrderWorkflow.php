@@ -12,19 +12,19 @@ use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\Filesystem\Driver\File;
 
 /**
- * Une commande passée démarre une exécution durable — sur la grappe, pas dans cette requête.
+ * A placed order starts a durable execution — on the cluster, not in this request.
  *
- * C'est le point tout entier du §5.2. Démarrer le workflow **ici** le ferait mourir avec la
- * requête HTTP qui a passé la commande, ce qui est exactement la panne qu'OST003 décrit : le
- * client a payé, le processus s'arrête, personne ne reprend. `startAsync()` confie l'exécution au
- * cluster, et les workers la mènent — y compris si cette requête-ci meurt à la ligne suivante.
+ * That is the whole point of §5.2. Starting the workflow **here** would make it die with the HTTP
+ * request that placed the order, which is exactly the failure OST003 describes: the customer has
+ * paid, the process stops, nobody picks it up. `startAsync()` hands the execution to the cluster,
+ * and the workers carry it — including if this very request dies on the next line.
  *
- * Il ne lève jamais : une commande passée reste passée. Un workflow qui ne démarre pas est un
- * incident d'exploitation, pas une raison de refuser la vente au client — et le refuser ne
- * rendrait pas l'argent.
+ * It never throws: a placed order stays placed. A workflow that does not start is an operational
+ * incident, not a reason to refuse the sale to the customer — and refusing it would not give the
+ * money back.
  */
 /*
- * Pas `final` : le conteneur l'instancie, donc il engendre un `Interceptor` qui l'étend.
+ * Not `final`: the container instantiates it, so it generates an `Interceptor` extending it.
  */
 class StartOrderWorkflow implements ObserverInterface
 {
@@ -53,9 +53,9 @@ class StartOrderWorkflow implements ObserverInterface
                 ['orderId' => $increment, 'pauseSeconds' => 2],
                 $executionId,
             );
-            $this->trace(sprintf('%s -> exécution %s démarrée sur la grappe', $increment, $executionId));
+            $this->trace(sprintf('%s -> execution %s started on the cluster', $increment, $executionId));
         } catch (\Throwable $exception) {
-            $this->trace(sprintf('%s -> AUCUNE exécution : %s', $increment, $exception->getMessage()));
+            $this->trace(sprintf('%s -> NO execution: %s', $increment, $exception->getMessage()));
         }
     }
 

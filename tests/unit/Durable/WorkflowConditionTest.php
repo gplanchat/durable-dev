@@ -21,21 +21,20 @@ use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Attendre une condition sur l'état du workflow — bloc 2 du change
+ * Waiting on a condition over the workflow state — block 2 of the change
  * workflow-conditions-and-handler-dispatch.
  *
- * Les cas de verdict sont joués sur un journal écrit à la main puis rejoué : c'est le seul moyen
- * d'atteindre l'ordre d'événements qui compte, et c'est le chemin de replay que le verdict doit
- * traverser.
+ * The verdict cases are played on a journal written by hand then replayed: it is the only way to
+ * reach the event order that counts, and it is the replay path the verdict must cross.
  *
- * Note aux relectures : ces tests sont ROUGES par construction. `await(condition)` et
- * `onSignal()` n'existent pas encore — ils arrivent aux blocs 4 et 5. Ce fichier fixe la forme
- * publique visée, pas une régression.
+ * Note for reviewers: these tests are RED by construction. `await(condition)` and `onSignal()` do
+ * not exist yet — they arrive at blocks 4 and 5. This file fixes the intended public shape, not a
+ * regression.
  */
 final class WorkflowConditionTest extends TestCase
 {
     // -------------------------------------------------------------------------
-    // 2.1 — une condition déjà vraie
+    // 2.1 — a condition that already holds
     // -------------------------------------------------------------------------
 
     public function testAConditionThatAlreadyHoldsDoesNotSuspend(): void
@@ -49,12 +48,12 @@ final class WorkflowConditionTest extends TestCase
         }, 'cond-1');
 
         self::assertSame('passé sans suspendre', $result);
-        // Rien qui puisse réveiller l'exécution plus tard : pas de minuteur de garde planifié.
+        // Nothing that could wake the execution later: no guard timer scheduled.
         self::assertSame([], $this->eventsOf($env->getEventStore(), 'cond-1', TimerScheduled::class));
     }
 
     // -------------------------------------------------------------------------
-    // 2.2 / 2.3 — un message rend la condition vraie, et le replay repart au même endroit
+    // 2.2 / 2.3 — a message makes the condition true, and replay restarts at the same place
     // -------------------------------------------------------------------------
 
     public function testAConditionBecomesTrueOnADeliveredMessage(): void
@@ -81,14 +80,15 @@ final class WorkflowConditionTest extends TestCase
         $second = $engine->resume('cond-3', $handler);
 
         self::assertSame($first, $second);
-        // « rien de neuf » porte sur le travail planifié, pas sur le journal entier : rejouer une
-        // exécution déjà close y réécrit sa clôture, et c'est vrai de tout replay, condition ou pas.
+        // "nothing new" bears on the scheduled work, not on the whole journal: replaying an
+        // already closed execution rewrites its closure there, and that is true of every replay,
+        // condition or not.
         self::assertSame([], $this->eventsOf($store, 'cond-3', TimerScheduled::class));
         self::assertCount(1, $this->eventsOf($store, 'cond-3', WorkflowSignalReceived::class));
     }
 
     // -------------------------------------------------------------------------
-    // 2.4 — la garantie DUR032, réénoncée sur une condition
+    // 2.4 — the DUR032 guarantee, restated on a condition
     // -------------------------------------------------------------------------
 
     public function testAMessageRecordedAfterTheDeadlineDoesNotUndoTheTimeout(): void
@@ -102,13 +102,13 @@ final class WorkflowConditionTest extends TestCase
         $store->append(new WorkflowSignalReceived('cond-4', 'tick', ['n' => 1]));
 
         self::assertSame(['expiré'], $engine->resume('cond-4', $this->boundedTickHandler()));
-        self::assertSame(['expiré'], $engine->resume('cond-4', $this->boundedTickHandler()), 'stable au replay');
+        self::assertSame(['expiré'], $engine->resume('cond-4', $this->boundedTickHandler()), 'stable on replay');
     }
 
     public function testAMessageRecordedBeforeTheDeadlineStillSatisfiesTheCondition(): void
     {
-        // Les deux branches sont réglées dans l'historique et aucune n'est annulée : seul l'ordre
-        // du journal peut les départager.
+        // Both branches are settled in the history and neither is cancelled: only the order of
+        // the journal can separate them.
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
@@ -121,14 +121,14 @@ final class WorkflowConditionTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // 2.5 — les messages sont appliqués un par un
+    // 2.5 — messages are applied one at a time
     // -------------------------------------------------------------------------
 
     public function testTwoMessagesAreAppliedOneAtATime(): void
     {
-        // Le test discriminant de l'entrelacement : deux messages satisfont chacun la condition.
-        // Appliqués d'un bloc, le workflow reprendrait en en voyant deux ; un par un, il reprend
-        // sur le premier.
+        // The discriminating test for interleaving: two messages each satisfy the condition.
+        // Applied as one block, the workflow would resume seeing two of them; one at a time, it
+        // resumes on the first.
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
@@ -142,8 +142,8 @@ final class WorkflowConditionTest extends TestCase
                 $ticks[] = $payload;
             });
 
-            // `fn()` capture par valeur : une condition sur une variable locale doit passer
-            // par `use (&$…)`, sans quoi elle relit éternellement l'état initial.
+            // `fn()` captures by value: a condition over a local variable must go through
+            // `use (&$…)`, failing which it reads the initial state back forever.
             $wf->await(static function () use (&$ticks): bool {
                 return [] !== $ticks;
             });
@@ -155,7 +155,7 @@ final class WorkflowConditionTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // 2.6 — une condition qui ne peut jamais devenir vraie
+    // 2.6 — a condition that can never hold
     // -------------------------------------------------------------------------
 
     public function testAConditionThatCanNeverHoldIsReportedNotHung(): void
@@ -168,16 +168,16 @@ final class WorkflowConditionTest extends TestCase
 
                 throw new \LogicException('inatteignable');
             }, 'cond-7');
-            self::fail('l’exécution devait être signalée comme incapable d’avancer');
+            self::fail('the execution was to be reported as unable to advance');
         } catch (WorkflowStuckException $e) {
-            // « en nommant la condition » : sa position suffit à la retrouver, et n'ajoute
-            // aucun paramètre à l'API.
+            // "by naming the condition": its position is enough to find it again, and adds no
+            // parameter to the API.
             self::assertStringContainsString('WorkflowConditionTest.php', $e->getMessage());
         }
     }
 
     // -------------------------------------------------------------------------
-    // 2.7 — une valeur non reproductible se consigne avant d'être lue
+    // 2.7 — a non-reproducible value is recorded before it is read
     // -------------------------------------------------------------------------
 
     public function testANonReproducibleValueIsReadBackIdenticallyOnReplay(): void
@@ -197,14 +197,14 @@ final class WorkflowConditionTest extends TestCase
         };
 
         self::assertSame(7, $env->run($handler, 'cond-8'));
-        self::assertSame(7, $env->run($handler, 'cond-8'), 'le replay relit la valeur consignée');
-        self::assertSame(1, $draws, 'la closure non reproductible n’est évaluée qu’une fois');
+        self::assertSame(7, $env->run($handler, 'cond-8'), 'the replay reads the recorded value back');
+        self::assertSame(1, $draws, 'the non-reproducible closure is evaluated only once');
     }
 
     // -------------------------------------------------------------------------
 
     /**
-     * Workflow : accumule les signaux `tick` par un handler, et attend d'en avoir assez.
+     * Workflow: accumulates the `tick` signals through a handler, and waits until it has enough.
      *
      * @return callable(WorkflowEnvironment): array<int, mixed>
      */
@@ -225,7 +225,7 @@ final class WorkflowConditionTest extends TestCase
     }
 
     /**
-     * Le même, sous échéance : la condition gagne, ou l'échéance.
+     * The same one, under a deadline: either the condition wins, or the deadline does.
      *
      * @return callable(WorkflowEnvironment): array<int, mixed>
      */

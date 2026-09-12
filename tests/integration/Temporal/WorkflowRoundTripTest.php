@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace integration\Temporal;
 
 /**
- * Aller-retour complet contre un vrai serveur : les commandes du driver doivent être
- * **acceptées**, pas seulement bien formées.
+ * A full round trip against a real server: the driver's commands must be **accepted**, not merely
+ * well formed.
  */
 final class WorkflowRoundTripTest extends TemporalServerTestCase
 {

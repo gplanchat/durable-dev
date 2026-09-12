@@ -43,7 +43,7 @@ final class LaravelWorkflowResumeDispatcherTest extends TestCase
 
         $dispatcher->dispatchNewWorkflowRun('exec-2', 'Greeting', ['who' => 'world']);
 
-        // Une reprise qui arriverait avant les métadonnées ne saurait pas quoi rejouer.
+        // A resume that arrived before the metadata would not know what to replay.
         $saved = $metadata->get('exec-2');
         self::assertNotNull($saved);
         self::assertSame('Greeting', $saved['workflowType']);
@@ -53,8 +53,8 @@ final class LaravelWorkflowResumeDispatcherTest extends TestCase
     public function testAQueueThatRunsInlineIsRefusedAtBoot(): void
     {
         $app = new Container();
-        // La garde lit le **driver configuré**, pas la classe de la connexion : `SyncQueue` vit
-        // dans `illuminate/queue`, que ce paquet n'exige pas — voir la matrice Laravel de la CI.
+        // The guard reads the **configured driver**, not the connection class: `SyncQueue` lives
+        // in `illuminate/queue`, which this package does not require — see the CI Laravel matrix.
         $app->instance('config', new \ArrayObject(
             [
                 'durable' => ['backend' => 'illuminate'],

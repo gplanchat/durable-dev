@@ -8,24 +8,23 @@ use Gplanchat\Durable\Attribute\AsNexusOperation;
 use Gplanchat\Durable\Attribute\AsNexusService;
 
 /**
- * Ce que la boutique sait répondre tout de suite.
+ * What the shop already knows how to answer.
  *
- * C'est l'interface qu'un gestionnaire **implémente** : réserver du stock est une lecture et une
- * écriture dans le modèle de la boutique, pas une attente. Elle tient dans les ~9 s dont dispose
- * une tâche Nexus avant redélivrance.
+ * This is the interface a handler **implements**: reserving stock is a read and a write in the
+ * shop's model, not a wait. It fits in the ~9 s a Nexus task has before redelivery.
  */
 #[AsNexusService('stock')]
 interface StockServed
 {
     /**
-     * @param string             $commande  identifiant de la commande, pour que la réservation soit
-     *                                      idempotente : la même commande deux fois ne réserve pas deux fois
-     * @param array<string, int> $lignes    référence => quantité demandée
+     * @param string             $order an order identifier, so that the reservation is idempotent:
+     *                                  the same order twice does not reserve twice
+     * @param array<string, int> $lines reference => quantity asked for
      *
-     * @return array{reserve: bool, manquants: array<string, int>} `manquants` est vide quand
-     *                                      `reserve` vaut `true` — l'appelant n'a donc qu'un champ à lire
-     *                                      pour décider, et le second pour expliquer
+     * @return array{reserved: bool, missing: array<string, int>} `missing` is empty when `reserved`
+     *                                  is `true` — the caller therefore has one field to read to
+     *                                  decide, and the second one to explain
      */
-    #[AsNexusOperation('reserver')]
-    public function reserver(string $commande, array $lignes): array;
+    #[AsNexusOperation('reserve')]
+    public function reserve(string $order, array $lines): array;
 }

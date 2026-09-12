@@ -10,12 +10,12 @@ use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Un workflow qui appelle une opération Nexus sous le harnais en mémoire doit **échouer vite**.
+ * A workflow calling a Nexus operation under the in-memory harness must **fail fast**.
  *
- * Le test du tampon (§3.4) prouve que la commande est refusée. Il ne prouve pas ce qui compte pour
- * qui écrit un workflow : que le refus **traverse** le moteur au lieu d'être avalé quelque part et
- * de laisser l'exécution suspendue. C'est la différence entre un développeur qui lit une erreur en
- * trois secondes et un développeur qui regarde un test qui ne finit pas.
+ * The buffer test (§3.4) proves the command is refused. It does not prove what matters to whoever
+ * writes a workflow: that the refusal **travels through** the engine instead of being swallowed
+ * somewhere and leaving the execution suspended. That is the difference between a developer who
+ * reads an error in three seconds and a developer watching a test that never finishes.
  *
  * @see openspec/changes/temporal-nexus-support/tasks.md §5.1 §5.2
  */
@@ -40,7 +40,7 @@ final class NexusHarnessFailsFastTest extends TestCase
             $env->run(static fn(WorkflowEnvironment $wf): mixed => $wf->await(
                 $wf->nexusOperation('billing-endpoint', 'billing', 'charge'),
             ));
-            self::fail('Le harnais en mémoire a accepté une opération Nexus.');
+            self::fail('The in-memory harness accepted a Nexus operation.');
         } catch (NexusUnsupportedByBackendException $e) {
             self::assertStringContainsString('journal', $e->getMessage());
             self::assertStringContainsString('Temporal', $e->getMessage());
@@ -49,8 +49,8 @@ final class NexusHarnessFailsFastTest extends TestCase
 
     public function testTheWorkflowFailsBeforeAnythingIsAwaited(): void
     {
-        // Le refus tombe à la planification, pas à l'attente : un `await()` jamais atteint est ce
-        // qui distingue « échoue vite » de « échoue après un délai ».
+        // The refusal falls at scheduling, not at the wait: an `await()` never reached is what
+        // tells "fail fast" apart from "fail after a delay".
         $env = WorkflowTestEnvironment::inMemory([]);
         $reached = false;
 
@@ -62,9 +62,9 @@ final class NexusHarnessFailsFastTest extends TestCase
                 return $wf->await($awaitable);
             });
         } catch (NexusUnsupportedByBackendException) {
-            // attendu
+            // expected
         }
 
-        self::assertFalse($reached, 'L’appel a rendu un awaitable au lieu de refuser sur-le-champ.');
+        self::assertFalse($reached, 'The call returned an awaitable instead of refusing at once.');
     }
 }

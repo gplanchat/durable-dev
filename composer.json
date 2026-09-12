@@ -57,6 +57,7 @@
         "gplanchat/durable-laravel": "@dev"
     },
     "require-dev": {
+        "doctrine/orm": "^3.0",
         "friendsofphp/php-cs-fixer": "^3.0",
         "gplanchat/durable-phpstan": "@dev",
         "gplanchat/durable-rector": "@dev",
