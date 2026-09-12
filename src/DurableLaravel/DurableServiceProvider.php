@@ -57,6 +57,7 @@ use Illuminate\Cache\NullStore;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Database\Connection;
 use Illuminate\Support\ServiceProvider;
+use Psr\Log\LoggerInterface;
 
 /**
  * Binds the four storage ports from a single configuration file.
@@ -224,7 +225,10 @@ final class DurableServiceProvider extends ServiceProvider
         $this->app->singleton(TemporalConnection::class, fn() => TemporalConnection::fromDsn($dsn));
         $this->app->singleton(
             'durable.temporal.client',
-            fn($app) => WorkflowServiceClientFactory::create($app->make(TemporalConnection::class)),
+            fn($app) => WorkflowServiceClientFactory::create(
+                $app->make(TemporalConnection::class),
+                $app->bound(LoggerInterface::class) ? $app->make(LoggerInterface::class) : null,
+            ),
         );
         $this->app->singleton(TemporalHistoryCursor::class, fn($app) => new TemporalHistoryCursor(
             $app->make('durable.temporal.client'),

@@ -18,7 +18,7 @@ PHP namespace: **`Gplanchat\Bridge\Temporal`**.
 
 ## Requirements
 
-- PHP **ext-grpc** for the default transport, or the `gplanchat/durable-bridge-temporal-http` package for `transport=grpc-curl` (curl over HTTP/2, no extension) and `transport=http` (the server JSON gateway, client calls only)
+- PHP **ext-grpc**, or the `gplanchat/durable-bridge-temporal-http` package (curl over HTTP/2, used automatically when the extension is not loaded; also the `temporal+http://` JSON gateway, client calls only)
 - A reachable Temporal frontend (e.g. `host:7233`)
 
 ## Components
@@ -34,10 +34,10 @@ PHP namespace: **`Gplanchat\Bridge\Temporal`**.
 ## Transport DSN (single scheme)
 
 ```
-temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&tls=0
+temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal
 ```
 
-Query parameters: `namespace`, `task_queue` or `journal_task_queue`, `workflow_type`, `workflow_task_queue`, `activity_task_queue`, `identity`, `tls` (bool), `transport` (`grpc`, `grpc-curl`, `http`).
+Schemes: `temporal://` (gRPC), `temporal+tls://` (gRPC over TLS), `temporal+http://` and `temporal+https://` (the server JSON gateway, port 7243 by default). Query parameters: `namespace`, `task_queue` or `journal_task_queue`, `workflow_type`, `workflow_task_queue`, `activity_task_queue`, `identity`, `tls` (bool, the older spelling of `+tls`), `transport` (`auto` by default: ext-grpc when loaded, curl otherwise; `grpc`, `grpc-curl`, `http` to force one).
 
 ### Journal (receive-only)
 

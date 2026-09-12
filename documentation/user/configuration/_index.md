@@ -85,26 +85,35 @@ The `in_memory` event store is still correct when `temporal.dsn` is set. `Tempor
 
 | Key | Values | Default | Description |
 |-----|--------|---------|-------------|
-| `dsn` | `temporal://host:port?…` or `null` | `null` | When `null`: In-Memory Messenger backend. When set: activates the Temporal backend, over `ext-grpc` by default or over plain curl with `transport=grpc-curl` (see the DSN parameters). |
+| `dsn` | `temporal://host:port?…` or `null` | `null` | When `null`: In-Memory Messenger backend. When set: activates the Temporal backend. gRPC goes through `ext-grpc` when the extension is loaded and through curl (HTTP/2) otherwise; the scheme picks the wire, see below. |
 | `journal` | `true` / `false` | `true` | `false` says the cluster is reachable **without** being the journal: `event_store` stays the source of truth, and the dashboard keeps reading it. That is how an application with a DBAL journal serves a Nexus operation; see [Nexus operations](../nexus/). Setting a DSN with `journal: true` alongside `event_store.type: dbal` is refused: the journal cannot have two sources of truth. |
 
 ### DSN format
 
 ```
-temporal://HOST:PORT?namespace=NAMESPACE&journal_task_queue=QUEUE&activity_task_queue=QUEUE&tls=0|1
+temporal://HOST:PORT?namespace=NAMESPACE&journal_task_queue=QUEUE&activity_task_queue=QUEUE
 ```
+
+The scheme names the wire and the encryption:
+
+| Scheme | Wire | TLS | Default port | Needs |
+|--------|------|-----|--------------|-------|
+| `temporal://` | gRPC | no | 7233 | `ext-grpc`, or `gplanchat/durable-bridge-temporal-http` (curl over HTTP/2, chosen automatically when the extension is not loaded; the fallback is logged once) |
+| `temporal+tls://` | gRPC | yes | 7233 | same |
+| `temporal+http://` | the server JSON gateway | no | 7243 | `gplanchat/durable-bridge-temporal-http`, and the HTTP port enabled on the server. Client calls only: no worker can poll through it |
+| `temporal+https://` | the server JSON gateway | yes | 7243 | same |
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `namespace` | yes | Temporal namespace (e.g. `default`). |
 | `journal_task_queue` | yes | Task queue for workflow tasks (e.g. `durable-journal`). |
 | `activity_task_queue` | yes | Task queue for activity tasks (e.g. `durable-activities`). |
-| `tls` | no (default `0`) | Set `tls=1` to enable TLS for the gRPC connection. |
-| `transport` | no (default `grpc`) | `grpc` uses `ext-grpc`. `grpc-curl` speaks the same gRPC protocol through PHP curl (HTTP/2), no extension needed, workers included. `http` uses the server JSON gateway (port `7243` by default): client calls only, no worker can poll through it. The last two need `gplanchat/durable-bridge-temporal-http`. |
+| `tls` | no | `tls=1` is the older spelling of the `+tls` and `+https` schemes; still accepted. |
+| `transport` | no (default `auto`) | Overrides what the scheme implies: `grpc` demands `ext-grpc` and fails without it, `grpc-curl` forces curl even when the extension is loaded, `http` is what `temporal+http://` sets. `auto` picks `grpc` when the extension is loaded and `grpc-curl` otherwise. |
 
 **Example:**
 ```
-temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0
+temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities
 ```
 
 Use an environment variable:

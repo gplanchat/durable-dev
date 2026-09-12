@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\Command;
 
+use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Observation\RecordedDetails;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
@@ -26,6 +28,7 @@ final class DiagnoseExecutionCommand extends Command
         private readonly WorkflowMetadataStore $workflowMetadataStore,
         private readonly EventStoreInterface $eventStore,
         private readonly ChildWorkflowParentLinkStoreInterface $childWorkflowParentLinkStore,
+        private readonly ?TemporalConnection $temporalConnection = null,
     ) {
         parent::__construct();
     }
@@ -96,6 +99,16 @@ final class DiagnoseExecutionCommand extends Command
 
         $io = new SymfonyStyle($input, $output);
         $io->title('Durable diagnosis — ' . $executionId);
+
+        if (null !== $this->temporalConnection) {
+            $io->section('Temporal connection');
+            $io->text(\sprintf(
+                '%s, transport %s (asked: %s)',
+                $this->temporalConnection->target,
+                WorkflowServiceClientFactory::effectiveTransport($this->temporalConnection),
+                $this->temporalConnection->transport,
+            ));
+        }
 
         $io->section('Workflow metadata');
         if (null === $meta) {

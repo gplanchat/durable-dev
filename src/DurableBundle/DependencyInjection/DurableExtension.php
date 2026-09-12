@@ -374,7 +374,10 @@ final class DurableExtension extends Extension
 
             $container->register('durable.temporal.workflow_service_client', WorkflowServiceClientInterface::class)
                 ->setFactory([WorkflowServiceClientFactory::class, 'create'])
-                ->setArguments([new Reference('durable.temporal.connection')])
+                ->setArguments([
+                    new Reference('durable.temporal.connection'),
+                    new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                ])
             ;
 
             $container->register(WorkflowServiceActivityRpc::class)
@@ -769,6 +772,7 @@ final class DurableExtension extends Extension
                 new Reference(WorkflowMetadataStore::class),
                 new Reference(EventStoreInterface::class),
                 new Reference(ChildWorkflowParentLinkStoreInterface::class),
+                new Reference('durable.temporal.connection', ContainerInterface::NULL_ON_INVALID_REFERENCE),
             ])
             ->addTag('console.command')
         ;
