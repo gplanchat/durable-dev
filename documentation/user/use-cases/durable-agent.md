@@ -41,6 +41,35 @@ own:
 
 `Agent::call()` is called as-is from the workflow. It does not know it is replayable.
 
+## What the demo shows
+
+The scripted model answers to French trigger words — it is a stand-in, not a language model — so
+the phrases below are the ones to type. A real provider decides on its own.
+
+- **A guard on every tool call.** Each tool carries an effect: `read`, `write` or `external`. The
+  mode — `standard`, `edition`, `auto` — says which effects pass without asking; anything else
+  suspends the workflow until you approve or refuse, with a fifteen-minute deadline. « Quelle est
+  la météo à Paris ? » is a read and passes; « envoie un mail » is external and waits for you.
+- **A question to the human**, as a questionnaire the workflow waits on, the same way it waits for
+  an approval: « demande-moi… », or « lance un import » for a question the model asks on its own
+  because the request is ambiguous. Add « choix multiple » for the multi-select form.
+- **Watch and alert.** « surveille la livraison » puts the agent to sleep on a business fact.
+  `php bin/console app:agent:evenement commande.expediee` raises that fact from the CLI, and the
+  agent wakes up knowing what it was doing and why.
+- **Delegation.** « délègue… » hands a mission to a sub-agent, which inherits the current mode
+  and never gets more authority than its parent.
+- **Reasoning in the thread.** The model's reasoning crosses the boundary with the answer and
+  shows folded under it.
+- **A context budget** on the model call. When the conversation outgrows it, the run compacts it
+  into a summary and continues; `?contexte=N` on the chat URL shrinks the budget so you can watch
+  it happen. After forty turns the run hands over to a fresh one for cost, not for size.
+- **Close and resume.** A closed conversation — or one silent for an hour — ends its execution.
+  Resuming opens a new execution that starts from a summary of the old one, which is itself a
+  journaled model call.
+- **A push channel that is optional.** Mercure pushes « this execution moved »; the page also
+  polls, so without the hub it still works, only slower.
+- Every one of these is visible in Temporal's UI as events of one `Ai_DurableAgent` workflow.
+
 ## The four decisions
 
 This is the reusable part. None of it requires a dependency.
@@ -115,39 +144,46 @@ configuration on replay. Otherwise adding a tool changes the replayed prompt.
 ## How to run it
 
 Everything lives under `symfony/` on the branch. Prerequisites: PHP 8.2 with `ext-grpc`, Composer,
-Docker, and the Symfony CLI.
+Docker. No API key: the scripted model is the default.
 
 ```bash
 git switch spike/agent-durable-symfony-ai
 cd symfony
 composer install
 docker compose up -d --wait   # Postgres, Temporal on 7234, its UI on 8089, Mercure on 33000
-symfony serve --port=8012 -d  # the web server, plus the workers declared in .symfony.local.yaml
 ```
 
-Then open <http://agent.durable.localhost:8012/>. The routes are constrained by host — the same
-application serves the samples on `samples.durable.localhost` and the agent on
-`agent.durable.localhost`, see `APP_HOST_*` in `.env` — and browsers resolve `*.localhost` to the
-loopback without a hosts entry. Temporal's UI is on <http://localhost:8089/>: each conversation is
-one `Ai_DurableAgent` workflow there.
+Then three terminals, from the same directory — the two Temporal workers are the demo, and they
+are separate processes because their gRPC long-polls starve any transport sharing their loop:
 
-Three things you would not guess:
+```bash
+php bin/console messenger:consume durable_temporal_journal
+php bin/console messenger:consume durable_temporal_activity
+php -S localhost:8012 -t public
+```
 
-- **No API key is needed.** With `MISTRAL_API_KEY` empty, the model client is a scripted one:
-  deterministic answers, no network. Set the key in `.env.local` and run `symfony console cache:clear`
-  to talk to Mistral instead; nothing else changes.
-- **The workers are the demo.** `symfony serve` starts them from `.symfony.local.yaml`; the Temporal
-  journal and activity workers are separate processes because their gRPC long-polls starve any
-  transport sharing their loop. `symfony server:status` lists them. Without them, a message is
-  accepted and nothing moves.
-- **Live updates are optional.** The page subscribes to Mercure and also polls; the hub only
-  allows the `agent.durable.localhost` origin without a port, so on `:8012` the push may be refused
-  and the page falls back to polling. Behind a local HTTPS proxy on 443 the push works. Either way
-  the conversation is exact — it is a projection of the journal, not of the channel.
+Open <http://localhost:8012/durable/chat>. The samples are at <http://localhost:8012/>, Temporal's UI
+at <http://localhost:8089/> — each conversation is one `Ai_DurableAgent` workflow there. Port 8012 is
+a suggestion; any free port does. If 7234 or 8089 are taken, set `TEMPORAL_FRONTEND_PORT` and
+`TEMPORAL_UI_PORT` before `docker compose up`, and replace 7234 in the `temporal://` DSNs of
+`.env.dev` and `config/packages/messenger.yaml`.
 
-Try « Quelle est la météo à Paris ? »: a read tool, it passes in `standard` mode. Then « envoie un
-mail »: the workflow suspends until you approve the call, or switch the mode to `auto` and watch it
-pass without asking. `symfony server:stop` and `docker compose down` stop everything.
+Two things you would not guess:
+
+- **A worker that loses Temporal exits.** It does not retry the connection; `docker compose up`
+  first, workers second, and a worker that stopped is started again by hand. Without the workers,
+  a message is accepted and nothing moves.
+- **To talk to Mistral instead of the script**, put `MISTRAL_API_KEY` in `.env.local` and run
+  `php bin/console cache:clear`. Nothing else changes.
+
+With the Symfony CLI, `symfony serve --port=8012 -d` replaces the three terminals: it starts the
+workers from `.symfony.local.yaml`, and `docker compose up` as one of them — which means the
+Docker stack now lives and dies with the server. `symfony server:stop` stops Temporal too, and
+the workers with it. It also sets the hosts to `samples.durable.localhost` and
+`agent.durable.localhost` only if you ask: `APP_HOST_*` in `.env` are empty by default, which is
+what makes `localhost` work everywhere.
+
+`docker compose down` stops the stack. The journal is in its Postgres volume; `down -v` forgets it.
 
 ## What is not proven
 
