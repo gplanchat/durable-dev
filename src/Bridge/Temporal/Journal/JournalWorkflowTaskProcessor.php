@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Journal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Temporal\Api\Enums\V1\QueryResultType;
 use Temporal\Api\Query\V1\WorkflowQueryResult;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
-use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Completes a workflow task for the Durable journal workflow (signals + readStream query).
@@ -20,7 +18,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final class JournalWorkflowTaskProcessor
 {
     public function __construct(
-        private readonly WorkflowServiceClient $client,
+        private readonly WorkflowServiceClientInterface $client,
         private readonly TemporalConnection $settings,
         private readonly HistoryPageMerger $historyMerger,
     ) {}
@@ -63,10 +61,6 @@ final class JournalWorkflowTaskProcessor
             }
         }
 
-        $call = $this->client->RespondWorkflowTaskCompleted($req);
-        $done = GrpcUnary::wait($call);
-        if (!$done instanceof RespondWorkflowTaskCompletedResponse) {
-            throw new \RuntimeException('Unexpected RespondWorkflowTaskCompleted response type.');
-        }
+        $done = $this->client->RespondWorkflowTaskCompleted($req);
     }
 }

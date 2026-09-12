@@ -27,6 +27,10 @@
         },
         {
             "type": "path",
+            "url": "src/Bridge/TemporalHttp"
+        },
+        {
+            "type": "path",
             "url": "src/Bridge/Dbal"
         },
         {
@@ -52,6 +56,7 @@
         "gplanchat/durable-bundle": "@dev",
         "gplanchat/durable-plugin": "@dev",
         "gplanchat/durable-bridge-temporal": "@dev",
+        "gplanchat/durable-bridge-temporal-http": "@dev",
         "gplanchat/durable-bridge-dbal": "@dev",
         "gplanchat/durable-bridge-illuminate": "@dev",
         "gplanchat/durable-laravel": "@dev"
@@ -76,6 +81,7 @@
             "Gplanchat\\Durable\\Bundle\\": "src/DurableBundle/",
             "Gplanchat\\Durable\\Plugin\\": "src/DurablePlugin/",
             "Gplanchat\\Bridge\\Temporal\\": "src/Bridge/Temporal/",
+            "Gplanchat\\Bridge\\TemporalHttp\\": "src/Bridge/TemporalHttp/",
             "Gplanchat\\Bridge\\Dbal\\": "src/Bridge/Dbal/",
             "Gplanchat\\Bridge\\Illuminate\\": "src/Bridge/Illuminate/",
             "Gplanchat\\Durable\\Laravel\\": "src/DurableLaravel/",

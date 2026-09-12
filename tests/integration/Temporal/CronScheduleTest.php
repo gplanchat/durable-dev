@@ -102,9 +102,13 @@ final class CronScheduleTest extends TemporalServerTestCase
         $req->setIdentity('cron-agreement');
         $req->setCronSchedule($expression);
 
-        [, $status] = $this->client->StartWorkflowExecution($req, [], ['timeout' => 10_000_000])->wait();
+        try {
+            $this->client->StartWorkflowExecution($req, [], ['timeout' => 10_000_000]);
+        } catch (\RuntimeException) {
+            return false;
+        }
 
-        return 0 === (int) ($status->code ?? -1);
+        return true;
     }
 
     /**
@@ -133,8 +137,9 @@ final class CronScheduleTest extends TemporalServerTestCase
         $req->setNamespace($this->connection->namespace->name());
         $req->setExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
 
-        [$response, $status] = $this->client->DescribeWorkflowExecution($req, [], ['timeout' => 10_000_000])->wait();
-        if (0 !== (int) ($status->code ?? -1) || !$response instanceof \Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionResponse) {
+        try {
+            $response = $this->client->DescribeWorkflowExecution($req, [], ['timeout' => 10_000_000]);
+        } catch (\RuntimeException) {
             return null;
         }
 

@@ -608,6 +608,53 @@ jobs:
               working-directory: symfony
               run: docker compose down -v
 
+    no-grpc:
+        # Ce que ce job prouve et qu'aucun autre ne peut : le pont Temporal se charge, s'installe
+        # et parle au serveur **sans** `ext-grpc`. Tous les autres jobs installent l'extension ;
+        # sans celui-ci, une régression qui remettrait `\Grpc\BaseStub` sur le chemin d'un
+        # collaborateur resterait invisible jusqu'au premier `composer install` d'un utilisateur.
+        #
+        # La suite d'intégration entière passe par `transport=grpc-curl` (workers compris), et le
+        # test de la passerelle JSON par le port HTTP du serveur de dev.
+        name: Sans ext-grpc (curl + passerelle JSON)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP (sans grpc, exprès)
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.4'
+                  extensions: mbstring, bcmath, sqlite3, pdo_sqlite, curl
+                  coverage: none
+
+            - name: L'extension est bien absente, sinon le job ne mesure rien
+              run: |
+                  if php -m | grep -qi '^grpc$'; then echo 'ext-grpc is loaded; this job must run without it.' >&2; exit 1; fi
+
+            - name: Install Composer dependencies
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: PHPUnit — suite unitaire
+              run: vendor/bin/phpunit --testsuite unit
+
+            - name: Install Temporal CLI
+              uses: temporalio/setup-temporal@v0
+
+            - name: Démarrer le serveur de dev (gRPC 7233, HTTP 7243)
+              run: |
+                  temporal server start-dev --headless --port 7233 --http-port 7243 --namespace durable-test --log-level warn &
+                  timeout 60 bash -c 'until nc -z 127.0.0.1 7233 && nc -z 127.0.0.1 7243; do sleep 1; done'
+                  temporal operator search-attribute create --namespace durable-test --name DurableOrderId --type Keyword
+                  temporal operator search-attribute create --namespace durable-test --name DurableAmount --type Int
+
+            - name: PHPUnit — intégration, tout en gRPC sur curl
+              env:
+                  DURABLE_TEMPORAL_ADDRESS: '127.0.0.1:7233'
+                  DURABLE_TEMPORAL_HTTP_ADDRESS: '127.0.0.1:7243'
+                  DURABLE_TEMPORAL_TRANSPORT: 'grpc-curl'
+              run: vendor/bin/phpunit --testsuite integration --display-skipped
+
     docker-compose-stack:
         name: Stack Docker (Temporal + UI)
         runs-on: ubuntu-latest

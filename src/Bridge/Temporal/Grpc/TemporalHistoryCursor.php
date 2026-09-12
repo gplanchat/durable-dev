@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal\Grpc;
 
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\Enums\V1\HistoryEventFilterType;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryRequest;
-use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryResponse;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Lazy, cursor-based pagination of Temporal workflow history.
@@ -25,10 +24,12 @@ final class TemporalHistoryCursor
 {
     private const MAX_PAGE_SIZE = 200;
 
+    private const GRPC_NOT_FOUND = 5;
+
     private readonly string $namespace;
 
     public function __construct(
-        private readonly WorkflowServiceClient $client,
+        private readonly WorkflowServiceClientInterface $client,
         string|\Gplanchat\Bridge\Temporal\TemporalConnection $namespace,
     ) {
         $this->namespace = $namespace instanceof \Gplanchat\Bridge\Temporal\TemporalConnection
@@ -55,20 +56,14 @@ final class TemporalHistoryCursor
                 $req->setNextPageToken($token);
             }
 
-            $call = $this->client->GetWorkflowExecutionHistory($req, [], ['timeout' => TemporalGrpcTimeouts::HISTORY_US]);
-            /** @var array{0: GetWorkflowExecutionHistoryResponse|null, 1: \stdClass} $pair */
-            $pair = $call->wait();
-            [$response, $status] = $pair;
-            $code = (int) ($status->code ?? -1);
+            try {
+                $response = $this->client->GetWorkflowExecutionHistory($req, [], ['timeout' => TemporalGrpcTimeouts::HISTORY_US]);
+            } catch (\RuntimeException $e) {
+                if (self::GRPC_NOT_FOUND === $e->getCode()) {
+                    return;
+                }
 
-            if (5 === $code) {
-                return;
-            }
-            if (0 !== $code) {
-                throw new \RuntimeException(\sprintf('Temporal gRPC error [%s]: %s', (string) $code, (string) ($status->details ?? '')));
-            }
-            if (null === $response) {
-                throw new \RuntimeException('Temporal gRPC returned empty response for GetWorkflowExecutionHistory.');
+                throw $e;
             }
 
             $history = $response->getHistory();
@@ -98,21 +93,15 @@ final class TemporalHistoryCursor
         $req->setHistoryEventFilterType(HistoryEventFilterType::HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT);
         $req->setSkipArchival(true);
 
-        $call = $this->client->GetWorkflowExecutionHistory($req, [], ['timeout' => TemporalGrpcTimeouts::HISTORY_US]);
-        /** @var array{0: GetWorkflowExecutionHistoryResponse|null, 1: \stdClass} $pair */
-        $pair = $call->wait();
-        [$response, $status] = $pair;
-        $code = (int) ($status->code ?? -1);
-
-        if (5 === $code) {
+        try {
+            $response = $this->client->GetWorkflowExecutionHistory($req, [], ['timeout' => TemporalGrpcTimeouts::HISTORY_US]);
+        } catch (\RuntimeException $e) {
             // NOT_FOUND: workflow does not exist (not started yet, or unknown ID)
-            return null;
-        }
-        if (0 !== $code) {
-            throw new \RuntimeException(\sprintf('Temporal gRPC error [%d]: %s', $code, (string) ($status->details ?? '')));
-        }
-        if (null === $response) {
-            return null;
+            if (self::GRPC_NOT_FOUND === $e->getCode()) {
+                return null;
+            }
+
+            throw $e;
         }
 
         $history = $response->getHistory();

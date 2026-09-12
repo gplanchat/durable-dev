@@ -13,6 +13,7 @@ use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Command\V1\Command;
@@ -30,7 +31,6 @@ use Temporal\Api\Taskqueue\V1\TaskQueue;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Probe for §1.1 and §1.2 of the `nexus-operation-headers` change: what does the server accept as a
@@ -51,7 +51,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final class NexusHeaderRulesTest extends TestCase
 {
     private TemporalConnection $connection;
-    private WorkflowServiceClient $client;
+    private WorkflowServiceClientInterface $client;
     private OperatorServiceClient $operator;
     private string $endpointName;
     private string $endpointId = '';
@@ -104,7 +104,7 @@ final class NexusHeaderRulesTest extends TestCase
             $request->setReason('fin de sonde');
 
             try {
-                GrpcUnary::wait($this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]));
+                $this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]);
             } catch (\RuntimeException) {
             }
         }
@@ -191,7 +191,7 @@ final class NexusHeaderRulesTest extends TestCase
         $poll->setNamespace($this->connection->namespace->name());
         $poll->setTaskQueue(new TaskQueue(['name' => $this->connection->workflowTaskQueue->name()]));
         $poll->setIdentity($this->connection->identity);
-        $task = GrpcUnary::wait($this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]));
+        $task = $this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]);
 
         $map = new MapField(GPBType::STRING, GPBType::STRING);
         foreach ($header as $k => $v) {
@@ -220,10 +220,10 @@ final class NexusHeaderRulesTest extends TestCase
         $done->setIdentity($this->connection->identity);
         $done->setCommands([$command]);
 
-        /** @var array{0: mixed, 1: \stdClass} $pair */
-        $pair = $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000])->wait();
-        if (0 !== (int) ($pair[1]->code ?? -1)) {
-            return \sprintf('refused [%d]: %s', (int) $pair[1]->code, substr((string) ($pair[1]->details ?? ''), 0, 90));
+        try {
+            $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000]);
+        } catch (\RuntimeException $e) {
+            return \sprintf('refused [%d]: %s', $e->getCode(), substr($e->getMessage(), 0, 120));
         }
 
         $cursor = new TemporalHistoryCursor($this->client, $this->connection);

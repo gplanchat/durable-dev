@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Laravel\Console;
 
+use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Illuminate\Console\Command;
 
 /**
@@ -20,8 +22,9 @@ final class NexusWorkerCommand extends Command
 
     protected $description = 'Serve the Nexus operations this application declares, polling the Temporal cluster';
 
-    public function handle(TemporalNexusWorker $worker): int
+    public function handle(TemporalNexusWorker $worker, TemporalConnection $connection): int
     {
+        $this->line(\sprintf('Temporal %s, transport %s.', $connection->target, WorkflowServiceClientFactory::effectiveTransport($connection)));
         $maxTime = (int) $this->option('max-time');
         $deadline = $maxTime > 0 ? microtime(true) + $maxTime : null;
 

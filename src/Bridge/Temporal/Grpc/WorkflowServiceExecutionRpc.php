@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal\Grpc;
 
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Temporal\Api\Workflowservice\V1\PollWorkflowExecutionUpdateRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowExecutionUpdateResponse;
 use Temporal\Api\Workflowservice\V1\QueryWorkflowRequest;
 use Temporal\Api\Workflowservice\V1\QueryWorkflowResponse;
 use Temporal\Api\Workflowservice\V1\UpdateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\UpdateWorkflowExecutionResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Typed wrappers for **client → running workflow** `WorkflowService` RPCs (query, update, poll update outcome).
@@ -21,7 +21,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final readonly class WorkflowServiceExecutionRpc
 {
     public function __construct(
-        private WorkflowServiceClient $client,
+        private WorkflowServiceClientInterface $client,
     ) {}
 
     /**
@@ -34,8 +34,7 @@ final readonly class WorkflowServiceExecutionRpc
         array $callOptions = [],
     ): QueryWorkflowResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->QueryWorkflow($request, $metadata, $opts));
-        \assert($r instanceof QueryWorkflowResponse);
+        $r = $this->client->QueryWorkflow($request, $metadata, $opts);
 
         return $r;
     }
@@ -50,8 +49,7 @@ final readonly class WorkflowServiceExecutionRpc
         array $callOptions = [],
     ): UpdateWorkflowExecutionResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->UpdateWorkflowExecution($request, $metadata, $opts));
-        \assert($r instanceof UpdateWorkflowExecutionResponse);
+        $r = $this->client->UpdateWorkflowExecution($request, $metadata, $opts);
 
         return $r;
     }
@@ -68,8 +66,7 @@ final readonly class WorkflowServiceExecutionRpc
         array $callOptions = [],
     ): PollWorkflowExecutionUpdateResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::LONG_POLL_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->PollWorkflowExecutionUpdate($request, $metadata, $opts));
-        \assert($r instanceof PollWorkflowExecutionUpdateResponse);
+        $r = $this->client->PollWorkflowExecutionUpdate($request, $metadata, $opts);
 
         return $r;
     }

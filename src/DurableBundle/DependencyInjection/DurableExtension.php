@@ -28,6 +28,7 @@ use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
@@ -67,10 +68,10 @@ use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
-use Gplanchat\Durable\Store\WorkflowMetadataStore;
 // And not HttpKernel's, which is only a thin subclass of it — `@internal` since
 // Symfony 7.1, deprecated in 8.1 — and only adds the leftovers of the annotated class cache.
 // This one has existed since 6.4: the swap costs no supported version.
+use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Transport\NoopActivityTransport;
@@ -80,7 +81,6 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 final class DurableExtension extends Extension
 {
@@ -372,9 +372,12 @@ final class DurableExtension extends Extension
                 ->setArguments([$dsn])
             ;
 
-            $container->register('durable.temporal.workflow_service_client', WorkflowServiceClient::class)
+            $container->register('durable.temporal.workflow_service_client', WorkflowServiceClientInterface::class)
                 ->setFactory([WorkflowServiceClientFactory::class, 'create'])
-                ->setArguments([new Reference('durable.temporal.connection')])
+                ->setArguments([
+                    new Reference('durable.temporal.connection'),
+                    new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                ])
             ;
 
             $container->register(WorkflowServiceActivityRpc::class)
@@ -769,6 +772,7 @@ final class DurableExtension extends Extension
                 new Reference(WorkflowMetadataStore::class),
                 new Reference(EventStoreInterface::class),
                 new Reference(ChildWorkflowParentLinkStoreInterface::class),
+                new Reference('durable.temporal.connection', ContainerInterface::NULL_ON_INVALID_REFERENCE),
             ])
             ->addTag('console.command')
         ;

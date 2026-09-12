@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace integration\Temporal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\WorkflowExecution;
@@ -21,7 +21,6 @@ use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * A probe, not a feature: the "workflow-conditions-and-handler-dispatch" change makes interleaving
@@ -51,7 +50,7 @@ final class WorkflowTaskMessageBatchTest extends TestCase
     private const SIGNAL_COUNT = 3;
 
     private TemporalConnection $connection;
-    private WorkflowServiceClient $client;
+    private WorkflowServiceClientInterface $client;
     private ?string $workflowId = null;
 
     protected function setUp(): void
@@ -87,7 +86,7 @@ final class WorkflowTaskMessageBatchTest extends TestCase
         $req->setIdentity($this->connection->identity);
 
         try {
-            GrpcUnary::wait($this->client->TerminateWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
+            $this->client->TerminateWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
         } catch (\RuntimeException) {
             // Cleanup must not mask the test's verdict.
         }
@@ -158,7 +157,7 @@ final class WorkflowTaskMessageBatchTest extends TestCase
         $req->setTaskQueue(new TaskQueue(['name' => $this->connection->workflowTaskQueue->name()]));
         $req->setIdentity($this->connection->identity);
 
-        $resp = GrpcUnary::wait($this->client->PollWorkflowTaskQueue($req, [], ['timeout' => TemporalGrpcTimeouts::LONG_POLL_US]));
+        $resp = $this->client->PollWorkflowTaskQueue($req, [], ['timeout' => TemporalGrpcTimeouts::LONG_POLL_US]);
         self::assertInstanceOf(PollWorkflowTaskQueueResponse::class, $resp);
 
         return $resp;
@@ -171,7 +170,7 @@ final class WorkflowTaskMessageBatchTest extends TestCase
         $req->setTaskToken($poll->getTaskToken());
         $req->setIdentity($this->connection->identity);
 
-        GrpcUnary::wait($this->client->RespondWorkflowTaskCompleted($req, [], ['timeout' => TemporalGrpcTimeouts::RESPOND_WORKFLOW_TASK_US]));
+        $this->client->RespondWorkflowTaskCompleted($req, [], ['timeout' => TemporalGrpcTimeouts::RESPOND_WORKFLOW_TASK_US]);
     }
 
     /** @param array<string, mixed> $args */
@@ -184,7 +183,7 @@ final class WorkflowTaskMessageBatchTest extends TestCase
         $req->setIdentity($this->connection->identity);
         $req->setInput(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($args)));
 
-        GrpcUnary::wait($this->client->SignalWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
+        $this->client->SignalWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
     }
 
     /**

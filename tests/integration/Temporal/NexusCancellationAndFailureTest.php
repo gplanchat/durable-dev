@@ -12,6 +12,7 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
@@ -34,7 +35,6 @@ use Temporal\Api\Taskqueue\V1\TaskQueue;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * §6.3 and §6.4 — cancellation reaches the server, and a failure says where it comes from.
@@ -52,7 +52,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final class NexusCancellationAndFailureTest extends TestCase
 {
     private TemporalConnection $connection;
-    private WorkflowServiceClient $client;
+    private WorkflowServiceClientInterface $client;
     private OperatorServiceClient $operator;
     private string $endpointName;
     private string $endpointId = '';
@@ -105,7 +105,7 @@ final class NexusCancellationAndFailureTest extends TestCase
             $request->setReason('fin du test');
 
             try {
-                GrpcUnary::wait($this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]));
+                $this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]);
             } catch (\RuntimeException) {
             }
         }
@@ -219,7 +219,7 @@ final class NexusCancellationAndFailureTest extends TestCase
         $poll->setTaskQueue(new TaskQueue(['name' => $this->connection->workflowTaskQueue->name()]));
         $poll->setIdentity($this->connection->identity);
 
-        $task = GrpcUnary::wait($this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]));
+        $task = $this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]);
         self::assertNotSame('', $task->getTaskToken(), 'No workflow task served.');
 
         return $task;
@@ -233,14 +233,7 @@ final class NexusCancellationAndFailureTest extends TestCase
         $done->setTaskToken($task->getTaskToken());
         $done->setIdentity($this->connection->identity);
         $done->setCommands($commands);
-
-        /** @var array{0: mixed, 1: \stdClass} $pair */
-        $pair = $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000])->wait();
-        self::assertSame(
-            0,
-            (int) ($pair[1]->code ?? -1),
-            \sprintf('The server refused the command: %s', (string) ($pair[1]->details ?? '')),
-        );
+        $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000]);
     }
 
     private function signal(): void
@@ -250,7 +243,7 @@ final class NexusCancellationAndFailureTest extends TestCase
         $request->setWorkflowExecution(new WorkflowExecution(['workflow_id' => (string) $this->workflowId]));
         $request->setSignalName('poke');
         $request->setIdentity($this->connection->identity);
-        GrpcUnary::wait($this->client->SignalWorkflowExecution($request, [], ['timeout' => 10_000_000]));
+        $this->client->SignalWorkflowExecution($request, [], ['timeout' => 10_000_000]);
     }
 
     private function historyHas(int $type): bool

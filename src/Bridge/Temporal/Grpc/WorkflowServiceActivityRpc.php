@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal\Grpc;
 
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Temporal\Api\Workflowservice\V1\CountActivityExecutionsRequest;
 use Temporal\Api\Workflowservice\V1\CountActivityExecutionsResponse;
 use Temporal\Api\Workflowservice\V1\DeleteActivityExecutionRequest;
@@ -46,10 +47,9 @@ use Temporal\Api\Workflowservice\V1\UnpauseActivityRequest;
 use Temporal\Api\Workflowservice\V1\UnpauseActivityResponse;
 use Temporal\Api\Workflowservice\V1\UpdateActivityOptionsRequest;
 use Temporal\Api\Workflowservice\V1\UpdateActivityOptionsResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
- * Typed wrappers for Temporal {@see WorkflowServiceClient} RPCs that concern **activity tasks**
+ * Typed wrappers for Temporal {@see WorkflowServiceClientInterface} RPCs that concern **activity tasks**
  * and **activity execution** (poll, respond, heartbeat, cancel, visibility, control-plane).
  *
  * Each method applies a default gRPC deadline; pass {@code $callOptions} (e.g. {@code ['timeout' => …]}) to override.
@@ -59,7 +59,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final readonly class WorkflowServiceActivityRpc
 {
     public function __construct(
-        private WorkflowServiceClient $client,
+        private WorkflowServiceClientInterface $client,
     ) {}
 
     /**
@@ -72,8 +72,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): PollActivityTaskQueueResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::LONG_POLL_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->PollActivityTaskQueue($request, $metadata, $opts));
-        \assert($r instanceof PollActivityTaskQueueResponse);
+        $r = $this->client->PollActivityTaskQueue($request, $metadata, $opts);
 
         return $r;
     }
@@ -88,8 +87,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): RecordActivityTaskHeartbeatResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->RecordActivityTaskHeartbeat($request, $metadata, $opts));
-        \assert($r instanceof RecordActivityTaskHeartbeatResponse);
+        $r = $this->client->RecordActivityTaskHeartbeat($request, $metadata, $opts);
 
         return $r;
     }
@@ -104,8 +102,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): RecordActivityTaskHeartbeatByIdResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->RecordActivityTaskHeartbeatById($request, $metadata, $opts));
-        \assert($r instanceof RecordActivityTaskHeartbeatByIdResponse);
+        $r = $this->client->RecordActivityTaskHeartbeatById($request, $metadata, $opts);
 
         return $r;
     }
@@ -120,8 +117,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): RespondActivityTaskCompletedResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->RespondActivityTaskCompleted($request, $metadata, $opts));
-        \assert($r instanceof RespondActivityTaskCompletedResponse);
+        $r = $this->client->RespondActivityTaskCompleted($request, $metadata, $opts);
 
         return $r;
     }
@@ -136,8 +132,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): RespondActivityTaskCompletedByIdResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->RespondActivityTaskCompletedById($request, $metadata, $opts));
-        \assert($r instanceof RespondActivityTaskCompletedByIdResponse);
+        $r = $this->client->RespondActivityTaskCompletedById($request, $metadata, $opts);
 
         return $r;
     }
@@ -152,8 +147,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): RespondActivityTaskFailedResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->RespondActivityTaskFailed($request, $metadata, $opts));
-        \assert($r instanceof RespondActivityTaskFailedResponse);
+        $r = $this->client->RespondActivityTaskFailed($request, $metadata, $opts);
 
         return $r;
     }
@@ -168,8 +162,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): RespondActivityTaskFailedByIdResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->RespondActivityTaskFailedById($request, $metadata, $opts));
-        \assert($r instanceof RespondActivityTaskFailedByIdResponse);
+        $r = $this->client->RespondActivityTaskFailedById($request, $metadata, $opts);
 
         return $r;
     }
@@ -184,8 +177,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): RespondActivityTaskCanceledResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->RespondActivityTaskCanceled($request, $metadata, $opts));
-        \assert($r instanceof RespondActivityTaskCanceledResponse);
+        $r = $this->client->RespondActivityTaskCanceled($request, $metadata, $opts);
 
         return $r;
     }
@@ -200,8 +192,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): RespondActivityTaskCanceledByIdResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->RespondActivityTaskCanceledById($request, $metadata, $opts));
-        \assert($r instanceof RespondActivityTaskCanceledByIdResponse);
+        $r = $this->client->RespondActivityTaskCanceledById($request, $metadata, $opts);
 
         return $r;
     }
@@ -216,8 +207,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): UpdateActivityOptionsResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->UpdateActivityOptions($request, $metadata, $opts));
-        \assert($r instanceof UpdateActivityOptionsResponse);
+        $r = $this->client->UpdateActivityOptions($request, $metadata, $opts);
 
         return $r;
     }
@@ -232,8 +222,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): PauseActivityResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->PauseActivity($request, $metadata, $opts));
-        \assert($r instanceof PauseActivityResponse);
+        $r = $this->client->PauseActivity($request, $metadata, $opts);
 
         return $r;
     }
@@ -248,8 +237,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): UnpauseActivityResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->UnpauseActivity($request, $metadata, $opts));
-        \assert($r instanceof UnpauseActivityResponse);
+        $r = $this->client->UnpauseActivity($request, $metadata, $opts);
 
         return $r;
     }
@@ -264,8 +252,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): ResetActivityResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->ResetActivity($request, $metadata, $opts));
-        \assert($r instanceof ResetActivityResponse);
+        $r = $this->client->ResetActivity($request, $metadata, $opts);
 
         return $r;
     }
@@ -280,8 +267,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): StartActivityExecutionResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->StartActivityExecution($request, $metadata, $opts));
-        \assert($r instanceof StartActivityExecutionResponse);
+        $r = $this->client->StartActivityExecution($request, $metadata, $opts);
 
         return $r;
     }
@@ -296,8 +282,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): DescribeActivityExecutionResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->DescribeActivityExecution($request, $metadata, $opts));
-        \assert($r instanceof DescribeActivityExecutionResponse);
+        $r = $this->client->DescribeActivityExecution($request, $metadata, $opts);
 
         return $r;
     }
@@ -312,8 +297,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): PollActivityExecutionResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::LONG_POLL_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->PollActivityExecution($request, $metadata, $opts));
-        \assert($r instanceof PollActivityExecutionResponse);
+        $r = $this->client->PollActivityExecution($request, $metadata, $opts);
 
         return $r;
     }
@@ -328,8 +312,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): ListActivityExecutionsResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->ListActivityExecutions($request, $metadata, $opts));
-        \assert($r instanceof ListActivityExecutionsResponse);
+        $r = $this->client->ListActivityExecutions($request, $metadata, $opts);
 
         return $r;
     }
@@ -344,8 +327,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): CountActivityExecutionsResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->CountActivityExecutions($request, $metadata, $opts));
-        \assert($r instanceof CountActivityExecutionsResponse);
+        $r = $this->client->CountActivityExecutions($request, $metadata, $opts);
 
         return $r;
     }
@@ -360,8 +342,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): RequestCancelActivityExecutionResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->RequestCancelActivityExecution($request, $metadata, $opts));
-        \assert($r instanceof RequestCancelActivityExecutionResponse);
+        $r = $this->client->RequestCancelActivityExecution($request, $metadata, $opts);
 
         return $r;
     }
@@ -376,8 +357,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): TerminateActivityExecutionResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->TerminateActivityExecution($request, $metadata, $opts));
-        \assert($r instanceof TerminateActivityExecutionResponse);
+        $r = $this->client->TerminateActivityExecution($request, $metadata, $opts);
 
         return $r;
     }
@@ -392,8 +372,7 @@ final readonly class WorkflowServiceActivityRpc
         array $callOptions = [],
     ): DeleteActivityExecutionResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = GrpcUnary::wait($this->client->DeleteActivityExecution($request, $metadata, $opts));
-        \assert($r instanceof DeleteActivityExecutionResponse);
+        $r = $this->client->DeleteActivityExecution($request, $metadata, $opts);
 
         return $r;
     }
