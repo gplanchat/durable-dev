@@ -8,6 +8,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
+#[Route(host: '%app.host.samples%')]
 final class DocumentationController extends AbstractController
 {
     #[Route('/documentation', name: 'durable_documentation', methods: ['GET'])]

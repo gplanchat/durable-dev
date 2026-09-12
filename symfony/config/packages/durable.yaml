@@ -22,6 +22,12 @@ durable:
             - App\Durable\Activity\TickActivityInterface
             - App\Durable\Activity\ChargeActivityInterface
 
+# Temporal natif : le cluster **est** le journal. C'est ce qui rend le chat possible entre deux
+# requêtes — un event store in-memory non enveloppé perdrait le WorkflowSignalReceived écrit par
+# DeliverWorkflowSignalHandler. Ici l'in-memory n'est que le cache local d'un
+# TemporalReadThroughEventStore, et les signaux passent par le cluster (WorkflowClient::signal()),
+# pas par un append local.
+# Le backend DBAL (DUR030) reste la variante sans cluster : event_store.type dbal + temporal.dsn null.
 when@dev:
     durable:
         event_store:

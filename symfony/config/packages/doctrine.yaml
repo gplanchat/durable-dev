@@ -1,0 +1,6 @@
+# Le backend DBAL du spike (DUR030) n'a besoin que d'une connexion : les tables `durable_*` sont
+# créées à la première écriture, et il n'y a aucune entité ORM dans cette app.
+# SQLite volontairement : le chat doit survivre à la requête HTTP, pas exiger une infra.
+doctrine:
+    dbal:
+        url: '%env(resolve:DATABASE_URL)%'

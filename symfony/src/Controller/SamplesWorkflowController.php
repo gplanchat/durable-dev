@@ -14,6 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * UI listing ported temporalio/samples-php scenarios and starting a run via {@see DurableSampleWorkflowRunner}.
  */
+#[Route(host: '%app.host.samples%')]
 final class SamplesWorkflowController extends AbstractController
 {
     public function __construct(

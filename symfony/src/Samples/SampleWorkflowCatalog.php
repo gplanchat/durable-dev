@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Samples;
 
+use App\Ai\Workflow\DurableAgentWorkflow;
 use App\Samples\Workflow\ActivityRetry\ActivityRetryGreetingWorkflow;
 use App\Samples\Workflow\BookingSaga\BookingSagaLightWorkflow;
 use App\Samples\Workflow\CancellationScope\CancellationScopeRaceWorkflow;
@@ -48,6 +49,32 @@ final class SampleWorkflowCatalog
     public static function scenarios(): array
     {
         return [
+            [
+                'id' => 'durable_agent',
+                'sourceFolder' => 'Ai',
+                'label' => 'Agent durable (Symfony AI)',
+                'workflowType' => self::workflowAlias(DurableAgentWorkflow::class),
+                'description' => 'La boucle d’appel d’outils de Symfony AI exécutée en code workflow : chaque appel modèle et chaque outil est une activité, donc journalisé et jamais rejoué. Ici un prompt et un seul tour ; sans prompt, le même workflow est un chat piloté par signaux.',
+                'defaultPayload' => [
+                    // Même workflow que le chat : un prompt de départ et un seul tour, donc
+                    // l'exécution se termine et la page peut afficher un résultat.
+                    'prompt' => 'Quelle météo à Paris ?',
+                    'maxTurns' => 1,
+                    'mode' => 'auto',
+                    'model' => 'mistral-small-latest',
+                    'tools' => [
+                        'weather' => [
+                            'description' => 'Météo courante d’une ville.',
+                            'effect' => 'read',
+                            'parameters' => [
+                                'type' => 'object',
+                                'properties' => ['city' => ['type' => 'string']],
+                                'required' => ['city'],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
             [
                 'id' => 'simple_activity',
                 'sourceFolder' => 'SimpleActivity',

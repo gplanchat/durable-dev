@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
+#[Route(host: '%app.host.samples%')]
 final class DashboardController extends AbstractController
 {
     private const DASHBOARD_PAGE_SIZE = 20;
