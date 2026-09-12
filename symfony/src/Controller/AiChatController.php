@@ -121,16 +121,6 @@ final class AiChatController extends AbstractController
     }
 
     /**
-     * La racine du domaine de l'agent. Les samples ont la leur, sur le leur : deux `/`, deux hôtes,
-     * et c'est l'hôte qui tranche.
-     */
-    #[Route('/', name: 'durable_agent_home', methods: ['GET'])]
-    public function home(): Response
-    {
-        return $this->redirectToRoute('durable_chat_start');
-    }
-
-    /**
      * `?contexte=300` ouvre une conversation à budget minuscule : la compaction se déclenche alors
      * en deux ou trois messages au lieu de plusieurs centaines, et devient observable à la main.
      */

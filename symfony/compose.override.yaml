@@ -27,12 +27,13 @@ services:
       # `anonymous` : les sujets sont des identifiants d'exécution, la démo est locale, et un JWT
       # d'abonnement par page n'apprendrait rien à personne ici. Sur autre chose qu'une démo, c'est
       # un abonnement signé et rien d'autre.
-      # `cors_origins` : le navigateur est sur agent.durable.localhost, le hub sur 127.0.0.1 —
-      # deux origines. Sans cette ligne, `EventSource` échoue **en silence** et se contente de
-      # retenter.
+      # `cors_origins` : la page est sur localhost:<port>, le hub sur localhost:33000 — deux
+      # origines, et le port de la page est au choix de qui lance. Sans cette ligne, `EventSource`
+      # échoue **en silence** et se contente de retenter. `*` parce que l'abonnement est anonyme
+      # et local ; ailleurs qu'en démo, c'est la liste des origines et un abonnement signé.
       MERCURE_EXTRA_DIRECTIVES: |
         anonymous
-        cors_origins http://agent.durable.localhost https://agent.durable.localhost
+        cors_origins *
     ports:
       - "33000:80"
     healthcheck:
