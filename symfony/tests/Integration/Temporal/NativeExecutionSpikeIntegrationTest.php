@@ -8,12 +8,12 @@ use Gplanchat\Bridge\Temporal\Journal\HistoryPageMerger;
 use Gplanchat\Bridge\Temporal\Spike\NativeExecutionSpike;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\EventType;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Verifies that the DUR024 spike produces a history with activity events (not only signals).
@@ -25,7 +25,7 @@ final class NativeExecutionSpikeIntegrationTest extends TestCase
 {
     private static TemporalConnection $connection;
 
-    private static WorkflowServiceClient $workflowClient;
+    private static WorkflowServiceClientInterface $workflowClient;
 
     public static function setUpBeforeClass(): void
     {
