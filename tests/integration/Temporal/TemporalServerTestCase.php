@@ -26,8 +26,9 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
  *     temporal server start-dev --namespace durable-test --port 7233
  *     DURABLE_TEMPORAL_ADDRESS=127.0.0.1:7233 vendor/bin/phpunit --testsuite integration
  *
- * Skipped if the address is not provided. DURABLE_TEMPORAL_TRANSPORT (grpc, the default, or
- * grpc-curl) picks the client the whole suite talks through, workers included.
+ * Skipped if the address is not provided. DURABLE_TEMPORAL_TRANSPORT (auto by default: ext-grpc
+ * when loaded, curl otherwise; or grpc, grpc-curl) picks the client the whole suite talks
+ * through, workers included.
  */
 abstract class TemporalServerTestCase extends TestCase
 {
@@ -74,7 +75,7 @@ abstract class TemporalServerTestCase extends TestCase
     {
         $transport = getenv('DURABLE_TEMPORAL_TRANSPORT');
 
-        return \is_string($transport) && '' !== $transport ? $transport : TemporalConnection::TRANSPORT_GRPC;
+        return \is_string($transport) && '' !== $transport ? $transport : TemporalConnection::TRANSPORT_AUTO;
     }
 
     protected function tearDown(): void

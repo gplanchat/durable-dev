@@ -30,7 +30,7 @@ use integration\Temporal\Fixtures\IntegrationWorkflows;
 require __DIR__ . '/../../../vendor/autoload.php';
 
 [$address, $namespace, $taskQueue, $role] = [$argv[1], $argv[2], $argv[3], $argv[4]];
-$transport = $argv[5] ?? TemporalConnection::TRANSPORT_GRPC;
+$transport = $argv[5] ?? TemporalConnection::TRANSPORT_AUTO;
 
 $connection = new TemporalConnection(
     target: $address,
