@@ -25,6 +25,20 @@ final class TemporalConnection
 
     public const DEFAULT_QUERY_READ_STREAM = 'readStream';
 
+    /** ext-grpc when it is loaded, otherwise curl; the default, resolved once by the factory. */
+    public const TRANSPORT_AUTO = 'auto';
+
+    /** ext-grpc and the generated stub, and nothing else: fails without the extension. */
+    public const TRANSPORT_GRPC = 'grpc';
+
+    /** gRPC framing over curl/HTTP2, no extension; needs gplanchat/durable-bridge-temporal-http. */
+    public const TRANSPORT_GRPC_CURL = 'grpc-curl';
+
+    /** The server JSON gateway (port 7243): client RPCs only, no task polling; same package. */
+    public const TRANSPORT_HTTP = 'http';
+
+    public const DEFAULT_HTTP_PORT = 7243;
+
     /** Journal worker queue (poll workflow tasks). */
     public readonly TaskQueue $journalTaskQueue;
 
@@ -64,7 +78,12 @@ final class TemporalConnection
          * Null for the journal transport (receive-only); required for purpose=application.
          */
         public readonly ?string $innerMessengerDsn = null,
+        /** One of the TRANSPORT_* constants: which client {@see WorkflowServiceClientFactory} builds. */
+        public readonly string $transport = self::TRANSPORT_AUTO,
     ) {
+        if (!\in_array($transport, [self::TRANSPORT_AUTO, self::TRANSPORT_GRPC, self::TRANSPORT_GRPC_CURL, self::TRANSPORT_HTTP], true)) {
+            throw new \InvalidArgumentException(\sprintf('Unknown Temporal transport "%s", expected auto, grpc, grpc-curl, or http.', $transport));
+        }
         // Queue names come from a DSN: a typo there creates a queue nobody polls, without the
         // slightest error on the server side. They are validated here, at wiring time.
         $this->namespace = WorkflowNamespace::from($namespace);
@@ -82,30 +101,43 @@ final class TemporalConnection
     }
 
     /**
-     * Single {@code temporal://HOST:PORT?...} DSN; the {@code temporal-journal://}
-     * and {@code temporal-application://} schemes are normalized for backward compatibility.
+     * One DSN, whose scheme names the wire and the encryption:
      *
-     * Typical query parameters: {@code namespace}, {@code tls}, {@code identity},
-     * {@code task_queue} or {@code journal_task_queue}, {@code workflow_type},
-     * {@code workflow_task_queue}, {@code activity_task_queue}, {@code inner}.
+     *   temporal://HOST:7233        gRPC, plain      (ext-grpc when loaded, curl otherwise)
+     *   temporal+tls://HOST:7233    gRPC, TLS
+     *   temporal+http://HOST:7243   the server JSON gateway, plain (client RPCs only)
+     *   temporal+https://HOST:7243  the server JSON gateway, TLS
+     *
+     * The {@code temporal-journal://} and {@code temporal-application://} schemes are normalized
+     * for backward compatibility, and {@code tls=1} still works beside the scheme.
+     *
+     * Typical query parameters: {@code namespace}, {@code identity}, {@code task_queue} or
+     * {@code journal_task_queue}, {@code workflow_type}, {@code workflow_task_queue},
+     * {@code activity_task_queue}, {@code inner}, and {@code transport} to override the choice
+     * the scheme implies (auto, grpc, grpc-curl, http).
      */
     public static function fromDsn(#[\SensitiveParameter] string $dsn): self
     {
         $normalized = self::normalizeScheme($dsn);
         $parts = parse_url($normalized);
-        if (false === $parts || !isset($parts['scheme']) || 'temporal' !== $parts['scheme']) {
-            throw new \InvalidArgumentException('Invalid temporal:// DSN (or legacy temporal-journal / temporal-application).');
+        $scheme = false === $parts ? '' : strtolower($parts['scheme'] ?? '');
+        if (false === $parts || !isset(self::SCHEMES[$scheme])) {
+            throw new \InvalidArgumentException('Invalid Temporal DSN: expected temporal://, temporal+tls://, temporal+http:// or temporal+https:// (or legacy temporal-journal / temporal-application).');
         }
-
-        $host = $parts['host'] ?? '127.0.0.1';
-        $port = isset($parts['port']) ? (int) $parts['port'] : 7233;
-        $target = $host . ':' . $port;
+        [$schemeTransport, $schemeTls] = self::SCHEMES[$scheme];
 
         parse_str($parts['query'] ?? '', $q);
 
+        $transport = \is_string($q['transport'] ?? null) ? $q['transport'] : $schemeTransport;
+        // The JSON gateway listens on its own port; a DSN that names the transport but not the
+        // port would otherwise talk JSON to the gRPC listener and get an opaque HTTP/2 error.
+        $host = $parts['host'] ?? '127.0.0.1';
+        $port = isset($parts['port']) ? (int) $parts['port'] : (self::TRANSPORT_HTTP === $transport ? self::DEFAULT_HTTP_PORT : 7233);
+        $target = $host . ':' . $port;
+
         $namespace = \is_string($q['namespace'] ?? null) ? $q['namespace'] : 'default';
         $identity = \is_string($q['identity'] ?? null) ? $q['identity'] : 'durable-temporal-bridge-php';
-        $tls = isset($q['tls']) && filter_var($q['tls'], \FILTER_VALIDATE_BOOL);
+        $tls = $schemeTls || (isset($q['tls']) && filter_var($q['tls'], \FILTER_VALIDATE_BOOL));
 
         $journalTaskQueue = \is_string($q['journal_task_queue'] ?? null)
             ? $q['journal_task_queue']
@@ -118,7 +150,7 @@ final class TemporalConnection
         $nexusTaskQueue = \is_string($q['nexus_task_queue'] ?? null) ? $q['nexus_task_queue'] : null;
 
         $inner = \is_string($q['inner'] ?? null) ? $q['inner'] : null;
-        if (null !== $inner && str_starts_with($inner, 'temporal://')) {
+        if (null !== $inner && self::isTemporalDsn($inner)) {
             throw new \InvalidArgumentException('inner= must not be a temporal:// DSN (no nested bridge).');
         }
 
@@ -135,7 +167,22 @@ final class TemporalConnection
             activityTaskQueue: $activityTaskQueue,
             nexusTaskQueue: $nexusTaskQueue,
             innerMessengerDsn: $inner,
+            transport: $transport,
         );
+    }
+
+    /** scheme => [transport it implies, TLS it implies] */
+    private const SCHEMES = [
+        'temporal' => [self::TRANSPORT_AUTO, false],
+        'temporal+tls' => [self::TRANSPORT_AUTO, true],
+        'temporal+http' => [self::TRANSPORT_HTTP, false],
+        'temporal+https' => [self::TRANSPORT_HTTP, true],
+    ];
+
+    /** Whether {@see fromDsn} accepts this DSN: one of the four schemes, or a legacy one. */
+    public static function isTemporalDsn(#[\SensitiveParameter] string $dsn): bool
+    {
+        return 1 === preg_match('#^temporal(\+(tls|http|https))?://#i', self::normalizeScheme($dsn));
     }
 
     private static function normalizeScheme(string $dsn): string

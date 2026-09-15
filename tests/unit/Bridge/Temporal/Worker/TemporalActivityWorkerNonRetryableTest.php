@@ -8,6 +8,7 @@ use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
@@ -16,14 +17,11 @@ use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
-use Grpc\UnaryCall;
-use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedRequest;
 use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * The worker must report an activity failure as non-retryable when the failed
@@ -31,15 +29,14 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  * a bad-credential / rejected-payload failure would be retried forever by the
  * Temporal server instead of failing the workflow.
  */
-#[RequiresPhpExtension('grpc')]
 final class TemporalActivityWorkerNonRetryableTest extends TestCase
 {
-    private WorkflowServiceClient $grpcClient;
+    private WorkflowServiceClientInterface $grpcClient;
     private InMemoryEventStore $eventStore;
 
     protected function setUp(): void
     {
-        $this->grpcClient = $this->createMock(WorkflowServiceClient::class);
+        $this->grpcClient = $this->createMock(WorkflowServiceClientInterface::class);
         $this->eventStore = new InMemoryEventStore();
     }
 
@@ -48,7 +45,7 @@ final class TemporalActivityWorkerNonRetryableTest extends TestCase
         $this->eventStore->append(new ActivityFailed('exec-nr', 'act-nr', 'App\\BusinessException', 'boom'));
         $metadata = (new ActivityOptions(nonRetryableExceptions: ['App\\BusinessException']))->toMetadata();
         $this->grpcClient->method('PollActivityTaskQueue')
-            ->willReturn($this->unaryCall($this->pollFor('exec-nr', 'act-nr', $metadata), \Grpc\STATUS_OK));
+            ->willReturn($this->pollFor('exec-nr', 'act-nr', $metadata));
 
         $captured = $this->captureFailedRequest();
         $this->makeWorker()->pollOnce();
@@ -64,7 +61,7 @@ final class TemporalActivityWorkerNonRetryableTest extends TestCase
         $this->eventStore->append(new ActivityFailed('exec-r', 'act-r', 'App\\ServiceUnavailableException', 'boom'));
         $metadata = (new ActivityOptions(nonRetryableExceptions: ['App\\BusinessException']))->toMetadata();
         $this->grpcClient->method('PollActivityTaskQueue')
-            ->willReturn($this->unaryCall($this->pollFor('exec-r', 'act-r', $metadata), \Grpc\STATUS_OK));
+            ->willReturn($this->pollFor('exec-r', 'act-r', $metadata));
 
         $captured = $this->captureFailedRequest();
         $this->makeWorker()->pollOnce();
@@ -81,10 +78,10 @@ final class TemporalActivityWorkerNonRetryableTest extends TestCase
             public ?RespondActivityTaskFailedRequest $request = null;
         };
         $this->grpcClient->method('RespondActivityTaskFailed')
-            ->willReturnCallback(function (RespondActivityTaskFailedRequest $req) use ($box): UnaryCall {
+            ->willReturnCallback(function (RespondActivityTaskFailedRequest $req) use ($box): RespondActivityTaskFailedResponse {
                 $box->request = $req;
 
-                return $this->unaryCall(new RespondActivityTaskFailedResponse(), \Grpc\STATUS_OK);
+                return new RespondActivityTaskFailedResponse();
             });
 
         return $box;
@@ -125,17 +122,5 @@ final class TemporalActivityWorkerNonRetryableTest extends TestCase
         $poll->setInput($payloads);
 
         return $poll;
-    }
-
-    private function unaryCall(?object $response, int $code): UnaryCall
-    {
-        $status = new \stdClass();
-        $status->code = $code;
-        $status->details = 'gRPC failure';
-
-        $call = $this->createMock(UnaryCall::class);
-        $call->method('wait')->willReturn([$response, $status]);
-
-        return $call;
     }
 }
