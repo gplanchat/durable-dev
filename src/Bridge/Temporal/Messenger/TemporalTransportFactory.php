@@ -97,9 +97,7 @@ final class TemporalTransportFactory implements TransportFactoryInterface
     {
         unset($options);
 
-        return str_starts_with($dsn, 'temporal://')
-            || str_starts_with($dsn, 'temporal-journal://')
-            || str_starts_with($dsn, 'temporal-application://');
+        return TemporalConnection::isTemporalDsn($dsn);
     }
 
     /**
