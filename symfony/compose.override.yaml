@@ -1,7 +1,42 @@
-
 services:
 ###> doctrine/doctrine-bundle ###
   database:
     ports:
-      - "5432"
+      # Port fixe : `symfony serve` relance `docker compose up`, et un port éphémère change à
+      # chaque redémarrage — le serveur web garde alors l'ancien et tombe en « connection refused ».
+      - "35432:5432"
 ###< doctrine/doctrine-bundle ###
+
+  # Le concentrateur Mercure. Il existe pour une raison précise : en PHP, tenir une connexion
+  # ouverte par onglet coûte un processus par onglet — `php -S` n'en a qu'un, et la démo gèlerait
+  # au premier abonné. Un hub à côté encaisse les connexions ; l'application ne fait que poster.
+  #
+  # Port d'hôte fixe, pour la même raison que la base : `symfony serve` relance `docker compose
+  # up`, et un port éphémère laisserait le navigateur sur l'ancien.
+  #
+  # L'application et les workers tournent sur l'hôte, pas dans le réseau compose : ils postent sur
+  # 127.0.0.1 comme le navigateur. D'où une seule URL pour les deux, ce qui n'est vrai que d'une
+  # démo lancée par `symfony serve`.
+  mercure:
+    image: dunglas/mercure:v0.16
+    restart: unless-stopped
+    environment:
+      SERVER_NAME: ':80'
+      MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+      MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+      # `anonymous` : les sujets sont des identifiants d'exécution, la démo est locale, et un JWT
+      # d'abonnement par page n'apprendrait rien à personne ici. Sur autre chose qu'une démo, c'est
+      # un abonnement signé et rien d'autre.
+      # `cors_origins` : la page est sur localhost:<port>, le hub sur localhost:33000 — deux
+      # origines, et le port de la page est au choix de qui lance. Sans cette ligne, `EventSource`
+      # échoue **en silence** et se contente de retenter. `*` parce que l'abonnement est anonyme
+      # et local ; ailleurs qu'en démo, c'est la liste des origines et un abonnement signé.
+      MERCURE_EXTRA_DIRECTIVES: |
+        anonymous
+        cors_origins *
+    ports:
+      - "33000:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
+      timeout: 5s
+      retries: 5
