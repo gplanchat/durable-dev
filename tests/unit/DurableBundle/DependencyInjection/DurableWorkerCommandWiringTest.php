@@ -35,6 +35,21 @@ final class DurableWorkerCommandWiringTest extends TestCase
         self::assertNull($definition->getArgument(2));
     }
 
+    public function testTheTemporalBackendIsFlaggedAndNeedsNoActivityTransport(): void
+    {
+        $definition = $this->load(['temporal' => ['dsn' => 'temporal://127.0.0.1:7233'], 'activity_transport' => ['type' => 'messenger']])->getDefinition(DurableWorkerCommand::class);
+
+        self::assertNull($definition->getArgument(2));
+        self::assertTrue($definition->getArgument(3));
+    }
+
+    public function testATemporalClusterWithoutItsJournalKeepsTheRoutedResumes(): void
+    {
+        $definition = $this->load(['temporal' => ['dsn' => 'temporal://127.0.0.1:7233', 'journal' => false]])->getDefinition(DurableWorkerCommand::class);
+
+        self::assertFalse($definition->getArgument(3));
+    }
+
     /**
      * @param array<string, mixed> $config
      */

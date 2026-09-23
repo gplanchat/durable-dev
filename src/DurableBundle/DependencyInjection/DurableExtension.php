@@ -789,6 +789,7 @@ final class DurableExtension extends Extension
                 new Reference('messenger.senders_locator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 new Reference('messenger.receiver_locator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 $activityTransport,
+                $isTemporalNative,
             ])
             ->addTag('console.command', ['command' => 'durable:worker'])
         ;

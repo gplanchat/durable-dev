@@ -62,10 +62,39 @@ final class DurableWorkerCommandTest extends TestCase
         self::assertStringContainsString('No transport consumes workflow resumes', $tester->getDisplay());
     }
 
+    public function testResumesRoutedNowhereAreRefusedEvenWhenTheGuidesTransportExists(): void
+    {
+        $consume = new RecordingConsumeCommand();
+        $tester = $this->tester($consume, routing: [], transports: ['durable_workflows', 'durable_activities'], activityTransport: 'durable_activities');
+
+        self::assertSame(1, $tester->run(['command' => 'durable:worker']));
+        self::assertNull($consume->receivers);
+    }
+
+    public function testARoleWithNothingToConsumeIsRefused(): void
+    {
+        $consume = new RecordingConsumeCommand();
+        $tester = $this->tester($consume, routing: ['Gplanchat\Durable\Transport\ResumeWorkflowMessage' => ['durable_workflows']], transports: ['durable_workflows'], activityTransport: null);
+
+        self::assertSame(1, $tester->run(['command' => 'durable:worker', '--role' => ['nexus']]));
+        self::assertNull($consume->receivers);
+        self::assertStringContainsString('Nothing to consume for the nexus role', $tester->getDisplay());
+    }
+
+    public function testAllIsEveryRoleAndTheWorkerNeverPrompts(): void
+    {
+        $consume = new RecordingConsumeCommand();
+        $tester = $this->tester($consume, routing: [], transports: ['durable_workflows', 'durable_activities', 'durable_nexus'], activityTransport: null, temporal: true);
+
+        self::assertSame(0, $tester->run(['command' => 'durable:worker', '--role' => ['all']]));
+        self::assertSame(['durable_workflows', 'durable_activities', 'durable_nexus'], $consume->receivers);
+        self::assertFalse($consume->interactive);
+    }
+
     public function testTheTemporalBackendConsumesTheReceiversTheBundleRegistered(): void
     {
         $consume = new RecordingConsumeCommand();
-        $tester = $this->tester($consume, routing: [], transports: ['durable_workflows', 'durable_activities', 'durable_nexus'], activityTransport: null);
+        $tester = $this->tester($consume, routing: [], transports: ['durable_workflows', 'durable_activities', 'durable_nexus'], activityTransport: null, temporal: true);
 
         self::assertSame(0, $tester->run(['command' => 'durable:worker']));
         self::assertSame(['durable_workflows', 'durable_activities', 'durable_nexus'], $consume->receivers);
@@ -74,7 +103,7 @@ final class DurableWorkerCommandTest extends TestCase
     public function testARoleNarrowsTheReceivers(): void
     {
         $consume = new RecordingConsumeCommand();
-        $tester = $this->tester($consume, routing: [], transports: ['durable_workflows', 'durable_activities', 'durable_nexus'], activityTransport: null);
+        $tester = $this->tester($consume, routing: [], transports: ['durable_workflows', 'durable_activities', 'durable_nexus'], activityTransport: null, temporal: true);
 
         self::assertSame(0, $tester->run(['command' => 'durable:worker', '--role' => ['activity']]));
         self::assertSame(['durable_activities'], $consume->receivers);
@@ -104,16 +133,16 @@ final class DurableWorkerCommandTest extends TestCase
      * @param array<string, list<string>> $routing
      * @param list<string>                $transports
      */
-    private function tester(RecordingConsumeCommand $consume, array $routing, array $transports, ?string $activityTransport): ApplicationTester
+    private function tester(RecordingConsumeCommand $consume, array $routing, array $transports, ?string $activityTransport, bool $temporal = false): ApplicationTester
     {
-        return new ApplicationTester($this->application($consume, $routing, $transports, $activityTransport));
+        return new ApplicationTester($this->application($consume, $routing, $transports, $activityTransport, $temporal));
     }
 
     /**
      * @param array<string, list<string>> $routing
      * @param list<string>                $transports
      */
-    private function application(RecordingConsumeCommand $consume, array $routing, array $transports, ?string $activityTransport): Application
+    private function application(RecordingConsumeCommand $consume, array $routing, array $transports, ?string $activityTransport, bool $temporal = false): Application
     {
         $factories = [];
         foreach ($transports as $name) {
@@ -124,7 +153,7 @@ final class DurableWorkerCommandTest extends TestCase
 
         $application = new Application();
         $application->setAutoExit(false);
-        $application->addCommands([$consume, new DurableWorkerCommand(new SendersLocator($routing, $locator), $locator, $activityTransport)]);
+        $application->addCommands([$consume, new DurableWorkerCommand(new SendersLocator($routing, $locator), $locator, $activityTransport, $temporal)]);
 
         return $application;
     }
@@ -142,6 +171,8 @@ final class RecordingConsumeCommand extends Command implements SignalableCommand
     public array $options = [];
 
     public bool $noReset = false;
+
+    public ?bool $interactive = null;
 
     /** @var list<int> */
     public array $signals = [];
@@ -165,6 +196,7 @@ final class RecordingConsumeCommand extends Command implements SignalableCommand
         $this->receivers = $input->getArgument('receivers');
         $this->options = array_filter($input->getOptions(), static fn(mixed $value): bool => \is_string($value));
         $this->noReset = (bool) $input->getOption('no-reset');
+        $this->interactive = $input->isInteractive();
 
         return Command::SUCCESS;
     }

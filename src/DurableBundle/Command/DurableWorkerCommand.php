@@ -22,10 +22,10 @@ use Symfony\Component\Messenger\Transport\Sync\SyncTransport;
 /**
  * Consumes what the configured backend needs, without asking the operator to know its transport names.
  *
- * The names come from three places. Workflow resumes and timers go wherever the application routes
- * them, so the Messenger routing is asked, sync transports excluded. Activities go to the transport
- * the bundle was configured with. On Temporal, the bundle registers `durable_workflows`,
- * `durable_activities` and `durable_nexus` as receivers with no routing at all.
+ * The names come from the backend. On a journal backend, workflow resumes and timers go wherever the
+ * application routes them, so the Messenger routing is asked, sync transports excluded, and
+ * activities go to the transport the bundle was configured with. On Temporal, the bundle registers
+ * `durable_workflows`, `durable_activities` and `durable_nexus` as receivers with no routing at all.
  *
  * The work itself is `messenger:consume`: this command resolves the names, says them, and delegates,
  * forwarding the stop signals so a supervisor's SIGTERM still ends the worker cleanly.
@@ -48,13 +48,14 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
         private readonly ?SendersLocatorInterface $senders,
         private readonly ?ContainerInterface $receivers,
         private readonly ?string $activityTransport,
+        private readonly bool $temporal = false,
     ) {
         parent::__construct();
     }
 
     protected function configure(): void
     {
-        $this->addOption('role', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Only these roles: workflow, activity, nexus (all by default).', []);
+        $this->addOption('role', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Only these roles: workflow, activity, nexus, or all (the default).', []);
         foreach (self::FORWARDED_OPTIONS as $option) {
             $this->addOption($option, null, InputOption::VALUE_REQUIRED, \sprintf('Passed to messenger:consume --%s.', $option));
         }
@@ -71,24 +72,33 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
             return Command::FAILURE;
         }
 
-        $roles = $input->getOption('role') ?: self::ROLES;
+        $requested = $input->getOption('role');
+        $roles = [] === $requested || \in_array('all', $requested, true) ? self::ROLES : $requested;
         if ([] !== $unknown = array_diff($roles, self::ROLES)) {
-            $output->writeln(\sprintf('<error>Unknown role "%s": expected workflow, activity or nexus.</error>', implode('", "', $unknown)));
+            $output->writeln(\sprintf('<error>Unknown role "%s": expected workflow, activity, nexus or all.</error>', implode('", "', $unknown)));
 
             return Command::FAILURE;
         }
 
-        $byRole = [
-            'workflow' => [...$this->routedTo(new ResumeWorkflowMessage('durable:worker')), ...$this->routedTo(new FireWorkflowTimersMessage('durable:worker')), 'durable_workflows'],
-            'activity' => [...(null === $this->activityTransport ? [] : [$this->activityTransport]), 'durable_activities'],
-            'nexus' => ['durable_nexus'],
-        ];
+        $byRole = $this->temporal
+            ? ['workflow' => ['durable_workflows'], 'activity' => ['durable_activities'], 'nexus' => ['durable_nexus']]
+            : [
+                'workflow' => [...$this->routedTo(new ResumeWorkflowMessage('durable:worker')), ...$this->routedTo(new FireWorkflowTimersMessage('durable:worker'))],
+                'activity' => null === $this->activityTransport ? [] : [$this->activityTransport],
+                'nexus' => ['durable_nexus'],
+            ];
 
         $receivers = [];
         foreach ($roles as $role) {
             $found = array_values(array_filter(array_unique($byRole[$role]), $this->receivers->has(...)));
             if ('workflow' === $role && [] === $found) {
                 $output->writeln('<error>No transport consumes workflow resumes: route ResumeWorkflowMessage to an asynchronous transport in messenger.yaml, or set durable.temporal.dsn.</error>');
+
+                return Command::FAILURE;
+            }
+            // Asked for by name, an empty role is a mistake; left to the default, it is only unused.
+            if ([] === $found && [] !== $requested && !\in_array('all', $requested, true)) {
+                $output->writeln(\sprintf('<error>Nothing to consume for the %s role with this configuration.</error>', $role));
 
                 return Command::FAILURE;
             }
@@ -110,7 +120,11 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
             }
         }
 
-        return $this->consumeCommand()->run(new ArrayInput($arguments), $output);
+        // Nested, the command must not prompt: under a supervisor there is nobody to answer.
+        $consumeInput = new ArrayInput($arguments);
+        $consumeInput->setInteractive(false);
+
+        return $this->consumeCommand()->run($consumeInput, $output);
     }
 
     public function getSubscribedSignals(): array
