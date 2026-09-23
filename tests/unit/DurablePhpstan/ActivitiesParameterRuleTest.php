@@ -26,6 +26,16 @@ final class ActivitiesParameterRuleTest extends TestCase
         self::assertNotSame([], $this->matching($this->analyse(), 'Parameter $disagreeing is #[Activities(unit\DurablePhpstan\Fixtures\OrderActivities::class)] but its @param says ActivityStub<unit\DurablePhpstan\Fixtures\ShippingActivities>'));
     }
 
+    public function testANullableStubWithItsGenericIsNotReported(): void
+    {
+        self::assertSame([], $this->matching($this->analyse(), '$nullable'));
+    }
+
+    public function testAContractGivenAsAStringIsCheckedToo(): void
+    {
+        self::assertNotSame([], $this->matching($this->analyse(), 'Parameter $namedByString is #[Activities(unit\DurablePhpstan\Fixtures\OrderActivities::class)] but its @param says'));
+    }
+
     public function testAMissingDocblockIsReportedWithItsFix(): void
     {
         // Without the generic, every call on the stub is already "undefined method". The rule

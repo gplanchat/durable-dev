@@ -9,11 +9,13 @@ use Gplanchat\Durable\Attribute\Activities;
 use PhpParser\Node;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Name;
+use PhpParser\Node\Scalar\String_;
 use PHPStan\Analyser\Scope;
 use PHPStan\Node\InClassMethodNode;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\Type\TypeCombinator;
 
 /**
  * Keeps `#[Activities(T::class)]` and `@param ActivityStub<T>` saying the same thing.
@@ -55,7 +57,7 @@ final class ActivitiesParameterRule implements Rule
             $name = $param->var->name;
             $phpDoc = $phpDocTypes[$name] ?? null;
             // A bare `ActivityStub` answers its bound, `object`, which names no class.
-            $declared = null === $phpDoc ? [] : $phpDoc->getTemplateType(ActivityStub::class, 'TActivity')->getObjectClassNames();
+            $declared = null === $phpDoc ? [] : TypeCombinator::removeNull($phpDoc)->getTemplateType(ActivityStub::class, 'TActivity')->getObjectClassNames();
 
             if ([] === $declared) {
                 $short = substr($contract, (int) strrpos($contract, '\\') + 1);
@@ -89,6 +91,9 @@ final class ActivitiesParameterRule implements Rule
                 $value = $attribute->args[0]->value ?? null;
                 if ($value instanceof ClassConstFetch && $value->class instanceof Name) {
                     return $value->class->toString();
+                }
+                if ($value instanceof String_) {
+                    return ltrim($value->value, '\\');
                 }
             }
         }
