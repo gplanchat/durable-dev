@@ -294,7 +294,9 @@ nulle part, ou seulement vers `sync`, elle refuse de démarrer et le dit, au lie
 file vide.
 
 `messenger:consume durable_workflows durable_activities` fonctionne toujours : ces deux noms sont les
-transports que **vous** avez déclarés dans `messenger.yaml`.
+transports que **vous** avez déclarés dans `messenger.yaml`. Les signaux et les mises à jour n'y
+figurent pas : le guide les route vers `sync`. Si vous les routez vers un transport asynchrone à vous,
+consommez ce transport vous-même : `durable:worker` ne le cherche pas.
 
 Pour voir ce que le moteur retient d'une exécution :
 
@@ -369,9 +371,15 @@ php bin/console durable:worker --role=activity
 ```
 
 Une application qui [sert une opération Nexus](../nexus/) en lance un troisième, `--role=nexus`.
-Sans `--role`, un seul processus les consomme tous. Dessous, ce sont les récepteurs
-`durable_workflows`, `durable_activities` et `durable_nexus`, et `messenger:consume` accepte aussi
-ces noms.
+Sous le capot, ce sont les récepteurs `durable_workflows`, `durable_activities` et `durable_nexus`,
+et `messenger:consume` accepte aussi ces noms.
+
+Sur Temporal, lancez **un processus par rôle**. Chaque récepteur interroge le cluster en attente
+longue, et un worker interroge ses récepteurs à tour de rôle : dans un seul processus, une tâche de
+workflow peut attendre qu'une attente d'activité inoccupée expire avant d'être prise. Pour la même
+raison, `--limit` et `--failure-limit` n'arrêtent jamais un worker Temporal : ses récepteurs ne
+remettent aucun message à Messenger. `--time-limit` et `--memory-limit` l'arrêtent, une fois
+l'attente en cours terminée.
 
 En développement local avec `symfony serve`, ajoutez ceci à `.symfony.local.yaml` :
 
