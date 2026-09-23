@@ -10,6 +10,7 @@ use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\ApplicationTester;
 use Symfony\Component\DependencyInjection\ServiceLocator;
@@ -34,9 +35,19 @@ final class DurableWorkerCommandTest extends TestCase
             activityTransport: 'durable_activities',
         );
 
-        self::assertSame(0, $tester->run(['command' => 'durable:worker']));
+        self::assertSame(0, $tester->run(['command' => 'durable:worker', '--limit' => '5', '--time-limit' => '60']));
         self::assertSame(['durable_workflows', 'durable_activities'], $consume->receivers);
+        self::assertSame(['limit' => '5', 'time-limit' => '60'], $consume->options);
         self::assertStringContainsString('Consuming durable_workflows, durable_activities.', $tester->getDisplay());
+    }
+
+    public function testAWildcardRouteIsFollowed(): void
+    {
+        $consume = new RecordingConsumeCommand();
+        $tester = $this->tester($consume, routing: ['*' => ['async']], transports: ['async'], activityTransport: null);
+
+        self::assertSame(0, $tester->run(['command' => 'durable:worker']));
+        self::assertSame(['async'], $consume->receivers);
     }
 
     public function testResumesRoutedToSyncOnlyLeaveNothingToConsume(): void
@@ -49,20 +60,42 @@ final class DurableWorkerCommandTest extends TestCase
         self::assertStringContainsString('No transport consumes workflow resumes', $tester->getDisplay());
     }
 
-    /**
-     * @param array<string, list<string>> $routing
-     * @param list<string>                $transports
-     */
-    private function tester(RecordingConsumeCommand $consume, array $routing, array $transports, ?string $activityTransport): ApplicationTester
+    public function testTheTemporalBackendConsumesTheReceiversTheBundleRegistered(): void
     {
-        return new ApplicationTester($this->application($consume, $routing, $transports, $activityTransport));
+        $consume = new RecordingConsumeCommand();
+        $tester = $this->tester($consume, routing: [], transports: ['durable_workflows', 'durable_activities', 'durable_nexus'], activityTransport: null);
+
+        self::assertSame(0, $tester->run(['command' => 'durable:worker']));
+        self::assertSame(['durable_workflows', 'durable_activities', 'durable_nexus'], $consume->receivers);
+    }
+
+    public function testARoleNarrowsTheReceivers(): void
+    {
+        $consume = new RecordingConsumeCommand();
+        $tester = $this->tester($consume, routing: [], transports: ['durable_workflows', 'durable_activities', 'durable_nexus'], activityTransport: null);
+
+        self::assertSame(0, $tester->run(['command' => 'durable:worker', '--role' => ['activity']]));
+        self::assertSame(['durable_activities'], $consume->receivers);
+    }
+
+    public function testAnUnknownRoleIsRefused(): void
+    {
+        $consume = new RecordingConsumeCommand();
+        $tester = $this->tester($consume, routing: [], transports: ['durable_workflows'], activityTransport: null);
+
+        self::assertSame(1, $tester->run(['command' => 'durable:worker', '--role' => ['journal']]));
+        self::assertStringContainsString('Unknown role "journal"', $tester->getDisplay());
     }
 
     /**
      * @param array<string, list<string>> $routing
      * @param list<string>                $transports
      */
-    private function application(RecordingConsumeCommand $consume, array $routing, array $transports, ?string $activityTransport): Application
+    /**
+     * @param array<string, list<string>> $routing
+     * @param list<string>                $transports
+     */
+    private function tester(RecordingConsumeCommand $consume, array $routing, array $transports, ?string $activityTransport): ApplicationTester
     {
         $factories = [];
         foreach ($transports as $name) {
@@ -75,7 +108,7 @@ final class DurableWorkerCommandTest extends TestCase
         $application->setAutoExit(false);
         $application->addCommands([$consume, new DurableWorkerCommand(new SendersLocator($routing, $locator), $locator, $activityTransport)]);
 
-        return $application;
+        return new ApplicationTester($application);
     }
 }
 
@@ -87,6 +120,9 @@ final class RecordingConsumeCommand extends Command
     /** @var list<string>|null */
     public ?array $receivers = null;
 
+    /** @var array<string, string> */
+    public array $options = [];
+
     public function __construct()
     {
         parent::__construct('messenger:consume');
@@ -95,11 +131,15 @@ final class RecordingConsumeCommand extends Command
     protected function configure(): void
     {
         $this->addArgument('receivers', InputArgument::IS_ARRAY);
+        foreach (['limit', 'failure-limit', 'memory-limit', 'time-limit', 'sleep'] as $option) {
+            $this->addOption($option, null, InputOption::VALUE_REQUIRED);
+        }
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->receivers = $input->getArgument('receivers');
+        $this->options = array_filter($input->getOptions(), static fn(mixed $value): bool => \is_string($value));
 
         return Command::SUCCESS;
     }

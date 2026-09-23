@@ -11,6 +11,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\Sender\SendersLocatorInterface;
@@ -32,6 +33,11 @@ use Symfony\Component\Messenger\Transport\Sync\SyncTransport;
 )]
 final class DurableWorkerCommand extends Command
 {
+    private const ROLES = ['workflow', 'activity', 'nexus'];
+
+    /** Options passed through to `messenger:consume` as they are. */
+    private const FORWARDED_OPTIONS = ['limit', 'failure-limit', 'memory-limit', 'time-limit', 'sleep'];
+
     public function __construct(
         private readonly SendersLocatorInterface $senders,
         private readonly ContainerInterface $receivers,
@@ -40,8 +46,23 @@ final class DurableWorkerCommand extends Command
         parent::__construct();
     }
 
+    protected function configure(): void
+    {
+        $this->addOption('role', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Only these roles: workflow, activity, nexus (all by default).', []);
+        foreach (self::FORWARDED_OPTIONS as $option) {
+            $this->addOption($option, null, InputOption::VALUE_REQUIRED, \sprintf('Passed to messenger:consume --%s.', $option));
+        }
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $roles = $input->getOption('role') ?: self::ROLES;
+        if ([] !== $unknown = array_diff($roles, self::ROLES)) {
+            $output->writeln(\sprintf('<error>Unknown role "%s": expected workflow, activity or nexus.</error>', implode('", "', $unknown)));
+
+            return Command::FAILURE;
+        }
+
         $byRole = [
             'workflow' => [...$this->routedTo(new ResumeWorkflowMessage('durable:worker')), ...$this->routedTo(new FireWorkflowTimersMessage('durable:worker')), 'durable_workflows'],
             'activity' => [...(null === $this->activityTransport ? [] : [$this->activityTransport]), 'durable_activities'],
@@ -49,8 +70,8 @@ final class DurableWorkerCommand extends Command
         ];
 
         $receivers = [];
-        foreach ($byRole as $role => $candidates) {
-            $found = array_values(array_filter(array_unique($candidates), $this->receivers->has(...)));
+        foreach ($roles as $role) {
+            $found = array_values(array_filter(array_unique($byRole[$role]), $this->receivers->has(...)));
             if ('workflow' === $role && [] === $found) {
                 $output->writeln('<error>No transport consumes workflow resumes: route ResumeWorkflowMessage to an asynchronous transport in messenger.yaml, or set durable.temporal.dsn.</error>');
 
@@ -62,7 +83,14 @@ final class DurableWorkerCommand extends Command
 
         $output->writeln(\sprintf('Consuming %s.', implode(', ', $receivers)));
 
-        return $this->consumeCommand()->run(new ArrayInput(['receivers' => $receivers]), $output);
+        $arguments = ['receivers' => $receivers];
+        foreach (self::FORWARDED_OPTIONS as $option) {
+            if (null !== $value = $input->getOption($option)) {
+                $arguments['--' . $option] = $value;
+            }
+        }
+
+        return $this->consumeCommand()->run(new ArrayInput($arguments), $output);
     }
 
     /**
