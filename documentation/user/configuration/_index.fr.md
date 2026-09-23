@@ -112,7 +112,7 @@ Le schéma nomme le fil et le chiffrement :
 | `journal_task_queue` | oui | File des tâches de workflow (par exemple `durable-journal`). |
 | `activity_task_queue` | oui | File des tâches d'activité (par exemple `durable-activities`). |
 | `tls` | non | `tls=1` est l'ancienne écriture des schémas `+tls` et `+https` ; toujours acceptée. |
-| `transport` | non (défaut `auto`) | Surcharge ce que le schéma implique : `grpc` exige `ext-grpc` et échoue sans elle, `grpc-curl` force curl même quand l'extension est chargée, `http` est ce que `temporal+http://` pose. `auto` prend `grpc` si l'extension est chargée, `grpc-curl` sinon. |
+| `transport` | non (défaut `auto`) | Surcharge ce que le schéma implique : `grpc` exige `ext-grpc` et échoue sans elle, `grpc-curl` force curl même quand l'extension est chargée, `guzzle` fait passer le gRPC par Guzzle 7.14 ou plus (son handler cURL lit les trailers), `http` est ce que `temporal+http://` pose. `auto` prend `grpc` si l'extension est chargée, `grpc-curl` sinon. |
 
 **Exemple :**
 ```

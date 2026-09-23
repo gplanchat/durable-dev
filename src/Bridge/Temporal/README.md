@@ -30,7 +30,7 @@ PHP namespace: **`Gplanchat\Bridge\Temporal`**.
 | `TemporalActivityWorkerTransport` | **Receive-only** receiver: each `get()` long-polls an activity task, runs the handler and reports the outcome. The bundle registers it as `durable_activities` |
 | `TemporalNexusWorkerTransport` | **Receive-only** receiver: each `get()` long-polls a Nexus task and serves the operation the application declared. The bundle registers it as `durable_nexus` once a handler exists |
 | `GrpcWorkflowServiceClient` | The WorkflowService over gRPC; how each call travels is a `GrpcTransport`'s |
-| `GrpcTransport` | One gRPC unary call, for any service: `ExtGrpcTransport` (`ext-grpc`), `Http\CurlGrpcTransport` (`ext-curl`, HTTP/2). `WorkflowServiceClientFactory` picks one from `transport=` |
+| `GrpcTransport` | One gRPC unary call, for any service: `ExtGrpcTransport` (`ext-grpc`), `Http\CurlGrpcTransport` (`ext-curl`, HTTP/2), `Http\GuzzleGrpcTransport` (Guzzle 7.14+, cURL handler). `WorkflowServiceClientFactory` picks one from `transport=` |
 | `TemporalBridgeBundle` | Deprecated, registers nothing: remove it from `config/bundles.php` |
 
 ## Connection DSN
@@ -39,7 +39,7 @@ PHP namespace: **`Gplanchat\Bridge\Temporal`**.
 temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal
 ```
 
-It goes once, in `durable.temporal.dsn`. Schemes: `temporal://` (gRPC), `temporal+tls://` (gRPC over TLS), `temporal+http://` and `temporal+https://` (the server JSON gateway, port 7243 by default). Query parameters: `namespace`, `task_queue` or `journal_task_queue`, `workflow_type`, `workflow_task_queue`, `activity_task_queue`, `nexus_task_queue`, `identity`, `tls` (bool, the older spelling of `+tls`), `transport` (`auto` by default: ext-grpc when loaded, curl otherwise; `grpc`, `grpc-curl`, `http` to force one). Unknown keys are ignored today (a typo falls back to the default silently — issue #353 makes them fail).
+It goes once, in `durable.temporal.dsn`. Schemes: `temporal://` (gRPC), `temporal+tls://` (gRPC over TLS), `temporal+http://` and `temporal+https://` (the server JSON gateway, port 7243 by default). Query parameters: `namespace`, `task_queue` or `journal_task_queue`, `workflow_type`, `workflow_task_queue`, `activity_task_queue`, `nexus_task_queue`, `identity`, `tls` (bool, the older spelling of `+tls`), `transport` (`auto` by default: ext-grpc when loaded, curl otherwise; `grpc`, `grpc-curl`, `guzzle`, `http` to force one). Unknown keys are ignored today (a typo falls back to the default silently — issue #353 makes them fail).
 
 ## Workers
 
@@ -71,6 +71,7 @@ The classes live under `Gplanchat\Bridge\Temporal\Http` and need `ext-curl` buil
 temporal://127.0.0.1:7233?namespace=default           # gRPC: ext-grpc if loaded, else curl (logged once)
 temporal+http://127.0.0.1?namespace=default           # JSON gateway, port defaults to 7243
 temporal://127.0.0.1:7233?namespace=default&transport=grpc-curl   # curl even with the extension
+temporal://127.0.0.1:7233?namespace=default&transport=guzzle      # through Guzzle >= 7.14 (cURL handler)
 ```
 
 Both throw the same `\RuntimeException` as the `ext-grpc` path, with the gRPC status code as the
