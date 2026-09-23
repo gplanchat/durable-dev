@@ -100,6 +100,26 @@ final class DurableWorkerCommandTest extends TestCase
         self::assertSame(['durable_workflows', 'durable_activities', 'durable_nexus'], $consume->receivers);
     }
 
+    public function testOnTemporalTheMessageLimitsAreSaidToNeverTrigger(): void
+    {
+        $consume = new RecordingConsumeCommand();
+        $tester = $this->tester($consume, routing: [], transports: ['durable_workflows'], activityTransport: null, temporal: true);
+
+        self::assertSame(0, $tester->run(['command' => 'durable:worker', '--role' => ['workflow'], '--limit' => '5']));
+        self::assertStringContainsString('--limit and --failure-limit never stop a worker on Temporal', $tester->getDisplay());
+    }
+
+    public function testWithoutMessengerTheCommandSaysWhatIsMissing(): void
+    {
+        $application = new Application();
+        $application->setAutoExit(false);
+        $application->addCommands([new DurableWorkerCommand(null, null, null)]);
+        $tester = new ApplicationTester($application);
+
+        self::assertSame(1, $tester->run(['command' => 'durable:worker']));
+        self::assertStringContainsString('durable:worker needs Symfony Messenger', $tester->getDisplay());
+    }
+
     public function testARoleNarrowsTheReceivers(): void
     {
         $consume = new RecordingConsumeCommand();

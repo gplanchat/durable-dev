@@ -107,6 +107,10 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
         $receivers = array_values(array_unique($receivers));
 
         $output->writeln(\sprintf('Consuming %s.', implode(', ', $receivers)));
+        if ($this->temporal && (null !== $input->getOption('limit') || null !== $input->getOption('failure-limit'))) {
+            // The Temporal receivers answer their task inside get() and hand Messenger no message.
+            $output->writeln('<comment>--limit and --failure-limit never stop a worker on Temporal: its receivers hand no message to Messenger. Use --time-limit or --memory-limit, checked when the current long poll returns.</comment>');
+        }
 
         $arguments = ['receivers' => $receivers];
         foreach (self::FORWARDED_OPTIONS as $option) {
@@ -129,7 +133,8 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
 
     public function getSubscribedSignals(): array
     {
-        return $this->consumeCommand()->getSubscribedSignals();
+        // Without Messenger there is no worker to stop, and execute() says what is missing.
+        return $this->getApplication()?->has('messenger:consume') ? $this->consumeCommand()->getSubscribedSignals() : [];
     }
 
     public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
