@@ -137,7 +137,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     private function consumeEvent(HistoryEvent $event): void
     {
         $type = $event->getEventType();
-        $eventId = $event->getEventId();
+        $eventId = (int) $event->getEventId();
 
         switch ($type) {
             case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
@@ -174,29 +174,27 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     // id the caller would slip into the payload: the payload belongs to the user,
                     // and a handler from another SDK looks for its own fields in it.
                     $operationId = (string) $eventId;
-                    if ('' !== $operationId) {
-                        $this->scheduledNexusOperationIds[] = $operationId;
-                        $this->nexusOperationToScheduledEventId[$operationId] = (int) $eventId;
-                        // The call site is written only here: the terminal events carry nothing
-                        // but the eventId. Without keeping it, a failure could not say where it
-                        // comes from, and the spec demands it.
-                        $this->nexusOperationCallSites[(int) $eventId] = [
-                            'operationId' => $operationId,
-                            'endpoint' => (string) $attr->getEndpoint(),
-                            'service' => (string) $attr->getService(),
-                            'operation' => (string) $attr->getOperation(),
-                        ];
+                    $this->scheduledNexusOperationIds[] = $operationId;
+                    $this->nexusOperationToScheduledEventId[$operationId] = $eventId;
+                    // The call site is written only here: the terminal events carry nothing
+                    // but the eventId. Without keeping it, a failure could not say where it
+                    // comes from, and the spec demands it.
+                    $this->nexusOperationCallSites[$eventId] = [
+                        'operationId' => $operationId,
+                        'endpoint' => (string) $attr->getEndpoint(),
+                        'service' => (string) $attr->getService(),
+                        'operation' => (string) $attr->getOperation(),
+                    ];
 
-                        // The caller's payload, **bare**: a Nexus operation carries a `Payload`
-                        // and not `Payloads`, and the `{operationId, payload}` envelope was removed
-                        // from the buffer (task 1.1). Decoding anything else here would compare a
-                        // shape the wire no longer carries.
-                        $nexusInput = $attr->getInput();
-                        if (null !== $nexusInput) {
-                            $decodedInput = JsonPlainPayload::decode($nexusInput);
-                            if (\is_array($decodedInput)) {
-                                $this->nexusOperationPayloads[\count($this->scheduledNexusOperationIds) - 1] = $decodedInput;
-                            }
+                    // The caller's payload, **bare**: a Nexus operation carries a `Payload`
+                    // and not `Payloads`, and the `{operationId, payload}` envelope was removed
+                    // from the buffer (task 1.1). Decoding anything else here would compare a
+                    // shape the wire no longer carries.
+                    $nexusInput = $attr->getInput();
+                    if (null !== $nexusInput) {
+                        $decodedInput = JsonPlainPayload::decode($nexusInput);
+                        if (\is_array($decodedInput)) {
+                            $this->nexusOperationPayloads[\count($this->scheduledNexusOperationIds) - 1] = $decodedInput;
                         }
                     }
                 }
@@ -354,7 +352,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     $startedEventId = $attr->getStartedEventId();
                     $timerId = $this->startedEventIdToTimerId[$startedEventId] ?? null;
                     if (null !== $timerId) {
-                        $this->firedTimerIds[$timerId] = (int) $eventId;
+                        $this->firedTimerIds[$timerId] = $eventId;
                     }
                 }
                 break;
@@ -420,7 +418,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                             $payload = JsonPlainPayload::decode($payloads[0]);
                         }
                     }
-                    $this->signals[] = ['signalName' => $attr->getSignalName(), 'payload' => $payload, 'eventId' => (int) $eventId];
+                    $this->signals[] = ['signalName' => $attr->getSignalName(), 'payload' => $payload, 'eventId' => $eventId];
                 }
                 break;
 
@@ -439,7 +437,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                             $decoded = JsonPlainPayload::decode($args[0]);
                             $arguments = \is_array($decoded) ? $decoded : ['value' => $decoded];
                         }
-                        $this->updates[] = ['updateName' => $updateName, 'result' => null, 'eventId' => (int) $eventId, 'arguments' => $arguments];
+                        $this->updates[] = ['updateName' => $updateName, 'result' => null, 'eventId' => $eventId, 'arguments' => $arguments];
                     }
                 }
                 break;

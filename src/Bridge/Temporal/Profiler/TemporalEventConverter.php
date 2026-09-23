@@ -61,7 +61,7 @@ final class TemporalEventConverter
     public function convert(HistoryEvent $event): ?Event
     {
         $type = $event->getEventType();
-        $eventId = $event->getEventId();
+        $eventId = (int) $event->getEventId();
         $ts = $this->eventTimestamp($event);
 
         switch ($type) {
