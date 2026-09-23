@@ -22,6 +22,11 @@ use PHPStan\Rules\RuleErrorBuilder;
  * no extension point types a parameter from an attribute. Two statements of one fact can drift
  * apart, and a drifted docblock would have PHPStan check the calls against the wrong contract.
  *
+ * A missing docblock is reported too. Without the generic, {@see \Gplanchat\Durable\PHPStan\Reflection\StubMethodsExtension}
+ * cannot resolve the contract and every call on the stub is already "undefined method"; this rule
+ * reports the cause once, on the parameter, with the line to write. PHPStan has no non-failing
+ * level, so it is an error with its own identifier, which a project can ignore.
+ *
  * @implements Rule<InClassMethodNode>
  */
 final class ActivitiesParameterRule implements Rule
@@ -53,6 +58,13 @@ final class ActivitiesParameterRule implements Rule
             $declared = null === $phpDoc ? [] : $phpDoc->getTemplateType(ActivityStub::class, 'TActivity')->getObjectClassNames();
 
             if ([] === $declared) {
+                $short = substr($contract, (int) strrpos($contract, '\\') + 1);
+                $errors[] = RuleErrorBuilder::message(\sprintf('Parameter $%s is #[Activities(%s::class)] but has no @param ActivityStub<%s>: PHPStan cannot check the calls on it.', $name, $contract, $short))
+                    ->identifier('durable.activities.missingGeneric')
+                    ->tip(\sprintf('Add /** @param ActivityStub<%s> $%s */ to the method.', $short, $name))
+                    ->line($param->getStartLine())
+                    ->build();
+
                 continue;
             }
 

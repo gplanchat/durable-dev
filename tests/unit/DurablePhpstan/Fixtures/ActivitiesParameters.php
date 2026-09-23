@@ -35,6 +35,8 @@ final class ActivitiesParameters
         ActivityStub $agreeing,
         #[Activities(OrderActivities::class)]
         ActivityStub $disagreeing,
+        #[Activities(OrderActivities::class)]
+        ActivityStub $undocumented,
     ): mixed {
         return $env->await($agreeing->charge($orderId, 100));
     }

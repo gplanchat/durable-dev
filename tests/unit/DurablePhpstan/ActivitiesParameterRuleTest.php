@@ -26,6 +26,13 @@ final class ActivitiesParameterRuleTest extends TestCase
         self::assertNotSame([], $this->matching($this->analyse(), 'Parameter $disagreeing is #[Activities(unit\DurablePhpstan\Fixtures\OrderActivities::class)] but its @param says ActivityStub<unit\DurablePhpstan\Fixtures\ShippingActivities>'));
     }
 
+    public function testAMissingDocblockIsReportedWithItsFix(): void
+    {
+        // Without the generic, every call on the stub is already "undefined method". The rule
+        // reports the cause once, where it can be fixed.
+        self::assertNotSame([], $this->matching($this->analyse(), 'Parameter $undocumented is #[Activities(unit\DurablePhpstan\Fixtures\OrderActivities::class)] but has no @param ActivityStub<OrderActivities>'));
+    }
+
     /**
      * @return list<string>
      */
