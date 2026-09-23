@@ -74,7 +74,7 @@ jobs:
                 # to load. Both are therefore necessary, neither one replaces the other.
                 flavour: [cli, cli-alpine, zts, zts-alpine]
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - uses: docker/setup-qemu-action@v3
               if: contains(inputs.platforms, 'arm64')
@@ -134,7 +134,7 @@ jobs:
         if: github.event_name != 'pull_request'
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             # What decides fits in one function, and it is checked before being applied.
             # The case that matters: on publication Monday, `8.4-zts` and `8.4-zts-20260828`
