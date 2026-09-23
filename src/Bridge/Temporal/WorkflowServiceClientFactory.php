@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal;
 
 use Gplanchat\Bridge\Temporal\Grpc\ExtGrpcTransport;
+use Gplanchat\Bridge\Temporal\Grpc\GrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcWorkflowServiceClient;
-use Gplanchat\Bridge\Temporal\Http\CurlGrpcWorkflowServiceClient;
+use Gplanchat\Bridge\Temporal\Http\CurlGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient;
 use Grpc\ChannelCredentials;
 use Psr\Log\LoggerInterface;
@@ -32,6 +33,31 @@ final class WorkflowServiceClientFactory
      */
     public static function create(TemporalConnection $settings, ?LoggerInterface $logger = null): WorkflowServiceClientInterface
     {
+        $transport = self::resolveLogged($settings, $logger);
+
+        // The JSON gateway is not gRPC: a client of its own, not a transport.
+        if (TemporalConnection::TRANSPORT_HTTP === $transport) {
+            self::assertCurl($transport);
+
+            return new JsonGatewayWorkflowServiceClient($settings);
+        }
+
+        return new GrpcWorkflowServiceClient(self::transportFor($transport, $settings));
+    }
+
+    /** The gRPC transport the connection resolves to, for a caller that speaks another gRPC service. */
+    public static function createTransport(TemporalConnection $settings, ?LoggerInterface $logger = null): GrpcTransport
+    {
+        $transport = self::resolveLogged($settings, $logger);
+        if (TemporalConnection::TRANSPORT_HTTP === $transport) {
+            throw new \RuntimeException('transport=http is the JSON gateway, which carries no gRPC: there is no gRPC transport to build.');
+        }
+
+        return self::transportFor($transport, $settings);
+    }
+
+    private static function resolveLogged(TemporalConnection $settings, ?LoggerInterface $logger): string
+    {
         [$transport, $reason] = self::resolve($settings->transport, \extension_loaded('grpc'), \extension_loaded('curl'));
         if (null !== $reason && !isset(self::$logged[$reason])) {
             self::$logged[$reason] = true;
@@ -40,17 +66,24 @@ final class WorkflowServiceClientFactory
             null === $logger ? error_log($message) : $logger->info($message, ['target' => $settings->target, 'transport' => $transport]);
         }
 
-        if (TemporalConnection::TRANSPORT_GRPC === $transport) {
-            return new GrpcWorkflowServiceClient(self::createStub($settings));
-        }
+        return $transport;
+    }
 
+    private static function transportFor(string $transport, TemporalConnection $settings): GrpcTransport
+    {
+        if (TemporalConnection::TRANSPORT_GRPC === $transport) {
+            return new ExtGrpcTransport($settings);
+        }
+        self::assertCurl($transport);
+
+        return new CurlGrpcTransport($settings);
+    }
+
+    private static function assertCurl(string $transport): void
+    {
         if (!\extension_loaded('curl')) {
             throw new \RuntimeException(\sprintf('transport=%s requires the PHP extension "curl".', $transport));
         }
-
-        return TemporalConnection::TRANSPORT_HTTP === $transport
-            ? new JsonGatewayWorkflowServiceClient($settings)
-            : new CurlGrpcWorkflowServiceClient($settings);
     }
 
     /** The transport {@see create} would build for this connection on this machine. */
