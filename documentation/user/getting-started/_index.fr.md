@@ -232,6 +232,8 @@ declare(strict_types=1);
 namespace App\Workflow;
 
 use App\Workflow\Activity\GreetingActivities;
+use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\Activities;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -239,17 +241,22 @@ use Gplanchat\Durable\WorkflowEnvironment;
 #[AsWorkflow(name: 'greet')]
 final class GreetWorkflow
 {
-    public function __construct(private readonly WorkflowEnvironment $environment) {}
-
+    /** @param ActivityStub<GreetingActivities> $greeting */
     #[AsWorkflowMethod]
-    public function run(string $name): string
-    {
-        $activities = $this->environment->activityStub(GreetingActivities::class);
-
-        return $this->environment->await($activities->greet($name));
+    public function run(
+        string $name,
+        #[Activities(GreetingActivities::class)]
+        ActivityStub $greeting,
+        WorkflowEnvironment $env,
+    ): string {
+        return $env->await($greeting->greet($name));
     }
 }
 ```
+
+`$name` vient de l'entrée avec laquelle le workflow démarre. `$greeting` et `$env`, non : Durable
+les fournit, comme Symfony fournit ses services à un contrôleur. Voir
+[Les arguments que fournit Durable](../workflows/#les-arguments-que-fournit-durable).
 
 ### 4. Le déclencher depuis un contrôleur ou un service {#4--le-déclencher-depuis-un-contrôleur-ou-un-service}
 
