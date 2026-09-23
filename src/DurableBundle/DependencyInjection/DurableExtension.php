@@ -87,9 +87,6 @@ use Symfony\Component\DependencyInjection\Reference;
 
 final class DurableExtension extends Extension
 {
-    /**
-     * @param array<int, array<string, mixed>> $configs
-     */
     public function load(array $configs, ContainerBuilder $container): void
     {
         $configuration = new Configuration();
