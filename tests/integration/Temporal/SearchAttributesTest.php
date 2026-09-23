@@ -77,8 +77,9 @@ final class SearchAttributesTest extends TemporalServerTestCase
         $req->setQuery($query);
         $req->setPageSize(1);
 
-        [$response, $status] = $this->client->ListWorkflowExecutions($req, [], ['timeout' => 10_000_000])->wait();
-        if (0 !== (int) ($status->code ?? -1) || !$response instanceof \Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsResponse) {
+        try {
+            $response = $this->client->ListWorkflowExecutions($req, [], ['timeout' => 10_000_000]);
+        } catch (\RuntimeException) {
             return null;
         }
 

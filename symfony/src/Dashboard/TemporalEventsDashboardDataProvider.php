@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace App\Dashboard;
 
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\Workflow\V1\WorkflowExecutionInfo;
 use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsRequest;
-use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 final class TemporalEventsDashboardDataProvider
 {
@@ -24,7 +22,7 @@ final class TemporalEventsDashboardDataProvider
     private const TIMELAPSE_MIN_BAR_PERCENT = 0.25;
 
     public function __construct(
-        private readonly ?WorkflowServiceClient $workflowServiceClient = null,
+        private readonly ?WorkflowServiceClientInterface $workflowServiceClient = null,
         private readonly ?TemporalConnection $connection = null,
         private readonly ?TemporalHistoryCursor $historyCursor = null,
     ) {
@@ -63,12 +61,10 @@ final class TemporalEventsDashboardDataProvider
                 $request->setNextPageToken($this->decodeCursor($cursor));
             }
 
-            $response = GrpcUnary::wait(
-                $this->workflowServiceClient->ListWorkflowExecutions(
-                    $request,
-                    [],
-                    ['timeout' => TemporalGrpcTimeouts::SHORT_US],
-                ),
+            $response = $this->workflowServiceClient->ListWorkflowExecutions(
+                $request,
+                [],
+                ['timeout' => TemporalGrpcTimeouts::SHORT_US],
             );
         } catch (\Throwable) {
             try {
@@ -80,12 +76,10 @@ final class TemporalEventsDashboardDataProvider
                     $request->setNextPageToken($this->decodeCursor($cursor));
                 }
 
-                $response = GrpcUnary::wait(
-                    $this->workflowServiceClient->ListWorkflowExecutions(
-                        $request,
-                        [],
-                        ['timeout' => TemporalGrpcTimeouts::SHORT_US],
-                    ),
+                $response = $this->workflowServiceClient->ListWorkflowExecutions(
+                    $request,
+                    [],
+                    ['timeout' => TemporalGrpcTimeouts::SHORT_US],
                 );
             } catch (\Throwable) {
                 return [
@@ -93,13 +87,6 @@ final class TemporalEventsDashboardDataProvider
                     'nextCursor' => null,
                 ];
             }
-        }
-
-        if (!$response instanceof ListWorkflowExecutionsResponse) {
-            return [
-                'runs' => $this->fallbackRuns(),
-                'nextCursor' => null,
-            ];
         }
 
         $runs = [];

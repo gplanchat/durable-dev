@@ -4,21 +4,22 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit;
 
+use Gplanchat\Bridge\Temporal\AbstractWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Google\Protobuf\Internal\Message;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\History;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Unit tests for {@see TemporalHistoryCursor::closeEvent()}.
  *
- * Uses a test double of {@see WorkflowServiceClient} (a subclass without real gRPC)
- * in order to control the gRPC responses of GetWorkflowExecutionHistory.
+ * Uses a test double of the bridge's WorkflowServiceClientInterface, without any real gRPC,
+ * in order to control the responses of GetWorkflowExecutionHistory.
  */
 final class TemporalHistoryCursorCloseEventTest extends TestCase
 {
@@ -133,27 +134,21 @@ final class TemporalHistoryCursorCloseEventTest extends TestCase
 }
 
 /**
- * Test double for {@see WorkflowServiceClient}: avoids any real gRPC connection.
- * The parent constructor is not called, which makes it possible to use this class
- * in tests without the gRPC extension active.
+ * Test double for the bridge's client contract: one programmed answer for every RPC, either a
+ * response or a gRPC status to fail with. No channel, no extension.
  *
  * @internal
  */
-final class FakeWorkflowServiceClient extends WorkflowServiceClient
+final class FakeWorkflowServiceClient extends AbstractWorkflowServiceClient
 {
-    /** @var array{response: GetWorkflowExecutionHistoryResponse|null, code: int, details: string} */
-    private array $programmedResponse;
-
     private function __construct(
-        GetWorkflowExecutionHistoryResponse|null $response,
-        int $code,
-        string $details,
+        private readonly ?Message $response,
+        private readonly int $code,
+        private readonly string $details,
     ) {
-        // Parent constructor intentionally NOT called: avoids gRPC channel creation.
-        $this->programmedResponse = ['response' => $response, 'code' => $code, 'details' => $details];
     }
 
-    public static function withResponse(GetWorkflowExecutionHistoryResponse $response): self
+    public static function withResponse(Message $response): self
     {
         return new self($response, 0, '');
     }
@@ -163,36 +158,12 @@ final class FakeWorkflowServiceClient extends WorkflowServiceClient
         return new self(null, $code, $details);
     }
 
-    public function GetWorkflowExecutionHistory(
-        $argument,
-        $metadata = [],
-        $options = [],
-    ): FakeGrpcCall {
-        $status = (object) [
-            'code'    => $this->programmedResponse['code'],
-            'details' => $this->programmedResponse['details'],
-        ];
-
-        return new FakeGrpcCall($this->programmedResponse['response'], $status);
-    }
-}
-
-/**
- * Simulates a unary gRPC call with a preprogrammed result.
- *
- * @internal
- */
-final class FakeGrpcCall
-{
-    public function __construct(
-        private readonly mixed $response,
-        private readonly object $status,
-    ) {
-    }
-
-    /** @return array{0: mixed, 1: object} */
-    public function wait(): array
+    protected function call(string $rpc, Message $request, string $responseClass, array $metadata, array $options): Message
     {
-        return [$this->response, $this->status];
+        if (0 !== $this->code || null === $this->response) {
+            throw new \RuntimeException(\sprintf('Temporal gRPC error [%d]: %s', $this->code, $this->details), $this->code);
+        }
+
+        return $this->response;
     }
 }

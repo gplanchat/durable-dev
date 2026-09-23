@@ -10,3 +10,6 @@ services:
         class: Gplanchat\Durable\PHPStan\Reflection\StubMethodsExtension
         tags:
             - phpstan.broker.methodsClassReflectionExtension
+
+rules:
+    - Gplanchat\Durable\PHPStan\Rules\ActivitiesParameterRule
