@@ -59,7 +59,7 @@ jobs:
                   sudo apt-get update
                   sudo apt-get install -y build-essential cmake curl libssl-dev pkg-config zlib1g-dev
 
-            - uses: actions/setup-go@v5
+            - uses: actions/setup-go@v7
               if: steps.cache-toolchain.outputs.cache-hit != 'true'
               with:
                   go-version: '1.22'
