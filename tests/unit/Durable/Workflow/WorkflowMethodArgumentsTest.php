@@ -8,6 +8,7 @@ use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Attribute\Activities;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\Nexus\Serving\NexusFulfilmentParameterNames;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -102,6 +103,36 @@ final class GreetsThroughAChildWorkflow
     }
 }
 
+interface GreetingOperation
+{
+    public function greet(string $name): string;
+}
+
+#[AsWorkflow('names-a-missing-contract')]
+final class NamesAMissingContractWorkflow
+{
+    #[AsWorkflowMethod]
+    public function run(
+        #[Activities('unit\\Gplanchat\\Durable\\Workflow\\NoSuchContract')]
+        ActivityStub $greeting,
+    ): void {}
+}
+
+final class Tally
+{
+    public int $count = 0;
+}
+
+#[AsWorkflow('counts-into-a-default')]
+final class CountsIntoADefaultWorkflow
+{
+    #[AsWorkflowMethod]
+    public function run(Tally $tally = new Tally()): int
+    {
+        return ++$tally->count;
+    }
+}
+
 /**
  * The workflow method receives its stubs and its environment as arguments, the way a controller
  * receives its services (#419). The input is still matched by name; injected parameters are not
@@ -162,5 +193,29 @@ final class WorkflowMethodArgumentsTest extends TestCase
         $env->registerWorkflowClass(GreetByArgumentWorkflow::class);
 
         self::assertSame('Hello, Ada!', $env->runWorkflowClass(GreetsThroughAChildWorkflow::class, ['name' => 'Ada']));
+    }
+
+    public function testAContractThatDoesNotExistFailsAtRegistration(): void
+    {
+        $this->expectExceptionMessage('#[Activities(unit\\Gplanchat\\Durable\\Workflow\\NoSuchContract)] names no class or interface');
+
+        (new WorkflowDefinitionLoader())->load(NamesAMissingContractWorkflow::class);
+    }
+
+    public function testANexusFulfilmentMatchesOnTheInputParametersOnly(): void
+    {
+        $this->expectNotToPerformAssertions();
+
+        // `$greeting` and `$env` are not in the operation's payload, and must not be reported as orphans.
+        NexusFulfilmentParameterNames::assertMatch('test', GreetingOperation::class, 'greet', 'greet', GreetByArgumentWorkflow::class);
+    }
+
+    public function testADefaultIsBuiltForEachExecution(): void
+    {
+        $env = WorkflowTestEnvironment::inMemory();
+
+        // A `new` default shared across executions would leak state from one run into the next.
+        self::assertSame(1, $env->runWorkflowClass(CountsIntoADefaultWorkflow::class));
+        self::assertSame(1, $env->runWorkflowClass(CountsIntoADefaultWorkflow::class));
     }
 }
