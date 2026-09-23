@@ -22,6 +22,7 @@ final class TemporalConnectionTransportTest extends TestCase
         yield 'explicit port wins' => ['temporal+https://127.0.0.1:9000', TemporalConnection::TRANSPORT_HTTP, true, '127.0.0.1:9000'];
         yield 'tls= still works' => ['temporal://127.0.0.1?tls=1', TemporalConnection::TRANSPORT_AUTO, true, '127.0.0.1:7233'];
         yield 'transport= overrides the scheme' => ['temporal://127.0.0.1?transport=grpc-curl', TemporalConnection::TRANSPORT_GRPC_CURL, false, '127.0.0.1:7233'];
+        yield 'transport=guzzle' => ['temporal://127.0.0.1?transport=guzzle', TemporalConnection::TRANSPORT_GUZZLE, false, '127.0.0.1:7233'];
     }
 
     #[DataProvider('schemes')]

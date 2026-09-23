@@ -48,6 +48,7 @@ final class WorkflowServiceClientFactoryResolutionTest extends TestCase
         self::assertSame(['grpc', null], WorkflowServiceClientFactory::resolve('grpc', false, true));
         self::assertSame(['grpc-curl', null], WorkflowServiceClientFactory::resolve('grpc-curl', true, true));
         self::assertSame(['http', null], WorkflowServiceClientFactory::resolve('http', true, true));
+        self::assertSame(['guzzle', null], WorkflowServiceClientFactory::resolve('guzzle', true, true));
     }
 
     public function testTheEffectiveTransportFollowsTheMachine(): void

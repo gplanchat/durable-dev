@@ -27,7 +27,8 @@
     },
     "suggest": {
         "ext-grpc": "For transport=grpc (the default): the generated stub over the gRPC extension",
-        "ext-curl": "For transport=grpc-curl or transport=http, and the automatic fallback when ext-grpc is not loaded: the same RPCs over HTTP/2"
+        "ext-curl": "For transport=grpc-curl or transport=http, and the automatic fallback when ext-grpc is not loaded: the same RPCs over HTTP/2",
+        "guzzlehttp/guzzle": "For transport=guzzle (7.14 or newer, cURL handler): gRPC over the application's Guzzle client"
     },
     "autoload": {
         "psr-4": {

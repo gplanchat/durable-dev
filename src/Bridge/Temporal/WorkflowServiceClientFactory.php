@@ -8,8 +8,12 @@ use Gplanchat\Bridge\Temporal\Grpc\ExtGrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Http\CurlGrpcTransport;
+use Gplanchat\Bridge\Temporal\Http\GuzzleGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient;
 use Grpc\ChannelCredentials;
+use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\ClientInterface as GuzzleClientInterface;
+use GuzzleHttp\RequestOptions;
 use Psr\Log\LoggerInterface;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
@@ -31,7 +35,7 @@ final class WorkflowServiceClientFactory
      * per process. An explicit transport never falls back: asking for what is not installed
      * fails, loudly, at wiring time.
      */
-    public static function create(TemporalConnection $settings, ?LoggerInterface $logger = null): WorkflowServiceClientInterface
+    public static function create(TemporalConnection $settings, ?LoggerInterface $logger = null, ?GuzzleClientInterface $guzzle = null): WorkflowServiceClientInterface
     {
         $transport = self::resolveLogged($settings, $logger);
 
@@ -42,18 +46,18 @@ final class WorkflowServiceClientFactory
             return new JsonGatewayWorkflowServiceClient($settings);
         }
 
-        return new GrpcWorkflowServiceClient(self::transportFor($transport, $settings));
+        return new GrpcWorkflowServiceClient(self::transportFor($transport, $settings, $guzzle));
     }
 
     /** The gRPC transport the connection resolves to, for a caller that speaks another gRPC service. */
-    public static function createTransport(TemporalConnection $settings, ?LoggerInterface $logger = null): GrpcTransport
+    public static function createTransport(TemporalConnection $settings, ?LoggerInterface $logger = null, ?GuzzleClientInterface $guzzle = null): GrpcTransport
     {
         $transport = self::resolveLogged($settings, $logger);
         if (TemporalConnection::TRANSPORT_HTTP === $transport) {
             throw new \RuntimeException('transport=http is the JSON gateway, which carries no gRPC: there is no gRPC transport to build.');
         }
 
-        return self::transportFor($transport, $settings);
+        return self::transportFor($transport, $settings, $guzzle);
     }
 
     private static function resolveLogged(TemporalConnection $settings, ?LoggerInterface $logger): string
@@ -69,10 +73,21 @@ final class WorkflowServiceClientFactory
         return $transport;
     }
 
-    private static function transportFor(string $transport, TemporalConnection $settings): GrpcTransport
+    private static function transportFor(string $transport, TemporalConnection $settings, ?GuzzleClientInterface $guzzle): GrpcTransport
     {
         if (TemporalConnection::TRANSPORT_GRPC === $transport) {
             return new ExtGrpcTransport($settings);
+        }
+        if (TemporalConnection::TRANSPORT_GUZZLE === $transport) {
+            // on_trailers, where gRPC carries its status, arrived in Guzzle 7.14.
+            if (!\defined(RequestOptions::class . '::ON_TRAILERS')) {
+                throw new \RuntimeException('transport=guzzle requires guzzlehttp/guzzle 7.14 or newer (the on_trailers request option).');
+            }
+
+            // Only Guzzle's cURL handler observes trailers; its stream handler refuses on_trailers.
+            self::assertCurl($transport);
+
+            return new GuzzleGrpcTransport($settings, $guzzle ?? new GuzzleClient());
         }
         self::assertCurl($transport);
 

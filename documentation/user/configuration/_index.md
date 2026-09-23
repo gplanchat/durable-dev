@@ -109,7 +109,7 @@ The scheme names the wire and the encryption:
 | `journal_task_queue` | yes | Task queue for workflow tasks (e.g. `durable-journal`). |
 | `activity_task_queue` | yes | Task queue for activity tasks (e.g. `durable-activities`). |
 | `tls` | no | `tls=1` is the older spelling of the `+tls` and `+https` schemes; still accepted. |
-| `transport` | no (default `auto`) | Overrides what the scheme implies: `grpc` demands `ext-grpc` and fails without it, `grpc-curl` forces curl even when the extension is loaded, `http` is what `temporal+http://` sets. `auto` picks `grpc` when the extension is loaded and `grpc-curl` otherwise. |
+| `transport` | no (default `auto`) | Overrides what the scheme implies: `grpc` demands `ext-grpc` and fails without it, `grpc-curl` forces curl even when the extension is loaded, `guzzle` sends gRPC through Guzzle 7.14 or newer (its cURL handler reads the trailers), `http` is what `temporal+http://` sets. `auto` picks `grpc` when the extension is loaded and `grpc-curl` otherwise. |
 
 **Example:**
 ```

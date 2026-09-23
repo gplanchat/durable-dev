@@ -61,6 +61,7 @@
         "friendsofphp/php-cs-fixer": "^3.0",
         "gplanchat/durable-phpstan": "@dev",
         "gplanchat/durable-rector": "@dev",
+        "guzzlehttp/guzzle": "^7.14",
         "illuminate/cache": "^11.0 || ^12.0 || ^13.0",
         "illuminate/database": "^11.0 || ^12.0 || ^13.0",
         "phpstan/phpstan": "^2.0",
