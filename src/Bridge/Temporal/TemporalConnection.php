@@ -130,7 +130,7 @@ final class TemporalConnection
         // The JSON gateway listens on its own port; a DSN that names the transport but not the
         // port would otherwise talk JSON to the gRPC listener and get an opaque HTTP/2 error.
         $host = $parts['host'] ?? '127.0.0.1';
-        $port = isset($parts['port']) ? (int) $parts['port'] : (self::TRANSPORT_HTTP === $transport ? self::DEFAULT_HTTP_PORT : 7233);
+        $port = $parts['port'] ?? (self::TRANSPORT_HTTP === $transport ? self::DEFAULT_HTTP_PORT : 7233);
         $target = $host . ':' . $port;
 
         $namespace = \is_string($q['namespace'] ?? null) ? $q['namespace'] : 'default';

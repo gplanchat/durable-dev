@@ -5,57 +5,9 @@
       <code><![CDATA[\Grpc\STATUS_OK]]></code>
     </UndefinedConstant>
   </file>
-  <file src="src/Bridge/Temporal/Profiler/TemporalEventConverter.php">
-    <InvalidPropertyAssignmentValue>
-      <code><![CDATA[$this->scheduledEventIdToActivityId]]></code>
-      <code><![CDATA[$this->startedEventIdToTimerId]]></code>
-    </InvalidPropertyAssignmentValue>
-  </file>
-  <file src="src/Bridge/Temporal/TemporalConnection.php">
-    <RedundantCast>
-      <code><![CDATA[(int) $parts['port']]]></code>
-    </RedundantCast>
-  </file>
-  <file src="src/Bridge/Temporal/Worker/TemporalExecutionHistory.php">
-    <InvalidPropertyAssignmentValue>
-      <code><![CDATA[$this->activityIdToScheduledEventId]]></code>
-      <code><![CDATA[$this->scheduledEventIdToActivityId]]></code>
-      <code><![CDATA[$this->startedEventIdToTimerId]]></code>
-    </InvalidPropertyAssignmentValue>
-  </file>
   <file src="src/Bridge/Temporal/WorkflowServiceClientFactory.php">
     <UndefinedClass>
       <code><![CDATA[ChannelCredentials]]></code>
     </UndefinedClass>
-  </file>
-  <file src="src/Durable/Awaitable/AwaitableAdapter.php">
-    <InvalidThrow>
-      <code><![CDATA[throw $this->deferred->reason()]]></code>
-    </InvalidThrow>
-  </file>
-  <file src="src/Durable/Event/ActivityFailed.php">
-    <RedundantCast>
-      <code><![CDATA[(string) ($envelope->trace ?? '')]]></code>
-    </RedundantCast>
-  </file>
-  <file src="src/Durable/Testing/ActivitySpy.php">
-    <InvalidArrayOffset>
-      <code><![CDATA[$this->calls[\count($this->calls) - 1]]]></code>
-    </InvalidArrayOffset>
-  </file>
-  <file src="src/Durable/Uuid/NativeUuidV7Generator.php">
-    <InvalidOperand>
-      <code><![CDATA[microtime(true) * 1000]]></code>
-    </InvalidOperand>
-  </file>
-  <file src="src/DurableBundle/DependencyInjection/DurableExtension.php">
-    <MoreSpecificImplementedParamType>
-      <code><![CDATA[$configs]]></code>
-    </MoreSpecificImplementedParamType>
-  </file>
-  <file src="src/DurablePlugin/DependencyInjection/DurablePluginExtension.php">
-    <MoreSpecificImplementedParamType>
-      <code><![CDATA[$configs]]></code>
-    </MoreSpecificImplementedParamType>
   </file>
 </files>
