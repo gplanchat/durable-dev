@@ -1,0 +1,17 @@
+<?php
+
+// The grpc extension is a C extension and Psalm ships no stub for it, so its symbols read as
+// undefined. Only what src/ uses is declared, with the upstream signatures. These can drift:
+// when the extension changes one, update it here.
+
+namespace Grpc {
+    const STATUS_OK = 0;
+
+    class ChannelCredentials
+    {
+        public static function createSsl(?string $pem_root_certs = null, ?string $pem_private_key = null, ?string $pem_cert_chain = null): ChannelCredentials {}
+
+        /** @return null */
+        public static function createInsecure() {}
+    }
+}

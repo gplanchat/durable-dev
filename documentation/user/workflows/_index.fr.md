@@ -251,8 +251,9 @@ public function run(
   l'appelle comme enfant, ni par une opération Nexus.
 - Le docblock **`@param ActivityStub<Contrat>`** sert à PHPStan. Avec
   [`gplanchat/durable-phpstan`](../packages/), un docblock qui nomme un autre contrat que
-  l'attribut est une erreur, et son absence aussi (`durable.activities.missingGeneric`, que l'on
-  peut ignorer), puisque PHPStan ne peut pas vérifier les appels sans lui.
+  l'attribut est une erreur (`durable.activities.contractMismatch`), et son absence aussi
+  (`durable.activities.missingGeneric`, que l'on peut ignorer), puisque PHPStan ne peut pas
+  vérifier les appels sans lui.
 - Un stub qui a besoin d'**`ActivityOptions`** garde `$env->activityStub($contrat, $options)` : les
   arguments d'un attribut ne savent pas construire une `Duration`.
 - Les erreurs surviennent dès l'**enregistrement** du workflow (compilation du conteneur, avec le
