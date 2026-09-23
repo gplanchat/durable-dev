@@ -8,6 +8,8 @@ use Google\Protobuf\Internal\Message;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcTransport;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\GuzzleException;
 use Psr\Http\Message\ResponseInterface;
 
 /**
@@ -35,20 +37,28 @@ final class GuzzleGrpcTransport implements GrpcTransport
         /** @var array<string, list<string>> $trailers */
         $trailers = [];
 
-        $response = $this->client->request('POST', ($this->connection->tls ? 'https://' : 'http://') . $this->connection->target . $method, [
-            'body' => GrpcWire::frame($request->serializeToString()),
-            'headers' => $headers,
-            'version' => '2.0',
-            'curl' => [\CURLOPT_HTTP_VERSION => $this->connection->tls ? \CURL_HTTP_VERSION_2_0 : \CURL_HTTP_VERSION_2_PRIOR_KNOWLEDGE],
-            'http_errors' => false,
-            'connect_timeout' => 10,
-            // The server enforces grpc-timeout; Guzzle's own deadline is the backstop for a
-            // peer that stops answering, hence the slack.
-            'timeout' => null === $timeoutMs ? 0 : ($timeoutMs + 1000) / 1000,
-            'on_trailers' => static function (array $received) use (&$trailers): void {
-                $trailers = $received;
-            },
-        ]);
+        try {
+            $response = $this->client->request('POST', ($this->connection->tls ? 'https://' : 'http://') . $this->connection->target . $method, [
+                'body' => GrpcWire::frame($request->serializeToString()),
+                'headers' => $headers,
+                'version' => '2.0',
+                'curl' => [\CURLOPT_HTTP_VERSION => $this->connection->tls ? \CURL_HTTP_VERSION_2_0 : \CURL_HTTP_VERSION_2_PRIOR_KNOWLEDGE],
+                'http_errors' => false,
+                'connect_timeout' => 10,
+                // The server enforces grpc-timeout; Guzzle's own deadline is the backstop for a
+                // peer that stops answering, hence the slack.
+                'timeout' => null === $timeoutMs ? 0 : ($timeoutMs + 1000) / 1000,
+                'on_trailers' => static function (array $received) use (&$trailers): void {
+                    $trailers = $received;
+                },
+            ]);
+        } catch (ConnectException $e) {
+            $errno = $e->getHandlerContext()['errno'] ?? null;
+
+            throw GrpcWire::failure(\CURLE_OPERATION_TIMEDOUT === $errno ? GrpcWire::DEADLINE_EXCEEDED : GrpcWire::UNAVAILABLE, $e->getMessage());
+        } catch (GuzzleException $e) {
+            throw GrpcWire::failure(GrpcWire::UNAVAILABLE, $e->getMessage());
+        }
 
         [$code, $message] = GrpcWire::status(self::firstValues($response, $trailers), $response->getStatusCode());
         if (0 !== $code) {

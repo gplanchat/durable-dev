@@ -8,6 +8,7 @@ use Gplanchat\Bridge\Temporal\Http\GrpcWire;
 use Gplanchat\Bridge\Temporal\Http\GuzzleGrpcTransport;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Psr7\Response;
@@ -77,6 +78,20 @@ final class GuzzleGrpcTransportTest extends TestCase
         } catch (\RuntimeException $e) {
             self::assertSame(5, $e->getCode());
             self::assertStringContainsString('workflow not found', $e->getMessage());
+        }
+    }
+
+    public function testATimeoutIsDeadlineExceededAndARefusedConnectionIsUnavailable(): void
+    {
+        foreach ([28 => GrpcWire::DEADLINE_EXCEEDED, 7 => GrpcWire::UNAVAILABLE] as $errno => $code) {
+            $transport = $this->transport('temporal://127.0.0.1:7233', static fn(RequestInterface $r): PromiseInterface => Create::rejectionFor(new ConnectException('cURL error ' . $errno, $r, null, ['errno' => $errno])));
+
+            try {
+                $transport->unary(self::METHOD, new DescribeWorkflowExecutionRequest(), DescribeWorkflowExecutionResponse::class, [], 100);
+                self::fail('The transfer failed.');
+            } catch (\RuntimeException $e) {
+                self::assertSame($code, $e->getCode(), 'cURL errno ' . $errno);
+            }
         }
     }
 
