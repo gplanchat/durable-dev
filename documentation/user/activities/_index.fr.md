@@ -140,7 +140,9 @@ $this->strict = $env->activityStub(PricingActivities::class, ActivityOptions::of
 > appels que vous passez par le stub : PHPStan déduit le contrat depuis `activityStub()` et sait le
 > suivre jusqu'au site d'appel. Une propriété mutable le lui fait perdre, et il faut alors un
 > `/** @var ActivityStub<Contrat> */` explicite. Dans tous les cas, un contrat qu'il ne peut pas
-> résoudre laisse l'appel inconnu de l'analyseur, jamais silencieusement accepté.
+> résoudre laisse l'appel inconnu de l'analyseur, jamais silencieusement accepté. Un
+> [argument `#[Activities]`](../workflows/#arguments-durable-supplies) a besoin de son docblock
+> `@param ActivityStub<Contrat>` pour la même raison.
 
 
 ## Injection de dépendances
@@ -150,6 +152,8 @@ Contrairement aux workflows, l'**implémentation d'activité** **peut** avoir un
 ## Côté workflow : `ActivityInvoker`
 
 Depuis **`WorkflowEnvironment`** (voir [Écrire un workflow](../workflows/)), vous appelez **`activityStub(VotreInterfaceDActivité::class)`** et vous obtenez un **`ActivityStub`** (même notion que l'**`ActivityInvoker`** des ADR).
+
+Un stub qui n'a pas besoin d'**`ActivityOptions`** peut aussi se déclarer en argument de la méthode de workflow : un paramètre typé **`ActivityStub`** et marqué **`#[Activities(VotreInterfaceDActivité::class)]`** reçoit le même stub. Voir [Les arguments que fournit Durable](../workflows/#arguments-durable-supplies).
 
 - Pour chaque **`#[AsActivityMethod]`** de l'interface, le stub expose **le même nom de méthode et les mêmes paramètres** ; chaque appel renvoie un **`Awaitable`** que vous passez à **`$environment->await(...)`** (le type de retour synchrone **`T`** de l'interface est ce que vous obtenez après l'**`await`**).
 - L'invocateur **n'exécute pas** d'E/S dans le processus du workflow : il **planifie** une étape durable et rattache le résultat à l'historique et au rejeu.
@@ -166,7 +170,7 @@ Arguments et valeurs de retour doivent être **sérialisables** au passage de la
 |-------|----------------|
 | Interface | `#[AsActivityMethod]` sur les méthodes appelables ; des types sérialisables |
 | Implémentation | E/S et injection de dépendances ; implémente l'interface |
-| Workflow | N'emploie qu'**`activityStub()`** / **`ActivityStub`** depuis **`WorkflowEnvironment`** ; jamais un `new` sur la classe d'activité pour un effet durable ; second argument facultatif **`ActivityOptions`** |
+| Workflow | N'emploie qu'**`activityStub()`** / **`ActivityStub`** depuis **`WorkflowEnvironment`**, ou un argument **`#[Activities]`** ; jamais un `new` sur la classe d'activité pour un effet durable ; second argument facultatif **`ActivityOptions`** |
 
 ## Voir aussi
 

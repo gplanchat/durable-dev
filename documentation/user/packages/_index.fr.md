@@ -30,7 +30,9 @@ Les deux derniers sont des **outils de développement**, en `require-dev` plutô
 
 - **`gplanchat/durable-phpstan`** résout les appels d'`activityStub()` et de `childWorkflowStub()`
   face à l'interface de contrat : une activité mal nommée ou un mauvais argument devient une erreur
-  d'analyse au lieu d'un échec de sérialisation à l'exécution.
+  d'analyse au lieu d'un échec de sérialisation à l'exécution. Il vérifie aussi qu'un
+  [paramètre `#[Activities]`](../workflows/#arguments-durable-supplies) et son docblock
+  `@param ActivityStub<Contrat>` nomment le même contrat.
 - **`gplanchat/durable-rector`** migre un projet depuis le SDK PHP officiel de Temporal : la
   réécriture des attributs et le changement de modèle d'exécution, en gardant les noms de type de
   workflow et d'activité qu'un serveur en cours d'exécution connaît déjà. Ce qu'il ne sait pas
