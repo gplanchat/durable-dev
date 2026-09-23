@@ -39,7 +39,7 @@ from `durable.temporal.dsn` and `messenger:consume` finds them by name:
 | `durable_temporal_activity` (`purpose: activity_worker`) | `durable_activities`                                 |
 | `durable_temporal_nexus` (`purpose: nexus_worker`)       | `durable_nexus`, only if a Nexus handler is declared |
 | `temporal://…?inner=…`, `purpose: application`           | removed — declare the inner transport directly       |
-| `temporal-journal://`, `temporal-application://`         | removed from Messenger                               |
+| `temporal-journal://`, `temporal-application://`         | refused, see the next section                        |
 
 1. Keep the DSN in `durable.temporal.dsn`, once.
 2. Under Temporal, remove from `framework.messenger.transports` every `durable_temporal_*`
@@ -57,6 +57,22 @@ from `durable.temporal.dsn` and `messenger:consume` finds them by name:
    nothing any more and is deprecated; a kernel that still lists it keeps booting.
 
 Laravel and Magento are unaffected: their workers never went through Messenger.
+
+### The Temporal DSN names the server only: no `inner=`, no `temporal-journal://`
+
+**Who is affected**: an application whose Temporal DSN — `durable.temporal.dsn`, the Laravel or
+Magento host configuration, or the environment variable behind them — still starts with
+`temporal-journal://` or `temporal-application://`, or carries `inner=`. Rector cannot help: the
+value is a string in configuration.
+
+Both encoded which worker a transport ran, which the previous section moved into the bundle.
+`TemporalConnection::fromDsn()` now refuses the two schemes and names `temporal://` as the
+replacement; `inner=` is no longer read, and `TemporalConnection::$innerMessengerDsn` is gone.
+
+1. Replace `temporal-journal://` and `temporal-application://` with `temporal://` (or
+   `temporal+tls://` for TLS).
+2. Drop `inner=` from the DSN. The Messenger transport it pointed at, if you still need it, is
+   declared directly in `framework.messenger.transports`.
 
 ### Stubs refuse what PHP refuses
 
