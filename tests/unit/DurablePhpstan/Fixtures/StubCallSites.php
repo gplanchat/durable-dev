@@ -61,6 +61,17 @@ final class ChildWorkflow
     }
 }
 
+/** Its method receives the environment as an argument: a parent passes `$text` only. */
+#[AsWorkflow(name: 'injecting-child')]
+final class InjectingChildWorkflow
+{
+    #[AsWorkflowMethod]
+    public function run(string $text, WorkflowEnvironment $env): string
+    {
+        return $text;
+    }
+}
+
 #[AsWorkflow(name: 'call-sites')]
 final class StubCallSites
 {
@@ -86,6 +97,9 @@ final class StubCallSites
 
         // Correct: the child's entry method.
         $this->environment->await($this->child->run('bonjour'));
+
+        // Correct: the input argument only; the environment is the loader's to supply.
+        $this->environment->await($this->environment->childWorkflowStub(InjectingChildWorkflow::class)->run('bonjour'));
 
         // WRONG — a typo. This is the case the extension exists for: without it, no analysis
         // error, and a BadMethodCallException at run time.

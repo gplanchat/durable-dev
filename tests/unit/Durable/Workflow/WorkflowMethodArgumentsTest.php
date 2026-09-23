@@ -92,6 +92,16 @@ final class NotAContractWorkflow
     public function run(#[Activities(NotAnActivityContract::class)] ActivityStub $greeting): void {}
 }
 
+#[AsWorkflow('greets-through-a-child')]
+final class GreetsThroughAChildWorkflow
+{
+    #[AsWorkflowMethod]
+    public function run(string $name, WorkflowEnvironment $env): string
+    {
+        return $env->await($env->childWorkflowStub(GreetByArgumentWorkflow::class)->run($name));
+    }
+}
+
 /**
  * The workflow method receives its stubs and its environment as arguments, the way a controller
  * receives its services (#419). The input is still matched by name; injected parameters are not
@@ -139,5 +149,18 @@ final class WorkflowMethodArgumentsTest extends TestCase
         $this->expectExceptionMessage(NotAnActivityContract::class . ' declares no #[AsActivityMethod]');
 
         (new WorkflowDefinitionLoader())->load(NotAContractWorkflow::class);
+    }
+
+    public function testInjectedParametersAreNotPartOfTheInputNames(): void
+    {
+        self::assertSame(['name' => false], (new WorkflowDefinitionLoader())->workflowMethodParameters(GreetByArgumentWorkflow::class));
+    }
+
+    public function testAParentStartsAChildWithItsInputArgumentsOnly(): void
+    {
+        $env = WorkflowTestEnvironment::inMemory(['greet' => static fn(array $p): string => 'Hello, ' . $p['name'] . '!']);
+        $env->registerWorkflowClass(GreetByArgumentWorkflow::class);
+
+        self::assertSame('Hello, Ada!', $env->runWorkflowClass(GreetsThroughAChildWorkflow::class, ['name' => 'Ada']));
     }
 }

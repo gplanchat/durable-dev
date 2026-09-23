@@ -106,6 +106,15 @@ final class StubMethodsExtensionTest extends TestCase
         self::assertNotSame([], $this->matching($errors, 'invoked with 1 parameter, 2 required'));
     }
 
+    public function testAChildIsCalledWithoutTheParametersItsLoaderInjects(): void
+    {
+        $errors = $this->analyse(withExtension: true);
+
+        // `run(string $text, WorkflowEnvironment $env)`: the parent passes `$text`, the loader
+        // supplies `$env`. Counting `$env` would report a correct call as one argument short.
+        self::assertSame([], $this->matching($errors, 'InjectingChildWorkflow::run() invoked with'));
+    }
+
     public function testAReadonlyPropertyIsEnoughToCarryTheContract(): void
     {
         // The fixture declares its stubs `readonly` **without** a `@var` annotation. If this test
