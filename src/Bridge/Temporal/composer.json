@@ -27,7 +27,7 @@
     },
     "suggest": {
         "ext-grpc": "For transport=grpc (the default): the generated stub over the gRPC extension",
-        "gplanchat/durable-bridge-temporal-http": "For transport=grpc-curl or transport=http: the same RPCs without ext-grpc"
+        "ext-curl": "For transport=grpc-curl or transport=http, and the automatic fallback when ext-grpc is not loaded: the same RPCs over HTTP/2"
     },
     "autoload": {
         "psr-4": {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Bridge\TemporalHttp;
+namespace Gplanchat\Bridge\Temporal\Http;
 
 /**
  * The HTTP bindings of the RPCs the bridge uses, as declared in the WorkflowService protobuf

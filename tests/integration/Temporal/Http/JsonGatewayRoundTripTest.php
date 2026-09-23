@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace integration\TemporalHttp;
+namespace integration\Temporal\Http;
 
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace unit\Gplanchat\Bridge\TemporalHttp;
+namespace unit\Gplanchat\Bridge\Temporal\Http;
 
+use Gplanchat\Bridge\Temporal\Http\CurlGrpcWorkflowServiceClient;
+use Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
-use Gplanchat\Bridge\TemporalHttp\CurlGrpcWorkflowServiceClient;
-use Gplanchat\Bridge\TemporalHttp\JsonGatewayWorkflowServiceClient;
 use PHPUnit\Framework\TestCase;
 
 final class WorkflowServiceClientFactoryTransportTest extends TestCase

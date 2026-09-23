@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a9ab43ed64e65fe02d0d74572f5bcc01",
+    "content-hash": "d5a30b88c750464826ffb257af16cc68",
     "packages": [
         {
             "name": "brick/math",
@@ -650,7 +650,7 @@
             "dist": {
                 "type": "path",
                 "url": "src/Bridge/Temporal",
-                "reference": "aba77e8ebeb09e5c3351b162f6f7b73e561f2514"
+                "reference": "6cc5e39ff2da32f3f452eb807f3ac2d9adc472c0"
             },
             "require": {
                 "google/common-protos": "^4.9",
@@ -658,14 +658,15 @@
                 "gplanchat/durable": "self.version",
                 "grpc/grpc": "^1.57",
                 "php": ">=8.2",
+                "psr/log": "^1.1 || ^2.0 || ^3.0",
                 "symfony/config": "^6.4 || ^7.0 || ^8.0",
                 "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
                 "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
                 "symfony/messenger": "^6.4 || ^7.0 || ^8.0"
             },
             "suggest": {
-                "ext-grpc": "For transport=grpc (the default): the generated stub over the gRPC extension",
-                "gplanchat/durable-bridge-temporal-http": "For transport=grpc-curl or transport=http: the same RPCs without ext-grpc"
+                "ext-curl": "For transport=grpc-curl or transport=http, and the automatic fallback when ext-grpc is not loaded: the same RPCs over HTTP/2",
+                "ext-grpc": "For transport=grpc (the default): the generated stub over the gRPC extension"
             },
             "type": "library",
             "extra": {
@@ -705,62 +706,12 @@
             }
         },
         {
-            "name": "gplanchat/durable-bridge-temporal-http",
-            "version": "dev-main",
-            "dist": {
-                "type": "path",
-                "url": "src/Bridge/TemporalHttp",
-                "reference": "038a730a0d9a1bd1c5b7c627d60ff05fd37468ae"
-            },
-            "require": {
-                "ext-curl": "*",
-                "ext-json": "*",
-                "google/protobuf": "^4.31",
-                "gplanchat/durable-bridge-temporal": "self.version",
-                "php": ">=8.2"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-main": "0.1.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Gplanchat\\Bridge\\TemporalHttp\\": "./"
-                }
-            },
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Grégory Planchat",
-                    "email": "gregory@gyroscops.com"
-                }
-            ],
-            "description": "Temporal WorkflowService clients for gplanchat/durable without ext-grpc: gRPC over curl/HTTP2, and the server JSON gateway",
-            "keywords": [
-                "curl",
-                "durable-execution",
-                "grpc",
-                "http",
-                "orchestration",
-                "temporal",
-                "temporalio",
-                "workflow"
-            ],
-            "transport-options": {
-                "relative": true
-            }
-        },
-        {
             "name": "gplanchat/durable-bundle",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "src/DurableBundle",
-                "reference": "ca2fbd88a7ad283caaa1454de8c7843f14bcc362"
+                "reference": "b480e8e022e0d6d0a07630e5c8e2eb949713df2b"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -778,6 +729,8 @@
             },
             "suggest": {
                 "doctrine/orm": "Declares the DBAL journal tables to doctrine:schema:update and doctrine:migrations:diff, which would otherwise generate DROP TABLE for them (SchemaListener\\DurableSchemaListener)",
+                "gplanchat/durable-bridge-dbal": "SQL backend: DurableExtension wires its journal, stores and resume lock when event_store.type is dbal",
+                "gplanchat/durable-bridge-temporal": "Temporal backend: DurableExtension wires its client, stores and worker transports when durable.temporal.dsn is set",
                 "phpunit/phpunit": "Required by the shipped test helper (Testing\\DurableBundleTestTrait)",
                 "symfony/framework-bundle": "Required by consumers of the shipped test helper (Testing\\DurableBundleTestTrait), whose static::getContainer() resolves against a KernelTestCase",
                 "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)"
@@ -823,7 +776,7 @@
             "dist": {
                 "type": "path",
                 "url": "src/DurableLaravel",
-                "reference": "b92e1877246d6060b5ddd423c8678748a1ed8dbb"
+                "reference": "99d206d90243de401b66564f9dee7fd3cbe09447"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -837,7 +790,7 @@
             },
             "suggest": {
                 "gplanchat/durable-bridge-temporal": "Required by the \"temporal\" backend: the gRPC driver for a Temporal cluster. Suggested rather than required because it installs five Symfony components a Laravel application never loads.",
-                "illuminate/console": "Required by durable:temporal-worker, the only command this package adds. Every Laravel application already has it; it is suggested so that it stays out of a monorepo graph that still tests the Symfony 6.4 line."
+                "illuminate/console": "Required by durable:temporal-worker and durable:nexus-worker, the two commands this package adds. Every Laravel application already has it; it is suggested so that it stays out of a monorepo graph that still tests the Symfony 6.4 line."
             },
             "type": "library",
             "extra": {
@@ -11897,7 +11850,6 @@
         "gplanchat/durable-bridge-dbal": 20,
         "gplanchat/durable-bridge-illuminate": 20,
         "gplanchat/durable-bridge-temporal": 20,
-        "gplanchat/durable-bridge-temporal-http": 20,
         "gplanchat/durable-bundle": 20,
         "gplanchat/durable-laravel": 20,
         "gplanchat/durable-phpstan": 20,

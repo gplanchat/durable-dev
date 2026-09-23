@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Bridge\TemporalHttp;
+namespace Gplanchat\Bridge\Temporal\Http;
 
 use Google\Protobuf\Internal\Message;
 use Gplanchat\Bridge\Temporal\AbstractWorkflowServiceClient;
@@ -39,7 +39,7 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
             \CURLOPT_CUSTOMREQUEST => $verb,
             \CURLOPT_POSTFIELDS => 'GET' === $verb ? null : $json,
             \CURLOPT_HTTPHEADER => array_merge(
-                ['content-type: application/json', 'accept: application/json', 'user-agent: durable-bridge-temporal-http/php'],
+                ['content-type: application/json', 'accept: application/json', 'user-agent: durable-bridge-temporal/php'],
                 GrpcWire::metadataHeaders($metadata),
             ),
             \CURLOPT_RETURNTRANSFER => true,

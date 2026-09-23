@@ -1,6 +1,6 @@
 # `gplanchat/durable-bridge-temporal` (`src/Bridge/Temporal`)
 
-**gRPC** bridge (without the official Temporal PHP SDK) to persist the Durable journal in a **minimal Temporal workflow**. The wire is `ext-grpc` by default; every collaborator depends on `WorkflowServiceClientInterface`, so the sibling `durable-bridge-temporal-http` package can carry the same RPCs over curl.
+**gRPC** bridge (without the official Temporal PHP SDK) to persist the Durable journal in a **minimal Temporal workflow**. The wire is `ext-grpc` by default; every collaborator depends on `WorkflowServiceClientInterface`, so the same RPCs also travel over curl, without the extension.
 
 > **Read-only mirror.** This repository is a subtree-split of
 > **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
@@ -18,7 +18,7 @@ PHP namespace: **`Gplanchat\Bridge\Temporal`**.
 
 ## Requirements
 
-- PHP **ext-grpc**, or the `gplanchat/durable-bridge-temporal-http` package (curl over HTTP/2, used automatically when the extension is not loaded; also the `temporal+http://` JSON gateway, client calls only)
+- PHP **ext-grpc**, or **ext-curl** with HTTP/2 (used automatically when `ext-grpc` is not loaded; also the `temporal+http://` JSON gateway, client calls only) — see [Without `ext-grpc`](#without-ext-grpc-curl-or-the-json-gateway)
 - A reachable Temporal frontend (e.g. `host:7233`)
 
 ## Components
@@ -54,6 +54,45 @@ bin/console messenger:consume durable_workflows durable_activities durable_nexus
 ```
 
 The workers do their work inside `get()` and hand nothing to the Messenger worker, so `retry_strategy`, `failure_transport` and `messenger:consume --limit` have no effect on them: retries are the server's retry policy, and a failed poll is retried by the next `get()`.
+
+## Without `ext-grpc`: curl, or the JSON gateway
+
+The classes live under `Gplanchat\Bridge\Temporal\Http` and need `ext-curl` built with HTTP/2
+(nghttp2), which every mainstream distribution ships.
+
+| DSN | Class | Port | Covers |
+|---|---|---|---|
+| `temporal://`, `temporal+tls://` without `ext-grpc` (or `transport=grpc-curl` to force it) | `CurlGrpcWorkflowServiceClient` | 7233 (the gRPC frontend) | Every RPC the bridge uses, **workers included**. Same protocol as `ext-grpc`: one HTTP/2 POST per unary call, gRPC frame in the body, status in the trailers. |
+| `temporal+http://`, `temporal+https://` | `JsonGatewayWorkflowServiceClient` | 7243 (the JSON gateway) | The client side: start, signal, query, update, describe, list, history, cancel, terminate, and the activity completion RPCs. **No task queue poll and no workflow or Nexus task response**: the server does not bind them over HTTP. Calling one throws with gRPC code 12 (`UNIMPLEMENTED`). |
+
+```
+temporal://127.0.0.1:7233?namespace=default           # gRPC: ext-grpc if loaded, else curl (logged once)
+temporal+http://127.0.0.1?namespace=default           # JSON gateway, port defaults to 7243
+temporal://127.0.0.1:7233?namespace=default&transport=grpc-curl   # curl even with the extension
+```
+
+Both throw the same `\RuntimeException` as the `ext-grpc` path, with the gRPC status code as the
+exception code, so nothing above the transport tells them apart. Which one a process ended up with
+is printed by `durable:execution:diagnose` (Symfony) and by the worker commands (Laravel) at start.
+
+### Enabling the JSON gateway on a self-hosted server
+
+```yaml
+services:
+  frontend:
+    rpc:
+      httpPort: 7243
+```
+
+The development server takes `--http-port 7243`. Temporal Cloud exposes the gateway on its own
+endpoint; consult its documentation for the address.
+
+### Limits
+
+- A proxy or load balancer that only speaks HTTP/1.1 breaks `grpc-curl`, as it breaks `ext-grpc`;
+  `http` survives it.
+- Protobuf encoding is the pure-PHP runtime: correct, and slower than the C extension on large
+  history pages. Install `ext-protobuf` if that shows up in a profile.
 
 ## Symfony
 

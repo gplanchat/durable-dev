@@ -31,10 +31,10 @@ final class TemporalConnection
     /** ext-grpc and the generated stub, and nothing else: fails without the extension. */
     public const TRANSPORT_GRPC = 'grpc';
 
-    /** gRPC framing over curl/HTTP2, no extension; needs gplanchat/durable-bridge-temporal-http. */
+    /** gRPC framing over curl/HTTP2, no gRPC extension; needs ext-curl. */
     public const TRANSPORT_GRPC_CURL = 'grpc-curl';
 
-    /** The server JSON gateway (port 7243): client RPCs only, no task polling; same package. */
+    /** The server JSON gateway (port 7243): client RPCs only, no task polling; needs ext-curl. */
     public const TRANSPORT_HTTP = 'http';
 
     public const DEFAULT_HTTP_PORT = 7243;

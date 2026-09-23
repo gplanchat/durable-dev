@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace unit\Gplanchat\Bridge\TemporalHttp;
+namespace unit\Gplanchat\Bridge\Temporal\Http;
 
-use Gplanchat\Bridge\TemporalHttp\GrpcWire;
+use Gplanchat\Bridge\Temporal\Http\GrpcWire;
 use PHPUnit\Framework\TestCase;
 
 final class GrpcWireTest extends TestCase

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace unit\Gplanchat\Bridge\TemporalHttp;
+namespace unit\Gplanchat\Bridge\Temporal\Http;
 
-use Gplanchat\Bridge\TemporalHttp\JsonGatewayRequest;
+use Gplanchat\Bridge\Temporal\Http\JsonGatewayRequest;
 use PHPUnit\Framework\TestCase;
 
 final class JsonGatewayRequestTest extends TestCase
