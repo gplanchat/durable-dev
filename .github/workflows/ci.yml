@@ -34,7 +34,7 @@ jobs:
                   coverage: none
 
             - name: Cache Composer downloads
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ~/.cache/composer
                   key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
@@ -89,7 +89,7 @@ jobs:
             # requested line. Without it every package would have to be listed by hand, and the
             # monorepo root no longer requires any of them directly.
             - name: Cache Composer downloads
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ~/.cache/composer
                   key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
@@ -227,7 +227,7 @@ jobs:
             # The repository's packages come in through `path` repositories: the shop reads
             # `../src`, so it tests the code of this commit and not a published version.
             - name: Cache Composer downloads
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ~/.cache/composer
                   key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
@@ -393,7 +393,7 @@ jobs:
 
             # Without this cache, every execution re-downloads the distribution.
             - name: Cache Composer
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ~/.composer/cache
                   key: magento-boot-${{ hashFiles('magento/composer.lock') }}
@@ -503,7 +503,7 @@ jobs:
                   coverage: none
 
             - name: Cache Composer downloads
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ~/.cache/composer
                   key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
@@ -580,7 +580,7 @@ jobs:
                   coverage: none
 
             - name: Cache Composer downloads
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ~/.cache/composer
                   key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
@@ -614,7 +614,7 @@ jobs:
                   ini-values: pcov.directory=.
 
             - name: Cache Composer downloads
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ~/.cache/composer
                   key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
@@ -641,7 +641,7 @@ jobs:
                   coverage: none
 
             - name: Cache Composer downloads
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ~/.cache/composer
                   key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
