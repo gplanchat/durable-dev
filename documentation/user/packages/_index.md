@@ -29,7 +29,9 @@ The last two are **development-time tools**, `require-dev` rather than `require`
 
 - **`gplanchat/durable-phpstan`** resolves `activityStub()` and `childWorkflowStub()` calls against
   the contract interface, so a mistyped activity or a wrong argument is an analysis error instead of
-  a serialization failure at runtime.
+  a serialization failure at runtime. It also checks that an
+  [`#[Activities]` parameter](../workflows/#arguments-durable-supplies) and its
+  `@param ActivityStub<Contract>` docblock name the same contract.
 - **`gplanchat/durable-rector`** migrates a project off the official Temporal PHP SDK: the attribute
   rewrites and the execution-model change, keeping the workflow and activity type names a running
   server already knows. What it cannot convert it comments, so you know before you start. See
