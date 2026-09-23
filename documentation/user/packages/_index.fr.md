@@ -15,6 +15,7 @@ l'exécution est enregistrée.
 | `gplanchat/durable` | workflows, activités, minuteurs, journal d'événements, backend en mémoire | `psr/cache` |
 | `gplanchat/durable-bundle` | câblage Symfony, transports Messenger, panneau du profileur | la bibliothèque et Symfony Messenger |
 | `gplanchat/durable-bridge-temporal` | le pilote Temporal, en gRPC | la bibliothèque, `ext-grpc`, un cluster Temporal |
+| `gplanchat/durable-bridge-temporal-http` | le pilote Temporal sans `ext-grpc` : gRPC sur curl, ou la passerelle JSON | `durable-bridge-temporal`, `ext-curl` |
 | `gplanchat/durable-bridge-dbal` | l'exécution durable sur une base SQL | la bibliothèque, Doctrine DBAL 3 ou 4, `symfony/lock` |
 | `gplanchat/durable-bridge-illuminate` | la même chose, sur la connexion que Laravel possède déjà | la bibliothèque, `illuminate/database` 11, 12 ou 13 |
 | `gplanchat/durable-laravel` | le câblage Laravel : les ports liés depuis la configuration, le travail sur la file de l'application | la bibliothèque, le pont Illuminate, `illuminate/support` |

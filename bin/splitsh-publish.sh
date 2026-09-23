@@ -27,6 +27,7 @@ SPLITS=(
     "src/DurableBundle/|durable-bundle"
     "src/DurablePlugin/|durable-plugin"
     "src/Bridge/Temporal/|durable-bridge-temporal"
+    "src/Bridge/TemporalHttp/|durable-bridge-temporal-http"
     "src/Bridge/Dbal/|durable-bridge-dbal"
     "src/Bridge/Illuminate/|durable-bridge-illuminate"
     "src/DurableLaravel/|durable-laravel"

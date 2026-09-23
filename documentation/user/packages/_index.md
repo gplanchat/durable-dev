@@ -14,6 +14,7 @@ the workflow code, only where the execution is recorded.
 | `gplanchat/durable` | workflows, activities, timers, event journal, in-memory backend | `psr/cache` |
 | `gplanchat/durable-bundle` | Symfony wiring, Messenger transports, profiler panel | the library and Symfony Messenger |
 | `gplanchat/durable-bridge-temporal` | the Temporal driver, over gRPC | the library, `ext-grpc`, a Temporal cluster |
+| `gplanchat/durable-bridge-temporal-http` | the Temporal driver without `ext-grpc`: gRPC over curl, or the JSON gateway | `durable-bridge-temporal`, `ext-curl` |
 | `gplanchat/durable-bridge-dbal` | durable execution on one SQL database | the library, Doctrine DBAL 3 or 4, `symfony/lock` |
 | `gplanchat/durable-bridge-illuminate` | the same, on the connection Laravel already owns | the library, `illuminate/database` 11, 12 or 13 |
 | `gplanchat/durable-laravel` | the Laravel wiring: ports bound from config, work on the application's queue | the library, the Illuminate bridge, `illuminate/support` |

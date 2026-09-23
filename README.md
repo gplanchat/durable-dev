@@ -11,6 +11,7 @@ This monorepo contains:
 | `gplanchat/durable` | [`src/Durable/`](src/Durable/) | Core library (workflows, activities, event store, in-memory and integration surfaces) |
 | `gplanchat/durable-bundle` | [`src/DurableBundle/`](src/DurableBundle/) | Symfony bundle (Messenger, configuration, profiler) |
 | `gplanchat/durable-bridge-temporal` | [`src/Bridge/Temporal/`](src/Bridge/Temporal/) | Temporal gRPC bridge (no official Temporal PHP SDK; see **DUR006**) |
+| `gplanchat/durable-bridge-temporal-http` | [`src/Bridge/TemporalHttp/`](src/Bridge/TemporalHttp/) | The Temporal bridge without `ext-grpc`: gRPC over curl, or the server's JSON gateway |
 | `gplanchat/durable-bridge-dbal` | [`src/Bridge/Dbal/`](src/Bridge/Dbal/) | Doctrine DBAL journal + stores: durable execution on one SQL database, no cluster (**DUR030**) |
 | `gplanchat/durable-bridge-illuminate` | [`src/Bridge/Illuminate/`](src/Bridge/Illuminate/) | Illuminate (Laravel) journal + stores on the connection Laravel already owns (**DUR030**) |
 | `gplanchat/durable-laravel` | [`src/DurableLaravel/`](src/DurableLaravel/) | Laravel integration: binds the four storage ports from one published config file, work rides the application's queue |
