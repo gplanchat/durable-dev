@@ -88,25 +88,35 @@ profileur Symfony fonctionne d'un processus à l'autre.
 
 | Clé | Valeurs | Défaut | Description |
 |-----|---------|--------|-------------|
-| `dsn` | `temporal://hôte:port?…` ou `null` | `null` | À `null` : backend Messenger en mémoire. Défini : active le backend gRPC Temporal (`ext-grpc` requis). |
+| `dsn` | `temporal://hôte:port?…` ou `null` | `null` | À `null` : backend Messenger en mémoire. Défini : active le backend Temporal. Le gRPC passe par `ext-grpc` quand l'extension est chargée, par curl (HTTP/2) sinon ; le schéma choisit le fil, voir plus bas. |
 | `journal` | `true` / `false` | `true` | `false` dit que le cluster est joignable **sans** être le journal : `event_store` reste la source de vérité, et le tableau de bord continue de la lire. C'est ainsi qu'une application dont le journal est DBAL sert une opération Nexus ; voir [Opérations Nexus](../nexus/). Poser un DSN avec `journal: true` à côté d'`event_store.type: dbal` est refusé : le journal ne peut pas avoir deux sources de vérité. |
 
 ### Format du DSN
 
 ```
-temporal://HÔTE:PORT?namespace=ESPACE&journal_task_queue=FILE&activity_task_queue=FILE&tls=0|1
+temporal://HÔTE:PORT?namespace=ESPACE&journal_task_queue=FILE&activity_task_queue=FILE
 ```
+
+Le schéma nomme le fil et le chiffrement :
+
+| Schéma | Fil | TLS | Port par défaut | Demande |
+|--------|-----|-----|-----------------|---------|
+| `temporal://` | gRPC | non | 7233 | `ext-grpc`, ou `gplanchat/durable-bridge-temporal-http` (curl sur HTTP/2, choisi de lui-même quand l'extension n'est pas chargée ; le repli est journalisé une fois) |
+| `temporal+tls://` | gRPC | oui | 7233 | idem |
+| `temporal+http://` | la passerelle JSON du serveur | non | 7243 | `gplanchat/durable-bridge-temporal-http`, et le port HTTP activé sur le serveur. Appels client seulement : aucun worker ne peut y interroger sa file |
+| `temporal+https://` | la passerelle JSON du serveur | oui | 7243 | idem |
 
 | Paramètre | Requis | Description |
 |-----------|--------|-------------|
 | `namespace` | oui | Espace de noms Temporal (par exemple `default`). |
 | `journal_task_queue` | oui | File des tâches de workflow (par exemple `durable-journal`). |
 | `activity_task_queue` | oui | File des tâches d'activité (par exemple `durable-activities`). |
-| `tls` | non (défaut `0`) | `tls=1` pour activer TLS sur la connexion gRPC. |
+| `tls` | non | `tls=1` est l'ancienne écriture des schémas `+tls` et `+https` ; toujours acceptée. |
+| `transport` | non (défaut `auto`) | Surcharge ce que le schéma implique : `grpc` exige `ext-grpc` et échoue sans elle, `grpc-curl` force curl même quand l'extension est chargée, `http` est ce que `temporal+http://` pose. `auto` prend `grpc` si l'extension est chargée, `grpc-curl` sinon. |
 
 **Exemple :**
 ```
-temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0
+temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities
 ```
 
 Par variable d'environnement :

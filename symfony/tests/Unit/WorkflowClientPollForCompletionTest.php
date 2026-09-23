@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit;
 
+use Gplanchat\Bridge\Temporal\AbstractWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
+use Google\Protobuf\Internal\Message;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\EventType;
@@ -234,7 +236,7 @@ final class WorkflowClientPollForCompletionTest extends TestCase
  *
  * @internal
  */
-final class MultiResponseFakeWorkflowServiceClient extends \Temporal\Api\Workflowservice\V1\WorkflowServiceClient
+final class MultiResponseFakeWorkflowServiceClient extends AbstractWorkflowServiceClient
 {
     /** @var list<GetWorkflowExecutionHistoryResponse> */
     private array $queue;
@@ -242,18 +244,11 @@ final class MultiResponseFakeWorkflowServiceClient extends \Temporal\Api\Workflo
     /** @param list<GetWorkflowExecutionHistoryResponse> $responses */
     public function __construct(array $responses)
     {
-        // Parent constructor intentionally NOT called: avoids gRPC channel creation.
         $this->queue = $responses;
     }
 
-    public function GetWorkflowExecutionHistory(
-        $argument,
-        $metadata = [],
-        $options = [],
-    ): FakeGrpcCall {
-        $response = array_shift($this->queue) ?? new GetWorkflowExecutionHistoryResponse();
-        $status = (object) ['code' => 0, 'details' => ''];
-
-        return new FakeGrpcCall($response, $status);
+    protected function call(string $rpc, Message $request, string $responseClass, array $metadata, array $options): Message
+    {
+        return array_shift($this->queue) ?? new GetWorkflowExecutionHistoryResponse();
     }
 }

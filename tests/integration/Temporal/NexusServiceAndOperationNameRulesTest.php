@@ -10,6 +10,7 @@ use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
@@ -28,7 +29,6 @@ use Temporal\Api\Taskqueue\V1\TaskQueue;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * A probe, not a feature: the second half of §1.1, the half the endpoint probe could not reach. The
@@ -54,7 +54,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final class NexusServiceAndOperationNameRulesTest extends TestCase
 {
     private TemporalConnection $connection;
-    private WorkflowServiceClient $client;
+    private WorkflowServiceClientInterface $client;
     private OperatorServiceClient $operator;
     private string $endpointName;
     private string $endpointId = '';
@@ -111,7 +111,7 @@ final class NexusServiceAndOperationNameRulesTest extends TestCase
             $req->setReason('fin de sonde');
 
             try {
-                GrpcUnary::wait($this->client->TerminateWorkflowExecution($req, [], ['timeout' => 10_000_000]));
+                $this->client->TerminateWorkflowExecution($req, [], ['timeout' => 10_000_000]);
             } catch (\RuntimeException) {
             }
         }
@@ -174,7 +174,7 @@ final class NexusServiceAndOperationNameRulesTest extends TestCase
         $poll->setNamespace($this->connection->namespace->name());
         $poll->setTaskQueue(new TaskQueue(['name' => $this->connection->workflowTaskQueue->name()]));
         $poll->setIdentity($this->connection->identity);
-        $task = GrpcUnary::wait($this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]));
+        $task = $this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]);
 
         $attrs = new ScheduleNexusOperationCommandAttributes();
         $attrs->setEndpoint($this->endpointName);
@@ -191,9 +191,9 @@ final class NexusServiceAndOperationNameRulesTest extends TestCase
         $done->setIdentity($this->connection->identity);
         $done->setCommands([$command]);
 
-        /** @var array{0: mixed, 1: \stdClass} $pair */
-        $pair = $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000])->wait();
-        if (0 !== (int) ($pair[1]->code ?? -1)) {
+        try {
+            $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000]);
+        } catch (\RuntimeException) {
             return null;
         }
 

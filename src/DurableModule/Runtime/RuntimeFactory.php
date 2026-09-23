@@ -30,6 +30,7 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\WorkflowRegistry;
 use Magento\Framework\App\DeploymentConfig;
+use Psr\Log\LoggerInterface;
 
 /**
  * Assembles the engine for a Magento process.
@@ -98,6 +99,7 @@ class RuntimeFactory
         private readonly ?DeploymentConfig $deploymentConfig = null,
         private readonly int $maxActivityRetries = 0,
         private readonly float $budgetSeconds = InMemoryWorkflowRunner::DEFAULT_BUDGET_SECONDS,
+        private readonly ?LoggerInterface $logger = null,
     ) {}
 
     public function create(): MagentoRuntime
@@ -150,7 +152,7 @@ class RuntimeFactory
 
         return $settings === null
             ? new InMemoryEventStore()
-            : new TemporalJournalEventStore(WorkflowServiceClientFactory::create($settings), $settings);
+            : new TemporalJournalEventStore(WorkflowServiceClientFactory::create($settings, $this->logger), $settings);
     }
 
     /**
@@ -170,7 +172,7 @@ class RuntimeFactory
             return new InMemoryWorkflowRunCatalog(new InMemoryEventStore());
         }
 
-        $client = WorkflowServiceClientFactory::create($settings);
+        $client = WorkflowServiceClientFactory::create($settings, $this->logger);
 
         // The history cursor is not decorative: `listRuns()` returns only the Temporal workflow's
         // status — the journal's, which is **long by construction** and therefore eternally
@@ -205,7 +207,7 @@ class RuntimeFactory
             );
         }
 
-        $client = WorkflowServiceClientFactory::create($settings);
+        $client = WorkflowServiceClientFactory::create($settings, $this->logger);
         $registry = new WorkflowRegistry();
         foreach ($this->workflowClasses as $workflowClass) {
             $registry->registerClass($workflowClass);
@@ -236,7 +238,7 @@ class RuntimeFactory
     public function activityWorker(): TemporalActivityWorker
     {
         $settings = $this->requireCluster('An activity worker');
-        $client = WorkflowServiceClientFactory::create($settings);
+        $client = WorkflowServiceClientFactory::create($settings, $this->logger);
         $scratch = new InMemoryEventStore();
 
         return new TemporalActivityWorker(
@@ -265,7 +267,7 @@ class RuntimeFactory
     public function workflowClient(): WorkflowClient
     {
         $settings = $this->requireCluster('Starting a workflow on the cluster');
-        $client = WorkflowServiceClientFactory::create($settings);
+        $client = WorkflowServiceClientFactory::create($settings, $this->logger);
 
         return new WorkflowClient(
             $client,
