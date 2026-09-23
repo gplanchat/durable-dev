@@ -29,6 +29,8 @@ PHP namespace: **`Gplanchat\Bridge\Temporal`**.
 | `TemporalJournalTransport` | Symfony Messenger **receive-only** receiver: each `get()` long-polls a workflow task, replays the execution from the server's history and answers the task. The bundle registers it as `durable_workflows` |
 | `TemporalActivityWorkerTransport` | **Receive-only** receiver: each `get()` long-polls an activity task, runs the handler and reports the outcome. The bundle registers it as `durable_activities` |
 | `TemporalNexusWorkerTransport` | **Receive-only** receiver: each `get()` long-polls a Nexus task and serves the operation the application declared. The bundle registers it as `durable_nexus` once a handler exists |
+| `GrpcWorkflowServiceClient` | The WorkflowService over gRPC; how each call travels is a `GrpcTransport`'s |
+| `GrpcTransport` | One gRPC unary call, for any service: `ExtGrpcTransport` (`ext-grpc`), `Http\CurlGrpcTransport` (`ext-curl`, HTTP/2). `WorkflowServiceClientFactory` picks one from `transport=` |
 | `TemporalBridgeBundle` | Deprecated, registers nothing: remove it from `config/bundles.php` |
 
 ## Connection DSN
@@ -62,7 +64,7 @@ The classes live under `Gplanchat\Bridge\Temporal\Http` and need `ext-curl` buil
 
 | DSN | Class | Port | Covers |
 |---|---|---|---|
-| `temporal://`, `temporal+tls://` without `ext-grpc` (or `transport=grpc-curl` to force it) | `CurlGrpcWorkflowServiceClient` | 7233 (the gRPC frontend) | Every RPC the bridge uses, **workers included**. Same protocol as `ext-grpc`: one HTTP/2 POST per unary call, gRPC frame in the body, status in the trailers. |
+| `temporal://`, `temporal+tls://` without `ext-grpc` (or `transport=grpc-curl` to force it) | `GrpcWorkflowServiceClient` over `CurlGrpcTransport` | 7233 (the gRPC frontend) | Every RPC the bridge uses, **workers included**. Same protocol as `ext-grpc`: one HTTP/2 POST per unary call, gRPC frame in the body, status in the trailers. |
 | `temporal+http://`, `temporal+https://` | `JsonGatewayWorkflowServiceClient` | 7243 (the JSON gateway) | The client side: start, signal, query, update, describe, list, history, cancel, terminate, and the activity completion RPCs. **No task queue poll and no workflow or Nexus task response**: the server does not bind them over HTTP. Calling one throws with gRPC code 12 (`UNIMPLEMENTED`). |
 
 ```

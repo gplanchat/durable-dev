@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Http;
 
 use Google\Protobuf\Internal\Message;
-use Gplanchat\Bridge\Temporal\AbstractWorkflowServiceClient;
+use Gplanchat\Bridge\Temporal\Grpc\GrpcTransport;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 
 /**
@@ -13,22 +13,20 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
  * in the body and the status read from the trailers. Same port (7233), same protobuf messages,
  * so every RPC the bridge uses works here, task polling included.
  */
-final class CurlGrpcWorkflowServiceClient extends AbstractWorkflowServiceClient
+final class CurlGrpcTransport implements GrpcTransport
 {
-    private const SERVICE_PATH = '/temporal.api.workflowservice.v1.WorkflowService/';
-
     public function __construct(private readonly TemporalConnection $connection) {}
 
-    protected function call(string $rpc, Message $request, string $responseClass, array $metadata, array $options): Message
+    public function unary(string $method, Message $request, string $responseClass, array $metadata, ?int $timeoutMs): Message
     {
         $headers = ['content-type: application/grpc', 'te: trailers', 'user-agent: durable-bridge-temporal/php'];
-        $timeoutMs = GrpcWire::timeoutMs($options);
+        $timeoutMs ??= 0;
         if ($timeoutMs > 0) {
             $headers[] = 'grpc-timeout: ' . $timeoutMs . 'm';
         }
 
         $collected = [];
-        $curl = curl_init(($this->connection->tls ? 'https://' : 'http://') . $this->connection->target . self::SERVICE_PATH . $rpc);
+        $curl = curl_init(($this->connection->tls ? 'https://' : 'http://') . $this->connection->target . $method);
         curl_setopt_array($curl, [
             \CURLOPT_POST => true,
             \CURLOPT_POSTFIELDS => GrpcWire::frame($request->serializeToString()),

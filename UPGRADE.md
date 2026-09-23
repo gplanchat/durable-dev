@@ -24,6 +24,26 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### The gRPC client composes a transport
+
+**Who is affected**: code that builds a Temporal client by hand instead of through
+`WorkflowServiceClientFactory::create()`. Every host (Symfony, Laravel, Magento) goes through the
+factory and is unaffected.
+
+`Gplanchat\Bridge\Temporal\Grpc\GrpcWorkflowServiceClient` now takes a
+`Gplanchat\Bridge\Temporal\Grpc\GrpcTransport` — how one unary call travels — instead of the
+generated stub, and `Gplanchat\Bridge\Temporal\Http\CurlGrpcWorkflowServiceClient` becomes that
+transport over curl, `CurlGrpcTransport`.
+
+| `v0.1.0-alpha12` | Now |
+|---|---|
+| `new GrpcWorkflowServiceClient(WorkflowServiceClientFactory::createStub($connection))` | `new GrpcWorkflowServiceClient(new ExtGrpcTransport($connection))` |
+| `new CurlGrpcWorkflowServiceClient($connection)` | `new GrpcWorkflowServiceClient(new CurlGrpcTransport($connection))` |
+
+Or ask the factory, which picks the transport from the DSN: `WorkflowServiceClientFactory::create($connection)`,
+or `createTransport($connection)` for the transport alone. Rector cannot help: a class became an
+argument of another, which no rename expresses.
+
 ### The Temporal workers are the bundle's, and `purpose=` is gone
 
 **Who is affected**: a Symfony application on the Temporal backend (`durable.temporal.dsn` set).

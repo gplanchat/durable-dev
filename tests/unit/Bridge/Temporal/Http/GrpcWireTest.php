@@ -60,6 +60,8 @@ final class GrpcWireTest extends TestCase
         self::assertSame(0, GrpcWire::timeoutMs([]));
         self::assertSame(60_000, GrpcWire::timeoutMs(['timeout' => 60_000_000]));
         self::assertSame(2, GrpcWire::timeoutMs(['timeout' => 1_001]));
+        // ext-grpc takes any number of microseconds; a float deadline must not vanish.
+        self::assertSame(1_500, GrpcWire::timeoutMs(['timeout' => 1.5e6]));
     }
 
     public function testMetadataBecomesOneHeaderLinePerValue(): void

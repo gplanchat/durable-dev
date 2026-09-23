@@ -6,25 +6,23 @@ namespace Gplanchat\Bridge\Temporal\Grpc;
 
 use Google\Protobuf\Internal\Message;
 use Gplanchat\Bridge\Temporal\AbstractWorkflowServiceClient;
-use Grpc\UnaryCall;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
+use Gplanchat\Bridge\Temporal\Http\GrpcWire;
 
 /**
- * The ext-grpc transport: the generated stub, waited on synchronously.
+ * The Temporal WorkflowService over gRPC. The RPC methods are the traits'; how each call travels
+ * is the {@see GrpcTransport}'s.
  */
 final class GrpcWorkflowServiceClient extends AbstractWorkflowServiceClient
 {
-    public function __construct(private readonly WorkflowServiceClient $stub) {}
+    private const SERVICE_PATH = '/temporal.api.workflowservice.v1.WorkflowService/';
+
+    public function __construct(private readonly GrpcTransport $transport) {}
 
     protected function call(string $rpc, Message $request, string $responseClass, array $metadata, array $options): Message
     {
-        /** @var UnaryCall $call */
-        $call = $this->stub->{$rpc}($request, $metadata, $options);
-        $response = GrpcUnary::wait($call);
-        if (!$response instanceof $responseClass) {
-            throw new \RuntimeException(\sprintf('Unexpected %s response type: %s.', $rpc, $response::class));
-        }
+        $timeoutMs = GrpcWire::timeoutMs($options);
 
-        return $response;
+        /** @var array<string, list<string>> $metadata */
+        return $this->transport->unary(self::SERVICE_PATH . $rpc, $request, $responseClass, $metadata, $timeoutMs > 0 ? $timeoutMs : null);
     }
 }
