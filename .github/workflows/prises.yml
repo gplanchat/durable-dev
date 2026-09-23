@@ -34,7 +34,7 @@ jobs:
     name: Stale claims and titles
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Before querying the remote: the check checks itself, offline. Its first version declared a
       # live claim stale, and nothing had seen it coming.
