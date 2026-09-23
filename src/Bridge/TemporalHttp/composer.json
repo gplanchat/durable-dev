@@ -1,0 +1,42 @@
+{
+    "name": "gplanchat/durable-bridge-temporal-http",
+    "description": "Temporal WorkflowService clients for gplanchat/durable without ext-grpc: gRPC over curl/HTTP2, and the server JSON gateway",
+    "keywords": [
+        "temporal",
+        "temporalio",
+        "grpc",
+        "http",
+        "curl",
+        "durable-execution",
+        "workflow",
+        "orchestration"
+    ],
+    "license": "MIT",
+    "type": "library",
+    "require": {
+        "php": ">=8.2",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "gplanchat/durable-bridge-temporal": "self.version",
+        "google/protobuf": "^4.31"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gplanchat\\Bridge\\TemporalHttp\\": "./"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "authors": [
+        {
+            "name": "Grégory Planchat",
+            "email": "gregory@gyroscops.com"
+        }
+    ]
+}

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Laravel\Console;
 
+use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Illuminate\Console\Command;
 
 /**
@@ -24,8 +26,9 @@ final class TemporalWorkerCommand extends Command
 
     protected $description = 'Drain Temporal workflow tasks for the durable workflows this application declares';
 
-    public function handle(WorkflowTaskProcessor $processor): int
+    public function handle(WorkflowTaskProcessor $processor, TemporalConnection $connection): int
     {
+        $this->line(\sprintf('Temporal %s, transport %s.', $connection->target, WorkflowServiceClientFactory::effectiveTransport($connection)));
         $maxTime = (int) $this->option('max-time');
         $deadline = $maxTime > 0 ? microtime(true) + $maxTime : null;
 

@@ -224,6 +224,45 @@ Un message enregistré après le déclenchement de l'échéance n'est jamais app
 cette échéance a tranchée ; il reste disponible pour l'attente suivante, et son gestionnaire
 s'exécute à ce moment-là. Voir **DUR032** et **DUR035**.
 
+### Les arguments que fournit Durable {#arguments-durable-supplies}
+
+La méthode du workflow peut recevoir ses stubs d'activités et son environnement en arguments, au
+lieu de les construire dans un constructeur :
+
+```php
+/** @param ActivityStub<OrderActivities> $orders */
+#[AsWorkflowMethod]
+public function run(
+    string $orderId,
+    #[Activities(OrderActivities::class)]
+    ActivityStub $orders,
+    WorkflowEnvironment $env,
+): mixed {
+    return $env->await($orders->charge($orderId));
+}
+```
+
+- Un paramètre typé **`WorkflowEnvironment`** reçoit l'environnement.
+- Un paramètre typé **`ActivityStub`** et marqué **`#[Activities(Contrat::class)]`** reçoit
+  `$env->activityStub(Contrat::class)`. PHP n'a pas de génériques à l'exécution : c'est l'attribut
+  qui nomme le contrat.
+- Tout autre paramètre est une **entrée**, lue par son nom, comme avant. Les paramètres fournis ne
+  sont jamais passés par l'appelant : ni par le code qui démarre le workflow, ni par un parent qui
+  l'appelle comme enfant, ni par une opération Nexus.
+- Le docblock **`@param ActivityStub<Contrat>`** sert à PHPStan. Avec
+  [`gplanchat/durable-phpstan`](../packages/), un docblock qui nomme un autre contrat que
+  l'attribut est une erreur, et son absence aussi (`durable.activities.missingGeneric`, que l'on
+  peut ignorer), puisque PHPStan ne peut pas vérifier les appels sans lui.
+- Un stub qui a besoin d'**`ActivityOptions`** garde `$env->activityStub($contrat, $options)` : les
+  arguments d'un attribut ne savent pas construire une `Duration`.
+- Les erreurs surviennent dès l'**enregistrement** du workflow (compilation du conteneur, avec le
+  bundle) : un `ActivityStub` sans `#[Activities]`, un `#[Activities]` sur un autre type, un
+  contrat introuvable, ou un contrat qui ne déclare aucun `#[AsActivityMethod]`.
+
+La forme par constructeur reste valable. C'est celle qu'il faut quand la classe implémente une
+interface de contrat comme `OrderWorkflowContract` plus haut : PHP n'autorise pas l'implémentation à
+ajouter des paramètres obligatoires à `run()`.
+
 ### `ActivityOptions` sur le stub
 
 Pour appliquer **réessais**, **délais**, **file de tâches** et métadonnées de planification voisines à tous les appels passant par un stub donné, passez des **`ActivityOptions`** en second argument d'**`activityStub()`** :
@@ -292,7 +331,7 @@ ce qu'un workflow peut faire, et rien de ce que le moteur garde pour lui.
 | `some($count, ...$awaitables)` | Se résout quand `$count` membres ont **réussi**, indexés par position de déclaration. Les autres sont annulés. |
 | `timer($duration, $summary = '')` | Un awaitable qui se résout à l'échéance de la durée. Se compose comme n'importe quel autre. |
 | `sleep($duration, $summary = '')` | Attend, et fait l'attente pour vous. Dit ce qu'il fait. |
-| `activityStub($contract, $options = null)` | Un proxy typé sur un contrat d'activité. Construisez-le dans le constructeur ; tous ses appels portent `$options`. |
+| `activityStub($contract, $options = null)` | Un proxy typé sur un contrat d'activité. Construisez-le dans le constructeur, ou déclarez-le en [argument `#[Activities]`](#arguments-durable-supplies) s'il n'a pas besoin d'options ; tous ses appels portent `$options`. |
 | `childWorkflowStub($class, $options = null)` | Le même, pour un workflow enfant : résolu depuis la classe de l'enfant, et ses appels se composent comme les autres. |
 | `onSignal($name, $handler)` | Enregistre un gestionnaire de signal. Le gestionnaire mute l'état du workflow et `await()` l'observe ; il n'y a pas d'attente séparée. Le nom prend une énumération adossée, donc une faute de frappe est une erreur de type et non une attente qui ne se résout jamais. |
 | `onUpdate($name, $handler)` | Le même pour une mise à jour, dont la valeur de retour du gestionnaire est la réponse rendue à l'appelant. |
