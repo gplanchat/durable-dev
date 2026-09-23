@@ -5,23 +5,21 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal;
 
 use Gplanchat\Bridge\Temporal\Grpc\GrpcWorkflowServiceClient;
+use Gplanchat\Bridge\Temporal\Http\CurlGrpcWorkflowServiceClient;
+use Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient;
 use Grpc\ChannelCredentials;
 use Psr\Log\LoggerInterface;
 use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 final class WorkflowServiceClientFactory
 {
-    private const CURL_CLIENT = 'Gplanchat\Bridge\Temporal\Http\CurlGrpcWorkflowServiceClient';
-
-    private const HTTP_CLIENT = 'Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient';
-
     /** @var array<string, true> the fallbacks already logged by this process, one line each */
     private static array $logged = [];
 
     public static function assertGrpcExtension(): void
     {
         if (!\extension_loaded('grpc')) {
-            throw new \RuntimeException('PHP extension "grpc" is required for transport=grpc; without it, install gplanchat/durable-bridge-temporal-http and use transport=grpc-curl.');
+            throw new \RuntimeException('PHP extension "grpc" is required for transport=grpc; without it, use transport=grpc-curl, which only needs the curl extension.');
         }
     }
 
@@ -33,7 +31,7 @@ final class WorkflowServiceClientFactory
      */
     public static function create(TemporalConnection $settings, ?LoggerInterface $logger = null): WorkflowServiceClientInterface
     {
-        [$transport, $reason] = self::resolve($settings->transport, \extension_loaded('grpc'), class_exists(self::CURL_CLIENT));
+        [$transport, $reason] = self::resolve($settings->transport, \extension_loaded('grpc'), \extension_loaded('curl'));
         if (null !== $reason && !isset(self::$logged[$reason])) {
             self::$logged[$reason] = true;
             $message = 'Temporal: ' . $reason;
@@ -45,19 +43,19 @@ final class WorkflowServiceClientFactory
             return new GrpcWorkflowServiceClient(self::createStub($settings));
         }
 
-        $class = TemporalConnection::TRANSPORT_HTTP === $transport ? self::HTTP_CLIENT : self::CURL_CLIENT;
-        if (!class_exists($class)) {
-            throw new \RuntimeException(\sprintf('transport=%s requires the gplanchat/durable-bridge-temporal-http package.', $transport));
+        if (!\extension_loaded('curl')) {
+            throw new \RuntimeException(\sprintf('transport=%s requires the PHP extension "curl".', $transport));
         }
 
-        /** @var class-string<WorkflowServiceClientInterface> $class */
-        return new $class($settings);
+        return TemporalConnection::TRANSPORT_HTTP === $transport
+            ? new JsonGatewayWorkflowServiceClient($settings)
+            : new CurlGrpcWorkflowServiceClient($settings);
     }
 
     /** The transport {@see create} would build for this connection on this machine. */
     public static function effectiveTransport(TemporalConnection $settings): string
     {
-        return self::resolve($settings->transport, \extension_loaded('grpc'), class_exists(self::CURL_CLIENT))[0];
+        return self::resolve($settings->transport, \extension_loaded('grpc'), \extension_loaded('curl'))[0];
     }
 
     /**
@@ -67,7 +65,7 @@ final class WorkflowServiceClientFactory
      *
      * @return array{0: string, 1: string|null} [effective transport, reason for a fallback]
      */
-    public static function resolve(string $requested, bool $grpcLoaded, bool $httpPackageInstalled): array
+    public static function resolve(string $requested, bool $grpcLoaded, bool $curlLoaded): array
     {
         if (TemporalConnection::TRANSPORT_AUTO !== $requested) {
             return [$requested, null];
@@ -75,11 +73,11 @@ final class WorkflowServiceClientFactory
         if ($grpcLoaded) {
             return [TemporalConnection::TRANSPORT_GRPC, null];
         }
-        if ($httpPackageInstalled) {
+        if ($curlLoaded) {
             return [TemporalConnection::TRANSPORT_GRPC_CURL, 'ext-grpc is not loaded, using curl over HTTP/2 (transport=auto).'];
         }
 
-        throw new \RuntimeException('Temporal needs either the PHP extension "grpc" or the gplanchat/durable-bridge-temporal-http package (curl over HTTP/2); neither is installed.');
+        throw new \RuntimeException('Temporal needs the PHP extension "grpc", or the PHP extension "curl" (gRPC over HTTP/2); neither is loaded.');
     }
 
     public static function createStub(TemporalConnection $settings): WorkflowServiceClient

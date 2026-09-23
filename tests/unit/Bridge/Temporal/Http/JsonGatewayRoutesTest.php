@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Temporal\Http;
 
-use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Bridge\Temporal\Http\JsonGatewayRoutes;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use PHPUnit\Framework\TestCase;
 
 /**

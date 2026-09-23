@@ -21,7 +21,7 @@ final class CurlGrpcWorkflowServiceClient extends AbstractWorkflowServiceClient
 
     protected function call(string $rpc, Message $request, string $responseClass, array $metadata, array $options): Message
     {
-        $headers = ['content-type: application/grpc', 'te: trailers', 'user-agent: durable-bridge-temporal-http/php'];
+        $headers = ['content-type: application/grpc', 'te: trailers', 'user-agent: durable-bridge-temporal/php'];
         $timeoutMs = GrpcWire::timeoutMs($options);
         if ($timeoutMs > 0) {
             $headers[] = 'grpc-timeout: ' . $timeoutMs . 'm';

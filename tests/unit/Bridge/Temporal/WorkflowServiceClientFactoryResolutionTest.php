@@ -29,14 +29,16 @@ final class WorkflowServiceClientFactoryResolutionTest extends TestCase
         self::assertStringContainsString('ext-grpc is not loaded', $reason);
     }
 
-    public function testAutoWithNothingInstalledNamesBothRemedies(): void
+    public function testAutoWithNeitherExtensionNamesBoth(): void
     {
         try {
             WorkflowServiceClientFactory::resolve('auto', false, false);
             self::fail('Nothing to resolve to.');
         } catch (\RuntimeException $e) {
+            // Both remedies are PHP extensions: the curl clients ship with this bridge.
             self::assertStringContainsString('"grpc"', $e->getMessage());
-            self::assertStringContainsString('durable-bridge-temporal-http', $e->getMessage());
+            self::assertStringContainsString('"curl"', $e->getMessage());
+            self::assertStringNotContainsString('package', $e->getMessage());
         }
     }
 
