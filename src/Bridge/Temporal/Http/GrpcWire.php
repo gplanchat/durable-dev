@@ -76,7 +76,7 @@ final class GrpcWire
     {
         $timeout = $options['timeout'] ?? 0;
 
-        return \is_int($timeout) && $timeout > 0 ? (int) ceil($timeout / 1000) : 0;
+        return (\is_int($timeout) || \is_float($timeout)) && $timeout > 0 ? (int) ceil((float) $timeout / 1000.0) : 0;
     }
 
     /** gRPC metadata (name => value or list of values) as header lines. */
