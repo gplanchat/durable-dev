@@ -36,6 +36,7 @@ use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
+use Gplanchat\Durable\Bundle\Command\DurableWorkerCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
 use Gplanchat\Durable\Bundle\EventListener\ResetDurableProfilerListener;
@@ -778,6 +779,18 @@ final class DurableExtension extends Extension
                 new Reference('durable.temporal.connection', ContainerInterface::NULL_ON_INVALID_REFERENCE),
             ])
             ->addTag('console.command')
+        ;
+
+        $activityTransport = 'messenger' === ($config['activity_transport']['type'] ?? '') && !$isTemporalNative
+            ? ($config['activity_transport']['transport_name'] ?? 'durable_activities')
+            : null;
+        $container->register(DurableWorkerCommand::class)
+            ->setArguments([
+                new Reference('messenger.senders_locator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                new Reference('messenger.receiver_locator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                $activityTransport,
+            ])
+            ->addTag('console.command', ['command' => 'durable:worker'])
         ;
     }
 

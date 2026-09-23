@@ -42,8 +42,8 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
     private const FORWARDED_OPTIONS = ['limit', 'failure-limit', 'memory-limit', 'time-limit', 'sleep'];
 
     public function __construct(
-        private readonly SendersLocatorInterface $senders,
-        private readonly ContainerInterface $receivers,
+        private readonly ?SendersLocatorInterface $senders,
+        private readonly ?ContainerInterface $receivers,
         private readonly ?string $activityTransport,
     ) {
         parent::__construct();
@@ -59,6 +59,12 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        if (null === $this->senders || null === $this->receivers) {
+            $output->writeln('<error>durable:worker needs Symfony Messenger: enable framework.messenger.</error>');
+
+            return Command::FAILURE;
+        }
+
         $roles = $input->getOption('role') ?: self::ROLES;
         if ([] !== $unknown = array_diff($roles, self::ROLES)) {
             $output->writeln(\sprintf('<error>Unknown role "%s": expected workflow, activity or nexus.</error>', implode('", "', $unknown)));
@@ -114,7 +120,7 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
     private function routedTo(object $message): array
     {
         $names = [];
-        foreach ($this->senders->getSenders(new Envelope($message)) as $name => $sender) {
+        foreach ($this->senders?->getSenders(new Envelope($message)) ?? [] as $name => $sender) {
             if (!$sender instanceof SyncTransport) {
                 $names[] = (string) $name;
             }
