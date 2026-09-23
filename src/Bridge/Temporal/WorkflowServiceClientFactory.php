@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal;
 
+use Gplanchat\Bridge\Temporal\Grpc\ExtGrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Http\CurlGrpcWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient;
@@ -84,10 +85,21 @@ final class WorkflowServiceClientFactory
     {
         self::assertGrpcExtension();
 
+        return new WorkflowServiceClient($settings->target, self::channelOptions($settings));
+    }
+
+    /**
+     * The ext-grpc channel options for this connection, shared by {@see createStub} and
+     * {@see ExtGrpcTransport}.
+     *
+     * @return array{credentials: mixed}
+     */
+    public static function channelOptions(TemporalConnection $settings): array
+    {
         $credentials = $settings->tls
             ? ChannelCredentials::createSsl()
             : ChannelCredentials::createInsecure();
 
-        return new WorkflowServiceClient($settings->target, ['credentials' => $credentials]);
+        return ['credentials' => $credentials];
     }
 }
