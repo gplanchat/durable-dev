@@ -16,6 +16,9 @@ use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
+use Gplanchat\Bridge\Temporal\Messenger\TemporalActivityWorkerTransport;
+use Gplanchat\Bridge\Temporal\Messenger\TemporalJournalTransport;
+use Gplanchat\Bridge\Temporal\Messenger\TemporalNexusWorkerTransport;
 use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowResumeDispatcher;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
@@ -896,6 +899,29 @@ final class DurableExtension extends Extension
                 new Reference('durable.temporal.nexus_registry'),
             ])
             ->setPublic(true)
+        ;
+
+        // The workers are consumed by alias (`messenger:consume durable_workflows`), with no
+        // transport in the application's messenger.yaml: one server, one DSN, and the bundle knows
+        // which loop each name runs. NexusHandlerPass tags the Nexus one once a handler exists.
+        $container->register('durable.temporal.nexus_receiver', TemporalNexusWorkerTransport::class)
+            ->setArguments([new Reference('durable.temporal.nexus_worker')])
+        ;
+
+        // Without the journal, workflows run locally and the application's own
+        // durable_workflows / durable_activities transports carry them.
+        if (!self::isTemporalNative($config)) {
+            return;
+        }
+
+        $container->register('durable.temporal.workflows_receiver', TemporalJournalTransport::class)
+            ->setArguments([new Reference(WorkflowTaskProcessor::class)])
+            ->addTag('messenger.receiver', ['alias' => 'durable_workflows'])
+        ;
+
+        $container->register('durable.temporal.activities_receiver', TemporalActivityWorkerTransport::class)
+            ->setArguments([new Reference('durable.temporal.activity_worker')])
+            ->addTag('messenger.receiver', ['alias' => 'durable_activities'])
         ;
     }
 }

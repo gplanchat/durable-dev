@@ -61,7 +61,7 @@ final class TemporalConnection
         TaskQueue|string|null $nexusTaskQueue = null,
         /**
          * Delegated Messenger DSN as long as the application transport is not fully gRPC.
-         * Null for the journal transport (receive-only); required for purpose=application.
+         * Read by no Durable code since the application transport was removed (#420).
          */
         public readonly ?string $innerMessengerDsn = null,
     ) {

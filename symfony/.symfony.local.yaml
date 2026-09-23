@@ -1,23 +1,12 @@
 # Symfony CLI: runs workers in parallel with `symfony serve` (from this directory).
-# - durable_temporal_journal: Temporal journal gRPC poll (receive-only, DURABLE_TEMPORAL_DSN).
-# - durable_temporal_activity: Temporal activity poll (TemporalActivityWorker → ActivityMessageProcessor).
-# - durable_workflows / durable_activities: application queues (inner Doctrine).
+# Under Temporal (APP_ENV=dev, DURABLE_DSN) the Durable bundle registers these workers itself:
+# - durable_workflows: polls workflow tasks (WorkflowTaskProcessor).
+# - durable_activities: polls activity tasks (TemporalActivityWorker → ActivityMessageProcessor).
+# - durable_nexus: polls Nexus tasks, for the operations this application serves.
 #
-# Prerequisites: APP_ENV=dev, ext-grpc, `docker compose up -d`, DURABLE_TEMPORAL_DSN + MESSENGER_DURABLE_* in .env.dev.
+# Prerequisites: APP_ENV=dev, ext-grpc, `docker compose up -d`.
 
 workers:
-    durable_temporal_journal_1:
-        cmd: ['symfony', 'console', 'messenger:consume', 'durable_temporal_journal', '-vv']
-        watch: ['config', 'src', 'templates', 'vendor/composer/installed.json']
-    durable_temporal_journal_2:
-        cmd: ['symfony', 'console', 'messenger:consume', 'durable_temporal_journal', '-vv']
-        watch: ['config', 'src', 'templates', 'vendor/composer/installed.json']
-    durable_temporal_activity_1:
-        cmd: ['symfony', 'console', 'messenger:consume', 'durable_temporal_activity', '-vv']
-        watch: ['config', 'src', 'templates', 'vendor/composer/installed.json']
-    durable_temporal_activity_2:
-        cmd: ['symfony', 'console', 'messenger:consume', 'durable_temporal_activity', '-vv']
-        watch: ['config', 'src', 'templates', 'vendor/composer/installed.json']
     durable_workflows_1:
         cmd: ['symfony', 'console', 'messenger:consume', 'durable_workflows', '-vv']
         watch: ['config', 'src', 'templates', 'vendor/composer/installed.json']
@@ -29,6 +18,9 @@ workers:
         watch: ['config', 'src', 'templates', 'vendor/composer/installed.json']
     durable_activities_2:
         cmd: ['symfony', 'console', 'messenger:consume', 'durable_activities', '-vv']
+        watch: ['config', 'src', 'templates', 'vendor/composer/installed.json']
+    durable_nexus_1:
+        cmd: ['symfony', 'console', 'messenger:consume', 'durable_nexus', '-vv']
         watch: ['config', 'src', 'templates', 'vendor/composer/installed.json']
     docker_compose:
         cmd: ['docker', 'compose', 'up']

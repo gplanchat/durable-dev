@@ -86,11 +86,14 @@ communique en **gRPC**, via `ext-grpc`.
 1. Quand `DURABLE_DSN` est défini, `DurableExtension` enregistre les services propres à Temporal
    (`WorkflowClient`, `TemporalHistoryCursor`, les workers).
 2. Démarrer un workflow appelle le gRPC `StartWorkflowExecution` sur Temporal.
-3. Les **tâches de workflow** sont récupérées par le consommateur Messenger
-   `durable_temporal_journal`.
-4. Les **tâches d'activité** sont récupérées par le consommateur `durable_temporal_activity`.
+3. Les **tâches de workflow** sont récupérées par le worker `durable_workflows`.
+4. Les **tâches d'activité** sont récupérées par le worker `durable_activities`.
 5. Chaque tâche de workflow rejoue l'historique via le `WorkflowTaskRunner` à fibres et renvoie ses
    commandes à Temporal.
+
+Le bundle enregistre lui-même ces workers à partir de `durable.temporal.dsn` : `messenger:consume`
+les trouve par leur nom, et `messenger.yaml` ne déclare aucun transport Temporal. Un troisième,
+`durable_nexus`, existe quand l'application [sert une opération Nexus](../nexus/).
 
 ### Prérequis
 
@@ -131,8 +134,8 @@ docker compose up -d
 Attendez que la pile soit saine, puis démarrez les workers Symfony :
 
 ```bash
-php bin/console messenger:consume durable_temporal_journal --time-limit=3600
-php bin/console messenger:consume durable_temporal_activity --time-limit=3600
+php bin/console messenger:consume durable_workflows --time-limit=3600
+php bin/console messenger:consume durable_activities --time-limit=3600
 ```
 
 Le binaire `symfony serve` lit `.symfony.local.yaml` et démarre les workers tout seul s'ils y sont
@@ -143,8 +146,6 @@ configurés.
 ```yaml
 # .env.local (dev/prod)
 DURABLE_DSN=temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0
-MESSENGER_DURABLE_WORKFLOW_DSN=in-memory://
-MESSENGER_DURABLE_ACTIVITY_DSN=in-memory://
 ```
 
 ```yaml
@@ -154,21 +155,13 @@ durable:
         type: in_memory   # Temporal est la vraie source de l'historique ; l'en-mémoire sert de cache local en écriture traversante
     temporal:
         dsn: '%env(DURABLE_DSN)%'
-
-# config/packages/messenger.yaml
-when@dev:
-    framework:
-        messenger:
-            transports:
-                durable_temporal_journal:
-                    dsn: '%env(DURABLE_DSN)%'
-                durable_temporal_activity:
-                    dsn: '%env(DURABLE_DSN)%'
-                    options:
-                        purpose: activity_worker
-            routing:
-                Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows
 ```
+
+Rien ne va dans `messenger.yaml` pour Temporal. S'il déclare encore `durable_workflows` ou
+`durable_activities` avec ce backend, le conteneur refuse de compiler et nomme le transport à
+retirer : ces noms appartiennent aux workers du bundle. L'exception est
+`durable.temporal.journal: false` : les workflows tournent alors en local, et ces deux transports
+restent ceux de l'application.
 
 ### L'interface Temporal
 

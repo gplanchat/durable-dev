@@ -592,8 +592,8 @@ jobs:
             - name: PHPUnit (journal history replay)
               run: vendor/bin/phpunit tests/unit/Bridge/Temporal/JournalStateResolverTest.php
 
-            - name: PHPUnit (Temporal transport factory, ext-grpc)
-              run: vendor/bin/phpunit tests/unit/Bridge/Temporal/Messenger/TemporalTransportFactoryTest.php
+            - name: PHPUnit (Temporal workers registered by the bundle, ext-grpc)
+              run: vendor/bin/phpunit tests/unit/DurableBundle/DependencyInjection/DurableTemporalReceiversTest.php tests/unit/DurableBundle/DependencyInjection/Compiler/TemporalReceiversPassTest.php
 
             - name: PHPUnit (WorkflowTaskRunner + WorkflowTaskProcessor — fiber replay, DUR027)
               run: vendor/bin/phpunit tests/unit/Bridge/Temporal/Worker/

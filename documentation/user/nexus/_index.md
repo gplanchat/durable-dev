@@ -172,22 +172,11 @@ its other operations.
 
 ## Running the worker
 
-Serving needs a worker on the Nexus task queue. It is a Messenger transport, like the activity
-worker:
-
-```yaml
-# config/packages/messenger.yaml
-framework:
-    messenger:
-        transports:
-            durable_temporal_nexus:
-                dsn: '%env(DURABLE_DSN)%'
-                options:
-                    purpose: nexus_worker
-```
+Serving needs a worker on the Nexus task queue. The bundle registers it itself, like the workflow
+and activity workers, as soon as a handler is declared; `messenger.yaml` declares nothing:
 
 ```bash
-php bin/console messenger:consume durable_temporal_nexus --time-limit=3600
+php bin/console messenger:consume durable_nexus --time-limit=3600
 ```
 
 The queue comes from the DSN. `nexus_task_queue` sets it; **it defaults to the workflow task
