@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace integration\Temporal;
 
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Command\V1\Command;
@@ -23,7 +23,6 @@ use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * A probe, not a feature: the "temporal-nexus-support" change promises that the failures of a Nexus
@@ -48,7 +47,7 @@ final class NexusUnknownEndpointTest extends TestCase
     private const GRPC_INVALID_ARGUMENT = 3;
 
     private TemporalConnection $connection;
-    private WorkflowServiceClient $client;
+    private WorkflowServiceClientInterface $client;
     private ?string $workflowId = null;
 
     protected function setUp(): void
@@ -82,7 +81,7 @@ final class NexusUnknownEndpointTest extends TestCase
         $req->setReason('fin de sonde');
 
         try {
-            GrpcUnary::wait($this->client->TerminateWorkflowExecution($req, [], ['timeout' => 10_000_000]));
+            $this->client->TerminateWorkflowExecution($req, [], ['timeout' => 10_000_000]);
         } catch (\RuntimeException) {
             // Cleanup does not mask the verdict.
         }
@@ -143,7 +142,7 @@ final class NexusUnknownEndpointTest extends TestCase
         $req->setTaskQueue(new TaskQueue(['name' => $this->connection->workflowTaskQueue->name()]));
         $req->setIdentity($this->connection->identity);
 
-        $resp = GrpcUnary::wait($this->client->PollWorkflowTaskQueue($req, [], ['timeout' => 30_000_000]));
+        $resp = $this->client->PollWorkflowTaskQueue($req, [], ['timeout' => 30_000_000]);
         self::assertInstanceOf(PollWorkflowTaskQueueResponse::class, $resp);
 
         return $resp;
@@ -168,12 +167,13 @@ final class NexusUnknownEndpointTest extends TestCase
         $req->setIdentity($this->connection->identity);
         $req->setCommands([$command]);
 
-        /** @var array{0: mixed, 1: \stdClass} $pair */
-        $pair = $this->client->RespondWorkflowTaskCompleted($req, [], ['timeout' => 30_000_000])->wait();
-        $status = $pair[1];
-        $code = (int) ($status->code ?? -1);
+        try {
+            $this->client->RespondWorkflowTaskCompleted($req, [], ['timeout' => 30_000_000]);
+        } catch (\RuntimeException $e) {
+            return ['code' => $e->getCode(), 'message' => $e->getMessage()];
+        }
 
-        return 0 === $code ? null : ['code' => $code, 'message' => (string) ($status->details ?? '')];
+        return null;
     }
 
     private function findEvent(int $eventType): ?\Temporal\Api\History\V1\HistoryEvent

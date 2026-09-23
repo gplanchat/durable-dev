@@ -8,7 +8,7 @@ declare(strict_types=1);
  * Both roles long-poll for several tens of seconds; alternating them inside a single process
  * amounts to starving one while the other waits. As in production, they therefore run separately.
  *
- * Usage: php worker.php <address> <namespace> <taskQueue> <workflow|activity>
+ * Usage: php worker.php <address> <namespace> <taskQueue> <workflow|activity> [transport]
  */
 
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
@@ -30,6 +30,7 @@ use integration\Temporal\Fixtures\IntegrationWorkflows;
 require __DIR__ . '/../../../vendor/autoload.php';
 
 [$address, $namespace, $taskQueue, $role] = [$argv[1], $argv[2], $argv[3], $argv[4]];
+$transport = $argv[5] ?? TemporalConnection::TRANSPORT_AUTO;
 
 $connection = new TemporalConnection(
     target: $address,
@@ -37,6 +38,7 @@ $connection = new TemporalConnection(
     identity: 'durable-it-' . $role,
     workflowTaskQueue: $taskQueue,
     activityTaskQueue: $taskQueue,
+    transport: $transport,
 );
 $client = WorkflowServiceClientFactory::create($connection);
 

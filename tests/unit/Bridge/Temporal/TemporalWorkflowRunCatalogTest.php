@@ -7,16 +7,14 @@ namespace unit\Gplanchat\Bridge\Temporal;
 use Google\Protobuf\Timestamp;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
-use Grpc\UnaryCall;
-use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
 use Temporal\Api\Workflow\V1\WorkflowExecutionInfo;
 use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * What the Temporal catalog says of a visibility response.
@@ -33,7 +31,6 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/tasks.md §2.9 §5.1
  */
-#[RequiresPhpExtension('grpc')]
 final class TemporalWorkflowRunCatalogTest extends TestCase
 {
     public function testRunsComeBackNamedAndInStartOrder(): void
@@ -141,17 +138,10 @@ final class TemporalWorkflowRunCatalogTest extends TestCase
         return new TemporalConnection('localhost:7233', 'durable-test');
     }
 
-    private function client(ListWorkflowExecutionsResponse $response): WorkflowServiceClient
+    private function client(ListWorkflowExecutionsResponse $response): WorkflowServiceClientInterface
     {
-        $status = new \stdClass();
-        $status->code = \Grpc\STATUS_OK;
-        $status->details = '';
-
-        $call = $this->createMock(UnaryCall::class);
-        $call->method('wait')->willReturn([$response, $status]);
-
-        $client = $this->createMock(WorkflowServiceClient::class);
-        $client->method('ListWorkflowExecutions')->willReturn($call);
+        $client = $this->createMock(WorkflowServiceClientInterface::class);
+        $client->method('ListWorkflowExecutions')->willReturn($response);
 
         return $client;
     }

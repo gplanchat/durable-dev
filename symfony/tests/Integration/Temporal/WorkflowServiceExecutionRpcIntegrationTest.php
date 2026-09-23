@@ -7,12 +7,12 @@ namespace App\Tests\Integration\Temporal;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Query\V1\WorkflowQuery;
 use Temporal\Api\Workflowservice\V1\QueryWorkflowRequest;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Smoke tests for {@see WorkflowServiceExecutionRpc} against a real Temporal frontend (gRPC).
@@ -24,7 +24,7 @@ final class WorkflowServiceExecutionRpcIntegrationTest extends TestCase
 {
     private static TemporalConnection $connection;
 
-    private static WorkflowServiceClient $client;
+    private static WorkflowServiceClientInterface $client;
 
     public static function setUpBeforeClass(): void
     {

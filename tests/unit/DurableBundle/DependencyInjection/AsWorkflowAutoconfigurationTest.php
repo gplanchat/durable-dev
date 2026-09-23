@@ -10,6 +10,8 @@ use Gplanchat\Durable\WorkflowRegistry;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use unit\DurableBundle\Fixtures\NotAWorkflow;
+use unit\DurableBundle\Fixtures\WorkflowWithAnUnresolvableStub;
+use unit\DurableBundle\Fixtures\WorkflowWithArguments;
 use unit\DurableBundle\Fixtures\WorkflowWithEnvironment;
 use unit\DurableBundle\Fixtures\WorkflowWithoutDependencies;
 
@@ -45,6 +47,24 @@ final class AsWorkflowAutoconfigurationTest extends TestCase
         $container = $this->compileWith([WorkflowWithEnvironment::class]);
 
         self::assertContains(WorkflowWithEnvironment::class, $this->registeredClasses($container));
+    }
+
+    public function testAWorkflowTakingItsStubsAsArgumentsCompiles(): void
+    {
+        $container = $this->compileWith([WorkflowWithArguments::class]);
+
+        self::assertContains(WorkflowWithArguments::class, $this->registeredClasses($container));
+    }
+
+    /**
+     * The registry loads its classes when it is built, at run time. Validating in the pass moves a
+     * stub the loader cannot build to the container compilation, where a deploy still stops.
+     */
+    public function testAWorkflowWithAnUnresolvableStubFailsTheCompilation(): void
+    {
+        $this->expectExceptionMessage('WorkflowWithAnUnresolvableStub::run() parameter $greeting is an ActivityStub without #[Activities(Contract::class)]');
+
+        $this->compileWith([WorkflowWithAnUnresolvableStub::class]);
     }
 
     public function testAClassWithoutTheAttributeDoesNotReachTheRegistry(): void
