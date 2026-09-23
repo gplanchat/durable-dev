@@ -9,6 +9,7 @@ use Gplanchat\Durable\Attribute\Activities;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
+use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
 use unit\Durable\Fixtures\SuiteActivities;
@@ -65,6 +66,32 @@ final class WholeInputWorkflow
     }
 }
 
+#[AsWorkflow('stub-without-contract')]
+final class StubWithoutContractWorkflow
+{
+    #[AsWorkflowMethod]
+    public function run(ActivityStub $greeting): void {}
+}
+
+#[AsWorkflow('contract-on-a-string')]
+final class ContractOnAStringWorkflow
+{
+    #[AsWorkflowMethod]
+    public function run(#[Activities(SuiteActivities::class)] string $greeting): void {}
+}
+
+interface NotAnActivityContract
+{
+    public function greet(string $name): string;
+}
+
+#[AsWorkflow('not-a-contract')]
+final class NotAContractWorkflow
+{
+    #[AsWorkflowMethod]
+    public function run(#[Activities(NotAnActivityContract::class)] ActivityStub $greeting): void {}
+}
+
 /**
  * The workflow method receives its stubs and its environment as arguments, the way a controller
  * receives its services (#419). The input is still matched by name; injected parameters are not
@@ -93,4 +120,24 @@ final class WorkflowMethodArgumentsTest extends TestCase
         self::assertSame(['a' => 1, 'b' => 2], $env->runWorkflowClass(WholeInputWorkflow::class, ['a' => 1, 'b' => 2]));
     }
 
+    public function testAStubWithoutItsContractFailsAtRegistration(): void
+    {
+        $this->expectExceptionMessage('StubWithoutContractWorkflow::run() parameter $greeting is an ActivityStub without #[Activities(Contract::class)]');
+
+        (new WorkflowDefinitionLoader())->load(StubWithoutContractWorkflow::class);
+    }
+
+    public function testAContractOnAParameterThatIsNotAStubFailsAtRegistration(): void
+    {
+        $this->expectExceptionMessage('ContractOnAStringWorkflow::run() parameter $greeting carries #[Activities] but is typed string, expected ActivityStub');
+
+        (new WorkflowDefinitionLoader())->load(ContractOnAStringWorkflow::class);
+    }
+
+    public function testATypeWithNoActivityMethodIsNotAContract(): void
+    {
+        $this->expectExceptionMessage(NotAnActivityContract::class . ' declares no #[AsActivityMethod]');
+
+        (new WorkflowDefinitionLoader())->load(NotAContractWorkflow::class);
+    }
 }
