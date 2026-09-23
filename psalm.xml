@@ -14,6 +14,7 @@
         <directory name="src/DurableBundle" />
         <directory name="src/DurablePlugin" />
         <directory name="src/Bridge/Temporal" />
+        <directory name="src/Bridge/TemporalHttp" />
         <directory name="src/Bridge/Dbal" />
         <directory name="src/Bridge/Illuminate" />
         <directory name="src/DurableLaravel" />
