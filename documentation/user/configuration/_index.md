@@ -98,9 +98,9 @@ The scheme names the wire and the encryption:
 
 | Scheme | Wire | TLS | Default port | Needs |
 |--------|------|-----|--------------|-------|
-| `temporal://` | gRPC | no | 7233 | `ext-grpc`, or `gplanchat/durable-bridge-temporal-http` (curl over HTTP/2, chosen automatically when the extension is not loaded; the fallback is logged once) |
+| `temporal://` | gRPC | no | 7233 | `ext-grpc`, or `ext-curl` (gRPC over HTTP/2, chosen automatically when the extension is not loaded; the fallback is logged once) |
 | `temporal+tls://` | gRPC | yes | 7233 | same |
-| `temporal+http://` | the server JSON gateway | no | 7243 | `gplanchat/durable-bridge-temporal-http`, and the HTTP port enabled on the server. Client calls only: no worker can poll through it |
+| `temporal+http://` | the server JSON gateway | no | 7243 | `ext-curl`, and the HTTP port enabled on the server. Client calls only: no worker can poll through it |
 | `temporal+https://` | the server JSON gateway | yes | 7243 | same |
 
 | Parameter | Required | Description |
