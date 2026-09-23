@@ -10,8 +10,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  * HTTP smoke tests: verifies that the container builds correctly (routing, DI, templates)
  * and that the main pages return HTTP 200 with the expected content.
  *
- * These tests would have caught the DurableTemporalTransportFactoryPass regression
- * (wrong type injected → exception during container initialization).
+ * These tests catch a wrong type injected into a Durable service, which only shows as an
+ * exception during container initialization.
  *
  * @internal
  */

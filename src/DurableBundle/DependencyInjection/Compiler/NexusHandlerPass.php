@@ -146,6 +146,12 @@ final class NexusHandlerPass implements CompilerPassInterface
 
             }
         }
+
+        // Only now is there something to serve: `messenger:consume durable_nexus` finds the worker.
+        if ($container->hasDefinition('durable.temporal.nexus_receiver')) {
+            $container->getDefinition('durable.temporal.nexus_receiver')
+                ->addTag('messenger.receiver', ['alias' => 'durable_nexus']);
+        }
     }
 
     /**

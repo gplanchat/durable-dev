@@ -1,7 +1,6 @@
 parameters:
-    # Test (APP_ENV=test): in-memory forced through when@test. Dev/prod: DURABLE_DSN + the transports below (same DSN, different purpose).
-    env(MESSENGER_DURABLE_WORKFLOW_DSN): 'in-memory://'
-    env(MESSENGER_DURABLE_ACTIVITY_DSN): 'in-memory://'
+    # Dev/prod: DURABLE_DSN (durable.yaml) turns on Temporal, and the Durable bundle registers the
+    # workers itself: `messenger:consume durable_workflows durable_activities durable_nexus`.
     # Default aligned with symfony/.env (TEMPORAL_FRONTEND_PORT=7234 in compose) — avoid 7233 if the host port differs.
     env(DURABLE_DSN): 'temporal://127.0.0.1:7234?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0'
 
@@ -11,62 +10,21 @@ framework:
         transports:
             sync: 'sync://'
             failed: 'in-memory://'
-            durable_workflows: '%env(MESSENGER_DURABLE_WORKFLOW_DSN)%'
-            durable_activities: '%env(MESSENGER_DURABLE_ACTIVITY_DSN)%'
 
         routing:
-            Gplanchat\Durable\Transport\ResumeWorkflowMessage: durable_workflows
-            Gplanchat\Durable\Transport\ActivityMessage: durable_activities
-            Gplanchat\Durable\Transport\FireWorkflowTimersMessage: sync
             Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage: sync
             Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage: sync
-
-when@dev:
-    framework:
-        messenger:
-            transports:
-                durable_temporal_journal:
-                    dsn: '%env(DURABLE_DSN)%'
-                durable_temporal_activity:
-                    dsn: '%env(DURABLE_DSN)%'
-                    options:
-                        purpose: activity_worker
-                # The loop that serves Nexus: receive-only, every `get()` long-polls an incoming
-                # task. The business serves `billing` — including `charge`, which a workflow fulfils.
-                durable_temporal_nexus:
-                    dsn: '%env(DURABLE_DSN)%'
-                    options:
-                        purpose: nexus_worker
-            routing:
-                Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows
-
-when@prod:
-    framework:
-        messenger:
-            transports:
-                durable_temporal_journal:
-                    dsn: '%env(DURABLE_DSN)%'
-                durable_temporal_activity:
-                    dsn: '%env(DURABLE_DSN)%'
-                    options:
-                        purpose: activity_worker
-                # The loop that serves Nexus: receive-only, every `get()` long-polls an incoming
-                # task. The business serves `billing` — including `charge`, which a workflow fulfils.
-                durable_temporal_nexus:
-                    dsn: '%env(DURABLE_DSN)%'
-                    options:
-                        purpose: nexus_worker
-            routing:
-                Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows
 
 when@test:
     framework:
         messenger:
+            # No cluster in test: the workflows run in-process, over these two queues.
             transports:
                 durable_workflows: 'in-memory://'
                 durable_activities: 'in-memory://'
-                failed: 'in-memory://'
             routing:
-                # Like dev/prod: timer wake-ups carry a DelayStamp; sync:// runs them right away
-                # and ignores the delay — the sample workflows (Query 2s, Periodic 0.2s) never finish.
+                Gplanchat\Durable\Transport\ResumeWorkflowMessage: durable_workflows
+                Gplanchat\Durable\Transport\ActivityMessage: durable_activities
+                # Timer wake-ups carry a DelayStamp; sync:// runs them right away and ignores the
+                # delay — the sample workflows (Query 2s, Periodic 0.2s) never finish.
                 Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows

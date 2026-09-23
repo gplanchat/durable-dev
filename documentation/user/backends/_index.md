@@ -80,9 +80,13 @@ The Temporal backend delegates workflow orchestration to a real **Temporal** clu
 
 1. When `DURABLE_DSN` is set, `DurableExtension` registers the Temporal-specific services (`WorkflowClient`, `TemporalHistoryCursor`, workers).
 2. Starting a workflow calls `StartWorkflowExecution` gRPC on Temporal.
-3. **Workflow tasks** are polled by the `durable_temporal_journal` Messenger consumer.
-4. **Activity tasks** are polled by the `durable_temporal_activity` Messenger consumer.
+3. **Workflow tasks** are polled by the `durable_workflows` worker.
+4. **Activity tasks** are polled by the `durable_activities` worker.
 5. Each workflow task replays history via the fiber-based `WorkflowTaskRunner` and sends back commands to Temporal.
+
+The bundle registers these workers itself, from `durable.temporal.dsn`: `messenger:consume` finds
+them by name, and `messenger.yaml` declares no Temporal transport. A third one, `durable_nexus`,
+exists when the application [serves a Nexus operation](../nexus/).
 
 ### Prerequisites
 
@@ -122,8 +126,8 @@ docker compose up -d
 Wait for the stack to be healthy, then start the Symfony workers:
 
 ```bash
-php bin/console messenger:consume durable_temporal_journal --time-limit=3600
-php bin/console messenger:consume durable_temporal_activity --time-limit=3600
+php bin/console messenger:consume durable_workflows --time-limit=3600
+php bin/console messenger:consume durable_activities --time-limit=3600
 ```
 
 The `symfony serve` binary reads `.symfony.local.yaml` and starts workers automatically if configured there.
@@ -133,8 +137,6 @@ The `symfony serve` binary reads `.symfony.local.yaml` and starts workers automa
 ```yaml
 # .env.local (dev/prod)
 DURABLE_DSN=temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0
-MESSENGER_DURABLE_WORKFLOW_DSN=in-memory://
-MESSENGER_DURABLE_ACTIVITY_DSN=in-memory://
 ```
 
 ```yaml
@@ -144,21 +146,12 @@ durable:
         type: in_memory   # Temporal is the real history source; in-memory acts as a local write-through cache
     temporal:
         dsn: '%env(DURABLE_DSN)%'
-
-# config/packages/messenger.yaml
-when@dev:
-    framework:
-        messenger:
-            transports:
-                durable_temporal_journal:
-                    dsn: '%env(DURABLE_DSN)%'
-                durable_temporal_activity:
-                    dsn: '%env(DURABLE_DSN)%'
-                    options:
-                        purpose: activity_worker
-            routing:
-                Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows
 ```
+
+Nothing goes in `messenger.yaml` for Temporal. If it still declares `durable_workflows` or
+`durable_activities` under this backend, the container refuses to compile and names the transport
+to remove: those names belong to the bundle's workers. The exception is `durable.temporal.journal:
+false`: workflows then run locally, and those two transports stay the application's.
 
 ### Temporal UI
 

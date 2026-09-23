@@ -42,7 +42,7 @@ services:
             $historyCursor: '@?Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor'
 
 # Temporal journal in dev/prod: durable.yaml when@dev / when@prod + DURABLE_DSN (temporal://…).
-# Prerequisites: ext-grpc, the docker compose stack, messenger workers durable_temporal_journal + durable_temporal_activity.
+# Prerequisites: ext-grpc, the docker compose stack, messenger workers durable_workflows + durable_activities.
 
 # The test bench has no cluster: `temporal.dsn` is null there, and a Nexus handler declared on a
 # backend with no route is refused at startup — rightly so, since it would never receive anything.

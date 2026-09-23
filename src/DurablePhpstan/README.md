@@ -88,6 +88,32 @@ private ActivityStub $orders;
 In both cases, if the contract stays untraceable, the call is simply **unknown** to PHPStan rather
 than accepted blindly: better a false positive than a check that has been silently switched off.
 
+### A stub received as a workflow method argument
+
+`#[Activities(OrderActivities::class)]` tells Durable the contract at run time, but PHPStan cannot
+read a type from an attribute. The `@param` docblock is what it reads:
+
+```php
+/** @param ActivityStub<OrderActivities> $orders */
+#[AsWorkflowMethod]
+public function run(
+    string $orderId,
+    #[Activities(OrderActivities::class)]
+    ActivityStub $orders,
+    WorkflowEnvironment $env,
+): mixed
+```
+
+The extension's rule keeps the two in step:
+
+| Identifier | Reported when |
+|---|---|
+| `durable.activities.contractMismatch` | the docblock names another contract than the attribute |
+| `durable.activities.missingGeneric` | the parameter has no `@param ActivityStub<…>`: every call on it would be unknown |
+
+A parent calling such a workflow as a child passes the input arguments only; the extension leaves
+the supplied parameters out of the signature it checks.
+
 ## What it does not do
 
 A method absent from the contract, or present but without `#[AsActivityMethod]` — respectively

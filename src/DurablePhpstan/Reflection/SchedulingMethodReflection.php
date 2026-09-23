@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\PHPStan\Reflection;
 
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Awaitable\Awaitable;
+use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use PHPStan\Reflection\ClassReflection;
 use PHPStan\Reflection\ExtendedFunctionVariant;
 use PHPStan\Reflection\ExtendedMethodReflection;
+use PHPStan\Reflection\ExtendedParameterReflection;
 use PHPStan\Reflection\ExtendedParametersAcceptor;
 use PHPStan\Type\Generic\GenericObjectType;
 use PHPStan\Type\Type;
@@ -53,13 +56,37 @@ final class SchedulingMethodReflection implements ExtendedMethodReflection
         return new ExtendedFunctionVariant(
             $variant->getTemplateTypeMap(),
             $variant->getResolvedTemplateTypeMap(),
-            $variant->getParameters(),
+            $this->callerParameters($variant),
             $variant->isVariadic(),
             $this->awaitableOf($variant->getReturnType()),
             $this->awaitableOf($variant->getPhpDocReturnType()),
             $this->awaitableOf($variant->getNativeReturnType()),
             $variant->getCallSiteVarianceMap(),
         );
+    }
+
+    /**
+     * The parameters a caller passes. A workflow method may take its environment and its activity
+     * stubs as arguments; the loader supplies those, so a parent calling the child never does.
+     *
+     * @return list<ExtendedParameterReflection>
+     */
+    private function callerParameters(ExtendedParametersAcceptor $variant): array
+    {
+        $native = $this->contractMethod->getDeclaringClass()->getNativeReflection()->getMethod($this->contractMethod->getName());
+        // Only a workflow's entry method has parameters the loader supplies; an activity's or a
+        // Nexus operation's are all the caller's, whatever their type.
+        if ([] === $native->getAttributes(AsWorkflowMethod::class)) {
+            return $variant->getParameters();
+        }
+        $injected = [];
+        foreach ($native->getParameters() as $parameter) {
+            if (WorkflowDefinitionLoader::isInjected($parameter)) {
+                $injected[$parameter->getName()] = true;
+            }
+        }
+
+        return array_values(array_filter($variant->getParameters(), static fn(ExtendedParameterReflection $p): bool => !isset($injected[$p->getName()])));
     }
 
     private function awaitableOf(Type $inner): Type
