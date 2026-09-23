@@ -8,7 +8,6 @@ parameters:
         - src/DurableBundle
         - src/DurablePlugin
         - src/Bridge/Temporal
-        - src/Bridge/TemporalHttp
         - src/Bridge/Dbal
         - src/Bridge/Illuminate
         - src/DurableLaravel
