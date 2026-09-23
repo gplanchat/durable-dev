@@ -245,12 +245,13 @@ public function run(
   Nexus operation.
 - The **`@param ActivityStub<Contract>`** docblock is for PHPStan. With
   [`gplanchat/durable-phpstan`](../packages/), a docblock that names another contract than the
-  attribute is an error, and so is a missing one, since PHPStan cannot check the calls without it.
+  attribute is an error, and so is a missing one (`durable.activities.missingGeneric`, which a
+  project can ignore), since PHPStan cannot check the calls without it.
 - A stub that needs **`ActivityOptions`** keeps `$env->activityStub($contract, $options)`: attribute
   arguments cannot build a `Duration`.
 - Mistakes fail when the workflow is **registered** (container compilation, with the bundle): an
-  `ActivityStub` without `#[Activities]`, `#[Activities]` on another type, or a contract that
-  declares no `#[AsActivityMethod]`.
+  `ActivityStub` without `#[Activities]`, `#[Activities]` on another type, a contract that does not
+  exist, or one that declares no `#[AsActivityMethod]`.
 
 The constructor form keeps working. It is the one to use when the class implements a contract
 interface such as `OrderWorkflowContract` above: PHP does not let the implementation add required

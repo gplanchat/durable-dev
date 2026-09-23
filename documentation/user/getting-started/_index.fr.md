@@ -256,7 +256,7 @@ final class GreetWorkflow
 
 `$name` vient de l'entrée avec laquelle le workflow démarre. `$greeting` et `$env`, non : Durable
 les fournit, comme Symfony fournit ses services à un contrôleur. Voir
-[Les arguments que fournit Durable](../workflows/#les-arguments-que-fournit-durable).
+[Les arguments que fournit Durable](../workflows/#arguments-durable-supplies).
 
 ### 4. Le déclencher depuis un contrôleur ou un service {#4--le-déclencher-depuis-un-contrôleur-ou-un-service}
 
