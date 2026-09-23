@@ -40,7 +40,7 @@ jobs:
     name: Label by author association
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Before touching the remote: the gate checks itself, offline. It decides what an autonomous
       # loop may read unsupervised, and "fails closed" is a claim worth a test rather than a

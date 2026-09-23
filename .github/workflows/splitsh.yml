@@ -36,7 +36,7 @@ jobs:
             # *all* github.com HTTPS operations and breaks pushes to *other* repos with SPLITSH_PUSH_TOKEN
             # (symptom: git exits 128 / permission denied on satellite remotes).
             - name: Checkout (full history — required by splitsh)
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
               with:
                   fetch-depth: 0
                   persist-credentials: false
@@ -46,7 +46,7 @@ jobs:
 
             - name: Restore cache (splitsh-lite + libgit2 1.5)
               id: cache-toolchain
-              uses: actions/cache/restore@v4
+              uses: actions/cache/restore@v6
               with:
                   path: |
                       ~/.local/bin/splitsh-lite
@@ -143,7 +143,7 @@ jobs:
 
             - name: Save cache (splitsh-lite + libgit2)
               if: success() && steps.cache-toolchain.outputs.cache-hit != 'true'
-              uses: actions/cache/save@v4
+              uses: actions/cache/save@v6
               with:
                   path: |
                       ~/.local/bin/splitsh-lite
