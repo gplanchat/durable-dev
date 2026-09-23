@@ -56,8 +56,8 @@ and wants its `cache:clear`), is written version by version, at the root of the 
 
 | Rule | What moves |
 |---|---|
-| `ActivityContractAttributesRector` | `#[ActivityInterface(prefix:)]` → `#[Activity(name:)]`, and every public method gets an explicit `#[ActivityMethod(name:)]` |
-| `WorkflowClassAttributesRector` | `#[WorkflowInterface]` and the four method attributes are **copied from the interface onto the implementing class**, where Durable reads them |
+| `ActivityContractAttributesRector` | `#[ActivityInterface(prefix:)]` → `#[AsActivity(name:)]`, and every public method gets an explicit `#[AsActivityMethod(name:)]` |
+| `WorkflowClassAttributesRector` | `#[WorkflowInterface]` → `#[AsWorkflow(name:)]`, and the four method attributes (`#[AsWorkflowMethod]`, `#[AsSignalMethod]`, `#[AsQueryMethod]`, `#[AsUpdateMethod]`) are **copied from the interface onto the implementing class**, where Durable reads them |
 | `RenameClassRector` (configured) | The three SDK failures with a Durable counterpart |
 | `TemporalFacadeToEnvironmentRector` | The static facade becomes an injected `WorkflowEnvironment`, `yield` goes, and the `\Generator` return type with it |
 | `UnmigratableTemporalCallRector` | Comments every call the migration **cannot** make, and changes nothing else |
@@ -67,18 +67,19 @@ and wants its `cache:clear`), is written version by version, at the root of the 
 Both engines derive a type name, and **they derive it differently**:
 
 - The SDK's activity type is `prefix . (name ?? methodName)` — one concatenation, no separator
-  inserted. Durable's is `Activity::$name . '.' . ActivityMethod::$name`, and the dot is not
+  inserted. Durable's is `AsActivity::$name . '.' . AsActivityMethod::$name`, and the dot is not
   optional. The two agree on exactly two prefixes: the empty one, and one ending in a dot. **On any
   other prefix this rule changes nothing** and leaves the SDK attribute in place, rather than rename
   an activity that has runs in flight.
-- The SDK's workflow type is `#[WorkflowMethod(name:)]` if given, else the **interface's** short
-  name. Durable's `#[Workflow]` is *optional* and falls back to the **class's** short name. A class
-  migrated without an explicit name therefore compiles, passes its tests, and stops resolving every
-  run already started. The rule always writes the name out — and over
+- The SDK's workflow type is `#[WorkflowMethod(name:)]` if given, Durable's `#[AsWorkflow(name:)]`;
+  both are *optional*, the SDK falls back to the **interface's** short name, Durable to the
+  **class's**. A class migrated without an explicit name therefore compiles, passes its tests, and
+  stops resolving every run already started. The rule always writes the name out — and over
   [`temporalio/samples-php`](https://github.com/temporalio/samples-php), 24 of the 27 names it
   writes are ones the fallback would have got wrong.
-- The SDK treats every public method of an `#[ActivityInterface]` as an activity; Durable only an
-  annotated one. Methods that carried no `#[ActivityMethod]` get one, named after themselves.
+- Every public method of an `#[ActivityInterface]` is an activity for the SDK; under `#[AsActivity]`,
+  only a method carrying `#[AsActivityMethod]` is. Methods that carried no `#[ActivityMethod]` get an
+  `#[AsActivityMethod]`, named after themselves.
 
 ### It adds, it never removes
 
@@ -116,7 +117,8 @@ actually returns, the SDK could not declare and this rule will not guess. An int
 **Two things it refuses to touch.** A **static** method has no `$this`: it gets a marker, not a
 rewrite. And a class that is not workflow code is left alone entirely — `yield` is ordinary PHP, and
 an interceptor in the official samples yields reflection attributes out of a plain iterator. A class
-qualifies by implementing an `#[WorkflowInterface]` contract or by calling the facade. Inside one
+qualifies by implementing an SDK `#[WorkflowInterface]` contract (what `#[AsWorkflow]` replaces) or
+by calling the facade. Inside one
 that does, every non-static method is rewritten, helpers included: an SDK workflow is
 generator-coloured throughout, which is the problem being removed. The one shape to check by hand
 afterwards is a plain iterator generator living inside a workflow class.

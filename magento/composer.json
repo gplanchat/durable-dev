@@ -1,6 +1,6 @@
 {
     "name": "gplanchat/magento-durable-demo",
-    "description": "Magento 2.4+ demo overlay for gplanchat/durable-module.",
+    "description": "Mage-OS bench for gplanchat/durable-magento.",
     "type": "project",
     "license": "MIT",
     "require": {

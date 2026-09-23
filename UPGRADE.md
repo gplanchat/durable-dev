@@ -24,6 +24,40 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### The Temporal workers are the bundle's, and `purpose=` is gone
+
+**Who is affected**: a Symfony application on the Temporal backend (`durable.temporal.dsn` set).
+Rector cannot help: the change is in YAML and in the commands that start the workers.
+
+The `temporal://` Messenger transports that `messenger.yaml` used to declare three times over the
+same DSN, told apart by `options.purpose`, no longer exist. The Durable bundle builds the workers
+from `durable.temporal.dsn` and `messenger:consume` finds them by name:
+
+| Before                                                   | Now                                                  |
+|----------------------------------------------------------|------------------------------------------------------|
+| `durable_temporal_journal` (`purpose` unset)             | `durable_workflows`                                  |
+| `durable_temporal_activity` (`purpose: activity_worker`) | `durable_activities`                                 |
+| `durable_temporal_nexus` (`purpose: nexus_worker`)       | `durable_nexus`, only if a Nexus handler is declared |
+| `temporal://…?inner=…`, `purpose: application`           | removed — declare the inner transport directly       |
+| `temporal-journal://`, `temporal-application://`         | removed from Messenger                               |
+
+1. Keep the DSN in `durable.temporal.dsn`, once.
+2. Under Temporal, remove from `framework.messenger.transports` every `durable_temporal_*`
+   transport, **and** `durable_workflows` / `durable_activities`, with the routing that points at
+   them. The container refuses to compile otherwise and names the transport to remove. With
+   `durable.temporal.journal: false`, workflows run locally: keep your `durable_workflows` /
+   `durable_activities` transports, only the Nexus one goes.
+3. Rename the workers in supervisor, systemd, `.symfony.local.yaml` or wherever they start:
+   ```bash
+   bin/console messenger:consume durable_workflows
+   bin/console messenger:consume durable_activities
+   bin/console messenger:consume durable_nexus   # only if this application serves Nexus operations
+   ```
+4. Remove `Gplanchat\Bridge\Temporal\TemporalBridgeBundle` from `config/bundles.php`. It registers
+   nothing any more and is deprecated; a kernel that still lists it keeps booting.
+
+Laravel and Magento are unaffected: their workers never went through Messenger.
+
 ### Stubs refuse what PHP refuses
 
 **Who is affected**: any application that calls an activity, Nexus operation or child workflow

@@ -4,11 +4,15 @@
 # and a violation is a page, not a work order the sentinel hands itself.
 #
 # Exit 1 if anything is violated.
+#
+# Reading is free of side effects: the ledger, the goal files and STATE.md are written only when
+# LOOP_RECORD=1 — the loop's cron sets it; a human running `make goals` to look does not.
 set -euo pipefail
+RECORD="${LOOP_RECORD:-0}"
 cd "$(dirname "$0")"
 REPO=$(git rev-parse --show-toplevel)
 LEDGER=memory/goal-ledger.tsv
-[ -f "$LEDGER" ] || printf 'date\tgoal\tresult\n' > "$LEDGER"
+[ "$RECORD" = 1 ] && { [ -f "$LEDGER" ] || printf 'date\tgoal\tresult\n' > "$LEDGER"; }
 
 violated=0
 shopt -s nullglob
@@ -25,13 +29,17 @@ for goal in goals/*.md; do
   fi
 
   if ( cd "$REPO" && eval "$predicate" ) >/dev/null 2>&1; then
-    printf '%s\t%s\t%s\n' "$(date +%F)" "$name" pass >> "$LEDGER"
-    sed -i "s/^status: .*/status: satisfied/; s/^last-pass: .*/last-pass: $(date +%F)/" "$goal"
+    if [ "$RECORD" = 1 ]; then
+      printf '%s\t%s\t%s\n' "$(date +%F)" "$name" pass >> "$LEDGER"
+      sed -i "s/^status: .*/status: satisfied/; s/^last-pass: .*/last-pass: $(date +%F)/" "$goal"
+    fi
     echo "PASS $name"
   else
-    printf '%s\t%s\t%s\n' "$(date +%F)" "$name" VIOLATED >> "$LEDGER"
-    sed -i "s/^status: .*/status: VIOLATED/" "$goal"
-    echo "$(date +%F) ALERT goal VIOLATED: $name" >> memory/STATE.md
+    if [ "$RECORD" = 1 ]; then
+      printf '%s\t%s\t%s\n' "$(date +%F)" "$name" VIOLATED >> "$LEDGER"
+      sed -i "s/^status: .*/status: VIOLATED/" "$goal"
+      echo "$(date +%F) ALERT goal VIOLATED: $name" >> memory/STATE.md
+    fi
     echo "VIOLATED $name" >&2
     violated=1
   fi

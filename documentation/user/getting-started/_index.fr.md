@@ -87,7 +87,9 @@ durable:
             - App\Workflow\Activity\GreetingActivities   # listez ici vos interfaces d'activité
 ```
 
-Basculez sur Temporal à l'exécution en définissant `DURABLE_DSN` dans votre environnement :
+Activez Temporal pour un environnement en lui donnant le DSN. Le DSN est lu à la compilation du
+conteneur : un environnement qui a cette ligne est un environnement Temporal, même avec un
+`DURABLE_DSN` vide.
 
 ```yaml
 when@dev:
@@ -98,31 +100,30 @@ when@dev:
 
 ### `config/packages/messenger.yaml`
 
-Durable s'appuie sur **Symfony Messenger** pour router ses messages internes. Ajoutez les transports et le routage :
+Durable s'appuie sur **Symfony Messenger** pour router ses messages internes. Sous Temporal, le
+bundle enregistre lui-même les workers `durable_workflows` et `durable_activities` ; les deux
+transports Messenger du même nom, et leur routage, n'appartiennent qu'aux environnements sans
+cluster — ici `test`. Un environnement qui a un DSN et les déclare refuse de compiler.
 
 ```yaml
 framework:
     messenger:
         transports:
-            sync:               'sync://'
-            durable_workflows:  '%env(MESSENGER_DURABLE_WORKFLOW_DSN)%'
-            durable_activities: '%env(MESSENGER_DURABLE_ACTIVITY_DSN)%'
-
+            sync: 'sync://'
         routing:
-            Gplanchat\Durable\Transport\ResumeWorkflowMessage:        durable_workflows
-            Gplanchat\Durable\Transport\ActivityMessage:              durable_activities
-            Gplanchat\Durable\Transport\FireWorkflowTimersMessage:    durable_workflows
             Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage: sync
             Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage: sync
-```
 
-Pour les tests et le développement local, pointez les deux DSN sur `in-memory://` :
-
-```yaml
-# .env.test
-MESSENGER_DURABLE_WORKFLOW_DSN=in-memory://
-MESSENGER_DURABLE_ACTIVITY_DSN=in-memory://
-DURABLE_DSN=
+when@test:
+    framework:
+        messenger:
+            transports:
+                durable_workflows:  'in-memory://'
+                durable_activities: 'in-memory://'
+            routing:
+                Gplanchat\Durable\Transport\ResumeWorkflowMessage:     durable_workflows
+                Gplanchat\Durable\Transport\ActivityMessage:           durable_activities
+                Gplanchat\Durable\Transport\FireWorkflowTimersMessage: durable_workflows
 ```
 
 Pour Temporal (`dev` / `prod`) :
@@ -130,21 +131,6 @@ Pour Temporal (`dev` / `prod`) :
 ```yaml
 # .env.dev (ou .env.local)
 DURABLE_DSN=temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0
-```
-
-Quand Temporal est actif, ajoutez les transports du worker (`when@dev:` / `when@prod:`) :
-
-```yaml
-when@dev:
-    framework:
-        messenger:
-            transports:
-                durable_temporal_journal:
-                    dsn: '%env(DURABLE_DSN)%'
-                durable_temporal_activity:
-                    dsn: '%env(DURABLE_DSN)%'
-                    options:
-                        purpose: activity_worker
 ```
 
 ---
@@ -336,9 +322,14 @@ durable:
         connection: doctrine.dbal.default_connection
 ```
 
-```dotenv
-MESSENGER_DURABLE_WORKFLOW_DSN=doctrine://default
-MESSENGER_DURABLE_ACTIVITY_DSN=doctrine://default
+Les deux files quittent `when@test:` pour cet environnement, sur Doctrine, avec le même routage :
+
+```yaml
+framework:
+    messenger:
+        transports:
+            durable_workflows:  'doctrine://default?queue_name=durable_workflows'
+            durable_activities: 'doctrine://default?queue_name=durable_activities'
 ```
 
 La règle derrière les deux profils : **une exécution survit exactement à ce à quoi survivent son
@@ -350,27 +341,29 @@ avec le processus, précisément la panne que l'exécution durable existe pour s
 
 ## Démarrer les workers Temporal (production / mode dev)
 
-Quand `DURABLE_DSN` pointe vers un serveur Temporal, lancez les consommateurs Messenger dans des
-processus séparés. **Ce sont les commandes Symfony** ; les autres hôtes interrogent le même cluster
+Quand `DURABLE_DSN` pointe vers un serveur Temporal, lancez les workers enregistrés par le bundle dans
+des processus séparés. **Ce sont les commandes Symfony** ; les autres hôtes interrogent le même cluster
 avec les leurs : `php artisan durable:temporal-worker` sous Laravel,
 `bin/magento durable:worker --role=journal` et `--role=activity` sous Magento :
 
 ```bash
 # Worker des tâches de workflow (interroge Temporal pour les tâches de workflow)
-php bin/console messenger:consume durable_temporal_journal
+php bin/console messenger:consume durable_workflows
 
 # Worker d'activités (interroge Temporal pour les tâches d'activité)
-php bin/console messenger:consume durable_temporal_activity
+php bin/console messenger:consume durable_activities
 ```
+
+Une application qui [sert une opération Nexus](../nexus/) en lance un troisième, `durable_nexus`.
 
 En développement local avec `symfony serve`, ajoutez ceci à `.symfony.local.yaml` :
 
 ```yaml
 workers:
-    journal:
-        cmd: ['symfony', 'console', 'messenger:consume', 'durable_temporal_journal', '--time-limit=3600']
-    activity:
-        cmd: ['symfony', 'console', 'messenger:consume', 'durable_temporal_activity', '--time-limit=3600']
+    workflows:
+        cmd: ['symfony', 'console', 'messenger:consume', 'durable_workflows', '--time-limit=3600']
+    activities:
+        cmd: ['symfony', 'console', 'messenger:consume', 'durable_activities', '--time-limit=3600']
 ```
 
 ---

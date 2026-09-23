@@ -29,12 +29,12 @@ If a folder is empty, the rule applies as soon as it contains versioned document
 
 ## Agent behaviour
 
-1. **Before** creating a new ADR, WA, OST, or PRD: check **which type** fits (LIFECYCLE “When” criteria) and **which lifecycle** applies (new feature vs isolated decision vs working agreement).
-2. **Location**: follow the `documentation/` tree — `adr/`, `wa/`, `ost/`, `prd/` (create the folder if missing for the type).
+1. **Before** creating a new ADR, WA, or OST: check **which type** fits (LIFECYCLE “When” criteria) and **which lifecycle** applies (new feature vs isolated decision vs working agreement).
+2. **Location**: follow the `documentation/` tree — `adr/`, `wa/`, `ost/`; design work goes through `openspec/changes/`.
 3. **Numbering**: **sequential per type**, do not reuse a retired number; short lowercase kebab-case slug.
 4. **Index**: every new entry must be reflected in **`documentation/INDEX.md`** (kept up to date).
 5. **Obsolete decisions**: update status (e.g. “Superseded by …”) and cross-references per LIFECYCLE.
-6. **After shipping** a feature explored in an OST: plan / require the summary **PRD** when LIFECYCLE requires it.
+6. **After shipping** a feature explored in an OST: leave an ADR behind and update the OST status if needed.
 
 ## Durable-specific convention
 

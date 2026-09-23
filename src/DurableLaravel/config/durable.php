@@ -16,10 +16,10 @@ declare(strict_types=1);
 
 return [
     /*
-     * The storage backend. This package serves two of them, and refuses the others by name rather
+     * The storage backend. This package serves three of them, and refuses the others by name rather
      * than failing on the first execution: "illuminate" puts the journal on the connection the
-     * application already owns, "memory" does not survive the process and is only there for
-     * tests.
+     * application already owns, "temporal" puts it in a Temporal cluster (see below), "memory" does
+     * not survive the process and is only there for tests.
      */
     'backend' => 'illuminate',
 

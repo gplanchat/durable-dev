@@ -55,7 +55,7 @@ On the same fixture, measured:
 | `charge()` — correct call | ✗ wrongly reported | ✓ |
 | `run()` — child, correct call | ✗ wrongly reported | ✓ |
 | `chrage()` — typo | ✗ | ✗ |
-| `helper()` — without `#[ActivityMethod]` | ✗ | ✗ |
+| `helper()` — without `#[AsActivityMethod]` | ✗ | ✗ |
 | `charge($id)` — one argument out of two | *invisible* | ✗ **arity checked** |
 
 The last row is the gain the noise was masking: once the method is known, PHPStan compares the
@@ -90,8 +90,8 @@ than accepted blindly: better a false positive than a check that has been silent
 
 ## What it does not do
 
-A method absent from the contract, or present but without `#[ActivityMethod]` — respectively
-`#[WorkflowMethod]` for a child — stays unknown. That is deliberate: the stub already refuses it at
+A method absent from the contract, or present but without `#[AsActivityMethod]` — respectively
+`#[AsWorkflowMethod]` for a child — stays unknown. That is deliberate: the stub already refuses it at
 execution time with a `BadMethodCallException`, and the analysis now says so beforehand.
 
 ## Licence

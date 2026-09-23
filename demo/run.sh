@@ -127,13 +127,13 @@ if ! temporal --address "$ADDRESS" operator nexus endpoint get --name demo-shop-
 fi
 
 echo "the shop (sylius/)"
-consume shop-serves-stock     sylius  demo         durable_temporal_nexus    "DURABLE_TEMPORAL_DSN=$DSN_SHOP_SERVES" "DATABASE_URL=$SHOP_DB"
-consume shop-workflows        sylius  demo_caller  durable_temporal_journal  "DURABLE_TEMPORAL_DSN=$DSN_SHOP_CALLS"  "DATABASE_URL=$SHOP_DB"
+consume shop-serves-stock     sylius  demo         durable_nexus      "DURABLE_TEMPORAL_DSN=$DSN_SHOP_SERVES" "DATABASE_URL=$SHOP_DB"
+consume shop-workflows        sylius  demo_caller  durable_workflows  "DURABLE_TEMPORAL_DSN=$DSN_SHOP_CALLS"  "DATABASE_URL=$SHOP_DB"
 
 echo "the business (symfony/)"
-consume business-serves-billing symfony dev        durable_temporal_nexus    "DURABLE_DSN=$DSN_BUSINESS"
-consume business-workflows      symfony dev        durable_temporal_journal  "DURABLE_DSN=$DSN_BUSINESS"
-consume business-activities     symfony dev        durable_temporal_activity "DURABLE_DSN=$DSN_BUSINESS"
+consume business-serves-billing symfony dev        durable_nexus      "DURABLE_DSN=$DSN_BUSINESS"
+consume business-workflows      symfony dev        durable_workflows  "DURABLE_DSN=$DSN_BUSINESS"
+consume business-activities     symfony dev        durable_activities "DURABLE_DSN=$DSN_BUSINESS"
 
 echo "the Magento bench (magento/)"
 # One worker only: Magento's workflow has no activity — everything it does is served elsewhere. An

@@ -7,8 +7,9 @@
 
     It lives at the bench and does not enter `gplanchat/durable-magento`: a
     topic whose handler does nothing but sleep has no business in a published
-    package. The four files of 4.1 (resume, activity, signal, update, timer)
-    will be written in the module, not here.
+    package. It is also the only topic anywhere in this bench: nothing of
+    Durable's rides Magento's `MessageQueue` — resumes and activities are
+    Temporal tasks, drained by `bin/magento durable:worker`.
 -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Communication/etc/communication.xsd">

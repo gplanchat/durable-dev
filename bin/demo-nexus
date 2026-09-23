@@ -108,21 +108,21 @@ Eight processes, four namespaces. All four mockups call, three of them serve.
   cd sylius
   export APP_ENV=demo
   export DURABLE_TEMPORAL_DSN='temporal://$ADDRESS?namespace=$SHOP&nexus_task_queue=$QUEUE_SHOP&tls=0'
-  bin/console messenger:consume durable_temporal_nexus
+  bin/console messenger:consume durable_nexus
 
   # the shop calls "billing" — demo_caller profile, journal on the cluster
   cd sylius
   export APP_ENV=demo_caller
   export DURABLE_TEMPORAL_DSN='temporal://$ADDRESS?namespace=$SHOP&tls=0'
-  bin/console messenger:consume durable_temporal_journal
+  bin/console messenger:consume durable_workflows
   bin/console durable:demo:bill CMD-1 1200
 
   # the business serves "billing", including "charge" which a workflow fulfils
   cd symfony
   export DURABLE_DSN='temporal://$ADDRESS?namespace=$BUSINESS&nexus_task_queue=$QUEUE_BUSINESS&tls=0'
-  bin/console messenger:consume durable_temporal_nexus
-  bin/console messenger:consume durable_temporal_journal
-  bin/console messenger:consume durable_temporal_activity
+  bin/console messenger:consume durable_nexus
+  bin/console messenger:consume durable_workflows
+  bin/console messenger:consume durable_activities
 
   # the business calls "stock"
   cd symfony

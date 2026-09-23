@@ -5,7 +5,7 @@ watch what it does. A Tier 1 module is not tested against anything smaller than 
 directory *is* the harness.
 
 What is in the repository: `composer.json` and its lock, `compose.yaml`, the extension pre-flight
-script, two probes, and the probe module they drive. Nothing of the distribution — see
+script, five probes, and the probe module they drive. Nothing of the distribution — see
 `.gitignore`, which explains why the rule is inverted there.
 
 ## What is needed before starting
@@ -84,10 +84,10 @@ bin/magento durable:demo ORD-4242
 #   → 'notify:charge:ORD-4242'
 ```
 
-The three lines are not labels written into the command: they are the names `#[ActivityMethod]`
+The three lines are not labels written into the command: they are the names `#[AsActivityMethod]`
 carries on the contract, resolved at the moment the module assembles its engine.
 
-**And Magento knows how to call the repository's two other mockups**, through Nexus, on a third
+**And Magento knows how to call the repository's three other mockups**, through Nexus, on a fourth
 namespace:
 
 ```bash
@@ -95,13 +95,14 @@ MAGENTO_DC_DURABLE__TEMPORAL__DSN='temporal://127.0.0.1:7239?namespace=demo-mage
   bin/magento durable:demo:nexus MAG-1 1200 MUG_BLUE=1
 ```
 
-`OrderNexusWorkflow` has the invoice verified by the Symfony mockup, the stock held by the Sylius
-mockup, then charges — the charge being fulfilled by a workflow on the other side, which takes some
-fifteen seconds. The bench **serves** no operation: calling asks nothing of the host, serving would
-ask for a handler registry and a Nexus queue, which do not exist here.
+`OrderNexusWorkflow` has the invoice verified by the Symfony mockup, a delivery slot picked by the
+Laravel mockup, the stock held by the Sylius mockup, then charges and ships — the charge being
+fulfilled by a workflow on the other side, which takes some fifteen seconds. The bench **serves** no
+operation: calling asks nothing of the host, serving would ask for a handler registry and a Nexus
+queue, which do not exist here.
 
-It does not run on its own: the five other workers, the two endpoints and the prerequisites are in
-[`demo/README.md`](../demo/README.md). The cluster of the `compose.yaml` above does not fit — its
+It does not run on its own: the seven other processes, the three endpoints and the prerequisites are
+in [`demo/README.md`](../demo/README.md). The cluster of the `compose.yaml` above does not fit — its
 Nexus APIs are disabled.
 
 **In the back office** — Magento ships its own development server, there is nothing to
@@ -145,27 +146,34 @@ d81bfb25-af86-43b9-a310-9d9d34695a30  | DurableJournal | running | 2026-08-28 09
 ```
 
 ⚠ **Two caveats to know.** The name displayed is `DurableJournal`: it is the Temporal type that
-*carries* an execution's journal, not the business type. And the status stays `running` — **no
-worker drains the task queue yet**, so nothing closes the journals. That is the sequel to task 5 of
-the `magento-module` change.
+*carries* an execution's journal, not the business type. And the status stays `running` until a
+worker drains the task queue: nothing advances an execution on the cluster but
+
+```bash
+bin/magento durable:worker --role=journal    # answers workflow tasks
+bin/magento durable:worker --role=activity   # drains activity tasks
+```
+
+One process, one queue, one role — `RunWorkerCommand` says why a worker is a command and not a
+consumer of Magento's queue. `demo/run.sh` starts the journal one for the Nexus demonstration; the
+workflow it advances has no activity, so no activity worker is started there.
 
 ## The probes
 
-Two scripts, kept because they replay, and a probe module in `app/code` that carries the queue topic
-they drive — outside the published package, because a topic whose handler does nothing but sleep has
-no business being in it.
+Five scripts, kept because they replay, and a probe module in `app/code` that carries the workflows
+and the queue topic they drive — outside the published package, because a topic whose handler does
+nothing but sleep has no business being in it. Each one says in its header how it is called.
 
-```bash
-php probe-lock.php which                   # is the lock shared across processes?
-php probe-queue.php publish <label> <s>    # a message that lingers
-php probe-queue.php state                  # the state of the messages, in plain words
-php probe-queue.php recover                # the cron task that catches up the IN_PROGRESS
-php probe-queue.php unlock                 # the cron task that empties queue_lock
-php probe-queue.php purge                  # sets aside the messages of past campaigns
-```
+| script | what it measures |
+|---|---|
+| `probe-lock.php` | is `LockManagerInterface` shared across processes? |
+| `probe-queue.php` | what does a consumer that dies in the middle of a message leave behind? |
+| `probe-resume.php` | the failure OST003 names: a consumer killed between the charge and the reservation, restarted under the same identifier, must charge once |
+| `probe-order.php` | §5.2: an order that is placed starts a durable execution, on the cluster |
+| `probe-cases.php` | one execution that holds every case the observation screen has to know how to show |
 
 ⚠ **Measuring on a dirty queue answers beside the point**: a consumer takes the oldest candidate,
-not yours. `purge` before any campaign.
+not yours. `probe-queue.php purge` before any campaign.
 
 ## What bites, and what nothing tells you
 
@@ -183,9 +191,11 @@ shows up where it is committed.
   a component and autoloading its classes are two distinct mechanisms, and only the first is
   automatic.
 - **A controller is resolved by convention from the module name**, not from autoloading:
-  `Gplanchat_DurableModule` + `\Controller\Adminhtml\…`. The module therefore adds a second `psr-4` entry
-  for that one directory. Without it, the route is declared, **the menu shows**, and Magento serves
-  its 404 in the admin chrome — every symptom points at the declaration, which is right.
+  `Gplanchat_DurableModule` + `\Controller\Adminhtml\…`. The module name and the package's PSR-4
+  root have to agree. They once did not — `Gplanchat_Durable` against `Gplanchat\DurableModule\` —
+  and that forced a second `psr-4` entry for that one directory; the module is now named after its
+  namespace and has one. The symptom was misleading: route declared, **the menu shows**, and Magento
+  serves its 404 in the admin chrome — every sign points at the declaration, which is right.
 - **An optional constructor argument is not autowired**: Magento takes its default. It has to be
   named in `di.xml`, otherwise the dependency stays `null` without a line of error.
 - **Renaming a class that the container instantiates** leaves a stale interceptor in

@@ -67,14 +67,11 @@ See **`.env.dev`**: **`DURABLE_DSN`** (`temporal://…`), **`durable.temporal.ds
 Typical workers (via `symfony serve` or manual runs):
 
 ```bash
-# Journal worker (polls Temporal for workflow tasks)
-php bin/console messenger:consume durable_temporal_journal
-
-# Activity worker (polls Temporal for activity tasks)
-php bin/console messenger:consume durable_temporal_activity
-
-# In-memory workflow worker (Messenger backend)
+# Workflow tasks, activity tasks, and the Nexus operations this application serves.
+# The Durable bundle registers these three from durable.temporal.dsn; messenger.yaml declares nothing.
 php bin/console messenger:consume durable_workflows
+php bin/console messenger:consume durable_activities
+php bin/console messenger:consume durable_nexus
 ```
 
 See **`.symfony.local.yaml`** for full worker configuration when using `symfony serve`.

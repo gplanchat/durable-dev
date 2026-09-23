@@ -131,6 +131,32 @@ final class NexusHandlerPassTest extends TestCase
         self::assertFalse($container->hasDefinition('durable.temporal.nexus_registry'));
     }
 
+    public function testADeclaredHandlerMakesTheNexusWorkerConsumableAsDurableNexus(): void
+    {
+        $container = $this->containerWithRegistry();
+        $container->register('durable.temporal.nexus_receiver', \stdClass::class);
+        $container->register('app.billing', BillingFixture::class)
+            ->addTag(NexusHandlerPass::TAG, ['contract' => BillingServedFixture::class]);
+
+        (new NexusHandlerPass())->process($container);
+
+        self::assertSame(
+            [['alias' => 'durable_nexus']],
+            $container->getDefinition('durable.temporal.nexus_receiver')->getTag('messenger.receiver'),
+        );
+    }
+
+    public function testWithNoHandlerTheNexusWorkerIsNotConsumable(): void
+    {
+        // A worker nobody serves would long-poll a queue forever for nothing.
+        $container = $this->containerWithRegistry();
+        $container->register('durable.temporal.nexus_receiver', \stdClass::class);
+
+        (new NexusHandlerPass())->process($container);
+
+        self::assertFalse($container->getDefinition('durable.temporal.nexus_receiver')->hasTag('messenger.receiver'));
+    }
+
     /**
      * The hole the other tests left: they check that the call is **added** to the definition,
      * never that it runs. Two `TypeError`s lived in between — the whole payload passed as

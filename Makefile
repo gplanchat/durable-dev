@@ -7,6 +7,7 @@ queue:           ; @grep -E "^queued" loop/memory/STATE.md || echo "queue empty"
 trust:           ; @./loop/scripts/trust-log.sh --render
 audit:           ; @./loop/scripts/cost-check.sh --report
 goals:           ; @./loop/verify-goals.sh
+goals-record:    ; @LOOP_RECORD=1 ./loop/verify-goals.sh
 retro:           ; @./loop/retro.sh
 gate:            ; @./loop/guardrails/verify.sh
 clean-worktrees: ; @git worktree list | awk '/loop-/{print $$1}' | xargs -rn1 git worktree remove --force

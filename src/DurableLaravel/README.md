@@ -38,7 +38,7 @@ php artisan vendor:publish --tag=durable-config
 
 ```php
 // config/durable.php
-'backend' => 'illuminate',   // or 'memory'
+'backend' => 'illuminate',   // or 'temporal', or 'memory'
 'connection' => null,        // the application's default
 'workflows' => [App\Workflows\Onboarding::class],
 'lock' => ['store' => null, 'ttl' => 300, 'wait' => 10],

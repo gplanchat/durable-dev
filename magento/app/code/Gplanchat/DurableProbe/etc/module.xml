@@ -3,7 +3,7 @@
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/module.xsd">
     <module name="Gplanchat_DurableProbe">
         <sequence>
-            <module name="Gplanchat_Durable"/>
+            <module name="Gplanchat_DurableModule"/>
         </sequence>
     </module>
 </config>

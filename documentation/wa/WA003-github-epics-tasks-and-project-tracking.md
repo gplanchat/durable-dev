@@ -92,4 +92,4 @@ Adapt fields if a template is mandated by the repository (e.g. GitHub issue form
 
 ## Source (non-normative)
 
-Principles were distilled from `documentation/archive/PLANIFICATION_EPICS_TACHES_GITHUB.md` (2026-01-31). That file may contain **repository-specific** issue lists; **this WA** is the normative, **generalised** form for this project.
+These principles were distilled in January 2026 from an earlier project's planning conventions and generalised for this repository; the original file was never part of this tree.

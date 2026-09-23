@@ -42,9 +42,12 @@ what runs on Temporal or In-Memory.
 | `Store\DbalChildWorkflowParentLinkStore` | `Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface` over `durable_child_workflow_parent_link` |
 | `Store\DbalWorkflowRunCatalog` | `Gplanchat\Durable\Port\WorkflowRunCatalogInterface` over `durable_workflow_runs` — what the dashboard reads |
 | `Store\DbalWorkflowRunProjection` | Writes that table: the name on start, the outcome on end |
-| `Store\ProjectingWorkflowMetadataStore`, `Store\ProjectingEventStore` | Decorators that feed the projection without touching what they wrap |
 | `Schema\DurableSchema` | Lazy table creation on first write (Messenger Doctrine transport pattern) |
 | `Messenger\SingleResumeLockMiddleware` | One resume at a time per execution |
+
+From the core, not from this bridge: `Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore` and
+`Gplanchat\Durable\Store\ProjectingEventStore` — the decorators that feed `DbalWorkflowRunProjection`
+without touching what they wrap.
 
 Records go through `Gplanchat\Durable\Mapping\EventDataMapper`, the same boundary the Temporal
 journal uses — rows and gRPC journal items share one shape.

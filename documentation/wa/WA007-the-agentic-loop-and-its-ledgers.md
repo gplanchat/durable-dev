@@ -128,6 +128,12 @@ required, none sufficient alone:
 
 ### The 30-day rollout
 
+**Where it stands on 2026-09-16.** Week 1 has not started. The constitution landed on 2026-09-06
+and every ledger under `loop/memory/` is still header-only: no tick has run, by hand or by cron.
+The DISPATCH section of CLAUDE.md therefore says what was always true — it binds loop-driven work —
+instead of a rule three hundred human commits ignored. Starting week 1 is a human decision this
+note does not take; when it is taken, the date goes here.
+
 Autonomy phases in as the ledgers fill. Full autonomy on day one is how you get a four-figure
 surprise and a repository you no longer trust.
 

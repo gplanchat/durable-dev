@@ -13,12 +13,10 @@ durable:
         parent_link_store:
             type: dbal
 
-# Two demonstration profiles, and nothing in `dev`, `prod` or `test`.
-#
-# This is not caution: a Messenger `temporal://` transport declared without a DSN makes
-# `doctrine:schema:create` fail, Doctrine's schema listener walking **every** transport. The
-# message is "Invalid temporal:// DSN", far from Nexus and far from Messenger. An environment that
-# has no cluster therefore has no DSN, no transport and no handler.
+# Two demonstration profiles, and nothing in `dev`, `prod` or `test`: an environment that has no
+# cluster has no DSN and no handler. With a DSN, the Durable bundle registers the Temporal workers
+# itself — `durable_nexus` in `demo`, `durable_workflows` in `demo_caller` — and messenger.yaml
+# declares none of them.
 
 # `demo` — the shop **serves** `stock`.
 #

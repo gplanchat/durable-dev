@@ -36,7 +36,7 @@ whether it lives in the repository or on GitHub:
 | Commit messages, including trailers | English |
 | Prise files under `.worktrees/prises/` | English |
 | Journal entries under `documentation/journal/` | English (already required by WA001) |
-| ADRs, WAs, OSTs, PRDs, OpenSpec changes | English (already required by WA001) |
+| ADRs, WAs, OSTs, OpenSpec changes | English (already required by WA001) |
 | Code identifiers, docblocks, comments in `src/` and `tests/` | English |
 | Release notes and tags | English |
 

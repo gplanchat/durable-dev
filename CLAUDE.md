@@ -43,7 +43,11 @@ to run this loop at all, are in [WA007](documentation/wa/WA007-the-agentic-loop-
 The three seats are set in `loop/loop.sh`. They are variables because a model outage is a config
 change, not an incident — see WA007.
 
-## DISPATCH (route every task; first match wins; log to loop/memory/dispatch.tsv)
+## DISPATCH (loop-driven work only; first match wins; the loop logs to loop/memory/dispatch.tsv)
+
+Binds the tasks `loop/loop.sh` dispatches. A human session tracks its work on GitHub (WA003) and
+leaves the ledger alone; it stays header-only until the rollout in WA007 starts, a human decision.
+
 
 1. Decisions (plan / review / route / tiebreak) -> conductor seat, effort high, read-only. It
    writes work orders, never code.
@@ -59,8 +63,9 @@ change, not an incident — see WA007.
 
 - Every task gets a machine-checkable `done_when` before work starts.
 - A fresh-context agent that saw neither plan nor draft judges against it.
-- `loop/guardrails/verify.sh` casts the final vote. It runs what CI runs, so a tick that passes
-  locally is a tick that passes on the PR.
+- `loop/guardrails/verify.sh` casts the final vote. It runs the two required CI jobs — QA and
+  static analysis, on the lock line — so a tick that passes locally passes those on the PR. The
+  host matrix (Symfony, Laravel, Mage-OS, Sylius, Temporal) is CI's alone.
 - TDD is not optional here (WA002): the failing test comes before the fix, in the same diff.
 - On ambiguity: take the conservative path, log the deviation, continue.
 - Maker and checker disagree twice -> stop, queue for a human.

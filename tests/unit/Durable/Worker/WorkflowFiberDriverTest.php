@@ -68,6 +68,23 @@ final class WorkflowFiberDriverTest extends TestCase
         self::assertSame('boom', $lifecycle->failure?->getMessage());
     }
 
+    public function testASuspensionThatIsNotAnAwaitableReportsFailedNotCompleted(): void
+    {
+        // The hole #315 pins: a fiber that suspends with anything but an Awaitable used to fall
+        // out of the loop with no lifecycle call at all, and the caller took the null for a result.
+        $lifecycle = $this->recorder();
+        $result = $this->drive($lifecycle, static function (WorkflowEnvironment $env): string {
+            \Fiber::suspend('not an awaitable');
+
+            return 'unreachable';
+        });
+
+        self::assertNull($result);
+        self::assertSame(['onBeforeRun', 'onFailed'], $lifecycle->calls);
+        self::assertInstanceOf(\LogicException::class, $lifecycle->failure);
+        self::assertStringContainsString('string', $lifecycle->failure->getMessage());
+    }
+
     public function testOnBeforeRunCanPreventTheFiberFromStarting(): void
     {
         $lifecycle = new class implements WorkflowLifecycleInterface {

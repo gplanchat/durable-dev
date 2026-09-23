@@ -5,7 +5,7 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "/home/gplanchat/PhpstormProjects/perso/hive"
+        "/path/to/durable"
       ]
     },
     "git": {
@@ -14,7 +14,7 @@
         "-y",
         "@modelcontextprotocol/server-git",
         "--repository",
-        "/home/gplanchat/PhpstormProjects/perso/hive"
+        "/path/to/durable"
       ]
     },
     "postgres": {

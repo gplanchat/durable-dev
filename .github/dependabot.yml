@@ -1,0 +1,21 @@
+# Version-update pull requests, weekly, for the manifests a human actually merges from: the root
+# (the packages), the Symfony sample and the Laravel bench, and the actions the workflows pin by
+# tag. The Sylius and Mage-OS benches pin upstream skeletons on purpose (their READMEs say why) and
+# are left to their own release cadence. Security alerts are on regardless of this file.
+version: 2
+updates:
+    - package-ecosystem: composer
+      directory: /
+      schedule: { interval: weekly, day: monday }
+      open-pull-requests-limit: 5
+    - package-ecosystem: composer
+      directory: /symfony
+      schedule: { interval: weekly, day: monday }
+      open-pull-requests-limit: 3
+    - package-ecosystem: composer
+      directory: /laravel
+      schedule: { interval: weekly, day: monday }
+      open-pull-requests-limit: 3
+    - package-ecosystem: github-actions
+      directory: /
+      schedule: { interval: weekly, day: monday }

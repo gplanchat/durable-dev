@@ -19,7 +19,7 @@
         Declaration, for want of tags. Magento's container has no equivalent of Symfony's
         attribute autoconfiguration: a workflow class is named, an activity handler is placed.
         What is **not** declared is a handler's contract — the factory reads its interfaces and
-        keeps those carrying `#[ActivityMethod]`. One declaration fewer to get wrong, and the
+        keeps those carrying `#[AsActivityMethod]`. One declaration fewer to get wrong, and the
         names stay the attributes'.
 
         Both arrays are **empty** in the published package, and that is deliberate: an integration

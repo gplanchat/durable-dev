@@ -175,22 +175,11 @@ servir les autres.
 
 ## Lancer le worker
 
-Servir demande un worker sur la file de tâches Nexus. C'est un transport Messenger, comme le worker
-d'activité :
-
-```yaml
-# config/packages/messenger.yaml
-framework:
-    messenger:
-        transports:
-            durable_temporal_nexus:
-                dsn: '%env(DURABLE_DSN)%'
-                options:
-                    purpose: nexus_worker
-```
+Servir demande un worker sur la file de tâches Nexus. Le bundle l'enregistre lui-même, comme les
+workers de workflow et d'activité, dès qu'un handler est déclaré ; `messenger.yaml` ne déclare rien :
 
 ```bash
-php bin/console messenger:consume durable_temporal_nexus --time-limit=3600
+php bin/console messenger:consume durable_nexus --time-limit=3600
 ```
 
 La file vient du DSN. `nexus_task_queue` la fixe ; **par défaut elle suit la file de workflow**,

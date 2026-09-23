@@ -1,6 +1,11 @@
 # See DUR009 (test pyramid), DUR008 (PHP-FIG coding standards).
 name: CI
 
+# One run per ref: a second push to the same branch cancels the run the first one started.
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
+
 on:
     push:
         branches: [main, master]
@@ -8,10 +13,11 @@ on:
 
 jobs:
     qa:
-        # Do not rename: this is a required status check on `main`. Renaming it makes the required
-        # context never report, and every PR unmergeable until branch protection is updated too.
+        # Was the required status check on `main` until 2026-09-16; `ci-ok` below is now. Its name
+        # is still what `loop/guardrails/verify.sh` mirrors, so keep it stable.
         name: QA (CS + tests)
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         strategy:
             fail-fast: false
             matrix:
@@ -26,6 +32,13 @@ jobs:
                   # ext-grpc: required by WorkflowTaskRunner, WorkflowTaskProcessor and TemporalHistoryCursor (DUR027).
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
+
+            - name: Cache Composer downloads
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cache/composer
+                  key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
+                  restore-keys: composer-${{ runner.os }}-
 
             - name: Install Composer dependencies
               run: composer install --no-interaction --prefer-dist --no-progress
@@ -44,6 +57,7 @@ jobs:
         # than a cartesian product: every entry is an edge that has a reason to exist.
         name: Symfony ${{ matrix.symfony }} / PHP ${{ matrix.php-version }}
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         strategy:
             fail-fast: false
             matrix:
@@ -74,6 +88,13 @@ jobs:
             # Flex constrains *all* symfony/* dependencies, transitive ones included, to the
             # requested line. Without it every package would have to be listed by hand, and the
             # monorepo root no longer requires any of them directly.
+            - name: Cache Composer downloads
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cache/composer
+                  key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
+                  restore-keys: composer-${{ runner.os }}-
+
             - name: Pin the Symfony line (Flex)
               run: |
                   composer global config --no-plugins allow-plugins.symfony/flex true
@@ -117,6 +138,7 @@ jobs:
         # connection class.
         name: Laravel ${{ matrix.laravel }} / PHP ${{ matrix.php-version }}
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         strategy:
             fail-fast: false
             matrix:
@@ -175,6 +197,7 @@ jobs:
         # bound without a type, and an upsert that counted the rows affected by an UPDATE.
         name: Sylius shop (the dashboard, rendered)
         runs-on: ubuntu-latest
+        timeout-minutes: 45
         services:
             mysql:
                 image: mysql:8.4
@@ -203,6 +226,13 @@ jobs:
 
             # The repository's packages come in through `path` repositories: the shop reads
             # `../src`, so it tests the code of this commit and not a published version.
+            - name: Cache Composer downloads
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cache/composer
+                  key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
+                  restore-keys: composer-${{ runner.os }}-
+
             - name: Composer install (sylius/)
               working-directory: sylius
               run: composer install --no-interaction --prefer-dist --no-progress
@@ -241,6 +271,7 @@ jobs:
         # ~8.5.0 -> your php version (8.2.33) does not satisfy that requirement".
         name: Magento module (Mage-OS ${{ matrix.mageos }} / PHP ${{ matrix.php-version }})
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         strategy:
             fail-fast: false
             matrix:
@@ -319,6 +350,7 @@ jobs:
         # `magento/`.
         name: Magento module (it really boots)
         runs-on: ubuntu-latest
+        timeout-minutes: 60
         services:
             mysql:
                 image: mysql:8.4
@@ -453,10 +485,11 @@ jobs:
                 grep -qi 'Magento Admin' /tmp/login.html
 
     static-analysis:
-        # Do not rename: this is a required status check on `main`. Renaming it makes the required
-        # context never report, and every PR unmergeable until branch protection is updated too.
+        # Was the required status check on `main` until 2026-09-16; `ci-ok` below is now. Its name
+        # is still what `loop/guardrails/verify.sh` mirrors, so keep it stable.
         name: Analyse statique (PHPStan + Psalm)
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             - uses: actions/checkout@v4
 
@@ -468,6 +501,13 @@ jobs:
                   php-version: '8.2'
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
+
+            - name: Cache Composer downloads
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cache/composer
+                  key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
+                  restore-keys: composer-${{ runner.os }}-
 
             - name: Install Composer dependencies
               run: composer install --no-interaction --prefer-dist --no-progress
@@ -488,6 +528,7 @@ jobs:
     symfony-sample:
         name: Symfony sample app (composer + PHPUnit)
         runs-on: ubuntu-latest
+        timeout-minutes: 45
         strategy:
             fail-fast: false
             matrix:
@@ -527,6 +568,7 @@ jobs:
     temporal-bridge:
         name: Bridge Temporal (ext-grpc + test resolver)
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             - uses: actions/checkout@v4
 
@@ -537,14 +579,21 @@ jobs:
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
 
+            - name: Cache Composer downloads
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cache/composer
+                  key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
+                  restore-keys: composer-${{ runner.os }}-
+
             - name: Install Composer dependencies
               run: composer install --no-interaction --prefer-dist --no-progress
 
             - name: PHPUnit (journal history replay)
               run: vendor/bin/phpunit tests/unit/Bridge/Temporal/JournalStateResolverTest.php
 
-            - name: PHPUnit (Temporal transport factory, ext-grpc)
-              run: vendor/bin/phpunit tests/unit/Bridge/Temporal/Messenger/TemporalTransportFactoryTest.php
+            - name: PHPUnit (Temporal workers registered by the bundle, ext-grpc)
+              run: vendor/bin/phpunit tests/unit/DurableBundle/DependencyInjection/DurableTemporalReceiversTest.php tests/unit/DurableBundle/DependencyInjection/Compiler/TemporalReceiversPassTest.php
 
             - name: PHPUnit (WorkflowTaskRunner + WorkflowTaskProcessor — fiber replay, DUR027)
               run: vendor/bin/phpunit tests/unit/Bridge/Temporal/Worker/
@@ -552,6 +601,7 @@ jobs:
     coverage:
         name: Coverage (PCOV)
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             - uses: actions/checkout@v4
 
@@ -563,6 +613,13 @@ jobs:
                   coverage: pcov
                   ini-values: pcov.directory=.
 
+            - name: Cache Composer downloads
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cache/composer
+                  key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
+                  restore-keys: composer-${{ runner.os }}-
+
             - name: Install Composer dependencies
               run: composer install --no-interaction --prefer-dist --no-progress
 
@@ -572,6 +629,7 @@ jobs:
     temporal-integration:
         name: Temporal integration tests (gRPC + Temporal auto-setup)
         runs-on: ubuntu-latest
+        timeout-minutes: 60
         steps:
             - uses: actions/checkout@v4
 
@@ -581,6 +639,13 @@ jobs:
                   php-version: '8.2'
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
+
+            - name: Cache Composer downloads
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cache/composer
+                  key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
+                  restore-keys: composer-${{ runner.os }}-
 
             - name: Install Composer dependencies (symfony/)
               working-directory: symfony
@@ -665,6 +730,7 @@ jobs:
     docker-compose-stack:
         name: Docker stack (Temporal + UI)
         runs-on: ubuntu-latest
+        timeout-minutes: 60
         steps:
             - uses: actions/checkout@v4
 
@@ -690,3 +756,20 @@ jobs:
             - name: Stop the containers
               if: always()
               run: docker compose -f symfony/compose.yaml down -v
+
+    ci-ok:
+        # The one required status check on `main` (branch protection, 2026-09-16). It needs every
+        # job above, so a red matrix leg blocks a merge the way a red QA leg used to; the individual
+        # job names can move without touching the protection. A skipped job is not a failure.
+        name: ci-ok
+        if: always()
+        needs: [qa, symfony-matrix, laravel, sylius-shop, magento-matrix, magento-boot, static-analysis, symfony-sample, temporal-bridge, coverage, temporal-integration, docker-compose-stack]
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - name: Every job succeeded or was skipped
+              env:
+                  RESULTS: ${{ toJSON(needs) }}
+              run: |
+                  echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+                  echo "$RESULTS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")' >/dev/null

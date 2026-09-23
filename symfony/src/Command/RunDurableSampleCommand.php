@@ -72,9 +72,9 @@ final class RunDurableSampleCommand extends Command
             ->setHelp(
                 <<<'HELP'
 This project shows <info>gplanchat/durable</info> with <comment>Symfony Messenger</comment>: workflow resumes
-and activities travel over the <info>durable_workflows</info> and <info>durable_activities</info>
-transports (Messenger, see <comment>config/packages/messenger.yaml</comment>).
-In dev the event journal can use <comment>Temporal</comment> (see <comment>.env.dev</comment>) with no SQL database for Durable.
+and activities travel over <info>durable_workflows</info> and <info>durable_activities</info>: Messenger
+queues in test (see <comment>config/packages/messenger.yaml</comment>), the Durable bundle's Temporal workers
+in dev (see <comment>config/packages/durable.yaml</comment>), with no SQL database for Durable.
 
 Available workflows (see <info>App\Durable\DurableSampleWorkflows</info>):
 
