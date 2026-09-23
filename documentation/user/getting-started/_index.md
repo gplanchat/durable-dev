@@ -218,6 +218,8 @@ declare(strict_types=1);
 namespace App\Workflow;
 
 use App\Workflow\Activity\GreetingActivities;
+use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\Activities;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -225,17 +227,22 @@ use Gplanchat\Durable\WorkflowEnvironment;
 #[AsWorkflow(name: 'greet')]
 final class GreetWorkflow
 {
-    public function __construct(private readonly WorkflowEnvironment $environment) {}
-
+    /** @param ActivityStub<GreetingActivities> $greeting */
     #[AsWorkflowMethod]
-    public function run(string $name): string
-    {
-        $activities = $this->environment->activityStub(GreetingActivities::class);
-
-        return $this->environment->await($activities->greet($name));
+    public function run(
+        string $name,
+        #[Activities(GreetingActivities::class)]
+        ActivityStub $greeting,
+        WorkflowEnvironment $env,
+    ): string {
+        return $env->await($greeting->greet($name));
     }
 }
 ```
+
+`$name` comes from the input the workflow is started with. `$greeting` and `$env` do not: Durable
+supplies them, the way Symfony supplies a controller's services. See
+[Arguments Durable supplies](../workflows/#arguments-durable-supplies).
 
 ### 4. Dispatch from a controller or service {#4--dispatch-from-a-controller-or-service}
 

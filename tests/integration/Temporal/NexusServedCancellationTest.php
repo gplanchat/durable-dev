@@ -14,6 +14,7 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
 use Gplanchat\Durable\Nexus\NexusOperationHeaders;
@@ -37,7 +38,6 @@ use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * §4 — cancellation, measured then served.
@@ -55,7 +55,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final class NexusServedCancellationTest extends TestCase
 {
     private TemporalConnection $connection;
-    private WorkflowServiceClient $client;
+    private WorkflowServiceClientInterface $client;
     private OperatorServiceClient $operator;
     private string $endpointName;
     private string $endpointId = '';
@@ -110,7 +110,7 @@ final class NexusServedCancellationTest extends TestCase
             $request->setReason('fin de la sonde');
 
             try {
-                GrpcUnary::wait($this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]));
+                $this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]);
             } catch (\RuntimeException) {
             }
         }
@@ -252,7 +252,7 @@ final class NexusServedCancellationTest extends TestCase
         $signal->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $callerId]));
         $signal->setSignalName('reveille');
         $signal->setIdentity($this->connection->identity);
-        GrpcUnary::wait($this->client->SignalWorkflowExecution($signal, [], ['timeout' => 10_000_000]));
+        $this->client->SignalWorkflowExecution($signal, [], ['timeout' => 10_000_000]);
 
         $task = $this->pollWorkflowTaskFor($callerId);
         // The complete history, and not the task's: the page the poll returns after a signal does
@@ -294,7 +294,7 @@ final class NexusServedCancellationTest extends TestCase
             $poll->setTaskQueue(new TaskQueue(['name' => $this->queue]));
             $poll->setIdentity($this->connection->identity);
 
-            $task = GrpcUnary::wait($this->client->PollNexusTaskQueue($poll, [], ['timeout' => 30_000_000]));
+            $task = $this->client->PollNexusTaskQueue($poll, [], ['timeout' => 30_000_000]);
             if ('' !== (string) $task->getTaskToken()) {
                 return $task;
             }
@@ -328,7 +328,7 @@ final class NexusServedCancellationTest extends TestCase
         $poll->setTaskQueue(new TaskQueue(['name' => $this->queue]));
         $poll->setIdentity($this->connection->identity);
 
-        return GrpcUnary::wait($this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]));
+        return $this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]);
     }
 
     /**
@@ -341,13 +341,6 @@ final class NexusServedCancellationTest extends TestCase
         $done->setTaskToken($task->getTaskToken());
         $done->setIdentity($this->connection->identity);
         $done->setCommands($commands);
-
-        /** @var array{0: mixed, 1: \stdClass} $pair */
-        $pair = $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000])->wait();
-        self::assertSame(
-            0,
-            (int) ($pair[1]->code ?? -1),
-            'The server refused the workflow task: ' . (string) ($pair[1]->details ?? ''),
-        );
+        $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000]);
     }
 }

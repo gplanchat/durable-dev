@@ -218,6 +218,45 @@ reached, **including** when the awaited signal is delivered after the deadline e
 recorded after the deadline fired is never applied to the wait that deadline settled; it stays
 available to the next wait, and its handler runs then. See **DUR032** and **DUR035**.
 
+### Arguments Durable supplies
+
+The workflow method can take its activity stubs and its environment as arguments instead of
+building them in a constructor:
+
+```php
+/** @param ActivityStub<OrderActivities> $orders */
+#[AsWorkflowMethod]
+public function run(
+    string $orderId,
+    #[Activities(OrderActivities::class)]
+    ActivityStub $orders,
+    WorkflowEnvironment $env,
+): mixed {
+    return $env->await($orders->charge($orderId));
+}
+```
+
+- A parameter typed **`WorkflowEnvironment`** receives the environment.
+- A parameter typed **`ActivityStub`** and marked **`#[Activities(Contract::class)]`** receives
+  `$env->activityStub(Contract::class)`. PHP has no runtime generics, so the attribute is what names
+  the contract.
+- Every other parameter is **input**, matched by name, as before. A caller never passes the
+  supplied ones: not the code that starts the workflow, not a parent calling it as a child, not a
+  Nexus operation.
+- The **`@param ActivityStub<Contract>`** docblock is for PHPStan. With
+  [`gplanchat/durable-phpstan`](../packages/), a docblock that names another contract than the
+  attribute is an error, and so is a missing one (`durable.activities.missingGeneric`, which a
+  project can ignore), since PHPStan cannot check the calls without it.
+- A stub that needs **`ActivityOptions`** keeps `$env->activityStub($contract, $options)`: attribute
+  arguments cannot build a `Duration`.
+- Mistakes fail when the workflow is **registered** (container compilation, with the bundle): an
+  `ActivityStub` without `#[Activities]`, `#[Activities]` on another type, a contract that does not
+  exist, or one that declares no `#[AsActivityMethod]`.
+
+The constructor form keeps working. It is the one to use when the class implements a contract
+interface such as `OrderWorkflowContract` above: PHP does not let the implementation add required
+parameters to `run()`.
+
 ### ActivityOptions on the stub
 
 To apply **retries**, **timeouts**, **task queue**, and related scheduling metadata to every call made through a given stub, pass **`ActivityOptions`** as the second argument to **`activityStub()`**:
@@ -286,7 +325,7 @@ everything a workflow can do, and nothing the engine keeps for itself.
 | `some($count, ...$awaitables)` | Settles when `$count` members have **succeeded**, indexed by declaration position. The rest are cancelled. |
 | `timer($duration, $summary = '')` | An awaitable that settles when the duration elapses. Composes like any other. |
 | `sleep($duration, $summary = '')` | Waits, and awaits for you. Says what it does. |
-| `activityStub($contract, $options = null)` | A typed proxy over an activity contract. Build it in the constructor; every call it makes carries `$options`. |
+| `activityStub($contract, $options = null)` | A typed proxy over an activity contract. Build it in the constructor, or declare it as an [`#[Activities]` argument](#arguments-durable-supplies) when it needs no options; every call it makes carries `$options`. |
 | `childWorkflowStub($class, $options = null)` | The same, for a child workflow: resolved from the child's class, and its calls compose like any other. |
 | `onSignal($name, $handler)` | Registers a signal handler. The handler mutates workflow state and `await()` observes it; there is no separate wait. The name takes a backed enum, so a typo is a type error rather than a wait that never settles. |
 | `onUpdate($name, $handler)` | The same for an update, whose handler's return value is the caller's response. |

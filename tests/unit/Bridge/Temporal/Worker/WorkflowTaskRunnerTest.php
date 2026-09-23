@@ -9,11 +9,11 @@ use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Exception\DeadlineExceededException;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
-use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\WorkflowExecution;
@@ -36,7 +36,6 @@ use Temporal\Api\Update\V1\Meta as UpdateMeta;
 use Temporal\Api\Update\V1\Request as UpdateRequest;
 use Temporal\Api\Update\V1\Response as UpdateResponse;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
@@ -46,16 +45,15 @@ use unit\Durable\Fixtures\SuiteActivities;
  * provided inline in PollWorkflowTaskQueueResponse (next_page_token = '' → no pagination).
  * This makes tests fast and deterministic without a running Temporal server.
  */
-#[RequiresPhpExtension('grpc')]
 final class WorkflowTaskRunnerTest extends TestCase
 {
-    private WorkflowServiceClient $grpcClient;
+    private WorkflowServiceClientInterface $grpcClient;
     private TemporalHistoryCursor $cursor;
     private TemporalConnection $connection;
 
     protected function setUp(): void
     {
-        $this->grpcClient = $this->createMock(WorkflowServiceClient::class);
+        $this->grpcClient = $this->createMock(WorkflowServiceClientInterface::class);
         $this->cursor = new TemporalHistoryCursor($this->grpcClient, 'test-namespace');
         $this->connection = new TemporalConnection('localhost:7233', 'test-namespace');
     }

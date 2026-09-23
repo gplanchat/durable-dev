@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Worker;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcUnary;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Temporal\Api\Enums\V1\QueryResultType;
 use Temporal\Api\Failure\V1\Failure;
@@ -17,7 +17,6 @@ use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskFailedRequest;
-use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 /**
  * Workflow task poll → execute → respond loop (Temporal native backend).
@@ -31,7 +30,7 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 final class WorkflowTaskProcessor
 {
     public function __construct(
-        private readonly WorkflowServiceClient $client,
+        private readonly WorkflowServiceClientInterface $client,
         private readonly TemporalConnection $settings,
         private readonly WorkflowTaskRunner $runner,
     ) {}
@@ -105,7 +104,7 @@ final class WorkflowTaskProcessor
         $req->setTaskToken($taskToken);
         $req->setFailure($failure);
 
-        GrpcUnary::wait($this->client->RespondWorkflowTaskFailed($req, [], ['timeout' => TemporalGrpcTimeouts::RESPOND_WORKFLOW_TASK_US]));
+        $this->client->RespondWorkflowTaskFailed($req, [], ['timeout' => TemporalGrpcTimeouts::RESPOND_WORKFLOW_TASK_US]);
     }
 
     private function pollOnce(): PollWorkflowTaskQueueResponse
@@ -115,11 +114,7 @@ final class WorkflowTaskProcessor
         $req->setTaskQueue(new TaskQueue(['name' => $this->settings->workflowTaskQueue->name()]));
         $req->setIdentity($this->settings->identity);
 
-        $call = $this->client->PollWorkflowTaskQueue($req, [], ['timeout' => TemporalGrpcTimeouts::LONG_POLL_US]);
-        $resp = GrpcUnary::wait($call);
-        if (!$resp instanceof PollWorkflowTaskQueueResponse) {
-            throw new \RuntimeException('Unexpected PollWorkflowTaskQueue response type.');
-        }
+        $resp = $this->client->PollWorkflowTaskQueue($req, [], ['timeout' => TemporalGrpcTimeouts::LONG_POLL_US]);
 
         return $resp;
     }
@@ -178,25 +173,15 @@ final class WorkflowTaskProcessor
             $req->getQueryResults()[$queryId] = $queryResult;
         }
 
-        $call = $this->client->RespondWorkflowTaskCompleted($req, [], ['timeout' => TemporalGrpcTimeouts::RESPOND_WORKFLOW_TASK_US]);
-        /** @var array{0: \Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedResponse|null, 1: \stdClass} $pair */
-        $pair = $call->wait();
-        [$done, $status] = $pair;
-        $code = (int) ($status->code ?? -1);
-
-        if (0 === $code) {
-            return;
-        }
-
-        if (5 === $code) {
+        try {
+            $this->client->RespondWorkflowTaskCompleted($req, [], ['timeout' => TemporalGrpcTimeouts::RESPOND_WORKFLOW_TASK_US]);
+        } catch (\RuntimeException $e) {
             // NOT_FOUND: task token is stale or workflow was already closed (e.g. replayed from a prior attempt).
-            return;
-        }
+            if (5 === $e->getCode()) {
+                return;
+            }
 
-        throw new \RuntimeException(\sprintf(
-            'Temporal gRPC error responding to workflow task [%d]: %s',
-            $code,
-            (string) ($status->details ?? ''),
-        ));
+            throw $e;
+        }
     }
 }
