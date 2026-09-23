@@ -36,9 +36,10 @@ final class DurableWorkerCommandTest extends TestCase
             activityTransport: 'durable_activities',
         );
 
-        self::assertSame(0, $tester->run(['command' => 'durable:worker', '--limit' => '5', '--time-limit' => '60']));
+        self::assertSame(0, $tester->run(['command' => 'durable:worker', '--limit' => '5', '--time-limit' => '60', '--no-reset' => true]));
         self::assertSame(['durable_workflows', 'durable_activities'], $consume->receivers);
         self::assertSame(['limit' => '5', 'time-limit' => '60'], $consume->options);
+        self::assertTrue($consume->noReset);
         self::assertStringContainsString('Consuming durable_workflows, durable_activities.', $tester->getDisplay());
     }
 
@@ -140,6 +141,8 @@ final class RecordingConsumeCommand extends Command implements SignalableCommand
     /** @var array<string, string> */
     public array $options = [];
 
+    public bool $noReset = false;
+
     /** @var list<int> */
     public array $signals = [];
 
@@ -154,12 +157,14 @@ final class RecordingConsumeCommand extends Command implements SignalableCommand
         foreach (['limit', 'failure-limit', 'memory-limit', 'time-limit', 'sleep'] as $option) {
             $this->addOption($option, null, InputOption::VALUE_REQUIRED);
         }
+        $this->addOption('no-reset', null, InputOption::VALUE_NONE);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->receivers = $input->getArgument('receivers');
         $this->options = array_filter($input->getOptions(), static fn(mixed $value): bool => \is_string($value));
+        $this->noReset = (bool) $input->getOption('no-reset');
 
         return Command::SUCCESS;
     }

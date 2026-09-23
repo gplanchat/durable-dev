@@ -41,6 +41,9 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
     /** Options passed through to `messenger:consume` as they are. */
     private const FORWARDED_OPTIONS = ['limit', 'failure-limit', 'memory-limit', 'time-limit', 'sleep'];
 
+    /** Flags passed through to `messenger:consume`. */
+    private const FORWARDED_FLAGS = ['no-reset'];
+
     public function __construct(
         private readonly ?SendersLocatorInterface $senders,
         private readonly ?ContainerInterface $receivers,
@@ -54,6 +57,9 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
         $this->addOption('role', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Only these roles: workflow, activity, nexus (all by default).', []);
         foreach (self::FORWARDED_OPTIONS as $option) {
             $this->addOption($option, null, InputOption::VALUE_REQUIRED, \sprintf('Passed to messenger:consume --%s.', $option));
+        }
+        foreach (self::FORWARDED_FLAGS as $flag) {
+            $this->addOption($flag, null, InputOption::VALUE_NONE, \sprintf('Passed to messenger:consume --%s.', $flag));
         }
     }
 
@@ -96,6 +102,11 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
         foreach (self::FORWARDED_OPTIONS as $option) {
             if (null !== $value = $input->getOption($option)) {
                 $arguments['--' . $option] = $value;
+            }
+        }
+        foreach (self::FORWARDED_FLAGS as $flag) {
+            if ($input->getOption($flag)) {
+                $arguments['--' . $flag] = true;
             }
         }
 
