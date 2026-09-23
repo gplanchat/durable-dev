@@ -30,6 +30,13 @@ interface OrderActivities
     public function helper(): string;
 }
 
+/** An activity is not a workflow: none of its parameters is supplied by the loader. */
+interface AuditActivities
+{
+    #[AsActivityMethod('audit')]
+    public function audit(WorkflowEnvironment $env): string;
+}
+
 #[AsNexusService('billing')]
 interface BillingServed
 {
@@ -97,6 +104,9 @@ final class StubCallSites
 
         // Correct: the child's entry method.
         $this->environment->await($this->child->run('bonjour'));
+
+        // WRONG — an activity's parameters are all the caller's, whatever their type.
+        $this->environment->await($this->environment->activityStub(AuditActivities::class)->audit());
 
         // Correct: the input argument only; the environment is the loader's to supply.
         $this->environment->await($this->environment->childWorkflowStub(InjectingChildWorkflow::class)->run('bonjour'));

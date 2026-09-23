@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\PHPStan\Reflection;
 
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use PHPStan\Reflection\ClassReflection;
@@ -73,6 +74,11 @@ final class SchedulingMethodReflection implements ExtendedMethodReflection
     private function callerParameters(ExtendedParametersAcceptor $variant): array
     {
         $native = $this->contractMethod->getDeclaringClass()->getNativeReflection()->getMethod($this->contractMethod->getName());
+        // Only a workflow's entry method has parameters the loader supplies; an activity's or a
+        // Nexus operation's are all the caller's, whatever their type.
+        if ([] === $native->getAttributes(AsWorkflowMethod::class)) {
+            return $variant->getParameters();
+        }
         $injected = [];
         foreach ($native->getParameters() as $parameter) {
             if (WorkflowDefinitionLoader::isInjected($parameter)) {

@@ -115,6 +115,13 @@ final class StubMethodsExtensionTest extends TestCase
         self::assertSame([], $this->matching($errors, 'InjectingChildWorkflow::run() invoked with'));
     }
 
+    public function testOnlyAWorkflowMethodLosesItsInjectedParameters(): void
+    {
+        $errors = $this->analyse(withExtension: true);
+
+        self::assertNotSame([], $this->matching($errors, 'AuditActivities::audit() invoked with 0 parameters, 1 required'));
+    }
+
     public function testAReadonlyPropertyIsEnoughToCarryTheContract(): void
     {
         // The fixture declares its stubs `readonly` **without** a `@var` annotation. If this test
