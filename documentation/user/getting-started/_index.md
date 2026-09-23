@@ -282,12 +282,18 @@ sits in a queue, and a dashboard will call it `RUNNING`, which is true and unhel
 finished*, not *someone is working on it*.
 
 ```bash
-php bin/console messenger:consume durable_workflows durable_activities
+php bin/console durable:worker
 ```
 
-Those two names are the transports **you** declared in `messenger.yaml`. No document can hand you
-this command without you having written that file first, which is why it is easy to look for the
-missing piece everywhere except in your own configuration.
+It reads the transport names from your own configuration: where `messenger.yaml` routes
+`ResumeWorkflowMessage` and `FireWorkflowTimersMessage`, and the `activity_transport` of
+`durable.yaml`. It prints what it consumes (`Consuming durable_workflows, durable_activities.`)
+and hands the rest to `messenger:consume`, whose `--limit`, `--time-limit`, `--memory-limit`,
+`--failure-limit`, `--sleep` and `--no-reset` it passes on. When resumes are routed nowhere, or
+only to `sync`, it refuses to start and says so, instead of waiting on an empty queue.
+
+`messenger:consume durable_workflows durable_activities` still works: those two names are the
+transports **you** declared in `messenger.yaml`.
 
 To see what the engine holds for one run:
 
@@ -355,22 +361,25 @@ When `DURABLE_DSN` points to a Temporal server, start the workers the bundle reg
 
 ```bash
 # Workflow task worker (polls Temporal for workflow tasks)
-php bin/console messenger:consume durable_workflows
+php bin/console durable:worker --role=workflow
 
 # Activity worker (polls Temporal for activity tasks)
-php bin/console messenger:consume durable_activities
+php bin/console durable:worker --role=activity
 ```
 
-An application that [serves a Nexus operation](../nexus/) starts a third one, `durable_nexus`.
+An application that [serves a Nexus operation](../nexus/) starts a third one, `--role=nexus`.
+Without `--role`, one process consumes all of them. Underneath, these are the receivers
+`durable_workflows`, `durable_activities` and `durable_nexus`, and `messenger:consume` takes those
+names too.
 
 For local development with `symfony serve`, add to `.symfony.local.yaml`:
 
 ```yaml
 workers:
     workflows:
-        cmd: ['symfony', 'console', 'messenger:consume', 'durable_workflows', '--time-limit=3600']
+        cmd: ['symfony', 'console', 'durable:worker', '--role=workflow', '--time-limit=3600']
     activities:
-        cmd: ['symfony', 'console', 'messenger:consume', 'durable_activities', '--time-limit=3600']
+        cmd: ['symfony', 'console', 'durable:worker', '--role=activity', '--time-limit=3600']
 ```
 
 ---
