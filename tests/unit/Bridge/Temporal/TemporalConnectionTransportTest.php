@@ -22,7 +22,6 @@ final class TemporalConnectionTransportTest extends TestCase
         yield 'explicit port wins' => ['temporal+https://127.0.0.1:9000', TemporalConnection::TRANSPORT_HTTP, true, '127.0.0.1:9000'];
         yield 'tls= still works' => ['temporal://127.0.0.1?tls=1', TemporalConnection::TRANSPORT_AUTO, true, '127.0.0.1:7233'];
         yield 'transport= overrides the scheme' => ['temporal://127.0.0.1?transport=grpc-curl', TemporalConnection::TRANSPORT_GRPC_CURL, false, '127.0.0.1:7233'];
-        yield 'legacy journal scheme' => ['temporal-journal://127.0.0.1', TemporalConnection::TRANSPORT_AUTO, false, '127.0.0.1:7233'];
     }
 
     #[DataProvider('schemes')]
@@ -35,12 +34,13 @@ final class TemporalConnectionTransportTest extends TestCase
         self::assertSame($target, $connection->target);
     }
 
-    public function testTheFourSchemesAndTheLegacyOnesAreRecognised(): void
+    public function testTheFourSchemesAreRecognised(): void
     {
-        foreach (['temporal://h', 'temporal+tls://h', 'temporal+http://h', 'temporal+https://h', 'TEMPORAL+HTTPS://h', 'temporal-journal://h', 'temporal-application://h'] as $dsn) {
+        foreach (['temporal://h', 'temporal+tls://h', 'temporal+http://h', 'temporal+https://h', 'TEMPORAL+HTTPS://h'] as $dsn) {
             self::assertTrue(TemporalConnection::isTemporalDsn($dsn), $dsn);
         }
-        foreach (['temporal+curl://h', 'temporals://h', 'doctrine://h', 'http://h'] as $dsn) {
+        // The legacy schemes named a worker kind, which the DSN no longer carries (#420, #424).
+        foreach (['temporal-journal://h', 'temporal-application://h', 'temporal+curl://h', 'temporals://h', 'doctrine://h', 'http://h'] as $dsn) {
             self::assertFalse(TemporalConnection::isTemporalDsn($dsn), $dsn);
         }
     }
@@ -49,6 +49,31 @@ final class TemporalConnectionTransportTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
         TemporalConnection::fromDsn('temporal+curl://127.0.0.1');
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function legacySchemes(): iterable
+    {
+        yield 'journal' => ['temporal-journal://127.0.0.1:7233'];
+        yield 'application' => ['temporal-application://127.0.0.1:7233'];
+    }
+
+    #[DataProvider('legacySchemes')]
+    public function testALegacySchemeIsRefusedAndTheReplacementIsNamed(string $dsn): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('#temporal://#');
+        $this->expectExceptionMessageMatches('#no longer#');
+
+        TemporalConnection::fromDsn($dsn);
+    }
+
+    public function testInnerNoLongerLandsOnTheConnection(): void
+    {
+        // It fed the Messenger application transport, removed in #422.
+        self::assertFalse(property_exists(TemporalConnection::class, 'innerMessengerDsn'));
     }
 
     public function testAnUnknownTransportIsRefusedAtWiringTime(): void

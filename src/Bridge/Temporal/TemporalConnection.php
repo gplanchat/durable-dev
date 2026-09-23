@@ -73,11 +73,6 @@ final class TemporalConnection
         TaskQueue|string|null $workflowTaskQueue = null,
         TaskQueue|string|null $activityTaskQueue = null,
         TaskQueue|string|null $nexusTaskQueue = null,
-        /**
-         * Delegated Messenger DSN as long as the application transport is not fully gRPC.
-         * Read by no Durable code since the application transport was removed (#420).
-         */
-        public readonly ?string $innerMessengerDsn = null,
         /** One of the TRANSPORT_* constants: which client {@see WorkflowServiceClientFactory} builds. */
         public readonly string $transport = self::TRANSPORT_AUTO,
     ) {
@@ -108,21 +103,24 @@ final class TemporalConnection
      *   temporal+http://HOST:7243   the server JSON gateway, plain (client RPCs only)
      *   temporal+https://HOST:7243  the server JSON gateway, TLS
      *
-     * The {@code temporal-journal://} and {@code temporal-application://} schemes are normalized
-     * for backward compatibility, and {@code tls=1} still works beside the scheme.
+     * {@code tls=1} still works beside the scheme. The former journal and application schemes
+     * named a worker kind, which the DSN no longer carries: they are refused, with
+     * {@code temporal://} named as the replacement.
      *
      * Typical query parameters: {@code namespace}, {@code identity}, {@code task_queue} or
      * {@code journal_task_queue}, {@code workflow_type}, {@code workflow_task_queue},
-     * {@code activity_task_queue}, {@code inner}, and {@code transport} to override the choice
+     * {@code activity_task_queue}, and {@code transport} to override the choice
      * the scheme implies (auto, grpc, grpc-curl, http).
      */
     public static function fromDsn(#[\SensitiveParameter] string $dsn): self
     {
-        $normalized = self::normalizeScheme($dsn);
-        $parts = parse_url($normalized);
+        $parts = parse_url($dsn);
         $scheme = false === $parts ? '' : strtolower($parts['scheme'] ?? '');
+        if (\in_array($scheme, ['temporal-journal', 'temporal-application'], true)) {
+            throw new \InvalidArgumentException(\sprintf('The %s:// scheme is no longer accepted: write temporal:// — the Durable bundle registers the workers itself, the DSN names only the server.', $scheme));
+        }
         if (false === $parts || !isset(self::SCHEMES[$scheme])) {
-            throw new \InvalidArgumentException('Invalid Temporal DSN: expected temporal://, temporal+tls://, temporal+http:// or temporal+https:// (or legacy temporal-journal / temporal-application).');
+            throw new \InvalidArgumentException('Invalid Temporal DSN: expected temporal://, temporal+tls://, temporal+http:// or temporal+https://.');
         }
         [$schemeTransport, $schemeTls] = self::SCHEMES[$scheme];
 
@@ -149,11 +147,6 @@ final class TemporalConnection
         $activityTaskQueue = \is_string($q['activity_task_queue'] ?? null) ? $q['activity_task_queue'] : self::DEFAULT_ACTIVITY_TASK_QUEUE;
         $nexusTaskQueue = \is_string($q['nexus_task_queue'] ?? null) ? $q['nexus_task_queue'] : null;
 
-        $inner = \is_string($q['inner'] ?? null) ? $q['inner'] : null;
-        if (null !== $inner && self::isTemporalDsn($inner)) {
-            throw new \InvalidArgumentException('inner= must not be a temporal:// DSN (no nested bridge).');
-        }
-
         return new self(
             target: $target,
             namespace: $namespace,
@@ -166,7 +159,6 @@ final class TemporalConnection
             workflowTaskQueue: $workflowTaskQueue,
             activityTaskQueue: $activityTaskQueue,
             nexusTaskQueue: $nexusTaskQueue,
-            innerMessengerDsn: $inner,
             transport: $transport,
         );
     }
@@ -179,21 +171,9 @@ final class TemporalConnection
         'temporal+https' => [self::TRANSPORT_HTTP, true],
     ];
 
-    /** Whether {@see fromDsn} accepts this DSN: one of the four schemes, or a legacy one. */
+    /** Whether {@see fromDsn} accepts this DSN's scheme: one of the four. */
     public static function isTemporalDsn(#[\SensitiveParameter] string $dsn): bool
     {
-        return 1 === preg_match('#^temporal(\+(tls|http|https))?://#i', self::normalizeScheme($dsn));
-    }
-
-    private static function normalizeScheme(string $dsn): string
-    {
-        if (str_starts_with($dsn, 'temporal-journal://')) {
-            return (string) preg_replace('#^temporal-journal://#i', 'temporal://', $dsn);
-        }
-        if (str_starts_with($dsn, 'temporal-application://')) {
-            return (string) preg_replace('#^temporal-application://#i', 'temporal://', $dsn);
-        }
-
-        return $dsn;
+        return 1 === preg_match('#^temporal(\+(tls|http|https))?://#i', $dsn);
     }
 }
