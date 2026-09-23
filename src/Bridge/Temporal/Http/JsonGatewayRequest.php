@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Bridge\TemporalHttp;
+namespace Gplanchat\Bridge\Temporal\Http;
 
 /**
  * How a protobuf request, in its JSON form, becomes a gateway URL: path placeholders are

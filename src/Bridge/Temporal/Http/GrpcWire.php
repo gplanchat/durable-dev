@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Bridge\TemporalHttp;
+namespace Gplanchat\Bridge\Temporal\Http;
 
 /**
  * The bytes of a unary gRPC exchange: length-prefixed frames on the way in and out, and the

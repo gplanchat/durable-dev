@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace unit\Gplanchat\Bridge\TemporalHttp;
+namespace unit\Gplanchat\Bridge\Temporal\Http;
 
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
-use Gplanchat\Bridge\TemporalHttp\JsonGatewayRoutes;
+use Gplanchat\Bridge\Temporal\Http\JsonGatewayRoutes;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class JsonGatewayRoutesTest extends TestCase
 {
-    private const DESCRIPTOR = __DIR__ . '/../../../../src/Bridge/Temporal/Generated/GPBMetadata/Temporal/Api/Workflowservice/V1/Service.php';
+    private const DESCRIPTOR = __DIR__ . '/../../../../../src/Bridge/Temporal/Generated/GPBMetadata/Temporal/Api/Workflowservice/V1/Service.php';
 
     public function testEveryRouteMatchesTheDescriptorBinding(): void
     {

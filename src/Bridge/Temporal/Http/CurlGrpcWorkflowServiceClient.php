@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Bridge\TemporalHttp;
+namespace Gplanchat\Bridge\Temporal\Http;
 
 use Google\Protobuf\Internal\Message;
 use Gplanchat\Bridge\Temporal\AbstractWorkflowServiceClient;

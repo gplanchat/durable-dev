@@ -11,9 +11,9 @@ use Temporal\Api\Workflowservice\V1\WorkflowServiceClient;
 
 final class WorkflowServiceClientFactory
 {
-    private const CURL_CLIENT = 'Gplanchat\Bridge\TemporalHttp\CurlGrpcWorkflowServiceClient';
+    private const CURL_CLIENT = 'Gplanchat\Bridge\Temporal\Http\CurlGrpcWorkflowServiceClient';
 
-    private const HTTP_CLIENT = 'Gplanchat\Bridge\TemporalHttp\JsonGatewayWorkflowServiceClient';
+    private const HTTP_CLIENT = 'Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient';
 
     /** @var array<string, true> the fallbacks already logged by this process, one line each */
     private static array $logged = [];
