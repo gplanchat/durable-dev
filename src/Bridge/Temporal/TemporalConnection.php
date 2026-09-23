@@ -37,6 +37,9 @@ final class TemporalConnection
     /** The server JSON gateway (port 7243): client RPCs only, no task polling; needs ext-curl. */
     public const TRANSPORT_HTTP = 'http';
 
+    /** gRPC framing over Guzzle 7.14+ (on_trailers) and its cURL handler; the application may hand its own client. */
+    public const TRANSPORT_GUZZLE = 'guzzle';
+
     public const DEFAULT_HTTP_PORT = 7243;
 
     /** Journal worker queue (poll workflow tasks). */
@@ -76,8 +79,8 @@ final class TemporalConnection
         /** One of the TRANSPORT_* constants: which client {@see WorkflowServiceClientFactory} builds. */
         public readonly string $transport = self::TRANSPORT_AUTO,
     ) {
-        if (!\in_array($transport, [self::TRANSPORT_AUTO, self::TRANSPORT_GRPC, self::TRANSPORT_GRPC_CURL, self::TRANSPORT_HTTP], true)) {
-            throw new \InvalidArgumentException(\sprintf('Unknown Temporal transport "%s", expected auto, grpc, grpc-curl, or http.', $transport));
+        if (!\in_array($transport, [self::TRANSPORT_AUTO, self::TRANSPORT_GRPC, self::TRANSPORT_GRPC_CURL, self::TRANSPORT_HTTP, self::TRANSPORT_GUZZLE], true)) {
+            throw new \InvalidArgumentException(\sprintf('Unknown Temporal transport "%s", expected auto, grpc, grpc-curl, guzzle, or http.', $transport));
         }
         // Queue names come from a DSN: a typo there creates a queue nobody polls, without the
         // slightest error on the server side. They are validated here, at wiring time.

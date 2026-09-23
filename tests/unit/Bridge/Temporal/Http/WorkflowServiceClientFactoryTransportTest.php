@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Bridge\Temporal\Http;
 use Gplanchat\Bridge\Temporal\Grpc\ExtGrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Http\CurlGrpcTransport;
+use Gplanchat\Bridge\Temporal\Http\GuzzleGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
@@ -39,6 +40,15 @@ final class WorkflowServiceClientFactoryTransportTest extends TestCase
             ExtGrpcTransport::class,
             WorkflowServiceClientFactory::createTransport(TemporalConnection::fromDsn('temporal://127.0.0.1:7233?transport=grpc')),
         );
+    }
+
+    public function testTransportGuzzleIsGuzzleOverTheGivenClientOrADefaultOne(): void
+    {
+        $connection = TemporalConnection::fromDsn('temporal://127.0.0.1:7233?transport=guzzle');
+
+        self::assertInstanceOf(GuzzleGrpcTransport::class, WorkflowServiceClientFactory::createTransport($connection));
+        self::assertInstanceOf(GuzzleGrpcTransport::class, WorkflowServiceClientFactory::createTransport($connection, guzzle: new \GuzzleHttp\Client()));
+        self::assertInstanceOf(GrpcWorkflowServiceClient::class, WorkflowServiceClientFactory::create($connection));
     }
 
     public function testTheJsonGatewayHasNoGrpcTransportToHandOut(): void
