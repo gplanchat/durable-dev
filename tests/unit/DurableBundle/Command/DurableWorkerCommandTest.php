@@ -8,6 +8,7 @@ use Gplanchat\Durable\Bundle\Command\DurableWorkerCommand;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Command\SignalableCommandInterface;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -87,15 +88,31 @@ final class DurableWorkerCommandTest extends TestCase
         self::assertStringContainsString('Unknown role "journal"', $tester->getDisplay());
     }
 
-    /**
-     * @param array<string, list<string>> $routing
-     * @param list<string>                $transports
-     */
+    public function testStopSignalsReachTheWorker(): void
+    {
+        $consume = new RecordingConsumeCommand();
+        $worker = $this->application($consume, routing: [], transports: ['durable_workflows'], activityTransport: null)->find('durable:worker');
+        self::assertInstanceOf(SignalableCommandInterface::class, $worker);
+
+        self::assertSame($consume->getSubscribedSignals(), $worker->getSubscribedSignals());
+        $worker->handleSignal(\SIGTERM);
+        self::assertSame([\SIGTERM], $consume->signals);
+    }
+
     /**
      * @param array<string, list<string>> $routing
      * @param list<string>                $transports
      */
     private function tester(RecordingConsumeCommand $consume, array $routing, array $transports, ?string $activityTransport): ApplicationTester
+    {
+        return new ApplicationTester($this->application($consume, $routing, $transports, $activityTransport));
+    }
+
+    /**
+     * @param array<string, list<string>> $routing
+     * @param list<string>                $transports
+     */
+    private function application(RecordingConsumeCommand $consume, array $routing, array $transports, ?string $activityTransport): Application
     {
         $factories = [];
         foreach ($transports as $name) {
@@ -108,20 +125,23 @@ final class DurableWorkerCommandTest extends TestCase
         $application->setAutoExit(false);
         $application->addCommands([$consume, new DurableWorkerCommand(new SendersLocator($routing, $locator), $locator, $activityTransport)]);
 
-        return new ApplicationTester($application);
+        return $application;
     }
 }
 
 /**
  * Stands for `messenger:consume`: records what it was asked to consume instead of consuming it.
  */
-final class RecordingConsumeCommand extends Command
+final class RecordingConsumeCommand extends Command implements SignalableCommandInterface
 {
     /** @var list<string>|null */
     public ?array $receivers = null;
 
     /** @var array<string, string> */
     public array $options = [];
+
+    /** @var list<int> */
+    public array $signals = [];
 
     public function __construct()
     {
@@ -144,4 +164,15 @@ final class RecordingConsumeCommand extends Command
         return Command::SUCCESS;
     }
 
+    public function getSubscribedSignals(): array
+    {
+        return [\SIGTERM, \SIGINT];
+    }
+
+    public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
+    {
+        $this->signals[] = $signal;
+
+        return false;
+    }
 }

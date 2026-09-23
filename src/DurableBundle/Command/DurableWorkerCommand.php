@@ -9,6 +9,8 @@ use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Command\LazyCommand;
+use Symfony\Component\Console\Command\SignalableCommandInterface;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -25,13 +27,14 @@ use Symfony\Component\Messenger\Transport\Sync\SyncTransport;
  * the bundle was configured with. On Temporal, the bundle registers `durable_workflows`,
  * `durable_activities` and `durable_nexus` as receivers with no routing at all.
  *
- * The work itself is `messenger:consume`: this command resolves the names, says them, and delegates.
+ * The work itself is `messenger:consume`: this command resolves the names, says them, and delegates,
+ * forwarding the stop signals so a supervisor's SIGTERM still ends the worker cleanly.
  */
 #[AsCommand(
     name: 'durable:worker',
     description: 'Consume the Durable workflow, activity and Nexus receivers of the configured backend.',
 )]
-final class DurableWorkerCommand extends Command
+final class DurableWorkerCommand extends Command implements SignalableCommandInterface
 {
     private const ROLES = ['workflow', 'activity', 'nexus'];
 
@@ -93,6 +96,16 @@ final class DurableWorkerCommand extends Command
         return $this->consumeCommand()->run(new ArrayInput($arguments), $output);
     }
 
+    public function getSubscribedSignals(): array
+    {
+        return $this->consumeCommand()->getSubscribedSignals();
+    }
+
+    public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
+    {
+        return $this->consumeCommand()->handleSignal($signal, $previousExitCode);
+    }
+
     /**
      * The transports a message is routed to, sync ones left out: nothing consumes them.
      *
@@ -110,9 +123,15 @@ final class DurableWorkerCommand extends Command
         return $names;
     }
 
+    /**
+     * `messenger:consume` itself, unwrapped from the lazy proxy FrameworkBundle registers: it is the
+     * command that holds the worker, so it is the one the stop signals must reach.
+     */
     private function consumeCommand(): Command
     {
-        return $this->getApplication()?->find('messenger:consume')
+        $consume = $this->getApplication()?->find('messenger:consume')
             ?? throw new \LogicException('durable:worker runs inside a console application that provides messenger:consume.');
+
+        return $consume instanceof LazyCommand ? $consume->getCommand() : $consume;
     }
 }
