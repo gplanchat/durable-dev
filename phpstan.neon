@@ -43,7 +43,7 @@ parameters:
           path: src/Bridge/Temporal/Worker/TemporalWorkflowCommandBuffer.php
         # MapField is typed as non-nullable by google/protobuf stubs, but defensive null checks are intentional
         - identifier: notIdentical.alwaysTrue
-          path: src/Bridge/Temporal/Profiler/TemporalEventConverter.php
+          path: src/Bridge/Temporal/Store/TemporalEventConverter.php
         - identifier: notIdentical.alwaysTrue
           path: src/Bridge/Temporal/Worker/TemporalExecutionHistory.php
         # Symfony 6.4 types the config builder's fluent chain more loosely than 7.x:

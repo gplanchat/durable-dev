@@ -28,6 +28,10 @@ use Rector\Renaming\Rector\Name\RenameClassRector;
  */
 return RectorConfig::configure()
     ->withConfiguredRule(RenameClassRector::class, [
+        // Unreleased — the history event converter moves next to the store that uses it: the
+        // profiler never did (#372).
+        'Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter' => 'Gplanchat\Bridge\Temporal\Store\TemporalEventConverter',
+
         // 0.1.0-alpha8 — the payload → contract-method adapter moves down from the bundle
         // package to the core: it imported nothing from Symfony, and Magento needs it word for
         // word. After this upgrade, clear the container cache (`bin/console cache:clear`), without

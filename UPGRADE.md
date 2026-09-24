@@ -372,6 +372,10 @@ service — what the profiler did, cheaper, and without accumulating a timeline 
 
 No Rector rule: there is no successor to rename to.
 
+`Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter` moves to
+`Gplanchat\Bridge\Temporal\Store\TemporalEventConverter`: the store and the command buffer use it,
+the profiler never did. The `durable-upgrade` Rector set renames it.
+
 ## 0.1.0-alpha8
 
 ### The divergence guard compares the payload too
