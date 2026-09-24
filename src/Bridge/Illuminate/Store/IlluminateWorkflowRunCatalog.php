@@ -175,7 +175,7 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
     public function readHistory(WorkflowRunDescription $run): array
     {
         $reader = $this->history ?? new JournalRunHistoryReader(
-            new IlluminateEventStore($this->connection, $this->schema),
+            new IlluminateEventStore($this->connection, $this->schema, $this->schema->eventsTable()),
         );
 
         return $reader->read($run->runId, $run->workflowName);

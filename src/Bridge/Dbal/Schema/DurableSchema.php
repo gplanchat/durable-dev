@@ -44,6 +44,15 @@ final class DurableSchema
     ) {}
 
     /**
+     * The journal's table as configured: whoever reads the journal without being handed its store
+     * reads this one, not the default.
+     */
+    public function eventsTable(): string
+    {
+        return $this->eventsTable;
+    }
+
+    /**
      * Idempotent: creates only the missing tables, and checks that only once per process.
      */
     public function ensure(): void
@@ -51,13 +60,38 @@ final class DurableSchema
         if (!$this->autoSetup || $this->ensured) {
             return;
         }
-        $this->ensured = true;
 
+        $this->create(refuseInsideTransaction: true);
+        // Only once it held: after a refusal, the next write tries again.
+        $this->ensured = true;
+    }
+
+    /**
+     * Creates the missing tables whatever `auto_setup` says: `durable:setup` is how they get
+     * created when it is off. Call it outside any transaction: on MySQL the DDL commits it.
+     */
+    public function setup(): void
+    {
+        $this->create(refuseInsideTransaction: false);
+    }
+
+    private function create(bool $refuseInsideTransaction): void
+    {
+        $tables = [$this->eventsTable, $this->metadataTable, $this->parentLinkTable, $this->runsTable];
         $schemaManager = $this->connection->createSchemaManager();
-        $existing = array_values(array_filter(
-            [$this->eventsTable, $this->metadataTable, $this->parentLinkTable, $this->runsTable],
+        $existing = $this->unfiltered(static fn(): array => array_values(array_filter(
+            $tables,
             static fn(string $table): bool => $schemaManager->tablesExist([$table]),
-        ));
+        )));
+        if ($existing === $tables) {
+            return;
+        }
+
+        // MySQL commits an open transaction on DDL, and the caller's commit then fails with
+        // "There is no active transaction". Messenger's Doctrine transport refuses here too.
+        if ($refuseInsideTransaction && $this->connection->isTransactionActive()) {
+            throw DurableSchemaMissing::insideTransaction(array_values(array_diff($tables, $existing)));
+        }
 
         $schema = new Schema();
         $this->addToSchema($schema, $existing);
@@ -93,15 +127,40 @@ final class DurableSchema
         }
 
         $schemaManager = $this->connection->createSchemaManager();
+        $columns = $this->unfiltered(fn(): ?array => $schemaManager->tablesExist([$this->runsTable])
+            ? $schemaManager->listTableColumns($this->runsTable)
+            : null);
         // No table yet is no answer: a worker may boot before the migrations run.
-        if (!$schemaManager->tablesExist([$this->runsTable])) {
+        if (null === $columns) {
             return false;
         }
 
-        return $this->runsTableColumns[$column] = \array_key_exists(
-            $column,
-            array_change_key_case($schemaManager->listTableColumns($this->runsTable)),
-        );
+        return $this->runsTableColumns[$column] = \array_key_exists($column, array_change_key_case($columns));
+    }
+
+    /**
+     * Runs a probe of Durable's own tables with the connection's schema assets filter off. DBAL
+     * applies that filter to `tablesExist()` as well, and an application that rejects `durable_*`
+     * there, to keep its tooling off these tables, would make them look missing forever: recreated
+     * on every `ensure()`, refused inside every transaction (#339). The filter is restored after.
+     *
+     * @template T
+     *
+     * @param callable(): T $probe
+     *
+     * @return T
+     */
+    private function unfiltered(callable $probe): mixed
+    {
+        $configuration = $this->connection->getConfiguration();
+        $filter = $configuration->getSchemaAssetsFilter();
+        $configuration->setSchemaAssetsFilter(static fn(): bool => true);
+
+        try {
+            return $probe();
+        } finally {
+            $configuration->setSchemaAssetsFilter($filter);
+        }
     }
 
     /**
@@ -113,20 +172,31 @@ final class DurableSchema
      * tooling offering to drop, in the journal's database, the ones that do. Hence the same guard as
      * the adapters upstream: the same connection, or the same database proven by the probe.
      *
+     * A table the schema assets filter rejects is left out, as upstream's listeners do: the tooling
+     * does not compare it, and declaring it would yield a `CREATE TABLE` in every diff.
+     *
      * @param \Closure(\Closure(string): mixed): bool $isSameDatabase
+     * @param (callable(string): bool)|null          $accepts        the connection's schema assets filter
      *
      * @return Schema the schema, completed
      */
-    public function configureSchema(Schema $schema, Connection $forConnection, \Closure $isSameDatabase): Schema
+    public function configureSchema(Schema $schema, Connection $forConnection, \Closure $isSameDatabase, ?callable $accepts = null): Schema
     {
+        $tables = [$this->eventsTable, $this->metadataTable, $this->parentLinkTable, $this->runsTable];
+        $skip = array_values(array_filter(
+            $tables,
+            static fn(string $table): bool => $schema->hasTable($table) || (null !== $accepts && !$accepts($table)),
+        ));
+        // Before the probe: it writes a table on the ORM's connection, for nothing if all is skipped.
+        if ($skip === $tables) {
+            return $schema;
+        }
+
         if ($forConnection !== $this->connection && !$isSameDatabase($this->connection->executeStatement(...))) {
             return $schema;
         }
 
-        $this->addToSchema($schema, array_values(array_filter(
-            [$this->eventsTable, $this->metadataTable, $this->parentLinkTable, $this->runsTable],
-            static fn(string $table): bool => $schema->hasTable($table),
-        )));
+        $this->addToSchema($schema, $skip);
 
         return $schema;
     }
@@ -178,6 +248,8 @@ final class DurableSchema
             $runs->addColumn('waiting_on', Types::TEXT, ['notnull' => false]);
             $runs->setPrimaryKey(['execution_id']);
             $runs->addIndex(['started_at'], $this->runsTable . '_started_idx');
+            // The run list filters on status and orders by start (#339).
+            $runs->addIndex(['status', 'started_at'], $this->runsTable . '_status_started_idx');
         }
 
         if (!\in_array($this->parentLinkTable, $skip, true)) {
