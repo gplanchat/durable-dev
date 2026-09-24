@@ -66,6 +66,27 @@ final class DbalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalogConf
         });
     }
 
+    protected function canTellAPickup(): bool
+    {
+        return true;
+    }
+
+    /**
+     * What a dispatcher does: the metadata is saved, the resume is queued, nothing runs yet.
+     */
+    protected function dispatchRun(string $executionId, string $workflowType): void
+    {
+        $this->metadataStore()->save($executionId, $workflowType, []);
+    }
+
+    /**
+     * What a worker does when it takes the run: the resume handler records the pickup.
+     */
+    protected function pickUp(string $executionId): void
+    {
+        $this->projection()->recordPickup($executionId);
+    }
+
     private function schema(): DurableSchema
     {
         return new DurableSchema($this->connection);

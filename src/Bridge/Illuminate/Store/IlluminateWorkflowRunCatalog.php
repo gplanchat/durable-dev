@@ -9,6 +9,7 @@ use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunPage;
+use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\Observation\WorkflowRunProjectionInterface;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
@@ -32,7 +33,7 @@ use Illuminate\Database\Connection;
  * @see DUR037 observing a run is a projection
  * @see DUR041
  */
-final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface, WorkflowRunProjectionInterface
+final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface, WorkflowRunProjectionInterface, WorkflowRunPickupProjectionInterface
 {
     private const BACKEND = 'Laravel database';
 
@@ -72,6 +73,20 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
         ]);
     }
 
+    public function recordPickup(string $executionId): void
+    {
+        $this->schema->ensure();
+        // A table created before the column existed is left alone: a worker never fails on it.
+        if (!$this->schema->runsTableTracksPickup()) {
+            return;
+        }
+
+        $this->connection->table($this->table)
+            ->where('execution_id', $executionId)
+            ->whereNull('picked_up_at')
+            ->update(['picked_up_at' => self::now()]);
+    }
+
     public function recordOutcome(string $executionId, WorkflowRunStatus $status): void
     {
         $this->schema->ensure();
@@ -88,8 +103,9 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
         $this->schema->ensure();
         $limit = max(1, $limit);
 
+        $tracksPickup = $this->schema->runsTableTracksPickup();
         $query = $this->connection->table($this->table)
-            ->select(['execution_id', 'workflow_type', 'status', 'started_at', 'ended_at'])
+            ->select([...['execution_id', 'workflow_type', 'status', 'started_at', 'ended_at'], ...($tracksPickup ? ['picked_up_at'] : [])])
             ->orderByDesc('started_at')
             ->orderBy('execution_id');
 
@@ -117,12 +133,16 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
 
         $runs = [];
         foreach ($rows as $row) {
+            $status = WorkflowRunStatus::from((string) $row->status);
+            $startedAt = self::toDateTime($row->started_at);
             $runs[] = new WorkflowRunDescription(
                 runId: (string) $row->execution_id,
                 workflowName: (string) $row->workflow_type,
-                status: WorkflowRunStatus::from((string) $row->status),
-                startedAt: self::toDateTime($row->started_at),
+                status: $status,
+                startedAt: $startedAt,
                 endedAt: self::toDateTime($row->ended_at),
+                // Absent when the table cannot tell (#447): a missing column there means nothing.
+                waitingForWorkerSince: $tracksPickup && $status->isRunning() && null === $row->picked_up_at ? $startedAt : null,
             );
         }
 
@@ -133,6 +153,7 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
             $hasMore && null !== $last
                 ? self::encodeCursor((string) $last->started_at, (string) $last->execution_id)
                 : null,
+            tellsWaitingForWorker: $tracksPickup,
         );
     }
 

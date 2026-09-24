@@ -29,6 +29,8 @@ final class DurableSchema
 {
     private bool $ensured = false;
 
+    private ?bool $runsTableTracksPickup = null;
+
     public function __construct(
         private readonly Connection $connection,
         private readonly string $eventsTable = 'durable_events',
@@ -60,6 +62,29 @@ final class DurableSchema
         foreach ($schema->toSql($this->connection->getDatabasePlatform()) as $sql) {
             $this->connection->executeStatement($sql);
         }
+    }
+
+    /**
+     * Whether the runs table has the `picked_up_at` column. Tables created before #447 do not, and
+     * nothing alters an existing table: without the column, the pickup is simply not recorded and the
+     * run list does not tell a run waiting for a worker. Asked once per process.
+     */
+    public function runsTableTracksPickup(): bool
+    {
+        if (null !== $this->runsTableTracksPickup) {
+            return $this->runsTableTracksPickup;
+        }
+
+        $schemaManager = $this->connection->createSchemaManager();
+        // No table yet is no answer: a worker may boot before the migrations run.
+        if (!$schemaManager->tablesExist([$this->runsTable])) {
+            return false;
+        }
+
+        return $this->runsTableTracksPickup = \array_key_exists(
+            'picked_up_at',
+            array_change_key_case($schemaManager->listTableColumns($this->runsTable)),
+        );
     }
 
     /**
@@ -130,6 +155,8 @@ final class DurableSchema
             $runs->addColumn('status', Types::STRING, ['length' => 32]);
             $runs->addColumn('started_at', Types::DATETIME_IMMUTABLE);
             $runs->addColumn('ended_at', Types::DATETIME_IMMUTABLE, ['notnull' => false]);
+            // When a worker first picked the run up (#447); null while the run waits for one.
+            $runs->addColumn('picked_up_at', Types::DATETIME_IMMUTABLE, ['notnull' => false]);
             $runs->setPrimaryKey(['execution_id']);
             $runs->addIndex(['started_at'], $this->runsTable . '_started_idx');
         }

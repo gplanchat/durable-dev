@@ -44,6 +44,8 @@ return new class extends Migration {
             $table->string('status', 32);
             $table->dateTime('started_at')->index();
             $table->dateTime('ended_at')->nullable();
+            // When a worker first picked the run up (#447); null while the run waits for one.
+            $table->dateTime('picked_up_at')->nullable();
         });
 
         Schema::create('durable_child_workflow_parent_link', function (Blueprint $table): void {
