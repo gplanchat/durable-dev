@@ -115,7 +115,7 @@ final class DurableExtension extends Extension
         $this->registerEventStore($container, $config);
         $this->registerActivityTransport($container, $config);
         $this->registerActivityExecutor($container);
-        $this->registerRuntime($container, $config);
+        $this->registerRuntime($container);
         $this->registerWorkflowMessengerServices($container, $config);
         $this->registerParentChildCoordinator($container);
         // The pass that installs the middleware runs well after the extensions; it reads this
@@ -126,7 +126,7 @@ final class DurableExtension extends Extension
         );
 
         $this->registerActivityContractResolver($container, $config);
-        $this->registerEngine($container, $config);
+        $this->registerEngine($container);
         $this->registerActivityContractCacheWarmer($container, $config);
         $this->registerWorkflowControlHandlers($container, $config);
         $this->registerWorkflowQueryRunner($container);
@@ -490,10 +490,7 @@ final class DurableExtension extends Extension
         $container->register(ActivityTransportInterface::class, InMemoryActivityTransport::class)->setPublic(true);
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function registerRuntime(ContainerBuilder $container, array $config): void
+    private function registerRuntime(ContainerBuilder $container): void
     {
         $container->register(\Gplanchat\Durable\ExecutionRuntime::class, \Gplanchat\Durable\ExecutionRuntime::class)
             ->setArguments([
@@ -560,10 +557,7 @@ final class DurableExtension extends Extension
         ;
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function registerEngine(ContainerBuilder $container, array $config): void
+    private function registerEngine(ContainerBuilder $container): void
     {
         $container->register(\Gplanchat\Durable\Uuid\NativeUuidV7Generator::class, \Gplanchat\Durable\Uuid\NativeUuidV7Generator::class)
             ->setPublic(false);
