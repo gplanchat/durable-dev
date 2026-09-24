@@ -24,6 +24,19 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### `durable:execution:diagnose` and the profiler panel mask payload secrets
+
+**Who is affected**: scripts that read secrets out of `durable:execution:diagnose --json`, and
+applications whose payloads carry values under keys matching
+`/password|secret|token|authorization|card/i`. Those values now print as `***`, and strings over
+1 KiB are truncated. Add `--raw` to get the payload as stored.
+
+To change what is masked, implement `Gplanchat\Durable\Observation\PayloadRedactorInterface` and
+alias the interface to your service; both surfaces use it.
+
+The profiler reads at most 20 ids from `?durable_execution=`, and drops an id that is not printable
+ASCII without spaces, quotes or angle brackets.
+
 ### The run list tells a run waiting for a worker: `picked_up_at` on `durable_workflow_runs`
 
 **Who is affected**: applications on the DBAL or Illuminate backend whose `durable_workflow_runs`
