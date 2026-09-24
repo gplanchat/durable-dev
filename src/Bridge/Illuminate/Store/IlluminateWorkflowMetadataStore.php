@@ -66,9 +66,11 @@ final class IlluminateWorkflowMetadataStore implements WorkflowMetadataStore
             return null;
         }
 
+        $payload = json_decode((string) $row->payload, true, 512, \JSON_THROW_ON_ERROR);
+
         return [
             'workflowType' => (string) $row->workflow_type,
-            'payload' => json_decode((string) $row->payload, true, 512, \JSON_THROW_ON_ERROR),
+            'payload' => \is_array($payload) ? $payload : [],
             'completed' => (bool) $row->completed,
         ];
     }
