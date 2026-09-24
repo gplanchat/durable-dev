@@ -24,6 +24,27 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### The Sylius plugin follows the Sylius 2 layout; its route follows the admin prefix
+
+**Who is affected**: every Sylius shop that installs `gplanchat/durable-plugin`. The route import
+moved from `Resources/config/` to `config/`. It is YAML, so Rector cannot rewrite it; change the
+one line by hand:
+
+```yaml
+# config/routes/durable_plugin.yaml
+gplanchat_durable_plugin:
+    resource: '@DurablePlugin/config/routes.yaml'   # was '@DurablePlugin/Resources/config/routes.yaml'
+```
+
+Template names do not change (`@DurablePlugin/admin/dashboard/index.html.twig`): Symfony reads a
+bundle's `templates/` under the same namespace as its `Resources/views/`.
+
+The dashboard's path is now `/%sylius_admin.path_name%/durable/dashboard` instead of a hardcoded
+`/admin/durable/dashboard`. A shop that keeps the default admin prefix sees no change; one that
+sets `SYLIUS_ADMIN_ROUTING_PATH_NAME` now finds the page under its admin, behind its firewall.
+The menu entry names its route, so the Sylius menu marks it active on the page. The package type
+is `sylius-plugin`.
+
 ### The DBAL journal: `durable:setup`, no DDL inside a transaction, a new index on the run list
 
 **Who is affected**: Symfony applications on the DBAL backend, and Laravel applications on the

@@ -1,4 +1,4 @@
 gplanchat_durable_plugin_admin_dashboard:
-    path: /admin/durable/dashboard
+    path: /%sylius_admin.path_name%/durable/dashboard
     methods: [GET]
     controller: Gplanchat\Durable\Plugin\Controller\AdminDashboardController::index
