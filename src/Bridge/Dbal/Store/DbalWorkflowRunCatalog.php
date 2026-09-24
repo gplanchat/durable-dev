@@ -100,6 +100,7 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
             $hasMore && null !== $last
                 ? self::encodeCursor((string) $last['started_at'], (string) $last['execution_id'])
                 : null,
+            tellsWaitingForWorker: $tracksPickup,
         );
     }
 

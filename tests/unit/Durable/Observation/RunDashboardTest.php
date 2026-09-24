@@ -295,7 +295,7 @@ final class RunDashboardTest extends TestCase
             new WorkflowRunDescription('queued', 'App\\OrderWorkflow', WorkflowRunStatus::Running, $dispatched, waitingForWorkerSince: $dispatched),
             new WorkflowRunDescription('long', 'App\\OrderWorkflow', WorkflowRunStatus::Running, $dispatched, waitingForWorkerSince: $dispatched->modify('-2 hours')),
             $this->describedRun('sleeping', 'App\\OrderWorkflow', WorkflowRunStatus::Running),
-        ]);
+        ], tellsWaitingForWorker: true);
 
         $view = (new RunDashboard($catalog, static fn(): \DateTimeImmutable => $dispatched->modify('+42 seconds')))->build();
 
@@ -304,6 +304,14 @@ final class RunDashboardTest extends TestCase
         self::assertSame('waiting for a worker · 2 h', $view['runs'][1]['waitingForWorker']);
         self::assertArrayNotHasKey('waitingForWorker', $view['runs'][2], 'a run waiting on a timer, or picked up, carries no such fact');
         self::assertSame(2, $view['waitingForWorker'], 'counted over the page, like the outcome counters');
+    }
+
+    public function testABackendThatCannotTellCountsNoRunAsWaitingForAWorker(): void
+    {
+        $view = $this->viewOver([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)])->build();
+
+        // Zero would read as "no run waits": the backend does not know, so the page says nothing.
+        self::assertArrayNotHasKey('waitingForWorker', $view);
     }
 
     private function viewOver(array $runs): RunDashboard
@@ -332,6 +340,7 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
         private readonly ?string $nextCursor = null,
         private readonly bool $reachable = true,
         private readonly bool $ephemeral = false,
+        private readonly bool $tellsWaitingForWorker = false,
     ) {}
 
     public function checkHealth(): BackendHealth
@@ -350,7 +359,7 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
         $this->askedStatus = $status;
         $this->askedCursor = $cursor;
 
-        return new WorkflowRunPage($this->runs, $this->nextCursor);
+        return new WorkflowRunPage($this->runs, $this->nextCursor, $this->tellsWaitingForWorker);
     }
 
     public function readHistory(WorkflowRunDescription $run): array

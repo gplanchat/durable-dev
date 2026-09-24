@@ -34,7 +34,9 @@ final class DbalWorkflowRunPickupOnAnOldTableTest extends TestCase
 
         $projection->recordPickup('exec-1');
 
-        $runs = (new DbalWorkflowRunCatalog($this->connection, $schema))->listRuns()->runs;
+        $page = (new DbalWorkflowRunCatalog($this->connection, $schema))->listRuns();
+        self::assertFalse($page->tellsWaitingForWorker);
+        $runs = $page->runs;
         self::assertCount(1, $runs);
         self::assertNull($runs[0]->waitingForWorkerSince, 'a table that cannot tell leaves the fact absent');
     }
