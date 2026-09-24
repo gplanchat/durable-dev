@@ -6,8 +6,11 @@ namespace App\Tests\Http;
 
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityScheduled;
+use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
+use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
+use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -67,25 +70,41 @@ final class DashboardTest extends WebTestCase
         $this->assertStringContainsString('SIGNAL', $normalized);
         $this->assertStringContainsString('QUERY', $normalized);
         $this->assertStringContainsString('UPDATE', $normalized);
+        $this->assertStringContainsString('NEXUS', $normalized, 'a Nexus operation is the wait served elsewhere: every dashboard draws it');
         $this->assertStringContainsString('ANIMATION', $normalized);
     }
 
+    /**
+     * The page filters the way the port does: a cancelled run is not a failure, and each filter
+     * lists its own runs only.
+     */
     public function testDashboardFiltersByStatus(): void
     {
-        $client = $this->clientWithRecordedRun('dash-run-4');
-        $allCrawler = $client->request('GET', '/dashboard');
-        $allCount = $allCrawler->filterXpath("//*[contains(concat(' ', normalize-space(@class), ' '), ' ds-run-row ')]")->count();
+        $client = $this->clientWithRecordedRun('dash-done');
+        $this->record('dash-failed', WorkflowExecutionFailed::workflowHandlerFailure('dash-failed', new \RuntimeException('boom')));
+        $this->record('dash-cancelled', new WorkflowExecutionCancelled('dash-cancelled', 'stopped'));
 
-        $filteredCrawler = $client->request('GET', '/dashboard?status=failed');
+        self::assertSame(['dash-failed' => 'FAILED'], $this->listedRuns($client, 'failed'));
+        self::assertSame(['dash-cancelled' => 'CANCELLED'], $this->listedRuns($client, 'cancelled'));
+        self::assertSame(['dash-done' => 'COMPLETED'], $this->listedRuns($client, 'completed'));
+    }
+
+    /**
+     * @return array<string, string> run id => status badge, for the rows the filtered page lists
+     */
+    private function listedRuns(KernelBrowser $client, string $status): array
+    {
+        $crawler = $client->request('GET', '/dashboard?status=' . $status);
         $this->assertResponseIsSuccessful();
-        $filteredCount = $filteredCrawler->filterXpath("//*[contains(concat(' ', normalize-space(@class), ' '), ' ds-run-row ')]")->count();
-        self::assertLessThanOrEqual($allCount, $filteredCount);
 
-        if ($filteredCount > 0) {
-            $filteredCrawler->filterXpath("//*[contains(concat(' ', normalize-space(@class), ' '), ' ds-status-badge ')]")->each(static function ($badge): void {
-                self::assertSame('FAILED', \trim($badge->text()));
-            });
-        }
+        $runs = [];
+        $class = static fn(string $name): string => \sprintf("contains(concat(' ', normalize-space(@class), ' '), ' %s ')", $name);
+        $crawler->filterXPath('//*[' . $class('ds-run-row') . ']')->each(static function ($row) use (&$runs, $class): void {
+            $id = \trim($row->filterXPath('.//*[' . $class('ds-run-row__meta') . ']//code')->text());
+            $runs[$id] = \trim($row->filterXPath('.//*[' . $class('ds-status-badge') . ']')->text());
+        });
+
+        return $runs;
     }
 
     /**
@@ -97,15 +116,22 @@ final class DashboardTest extends WebTestCase
     {
         $client = static::createClient();
         $client->disableReboot();
-        $container = static::getContainer();
+        $this->record($executionId, new ExecutionCompleted($executionId, 'Hello'));
 
+        return $client;
+    }
+
+    /**
+     * One run with one activity, ended by the given event, into the kernel the client already booted.
+     */
+    private function record(string $executionId, Event $ending): void
+    {
+        $container = static::getContainer();
         $container->get(WorkflowMetadataStore::class)->save($executionId, 'GreetingWorkflow', []);
         $journal = $container->get(EventStoreInterface::class);
         $journal->append(new ExecutionStarted($executionId, []));
         $journal->append(new ActivityScheduled($executionId, 'act-1', 'SendGreeting', []));
         $journal->append(new ActivityCompleted($executionId, 'act-1', 'Hello'));
-        $journal->append(new ExecutionCompleted($executionId, 'Hello'));
-
-        return $client;
+        $journal->append($ending);
     }
 }
