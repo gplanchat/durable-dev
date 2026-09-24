@@ -470,7 +470,8 @@ final class DurableExtension extends Extension
                     new Reference('durable.temporal.connection'),
                     new Reference(WorkflowTaskRunner::class),
                 ])
-                ->setPublic(true)
+                // Private: the journal transport takes it by reference, nothing pulls it by id.
+                ->setPublic(false)
             ;
 
             $container->register('durable.event_store.temporal', TemporalReadThroughEventStore::class)
@@ -654,6 +655,8 @@ final class DurableExtension extends Extension
 
     private function registerWorkflowQueryRunner(ContainerBuilder $container): void
     {
+        // Public on purpose: application code runs its queries through it, so it is part of the
+        // bundle's surface, not an internal the bundle could hide.
         $container->register(WorkflowQueryRunner::class)
             ->setArguments([new Reference(EventStoreInterface::class)])
             ->setPublic(true)
@@ -669,6 +672,7 @@ final class DurableExtension extends Extension
 
     private function registerWorkflowBackend(ContainerBuilder $container): void
     {
+        // Public on purpose: the entry point an application starts and drives workflows through.
         $container->register(WorkflowBackendInterface::class, LocalWorkflowBackend::class)
             ->setArguments([new Reference(\Gplanchat\Durable\ExecutionEngine::class)])
             ->setPublic(true)

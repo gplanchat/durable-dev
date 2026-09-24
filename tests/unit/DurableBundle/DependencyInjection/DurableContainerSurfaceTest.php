@@ -39,6 +39,7 @@ final class DurableContainerSurfaceTest extends TestCase
         yield 'DBAL journal, in-memory metadata, inner service' => [['event_store' => ['type' => 'dbal']], 'durable.workflow_metadata_store.inner'];
         yield 'projected in-memory metadata' => [[], 'durable.workflow_metadata_store.in_memory.projecting'];
         yield 'in-memory catalog' => [[], 'durable.run_catalog.in_memory'];
+        yield 'Temporal workflow task processor' => [['backend' => 'temporal', 'temporal' => ['dsn' => 'temporal://127.0.0.1:7233?namespace=default&tls=0']], \Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor::class];
     }
 
     /**
