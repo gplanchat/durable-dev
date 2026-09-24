@@ -271,8 +271,9 @@ public function run(
 - Les erreurs surviennent dès l'**enregistrement** du workflow (compilation du conteneur, avec le
   bundle) : un `ActivityStub` sans `#[Activities]`, un `#[Activities]` sur un autre type, un
   contrat introuvable, un contrat qui ne déclare aucun `#[AsActivityMethod]`, ou une option
-  impossible — zéro tentative, une durée négative, un heartbeat plus long que `startToClose`, une
-  entrée non rejouable qui n'est pas une exception. Le message nomme le paramètre et l'option.
+  impossible — zéro tentative, une durée négative, un heartbeat plus long que `startToClose`, un
+  `backoffCoefficient` inférieur à 1, un `maximumInterval` plus court que le premier délai de
+  réessai, une entrée non rejouable qui n'est pas une exception. Le message nomme le paramètre et l'option.
 
 La forme par constructeur reste valable. C'est celle qu'il faut quand la classe implémente une
 interface de contrat comme `OrderWorkflowContract` plus haut : PHP n'autorise pas l'implémentation à

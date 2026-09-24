@@ -32,7 +32,7 @@ final class WorkflowRoundTripTest extends TemporalServerTestCase
 
     public function testTheOptionsOfActivitiesReachTheServer(): void
     {
-        // Without them the bridge sends its 30 s fallback and an unbounded retry policy.
+        // Without them the bridge sends its 30 s fallback and no retry policy, leaving the server's default.
         $executionId = $this->startWorkflow('DoublerByAttribute', ['value' => 21]);
 
         $scheduled = $this->waitForHistoryEvent($executionId, \Temporal\Api\Enums\V1\EventType::EVENT_TYPE_ACTIVITY_TASK_SCHEDULED)

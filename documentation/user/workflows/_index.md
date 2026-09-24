@@ -265,8 +265,8 @@ public function run(
 - Mistakes fail when the workflow is **registered** (container compilation, with the bundle): an
   `ActivityStub` without `#[Activities]`, `#[Activities]` on another type, a contract that does not
   exist, one that declares no `#[AsActivityMethod]`, or an impossible option — zero attempts, a
-  negative duration, a heartbeat longer than `startToClose`, a non-retryable entry that is no
-  exception. The message names the parameter and the option.
+  negative duration, a heartbeat longer than `startToClose`, a `backoffCoefficient` below 1, a
+  `maximumInterval` shorter than the first retry delay, a non-retryable entry that is no exception. The message names the parameter and the option.
 
 The constructor form keeps working. It is the one to use when the class implements a contract
 interface such as `OrderWorkflowContract` above: PHP does not let the implementation add required

@@ -69,6 +69,9 @@ final class ActivitiesOptionsTest extends TestCase
         yield 'a heartbeat longer than an attempt' => [new Activities(\stdClass::class, startToClose: 5.0, heartbeat: 10.0), 'heartbeat'];
         yield 'a non-retryable entry that is no exception' => [new Activities(\stdClass::class, nonRetryable: [\stdClass::class]), 'nonRetryable'];
         yield 'a malformed task queue' => [new Activities(\stdClass::class, taskQueue: ''), 'taskQueue'];
+        // Temporal refuses these retry policies at scheduling, on every workflow task: caught here instead.
+        yield 'a backoff that shrinks the delay' => [new Activities(\stdClass::class, backoffCoefficient: 0.5), 'backoffCoefficient'];
+        yield 'a ceiling below the first delay' => [new Activities(\stdClass::class, initialInterval: 10.0, maximumInterval: 5.0), 'maximumInterval'];
     }
 
     #[DataProvider('refusals')]
