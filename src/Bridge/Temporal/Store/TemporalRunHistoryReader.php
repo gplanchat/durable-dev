@@ -11,6 +11,7 @@ use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Durable\Observation\ReadableDuration;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunEventKind;
+use Gplanchat\Durable\Observation\WorkflowRunEventPhase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\EventType;
@@ -103,6 +104,8 @@ final class TemporalRunHistoryReader
                 // case that changes nothing.
                 str_ends_with($type, '_STARTED'),
                 self::isFailure($type),
+                self::phaseOf($type),
+                $event->getActivityTaskStartedEventAttributes()?->getAttempt(),
             );
         }
 
@@ -174,6 +177,28 @@ final class TemporalRunHistoryReader
      * it covers both. ⚠ Temporal writes `CANCELED` with a single "l" where the house journal
      * writes `Cancelled`: a rule written on one side only misses the other in silence.
      */
+    /**
+     * The same four phases as the house journal (#261), read from the suffix. A timer's
+     * `_STARTED` is its request: nobody takes a timer over.
+     */
+    private static function phaseOf(string $eventType): ?WorkflowRunEventPhase
+    {
+        return match (true) {
+            self::isFailure($eventType) => WorkflowRunEventPhase::Failed,
+            'EVENT_TYPE_TIMER_STARTED' === $eventType,
+            str_ends_with($eventType, '_SCHEDULED'),
+            str_ends_with($eventType, '_INITIATED'),
+            str_ends_with($eventType, '_REQUESTED') => WorkflowRunEventPhase::Requested,
+            str_ends_with($eventType, '_STARTED') => WorkflowRunEventPhase::Started,
+            str_ends_with($eventType, '_COMPLETED'),
+            str_ends_with($eventType, '_FIRED'),
+            str_ends_with($eventType, '_CANCELED'),
+            str_ends_with($eventType, '_TERMINATED'),
+            str_ends_with($eventType, '_CONTINUED_AS_NEW') => WorkflowRunEventPhase::Settled,
+            default => null,
+        };
+    }
+
     private static function isFailure(string $eventType): bool
     {
         return str_ends_with($eventType, '_FAILED') || str_ends_with($eventType, '_TIMED_OUT');
