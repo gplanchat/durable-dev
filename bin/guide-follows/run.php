@@ -37,8 +37,9 @@ $console->run(new ArrayInput([
     'receivers' => ['durable_workflows', 'durable_activities'],
     '--time-limit' => 5,
     // Between two messages the worker resets services, and an in-memory transport's reset empties
-    // it: the activity the resume queued would vanish before the loop reached it.
-    '--no-reset' => true,
+    // it: the activity the resume queued would vanish before the loop reached it. null, not true:
+    // from Symfony 8.1 the option takes an interval, and true reads as 1, reset after every message.
+    '--no-reset' => null,
 ]), new ConsoleOutput());
 
 $diagnosis = new BufferedOutput();
