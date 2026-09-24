@@ -14,6 +14,7 @@ use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
+use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
@@ -70,6 +71,22 @@ final class TemporalBackendTest extends TestCase
         self::assertInstanceOf(TemporalActivityHeartbeatSender::class, $sender);
         self::assertSame($sender, (new \ReflectionProperty($processor, 'heartbeatSender'))->getValue($processor));
         self::assertSame($sender, $app->make(HeartbeatingActivity::class)->heartbeat);
+    }
+
+    public function testASenderTheApplicationRebindsIsTheOneTheActivityWorkerUses(): void
+    {
+        // The activities inject whatever the container binds; the worker must bind the task token
+        // onto that same instance, or the heartbeats go nowhere (#510, review of #356).
+        $app = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN]]);
+        (new DurableServiceProvider($app))->register();
+        $mine = $this->createMock(ActivityHeartbeatSenderInterface::class);
+        $app->singleton(ActivityHeartbeatSenderInterface::class, static fn() => $mine);
+
+        $worker = $app->make(TemporalActivityWorker::class);
+        $processor = (new \ReflectionProperty($worker, 'processor'))->getValue($worker);
+
+        self::assertSame($mine, (new \ReflectionProperty($worker, 'heartbeatSender'))->getValue($worker));
+        self::assertSame($mine, (new \ReflectionProperty($processor, 'heartbeatSender'))->getValue($processor));
     }
 
     public function testTheTemporalServicesComeFromOneAssemblyAndTheLoaderReachesThem(): void

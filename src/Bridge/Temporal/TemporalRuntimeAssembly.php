@@ -15,6 +15,7 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Durable\ActivityExecutor;
+use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -113,17 +114,21 @@ final class TemporalRuntimeAssembly
     /**
      * An activity worker whose journal is a scratch store: on this path an activity's result goes
      * back through Temporal's RPC, not through a journal. Laravel and Magento run it this way.
+     *
+     * The worker binds each task's token onto $sender, so it must be the instance the activities
+     * inject: a host whose container can rebind the interface passes what it resolves (#510).
      */
-    public function scratchActivityWorker(ActivityExecutor $executor): TemporalActivityWorker
+    public function scratchActivityWorker(ActivityExecutor $executor, ?ActivityHeartbeatSenderInterface $sender = null): TemporalActivityWorker
     {
         $scratch = new InMemoryEventStore();
+        $sender ??= $this->heartbeatSender();
 
         return new TemporalActivityWorker(
             $this->activityRpc(),
             $this->connection,
-            new ActivityMessageProcessor($scratch, new NoopActivityTransport(), $executor, new NullWorkflowResumeDispatcher(), $this->heartbeatSender()),
+            new ActivityMessageProcessor($scratch, new NoopActivityTransport(), $executor, new NullWorkflowResumeDispatcher(), $sender),
             $scratch,
-            $this->heartbeatSender(),
+            $sender,
         );
     }
 }

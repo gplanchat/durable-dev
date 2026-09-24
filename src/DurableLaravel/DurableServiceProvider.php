@@ -291,7 +291,10 @@ final class DurableServiceProvider extends ServiceProvider
         $this->app->singleton(WorkflowRunCatalogInterface::class, fn($app) => $assembly($app)->runCatalog());
         $this->app->singleton(WorkflowTaskRunner::class, fn($app) => $assembly($app)->workflowTaskRunner());
         $this->app->singleton(WorkflowTaskProcessor::class, fn($app) => $assembly($app)->workflowTaskProcessor());
-        $this->app->singleton(TemporalActivityWorker::class, fn($app) => $assembly($app)->scratchActivityWorker($app->make(ActivityExecutor::class)));
+        $this->app->singleton(TemporalActivityWorker::class, fn($app) => $assembly($app)->scratchActivityWorker(
+            $app->make(ActivityExecutor::class),
+            $app->make(ActivityHeartbeatSenderInterface::class),
+        ));
         $this->app->singleton(WorkflowServiceExecutionRpc::class, fn($app) => $assembly($app)->executionRpc());
         $this->app->singleton(WorkflowServiceNexusRpc::class, fn($app) => $assembly($app)->nexusRpc());
         $this->app->singleton(WorkflowClientInterface::class, fn($app) => $assembly($app)->workflowClient());
