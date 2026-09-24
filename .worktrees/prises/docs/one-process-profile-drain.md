@@ -7,4 +7,4 @@
   `durable:worker` and `messenger:consume` reach it), with an UPGRADE line.
 - **Entries**: `documentation/user/getting-started/_index{,.fr}.md`, a new listener under
   `src/DurableBundle/EventListener/`, its wiring in `DurableExtension`, its test, `UPGRADE.md`.
-- **State**: in progress — vera; reviewers bob (docs), antoine (listener).
+- **State**: in review — PR #536, vera; reviewers bob (docs), antoine (listener).
