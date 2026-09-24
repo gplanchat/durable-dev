@@ -26,6 +26,19 @@ final class DbalWorkflowRunPickupOnAnOldTableTest extends TestCase
         $this->connection->executeStatement('CREATE TABLE durable_workflow_runs (execution_id VARCHAR(128) NOT NULL PRIMARY KEY, workflow_type VARCHAR(255) NOT NULL, status VARCHAR(32) NOT NULL, started_at DATETIME NOT NULL, ended_at DATETIME DEFAULT NULL)');
     }
 
+    public function testAWorkerStartedBeforeTheTableExistsSeesTheColumnOnceItDoes(): void
+    {
+        $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
+        $schema = new DurableSchema($connection, autoSetup: false);
+
+        self::assertFalse($schema->runsTableTracksPickup(), 'no table yet');
+
+        // The migrations run after the worker booted.
+        $connection->executeStatement('CREATE TABLE durable_workflow_runs (execution_id VARCHAR(128) NOT NULL PRIMARY KEY, workflow_type VARCHAR(255) NOT NULL, status VARCHAR(32) NOT NULL, started_at DATETIME NOT NULL, ended_at DATETIME DEFAULT NULL, picked_up_at DATETIME DEFAULT NULL)');
+
+        self::assertTrue($schema->runsTableTracksPickup(), 'a missing table is no answer to keep');
+    }
+
     public function testAPickupOnATableWithoutTheColumnIsNotAnError(): void
     {
         $schema = new DurableSchema($this->connection);

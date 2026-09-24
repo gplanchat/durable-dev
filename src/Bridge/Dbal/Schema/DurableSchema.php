@@ -71,9 +71,19 @@ final class DurableSchema
      */
     public function runsTableTracksPickup(): bool
     {
-        return $this->runsTableTracksPickup ??= \array_key_exists(
+        if (null !== $this->runsTableTracksPickup) {
+            return $this->runsTableTracksPickup;
+        }
+
+        $schemaManager = $this->connection->createSchemaManager();
+        // No table yet is no answer: a worker may boot before the migrations run.
+        if (!$schemaManager->tablesExist([$this->runsTable])) {
+            return false;
+        }
+
+        return $this->runsTableTracksPickup = \array_key_exists(
             'picked_up_at',
-            array_change_key_case($this->connection->createSchemaManager()->listTableColumns($this->runsTable)),
+            array_change_key_case($schemaManager->listTableColumns($this->runsTable)),
         );
     }
 

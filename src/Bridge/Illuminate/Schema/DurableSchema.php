@@ -44,7 +44,17 @@ final class DurableSchema
      */
     public function runsTableTracksPickup(): bool
     {
-        return $this->runsTableTracksPickup ??= $this->connection->getSchemaBuilder()->hasColumn($this->runsTable, 'picked_up_at');
+        if (null !== $this->runsTableTracksPickup) {
+            return $this->runsTableTracksPickup;
+        }
+
+        $builder = $this->connection->getSchemaBuilder();
+        // No table yet is no answer: a worker may boot before the migrations run.
+        if (!$builder->hasTable($this->runsTable)) {
+            return false;
+        }
+
+        return $this->runsTableTracksPickup = $builder->hasColumn($this->runsTable, 'picked_up_at');
     }
 
     public function ensure(): void
