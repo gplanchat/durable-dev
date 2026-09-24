@@ -10,12 +10,16 @@ use Gplanchat\Bridge\Temporal\Grpc\RetryingGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\GrpcWire;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Exception\TransportException;
+use Temporal\Api\Update\V1\Meta;
+use Temporal\Api\Update\V1\Request as UpdateRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\SignalWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\SignalWorkflowExecutionResponse;
 use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionResponse;
+use Temporal\Api\Workflowservice\V1\UpdateWorkflowExecutionRequest;
+use Temporal\Api\Workflowservice\V1\UpdateWorkflowExecutionResponse;
 
 final class RetryingGrpcTransportTest extends TestCase
 {
@@ -129,6 +133,23 @@ final class RetryingGrpcTransportTest extends TestCase
         self::assertNotSame('', $ids[0]);
         self::assertSame([$ids[0], $ids[0], $ids[0]], \array_slice($ids, 0, 3), 'the server dedupes on it: one id across the attempts');
         self::assertNotSame($ids[0], $ids[3], 'a second signal is a second call');
+    }
+
+    public function testAnUpdateIsRetriedOnlyWhenItCarriesItsUpdateId(): void
+    {
+        $withId = new UpdateWorkflowExecutionRequest(['request' => new UpdateRequest(['meta' => new Meta(['update_id' => 'u-1'])])]);
+        $inner = $this->failing([GrpcWire::DEADLINE_EXCEEDED]);
+        $this->retrying($inner)->unary(self::PATH . 'UpdateWorkflowExecution', $withId, UpdateWorkflowExecutionResponse::class, [], null);
+        self::assertCount(2, $inner->requests, 'the server dedupes on update_id');
+
+        $inner = $this->failing([GrpcWire::DEADLINE_EXCEEDED]);
+        $this->expectExceptionCode(GrpcWire::DEADLINE_EXCEEDED);
+
+        try {
+            $this->retrying($inner)->unary(self::PATH . 'UpdateWorkflowExecution', new UpdateWorkflowExecutionRequest(), UpdateWorkflowExecutionResponse::class, [], null);
+        } finally {
+            self::assertCount(1, $inner->requests, 'nothing to dedupe on: sent once');
+        }
     }
 
     public function testARequestIdTheCallerSetIsKept(): void

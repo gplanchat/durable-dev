@@ -6,6 +6,7 @@ namespace Gplanchat\Bridge\Temporal\Grpc;
 
 use Google\Protobuf\Internal\Message;
 use Gplanchat\Bridge\Temporal\Http\GrpcWire;
+use Temporal\Api\Workflowservice\V1\UpdateWorkflowExecutionRequest;
 
 /**
  * Retries a call that met DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED or UNAVAILABLE, with capped
@@ -14,7 +15,8 @@ use Gplanchat\Bridge\Temporal\Http\GrpcWire;
  * Only the RPCs below are retried. A deadline may expire after the server applied the call, so
  * a mutating RPC is retried only when a second application cannot happen: its request_id is
  * stamped once per call and reused by every attempt (the server dedupes on it), or its task
- * token makes the second one a NOT_FOUND. Any other RPC is sent once.
+ * token makes the second one a NOT_FOUND, or an update carries its update_id. Any other RPC is
+ * sent once.
  *
  * No retry starts past $budgetMs from the first attempt, backoff included: a call that used its
  * whole deadline is not sent again, only the ones that failed fast (connection refused, frontend
@@ -85,7 +87,9 @@ final class RetryingGrpcTransport implements GrpcTransport
     public function unary(string $method, Message $request, string $responseClass, array $metadata, ?int $timeoutMs): Message
     {
         $rpc = substr($method, (int) strrpos($method, '/') + 1);
-        $retryable = \in_array($rpc, self::READS, true) || \in_array($rpc, self::WITH_TASK_TOKEN, true);
+        $retryable = \in_array($rpc, self::READS, true) || \in_array($rpc, self::WITH_TASK_TOKEN, true)
+            // Deduped on update_id, which the caller draws: without one there is nothing to dedupe on.
+            || ($request instanceof UpdateWorkflowExecutionRequest && '' !== (string) $request->getRequest()?->getMeta()?->getUpdateId());
         if (\in_array($rpc, self::WITH_REQUEST_ID, true)) {
             $retryable = true;
             if (method_exists($request, 'getRequestId') && method_exists($request, 'setRequestId') && '' === $request->getRequestId()) {
