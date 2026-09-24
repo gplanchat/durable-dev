@@ -9,6 +9,8 @@ use Gplanchat\Durable\Exception\WorkflowSuspendedException;
 use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionRuntime;
+use Gplanchat\Durable\Store\EventStoreCommandBuffer;
+use Gplanchat\Durable\Store\EventStoreHistorySource;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 
@@ -96,7 +98,13 @@ final class StepwiseWorkflowHarness
         if ($this->activityTransport->isEmpty()) {
             return false;
         }
-        $context = new ExecutionContext($executionId, $this->eventStore, $this->activityTransport, null);
+        // Wired the way ExecutionEngine wires it: the context takes the ports, not the store.
+        $history = new EventStoreHistorySource($this->eventStore, $executionId);
+        $context = new ExecutionContext(
+            $executionId,
+            $history,
+            new EventStoreCommandBuffer($this->eventStore, $this->activityTransport, $executionId, $this->runtime->nowSeconds(...), $history),
+        );
         $this->runtime->drainActivityQueueOnce($context);
 
         return true;

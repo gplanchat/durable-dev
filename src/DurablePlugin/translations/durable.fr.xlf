@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+    <file source-language="en" target-language="fr" datatype="plaintext" original="file.ext">
+        <body>
+            <trans-unit id="menu.dashboard"><source>menu.dashboard</source><target>Tableau de bord Durable</target></trans-unit>
+            <trans-unit id="dashboard.title"><source>dashboard.title</source><target>Tableau de bord des workflows Durable</target></trans-unit>
+            <trans-unit id="dashboard.intro"><source>dashboard.intro</source><target>Suivez les exécutions de workflow, leurs issues et leur historique enregistré depuis le back-office Sylius.</target></trans-unit>
+            <trans-unit id="dashboard.backend_checked"><source>dashboard.backend_checked</source><target>%name% · vérifié à %time%</target></trans-unit>
+            <trans-unit id="dashboard.outcomes_heading"><source>dashboard.outcomes_heading</source><target>Issues des %count% exécutions de cette page</target></trans-unit>
+            <trans-unit id="kpi.on_this_page"><source>kpi.on_this_page</source><target>Sur cette page</target></trans-unit>
+            <trans-unit id="kpi.waiting_for_worker"><source>kpi.waiting_for_worker</source><target>En attente d'un worker</target></trans-unit>
+            <trans-unit id="status.all"><source>status.all</source><target>Toutes</target></trans-unit>
+            <trans-unit id="status.running"><source>status.running</source><target>En cours</target></trans-unit>
+            <trans-unit id="status.completed"><source>status.completed</source><target>Terminées</target></trans-unit>
+            <trans-unit id="status.failed"><source>status.failed</source><target>En échec</target></trans-unit>
+            <trans-unit id="status.cancelled"><source>status.cancelled</source><target>Annulées</target></trans-unit>
+            <trans-unit id="status.continued_as_new"><source>status.continued_as_new</source><target>Poursuivies à neuf</target></trans-unit>
+            <trans-unit id="filter.outcome"><source>filter.outcome</source><target>Issue</target></trans-unit>
+            <trans-unit id="filter.submit"><source>filter.submit</source><target>Filtrer</target></trans-unit>
+            <trans-unit id="runs.title"><source>runs.title</source><target>Exécutions</target></trans-unit>
+            <trans-unit id="runs.empty"><source>runs.empty</source><target>Aucune exécution ne correspond à ce filtre.</target></trans-unit>
+            <trans-unit id="runs.group"><source>runs.group</source><target>Groupe :</target></trans-unit>
+            <trans-unit id="pagination.next"><source>pagination.next</source><target>Page suivante</target></trans-unit>
+            <trans-unit id="details.title"><source>details.title</source><target>Détail de l'exécution</target></trans-unit>
+            <trans-unit id="details.workflow"><source>details.workflow</source><target>Workflow :</target></trans-unit>
+            <trans-unit id="details.run"><source>details.run</source><target>Exécution :</target></trans-unit>
+            <trans-unit id="details.outcome"><source>details.outcome</source><target>Issue :</target></trans-unit>
+            <trans-unit id="details.no_history"><source>details.no_history</source><target>Aucun historique enregistré pour cette exécution.</target></trans-unit>
+            <trans-unit id="details.select"><source>details.select</source><target>Choisissez une exécution dans la liste pour lire son historique enregistré.</target></trans-unit>
+            <trans-unit id="frieze.key_waiting"><source>frieze.key_waiting</source><target>Hachuré : en attente d'être pris en charge. Le travail avait été demandé, mais personne ne l'avait encore commencé.</target></trans-unit>
+            <trans-unit id="frieze.key_failed"><source>frieze.key_failed</source><target>Rouge : ce qui a échoué. Une annulation n'est pas peinte en rouge : c'est une issue, pas une panne.</target></trans-unit>
+        </body>
+    </file>
+</xliff>

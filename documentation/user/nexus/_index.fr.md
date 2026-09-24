@@ -12,8 +12,8 @@ Durable tient les deux rôles : il **appelle** des opérations, et il en **sert*
 Servir demande le **backend Temporal**. Les backends in-memory et DBAL n'ont aucune route entre
 namespaces, et ils le disent plutôt que de faire semblant ; voir [Backends](../backends/).
 
-Cela n'oblige pas à renoncer à un journal SQL. `durable.temporal.journal: false` dit que le cluster
-est joignable pendant qu'`event_store` reste la source de vérité, c'est ainsi qu'une boutique dont
+Cela n'oblige pas à renoncer à un journal SQL. `durable.backend: dbal` avec un `temporal.dsn` dit que
+le cluster est joignable pendant que le journal SQL reste la source de vérité, c'est ainsi qu'une boutique dont
 le tableau de bord lit DBAL sert une opération Nexus sans que ce tableau de bord change ce qu'il
 lit. Appeler est l'inverse : une opération est ordonnancée par un workflow, et un workflow ne peut
 en ordonnancer une que si son journal **est** le cluster.

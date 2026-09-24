@@ -8,6 +8,8 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
+use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
+use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\RecordedDetails;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
@@ -31,6 +33,7 @@ final class DiagnoseExecutionCommand extends Command
         private readonly EventStoreInterface $eventStore,
         private readonly ChildWorkflowParentLinkStoreInterface $childWorkflowParentLinkStore,
         private readonly ?TemporalConnection $temporalConnection = null,
+        private readonly PayloadRedactorInterface $redactor = new KeyPatternPayloadRedactor(),
     ) {
         parent::__construct();
     }
@@ -41,6 +44,7 @@ final class DiagnoseExecutionCommand extends Command
             ->addArgument('executionId', InputArgument::REQUIRED, 'Execution identifier (workflow or child).')
             ->addOption('limit', 'l', InputOption::VALUE_REQUIRED, 'How many events at most to detail in the output.', '30')
             ->addOption('json', null, InputOption::VALUE_NONE, 'Write structured JSON to stdout.')
+            ->addOption('raw', null, InputOption::VALUE_NONE, 'Print payloads as recorded. By default, values under keys such as password, token or card are masked and long strings truncated.')
         ;
     }
 
@@ -55,8 +59,12 @@ final class DiagnoseExecutionCommand extends Command
 
         $limit = max(0, (int) $input->getOption('limit'));
         $asJson = (bool) $input->getOption('json');
+        $redact = $input->getOption('raw') ? static fn(mixed $payload): mixed => $payload : $this->redactor->redact(...);
 
         $meta = $this->workflowMetadataStore->get($executionId);
+        if (null !== $meta) {
+            $meta['payload'] = $redact(RecordedDetails::storable($meta['payload']));
+        }
         $parentId = $this->childWorkflowParentLinkStore->getParentExecutionId($executionId);
         $childIds = $this->childWorkflowParentLinkStore->getChildExecutionIdsForParent($executionId);
 
@@ -84,7 +92,7 @@ final class DiagnoseExecutionCommand extends Command
                     // The same barrier as the profiler: the command reads a production journal,
                     // and a payload that refuses encoding would bring down the very diagnosis
                     // one came for.
-                    'payload' => RecordedDetails::storable($event->payload()),
+                    'payload' => $redact(RecordedDetails::storable($event->payload())),
                 ];
             }
         }

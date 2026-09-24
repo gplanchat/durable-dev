@@ -235,7 +235,7 @@ final class NexusServedOperationTest extends TestCase
             new TemporalHistoryCursor($this->client, $this->connection),
             new WorkflowServiceExecutionRpc($this->client),
         );
-        $callerId = (string) $client->startAsync('NexusServedCaller', [], 'nxserved-' . bin2hex(random_bytes(4)));
+        $callerId = $client->startAsync('NexusServedCaller', [], 'nxserved-' . bin2hex(random_bytes(4)));
         $this->started[] = $callerId;
 
         $task = $this->pollWorkflowTask();

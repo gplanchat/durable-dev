@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Dashboard;
 
+use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -22,6 +23,8 @@ final class DashboardTemplateRenderTest extends KernelTestCase
         $requestStack->push(new Request());
 
         $html = $twig->render('dashboard/index.html.twig', [
+            'backend' => ['available' => true, 'ephemeral' => false, 'message' => ''],
+            'statuses' => WorkflowRunStatus::cases(),
             'runs' => [[
                 'runId' => 'run-1',
                 'workflowName' => 'DemoWorkflow',

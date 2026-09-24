@@ -55,6 +55,8 @@ use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
+use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
+use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\ParentChildWorkflowCoordinator;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
@@ -93,19 +95,14 @@ final class DurableExtension extends Extension
 {
     public function load(array $configs, ContainerBuilder $container): void
     {
-        $configuration = new Configuration();
-        $config = $this->processConfiguration($configuration, $configs);
+        $config = $this->processConfiguration($this->getConfiguration($configs, $container), $configs);
 
         $container->setParameter('durable.max_activity_retries', $config['max_activity_retries'] ?? 0);
 
         $asyncChildMessenger = (bool) ($config['child_workflow']['async_messenger'] ?? false);
         $container->setParameter('durable.child_workflow_async_messenger', $asyncChildMessenger);
 
-        // A synthetic container, an extension test for instance, does not have this parameter;
-        // that does not make it production, hence the default to debug.
-        $debug = !$container->hasParameter('kernel.debug') || (bool) $container->getParameter('kernel.debug');
-
-        if ($debug) {
+        if ($config['profiler']['enabled']) {
             $this->registerProfiler($container);
         } else {
             $this->registerNullObserver($container);
@@ -138,6 +135,16 @@ final class DurableExtension extends Extension
     }
 
     /**
+     * @param array<array-key, mixed> $config
+     */
+    public function getConfiguration(array $config, ContainerBuilder $container): Configuration
+    {
+        // A synthetic container, an extension test for instance, does not have this parameter;
+        // that does not make it production, hence the default to debug.
+        return new Configuration(!$container->hasParameter('kernel.debug') || (bool) $container->getParameter('kernel.debug'));
+    }
+
+    /**
      * Replaces the in-memory stores with their SQL equivalents when `type: dbal` is asked for.
      *
      * Called last: the in-memory definitions are already in place, we overwrite them rather than
@@ -155,10 +162,6 @@ final class DurableExtension extends Extension
 
         if (!$eventStoreDbal && !$metadataDbal && !$parentLinkDbal) {
             return;
-        }
-
-        if ($eventStoreDbal && self::isTemporalNative($config)) {
-            throw new \LogicException('durable: event_store.type "dbal" and temporal.dsn are mutually exclusive — the journal cannot have two sources of truth. An application that needs the cluster without handing it the journal — serving a Nexus operation, for instance — sets temporal.journal: false.');
         }
 
         $connection = new Reference($config['dbal']['connection']);
@@ -756,6 +759,14 @@ final class DurableExtension extends Extension
      */
     private function registerCommands(ContainerBuilder $container, array $config): void
     {
+        // What the diagnose command and the profiler panel may show of a payload. An application
+        // replaces it by aliasing the interface to its own implementation.
+        $container->register('durable.payload_redactor', KeyPatternPayloadRedactor::class)->setPublic(false);
+        // The application's services.yaml is loaded before this extension: keep its alias.
+        if (!$container->hasAlias(PayloadRedactorInterface::class) && !$container->hasDefinition(PayloadRedactorInterface::class)) {
+            $container->setAlias(PayloadRedactorInterface::class, 'durable.payload_redactor');
+        }
+
         $isTemporalNative = self::isTemporalNative($config);
 
         if ($isTemporalNative) {
@@ -801,6 +812,7 @@ final class DurableExtension extends Extension
                 new Reference(EventStoreInterface::class),
                 new Reference(ChildWorkflowParentLinkStoreInterface::class),
                 new Reference('durable.temporal.connection', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                new Reference(PayloadRedactorInterface::class),
             ])
             ->addTag('console.command')
         ;
@@ -883,6 +895,7 @@ final class DurableExtension extends Extension
                 new Reference('durable.execution_trace'),
                 new Reference(WorkflowMetadataStore::class),
                 new Reference(EventStoreInterface::class),
+                new Reference(PayloadRedactorInterface::class),
             ])
             ->setPublic(true)
             ->addTag('data_collector', [

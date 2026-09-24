@@ -24,7 +24,11 @@ final class DurableSchemaAssetsFilterTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->path = tempnam(sys_get_temp_dir(), 'durable-filter-');
+        $path = tempnam(sys_get_temp_dir(), 'durable-filter-');
+        if (false === $path) {
+            self::fail('no temporary file for the SQLite database');
+        }
+        $this->path = $path;
         (new DurableSchema(DriverManager::getConnection(['driver' => 'pdo_sqlite', 'path' => $this->path])))->setup();
 
         $this->filtered = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'path' => $this->path]);

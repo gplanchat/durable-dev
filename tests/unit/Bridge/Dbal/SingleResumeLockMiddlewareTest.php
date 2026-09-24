@@ -316,6 +316,7 @@ final class SingleResumeLockMiddlewareTest extends TestCase
     private function stackRunning(callable $duringHandling): StackInterface
     {
         $next = new class ($duringHandling) implements MiddlewareInterface {
+            /** @param callable(): mixed $duringHandling */
             public function __construct(private $duringHandling) {}
 
             public function handle(Envelope $envelope, StackInterface $stack): Envelope

@@ -27,7 +27,7 @@ final class WorkflowPass implements CompilerPassInterface
         $registry = $container->findDefinition(WorkflowRegistry::class);
         $loader = new WorkflowDefinitionLoader();
 
-        foreach ($container->findTaggedServiceIds('durable.workflow') as $id => $tags) {
+        foreach (array_keys($container->findTaggedServiceIds('durable.workflow')) as $id) {
             $definition = $container->getDefinition($id);
             $class = $definition->getClass() ?? $id;
             if (!str_contains($class, '\\')) {
