@@ -9,4 +9,4 @@
 - **Entries**: the ~30 test files the inventory lists (string literals only, no logic, no method
   names), `tests/unit/` for the new guard. Overlap: #325's prise names "their tests" for the history
   source; any shared file is a line-level merge.
-- **State**: in progress — sabrina, reviewer bob.
+- **State**: in review — PR #538 (closes #400), reviewer bob. sabrina.
