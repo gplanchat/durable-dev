@@ -33,6 +33,7 @@ for itself.
 | Removed | If you used it |
 |---|---|
 | `Awaitable\ExecutionBoundAwaitable` (interface) | implement `Awaitable` directly |
+| `ExecutionContext::pendingTimers()`, `pendingActivities()` | nothing: they exposed the engine's own bookkeeping |
 | `Awaitable\QuorumAwaitable::required()` | keep the count you passed to `some()` |
 | `Transport\InMemoryActivityTransport::pendingCount()`, `inspectPendingActivities()` | `peek()` and `nextDueAt()` remain |
 | `Transport\ActivityMessage::withAttempt()` | `retryingIn()` builds the next attempt |
