@@ -26,14 +26,14 @@ final class NexusOperationHeadersTest extends TestCase
      */
     public static function acceptedByTheServer(): iterable
     {
-        yield 'ordinaire' => [['x-correlation' => 'abc-123']];
-        yield 'valeur vide' => [['x-vide' => '']];
-        yield 'clé vide' => [['' => 'valeur']];
-        yield 'blancs en bord de valeur' => [['x-bord' => ' abc ']];
-        yield 'saut de ligne dans la valeur' => [['x-nl' => "a\nb"]];
-        yield 'espace dans la clé' => [['x avec espace' => 'v']];
-        yield 'valeur de 1000 caractères' => [['x-long' => str_repeat('a', 1000)]];
-        yield 'deux en-têtes' => [['x-un' => '1', 'x-deux' => '2']];
+        yield 'ordinary' => [['x-correlation' => 'abc-123']];
+        yield 'empty value' => [['x-empty' => '']];
+        yield 'empty key' => [['' => 'value']];
+        yield 'whitespace at the value edges' => [['x-edge' => ' abc ']];
+        yield 'newline in the value' => [['x-nl' => "a\nb"]];
+        yield 'space in the key' => [['x with space' => 'v']];
+        yield '1000-character value' => [['x-long' => str_repeat('a', 1000)]];
+        yield 'two headers' => [['x-one' => '1', 'x-two' => '2']];
     }
 
     /** @param array<string, string> $headers */
@@ -47,9 +47,9 @@ final class NexusOperationHeadersTest extends TestCase
     {
         // The server lowercases without saying so. Returning the key as it was sent would make
         // reading it back a lie: the caller would believe it had set `X-Correlation`.
-        $headers = NexusOperationHeaders::of(['X-Correlation' => 'abc-123', 'X-TOUT-MAJ' => 'v']);
+        $headers = NexusOperationHeaders::of(['X-Correlation' => 'abc-123', 'X-ALL-CAPS' => 'v']);
 
-        self::assertSame(['x-correlation' => 'abc-123', 'x-tout-maj' => 'v'], $headers->toArray());
+        self::assertSame(['x-correlation' => 'abc-123', 'x-all-caps' => 'v'], $headers->toArray());
     }
 
     public function testTwoKeysCollidingOnCaseAreRefused(): void
@@ -57,9 +57,9 @@ final class NexusOperationHeadersTest extends TestCase
         // The silent failure: on the server side, two headers go in and one comes out. Here the
         // caller asks for something the server cannot do and would not say.
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/x-choc/');
+        $this->expectExceptionMessageMatches('/x-clash/');
 
-        NexusOperationHeaders::of(['X-Choc' => 'majuscule', 'x-choc' => 'minuscule']);
+        NexusOperationHeaders::of(['X-Clash' => 'uppercase', 'x-clash' => 'lowercase']);
     }
 
     public function testTheCollisionMessageNamesBothSpellings(): void
@@ -67,11 +67,11 @@ final class NexusOperationHeadersTest extends TestCase
         // A message naming only the folded key leaves you hunting for which of the two spellings
         // in the calling code was at fault.
         try {
-            NexusOperationHeaders::of(['X-Choc' => 'a', 'x-choc' => 'b']);
+            NexusOperationHeaders::of(['X-Clash' => 'a', 'x-clash' => 'b']);
             self::fail('The collision should have been refused.');
         } catch (\InvalidArgumentException $e) {
-            self::assertStringContainsString('X-Choc', $e->getMessage());
-            self::assertStringContainsString('x-choc', $e->getMessage());
+            self::assertStringContainsString('X-Clash', $e->getMessage());
+            self::assertStringContainsString('x-clash', $e->getMessage());
         }
     }
 
@@ -79,7 +79,7 @@ final class NexusOperationHeadersTest extends TestCase
     {
         // PHP cannot produce this case in a literal, but a built array can: the same key twice
         // is not an ambiguity, it is a single entry.
-        self::assertSame(['x-a' => 'deux'], NexusOperationHeaders::of(['x-a' => 'deux'])->toArray());
+        self::assertSame(['x-a' => 'two'], NexusOperationHeaders::of(['x-a' => 'two'])->toArray());
     }
 
     public function testEmptyIsEmptyAndSaysSo(): void
