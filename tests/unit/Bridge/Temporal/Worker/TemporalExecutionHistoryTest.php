@@ -213,7 +213,7 @@ final class TemporalExecutionHistoryTest extends TestCase
 
         $slot = $history->findTimerSlotResult(0);
         self::assertNotNull($slot);
-        self::assertSame('timer-1', $slot['id']);
+        self::assertSame('timer-1', $slot->timerId);
     }
 
     public function testMessagesAreReadInRecordedOrderWhateverTheirName(): void

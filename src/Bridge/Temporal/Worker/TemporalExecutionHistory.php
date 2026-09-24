@@ -13,6 +13,7 @@ use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
+use Gplanchat\Durable\Port\History\TimerOutcome;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use Gplanchat\Durable\Versioning\ChangePoint;
 use Temporal\Api\Enums\V1\EventType;
@@ -79,9 +80,6 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 
     /** @var array<int, string> start timer event ID → timer ID */
     private array $startedEventIdToTimerId = [];
-
-    /** @var array<string, float> timer ID → scheduled-at */
-    private array $timerScheduledAt = [];
 
     /** @var array<string, int> timer ID → eventId of its TIMER_FIRED (the journal order settles a deadline's verdict) */
     private array $firedTimerIds = [];
@@ -345,7 +343,6 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     $timerId = (string) $attr->getTimerId();
                     $this->scheduledTimerIds[] = $timerId;
                     $this->startedEventIdToTimerId[$eventId] = $timerId;
-                    $this->timerScheduledAt[$timerId] = 0.0;
                 }
                 break;
 
@@ -595,24 +592,20 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         return $this->activityPayloads[$activityId] ?? null;
     }
 
-    public function findTimerSlotResult(int $slot): ?array
+    public function findTimerSlotResult(int $slot): ?TimerOutcome
     {
         $timerId = $this->scheduledTimerIds[$slot] ?? null;
         if (null === $timerId) {
             return null;
         }
         if (isset($this->cancellationDeliveredTargets[$timerId])) {
-            return [
-                'id' => $timerId,
-                'scheduledAt' => $this->timerScheduledAt[$timerId] ?? 0.0,
-                'failed' => new WorkflowCancelledFailure($this->durableExecutionId() ?? '', ActivityCancellationReason::WORKFLOW_CANCELLED),
-            ];
+            return new TimerOutcome($timerId, new WorkflowCancelledFailure($this->durableExecutionId() ?? '', ActivityCancellationReason::WORKFLOW_CANCELLED));
         }
         if (!isset($this->firedTimerIds[$timerId])) {
             return null;
         }
 
-        return ['id' => $timerId, 'scheduledAt' => $this->timerScheduledAt[$timerId] ?? 0.0, 'failed' => null];
+        return new TimerOutcome($timerId);
     }
 
     /**
