@@ -84,6 +84,35 @@ final class DurableSchemaListenerTest extends TestCase
         self::assertSame([], $schema->getTables(), 'no table may join the schema of another database');
     }
 
+    /**
+     * An application that excluded `durable_*` in `schema_filter` got a perpetual `CREATE TABLE`
+     * from `migrations:diff`: the listener added what the filter keeps out of the comparison (#339).
+     */
+    public function testATableTheSchemaFilterRejectsIsNotDeclared(): void
+    {
+        $connection = self::inMemory();
+        $connection->getConfiguration()->setSchemaAssetsFilter(static fn(string $name): bool => !str_starts_with($name, 'durable_'));
+        $schema = new Schema();
+
+        (new DurableSchemaListener(new DurableSchema($connection)))
+            ->postGenerateSchema($this->event($connection, $schema));
+
+        self::assertSame([], $schema->getTables());
+    }
+
+    public function testOnlyTheRejectedTablesAreLeftOut(): void
+    {
+        $connection = self::inMemory();
+        $connection->getConfiguration()->setSchemaAssetsFilter(static fn(string $name): bool => 'durable_events' !== $name);
+        $schema = new Schema();
+
+        (new DurableSchemaListener(new DurableSchema($connection)))
+            ->postGenerateSchema($this->event($connection, $schema));
+
+        self::assertFalse($schema->hasTable('durable_events'));
+        self::assertCount(\count(self::TABLES) - 1, $schema->getTables());
+    }
+
     private function event(Connection $connection, Schema $schema): GenerateSchemaEventArgs
     {
         $em = $this->createMock(EntityManagerInterface::class);

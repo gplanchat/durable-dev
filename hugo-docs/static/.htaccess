@@ -1,29 +1,29 @@
-# Site statique servi par un hébergement mutualisé Apache (OVH).
+# Static site served by Apache shared hosting (OVH).
 #
-# Chaque directive est protégée par <IfModule> : sur un mutualisé, une directive
-# portant sur un module absent renvoie 500 pour TOUT le site, pas seulement pour
-# la page concernée.
+# Every directive is wrapped in <IfModule>: on shared hosting, a directive
+# for a missing module returns 500 for the WHOLE site, not only for
+# the page concerned.
 
 # --- HTTPS ---------------------------------------------------------------
-# Le certificat est fourni par l'hébergeur, mais l'accès en clair reste ouvert :
-# on redirige explicitement.
+# The certificate is provided by the host, but plain-text access stays open:
+# we redirect explicitly.
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # OVH termine TLS en amont ; la variable HTTPS n'est pas fiable, l'en-tête l'est.
+    # OVH terminates TLS upstream; the HTTPS variable is unreliable, the header is not.
     RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
     RewriteCond %{HTTPS} !=on
     RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
 </IfModule>
 
 <IfModule mod_headers.c>
-    # HSTS. Un navigateur ignore cet en-tete sur une reponse en clair : sans effet
-    # sur la redirection ci-dessus.
+    # HSTS. A browser ignores this header on a plain-text response: no effect
+    # on the redirect above.
     #
-    # max-age volontairement court au demarrage. HSTS est difficile a defaire : le
-    # navigateur refusera http:// pendant toute la duree annoncee, meme si le
-    # certificat expire. Passer a 31536000 une fois le domaine stable, et
-    # n ajouter includeSubDomains que si tous les sous-domaines sont en HTTPS.
+    # max-age deliberately short at launch. HSTS is hard to undo: the
+    # browser will refuse http:// for the whole announced duration, even if the
+    # certificate expires. Raise to 31536000 once the domain is stable, and
+    # add includeSubDomains only if every subdomain is on HTTPS.
     Header always set Strict-Transport-Security "max-age=300"
 
     Header always set X-Content-Type-Options "nosniff"
@@ -31,7 +31,7 @@
 </IfModule>
 
 # --- Compression ---------------------------------------------------------
-# L'index de recherche fait ~71 Ko de JSON : il compresse d'un facteur cinq.
+# The search index is ~71 KB of JSON: it compresses by a factor of five.
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/css text/plain text/xml
     AddOutputFilterByType DEFLATE application/javascript application/json
@@ -39,9 +39,9 @@
 </IfModule>
 
 # --- Cache ---------------------------------------------------------------
-# Les assets du thème portent leur empreinte dans le nom : leur contenu ne change
-# jamais sous une même URL, ils peuvent être gardés indéfiniment. Le HTML, lui,
-# est revalidé — c'est ce qui rend une republication visible tout de suite.
+# The theme's assets carry their fingerprint in the name: their content never changes
+# under a given URL, so they can be kept indefinitely. The HTML, on the other hand,
+# is revalidated — that is what makes a republication visible right away.
 <IfModule mod_expires.c>
     ExpiresActive On
     ExpiresByType text/css "access plus 1 year"
@@ -52,15 +52,15 @@
     ExpiresByType application/json "access plus 1 hour"
 </IfModule>
 
-# Second bloc mod_headers : Cache-Control complete mod_expires, qui ne sait pas
-# exprimer must-revalidate.
+# Second mod_headers block: Cache-Control complements mod_expires, which cannot
+# express must-revalidate.
 <IfModule mod_headers.c>
     <FilesMatch "\.(html|xml)$">
         Header set Cache-Control "no-cache, must-revalidate"
     </FilesMatch>
 </IfModule>
 
-# --- Divers --------------------------------------------------------------
+# --- Miscellaneous -------------------------------------------------------
 ErrorDocument 404 /404.html
 
 <IfModule mod_autoindex.c>

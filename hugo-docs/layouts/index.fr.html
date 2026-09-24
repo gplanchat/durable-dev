@@ -829,25 +829,25 @@ final class Billing implements BillingServed
 </div>
 <script>
 /*
- * Ce que le composant du canevas faisait et qui n'existe plus hors de lui :
- * la bascule de thème et les annotations ligne à ligne de l'exemple.
+ * What the canvas component did and that no longer exists outside it:
+ * the theme toggle and the line-by-line annotations of the example.
  *
- * Les deux marqueurs sont remplacés par ./import-design.py, qui lit les
- * annotations dans le composant d'origine plutôt que de les recopier : les
- * laisser en double se serait payé au premier changement du design.
+ * The two markers are replaced by ./import-design.py, which reads the
+ * annotations from the original component rather than copying them: keeping
+ * them duplicated would have been paid for at the first design change.
  */
 (function () {
   'use strict';
 
   var NOTES = [["#[Workflow(name: …)]", "The name workers look the workflow up by. The class can be renamed freely without breaking running executions."], ["final class", "An ordinary PHP class: no base class, no interface to implement, nothing to extend."], ["private ActivityStub $orders", "A typed stub standing in for OrderActivities. Calls on it are recorded as intents, not executed inline."], ["__construct(…)", "Wiring happens here, once. The workflow method itself stays free of infrastructure."], ["WorkflowEnvironment $env", "Injected in the constructor, never passed to the workflow method: await, timers, signals, side effects."], ["$env->activityStub(…)", "Build the stub once. Retry limits and timeouts go here as ActivityOptions, not around the call site."], ["#[WorkflowMethod]", "Marks the entry point. One per workflow class, and this is the method that gets replayed."], ["run(string $orderId)", "Receives the business input and returns the business result. Nothing about the engine appears in its signature."], ["charge($orderId)", "First step. Its result is written to the journal; on every later replay it returns from there instead of charging again."], ["reserveStock($orderId)", "Same rule. The reservation is made exactly once, however many times the method re-runs."], ["sleep(Duration::minutes(5))", "Not PHP sleep(): the worker is free to stop here entirely. The execution resumes when the deadline passes, wherever a worker is available."], ["sendReceipt($payment)", "After the restart, this is the first step with no recorded result, so it is the first one that actually runs."], ["return $payment", "The workflow result, readable by whoever started the execution and kept in the journal."]];
   var DEFAULT = ["Survolez une ligne", "Chaque ligne de cette méthode est soit inscrite au journal, soit rejouée depuis lui. Pointez-en une pour voir laquelle."];
-  // Le libellé nomme le thème vers lequel on bascule, pas le thème courant.
+  // The label names the theme being switched to, not the current theme.
   var THEMES = {"dark": "Sombre", "light": "Clair"};
 
-  // --- Thème ---------------------------------------------------------------
-  // Trois états, pas deux : « clair », « sombre », et l'absence de choix, qui
-  // laisse décider prefers-color-scheme. Le bouton n'écrit que sur les deux
-  // premiers.
+  // --- Theme ---------------------------------------------------------------
+  // Three states, not two: "light", "dark", and the absence of a choice, which
+  // lets prefers-color-scheme decide. The button only writes the first
+  // two.
   var root = document.documentElement;
 
   function systemPrefersDark() {
@@ -871,11 +871,11 @@ final class Billing implements BillingServed
     root.setAttribute('data-theme', next);
     try {
       localStorage.setItem('durable-theme', next);
-    } catch (e) { /* le thème vaut pour la visite, faute de pouvoir le garder */ }
+    } catch (e) { /* the theme holds for the visit, since it cannot be kept */ }
     paintThemeLabel();
   }
 
-  // Le libellé suit le système tant que personne n'a tranché.
+  // The label follows the system as long as nobody has decided.
   if (window.matchMedia) {
     var media = window.matchMedia('(prefers-color-scheme: dark)');
     var onChange = function () {
@@ -885,7 +885,7 @@ final class Billing implements BillingServed
     else if (media.addListener) media.addListener(onChange);
   }
 
-  // --- Annotations de l'exemple -------------------------------------------
+  // --- Example annotations -----------------------------------------------
   function showNote(index) {
     var note = NOTES[index] || DEFAULT;
     var title = document.querySelector('[data-dz-note-title]');
@@ -898,8 +898,8 @@ final class Billing implements BillingServed
     showNote(-1);
   }
 
-  // Délégation : un seul écouteur, et les lignes peuvent changer de nombre
-  // sans qu'on y revienne.
+  // Delegation: a single listener, and the number of lines can change
+  // without coming back to this.
   document.addEventListener('click', function (event) {
     var target = event.target;
     if (target && target.closest && target.closest('[data-dz-theme-toggle]')) toggleTheme();
@@ -919,7 +919,7 @@ final class Billing implements BillingServed
     if (zone && !zone.contains(event.relatedTarget)) clearNote();
   });
 
-  // Le survol n'existe pas au doigt : sur écran tactile, une ligne se touche.
+  // Hover does not exist for a finger: on a touch screen, a line is tapped.
   document.addEventListener('focusin', function (event) {
     var line = event.target && event.target.closest && event.target.closest('[data-dz-note]');
     if (line) showNote(parseInt(line.getAttribute('data-dz-note'), 10));
