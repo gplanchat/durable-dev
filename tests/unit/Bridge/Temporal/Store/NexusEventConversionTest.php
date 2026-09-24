@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace unit\Gplanchat\Bridge\Temporal\Profiler;
+namespace unit\Gplanchat\Bridge\Temporal\Store;
 
-use Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter;
+use Gplanchat\Bridge\Temporal\Store\TemporalEventConverter;
 use Gplanchat\Durable\Event\NexusOperationCancelled;
 use Gplanchat\Durable\Event\NexusOperationCompleted;
 use Gplanchat\Durable\Event\NexusOperationFailed;
