@@ -52,7 +52,7 @@ final class RetryingGrpcTransportTest extends TestCase
         self::assertCount(3, $inner->requests);
         foreach ($this->slept as $i => $ms) {
             self::assertGreaterThanOrEqual(0, $ms);
-            self::assertLessThanOrEqual(100 * 2 ** $i, $ms);
+            self::assertLessThanOrEqual(100 << $i, $ms);
         }
     }
 
@@ -81,9 +81,9 @@ final class RetryingGrpcTransportTest extends TestCase
         // A fast failure at 29.95 s: the next backoff may be up to 100 ms, which could start the
         // retry after 30 s. It is not sent.
         $inner = $this->failing([GrpcWire::UNAVAILABLE]);
-        $clock = [0, 29_950];
-        $transport = new RetryingGrpcTransport($inner, baseDelayMs: 100, budgetMs: 30_000, sleep: static function (): void {}, clock: static function () use (&$clock): int {
-            return array_shift($clock) ?? 29_950;
+        $reads = 0;
+        $transport = new RetryingGrpcTransport($inner, baseDelayMs: 100, budgetMs: 30_000, sleep: static function (): void {}, clock: static function () use (&$reads): int {
+            return 0 === $reads++ ? 0 : 29_950;
         });
 
         $this->expectExceptionCode(GrpcWire::UNAVAILABLE);
@@ -128,7 +128,11 @@ final class RetryingGrpcTransportTest extends TestCase
         $this->retrying($inner)->unary(self::PATH . 'SignalWorkflowExecution', new SignalWorkflowExecutionRequest(), SignalWorkflowExecutionResponse::class, [], null);
         $this->retrying($inner)->unary(self::PATH . 'SignalWorkflowExecution', new SignalWorkflowExecutionRequest(), SignalWorkflowExecutionResponse::class, [], null);
 
-        $ids = array_map(static fn(SignalWorkflowExecutionRequest $r): string => $r->getRequestId(), $inner->requests);
+        $ids = [];
+        foreach ($inner->requests as $sent) {
+            self::assertInstanceOf(SignalWorkflowExecutionRequest::class, $sent);
+            $ids[] = $sent->getRequestId();
+        }
         self::assertCount(4, $ids);
         self::assertNotSame('', $ids[0]);
         self::assertSame([$ids[0], $ids[0], $ids[0]], \array_slice($ids, 0, 3), 'the server dedupes on it: one id across the attempts');
@@ -170,24 +174,28 @@ final class RetryingGrpcTransportTest extends TestCase
     }
 
     /** @param list<int> $codes the failures of the first calls, in order; then it answers */
-    private function failing(array $codes): GrpcTransport
+    private function failing(array $codes): RecordingGrpcTransport
     {
-        return new class ($codes) implements GrpcTransport {
-            /** @var list<Message> */
-            public array $requests = [];
+        return new RecordingGrpcTransport($codes);
+    }
+}
 
-            /** @param list<int> $codes */
-            public function __construct(private array $codes) {}
+/** Fails with the given codes, in order, then answers; keeps a copy of every request it was sent. */
+final class RecordingGrpcTransport implements GrpcTransport
+{
+    /** @var list<Message> */
+    public array $requests = [];
 
-            public function unary(string $method, Message $request, string $responseClass, array $metadata, ?int $timeoutMs): Message
-            {
-                $this->requests[] = clone $request;
-                if ([] !== $this->codes) {
-                    throw GrpcWire::failure(array_shift($this->codes), 'down');
-                }
+    /** @param list<int> $codes */
+    public function __construct(private array $codes) {}
 
-                return new $responseClass();
-            }
-        };
+    public function unary(string $method, Message $request, string $responseClass, array $metadata, ?int $timeoutMs): Message
+    {
+        $this->requests[] = clone $request;
+        if ([] !== $this->codes) {
+            throw GrpcWire::failure(array_shift($this->codes), 'down');
+        }
+
+        return new $responseClass();
     }
 }
