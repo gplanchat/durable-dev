@@ -22,7 +22,14 @@ use PHPUnit\Framework\TestCase;
  */
 final class TheTestsSpeakEnglishTest extends TestCase
 {
-    private const ACCENTED = '/[àâäçéèêëîïôöùûüœÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŒ]/u';
+    /** The class the other detectors use: their allowed lines are this very constant. */
+    private const SHARED_ACCENTED = '/[àâäçéèêëîïôöùûüœÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŒ]/u';
+
+    /**
+     * The same letters, plus the typographic apostrophe of l’, d’ and qu’: French written without
+     * accents often keeps it, and English tests never write one.
+     */
+    private const ACCENTED = '/[àâäçéèêëîïôöùûüœÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŒ’]/u';
 
     private const FUNCTION_WORDS = '/\b(le|la|les|des|une|est|sont|dans|pour|avec|sans|tous|toutes|aussi|donc|mais|ou|où|pas|très|cette|ces|leur|leurs|notre|votre|chez|vers|depuis|jamais|toujours|encore|déjà|entre|selon|sinon|puis|alors|ainsi|afin|lorsque|quand)\b/iu';
 
@@ -52,18 +59,18 @@ final class TheTestsSpeakEnglishTest extends TestCase
             'demandé' => 'same',
         ],
         'tests/unit/TheRootDocumentsSpeakEnglishTest.php' => [
-            "'" . self::ACCENTED . "'" => 'a detector: the characters it looks for (the same constant as this guard)',
+            "'" . self::SHARED_ACCENTED . "'" => 'a detector: the characters it looks for',
             "'" . self::FUNCTION_WORDS . "'" => 'a detector: the words it looks for',
         ],
         'tests/unit/TheShippedTemplatesSpeakEnglishTest.php' => [
-            "'" . self::ACCENTED . "'" => 'a detector',
+            "'" . self::SHARED_ACCENTED . "'" => 'a detector',
             "'" . self::FUNCTION_WORDS . "'" => 'a detector',
         ],
         'tests/unit/DurableBundle/TheConsoleSurfaceSpeaksEnglishTest.php' => [
-            "'" . self::ACCENTED . "'" => 'a detector',
+            "'" . self::SHARED_ACCENTED . "'" => 'a detector',
         ],
         'tests/unit/Durable/Testing/TheExportedTestHelpersSpeakEnglishTest.php' => [
-            "'" . self::ACCENTED . "'" => 'a detector',
+            "'" . self::SHARED_ACCENTED . "'" => 'a detector',
         ],
         'tests/unit/DurableBundle/Profiler/TheProfilerSpeaksEnglishTest.php' => [
             "preg_match('/[àâçéèêëîïôùûœÀÂÇÉÈÊÎÔÛŒ]/u'" => 'a detector',
@@ -105,6 +112,13 @@ final class TheTestsSpeakEnglishTest extends TestCase
         self::assertFalse(self::stillFrench("        yield 'accented letter' => ['probé'];", $needles));
         self::assertTrue(self::stillFrench("        yield 'accented letter' => ['probé']; // refusé pour le client", $needles));
         self::assertTrue(self::stillFrench("        yield 'accented letter' => ['probé']; // pas de charge", $needles), 'French without accents too');
+    }
+
+    public function testTheCurlyApostropheGivesFrenchAway(): void
+    {
+        // Review of #538: "l’activite a echoue" has no accent and no listed function word; the
+        // typographic apostrophe of l’, d’ and qu’ is its only tell. No English test writes one.
+        self::assertTrue(self::stillFrench('        // l’activite a echoue', []));
     }
 
     public function testEveryAllowedLineStillExists(): void
