@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Port;
 
 use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
-use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
+use Gplanchat\Durable\Debug\WorkflowDispatchObserverInterface;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
@@ -17,9 +17,9 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
  * dispatchResume() is a no-op: after each workflow task Temporal itself re-schedules the next
  * PollWorkflowTaskQueue, so no application-level "resume" dispatch is needed.
  *
- * The optional DurableExecutionTrace is notified of each dispatch so the Symfony profiler
- * DataCollector can display Temporal-dispatched workflows (the Messenger middleware only fires
- * for in-memory dispatches that go through the bus).
+ * The optional dispatch observer is notified of each dispatch, so a debug surface (the Symfony
+ * profiler's execution trace) can display Temporal-dispatched workflows: the Messenger middleware
+ * only fires for dispatches that go through the bus.
  *
  * @see WorkflowClientInterface::startAsync()
  */
@@ -29,7 +29,7 @@ final class TemporalWorkflowResumeDispatcher implements WorkflowResumeDispatcher
         private readonly WorkflowClientInterface $workflowClient,
         private readonly WorkflowMetadataStore $metadataStore,
         private readonly WorkflowDefinitionLoader $workflowDefinitionLoader,
-        private readonly ?DurableExecutionTrace $executionTrace = null,
+        private readonly ?WorkflowDispatchObserverInterface $executionTrace = null,
     ) {}
 
     /**
