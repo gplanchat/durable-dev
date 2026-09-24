@@ -11,4 +11,4 @@
   (Temporal block only, after #485), their tests.
 - **Stacked on #510** (`fix/temporal-heartbeat-on-every-host`), itself on #493. The Symfony commit
   waits for #485.
-- **State**: in progress — arwen, worktree `.claude/worktrees/temporal-assembly`. Reviewer: dave.
+- **State**: PR1 in review, #532, based on #531 (dave OK on C1–C4). PR2 (Magento read-through store, deletions) parked on the user's decisions — arwen.
