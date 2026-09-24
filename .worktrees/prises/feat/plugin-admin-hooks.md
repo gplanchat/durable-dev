@@ -11,4 +11,4 @@
   `src/DurablePlugin/tests/`, `sylius/tests/Functional/DurableDashboardTest.php`.
 - **Order**: plugin template: vera first (#383 A), then sabrina's #332 plugin column. Stacked on
   #497 until it lands.
-- **State**: in progress — vera; reviewer bob.
+- **State**: in review — PR #519, vera; reviewer bob.
