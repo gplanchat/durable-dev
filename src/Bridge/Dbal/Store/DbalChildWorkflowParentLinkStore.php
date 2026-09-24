@@ -26,12 +26,21 @@ final class DbalChildWorkflowParentLinkStore implements ChildWorkflowParentLinkS
     {
         $this->schema->ensure();
 
-        $updated = $this->connection->update(
-            $this->table,
-            ['parent_execution_id' => $parentExecutionId],
-            ['child_execution_id' => $childExecutionId],
+        // Existence is asked for, not inferred from the rows the UPDATE reports: MySQL counts
+        // *changed* rows, so re-linking the same pair gave 0 and the INSERT that followed violated
+        // the primary key (#327). The metadata store met the same trap first.
+        $exists = false !== $this->connection->fetchOne(
+            \sprintf('SELECT 1 FROM %s WHERE child_execution_id = ?', $this->table),
+            [$childExecutionId],
         );
-        if (0 === $updated) {
+
+        if ($exists) {
+            $this->connection->update(
+                $this->table,
+                ['parent_execution_id' => $parentExecutionId],
+                ['child_execution_id' => $childExecutionId],
+            );
+        } else {
             $this->connection->insert($this->table, [
                 'child_execution_id' => $childExecutionId,
                 'parent_execution_id' => $parentExecutionId,

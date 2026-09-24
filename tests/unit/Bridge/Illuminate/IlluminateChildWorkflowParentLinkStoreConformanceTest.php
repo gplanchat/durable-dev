@@ -8,7 +8,7 @@ use Gplanchat\Bridge\Illuminate\Schema\DurableSchema;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Testing\ChildWorkflowParentLinkStoreConformanceTestCase;
-use Illuminate\Database\Capsule\Manager;
+use unit\Bridge\SqlTestDatabase;
 
 /**
  * `illuminate/database` is usable with no Laravel application around it — that is what Capsule is,
@@ -21,9 +21,7 @@ final class IlluminateChildWorkflowParentLinkStoreConformanceTest extends ChildW
 {
     protected function createParentLinkStore(): ChildWorkflowParentLinkStoreInterface
     {
-        $capsule = new Manager();
-        $capsule->addConnection(['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
-        $connection = $capsule->getConnection();
+        $connection = SqlTestDatabase::illuminate();
 
         return new IlluminateChildWorkflowParentLinkStore($connection, new DurableSchema($connection));
     }

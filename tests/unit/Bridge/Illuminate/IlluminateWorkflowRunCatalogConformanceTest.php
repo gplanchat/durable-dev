@@ -18,8 +18,8 @@ use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Testing\WorkflowRunCatalogConformanceTestCase;
-use Illuminate\Database\Capsule\Manager;
 use Illuminate\Database\Connection;
+use unit\Bridge\SqlTestDatabase;
 
 /**
  * The bootstrapping hooks write through the core decorators, as a real worker would: the catalog
@@ -38,9 +38,7 @@ final class IlluminateWorkflowRunCatalogConformanceTest extends WorkflowRunCatal
 
     protected function setUp(): void
     {
-        $capsule = new Manager();
-        $capsule->addConnection(['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
-        $this->connection = $capsule->getConnection();
+        $this->connection = SqlTestDatabase::illuminate();
     }
 
     protected function catalogUnderTest(): WorkflowRunCatalogInterface

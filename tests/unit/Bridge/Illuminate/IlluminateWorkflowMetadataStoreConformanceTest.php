@@ -8,7 +8,7 @@ use Gplanchat\Bridge\Illuminate\Schema\DurableSchema;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Testing\WorkflowMetadataStoreConformanceTestCase;
-use Illuminate\Database\Capsule\Manager;
+use unit\Bridge\SqlTestDatabase;
 
 /**
  * `illuminate/database` is usable with no Laravel application around it — that is what Capsule is,
@@ -21,9 +21,7 @@ final class IlluminateWorkflowMetadataStoreConformanceTest extends WorkflowMetad
 {
     protected function createMetadataStore(): WorkflowMetadataStore
     {
-        $capsule = new Manager();
-        $capsule->addConnection(['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
-        $connection = $capsule->getConnection();
+        $connection = SqlTestDatabase::illuminate();
 
         return new IlluminateWorkflowMetadataStore($connection, new DurableSchema($connection));
     }

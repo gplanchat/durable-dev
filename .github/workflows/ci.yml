@@ -565,6 +565,70 @@ jobs:
               working-directory: symfony
               run: composer test
 
+    conformance-sql:
+        # The eight SQL conformance classes against real servers (#327). In `qa` they open in-memory
+        # SQLite, which answers some questions differently: MySQL counts *changed* rows on an
+        # UPDATE, and a re-link that SQLite accepted violated the primary key there.
+        name: SQL conformance (${{ matrix.database }})
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - { database: 'MySQL 8.4', dsn: 'mysql://root:root@127.0.0.1:3306/durable_test' }
+                    - { database: 'PostgreSQL 16', dsn: 'pgsql://postgres:root@127.0.0.1:5432/durable_test' }
+        services:
+            mysql:
+                image: mysql:8.4
+                env:
+                    MYSQL_ROOT_PASSWORD: root
+                    MYSQL_DATABASE: durable_test
+                ports:
+                    - 3306:3306
+                options: >-
+                    --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=20
+            postgres:
+                image: postgres:16-alpine
+                env:
+                    POSTGRES_PASSWORD: root
+                    POSTGRES_DB: durable_test
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd="pg_isready -U postgres"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=20
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.4'
+                  extensions: mbstring, pdo_mysql, pdo_pgsql, grpc
+                  coverage: none
+
+            - name: Cache Composer downloads
+              uses: actions/cache@v6
+              with:
+                  path: ~/.cache/composer
+                  key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
+                  restore-keys: composer-${{ runner.os }}-
+
+            - name: Install Composer dependencies
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            # --fail-on-skipped: a suite that quietly skips against the server proves nothing.
+            - name: PHPUnit (the DBAL and Illuminate conformance classes)
+              env:
+                  DURABLE_TEST_DSN: ${{ matrix.dsn }}
+              run: vendor/bin/phpunit --fail-on-skipped --display-skipped --filter 'ConformanceTest' tests/unit/Bridge/Dbal tests/unit/Bridge/Illuminate
+
     guide-follows:
         # The bench that follows the guide (#363): a fresh `symfony/skeleton`, this commit's
         # packages, the getting-started blocks applied verbatim in both languages, and the first
@@ -866,7 +930,7 @@ jobs:
         # job names can move without touching the protection. A skipped job is not a failure.
         name: ci-ok
         if: always()
-        needs: [qa, symfony-matrix, laravel, sylius-shop, magento-matrix, magento-boot, static-analysis, symfony-sample, guide-follows, temporal-bridge, coverage, temporal-integration, no-grpc, grpc-integration, docker-compose-stack]
+        needs: [qa, symfony-matrix, laravel, sylius-shop, magento-matrix, magento-boot, static-analysis, symfony-sample, conformance-sql, guide-follows, temporal-bridge, coverage, temporal-integration, no-grpc, grpc-integration, docker-compose-stack]
         runs-on: ubuntu-latest
         timeout-minutes: 5
         steps:
