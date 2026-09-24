@@ -59,7 +59,7 @@ final class ResumeLockTest extends TestCase
         $lock = $this->lock(waitSeconds: 0);
 
         try {
-            $lock->around('exec-1', static fn() => throw new \RuntimeException('boum'));
+            $lock->around('exec-1', static function (): string { throw new \RuntimeException('boum'); });
         } catch (\RuntimeException) {
             // We want what comes next, not the exception.
         }

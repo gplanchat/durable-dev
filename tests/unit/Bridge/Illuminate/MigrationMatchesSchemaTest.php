@@ -107,13 +107,6 @@ final class MigrationMatchesSchemaTest extends TestCase
         return $connection;
     }
 
-    private static function byDurableSchema(): Connection
-    {
-        $connection = self::connection();
-        (new DurableSchema($connection))->ensure();
-
-        return $connection;
-    }
 
     /**
      * The DDL rendered by both paths, on a MySQL connection that is never opened: `pretend()`
@@ -147,25 +140,4 @@ final class MigrationMatchesSchemaTest extends TestCase
         ));
     }
 
-    /**
-     * A column's name is not enough. `status` shortened from 32 to 8 characters passed the
-     * comparison of names alone — and truncated `continued_as_new`, eighteen characters, on
-     * MySQL. The declared type and the nullability therefore enter the comparison.
-     *
-     * @return array<string, string>
-     */
-    private static function columns(Connection $connection, string $table): array
-    {
-        $shape = [];
-        foreach ($connection->getSchemaBuilder()->getColumns($table) as $column) {
-            $shape[(string) $column['name']] = \sprintf(
-                '%s%s',
-                $column['type'] ?? $column['type_name'] ?? '?',
-                ($column['nullable'] ?? false) ? ' null' : '',
-            );
-        }
-        ksort($shape);
-
-        return $shape;
-    }
 }
