@@ -304,6 +304,15 @@ transports **you** declared in `messenger.yaml`. Signals and updates are not in 
 routes them to `sync`. Route them to an asynchronous transport of your own, and consume that
 transport yourself: `durable:worker` does not look for it.
 
+Both commands belong to the **several-processes** profile described below: a worker in its own
+process, on real transports. The `when@test` profile above puts both transports on `in-memory://`,
+and a worker there drains nothing: an in-memory transport only holds what its own process sent, and
+Messenger resets services after each message it handles, which empties the in-memory queue. The
+activity the workflow just queued is gone, and the run stays on `ActivityScheduled` for good. In
+that profile, drain the run inside the test that dispatched it (`DurableBundleTestTrait`, see
+[Testing workflows](../testing/)), or, in that same process, consume with `--no-reset`. Without it,
+both commands refuse to start on an in-memory Durable transport, and say which way out to take.
+
 To see what the engine holds for one run:
 
 ```bash
@@ -322,7 +331,9 @@ Three configurations work, one per stage. Mixing them is the usual first stumble
 silently.
 
 **Tests: one process, in memory.** `in-memory://` transports with the in-memory stores. Dispatch, resume and
-activity all happen inside a single PHP process, so a test can dispatch and drain in one go. An
+activity all happen inside a single PHP process, so a test can dispatch and drain in one go, with
+`DurableBundleTestTrait` or with `durable:worker --no-reset` in that process; the consumer commands of
+step 5 are for the next profile. An
 in-memory transport **does not outlive its process**: dispatching from a web request and consuming
 in a separate worker cannot work here, and neither can replay: the journal the worker would need
 lives in the web process's memory.
