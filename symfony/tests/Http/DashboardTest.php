@@ -70,7 +70,10 @@ final class DashboardTest extends WebTestCase
         $this->assertStringContainsString('SIGNAL', $normalized);
         $this->assertStringContainsString('QUERY', $normalized);
         $this->assertStringContainsString('UPDATE', $normalized);
-        $this->assertStringContainsString('NEXUS', $normalized, 'a Nexus operation is the wait served elsewhere: every dashboard draws it');
+        // The page carries "nexus" in its stylesheet and a static legend whatever the controller
+        // does: the lane toggles are what it actually offers.
+        $lanes = $client->getCrawler()->filterXPath('//input[@name="kinds[]"]')->each(static fn($input): string => (string) $input->attr('value'));
+        self::assertContains('nexus', $lanes, 'a Nexus operation is the wait served elsewhere: every dashboard draws its lane');
         $this->assertStringContainsString('ANIMATION', $normalized);
     }
 
