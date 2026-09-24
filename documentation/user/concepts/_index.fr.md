@@ -299,7 +299,7 @@ Durable tourne sur quatre backends qui partagent le même code de workflows et d
 - Les mêmes quatre magasins et le même compromis, sur `Illuminate\Database\Connection` plutôt que
   sur celle de Doctrine ; un magasin sur `DB::connection()` est dans `DB::transaction()` par
   construction.
-- Ce n'est pas une quatrième valeur d'`event_store.type`, et ce ne le sera jamais : une application
+- Ce n'est pas une quatrième valeur de `backend`, et ce ne le sera jamais : une application
   Laravel ne lit pas le YAML du bundle. Ce qui le branche, c'est `gplanchat/durable-laravel`, par son
   propre `config/durable.php`.
 
