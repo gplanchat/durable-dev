@@ -186,8 +186,9 @@ Pour **Temporal Cloud**, activez TLS et pointez le point d'entrée Cloud :
 DURABLE_DSN=temporal://ACCOUNT.REGION.tmprl.cloud:7233?namespace=NAMESPACE.ACCOUNT&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=1
 ```
 
-Les certificats TLS se montent et se configurent par les identifiants de canal gRPC (voir les points
-d'extension dans les sources du pont).
+Avec une clé d'API, ajoutez `api_key=` (encodée pour l'URL) ; en mTLS, `cert=` et `key=` (chemins de
+fichiers PEM) ; avec une autorité privée, `ca=`. La liste complète est dans [les paramètres du
+DSN](../configuration/#format-du-dsn).
 
 ---
 

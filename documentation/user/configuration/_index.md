@@ -114,7 +114,15 @@ The scheme names the wire and the encryption:
 | `journal_task_queue` | yes | Task queue for workflow tasks (e.g. `durable-journal`). |
 | `activity_task_queue` | yes | Task queue for activity tasks (e.g. `durable-activities`). |
 | `tls` | no | `tls=1` is the older spelling of the `+tls` and `+https` schemes; still accepted. |
+| `ca` | no, TLS only | Path to the PEM file of the CA that signs the server certificate. Without it, the system store is trusted. |
+| `cert`, `key` | no, TLS only | Paths to the PEM files of a client certificate and its private key, for mTLS. Both or neither. |
+| `api_key` | no, TLS only | Sent with every call as `authorization: Bearer …`, beside a `temporal-namespace` header (Temporal Cloud API keys). URL-encode it. |
 | `transport` | no (default `auto`) | Overrides what the scheme implies: `grpc` demands `ext-grpc` and fails without it, `grpc-curl` forces curl even when the extension is loaded, `guzzle` sends gRPC through Guzzle 7.14 or newer (its cURL handler reads the trailers), `http` is what `temporal+http://` sets. `auto` picks `grpc` when the extension is loaded and `grpc-curl` otherwise. |
+
+Any other key is refused, with its name: a typo such as `namesapce=` no longer falls back to the
+`default` namespace in silence. So is `ca`, `cert`, `key` or `api_key` without TLS. Over a PSR-18
+client handed to the JSON gateway, TLS is that client's own configuration, and `ca`, `cert` and
+`key` are refused.
 
 **Example:**
 ```
