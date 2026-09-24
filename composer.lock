@@ -544,10 +544,10 @@
             "dist": {
                 "type": "path",
                 "url": "src/Bridge/Dbal",
-                "reference": "8dbaae5ab6a14fbaef8764f8509467828ee83906"
+                "reference": "a6f710cffda05851d25412c99fc2549780b9620b"
             },
             "require": {
-                "doctrine/dbal": "^3.7 || ^4.0",
+                "doctrine/dbal": "^3.8.2 || ^4.0",
                 "gplanchat/durable": "self.version",
                 "php": ">=8.2",
                 "symfony/lock": "^6.4 || ^7.0 || ^8.0",
