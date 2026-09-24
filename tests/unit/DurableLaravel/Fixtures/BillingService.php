@@ -10,6 +10,7 @@ use Gplanchat\Durable\Attribute\AsNexusService;
 #[AsNexusService('billing')]
 interface BillingService
 {
+    /** @return array<string, mixed> */
     #[AsNexusOperation('charge')]
     public function charge(int $amount): array;
 }

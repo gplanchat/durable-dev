@@ -157,7 +157,7 @@ abstract class TemporalServerTestCase extends TestCase
         $executionId = strtolower($workflowType) . '-' . bin2hex(random_bytes(4));
         $this->workflowClient()->startAsync($workflowType, $input, $executionId);
 
-        return $this->workflowClient()->pollForCompletion($executionId, 250, (int) ($timeoutSeconds * 4));
+        return $this->workflowClient()->pollForCompletion($executionId, 250, (int) ($timeoutSeconds * 4.0));
     }
 
     /**
@@ -261,6 +261,7 @@ abstract class TemporalServerTestCase extends TestCase
             unset($this->workers[$index], $this->workerPipes[$index]);
         }
         $this->workers = array_values($this->workers);
+        // @phpstan-ignore arrayValues.list (unset() above leaves holes in it)
         $this->workerPipes = array_values($this->workerPipes);
 
         $this->spawnWorker('workflow', $variant);
@@ -282,7 +283,7 @@ abstract class TemporalServerTestCase extends TestCase
                 __DIR__ . '/worker.php',
                 $this->connection->target,
                 $this->connection->namespace->name(),
-                $this->connection->workflowTaskQueue,
+                $this->connection->workflowTaskQueue->name(),
                 $role,
                 $this->connection->transport,
             ],

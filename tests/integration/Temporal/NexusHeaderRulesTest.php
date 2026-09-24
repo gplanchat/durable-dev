@@ -176,7 +176,11 @@ final class NexusHeaderRulesTest extends TestCase
         return $verdict;
     }
 
-    /** @param array<string, string> $header */
+    /**
+     * @param array<string, string> $header
+     *
+     * @return array<mixed>|string
+     */
     private function probe(array $header): array|string
     {
         $client = new WorkflowClient(
@@ -193,9 +197,12 @@ final class NexusHeaderRulesTest extends TestCase
         $poll->setIdentity($this->connection->identity);
         $task = $this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]);
 
-        $map = new MapField(GPBType::STRING, GPBType::STRING);
+        // google/protobuf's MapField stubs type the GPBType ints as `long` and the values as objects.
+        /** @psalm-suppress InvalidArgument the MapField stub, not the call */
+        $map = new MapField(GPBType::STRING, GPBType::STRING); // @phpstan-ignore argument.type, argument.type (MapField stub, both arguments)
         foreach ($header as $k => $v) {
-            $map[$k] = $v;
+            /** @psalm-suppress InvalidArgument the MapField stub, not the call */
+            $map[$k] = $v; // @phpstan-ignore offsetAssign.valueType (MapField stub)
         }
 
         $attrs = new ScheduleNexusOperationCommandAttributes();
@@ -227,7 +234,7 @@ final class NexusHeaderRulesTest extends TestCase
         }
 
         $cursor = new TemporalHistoryCursor($this->client, $this->connection);
-        foreach ($cursor->events(new WorkflowExecution(['workflow_id' => (string) $this->workflowId])) as $event) {
+        foreach ($cursor->events(new WorkflowExecution(['workflow_id' => $this->workflowId])) as $event) {
             if (EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED === $event->getEventType()) {
                 $back = [];
                 foreach ($event->getNexusOperationScheduledEventAttributes()?->getNexusHeader() ?? [] as $k => $v) {

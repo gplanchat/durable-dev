@@ -83,6 +83,7 @@ final class NexusStubTest extends TestCase
         $this->expectException(\BadMethodCallException::class);
         $this->expectExceptionMessageMatches('/notAnOperation/');
 
+        // @phpstan-ignore method.notFound (the test asserts the stub refuses a method that is not an operation)
         $stub->notAnOperation();
     }
 }
