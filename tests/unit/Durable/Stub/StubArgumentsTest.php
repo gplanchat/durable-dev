@@ -17,7 +17,7 @@ final class StubArgumentsTest extends TestCase
 {
     public function testPositionalArgumentsLandOnTheirParameter(): void
     {
-        self::assertSame(['text' => 'bonjour', 'times' => 3, 'tag' => 'défaut'], $this->map(['bonjour', 3]));
+        self::assertSame(['text' => 'hello', 'times' => 3, 'tag' => 'default'], $this->map(['hello', 3]));
     }
 
     /**
@@ -27,12 +27,12 @@ final class StubArgumentsTest extends TestCase
      */
     public function testNamedArgumentsLandOnTheirParameter(): void
     {
-        self::assertSame(['text' => 'bonjour', 'times' => 1, 'tag' => 'perso'], $this->map(['tag' => 'perso', 'text' => 'bonjour']));
+        self::assertSame(['text' => 'hello', 'times' => 1, 'tag' => 'custom'], $this->map(['tag' => 'custom', 'text' => 'hello']));
     }
 
     public function testPositionalAndNamedArgumentsMix(): void
     {
-        self::assertSame(['text' => 'bonjour', 'times' => 1, 'tag' => 'perso'], $this->map(['bonjour', 'tag' => 'perso']));
+        self::assertSame(['text' => 'hello', 'times' => 1, 'tag' => 'custom'], $this->map(['hello', 'tag' => 'custom']));
     }
 
     /**
@@ -54,7 +54,7 @@ final class StubArgumentsTest extends TestCase
         $this->expectException(\BadMethodCallException::class);
         $this->expectExceptionMessageMatches('/Unknown named parameter \$tags/');
 
-        $this->map(['text' => 'x', 'tags' => 'perso']);
+        $this->map(['text' => 'x', 'tags' => 'custom']);
     }
 
     /**
@@ -83,7 +83,7 @@ final class StubArgumentsTest extends TestCase
         $this->expectException(\BadMethodCallException::class);
         $this->expectExceptionMessageMatches('/\$text.*both positionally and by name/');
 
-        $this->map([0 => 'positionnel', 'text' => 'nommé']);
+        $this->map([0 => 'positional', 'text' => 'named']);
     }
 
     /**
@@ -104,7 +104,7 @@ final class StubArgumentsTest extends TestCase
     private function map(array $arguments): array
     {
         $contract = new class {
-            public function greet(string $text, int $times = 1, ?string $tag = 'défaut'): void {}
+            public function greet(string $text, int $times = 1, ?string $tag = 'default'): void {}
         };
 
         return StubArguments::toPayload(new \ReflectionMethod($contract, 'greet'), $arguments);

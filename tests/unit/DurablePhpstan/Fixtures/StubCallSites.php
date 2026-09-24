@@ -103,13 +103,13 @@ final class StubCallSites
         $this->environment->await($this->orders->charge($orderId, 100));
 
         // Correct: the child's entry method.
-        $this->environment->await($this->child->run('bonjour'));
+        $this->environment->await($this->child->run('hello'));
 
         // WRONG — an activity's parameters are all the caller's, whatever their type.
         $this->environment->await($this->environment->activityStub(AuditActivities::class)->audit());
 
         // Correct: the input argument only; the environment is the loader's to supply.
-        $this->environment->await($this->environment->childWorkflowStub(InjectingChildWorkflow::class)->run('bonjour'));
+        $this->environment->await($this->environment->childWorkflowStub(InjectingChildWorkflow::class)->run('hello'));
 
         // WRONG — a typo. This is the case the extension exists for: without it, no analysis
         // error, and a BadMethodCallException at run time.

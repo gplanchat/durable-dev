@@ -63,7 +63,7 @@ final class CronScheduleTest extends TestCase
             '0 0 JAN * MON',
             '',
         ] as $expression) {
-            yield ('' === $expression ? '(vide)' : $expression) => [$expression];
+            yield ('' === $expression ? '(empty)' : $expression) => [$expression];
         }
     }
 

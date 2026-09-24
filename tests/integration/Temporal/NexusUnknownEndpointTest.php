@@ -78,7 +78,7 @@ final class NexusUnknownEndpointTest extends TestCase
         $req = new TerminateWorkflowExecutionRequest();
         $req->setNamespace($this->connection->namespace->name());
         $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $this->workflowId]));
-        $req->setReason('fin de sonde');
+        $req->setReason('end of probe');
 
         try {
             $this->client->TerminateWorkflowExecution($req, [], ['timeout' => 10_000_000]);
@@ -154,8 +154,8 @@ final class NexusUnknownEndpointTest extends TestCase
         $attrs = new ScheduleNexusOperationCommandAttributes();
         // A name WELL FORMED for the server regex: what is missing is the endpoint itself.
         $attrs->setEndpoint('absent-endpoint-' . bin2hex(random_bytes(4)));
-        $attrs->setService('un-service');
-        $attrs->setOperation('une-operation');
+        $attrs->setService('some-service');
+        $attrs->setOperation('some-operation');
 
         $command = new Command();
         $command->setCommandType(CommandType::COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION);

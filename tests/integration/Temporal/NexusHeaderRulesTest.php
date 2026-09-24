@@ -101,7 +101,7 @@ final class NexusHeaderRulesTest extends TestCase
             $request = new TerminateWorkflowExecutionRequest();
             $request->setNamespace($this->connection->namespace->name());
             $request->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $this->workflowId]));
-            $request->setReason('fin de sonde');
+            $request->setReason('end of probe');
 
             try {
                 $this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]);
@@ -127,13 +127,13 @@ final class NexusHeaderRulesTest extends TestCase
         // stricter: refusing these cases would reject perfectly valid headers.
         foreach ([
             'ordinary' => ['x-correlation' => 'abc-123'],
-            'empty value' => ['x-vide' => ''],
-            'empty key' => ['' => 'valeur'],
-            'whitespace at the value edges' => ['x-bord' => ' abc '],
+            'empty value' => ['x-empty' => ''],
+            'empty key' => ['' => 'value'],
+            'whitespace at the value edges' => ['x-edge' => ' abc '],
             'newline in the value' => ['x-nl' => "a\nb"],
-            'key with a space' => ['x avec espace' => 'v'],
+            'key with a space' => ['x with space' => 'v'],
             '1000-character value' => ['x-long' => str_repeat('a', 1000)],
-            'two headers' => ['x-un' => '1', 'x-deux' => '2'],
+            'two headers' => ['x-one' => '1', 'x-two' => '2'],
         ] as $label => $header) {
             $expected = $header;
             ksort($expected);
@@ -149,7 +149,7 @@ final class NexusHeaderRulesTest extends TestCase
             ['x-correlation' => 'abc-123'],
             $this->roundTrip(['X-Correlation' => 'abc-123']),
         );
-        self::assertSame(['x-tout-maj' => 'v'], $this->roundTrip(['X-TOUT-MAJ' => 'v']));
+        self::assertSame(['x-all-caps' => 'v'], $this->roundTrip(['X-ALL-CAPS' => 'v']));
     }
 
     public function testTwoKeysDifferingOnlyByCaseSilentlyLoseOne(): void
@@ -157,10 +157,10 @@ final class NexusHeaderRulesTest extends TestCase
         // The consequence, and it is the one that must govern §2.1: two headers go in, only one
         // comes out. No error, no trace — the silent breakage that this component's value objects
         // exist to make impossible.
-        $back = $this->roundTrip(['X-Choc' => 'majuscule', 'x-choc' => 'minuscule']);
+        $back = $this->roundTrip(['X-Clash' => 'uppercase', 'x-clash' => 'lowercase']);
 
         self::assertCount(1, $back, 'The server kept both: the collision does not exist.');
-        self::assertArrayHasKey('x-choc', $back);
+        self::assertArrayHasKey('x-clash', $back);
     }
 
     /**

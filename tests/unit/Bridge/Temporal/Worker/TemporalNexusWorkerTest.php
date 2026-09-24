@@ -80,7 +80,7 @@ final class TemporalNexusWorkerTest extends TestCase
 
         $this->worker($registry)->pollOnce();
 
-        self::assertSame('jeton-de-tache', $sent?->getTaskToken());
+        self::assertSame('task-token', $sent?->getTaskToken());
         $sync = $sent->getResponse()?->getStartOperation()?->getSyncSuccess();
         self::assertNotNull($sync, 'An immediate answer must leave as a syncSuccess.');
         self::assertSame(['charged' => 10], JsonPlainPayload::decode($sync->getPayload()));
@@ -166,7 +166,7 @@ final class TemporalNexusWorkerTest extends TestCase
         $registry->register(
             NexusService::named('billing'),
             NexusOperationName::named('charge'),
-            static fn(): NexusOperationResponse => throw new \RuntimeException('la base est tombée'),
+            static fn(): NexusOperationResponse => throw new \RuntimeException('the database went down'),
         );
 
         $this->grpc->method('PollNexusTaskQueue')->willReturn($this->startTask([]));
@@ -186,7 +186,7 @@ final class TemporalNexusWorkerTest extends TestCase
             \Temporal\Api\Enums\V1\NexusHandlerErrorRetryBehavior::NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_RETRYABLE,
             $sent->getError()->getRetryBehavior(),
         );
-        self::assertStringContainsString('la base est tombée', (string) $sent->getError()->getFailure()?->getMessage());
+        self::assertStringContainsString('the database went down', (string) $sent->getError()->getFailure()?->getMessage());
     }
 
     public function testACancellationCancelsTheWorkflowNamedByTheToken(): void
@@ -268,7 +268,7 @@ final class TemporalNexusWorkerTest extends TestCase
         $request->setCancelOperation($cancel);
 
         $task = new PollNexusTaskQueueResponse();
-        $task->setTaskToken('jeton-de-tache');
+        $task->setTaskToken('task-token');
         $task->setRequest($request);
 
         return $task;
@@ -298,7 +298,7 @@ final class TemporalNexusWorkerTest extends TestCase
         $request->setStartOperation($start);
 
         $task = new PollNexusTaskQueueResponse();
-        $task->setTaskToken('jeton-de-tache');
+        $task->setTaskToken('task-token');
         $task->setRequest($request);
 
         return $task;

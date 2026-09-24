@@ -104,19 +104,19 @@ final class RunDashboardTest extends TestCase
 
     public function testTheStatusFilterAndTheCursorReachTheCatalog(): void
     {
-        $catalog = new FakeRunCatalog([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Failed)], [], 'jeton-suivant');
-        $view = (new RunDashboard($catalog))->build('failed', 'jeton-courant');
+        $catalog = new FakeRunCatalog([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Failed)], [], 'next-token');
+        $view = (new RunDashboard($catalog))->build('failed', 'current-token');
 
         self::assertSame(WorkflowRunStatus::Failed, $catalog->askedStatus);
-        self::assertSame('jeton-courant', $catalog->askedCursor);
+        self::assertSame('current-token', $catalog->askedCursor);
         self::assertTrue($view['pagination']['hasNext']);
-        self::assertSame('jeton-suivant', $view['pagination']['nextCursor']);
+        self::assertSame('next-token', $view['pagination']['nextCursor']);
     }
 
     public function testAnUnknownStatusFilterIsIgnoredRatherThanRefused(): void
     {
         $catalog = new FakeRunCatalog([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)]);
-        (new RunDashboard($catalog))->build('sarcastique');
+        (new RunDashboard($catalog))->build('sarcastic');
 
         self::assertNull($catalog->askedStatus);
     }
@@ -179,14 +179,14 @@ final class RunDashboardTest extends TestCase
             [$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)],
             [
                 new WorkflowRunEvent(1, new \DateTimeImmutable('@1700000000'), WorkflowRunEventKind::Execution, 'Started'),
-                new WorkflowRunEvent(2, new \DateTimeImmutable('@1700000010'), WorkflowRunEventKind::Nexus, 'paiements/facturation/encaisser'),
+                new WorkflowRunEvent(2, new \DateTimeImmutable('@1700000010'), WorkflowRunEventKind::Nexus, 'payments/billing/collect'),
             ],
         );
 
         $view = (new RunDashboard($catalog))->build();
 
         self::assertSame(['execution', 'nexus'], self::kinds($view));
-        self::assertSame(['paiements/facturation/encaisser'], self::labels($view, 1));
+        self::assertSame(['payments/billing/collect'], self::labels($view, 1));
     }
 
     public function testAnEventCarriesWhatTheBackendRecordedWithIt(): void

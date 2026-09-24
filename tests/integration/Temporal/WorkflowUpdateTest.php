@@ -37,7 +37,7 @@ final class WorkflowUpdateTest extends TemporalServerTestCase
             $this->workflowClient()->update($workflowId, 'refuse', ['by' => 'bob']);
             self::fail('the update should have failed');
         } catch (DurableUpdateFailedException $e) {
-            self::assertStringContainsString('approbation refusée', $e->getMessage());
+            self::assertStringContainsString('approval refused', $e->getMessage());
         }
 
         // The execution is intact: it still answers, and runs to the end.

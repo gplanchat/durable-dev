@@ -30,13 +30,13 @@ final class NexusCancellationTraversalTest extends TestCase
         $buffer = $this->createMock(WorkflowCommandBufferInterface::class);
         $buffer->expects(self::once())
             ->method('cancelNexusOperation')
-            ->with('op-en-vol', ActivityCancellationReason::WORKFLOW_CANCELLED);
+            ->with('op-in-flight', ActivityCancellationReason::WORKFLOW_CANCELLED);
 
-        $context = $this->contextWith($buffer, 'op-en-vol');
+        $context = $this->contextWith($buffer, 'op-in-flight');
         $pending = $this->schedule($context);
 
         self::assertSame(
-            ['op-en-vol'],
+            ['op-in-flight'],
             AwaitableCancellation::cancelUnsettled($context, $pending, ActivityCancellationReason::WORKFLOW_CANCELLED),
         );
     }
@@ -48,11 +48,11 @@ final class NexusCancellationTraversalTest extends TestCase
         $buffer = $this->createMock(WorkflowCommandBufferInterface::class);
         $buffer->expects(self::once())->method('cancelNexusOperation');
 
-        $context = $this->contextWith($buffer, 'op-en-vol');
+        $context = $this->contextWith($buffer, 'op-in-flight');
         $pending = $this->schedule($context);
 
         self::assertSame(
-            ['op-en-vol'],
+            ['op-in-flight'],
             AwaitableCancellation::cancelUnsettled($context, new AnyAwaitable([$pending]), ActivityCancellationReason::WORKFLOW_CANCELLED),
         );
     }
@@ -63,7 +63,7 @@ final class NexusCancellationTraversalTest extends TestCase
         $buffer->expects(self::never())->method('cancelNexusOperation');
 
         $history = $this->createStub(WorkflowHistorySourceInterface::class);
-        $history->method('findScheduledNexusOperation')->willReturn('op-finie');
+        $history->method('findScheduledNexusOperation')->willReturn('op-done');
         $history->method('findNexusOperationSlotResult')->willReturn(['result' => 'ok', 'failed' => null]);
 
         $context = new ExecutionContext('nexus-1', $history, $buffer);

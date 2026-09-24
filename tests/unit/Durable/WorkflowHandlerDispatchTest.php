@@ -123,9 +123,9 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $engine = $this->engine($store);
 
         $store->append(new ExecutionStarted('disp-3', []));
-        $store->append(new WorkflowSignalReceived('disp-3', 'personne-ne-l-attend', ['x' => 1]));
+        $store->append(new WorkflowSignalReceived('disp-3', 'nobody-waits-for-it', ['x' => 1]));
 
-        self::assertSame('terminé', $engine->resume('disp-3', static fn(WorkflowEnvironment $wf): string => 'terminé'));
+        self::assertSame('done', $engine->resume('disp-3', static fn(WorkflowEnvironment $wf): string => 'done'));
         self::assertCount(1, $this->eventsOf($store, 'disp-3', WorkflowSignalReceived::class));
     }
 
@@ -197,7 +197,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
             });
 
             // Some work before the first wait.
-            $wf->sideEffect(static fn(): string => 'préambule');
+            $wf->sideEffect(static fn(): string => 'preamble');
 
             $wf->await(static function () use (&$ticks): bool {
                 return [] !== $ticks;
@@ -230,13 +230,13 @@ final class WorkflowHandlerDispatchTest extends TestCase
                 return $approved;
             });
 
-            return 'terminé';
+            return 'done';
         };
 
         // The update arrives outside the journal, for this pass only — as on the Temporal task.
         $pending = new PendingUpdate('approve', ['by' => 'alice']);
 
-        self::assertSame('terminé', $engine->resume('upd-1', $handler, null, [$pending]));
+        self::assertSame('done', $engine->resume('upd-1', $handler, null, [$pending]));
         self::assertTrue($pending->handled);
         self::assertSame(['ok' => true, 'by' => 'alice'], $pending->result);
         self::assertNull($pending->failure);
@@ -247,7 +247,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
 
         // Replayed with no pending update: the update is read back from the journal, the handler
         // rebuilds the state, and the workflow takes the same path again.
-        self::assertSame('terminé', $engine->resume('upd-1', $handler));
+        self::assertSame('done', $engine->resume('upd-1', $handler));
     }
 
     public function testARaisingUpdateHandlerDoesNotFailTheWorkflow(): void
@@ -261,20 +261,20 @@ final class WorkflowHandlerDispatchTest extends TestCase
             $wf->onUpdate('approve', static function (array $args) use (&$attempts): never {
                 ++$attempts;
 
-                throw new \DomainException('approbation refusée');
+                throw new \DomainException('approval refused');
             });
             $wf->await(static function () use (&$attempts): bool {
                 return $attempts > 0;
             });
 
-            return 'le workflow continue';
+            return 'the workflow carries on';
         }, null, [$pending = new PendingUpdate('approve', ['by' => 'alice'])]);
 
-        self::assertSame('le workflow continue', $result, 'a failing update does not fail the execution');
+        self::assertSame('the workflow carries on', $result, 'a failing update does not fail the execution');
         self::assertTrue($pending->handled);
         self::assertNotNull($pending->failure);
         self::assertSame(\DomainException::class, $pending->failure->class);
-        self::assertSame('approbation refusée', $pending->failure->message);
+        self::assertSame('approval refused', $pending->failure->message);
     }
 
     public function testAFailedUpdateReplayedDoesNotFailTheWorkflow(): void
@@ -291,14 +291,14 @@ final class WorkflowHandlerDispatchTest extends TestCase
             'refuse',
             [],
             null,
-            new FailureEnvelope(\DomainException::class, 'approbation refusée'),
+            new FailureEnvelope(\DomainException::class, 'approval refused'),
         ));
         $store->append(new WorkflowSignalReceived('upd-3', 'tick', ['n' => 1]));
 
         $result = $engine->resume('upd-3', static function (WorkflowEnvironment $wf): string {
             $ticks = [];
             $wf->onUpdate('refuse', static function (array $args): never {
-                throw new \DomainException('approbation refusée');
+                throw new \DomainException('approval refused');
             });
             $wf->onSignal(DispatchSignal::Tick, static function (array $payload) use (&$ticks): void {
                 $ticks[] = $payload;
@@ -307,10 +307,10 @@ final class WorkflowHandlerDispatchTest extends TestCase
                 return [] !== $ticks;
             });
 
-            return 'toujours vivant';
+            return 'still alive';
         });
 
-        self::assertSame('toujours vivant', $result);
+        self::assertSame('still alive', $result);
     }
 
     public function testTheOutcomeIsRecordedBeforeWhatTheWorkflowDoesInResponse(): void
@@ -334,9 +334,9 @@ final class WorkflowHandlerDispatchTest extends TestCase
             });
 
             // What the workflow does *because* the update went through.
-            $wf->sideEffect(static fn(): string => 'après');
+            $wf->sideEffect(static fn(): string => 'after');
 
-            return 'terminé';
+            return 'done';
         }, null, [new PendingUpdate('approve', ['by' => 'alice'])]);
 
         $order = [];

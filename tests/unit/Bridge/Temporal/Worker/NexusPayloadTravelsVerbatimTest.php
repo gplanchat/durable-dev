@@ -38,7 +38,7 @@ final class NexusPayloadTravelsVerbatimTest extends TestCase
         $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test-namespace'), 'exec-1');
 
         $buffer->scheduleNexusOperation(
-            'peu-importe',
+            'whatever',
             NexusEndpoint::named('checkout-endpoint'),
             NexusService::named('com.example.checkout'),
             NexusOperationName::named('placeOrder'),
@@ -77,7 +77,7 @@ final class NexusPayloadTravelsVerbatimTest extends TestCase
         $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
 
         self::assertSame(5, $history->scheduledEventIdForNexusOperation('5'));
-        self::assertNull($history->scheduledEventIdForNexusOperation('inconnue'));
+        self::assertNull($history->scheduledEventIdForNexusOperation('unknown'));
     }
 
     public function testTheCallSiteIsStillRecoverableForFailures(): void
@@ -86,15 +86,15 @@ final class NexusPayloadTravelsVerbatimTest extends TestCase
         // failure comes from, and the envelope had nothing to do with it.
         $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
 
-        self::assertSame('paiements/facturation/encaisser', $history->nexusOperationSignatureForSlot(0));
+        self::assertSame('payments/billing/collect', $history->nexusOperationSignatureForSlot(0));
     }
 
     private function scheduled(int $eventId): HistoryEvent
     {
         $attrs = new NexusOperationScheduledEventAttributes();
-        $attrs->setEndpoint('paiements');
-        $attrs->setService('facturation');
-        $attrs->setOperation('encaisser');
+        $attrs->setEndpoint('payments');
+        $attrs->setService('billing');
+        $attrs->setOperation('collect');
         // The caller's payload, bare.
         $attrs->setInput(JsonPlainPayload::encode(['name' => 'ada']));
 

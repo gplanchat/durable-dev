@@ -34,18 +34,18 @@ final class NexusEventConversionTest extends TestCase
     public function testASchedulingIsConvertedWithItsCallSite(): void
     {
         $attrs = new NexusOperationScheduledEventAttributes();
-        $attrs->setEndpoint('paiements');
-        $attrs->setService('facturation');
-        $attrs->setOperation('encaisser');
+        $attrs->setEndpoint('payments');
+        $attrs->setService('billing');
+        $attrs->setOperation('collect');
 
         $event = $this->convert(EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED, 12, static function (HistoryEvent $e) use ($attrs): void {
             $e->setNexusOperationScheduledEventAttributes($attrs);
         });
 
         self::assertInstanceOf(NexusOperationScheduled::class, $event);
-        self::assertSame('paiements', $event->endpoint());
-        self::assertSame('facturation', $event->service());
-        self::assertSame('encaisser', $event->operation());
+        self::assertSame('payments', $event->endpoint());
+        self::assertSame('billing', $event->service());
+        self::assertSame('collect', $event->operation());
         // The identity on the Temporal side is the eventId of the scheduling: it is through it
         // that the terminal events attach back to their operation.
         self::assertSame(12, $event->scheduledEventId());

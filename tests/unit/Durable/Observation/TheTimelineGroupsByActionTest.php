@@ -72,7 +72,7 @@ final class TheTimelineGroupsByActionTest extends TestCase
     public function testATimerIsAnActionToo(): void
     {
         $history = $this->read([
-            new TimerScheduled('exec-1', 'tim-1', 1700000000.0, 'avant relance'),
+            new TimerScheduled('exec-1', 'tim-1', 1700000000.0, 'before reminder'),
             new TimerCompleted('exec-1', 'tim-1'),
         ]);
 
@@ -85,12 +85,12 @@ final class TheTimelineGroupsByActionTest extends TestCase
         // "TimerScheduled" names the class, not the wait. A frieze row carries the name of its
         // action, and that is the one an operator came to read.
         $history = $this->read([
-            new TimerScheduled('exec-1', 'tim-1', 1700000000.0, 'avant relance'),
+            new TimerScheduled('exec-1', 'tim-1', 1700000000.0, 'before reminder'),
             new TimerCompleted('exec-1', 'tim-1'),
         ]);
 
-        self::assertSame('avant relance', $history[0]->label);
-        self::assertSame('avant relance', $history[1]->label, 'the follow-up borrows the name of its scheduling');
+        self::assertSame('before reminder', $history[0]->label);
+        self::assertSame('before reminder', $history[1]->label, 'the follow-up borrows the name of its scheduling');
     }
 
     public function testAnEventThatIsItsOwnActionSaysSoWithNull(): void
@@ -180,10 +180,10 @@ final class TheTimelineGroupsByActionTest extends TestCase
         // operator comes to read. Working it out would ask them to subtract two timestamps from
         // two rows.
         $history = $this->read([
-            new TimerScheduled('exec-1', 'tim-1', microtime(true) + 30.0, 'avant relance'),
+            new TimerScheduled('exec-1', 'tim-1', microtime(true) + 30.0, 'before reminder'),
         ]);
 
-        self::assertSame('avant relance (30.0 s)', $history[0]->label);
+        self::assertSame('before reminder (30.0 s)', $history[0]->label);
     }
 
     public function testATimerWhoseDeadlineHasPassedAnnouncesNoDelayRatherThanFiftyYears(): void
@@ -192,10 +192,10 @@ final class TheTimelineGroupsByActionTest extends TestCase
         // would have a timer whose deadline is behind us announce half a century of waiting — and
         // it is the same guard that covers the journal with no recording timestamp.
         $history = $this->read([
-            new TimerScheduled('exec-1', 'tim-1', 1735689630.0, 'avant relance'),
+            new TimerScheduled('exec-1', 'tim-1', 1735689630.0, 'before reminder'),
         ]);
 
-        self::assertSame('avant relance', $history[0]->label);
+        self::assertSame('before reminder', $history[0]->label);
     }
 
     public function testAFailureIsMarkedAndACancellationIsNot(): void

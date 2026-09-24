@@ -103,7 +103,7 @@ final class WorkflowTaskFailedResponseTest extends TestCase
         $registry->registerFactory(
             'BoomWorkflow',
             static fn(array $payload) => static function (WorkflowEnvironment $env): never {
-                throw new \DomainException('métier cassé');
+                throw new \DomainException('business rule broken');
             },
         );
 
