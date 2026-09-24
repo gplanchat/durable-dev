@@ -84,10 +84,10 @@ final class TemporalActivityWorker
             return;
         }
 
-        if (null !== $options?->timeouts->heartbeat) {
-            if ($this->heartbeatSender instanceof TemporalActivityHeartbeatSender) {
-                $this->heartbeatSender->bindTaskToken((string) $resp->getTaskToken());
-            }
+        // Every task, heartbeat timeout or not: the activities share this sender, and a task left
+        // on the previous one's token would heartbeat under it and inherit its cancellation (#510).
+        if ($this->heartbeatSender instanceof TemporalActivityHeartbeatSender) {
+            $this->heartbeatSender->bindTaskToken((string) $resp->getTaskToken());
         }
 
         try {

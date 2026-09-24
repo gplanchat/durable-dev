@@ -28,6 +28,7 @@ use Illuminate\Container\Container;
 use Illuminate\Database\Capsule\Manager;
 use Illuminate\Database\Connection;
 use PHPUnit\Framework\TestCase;
+use unit\DurableLaravel\Fixtures\HeartbeatingActivity;
 
 /**
  * The Laravel integration's service provider, with no Laravel application around it.
@@ -176,10 +177,4 @@ final class DurableServiceProviderTest extends TestCase
             }
         };
     }
-}
-
-/** The activities page's example, down to what the container has to supply. */
-final class HeartbeatingActivity
-{
-    public function __construct(public readonly ActivityHeartbeatSenderInterface $heartbeat) {}
 }
