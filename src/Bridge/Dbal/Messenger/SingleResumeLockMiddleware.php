@@ -44,23 +44,27 @@ final class SingleResumeLockMiddleware implements MiddlewareInterface
     {
         $executionId = self::executionIdOf($envelope->getMessage());
 
+        // Every message that crosses the bus during a pass is a step boundary: a sync activity,
+        // the resume that follows it, a sync child start. Each one gives the held locks their TTL
+        // back, so the TTL bounds one step, not the whole pass (#340). A lock lost in between
+        // throws here, and the step does not run twice. ponytail: a pass that only replays, with
+        // no bus traffic, is not refreshed; a heartbeat from the engine would be the next rung.
+        $this->refreshHeld();
+
         // The pass that holds the lock dispatches the next resume of the same execution on the
         // same bus: asking again for a lock this process holds waited for the TTL on every step
         // (#254). Every other pass still locks, sends included: a resume routed to no transport is
         // handled right there, without a ReceivedStamp, and needs the lock as much as a received one.
-        if (null === $executionId || isset($this->held[$executionId])) {
-            // Every message that crosses the bus during a pass is a step boundary: a sync activity,
-            // the resume that follows it. Each one gives the held locks their TTL back, so the TTL
-            // bounds one step, not the whole pass (#340). A lock lost in between throws here, and
-            // the step does not run twice. ponytail: a pass that only replays, with no bus traffic,
-            // is not refreshed; a heartbeat from the engine would be the next rung.
-            $this->refreshHeld();
-            $result = $stack->next()->handle($envelope, $stack);
-            $this->refreshHeld();
+        $result = null === $executionId || isset($this->held[$executionId])
+            ? $stack->next()->handle($envelope, $stack)
+            : $this->handleLocked($executionId, $envelope, $stack);
+        $this->refreshHeld();
 
-            return $result;
-        }
+        return $result;
+    }
 
+    private function handleLocked(string $executionId, Envelope $envelope, StackInterface $stack): Envelope
+    {
         $lock = $this->lockFactory->createLock('durable-resume-' . $executionId, $this->ttlSeconds);
         $lock->acquire(true);
         $this->held[$executionId] = $lock;

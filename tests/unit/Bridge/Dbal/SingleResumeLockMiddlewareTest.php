@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Bridge\Dbal;
 
 use Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Lock\Exception\LockConflictedException;
 use Symfony\Component\Lock\Key;
@@ -13,6 +14,7 @@ use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\PersistingStoreInterface;
 use Symfony\Component\Lock\Store\InMemoryStore;
 use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Exception\HandlerFailedException;
 use Symfony\Component\Messenger\Handler\HandlersLocator;
 use Symfony\Component\Messenger\MessageBus;
 use Symfony\Component\Messenger\Middleware\HandleMessageMiddleware;
@@ -162,10 +164,18 @@ final class SingleResumeLockMiddlewareTest extends TestCase
         self::assertFalse($secondConsumerGotIt, '1.8 s into a pass with a 1 s TTL, the lock must still be held');
     }
 
-    public function testAStepDoesNotStartOnceThePassHasLostItsLock(): void
+    /** @return iterable<string, array{bool}> */
+    public static function lostLocks(): iterable
+    {
+        yield 'another consumer holds it' => [false];
+        yield 'another consumer ran a pass and released it' => [true];
+    }
+
+    #[DataProvider('lostLocks')]
+    public function testAStepDoesNotStartOnceThePassHasLostItsLock(bool $otherReleases): void
     {
         // The pass outran its TTL and another consumer took the execution: running the next step
-        // would run it twice. The pass stops at the boundary instead.
+        // would run it twice. The pass stops at the boundary instead, and never takes the lock back.
         $clock = new \ArrayObject(['now' => 0.0]);
         $factory = new LockFactory(self::storeOn($clock));
         $stepRan = false;
@@ -174,9 +184,12 @@ final class SingleResumeLockMiddlewareTest extends TestCase
         $bus = new MessageBus([
             new SingleResumeLockMiddleware($factory, 1.0),
             new HandleMessageMiddleware(new HandlersLocator([
-                ResumeWorkflowMessage::class => [static function () use (&$bus, $clock, $other): void {
+                ResumeWorkflowMessage::class => [static function () use (&$bus, $clock, $other, $otherReleases): void {
                     $clock['now'] += 1.5;
                     self::assertTrue($other->acquire(false), 'past the TTL, another consumer takes the execution');
+                    if ($otherReleases) {
+                        $other->release();
+                    }
                     $bus->dispatch(new Envelope(new \stdClass(), [new ReceivedStamp('sync')]));
                 }],
                 \stdClass::class => [static function () use (&$stepRan): void {
@@ -185,14 +198,44 @@ final class SingleResumeLockMiddlewareTest extends TestCase
             ])),
         ]);
 
+        $stoppedBy = null;
+
         try {
             $bus->dispatch(new Envelope(new ResumeWorkflowMessage('exec-1'), [new ReceivedStamp('sync')]));
-            self::fail('the pass must stop once its lock is lost');
-        } catch (\Throwable) {
+        } catch (HandlerFailedException $e) {
+            $stoppedBy = $e->getPrevious();
         }
 
+        self::assertInstanceOf(LockConflictedException::class, $stoppedBy, 'the pass must stop on the lost lock');
         self::assertFalse($stepRan, 'the step must not run without the lock');
-        self::assertTrue($other->isAcquired(), 'and the stale pass must not take the lock back');
+        self::assertSame(!$otherReleases, $other->isAcquired(), 'the stale pass must not take the lock back');
+    }
+
+    public function testAChildStartedDuringThePassIsABoundaryToo(): void
+    {
+        // A sync child start is a resume of another execution: it takes that execution's lock, and
+        // must still give the parent's its TTL back.
+        $clock = new \ArrayObject(['now' => 0.0]);
+        $factory = new LockFactory(self::storeOn($clock));
+        $secondConsumerGotParent = null;
+        $bus = null;
+        $bus = new MessageBus([
+            new SingleResumeLockMiddleware($factory, 1.0),
+            new HandleMessageMiddleware(new HandlersLocator([
+                ResumeWorkflowMessage::class => [static function (ResumeWorkflowMessage $message) use (&$bus, $clock, $factory, &$secondConsumerGotParent): void {
+                    $clock['now'] += 0.6;
+                    if ('parent' === $message->executionId) {
+                        $bus->dispatch(new Envelope(new ResumeWorkflowMessage('child'), [new ReceivedStamp('sync')]));
+                    } else {
+                        $secondConsumerGotParent = $factory->createLock('durable-resume-parent', 1.0)->acquire(false);
+                    }
+                }],
+            ])),
+        ]);
+
+        $bus->dispatch(new Envelope(new ResumeWorkflowMessage('parent'), [new ReceivedStamp('sync')]));
+
+        self::assertFalse($secondConsumerGotParent, '1.2 s into the parent\'s pass, its lock must still be held');
     }
 
     /**
@@ -213,11 +256,17 @@ final class SingleResumeLockMiddlewareTest extends TestCase
 
             public function save(Key $key): void
             {
+                // Lock::acquire() puts the expiration off right after, which sets the real one.
+                $this->locks[(string) $key] ??= [$key, 0.0];
                 $this->claim($key, \INF);
             }
 
             public function putOffExpiration(Key $key, float $ttl): void
             {
+                // As DoctrineDbalStore and PdoStore: the UPDATE finds no row once it was deleted.
+                if (!isset($this->locks[(string) $key])) {
+                    throw new LockConflictedException();
+                }
                 $this->claim($key, $this->clock['now'] + $ttl);
             }
 
