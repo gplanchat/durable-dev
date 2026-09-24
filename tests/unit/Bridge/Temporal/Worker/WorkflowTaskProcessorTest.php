@@ -64,6 +64,10 @@ final class WorkflowTaskProcessorTest extends TestCase
         return new WorkflowTaskProcessor($this->grpcClient, $this->connection, $runner);
     }
 
+    /**
+     * @param list<HistoryEvent>     $events
+     * @param array<string, string> $queries query id => query type
+     */
     private static function buildPoll(
         string $token,
         string $workflowId,
@@ -105,6 +109,7 @@ final class WorkflowTaskProcessorTest extends TestCase
         return $e;
     }
 
+    /** @param array<mixed> $input */
     private static function makeStarted(int $id, array $input = []): HistoryEvent
     {
         $e = self::makeEvent($id, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);

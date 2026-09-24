@@ -63,6 +63,7 @@ final class WorkflowTaskRunnerTest extends TestCase
     // Helpers
     // -------------------------------------------------------------------------
 
+    /** @param list<HistoryEvent> $events */
     private static function buildPoll(
         string $token,
         string $workflowId,
@@ -97,6 +98,7 @@ final class WorkflowTaskRunnerTest extends TestCase
         return $e;
     }
 
+    /** @param array<mixed> $input */
     private static function makeStarted(int $id, array $input = []): HistoryEvent
     {
         $e = self::makeEvent($id, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);

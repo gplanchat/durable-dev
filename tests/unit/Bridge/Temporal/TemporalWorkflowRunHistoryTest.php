@@ -182,6 +182,7 @@ final class TemporalWorkflowRunHistoryTest extends TestCase
         return $event;
     }
 
+    /** @return list<\Gplanchat\Durable\Observation\WorkflowRunEvent> */
     private function readHistory(HistoryEvent ...$events): array
     {
         $client = $this->client($this->historyResponse(...$events));

@@ -225,6 +225,7 @@ final class RecordingConsumeCommand extends ConsumeMessagesCommand
         return Command::SUCCESS;
     }
 
+    /** @return list<int> */
     public function getSubscribedSignals(): array
     {
         return [\SIGTERM, \SIGINT];

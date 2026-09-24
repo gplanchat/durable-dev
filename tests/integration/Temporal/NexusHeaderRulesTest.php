@@ -176,7 +176,11 @@ final class NexusHeaderRulesTest extends TestCase
         return $verdict;
     }
 
-    /** @param array<string, string> $header */
+    /**
+     * @param array<string, string> $header
+     *
+     * @return array<mixed>|string
+     */
     private function probe(array $header): array|string
     {
         $client = new WorkflowClient(

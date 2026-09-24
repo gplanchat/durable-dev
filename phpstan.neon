@@ -27,6 +27,9 @@ parameters:
         - src/Bridge/Temporal/Spike
         # Code written wrong on purpose: the PHPStan rule tests feed it to the rules.
         - tests/unit/DurablePhpstan/Fixtures
+        # The code the Rector rules migrate, written as a Temporal SDK user wrote it.
+        - tests/unit/DurableRector/Source
+        - tests/unit/DurableRector/Fixture
     reportUnmatchedIgnoredErrors: true
     ignoreErrors:
         # ServiceProvider::$app is typed by PHPDoc as the full application. This package depends

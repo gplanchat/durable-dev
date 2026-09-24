@@ -41,6 +41,7 @@ final class ApprovalWorkflow
         private readonly WorkflowEnvironment $environment,
     ) {}
 
+    /** @param array<string, mixed> $payload */
     #[AsSignalMethod(DispatchSignal::Approve)]
     public function onApprove(array $payload): void
     {
