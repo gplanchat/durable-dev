@@ -36,6 +36,7 @@ final class NexusOperationHeadersTest extends TestCase
         yield 'deux en-têtes' => [['x-un' => '1', 'x-deux' => '2']];
     }
 
+    /** @param array<string, string> $headers */
     #[DataProvider('acceptedByTheServer')]
     public function testWhatTheServerAcceptsIsAcceptedHere(array $headers): void
     {

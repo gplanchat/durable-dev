@@ -35,7 +35,9 @@ final class AdminMenuListener
 
         $configurationMenu
             ->addChild('durable_dashboard', [
-                'label' => 'Durable Dashboard',
+                // A key, translated by the Sylius menu template in the domain named below.
+                'label' => 'menu.dashboard',
+                'extras' => ['translation_domain' => 'durable'],
                 // A route, not a URI: KnpMenu's route voter marks the entry active on its page.
                 'route' => 'gplanchat_durable_plugin_admin_dashboard',
             ])

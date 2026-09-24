@@ -285,9 +285,6 @@ final class RunDashboardTest extends TestCase
         );
     }
 
-    /**
-     * @param list<WorkflowRunDescription> $runs
-     */
     public function testARunNobodyPickedUpSaysHowLongItHasWaitedForAWorker(): void
     {
         $dispatched = new \DateTimeImmutable('2026-09-24 10:00:00', new \DateTimeZone('UTC'));
@@ -314,6 +311,9 @@ final class RunDashboardTest extends TestCase
         self::assertArrayNotHasKey('waitingForWorkerOnThisPage', $view);
     }
 
+    /**
+     * @param list<WorkflowRunDescription> $runs
+     */
     private function viewOver(array $runs): RunDashboard
     {
         return new RunDashboard(new FakeRunCatalog($runs));

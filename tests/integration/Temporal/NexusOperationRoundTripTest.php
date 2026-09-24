@@ -254,7 +254,7 @@ final class NexusOperationRoundTripTest extends TestCase
         $this->client->RespondWorkflowTaskCompleted($done, [], ['timeout' => 30_000_000]);
 
         $cursor = new TemporalHistoryCursor($this->client, $this->connection);
-        foreach ($cursor->events(new WorkflowExecution(['workflow_id' => (string) $this->workflowId])) as $event) {
+        foreach ($cursor->events(new WorkflowExecution(['workflow_id' => $this->workflowId])) as $event) {
             if (EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED === $event->getEventType()) {
                 $attributes = $event->getNexusOperationScheduledEventAttributes();
                 self::assertInstanceOf(NexusOperationScheduledEventAttributes::class, $attributes);

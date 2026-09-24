@@ -35,11 +35,11 @@ services:
         arguments:
             $workflowClient: '@?Gplanchat\Bridge\Temporal\WorkflowClientInterface'
 
-    App\Dashboard\TemporalEventsDashboardDataProvider:
+    # The dashboard model the Sylius plugin and Magento also read. A null catalog is a page that
+    # says no backend is readable, not an error.
+    Gplanchat\Durable\Observation\RunDashboard:
         arguments:
-            $workflowServiceClient: '@?durable.temporal.workflow_service_client'
-            $connection: '@?durable.temporal.connection'
-            $historyCursor: '@?Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor'
+            $catalog: '@?Gplanchat\Durable\Port\WorkflowRunCatalogInterface'
 
 # Temporal journal in dev/prod: durable.yaml when@dev / when@prod + DURABLE_DSN (temporal://…).
 # Prerequisites: ext-grpc, the docker compose stack, messenger workers durable_workflows + durable_activities.

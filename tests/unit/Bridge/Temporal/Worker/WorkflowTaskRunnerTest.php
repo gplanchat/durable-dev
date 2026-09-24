@@ -14,6 +14,7 @@ use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Exception\DeadlineExceededException;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\WorkflowExecution;
@@ -47,7 +48,7 @@ use unit\Durable\Fixtures\SuiteActivities;
  */
 final class WorkflowTaskRunnerTest extends TestCase
 {
-    private WorkflowServiceClientInterface $grpcClient;
+    private WorkflowServiceClientInterface&MockObject $grpcClient;
     private TemporalHistoryCursor $cursor;
     private TemporalConnection $connection;
 
@@ -62,6 +63,7 @@ final class WorkflowTaskRunnerTest extends TestCase
     // Helpers
     // -------------------------------------------------------------------------
 
+    /** @param list<HistoryEvent> $events */
     private static function buildPoll(
         string $token,
         string $workflowId,
@@ -96,6 +98,7 @@ final class WorkflowTaskRunnerTest extends TestCase
         return $e;
     }
 
+    /** @param array<mixed> $input */
     private static function makeStarted(int $id, array $input = []): HistoryEvent
     {
         $e = self::makeEvent($id, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
@@ -464,6 +467,7 @@ final class WorkflowTaskRunnerTest extends TestCase
 
         self::assertCount(1, $result->commands);
         self::assertSame(CommandType::COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, $result->commands[0]->getCommandType());
+        /** @psalm-suppress TypeDoesNotContainType set inside the workflow closure, which Psalm reads as never run */
         self::assertSame(['value' => 42], $capturedSignal->value);
     }
 
@@ -485,6 +489,7 @@ final class WorkflowTaskRunnerTest extends TestCase
 
         $result = $runner->run($poll);
 
+        /** @psalm-suppress TypeDoesNotContainType set inside the workflow closure, which Psalm reads as never run */
         self::assertSame(['timeout'], $verdict->value);
         self::assertCount(1, $result->commands);
         self::assertSame(CommandType::COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, $result->commands[0]->getCommandType());
@@ -505,6 +510,7 @@ final class WorkflowTaskRunnerTest extends TestCase
 
         $runner->run($poll);
 
+        /** @psalm-suppress TypeDoesNotContainType set inside the workflow closure, which Psalm reads as never run */
         self::assertSame(['signal', ['by' => 'alice']], $verdict->value);
     }
 

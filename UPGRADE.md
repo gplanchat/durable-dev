@@ -56,6 +56,19 @@ a container build catches the former.
 `profiler.enabled` is new. It defaults to `%kernel.debug%`, which is what the bundle did before;
 set it to keep the profiler out of a debug worker, or in a non-debug staging build.
 
+### `durable:execution:diagnose` and the profiler panel mask payload secrets
+
+**Who is affected**: scripts that read secrets out of `durable:execution:diagnose --json`, and
+applications whose payloads carry values under keys matching
+`/password|secret|token|authorization|card|api[_-]?key/i`. Those values now print as `***`, and strings over
+1 KiB are truncated. Add `--raw` to get the payload as stored.
+
+To change what is masked, implement `Gplanchat\Durable\Observation\PayloadRedactorInterface` and
+alias the interface to your service; both surfaces use it.
+
+The profiler reads at most 20 ids from `?durable_execution=`, and drops an id that is not printable
+ASCII without spaces, quotes, ampersands or angle brackets.
+
 ### The Sylius plugin follows the Sylius 2 layout; its route follows the admin prefix
 
 **Who is affected**: every Sylius shop that installs `gplanchat/durable-plugin`. The route import
@@ -475,6 +488,25 @@ and it carries the same result. Failures do not change: one `ActivityTaskFailed`
 Journals recorded before keep both events. They replay and read as before: the class, its mapping
 and the dashboard reader's handling of it stay. No Rector rule or script: what changes is which
 event a listener receives at run time, not code Rector can rewrite.
+
+### Dead code leaves the Temporal bridge (#372)
+
+**Who is affected**: code that referenced one of these, none of which anything in Durable called:
+
+- `Gplanchat\Bridge\Temporal\TemporalJournalGrpcPoller`: poll with `WorkflowServiceClientInterface::PollWorkflowTaskQueue()`.
+- `Gplanchat\Bridge\Temporal\Journal\JournalWorkflowTaskProcessor`: `Worker\WorkflowTaskProcessor` runs workflow tasks.
+- `JournalExecutionIdResolver::durableExecutionIdFromHistory()`: take the `WorkflowExecutionStarted` attributes from the history and call `durableExecutionIdFromStartedAttributes()`.
+
+No Rector rule: there is no successor to rename to.
+
+`Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter` moves to
+`Gplanchat\Bridge\Temporal\Store\TemporalEventConverter`: the store and the command buffer use it,
+the profiler never did. The `durable-upgrade` Rector set renames it.
+
+`Gplanchat\Bridge\Temporal\Spike\NativeExecutionSpike` leaves the published package for the Symfony
+bench (`App\Temporal\NativeExecutionSpike`, with its `durable:temporal:native-spike` command). It
+was the DUR024 reference, not production code; `Worker\WorkflowTaskRunner` runs that path. Copy
+the class from the bench if you ran it; no Rector rule, since the class is no longer installed.
 
 ## 0.1.0-alpha8
 

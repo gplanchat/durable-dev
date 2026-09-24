@@ -17,6 +17,7 @@ use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueResponse;
@@ -31,7 +32,7 @@ use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedResponse;
  */
 final class TemporalActivityWorkerNonRetryableTest extends TestCase
 {
-    private WorkflowServiceClientInterface $grpcClient;
+    private WorkflowServiceClientInterface&MockObject $grpcClient;
     private InMemoryEventStore $eventStore;
 
     protected function setUp(): void
@@ -43,6 +44,7 @@ final class TemporalActivityWorkerNonRetryableTest extends TestCase
     public function testFailureWithNonRetryableTypeIsReportedNonRetryable(): void
     {
         $this->eventStore->append(new ActivityFailed('exec-nr', 'act-nr', 'App\\BusinessException', 'boom'));
+        // @phpstan-ignore argument.type (a class the worker never loads: the name travels as a string)
         $metadata = (new ActivityOptions(nonRetryableExceptions: ['App\\BusinessException']))->toMetadata();
         $this->grpcClient->method('PollActivityTaskQueue')
             ->willReturn($this->pollFor('exec-nr', 'act-nr', $metadata));
@@ -59,6 +61,7 @@ final class TemporalActivityWorkerNonRetryableTest extends TestCase
         // A retryable (system) exception must keep nonRetryable=false so the
         // server's retry policy still applies.
         $this->eventStore->append(new ActivityFailed('exec-r', 'act-r', 'App\\ServiceUnavailableException', 'boom'));
+        // @phpstan-ignore argument.type (a class the worker never loads: the name travels as a string)
         $metadata = (new ActivityOptions(nonRetryableExceptions: ['App\\BusinessException']))->toMetadata();
         $this->grpcClient->method('PollActivityTaskQueue')
             ->willReturn($this->pollFor('exec-r', 'act-r', $metadata));

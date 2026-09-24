@@ -43,6 +43,7 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
         self::assertSame(1, $version);
 
         // The branch this version commands. The guard must not flinch.
+        // @phpstan-ignore identical.alwaysTrue (written as the workflow writes it: the branch follows the version)
         $awaitable = 1 === $version
             ? $context->activity('discountedCharge', [])
             : $context->activity('plainCharge', []);
@@ -66,6 +67,7 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
 
         self::assertSame(ChangePoint::DEFAULT_VERSION, $version);
 
+        // @phpstan-ignore identical.alwaysTrue (written as the workflow writes it: the branch follows the version)
         $awaitable = ChangePoint::DEFAULT_VERSION === $version
             ? $context->activity('plainCharge', [])
             : $context->activity('discountedCharge', []);
