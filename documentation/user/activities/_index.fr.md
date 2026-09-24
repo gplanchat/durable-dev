@@ -180,15 +180,10 @@ final class ImportCatalog implements CatalogActivities
 }
 ```
 
-Avec le bundle Symfony sur Temporal, le battement réarme le délai `heartbeat` de l'activité (voir
-[ActivityTimeouts](../options/#activitytimeouts)) et transporte le détail de progression. Partout
-ailleurs, c'est un appel sans effet qui ne signale jamais d'annulation : le même code tourne sur
-chaque hôte.
-
-> **Laravel et Magento sur Temporal :** le battement y reste sans effet
-> ([#510](https://github.com/gplanchat/durable-dev/issues/510)). N'y fixez pas de délai `heartbeat`
-> pour l'instant : Temporal expirerait une activité encore en cours et la relancerait en parallèle,
-> et ses effets se produiraient deux fois.
+Sur Temporal, quel que soit l'hôte, le battement réarme le délai `heartbeat` de l'activité (voir
+[ActivityTimeouts](../options/#activitytimeouts)) et transporte le détail de progression. Sur les
+autres backends, c'est un appel sans effet qui ne signale jamais d'annulation : le même code tourne
+partout.
 
 ## Côté workflow : `ActivityInvoker`
 

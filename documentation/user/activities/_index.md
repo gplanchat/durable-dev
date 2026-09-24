@@ -179,14 +179,9 @@ final class ImportCatalog implements CatalogActivities
 }
 ```
 
-With the Symfony bundle on Temporal, the heartbeat resets the activity's `heartbeat` timeout (see
-[ActivityTimeouts](../options/#activitytimeouts)) and carries the progress details. Everywhere
-else it is a no-op that never reports a cancellation, so the same code runs on every host.
-
-> **Laravel and Magento on Temporal:** the heartbeat is still a no-op there
-> ([#510](https://github.com/gplanchat/durable-dev/issues/510)). Do not set a `heartbeat` timeout
-> on those hosts for now: Temporal would time out an activity that is still running and retry it
-> alongside, so its side effects would happen twice.
+On Temporal, on every host, the heartbeat resets the activity's `heartbeat` timeout (see
+[ActivityTimeouts](../options/#activitytimeouts)) and carries the progress details. On the other
+backends it is a no-op that never reports a cancellation, so the same code runs everywhere.
 
 ## Workflow side: ActivityInvoker
 
