@@ -44,11 +44,15 @@ use Symfony\Contracts\Service\ResetInterface;
  * The in-memory trace records the WorkflowRunMessage dispatches, every engine run ({@see WorkflowExecutionObserverInterface})
  * and every activity executed in this process; the full detail of the journal comes from the event store.
  *
- * To include a journal with no dispatch on this request, add durable_execution (UUID, commas if there are several).
+ * To include a journal with no dispatch on this request, add durable_execution (ids, comma-separated, at most
+ * {@see self::MAX_QUERIED_EXECUTIONS}).
  */
 final class DurableDataCollector extends DataCollector implements ResetInterface
 {
     private const MAX_STORE_EVENTS_PER_STREAM = 500;
+
+    /** Each id named in `?durable_execution=` costs a journal read. */
+    public const MAX_QUERIED_EXECUTIONS = 20;
 
     public function __construct(
         private readonly DurableExecutionTrace $trace,
@@ -467,10 +471,17 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             return $executionIds;
         }
 
+        $taken = 0;
         foreach (explode(',', $raw) as $part) {
             $id = trim($part);
-            if ('' !== $id) {
-                $executionIds[$id] = true;
+            // Printable ASCII with no space, at most 255 bytes: a UUID, a Temporal workflow id,
+            // a child id. Anything else no store issued, and HTML has no business in there.
+            if (1 !== preg_match('/^[\x21-\x7E]{1,255}$/', $id) || 1 === preg_match('/[<>"\'&]/', $id)) {
+                continue;
+            }
+            $executionIds[$id] = true;
+            if (++$taken >= self::MAX_QUERIED_EXECUTIONS) {
+                break;
             }
         }
 
