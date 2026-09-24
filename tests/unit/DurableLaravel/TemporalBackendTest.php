@@ -85,6 +85,31 @@ final class TemporalBackendTest extends TestCase
         self::assertTrue($resolved, 'durable.temporal.guzzle_client names the binding the client is built with');
     }
 
+    public function testTheApplicationsPsr18ClientCarriesTheJsonGateway(): void
+    {
+        $resolved = [];
+        $app = $this->container(['backend' => 'temporal', 'temporal' => [
+            'dsn' => 'temporal+http://127.0.0.1?namespace=durable-test&journal_task_queue=durable-journal&activity_task_queue=durable-activities',
+            'psr18_client' => 'app.psr18',
+            'psr17_factory' => 'app.psr17',
+        ]]);
+        $app->bind('app.psr18', static function () use (&$resolved): \GuzzleHttp\Client {
+            $resolved[] = 'client';
+
+            return new \GuzzleHttp\Client();
+        });
+        $app->bind('app.psr17', static function () use (&$resolved): \GuzzleHttp\Psr7\HttpFactory {
+            $resolved[] = 'factory';
+
+            return new \GuzzleHttp\Psr7\HttpFactory();
+        });
+        (new DurableServiceProvider($app))->register();
+
+        $app->make('durable.temporal.client');
+
+        self::assertEqualsCanonicalizing(['client', 'factory'], $resolved);
+    }
+
     /** @param array<string, mixed> $durable */
     private function container(array $durable): Container
     {

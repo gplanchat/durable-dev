@@ -46,7 +46,8 @@ php artisan vendor:publish --tag=durable-config
 
 On the `temporal` backend, `temporal.guzzle_client` names a container binding whose
 `GuzzleHttp\ClientInterface` carries gRPC when the DSN says `transport=guzzle` — Laravel already
-ships Guzzle 7.14 or newer. `null` builds a default client.
+ships Guzzle 7.14 or newer. `null` builds a default client. Likewise `temporal.psr18_client` and
+`temporal.psr17_factory` hand a PSR-18 client to `transport=http`, the JSON gateway, instead of curl.
 
 ### Workflows are declared, not scanned
 
