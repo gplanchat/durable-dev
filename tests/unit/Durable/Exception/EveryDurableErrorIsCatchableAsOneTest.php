@@ -39,6 +39,7 @@ final class EveryDurableErrorIsCatchableAsOneTest extends TestCase
             ++$seen;
 
             if (\in_array($class, self::CONTROL_FLOW, true)) {
+                // @phpstan-ignore function.impossibleType (the guard is for the day someone adds the interface)
                 self::assertFalse(is_a($class, ExceptionInterface::class, true), $class . ' is control flow, not an error.');
                 continue;
             }

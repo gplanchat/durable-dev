@@ -31,6 +31,7 @@ final class ActivityMessageProcessorCancellationTest extends TestCase
         };
         $resumed = [];
         $resume = new class ($resumed) implements WorkflowResumeDispatcher {
+            /** @param list<string> $resumed */
             public function __construct(private array &$resumed) {}
 
             public function dispatchResume(string $executionId, array $pendingUpdates = []): void
@@ -98,6 +99,7 @@ final class ActivityMessageProcessorCancellationTest extends TestCase
         };
         $resumed = [];
         $resume = new class ($resumed) implements WorkflowResumeDispatcher {
+            /** @param list<string> $resumed */
             public function __construct(private array &$resumed) {}
 
             public function dispatchResume(string $executionId, array $pendingUpdates = []): void

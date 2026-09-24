@@ -270,6 +270,7 @@ final class TheRunTimelinePositionsActionsInTimeTest extends TestCase
         self::assertSame([1, 2, 3], array_map(static fn($row): int => $row->event->sequence, $timeline->journal()));
     }
 
+    /** @param array<string, mixed> $details */
     private function event(
         int $sequence,
         string $at,

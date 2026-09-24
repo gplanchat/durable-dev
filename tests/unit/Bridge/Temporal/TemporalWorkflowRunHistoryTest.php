@@ -102,9 +102,6 @@ final class TemporalWorkflowRunHistoryTest extends TestCase
         self::assertSame([], $catalog->readHistory($this->describedRun(groupId: null)));
     }
 
-    /**
-     * @return list<\Gplanchat\Durable\Observation\WorkflowRunEvent>
-     */
     public function testAChildWorkflowIsOneActionAndNotTwo(): void
     {
         // The ending of a child execution carries `initiatedEventId` **and** `startedEventId`.
@@ -182,6 +179,7 @@ final class TemporalWorkflowRunHistoryTest extends TestCase
         return $event;
     }
 
+    /** @return list<\Gplanchat\Durable\Observation\WorkflowRunEvent> */
     private function readHistory(HistoryEvent ...$events): array
     {
         $client = $this->client($this->historyResponse(...$events));

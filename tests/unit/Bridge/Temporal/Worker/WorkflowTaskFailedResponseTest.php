@@ -12,6 +12,7 @@ use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
@@ -36,7 +37,7 @@ use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskFailedResponse;
  */
 final class WorkflowTaskFailedResponseTest extends TestCase
 {
-    private WorkflowServiceClientInterface $grpcClient;
+    private WorkflowServiceClientInterface&MockObject $grpcClient;
     private TemporalConnection $connection;
 
     protected function setUp(): void

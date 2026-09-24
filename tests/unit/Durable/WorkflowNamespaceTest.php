@@ -67,8 +67,8 @@ final class WorkflowNamespaceTest extends TestCase
         // swapping them only showed at run time, server-side.
         $this->expectException(\TypeError::class);
 
-        /** @phpstan-ignore-next-line intentional: this is the point of the test */
-        new TemporalConnection(target: 'localhost:7233', namespace: TaskQueue::named('durable-activities'));
+        /** @psalm-suppress InvalidArgument intentional: this is the point of the test */
+        new TemporalConnection(target: 'localhost:7233', namespace: TaskQueue::named('durable-activities')); // @phpstan-ignore argument.type (intentional: this is the point of the test)
     }
 
     public function testChildOptionsRoundTripTheNamespace(): void

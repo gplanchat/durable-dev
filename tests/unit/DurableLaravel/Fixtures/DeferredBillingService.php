@@ -17,9 +17,11 @@ use Gplanchat\Durable\Attribute\AsNexusService;
 #[AsNexusService('deferred-billing')]
 interface DeferredBillingService
 {
+    /** @return array<string, mixed> */
     #[AsNexusOperation('charge')]
     public function charge(int $amount): array;
 
+    /** @return array<string, mixed> */
     #[AsNexusOperation('settle')]
     public function settle(int $amount, string $currency): array;
 }
