@@ -1,0 +1,14 @@
+# The six hugo-book labels its own French file leaves in English. Hugo merges this file over the
+# theme's, key by key, so only the missing keys belong here (#369, D-22).
+- id: Languages
+  translation: Langues
+- id: Expand
+  translation: Déplier
+- id: Menu
+  translation: Menu
+- id: Table of Contents
+  translation: Table des matières
+- id: Backward
+  translation: Précédent
+- id: Forward
+  translation: Suivant

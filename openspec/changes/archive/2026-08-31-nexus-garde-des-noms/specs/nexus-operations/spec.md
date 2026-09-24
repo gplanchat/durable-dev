@@ -1,6 +1,6 @@
 # nexus-operations Specification
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: A fulfilling workflow's parameter names are the contract's
 

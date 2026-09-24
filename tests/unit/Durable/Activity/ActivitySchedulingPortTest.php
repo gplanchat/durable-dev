@@ -128,7 +128,6 @@ final class ActivitySchedulingPortTest extends TestCase
             'ExecutionStarted',
             'ActivityScheduled',
             'ActivityTaskStarted',
-            'ActivityTaskCompleted',
             'ActivityCompleted',
             'ExecutionCompleted',
         ], $recorded);

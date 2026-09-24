@@ -34,6 +34,8 @@ final class DurableSchemaListener
             $event->getSchema(),
             $connection,
             self::isSameDatabase($connection),
+            // Nullable on DBAL 3, always set on DBAL 4; called with the table name on both.
+            $connection->getConfiguration()->getSchemaAssetsFilter(),
         );
     }
 
