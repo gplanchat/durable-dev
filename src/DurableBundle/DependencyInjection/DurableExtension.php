@@ -16,6 +16,7 @@ use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
+use Gplanchat\Bridge\Temporal\Http\Psr18Http;
 use Gplanchat\Bridge\Temporal\Messenger\TemporalActivityWorkerTransport;
 use Gplanchat\Bridge\Temporal\Messenger\TemporalJournalTransport;
 use Gplanchat\Bridge\Temporal\Messenger\TemporalNexusWorkerTransport;
@@ -83,6 +84,7 @@ use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 
@@ -384,6 +386,13 @@ final class DurableExtension extends Extension
             $guzzleClient = $temporalConfig['guzzle_client'] ?? null;
             if (\is_string($guzzleClient) && '' !== $guzzleClient) {
                 $client->addArgument(new Reference($guzzleClient));
+            }
+            // transport=http over the application's PSR-18 client instead of curl.
+            $psr18 = $temporalConfig['psr18_client'] ?? null;
+            if (\is_string($psr18) && '' !== $psr18) {
+                $psr17 = new Reference(\is_string($temporalConfig['psr17_factory'] ?? null) ? $temporalConfig['psr17_factory'] : $psr18);
+                $client->setArgument(2, $client->getArguments()[2] ?? null);
+                $client->setArgument(3, new Definition(Psr18Http::class, [new Reference($psr18), $psr17, $psr17]));
             }
 
             $container->register(WorkflowServiceActivityRpc::class)

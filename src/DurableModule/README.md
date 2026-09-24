@@ -59,6 +59,8 @@ already ships. To hand it the application's client — its proxy, its TLS option
 <type name="Gplanchat\DurableModule\Runtime\RuntimeFactory">
     <arguments>
         <argument name="guzzle" xsi:type="object">Vendor\Module\Http\TemporalGuzzleClient</argument>
+        <!-- or, for transport=http: a Gplanchat\Bridge\Temporal\Http\Psr18Http built in di.xml -->
+        <argument name="jsonGateway" xsi:type="object">Vendor\Module\Http\TemporalJsonGateway</argument>
     </arguments>
 </type>
 ```

@@ -65,6 +65,11 @@ return [
         // `transport=guzzle` in the DSN then uses — its proxy, TLS options and middleware apply to
         // gRPC. Unused by any other transport; null builds a default client.
         'guzzle_client' => null,
+        // Container bindings: the application's PSR-18 client, which `transport=http` (the JSON
+        // gateway) then uses instead of curl, and a PSR-17 factory implementing both request and
+        // stream factories — defaulting to the client's binding. null keeps curl.
+        'psr18_client' => null,
+        'psr17_factory' => null,
     ],
 
     'tables' => [
