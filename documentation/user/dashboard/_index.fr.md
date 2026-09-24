@@ -46,14 +46,15 @@ Les confondre ferait apparaître en rouge des workflows longs parfaitement sains
 Une exécution en cours qu'**aucun worker n'a encore prise en charge** le dit, avec depuis quand :
 `waiting for a worker · 42 s`. Elle a été envoyée, et rien ne l'a consommée, ce qui veut en général
 dire qu'aucun worker ne tourne : lancez-en un avec [`durable:worker`](../getting-started/#5-faire-tourner-un-consommateur-sinon-rien-narrive)
-sous Symfony.
+sous Symfony, ou `php artisan queue:work` sous Laravel.
 Une exécution en cours sans cette mention a été prise en charge : elle travaille, ou elle attend un
 minuteur ou un signal, comme prévu. Les compteurs ajoutent un nombre **Waiting for a worker** sur la
 même page.
 
-Seul le journal DBAL sait le dire, sur une table qui a la colonne `picked_up_at`, ainsi que le
-backend en mémoire dans son propre processus. Les stores Illuminate l'enregistrent aussi, mais
-l'intégration Laravel n'alimente pas encore de liste des exécutions. Temporal ne le peut pas
+Les backends SQL savent le dire (DBAL sous Symfony, Illuminate sous Laravel), sur une table des exécutions qui a la
+colonne `picked_up_at`, ainsi que le backend en mémoire dans son propre processus. Laravel n'a pas
+encore d'écran de liste des exécutions : son `WorkflowRunCatalogInterface` est alimenté et prêt à
+en servir un. Temporal ne le peut pas
 depuis la liste des exécutions : ni la mention ni le nombre n'y apparaissent, et Temporal UI montre les
 tâches en attente. La grille Magento non plus, puisque ses backends sont celui en mémoire, vide depuis
 l'admin, et Temporal. Voir [la procédure de mise à jour](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md)

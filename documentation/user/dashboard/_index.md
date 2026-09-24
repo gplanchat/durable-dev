@@ -43,13 +43,14 @@ perfectly healthy long-running workflows in red.
 A running run that **no worker has picked up yet** says so, and since when:
 `waiting for a worker · 42 s`. It was dispatched, and nothing consumed it, which usually means no
 worker is running: start one with [`durable:worker`](../getting-started/#5-run-a-consumer-or-nothing-happens)
-on Symfony.
+on Symfony, or `php artisan queue:work` on Laravel.
 A running run without that line has been picked up, and is working or waiting on a timer or a signal,
 as it should. The counters add a **Waiting for a worker** count over the same page.
 
-Only the DBAL journal can tell, on a table that has the `picked_up_at` column, and so can the
-in-memory backend within its process. The Illuminate stores record it too, but the Laravel
-integration does not feed a run list yet. Temporal cannot from the run list, so
+The SQL backends can tell (DBAL on Symfony, Illuminate on Laravel), on a runs table that has the
+`picked_up_at` column, and so can the in-memory backend within its process. Laravel has no run list
+screen of its own yet; its `WorkflowRunCatalogInterface` is fed and ready for one. Temporal cannot
+from the run list, so
 neither the line nor the count appears there; Temporal UI shows pending tasks. Neither does the
 Magento grid, whose backends are the in-memory one, empty from the admin, and Temporal. See
 [Upgrading](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md) to add the column to a
