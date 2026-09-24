@@ -74,19 +74,22 @@ final class TlsAndApiKeyWiringTest extends TestCase
             /** @var array<string, list<string>>|null */
             public ?array $metadata = null;
 
-            public function createChannelFactory($hostname, $opts)
+            public function createChannelFactory(mixed $hostname, mixed $opts): mixed
             {
                 return null;
             }
 
-            public function UnaryCall($channel, $method, $deserialize, $options)
+            public function UnaryCall(mixed $channel, mixed $method, mixed $deserialize, mixed $options): mixed
             {
                 $invoker = $this;
 
                 return new class ($invoker) {
                     public function __construct(private object $invoker) {}
 
-                    /** @param array<string, list<string>> $metadata */
+                    /**
+                     * @param array<string, list<string>> $metadata
+                     * @param array<string, mixed>        $options
+                     */
                     public function start(mixed $argument, array $metadata, array $options): void
                     {
                         $this->invoker->metadata = $metadata;
@@ -94,15 +97,25 @@ final class TlsAndApiKeyWiringTest extends TestCase
                 };
             }
 
-            public function ClientStreamingCall($channel, $method, $deserialize, $options) {}
+            public function ClientStreamingCall(mixed $channel, mixed $method, mixed $deserialize, mixed $options): mixed
+            {
+                return null;
+            }
 
-            public function ServerStreamingCall($channel, $method, $deserialize, $options) {}
+            public function ServerStreamingCall(mixed $channel, mixed $method, mixed $deserialize, mixed $options): mixed
+            {
+                return null;
+            }
 
-            public function BidiStreamingCall($channel, $method, $deserialize, $options) {}
+            public function BidiStreamingCall(mixed $channel, mixed $method, mixed $deserialize, mixed $options): mixed
+            {
+                return null;
+            }
         };
         $stub = new class ('127.0.0.1:7233', ['grpc_call_invoker' => $invoker] + WorkflowServiceClientFactory::channelOptions(self::connection())) extends \Grpc\BaseStub {
             public function send(): void
             {
+                /** @psalm-suppress InvalidArgument (as in ExtGrpcTransport: the extension reads a [class, method] pair) */
                 $this->_simpleRequest(self::class, new DescribeWorkflowExecutionRequest(), [DescribeWorkflowExecutionResponse::class, 'decode'], ['x-trace' => ['1']]);
             }
         };
@@ -177,18 +190,9 @@ final class TlsAndApiKeyWiringTest extends TestCase
         );
     }
 
-    private static function psr18(): ClientInterface&\stdClass
+    private static function psr18(): HeaderCapturingPsr18Client
     {
-        return new class extends \stdClass implements ClientInterface {
-            public ?RequestInterface $sent = null;
-
-            public function sendRequest(RequestInterface $request): ResponseInterface
-            {
-                $this->sent = $request;
-
-                return new Response(200, [], '{}');
-            }
-        };
+        return new HeaderCapturingPsr18Client();
     }
 
     private static function connection(): TemporalConnection
@@ -196,5 +200,17 @@ final class TlsAndApiKeyWiringTest extends TestCase
         $file = rawurlencode(__FILE__);
 
         return TemporalConnection::fromDsn("temporal+tls://127.0.0.1:7233?namespace=ns.acct&ca={$file}&cert={$file}&key={$file}&api_key=k3y");
+    }
+}
+
+final class HeaderCapturingPsr18Client implements ClientInterface
+{
+    public ?RequestInterface $sent = null;
+
+    public function sendRequest(RequestInterface $request): ResponseInterface
+    {
+        $this->sent = $request;
+
+        return new Response(200, [], '{}');
     }
 }
