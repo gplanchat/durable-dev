@@ -35,6 +35,22 @@ registered for the profiler. Nothing to change in code. `RunTimeline::of()` take
 `Block\Adminhtml\ProcessDetail`'s constructor gains a `PayloadRedactorInterface $redactor` before
 `$data`: a subclass that overrides the constructor passes it on.
 
+### Unused helpers removed from the core
+
+**Who is affected**: code that called one of these. Nothing in this repository, its demos or its
+documentation did, and none has a replacement to migrate to: each one read state the engine keeps
+for itself.
+
+| Removed | If you used it |
+|---|---|
+| `Awaitable\ExecutionBoundAwaitable` (interface) | implement `Awaitable` directly |
+| `ExecutionContext::pendingTimers()`, `pendingActivities()` | nothing: they exposed the engine's own bookkeeping |
+| `Awaitable\QuorumAwaitable::required()` | keep the count you passed to `some()` |
+| `Transport\InMemoryActivityTransport::pendingCount()`, `inspectPendingActivities()` | `peek()` and `nextDueAt()` remain |
+| `Transport\ActivityMessage::withAttempt()` | `retryingIn($message->retryDelay)` for `withAttempt($message->attempt + 1)`; for any other number, `new ActivityMessage(…, attempt: $n, firstQueuedAt: $message->firstQueuedAt, retryDelay: $message->retryDelay)` (named arguments; all properties are public). |
+| `Failure\ActivityRetryState::isTerminalBusinessFailure()` | `\in_array($state, [ActivityRetryState::NonRetryableFailure, ActivityRetryState::MaximumAttemptsReached, ActivityRetryState::Timeout, ActivityRetryState::RetryPolicyNotSet], true)` |
+| `Query\WorkflowQueryRunner::signalsReceived()`, `updatesHandled()` and their `WorkflowQueryEvaluator` statics | read `WorkflowSignalReceived` / `WorkflowUpdateHandled` from the journal |
+
 ### `durable.backend` replaces four keys; the configuration refuses what it used to build
 
 **Who is affected**: Symfony applications that set `event_store.type`, `workflow_metadata.type`,
