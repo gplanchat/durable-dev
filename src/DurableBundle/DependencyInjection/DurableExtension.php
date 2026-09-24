@@ -38,6 +38,7 @@ use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Bundle\Command\DurableWorkerCommand;
+use Gplanchat\Durable\Bundle\Command\SetupCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
 use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
@@ -173,6 +174,11 @@ final class DurableExtension extends Extension
             ->setPublic(false)
         ;
         $schema = new Reference('durable.dbal.schema');
+
+        $container->register(SetupCommand::class)
+            ->setArguments([$schema])
+            ->addTag('console.command')
+        ;
 
         // Without this listener, `doctrine:migrations:diff` does not see the journal's tables and
         // generates their removal. Registered only when the ORM is there: the DBAL bridge works
