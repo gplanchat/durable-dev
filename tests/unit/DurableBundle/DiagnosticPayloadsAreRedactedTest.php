@@ -142,6 +142,9 @@ final class SignupCredentials implements \JsonSerializable
         public readonly string $password,
     ) {}
 
+    /**
+     * @return array<string, string>
+     */
     public function jsonSerialize(): array
     {
         return ['username' => $this->username, 'password' => $this->password];

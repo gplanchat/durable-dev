@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Temporal;
 
 use Gplanchat\Bridge\Temporal\Journal\HistoryPageMerger;
-use Gplanchat\Bridge\Temporal\Spike\NativeExecutionSpike;
+use App\Temporal\NativeExecutionSpike;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
