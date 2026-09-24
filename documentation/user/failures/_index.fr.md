@@ -6,7 +6,8 @@ weight: 26
 # Échecs et réessais
 
 Une activité qui échoue, ce n'est pas un événement mais plusieurs, et savoir les distinguer est ce
-qui permet de décider s'il faut compenser, alerter, ou laisser le workflow mourir.
+qui permet de décider s'il faut compenser, alerter, ou laisser le workflow mourir. La compensation
+est montrée dans [Annulation](../cancellation/#compenser).
 
 ---
 
