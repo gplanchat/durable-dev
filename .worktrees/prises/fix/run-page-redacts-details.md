@@ -10,4 +10,4 @@
   `documentation/user/dashboard/_index{,.fr}.md`, `UPGRADE.md`.
 - **Order**: sabrina's #332 plugin column shares the plugin render test (one method each), not the
   template.
-- **State**: in progress — vera; reviewers sabrina, then bob (docs).
+- **State**: in review — PR #526, vera; reviewers sabrina, then bob (docs).
