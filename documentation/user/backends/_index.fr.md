@@ -23,7 +23,7 @@ lesquels vous choisissez.
 > `durable/temporal/dsn` dans `app/etc/env.php`, pas par un réglage.
 
 Les quatre font tourner le **même pilote à fibres** et le même code de workflows et d'activités.
-Trois d'entre eux se choisissent par `durable.event_store.type` (et `DURABLE_DSN` pour Temporal) ;
+Trois d'entre eux se choisissent par `durable.backend` (et `DURABLE_DSN` pour Temporal) ;
 **Illuminate n'en est pas une valeur** et ne le sera jamais ; voir
 [le backend Illuminate](#illuminate-backend) pour ce qui le lie à la place.
 
@@ -46,12 +46,7 @@ gRPC, et aucune persistance d'une requête à l'autre.
 ```yaml
 # config/packages/durable.yaml (ou when@test:)
 durable:
-    event_store:
-        type: in_memory
-    temporal:
-        dsn: null
-    workflow_metadata:
-        type: in_memory
+    backend: in_memory
     activity_transport:
         type: messenger
         transport_name: durable_activities
@@ -151,8 +146,7 @@ DURABLE_DSN=temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durab
 ```yaml
 # config/packages/durable.yaml
 durable:
-    event_store:
-        type: in_memory   # Temporal est la vraie source de l'historique ; l'en-mémoire sert de cache local en écriture traversante
+    backend: temporal
     temporal:
         dsn: '%env(DURABLE_DSN)%'
 ```
@@ -160,7 +154,7 @@ durable:
 Rien ne va dans `messenger.yaml` pour Temporal. S'il déclare encore `durable_workflows` ou
 `durable_activities` avec ce backend, le conteneur refuse de compiler et nomme le transport à
 retirer : ces noms appartiennent aux workers du bundle. L'exception est
-`durable.temporal.journal: false` : les workflows tournent alors en local, et ces deux transports
+`durable.backend: dbal` avec un DSN : les workflows tournent alors en local, et ces deux transports
 restent ceux de l'application.
 
 ### L'interface Temporal
@@ -186,8 +180,9 @@ Pour **Temporal Cloud**, activez TLS et pointez le point d'entrée Cloud :
 DURABLE_DSN=temporal://ACCOUNT.REGION.tmprl.cloud:7233?namespace=NAMESPACE.ACCOUNT&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=1
 ```
 
-Les certificats TLS se montent et se configurent par les identifiants de canal gRPC (voir les points
-d'extension dans les sources du pont).
+Avec une clé d'API, ajoutez `api_key=` (encodée pour l'URL) ; en mTLS, `cert=` et `key=` (chemins de
+fichiers PEM) ; avec une autorité privée, `ca=`. La liste complète est dans [les paramètres du
+DSN](../configuration/#format-du-dsn).
 
 ---
 
@@ -219,13 +214,7 @@ durable:
     dbal:
         connection: doctrine.dbal.default_connection
         lock_factory: lock.factory
-    event_store:
-        type: dbal
-    workflow_metadata:
-        type: dbal
-    child_workflow:
-        parent_link_store:
-            type: dbal
+    backend: dbal
     activity_transport:
         type: messenger
         transport_name: durable_activities
@@ -235,8 +224,9 @@ framework:
         default: '%env(LOCK_DSN)%'   # doctrine://default, redis://…, doit être partagé entre les workers
 ```
 
-Poser `event_store.type: dbal` en même temps qu'un `temporal.dsn` non vide lève à la compilation :
-le journal ne peut pas avoir deux sources de vérité.
+Ajouter un `temporal.dsn` garde le journal en SQL et ne sert du cluster que pour servir des
+opérations Nexus. `backend: temporal` lui confierait le journal à la place : il n'y a jamais de
+seconde source de vérité.
 
 ### Une reprise à la fois, la chose à ne pas rater {#une-reprise-à-la-fois--la-chose-à-ne-pas-rater}
 
@@ -273,7 +263,7 @@ qu'exige DUR030. Voir [DUR047](https://github.com/gplanchat/durable-dev/blob/mai
 
 ### Ce qui le lie n'est pas le YAML de cette page
 
-Ce n'est **pas une quatrième valeur d'`event_store.type`**, et ça ne le sera jamais : une
+Ce n'est **pas une quatrième valeur de `backend`**, et ça ne le sera jamais : une
 application Laravel ne lit pas le YAML de cette page. Le pont est la moitié stockage, et **ce qui le
 lie, c'est `gplanchat/durable-laravel`**, par son propre `config/durable.php` publié.
 
