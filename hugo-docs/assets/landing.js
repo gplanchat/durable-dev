@@ -1,23 +1,23 @@
 /*
- * Ce que le composant du canevas faisait et qui n'existe plus hors de lui :
- * la bascule de thème et les annotations ligne à ligne de l'exemple.
+ * What the canvas component did and that no longer exists outside it:
+ * the theme toggle and the line-by-line annotations of the example.
  *
- * Les deux marqueurs sont remplacés par ./import-design.py, qui lit les
- * annotations dans le composant d'origine plutôt que de les recopier : les
- * laisser en double se serait payé au premier changement du design.
+ * The two markers are replaced by ./import-design.py, which reads the
+ * annotations from the original component rather than copying them: keeping
+ * them duplicated would have been paid for at the first design change.
  */
 (function () {
   'use strict';
 
   var NOTES = __NOTES__;
   var DEFAULT = __DEFAULT_NOTE__;
-  // Le libellé nomme le thème vers lequel on bascule, pas le thème courant.
+  // The label names the theme being switched to, not the current theme.
   var THEMES = __THEME_LABELS__;
 
-  // --- Thème ---------------------------------------------------------------
-  // Trois états, pas deux : « clair », « sombre », et l'absence de choix, qui
-  // laisse décider prefers-color-scheme. Le bouton n'écrit que sur les deux
-  // premiers.
+  // --- Theme ---------------------------------------------------------------
+  // Three states, not two: "light", "dark", and the absence of a choice, which
+  // lets prefers-color-scheme decide. The button only writes the first
+  // two.
   var root = document.documentElement;
 
   function systemPrefersDark() {
@@ -41,11 +41,11 @@
     root.setAttribute('data-theme', next);
     try {
       localStorage.setItem('durable-theme', next);
-    } catch (e) { /* le thème vaut pour la visite, faute de pouvoir le garder */ }
+    } catch (e) { /* the theme holds for the visit, since it cannot be kept */ }
     paintThemeLabel();
   }
 
-  // Le libellé suit le système tant que personne n'a tranché.
+  // The label follows the system as long as nobody has decided.
   if (window.matchMedia) {
     var media = window.matchMedia('(prefers-color-scheme: dark)');
     var onChange = function () {
@@ -55,7 +55,7 @@
     else if (media.addListener) media.addListener(onChange);
   }
 
-  // --- Annotations de l'exemple -------------------------------------------
+  // --- Example annotations -----------------------------------------------
   function showNote(index) {
     var note = NOTES[index] || DEFAULT;
     var title = document.querySelector('[data-dz-note-title]');
@@ -68,8 +68,8 @@
     showNote(-1);
   }
 
-  // Délégation : un seul écouteur, et les lignes peuvent changer de nombre
-  // sans qu'on y revienne.
+  // Delegation: a single listener, and the number of lines can change
+  // without coming back to this.
   document.addEventListener('click', function (event) {
     var target = event.target;
     if (target && target.closest && target.closest('[data-dz-theme-toggle]')) toggleTheme();
@@ -89,7 +89,7 @@
     if (zone && !zone.contains(event.relatedTarget)) clearNote();
   });
 
-  // Le survol n'existe pas au doigt : sur écran tactile, une ligne se touche.
+  // Hover does not exist for a finger: on a touch screen, a line is tapped.
   document.addEventListener('focusin', function (event) {
     var line = event.target && event.target.closest && event.target.closest('[data-dz-note]');
     if (line) showNote(parseInt(line.getAttribute('data-dz-note'), 10));

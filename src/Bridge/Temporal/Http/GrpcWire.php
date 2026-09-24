@@ -71,7 +71,11 @@ final class GrpcWire
         return [(int) $headers['grpc-status'], rawurldecode($headers['grpc-message'] ?? '')];
     }
 
-    /** The call deadline in milliseconds from gRPC-style options (`timeout` in microseconds), 0 for none. */
+    /**
+     * The call deadline in milliseconds from gRPC-style options (`timeout` in microseconds), 0 for none.
+     *
+     * @param array<string, mixed> $options
+     */
     public static function timeoutMs(array $options): int
     {
         $timeout = $options['timeout'] ?? 0;
@@ -79,7 +83,13 @@ final class GrpcWire
         return (\is_int($timeout) || \is_float($timeout)) && $timeout > 0 ? (int) ceil((float) $timeout / 1000.0) : 0;
     }
 
-    /** gRPC metadata (name => value or list of values) as header lines. */
+    /**
+     * gRPC metadata (name => value or list of values) as header lines.
+     *
+     * @param array<string, mixed> $metadata
+     *
+     * @return list<string>
+     */
     public static function metadataHeaders(array $metadata): array
     {
         $headers = [];

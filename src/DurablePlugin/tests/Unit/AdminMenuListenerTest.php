@@ -18,6 +18,7 @@ final class AdminMenuListenerTest extends TestCase
             /** @var array<string, object> */
             private array $children = [];
 
+            /** @param array<string, mixed> $options */
             public function addChild(string $name, array $options = []): object
             {
                 $this->options[$name] = $options;
@@ -38,6 +39,7 @@ final class AdminMenuListenerTest extends TestCase
         $menu = new class ($configurationMenu) {
             public function __construct(private readonly object $configurationMenu) {}
 
+            /** @param array<string, mixed> $_options */
             public function addChild(string $_name, array $_options = []): object
             {
                 throw new \AssertionError('Root menu should not receive durable child directly.');
