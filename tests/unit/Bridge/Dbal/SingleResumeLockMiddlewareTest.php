@@ -46,7 +46,7 @@ final class SingleResumeLockMiddlewareTest extends TestCase
             $heldDuringHandling = !$factory->createLock('durable-resume-exec-1')->acquire(false);
         });
 
-        $middleware->handle(new Envelope(new ResumeWorkflowMessage('exec-1'), [new ReceivedStamp('durable_workflows')]), $stack);
+        $middleware->handle(new Envelope(new ResumeWorkflowMessage('exec-1')), $stack);
 
         self::assertTrue($heldDuringHandling, 'the lock must be held during the resume');
         self::assertTrue(
@@ -65,7 +65,7 @@ final class SingleResumeLockMiddlewareTest extends TestCase
         });
 
         try {
-            $middleware->handle(new Envelope(new ResumeWorkflowMessage('exec-1'), [new ReceivedStamp('durable_workflows')]), $stack);
+            $middleware->handle(new Envelope(new ResumeWorkflowMessage('exec-1')), $stack);
             self::fail('the handler exception must propagate');
         } catch (\RuntimeException) {
         }
@@ -116,21 +116,17 @@ final class SingleResumeLockMiddlewareTest extends TestCase
         self::assertTrue($factory->createLock('durable-resume-exec-1')->acquire(false), 'and the lock is released after both');
     }
 
-    public function testSendingAResumeTakesNoLock(): void
+    public function testAResumeHandledWithoutATransportIsStillSerialised(): void
     {
-        // Only the receive pass replays. A controller sending a resume while a worker replays the
-        // same execution must not wait for that worker.
+        // Routed to no transport, a resume is handled on the dispatching call, with no
+        // ReceivedStamp: it must still wait its turn behind another holder.
         $factory = self::failFastFactory();
-        $held = $factory->createLock('durable-resume-exec-1');
-        $held->acquire(false);
+        $other = $factory->createLock('durable-resume-exec-1');
+        $other->acquire(false);
 
-        $passedThrough = false;
-        $stack = $this->stackRunning(static function () use (&$passedThrough): void {
-            $passedThrough = true;
-        });
-        (new SingleResumeLockMiddleware($factory, 2.0))->handle(new Envelope(new ResumeWorkflowMessage('exec-1')), $stack);
+        $this->expectException(\Symfony\Component\Lock\Exception\LockAcquiringException::class);
 
-        self::assertTrue($passedThrough);
+        (new SingleResumeLockMiddleware($factory, 2.0))->handle(new Envelope(new ResumeWorkflowMessage('exec-1')), $this->stackRunning(static function (): void {}));
     }
 
     /**

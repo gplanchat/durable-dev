@@ -10,7 +10,6 @@ use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
 use Symfony\Component\Messenger\Middleware\StackInterface;
-use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 
 /**
  * One resume at a time per execution.
@@ -44,14 +43,11 @@ final class SingleResumeLockMiddleware implements MiddlewareInterface
     {
         $executionId = self::executionIdOf($envelope->getMessage());
 
-        // Only a received message replays: sending a resume is not a replay, and a controller
-        // must not wait for a worker. And the pass that holds the lock may dispatch the next
-        // resume of the same execution on the same bus: asking again for a lock this process
-        // holds waited for the TTL on every step (#254).
-        if (null === $executionId
-            || null === $envelope->last(ReceivedStamp::class)
-            || isset($this->held[$executionId])
-        ) {
+        // The pass that holds the lock dispatches the next resume of the same execution on the
+        // same bus: asking again for a lock this process holds waited for the TTL on every step
+        // (#254). Every other pass still locks, sends included: a resume routed to no transport is
+        // handled right there, without a ReceivedStamp, and needs the lock as much as a received one.
+        if (null === $executionId || isset($this->held[$executionId])) {
             return $stack->next()->handle($envelope, $stack);
         }
 

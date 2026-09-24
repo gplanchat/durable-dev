@@ -61,7 +61,7 @@ below is set to `dbal`; ignored otherwise, so it costs nothing to leave at its d
 |-----|------|---------|-------------|
 | `connection` | service ID | `doctrine.dbal.default_connection` | The `Doctrine\DBAL\Connection` the stores write to. |
 | `lock_factory` | service ID | `lock.factory` | The `LockFactory` that serialises resumes of one execution. **It is only as safe as your lock store**: an in-memory or per-process factory with several workers gives back the failure the lock exists to prevent. |
-| `lock_ttl` | float, seconds | `300` | How long a resume lock outlives a worker that died holding it. It is not refreshed during a pass, so **it must exceed the longest resume pass**: past it, a second worker replays the same execution in parallel. A pass replays the journal and schedules the next commands; activities run outside it, so a pass is usually well under a second. Only a received message takes the lock: sending a resume never waits for a worker. |
+| `lock_ttl` | float, seconds | `300` | How long a resume lock outlives a worker that died holding it. It is not refreshed during a pass, so **it must exceed the longest resume pass**: past it, a second worker replays the same execution in parallel. A pass replays the journal and schedules the next commands, which usually takes well under a second. Activities run outside it, except on a `sync://` activity transport, where each one runs inside the pass and its duration counts. |
 
 The trade this backend makes, and why the lock is load-bearing, are on the
 [Backends](../backends/#dbal-backend) page.
