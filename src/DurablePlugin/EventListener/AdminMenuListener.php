@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Plugin\EventListener;
 
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-
+/**
+ * Adds the dashboard to the Sylius admin menu.
+ *
+ * The event stays untyped on purpose: typing it against Sylius's `MenuBuilderEvent` would make the
+ * plugin require Sylius, and Sylius 2 does not run on Symfony 8, which the monorepo's root suite
+ * tests (owner decision on #381, 2026-09-24). An unexpected payload is a no-op.
+ */
 final class AdminMenuListener
 {
-    public function __construct(
-        private readonly UrlGeneratorInterface $urlGenerator,
-    ) {}
-
     public function addDashboardItem(object $event): void
     {
         if (!\method_exists($event, 'getMenu')) {
@@ -35,7 +36,8 @@ final class AdminMenuListener
         $configurationMenu
             ->addChild('durable_dashboard', [
                 'label' => 'Durable Dashboard',
-                'uri' => $this->urlGenerator->generate('gplanchat_durable_plugin_admin_dashboard'),
+                // A route, not a URI: KnpMenu's route voter marks the entry active on its page.
+                'route' => 'gplanchat_durable_plugin_admin_dashboard',
             ])
             ->setLabelAttribute('icon', 'tabler:clock')
         ;

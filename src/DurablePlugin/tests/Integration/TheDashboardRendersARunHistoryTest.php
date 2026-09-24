@@ -155,8 +155,8 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
 
     private function twig(): Environment
     {
-        $plugin = new FilesystemLoader([\dirname(__DIR__, 2) . '/Resources/views'], null);
-        $plugin->addPath(\dirname(__DIR__, 2) . '/Resources/views', 'DurablePlugin');
+        $plugin = new FilesystemLoader([\dirname(__DIR__, 2) . '/templates'], null);
+        $plugin->addPath(\dirname(__DIR__, 2) . '/templates', 'DurablePlugin');
 
         // The Sylius admin chrome is not installed here, and does not have to be: this test guards
         // the page, not the store.

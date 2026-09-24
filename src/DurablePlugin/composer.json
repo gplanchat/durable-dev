@@ -12,7 +12,7 @@
         "dashboard"
     ],
     "license": "MIT",
-    "type": "symfony-bundle",
+    "type": "sylius-plugin",
     "require": {
         "gplanchat/durable": "self.version",
         "gplanchat/durable-bundle": "self.version",
