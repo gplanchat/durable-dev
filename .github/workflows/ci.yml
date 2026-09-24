@@ -840,7 +840,7 @@ jobs:
         # job names can move without touching the protection. A skipped job is not a failure.
         name: ci-ok
         if: always()
-        needs: [qa, symfony-matrix, laravel, sylius-shop, magento-matrix, magento-boot, static-analysis, symfony-sample, temporal-bridge, coverage, temporal-integration, no-grpc, grpc-integration, docker-compose-stack]
+        needs: [qa, symfony-matrix, laravel, sylius-shop, magento-matrix, magento-boot, static-analysis, symfony-sample, guide-follows, temporal-bridge, coverage, temporal-integration, no-grpc, grpc-integration, docker-compose-stack]
         runs-on: ubuntu-latest
         timeout-minutes: 5
         steps:
