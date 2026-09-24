@@ -373,6 +373,34 @@ You never instantiate activity implementations inside the workflow body.
 | Entry | At least one `#[AsWorkflowMethod]`; use `default: true` if multiple |
 | I/O | None in the workflow; use activities |
 | Calls to work | Through an **`ActivityStub`**, built in the constructor from an activity contract |
+| `finally` | Runs on every pass that suspends, not once per execution; keep it free of work |
+
+## `finally` runs on every pass that suspends
+
+A workflow that waits is not kept in memory between passes. Each pass replays it up to the next
+wait, then drops it, and PHP runs its `finally` blocks when it drops it. Temporal's Java and Go
+SDKs do the same when they evict a cached workflow.
+
+```php
+try {
+    return $env->await($this->payments->charge($order));
+} finally {
+    $this->released = true;                       // runs on each pass that waits here
+    $this->inventory->release($order);            // refused while the pass is being dropped
+}
+```
+
+- **Plain code in a `finally` runs once per pass.** Setting a field, or adding to a log kept in
+  the workflow, happens again every time the workflow is resumed and waits again.
+- **Work started from a `finally` is refused while the pass is dropped.** An activity, a timer,
+  a child or a side effect started then never reaches the journal, and an `await` there does not
+  wait. The pass ends as it would have without the `finally`.
+- **On the pass where the workflow really ends**, by returning, failing or being cancelled, the
+  `finally` runs as usual, and the work it starts is recorded.
+
+Cleanup that must happen once goes in a `catch`, or after the `try`, where the workflow reaches it
+only when it really gets there: compensation is written that way, see
+[Cancellation](../cancellation/).
 
 ## See also
 

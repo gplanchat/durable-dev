@@ -88,6 +88,11 @@ Trois choses à savoir avant de s'en servir :
 - **Une exécution passée par cet endroit avant que le point n'existe reçoit `DEFAULT_VERSION`.**
   Elle a commencé sur l'ancien comportement, elle finira dessus. Rien n'est écrit pour elle : elle
   est reconnue, pas marquée.
+- **La reconnaître suppose du travail enregistré plus loin.** « Passée par cet endroit » se déduit
+  de l'activité, du timer, de l'enfant, de l'opération Nexus ou du side effect que le journal
+  contient au-delà du point. Une exécution qui l'a passé et n'attend plus qu'une condition (un
+  signal ou une mise à jour) n'en a pas : un point inséré avant cette attente lui donne la nouvelle
+  version. Placez le point après l'attente, ou avant du travail enregistré.
 - **La garde de divergence s'applique toujours partout ailleurs.** Déclarer un point de changement
   n'autorise pas un changement non déclaré trois lignes plus bas : celui-là arrête toujours
   l'exécution.
@@ -104,6 +109,13 @@ temporal workflow list --query 'TemporalChangeVersion = "add-discount-1"'
 
 Une réponse vide signifie que plus personne n'est en version 1, et que la branche `DEFAULT_VERSION`
 peut disparaître.
+
+Quand une branche part, relevez le minimum avec elle : `version('add-discount', 1, 1)` une fois la
+branche `DEFAULT_VERSION` supprimée. Une exécution encore sur une version hors de cette plage est
+alors refusée par une `WorkflowTaskFailure` qui nomme le point de changement, sa version et la
+plage, au lieu de prendre en silence la branche restante. Sur Temporal, la tâche échoue et
+l'exécution attend un code qui la supporte. Sur les backends à journal, l'exécution se termine,
+comme pour une divergence (voir plus bas).
 
 **Sur les backends à journal (en mémoire, DBAL et Illuminate), il n'y a pas d'attribut de recherche
 et donc pas de réponse équivalente.** Y savoir qu'une branche est morte revient à connaître ses

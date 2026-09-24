@@ -284,6 +284,29 @@ public function hasSideEffectForSlot(int $slot): bool
 and `hasSideEffectForSlot()` is what decides whether the closure runs.
 
 
+### `version()` honours `$minSupported` and `$maxSupported`
+
+**Who is affected**: workflows that call `version()` with a `$minSupported` above the version some
+of their executions are on. Typically, the `DEFAULT_VERSION` branch was deleted and `$minSupported`
+raised, or `$minSupported` was never set to `DEFAULT_VERSION` in the first place.
+
+**What was broken.** `$minSupported` was never read. An execution on a version whose branch had
+been deleted silently took the branch that remained (#321). An execution whose recorded version was
+above `$maxSupported`, after a rollback, carried on as well.
+
+**What changes.** Outside the range, `version()` throws `WorkflowTaskFailure`, naming the change
+point, the execution's version and the range. On Temporal the task fails and the execution waits
+for code that supports it. On the journal backends the execution ends, as a replay divergence does.
+
+**What to write.** Nothing, if every call keeps `ChangePoint::DEFAULT_VERSION` as its minimum for as
+long as the old branch exists. Otherwise, set the minimum to the oldest version the code still
+plays. Rector can do nothing here: only you know which branches the code still carries.
+
+```php
+// The DEFAULT_VERSION branch is still in the code: say so.
+$version = $env->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
+```
+
 ### `version()` no longer switches an in-flight execution
 
 **Who is affected**: every application that calls `version()`. Nothing to write; the behaviour
