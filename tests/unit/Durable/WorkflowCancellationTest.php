@@ -180,6 +180,7 @@ final class WorkflowCancellationTest extends TestCase
                 return $env->await(static function () use (&$approved): bool {
                     return $approved;
                 });
+                // @phpstan-ignore catch.neverThrown (await() delivers the cancellation as this exception)
             } catch (WorkflowCancelledFailure $e) {
                 $env->await($env->activityStub(SuiteActivities::class)->refund());
                 // A compensation that waits on a condition of its own.

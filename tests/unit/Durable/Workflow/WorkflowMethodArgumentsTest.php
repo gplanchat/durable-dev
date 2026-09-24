@@ -144,7 +144,7 @@ final class NamesAMissingContractWorkflow
     // @phpstan-ignore missingType.generics (wrong on purpose: the loader must refuse this signature)
     #[AsWorkflowMethod]
     public function run(
-        // @phpstan-ignore durable.activities.missingGeneric (wrong on purpose: the loader must refuse this signature)
+        // @phpstan-ignore durable.activities.missingGeneric, argument.type (wrong on purpose: the loader must refuse this signature)
         #[Activities('unit\\Gplanchat\\Durable\\Workflow\\NoSuchContract')]
         ActivityStub $greeting,
     ): void {}

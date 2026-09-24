@@ -17,7 +17,7 @@ final class CallbackWorkflowResumeDispatcher implements WorkflowResumeDispatcher
     ) {}
 
     /**
-     * @param array<string, mixed> $pendingUpdates
+     * @param list<array{name: string, arguments: array<string, mixed>}> $pendingUpdates
      */
     public function dispatchResume(string $executionId, array $pendingUpdates = []): void
     {

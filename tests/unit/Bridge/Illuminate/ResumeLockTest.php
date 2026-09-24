@@ -59,11 +59,15 @@ final class ResumeLockTest extends TestCase
         $lock = $this->lock(waitSeconds: 0);
 
         try {
-            $lock->around('exec-1', static function (): string { throw new \RuntimeException('boum'); });
+            $lock->around('exec-1', static function (): string {
+                throw new \RuntimeException('boum');
+            });
+            // @phpstan-ignore catch.neverThrown (the closure throws it; PHPStan does not follow it through around())
         } catch (\RuntimeException) {
             // We want what comes next, not the exception.
         }
 
+        // @phpstan-ignore deadCode.unreachable (the closure throws it; PHPStan does not follow it through around())
         self::assertSame(
             'repris',
             $lock->around('exec-1', static fn(): string => 'repris'),

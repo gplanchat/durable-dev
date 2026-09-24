@@ -69,6 +69,10 @@ parameters:
         # still the check the test makes, and what keeps it from being a test without assertion.
         - identifier: staticMethod.alreadyNarrowedType
           path: tests/*
+        # Test workflows receive their environment because the contract hands it over, payload
+        # objects are serialised whole, and recorders write through a reference: none is read back.
+        - identifier: property.onlyWritten
+          path: tests/*
         # The same google/protobuf MapField stubs as TemporalWorkflowCommandBuffer above.
         - identifier: argument.type
           path: tests/integration/Temporal/NexusHeaderRulesTest.php
