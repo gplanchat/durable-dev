@@ -8,6 +8,8 @@ use Gplanchat\Durable\ChildWorkflowRunner;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
 use Gplanchat\Durable\Event\ChildWorkflowFailed;
 use Gplanchat\Durable\Event\ExecutionCompleted;
+use Gplanchat\Durable\Exception\DurableChildWorkflowFailedException;
+use Gplanchat\Durable\Exception\WorkflowSuspendedException;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\ParentChildWorkflowCoordinator;
@@ -17,6 +19,7 @@ use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
 use PHPUnit\Framework\TestCase;
+use unit\Durable\Fixtures\SuiteActivities;
 
 /**
  * A child executed **inline** (ChildWorkflowRunner without a deferred Messenger start) journalled
@@ -111,6 +114,37 @@ final class SyncChildWorkflowTest extends TestCase
             static fn(object $e): bool => $e instanceof ChildWorkflowFailed,
         ));
         self::assertStringContainsString('child exploded', $failed[0]->failureMessage());
+    }
+
+    public function testTheParentSeesTheSameChildFailureOnThePassAndOnReplay(): void
+    {
+        $this->registry->registerClass(ExplodingChild::class);
+
+        $seen = [];
+        $handler = static function (WorkflowEnvironment $env) use (&$seen): mixed {
+            try {
+                $env->await($env->childWorkflowStub(ExplodingChild::class)->run());
+            } catch (DurableChildWorkflowFailedException $e) {
+                $seen[] = [$e->workflowFailureKind(), $e->workflowFailureClass(), $e->getMessage(), $e->getPrevious()];
+            }
+
+            // Suspends, so that the next resume replays the child's slot.
+            return $env->await($env->activityStub(SuiteActivities::class)->never());
+        };
+
+        try {
+            $this->engine->start('parent-5', $handler);
+        } catch (WorkflowSuspendedException) {
+        }
+
+        try {
+            $this->engine->resume('parent-5', $handler);
+        } catch (WorkflowSuspendedException) {
+        }
+
+        self::assertCount(2, $seen);
+        self::assertSame(\DomainException::class, $seen[0][1], 'the failure class is known on the first pass');
+        self::assertEquals($seen[0], $seen[1], 'a workflow branching on the failure takes the same path on replay');
     }
 
     public function testParentStaysActiveWhileTheChildCompletes(): void

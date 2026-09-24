@@ -180,6 +180,30 @@ public function cancellationDelivery(): ?array
 A backend that stores events through its own mapper must also map `WorkflowCancellationDelivered`;
 `EventStoreConformanceTestCase` now round-trips it.
 
+### An inline child's failure no longer carries `getPrevious()` on the first pass
+
+**Who is affected**: workflow code that catches `DurableChildWorkflowFailedException` from an
+inline child (in-memory, DBAL and Illuminate backends) and reads `getPrevious()`. Temporal is
+unchanged.
+
+**What was broken.** The first pass handed the child's throwable as `getPrevious()` and left
+`workflowFailureKind()` and `workflowFailureClass()` empty. Every replay did the opposite: no
+previous, and a kind and class that were never recorded either. Code branching on them took one
+path on the first pass and another on replay (#318).
+
+**What to write.** Branch on the recorded information, which both passes now carry. Rector can do
+nothing here: the replacement depends on what the workflow was checking.
+
+```php
+// Before: true on the first pass only
+if ($e->getPrevious() instanceof PaymentRefused) { /* ... */ }
+
+// After: the same answer on every pass
+if (PaymentRefused::class === $e->workflowFailureClass()) { /* ... */ }
+```
+
+`workflowFailureContext()` carries the context the child's failure recorded.
+
 ### `WorkflowHistorySourceInterface` gains `hasSideEffectForSlot()`
 
 **Who is affected**: only whoever **implements** `WorkflowHistorySourceInterface` — that is, whoever
