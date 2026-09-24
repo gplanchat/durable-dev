@@ -27,6 +27,8 @@ use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
+use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
+use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\RecordedDetails;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
@@ -52,6 +54,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         private readonly DurableExecutionTrace $trace,
         private readonly WorkflowMetadataStore $metadataStore,
         private readonly EventStoreInterface $eventStore,
+        private readonly PayloadRedactorInterface $redactor = new KeyPatternPayloadRedactor(),
     ) {}
 
     #[\Override]
@@ -119,7 +122,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         // what the blanket barrier did not guarantee, `$this->data` being typed
         // `array|Data` on the parent.
         foreach ($this->data as $key => $value) {
-            $this->data[$key] = RecordedDetails::storable($value);
+            $this->data[$key] = $this->redactor->redact(RecordedDetails::storable($value));
         }
     }
 
@@ -374,7 +377,8 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         }
 
         try {
-            $j = json_encode($payload, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE);
+            // Already a string when the barrier in collect() runs, so it redacts here.
+            $j = json_encode($this->redactor->redact($payload), \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE);
         } catch (\JsonException) {
             return '…';
         }
