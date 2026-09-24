@@ -20,6 +20,6 @@ final class DeliverWorkflowUpdateToTemporalHandler
 
     public function __invoke(DeliverWorkflowUpdateMessage $message): void
     {
-        $this->client->update($this->client->workflowId($message->executionId), $message->updateName, $message->arguments);
+        $this->client->update($this->client->workflowId($message->executionId), $message->updateName, $message->arguments, $message->updateId);
     }
 }

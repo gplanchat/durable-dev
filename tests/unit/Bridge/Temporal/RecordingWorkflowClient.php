@@ -14,8 +14,13 @@ use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
  */
 final class RecordingWorkflowClient implements WorkflowClientInterface
 {
-    /** @var list<array{string, string, string, array<string, mixed>}> */
+    /** @var list<array{string, string, string, array<string, mixed>, string|null}> */
     public array $calls = [];
+
+    /**
+     * The next call is recorded, then fails: the cluster accepted it and the answer was lost.
+     */
+    public bool $loseNextAnswer = false;
 
     public function startAsync(string $workflowType, array $payload, string $executionId): string
     {
@@ -32,9 +37,10 @@ final class RecordingWorkflowClient implements WorkflowClientInterface
         throw new \LogicException('not expected');
     }
 
-    public function signal(string $workflowId, \BackedEnum|string $signalName, array $args = []): void
+    public function signal(string $workflowId, \BackedEnum|string $signalName, array $args = [], ?string $requestId = null): void
     {
-        $this->calls[] = ['signal', $workflowId, $signalName instanceof \BackedEnum ? (string) $signalName->value : $signalName, $args];
+        $this->calls[] = ['signal', $workflowId, $signalName instanceof \BackedEnum ? (string) $signalName->value : $signalName, $args, $requestId];
+        $this->answer();
     }
 
     public function query(string $workflowId, string $queryType, array $args = []): mixed
@@ -42,9 +48,10 @@ final class RecordingWorkflowClient implements WorkflowClientInterface
         throw new \LogicException('not expected');
     }
 
-    public function update(string $workflowId, string $updateName, array $args = []): mixed
+    public function update(string $workflowId, string $updateName, array $args = [], ?string $updateId = null): mixed
     {
-        $this->calls[] = ['update', $workflowId, $updateName, $args];
+        $this->calls[] = ['update', $workflowId, $updateName, $args, $updateId];
+        $this->answer();
 
         return null;
     }
@@ -52,5 +59,14 @@ final class RecordingWorkflowClient implements WorkflowClientInterface
     public function workflowId(string $executionId): string
     {
         return 'wf-' . $executionId;
+    }
+
+    private function answer(): void
+    {
+        if ($this->loseNextAnswer) {
+            $this->loseNextAnswer = false;
+
+            throw new \RuntimeException('DEADLINE_EXCEEDED');
+        }
     }
 }

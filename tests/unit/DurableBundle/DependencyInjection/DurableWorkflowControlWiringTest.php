@@ -35,12 +35,12 @@ final class DurableWorkflowControlWiringTest extends TestCase
         $client = new RecordingWorkflowClient();
         $bus = $this->busOf($this->load(['temporal' => ['dsn' => self::DSN]]), $client);
 
-        $bus->dispatch(new DeliverWorkflowSignalMessage('exec-1', 'approve', ['by' => 'alice']));
-        $bus->dispatch(new DeliverWorkflowUpdateMessage('exec-1', 'setDiscount', ['percent' => 10]));
+        $bus->dispatch(new DeliverWorkflowSignalMessage('exec-1', 'approve', ['by' => 'alice'], 'sig-1'));
+        $bus->dispatch(new DeliverWorkflowUpdateMessage('exec-1', 'setDiscount', ['percent' => 10], 'upd-1'));
 
         self::assertSame([
-            ['signal', 'wf-exec-1', 'approve', ['by' => 'alice']],
-            ['update', 'wf-exec-1', 'setDiscount', ['percent' => 10]],
+            ['signal', 'wf-exec-1', 'approve', ['by' => 'alice'], 'sig-1'],
+            ['update', 'wf-exec-1', 'setDiscount', ['percent' => 10], 'upd-1'],
         ], $client->calls);
     }
 

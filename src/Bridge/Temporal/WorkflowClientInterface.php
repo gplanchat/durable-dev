@@ -52,9 +52,11 @@ interface WorkflowClientInterface
      * The name is given as a {@see \BackedEnum}, as on the workflow side; the bare string stays
      * accepted for emitters that are not PHP (ADR DUR034).
      *
-     * @param array<string, mixed> $args Signal arguments.
+     * @param array<string, mixed> $args      Signal arguments.
+     * @param string|null          $requestId One id per logical signal: the cluster drops a second
+     *                                        one carrying it. Drawn by the client when null.
      */
-    public function signal(string $workflowId, \BackedEnum|string $signalName, array $args = []): void;
+    public function signal(string $workflowId, \BackedEnum|string $signalName, array $args = [], ?string $requestId = null): void;
 
     /**
      * Evaluates a query on a running workflow.
@@ -67,10 +69,13 @@ interface WorkflowClientInterface
     /**
      * Delivers a transactional update to a running workflow and waits for the result.
      *
-     * @param array<string, mixed> $args Update arguments.
+     * @param array<string, mixed> $args     Update arguments.
+     * @param string|null          $updateId One id per logical update: the cluster answers a second
+     *                                       one carrying it with the first outcome. Drawn by the
+     *                                       client when null.
      * @return mixed The decoded update result.
      */
-    public function update(string $workflowId, string $updateName, array $args = []): mixed;
+    public function update(string $workflowId, string $updateName, array $args = [], ?string $updateId = null): mixed;
 
     /**
      * Computes the Temporal workflow ID for a given Durable execution ID.

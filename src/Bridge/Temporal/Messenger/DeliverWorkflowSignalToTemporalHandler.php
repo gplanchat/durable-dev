@@ -20,6 +20,6 @@ final class DeliverWorkflowSignalToTemporalHandler
 
     public function __invoke(DeliverWorkflowSignalMessage $message): void
     {
-        $this->client->signal($this->client->workflowId($message->executionId), $message->signalName, $message->payload);
+        $this->client->signal($this->client->workflowId($message->executionId), $message->signalName, $message->payload, $message->requestId);
     }
 }
