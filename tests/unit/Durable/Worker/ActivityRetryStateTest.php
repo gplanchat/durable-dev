@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Worker;
 
 use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\ActivityTimeouts;
 use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\ActivityCompleted;
@@ -155,6 +156,47 @@ final class ActivityRetryStateTest extends TestCase
         self::assertSame(1, $intermediate[0]->attempt());
         self::assertNull($this->lastFailure($store));
         self::assertNotNull($this->completed($store));
+    }
+
+    public function testAnAttemptOverStartToCloseFailsAndIsRetried(): void
+    {
+        $store = new InMemoryEventStore();
+        $runs = 0;
+        $this->drain($store, new InMemoryActivityTransport(), static function () use (&$runs): string {
+            if (0 === $runs++) {
+                usleep(20_000);
+            }
+
+            return 'ok';
+        }, new ActivityOptions(
+            RetryLimit::ofAttempts(3),
+            initialInterval: Duration::seconds(0.0),
+            timeouts: new ActivityTimeouts(startToClose: Duration::seconds(0.01)),
+        ));
+
+        $intermediate = $this->taskFailures($store);
+        self::assertCount(1, $intermediate);
+        self::assertStringContainsString('start-to-close', $intermediate[0]->failureMessage());
+        self::assertSame(ActivityRetryState::InProgress, $intermediate[0]->retryState());
+        self::assertNull($this->lastFailure($store));
+        self::assertSame('ok', $this->completed($store)?->result());
+    }
+
+    public function testTheLastAttemptOverStartToCloseEndsInTimeout(): void
+    {
+        $store = new InMemoryEventStore();
+        $this->drain($store, new InMemoryActivityTransport(), static function (): string {
+            usleep(20_000);
+
+            return 'too late';
+        }, new ActivityOptions(
+            RetryLimit::ofAttempts(2),
+            initialInterval: Duration::seconds(0.0),
+            timeouts: new ActivityTimeouts(startToClose: Duration::seconds(0.01)),
+        ));
+
+        self::assertNull($this->completed($store), 'the late result of a timed-out attempt is discarded');
+        self::assertSame(ActivityRetryState::Timeout, $this->lastFailure($store)?->retryState());
     }
 
     public function testTransportDelegatedRetryKeepsRealExceptionAndStaysNonTerminal(): void
