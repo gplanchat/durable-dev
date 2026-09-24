@@ -65,6 +65,26 @@ final class TemporalBackendTest extends TestCase
         self::assertInstanceOf(TemporalConnection::class, $app->make(TemporalConnection::class));
     }
 
+    public function testTheApplicationsGuzzleClientIsTheOneTransportGuzzleUses(): void
+    {
+        // Proxy, TLS, middleware: whatever the application set on its client applies to gRPC.
+        $resolved = false;
+        $app = $this->container(['backend' => 'temporal', 'temporal' => [
+            'dsn' => self::DSN . '&transport=guzzle',
+            'guzzle_client' => 'app.guzzle',
+        ]]);
+        $app->bind('app.guzzle', static function () use (&$resolved): \GuzzleHttp\Client {
+            $resolved = true;
+
+            return new \GuzzleHttp\Client();
+        });
+        (new DurableServiceProvider($app))->register();
+
+        $app->make('durable.temporal.client');
+
+        self::assertTrue($resolved, 'durable.temporal.guzzle_client names the binding the client is built with');
+    }
+
     /** @param array<string, mixed> $durable */
     private function container(array $durable): Container
     {

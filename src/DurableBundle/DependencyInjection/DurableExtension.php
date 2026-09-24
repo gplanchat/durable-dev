@@ -373,13 +373,18 @@ final class DurableExtension extends Extension
                 ->setArguments([$dsn])
             ;
 
-            $container->register('durable.temporal.workflow_service_client', WorkflowServiceClientInterface::class)
+            $client = $container->register('durable.temporal.workflow_service_client', WorkflowServiceClientInterface::class)
                 ->setFactory([WorkflowServiceClientFactory::class, 'create'])
                 ->setArguments([
                     new Reference('durable.temporal.connection'),
                     new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 ])
             ;
+            // transport=guzzle over the application's client; any other transport ignores it.
+            $guzzleClient = $temporalConfig['guzzle_client'] ?? null;
+            if (\is_string($guzzleClient) && '' !== $guzzleClient) {
+                $client->addArgument(new Reference($guzzleClient));
+            }
 
             $container->register(WorkflowServiceActivityRpc::class)
                 ->setArguments([new Reference('durable.temporal.workflow_service_client')])
