@@ -96,6 +96,7 @@ final class WholeInputWorkflow
 #[AsWorkflow('stub-without-contract')]
 final class StubWithoutContractWorkflow
 {
+    // @phpstan-ignore missingType.generics (wrong on purpose: the loader must refuse this signature)
     #[AsWorkflowMethod]
     public function run(ActivityStub $greeting): void {}
 }
@@ -104,6 +105,7 @@ final class StubWithoutContractWorkflow
 final class ContractOnAStringWorkflow
 {
     #[AsWorkflowMethod]
+    // @phpstan-ignore durable.activities.missingGeneric (wrong on purpose: the loader must refuse this signature)
     public function run(#[Activities(SuiteActivities::class)] string $greeting): void {}
 }
 
@@ -115,7 +117,9 @@ interface NotAnActivityContract
 #[AsWorkflow('not-a-contract')]
 final class NotAContractWorkflow
 {
+    // @phpstan-ignore missingType.generics (wrong on purpose: the loader must refuse this signature)
     #[AsWorkflowMethod]
+    // @phpstan-ignore durable.activities.missingGeneric (wrong on purpose: the loader must refuse this signature)
     public function run(#[Activities(NotAnActivityContract::class)] ActivityStub $greeting): void {}
 }
 
@@ -137,8 +141,10 @@ interface GreetingOperation
 #[AsWorkflow('names-a-missing-contract')]
 final class NamesAMissingContractWorkflow
 {
+    // @phpstan-ignore missingType.generics (wrong on purpose: the loader must refuse this signature)
     #[AsWorkflowMethod]
     public function run(
+        // @phpstan-ignore durable.activities.missingGeneric (wrong on purpose: the loader must refuse this signature)
         #[Activities('unit\\Gplanchat\\Durable\\Workflow\\NoSuchContract')]
         ActivityStub $greeting,
     ): void {}

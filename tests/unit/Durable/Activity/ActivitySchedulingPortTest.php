@@ -144,6 +144,7 @@ interface PortActivities
 #[AsWorkflow(name: 'port')]
 final class PortWorkflow
 {
+    /** @var ActivityStub<PortActivities> */
     private ActivityStub $orders;
 
     public function __construct(
@@ -162,6 +163,7 @@ final class PortWorkflow
 #[AsWorkflow(name: 'port-twice')]
 final class TwiceCallingWorkflow
 {
+    /** @var ActivityStub<PortActivities> */
     private ActivityStub $orders;
 
     public function __construct(

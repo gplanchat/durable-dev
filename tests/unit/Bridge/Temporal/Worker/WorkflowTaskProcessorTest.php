@@ -524,6 +524,7 @@ final class QueryableWorkflow
 #[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'queryable-scheduling')]
 final class QueryableSchedulingWorkflow
 {
+    /** @var ActivityStub<SuiteActivities> */
     private readonly ActivityStub $greetings;
 
     public function __construct(
@@ -548,6 +549,7 @@ final class QueryableSchedulingWorkflow
 #[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'queryable-raising')]
 final class RaisingQueryWorkflow
 {
+    /** @var ActivityStub<SuiteActivities> */
     private readonly ActivityStub $greetings;
 
     public function __construct(
