@@ -2,16 +2,10 @@
 # cluster, and the Temporal bridge would require ext-grpc — which is exactly what the plugin
 # stopped imposing (DUR037; DUR035 is `await()` and conditions, unrelated).
 durable:
+    backend: dbal
     dbal:
         connection: doctrine.dbal.default_connection
         lock_factory: lock.factory
-    event_store:
-        type: dbal
-    workflow_metadata:
-        type: dbal
-    child_workflow:
-        parent_link_store:
-            type: dbal
 
 # Activities ride the `durable_activities` transport messenger.yaml declares for these three
 # environments. Left at its default, the transport would be `in_memory`, and an activity would run
@@ -31,15 +25,12 @@ when@prod: *durable_activities
 
 # `demo` — the shop **serves** `stock`.
 #
-# `journal: false` is the line that counts. Without it, setting a DSN means "the cluster is the
-# journal" — the extension then refuses the pairing with a DBAL event_store, and rightly so: there
-# would be no single source of truth. With it, the sentence splits in two, and the dashboard goes
-# on reading exactly what it was reading.
+# `backend: dbal` stays: the DSN only adds the cluster that serves the operation, and the dashboard
+# goes on reading the SQL journal it was reading.
 when@demo:
     durable:
         temporal:
             dsn: '%env(DURABLE_TEMPORAL_DSN)%'
-            journal: false
 
 # `demo_caller` — the shop **calls** `billing`.
 #
@@ -52,13 +43,6 @@ when@demo:
 # dashboard and the one that runs the workflows are two deployments of the same code.
 when@demo_caller:
     durable:
-        event_store:
-            type: in_memory
-        workflow_metadata:
-            type: in_memory
-        child_workflow:
-            parent_link_store:
-                type: in_memory
+        backend: temporal
         temporal:
             dsn: '%env(DURABLE_TEMPORAL_DSN)%'
-            journal: true

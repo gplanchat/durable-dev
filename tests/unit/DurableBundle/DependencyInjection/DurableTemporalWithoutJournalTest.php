@@ -9,6 +9,7 @@ use Gplanchat\Durable\Bundle\DependencyInjection\DurableExtension;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
@@ -28,7 +29,7 @@ final class DurableTemporalWithoutJournalTest extends TestCase
 
     public function testADbalJournalAndATemporalDsnAreStillRefusedWhenTemporalClaimsTheJournal(): void
     {
-        $this->expectException(\LogicException::class);
+        $this->expectException(InvalidConfigurationException::class);
         $this->expectExceptionMessageMatches('/mutually exclusive/');
 
         $this->load([
@@ -47,7 +48,7 @@ final class DurableTemporalWithoutJournalTest extends TestCase
                 'temporal' => ['dsn' => self::DSN],
             ]);
             self::fail('The container was supposed to refuse.');
-        } catch (\LogicException $refus) {
+        } catch (InvalidConfigurationException $refus) {
             self::assertStringContainsString('temporal.journal: false', $refus->getMessage());
         }
     }
