@@ -243,13 +243,16 @@
                                                                    is decided in the core: this template used to call `json_encode` with no
                                                                    tolerance and rendered an **empty** disclosure as soon as one byte was
                                                                    not UTF-8. #}
+                                                                {# What happened to the action at this event (#332): the scheduling and the
+                                                                   start of one activity carry the same label, the phase tells them apart. #}
+                                                                {% set phase = mark.event.phase ? ' <span class="badge durable-phase durable-phase--' ~ mark.event.phase.value ~ '">' ~ ('phase.' ~ mark.event.phase.value)|trans({}, 'durable')|e ~ '</span>' : '' %}
                                                                 {% if mark.renderedDetails is not null %}
                                                                     <details>
-                                                                        <summary><strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v', false) }} — {{ mark.event.label }}</summary>
+                                                                        <summary><strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v', false) }} — {{ mark.event.label }}{{ phase|raw }}</summary>
                                                                         <pre>{{ mark.renderedDetails }}</pre>
                                                                     </details>
                                                                 {% else %}
-                                                                    <strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v', false) }} — {{ mark.event.label }}
+                                                                    <strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v', false) }} — {{ mark.event.label }}{{ phase|raw }}
                                                                 {% endif %}
                                                             </li>
                                                         {% endfor %}
