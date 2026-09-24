@@ -745,11 +745,16 @@ jobs:
             # the port the DSN and the tests' docblocks announce. Without this steering,
             # compose listened on 7234, the DSN aimed at 7233, and the nine tests that talk
             # to the server were skipped — the job stayed green while testing nothing.
-            - name: Start PostgreSQL + Temporal (symfony/compose.yaml)
+            - name: Validate compose.yaml
+              working-directory: symfony
+              run: docker compose config --quiet
+
+            # temporal-ui rides along: the stack the docs tell users to start, UI included.
+            - name: Start PostgreSQL + Temporal + UI (symfony/compose.yaml)
               working-directory: symfony
               env:
                   TEMPORAL_FRONTEND_PORT: '7233'
-              run: docker compose up -d --wait --wait-timeout 300 database temporal
+              run: docker compose up -d --wait --wait-timeout 300 database temporal temporal-ui
 
             - name: The frontend responds, otherwise we test nothing
               run: timeout 30 bash -c 'until nc -z 127.0.0.1 7233; do sleep 1; done'
@@ -764,6 +769,20 @@ jobs:
                     --fail-on-skipped \
                     --display-skipped \
                     tests/Integration/Temporal/
+
+            - name: Check Temporal UI (internal exec)
+              working-directory: symfony
+              run: |
+                  set -e
+                  for i in $(seq 1 20); do
+                    if docker compose exec -T temporal-ui wget -qO- http://localhost:8080/ > /dev/null 2>&1; then
+                      echo "Temporal UI OK (attempt $i)"
+                      exit 0
+                    fi
+                    sleep 5
+                  done
+                  docker compose logs temporal-ui --tail 40
+                  exit 1
 
             - name: Stop the containers
               if: always()
@@ -874,36 +893,6 @@ jobs:
                   DURABLE_TEMPORAL_TRANSPORT: 'guzzle'
               run: vendor/bin/phpunit --testsuite integration,temporal --display-skipped
 
-    docker-compose-stack:
-        name: Docker stack (Temporal + UI)
-        runs-on: ubuntu-latest
-        timeout-minutes: 60
-        steps:
-            - uses: actions/checkout@v7
-
-            - name: Validate compose.yaml
-              run: docker compose -f symfony/compose.yaml config --quiet
-
-            - name: Start PostgreSQL + Temporal + UI
-              run: docker compose -f symfony/compose.yaml up -d --wait --wait-timeout 180 database temporal temporal-ui
-
-            - name: Check Temporal UI (internal exec)
-              run: |
-                  set -e
-                  for i in $(seq 1 20); do
-                    if docker compose -f symfony/compose.yaml exec -T temporal-ui wget -qO- http://localhost:8080/ > /dev/null 2>&1; then
-                      echo "Temporal UI OK (attempt $i)"
-                      exit 0
-                    fi
-                    sleep 5
-                  done
-                  docker compose -f symfony/compose.yaml logs temporal-ui --tail 40
-                  exit 1
-
-            - name: Stop the containers
-              if: always()
-              run: docker compose -f symfony/compose.yaml down -v
-
     manifests:
         # Every package declares what it imports (#346): a split package installs alone, and an
         # import the monorepo happens to provide is a fatal error there.
@@ -950,7 +939,7 @@ jobs:
         # job names can move without touching the protection. A skipped job is not a failure.
         name: ci-ok
         if: always()
-        needs: [qa, symfony-matrix, laravel, sylius-shop, magento-matrix, magento-boot, static-analysis, symfony-sample, conformance-sql, guide-follows, coverage, temporal-integration, no-grpc, grpc-integration, docker-compose-stack, manifests]
+        needs: [qa, symfony-matrix, laravel, sylius-shop, magento-matrix, magento-boot, static-analysis, symfony-sample, conformance-sql, guide-follows, coverage, temporal-integration, no-grpc, grpc-integration, manifests]
         runs-on: ubuntu-latest
         timeout-minutes: 5
         steps:
