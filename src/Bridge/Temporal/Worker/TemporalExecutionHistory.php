@@ -121,6 +121,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var array<string, true> ids of the operations withdrawn by the workflow cancellation */
     private array $cancellationDeliveredTargets = [];
 
+    /** eventId of the delivery marker; a delivery on a condition has no target to go by (#317). */
+    private ?int $cancellationDeliveredAt = null;
+
     /**
      * @param iterable<HistoryEvent> $events
      */
@@ -375,6 +378,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     foreach (\is_array($targets) ? $targets : [] as $target) {
                         $this->cancellationDeliveredTargets[(string) $target] = true;
                     }
+                    $this->cancellationDeliveredAt ??= $eventId;
                     break;
                 }
                 // The version marker, before the side-effect one and for the reason the next
@@ -778,7 +782,15 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
      */
     public function cancellationAlreadyDelivered(): bool
     {
-        return [] !== $this->cancellationDeliveredTargets;
+        return null !== $this->cancellationDeliveredAt;
+    }
+
+    public function cancellationDelivery(): ?array
+    {
+        return null === $this->cancellationDeliveredAt ? null : [
+            'position' => $this->cancellationDeliveredAt,
+            'targets' => array_map(strval(...), array_keys($this->cancellationDeliveredTargets)),
+        ];
     }
 
     public function startInput(): array
