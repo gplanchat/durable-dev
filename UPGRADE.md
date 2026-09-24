@@ -24,6 +24,30 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### The run list says what a running run waits on: `waiting_on` on `durable_workflow_runs`
+
+**Who is affected**: applications on the DBAL or Illuminate backend whose `durable_workflow_runs`
+table was created before this version. Nothing breaks: without the column, workers run as before and
+the dashboard does not say what a run waits on. Add the column to get that. No data to backfill: the
+next suspension of each run writes it.
+
+- **Laravel**: `php artisan migrate`. The package ships a migration that adds the column when it is
+  missing.
+- **Symfony with Doctrine Migrations**: `bin/console doctrine:migrations:diff` generates the
+  `ADD waiting_on` statement. When the journal lives on another connection than the ORM, use the SQL
+  below.
+- **Anything else**, by hand:
+
+```sql
+ALTER TABLE durable_workflow_runs ADD waiting_on TEXT DEFAULT NULL;
+```
+
+Restart the workers after the change: they read the table's columns once per process.
+
+A projection of your own keeps compiling. To report waits, also implement
+`WorkflowRunWaitProjectionInterface::recordWait()` and fill `WorkflowRunDescription::$waitingOn`
+while the run is running.
+
 ### The run list tells a run waiting for a worker: `picked_up_at` on `durable_workflow_runs`
 
 **Who is affected**: applications on the DBAL or Illuminate backend whose `durable_workflow_runs`

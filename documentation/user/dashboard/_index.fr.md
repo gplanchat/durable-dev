@@ -60,6 +60,13 @@ tâches en attente. La grille Magento non plus, puisque ses backends sont celui 
 l'admin, et Temporal. Voir [la procédure de mise à jour](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md)
 pour ajouter la colonne à une table créée avant elle.
 
+Une exécution en cours dit aussi **ce qu'elle attend**, à sa dernière suspension :
+`waiting on timer "grace period" due at 2026-09-24T10:00:00+00:00`,
+`waiting on activity charge attempt 2 in flight`, ou `waiting on condition at src/…/OrderWorkflow.php:42`.
+L'attente d'un signal est une condition : la ligne nomme l'endroit où la condition est écrite, pas le
+signal. Les mêmes backends le disent, sur une table des exécutions qui a la colonne `waiting_on` ;
+Temporal et la grille Magento non.
+
 ### 3. Les compteurs, sur ce que vous regardez
 
 Un par issue, et ils couvrent **l'ensemble que la liste parcourt**, jamais tout l'historique de
