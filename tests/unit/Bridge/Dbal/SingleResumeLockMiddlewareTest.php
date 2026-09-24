@@ -7,11 +7,17 @@ namespace unit\Gplanchat\Bridge\Dbal;
 use Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Lock\Exception\LockConflictedException;
+use Symfony\Component\Lock\Key;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\Store\InMemoryStore;
 use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Handler\HandlersLocator;
+use Symfony\Component\Messenger\MessageBus;
+use Symfony\Component\Messenger\Middleware\HandleMessageMiddleware;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
 use Symfony\Component\Messenger\Middleware\StackInterface;
+use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 
 /**
  * With no server to serialize the tasks of one execution, this lock is the only thing that keeps
@@ -40,7 +46,7 @@ final class SingleResumeLockMiddlewareTest extends TestCase
             $heldDuringHandling = !$factory->createLock('durable-resume-exec-1')->acquire(false);
         });
 
-        $middleware->handle(new Envelope(new ResumeWorkflowMessage('exec-1')), $stack);
+        $middleware->handle(new Envelope(new ResumeWorkflowMessage('exec-1'), [new ReceivedStamp('durable_workflows')]), $stack);
 
         self::assertTrue($heldDuringHandling, 'the lock must be held during the resume');
         self::assertTrue(
@@ -59,7 +65,7 @@ final class SingleResumeLockMiddlewareTest extends TestCase
         });
 
         try {
-            $middleware->handle(new Envelope(new ResumeWorkflowMessage('exec-1')), $stack);
+            $middleware->handle(new Envelope(new ResumeWorkflowMessage('exec-1'), [new ReceivedStamp('durable_workflows')]), $stack);
             self::fail('the handler exception must propagate');
         } catch (\RuntimeException) {
         }
@@ -80,6 +86,69 @@ final class SingleResumeLockMiddlewareTest extends TestCase
         $middleware->handle(new Envelope(new \stdClass()), $stack);
 
         self::assertTrue($passedThrough);
+    }
+
+    public function testAResumeDispatchedWhileHandlingOneDoesNotWaitForItsOwnLock(): void
+    {
+        // #254: the handler dispatches the next resume of the same execution, on the same bus.
+        // Received again (a sync transport), it asked for the lock its own pass held, and waited
+        // for the TTL to run out. The store below refuses instead of waiting, so a regression fails
+        // here at once rather than hanging the suite.
+        $factory = self::failFastFactory();
+        $nested = 0;
+        $bus = null;
+        $bus = new MessageBus([
+            new SingleResumeLockMiddleware($factory, 2.0),
+            new HandleMessageMiddleware(new HandlersLocator([
+                ResumeWorkflowMessage::class => [static function (ResumeWorkflowMessage $message) use (&$bus, &$nested): void {
+                    if (0 === $nested++) {
+                        $bus->dispatch(new Envelope(new ResumeWorkflowMessage('exec-1'), [new ReceivedStamp('sync')]));
+                    }
+                }],
+            ])),
+        ]);
+
+        $started = microtime(true);
+        $bus->dispatch(new Envelope(new ResumeWorkflowMessage('exec-1'), [new ReceivedStamp('sync')]));
+
+        self::assertSame(2, $nested);
+        self::assertLessThan(1.0, microtime(true) - $started, 'the nested resume must not wait for the TTL');
+        self::assertTrue($factory->createLock('durable-resume-exec-1')->acquire(false), 'and the lock is released after both');
+    }
+
+    public function testSendingAResumeTakesNoLock(): void
+    {
+        // Only the receive pass replays. A controller sending a resume while a worker replays the
+        // same execution must not wait for that worker.
+        $factory = self::failFastFactory();
+        $held = $factory->createLock('durable-resume-exec-1');
+        $held->acquire(false);
+
+        $passedThrough = false;
+        $stack = $this->stackRunning(static function () use (&$passedThrough): void {
+            $passedThrough = true;
+        });
+        (new SingleResumeLockMiddleware($factory, 2.0))->handle(new Envelope(new ResumeWorkflowMessage('exec-1')), $stack);
+
+        self::assertTrue($passedThrough);
+    }
+
+    /**
+     * A lock store that refuses instead of waiting: a regression fails the test at once rather
+     * than hanging the suite on a blocking acquisition that nothing will ever release.
+     */
+    private static function failFastFactory(): LockFactory
+    {
+        return new LockFactory(new class extends InMemoryStore {
+            public function save(Key $key): void
+            {
+                try {
+                    parent::save($key);
+                } catch (LockConflictedException) {
+                    throw new \LogicException(\sprintf('"%s" would wait for a lock that is already held.', $key));
+                }
+            }
+        });
     }
 
     private function stackRunning(callable $duringHandling): StackInterface
