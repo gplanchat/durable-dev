@@ -7,4 +7,4 @@
   `src/Durable/Store/StoredTimestamp.php`, their unit tests. Once #499 and #476 have merged: the
   call sites in the DBAL and Illuminate run catalogues and event stores, and
   `IlluminateWorkflowMetadataStore`.
-- **State**: in progress, new files only — the call sites wait on #499 and #476 — dave.
+- **State**: in progress — new classes, event stores and the Illuminate metadata guard pushed; the two run catalogues wait on #476 — dave.
