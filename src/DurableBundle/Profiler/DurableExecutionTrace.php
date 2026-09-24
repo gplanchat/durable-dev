@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\Profiler;
 
+use Gplanchat\Durable\Debug\WorkflowDispatchObserverInterface;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 
 /**
@@ -13,7 +14,7 @@ use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
  * The persistent history stays in the event store; this trace feeds the "this request" time band
  * (activity worker included) and completes the journal when everything runs in the same process.
  */
-final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
+final class DurableExecutionTrace implements WorkflowExecutionObserverInterface, WorkflowDispatchObserverInterface
 {
     /**
      * The trace keeps the last entries only. `kernel.reset` empties it between two Messenger
@@ -38,6 +39,7 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
      *
      * @param array<string, mixed> $payload
      */
+    #[\Override]
     public function onWorkflowDispatchRequested(
         string $executionId,
         string $workflowType,
