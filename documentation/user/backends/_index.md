@@ -22,7 +22,7 @@ Durable supports four execution backends: In-Memory, plus the three bridges you 
 > `durable/temporal/dsn` in `app/etc/env.php`, not by a setting.
 
 All four run the **same fiber driver** and the same workflow and activity code. Three of them are
-chosen with `durable.event_store.type` (and `DURABLE_DSN` for Temporal); **Illuminate is not one of
+chosen with `durable.backend` (and `DURABLE_DSN` for Temporal); **Illuminate is not one of
 its values** and never will be; see [the Illuminate backend](#illuminate-backend) for what binds it
 instead.
 
@@ -43,12 +43,7 @@ The In-Memory backend runs entirely inside a single PHP process. There is no ext
 ```yaml
 # config/packages/durable.yaml (or when@test:)
 durable:
-    event_store:
-        type: in_memory
-    temporal:
-        dsn: null
-    workflow_metadata:
-        type: in_memory
+    backend: in_memory
     activity_transport:
         type: messenger
         transport_name: durable_activities
@@ -142,16 +137,15 @@ DURABLE_DSN=temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durab
 ```yaml
 # config/packages/durable.yaml
 durable:
-    event_store:
-        type: in_memory   # Temporal is the real history source; in-memory acts as a local write-through cache
+    backend: temporal
     temporal:
         dsn: '%env(DURABLE_DSN)%'
 ```
 
 Nothing goes in `messenger.yaml` for Temporal. If it still declares `durable_workflows` or
 `durable_activities` under this backend, the container refuses to compile and names the transport
-to remove: those names belong to the bundle's workers. The exception is `durable.temporal.journal:
-false`: workflows then run locally, and those two transports stay the application's.
+to remove: those names belong to the bundle's workers. The exception is `durable.backend: dbal` with a
+DSN: workflows then run locally, and those two transports stay the application's.
 
 ### Temporal UI
 
@@ -201,13 +195,7 @@ durable:
     dbal:
         connection: doctrine.dbal.default_connection
         lock_factory: lock.factory
-    event_store:
-        type: dbal
-    workflow_metadata:
-        type: dbal
-    child_workflow:
-        parent_link_store:
-            type: dbal
+    backend: dbal
     activity_transport:
         type: messenger
         transport_name: durable_activities
