@@ -12,8 +12,8 @@ use Symfony\Component\Yaml\Yaml;
 
 /**
  * The configuration reference cannot drift from the tree (#365): its YAML block is what
- * `bin/console config:dump-reference durable` prints, and every key of the tree has its row in the
- * hand-written sections, as no row names a key the tree does not have.
+ * `bin/console config:dump-reference durable` prints, and every key of the tree has its row in a key
+ * table of the hand-written sections, as no row names a key the tree does not have.
  *
  * @internal
  */
@@ -64,19 +64,14 @@ final class ConfigurationReferenceTest extends KernelTestCase
                 continue;
             }
             $leaves = \is_array($node) && [] !== $node && !array_is_list($node) ? self::leaves($node) : [];
-            foreach ($leaves as $leaf) {
-                $last = substr($leaf, (int) strrpos('.' . $leaf, '.'));
-                if (!str_contains($text, '| `' . $leaf . '` |') && !preg_match('/^\s*' . preg_quote($last, '/') . ':/m', $text)) {
-                    $undocumented[] = $top . '.' . $leaf;
-                }
-            }
             // Only the key tables: a section also holds tables of values (backend) and of DSN parameters.
             preg_match_all('/^\| (?:Key|Clé) \|.*\n\|[-| ]+\|\n((?:\|.*\n?)*)/m', $text, $tables);
-            preg_match_all('/^\| `([a-z_.]+)` \|/m', implode("\n", $tables[1]), $rows);
-            foreach ($rows[1] as $row) {
-                if (!\in_array($row, $leaves, true)) {
-                    $unknown[] = $top . '.' . $row;
-                }
+            preg_match_all('/^\| `([a-z0-9_.]+)` \|/m', implode("\n", $tables[1]), $rows);
+            foreach (array_diff($leaves, $rows[1]) as $leaf) {
+                $undocumented[] = $top . '.' . $leaf;
+            }
+            foreach (array_diff($rows[1], $leaves) as $row) {
+                $unknown[] = $top . '.' . $row;
             }
         }
 
@@ -106,7 +101,7 @@ final class ConfigurationReferenceTest extends KernelTestCase
      */
     private static function sections(string $markdown): array
     {
-        preg_match_all('/^## `([a-z_]+)`\n(.*?)(?=^## |\z)/ms', $markdown, $matches, \PREG_SET_ORDER);
+        preg_match_all('/^## `([a-z0-9_]+)`\n(.*?)(?=^## |\z)/ms', $markdown, $matches, \PREG_SET_ORDER);
 
         return array_column(array_map(static fn(array $m): array => [$m[1], $m[2]], $matches), 1, 0);
     }

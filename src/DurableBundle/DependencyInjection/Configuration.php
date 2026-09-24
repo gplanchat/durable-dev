@@ -99,7 +99,7 @@ final class Configuration implements ConfigurationInterface
             ->booleanNode('enabled')->defaultValue($this->debug)->info('Registers the execution trace, the web profiler panel and the observer on the hot path. Defaults to kernel.debug.')->end()
             ->end()
             ->end()
-            ->integerNode('max_activity_retries')->defaultValue(0)->min(0)->info('Retry ceiling for activities that set none. 0: no ceiling.')->end()
+            ->integerNode('max_activity_retries')->defaultValue(0)->min(0)->info('Retry ceiling for every activity; an activity\'s own limit can only be stricter. 0: no ceiling.')->end()
             ->arrayNode('activity_contracts')
             ->addDefaultsIfNotSet()
             ->children()

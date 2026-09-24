@@ -75,7 +75,7 @@ durable:
         # Registers the execution trace, the web profiler panel and the observer on the hot path. Defaults to kernel.debug.
         enabled:              '%kernel.debug%'
 
-    # Retry ceiling for activities that set none. 0: no ceiling.
+    # Retry ceiling for every activity; an activity's own limit can only be stricter. 0: no ceiling.
     max_activity_retries: 0
     activity_contracts:
 
@@ -252,6 +252,10 @@ durable:
             - messenger.bus.durable
 ```
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `buses` | list of bus service IDs | `[]` | The buses the bundle's middlewares go on; `[]` means every bus. See below. |
+
 Which Messenger buses the bundle installs its middlewares on — the DBAL resume lock, and the
 profiler middleware in debug.
 
@@ -281,7 +285,7 @@ durable:
     max_activity_retries: 3
 ```
 
-Ceiling on automatic retries, applied to activities that do not set their own. A negative value is refused. `0` means **no ceiling**, and since an activity with no `RetryLimit` retries indefinitely (Temporal's default), leaving both unset means a failing activity never fails the workflow. Set a bound per activity with `RetryLimit::ofAttempts()` or `RetryLimit::once()`; see [Options and value objects](../options/#retrylimit).
+Ceiling on automatic retries, applied to every activity: an activity's own `RetryLimit` can only be stricter. A negative value is refused. `0` means **no ceiling**, and since an activity with no `RetryLimit` retries indefinitely (Temporal's default), leaving both unset means a failing activity never fails the workflow. Set a bound per activity with `RetryLimit::ofAttempts()` or `RetryLimit::once()`; see [Options and value objects](../options/#retrylimit).
 
 ---
 
