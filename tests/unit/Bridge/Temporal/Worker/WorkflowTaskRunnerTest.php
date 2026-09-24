@@ -14,6 +14,7 @@ use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Exception\DeadlineExceededException;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\WorkflowExecution;
@@ -47,7 +48,7 @@ use unit\Durable\Fixtures\SuiteActivities;
  */
 final class WorkflowTaskRunnerTest extends TestCase
 {
-    private WorkflowServiceClientInterface $grpcClient;
+    private WorkflowServiceClientInterface&MockObject $grpcClient;
     private TemporalHistoryCursor $cursor;
     private TemporalConnection $connection;
 

@@ -13,6 +13,8 @@ parameters:
         - src/DurableLaravel
         - src/DurablePhpstan
         - src/DurableRector
+        - tests/unit
+        - tests/integration
     excludePaths:
         # `illuminate/console` requires `symfony/console ^7.x` on all three of its lines, so
         # bringing it into the root graph would make the Symfony 6.4 line unresolvable — the same
@@ -23,6 +25,8 @@ parameters:
         - src/Bridge/Temporal/Api
         - src/Bridge/Temporal/Generated
         - src/Bridge/Temporal/Spike
+        # Code written wrong on purpose: the PHPStan rule tests feed it to the rules.
+        - tests/unit/DurablePhpstan/Fixtures
     reportUnmatchedIgnoredErrors: true
     ignoreErrors:
         # ServiceProvider::$app is typed by PHPDoc as the full application. This package depends

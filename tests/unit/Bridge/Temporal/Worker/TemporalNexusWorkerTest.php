@@ -14,6 +14,7 @@ use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Nexus\Serving\NexusHandlerErrorType;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationResponse;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Nexus\V1\CancelOperationRequest;
 use Temporal\Api\Nexus\V1\Request as NexusRequest;
@@ -38,7 +39,7 @@ use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionResponse;
  */
 final class TemporalNexusWorkerTest extends TestCase
 {
-    private WorkflowServiceClientInterface $grpc;
+    private WorkflowServiceClientInterface&MockObject $grpc;
 
     protected function setUp(): void
     {

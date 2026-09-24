@@ -17,6 +17,7 @@ use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueResponse;
@@ -31,7 +32,7 @@ use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedResponse;
  */
 final class TemporalActivityWorkerNonRetryableTest extends TestCase
 {
-    private WorkflowServiceClientInterface $grpcClient;
+    private WorkflowServiceClientInterface&MockObject $grpcClient;
     private InMemoryEventStore $eventStore;
 
     protected function setUp(): void
