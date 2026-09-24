@@ -1,62 +1,62 @@
 ## Why
 
-`demo-nexus-deux-applications` a mis deux maquettes en présence et les a fait s'appeler dans les
-deux sens. Sa preuve est mesurée, et elle vaut pour ce qu'elle montre : **Symfony et Sylius**, deux
-applications du même framework, deux namespaces, chacune appelante et servante.
+`demo-nexus-deux-applications` put two sample apps side by side and had them call each other in
+both directions. Its proof is measured, and it holds for what it shows: **Symfony and Sylius**, two
+applications on the same framework, two namespaces, each one both caller and server.
 
-Ce que cette preuve ne dit pas, c'est ce que Nexus demande à l'**hôte**. Les deux maquettes
-partagent le conteneur de Symfony, la passe de compilation qui enregistre les gestionnaires, et le
-transport Messenger qui tourne les workers. Un lecteur en droit de conclure que Nexus est une
-fonctionnalité du bundle Symfony n'aurait rien lu de travers.
+What that proof does not say is what Nexus asks of the **host**. The two sample apps share the
+Symfony container, the compiler pass that registers the handlers, and the Messenger transport that
+runs the workers. A reader entitled to conclude that Nexus is a feature of the Symfony bundle
+would have misread nothing.
 
-Le dépôt a une troisième maquette, et elle n'a **rien** de tout cela : `magento/` câble ses services
-en `di.xml`, tourne ses workers par une commande `bin/magento durable:worker`, et lit son DSN dans
-`app/etc/env.php`. Si elle appelle une opération servie par les deux autres sans qu'on ajoute une
-ligne au cœur, la démonstration dit quelque chose que deux applications Symfony ne pouvaient pas
-dire.
+The repository has a third sample app, and it has **none** of that: `magento/` wires its services
+in `di.xml`, runs its workers through a `bin/magento durable:worker` command, and reads its DSN from
+`app/etc/env.php`. If it calls an operation served by the other two without a single line added to
+the core, the demonstration says something that two Symfony applications could not
+say.
 
-Et une réserve attend d'être levée : `magento-module` §3bis.9 écarte explicitement le cas Nexus de
-`EveryCaseWorkflow` — *« Nexus demande deux applications, qui appartiennent à
-`change/demo-nexus-deux-applications` »*. Elles existent maintenant.
+And a reservation is waiting to be lifted: `magento-module` §3bis.9 explicitly excludes the Nexus
+case from `EveryCaseWorkflow` — *"Nexus requires two applications, which belong to
+`change/demo-nexus-deux-applications`"*. They exist now.
 
 ## What Changes
 
-La maquette Magento rejoint la démonstration, sur un troisième namespace `demo-magento`, **en
-appelante seulement** :
+The Magento sample app joins the demonstration, on a third namespace `demo-magento`, **as a
+caller only**:
 
-- elle appelle `stock/reserver`, servie **tout de suite** par la boutique Sylius ;
-- elle appelle `facturation/verifier` puis `facturation/encaisser`, la seconde remplie par un
-  **workflow** du métier Symfony.
+- it calls `stock/reserver`, served **synchronously** by the Sylius shop;
+- it calls `facturation/verifier` then `facturation/encaisser`, the latter fulfilled by a
+  **workflow** of the Symfony business app.
 
-Un seul workflow, dans le module de banc `Gplanchat_DurableProbe`, appelle les deux services — donc
-les deux formes de réponse et les deux endpoints existants, depuis un hôte qui n'est pas Symfony.
+A single workflow, in the test-bench module `Gplanchat_DurableProbe`, calls both services — hence
+both response shapes and both existing endpoints, from a host that is not Symfony.
 
-### Pourquoi appelante seulement
+### Why caller only
 
-Servir demande à l'hôte d'enregistrer des gestionnaires et de poller une file Nexus : côté Symfony
-c'est `NexusHandlerPass` et un transport Messenger, et Magento n'a ni l'un ni l'autre. Appeler ne
-demande **rien** — `WorkflowEnvironment::nexusStub()` lit le contrat par réflexion, et
-`WorkflowTaskRunner` est déjà le worker que les trois hôtes partagent.
+Serving requires the host to register handlers and poll a Nexus queue: on the Symfony side that
+is `NexusHandlerPass` and a Messenger transport, and Magento has neither. Calling requires
+**nothing** — `WorkflowEnvironment::nexusStub()` reads the contract by reflection, and
+`WorkflowTaskRunner` is already the worker that all three hosts share.
 
-C'est précisément ce déséquilibre qui est la démonstration : le côté appelant est gratuit partout,
-le côté servant se câble une fois par hôte. Faire servir Magento demanderait un chantier dans le
-module — il aura son change, et il commencera là où celui-ci s'arrête.
+That imbalance is precisely the demonstration: the calling side is free everywhere, the serving
+side is wired once per host. Making Magento serve would require work in the module — it will get
+its own change, and that change will start where this one stops.
 
-### Ce que le banc Magento doit gagner
+### What the Magento bench must gain
 
-Le contrat partagé, un workflow, une commande pour le démarrer, et un DSN qui pointe le cluster de
-la démonstration. Sa propre grappe (`temporalio/auto-setup:1.25.2` dans son `compose.yaml`) répond
-`Nexus APIs are disabled` — c'est déjà écrit dans `demo/README.md`, et c'est la raison pour laquelle
-la démonstration a son `temporal server start-dev` à elle.
+The shared contract, a workflow, a command to start it, and a DSN pointing at the demonstration's
+cluster. Its own cluster (`temporalio/auto-setup:1.25.2` in its `compose.yaml`) answers
+`Nexus APIs are disabled` — this is already written in `demo/README.md`, and it is the reason why
+the demonstration has its own `temporal server start-dev`.
 
 ## Impact
 
-- `magento/` : le contrat en dépôt path, un workflow et une commande dans `Gplanchat_DurableProbe`.
-- `bin/demo-nexus` : un troisième namespace, et **aucun endpoint de plus** — un endpoint désigne qui
-  sert, et Magento ne sert pas.
-- `demo/lancer.sh` et `demo/README.md` : un processus de plus, et le compte refait.
-- `documentation/user/nexus/` : la section « Deux applications, en vrai » devient trois, dans les
-  deux langues.
-- Aucun changement aux paquets publiés : ni le cœur, ni le pont Temporal, ni `durable-magento`. Si
-  l'un d'eux doit changer, c'est que l'hypothèse ci-dessus est fausse, et la §0 le dira avant que
-  quoi que ce soit ne soit écrit.
+- `magento/`: the contract as a path repository, a workflow and a command in `Gplanchat_DurableProbe`.
+- `bin/demo-nexus`: a third namespace, and **no additional endpoint** — an endpoint designates who
+  serves, and Magento does not serve.
+- `demo/lancer.sh` and `demo/README.md`: one more process, and the count redone.
+- `documentation/user/nexus/`: the section "Two applications, for real" becomes three, in both
+  languages.
+- No change to the published packages: neither the core, nor the Temporal bridge, nor
+  `durable-magento`. If one of them has to change, the assumption above is wrong, and §0 will say
+  so before anything is written.
