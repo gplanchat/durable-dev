@@ -83,6 +83,28 @@ after a first try.
 
 ---
 
+## Which retry knob lives where (Symfony Messenger)
+
+Durable decides; Messenger delivers.
+
+| Question | Who answers | The knob |
+|---|---|---|
+| Is this failure worth another attempt? | Durable | `nonRetryableExceptions` on `ActivityOptions` |
+| How many attempts, and how long between them? | Durable | `retryLimit`, `initialInterval`, `backoffCoefficient`, `maximumInterval`; `max_activity_retries` caps them all |
+| Where does a failed activity go for an operator to look at? | Messenger | `failure_transport` |
+| Delivery, acknowledgement, the transport itself | Messenger | the `durable_activities` transport |
+
+Durable schedules its own retries: a retried attempt is a new message, queued with its delay. The
+handler never throws for a failure Durable will retry, so Messenger's `retry_strategy` does not
+apply to activities and there is no second counter.
+
+A **non-retryable** failure is journalled, then thrown as `UnrecoverableMessageHandlingException`:
+Messenger does not retry it, and sends it to `failure_transport` when you configured one.
+`messenger:failed:retry` on it runs nothing again. The journal already holds that attempt and
+answers for it.
+
+---
+
 ## When the workflow itself fails
 
 An error the workflow does not handle produces `WorkflowExecutionFailed`, whose `kind` says where
