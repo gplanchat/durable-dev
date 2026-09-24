@@ -28,7 +28,7 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 **Who is affected**: scripts that read secrets out of `durable:execution:diagnose --json`, and
 applications whose payloads carry values under keys matching
-`/password|secret|token|authorization|card/i`. Those values now print as `***`, and strings over
+`/password|secret|token|authorization|card|api[_-]?key/i`. Those values now print as `***`, and strings over
 1 KiB are truncated. Add `--raw` to get the payload as stored.
 
 To change what is masked, implement `Gplanchat\Durable\Observation\PayloadRedactorInterface` and

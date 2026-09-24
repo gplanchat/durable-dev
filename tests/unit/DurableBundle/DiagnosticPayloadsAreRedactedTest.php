@@ -41,6 +41,25 @@ final class DiagnosticPayloadsAreRedactedTest extends TestCase
         self::assertStringContainsString('ada@example.com', $stored, 'the rest of the payload is what the operator came to read');
     }
 
+    public function testARunWhoseIdLooksLikeASecretKeepsItsPanel(): void
+    {
+        // Only payloads are masked, not the maps keyed by execution id: masking those collapsed
+        // the run's entry to a string and the panel's template failed on it.
+        $trace = new DurableExecutionTrace();
+        $trace->onWorkflowDispatchRequested('password-reset-42', 'PasswordReset', ['password' => self::SECRET], false, 'async');
+        $metadata = new InMemoryWorkflowMetadataStore();
+        $metadata->save('password-reset-42', 'PasswordReset', ['email' => 'ada@example.com', 'password' => self::SECRET]);
+
+        $collector = new DurableDataCollector($trace, $metadata, new InMemoryEventStore());
+        $collector->collect(new Request(), new Response());
+        $collector = unserialize(serialize($collector));
+        self::assertInstanceOf(DurableDataCollector::class, $collector);
+
+        self::assertSame('PasswordReset', $collector->getRunSnapshots()['password-reset-42']['metadata']['workflowType'] ?? null);
+        self::assertIsArray($collector->getExecutions()['password-reset-42'] ?? null);
+        self::assertStringNotContainsString(self::SECRET, serialize($collector));
+    }
+
     public function testAnObjectInThePayloadIsMaskedToo(): void
     {
         $metadata = new InMemoryWorkflowMetadataStore();

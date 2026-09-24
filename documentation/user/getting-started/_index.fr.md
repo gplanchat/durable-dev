@@ -315,7 +315,7 @@ php bin/console durable:execution:diagnose greet-abc123
 Elle affiche les métadonnées de l'exécution, ses liens parent et enfants, et les premiers
 événements de son journal avec leurs charges utiles : l'entrée du workflow, les arguments et le
 résultat de chaque activité. Les valeurs rangées sous des clés comme `password`, `token`, `secret`,
-`authorization` ou `card` sont masquées et les longues chaînes tronquées ; `--raw` les affiche
+`authorization`, `card` ou `api_key` sont masquées et les longues chaînes tronquées ; `--raw` les affiche
 telles qu'elles sont stockées. Le masquage se fie au nom de la clé : des données personnelles
 rangées sous d'autres clés restent visibles, attention à l'endroit où vous collez la sortie. Le
 panneau du profileur web masque de la même façon.

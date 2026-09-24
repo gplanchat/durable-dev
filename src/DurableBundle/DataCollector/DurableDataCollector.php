@@ -73,7 +73,12 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     public function collect(Request $request, Response $response, ?\Throwable $exception = null): void
     {
         $this->journals = [];
-        $timeline = $this->enrichTimelineForProfiler($this->trace->getTimeline());
+        // Payloads are masked where they are copied in, never across `$this->data`: the maps keyed
+        // by execution id would lose a run whose id matches the pattern ("password-reset-42").
+        $timeline = array_map(
+            fn(array $entry): array => \array_key_exists('payload', $entry) ? ['payload' => $this->redacted($entry['payload'])] + $entry : $entry,
+            $this->enrichTimelineForProfiler($this->trace->getTimeline()),
+        );
         $executionIds = $this->collectDispatchedExecutionIdsFromTimeline($timeline);
         $executionIds = $this->mergeExecutionIdsFromRequest($request, $executionIds);
 
@@ -87,7 +92,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                 continue;
             }
             $runSnapshots[$eid] = [
-                'metadata' => $this->metadataStore->get($eid),
+                'metadata' => $this->metadata($eid),
                 'eventCount' => $this->journal($eid)['count'],
             ];
         }
@@ -95,7 +100,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         foreach (array_keys($executionIds) as $eid) {
             if (!isset($runSnapshots[$eid])) {
                 $runSnapshots[$eid] = [
-                    'metadata' => $this->metadataStore->get($eid),
+                    'metadata' => $this->metadata($eid),
                     'eventCount' => $this->journal($eid)['count'],
                 ];
             }
@@ -135,7 +140,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         // what the blanket barrier did not guarantee, `$this->data` being typed
         // `array|Data` on the parent.
         foreach ($this->data as $key => $value) {
-            $this->data[$key] = $this->redactor->redact(RecordedDetails::storable($value));
+            $this->data[$key] = RecordedDetails::storable($value);
         }
         $this->journals = [];
     }
@@ -160,7 +165,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         foreach ($executionIdsList as $eid) {
             $wf = null;
             $payload = [];
-            $meta = $this->metadataStore->get($eid);
+            $meta = $this->metadata($eid);
             if (null !== $meta) {
                 if ('' !== $meta['workflowType']) {
                     $wf = $meta['workflowType'];
@@ -663,7 +668,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                     'title' => $p['title'],
                     'subtitle' => $p['subtitle'],
                     'category' => $p['category'],
-                    'payload' => $event->payload(),
+                    'payload' => $this->redacted($event->payload()),
                     'recordedAt' => null !== $recordedAt ? $recordedAt->format(\DateTimeInterface::ATOM) : null,
                 ];
                 ++$i;
@@ -848,6 +853,27 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     public static function getTemplate(): string
     {
         return '@Durable/Collector/durable.html.twig';
+    }
+
+    private function redacted(mixed $payload): mixed
+    {
+        return $this->redactor->redact(RecordedDetails::storable($payload));
+    }
+
+    /**
+     * The run's metadata row, its payload masked.
+     *
+     * @return array{workflowType: string, payload: array<string, mixed>, completed?: bool}|null
+     */
+    private function metadata(string $executionId): ?array
+    {
+        $meta = $this->metadataStore->get($executionId);
+        if (null !== $meta) {
+            $payload = $this->redacted($meta['payload']);
+            $meta['payload'] = \is_array($payload) ? $payload : [];
+        }
+
+        return $meta;
     }
 
     /**

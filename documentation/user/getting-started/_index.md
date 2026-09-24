@@ -312,7 +312,7 @@ php bin/console durable:execution:diagnose greet-abc123
 
 It prints the run's metadata, its parent and child links, and the first events of its journal with
 their payloads: the workflow's input, each activity's arguments and result. Values under keys such
-as `password`, `token`, `secret`, `authorization` or `card` are masked and long strings truncated;
+as `password`, `token`, `secret`, `authorization`, `card` or `api_key` are masked and long strings truncated;
 `--raw` prints them as stored. The masking goes by key name, so personal data under other keys still
 shows: mind where you paste the output. The web profiler panel masks the same way.
 

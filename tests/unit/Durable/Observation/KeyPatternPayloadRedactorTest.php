@@ -29,6 +29,19 @@ final class KeyPatternPayloadRedactorTest extends TestCase
         ], $redacted);
     }
 
+    public function testAnApiKeyIsMaskedWhateverItsSpelling(): void
+    {
+        // The Temporal DSN takes `api_key` (#353); a payload carries the same thing as `apiKey`.
+        $redacted = (new KeyPatternPayloadRedactor())->redact(['api_key' => 'a', 'apiKey' => 'b', 'X-Api-Key' => 'c', 'keyword' => 'd']);
+
+        self::assertSame([
+            'api_key' => KeyPatternPayloadRedactor::MASK,
+            'apiKey' => KeyPatternPayloadRedactor::MASK,
+            'X-Api-Key' => KeyPatternPayloadRedactor::MASK,
+            'keyword' => 'd',
+        ], $redacted);
+    }
+
     public function testALongStringIsTruncatedAndSaysByHowMuch(): void
     {
         $redacted = (new KeyPatternPayloadRedactor(maxStringBytes: 8))->redact(['note' => str_repeat('a', 20)]);
