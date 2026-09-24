@@ -13,6 +13,7 @@ use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\WorkflowExecution;
@@ -42,7 +43,7 @@ use unit\Durable\Fixtures\SuiteActivities;
  */
 final class WorkflowTaskProcessorTest extends TestCase
 {
-    private WorkflowServiceClientInterface $grpcClient;
+    private WorkflowServiceClientInterface&MockObject $grpcClient;
     private TemporalConnection $connection;
 
     protected function setUp(): void
@@ -63,6 +64,10 @@ final class WorkflowTaskProcessorTest extends TestCase
         return new WorkflowTaskProcessor($this->grpcClient, $this->connection, $runner);
     }
 
+    /**
+     * @param list<HistoryEvent>     $events
+     * @param array<string, string> $queries query id => query type
+     */
     private static function buildPoll(
         string $token,
         string $workflowId,
@@ -104,6 +109,7 @@ final class WorkflowTaskProcessorTest extends TestCase
         return $e;
     }
 
+    /** @param array<mixed> $input */
     private static function makeStarted(int $id, array $input = []): HistoryEvent
     {
         $e = self::makeEvent($id, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
@@ -523,6 +529,7 @@ final class QueryableWorkflow
 #[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'queryable-scheduling')]
 final class QueryableSchedulingWorkflow
 {
+    /** @var ActivityStub<SuiteActivities> */
     private readonly ActivityStub $greetings;
 
     public function __construct(
@@ -547,6 +554,7 @@ final class QueryableSchedulingWorkflow
 #[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'queryable-raising')]
 final class RaisingQueryWorkflow
 {
+    /** @var ActivityStub<SuiteActivities> */
     private readonly ActivityStub $greetings;
 
     public function __construct(

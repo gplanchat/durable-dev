@@ -493,6 +493,7 @@
         .ds-timelapse__legend-dot--signal { background: rgba(250, 127, 170, 0.9); }
         .ds-timelapse__legend-dot--query { background: rgba(149, 203, 255, 0.9); }
         .ds-timelapse__legend-dot--update { background: rgba(255, 178, 135, 0.9); }
+        .ds-timelapse__legend-dot--nexus { background: rgba(92, 214, 196, 0.9); }
         .ds-timelapse__legend-hatch {
             width: 14px;
             height: 10px;
@@ -643,6 +644,12 @@
         .ds-timelapse__bar--update {
             background: rgba(255, 178, 135, 0.9);
         }
+        .ds-timelapse__bar--nexus {
+            background: rgba(92, 214, 196, 0.9);
+        }
+        .ds-timelapse__bar--other {
+            background: rgba(255, 255, 255, 0.35);
+        }
         .ds-timelapse__bar--query {
             background: rgba(149, 203, 255, 0.9);
         }
@@ -712,6 +719,7 @@
             text-transform: uppercase;
             letter-spacing: 0.08em;
         }
+        .ds-event-kind--execution,
         .ds-event-kind--workflow {
             background: rgba(106, 95, 193, 0.2);
             border-color: rgba(106, 95, 193, 0.6);
@@ -722,6 +730,7 @@
             border-color: rgba(194, 239, 78, 0.65);
             color: #101c00;
         }
+        .ds-event-kind--update,
         .ds-event-kind--timer {
             background: rgba(255, 178, 135, 0.2);
             border-color: rgba(255, 178, 135, 0.65);
@@ -732,6 +741,8 @@
             border-color: rgba(250, 127, 170, 0.65);
             color: #ffeaf2;
         }
+        .ds-event-kind--query,
+        .ds-event-kind--nexus,
         .ds-event-kind--child {
             background: rgba(149, 203, 255, 0.2);
             border-color: rgba(149, 203, 255, 0.65);

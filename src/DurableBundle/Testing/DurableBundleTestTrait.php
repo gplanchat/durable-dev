@@ -11,6 +11,7 @@ use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Query\WorkflowQueryEvaluator;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
+use Gplanchat\Durable\Testing\JournalAssertions;
 use Gplanchat\Durable\Uuid\NativeUuidV7Generator;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use PHPUnit\Framework\Assert;
@@ -175,26 +176,7 @@ trait DurableBundleTestTrait
      */
     protected function assertWorkflowFailed(string $executionId, string $expectedFailureClass = ''): void
     {
-        $eventStore = $this->getEventStoreService();
-        $failed = null;
-        foreach ($eventStore->readStream($executionId) as $event) {
-            if ($event instanceof WorkflowExecutionFailed) {
-                $failed = $event;
-                break;
-            }
-        }
-        Assert::assertNotNull(
-            $failed,
-            \sprintf('The workflow "%s" did not fail (no WorkflowExecutionFailed in the journal).', $executionId),
-        );
-
-        if ('' !== $expectedFailureClass) {
-            Assert::assertSame(
-                $expectedFailureClass,
-                $failed->failureClass(),
-                \sprintf('The workflow "%s" failed with another class than the expected one.', $executionId),
-            );
-        }
+        JournalAssertions::assertWorkflowFailed($this->getEventStoreService(), $executionId, $expectedFailureClass);
     }
 
     /**

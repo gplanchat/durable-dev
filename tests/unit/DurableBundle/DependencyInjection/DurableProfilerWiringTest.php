@@ -193,7 +193,7 @@ final class DurableProfilerWiringTest extends TestCase
                 return $missing;
             } catch (ServiceNotFoundException $e) {
                 $id = $e->getId();
-                if (null === $id || \in_array($id, $missing, true)) {
+                if (\in_array($id, $missing, true)) {
                     throw $e;
                 }
                 $missing[] = $id;
@@ -202,6 +202,16 @@ final class DurableProfilerWiringTest extends TestCase
         }
 
         self::fail('the verification pass does not converge');
+    }
+
+    public function testProfilerEnabledTurnsItOffInDebug(): void
+    {
+        self::assertFalse($this->load(debug: true, config: ['profiler' => ['enabled' => false]])->has('durable.execution_trace'));
+    }
+
+    public function testProfilerEnabledTurnsItOnOutsideDebug(): void
+    {
+        self::assertTrue($this->load(debug: false, config: ['profiler' => ['enabled' => true]])->has('durable.execution_trace'));
     }
 
     /**

@@ -17,13 +17,21 @@
         <directory name="src/Bridge/Dbal" />
         <directory name="src/Bridge/Illuminate" />
         <directory name="src/DurableLaravel" />
+        <directory name="tests/unit" />
+        <directory name="tests/integration" />
         <ignoreFiles>
             <directory name="src/Bridge/Temporal/Api" />
             <directory name="src/Bridge/Temporal/Generated" />
-            <directory name="src/Bridge/Temporal/Spike" />
             <directory name="src/DurablePlugin/tests" />
             <!-- See phpstan.neon: illuminate/console cannot enter the root graph. -->
             <directory name="src/DurableLaravel/Console" />
+            <!-- See phpstan.neon: rule input, wrong or third-party-shaped on purpose. -->
+            <directory name="tests/unit/DurablePhpstan/Fixtures" />
+            <directory name="tests/unit/DurableRector/Source" />
+            <directory name="tests/unit/DurableRector/Fixture" />
+            <!-- They include the module's templates, which need magento/framework, absent from the root
+                 graph. PHPStan analyses these tests; Psalm does not, nor does psalm-magento.xml. -->
+            <directory name="tests/unit/DurableModule" />
             <directory name="vendor" />
         </ignoreFiles>
     </projectFiles>
@@ -44,5 +52,80 @@
         <UnusedClass errorLevel="suppress" />
         <!-- #[\Override] requires PHP 8.3+; the project targets PHP 8.2+ -->
         <MissingOverrideAttribute errorLevel="suppress" />
+        <!-- A test reaches into @internal code on purpose: that is what it exists to check. -->
+        <InternalClass>
+            <errorLevel type="suppress"><directory name="tests" /></errorLevel>
+        </InternalClass>
+        <InternalMethod>
+            <errorLevel type="suppress"><directory name="tests" /></errorLevel>
+        </InternalMethod>
+        <!-- The bus the nested handler dispatches to is built before the handler can run. -->
+        <NullReference>
+            <errorLevel type="suppress">
+                <file name="tests/unit/Bridge/Dbal/SingleResumeLockMiddlewareTest.php" />
+            </errorLevel>
+        </NullReference>
+        <!-- setUp() can skip before it assigns the client; tearDown() still runs. -->
+        <RedundantPropertyInitializationCheck>
+            <errorLevel type="suppress">
+                <file name="tests/integration/Temporal/Http/JsonGatewayRoundTripTest.php" />
+            </errorLevel>
+        </RedundantPropertyInitializationCheck>
+        <!-- A fake transport: it returns the message it was given, whatever class the caller asked for. -->
+        <InvalidReturnType>
+            <errorLevel type="suppress">
+                <file name="tests/unit/Bridge/Temporal/Grpc/GrpcWorkflowServiceClientTest.php" />
+            </errorLevel>
+        </InvalidReturnType>
+        <!-- Same fake transport. -->
+        <InvalidReturnStatement>
+            <errorLevel type="suppress">
+                <file name="tests/unit/Bridge/Temporal/Grpc/GrpcWorkflowServiceClientTest.php" />
+            </errorLevel>
+        </InvalidReturnStatement>
+        <!-- The regex only captures the five verb bytes the map holds. -->
+        <InvalidArrayOffset>
+            <errorLevel type="suppress">
+                <file name="tests/unit/Bridge/Temporal/Http/JsonGatewayRoutesTest.php" />
+            </errorLevel>
+        </InvalidArrayOffset>
+        <!-- A Nexus handler that throws: the test is about the refusal it becomes. -->
+        <NoValue>
+            <errorLevel type="suppress">
+                <file name="tests/unit/Bridge/Temporal/Worker/TemporalNexusWorkerTest.php" />
+            </errorLevel>
+        </NoValue>
+        <!-- A cache double that shares its store with the test by reference. -->
+        <UnsupportedPropertyReferenceUsage>
+            <errorLevel type="suppress">
+                <file name="tests/unit/Durable/Activity/ActivityContractResolverMemoTest.php" />
+            </errorLevel>
+        </UnsupportedPropertyReferenceUsage>
+        <!-- An assertion the types already promise is still the check the test makes (phpstan.neon says the same). -->
+        <RedundantCondition>
+            <errorLevel type="suppress">
+                <directory name="tests" />
+            </errorLevel>
+        </RedundantCondition>
+        <!-- A contract that does not exist, on purpose: the test is about the refusal. -->
+        <UndefinedClass>
+            <errorLevel type="suppress">
+                <file name="tests/unit/DurableLaravel/NexusOnLaravelTest.php" />
+                <file name="tests/unit/Durable/Workflow/WorkflowMethodArgumentsTest.php" />
+            </errorLevel>
+        </UndefinedClass>
+        <!-- The rule test runs PHPStan in a process of its own. -->
+        <ForbiddenCode>
+            <errorLevel type="suppress">
+                <file name="tests/unit/DurablePhpstan/ActivitiesParameterRuleTest.php" />
+            </errorLevel>
+        </ForbiddenCode>
+        <!-- Bare-container Laravel providers and facades (see phpstan.neon). -->
+        <InvalidArgument>
+            <errorLevel type="suppress">
+                <referencedFunction name="Gplanchat\Durable\Laravel\DurableServiceProvider::__construct" />
+                <referencedFunction name="Illuminate\Support\Facades\Facade::setFacadeApplication" />
+            </errorLevel>
+        </InvalidArgument>
     </issueHandlers>
 </psalm>
