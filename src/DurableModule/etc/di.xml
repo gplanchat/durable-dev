@@ -44,16 +44,19 @@
                 constructible outside Magento, under unit test; the container has to say it.
             -->
             <argument name="deploymentConfig" xsi:type="object">Magento\Framework\App\DeploymentConfig</argument>
+            <!-- The same shared instance the activities inject: on Temporal the factory points it at
+                 the worker's sender (#510). Optional arguments are not autowired, hence here. -->
+            <argument name="heartbeat" xsi:type="object">Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface</argument>
             <argument name="activityHandlers" xsi:type="array">
             </argument>
         </arguments>
     </type>
 
     <!--
-        An activity may inject the heartbeat sender (the activities page shows how). Nothing in the
-        module serves heartbeats, so the ObjectManager hands the no-op.
+        An activity may inject the heartbeat sender (the activities page shows how). This one is a
+        no-op in process, and leads to the Temporal worker's sender once the factory built it.
     -->
     <preference for="Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface"
-                type="Gplanchat\Durable\Activity\NullActivityHeartbeatSender"/>
+                type="Gplanchat\DurableModule\Runtime\SharedActivityHeartbeatSender"/>
 
 </config>

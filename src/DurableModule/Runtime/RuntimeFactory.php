@@ -11,13 +11,13 @@ use Gplanchat\Bridge\Temporal\Http\Psr18Http;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
-use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
@@ -113,7 +113,15 @@ class RuntimeFactory
          * `<argument name="jsonGateway" xsi:type="object">`.
          */
         private readonly ?Psr18Http $jsonGateway = null,
+        /**
+         * The sender the activities inject, from `di.xml`'s preference. On Temporal it is pointed
+         * at the worker's sender, so their heartbeats carry the task's token (#510).
+         */
+        private readonly ?SharedActivityHeartbeatSender $heartbeat = null,
     ) {}
+
+    /** One per factory: the worker binds each task's token onto it. */
+    private ?TemporalActivityHeartbeatSender $temporalHeartbeat = null;
 
     public function create(): MagentoRuntime
     {
@@ -253,19 +261,22 @@ class RuntimeFactory
         $settings = $this->requireCluster('An activity worker');
         $client = WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle, $this->jsonGateway);
         $scratch = new InMemoryEventStore();
+        $rpc = new WorkflowServiceActivityRpc($client);
+        $this->temporalHeartbeat ??= new TemporalActivityHeartbeatSender($rpc, $settings);
+        $this->heartbeat?->delegateTo($this->temporalHeartbeat);
 
         return new TemporalActivityWorker(
-            new WorkflowServiceActivityRpc($client),
+            $rpc,
             $settings,
             new ActivityMessageProcessor(
                 $scratch,
                 new NoopActivityTransport(),
                 $this->activityExecutor(),
                 new NullWorkflowResumeDispatcher(),
-                new NullActivityHeartbeatSender(),
+                $this->temporalHeartbeat,
             ),
             $scratch,
-            new NullActivityHeartbeatSender(),
+            $this->temporalHeartbeat,
         );
     }
 
