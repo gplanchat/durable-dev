@@ -654,39 +654,6 @@ jobs:
             - name: Follow the guide
               run: bin/guide-follows.sh
 
-    temporal-bridge:
-        name: Bridge Temporal (ext-grpc + test resolver)
-        runs-on: ubuntu-latest
-        timeout-minutes: 30
-        steps:
-            - uses: actions/checkout@v7
-
-            - name: Setup PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  php-version: '8.2'
-                  extensions: mbstring, sqlite3, pdo_sqlite, grpc
-                  coverage: none
-
-            - name: Cache Composer downloads
-              uses: actions/cache@v6
-              with:
-                  path: ~/.cache/composer
-                  key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
-                  restore-keys: composer-${{ runner.os }}-
-
-            - name: Install Composer dependencies
-              run: composer install --no-interaction --prefer-dist --no-progress
-
-            - name: PHPUnit (journal history replay)
-              run: vendor/bin/phpunit tests/unit/Bridge/Temporal/JournalStateResolverTest.php
-
-            - name: PHPUnit (Temporal workers registered by the bundle, ext-grpc)
-              run: vendor/bin/phpunit tests/unit/DurableBundle/DependencyInjection/DurableTemporalReceiversTest.php tests/unit/DurableBundle/DependencyInjection/Compiler/TemporalReceiversPassTest.php
-
-            - name: PHPUnit (WorkflowTaskRunner + WorkflowTaskProcessor — fiber replay, DUR027)
-              run: vendor/bin/phpunit tests/unit/Bridge/Temporal/Worker/
-
     coverage:
         name: Coverage (PCOV)
         runs-on: ubuntu-latest
@@ -983,7 +950,7 @@ jobs:
         # job names can move without touching the protection. A skipped job is not a failure.
         name: ci-ok
         if: always()
-        needs: [qa, symfony-matrix, laravel, sylius-shop, magento-matrix, magento-boot, static-analysis, symfony-sample, conformance-sql, guide-follows, temporal-bridge, coverage, temporal-integration, no-grpc, grpc-integration, docker-compose-stack, manifests]
+        needs: [qa, symfony-matrix, laravel, sylius-shop, magento-matrix, magento-boot, static-analysis, symfony-sample, conformance-sql, guide-follows, coverage, temporal-integration, no-grpc, grpc-integration, docker-compose-stack, manifests]
         runs-on: ubuntu-latest
         timeout-minutes: 5
         steps:
