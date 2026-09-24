@@ -205,6 +205,8 @@ final class DurableSchema
             $runs->addColumn('picked_up_at', Types::DATETIME_IMMUTABLE, ['notnull' => false]);
             $runs->setPrimaryKey(['execution_id']);
             $runs->addIndex(['started_at'], $this->runsTable . '_started_idx');
+            // The run list filters on status and orders by start (#339).
+            $runs->addIndex(['status', 'started_at'], $this->runsTable . '_status_started_idx');
         }
 
         if (!\in_array($this->parentLinkTable, $skip, true)) {

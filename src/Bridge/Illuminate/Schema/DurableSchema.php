@@ -104,6 +104,8 @@ final class DurableSchema
                 $table->dateTime('ended_at')->nullable();
                 // When a worker first picked the run up (#447); null while the run waits for one.
                 $table->dateTime('picked_up_at')->nullable();
+                // The run list filters on status and orders by start (#339).
+                $table->index(['status', 'started_at']);
             });
         }
 
