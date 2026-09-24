@@ -27,6 +27,7 @@ use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
+use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
 use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\RecordedDetails;
@@ -668,6 +669,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                     'title' => $p['title'],
                     'subtitle' => $p['subtitle'],
                     'category' => $p['category'],
+                    'phase' => JournalRunHistoryReader::phaseOf($event)?->value,
                     'payload' => $this->redacted($event->payload()),
                     'recordedAt' => null !== $recordedAt ? $recordedAt->format(\DateTimeInterface::ATOM) : null,
                 ];

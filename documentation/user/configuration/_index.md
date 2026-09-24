@@ -13,23 +13,22 @@ This page documents every key accepted by `DurableBundle` in `config/packages/du
 
 ```yaml
 durable:
-    dbal:                                    # only read when a type below is 'dbal'
+    backend: in_memory                       # 'in_memory' (default), 'dbal' or 'temporal'
+    dbal:                                    # only read when backend is 'dbal'
         connection: doctrine.dbal.default_connection
         lock_factory: lock.factory           # must be shared across workers
         lock_ttl: 300                        # seconds; must exceed the longest step of a resume pass
     event_store:
-        type: in_memory                      # 'in_memory' (default) or 'dbal'
         table_name: durable_events
     temporal:
-        dsn: null                            # set to temporal://… to activate the Temporal backend
-        journal: true                        # false: the cluster is reachable, event_store stays the journal
+        dsn: null                            # required by backend 'temporal'; with 'dbal', serves Nexus
     workflow_metadata:
-        type: in_memory                      # 'in_memory' (default) or 'dbal'
         table_name: durable_workflow_metadata
     activity_transport:
         type: messenger                      # 'in_memory' is the DEFAULT, set 'messenger' to route
         transport_name: durable_activities
-        table_name: durable_activity_outbox
+    profiler:
+        enabled: '%kernel.debug%'            # the default
     max_activity_retries: 0                  # maximum automatic retries before marking an activity as failed
     messenger:
         buses: []                            # [] = every bus (default)
@@ -40,7 +39,6 @@ durable:
     child_workflow:
         async_messenger: true                # true = child workflows dispatched via Messenger
         parent_link_store:
-            type: in_memory                  # 'in_memory' (default) or 'dbal'
             table_name: durable_child_workflow_parent_link
 ```
 
@@ -52,10 +50,37 @@ durable:
 
 ---
 
+## `backend`
+
+Where the journal lives. One key, because the journal, the workflow metadata and the parent links
+have to agree: two sources of truth for one run is the failure this key rules out.
+
+| Value | Journal, metadata, parent links | Needs |
+|-------|---------------------------------|-------|
+| `in_memory` (default) | the PHP process | nothing; tests and single-process demos |
+| `dbal` | SQL, through [`dbal`](#dbal) | a Doctrine DBAL connection and a shared lock store |
+| `temporal` | the cluster at [`temporal.dsn`](#temporal); the process keeps only the copy of the metadata and parent links that the profiler and `durable:execution:diagnose` read | `temporal.dsn` |
+
+`dbal` with a `temporal.dsn` keeps the journal in SQL and uses the cluster only to serve Nexus
+operations; see [Nexus operations](../nexus/).
+
+A configuration that contradicts itself is refused when the container is built, with the
+`durable` path in the message: `backend: temporal` without a DSN, or a deprecated key below that
+says otherwise than `backend`.
+
+> [!NOTE]
+> `event_store.type`, `workflow_metadata.type`, `child_workflow.parent_link_store.type` and
+> `temporal.journal` are deprecated since 0.1.0-beta1 and will be removed in the next version. When
+> `backend` is not set, it is derived from them, so an existing configuration keeps working and
+> reports a deprecation. [UPGRADE.md](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md)
+> has the translation.
+
+---
+
 ## `dbal`
 
-Where the SQL backend gets its connection and its lock. Read only when one of the three `type` keys
-below is set to `dbal`; ignored otherwise, so it costs nothing to leave at its defaults.
+Where the SQL backend gets its connection and its lock. Read only when `backend` is `dbal`; ignored
+otherwise, so it costs nothing to leave at its defaults.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -74,12 +99,12 @@ Controls where workflow event history is stored.
 
 | Key | Values | Default | Description |
 |-----|--------|---------|-------------|
-| `type` | `in_memory`, `dbal` | `in_memory` | Storage backend. `in_memory` keeps events in the PHP process, which is correct for tests and Temporal native (Temporal is the real history source). `dbal` persists them in SQL, and is what makes a run survive a restart without a cluster. |
+| `type` | `in_memory`, `dbal` | from `backend` | **Deprecated**: set [`backend`](#backend). |
 | `table_name` | string | `durable_events` | Table the `dbal` store writes to. Created on first write. |
 
 ### When using Temporal
 
-The `in_memory` event store is still correct when `temporal.dsn` is set. `TemporalReadThroughEventStore` wraps it: events missing locally are fetched from Temporal gRPC (`GetWorkflowExecutionHistory`) on demand, so the Symfony profiler DataCollector works across processes.
+With `backend: temporal`, the local event store is in memory, and that is correct. `TemporalReadThroughEventStore` wraps it: events missing locally are fetched from Temporal gRPC (`GetWorkflowExecutionHistory`) on demand, so the Symfony profiler DataCollector works across processes.
 
 ---
 
@@ -87,8 +112,8 @@ The `in_memory` event store is still correct when `temporal.dsn` is set. `Tempor
 
 | Key | Values | Default | Description |
 |-----|--------|---------|-------------|
-| `dsn` | `temporal://host:port?…` or `null` | `null` | When `null`: In-Memory Messenger backend. When set: activates the Temporal backend. gRPC goes through `ext-grpc` when the extension is loaded and through curl (HTTP/2) otherwise; the scheme picks the wire, see below. |
-| `journal` | `true` / `false` | `true` | `false` says the cluster is reachable **without** being the journal: `event_store` stays the source of truth, and the dashboard keeps reading it. That is how an application with a DBAL journal serves a Nexus operation; see [Nexus operations](../nexus/). Setting a DSN with `journal: true` alongside `event_store.type: dbal` is refused: the journal cannot have two sources of truth. |
+| `dsn` | `temporal://host:port?…` or `null` | `null` | The cluster. Required by `backend: temporal`; with `backend: dbal`, the cluster serves Nexus operations and the journal stays in SQL. Anything but a non-empty string or `null` is refused. gRPC goes through `ext-grpc` when the extension is loaded and through curl (HTTP/2) otherwise; the scheme picks the wire, see below. |
+| `journal` | `true` / `false` | from `backend` | **Deprecated**: `true` is `backend: temporal`, `false` with a DSN is `backend: dbal`. |
 | `guzzle_client` | a service id or `null` | `null` | The application's `GuzzleHttp\ClientInterface`, used by `transport=guzzle` in the DSN: its proxy, TLS options and middleware apply to gRPC. Ignored by any other transport; `null` builds a default client. On Laravel, the same key in `config/durable.php` names a container binding; on Magento, it is the `guzzle` argument of `RuntimeFactory` in `di.xml`. |
 | `psr18_client` | a service id or `null` | `null` | The application's PSR-18 client, used by `transport=http` (the JSON gateway) instead of curl. Ignored by any other transport. |
 | `psr17_factory` | a service id or `null` | `psr18_client` | One service implementing both PSR-17 request and stream factories — Guzzle's `HttpFactory`, nyholm's `Psr17Factory`. Symfony's `Psr18Client` is both client and factory, hence the default. On Laravel, both keys in `config/durable.php` name container bindings; on Magento, a `Psr18Http` is the `jsonGateway` argument of `RuntimeFactory` in `di.xml`. |
@@ -150,7 +175,7 @@ Stores workflow type and initial payload, looked up by `executionId` when resumi
 
 | Key | Values | Default | Description |
 |-----|--------|---------|-------------|
-| `type` | `in_memory`, `dbal` | `in_memory` | In-process store. Correct for single-process tests and Temporal (metadata is persisted in Temporal history via the memo field). `dbal` persists it in SQL. |
+| `type` | `in_memory`, `dbal` | from `backend` | **Deprecated**: set [`backend`](#backend). |
 | `table_name` | string | `durable_workflow_metadata` | Table the `dbal` store writes to. Created on first write. |
 
 ---
@@ -163,7 +188,7 @@ How the bundle dispatches activity messages from workflow tasks to activity hand
 |-----|--------|---------|-------------|
 | `type` | `in_memory`, `messenger` | **`in_memory`** | `in_memory` executes activities **synchronously within the workflow task handler**, which is what you get when the key is absent. `messenger` routes activity messages via Symfony Messenger to the configured transport. |
 | `transport_name` | string | `durable_activities` | Name of the Messenger transport used when `type: messenger`. Must match a transport defined in `messenger.yaml`. |
-| `table_name` | string | `durable_activity_outbox` | Outbox table name. |
+| `table_name` | string | `durable_activity_outbox` | **Deprecated**, read nowhere: no outbox table exists. Remove it. |
 
 **The default is the one you probably do not want in production.** Defining `durable_activities` in
 `messenger.yaml` does not select it: without `type: messenger` the transport stays empty and the
@@ -195,6 +220,14 @@ declared bus is refused at compile time rather than silently doing nothing.
 
 ---
 
+## `profiler`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `enabled` | bool | `%kernel.debug%` | Registers the execution trace, the web profiler panel and the observer on the execution's hot path. Off, the observer is a null object. |
+
+---
+
 ## `max_activity_retries`
 
 ```yaml
@@ -202,7 +235,7 @@ durable:
     max_activity_retries: 3
 ```
 
-Ceiling on automatic retries, applied to activities that do not set their own. `0` means **no ceiling**, and since an activity with no `RetryLimit` retries indefinitely (Temporal's default), leaving both unset means a failing activity never fails the workflow. Set a bound per activity with `RetryLimit::ofAttempts()` or `RetryLimit::once()`; see [Options and value objects](../options/#retrylimit).
+Ceiling on automatic retries, applied to activities that do not set their own. A negative value is refused. `0` means **no ceiling**, and since an activity with no `RetryLimit` retries indefinitely (Temporal's default), leaving both unset means a failing activity never fails the workflow. Set a bound per activity with `RetryLimit::ofAttempts()` or `RetryLimit::once()`; see [Options and value objects](../options/#retrylimit).
 
 ---
 
@@ -213,7 +246,7 @@ Pre-resolved activity contract metadata (method names, attributes) can be cached
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `cache` | string (service ID) or `null` | `null` | PSR-6 cache pool to use. `cache.app` is the Symfony default pool. Set `null` to disable caching (useful in `test` environment). |
-| `contracts` | list of FQCN strings | `[]` | Activity contract interfaces to warm up. |
+| `contracts` | list of FQCN strings | `[]` | Activity contract interfaces to warm up. A name the autoloader cannot find as an interface is refused when the container is built. |
 
 ```yaml
 durable:
@@ -233,7 +266,7 @@ Controls how child workflow dispatching works.
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `async_messenger` | bool | `false` | When `true`, child workflow runs are dispatched via Messenger (async). When `false`, they run synchronously within the parent workflow task. |
-| `parent_link_store.type` | `in_memory`, `dbal` | `in_memory` | Tracks parent→child links for completion propagation. `dbal` persists them in SQL. |
+| `parent_link_store.type` | `in_memory`, `dbal` | from `backend` | **Deprecated**: set [`backend`](#backend). |
 | `parent_link_store.table_name` | string | `durable_child_workflow_parent_link` | Table the `dbal` store writes to. Created on first write. |
 
 ---
@@ -243,29 +276,26 @@ Controls how child workflow dispatching works.
 Use Symfony's `when@` syntax to change backends per environment:
 
 ```yaml
-# Always use In-Memory (default for all envs not overridden below)
+# In-Memory for every environment not overridden below
 durable:
-    event_store:
-        type: in_memory
-    temporal:
-        dsn: null
+    backend: in_memory
 
 # Temporal for dev and prod
 when@dev:
     durable:
+        backend: temporal
         temporal:
             dsn: '%env(DURABLE_DSN)%'
 
 when@prod:
     durable:
+        backend: temporal
         temporal:
             dsn: '%env(DURABLE_DSN)%'
 
-# In-Memory forced for tests (overrides dev/prod even if DURABLE_DSN is set)
+# In-Memory for tests, even if DURABLE_DSN is set
 when@test:
     durable:
-        temporal:
-            dsn: null
         child_workflow:
             async_messenger: false
 ```

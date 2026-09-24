@@ -22,7 +22,7 @@ Durable supports four execution backends: In-Memory, plus the three bridges you 
 > `durable/temporal/dsn` in `app/etc/env.php`, not by a setting.
 
 All four run the **same fiber driver** and the same workflow and activity code. Three of them are
-chosen with `durable.event_store.type` (and `DURABLE_DSN` for Temporal); **Illuminate is not one of
+chosen with `durable.backend` (and `DURABLE_DSN` for Temporal); **Illuminate is not one of
 its values** and never will be; see [the Illuminate backend](#illuminate-backend) for what binds it
 instead.
 
@@ -43,12 +43,7 @@ The In-Memory backend runs entirely inside a single PHP process. There is no ext
 ```yaml
 # config/packages/durable.yaml (or when@test:)
 durable:
-    event_store:
-        type: in_memory
-    temporal:
-        dsn: null
-    workflow_metadata:
-        type: in_memory
+    backend: in_memory
     activity_transport:
         type: messenger
         transport_name: durable_activities
@@ -142,16 +137,15 @@ DURABLE_DSN=temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durab
 ```yaml
 # config/packages/durable.yaml
 durable:
-    event_store:
-        type: in_memory   # Temporal is the real history source; in-memory acts as a local write-through cache
+    backend: temporal
     temporal:
         dsn: '%env(DURABLE_DSN)%'
 ```
 
 Nothing goes in `messenger.yaml` for Temporal. If it still declares `durable_workflows` or
 `durable_activities` under this backend, the container refuses to compile and names the transport
-to remove: those names belong to the bundle's workers. The exception is `durable.temporal.journal:
-false`: workflows then run locally, and those two transports stay the application's.
+to remove: those names belong to the bundle's workers. The exception is `durable.backend: dbal` with a
+DSN: workflows then run locally, and those two transports stay the application's.
 
 ### Temporal UI
 
@@ -205,13 +199,7 @@ durable:
     dbal:
         connection: doctrine.dbal.default_connection
         lock_factory: lock.factory
-    event_store:
-        type: dbal
-    workflow_metadata:
-        type: dbal
-    child_workflow:
-        parent_link_store:
-            type: dbal
+    backend: dbal
     activity_transport:
         type: messenger
         transport_name: durable_activities
@@ -221,8 +209,9 @@ framework:
         default: '%env(LOCK_DSN)%'   # doctrine://default, redis://…, must be shared across workers
 ```
 
-Setting `event_store.type: dbal` together with a non-empty `temporal.dsn` throws at compile time:
-the journal cannot have two sources of truth.
+Adding a `temporal.dsn` keeps the journal in SQL and uses the cluster only to serve Nexus operations.
+`backend: temporal` would hand the cluster the journal instead: there is never a second source of
+truth.
 
 ### One resume at a time, the thing to get right {#one-resume-at-a-time--the-thing-to-get-right}
 
@@ -258,7 +247,7 @@ DUR030 needs. See [DUR047](https://github.com/gplanchat/durable-dev/blob/main/do
 
 ### What binds it is not this page's YAML
 
-It is **not a fourth value of `event_store.type`**, and it never will be: a Laravel application does
+It is **not a fourth value of `backend`**, and it never will be: a Laravel application does
 not read this page's YAML. The bridge is the storage half, and **what binds it is
 `gplanchat/durable-laravel`**, through its own published `config/durable.php`.
 

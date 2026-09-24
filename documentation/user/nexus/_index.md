@@ -12,8 +12,8 @@ deployment, without either side knowing the other's workflows. Durable does both
 Serving requires the **Temporal backend**. The in-memory and DBAL backends have no cross-namespace
 route, and they say so rather than pretending; see [Backends](../backends/).
 
-That does not mean giving up a SQL journal. `durable.temporal.journal: false` says the cluster is
-reachable while `event_store` stays the source of truth, which is how a shop whose dashboard reads
+That does not mean giving up a SQL journal. `durable.backend: dbal` with a `temporal.dsn` says the
+cluster is reachable while the SQL journal stays the source of truth, which is how a shop whose dashboard reads
 DBAL serves a Nexus operation without that dashboard changing what it reads. Calling is the other
 way round: an operation is scheduled by a workflow, and a workflow can only schedule one if its
 journal **is** the cluster.
