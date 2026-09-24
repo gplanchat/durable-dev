@@ -39,7 +39,7 @@ PHP namespace: **`Gplanchat\Bridge\Temporal`**.
 temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal
 ```
 
-It goes once, in `durable.temporal.dsn`. Schemes: `temporal://` (gRPC), `temporal+tls://` (gRPC over TLS), `temporal+http://` and `temporal+https://` (the server JSON gateway, port 7243 by default). Query parameters: `namespace`, `task_queue` or `journal_task_queue`, `workflow_type`, `workflow_task_queue`, `activity_task_queue`, `nexus_task_queue`, `identity`, `tls` (bool, the older spelling of `+tls`), `transport` (`auto` by default: ext-grpc when loaded, curl otherwise; `grpc`, `grpc-curl`, `guzzle`, `http` to force one). Unknown keys are ignored today (a typo falls back to the default silently — issue #353 makes them fail).
+It goes once, in `durable.temporal.dsn`. Schemes: `temporal://` (gRPC), `temporal+tls://` (gRPC over TLS), `temporal+http://` and `temporal+https://` (the server JSON gateway, port 7243 by default). Query parameters: `namespace`, `task_queue` or `journal_task_queue`, `workflow_type`, `workflow_task_queue`, `activity_task_queue`, `nexus_task_queue`, `identity`, `tls` (bool, the older spelling of `+tls`), `transport` (`auto` by default: ext-grpc when loaded, curl otherwise; `grpc`, `grpc-curl`, `guzzle`, `http` to force one). Over TLS, `ca`, `cert` and `key` name PEM files (the CA that signs the server, and a client certificate for mTLS, `cert` and `key` together), and `api_key` is sent as `authorization: Bearer …` with the `temporal-namespace` header Temporal Cloud routes by. Any other key is refused, by name, and so is `ca`/`cert`/`key`/`api_key` without TLS. Over a PSR-18 client handed to the JSON gateway, TLS is that client's configuration: `ca`/`cert`/`key` are refused there.
 
 ## Workers
 

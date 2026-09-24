@@ -223,6 +223,17 @@ replacement; `inner=` is no longer read, and `TemporalConnection::$innerMessenge
 2. Drop `inner=` from the DSN. The Messenger transport it pointed at, if you still need it, is
    declared directly in `framework.messenger.transports`.
 
+### An unknown key in the Temporal DSN is refused
+
+**Who is affected**: a Temporal DSN carrying a query key `TemporalConnection::fromDsn()` does not
+read: a typo (`namesapce=`), a key from another client (`ssl=`), or a leftover `inner=`. It used to
+be ignored, so `namesapce=orders` ran against the `default` namespace without a word. It now
+throws an `InvalidArgumentException` naming the key and the accepted ones. Rector cannot help: the
+value is a string in configuration.
+
+1. Read the message: it names the key.
+2. Fix the typo, or drop the key. For TLS, `temporal+tls://` or `tls=1`.
+
 ### Stubs refuse what PHP refuses
 
 **Who is affected**: any application that calls an activity, Nexus operation or child workflow

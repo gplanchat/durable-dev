@@ -44,6 +44,9 @@ final class WorkflowServiceClientFactory
         // The JSON gateway is not gRPC: a client of its own, not a transport.
         // Over a handed PSR-18 client, curl is not needed.
         if (TemporalConnection::TRANSPORT_HTTP === $transport) {
+            if (null !== $jsonGateway && (null !== $settings->tlsCa || null !== $settings->tlsCert)) {
+                throw new \InvalidArgumentException('The handed PSR-18 client carries its own TLS configuration: set the CA and client certificate there, not as ca=/cert=/key= in the Temporal DSN.');
+            }
             if (null === $jsonGateway) {
                 self::assertCurl($transport);
             }
@@ -146,14 +149,33 @@ final class WorkflowServiceClientFactory
      * The ext-grpc channel options for this connection, shared by {@see createStub} and
      * {@see ExtGrpcTransport}.
      *
-     * @return array{credentials: mixed}
+     * @return array{credentials: mixed, update_metadata: \Closure(array<string, mixed>): array<string, mixed>}
      */
     public static function channelOptions(TemporalConnection $settings): array
     {
         $credentials = $settings->tls
-            ? ChannelCredentials::createSsl()
+            ? ChannelCredentials::createSsl(self::pem($settings->tlsCa), self::pem($settings->tlsKey), self::pem($settings->tlsCert))
             : ChannelCredentials::createInsecure();
 
-        return ['credentials' => $credentials];
+        // Every call of the stub goes through update_metadata: the API key rides on each one, and
+        // metadata the caller passes wins.
+        return [
+            'credentials' => $credentials,
+            'update_metadata' => static fn(array $metadata): array => $metadata + $settings->metadata(),
+        ];
+    }
+
+    /** ext-grpc takes the PEM contents, where curl and Guzzle take the path. */
+    private static function pem(?string $file): ?string
+    {
+        if (null === $file) {
+            return null;
+        }
+        $pem = file_get_contents($file);
+        if (false === $pem) {
+            throw new \RuntimeException(\sprintf('Temporal TLS file "%s" cannot be read.', $file));
+        }
+
+        return $pem;
     }
 }

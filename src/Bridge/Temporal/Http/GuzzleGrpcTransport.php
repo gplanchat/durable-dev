@@ -29,7 +29,7 @@ final class GuzzleGrpcTransport implements GrpcTransport
 
     public function unary(string $method, Message $request, string $responseClass, array $metadata, ?int $timeoutMs): Message
     {
-        $headers = ['content-type' => 'application/grpc', 'te' => 'trailers', 'user-agent' => 'durable-bridge-temporal/php'] + $metadata;
+        $headers = ['content-type' => 'application/grpc', 'te' => 'trailers', 'user-agent' => 'durable-bridge-temporal/php'] + $metadata + $this->connection->metadata();
         if (null !== $timeoutMs) {
             $headers['grpc-timeout'] = $timeoutMs . 'm';
         }
@@ -38,7 +38,11 @@ final class GuzzleGrpcTransport implements GrpcTransport
         $trailers = [];
 
         try {
-            $response = $this->client->request('POST', ($this->connection->tls ? 'https://' : 'http://') . $this->connection->target . $method, [
+            $response = $this->client->request('POST', ($this->connection->tls ? 'https://' : 'http://') . $this->connection->target . $method, array_filter([
+                'verify' => $this->connection->tlsCa,
+                'cert' => $this->connection->tlsCert,
+                'ssl_key' => $this->connection->tlsKey,
+            ], static fn(?string $file): bool => null !== $file) + [
                 'body' => GrpcWire::frame($request->serializeToString()),
                 'headers' => $headers,
                 'version' => '2.0',
