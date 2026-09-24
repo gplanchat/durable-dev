@@ -46,6 +46,11 @@ parameters:
         - identifier: method.notFound
           path: src/DurableBundle/DependencyInjection/Configuration.php
           reportUnmatched: false
+        # TreeBuilder is not generic on 6.4, and its template has no 'array' default on the lowest
+        # 7.4 and 8.0 patches: no return type satisfies every leg. Matches on those lowest legs only.
+        - identifier: missingType.generics
+          path: src/DurableBundle/DependencyInjection/Configuration.php
+          reportUnmatched: false
         # PHPStan cannot track Awaitable settlement across Fiber boundary
         - identifier: booleanNot.alwaysTrue
           path: src/Durable/ExecutionRuntime.php
