@@ -127,6 +127,7 @@ $timeline = $block->getTimeline();
                         <th><?= $escaper->escapeHtml(__('#')) ?></th>
                         <th><?= $escaper->escapeHtml(__('Recorded')) ?></th>
                         <th><?= $escaper->escapeHtml(__('Kind')) ?></th>
+                        <th><?= $escaper->escapeHtml(__('Phase')) ?></th>
                         <th><?= $escaper->escapeHtml(__('Action')) ?></th>
                         <th><?= $escaper->escapeHtml(__('What happened')) ?></th>
                     </tr>
@@ -138,6 +139,9 @@ $timeline = $block->getTimeline();
                         <td><?= (int) $event->sequence ?></td>
                         <td><?= $escaper->escapeHtml($event->recordedAt->format('Y-m-d H:i:s')) ?></td>
                         <td><?= $escaper->escapeHtml($event->kind->value) ?></td>
+                        <?php /* Requested, started, failed, settled: what the row did to its
+                                action. A signal or an update is its own action and has none. */ ?>
+                        <td><?= $escaper->escapeHtml($event->phase?->value ?? '') ?></td>
                         <?php /* The name of the action, not of the event: the follow-ups of an
                                 activity carry only a number, and the operator is looking for the
                                 name. It is the same string as the frieze row label. */ ?>
