@@ -8,5 +8,5 @@
   `src/DurableBundle/Resources/views/Collector/durable.html.twig` (journal table); then
   `src/DurablePlugin/templates/admin/dashboard/_dashboard.html.twig` (event rows) once #519 lands;
   their tests.
-- **State**: in review — profiler part is PR #524 on `feat/profiler-run-event-phase` (antoine's #337 rename
-  stacks on it), plugin part after #519. sabrina.
+- **State**: in review — profiler part is PR #524; plugin part pushed on `feat/plugin-run-event-phase`
+  (stacked on #519's 882a1f39), PR held until #519 merges. sabrina.
