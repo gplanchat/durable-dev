@@ -5,4 +5,4 @@
   with lanes B (profiler) and D (plugin, Magento).
 - **Entries**: `src/Durable/Observation/`, `src/Bridge/Temporal/Store/TemporalRunHistoryReader.php`,
   their tests.
-- **State**: in progress — durable-50 (lane A).
+- **State**: in review — PR #483, durable-50 (lane A).
