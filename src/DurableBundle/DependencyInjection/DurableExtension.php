@@ -45,6 +45,7 @@ use Gplanchat\Durable\Bundle\Command\SetupCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
 use Gplanchat\Durable\Bundle\EventListener\RefuseResetOnInMemoryTransportListener;
+use Gplanchat\Durable\Bundle\EventListener\WarnOnIgnoredWorkerLimitsListener;
 use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler;
@@ -841,6 +842,15 @@ final class DurableExtension extends Extension
             ->addTag('kernel.event_listener', ['event' => WorkerStartedEvent::class])
             ->setPublic(false)
         ;
+        // Only where the inspected names are the Temporal workers: elsewhere they are real
+        // transports, and --limit works on them (#353).
+        if ($isTemporalNative) {
+            $container->register(WarnOnIgnoredWorkerLimitsListener::class)
+                ->setArguments([new Reference(DurableWorkerInspection::class), new Reference('logger')])
+                ->addTag('kernel.event_listener', ['event' => WorkerStartedEvent::class])
+                ->setPublic(false)
+            ;
+        }
     }
 
     /**
