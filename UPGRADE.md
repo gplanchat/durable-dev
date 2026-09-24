@@ -37,7 +37,8 @@ a false "waiting for a worker" on each of them would be worse than no signal.
   missing and marks the existing rows.
 - **Symfony with Doctrine Migrations** (the bundle declares Durable's tables to the schema tool):
   `bin/console doctrine:migrations:diff` generates the `ADD picked_up_at` statement; add the
-  `UPDATE` below to the generated migration before running it.
+  `UPDATE` below to the generated migration before running it. When the journal lives on another
+  connection than the ORM, the tool does not see its tables: use the SQL below.
 - **Anything else**, by hand:
 
 ```sql
@@ -45,7 +46,8 @@ ALTER TABLE durable_workflow_runs ADD picked_up_at DATETIME DEFAULT NULL;  -- TI
 UPDATE durable_workflow_runs SET picked_up_at = started_at WHERE picked_up_at IS NULL;
 ```
 
-Workers read the table's columns once per process: restart them after the change.
+Workers read the table's columns once per process: restart them after the change, or they keep
+running without recording pickups, and the runs they execute read as waiting for a worker.
 
 A projection of your own (`WorkflowRunProjectionInterface`) keeps compiling. To report pickups, also
 implement `WorkflowRunPickupProjectionInterface::recordPickup()`, and set `tellsWaitingForWorker` on
