@@ -4,31 +4,25 @@ declare(strict_types=1);
 
 namespace Gplanchat\DurableModule\Runtime;
 
-use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
-use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
-use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Http\Psr18Http;
-use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
-use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
+use Gplanchat\Bridge\Temporal\TemporalRuntimeAssembly;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
-use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
-use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
-use Gplanchat\Durable\Transport\NoopActivityTransport;
-use Gplanchat\Durable\Worker\ActivityMessageProcessor;
+use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
 use Magento\Framework\App\DeploymentConfig;
 use Psr\Log\LoggerInterface;
@@ -120,8 +114,10 @@ class RuntimeFactory
         private readonly ?SharedActivityHeartbeatSender $heartbeat = null,
     ) {}
 
-    /** One per factory: the worker binds each task's token onto it. */
-    private ?TemporalActivityHeartbeatSender $temporalHeartbeat = null;
+    /** One per factory, and the ObjectManager shares the factory: one gRPC client per request (#356). */
+    private ?WorkflowServiceClientInterface $client = null;
+
+    private ?TemporalRuntimeAssembly $assembly = null;
 
     public function create(): MagentoRuntime
     {
@@ -173,7 +169,7 @@ class RuntimeFactory
 
         return $settings === null
             ? new InMemoryEventStore()
-            : new TemporalJournalEventStore(WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle, $this->jsonGateway), $settings);
+            : new TemporalJournalEventStore($this->client($settings), $settings);
     }
 
     /**
@@ -193,31 +189,13 @@ class RuntimeFactory
             return new InMemoryWorkflowRunCatalog(new InMemoryEventStore());
         }
 
-        $client = WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle, $this->jsonGateway);
-
         // The history cursor is not decorative: `listRuns()` returns only the Temporal workflow's
         // status — the journal's, which is **long by construction** and therefore eternally
         // `running`. What tells a finished execution apart from a running one is read in its
-        // events, and it is the cursor that gives them.
-        return new TemporalWorkflowRunCatalog(
-            $client,
-            $settings,
-            new TemporalHistoryCursor($client, $settings->namespace->name()),
-        );
+        // events, and the assembly's catalog reads them through the cursor.
+        return $this->assembly($settings)->runCatalog();
     }
 
-    /**
-     * The worker that answers the journal queue's tasks.
-     *
-     * Without it, an execution appended to the cluster stays `running` there forever: the journal
-     * exists, its history fills, and no one makes it advance. That is exactly what the back-office
-     * grid was showing — and it was right to show it.
-     *
-     * The four objects come from the bridge, and the assembly is the same as the Messenger
-     * transport's on the Symfony side. All that changes here is who turns the loop: a
-     * `bin/magento` command, drained by whatever an operator already supervises, rather than a
-     * `messenger:consume`.
-     */
     public function journalWorker(): WorkflowTaskProcessor
     {
         $settings = $this->temporalSettings();
@@ -228,77 +206,39 @@ class RuntimeFactory
             );
         }
 
-        $client = WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle, $this->jsonGateway);
-        $registry = new WorkflowRegistry();
-        foreach ($this->workflowClasses as $workflowClass) {
-            $registry->registerClass($workflowClass);
-        }
-
-        return new WorkflowTaskProcessor(
-            $client,
-            $settings,
-            new WorkflowTaskRunner(
-                new TemporalHistoryCursor($client, $settings->namespace->name()),
-                $registry,
-                $settings,
-            ),
-        );
+        return $this->assembly($settings)->workflowTaskProcessor();
     }
 
-    /**
-     * The worker that drains activity tasks.
-     *
-     * On Temporal, scheduling an activity produces a **task** somebody has to take. Nobody was
-     * doing it, and that is what §5.3 had measured without naming it: the card was not charged
-     * again, but the order did not move on either.
-     *
-     * Its journal is a scratch `InMemoryEventStore`, and that is not a shortcut: on this path an
-     * activity's result goes back through Temporal's RPC, not through the journal. The
-     * repository's integration worker makes exactly the same choice, for the same reason.
-     */
     public function activityWorker(): TemporalActivityWorker
     {
-        $settings = $this->requireCluster('An activity worker');
-        $client = WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle, $this->jsonGateway);
-        $scratch = new InMemoryEventStore();
-        $rpc = new WorkflowServiceActivityRpc($client);
-        $this->temporalHeartbeat ??= new TemporalActivityHeartbeatSender($rpc, $settings);
-        $this->heartbeat?->delegateTo($this->temporalHeartbeat);
+        $assembly = $this->assembly($this->requireCluster('An activity worker'));
+        // The activities inject the shared sender; it now leads to the one the worker binds (#510).
+        $this->heartbeat?->delegateTo($assembly->heartbeatSender());
 
-        return new TemporalActivityWorker(
-            $rpc,
-            $settings,
-            new ActivityMessageProcessor(
-                $scratch,
-                new NoopActivityTransport(),
-                $this->activityExecutor(),
-                new NullWorkflowResumeDispatcher(),
-                $this->temporalHeartbeat,
-            ),
-            $scratch,
-            $this->temporalHeartbeat,
-        );
+        return $assembly->scratchActivityWorker($this->activityExecutor());
     }
 
-    /**
-     * What it takes to start an execution **on the cluster**, rather than in this process.
-     *
-     * `MagentoRuntime::run()` executes here and now: its activities go into the in-memory
-     * transport whatever the journal underneath, and die with the process. For an activity to
-     * become a Temporal task, the execution has to be started on the cluster and carried by the
-     * workers — that is the split task 5 describes, and this client is its door.
-     */
     public function workflowClient(): WorkflowClient
     {
-        $settings = $this->requireCluster('Starting a workflow on the cluster');
-        $client = WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle, $this->jsonGateway);
+        return $this->assembly($this->requireCluster('Starting a workflow on the cluster'))->workflowClient();
+    }
 
-        return new WorkflowClient(
-            $client,
-            $settings,
-            new TemporalHistoryCursor($client, $settings->namespace->name()),
-            new WorkflowServiceExecutionRpc($client),
-        );
+    private function client(TemporalConnection $settings): WorkflowServiceClientInterface
+    {
+        return $this->client ??= WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle, $this->jsonGateway);
+    }
+
+    private function assembly(TemporalConnection $settings): TemporalRuntimeAssembly
+    {
+        if (null === $this->assembly) {
+            $registry = new WorkflowRegistry();
+            foreach ($this->workflowClasses as $workflowClass) {
+                $registry->registerClass($workflowClass);
+            }
+            $this->assembly = new TemporalRuntimeAssembly($this->client($settings), $settings, $registry, new WorkflowDefinitionLoader());
+        }
+
+        return $this->assembly;
     }
 
     private function requireCluster(string $what): TemporalConnection
