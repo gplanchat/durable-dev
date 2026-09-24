@@ -63,14 +63,17 @@ final class TemporalRunHistoryReader
         'getScheduledEventId',
         'getInitiatedEventId',
         'getStartedEventId',
+        // An update's completion points back to its acceptance: one row per update (#359).
+        'getAcceptedEventId',
     ];
 
     /**
-     * What opens an action without designating anyone: a started timer, a scheduled activity.
+     * What opens an action without designating anyone: a started timer, a scheduled activity, an
+     * accepted update.
      *
      * @var list<string>
      */
-    private const FOUNDING_SUFFIXES = ['_SCHEDULED', '_STARTED', '_INITIATED'];
+    private const FOUNDING_SUFFIXES = ['_SCHEDULED', '_STARTED', '_INITIATED', '_ACCEPTED'];
 
     public function __construct(
         private readonly TemporalHistoryCursor $cursor,

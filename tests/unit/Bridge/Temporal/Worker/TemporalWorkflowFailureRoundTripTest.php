@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Temporal\Worker;
 
-use Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter;
+use Gplanchat\Bridge\Temporal\Store\TemporalEventConverter;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Durable\ContinueAsNewOptions;

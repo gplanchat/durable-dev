@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use Gplanchat\Bridge\Temporal\Spike\NativeExecutionSpike;
+use App\Temporal\NativeExecutionSpike;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
