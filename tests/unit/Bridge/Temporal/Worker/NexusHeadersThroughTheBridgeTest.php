@@ -66,10 +66,10 @@ final class NexusHeadersThroughTheBridgeTest extends TestCase
         $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1');
         $buffer->scheduleNexusOperation(
             'op-1',
-            NexusEndpoint::named('paiements'),
-            NexusService::named('facturation'),
-            NexusOperationName::named('encaisser'),
-            ['montant' => 10],
+            NexusEndpoint::named('payments'),
+            NexusService::named('billing'),
+            NexusOperationName::named('collect'),
+            ['amount' => 10],
             new NexusOperationTimeouts(scheduleToClose: Duration::seconds(30.0)),
             $headers,
         );

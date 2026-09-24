@@ -53,7 +53,7 @@ final class DbalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalogConf
     {
         $this->eventStore()->append(match ($outcome) {
             WorkflowRunStatus::Completed => new ExecutionCompleted($executionId, 'ok'),
-            WorkflowRunStatus::Cancelled => new WorkflowExecutionCancelled($executionId, 'annulé'),
+            WorkflowRunStatus::Cancelled => new WorkflowExecutionCancelled($executionId, 'cancelled'),
             WorkflowRunStatus::ContinuedAsNew => new WorkflowContinuedAsNew($executionId, 'App\\NextWorkflow', []),
             WorkflowRunStatus::Failed => WorkflowExecutionFailed::fromStoredPayload($executionId, [
                 'kind' => WorkflowExecutionFailed::KIND_WORKFLOW_HANDLER,

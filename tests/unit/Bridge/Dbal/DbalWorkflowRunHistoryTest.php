@@ -113,7 +113,7 @@ final class DbalWorkflowRunHistoryTest extends TestCase
 
     public function testAnUnknownRunHasAnEmptyHistoryRatherThanAnError(): void
     {
-        self::assertSame([], $this->catalog()->readHistory($this->describedRun('jamais-vue')));
+        self::assertSame([], $this->catalog()->readHistory($this->describedRun('never-seen')));
     }
 
     private function describedRun(string $runId): WorkflowRunDescription

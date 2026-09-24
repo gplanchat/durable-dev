@@ -49,7 +49,7 @@ final class DbalWorkflowRunCatalogTest extends TestCase
         $this->startRun('exec-1', 'App\\OrderWorkflow');
         $this->eventStore()->append(WorkflowExecutionFailed::unhandledDeclaredActivityFailure(
             'exec-1',
-            new \RuntimeException('le fournisseur a refusé la charge'),
+            new \RuntimeException('the provider refused the charge'),
         ));
 
         $runs = $this->catalog()->listRuns()->runs;
@@ -65,10 +65,10 @@ final class DbalWorkflowRunCatalogTest extends TestCase
         $this->startRun('exec-cancelled', 'App\\OrderWorkflow');
         $this->startRun('exec-failed', 'App\\OrderWorkflow');
 
-        $this->eventStore()->append(new WorkflowExecutionCancelled('exec-cancelled', 'annulé par le client'));
+        $this->eventStore()->append(new WorkflowExecutionCancelled('exec-cancelled', 'cancelled by the customer'));
         $this->eventStore()->append(WorkflowExecutionFailed::unhandledDeclaredActivityFailure(
             'exec-failed',
-            new \RuntimeException('boum'),
+            new \RuntimeException('boom'),
         ));
 
         $byId = $this->indexById($this->catalog()->listRuns()->runs);
