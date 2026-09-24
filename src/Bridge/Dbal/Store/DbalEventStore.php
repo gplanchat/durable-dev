@@ -9,6 +9,7 @@ use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Mapping\EventDataMapper;
 use Gplanchat\Durable\Store\EventStoreInterface;
+use Gplanchat\Durable\Store\StoredTimestamp;
 
 /**
  * Event journal persisted in SQL — the durable counterpart of
@@ -71,7 +72,7 @@ final class DbalEventStore implements EventStoreInterface
                     'event_type' => $row['event_type'],
                     'payload' => $row['payload'],
                 ]),
-                'recordedAt' => self::toDateTime($row['recorded_at']),
+                'recordedAt' => StoredTimestamp::toDateTime($row['recorded_at']),
             ];
         }
     }
@@ -84,20 +85,5 @@ final class DbalEventStore implements EventStoreInterface
             \sprintf('SELECT COUNT(*) FROM %s WHERE execution_id = ?', $this->table),
             [$executionId],
         );
-    }
-
-    /**
-     * Platforms return `recorded_at` as a string (SQLite, MySQL) or an object (PostgreSQL, driver-dependent).
-     */
-    private static function toDateTime(mixed $raw): ?\DateTimeImmutable
-    {
-        if ($raw instanceof \DateTimeImmutable) {
-            return $raw;
-        }
-        if (!\is_string($raw) || '' === $raw) {
-            return null;
-        }
-
-        return new \DateTimeImmutable($raw, new \DateTimeZone('UTC'));
     }
 }
