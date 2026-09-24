@@ -74,7 +74,50 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         };
         $model = (new RunDashboard(new RenderingCatalog(), redactor: $masksCustomers))->build();
 
-        self::assertStringNotContainsString('cus-42', $this->twig('en')->render('@DurablePlugin/admin/dashboard/index.html.twig', $model));
+        self::assertStringNotContainsString('cus-42', $this->twig('en')->render('@DurablePlugin/admin/dashboard/_dashboard.html.twig', $model));
+    }
+
+    public function testTheHookableRendersTheDashboardFromTheHookContext(): void
+    {
+        // TwigHooks hands a hookable nothing but `hookable_metadata`: the page's variables travel
+        // in its context (#383). A variable that does not make the trip is an empty dashboard.
+        $model = (new RunDashboard(new RenderingCatalog()))->build();
+        $metadata = new class ($model) {
+            public object $context;
+
+            /** @param array<string, mixed> $model */
+            public function __construct(array $model)
+            {
+                $this->context = new class ($model) {
+                    /** @param array<string, mixed> $model */
+                    public function __construct(private readonly array $model) {}
+
+                    /** @return array<string, mixed> */
+                    public function all(): array
+                    {
+                        return $this->model;
+                    }
+                };
+            }
+        };
+
+        $page = $this->twig('en')->render('@DurablePlugin/admin/dashboard/index/content/dashboard.html.twig', ['hookable_metadata' => $metadata]);
+
+        self::assertStringContainsString('SendWelcomeEmail', $page);
+    }
+
+    public function testAPageAfterTheFirstLeadsBack(): void
+    {
+        // #383: the controller hands the way back; the page must offer it, stack included.
+        $page = $this->render(previous: ['cursor' => 'c1', 'back' => 'WyIiXQ']);
+
+        self::assertStringContainsString('Previous page', $page);
+        self::assertStringContainsString('cursor=c1&amp;back=WyIiXQ', $page);
+    }
+
+    public function testTheFirstPageOffersNoWayBack(): void
+    {
+        self::assertStringNotContainsString('Previous page', $this->render());
     }
 
     public function testAnEphemeralJournalIsNeitherAFailureNorASuccess(): void
@@ -195,12 +238,14 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertSame(array_keys($catalogue('en')), array_keys($catalogue('fr')));
     }
 
-    private function render(bool $ephemeral = false, bool $badPayload = false, bool $waiting = false, string $locale = 'en', bool $secrets = false): string
+    /** @param array{cursor: string, back: string}|null $previous what the controller hands for the way back */
+    private function render(bool $ephemeral = false, bool $badPayload = false, bool $waiting = false, string $locale = 'en', ?array $previous = null, bool $secrets = false): string
     {
         $catalog = new RenderingCatalog($ephemeral, $badPayload, $waiting, $secrets);
         $model = (new RunDashboard($catalog))->build();
+        $model['pagination']['previous'] = $previous;
 
-        return $this->twig($locale)->render('@DurablePlugin/admin/dashboard/index.html.twig', $model);
+        return $this->twig($locale)->render('@DurablePlugin/admin/dashboard/_dashboard.html.twig', $model);
     }
 
     private function twig(string $locale = 'en'): Environment
@@ -217,7 +262,7 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         ]);
 
         $twig = new Environment(new ChainLoader([$plugin, $sylius]), ['strict_variables' => true]);
-        $twig->addFunction(new TwigFunction('path', static fn(string $route, array $parameters = []): string => '/admin/durable/dashboard'));
+        $twig->addFunction(new TwigFunction('path', static fn(string $route, array $parameters = []): string => '/admin/durable/dashboard?' . http_build_query($parameters)));
 
         $translator = new Translator($locale);
         $translator->addLoader('xlf', new XliffFileLoader());

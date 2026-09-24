@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
+use Gplanchat\Durable\Observation\RunDashboard;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -36,6 +37,52 @@ final class DurableDashboardTest extends WebTestCase
         // On the full HTML and not on `filter('h1')`: the Sylius admin layout lays down its own
         // headings, and aiming at the first `h1` would test their order rather than our page.
         self::assertStringContainsString('Durable Workflow Dashboard', $crawler->html());
+    }
+
+    public function testTheAdminHooksComposeThePageAroundTheDashboard(): void
+    {
+        // #383: sidebar, navbar, page wrapper and footer come from `sylius_admin.common.index`,
+        // once each; the content hookable places the dashboard, and its heading is the only one.
+        $client = $this->authenticatedClient();
+
+        $crawler = $client->request('GET', self::ROUTE);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filterXPath("//aside[contains(concat(' ', normalize-space(@class), ' '), ' navbar-vertical ')]"), 'the sidebar, from the common hook');
+        self::assertCount(1, $crawler->filterXPath("//header[contains(concat(' ', normalize-space(@class), ' '), ' navbar ')]"), 'the navbar, from the common hook');
+        self::assertCount(1, $crawler->filterXPath("//*[contains(concat(' ', normalize-space(@class), ' '), ' page-wrapper ')]"), 'one page wrapper, not one per layer');
+        self::assertCount(1, $crawler->filterXPath("//footer[contains(concat(' ', normalize-space(@class), ' '), ' footer ')]"), 'the footer, from the common hook');
+        self::assertCount(1, $crawler->filterXPath('//h1')->reduce(static fn ($h1): bool => str_contains($h1->text(), 'Durable Workflow Dashboard')));
+    }
+
+    public function testThePreviousPageLinkLeadsBackThroughRealUrls(): void
+    {
+        // #383: the way back is a stack of cursors in the URL; only a real router proves it survives
+        // generation and parsing. One run more than a page, so there is a second page.
+        $client = $this->authenticatedClient();
+        try {
+            for ($i = 0; $i <= RunDashboard::PAGE_SIZE; ++$i) {
+                $this->recordFailedRun('exec-page-' . $i, 'App\\PagedWorkflow');
+            }
+
+            $first = $client->request('GET', self::ROUTE);
+            self::assertCount(0, $first->selectLink('Previous page'), 'the first page has no way back');
+
+            $second = $client->click($first->selectLink('Next page')->link());
+            self::assertResponseIsSuccessful();
+
+            $back = $client->click($second->selectLink('Previous page')->link());
+            self::assertResponseIsSuccessful();
+            self::assertCount(0, $back->selectLink('Previous page'), 'Previous leads back to the first page');
+            self::assertCount(1, $back->selectLink('Next page'));
+        } finally {
+            // The database outlives the test: a full page of runs would push the other tests' run
+            // off the first page.
+            $connection = static::getContainer()->get('doctrine.dbal.default_connection');
+            foreach (['durable_events', 'durable_workflow_metadata', 'durable_workflow_runs'] as $table) {
+                $connection->executeStatement("DELETE FROM {$table} WHERE execution_id LIKE 'exec-page-%'");
+            }
+        }
     }
 
     public function testAnAnonymousVisitorDoesNotReachIt(): void

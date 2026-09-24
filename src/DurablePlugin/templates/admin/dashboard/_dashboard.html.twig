@@ -1,0 +1,269 @@
+{# The dashboard itself, without a page around it: the admin hooks place it (index.html.twig). #}
+<style>
+        .durable-kpi-value { font-size: 1.35rem; font-weight: 600; line-height: 1.2; }
+        .durable-run-row { border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); padding: .65rem; text-decoration: none; display: block; color: inherit; }
+        .durable-run-row:hover { border-color: var(--tblr-primary); }
+        .durable-run-row.active { border-color: var(--tblr-primary); box-shadow: inset 0 0 0 1px var(--tblr-primary); }
+        .durable-status { font-size: .7rem; text-transform: uppercase; letter-spacing: .02em; }
+        .durable-meta { color: var(--tblr-secondary-color); font-size: .82rem; display: flex; gap: .35rem .65rem; flex-wrap: wrap; }
+        .durable-action { border-left: 3px solid var(--tblr-border-color); padding-left: .65rem; margin-bottom: 1rem; }
+        .durable-action.execution { border-left-color: #93c5fd; }
+        .durable-action.activity { border-left-color: #a7f3d0; }
+        .durable-action.signal { border-left-color: #fbcfe8; }
+        .durable-action.query { border-left-color: #fde68a; }
+        .durable-action.update { border-left-color: #c4b5fd; }
+        /* Nexus stands out from the rest on purpose: it is the one path where the wait is served
+           outside this application, and the one an operator has to spot without looking for it. */
+        .durable-action.nexus { border-left-color: #fdba74; }
+        /* What went wrong reads without unfolding anything — a cancellation stays black. */
+        .durable-failed, .durable-failed > details > summary { color: #d63939; }
+        .durable-events { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+        .durable-events li { border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); padding: .5rem .65rem; background: var(--tblr-bg-surface); }
+        .durable-frieze { margin-bottom: 1.25rem; }
+        .durable-frieze-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .3rem; }
+        .durable-frieze-name { flex: 0 0 12rem; text-align: right; font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .durable-frieze-track { position: relative; flex: 1 1 auto; height: 1.4rem; background: var(--tblr-bg-surface-secondary); border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); }
+        /* One `min-width` for both, and that is what holds the rule: four milliseconds of queue
+           must not draw wider than six milliseconds of work. A minimum applied to both makes them
+           equal under the threshold, never inverted. */
+        .durable-frieze-bar { position: absolute; top: .3rem; height: .8rem; min-width: .2rem; border-radius: .4rem; opacity: .35; background: #206bc4; }
+        .durable-frieze-mark { position: absolute; top: .4rem; width: .6rem; height: .6rem; margin-left: -.3rem; border-radius: 50%; background: #206bc4; }
+        .durable-frieze-bar.execution, .durable-frieze-mark.execution { background: #4b5563; }
+        .durable-frieze-bar.activity, .durable-frieze-mark.activity { background: #206bc4; }
+        .durable-frieze-bar.signal, .durable-frieze-mark.signal { background: #d63939; }
+        .durable-frieze-bar.update, .durable-frieze-mark.update { background: #7048e8; }
+        /* Nexus stands out on purpose here too, as it does on the blocks further down. */
+        .durable-frieze-bar.nexus, .durable-frieze-mark.nexus { background: #f76707; }
+        .durable-frieze-bar.other, .durable-frieze-mark.other { background: #868e96; }
+        /* After the per-kind rules, not before: those set `background` as a shorthand, which
+           resets `background-image`. The opacity is raised because a queue of a few milliseconds
+           fits in two pixels, where translucent hatching no longer shows. */
+        .durable-frieze-bar.waiting { opacity: .75; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.9) 0 1px, rgba(255,255,255,0) 1px 3px); }
+        /* `background-color` and not `background`: the shorthand would wipe the hatching, and a
+           wait that ends in a failure is both at once. */
+        .durable-frieze-bar.failed { background-color: #d63939; opacity: .75; }
+        .durable-frieze-mark.failed { background-color: #d63939; }
+        .durable-frieze-took { flex: 0 0 5rem; font-size: .8rem; color: var(--tblr-secondary-color); }
+        .durable-frieze-scale { display: flex; justify-content: space-between; font-size: .8rem; color: var(--tblr-secondary-color); padding: 0 5.75rem 0 12.75rem; }
+        .durable-frieze-key { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; padding-left: 12.75rem; font-size: .8rem; color: var(--tblr-secondary-color); }
+        .durable-frieze-key .durable-frieze-bar { position: static; top: auto; flex: 0 0 2.5rem; height: .8rem; }
+        .durable-failed { color: #d63939; }
+        .durable-events summary { cursor: pointer; }
+        .durable-events pre { margin: .5rem 0 0; padding: .5rem; font-size: .8em; white-space: pre-wrap; word-break: break-word; background: var(--tblr-bg-surface-secondary); color: var(--tblr-body-color); border-radius: var(--tblr-border-radius); }
+    </style>
+
+        <div class="container-xl my-4">
+            <div class="d-flex flex-column gap-3">
+                <div>
+                    <h1 class="h2 mb-1">{{ 'dashboard.title'|trans({}, 'durable') }}</h1>
+                    <p class="text-secondary mb-0">{{ 'dashboard.intro'|trans({}, 'durable') }}</p>
+                </div>
+
+                {# Three states, not two: no readable backend, an unreachable one, or a reachable
+                   one whose journal does not outlive the request. The third answers, and its answer
+                   is empty — painting it as a success would teach that nothing ran, which is false. #}
+                <div class="alert {% if not backend.available %}alert-warning{% elseif backend.ephemeral %}alert-info{% else %}alert-success{% endif %}" role="alert">
+                    <div>{{ backend.message }}</div>
+                    {# The backend is named only when there is one: with no catalog, naming a
+                       server would send the operator down a false trail. #}
+                    {% if backend.name is defined %}
+                        <small class="text-secondary">{{ 'dashboard.backend_checked'|trans({'%name%': backend.name, '%time%': backend.checkedAt|date('Y-m-d H:i:s', false)}, 'durable') }}</small>
+                    {% endif %}
+                </div>
+
+                {% if backend.available %}
+                    {# The scope is stated, and the scope is the point: a "Total" heading with twenty
+                       under it teaches the operator that an application which recorded five hundred
+                       runs has twenty. These counters cover the page on screen, because that is what
+                       the catalog was asked to return. #}
+                    <h2 class="h4 mb-0">{{ 'dashboard.outcomes_heading'|trans({'%count%': kpis.total}, 'durable') }}</h2>
+                    <div class="row row-cards">
+                        {% for label, counter in {
+                            'kpi.on_this_page': 'total',
+                            'status.running': 'running',
+                            'status.completed': 'completed',
+                            'status.failed': 'failed',
+                            'status.cancelled': 'cancelled',
+                            'status.continued_as_new': 'continued_as_new',
+                        } %}
+                            <div class="col-6 col-lg-2">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="text-secondary text-uppercase small">{{ label|trans({}, 'durable') }}</div>
+                                        <div class="durable-kpi-value">{{ attribute(kpis, counter) }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {# Not an outcome: a subset of the running runs on this page, those no worker has picked up (#447).
+                           A backend that cannot tell leaves the key out, and the card with it. #}
+                        {% if waitingForWorkerOnThisPage is defined %}
+                            <div class="col-6 col-lg-2">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="text-secondary text-uppercase small">{{ 'kpi.waiting_for_worker'|trans({}, 'durable') }}</div>
+                                        <div class="durable-kpi-value">{{ waitingForWorkerOnThisPage }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <form class="row g-2 align-items-end" method="get" action="{{ path('gplanchat_durable_plugin_admin_dashboard') }}">
+                                <div class="col-md-9">
+                                    <label for="status" class="form-label">{{ 'filter.outcome'|trans({}, 'durable') }}</label>
+                                    <select id="status" class="form-select" name="status">
+                                        {% for value in ['all', 'running', 'completed', 'failed', 'cancelled', 'continued_as_new'] %}
+                                            <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ ('status.' ~ value)|trans({}, 'durable') }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3 d-grid">
+                                    <button type="submit" class="btn btn-primary">{{ 'filter.submit'|trans({}, 'durable') }}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-xl-4">
+                            <div class="card">
+                                <div class="card-header"><h3 class="card-title">{{ 'runs.title'|trans({}, 'durable') }}</h3></div>
+                                <div class="card-body">
+                                    {% if runs is empty %}
+                                        <p class="text-secondary mb-0">{{ 'runs.empty'|trans({}, 'durable') }}</p>
+                                    {% else %}
+                                        {% for run in runs %}
+                                            <a class="durable-run-row {% if selectedRun and selectedRun.runId == run.runId %}active{% endif %}"
+                                               href="{{ path('gplanchat_durable_plugin_admin_dashboard', { status: status, run: run.runId, cursor: pagination.cursor, back: pagination.back|default('') }) }}">
+                                                <div class="d-flex justify-content-between align-items-center gap-2">
+                                                    <strong>{{ run.workflowName }}</strong>
+                                                    <span class="badge durable-status {% if run.status == 'running' %}bg-blue-lt text-blue{% elseif run.status == 'completed' %}bg-green-lt text-green{% elseif run.status == 'failed' %}bg-red-lt text-red{% else %}bg-secondary-lt text-secondary{% endif %}">{{ ('status.' ~ run.status)|trans({}, 'durable')|upper }}</span>
+                                                </div>
+                                                <div class="durable-meta mt-1">
+                                                    <code>{{ run.runId }}</code>
+                                                    {# Each fact shows only when it exists: the view model omits the key rather than render an empty value. #}
+                                                    {% if run.startedAt is defined %}<span>{{ run.startedAt|date('Y-m-d H:i:s', false) }}</span>{% endif %}
+                                                    {% if run.groupId is defined %}<span>{{ 'runs.group'|trans({}, 'durable') }} <code>{{ run.groupId }}</code></span>{% endif %}
+                                                    {# Dispatched, and no worker has taken it: usually no worker is running (#447). #}
+                                                    {% if run.waitingForWorker is defined %}<span class="text-orange">{{ run.waitingForWorker }}</span>{% endif %}
+                                                </div>
+                                            </a>
+                                        {% endfor %}
+                                    {% endif %}
+
+                                    {% set previous = pagination.previous|default(null) %}
+                                    {% if previous or pagination.hasNext %}
+                                        <div class="mt-3 d-flex gap-2">
+                                            {% if previous %}
+                                                <a class="btn btn-outline-secondary btn-sm" href="{{ path('gplanchat_durable_plugin_admin_dashboard', { status: status, cursor: previous.cursor, back: previous.back }) }}">{{ 'pagination.previous'|trans({}, 'durable') }}</a>
+                                            {% endif %}
+                                            {% if pagination.hasNext %}
+                                                <a class="btn btn-outline-primary btn-sm" href="{{ path('gplanchat_durable_plugin_admin_dashboard', { status: status, cursor: pagination.nextCursor, back: pagination.nextBack|default('') }) }}">{{ 'pagination.next'|trans({}, 'durable') }}</a>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-8">
+                            <div class="card">
+                                <div class="card-header"><h3 class="card-title">{{ 'details.title'|trans({}, 'durable') }}</h3></div>
+                                <div class="card-body">
+                                    {% if selectedRun %}
+                                        <p><strong>{{ 'details.workflow'|trans({}, 'durable') }}</strong> {{ selectedRun.workflowName }}</p>
+                                        <p><strong>{{ 'details.run'|trans({}, 'durable') }}</strong> <code>{{ selectedRun.runId }}</code></p>
+                                        <p><strong>{{ 'details.outcome'|trans({}, 'durable') }}</strong> {{ ('status.' ~ selectedRun.status)|trans({}, 'durable')|upper }}</p>
+
+                                        {% if selectedRun.timeline.actions is empty %}
+                                            <p class="text-secondary mb-0">{{ 'details.no_history'|trans({}, 'durable') }}</p>
+                                        {% else %}
+                                            {# The frieze: one row per action, **placed in time**. Stacking blocks
+                                               answers "in what order", never "for how long" — and the second is the
+                                               question an operator in front of a slow run comes to ask. The seconds
+                                               come from the core; the only thing decided here is how they scale,
+                                               because that needs to know a column width. #}
+                                            {% set scale = selectedRun.timeline.span > 0 ? 100 / selectedRun.timeline.span : 0 %}
+                                            <div class="durable-frieze">
+                                                {% for action in selectedRun.timeline.actions %}
+                                                    <div class="durable-frieze-row">
+                                                        <span class="durable-frieze-name" title="{{ action.label }}">{{ action.label }}</span>
+                                                        <div class="durable-frieze-track">
+                                                            {# One segment per interval, not one bar per action: as soon as the run
+                                                               itself takes a row, a single bar would say "the run lasted as long as
+                                                               the run" and would hide the wait. #}
+                                                            {% for segment in action.segments %}
+                                                                <span class="durable-frieze-bar {{ action.kind.value }}{{ segment.waiting ? ' waiting' }}{{ segment.failed ? ' failed' }}"
+                                                                      style="left: {{ (segment.offset * scale)|number_format(3, '.', '') }}%; width: {{ (segment.duration * scale)|number_format(3, '.', '') }}%"
+                                                                      title="{{ segment.title }}"></span>
+                                                            {% endfor %}
+                                                            {% for mark in action.events %}
+                                                                <span class="durable-frieze-mark {{ action.kind.value }}{{ mark.event.failed ? ' failed' }}"
+                                                                      style="left: {{ (mark.offset * scale)|number_format(3, '.', '') }}%"
+                                                                      title="{{ mark.title }}"></span>
+                                                            {% endfor %}
+                                                        </div>
+                                                        <span class="durable-frieze-took">{{ action.durationLabel }}</span>
+                                                    </div>
+                                                {% endfor %}
+                                                <div class="durable-frieze-scale">
+                                                    <span>0</span>
+                                                    <span>{{ selectedRun.timeline.spanLabel }}</span>
+                                                </div>
+                                                {# Hovering assumes you know there is something to hover over. #}
+                                                <div class="durable-frieze-key">
+                                                    <span class="durable-frieze-bar waiting other"></span>
+                                                    {{ 'frieze.key_waiting'|trans({}, 'durable') }}
+                                                </div>
+                                                <div class="durable-frieze-key">
+                                                    <span class="durable-frieze-bar failed"></span>
+                                                    {{ 'frieze.key_failed'|trans({}, 'durable') }}
+                                                </div>
+                                            </div>
+                                            {# One block per action, not per kind: an activity scheduled, started and then
+                                               finished is one action and three events, and it is its duration the operator
+                                               comes to read. The grouping, the durations and the queue/work split come from
+                                               the core — this page renders them, it does not compute them. #}
+                                            {% for action in selectedRun.timeline.actions %}
+                                                <div class="durable-action {{ action.kind.value }}">
+                                                    <h4 class="h5 mb-2">{{ action.label }} <small class="text-secondary">{{ action.durationLabel }}</small></h4>
+                                                    <ul class="durable-events">
+                                                        {% for mark in action.events %}
+                                                            {# An event the backend recorded nothing for keeps a plain row: a disclosure
+                                                               that opens on nothing gets opened again every time. #}
+                                                            <li{% if mark.event.failed %} class="durable-failed"{% endif %}>
+                                                                {# ⚠ `date(..., false)` keeps the timezone the date **carries**. Without it
+                                                                   Twig applies the server's, and the same event read 22:13:20 in the
+                                                                   frieze tooltip — composed in the core — and 23:13:20 in this very row,
+                                                                   on a machine in Paris. #}
+                                                                {# `renderedDetails` is `null` when there is nothing to open. The formatting
+                                                                   is decided in the core: this template used to call `json_encode` with no
+                                                                   tolerance and rendered an **empty** disclosure as soon as one byte was
+                                                                   not UTF-8. #}
+                                                                {% if mark.renderedDetails is not null %}
+                                                                    <details>
+                                                                        <summary><strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v', false) }} — {{ mark.event.label }}</summary>
+                                                                        <pre>{{ mark.renderedDetails }}</pre>
+                                                                    </details>
+                                                                {% else %}
+                                                                    <strong>#{{ mark.event.sequence }}</strong> {{ mark.event.recordedAt|date('H:i:s.v', false) }} — {{ mark.event.label }}
+                                                                {% endif %}
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </div>
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% else %}
+                                        <p class="text-secondary mb-0">{{ 'details.select'|trans({}, 'durable') }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
