@@ -25,8 +25,9 @@ final class StoredTimestampTest extends TestCase
     {
         $date = StoredTimestamp::toDateTime('2026-09-24 14:00:00+02:00');
 
-        self::assertSame('+02:00', $date?->format('P'));
-        self::assertSame((new \DateTimeImmutable('2026-09-24 12:00:00 UTC'))->getTimestamp(), $date?->getTimestamp());
+        self::assertNotNull($date);
+        self::assertSame('+02:00', $date->format('P'));
+        self::assertSame((new \DateTimeImmutable('2026-09-24 12:00:00 UTC'))->getTimestamp(), $date->getTimestamp());
     }
 
     public function testMicrosecondsAreKept(): void
