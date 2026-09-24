@@ -54,6 +54,14 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     /** Each id named in `?durable_execution=` costs a journal read. */
     public const MAX_QUERIED_EXECUTIONS = 20;
 
+    /**
+     * Each journal of this request, read once: the first events for the panel, the last one for
+     * the status, the count. Emptied when collect() returns; only `$this->data` is serialised.
+     *
+     * @var array<string, array{entries: list<array{event: Event, recordedAt: ?\DateTimeImmutable}>, truncated: bool, count: int, last: ?Event}>
+     */
+    private array $journals = [];
+
     public function __construct(
         private readonly DurableExecutionTrace $trace,
         private readonly WorkflowMetadataStore $metadataStore,
@@ -64,6 +72,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     #[\Override]
     public function collect(Request $request, Response $response, ?\Throwable $exception = null): void
     {
+        $this->journals = [];
         $timeline = $this->enrichTimelineForProfiler($this->trace->getTimeline());
         $executionIds = $this->collectDispatchedExecutionIdsFromTimeline($timeline);
         $executionIds = $this->mergeExecutionIdsFromRequest($request, $executionIds);
@@ -79,7 +88,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             }
             $runSnapshots[$eid] = [
                 'metadata' => $this->metadataStore->get($eid),
-                'eventCount' => $this->eventStore->countEventsInStream($eid),
+                'eventCount' => $this->journal($eid)['count'],
             ];
         }
 
@@ -87,7 +96,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             if (!isset($runSnapshots[$eid])) {
                 $runSnapshots[$eid] = [
                     'metadata' => $this->metadataStore->get($eid),
-                    'eventCount' => $this->eventStore->countEventsInStream($eid),
+                    'eventCount' => $this->journal($eid)['count'],
                 ];
             }
         }
@@ -128,6 +137,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         foreach ($this->data as $key => $value) {
             $this->data[$key] = $this->redactor->redact(RecordedDetails::storable($value));
         }
+        $this->journals = [];
     }
 
     /**
@@ -181,7 +191,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             $processTf = $this->filterProcessTimeframeForExecution($timeFrameProcess, $eid);
 
             $storeCountFromIndex = (int) ($storeTl['eventCount'] ?? 0);
-            $storeCountLive = $this->eventStore->countEventsInStream($eid);
+            $storeCountLive = $this->journal($eid)['count'];
             $timelineHasDispatch = $this->timelineHasDispatchForExecution($timelineForExec);
             $statusCode = $this->resolveExecutionStatus($eid, $rows, $meta, $timelineHasDispatch);
             $out[] = [
@@ -225,12 +235,9 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             return 'completed';
         }
 
-        $n = $this->eventStore->countEventsInStream($executionId);
+        $n = $this->journal($executionId)['count'];
         if ($n > 0) {
-            $lastEvent = null;
-            foreach ($this->eventStore->readStreamWithRecordedAt($executionId) as $entry) {
-                $lastEvent = $entry['event'];
-            }
+            $lastEvent = $this->journal($executionId)['last'];
             if (null !== $lastEvent) {
                 return $this->mapEventShortNameToStatus((new \ReflectionClass($lastEvent))->getShortName());
             }
@@ -447,7 +454,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     {
         $n = 0;
         foreach ($executionIdsList as $eid) {
-            $n += $this->eventStore->countEventsInStream($eid);
+            $n += $this->journal($eid)['count'];
         }
 
         return $n;
@@ -497,15 +504,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     {
         $out = [];
         foreach ($executionIds as $eid) {
-            $entries = [];
-            $truncated = false;
-            foreach ($this->eventStore->readStreamWithRecordedAt($eid) as $entry) {
-                if (\count($entries) >= self::MAX_STORE_EVENTS_PER_STREAM) {
-                    $truncated = true;
-                    break;
-                }
-                $entries[] = $entry;
-            }
+            ['entries' => $entries, 'truncated' => $truncated] = $this->journal($eid);
 
             if ([] === $entries) {
                 continue;
@@ -649,10 +648,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         $rows = [];
         foreach ($executionIds as $eid) {
             $i = 0;
-            foreach ($this->eventStore->readStreamWithRecordedAt($eid) as $entry) {
-                if ($i >= self::MAX_STORE_EVENTS_PER_STREAM) {
-                    break;
-                }
+            foreach ($this->journal($eid)['entries'] as $entry) {
                 $event = $entry['event'];
                 $recordedAt = $entry['recordedAt'];
                 $p = DurableProfilerEventPresentation::fromStoreEvent($event);
@@ -849,6 +845,33 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     public static function getTemplate(): string
     {
         return '@Durable/Collector/durable.html.twig';
+    }
+
+    /**
+     * @return array{entries: list<array{event: Event, recordedAt: ?\DateTimeImmutable}>, truncated: bool, count: int, last: ?Event}
+     */
+    private function journal(string $executionId): array
+    {
+        if (!isset($this->journals[$executionId])) {
+            $entries = [];
+            $count = 0;
+            $last = null;
+            // Read to the end for the last event and the count; keep only the first events.
+            foreach ($this->eventStore->readStreamWithRecordedAt($executionId) as $entry) {
+                if (++$count <= self::MAX_STORE_EVENTS_PER_STREAM) {
+                    $entries[] = $entry;
+                }
+                $last = $entry['event'];
+            }
+            $this->journals[$executionId] = [
+                'entries' => $entries,
+                'truncated' => $count > self::MAX_STORE_EVENTS_PER_STREAM,
+                'count' => $count,
+                'last' => $last,
+            ];
+        }
+
+        return $this->journals[$executionId];
     }
 
     #[\Override]
