@@ -1,8 +1,6 @@
 {% extends '@SyliusAdmin/shared/layout/base.html.twig' %}
 
-{% trans_default_domain 'durable' %}
-
-{% block title %}{{ 'dashboard.title'|trans }} | {{ parent() }}{% endblock %}
+{% block title %}{{ 'dashboard.title'|trans({}, 'durable') }} | {{ parent() }}{% endblock %}
 
 {% block stylesheets %}
     {{ parent() }}
@@ -68,8 +66,8 @@
         <div class="container-xl my-4">
             <div class="d-flex flex-column gap-3">
                 <div>
-                    <h1 class="h2 mb-1">{{ 'dashboard.title'|trans }}</h1>
-                    <p class="text-secondary mb-0">{{ 'dashboard.intro'|trans }}</p>
+                    <h1 class="h2 mb-1">{{ 'dashboard.title'|trans({}, 'durable') }}</h1>
+                    <p class="text-secondary mb-0">{{ 'dashboard.intro'|trans({}, 'durable') }}</p>
                 </div>
 
                 {# Three states, not two: no readable backend, an unreachable one, or a reachable
@@ -80,7 +78,7 @@
                     {# The backend is named only when there is one: with no catalog, naming a
                        server would send the operator down a false trail. #}
                     {% if backend.name is defined %}
-                        <small class="text-secondary">{{ 'dashboard.backend_checked'|trans({'%name%': backend.name, '%time%': backend.checkedAt|date('Y-m-d H:i:s', false)}) }}</small>
+                        <small class="text-secondary">{{ 'dashboard.backend_checked'|trans({'%name%': backend.name, '%time%': backend.checkedAt|date('Y-m-d H:i:s', false)}, 'durable') }}</small>
                     {% endif %}
                 </div>
 
@@ -89,7 +87,7 @@
                        under it teaches the operator that an application which recorded five hundred
                        runs has twenty. These counters cover the page on screen, because that is what
                        the catalog was asked to return. #}
-                    <h2 class="h4 mb-0">{{ 'dashboard.outcomes_heading'|trans({'%count%': kpis.total}) }}</h2>
+                    <h2 class="h4 mb-0">{{ 'dashboard.outcomes_heading'|trans({'%count%': kpis.total}, 'durable') }}</h2>
                     <div class="row row-cards">
                         {% for label, counter in {
                             'kpi.on_this_page': 'total',
@@ -102,7 +100,7 @@
                             <div class="col-6 col-lg-2">
                                 <div class="card">
                                     <div class="card-body">
-                                        <div class="text-secondary text-uppercase small">{{ label|trans }}</div>
+                                        <div class="text-secondary text-uppercase small">{{ label|trans({}, 'durable') }}</div>
                                         <div class="durable-kpi-value">{{ attribute(kpis, counter) }}</div>
                                     </div>
                                 </div>
@@ -114,7 +112,7 @@
                             <div class="col-6 col-lg-2">
                                 <div class="card">
                                     <div class="card-body">
-                                        <div class="text-secondary text-uppercase small">{{ 'kpi.waiting_for_worker'|trans }}</div>
+                                        <div class="text-secondary text-uppercase small">{{ 'kpi.waiting_for_worker'|trans({}, 'durable') }}</div>
                                         <div class="durable-kpi-value">{{ waitingForWorkerOnThisPage }}</div>
                                     </div>
                                 </div>
@@ -126,15 +124,15 @@
                         <div class="card-body">
                             <form class="row g-2 align-items-end" method="get" action="{{ path('gplanchat_durable_plugin_admin_dashboard') }}">
                                 <div class="col-md-9">
-                                    <label for="status" class="form-label">{{ 'filter.outcome'|trans }}</label>
+                                    <label for="status" class="form-label">{{ 'filter.outcome'|trans({}, 'durable') }}</label>
                                     <select id="status" class="form-select" name="status">
                                         {% for value in ['all', 'running', 'completed', 'failed', 'cancelled', 'continued_as_new'] %}
-                                            <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ ('status.' ~ value)|trans }}</option>
+                                            <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ ('status.' ~ value)|trans({}, 'durable') }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
                                 <div class="col-md-3 d-grid">
-                                    <button type="submit" class="btn btn-primary">{{ 'filter.submit'|trans }}</button>
+                                    <button type="submit" class="btn btn-primary">{{ 'filter.submit'|trans({}, 'durable') }}</button>
                                 </div>
                             </form>
                         </div>
@@ -143,23 +141,23 @@
                     <div class="row g-3">
                         <div class="col-xl-4">
                             <div class="card">
-                                <div class="card-header"><h3 class="card-title">{{ 'runs.title'|trans }}</h3></div>
+                                <div class="card-header"><h3 class="card-title">{{ 'runs.title'|trans({}, 'durable') }}</h3></div>
                                 <div class="card-body">
                                     {% if runs is empty %}
-                                        <p class="text-secondary mb-0">{{ 'runs.empty'|trans }}</p>
+                                        <p class="text-secondary mb-0">{{ 'runs.empty'|trans({}, 'durable') }}</p>
                                     {% else %}
                                         {% for run in runs %}
                                             <a class="durable-run-row {% if selectedRun and selectedRun.runId == run.runId %}active{% endif %}"
                                                href="{{ path('gplanchat_durable_plugin_admin_dashboard', { status: status, run: run.runId, cursor: pagination.cursor }) }}">
                                                 <div class="d-flex justify-content-between align-items-center gap-2">
                                                     <strong>{{ run.workflowName }}</strong>
-                                                    <span class="badge durable-status {% if run.status == 'running' %}bg-blue-lt text-blue{% elseif run.status == 'completed' %}bg-green-lt text-green{% elseif run.status == 'failed' %}bg-red-lt text-red{% else %}bg-secondary-lt text-secondary{% endif %}">{{ ('status.' ~ run.status)|trans|upper }}</span>
+                                                    <span class="badge durable-status {% if run.status == 'running' %}bg-blue-lt text-blue{% elseif run.status == 'completed' %}bg-green-lt text-green{% elseif run.status == 'failed' %}bg-red-lt text-red{% else %}bg-secondary-lt text-secondary{% endif %}">{{ ('status.' ~ run.status)|trans({}, 'durable')|upper }}</span>
                                                 </div>
                                                 <div class="durable-meta mt-1">
                                                     <code>{{ run.runId }}</code>
                                                     {# Each fact shows only when it exists: the view model omits the key rather than render an empty value. #}
                                                     {% if run.startedAt is defined %}<span>{{ run.startedAt|date('Y-m-d H:i:s', false) }}</span>{% endif %}
-                                                    {% if run.groupId is defined %}<span>{{ 'runs.group'|trans }} <code>{{ run.groupId }}</code></span>{% endif %}
+                                                    {% if run.groupId is defined %}<span>{{ 'runs.group'|trans({}, 'durable') }} <code>{{ run.groupId }}</code></span>{% endif %}
                                                     {# Dispatched, and no worker has taken it: usually no worker is running (#447). #}
                                                     {% if run.waitingForWorker is defined %}<span class="text-orange">{{ run.waitingForWorker }}</span>{% endif %}
                                                 </div>
@@ -169,7 +167,7 @@
 
                                     {% if pagination.hasNext %}
                                         <div class="mt-3">
-                                            <a class="btn btn-outline-primary btn-sm" href="{{ path('gplanchat_durable_plugin_admin_dashboard', { status: status, cursor: pagination.nextCursor }) }}">{{ 'pagination.next'|trans }}</a>
+                                            <a class="btn btn-outline-primary btn-sm" href="{{ path('gplanchat_durable_plugin_admin_dashboard', { status: status, cursor: pagination.nextCursor }) }}">{{ 'pagination.next'|trans({}, 'durable') }}</a>
                                         </div>
                                     {% endif %}
                                 </div>
@@ -178,15 +176,15 @@
 
                         <div class="col-xl-8">
                             <div class="card">
-                                <div class="card-header"><h3 class="card-title">{{ 'details.title'|trans }}</h3></div>
+                                <div class="card-header"><h3 class="card-title">{{ 'details.title'|trans({}, 'durable') }}</h3></div>
                                 <div class="card-body">
                                     {% if selectedRun %}
-                                        <p><strong>{{ 'details.workflow'|trans }}</strong> {{ selectedRun.workflowName }}</p>
-                                        <p><strong>{{ 'details.run'|trans }}</strong> <code>{{ selectedRun.runId }}</code></p>
-                                        <p><strong>{{ 'details.outcome'|trans }}</strong> {{ ('status.' ~ selectedRun.status)|trans|upper }}</p>
+                                        <p><strong>{{ 'details.workflow'|trans({}, 'durable') }}</strong> {{ selectedRun.workflowName }}</p>
+                                        <p><strong>{{ 'details.run'|trans({}, 'durable') }}</strong> <code>{{ selectedRun.runId }}</code></p>
+                                        <p><strong>{{ 'details.outcome'|trans({}, 'durable') }}</strong> {{ ('status.' ~ selectedRun.status)|trans({}, 'durable')|upper }}</p>
 
                                         {% if selectedRun.timeline.actions is empty %}
-                                            <p class="text-secondary mb-0">{{ 'details.no_history'|trans }}</p>
+                                            <p class="text-secondary mb-0">{{ 'details.no_history'|trans({}, 'durable') }}</p>
                                         {% else %}
                                             {# The frieze: one row per action, **placed in time**. Stacking blocks
                                                answers "in what order", never "for how long" — and the second is the
@@ -223,11 +221,11 @@
                                                 {# Hovering assumes you know there is something to hover over. #}
                                                 <div class="durable-frieze-key">
                                                     <span class="durable-frieze-bar waiting other"></span>
-                                                    {{ 'frieze.key_waiting'|trans }}
+                                                    {{ 'frieze.key_waiting'|trans({}, 'durable') }}
                                                 </div>
                                                 <div class="durable-frieze-key">
                                                     <span class="durable-frieze-bar failed"></span>
-                                                    {{ 'frieze.key_failed'|trans }}
+                                                    {{ 'frieze.key_failed'|trans({}, 'durable') }}
                                                 </div>
                                             </div>
                                             {# One block per action, not per kind: an activity scheduled, started and then
@@ -265,7 +263,7 @@
                                             {% endfor %}
                                         {% endif %}
                                     {% else %}
-                                        <p class="text-secondary mb-0">{{ 'details.select'|trans }}</p>
+                                        <p class="text-secondary mb-0">{{ 'details.select'|trans({}, 'durable') }}</p>
                                     {% endif %}
                                 </div>
                             </div>
