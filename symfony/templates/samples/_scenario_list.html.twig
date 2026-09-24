@@ -7,12 +7,12 @@
             </div>
             <p class="card-description">{{ s.description }}</p>
             <div class="card-actions">
-                <a href="{{ path('durable_samples_run', { id: s.id }) }}" class="btn btn-primary">
-                    ▶ Synchronous
-                </a>
-                <a href="{{ path('durable_samples_run', { id: s.id, wait: '0' }) }}" class="btn btn-ghost">
-                    ⚡ Async
-                </a>
+                <form method="post" action="{{ path('durable_samples_run', { id: s.id }) }}">
+                    <button type="submit" class="btn btn-primary">▶ Synchronous</button>
+                </form>
+                <form method="post" action="{{ path('durable_samples_run', { id: s.id, wait: '0' }) }}">
+                    <button type="submit" class="btn btn-ghost">⚡ Async</button>
+                </form>
             </div>
         </article>
     {% else %}

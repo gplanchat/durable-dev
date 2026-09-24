@@ -133,6 +133,7 @@ AFTER,
         return $changed ? $node : null;
     }
 
+    /** @return \ReflectionClass<object>|null */
     private function findWorkflowContract(string $className): ?\ReflectionClass
     {
         $reflection = $this->reflectionProvider->getClass($className)->getNativeReflection();

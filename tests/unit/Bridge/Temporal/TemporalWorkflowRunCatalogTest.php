@@ -14,6 +14,7 @@ use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
 use Temporal\Api\Workflow\V1\WorkflowExecutionInfo;
+use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsRequest;
 use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsResponse;
 
 /**
@@ -96,6 +97,39 @@ final class TemporalWorkflowRunCatalogTest extends TestCase
         $response->setNextPageToken('jeton-serveur');
 
         self::assertSame(base64_encode('jeton-serveur'), $this->catalog($response)->listRuns()->nextCursor);
+    }
+
+    /**
+     * A run listed under a status comes back under that status's filter, whatever the server status
+     * behind it (#504). The visibility name is derived from the enum constant here, independently of
+     * the catalog, so a status the server gains later fails this test until the catalog files it.
+     */
+    public function testEveryServerStatusIsFoundUnderTheFilterOfTheStatusItIsListedAs(): void
+    {
+        foreach ((new \ReflectionClass(WorkflowExecutionStatus::class))->getConstants() as $constant => $serverStatus) {
+            if (WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_UNSPECIFIED === $serverStatus) {
+                continue; // no run is ever stored without a status: there is nothing to find
+            }
+            $listedAs = $this->catalog($this->responseWith(
+                $this->info('wf-1', 'run-1', 'App\\OrderWorkflow', 'orders', $serverStatus, 1_700_000_000),
+            ))->listRuns()->runs[0]->status;
+
+            $queries = [];
+            $client = $this->createMock(WorkflowServiceClientInterface::class);
+            $client->method('ListWorkflowExecutions')->willReturnCallback(static function (ListWorkflowExecutionsRequest $request) use (&$queries): ListWorkflowExecutionsResponse {
+                $queries[] = $request->getQuery();
+
+                return new ListWorkflowExecutionsResponse();
+            });
+            (new TemporalWorkflowRunCatalog($client, $this->connection()))->listRuns($listedAs);
+
+            $visibilityName = str_replace('_', '', ucwords(strtolower(substr($constant, \strlen('WORKFLOW_EXECUTION_STATUS_'))), '_'));
+            self::assertStringContainsString(
+                \sprintf('"%s"', $visibilityName),
+                $queries[0],
+                \sprintf('%s is listed as %s, but the %s filter leaves it out', $constant, $listedAs->name, $listedAs->name),
+            );
+        }
     }
 
     private function info(string $workflowId, string $runId, string $type, string $taskQueue, int $status, int $startedAt): WorkflowExecutionInfo

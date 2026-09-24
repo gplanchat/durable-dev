@@ -110,7 +110,7 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     public function readHistory(WorkflowRunDescription $run): array
     {
         $reader = $this->history ?? new JournalRunHistoryReader(
-            new DbalEventStore($this->connection, $this->schema),
+            new DbalEventStore($this->connection, $this->schema, $this->schema->eventsTable()),
         );
 
         return $reader->read($run->runId, $run->workflowName);

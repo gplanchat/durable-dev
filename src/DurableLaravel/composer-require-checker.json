@@ -1,0 +1,20 @@
+{
+    "symbol-whitelist": [
+        "Gplanchat\\Bridge\\Temporal\\Grpc\\TemporalHistoryCursor",
+        "Gplanchat\\Bridge\\Temporal\\Grpc\\WorkflowServiceActivityRpc",
+        "Gplanchat\\Bridge\\Temporal\\Grpc\\WorkflowServiceExecutionRpc",
+        "Gplanchat\\Bridge\\Temporal\\Grpc\\WorkflowServiceNexusRpc",
+        "Gplanchat\\Bridge\\Temporal\\Http\\Psr18Http",
+        "Gplanchat\\Bridge\\Temporal\\Store\\TemporalReadThroughEventStore",
+        "Gplanchat\\Bridge\\Temporal\\Store\\TemporalWorkflowRunCatalog",
+        "Gplanchat\\Bridge\\Temporal\\TemporalConnection",
+        "Gplanchat\\Bridge\\Temporal\\Worker\\TemporalActivityWorker",
+        "Gplanchat\\Bridge\\Temporal\\Worker\\TemporalNexusWorker",
+        "Gplanchat\\Bridge\\Temporal\\Worker\\WorkflowTaskProcessor",
+        "Gplanchat\\Bridge\\Temporal\\Worker\\WorkflowTaskRunner",
+        "Gplanchat\\Bridge\\Temporal\\WorkflowClient",
+        "Gplanchat\\Bridge\\Temporal\\WorkflowClientInterface",
+        "Gplanchat\\Bridge\\Temporal\\WorkflowServiceClientFactory",
+        "Illuminate\\Console\\Command"
+    ]
+}

@@ -9,6 +9,7 @@ use App\Samples\SampleWorkflowCatalog;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -30,9 +31,17 @@ final class SamplesWorkflowController extends AbstractController
         ]);
     }
 
-    #[Route('/durable/samples/run/{id}', name: 'durable_samples_run', methods: ['GET'])]
+    /**
+     * A POST, refused when the browser says it comes from another site: starting a run is a write,
+     * and a link, a prefetch or another site's form must not be able to trigger one.
+     */
+    #[Route('/durable/samples/run/{id}', name: 'durable_samples_run', methods: ['POST'])]
     public function run(string $id, Request $request): Response
     {
+        if (self::isCrossSite($request)) {
+            throw new AccessDeniedHttpException('Sample runs start from this application only.');
+        }
+
         $scenario = SampleWorkflowCatalog::findById($id);
         if (null === $scenario) {
             throw $this->createNotFoundException(\sprintf('Unknown scenario: %s', $id));
@@ -93,5 +102,18 @@ final class SamplesWorkflowController extends AbstractController
             'result' => null,
             'waitedForCompletion' => false,
         ]);
+    }
+
+    // ponytail: Fetch Metadata and Origin instead of a CSRF token, which would need symfony/security-csrf.
+    // Enough for a local-only bench; an exposed application wants the token.
+    private static function isCrossSite(Request $request): bool
+    {
+        $site = $request->headers->get('Sec-Fetch-Site');
+        if (null !== $site) {
+            return !\in_array($site, ['same-origin', 'none'], true);
+        }
+        $origin = $request->headers->get('Origin');
+
+        return null !== $origin && $origin !== $request->getSchemeAndHttpHost();
     }
 }

@@ -18,7 +18,7 @@ run unmodified here, because everything below the ports is the same component.
 
 #### Scenario: A workflow written once runs on Magento
 
-- **WHEN** a class carrying `#[Workflow]` is declared to the module
+- **WHEN** a class carrying `#[AsWorkflow]` is declared to the module
 - **AND** the same class already runs on the Symfony bundle
 - **THEN** it runs on Magento without modification
 - **AND** the runtime resolves it by the name its attribute declares

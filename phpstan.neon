@@ -2,7 +2,7 @@ includes:
     - src/DurablePhpstan/extension.neon
 
 parameters:
-    level: 5
+    level: 6
     paths:
         - src/Durable
         - src/DurableBundle
@@ -23,7 +23,7 @@ parameters:
         - src/Bridge/Temporal/Api
         - src/Bridge/Temporal/Generated
         - src/Bridge/Temporal/Spike
-    reportUnmatchedIgnoredErrors: false
+    reportUnmatchedIgnoredErrors: true
     ignoreErrors:
         # ServiceProvider::$app is typed by PHPDoc as the full application. This package depends
         # on that being false: its bindings also register in a bare container — standalone worker,
@@ -39,14 +39,18 @@ parameters:
           path: src/Bridge/Temporal/Profiler/TemporalEventConverter.php
         - identifier: notIdentical.alwaysTrue
           path: src/Bridge/Temporal/Worker/TemporalExecutionHistory.php
-        # Property written and used only via Temporal gRPC mapping (dynamic dispatch)
-        - identifier: property.onlyWritten
-          path: src/Bridge/Temporal/Worker/TemporalExecutionHistory.php
         # Symfony 6.4 types the config builder's fluent chain more loosely than 7.x:
         # ->end() returns NodeParentInterface there, so the chain loses ArrayNodeDefinition.
         # Runtime is unaffected; the tree is the same object on every supported version.
+        # Matches on the Symfony 6.4 legs only, hence no unmatched report on the lock line.
         - identifier: method.notFound
           path: src/DurableBundle/DependencyInjection/Configuration.php
+          reportUnmatched: false
+        # TreeBuilder is not generic on 6.4, and its template has no 'array' default on the lowest
+        # 7.4 and 8.0 patches: no return type satisfies every leg. Matches on those lowest legs only.
+        - identifier: missingType.generics
+          path: src/DurableBundle/DependencyInjection/Configuration.php
+          reportUnmatched: false
         # PHPStan cannot track Awaitable settlement across Fiber boundary
         - identifier: booleanNot.alwaysTrue
           path: src/Durable/ExecutionRuntime.php

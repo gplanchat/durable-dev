@@ -245,6 +245,7 @@ final class DurableServiceProvider extends ServiceProvider
         return new Psr18Http($app->make($client), $factory, $factory);
     }
 
+    /** @param array<string, mixed> $config */
     private function bindTemporal(array $config): void
     {
         /** @var array<string, mixed> $temporal */
