@@ -15,10 +15,9 @@ use Illuminate\Database\Schema\Blueprint;
  * DUR041, and a journal whose columns diverged would break replay silently rather than at
  * write time.
  *
- * ponytail: creation on demand rather than a published migration. A Laravel application will want
- * `php artisan migrate`, and the package will have to publish its migrations; until then this
- * safeguard is enough for the tests and for a worker starting on an empty database. The `$ensured`
- * flag avoids the round trip on every write.
+ * The tables ship as migrations (`php artisan migrate`, see `../Migrations/`); creating them on
+ * demand stays as the safeguard for the tests and for a worker starting on an empty database. The
+ * `$ensured` flag avoids the round trip on every write.
  *
  * @see DUR030 a single SQL foundation, no cluster
  * @see DUR041 the conformance suites both bridges replay
