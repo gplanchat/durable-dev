@@ -48,9 +48,9 @@ final class Invocation
         if (isset($this->notifications[$id])) {
             return self::value($this->notifications[$id][5][0]);
         }
-        $this->out .= Wire::frame(T_PROPOSE_RUN, Wire::varint(1, $id).Wire::bytes(14, $effect()));
+        $this->out .= Wire::frame(T_PROPOSE_RUN, Wire::varint(1, $id).Wire::bytes(14, $result = $effect()));
 
-        throw $this->suspend($id);
+        return $result;   // no suspend: the server stores the proposal and replays it as a RunCompletionNotification
     }
 
     public function sleep(int $seconds): void

@@ -30,5 +30,5 @@ echo "activity runs: $(wc -l <var/activity.log), run requests: $REQUESTS"
 
 [[ "$OUTPUT" == '{"activity":"charged","approval":"yes"}' ]]
 [[ "$(wc -l <var/activity.log)" -eq 1 ]]
-[[ "$REQUESTS" -eq 4 ]]   # start, then resumed after the run proposal, the sleep and the promise
+[[ "$REQUESTS" -eq 3 ]]   # start, then resumed after the sleep and after the promise
 echo "spike: OK"
