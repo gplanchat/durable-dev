@@ -8,4 +8,4 @@
 - **Entries**: `src/Bridge/Dbal/`, `src/Bridge/Illuminate/` (catalogue, schema, migration),
   `src/DurableBundle/` (command, schema listener, extension wiring), `src/DurableLaravel/` wiring,
   their tests and the configuration docs.
-- **State**: in progress — durable-7f (lane B).
+- **State**: in review — PR #499, durable-7f (lane B).
