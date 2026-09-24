@@ -57,7 +57,8 @@ final class RunsAreListedByStatusThroughAnIndexTest extends TestCase
         $container = new Container();
         $container->instance('db.schema', $connection->getSchemaBuilder());
         Facade::clearResolvedInstances();
-        Facade::setFacadeApplication($container);
+        // A bare container is all the Schema facade needs outside a Laravel application.
+        Facade::setFacadeApplication($container); // @phpstan-ignore argument.type (a bare Container, not an Application: deliberate)
 
         return require __DIR__ . '/../../../src/Bridge/Illuminate/Migrations/2026_09_25_000000_add_status_index_to_durable_workflow_runs.php';
     }
