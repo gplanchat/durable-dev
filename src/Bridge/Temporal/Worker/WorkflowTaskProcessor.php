@@ -24,8 +24,6 @@ use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskFailedRequest;
  * Polls one workflow task, delegates replay to WorkflowTaskRunner, then sends commands
  * back via RespondWorkflowTaskCompleted, along with the protocol messages that accompany them
  * ({@see UpdateProtocol}).
- *
- * Replaces JournalWorkflowTaskProcessor for the native execution path.
  */
 final class WorkflowTaskProcessor
 {
