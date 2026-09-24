@@ -1,0 +1,4 @@
+# A test-only workflow: TimerDrainedByWorkerTest dispatches it and drains it with durable:worker.
+services:
+    App\Tests\Functional\Fixture\NapWorkflow:
+        tags: [durable.workflow]
