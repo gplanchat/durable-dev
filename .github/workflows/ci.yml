@@ -953,7 +953,16 @@ jobs:
                   php-version: '8.4'
                   extensions: mbstring, sqlite3, pdo_sqlite, grpc
                   coverage: none
-                  tools: composer-require-checker:4.24.0@sha256:35d1dfdd7aa94a750f4b4c9b0b22dd5e76b5e9e35fb910c8901f3dafd2ad2ab9
+
+            # setup-php's `tools:` input fails on it without saying why: the release phar, pinned.
+            - name: Install composer-require-checker 4.24.0
+              run: |
+                  phar="$RUNNER_TEMP/composer-require-checker"
+                  curl -sSfL -o "$phar" \
+                    https://github.com/maglnet/ComposerRequireChecker/releases/download/4.24.0/composer-require-checker.phar
+                  echo "35d1dfdd7aa94a750f4b4c9b0b22dd5e76b5e9e35fb910c8901f3dafd2ad2ab9  $phar" | sha256sum -c
+                  chmod +x "$phar"
+                  echo "COMPOSER_REQUIRE_CHECKER=$phar" >> "$GITHUB_ENV"
 
             - name: Cache Composer downloads
               uses: actions/cache@v6
