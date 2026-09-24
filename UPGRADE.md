@@ -24,6 +24,21 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### Unused helpers removed from the core
+
+**Who is affected**: code that called one of these. Nothing in this repository, its demos or its
+documentation did, and none has a replacement to migrate to: each one read state the engine keeps
+for itself.
+
+| Removed | If you used it |
+|---|---|
+| `Awaitable\ExecutionBoundAwaitable` (interface) | implement `Awaitable` directly |
+| `Awaitable\QuorumAwaitable::required()` | keep the count you passed to `some()` |
+| `Transport\InMemoryActivityTransport::pendingCount()`, `inspectPendingActivities()` | `peek()` and `nextDueAt()` remain |
+| `Transport\ActivityMessage::withAttempt()` | `retryingIn()` builds the next attempt |
+| `Failure\ActivityRetryState::isTerminalBusinessFailure()` | compare against the cases you care about |
+| `Query\WorkflowQueryRunner::signalsReceived()`, `updatesHandled()` and their `WorkflowQueryEvaluator` statics | read `WorkflowSignalReceived` / `WorkflowUpdateHandled` from the journal |
+
 ### `ResetDurableProfilerListener` is gone; the execution trace keeps its last 2 000 entries
 
 **Who is affected**: code that referenced `Gplanchat\Durable\Bundle\EventListener\ResetDurableProfilerListener`,
