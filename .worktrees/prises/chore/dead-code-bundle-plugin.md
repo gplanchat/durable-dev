@@ -7,4 +7,4 @@
   `src/DurableBundle/DependencyInjection/Compiler/WorkflowPass.php`,
   `src/Durable/Testing/DurableTestCase.php`, `src/DurableBundle/Testing/DurableBundleTestTrait.php`,
   `src/Durable/Testing/JournalAssertions.php` (new), its test.
-- **State**: branch pushed (54337df8), PR held: epic #310 queue full (#493, #517); main to merge in after #521 — dave.
+- **State**: in review, PR #525 — dave.
