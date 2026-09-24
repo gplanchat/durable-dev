@@ -112,6 +112,12 @@ ActivityTimeouts::attempt(Duration::seconds(30));      // le cas courant : borne
 Un battement plus long que `startToClose` est refusé : la tentative se terminerait avant le premier
 battement manqué, et la borne serait donc morte.
 
+Hors Temporal, `startToClose` est vérifié quand la tentative se termine, pas imposé pendant qu'elle
+tourne. Une tentative qui a dépassé échoue sur un délai dépassé, son résultat est écarté, et la
+politique de reprise décide de la suite. Rien n'interrompt une tentative qui ne rend jamais la main :
+arrêter un worker bloqué revient à ce qui supervise le processus. `messenger:consume --time-limit`
+ne vérifie qu'entre deux messages, il n'y suffit donc pas.
+
 Temporal exige une borne de clôture. Quand aucune n'est posée, le pont en fournit une par défaut, et
 ce repli s'appelle `executionBoundOr()` plutôt que d'être caché dans la construction de la commande.
 
