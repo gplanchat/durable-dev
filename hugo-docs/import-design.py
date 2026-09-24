@@ -502,28 +502,28 @@ def guard_hand_edits(out_path: pathlib.Path, new_text: str, force: bool) -> None
     diff = list(difflib.unified_diff(
         out_path.read_text().splitlines(keepends=True),
         new_text.splitlines(keepends=True),
-        fromfile=f"{out_path.name} (dépôt, modifié à la main)",
-        tofile=f"{out_path.name} (ce que l'import écrirait)",
+        fromfile=f"{out_path.name} (repository, edited by hand)",
+        tofile=f"{out_path.name} (what the import would write)",
         n=1,
     ))
 
     if force:
-        print(f"⚠ {out_path.name} a été modifié à la main depuis le dernier import : "
+        print(f"⚠ {out_path.name} was edited by hand since the last import: "
               f"{sum(1 for l in diff if l.startswith(('+', '-')) and not l.startswith(('+++', '---')))} "
-              f"lignes écrasées, --force donné.")
+              f"lines overwritten, --force given.")
         return
 
     sys.stderr.write("".join(diff[:400]))
     die(
-        f"{out_path.name} a été modifié à la main depuis le dernier import.\n"
-        "Ces lignes ne sont pas dans le canevas : les écraser les perdrait, comme les\n"
-        "trois correctifs de WA005. Reportez-les dans le canevas, puis relancez, ou\n"
-        "`--force` si vous savez qu'elles sont déjà dedans."
+        f"{out_path.name} was edited by hand since the last import.\n"
+        "These lines are not in the canvas: overwriting them would lose them, like the\n"
+        "three fixes in WA005. Carry them over to the canvas, then run again, or\n"
+        "`--force` if you know they are already in it."
     )
 
 
 def self_test() -> None:
-    """Un aller-retour complet de la garde, sans canevas ni réseau."""
+    """A full round trip of the guard, with no canvas and no network."""
     import tempfile
 
     global IMPORTED
@@ -533,53 +533,53 @@ def self_test() -> None:
         IMPORTED = tmpdir / "imported.json"
         out = tmpdir / "index.html"
 
-        # 1. Une sortie qui n'existe pas encore ne déclenche rien : rien à perdre.
-        guard_hand_edits(out, "un\ndeux\n", force=False)
+        # 1. An output that does not exist yet triggers nothing: nothing to lose.
+        guard_hand_edits(out, "one\ntwo\n", force=False)
 
-        # 1bis. Une sortie qui existe sans empreinte connue est refusée : c'est
-        #       exactement l'état du dépôt le jour où cette garde est écrite.
-        out.write_text("un\ndeux\n")
+        # 1bis. An output that exists with no known hash is refused: that is
+        #       exactly the state of the repository the day this guard is written.
+        out.write_text("one\ntwo\n")
         try:
-            guard_hand_edits(out, "un\ndeux\n", force=False)
+            guard_hand_edits(out, "one\ntwo\n", force=False)
         except SystemExit:
             pass
         else:
-            raise AssertionError("la garde a jugé un fichier dont elle ignore l'origine")
-        guard_hand_edits(out, "un\ndeux\n", force=True)
+            raise AssertionError("the guard judged a file whose origin it does not know")
+        guard_hand_edits(out, "one\ntwo\n", force=True)
 
-        # 2. Après un import, la sortie porte son empreinte : réimporter la même
-        #    chose ne dérange personne.
-        out.write_text("un\ndeux\n")
+        # 2. After an import, the output carries its hash: reimporting the same
+        #    thing bothers nobody.
+        out.write_text("one\ntwo\n")
         remember_import(out)
-        guard_hand_edits(out, "un\ndeux\ntrois\n", force=False)
+        guard_hand_edits(out, "one\ntwo\nthree\n", force=False)
 
-        # 3. Une correction à la main, et l'import suivant refuse.
-        out.write_text("un\ndeux corrigé à la main\n")
+        # 3. A fix by hand, and the next import refuses.
+        out.write_text("one\ntwo fixed by hand\n")
         try:
-            guard_hand_edits(out, "un\ndeux\n", force=False)
+            guard_hand_edits(out, "one\ntwo\n", force=False)
         except SystemExit:
             pass
         else:
-            raise AssertionError("la garde a laissé passer une correction à la main")
+            raise AssertionError("the guard let a fix by hand through")
 
-        # 4. `--force` passe outre, délibérément.
-        guard_hand_edits(out, "un\ndeux\n", force=True)
+        # 4. `--force` overrides it, deliberately.
+        guard_hand_edits(out, "one\ntwo\n", force=True)
 
-        # 5. Et la garde ne juge jamais un fichier qui n'existe pas encore : la
-        #    refuser serait bloquer le premier import d'une nouvelle langue.
-        jamais_ecrit = tmpdir / "index.de.html"
-        guard_hand_edits(jamais_ecrit, "neu\n", force=False)
+        # 5. And the guard never judges a file that does not exist yet: refusing
+        #    it would block the first import of a new language.
+        never_written = tmpdir / "index.de.html"
+        guard_hand_edits(never_written, "neu\n", force=False)
 
     IMPORTED = original
-    print("garde de l'import : 6 cas, tous verts")
+    print("import guard: 6 cases, all green")
 
 
 def declared_packages() -> set[str]:
-    """Les paquets que ce dépôt publie, lus dans leurs `composer.json`.
+    """The packages this repository publishes, read from their `composer.json`.
 
-    Source de vérité plutôt que liste blanche : un paquet existe si le monorepo
-    le déclare, et le jour où `gplanchat/durable-bridge-illuminate` sera écrit,
-    la garde ci-dessous s'ouvrira toute seule.
+    Source of truth rather than an allow list: a package exists if the monorepo
+    declares it, and the day `gplanchat/durable-bridge-illuminate` is written,
+    the guard below will open up on its own.
     """
     names = set()
     for manifest in sorted((HERE.parent / "src").glob("*/composer.json")) + sorted(
@@ -588,30 +588,30 @@ def declared_packages() -> set[str]:
         if name:
             names.add(name)
     if not names:
-        die("aucun composer.json trouvé sous src/ : la garde des paquets serait aveugle")
+        die("no composer.json found under src/: the package guard would be blind")
     return names
 
 
 def check_packages_resolve(root: str, script: str) -> None:
-    """Aucun chemin du sélecteur ne doit nommer un paquet que personne ne publie.
+    """No path in the chooser may name a package that nobody publishes.
 
-    C'est la même faute que le logo non incorporé, un étage plus haut : la page
-    donne une instruction, un lecteur la copie, et elle échoue. Elle est arrivée
-    trois fois : `gplanchat/durable-laravel`, `gplanchat/durable-bridge-illuminate`,
-    et quatre noms portant un `?` de brouillon, dont une atteignable en deux clics.
+    It is the same fault as the logo that was not inlined, one floor up: the page
+    gives an instruction, a reader copies it, and it fails. It happened
+    three times: `gplanchat/durable-laravel`, `gplanchat/durable-bridge-illuminate`,
+    and four names carrying a draft `?`, one of them reachable in two clicks.
 
-    La garde énumère ce que le sélecteur laisse réellement atteindre : une puce
-    `planned` est refusée par le gestionnaire de clic, donc elle ne compte pas. Ce
-    qui reste doit résoudre.
+    The guard enumerates what the chooser actually lets you reach: a `planned`
+    chip is refused by the click handler, so it does not count. What
+    remains must resolve.
 
-    Fatal pour un chemin atteignable, **averti** pour un nom qui dort derrière une
-    puce fermée : celui-là n'est pas encore un mensonge, mais il le deviendra le
-    jour où la puce s'ouvre, et c'est ce jour-là qu'il faut être prévenu.
+    Fatal for a reachable path, **warned** for a name sleeping behind a
+    closed chip: that one is not a lie yet, but it will become one the
+    day the chip opens, and that is the day to be told.
     """
     def table(name: str) -> dict:
         match = re.search(rf"var {name} = (\{{.*?\}});", script, re.S)
         if not match:
-            die(f"{name} introuvable : la garde des paquets ne peut pas énumérer")
+            die(f"{name} not found: the package guard cannot enumerate")
         return json.loads(re.sub(r"(\w+):", r'"\1":', match.group(1)).replace("'", '"'))
 
     def chips(axis: str) -> dict[str, str]:
@@ -628,7 +628,7 @@ def check_packages_resolve(root: str, script: str) -> None:
     eco = table("ECO_OPTIONS")
     frameworks, distributions = chips("fw"), chips("dist")
     if not frameworks:
-        die("aucune puce de framework : la garde des paquets ne peut pas énumérer")
+        die("no framework chip: the package guard cannot enumerate")
 
     published = declared_packages()
     reachable: set[str] = set()
@@ -651,32 +651,32 @@ def check_packages_resolve(root: str, script: str) -> None:
 
     missing = sorted(p for p in reachable if p not in published)
     if missing:
-        die("le sélecteur propose d'installer des paquets que ce dépôt ne publie pas : "
+        die("the chooser offers to install packages this repository does not publish: "
             + ", ".join(missing))
 
     dormant = sorted(p for p in sleeping - reachable if p not in published)
     if dormant:
-        print("       ⚠ noms non publiés derrière une puce fermée, fatals le jour où elle s'ouvre :")
+        print("       ⚠ unpublished names behind a closed chip, fatal the day it opens:")
         for name in dormant:
             print(f"           {name}")
-    print(f"       {len(reachable)} paquets atteignables, tous publiés")
+    print(f"       {len(reachable)} reachable packages, all published")
 
 
 def check_commands_agree(source: str) -> None:
-    """Le sélecteur et la page Packages listent les mêmes commandes.
+    """The chooser and the Packages page list the same commands.
 
-    Elles vivent aux deux endroits, et une page d'accueil qui installe autre
-    chose que sa documentation est pire qu'une page d'accueil muette : le
-    lecteur suit la première et se fait démentir par la seconde. La ligne
-    Sylius a déjà changé une fois en une journée ; un lien entre les deux
-    pages signale la référence, il n'empêche pas la dérive.
+    They live in both places, and a landing page that installs something
+    other than what its documentation says is worse than a silent landing page: the
+    reader follows the first and gets contradicted by the second. The Sylius
+    line already changed once in a single day; a link between the two
+    pages points to the reference, it does not prevent drift.
 
-    Averti, pas fatal : la page Packages a le droit de documenter une commande
-    que le sélecteur ne propose pas : « aucun framework », par exemple.
+    Warned, not fatal: the Packages page is allowed to document a command
+    the chooser does not offer: "no framework", for example.
     """
     reference = HERE / COMMANDS_REFERENCE
     if not reference.exists():
-        print(f"       ⚠ référence introuvable : {reference}")
+        print(f"       ⚠ reference not found: {reference}")
         return
 
     def commands(text: str) -> set[str]:
@@ -690,11 +690,11 @@ def check_commands_agree(source: str) -> None:
     missing = sorted(landing - documented)
 
     if missing:
-        print("       ⚠ commandes du sélecteur absentes de la page Packages :")
+        print("       ⚠ chooser commands missing from the Packages page:")
         for command in missing:
             print(f"           {command}")
     else:
-        print(f"       {len(landing)} commandes, toutes documentées dans Packages")
+        print(f"       {len(landing)} commands, all documented in Packages")
 
 
 if __name__ == "__main__":
