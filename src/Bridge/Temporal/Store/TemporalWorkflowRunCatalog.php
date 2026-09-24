@@ -148,7 +148,7 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         return new WorkflowRunDescription(
             runId: $runId,
             workflowName: null !== $type ? (string) $type->getName() : 'UnknownWorkflow',
-            status: self::statusOf($info->getStatus()),
+            status: self::statusOf($info),
             startedAt: self::toDateTime($info->getStartTime()),
             endedAt: self::toDateTime($info->getCloseTime()),
             groupId: '' === $workflowId ? null : $workflowId,
@@ -166,7 +166,8 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
      *
      * `TERMINATED` and `TIMED_OUT` stay failures for want of dedicated cases: they are indeed ends
      * that are suffered, and inventing two more brings nothing as long as no view separates them.
-     * `PAUSED` is filed there too for now, though a paused run has not ended (#506).
+     * `PAUSED` is `Running`: the run has not ended and resumes when an operator unpauses it, which is
+     * what `Running` says, "still liable to make progress" (#506).
      *
      * @var array<int, array{string, WorkflowRunStatus}>
      */
@@ -178,15 +179,18 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_TERMINATED => ['Terminated', WorkflowRunStatus::Failed],
         WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW => ['ContinuedAsNew', WorkflowRunStatus::ContinuedAsNew],
         WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_TIMED_OUT => ['TimedOut', WorkflowRunStatus::Failed],
-        WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_PAUSED => ['Paused', WorkflowRunStatus::Failed],
+        WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_PAUSED => ['Paused', WorkflowRunStatus::Running],
     ];
 
     /**
-     * A status the server did not send, or one this table does not know yet, reads as a failure.
+     * A status the server did not send (`UNSPECIFIED`), or one this table does not know, says
+     * nothing, so the close time decides: none is a run not known to have ended, one is an end this
+     * catalog cannot name, filed with the other unnamed ends (#506).
      */
-    private static function statusOf(int $status): WorkflowRunStatus
+    private static function statusOf(WorkflowExecutionInfo $info): WorkflowRunStatus
     {
-        return (self::STATUSES[$status] ?? [null, WorkflowRunStatus::Failed])[1];
+        return self::STATUSES[$info->getStatus()][1]
+            ?? (null === $info->getCloseTime() ? WorkflowRunStatus::Running : WorkflowRunStatus::Failed);
     }
 
     private static function visibilityQuery(WorkflowRunStatus $status): string
