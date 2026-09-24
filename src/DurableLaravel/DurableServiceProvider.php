@@ -35,6 +35,7 @@ use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowTimerDispatcher;
 use Gplanchat\Durable\Laravel\Queue\ResumeDeferral;
 use Gplanchat\Durable\Laravel\Workflow\DeclaredWorkflowTypes;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
+use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\NullWorkflowTimerDispatcher;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
@@ -47,6 +48,8 @@ use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
+use Gplanchat\Durable\Store\ProjectingEventStore;
+use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
@@ -164,28 +167,38 @@ final class DurableServiceProvider extends ServiceProvider
             $tables['runs'] ?? 'durable_workflow_runs',
         ));
 
-        $this->app->singleton(EventStoreInterface::class, fn($app) => new IlluminateEventStore(
+        // The catalog is its own projection on this backend: the decorators below feed it the name,
+        // the pickup and the outcome of each run (DUR037, DUR043, #458).
+        $this->app->singleton(IlluminateWorkflowRunCatalog::class, fn($app) => new IlluminateWorkflowRunCatalog(
             $app->make(Connection::class),
             $app->make(DurableSchema::class),
-            $tables['events'] ?? 'durable_events',
+            $tables['runs'] ?? 'durable_workflow_runs',
+        ));
+        $this->app->alias(IlluminateWorkflowRunCatalog::class, WorkflowRunCatalogInterface::class);
+        $this->app->alias(IlluminateWorkflowRunCatalog::class, WorkflowRunPickupProjectionInterface::class);
+
+        $this->app->singleton(EventStoreInterface::class, fn($app) => new ProjectingEventStore(
+            new IlluminateEventStore(
+                $app->make(Connection::class),
+                $app->make(DurableSchema::class),
+                $tables['events'] ?? 'durable_events',
+            ),
+            $app->make(IlluminateWorkflowRunCatalog::class),
         ));
 
-        $this->app->singleton(WorkflowMetadataStore::class, fn($app) => new IlluminateWorkflowMetadataStore(
-            $app->make(Connection::class),
-            $app->make(DurableSchema::class),
-            $tables['metadata'] ?? 'durable_workflow_metadata',
+        $this->app->singleton(WorkflowMetadataStore::class, fn($app) => new ProjectingWorkflowMetadataStore(
+            new IlluminateWorkflowMetadataStore(
+                $app->make(Connection::class),
+                $app->make(DurableSchema::class),
+                $tables['metadata'] ?? 'durable_workflow_metadata',
+            ),
+            $app->make(IlluminateWorkflowRunCatalog::class),
         ));
 
         $this->app->singleton(ChildWorkflowParentLinkStoreInterface::class, fn($app) => new IlluminateChildWorkflowParentLinkStore(
             $app->make(Connection::class),
             $app->make(DurableSchema::class),
             $tables['parent_links'] ?? 'durable_child_workflow_parent_link',
-        ));
-
-        $this->app->singleton(WorkflowRunCatalogInterface::class, fn($app) => new IlluminateWorkflowRunCatalog(
-            $app->make(Connection::class),
-            $app->make(DurableSchema::class),
-            $tables['runs'] ?? 'durable_workflow_runs',
         ));
     }
 
@@ -319,13 +332,19 @@ final class DurableServiceProvider extends ServiceProvider
 
     private function bindInMemory(): void
     {
-        $this->app->singleton(EventStoreInterface::class, fn() => new InMemoryEventStore());
-        $this->app->singleton(WorkflowMetadataStore::class, fn() => new InMemoryWorkflowMetadataStore());
+        // The catalog reads the journal it is fed from, so it takes the undecorated one: the
+        // decorated journal needs the catalog, and the catalog needs a journal (#458).
+        $journal = new InMemoryEventStore();
+        $this->app->singleton(InMemoryWorkflowRunCatalog::class, fn() => new InMemoryWorkflowRunCatalog($journal));
+        $this->app->alias(InMemoryWorkflowRunCatalog::class, WorkflowRunCatalogInterface::class);
+        $this->app->alias(InMemoryWorkflowRunCatalog::class, WorkflowRunPickupProjectionInterface::class);
+
+        $this->app->singleton(EventStoreInterface::class, fn($app) => new ProjectingEventStore($journal, $app->make(InMemoryWorkflowRunCatalog::class)));
+        $this->app->singleton(WorkflowMetadataStore::class, fn($app) => new ProjectingWorkflowMetadataStore(
+            new InMemoryWorkflowMetadataStore(),
+            $app->make(InMemoryWorkflowRunCatalog::class),
+        ));
         $this->app->singleton(ChildWorkflowParentLinkStoreInterface::class, fn() => new InMemoryChildWorkflowParentLinkStore());
-        $this->app->singleton(
-            WorkflowRunCatalogInterface::class,
-            fn($app) => new InMemoryWorkflowRunCatalog($app->make(EventStoreInterface::class)),
-        );
     }
 
     /**
@@ -456,6 +475,8 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(ChildWorkflowParentLinkStoreInterface::class),
             $app->make(WorkflowTimerDispatcher::class),
             $app->make(WorkflowDefinitionLoader::class),
+            // Recorded when a worker takes the run; Temporal binds no such projection (#447, #458).
+            $app->bound(WorkflowRunPickupProjectionInterface::class) ? $app->make(WorkflowRunPickupProjectionInterface::class) : null,
         ));
     }
 

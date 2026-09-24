@@ -17,6 +17,8 @@ use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
+use Gplanchat\Durable\Store\ProjectingEventStore;
+use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Illuminate\Cache\ArrayStore;
 use Illuminate\Cache\NullStore;
@@ -40,8 +42,10 @@ final class DurableServiceProviderTest extends TestCase
 
         (new DurableServiceProvider($app))->register();
 
-        self::assertInstanceOf(IlluminateEventStore::class, $app->make(EventStoreInterface::class));
-        self::assertInstanceOf(IlluminateWorkflowMetadataStore::class, $app->make(WorkflowMetadataStore::class));
+        // The journal and the metadata are decorated with the projections that feed the catalog
+        // (#458); what they wrap is the Illuminate store.
+        self::assertInstanceOf(IlluminateEventStore::class, self::inner($app->make(EventStoreInterface::class), ProjectingEventStore::class));
+        self::assertInstanceOf(IlluminateWorkflowMetadataStore::class, self::inner($app->make(WorkflowMetadataStore::class), ProjectingWorkflowMetadataStore::class));
         self::assertInstanceOf(IlluminateChildWorkflowParentLinkStore::class, $app->make(ChildWorkflowParentLinkStoreInterface::class));
         self::assertInstanceOf(IlluminateWorkflowRunCatalog::class, $app->make(WorkflowRunCatalogInterface::class));
     }
@@ -54,8 +58,8 @@ final class DurableServiceProviderTest extends TestCase
 
         // No port stays on the other backend: an in-memory journal under a SQL catalog is not a
         // configuration, it is a breakdown.
-        self::assertInstanceOf(InMemoryEventStore::class, $app->make(EventStoreInterface::class));
-        self::assertInstanceOf(InMemoryWorkflowMetadataStore::class, $app->make(WorkflowMetadataStore::class));
+        self::assertInstanceOf(InMemoryEventStore::class, self::inner($app->make(EventStoreInterface::class), ProjectingEventStore::class));
+        self::assertInstanceOf(InMemoryWorkflowMetadataStore::class, self::inner($app->make(WorkflowMetadataStore::class), ProjectingWorkflowMetadataStore::class));
         self::assertInstanceOf(InMemoryChildWorkflowParentLinkStore::class, $app->make(ChildWorkflowParentLinkStoreInterface::class));
         self::assertInstanceOf(InMemoryWorkflowRunCatalog::class, $app->make(WorkflowRunCatalogInterface::class));
     }
@@ -82,7 +86,7 @@ final class DurableServiceProviderTest extends TestCase
         $app->make(EventStoreInterface::class);
 
         self::assertSame('wf_journal', (new \ReflectionProperty(IlluminateEventStore::class, 'table'))
-            ->getValue($app->make(EventStoreInterface::class)));
+            ->getValue(self::inner($app->make(EventStoreInterface::class), ProjectingEventStore::class)));
     }
 
     public function testALockStoreThatGrantsEveryLockIsRefusedAtBoot(): void
@@ -111,6 +115,18 @@ final class DurableServiceProviderTest extends TestCase
         $provider->boot();
 
         self::assertInstanceOf(ResumeLock::class, $app->make(ResumeLock::class));
+    }
+
+    /**
+     * The store a projecting decorator wraps, after checking it is that decorator.
+     *
+     * @param class-string $decorator
+     */
+    private static function inner(object $store, string $decorator): object
+    {
+        self::assertInstanceOf($decorator, $store);
+
+        return (new \ReflectionProperty($decorator, 'inner'))->getValue($store);
     }
 
     /** @param array<string, mixed> $durable */
