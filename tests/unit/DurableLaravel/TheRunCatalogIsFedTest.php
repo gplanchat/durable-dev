@@ -10,6 +10,7 @@ use Gplanchat\Durable\Laravel\DurableServiceProvider;
 use Gplanchat\Durable\Laravel\Queue\ResumeDeferral;
 use Gplanchat\Durable\Laravel\Queue\ResumeWorkflowJob;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
+use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
@@ -20,6 +21,7 @@ use Illuminate\Database\Capsule\Manager;
 use Illuminate\Database\Connection;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use unit\DurableLaravel\Fixtures\AwaitApprovalWorkflow;
 use unit\DurableLaravel\Fixtures\FakeQueue;
 use unit\DurableLaravel\Fixtures\FakeQueueFactory;
 use unit\DurableLaravel\Fixtures\GreetingWorkflow;
@@ -40,33 +42,49 @@ final class TheRunCatalogIsFedTest extends TestCase
     }
 
     #[DataProvider('journalBackends')]
-    public function testADispatchedRunIsListedWaitingForAWorkerThenWithItsOutcome(string $backend): void
+    public function testADispatchedRunIsListedByNameWaitingForAWorker(string $backend): void
     {
-        $app = $this->container($backend);
-        (new DurableServiceProvider($app))->register();
-        $catalog = $app->make(WorkflowRunCatalogInterface::class);
+        $app = $this->registered($backend);
 
-        $app->make(WorkflowMetadataStore::class)->save('exec-1', GreetingWorkflow::class, ['who' => 'Ada']);
+        $this->dispatch($app, $backend, 'exec-1', GreetingWorkflow::class);
 
-        $page = $catalog->listRuns();
+        $page = $app->make(WorkflowRunCatalogInterface::class)->listRuns();
         self::assertCount(1, $page->runs, 'the run is named as soon as it is dispatched');
+        self::assertSame(GreetingWorkflow::class, $page->runs[0]->workflowName);
         self::assertSame(WorkflowRunStatus::Running, $page->runs[0]->status);
         self::assertTrue($page->tellsWaitingForWorker);
         self::assertNotNull($page->runs[0]->waitingForWorkerSince, 'nobody took it yet');
+    }
 
-        (new ResumeWorkflowJob(new ResumeWorkflowMessage('exec-1')))->handle(
-            $app->make(ResumeWorkflowHandler::class),
-            new ResumeLock(new ArrayStore()),
-            new FakeQueueFactory(new FakeQueue()),
-            new ResumeDeferral(),
-        );
+    /**
+     * The run suspends on a signal with no deadline and appends nothing: only the resume handler
+     * can say a worker took it, so this fails if the handler is not given the pickup projection.
+     */
+    #[DataProvider('journalBackends')]
+    public function testARunAWorkerTookIsNoLongerWaitingWhileItStillRuns(string $backend): void
+    {
+        $app = $this->registered($backend);
+        $this->dispatch($app, $backend, 'exec-2', AwaitApprovalWorkflow::class);
 
-        $run = $catalog->listRuns()->runs[0];
-        self::assertSame(WorkflowRunStatus::Completed, $run->status, 'the outcome comes from the journal');
+        $this->resume($app, 'exec-2');
+
+        $run = $app->make(WorkflowRunCatalogInterface::class)->listRuns()->runs[0];
+        self::assertSame(WorkflowRunStatus::Running, $run->status, 'still waiting for its signal');
         self::assertNull($run->waitingForWorkerSince);
     }
 
-    private function container(string $backend): Container
+    #[DataProvider('journalBackends')]
+    public function testAnEndedRunIsListedWithItsOutcome(string $backend): void
+    {
+        $app = $this->registered($backend);
+        $this->dispatch($app, $backend, 'exec-3', GreetingWorkflow::class);
+
+        $this->resume($app, 'exec-3');
+
+        self::assertSame(WorkflowRunStatus::Completed, $app->make(WorkflowRunCatalogInterface::class)->listRuns()->runs[0]->status);
+    }
+
+    private function registered(string $backend): Container
     {
         $app = new Container();
         $capsule = new Manager();
@@ -74,10 +92,36 @@ final class TheRunCatalogIsFedTest extends TestCase
         $app->instance(Connection::class, $capsule->getConnection());
         $app->instance(QueueFactory::class, new FakeQueueFactory(new FakeQueue()));
         $app->instance('config', new \ArrayObject(
-            ['durable' => ['backend' => $backend, 'workflows' => [GreetingWorkflow::class]]],
+            ['durable' => ['backend' => $backend, 'workflows' => [GreetingWorkflow::class, AwaitApprovalWorkflow::class]]],
             \ArrayObject::ARRAY_AS_PROPS,
         ));
+        (new DurableServiceProvider($app))->register();
 
         return $app;
+    }
+
+    /**
+     * Through the dispatcher on illuminate. On memory the dispatcher is the null one, which saves
+     * nothing, so the metadata is saved as the dispatcher would.
+     */
+    private function dispatch(Container $app, string $backend, string $executionId, string $workflowType): void
+    {
+        if ('illuminate' === $backend) {
+            $app->make(WorkflowResumeDispatcher::class)->dispatchNewWorkflowRun($executionId, $workflowType, []);
+
+            return;
+        }
+
+        $app->make(WorkflowMetadataStore::class)->save($executionId, $workflowType, []);
+    }
+
+    private function resume(Container $app, string $executionId): void
+    {
+        (new ResumeWorkflowJob(new ResumeWorkflowMessage($executionId)))->handle(
+            $app->make(ResumeWorkflowHandler::class),
+            new ResumeLock(new ArrayStore()),
+            new FakeQueueFactory(new FakeQueue()),
+            new ResumeDeferral(),
+        );
     }
 }
