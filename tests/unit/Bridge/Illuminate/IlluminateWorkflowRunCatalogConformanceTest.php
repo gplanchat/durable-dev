@@ -90,7 +90,8 @@ final class IlluminateWorkflowRunCatalogConformanceTest extends WorkflowRunCatal
 
     protected function pickUp(string $executionId): void
     {
-        $this->journal()->append(new ExecutionStarted($executionId, []));
+        // What the resume handler does when a worker takes the run.
+        $this->catalog()->recordPickup($executionId);
     }
 
     private function journal(): ProjectingEventStore

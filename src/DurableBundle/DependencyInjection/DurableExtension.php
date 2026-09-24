@@ -55,6 +55,7 @@ use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
+use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\ParentChildWorkflowCoordinator;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\LocalWorkflowBackend;
@@ -238,6 +239,8 @@ final class DurableExtension extends Extension
             ->setPublic(false)
         ;
         $projection = new Reference('durable.dbal.run_projection');
+        // The resume handler records the pickup where the worker takes the message (#447).
+        $container->setAlias(WorkflowRunPickupProjectionInterface::class, 'durable.dbal.run_projection')->setPublic(false);
 
         $container->register('durable.event_store.dbal.projecting', ProjectingEventStore::class)
             ->setArguments([new Reference('durable.event_store.dbal'), $projection])
@@ -298,6 +301,7 @@ final class DurableExtension extends Extension
         ;
         $catalog = new Reference('durable.run_catalog.in_memory');
         $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.in_memory')->setPublic(true);
+        $container->setAlias(WorkflowRunPickupProjectionInterface::class, 'durable.run_catalog.in_memory')->setPublic(false);
 
         $container->register('durable.event_store.in_memory.projecting', ProjectingEventStore::class)
             ->setArguments([new Reference('durable.event_store.inner'), $catalog])
@@ -735,6 +739,7 @@ final class DurableExtension extends Extension
                     new Reference(ChildWorkflowParentLinkStoreInterface::class),
                     new Reference(WorkflowTimerDispatcher::class),
                     new Reference(WorkflowDefinitionLoader::class),
+                    new Reference(WorkflowRunPickupProjectionInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 ])
                 ->addTag('messenger.message_handler')
             ;

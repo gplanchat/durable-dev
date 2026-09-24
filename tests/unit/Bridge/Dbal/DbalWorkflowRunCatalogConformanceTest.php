@@ -80,11 +80,11 @@ final class DbalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalogConf
     }
 
     /**
-     * What a worker does first: it appends ExecutionStarted.
+     * What a worker does when it takes the run: the resume handler records the pickup.
      */
     protected function pickUp(string $executionId): void
     {
-        $this->eventStore()->append(new ExecutionStarted($executionId, []));
+        $this->projection()->recordPickup($executionId);
     }
 
     private function schema(): DurableSchema
