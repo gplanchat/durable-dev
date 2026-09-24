@@ -76,10 +76,10 @@ final class DurableSchema
     {
         $tables = [$this->eventsTable, $this->metadataTable, $this->parentLinkTable, $this->runsTable];
         $schemaManager = $this->connection->createSchemaManager();
-        $existing = array_values(array_filter(
+        $existing = $this->unfiltered(static fn(): array => array_values(array_filter(
             $tables,
             static fn(string $table): bool => $schemaManager->tablesExist([$table]),
-        ));
+        )));
         if ($existing === $tables) {
             return;
         }
@@ -110,15 +110,40 @@ final class DurableSchema
         }
 
         $schemaManager = $this->connection->createSchemaManager();
+        $columns = $this->unfiltered(fn(): ?array => $schemaManager->tablesExist([$this->runsTable])
+            ? $schemaManager->listTableColumns($this->runsTable)
+            : null);
         // No table yet is no answer: a worker may boot before the migrations run.
-        if (!$schemaManager->tablesExist([$this->runsTable])) {
+        if (null === $columns) {
             return false;
         }
 
-        return $this->runsTableTracksPickup = \array_key_exists(
-            'picked_up_at',
-            array_change_key_case($schemaManager->listTableColumns($this->runsTable)),
-        );
+        return $this->runsTableTracksPickup = \array_key_exists('picked_up_at', array_change_key_case($columns));
+    }
+
+    /**
+     * Runs a probe of Durable's own tables with the connection's schema assets filter off. DBAL
+     * applies that filter to `tablesExist()` as well, and an application that rejects `durable_*`
+     * there, to keep its tooling off these tables, would make them look missing forever: recreated
+     * on every `ensure()`, refused inside every transaction (#339). The filter is restored after.
+     *
+     * @template T
+     *
+     * @param callable(): T $probe
+     *
+     * @return T
+     */
+    private function unfiltered(callable $probe): mixed
+    {
+        $configuration = $this->connection->getConfiguration();
+        $filter = $configuration->getSchemaAssetsFilter();
+        $configuration->setSchemaAssetsFilter(static fn(): bool => true);
+
+        try {
+            return $probe();
+        } finally {
+            $configuration->setSchemaAssetsFilter($filter);
+        }
     }
 
     /**
