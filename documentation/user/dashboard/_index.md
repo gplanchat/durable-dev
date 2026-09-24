@@ -56,6 +56,13 @@ Magento grid, whose backends are the in-memory one, empty from the admin, and Te
 [Upgrading](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md) to add the column to a
 table created before it existed.
 
+A running run also says **what it waits on**, as of its last suspension:
+`waiting on timer "grace period" due at 2026-09-24T10:00:00+00:00`,
+`waiting on activity charge attempt 2 in flight`, or `waiting on condition at src/…/OrderWorkflow.php:42`.
+A signal wait is a condition: the line names where the condition is written, not the signal. The same
+backends tell it, on a runs table that has the `waiting_on` column; Temporal and the Magento grid do
+not.
+
 ### 3. Counters, over what you are looking at
 
 One per outcome, and they cover **the set the list is paging through**, never the application's
