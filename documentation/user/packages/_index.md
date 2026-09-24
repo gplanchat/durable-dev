@@ -384,7 +384,8 @@ nothing of Durable's rides `MessageQueue`. Tune them for your own consumers.
 > [!NOTE]
 > Start executions **on the cluster**, not in the request that triggers them. An observer on
 > `sales_order_place_after` that calls `RuntimeFactory::workflowClient()->startAsync()` hands the
-> execution to Temporal and returns; starting it inline would kill it with the request, which is the
+> execution to Temporal and returns (`workflowClient()` needs the cluster: `startAsync()` is
+> Temporal-only); starting it inline would kill it with the request, which is the
 > very failure this integration exists to remove.
 
 ---

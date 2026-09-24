@@ -9,9 +9,9 @@ weight: 10
 
 - **PHP 8.2+**
 - **Composer**
-- Pour les tests et le développement local : aucune infrastructure supplémentaire, le backend **en mémoire** tourne entièrement dans PHP.
-- Pour la production **sans cluster** : une seule base SQL, par le backend **DBAL** sous Symfony ou le backend **Illuminate** sous Laravel. Aucune extension à compiler.
-- Pour la production **à l'échelle**, ou des tests d'intégration réalistes : un cluster **Temporal** (image Docker disponible) et l'extension PHP **`ext-grpc`**. Dans une image de conteneur, copiez-la depuis une [image préconstruite](../container-images/) plutôt que de la compiler.
+- Pour les tests : aucune infrastructure supplémentaire, le backend **en mémoire** tourne entièrement dans un seul processus PHP.
+- Pour le développement local et la production **sans cluster** : une seule base SQL, par le backend **DBAL** sous Symfony ou le backend **Illuminate** sous Laravel. Aucune extension à compiler.
+- Avec un cluster, pour la production **à l'échelle** ou des tests d'intégration réalistes : un cluster **Temporal** (image Docker disponible) et l'extension PHP **`ext-grpc`**. Dans une image de conteneur, copiez-la depuis une [image préconstruite](../container-images/) plutôt que de la compiler.
 
 Les quatre backends font tourner le même code de workflow ; [Backends](../backends/) compare ce que
 chacun sait offrir.
@@ -64,7 +64,9 @@ C'est tout ce que Flex fait ici : la configuration ci-dessous reste à votre cha
 
 ### `config/packages/durable.yaml`
 
-Par défaut, le bundle utilise le backend **en mémoire**, ce qui convient aux tests et au développement sans serveur Temporal :
+Par défaut, le bundle utilise le backend **en mémoire**. Il convient aux tests, et seulement aux
+tests : il ne garde rien d'un processus à l'autre. [Dans quel profil êtes-vous ?](#dans-quel-profil-êtes-vous-)
+dit sur quoi tourne le développement local.
 
 ```yaml
 durable:
@@ -246,6 +248,12 @@ les fournit, comme Symfony fournit ses services à un contrôleur. Voir
 
 ### 4. Le déclencher depuis un contrôleur ou un service {#4--le-déclencher-depuis-un-contrôleur-ou-un-service}
 
+`WorkflowResumeDispatcher::dispatchNewWorkflowRun()` est **la** façon de démarrer une exécution, et
+la seule qui marche sur tous les backends : en mémoire, DBAL et Temporal. Sur Temporal, elle appelle
+`startAsync()` du client à votre place. N'appelez `startAsync()` vous-même que pour ses options de
+démarrage (délais, attributs de recherche, cron) : il appartient au client Temporal et n'existe
+nulle part ailleurs.
+
 ```php
 <?php
 
@@ -304,17 +312,22 @@ Pour voir ce que le moteur retient d'une exécution :
 php bin/console durable:execution:diagnose greet-abc123
 ```
 
+Elle affiche le journal tel qu'il est stocké, **charges utiles comprises** : l'entrée du workflow,
+les arguments et le résultat de chaque activité, et les données personnelles qu'ils portent.
+Attention à l'endroit où vous collez sa sortie.
+
 #### Dans quel profil êtes-vous ?
 
-Deux configurations fonctionnent. Les mélanger est le faux pas habituel, et il échoue en silence.
+Trois configurations fonctionnent, une par étape. Les mélanger est le faux pas habituel, et il
+échoue en silence.
 
-**Un seul processus, pour les tests.** Transports `in-memory://` et magasins en mémoire. Envoi, reprise
+**Les tests : un seul processus, en mémoire.** Transports `in-memory://` et magasins en mémoire. Envoi, reprise
 et activité se passent dans un même processus PHP, donc un test envoie et draine d'un seul geste. Un
 transport en mémoire **ne survit pas à son processus** : y envoyer depuis une requête web pour
 consommer dans un worker séparé ne peut pas marcher, et le rejeu non plus : le journal dont le
 worker aurait besoin vit dans la mémoire du processus web.
 
-**Plusieurs processus, pour le développement local et la production.** De vrais transports **et** un magasin
+**Le développement local, et la production sans cluster : plusieurs processus, sur DBAL.** De vrais transports **et** un magasin
 durable, sinon le worker prend une entrée nommant un workflow dont il ne voit pas le journal.
 
 Ce profil demande deux paquets que la prise en main ci-dessus n'installe pas : le journal DBAL, et
@@ -348,7 +361,12 @@ framework:
             durable_activities: 'doctrine://default?queue_name=durable_activities'
 ```
 
-La règle derrière les deux profils : **une exécution survit exactement à ce à quoi survivent son
+**Avec un cluster Temporal : le DSN, et rien d'autre.** Un environnement dont
+`durable.temporal.dsn` est renseigné tourne sur Temporal. Le cluster tient le journal et les files,
+et les [workers ci-dessous](#démarrer-les-workers-temporal-production--mode-dev) l'interrogent. Le
+bloc `when@dev` plus haut met `dev` dans ce profil ; retirez-le pour développer sur DBAL.
+
+La règle derrière les trois profils : **une exécution survit exactement à ce à quoi survivent son
 journal et sa file.** Routez `ResumeWorkflowMessage` ou `ActivityMessage` vers un transport qu'un
 worker séparé ne peut pas lire, et le workflow rejoue dans la requête web qui l'a démarré puis meurt
 avec le processus, précisément la panne que l'exécution durable existe pour supprimer.

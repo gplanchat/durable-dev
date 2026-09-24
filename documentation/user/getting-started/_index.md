@@ -9,9 +9,9 @@ weight: 10
 
 - **PHP 8.2+**
 - **Composer**
-- For tests and local development: no additional infrastructure, since the **In-Memory** backend runs fully inside PHP.
-- For production **without a cluster**: one SQL database, through the **DBAL** backend on Symfony or the **Illuminate** backend on Laravel. No extension to compile.
-- For production **at scale**, or realistic integration tests: a **Temporal** cluster (Docker image available) and the **`ext-grpc`** PHP extension. In a container image, copy it from a [prebuilt image](../container-images/) rather than compiling it.
+- For tests: no additional infrastructure, since the **In-Memory** backend runs fully inside one PHP process.
+- For local development and production **without a cluster**: one SQL database, through the **DBAL** backend on Symfony or the **Illuminate** backend on Laravel. No extension to compile.
+- With a cluster, for production **at scale** or realistic integration tests: a **Temporal** cluster (Docker image available) and the **`ext-grpc`** PHP extension. In a container image, copy it from a [prebuilt image](../container-images/) rather than compiling it.
 
 The four backends run the same workflow code; [Backends](../backends/) compares what each one can
 offer.
@@ -64,7 +64,9 @@ Registration is all Flex does here: the configuration below is still yours to wr
 
 ### `config/packages/durable.yaml`
 
-The bundle defaults to the **In-Memory** backend, which is correct for tests and development without a Temporal server:
+The bundle defaults to the **In-Memory** backend. That is right for tests, and only for tests: it
+keeps nothing between two processes. [Which profile are you in?](#which-profile-are-you-in) says what
+local development runs on.
 
 ```yaml
 durable:
@@ -246,6 +248,11 @@ supplies them, the way Symfony supplies a controller's services. See
 
 ### 4. Dispatch from a controller or service {#4--dispatch-from-a-controller-or-service}
 
+`WorkflowResumeDispatcher::dispatchNewWorkflowRun()` is **the** way to start a run, and the only
+one that works on every backend: in-memory, DBAL and Temporal alike. On Temporal it calls the
+client's `startAsync()` for you. Call `startAsync()` yourself only when you need its start options
+(timeouts, search attributes, cron): it belongs to the Temporal client and exists nowhere else.
+
 ```php
 <?php
 
@@ -303,17 +310,21 @@ To see what the engine holds for one run:
 php bin/console durable:execution:diagnose greet-abc123
 ```
 
+It prints the journal as stored, **payloads included**: the workflow's input, each activity's
+arguments and result, and whatever personal data they carry. Mind where you paste its output.
+
 #### Which profile are you in?
 
-Two configurations work. Mixing them is the usual first stumble, and it fails silently.
+Three configurations work, one per stage. Mixing them is the usual first stumble, and it fails
+silently.
 
-**One process, for tests.** `in-memory://` transports with the in-memory stores. Dispatch, resume and
+**Tests: one process, in memory.** `in-memory://` transports with the in-memory stores. Dispatch, resume and
 activity all happen inside a single PHP process, so a test can dispatch and drain in one go. An
 in-memory transport **does not outlive its process**: dispatching from a web request and consuming
 in a separate worker cannot work here, and neither can replay: the journal the worker would need
 lives in the web process's memory.
 
-**Several processes, for local dev and production.** Real transports **and** a durable store. Both, or
+**Local development, and production without a cluster: several processes, on DBAL.** Real transports **and** a durable store. Both, or
 the worker picks up a queue entry naming a workflow whose journal it cannot see.
 
 This profile needs two packages the quick start above does not install: the DBAL journal, and
@@ -347,7 +358,12 @@ framework:
             durable_activities: 'doctrine://default?queue_name=durable_activities'
 ```
 
-The rule behind both profiles: **an execution survives exactly what its journal and its queue
+**With a Temporal cluster: the DSN, and nothing else.** An environment whose
+`durable.temporal.dsn` is set runs on Temporal. The cluster holds the journal and the queues, and
+the [workers below](#start-temporal-workers-production--dev-mode) poll it. The `when@dev` block
+above puts `dev` in this profile; leave it out to develop on DBAL instead.
+
+The rule behind all three profiles: **an execution survives exactly what its journal and its queue
 survive.** Route `ResumeWorkflowMessage` or `ActivityMessage` to a transport a separate worker
 cannot read, and the workflow replays inside the web request that started it and dies with the
 process, the very failure durable execution exists to remove.

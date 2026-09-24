@@ -402,7 +402,8 @@ Durable ne circule sur `MessageQueue`. Réglez-les pour vos propres consommateur
 > [!NOTE]
 > Démarrez les exécutions **sur la grappe**, pas dans la requête qui les déclenche. Un observateur
 > sur `sales_order_place_after` qui appelle `RuntimeFactory::workflowClient()->startAsync()` confie
-> l'exécution à Temporal et rend la main ; la démarrer en ligne la tuerait avec la requête, ce qui
+> l'exécution à Temporal et rend la main (`workflowClient()` exige le cluster : `startAsync()` n'existe
+> que sur Temporal) ; la démarrer en ligne la tuerait avec la requête, ce qui
 > est précisément la panne que cette intégration existe pour retirer.
 
 ---

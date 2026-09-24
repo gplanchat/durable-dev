@@ -266,6 +266,12 @@ $client->startAsync('CheckoutWorkflow', $input, $executionId, new WorkflowStartO
 ));
 ```
 
+> [!NOTE]
+> `$client` is the Temporal `WorkflowClientInterface`, and `startAsync()` exists only on Temporal,
+> like the start options it takes. On every backend, a run starts with
+> `WorkflowResumeDispatcher::dispatchNewWorkflowRun()` ([Getting started](../getting-started/#4--dispatch-from-a-controller-or-service)),
+> which takes no start options.
+
 The object is immutable: each call returns a new instance.
 
 Two of the three server rules are checked locally:
