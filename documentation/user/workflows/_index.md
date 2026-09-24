@@ -344,6 +344,7 @@ everything a workflow can do, and nothing the engine keeps for itself.
 | `childWorkflowStub($class, $options = null)` | The same, for a child workflow: resolved from the child's class, and its calls compose like any other. |
 | `onSignal($name, $handler)` | Registers a signal handler. The handler mutates workflow state and `await()` observes it; there is no separate wait. The name takes a backed enum, so a typo is a type error rather than a wait that never settles. |
 | `onUpdate($name, $handler)` | The same for an update, whose handler's return value is the caller's response. |
+| `hasSignalHandler($name)`, `hasUpdateHandler($name)` | Whether a handler is registered under that name, for code that registers one only once. |
 | `sideEffect($closure)` | Runs non-deterministic local work once and journals its result, so replay reproduces it. |
 | `continueAsNew($type, $payload = [], $options = null)` | Ends this run and starts the next with a fresh history. |
 | `executionId()` | This execution's identifier. |
@@ -361,6 +362,10 @@ see without running anything.
 **Queries have no imperative form.** They are read by the worker, outside the workflow's fiber, so
 their handlers live on the engine side and `#[AsQueryMethod]` is the only way to declare one. A
 closure-shaped workflow cannot answer a query; if it needs to, it needs to be a class.
+
+`WorkflowEnvironment::wrap($context, $runtime)` builds an environment over an `ExecutionContext`
+without the contract resolvers. It is for a runner or a test harness of your own, not for workflow
+code, which always receives the environment the engine built.
 
 You never instantiate activity implementations inside the workflow body.
 

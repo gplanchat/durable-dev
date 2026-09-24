@@ -149,6 +149,42 @@ $this->strict = $env->activityStub(PricingActivities::class, ActivityOptions::of
 
 Contrairement aux workflows, l'**implémentation d'activité** **peut** avoir un constructeur ordinaire avec **injection de dépendances** : clients HTTP, bases de données, journaux, etc., tels que les fournit l'hôte du **worker d'activités** (par exemple le conteneur Symfony dans le processus du worker).
 
+### Battements de cœur : une activité longue dit qu'elle est vivante
+
+Une activité longue injecte `ActivityHeartbeatSenderInterface` et appelle `sendHeartbeat()` entre
+deux étapes. L'appel rend `true` dès qu'une annulation a été demandée : arrêtez-vous là et
+nettoyez.
+
+```php
+use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
+
+final class ImportCatalog implements CatalogActivities
+{
+    public function __construct(
+        private readonly ActivityHeartbeatSenderInterface $heartbeat,
+        private readonly CatalogReader $reader,
+    ) {}
+
+    public function import(string $file): int
+    {
+        $count = 0;
+        foreach ($this->reader->batches($file) as $batch) {
+            $count += $this->reader->store($batch);
+            if ($this->heartbeat->sendHeartbeat(['imported' => $count])) {
+                break; // annulée : s'arrêter entre deux lots, jamais au milieu d'un lot
+            }
+        }
+
+        return $count;
+    }
+}
+```
+
+Sur Temporal, le battement réarme le délai `heartbeat` de l'activité (voir
+[ActivityTimeouts](../options/#activitytimeouts)) et transporte le détail de progression. Sur les
+autres backends, c'est un appel sans effet qui ne signale jamais d'annulation : le même code tourne
+partout.
+
 ## Côté workflow : `ActivityInvoker`
 
 Depuis **`WorkflowEnvironment`** (voir [Écrire un workflow](../workflows/)), vous appelez **`activityStub(VotreInterfaceDActivité::class)`** et vous obtenez un **`ActivityStub`** (même notion que l'**`ActivityInvoker`** des ADR).

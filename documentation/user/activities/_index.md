@@ -149,6 +149,40 @@ $this->strict = $env->activityStub(PricingActivities::class, ActivityOptions::of
 
 Unlike workflows, the **activity implementation** **may** use a normal constructor with **dependency injection**: HTTP clients, databases, loggers, etc., as provided by the **activity worker** host (for example the Symfony container in the worker process).
 
+### Heartbeats: a long activity says it is alive
+
+A long activity injects `ActivityHeartbeatSenderInterface` and calls `sendHeartbeat()` between
+steps. The call returns `true` once cancellation was requested: stop there and clean up.
+
+```php
+use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
+
+final class ImportCatalog implements CatalogActivities
+{
+    public function __construct(
+        private readonly ActivityHeartbeatSenderInterface $heartbeat,
+        private readonly CatalogReader $reader,
+    ) {}
+
+    public function import(string $file): int
+    {
+        $count = 0;
+        foreach ($this->reader->batches($file) as $batch) {
+            $count += $this->reader->store($batch);
+            if ($this->heartbeat->sendHeartbeat(['imported' => $count])) {
+                break; // cancelled: stop between two batches, never in the middle of one
+            }
+        }
+
+        return $count;
+    }
+}
+```
+
+On Temporal the heartbeat resets the activity's `heartbeat` timeout (see
+[ActivityTimeouts](../options/#activitytimeouts)) and carries the progress details. On the other
+backends it is a no-op that never reports a cancellation, so the same code runs everywhere.
+
 ## Workflow side: ActivityInvoker
 
 From **`WorkflowEnvironment`** (see [Creating a workflow](../workflows/)), you call **`activityStub(YourActivityInterface::class)`** and obtain an **`ActivityStub`** (same concept as **`ActivityInvoker`** in ADRs).
