@@ -13,6 +13,7 @@ use Gplanchat\Durable\Attribute\FulfilsNexusOperation;
 #[FulfilsNexusOperation(DeferredBillingService::class, 'settle')]
 final class SettleWorkflow
 {
+    /** @return array<string, mixed> */
     #[AsWorkflowMethod]
     public function run(int $amount, string $currency, bool $dryRun = false): array
     {

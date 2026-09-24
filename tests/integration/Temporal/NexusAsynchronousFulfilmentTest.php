@@ -184,7 +184,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
             new WorkflowServiceExecutionRpc($this->client),
         );
         $callerId = $client->startAsync('NexusAsyncCaller', [], 'nxasync-' . bin2hex(random_bytes(4)));
-        $this->started[] = (string) $callerId;
+        $this->started[] = $callerId;
 
         $task = $this->pollWorkflowTask();
         $buffer = new TemporalWorkflowCommandBuffer($this->connection, 'exec-1');
@@ -199,7 +199,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
         );
         $this->respondToWorkflowTask($task, $buffer->flush());
 
-        return (string) $callerId;
+        return $callerId;
     }
 
     private function startFulfillingWorkflow(string $callbackUrl, mixed $callbackHeader): string

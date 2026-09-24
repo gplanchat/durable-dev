@@ -71,6 +71,7 @@ final class ActivityContractResolverMemoTest extends TestCase
                 };
             }
 
+            /** @return iterable<string, \Psr\Cache\CacheItemInterface> */
             public function getItems(array $keys = []): iterable
             {
                 return [];

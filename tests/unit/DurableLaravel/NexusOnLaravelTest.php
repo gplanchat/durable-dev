@@ -57,6 +57,7 @@ final class NexusOnLaravelTest extends TestCase
 
     public function testAContractThatIsNotAnInterfaceSaysWhichKeyIsWhich(): void
     {
+        // @phpstan-ignore argument.type (a contract that does not exist, on purpose)
         $app = $this->container('temporal', [BillingHandler::class => 'App\\Nope']);
         (new DurableServiceProvider($app))->register();
 
