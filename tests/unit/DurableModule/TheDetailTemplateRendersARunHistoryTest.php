@@ -72,6 +72,16 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
         self::assertStringContainsString('ORD-7', $page);
     }
 
+    public function testTheRunPageMasksWhatLooksLikeASecret(): void
+    {
+        // #507: the admin's run page, like the profiler since #488.
+        $page = $this->renderDetail(secrets: true);
+
+        self::assertStringContainsString('ORD-7', $page);
+        self::assertStringNotContainsString('hunter2', $page);
+        self::assertStringNotContainsString('sk-live-123', $page);
+    }
+
     public function testAnUnknownRunSaysSoRatherThanRenderingAnEmptyScreen(): void
     {
         $page = $this->renderDetail(known: false);
@@ -80,11 +90,11 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
         self::assertStringNotContainsString('durable-frieze', $page);
     }
 
-    private function renderDetail(bool $known = true): string
+    private function renderDetail(bool $known = true, bool $secrets = false): string
     {
         require_once __DIR__ . '/Fixture/magento-template-globals.php';
 
-        $block = new DetailBlockDouble($known);
+        $block = new DetailBlockDouble($known, $secrets);
         $escaper = new EscaperDouble();
 
         ob_start();
@@ -114,6 +124,7 @@ final class DetailBlockDouble
 
     public function __construct(
         private readonly bool $known = true,
+        bool $secrets = false,
     ) {
         $this->timeline = RunTimeline::of($known ? [
             new WorkflowRunEvent(
@@ -121,7 +132,7 @@ final class DetailBlockDouble
                 new \DateTimeImmutable('@1700000000'),
                 WorkflowRunEventKind::Activity,
                 'charge',
-                ['orderId' => 'ORD-7'],
+                ['orderId' => 'ORD-7'] + ($secrets ? ['password' => 'hunter2', 'api_key' => 'sk-live-123'] : []),
                 'activity:act-1',
                 phase: WorkflowRunEventPhase::Requested,
             ),

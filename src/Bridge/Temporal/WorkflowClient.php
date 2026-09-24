@@ -162,13 +162,14 @@ final class WorkflowClient implements WorkflowClientInterface
      *
      * @param array<string, mixed> $args Signal arguments.
      */
-    public function signal(string $workflowId, \BackedEnum|string $signalName, array $args = []): void
+    public function signal(string $workflowId, \BackedEnum|string $signalName, array $args = [], ?string $requestId = null): void
     {
         $req = new SignalWorkflowExecutionRequest();
         $req->setNamespace($this->settings->namespace->name());
         $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
         $req->setSignalName($signalName instanceof \BackedEnum ? (string) $signalName->value : $signalName);
         $req->setIdentity($this->settings->identity);
+        $req->setRequestId($requestId ?? bin2hex(random_bytes(16)));
         if ($args !== []) {
             $req->setInput(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($args)));
         }
@@ -214,7 +215,7 @@ final class WorkflowClient implements WorkflowClientInterface
      * @param array<string, mixed> $args Update arguments.
      * @return mixed The decoded update result.
      */
-    public function update(string $workflowId, string $updateName, array $args = []): mixed
+    public function update(string $workflowId, string $updateName, array $args = [], ?string $updateId = null): mixed
     {
         $request = new \Temporal\Api\Workflowservice\V1\UpdateWorkflowExecutionRequest();
         $request->setNamespace($this->settings->namespace->name());
@@ -228,7 +229,7 @@ final class WorkflowClient implements WorkflowClientInterface
         $updateRequest = new \Temporal\Api\Update\V1\Request();
         // Without meta, the server flatly refuses: "Update meta is not set on request".
         $updateRequest->setMeta(new \Temporal\Api\Update\V1\Meta([
-            'update_id' => bin2hex(random_bytes(16)),
+            'update_id' => $updateId ?? bin2hex(random_bytes(16)),
             'identity' => $this->settings->identity,
         ]));
         $updateRequest->setInput($input);

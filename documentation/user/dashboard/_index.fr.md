@@ -60,6 +60,13 @@ tâches en attente. La grille Magento non plus, puisque ses backends sont celui 
 l'admin, et Temporal. Voir [la procédure de mise à jour](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md)
 pour ajouter la colonne à une table créée avant elle.
 
+Une exécution en cours dit aussi **ce qu'elle attend**, à sa dernière suspension :
+`waiting on timer "grace period" due at 2026-09-24T10:00:00+00:00`,
+`waiting on activity charge attempt 2 in flight`, ou `waiting on condition at src/…/OrderWorkflow.php:42`.
+L'attente d'un signal est une condition : la ligne nomme l'endroit où la condition est écrite, pas le
+signal. Les mêmes backends le disent, sur une table des exécutions qui a la colonne `waiting_on` ;
+Temporal et la grille Magento non.
+
 ### 3. Les compteurs, sur ce que vous regardez
 
 Un par issue, et ils couvrent **l'ensemble que la liste parcourt**, jamais tout l'historique de
@@ -107,6 +114,15 @@ du backend et n'est délibérément **pas** normalisé, car décider lesquels de
 commun n'a de sens qu'une fois qu'on aura vu ce que les exploitants y cherchent, et serait une
 fabrication avant. Un événement avec lequel le backend n'a rien enregistré garde une ligne simple
 plutôt qu'un dépliant qui s'ouvre sur du vide.
+
+Ce qui se déplie est masqué comme le masquent `durable:execution:diagnose` et le profileur web : les
+valeurs rangées sous des clés comme `password`, `token`, `secret`, `authorization`, `card` ou `api_key`
+sont remplacées, et les longues chaînes tronquées. Quiconque a accès à l'administration peut ouvrir une
+exécution : cette page n'a donc pas de vue brute. Le masquage se fie au nom de la clé : des données
+personnelles rangées sous d'autres clés restent visibles. La page d'une exécution masque avec le même
+outil que ces deux-là : sur le plugin Sylius, le service qu'une application déclare comme alias de
+`Gplanchat\Durable\Observation\PayloadRedactorInterface` ; sur Magento, une préférence que
+l'application déclare pour cette interface.
 
 ## Un fait qu'un backend n'a pas est montré comme absent
 

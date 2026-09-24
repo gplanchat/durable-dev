@@ -53,10 +53,16 @@
     </type>
 
     <!--
+        What the run page masks in each event's details (#507): #488's key pattern. An application
+        that masks more declares its own preference for the interface.
+    -->
+    <preference for="Gplanchat\Durable\Observation\PayloadRedactorInterface"
+                type="Gplanchat\Durable\Observation\KeyPatternPayloadRedactor"/>
+
+    <!--
         An activity may inject the heartbeat sender (the activities page shows how). This one is a
         no-op in process, and leads to the Temporal worker's sender once the factory built it.
     -->
     <preference for="Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface"
                 type="Gplanchat\DurableModule\Runtime\SharedActivityHeartbeatSender"/>
-
 </config>

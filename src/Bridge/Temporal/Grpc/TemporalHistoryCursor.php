@@ -18,7 +18,8 @@ use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
  * Follows {@code next_page_token} page-by-page without loading the full history into memory.
  * Implements the cursor pattern defined in DUR001 §"Temporal (server API)".
  *
- * Replaces HistoryPageMerger (which merged all pages upfront into a single History object).
+ * The streaming counterpart of {@see \Gplanchat\Bridge\Temporal\Journal\HistoryPageMerger}, which merges every
+ * page up front into one History object and still serves TemporalJournalEventStore (#372).
  */
 final class TemporalHistoryCursor
 {

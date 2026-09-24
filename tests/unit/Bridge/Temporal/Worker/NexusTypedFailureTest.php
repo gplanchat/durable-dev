@@ -35,16 +35,16 @@ final class NexusTypedFailureTest extends TestCase
      */
     public static function terminalFailures(): iterable
     {
-        yield 'échec' => [EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED, NexusOperationFailureKind::OperationFailed];
-        yield 'borne dépassée' => [EventType::EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT, NexusOperationFailureKind::Timeout];
-        yield 'annulation' => [EventType::EVENT_TYPE_NEXUS_OPERATION_CANCELED, NexusOperationFailureKind::Cancellation];
+        yield 'failure' => [EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED, NexusOperationFailureKind::OperationFailed];
+        yield 'timeout' => [EventType::EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT, NexusOperationFailureKind::Timeout];
+        yield 'cancellation' => [EventType::EVENT_TYPE_NEXUS_OPERATION_CANCELED, NexusOperationFailureKind::Cancellation];
     }
 
     #[DataProvider('terminalFailures')]
     public function testEachEndingCarriesItsKindAndItsCallSite(int $type, NexusOperationFailureKind $expected): void
     {
         $history = TemporalExecutionHistory::fromEvents([
-            $this->scheduled(5, 'op-un'),
+            $this->scheduled(5, 'op-one'),
             $this->terminal($type, 7),
         ]);
 
@@ -54,16 +54,16 @@ final class NexusTypedFailureTest extends TestCase
         $failure = $slot['failed'];
         self::assertInstanceOf(DurableNexusOperationFailedException::class, $failure);
         self::assertSame($expected, $failure->kind(), 'the kind of the ending must survive the reading');
-        self::assertSame('paiements', $failure->endpoint());
-        self::assertSame('facturation', $failure->service());
-        self::assertSame('encaisser', $failure->operation());
+        self::assertSame('payments', $failure->endpoint());
+        self::assertSame('billing', $failure->service());
+        self::assertSame('collect', $failure->operation());
     }
 
     public function testAnUnhandledFailureNamesItsOriginThroughTheClassifier(): void
     {
         // The end of the chain: what someone reading a workflow that fell over sees.
         $history = TemporalExecutionHistory::fromEvents([
-            $this->scheduled(5, 'op-un'),
+            $this->scheduled(5, 'op-one'),
             $this->terminal(EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED, 7),
         ]);
         $failure = $history->findNexusOperationSlotResult(0)['failed'];
@@ -74,15 +74,15 @@ final class NexusTypedFailureTest extends TestCase
             \Gplanchat\Durable\Event\WorkflowExecutionFailed::KIND_UNHANDLED_NEXUS_OPERATION,
             $classified->kind(),
         );
-        self::assertSame('paiements', $classified->context()['endpoint'] ?? null);
+        self::assertSame('payments', $classified->context()['endpoint'] ?? null);
     }
 
     private function scheduled(int $eventId, string $operationId): HistoryEvent
     {
         $attrs = new NexusOperationScheduledEventAttributes();
-        $attrs->setEndpoint('paiements');
-        $attrs->setService('facturation');
-        $attrs->setOperation('encaisser');
+        $attrs->setEndpoint('payments');
+        $attrs->setService('billing');
+        $attrs->setOperation('collect');
         $attrs->setInput(JsonPlainPayload::encode(['operationId' => $operationId, 'payload' => []]));
 
         $event = new HistoryEvent();

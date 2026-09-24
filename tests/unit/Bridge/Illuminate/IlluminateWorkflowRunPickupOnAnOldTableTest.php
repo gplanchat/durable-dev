@@ -39,4 +39,14 @@ final class IlluminateWorkflowRunPickupOnAnOldTableTest extends TestCase
         self::assertCount(1, $runs);
         self::assertNull($runs[0]->waitingForWorkerSince, 'a table that cannot tell leaves the fact absent');
     }
+
+    public function testAWaitOnATableWithoutTheColumnIsNotAnError(): void
+    {
+        $catalog = new IlluminateWorkflowRunCatalog($this->connection, new DurableSchema($this->connection));
+        $catalog->recordStart('exec-1', 'App\\OrderWorkflow');
+
+        $catalog->recordWait('exec-1', 'activity charge attempt 2 in flight');
+
+        self::assertNull($catalog->listRuns()->runs[0]->waitingOn, 'a table created before #324 leaves the fact absent');
+    }
 }
