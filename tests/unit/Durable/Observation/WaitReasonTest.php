@@ -8,6 +8,7 @@ use Gplanchat\Durable\Awaitable\ActivityAwaitable;
 use Gplanchat\Durable\Awaitable\AnyAwaitable;
 use Gplanchat\Durable\Awaitable\ConditionAwaitable;
 use Gplanchat\Durable\Awaitable\Deferred;
+use Gplanchat\Durable\Awaitable\QuorumAwaitable;
 use Gplanchat\Durable\Awaitable\TimerAwaitable;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\ActivityTaskStarted;
@@ -47,6 +48,21 @@ final class WaitReasonTest extends TestCase
         $store->append(new ActivityTaskStarted('exec', 'act-1', 'charge', 1));
         $store->append(new ActivityTaskStarted('exec', 'act-1', 'charge', 2));
         self::assertSame('activity charge attempt 2 in flight', WaitReason::describe($activity, $store, 'exec'));
+    }
+
+    public function testAnAllNamesTheActivityStillPendingNotTheOneAlreadyDone(): void
+    {
+        $store = new InMemoryEventStore();
+        $store->append(new ActivityScheduled('exec', 'act-1', 'reserve', []));
+        $store->append(new ActivityScheduled('exec', 'act-2', 'charge', []));
+        $done = new Deferred();
+        $done->resolve('reserved');
+        $all = new QuorumAwaitable([
+            new ActivityAwaitable($done->awaitable(), 'act-1'),
+            new ActivityAwaitable((new Deferred())->awaitable(), 'act-2'),
+        ], 2);
+
+        self::assertSame('activity charge', WaitReason::describe($all, $store, 'exec'));
     }
 
     public function testAWaitWithADeadlineNamesTheConditionFirst(): void
