@@ -12,4 +12,4 @@
 - **Done when**: `/fr/docs/` pages on a `hugo --minify` build served over HTTP show the six labels
   in French; the CI replay (`--self-test`, both `--force` imports, `diff -u`) is empty;
   `grep -nP '[éèàùç]'` is empty on the translated files.
-- **State**: in progress — bob.
+- **State**: in review — PR #509 (hugo.toml items wait on feat/mesure-d-audience) — bob.
