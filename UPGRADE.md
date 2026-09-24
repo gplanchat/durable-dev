@@ -362,6 +362,19 @@ An application that wants to observe executions in production does not have to r
 profiler: it implements `WorkflowExecutionObserverInterface` and aliases the interface to its own
 service — what the profiler did, cheaper, and without accumulating a timeline for nobody's screen.
 
+### A successful activity writes `ActivityCompleted` only, no `ActivityTaskCompleted` (#262)
+
+**Who is affected**: code that reads the journal and waits for `ActivityTaskCompleted` to learn
+that an activity succeeded — a listener on the event store, a custom projection. On success the
+worker used to append `ActivityTaskCompleted` and then `ActivityCompleted` with the same body; it now
+appends `ActivityCompleted` alone. Read `ActivityCompleted`: it was already the event replay reads,
+and it carries the same result. Failures do not change: one `ActivityTaskFailed` per attempt, then
+`ActivityFailed`.
+
+Journals recorded before keep both events. They replay and read as before: the class, its mapping
+and the dashboard reader's handling of it stay. No Rector rule or script: what changes is which
+event a listener receives at run time, not code Rector can rewrite.
+
 ## 0.1.0-alpha8
 
 ### The divergence guard compares the payload too

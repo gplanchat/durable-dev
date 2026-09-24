@@ -40,7 +40,6 @@ final class HarnessParityTest extends TestCase
                 'ExecutionStarted',
                 'ActivityScheduled',
                 'ActivityTaskStarted',
-                'ActivityTaskCompleted',
                 'ActivityCompleted',
                 'ExecutionCompleted',
             ],

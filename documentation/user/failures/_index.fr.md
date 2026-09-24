@@ -18,7 +18,7 @@ est montrée dans [Annulation](../cancellation/#compenser).
 | `ActivityScheduled` | le workflow l'a demandée |
 | `ActivityTaskStarted` | une tentative a commencé, une ligne par tentative |
 | `ActivityTaskFailed` | **une tentative a échoué**, qu'une autre suive ou non |
-| `ActivityTaskCompleted` | une tentative a réussi |
+| `ActivityTaskCompleted` | journaux enregistrés avant #262 seulement : un succès n'écrit plus que `ActivityCompleted` |
 | `ActivityCompleted` | résultat final : succès |
 | `ActivityFailed` | résultat final : échec |
 | `ActivityCancelled` | résultat final : retirée avant d'aboutir |
