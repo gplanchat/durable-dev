@@ -56,6 +56,8 @@ final class RunPageCursorTest extends TestCase
         yield 'not base64' => ['***'];
         yield 'no separator' => [base64_encode('2026-09-24 12:00:00')];
         yield 'no start date' => [base64_encode("\0exec-1")];
+        // Compared as a date on some platforms: PostgreSQL refuses the whole query (#534 review).
+        yield 'a start that is not a date' => [base64_encode("not-a-date\0exec-1")];
     }
 
     #[DataProvider('firstPage')]
