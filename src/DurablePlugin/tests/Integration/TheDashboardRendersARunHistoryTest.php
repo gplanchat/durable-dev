@@ -13,6 +13,9 @@ use Gplanchat\Durable\Observation\WorkflowRunPage;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Bridge\Twig\Extension\TranslationExtension;
+use Symfony\Component\Translation\Loader\XliffFileLoader;
+use Symfony\Component\Translation\Translator;
 use Twig\Environment;
 use Twig\Loader\ArrayLoader;
 use Twig\Loader\ChainLoader;
@@ -145,15 +148,38 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertStringNotContainsString('waiting for a worker', $this->render());
     }
 
-    private function render(bool $ephemeral = false, bool $badPayload = false, bool $waiting = false): string
+    public function testTheWholePageSpeaksFrenchWhenTheAdminDoes(): void
+    {
+        $page = $this->render(waiting: true, locale: 'fr');
+
+        self::assertStringContainsString('Tableau de bord des workflows Durable', $page);
+        // Every literal the template used to print in English (M28). What the model itself says
+        // (backend health, durations) is the core's wording and is not the template's to translate.
+        foreach (['Durable Workflow Dashboard', 'Observe workflow runs', 'Outcomes across', 'On this page', 'Waiting for a worker',
+            '>Outcome<', '>Filter<', '>Runs<', 'Run details', 'Workflow:', 'Outcome:', 'No recorded history', 'Select a run',
+            'Hatched:', 'Red: what failed', 'RUNNING', 'Continued as new', 'checked at'] as $english) {
+            self::assertStringNotContainsString($english, $page);
+        }
+    }
+
+    public function testEveryKeyHasAFrenchTranslation(): void
+    {
+        $catalogue = static fn(string $locale): array => (new XliffFileLoader())
+            ->load(\dirname(__DIR__, 2) . "/translations/durable.$locale.xlf", $locale, 'durable')
+            ->all('durable');
+
+        self::assertSame(array_keys($catalogue('en')), array_keys($catalogue('fr')));
+    }
+
+    private function render(bool $ephemeral = false, bool $badPayload = false, bool $waiting = false, string $locale = 'en'): string
     {
         $catalog = new RenderingCatalog($ephemeral, $badPayload, $waiting);
         $model = (new RunDashboard($catalog))->build();
 
-        return $this->twig()->render('@DurablePlugin/admin/dashboard/index.html.twig', $model);
+        return $this->twig($locale)->render('@DurablePlugin/admin/dashboard/index.html.twig', $model);
     }
 
-    private function twig(): Environment
+    private function twig(string $locale = 'en'): Environment
     {
         $plugin = new FilesystemLoader([\dirname(__DIR__, 2) . '/templates'], null);
         $plugin->addPath(\dirname(__DIR__, 2) . '/templates', 'DurablePlugin');
@@ -168,6 +194,13 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
 
         $twig = new Environment(new ChainLoader([$plugin, $sylius]), ['strict_variables' => true]);
         $twig->addFunction(new TwigFunction('path', static fn(string $route, array $parameters = []): string => '/admin/durable/dashboard'));
+
+        $translator = new Translator($locale);
+        $translator->addLoader('xlf', new XliffFileLoader());
+        foreach (['en', 'fr'] as $available) {
+            $translator->addResource('xlf', \dirname(__DIR__, 2) . "/translations/durable.$available.xlf", $available, 'durable');
+        }
+        $twig->addExtension(new TranslationExtension($translator));
 
         return $twig;
     }

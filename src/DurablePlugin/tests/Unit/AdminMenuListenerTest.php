@@ -61,5 +61,8 @@ final class AdminMenuListenerTest extends TestCase
 
         self::assertSame('gplanchat_durable_plugin_admin_dashboard', $configurationMenu->options['durable_dashboard']['route'] ?? null);
         self::assertArrayNotHasKey('uri', $configurationMenu->options['durable_dashboard']);
+        // The label is a key the menu template translates, not an English literal (M28).
+        self::assertSame('menu.dashboard', $configurationMenu->options['durable_dashboard']['label']);
+        self::assertSame('durable', $configurationMenu->options['durable_dashboard']['extras']['translation_domain'] ?? null);
     }
 }
