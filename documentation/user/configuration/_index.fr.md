@@ -116,9 +116,15 @@ Le schéma nomme le fil et le chiffrement :
 | `namespace` | oui | Espace de noms Temporal (par exemple `default`). |
 | `journal_task_queue` | oui | File des tâches de workflow (par exemple `durable-journal`). |
 | `activity_task_queue` | oui | File des tâches d'activité (par exemple `durable-activities`). |
+| `task_queue` | non | L'ancienne écriture de `journal_task_queue`, lue quand celle-ci est absente. |
+| `workflow_task_queue` | non (défaut `durable-workflows`) | File des tâches de workflow de l'application. |
+| `nexus_task_queue` | non (défaut : la file des tâches de workflow) | File des tâches Nexus que sert cette application. |
+| `workflow_type` | non (défaut `DurableJournal`) | Type de workflow du journal. |
+| `identity` | non (défaut `durable-temporal-bridge-php`) | Identité que ce worker annonce au serveur. |
 | `tls` | non | `tls=1` est l'ancienne écriture des schémas `+tls` et `+https` ; toujours acceptée. |
 | `ca` | non, TLS seulement | Chemin du fichier PEM de l'autorité qui signe le certificat du serveur. Sans lui, le magasin du système fait foi. |
-| `cert`, `key` | non, TLS seulement | Chemins des fichiers PEM d'un certificat client et de sa clé privée, pour le mTLS. Les deux ou aucun. |
+| `cert` | non, TLS seulement | Chemin du fichier PEM d'un certificat client, pour le mTLS. Va avec `key`. |
+| `key` | non, TLS seulement | Chemin du fichier PEM de la clé privée de ce certificat. Va avec `cert`. |
 | `api_key` | non, TLS seulement | Envoyée à chaque appel en `authorization: Bearer …`, avec un en-tête `temporal-namespace` (clés d'API de Temporal Cloud). À encoder pour l'URL. |
 | `transport` | non (défaut `auto`) | Surcharge ce que le schéma implique : `grpc` exige `ext-grpc` et échoue sans elle, `grpc-curl` force curl même quand l'extension est chargée, `guzzle` fait passer le gRPC par Guzzle 7.14 ou plus (son handler cURL lit les trailers), `http` est ce que `temporal+http://` pose. `auto` prend `grpc` si l'extension est chargée, `grpc-curl` sinon. |
 
