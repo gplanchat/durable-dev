@@ -48,13 +48,39 @@ final class DurableSchema
         if (!$this->autoSetup || $this->ensured) {
             return;
         }
-        $this->ensured = true;
 
+        $this->create(refuseInsideTransaction: true);
+        // Only once it held: a refusal, or a caller's rollback of the DDL, leaves the next write
+        // to try again.
+        $this->ensured = true;
+    }
+
+    /**
+     * Creates the missing tables whatever `auto_setup` says: `durable:setup` is how they get
+     * created when it is off.
+     */
+    public function setup(): void
+    {
+        $this->create(refuseInsideTransaction: false);
+    }
+
+    private function create(bool $refuseInsideTransaction): void
+    {
+        $tables = [$this->eventsTable, $this->metadataTable, $this->parentLinkTable, $this->runsTable];
         $schemaManager = $this->connection->createSchemaManager();
         $existing = array_values(array_filter(
-            [$this->eventsTable, $this->metadataTable, $this->parentLinkTable, $this->runsTable],
+            $tables,
             static fn(string $table): bool => $schemaManager->tablesExist([$table]),
         ));
+        if ($existing === $tables) {
+            return;
+        }
+
+        // MySQL commits an open transaction on DDL, and the caller's commit then fails with
+        // "There is no active transaction". Messenger's Doctrine transport refuses here too.
+        if ($refuseInsideTransaction && $this->connection->isTransactionActive()) {
+            throw DurableSchemaMissing::insideTransaction(array_values(array_diff($tables, $existing)));
+        }
 
         $schema = new Schema();
         $this->addToSchema($schema, $existing);
