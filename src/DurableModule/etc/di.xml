@@ -49,4 +49,11 @@
         </arguments>
     </type>
 
+    <!--
+        An activity may inject the heartbeat sender (the activities page shows how). Nothing in the
+        module serves heartbeats, so the ObjectManager hands the no-op.
+    -->
+    <preference for="Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface"
+                type="Gplanchat\Durable\Activity\NullActivityHeartbeatSender"/>
+
 </config>

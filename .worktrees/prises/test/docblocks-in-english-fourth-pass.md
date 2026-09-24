@@ -12,4 +12,4 @@
   `tests/integration/Temporal/{NexusEndpointNameRules,NexusServiceAndOperationNameRules}Test.php`.
 - **Done when**: reading each file finds no French outside deliberate non-ASCII inputs; the suite
   and PHPStan/Psalm/cs are green.
-- **State**: pushed (6b03a20c), PR held: epic #310 has two open PRs (#493, #517) — bob, reviewer sabrina.
+- **State**: in review — PR #528 (part 1 of 2), bob, reviewer sabrina. Part 2 (remaining test data, the guard) later.

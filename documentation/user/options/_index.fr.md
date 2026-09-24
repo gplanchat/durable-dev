@@ -107,6 +107,11 @@ ActivityTimeouts::attempt(Duration::seconds(30));      // le cas courant : borne
     scheduleToClose: Duration::minutes(30),
     heartbeat:       Duration::seconds(30),
 ));
+
+// Chaque borne a son with…() qui rend une copie où seule celle-ci change ; null la retire.
+ActivityTimeouts::attempt(Duration::seconds(30))
+    ->withScheduleToStart(Duration::seconds(10))
+    ->withHeartbeat(Duration::seconds(5));
 ```
 
 Un battement plus long que `startToClose` est refusé : la tentative se terminerait avant le premier
@@ -184,6 +189,9 @@ new WorkflowTimeouts(
     run:       Duration::minutes(10),
     task:      Duration::seconds(10),
 );
+
+// Les mêmes copies with…() : withExecution(), withRun(), withTask() ; null retire la borne.
+WorkflowTimeouts::run(Duration::minutes(10))->withTask(Duration::seconds(10));
 ```
 
 Une borne de run plus longue que la borne d'exécution est **refusée**. Le serveur, lui, ne la refuse
@@ -192,7 +200,8 @@ configuration que vous avez écrite n'est pas celle qui s'applique. Autant l'app
 
 `ContinueAsNewOptions` refuse purement et simplement une borne d'exécution : le nouveau run
 appartient à l'exécution courante et en hérite. Employez `withoutExecutionBound()` pour y réutiliser
-un `WorkflowTimeouts`.
+un `WorkflowTimeouts`. Ses propres copies sont `withTimeouts()` et `withTaskQueue()`, qui fait
+passer le run suivant sur une autre file de tâches.
 
 ---
 

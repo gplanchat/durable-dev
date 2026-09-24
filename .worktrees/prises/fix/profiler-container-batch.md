@@ -10,4 +10,4 @@
   `UPGRADE.md` (one entry), their tests. After #485: `DurableExtension` (`.inner`, the diagnose
   argument, `WorkflowTaskProcessor` visibility) and `DurableContainerSurfaceTest`. B-6 stacks on
   `feat/profiler-run-event-phase` for `DurableProfilerEventPresentation.php` and `durable.html.twig`.
-- **State**: in progress — antoine, worktree `.claude/worktrees/profiler-container-batch`. Reviewer: sabrina.
+- **State**: in review — PR #530, antoine. Reviewer: sabrina.

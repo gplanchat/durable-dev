@@ -9,4 +9,4 @@
   `src/Bridge/Temporal/Grpc/WorkflowServiceExecutionRpc.php`,
   `src/Bridge/Temporal/Grpc/TemporalHistoryCursor.php`,
   `src/Bridge/Temporal/Messenger/TemporalJournalTransport.php`, `UPGRADE.md`.
-- **State**: in progress — vera; reviewer sabrina.
+- **State**: in review — PR #529, vera; reviewer sabrina.
