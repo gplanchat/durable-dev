@@ -7,15 +7,22 @@ namespace Gplanchat\Bridge\Temporal\Http;
 use Google\Protobuf\Internal\Message;
 use Gplanchat\Bridge\Temporal\AbstractWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Psr\Http\Client\ClientExceptionInterface;
 
 /**
  * The server's JSON gateway (grpc-gateway on the frontend HTTP port, 7243 by default): plain
  * HTTP/1.1 and JSON, no gRPC framing at all. It serves the client side only; see
  * {@see JsonGatewayRoutes} for what is missing and why.
+ *
+ * The exchange goes through curl, or through any PSR-18 client handed as {@see Psr18Http}. PSR-18
+ * has no per-request timeout: over it, the deadline is the client's own configuration.
  */
 final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClient
 {
-    public function __construct(private readonly TemporalConnection $connection) {}
+    public function __construct(
+        private readonly TemporalConnection $connection,
+        private readonly ?Psr18Http $http = null,
+    ) {}
 
     protected function call(string $rpc, Message $request, string $responseClass, array $metadata, array $options): Message
     {
@@ -35,7 +42,9 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
         }
 
         $headers = ['content-type' => ['application/json'], 'accept' => ['application/json'], 'user-agent' => ['durable-bridge-temporal/php']] + $metadata;
-        [$httpStatus, $body] = self::overCurl($url, $verb, $json, $headers, $options);
+        [$httpStatus, $body] = null === $this->http
+            ? self::overCurl($url, $verb, $json, $headers, $options)
+            : self::overPsr18($this->http, $url, $verb, $json, $headers);
 
         if (200 === $httpStatus) {
             $response = new $responseClass();
@@ -80,5 +89,29 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
         }
 
         return [(int) curl_getinfo($curl, \CURLINFO_RESPONSE_CODE), $body];
+    }
+
+    /**
+     * @param array<string, mixed> $headers
+     *
+     * @return array{int, string} [HTTP status, body]
+     */
+    private static function overPsr18(Psr18Http $http, string $url, string $verb, string $json, array $headers): array
+    {
+        $request = $http->requests->createRequest($verb, $url);
+        foreach ($headers as $name => $values) {
+            $request = $request->withHeader($name, \is_array($values) ? array_map('strval', $values) : (string) $values);
+        }
+        if ('GET' !== $verb) {
+            $request = $request->withBody($http->streams->createStream($json));
+        }
+
+        try {
+            $response = $http->client->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            throw GrpcWire::failure(GrpcWire::UNAVAILABLE, $e->getMessage());
+        }
+
+        return [$response->getStatusCode(), (string) $response->getBody()];
     }
 }
