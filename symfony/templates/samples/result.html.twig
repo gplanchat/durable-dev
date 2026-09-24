@@ -59,8 +59,12 @@
         {% endif %}
 
         <div class="hstack">
-            <a href="{{ path('durable_samples_run', { id: scenario.id }) }}" class="btn btn-primary">▶ Run again (sync)</a>
-            <a href="{{ path('durable_samples_run', { id: scenario.id, wait: '0' }) }}" class="btn btn-ghost">⚡ Run again (async)</a>
+            <form method="post" action="{{ path('durable_samples_run', { id: scenario.id }) }}">
+                <button type="submit" class="btn btn-primary">▶ Run again (sync)</button>
+            </form>
+            <form method="post" action="{{ path('durable_samples_run', { id: scenario.id, wait: '0' }) }}">
+                <button type="submit" class="btn btn-ghost">⚡ Run again (async)</button>
+            </form>
             <a href="{{ path('durable_samples_index') }}" class="btn btn-ghost btn-sm" style="margin-left: auto;">← All samples</a>
         </div>
     </div>
