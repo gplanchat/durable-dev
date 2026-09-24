@@ -84,7 +84,19 @@ final class TheRunCatalogIsFedTest extends TestCase
         self::assertSame(WorkflowRunStatus::Completed, $app->make(WorkflowRunCatalogInterface::class)->listRuns()->runs[0]->status);
     }
 
-    private function registered(string $backend): Container
+    public function testTheHistoryIsReadFromTheConfiguredJournalTable(): void
+    {
+        $app = $this->registered('illuminate', ['events' => 'wf_journal']);
+        $this->dispatch($app, 'illuminate', 'exec-4', GreetingWorkflow::class);
+        $this->resume($app, 'exec-4');
+
+        $catalog = $app->make(WorkflowRunCatalogInterface::class);
+
+        self::assertNotSame([], $catalog->readHistory($catalog->listRuns()->runs[0]), 'the journal lives in wf_journal, not durable_events');
+    }
+
+    /** @param array<string, string> $tables */
+    private function registered(string $backend, array $tables = []): Container
     {
         $app = new Container();
         $capsule = new Manager();
@@ -92,7 +104,7 @@ final class TheRunCatalogIsFedTest extends TestCase
         $app->instance(Connection::class, $capsule->getConnection());
         $app->instance(QueueFactory::class, new FakeQueueFactory(new FakeQueue()));
         $app->instance('config', new \ArrayObject(
-            ['durable' => ['backend' => $backend, 'workflows' => [GreetingWorkflow::class, AwaitApprovalWorkflow::class]]],
+            ['durable' => ['backend' => $backend, 'tables' => $tables, 'workflows' => [GreetingWorkflow::class, AwaitApprovalWorkflow::class]]],
             \ArrayObject::ARRAY_AS_PROPS,
         ));
         (new DurableServiceProvider($app))->register();

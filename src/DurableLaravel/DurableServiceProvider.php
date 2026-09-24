@@ -35,6 +35,7 @@ use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowTimerDispatcher;
 use Gplanchat\Durable\Laravel\Queue\ResumeDeferral;
 use Gplanchat\Durable\Laravel\Workflow\DeclaredWorkflowTypes;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
+use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\NullWorkflowTimerDispatcher;
@@ -173,6 +174,12 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(Connection::class),
             $app->make(DurableSchema::class),
             $tables['runs'] ?? 'durable_workflow_runs',
+            // The history is read from the configured journal table, not the default one.
+            new JournalRunHistoryReader(new IlluminateEventStore(
+                $app->make(Connection::class),
+                $app->make(DurableSchema::class),
+                $tables['events'] ?? 'durable_events',
+            )),
         ));
         $this->app->alias(IlluminateWorkflowRunCatalog::class, WorkflowRunCatalogInterface::class);
         $this->app->alias(IlluminateWorkflowRunCatalog::class, WorkflowRunPickupProjectionInterface::class);

@@ -47,7 +47,7 @@ on Symfony, or `php artisan queue:work` on Laravel.
 A running run without that line has been picked up, and is working or waiting on a timer or a signal,
 as it should. The counters add a **Waiting for a worker** count over the same page.
 
-The SQL journals can tell (DBAL on Symfony, Illuminate on Laravel), on a table that has the
+The SQL backends can tell (DBAL on Symfony, Illuminate on Laravel), on a runs table that has the
 `picked_up_at` column, and so can the in-memory backend within its process. Laravel has no run list
 screen of its own yet; its `WorkflowRunCatalogInterface` is fed and ready for one. Temporal cannot
 from the run list, so

@@ -51,7 +51,7 @@ Une exécution en cours sans cette mention a été prise en charge : elle travai
 minuteur ou un signal, comme prévu. Les compteurs ajoutent un nombre **Waiting for a worker** sur la
 même page.
 
-Les journaux SQL savent le dire (DBAL sous Symfony, Illuminate sous Laravel), sur une table qui a la
+Les backends SQL savent le dire (DBAL sous Symfony, Illuminate sous Laravel), sur une table des exécutions qui a la
 colonne `picked_up_at`, ainsi que le backend en mémoire dans son propre processus. Laravel n'a pas
 encore d'écran de liste des exécutions : son `WorkflowRunCatalogInterface` est alimenté et prêt à
 en servir un. Temporal ne le peut pas
