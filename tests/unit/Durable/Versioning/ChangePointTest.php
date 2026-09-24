@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Versioning;
 
+use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\VersionMarked;
+use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\Store\EventStoreCommandBuffer;
 use Gplanchat\Durable\Store\EventStoreHistorySource;
@@ -65,6 +67,40 @@ final class ChangePointTest extends TestCase
         self::assertSame(1, $first);
         self::assertSame($first, $second, 'newer code does not move an execution in flight');
         self::assertSame($first, $third);
+    }
+
+    public function testARecordedVersionBelowMinSupportedIsRefused(): void
+    {
+        $store = new InMemoryEventStore();
+        $store->append(new VersionMarked(self::EXECUTION, 'ajout-remise', 1));
+
+        // The branch for version 1 was deleted: the code now plays 2 and 3 only.
+        $this->expectException(WorkflowTaskFailure::class);
+        $this->expectExceptionMessageMatches('/version 1 of change point "ajout-remise".*2\.\.3/');
+
+        $this->context($store)->version('ajout-remise', 2, 3);
+    }
+
+    public function testTheOriginalBehaviourIsRefusedOnceItsBranchIsGone(): void
+    {
+        $store = new InMemoryEventStore();
+        // Work recorded before any marker: this run passed the point under the original code.
+        $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'charge', []));
+
+        $this->expectException(WorkflowTaskFailure::class);
+
+        $this->context($store)->version('ajout-remise', 1, 2);
+    }
+
+    public function testARecordedVersionAboveMaxSupportedIsRefused(): void
+    {
+        $store = new InMemoryEventStore();
+        $store->append(new VersionMarked(self::EXECUTION, 'ajout-remise', 3));
+
+        // A rollback: the history was written by code that knew version 3.
+        $this->expectException(WorkflowTaskFailure::class);
+
+        $this->context($store)->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 2);
     }
 
     public function testTheSameRunIsNotMarkedTwice(): void
