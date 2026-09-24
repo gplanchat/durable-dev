@@ -11,4 +11,4 @@
   `src/DurableBundle/DependencyInjection/Configuration.php` (after #485).
 - **Done when**: the bench test is red on a hand edit of the block and green on the page;
   `auto_setup` appears on both pages; verify.sh green.
-- **State**: in progress, stacked on #485 — bob.
+- **State**: pushed (31025f25), PR held until #485 lands — bob.
