@@ -353,6 +353,7 @@
                                                     <th>Time (journal)</th>
                                                     <th>Event type</th>
                                                     <th>Category</th>
+                                                    <th>Phase</th>
                                                     <th>Summary</th>
                                                     <th>Detail</th>
                                                     <th>Payload</th>
@@ -365,6 +366,7 @@
                                                         <td class="text-muted">{% if row.recordedAt %}{{ row.recordedAt }}{% else %}—{% endif %}</td>
                                                         <td><code>{{ row.type }}</code></td>
                                                         <td>{% if row.category %}<span class="durable-cat durable-cat--{{ row.category }}">{{ row.category }}</span>{% else %}—{% endif %}</td>
+                                                        <td>{{ row.phase|default('—') }}</td>
                                                         <td><strong>{{ row.title|default(row.label) }}</strong></td>
                                                         <td class="text-muted">{{ row.subtitle|default('') }}</td>
                                                         <td><pre class="text-muted" style="max-height:100px;overflow:auto">{{ row.payload|json_encode(128) }}</pre></td>
