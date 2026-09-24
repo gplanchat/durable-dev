@@ -565,6 +565,26 @@ jobs:
               working-directory: symfony
               run: composer test
 
+    guide-follows:
+        # The bench that follows the guide (#363): a fresh `symfony/skeleton`, this commit's
+        # packages, the getting-started blocks applied verbatim in both languages, and the first
+        # workflow run to completion. #276 shipped a guide whose container did not compile; the
+        # benches did not notice, because none of them is built from the guide.
+        name: Getting-started guide, followed verbatim
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.4'
+                  coverage: none
+
+            - name: Follow the guide
+              run: bin/guide-follows.sh
+
     temporal-bridge:
         name: Bridge Temporal (ext-grpc + test resolver)
         runs-on: ubuntu-latest

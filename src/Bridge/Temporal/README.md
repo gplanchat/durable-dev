@@ -90,6 +90,20 @@ services:
 The development server takes `--http-port 7243`. Temporal Cloud exposes the gateway on its own
 endpoint; consult its documentation for the address.
 
+### The gateway over a PSR-18 client
+
+The gateway is plain HTTP and JSON, so any PSR-18 client can carry it instead of curl. Hand one,
+with its PSR-17 factories, to the factory:
+
+```php
+$factory = new \GuzzleHttp\Psr7\HttpFactory();
+$client = WorkflowServiceClientFactory::create($connection, jsonGateway: new Psr18Http(new \GuzzleHttp\Client(), $factory, $factory));
+```
+
+Symfony's `Psr18Client` serves as its own factory: `new Psr18Http($psr18, $psr18, $psr18)`. PSR-18
+has no per-request timeout: the deadline is the client's own configuration, and a timeout reports
+as `UNAVAILABLE` like any other network failure.
+
 ### Limits
 
 - A proxy or load balancer that only speaks HTTP/1.1 breaks `grpc-curl`, as it breaks `ext-grpc`;

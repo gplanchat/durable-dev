@@ -24,6 +24,8 @@ use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
  *     temporal server start-dev --namespace durable-test --port 7233 --http-port 7243
  *     DURABLE_TEMPORAL_HTTP_ADDRESS=127.0.0.1:7243 vendor/bin/phpunit --testsuite integration
  *
+ * DURABLE_TEMPORAL_HTTP_CLIENT=psr18 sends it over a PSR-18 client (Guzzle) instead of curl.
+ *
  * No worker is involved: a started execution can be described, read, and terminated without
  * anybody polling its task queue, which is exactly the surface the gateway exposes.
  */
@@ -46,7 +48,13 @@ final class JsonGatewayRoundTripTest extends TestCase
             identity: 'durable-json-gateway-it',
             transport: TemporalConnection::TRANSPORT_HTTP,
         );
-        $this->client = WorkflowServiceClientFactory::create($this->connection);
+        // DURABLE_TEMPORAL_HTTP_CLIENT=psr18 runs the same round trip over Guzzle as a PSR-18 client.
+        $psr18 = null;
+        if ('psr18' === getenv('DURABLE_TEMPORAL_HTTP_CLIENT')) {
+            $factory = new \GuzzleHttp\Psr7\HttpFactory();
+            $psr18 = new \Gplanchat\Bridge\Temporal\Http\Psr18Http(new \GuzzleHttp\Client(), $factory, $factory);
+        }
+        $this->client = WorkflowServiceClientFactory::create($this->connection, jsonGateway: $psr18);
         $this->workflowId = 'json-gateway-' . bin2hex(random_bytes(6));
     }
 
