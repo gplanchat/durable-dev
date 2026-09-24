@@ -10,6 +10,7 @@ use Gplanchat\Bridge\Temporal\Grpc\GrpcWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Http\CurlGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\GuzzleGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient;
+use Gplanchat\Bridge\Temporal\Http\Psr18Http;
 use Grpc\ChannelCredentials;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\ClientInterface as GuzzleClientInterface;
@@ -35,15 +36,18 @@ final class WorkflowServiceClientFactory
      * per process. An explicit transport never falls back: asking for what is not installed
      * fails, loudly, at wiring time.
      */
-    public static function create(TemporalConnection $settings, ?LoggerInterface $logger = null, ?GuzzleClientInterface $guzzle = null): WorkflowServiceClientInterface
+    public static function create(TemporalConnection $settings, ?LoggerInterface $logger = null, ?GuzzleClientInterface $guzzle = null, ?Psr18Http $jsonGateway = null): WorkflowServiceClientInterface
     {
         $transport = self::resolveLogged($settings, $logger);
 
         // The JSON gateway is not gRPC: a client of its own, not a transport.
+        // Over a handed PSR-18 client, curl is not needed.
         if (TemporalConnection::TRANSPORT_HTTP === $transport) {
-            self::assertCurl($transport);
+            if (null === $jsonGateway) {
+                self::assertCurl($transport);
+            }
 
-            return new JsonGatewayWorkflowServiceClient($settings);
+            return new JsonGatewayWorkflowServiceClient($settings, $jsonGateway);
         }
 
         return new GrpcWorkflowServiceClient(self::transportFor($transport, $settings, $guzzle));

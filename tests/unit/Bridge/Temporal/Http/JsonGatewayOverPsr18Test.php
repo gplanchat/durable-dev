@@ -85,6 +85,19 @@ final class JsonGatewayOverPsr18Test extends TestCase
         }
     }
 
+    public function testTheFactoryHandsThePsr18ClientToTransportHttp(): void
+    {
+        $http = new RecordingPsr18Client(new Response(200, [], '{}'));
+        $factory = new HttpFactory();
+
+        \Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory::create(
+            TemporalConnection::fromDsn('temporal+http://127.0.0.1'),
+            jsonGateway: new Psr18Http($http, $factory, $factory),
+        )->DescribeWorkflowExecution(new DescribeWorkflowExecutionRequest(['namespace' => 'default']));
+
+        self::assertNotNull($http->sent, 'the gateway call went through the handed client, not curl');
+    }
+
     private function client(RecordingPsr18Client $http): JsonGatewayWorkflowServiceClient
     {
         $factory = new HttpFactory();
