@@ -22,7 +22,7 @@ final class SearchAttributesTest extends TestCase
     {
         $attributes = SearchAttributes::none()
             ->keyword('DurableOrderId', 'ORD-1')
-            ->text('DurableNote', 'un commentaire')
+            ->text('DurableNote', 'a comment')
             ->int('DurableAmount', 42)
             ->double('DurableRatio', 3)
             ->bool('DurablePaid', true)
@@ -31,7 +31,7 @@ final class SearchAttributesTest extends TestCase
 
         self::assertSame([
             'DurableOrderId' => 'ORD-1',
-            'DurableNote' => 'un commentaire',
+            'DurableNote' => 'a comment',
             'DurableAmount' => 42,
             'DurableRatio' => 3.0,
             'DurablePaid' => true,
@@ -55,13 +55,13 @@ final class SearchAttributesTest extends TestCase
      */
     public static function mismatchedValues(): iterable
     {
-        yield 'Int recevant une chaîne' => [SearchAttributeType::Int, 'quarante-deux'];
-        yield 'Keyword recevant un entier' => [SearchAttributeType::Keyword, 42];
-        yield 'Bool recevant une chaîne' => [SearchAttributeType::Bool, 'true'];
-        yield 'Double recevant une chaîne' => [SearchAttributeType::Double, '3.5'];
-        yield 'KeywordList recevant une chaîne' => [SearchAttributeType::KeywordList, 'a'];
-        yield 'KeywordList contenant un entier' => [SearchAttributeType::KeywordList, ['a', 2]];
-        yield 'Datetime recevant du charabia' => [SearchAttributeType::Datetime, 'pas une date'];
+        yield 'Int given a string' => [SearchAttributeType::Int, 'forty-two'];
+        yield 'Keyword given an integer' => [SearchAttributeType::Keyword, 42];
+        yield 'Bool given a string' => [SearchAttributeType::Bool, 'true'];
+        yield 'Double given a string' => [SearchAttributeType::Double, '3.5'];
+        yield 'KeywordList given a string' => [SearchAttributeType::KeywordList, 'a'];
+        yield 'KeywordList containing an integer' => [SearchAttributeType::KeywordList, ['a', 2]];
+        yield 'Datetime given gibberish' => [SearchAttributeType::Datetime, 'not a date'];
     }
 
     #[DataProvider('readOnlyAttributes')]

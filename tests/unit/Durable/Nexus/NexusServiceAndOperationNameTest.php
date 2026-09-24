@@ -28,14 +28,14 @@ final class NexusServiceAndOperationNameTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function faults(): iterable
     {
-        yield 'vide' => [''];
-        yield 'un espace' => [' '];
-        yield 'entièrement blanc' => ["\t \n"];
-        yield 'espace en tête' => [' svc'];
-        yield 'espace en fin' => ['svc '];
-        yield 'tabulation interne' => ["sv\tc"];
-        yield 'saut de ligne interne' => ["sv\nc"];
-        yield 'caractère de contrôle' => ["sv\x01c"];
+        yield 'empty' => [''];
+        yield 'a single space' => [' '];
+        yield 'whitespace only' => ["\t \n"];
+        yield 'leading space' => [' svc'];
+        yield 'trailing space' => ['svc '];
+        yield 'internal tab' => ["sv\tc"];
+        yield 'internal newline' => ["sv\nc"];
+        yield 'control character' => ["sv\x01c"];
     }
 
     #[DataProvider('faults')]
@@ -59,13 +59,13 @@ final class NexusServiceAndOperationNameTest extends TestCase
     {
         // The server imposes no alphabet: anything that is not an obvious mistake goes through.
         yield 'simple' => ['checkout'];
-        yield 'point' => ['com.example.checkout'];
-        yield 'barre oblique' => ['example/checkout'];
+        yield 'dot' => ['com.example.checkout'];
+        yield 'slash' => ['example/checkout'];
         yield 'underscore' => ['my_service'];
-        yield 'majuscules' => ['CheckoutService'];
-        yield 'accentué' => ['facturé'];
-        yield 'une lettre' => ['s'];
-        yield 'mille caractères' => ['x1000'];
+        yield 'uppercase' => ['CheckoutService'];
+        yield 'accented' => ['facturé'];
+        yield 'single letter' => ['s'];
+        yield 'a thousand characters' => ['x1000'];
     }
 
     #[DataProvider('acceptedNames')]
