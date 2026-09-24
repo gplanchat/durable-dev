@@ -71,6 +71,29 @@ final class DeliverWorkflowControlToTemporalTest extends TestCase
     }
 
     /**
+     * A message queued before the upgrade has no id in its serialized form: it must still be
+     * delivered, not fail on an uninitialized property and end in the failure transport.
+     */
+    public function testAMessageQueuedBeforeTheUpgradeIsStillDelivered(): void
+    {
+        // The wire form of the two messages on main before #333, as PhpSerializer wrote them.
+        $signal = unserialize('O:56:"Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage":3:{s:10:"signalName";s:7:"approve";s:11:"executionId";s:6:"exec-1";s:7:"payload";a:1:{s:2:"by";s:5:"alice";}}');
+        $update = unserialize('O:56:"Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage":3:{s:11:"executionId";s:6:"exec-1";s:10:"updateName";s:11:"setDiscount";s:9:"arguments";a:1:{s:7:"percent";i:10;}}');
+        self::assertInstanceOf(DeliverWorkflowSignalMessage::class, $signal);
+        self::assertInstanceOf(DeliverWorkflowUpdateMessage::class, $update);
+        $client = new RecordingWorkflowClient();
+
+        (new DeliverWorkflowSignalToTemporalHandler($client))($signal);
+        (new DeliverWorkflowUpdateToTemporalHandler($client))($update);
+
+        self::assertCount(2, $client->calls);
+        self::assertSame(['signal', 'wf-exec-1', 'approve', ['by' => 'alice']], \array_slice($client->calls[0], 0, 4));
+        self::assertSame(['update', 'wf-exec-1', 'setDiscount', ['percent' => 10]], \array_slice($client->calls[1], 0, 4));
+        self::assertNotSame('', (string) $client->calls[0][4]);
+        self::assertNotSame('', (string) $client->calls[1][4]);
+    }
+
+    /**
      * What a Messenger retry does: the first attempt fails after the cluster accepted the call, and
      * the message comes back through the transport's serializer.
      */

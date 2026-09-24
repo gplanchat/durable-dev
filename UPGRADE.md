@@ -252,6 +252,9 @@ does, and a Messenger retry after a lost answer must not deliver it twice. The m
 id once, when it is built; the client puts it on the wire as `request_id` or `update_id`, and the
 cluster drops the duplicate.
 
+Messages queued before the upgrade are delivered at-least-once: they carry no id, so each
+redelivery draws a new one. Drain the queue before deploying for exactly-once.
+
 **What to write.** Rector does it: `durable-upgrade.php` adds the two parameters to every
 implementation. By hand, they are:
 
