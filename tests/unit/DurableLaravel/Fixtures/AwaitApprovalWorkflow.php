@@ -18,6 +18,7 @@ final class AwaitApprovalWorkflow
 {
     private bool $approved = false;
 
+    /** @param array<string, mixed> $payload */
     #[AsSignalMethod('approve')]
     public function approve(array $payload): void
     {

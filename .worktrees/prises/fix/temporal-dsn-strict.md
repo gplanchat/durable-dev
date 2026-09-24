@@ -1,4 +1,4 @@
-# fix/grpc-transport-honesty
+# fix/temporal-dsn-strict
 
 - **Scope**: #353 (R-9, R-10, M21, M22, M43). Bounded retry with jitter on gRPC codes 4, 8, 14
   for every `GrpcTransport`, errors thrown as Messenger's `TransportException`; a
@@ -11,4 +11,4 @@
   touches `src/DurableBundle/DependencyInjection/Compiler/`, shared with #334: coordinated with
   alice before that slice.
 - **Not in scope**: the TLS Temporal in the integration job needs `.github/workflows/`, a human edit.
-- **State**: slice A in review, PR #512 (sabrina OK). Slice B pushed on `fix/temporal-dsn-strict` (sabrina and dave OK), PR held for the next #307 slot. Slice C waits for #485 — arwen.
+- **State**: slice A merged (#512, `fix/grpc-transport-honesty`). Slice B in review, PR #516 (sabrina and dave OK). Slice C (`ReceiveOnlyTransport`) waits for #485 and gets a claim of its own then — arwen.

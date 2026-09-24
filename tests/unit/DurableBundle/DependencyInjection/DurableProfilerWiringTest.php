@@ -193,7 +193,7 @@ final class DurableProfilerWiringTest extends TestCase
                 return $missing;
             } catch (ServiceNotFoundException $e) {
                 $id = $e->getId();
-                if (null === $id || \in_array($id, $missing, true)) {
+                if (\in_array($id, $missing, true)) {
                     throw $e;
                 }
                 $missing[] = $id;

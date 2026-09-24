@@ -76,7 +76,7 @@ final class WorkflowDeadlineTest extends TestCase
 
                 return 'settled';
             } catch (DeadlineExceededException $e) {
-                return 'expired after ' . $e->deadline()->toSeconds() . 's';
+                return \sprintf('expired after %ss', $e->deadline()->toSeconds());
             }
         }, 'deadline-3');
 

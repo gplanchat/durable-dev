@@ -168,7 +168,8 @@ For **Temporal Cloud**, set TLS and the Cloud endpoint:
 DURABLE_DSN=temporal://ACCOUNT.REGION.tmprl.cloud:7233?namespace=NAMESPACE.ACCOUNT&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=1
 ```
 
-TLS certificates can be mounted and configured via gRPC channel credentials (see the bridge source for extension points).
+With an API key, add `api_key=` (URL-encoded); with mTLS, `cert=` and `key=` (paths to PEM files);
+with a private CA, `ca=`. See [the DSN parameters](../configuration/#dsn-format) for the whole list.
 
 ---
 

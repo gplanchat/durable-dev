@@ -47,6 +47,7 @@ final class WireFormatPinTest extends TestCase
             initialInterval: Duration::seconds(2),
             backoffCoefficient: 2.5,
             maximumInterval: Duration::seconds(60),
+            // @phpstan-ignore argument.type (a class the worker never loads: the name travels as a string)
             nonRetryableExceptions: ['App\\Boom'],
             taskQueue: TaskQueue::named('payments'),
             activityId: 'act-1',

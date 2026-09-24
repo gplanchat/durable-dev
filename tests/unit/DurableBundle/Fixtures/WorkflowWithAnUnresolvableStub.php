@@ -14,6 +14,7 @@ use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 #[AsWorkflow('WithAnUnresolvableStub')]
 final class WorkflowWithAnUnresolvableStub
 {
+    // @phpstan-ignore missingType.generics (wrong on purpose: the loader must refuse this signature)
     #[AsWorkflowMethod]
     public function run(ActivityStub $greeting): void {}
 }

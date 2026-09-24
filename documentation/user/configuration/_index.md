@@ -198,8 +198,22 @@ The scheme names the wire and the encryption:
 | `namespace` | yes | Temporal namespace (e.g. `default`). |
 | `journal_task_queue` | yes | Task queue for workflow tasks (e.g. `durable-journal`). |
 | `activity_task_queue` | yes | Task queue for activity tasks (e.g. `durable-activities`). |
+| `task_queue` | no | The older spelling of `journal_task_queue`, read when that one is absent. |
+| `workflow_task_queue` | no (default `durable-workflows`) | Task queue for the application's workflow tasks. |
+| `nexus_task_queue` | no (default: the workflow task queue) | Task queue for the Nexus tasks this application serves. |
+| `workflow_type` | no (default `DurableJournal`) | Workflow type of the journal. |
+| `identity` | no (default `durable-temporal-bridge-php`) | Identity this worker reports to the server. |
 | `tls` | no | `tls=1` is the older spelling of the `+tls` and `+https` schemes; still accepted. |
+| `ca` | no, TLS only | Path to the PEM file of the CA that signs the server certificate. Without it, the system store is trusted. |
+| `cert` | no, TLS only | Path to the PEM file of a client certificate, for mTLS. Needs `key`. |
+| `key` | no, TLS only | Path to the PEM file of that certificate's private key. Needs `cert`. |
+| `api_key` | no, TLS only | Sent with every call as `authorization: Bearer …`, beside a `temporal-namespace` header (Temporal Cloud API keys). URL-encode it. |
 | `transport` | no (default `auto`) | Overrides what the scheme implies: `grpc` demands `ext-grpc` and fails without it, `grpc-curl` forces curl even when the extension is loaded, `guzzle` sends gRPC through Guzzle 7.14 or newer (its cURL handler reads the trailers), `http` is what `temporal+http://` sets. `auto` picks `grpc` when the extension is loaded and `grpc-curl` otherwise. |
+
+Any other key is refused, with its name: a typo such as `namesapce=` no longer falls back to the
+`default` namespace in silence. So is `ca`, `cert`, `key` or `api_key` without TLS. Over a PSR-18
+client handed to the JSON gateway, TLS is that client's own configuration, and `ca`, `cert` and
+`key` are refused.
 
 **Example:**
 ```
