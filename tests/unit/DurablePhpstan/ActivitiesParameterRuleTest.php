@@ -36,6 +36,12 @@ final class ActivitiesParameterRuleTest extends TestCase
         self::assertNotSame([], $this->matching($this->analyse(), 'Parameter $namedByString is #[Activities(unit\DurablePhpstan\Fixtures\OrderActivities::class)] but its @param says'));
     }
 
+    public function testAContractNamedAfterTheOptionsIsCheckedToo(): void
+    {
+        // #[Activities] takes named options: the contract is not always the first argument.
+        self::assertNotSame([], $this->matching($this->analyse(), 'Parameter $reordered is #[Activities(unit\\DurablePhpstan\\Fixtures\\OrderActivities::class)] but its @param says'));
+    }
+
     public function testAMissingDocblockIsReportedWithItsFix(): void
     {
         // Without the generic, every call on the stub is already "undefined method". The rule
