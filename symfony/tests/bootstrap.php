@@ -5,15 +5,8 @@ declare(strict_types=1);
 use Symfony\Component\Dotenv\Dotenv;
 
 $projectRoot = dirname(__DIR__);
-$autoloads = [
-    $projectRoot.'/vendor/autoload.php',
-    $projectRoot.'/../../durable-symfony-vendor/autoload.php',
-];
-foreach ($autoloads as $file) {
-    if (is_file($file)) {
-        require $file;
-        break;
-    }
+if (is_file($projectRoot.'/vendor/autoload.php')) {
+    require $projectRoot.'/vendor/autoload.php';
 }
 
 if (!class_exists(Dotenv::class)) {
