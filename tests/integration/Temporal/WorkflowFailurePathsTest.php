@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace integration\Temporal;
 
-use Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter;
+use Gplanchat\Bridge\Temporal\Store\TemporalEventConverter;
 use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;

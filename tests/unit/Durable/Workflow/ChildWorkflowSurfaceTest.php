@@ -92,6 +92,7 @@ final class EchoChild
 #[AsWorkflow(name: 'awaiting-parent')]
 final class AwaitingParent
 {
+    /** @var ChildWorkflowStub<EchoChild> */
     private ChildWorkflowStub $child;
 
     public function __construct(
@@ -113,6 +114,7 @@ final class AwaitingParent
 #[AsWorkflow(name: 'racing-parent')]
 final class RacingParent
 {
+    /** @var ChildWorkflowStub<EchoChild> */
     private ChildWorkflowStub $child;
 
     public function __construct(
@@ -134,6 +136,7 @@ final class RacingParent
 #[AsWorkflow(name: 'wrong-method-parent')]
 final class WrongMethodParent
 {
+    /** @var ChildWorkflowStub<EchoChild> */
     private ChildWorkflowStub $child;
 
     public function __construct(
@@ -145,6 +148,7 @@ final class WrongMethodParent
     #[AsWorkflowMethod]
     public function run(): mixed
     {
+        // @phpstan-ignore method.notFound (the test asserts the stub refuses a method that is not the entry point)
         return $this->environment->await($this->child->notTheEntryPoint('x'));
     }
 }

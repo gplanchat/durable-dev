@@ -9,6 +9,7 @@ use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
 #[AsNexusServiceHandler(BillingService::class)]
 final class BillingHandler
 {
+    /** @return array<string, mixed> */
     public function charge(int $amount): array
     {
         return ['charged' => $amount];

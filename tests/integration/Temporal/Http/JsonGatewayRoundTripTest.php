@@ -93,7 +93,7 @@ final class JsonGatewayRoundTripTest extends TestCase
         $describe->setExecution(new WorkflowExecution(['workflow_id' => $this->workflowId]));
         $described = $this->client->DescribeWorkflowExecution($describe, [], ['timeout' => 10_000_000]);
         self::assertSame(WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING, $described->getWorkflowExecutionInfo()?->getStatus());
-        self::assertSame($started->getRunId(), $described->getWorkflowExecutionInfo()?->getExecution()?->getRunId());
+        self::assertSame($started->getRunId(), $described->getWorkflowExecutionInfo()->getExecution()?->getRunId());
 
         // A GET route: the execution goes in the path, the page size and the filter in the query.
         $history = new GetWorkflowExecutionHistoryRequest();

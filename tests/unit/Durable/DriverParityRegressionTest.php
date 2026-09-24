@@ -103,6 +103,7 @@ final class DriverParityRegressionTest extends TestCase
             $composable = $wf->timer(0.0);
             $wf->sleep(0.0);
 
+            // @phpstan-ignore instanceof.alwaysTrue (the driver is under test: the assertion checks the type it promises)
             return [$composable instanceof \Gplanchat\Durable\Awaitable\Awaitable, $wf->await($wf->activityStub(SuiteActivities::class)->echoValue())];
         }, 'sleep-1');
 
