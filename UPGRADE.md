@@ -47,6 +47,15 @@ Restart the workers after the change: they read the table's columns once per pro
 A projection of your own keeps compiling. To report waits, also implement
 `WorkflowRunWaitProjectionInterface::recordWait()` and fill `WorkflowRunDescription::$waitingOn`
 while the run is running.
+### One type catches every Durable error: `Gplanchat\Durable\Exception\ExceptionInterface`
+
+**Who is affected**: nobody has to change anything; this is an addition. Every error class under
+`Gplanchat\Durable\Exception` and the two Nexus exceptions implement it, so a host can write
+`catch (ExceptionInterface $e)` instead of listing them.
+
+The control-flow signals — `WorkflowSuspendedException`, `ContinueAsNewRequested`,
+`ChildWorkflowStartDeferred` — do not: they end a pass of workflow code on purpose, and a catch in
+that code must let them through.
 
 ### The run list tells a run waiting for a worker: `picked_up_at` on `durable_workflow_runs`
 
