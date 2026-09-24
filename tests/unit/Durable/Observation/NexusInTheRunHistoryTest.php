@@ -25,7 +25,7 @@ final class NexusInTheRunHistoryTest extends TestCase
     public function testAScheduledOperationGetsItsOwnLane(): void
     {
         $history = $this->read([
-            new NexusOperationScheduled('exec-1', 5, 'paiements', 'facturation', 'encaisser'),
+            new NexusOperationScheduled('exec-1', 5, 'payments', 'billing', 'collect'),
         ]);
 
         self::assertSame(WorkflowRunEventKind::Nexus, $history[0]->kind);
@@ -34,12 +34,12 @@ final class NexusInTheRunHistoryTest extends TestCase
     public function testTheLabelSaysWhereTheWaitHappens(): void
     {
         $history = $this->read([
-            new NexusOperationScheduled('exec-1', 5, 'paiements', 'facturation', 'encaisser'),
+            new NexusOperationScheduled('exec-1', 5, 'payments', 'billing', 'collect'),
         ]);
 
-        self::assertStringContainsString('paiements', $history[0]->label);
-        self::assertStringContainsString('facturation', $history[0]->label);
-        self::assertStringContainsString('encaisser', $history[0]->label);
+        self::assertStringContainsString('payments', $history[0]->label);
+        self::assertStringContainsString('billing', $history[0]->label);
+        self::assertStringContainsString('collect', $history[0]->label);
     }
 
     public function testATerminalEventBorrowsTheIdentityOfItsScheduling(): void
@@ -48,13 +48,13 @@ final class NexusInTheRunHistoryTest extends TestCase
         // activities, where the name is read off the scheduling. Without that correlation, the
         // frieze would show "NexusOperationCompleted" and the operator would not know which one.
         $history = $this->read([
-            new NexusOperationScheduled('exec-1', 5, 'paiements', 'facturation', 'encaisser'),
+            new NexusOperationScheduled('exec-1', 5, 'payments', 'billing', 'collect'),
             new NexusOperationCompleted('exec-1', 5),
         ]);
 
         self::assertCount(2, $history);
         self::assertSame(WorkflowRunEventKind::Nexus, $history[1]->kind);
-        self::assertStringContainsString('encaisser', $history[1]->label);
+        self::assertStringContainsString('collect', $history[1]->label);
     }
 
     public function testTheTemporalReaderUsesTheSameLane(): void

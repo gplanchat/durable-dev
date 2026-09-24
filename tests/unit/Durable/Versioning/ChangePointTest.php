@@ -32,7 +32,7 @@ final class ChangePointTest extends TestCase
         $store = new InMemoryEventStore();
         $context = $this->context($store);
 
-        $version = $context->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
+        $version = $context->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
 
         self::assertSame(1, $version, 'a fresh execution takes the most recent version');
 
@@ -41,17 +41,17 @@ final class ChangePointTest extends TestCase
             static fn(object $e): bool => $e instanceof VersionMarked,
         ));
         self::assertCount(1, $marks, 'and the fact is recorded, once');
-        self::assertSame('ajout-remise', $marks[0]->changeId());
+        self::assertSame('add-discount', $marks[0]->changeId());
         self::assertSame(1, $marks[0]->version());
     }
 
     public function testTheAnswerComesBackFromTheJournalOnReplay(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new VersionMarked(self::EXECUTION, 'ajout-remise', 1));
+        $store->append(new VersionMarked(self::EXECUTION, 'add-discount', 1));
 
         // The deployed code can go up to version 3; the execution, though, is on 1.
-        $version = $this->context($store)->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 3);
+        $version = $this->context($store)->version('add-discount', ChangePoint::DEFAULT_VERSION, 3);
 
         self::assertSame(1, $version, 'the history decides, not the deployed code');
     }
@@ -60,9 +60,9 @@ final class ChangePointTest extends TestCase
     {
         $store = new InMemoryEventStore();
 
-        $first = $this->context($store)->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
-        $second = $this->context($store)->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 5);
-        $third = $this->context($store)->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 5);
+        $first = $this->context($store)->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
+        $second = $this->context($store)->version('add-discount', ChangePoint::DEFAULT_VERSION, 5);
+        $third = $this->context($store)->version('add-discount', ChangePoint::DEFAULT_VERSION, 5);
 
         self::assertSame(1, $first);
         self::assertSame($first, $second, 'newer code does not move an execution in flight');
@@ -72,13 +72,13 @@ final class ChangePointTest extends TestCase
     public function testARecordedVersionBelowMinSupportedIsRefused(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new VersionMarked(self::EXECUTION, 'ajout-remise', 1));
+        $store->append(new VersionMarked(self::EXECUTION, 'add-discount', 1));
 
         // The branch for version 1 was deleted: the code now plays 2 and 3 only.
         $this->expectException(WorkflowTaskFailure::class);
-        $this->expectExceptionMessageMatches('/version 1 of change point "ajout-remise".*2\.\.3/');
+        $this->expectExceptionMessageMatches('/version 1 of change point "add-discount".*2\.\.3/');
 
-        $this->context($store)->version('ajout-remise', 2, 3);
+        $this->context($store)->version('add-discount', 2, 3);
     }
 
     public function testTheOriginalBehaviourIsRefusedOnceItsBranchIsGone(): void
@@ -89,18 +89,18 @@ final class ChangePointTest extends TestCase
 
         $this->expectException(WorkflowTaskFailure::class);
 
-        $this->context($store)->version('ajout-remise', 1, 2);
+        $this->context($store)->version('add-discount', 1, 2);
     }
 
     public function testARecordedVersionAboveMaxSupportedIsRefused(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new VersionMarked(self::EXECUTION, 'ajout-remise', 3));
+        $store->append(new VersionMarked(self::EXECUTION, 'add-discount', 3));
 
         // A rollback: the history was written by code that knew version 3.
         $this->expectException(WorkflowTaskFailure::class);
 
-        $this->context($store)->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 2);
+        $this->context($store)->version('add-discount', ChangePoint::DEFAULT_VERSION, 2);
     }
 
     public function testTheSameRunIsNotMarkedTwice(): void
@@ -108,8 +108,8 @@ final class ChangePointTest extends TestCase
         $store = new InMemoryEventStore();
         $context = $this->context($store);
 
-        $context->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
-        $context->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
+        $context->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
+        $context->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
 
         $marks = array_filter(
             iterator_to_array($store->readStream(self::EXECUTION)),
@@ -121,13 +121,13 @@ final class ChangePointTest extends TestCase
     public function testTwoChangePointsAreIndependent(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new VersionMarked(self::EXECUTION, 'ajout-remise', 1));
+        $store->append(new VersionMarked(self::EXECUTION, 'add-discount', 1));
         $context = $this->context($store);
 
-        self::assertSame(1, $context->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 2));
+        self::assertSame(1, $context->version('add-discount', ChangePoint::DEFAULT_VERSION, 2));
         self::assertSame(
             2,
-            $context->version('ajout-tva', ChangePoint::DEFAULT_VERSION, 2),
+            $context->version('add-vat', ChangePoint::DEFAULT_VERSION, 2),
             'an execution can be on the old side of one point and the new side of another',
         );
     }
