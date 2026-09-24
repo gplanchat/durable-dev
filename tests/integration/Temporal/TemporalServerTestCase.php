@@ -157,7 +157,7 @@ abstract class TemporalServerTestCase extends TestCase
         $executionId = strtolower($workflowType) . '-' . bin2hex(random_bytes(4));
         $this->workflowClient()->startAsync($workflowType, $input, $executionId);
 
-        return $this->workflowClient()->pollForCompletion($executionId, 250, (int) ($timeoutSeconds * 4));
+        return $this->workflowClient()->pollForCompletion($executionId, 250, (int) ($timeoutSeconds * 4.0));
     }
 
     /**

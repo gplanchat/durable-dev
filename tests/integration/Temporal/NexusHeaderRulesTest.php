@@ -231,7 +231,7 @@ final class NexusHeaderRulesTest extends TestCase
         }
 
         $cursor = new TemporalHistoryCursor($this->client, $this->connection);
-        foreach ($cursor->events(new WorkflowExecution(['workflow_id' => (string) $this->workflowId])) as $event) {
+        foreach ($cursor->events(new WorkflowExecution(['workflow_id' => $this->workflowId])) as $event) {
             if (EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED === $event->getEventType()) {
                 $back = [];
                 foreach ($event->getNexusOperationScheduledEventAttributes()?->getNexusHeader() ?? [] as $k => $v) {

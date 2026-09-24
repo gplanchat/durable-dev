@@ -31,6 +31,6 @@ final class OrderWaitWorkflow
         });
         $this->environment->await(fn(): bool => null !== $this->approval);
 
-        return $this->approval;
+        return $this->approval ?? throw new \LogicException('await() returned before the approval arrived');
     }
 }
