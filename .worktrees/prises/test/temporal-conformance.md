@@ -5,7 +5,8 @@
   `DURABLE_TEMPORAL_ADDRESS`. The replay-tier class waits on #325
   (`refactor/history-source-value-objects`) and ships as a second PR. `TemporalReadThroughEventStore`
   gets no class (#333, #331).
-- **Entries**: `tests/integration/Temporal/TemporalJournalEventStoreConformanceTest.php`,
-  `tests/integration/Temporal/TemporalWorkflowRunCatalogConformanceTest.php`, the DUR041 docblock
-  in `src/Durable/Testing/EventStoreReplayConformanceTestCase.php`.
-- **State**: in progress — dave.
+- **Entries**: `tests/integration/Temporal/{FreshNamespace,TemporalJournalEventStoreConformanceTest,TemporalWorkflowRunCatalogConformanceTest}.php`,
+  `src/Durable/Testing/WorkflowRunCatalogConformanceTestCase.php` (the `executionIdOf()` hook).
+  The replay-tier class and the DUR041 docblock in `EventStoreReplayConformanceTestCase.php` wait
+  on #325.
+- **State**: in review, PR #502 — dave. Box 2 partial: replay tier waits on #325.
