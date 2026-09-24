@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Bridge\Temporal\Spike;
+namespace App\Temporal;
 
 use Google\Protobuf\Duration;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;

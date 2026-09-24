@@ -435,6 +435,25 @@ Journals recorded before keep both events. They replay and read as before: the c
 and the dashboard reader's handling of it stay. No Rector rule or script: what changes is which
 event a listener receives at run time, not code Rector can rewrite.
 
+### Dead code leaves the Temporal bridge (#372)
+
+**Who is affected**: code that referenced one of these, none of which anything in Durable called:
+
+- `Gplanchat\Bridge\Temporal\TemporalJournalGrpcPoller`: poll with `WorkflowServiceClientInterface::PollWorkflowTaskQueue()`.
+- `Gplanchat\Bridge\Temporal\Journal\JournalWorkflowTaskProcessor`: `Worker\WorkflowTaskProcessor` runs workflow tasks.
+- `JournalExecutionIdResolver::durableExecutionIdFromHistory()`: take the `WorkflowExecutionStarted` attributes from the history and call `durableExecutionIdFromStartedAttributes()`.
+
+No Rector rule: there is no successor to rename to.
+
+`Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter` moves to
+`Gplanchat\Bridge\Temporal\Store\TemporalEventConverter`: the store and the command buffer use it,
+the profiler never did. The `durable-upgrade` Rector set renames it.
+
+`Gplanchat\Bridge\Temporal\Spike\NativeExecutionSpike` leaves the published package for the Symfony
+bench (`App\Temporal\NativeExecutionSpike`, with its `durable:temporal:native-spike` command). It
+was the DUR024 reference, not production code; `Worker\WorkflowTaskRunner` runs that path. Copy
+the class from the bench if you ran it; no Rector rule, since the class is no longer installed.
+
 ## 0.1.0-alpha8
 
 ### The divergence guard compares the payload too
