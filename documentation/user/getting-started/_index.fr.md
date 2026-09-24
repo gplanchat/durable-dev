@@ -312,9 +312,13 @@ Pour voir ce que le moteur retient d'une exécution :
 php bin/console durable:execution:diagnose greet-abc123
 ```
 
-Elle affiche le journal tel qu'il est stocké, **charges utiles comprises** : l'entrée du workflow,
-les arguments et le résultat de chaque activité, et les données personnelles qu'ils portent.
-Attention à l'endroit où vous collez sa sortie.
+Elle affiche les métadonnées de l'exécution, ses liens parent et enfants, et les premiers
+événements de son journal avec leurs charges utiles : l'entrée du workflow, les arguments et le
+résultat de chaque activité. Les valeurs rangées sous des clés comme `password`, `token`, `secret`,
+`authorization` ou `card` sont masquées et les longues chaînes tronquées ; `--raw` les affiche
+telles qu'elles sont stockées. Le masquage se fie au nom de la clé : des données personnelles
+rangées sous d'autres clés restent visibles, attention à l'endroit où vous collez la sortie. Le
+panneau du profileur web masque de la même façon.
 
 #### Dans quel profil êtes-vous ?
 
