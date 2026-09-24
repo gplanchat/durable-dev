@@ -38,6 +38,22 @@ final class DurableDashboardTest extends WebTestCase
         self::assertStringContainsString('Durable Workflow Dashboard', $crawler->html());
     }
 
+    public function testTheAdminHooksComposeThePageAroundTheDashboard(): void
+    {
+        // #383: sidebar, navbar, page wrapper and footer come from `sylius_admin.common.index`,
+        // once each; the content hookable places the dashboard, and its heading is the only one.
+        $client = $this->authenticatedClient();
+
+        $crawler = $client->request('GET', self::ROUTE);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('aside.navbar-vertical'), 'the sidebar, from the common hook');
+        self::assertCount(1, $crawler->filter('header.navbar'), 'the navbar, from the common hook');
+        self::assertCount(1, $crawler->filter('.page-wrapper'), 'one page wrapper, not one per layer');
+        self::assertCount(1, $crawler->filter('footer.footer'), 'the footer, from the common hook');
+        self::assertCount(1, $crawler->filter('h1')->reduce(static fn ($h1): bool => str_contains($h1->text(), 'Durable Workflow Dashboard')));
+    }
+
     public function testAnAnonymousVisitorDoesNotReachIt(): void
     {
         $client = static::createClient();
