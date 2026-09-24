@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class TheTemplateNamesItsTranslationDomainTest extends TestCase
 {
-    private const TEMPLATE = __DIR__ . '/../../templates/admin/dashboard/index.html.twig';
+    private const TEMPLATE = __DIR__ . '/../../templates/admin/dashboard/_dashboard.html.twig';
 
     public function testTheTemplateDoesNotSetADefaultDomain(): void
     {

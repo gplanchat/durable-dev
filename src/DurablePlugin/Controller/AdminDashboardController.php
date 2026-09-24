@@ -43,7 +43,7 @@ final class AdminDashboardController
             'back' => self::encodeBack(\array_slice($back, 0, -1)),
         ];
 
-        return new Response($this->twig->render('@DurablePlugin/admin/dashboard/index.html.twig', $model));
+        return new Response($this->twig->render('@DurablePlugin/admin/dashboard/_dashboard.html.twig', $model));
     }
 
     /** @param list<string> $cursors */

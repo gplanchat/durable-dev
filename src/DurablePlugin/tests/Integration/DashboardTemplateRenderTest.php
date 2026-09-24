@@ -22,7 +22,7 @@ final class DashboardTemplateRenderTest extends TestCase
 
     protected function setUp(): void
     {
-        $path = \dirname(__DIR__, 2) . '/templates/admin/dashboard/index.html.twig';
+        $path = \dirname(__DIR__, 2) . '/templates/admin/dashboard/_dashboard.html.twig';
         self::assertFileExists($path);
 
         $template = file_get_contents($path);

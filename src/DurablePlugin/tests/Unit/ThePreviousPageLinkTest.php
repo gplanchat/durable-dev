@@ -62,7 +62,7 @@ final class ThePreviousPageLinkTest extends TestCase
     {
         $twig = new Environment(new ArrayLoader([
             '@SyliusAdmin/shared/layout/base.html.twig' => '',
-            '@DurablePlugin/admin/dashboard/index.html.twig' => '{{ pagination|json_encode|raw }}',
+            '@DurablePlugin/admin/dashboard/_dashboard.html.twig' => '{{ pagination|json_encode|raw }}',
         ]));
         $response = (new AdminDashboardController($twig))->index(new Request($query), new RunDashboard(new OnePageCatalog()));
 

@@ -192,7 +192,7 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         $model = (new RunDashboard($catalog))->build();
         $model['pagination']['previous'] = $previous;
 
-        return $this->twig($locale)->render('@DurablePlugin/admin/dashboard/index.html.twig', $model);
+        return $this->twig($locale)->render('@DurablePlugin/admin/dashboard/_dashboard.html.twig', $model);
     }
 
     private function twig(string $locale = 'en'): Environment
