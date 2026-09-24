@@ -10,6 +10,7 @@ use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowCancellationRequested;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
+use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Exception\WorkflowCancelledException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Exception\WorkflowSuspendedException;
@@ -108,6 +109,99 @@ final class WorkflowCancellationTest extends TestCase
 
         self::assertSame(1, $refunds, 'the compensation must run exactly once');
         self::assertNotNull($this->firstOf('exec-2', WorkflowExecutionCancelled::class));
+    }
+
+    public function testACancellationDeliveredOnAConditionIsReplayedWhereItWasDelivered(): void
+    {
+        $charges = 0;
+        $refunds = 0;
+        $this->executor->register('charge', static function () use (&$charges): string {
+            ++$charges;
+
+            return 'charged';
+        });
+        $this->executor->register('refund', static function () use (&$refunds): string {
+            ++$refunds;
+
+            return 'refunded';
+        });
+
+        $handler = static function (WorkflowEnvironment $env): mixed {
+            $approved = false;
+            $env->onSignal('approve', static function () use (&$approved): void {
+                $approved = true;
+            });
+
+            try {
+                $env->await(static function () use (&$approved): bool {
+                    return $approved;
+                });
+
+                return $env->await($env->activityStub(SuiteActivities::class)->charge());
+            } catch (WorkflowCancelledFailure $e) {
+                $env->await($env->activityStub(SuiteActivities::class)->refund());
+
+                throw $e;
+            }
+        };
+
+        $this->startAndSuspend('exec-6', $handler);
+        $this->requestCancellation('exec-6');
+
+        // Task 1: delivered on the condition, the compensation is scheduled.
+        $this->resumeExpectingSuspension('exec-6', $handler);
+
+        // A signal that satisfies the condition lands after the delivery.
+        $this->eventStore->append(new WorkflowSignalReceived('exec-6', 'approve', []));
+        $this->drainActivities('exec-6');
+
+        // Task 2: the replay must reach the catch again, not walk past the condition.
+        try {
+            $this->engine->resume('exec-6', $handler);
+            self::fail('with the compensation finished, the cancellation must resurface');
+        } catch (WorkflowCancelledException) {
+        }
+        self::assertSame(1, $refunds, 'the compensation must run exactly once');
+        self::assertSame(0, $charges, 'the branch the condition guarded was never taken');
+        self::assertNotNull($this->firstOf('exec-6', WorkflowExecutionCancelled::class));
+    }
+
+    public function testACancellationDeliveredOnAConditionIsNotDeliveredTwice(): void
+    {
+        $this->executor->register('refund', static fn(): string => 'refunded');
+
+        $handler = static function (WorkflowEnvironment $env): mixed {
+            $approved = false;
+            $env->onSignal('approve', static function () use (&$approved): void {
+                $approved = true;
+            });
+
+            try {
+                return $env->await(static function () use (&$approved): bool {
+                    return $approved;
+                });
+            } catch (WorkflowCancelledFailure $e) {
+                $env->await($env->activityStub(SuiteActivities::class)->refund());
+                // A compensation that waits on a condition of its own.
+                $env->await(static function () use (&$approved): bool {
+                    return $approved;
+                });
+
+                return 'compensated';
+            }
+        };
+
+        $this->startAndSuspend('exec-7', $handler);
+        $this->requestCancellation('exec-7');
+        $this->resumeExpectingSuspension('exec-7', $handler);
+        $this->drainActivities('exec-7');
+
+        // Task 2: the compensation's own condition waits; it is not cancelled in its turn.
+        $this->resumeExpectingSuspension('exec-7', $handler);
+
+        // Task 3: the signal releases the compensation, recorded after the delivery.
+        $this->eventStore->append(new WorkflowSignalReceived('exec-7', 'approve', []));
+        self::assertSame('compensated', $this->engine->resume('exec-7', $handler));
     }
 
     public function testAWorkflowMaySwallowTheCancellationAndComplete(): void

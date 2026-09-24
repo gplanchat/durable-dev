@@ -153,6 +153,32 @@ final class TemporalWorkflowCancellationTest extends TestCase
         self::assertInstanceOf(WorkflowCancelledFailure::class, $slot['failed'] ?? null);
     }
 
+    public function testADeliveryOnAConditionCountsAsDeliveredAndIsPlacedInTheHistory(): void
+    {
+        // Waiting on a condition, the fiber withdraws nothing: the marker has no target, and
+        // it must still stop the next task from delivering the cancellation a second time (#317).
+        $history = TemporalExecutionHistory::fromEvents([$this->cancelRequestedEvent('operator')]);
+        $commands = $this->drive($history, static function (WorkflowEnvironment $env): mixed {
+            return $env->await(static fn(): bool => false);
+        });
+
+        $marker = null;
+        foreach ($commands as $command) {
+            if (CommandType::COMMAND_TYPE_RECORD_MARKER === $command->getCommandType()) {
+                $marker = $command->getRecordMarkerCommandAttributes();
+            }
+        }
+        self::assertNotNull($marker);
+
+        $replayed = TemporalExecutionHistory::fromEvents([
+            $this->cancelRequestedEvent('operator'),
+            $this->markerRecorded(21, $marker->getMarkerName(), $marker->getDetails()),
+        ]);
+
+        self::assertTrue($replayed->cancellationAlreadyDelivered());
+        self::assertSame(['position' => 21, 'targets' => []], $replayed->cancellationDelivery());
+    }
+
     public function testSideEffectMarkerRoundTripsThroughTheCommand(): void
     {
         // details is a map<string, Payloads>: a lone Payload was refused there by protobuf.

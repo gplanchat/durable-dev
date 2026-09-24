@@ -145,6 +145,41 @@ Rector can do nothing: rewriting a `$container->get('durable.event_store.dbal')`
 requires knowing where the object is used, which no rule can guess. The table above is the
 procedure.
 
+### `WorkflowHistorySourceInterface` gains `cancellationDelivery()`
+
+**Who is affected**: only whoever **implements** `WorkflowHistorySourceInterface`, that is, whoever
+writes a backend. Workflow code has nothing to change. Journals written before this version stay
+readable: a delivery traced only by an operation cancelled with the `workflow_cancelled` reason
+still counts as delivered.
+
+**What was broken.** A cancellation delivered while the workflow waited on a condition left no
+trace in the journal, because no operation was withdrawn. The next pass delivered it again at the
+first await it suspended on. If a signal satisfying the condition had been recorded in between,
+the replay walked past the condition and scheduled other code in the slot the compensation had
+taken: a divergence (#317).
+
+**What to write.** Return where the delivery was recorded, as a position comparable with the
+ones `messageAt()` returns, and the operations it withdrew. On a journal that is walked, the
+delivery is the new `WorkflowCancellationDelivered` event:
+
+```php
+public function cancellationDelivery(): ?array
+{
+    $position = 0;
+    foreach ($this->eventStore->readStream($this->executionId) as $event) {
+        if ($event instanceof WorkflowCancellationDelivered) {
+            return ['position' => $position, 'targets' => $event->targets()];
+        }
+        ++$position;
+    }
+
+    return null;
+}
+```
+
+A backend that stores events through its own mapper must also map `WorkflowCancellationDelivered`;
+`EventStoreConformanceTestCase` now round-trips it.
+
 ### `WorkflowHistorySourceInterface` gains `hasSideEffectForSlot()`
 
 **Who is affected**: only whoever **implements** `WorkflowHistorySourceInterface` — that is, whoever
