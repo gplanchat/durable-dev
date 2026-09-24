@@ -30,6 +30,18 @@ final class WorkflowRoundTripTest extends TemporalServerTestCase
         self::assertSame(['slept' => true], $this->runWorkflow('Sleeper', []));
     }
 
+    public function testTheOptionsOfActivitiesReachTheServer(): void
+    {
+        // Without them the bridge sends its 30 s fallback and an unbounded retry policy.
+        $executionId = $this->startWorkflow('DoublerByAttribute', ['value' => 21]);
+
+        $scheduled = $this->waitForHistoryEvent($executionId, \Temporal\Api\Enums\V1\EventType::EVENT_TYPE_ACTIVITY_TASK_SCHEDULED)
+            ->getActivityTaskScheduledEventAttributes();
+
+        self::assertSame(45, (int) $scheduled?->getStartToCloseTimeout()?->getSeconds());
+        self::assertSame(3, $scheduled->getRetryPolicy()?->getMaximumAttempts());
+    }
+
     public function testSideEffectIsRecordedAndReplayed(): void
     {
         self::assertSame(['side' => 8], $this->runWorkflow('SideEffecting', ['seed' => 7]));

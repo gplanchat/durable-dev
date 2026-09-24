@@ -44,6 +44,7 @@ final class IntegrationWorkflows
         // `registerClass()` registers it under its alias as well as under its FQCN — the tests
         // that start it by "Doubler" do not change.
         $registry->registerClass(DoublerWorkflow::class);
+        $registry->registerClass(DoublerByAttributeWorkflow::class);
 
         $registry->registerFactory('TwoActivities', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): array {
             $doubled = $env->await($env->activityStub(IntegrationActivities::class, self::options())->double((int) ($input['value'] ?? 0)));
@@ -232,5 +233,25 @@ final class DoublerWorkflow
         return ['doubled' => $this->environment->await(
             $this->environment->activityStub(IntegrationActivities::class, IntegrationWorkflows::stubOptions())->double($value),
         )];
+    }
+}
+
+/** The stub and its options come from #[Activities]: what the server records is what the attribute says. */
+#[\Gplanchat\Durable\Attribute\AsWorkflow(name: 'DoublerByAttribute')]
+final class DoublerByAttributeWorkflow
+{
+    /**
+     * @param \Gplanchat\Durable\Activity\ActivityStub<IntegrationActivities> $math
+     *
+     * @return array{doubled: mixed}
+     */
+    #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]
+    public function run(
+        int $value,
+        #[\Gplanchat\Durable\Attribute\Activities(IntegrationActivities::class, attempts: 3, startToClose: 45.0)]
+        \Gplanchat\Durable\Activity\ActivityStub $math,
+        WorkflowEnvironment $env,
+    ): array {
+        return ['doubled' => $env->await($math->double($value))];
     }
 }
