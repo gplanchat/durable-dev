@@ -19,74 +19,73 @@
 ## 2. Sylius renders the projection instead of deriving its own
 
 - [x] 2.1 `RunDashboardView` builds on the promoted projection; its private `actions()` goes —
-      fait avec 1.4 : la classe a été **déplacée**, pas recopiée, et laisser deux exemplaires dans
-      l'arbre le temps d'une tranche aurait coûté plus que de recâbler trois lignes
+      done with 1.4: the class was **moved**, not copied, and leaving two copies in the tree for
+      the length of a slice would have cost more than rewiring three lines
 - [x] 2.2 The detail panel positions actions in time and hatches a wait, which it does not do today
-- [x] 2.3 `RecordedDetails` dans le cœur : le gabarit Sylius appelait `json_encode` **sans**
-      tolérance et rendait un dépliant vide dès qu'un octet n'était pas de l'UTF-8. Mesuré avant
-      d'écrire, et le scénario corrigé avec : la sortie partielle ne rend **jamais** `false` — ni
-      sur un octet invalide, ni sur une ressource, ni sur six cents niveaux d'imbrication. La bonne
-      dégradation n'est donc pas la ligne simple mais la charge utile entière avec la seule valeur
-      fautive en `null`, ce qui est mieux que ce que la spec demandait. La garde `false` reste,
-      défensive
-- [x] 2.4 Un rendu **réel** du gabarit, et non une lecture de son texte : les autres assertions du
-      dossier lisent le fichier, et aucune n'éprouvait `action.events` → `mark.event.label`. Une
-      propriété mal nommée dans cette chaîne rend une page vide sur l'écran qu'on est venu regarder.
-      Vérifié par mutation. Couvre depuis 2.2/2.3 une attente hachurée, le placement dans le temps
-      et une charge utile à l'octet invalide
+- [x] 2.3 `RecordedDetails` in the core: the Sylius template called `json_encode` **without**
+      tolerance and rendered an empty disclosure as soon as one byte was not UTF-8. Measured before
+      writing, and the scenario corrected along with it: partial output **never** returns `false` —
+      not on an invalid byte, not on a resource, not on six hundred levels of nesting. The right
+      degradation is therefore not the single line but the whole payload with only the offending
+      value as `null`, which is better than what the spec asked for. The `false` guard stays,
+      defensively
+- [x] 2.4 A **real** render of the template, not a reading of its text: the other assertions in the
+      folder read the file, and none exercised `action.events` → `mark.event.label`. A misnamed
+      property in that chain renders an empty page on the very screen one came to look at.
+      Verified by mutation. Since 2.2/2.3 it covers a hatched wait, placement in time and a
+      payload with an invalid byte
 
 ## 3. Magento renders the projection instead of deriving its own
 
-- [x] 3.1 `ProcessDetail` consumes the promoted projection. Ce qui doit **disparaître**, et pas
-      seulement cohabiter : `getTimeline()`, `segments()`, `scale()`, la composition des infobulles
-      de segment et de repère (doublon de `TimelineSegment::$title` / `TimelineEvent::$title`) et
-      `formatDetails()` (doublon de `RecordedDetails::of()`). Les laisser côte à côte remettrait
-      exactement la divergence que la tranche 1 est allée chercher
+- [x] 3.1 `ProcessDetail` consumes the promoted projection. What must **disappear**, not merely
+      coexist: `getTimeline()`, `segments()`, `scale()`, the composition of the segment and mark
+      tooltips (a duplicate of `TimelineSegment::$title` / `TimelineEvent::$title`) and
+      `formatDetails()` (a duplicate of `RecordedDetails::of()`). Leaving them side by side would
+      bring back exactly the divergence slice 1 went after
 - [x] 3.2 The listing reports backend health, which it never probes today
-- [x] 3.3 Les compteurs portent sur **la fenêtre que l'écran lit**, et le disent. Pas « la page » :
-      la grille de Magento pagine par décalage *dans* cette fenêtre, donc l'ensemble que
-      l'exploitant parcourt est la fenêtre, pas la page courante. La décision de l'auteur — portée
-      assumée et nommée — vaut pour les deux ; c'est la portée qui diffère, parce que la pagination
-      diffère. `RunDashboard::outcomeCounters()` devient publique : compter à la main chez l'hôte
-      recreuserait le trou d'un seau oublié
-- [x] 3.4 Le plafond est annoncé dès que la fenêtre est pleine, et la fenêtre est **une seule
-      constante** — `RuntimeFactory::OBSERVATION_WINDOW`. Elles étaient deux littéraux de même
-      valeur, ce qui rendait possible d'être listé d'un côté et introuvable de l'autre au premier
-      qui bougerait
+- [x] 3.3 The counters cover **the window the screen reads**, and say so. Not "the page": Magento's
+      grid pages by offset *inside* that window, so the set the operator browses is the window,
+      not the current page. The author's decision — a scope owned and named — holds for both; it
+      is the scope that differs, because the paging differs. `RunDashboard::outcomeCounters()`
+      becomes public: counting by hand in the host would dig the forgotten-bucket hole again
+- [x] 3.4 The ceiling is announced as soon as the window is full, and the window is **a single
+      constant** — `RuntimeFactory::OBSERVATION_WINDOW`. They were two literals with the same
+      value, which made it possible to be listed on one side and unfindable on the other the
+      first time someone changed one
 
 ## 4. Counters and absences say what they mean
 
-- [x] 4.1 L'intitulé nomme la portée sur les deux surfaces : « Outcomes across the N runs on this
-      page » chez Sylius, « across the N most recent runs this screen reads » chez Magento — la
-      portée diffère parce que la pagination diffère, et chacune le dit
-- [x] 4.2 La grille Magento rendait `''` pour une date absente — une case vide se lit comme un rendu
-      qui a échoué. Un tiret cadratin nommé, le même que celui de l'écran de détail. La liste Sylius
-      n'a pas de colonnes fixes : ce sont des cartes, et un fait absent y est omis, ce qui reste le
-      bon rendu — la règle du tiret porte sur les tableaux
+- [x] 4.1 The label names the scope on both surfaces: "Outcomes across the N runs on this
+      page" on Sylius, "across the N most recent runs this screen reads" on Magento — the
+      scope differs because the paging differs, and each says so
+- [x] 4.2 The Magento grid rendered `''` for an absent date — an empty cell reads as a render
+      that failed. A named em dash, the same one as on the detail screen. The Sylius list has no
+      fixed columns: they are cards, and an absent fact is omitted there, which remains the
+      right rendering — the em dash rule applies to tables
 
 ## 5. Sweep the drift lanes left behind
 
-- [x] 5.1 `WorkflowRunEventKind` ne décrit plus une voie mais une **nature** : la ligne vient de
-      l'action, et l'énumération n'y sert plus qu'à colorer. Balayé aussi dans les deux lecteurs
-      d'historique et dans les classes CSS du gabarit Sylius (`durable-lane` → `durable-action`)
-- [x] 5.2 Le README du greffon décrit la frise par actions, et sa table « Lane kind » devient
-      « Event kind »
-- [x] 5.3 Les deux README portent la **même section** « The panels, and why they are the same
-      everywhere » — quatre panneaux, les trois états du backend, la portée des compteurs, la frise
-      par actions. Les pages paquets du site suivent, dans les deux langues ; le site monte
-      `documentation/user` directement, il n'y a donc pas de copie à tenir
+- [x] 5.1 `WorkflowRunEventKind` no longer describes a lane but a **kind**: the row comes from
+      the action, and the enumeration now serves only for colour. Also swept in the two history
+      readers and in the CSS classes of the Sylius template (`durable-lane` → `durable-action`)
+- [x] 5.2 The plugin README describes the timeline by action, and its "Lane kind" table becomes
+      "Event kind"
+- [x] 5.3 Both READMEs carry the **same section** "The panels, and why they are the same
+      everywhere" — four panels, the three backend states, the counter scope, the timeline
+      by action. The site's package pages follow, in both languages; the site mounts
+      `documentation/user` directly, so there is no copy to maintain
 
 ## 6. Leave the decision behind
 
-- [x] 6.1 `DUR049 — One projection, two chromes`, indexé dans `documentation/INDEX.md`. Il porte les
-      quatre défauts **mesurés** plutôt que supposés (la santé jamais sondée, le dépliant vide sur un
-      octet invalide, les deux heures du même événement sur une page, la frise sans aucun test) et
-      les quatre alternatives écartées — dont « promouvoir le modèle Sylius », qui aurait uniformisé
-      par le bas
-- [x] 6.2 Une page `documentation/user/dashboard/`, dans les deux langues : les quatre panneaux, les
-      trois états du backend, la frise par actions, la portée des compteurs, les deux absences. Les
-      sections `durable-plugin` et `durable-magento` de la page paquets ne décrivent plus chacune sa
-      frise — elles décrivent leur **habillage** et pointent dessus
+- [x] 6.1 `DUR049 — One projection, two chromes`, indexed in `documentation/INDEX.md`. It carries
+      the four defects **measured** rather than assumed (health never probed, the empty disclosure
+      on an invalid byte, two times for the same event on one page, the timeline without any test)
+      and the four rejected alternatives — among them "promote the Sylius model", which would
+      have levelled down
+- [x] 6.2 A `documentation/user/dashboard/` page, in both languages: the four panels, the three
+      backend states, the timeline by action, the counter scope, the two absences. The
+      `durable-plugin` and `durable-magento` sections of the packages page no longer each describe
+      their timeline — they describe their **chrome** and point to it
 
 ## Notes de la tranche 1
 
