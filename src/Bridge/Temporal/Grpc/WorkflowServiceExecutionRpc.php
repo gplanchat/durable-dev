@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Grpc;
 
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
-use Temporal\Api\Workflowservice\V1\PollWorkflowExecutionUpdateRequest;
-use Temporal\Api\Workflowservice\V1\PollWorkflowExecutionUpdateResponse;
 use Temporal\Api\Workflowservice\V1\QueryWorkflowRequest;
 use Temporal\Api\Workflowservice\V1\QueryWorkflowResponse;
 use Temporal\Api\Workflowservice\V1\UpdateWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\UpdateWorkflowExecutionResponse;
 
 /**
- * Typed wrappers for **client → running workflow** `WorkflowService` RPCs (query, update, poll update outcome).
+ * Typed wrappers for **client → running workflow** `WorkflowService` RPCs (query, update).
  *
  * Distinct from {@see WorkflowServiceActivityRpc} (activity worker poll / respond / heartbeat).
  * Default deadlines follow {@see TemporalGrpcTimeouts}; override via {@code $callOptions}.
@@ -54,20 +52,4 @@ final readonly class WorkflowServiceExecutionRpc
         return $r;
     }
 
-    /**
-     * Long-poll for the outcome of an update started via {@see updateWorkflowExecution}.
-     *
-     * @param array<string, mixed> $metadata
-     * @param array<string, mixed> $callOptions
-     */
-    public function pollWorkflowExecutionUpdate(
-        PollWorkflowExecutionUpdateRequest $request,
-        array $metadata = [],
-        array $callOptions = [],
-    ): PollWorkflowExecutionUpdateResponse {
-        $opts = array_merge(['timeout' => TemporalGrpcTimeouts::LONG_POLL_US], $callOptions);
-        $r = $this->client->PollWorkflowExecutionUpdate($request, $metadata, $opts);
-
-        return $r;
-    }
 }

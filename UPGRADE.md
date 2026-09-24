@@ -24,6 +24,20 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### Unused gRPC wrappers removed from the Temporal bridge
+
+**Who is affected**: code that called one of these on `gplanchat/durable-bridge-temporal` directly.
+Nothing in this repository, its demos or its documentation did (#372).
+
+| Removed | If you used it |
+|---|---|
+| `Grpc\WorkflowServiceActivityRpc::updateActivityOptions()`, `pauseActivity()`, `unpauseActivity()`, `resetActivity()` | call the same RPC on `WorkflowServiceClientInterface` |
+| `Grpc\WorkflowServiceActivityRpc::recordActivityTaskHeartbeatById()`, `respondActivityTaskCompletedById()`, `respondActivityTaskFailedById()`, `respondActivityTaskCanceledById()` | the task-token variants remain; or `WorkflowServiceClientInterface` |
+| `Grpc\WorkflowServiceActivityRpc::startActivityExecution()`, `describeActivityExecution()`, `pollActivityExecution()`, `listActivityExecutions()`, `requestCancelActivityExecution()`, `terminateActivityExecution()`, `deleteActivityExecution()` | call the same RPC on `WorkflowServiceClientInterface` |
+| `Grpc\WorkflowServiceExecutionRpc::pollWorkflowExecutionUpdate()` | `WorkflowServiceClientInterface::PollWorkflowExecutionUpdate()` |
+
+Each wrapper only added the default gRPC deadline (`TemporalGrpcTimeouts::SHORT_US`); pass it as
+the `timeout` call option when calling the client directly.
 ### The run pages mask payload secrets too
 
 **Who is affected**: operators of the Sylius plugin's dashboard and of the Magento run page. Each
