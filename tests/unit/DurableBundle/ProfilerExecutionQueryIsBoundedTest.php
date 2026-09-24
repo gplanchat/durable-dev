@@ -32,6 +32,13 @@ final class ProfilerExecutionQueryIsBoundedTest extends TestCase
         self::assertCount(DurableDataCollector::MAX_QUERIED_EXECUTIONS, $ids);
     }
 
+    public function testARepeatedIdCountsOnce(): void
+    {
+        $ids = $this->idsCollectedFor(str_repeat('exec-1,', 30) . 'exec-2');
+
+        self::assertSame(['exec-1', 'exec-2'], $ids);
+    }
+
     /**
      * @return list<string>
      */

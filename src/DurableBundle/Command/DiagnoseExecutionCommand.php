@@ -63,7 +63,7 @@ final class DiagnoseExecutionCommand extends Command
 
         $meta = $this->workflowMetadataStore->get($executionId);
         if (null !== $meta) {
-            $meta['payload'] = $redact($meta['payload']);
+            $meta['payload'] = $redact(RecordedDetails::storable($meta['payload']));
         }
         $parentId = $this->childWorkflowParentLinkStore->getParentExecutionId($executionId);
         $childIds = $this->childWorkflowParentLinkStore->getChildExecutionIdsForParent($executionId);

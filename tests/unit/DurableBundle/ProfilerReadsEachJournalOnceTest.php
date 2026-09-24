@@ -21,7 +21,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class ProfilerReadsEachJournalOnceTest extends TestCase
 {
-    public function testEachJournalIsReadOnceAndNeverCountedApart(): void
+    public function testEachJournalIsReadOnceAndCountedOnce(): void
     {
         $inner = new InMemoryEventStore();
         $inner->append(new ActivityScheduled('exec-1', 'act-1', 'charge', []));
@@ -39,21 +39,21 @@ final class ProfilerReadsEachJournalOnceTest extends TestCase
 
             public function readStream(string $executionId): iterable
             {
-                $this->calls[$executionId] = ($this->calls[$executionId] ?? 0) + 1;
+                $this->calls[$executionId . ' read'] = ($this->calls[$executionId . ' read'] ?? 0) + 1;
 
                 return $this->inner->readStream($executionId);
             }
 
             public function readStreamWithRecordedAt(string $executionId): iterable
             {
-                $this->calls[$executionId] = ($this->calls[$executionId] ?? 0) + 1;
+                $this->calls[$executionId . ' read'] = ($this->calls[$executionId . ' read'] ?? 0) + 1;
 
                 return $this->inner->readStreamWithRecordedAt($executionId);
             }
 
             public function countEventsInStream(string $executionId): int
             {
-                $this->calls[$executionId] = ($this->calls[$executionId] ?? 0) + 1;
+                $this->calls[$executionId . ' count'] = ($this->calls[$executionId . ' count'] ?? 0) + 1;
 
                 return $this->inner->countEventsInStream($executionId);
             }
@@ -64,7 +64,10 @@ final class ProfilerReadsEachJournalOnceTest extends TestCase
         $collector = new DurableDataCollector($trace, new InMemoryWorkflowMetadataStore(), $store);
         $collector->collect(new Request(['durable_execution' => 'exec-2']), new Response());
 
-        self::assertSame(['exec-1' => 1, 'exec-2' => 1], $store->calls);
+        // One indexed COUNT and one read that stops at the panel's limit: walking the whole
+        // stream to count it would hydrate every payload of a long journal.
+        ksort($store->calls);
+        self::assertSame(['exec-1 count' => 1, 'exec-1 read' => 1, 'exec-2 count' => 1, 'exec-2 read' => 1], $store->calls);
         self::assertSame(2, $collector->getJournalEventCount());
     }
 }

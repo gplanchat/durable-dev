@@ -389,7 +389,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
 
         try {
             // Already a string when the barrier in collect() runs, so it redacts here.
-            $j = json_encode($this->redactor->redact($payload), \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE);
+            $j = json_encode($this->redactor->redact(RecordedDetails::storable($payload)), \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE);
         } catch (\JsonException) {
             return '…';
         }
@@ -484,6 +484,9 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             // Printable ASCII with no space, at most 255 bytes: a UUID, a Temporal workflow id,
             // a child id. Anything else no store issued, and HTML has no business in there.
             if (1 !== preg_match('/^[\x21-\x7E]{1,255}$/', $id) || 1 === preg_match('/[<>"\'&]/', $id)) {
+                continue;
+            }
+            if (isset($executionIds[$id])) {
                 continue;
             }
             $executionIds[$id] = true;
@@ -853,21 +856,22 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     private function journal(string $executionId): array
     {
         if (!isset($this->journals[$executionId])) {
+            // An indexed COUNT, then a read that stops at the panel's limit: the SQL stores walk a
+            // cursor, and breaking out of it spares hydrating the rest of a long journal.
+            $count = $this->eventStore->countEventsInStream($executionId);
             $entries = [];
-            $count = 0;
-            $last = null;
-            // Read to the end for the last event and the count; keep only the first events.
             foreach ($this->eventStore->readStreamWithRecordedAt($executionId) as $entry) {
-                if (++$count <= self::MAX_STORE_EVENTS_PER_STREAM) {
-                    $entries[] = $entry;
+                if (\count($entries) >= self::MAX_STORE_EVENTS_PER_STREAM) {
+                    break;
                 }
-                $last = $entry['event'];
+                $entries[] = $entry;
             }
             $this->journals[$executionId] = [
                 'entries' => $entries,
-                'truncated' => $count > self::MAX_STORE_EVENTS_PER_STREAM,
+                'truncated' => $count > \count($entries),
                 'count' => $count,
-                'last' => $last,
+                // Of the events read: the status reads the last one the panel shows, as it did.
+                'last' => [] === $entries ? null : $entries[\count($entries) - 1]['event'],
             ];
         }
 

@@ -35,7 +35,7 @@ To change what is masked, implement `Gplanchat\Durable\Observation\PayloadRedact
 alias the interface to your service; both surfaces use it.
 
 The profiler reads at most 20 ids from `?durable_execution=`, and drops an id that is not printable
-ASCII without spaces, quotes or angle brackets.
+ASCII without spaces, quotes, ampersands or angle brackets.
 
 ### The run list tells a run waiting for a worker: `picked_up_at` on `durable_workflow_runs`
 

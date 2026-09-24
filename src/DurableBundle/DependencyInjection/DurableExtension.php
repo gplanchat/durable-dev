@@ -756,7 +756,10 @@ final class DurableExtension extends Extension
         // What the diagnose command and the profiler panel may show of a payload. An application
         // replaces it by aliasing the interface to its own implementation.
         $container->register('durable.payload_redactor', KeyPatternPayloadRedactor::class)->setPublic(false);
-        $container->setAlias(PayloadRedactorInterface::class, 'durable.payload_redactor');
+        // The application's services.yaml is loaded before this extension: keep its alias.
+        if (!$container->hasAlias(PayloadRedactorInterface::class) && !$container->hasDefinition(PayloadRedactorInterface::class)) {
+            $container->setAlias(PayloadRedactorInterface::class, 'durable.payload_redactor');
+        }
 
         $isTemporalNative = self::isTemporalNative($config);
 
