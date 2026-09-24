@@ -8,4 +8,4 @@
   `src/DurableModule/etc/di.xml`, `documentation/user/activities/_index{,.fr}.md`, their tests.
 - **Stacked on #493** (`chore/dead-code-core` @ e620651d), which touches the same provider, factory
   and pages. The PR waits for #493 to merge, then takes main in.
-- **State**: in progress — arwen, worktree `.claude/worktrees/temporal-heartbeat`. Reviewer: antoine.
+- **State**: in review, PR #531 (antoine OK); #493 merged — arwen.

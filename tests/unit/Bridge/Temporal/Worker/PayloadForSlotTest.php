@@ -22,20 +22,20 @@ use Temporal\Api\History\V1\NexusOperationScheduledEventAttributes;
 use Temporal\Api\History\V1\StartChildWorkflowExecutionInitiatedEventAttributes;
 
 /**
- * La garde de charge (DUR042) relit trois formes de fil, et **elles ne se valent pas**.
+ * The payload guard (DUR042) reads back three wire shapes, and **they are not interchangeable**.
  *
- * C'est là que se cacherait une erreur de désenveloppage : les trois ressemblent à « l'entrée de
- * l'appel », et chacune est écrite autrement par le tampon.
+ * This is where an unwrapping error would hide: all three look like "the call's input", and each
+ * is written differently by the buffer.
  *
- * - activité — `Payloads` d'un élément, portant l'enveloppe
- *   {@see TemporalActivityScheduleInput} `{executionId, activityId, activityName, payload, metadata}` ;
- * - Nexus — un `Payload` **nu**, la charge de l'appelant sans enveloppe ;
- * - enfant — `Payloads` d'un élément, portant l'input **nu**.
+ * - activity — single-element `Payloads`, carrying the envelope
+ *   {@see TemporalActivityScheduleInput} `{executionId, activityId, activityName, payload, metadata}`;
+ * - Nexus — a **naked** `Payload`, the caller's payload without an envelope;
+ * - child — single-element `Payloads`, carrying the **naked** input.
  *
- * Les fixtures sont écrites d'après ce que `TemporalWorkflowCommandBuffer` produit réellement, et
- * non d'après le voisin : la fixture de {@see NexusSlotDivergenceTest} est antérieure au retrait de
- * l'enveloppe Nexus (tâche 1.1) et porte encore `{operationId, payload}`. Ne pas aligner celle-ci
- * dessus — c'est l'ancienne forme qui est périmée, pas celle-ci.
+ * The fixtures are written from what `TemporalWorkflowCommandBuffer` really produces, not from
+ * the neighbour: the fixture in {@see NexusSlotDivergenceTest} predates the removal of the Nexus
+ * envelope (task 1.1) and still carries `{operationId, payload}`. Do not align this one on it —
+ * it is the old shape that is stale, not this one.
  */
 final class PayloadForSlotTest extends TestCase
 {
@@ -45,15 +45,15 @@ final class PayloadForSlotTest extends TestCase
             $this->activityScheduled(5, 'act-1', 'weather', ['city' => 'Paris']),
         ]);
 
-        // Les arguments, pas l'enveloppe : rendre l'enveloppe comparerait `activityName` deux fois
-        // et laisserait passer un changement d'argument.
+        // The arguments, not the envelope: returning the envelope would compare `activityName`
+        // twice and let an argument change through.
         self::assertSame(['city' => 'Paris'], $history->activityPayloadForSlot(0));
     }
 
     public function testTheNexusPayloadIsReadNaked(): void
     {
         $history = TemporalExecutionHistory::fromEvents([
-            $this->nexusScheduled(5, 'paiements', 'facturation', 'encaisser', ['amount' => 90]),
+            $this->nexusScheduled(5, 'payments', 'billing', 'collect', ['amount' => 90]),
         ]);
 
         self::assertSame(['amount' => 90], $history->nexusOperationPayloadForSlot(0));
@@ -71,8 +71,8 @@ final class PayloadForSlotTest extends TestCase
     public function testEachSlotKeepsItsOwnPayload(): void
     {
         $history = TemporalExecutionHistory::fromEvents([
-            $this->nexusScheduled(5, 'paiements', 'facturation', 'encaisser', ['amount' => 90]),
-            $this->nexusScheduled(9, 'stocks', 'entrepot', 'reserver', ['sku' => 'ABC']),
+            $this->nexusScheduled(5, 'payments', 'billing', 'collect', ['amount' => 90]),
+            $this->nexusScheduled(9, 'inventory', 'warehouse', 'reserve', ['sku' => 'ABC']),
             $this->childScheduled('child-1', 'A', ['n' => 1]),
             $this->childScheduled('child-2', 'B', ['n' => 2]),
         ]);
@@ -85,7 +85,8 @@ final class PayloadForSlotTest extends TestCase
 
     public function testASlotNobodyScheduledHasNoPayload(): void
     {
-        // Null, et non `[]` : « rien enregistré » désarme la garde, « planifié sans argument » non.
+        // Null, not `[]`: "nothing recorded" disarms the guard, "scheduled without arguments"
+        // does not.
         $history = TemporalExecutionHistory::fromEvents([]);
 
         self::assertNull($history->activityPayloadForSlot(0));
@@ -96,7 +97,7 @@ final class PayloadForSlotTest extends TestCase
     public function testAnEmptyPayloadIsRecordedAsEmptyNotAsAbsent(): void
     {
         $history = TemporalExecutionHistory::fromEvents([
-            $this->nexusScheduled(5, 'paiements', 'facturation', 'ping', []),
+            $this->nexusScheduled(5, 'payments', 'billing', 'ping', []),
         ]);
 
         self::assertSame([], $history->nexusOperationPayloadForSlot(0));
@@ -104,31 +105,31 @@ final class PayloadForSlotTest extends TestCase
 
     public function testTheGuardRefusesANexusOperationWhosePayloadChanged(): void
     {
-        // Le câblage, pas seulement la lecture : c'est ici que Nexus mérite le plus la garde —
-        // une activité replanifiée retombe sur un worker à soi, une opération Nexus part chez un
-        // tiers, où le doublon est le sien.
+        // The wiring, not just the reading: this is where Nexus deserves the guard most — a
+        // rescheduled activity lands back on one's own worker, a Nexus operation goes to a third
+        // party, where the duplicate is theirs.
         $context = new ExecutionContext(
             'exec-nexus',
             TemporalExecutionHistory::fromEvents([
-                $this->nexusScheduled(5, 'paiements', 'facturation', 'encaisser', ['amount' => 90]),
+                $this->nexusScheduled(5, 'payments', 'billing', 'collect', ['amount' => 90]),
             ]),
             $this->createStub(WorkflowCommandBufferInterface::class),
         );
 
         try {
             $context->nexusOperation(
-                NexusEndpoint::named('paiements'),
-                NexusService::named('facturation'),
-                NexusOperationName::named('encaisser'),
+                NexusEndpoint::named('payments'),
+                NexusService::named('billing'),
+                NexusOperationName::named('collect'),
                 ['amount' => 120],
             );
-            self::fail('La divergence de charge aurait dû être refusée.');
+            self::fail('The payload divergence should have been refused.');
         } catch (WorkflowTaskFailure $refusal) {
             $message = $refusal->getMessage();
         }
 
         self::assertStringContainsString('Nexus operation slot 0', $message);
-        self::assertStringContainsString('"paiements/facturation/encaisser" is still the same Nexus operation', $message);
+        self::assertStringContainsString('"payments/billing/collect" is still the same Nexus operation', $message);
     }
 
     public function testAFaithfulNexusReplayIsNotRefused(): void
@@ -136,15 +137,15 @@ final class PayloadForSlotTest extends TestCase
         $context = new ExecutionContext(
             'exec-nexus',
             TemporalExecutionHistory::fromEvents([
-                $this->nexusScheduled(5, 'paiements', 'facturation', 'encaisser', ['amount' => 90]),
+                $this->nexusScheduled(5, 'payments', 'billing', 'collect', ['amount' => 90]),
             ]),
             $this->createStub(WorkflowCommandBufferInterface::class),
         );
 
         $awaitable = $context->nexusOperation(
-            NexusEndpoint::named('paiements'),
-            NexusService::named('facturation'),
-            NexusOperationName::named('encaisser'),
+            NexusEndpoint::named('payments'),
+            NexusService::named('billing'),
+            NexusOperationName::named('collect'),
             ['amount' => 90],
         );
 
@@ -184,7 +185,7 @@ final class PayloadForSlotTest extends TestCase
         $attrs->setEndpoint($endpoint);
         $attrs->setService($service);
         $attrs->setOperation($operation);
-        // Nu, comme le tampon l'écrit.
+        // Naked, as the buffer writes it.
         $attrs->setInput(JsonPlainPayload::encode($payload));
 
         $event = new HistoryEvent();

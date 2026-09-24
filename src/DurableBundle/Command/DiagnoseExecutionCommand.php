@@ -34,6 +34,11 @@ final class DiagnoseExecutionCommand extends Command
         private readonly ChildWorkflowParentLinkStoreInterface $childWorkflowParentLinkStore,
         private readonly ?TemporalConnection $temporalConnection = null,
         private readonly PayloadRedactorInterface $redactor = new KeyPatternPayloadRedactor(),
+        /**
+         * True on Temporal native, where the metadata store is in-memory, per process: an empty
+         * row there says nothing about the id (#337).
+         */
+        private readonly bool $metadataIsProcessLocal = false,
     ) {
         parent::__construct();
     }
@@ -133,7 +138,9 @@ final class DiagnoseExecutionCommand extends Command
 
         $io->section('Workflow metadata');
         if (null === $meta) {
-            $io->warning('No row in the metadata store for this identifier (an inline run with no dispatch, or an unknown id).');
+            $io->warning($this->metadataIsProcessLocal
+                ? 'No row in this process\'s metadata store, which is expected: on Temporal the workflow metadata lives in the Temporal cluster, not here. Look the workflow up there (Temporal UI, or `temporal workflow describe`).'
+                : 'No row in the metadata store for this identifier (an inline run with no dispatch, or an unknown id).');
         } else {
             $io->horizontalTable(
                 ['workflowType', 'completed', 'payload (excerpt)'],

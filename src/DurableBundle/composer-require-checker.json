@@ -15,6 +15,8 @@
         "Gplanchat\\Bridge\\Temporal\\Grpc\\WorkflowServiceExecutionRpc",
         "Gplanchat\\Bridge\\Temporal\\Grpc\\WorkflowServiceNexusRpc",
         "Gplanchat\\Bridge\\Temporal\\Http\\Psr18Http",
+        "Gplanchat\\Bridge\\Temporal\\Messenger\\DeliverWorkflowSignalToTemporalHandler",
+        "Gplanchat\\Bridge\\Temporal\\Messenger\\DeliverWorkflowUpdateToTemporalHandler",
         "Gplanchat\\Bridge\\Temporal\\Messenger\\TemporalActivityWorkerTransport",
         "Gplanchat\\Bridge\\Temporal\\Messenger\\TemporalJournalTransport",
         "Gplanchat\\Bridge\\Temporal\\Messenger\\TemporalNexusWorkerTransport",

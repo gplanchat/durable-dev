@@ -50,20 +50,20 @@ final class NexusEndpointNameRulesTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function refusedNames(): iterable
     {
-        yield 'un espace' => [' '];
-        yield 'espace en tête' => [' probe-lead'];
-        yield 'espace en fin' => ['probe-trail '];
-        yield 'tabulation interne' => ["probe\ttab"];
-        yield 'saut de ligne interne' => ["probe\nnl"];
-        yield 'caractère de contrôle' => ["probe\x01ctl"];
+        yield 'a single space' => [' '];
+        yield 'leading space' => [' probe-lead'];
+        yield 'trailing space' => ['probe-trail '];
+        yield 'internal tab' => ["probe\ttab"];
+        yield 'internal newline' => ["probe\nnl"];
+        yield 'control character' => ["probe\x01ctl"];
         yield 'underscore' => ['probe_under'];
-        yield 'point' => ['probe.dot'];
-        yield 'commence par un chiffre' => ['9probe'];
-        yield 'tiret en tête' => ['-probe'];
-        yield 'tiret en fin' => ['probe-'];
-        yield 'accentué' => ['probé-nexus'];
+        yield 'dot' => ['probe.dot'];
+        yield 'leading digit' => ['9probe'];
+        yield 'leading hyphen' => ['-probe'];
+        yield 'trailing hyphen' => ['probe-'];
+        yield 'accented' => ['probé-nexus'];
         yield 'slash' => ['probe/slash'];
-        yield 'une seule lettre' => ['a'];
+        yield 'single letter' => ['a'];
     }
 
     #[DataProvider('refusedNames')]

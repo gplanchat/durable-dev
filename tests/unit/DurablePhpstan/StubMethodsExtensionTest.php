@@ -144,7 +144,7 @@ final class StubMethodsExtensionTest extends TestCase
         self::assertSame(
             [],
             $this->matching($errors, '$awaitable of method'),
-            'await() ne doit pas se plaindre du type rendu par un appel de stub',
+            'await() must not complain about the type returned by a stub call',
         );
     }
 
@@ -179,7 +179,7 @@ final class StubMethodsExtensionTest extends TestCase
 
         /** @var array{files?: array<string, array{messages: list<array{message: string}>}>} $decoded */
         $decoded = json_decode((string) $out, true) ?: [];
-        self::assertArrayHasKey('files', $decoded, 'PHPStan n\'a rien rendu d\'exploitable');
+        self::assertArrayHasKey('files', $decoded, 'PHPStan returned nothing usable');
 
         $messages = [];
         foreach ($decoded['files'] as $file) {

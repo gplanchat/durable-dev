@@ -40,8 +40,8 @@ final class DurableProfilerEventPresentation
     /**
      * The label for the "chronological order" table and for the dispatch details.
      *
-     * A resume {@see \Gplanchat\Durable\Transport\WorkflowRunMessage::isResume} carries no workflow type
-     * in the message (it is empty): the handler reads it back from the metadata.
+     * A {@see \Gplanchat\Durable\Transport\ResumeWorkflowMessage} carries the execution id only, no
+     * workflow type: the handler reads it back from the metadata.
      *
      * @param array<string, mixed> $entry one {@see DurableExecutionTrace} entry
      */
@@ -53,12 +53,12 @@ final class DurableProfilerEventPresentation
 
         $parts = [];
         if ($isResume) {
-            $parts[] = 'Messenger resume (WorkflowRunMessage)';
+            $parts[] = 'Messenger resume (ResumeWorkflowMessage)';
             $parts[] = 'no type in the message — resolved at the handler from the metadata';
         } elseif ('' !== $wt) {
-            $parts[] = 'New run "' . $wt . '" (WorkflowRunMessage)';
+            $parts[] = 'New run "' . $wt . '" (ResumeWorkflowMessage)';
         } else {
-            $parts[] = 'WorkflowRunMessage (no type given in the message)';
+            $parts[] = 'ResumeWorkflowMessage (no type given in the message)';
         }
         if ('' !== $tn) {
             $parts[] = 'transports: ' . $tn;
@@ -82,7 +82,7 @@ final class DurableProfilerEventPresentation
                     ? 'Messenger resume'
                     : ('' !== trim((string) ($entry['workflowType'] ?? ''))
                         ? 'New Messenger run'
-                        : 'WorkflowRunMessage message'),
+                        : 'ResumeWorkflowMessage message'),
                 'subtitle' => self::dispatchTimelineLabel($entry),
                 'category' => 'messenger',
             ],

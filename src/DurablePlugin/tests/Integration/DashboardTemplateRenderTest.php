@@ -22,7 +22,7 @@ final class DashboardTemplateRenderTest extends TestCase
 
     protected function setUp(): void
     {
-        $path = \dirname(__DIR__, 2) . '/templates/admin/dashboard/index.html.twig';
+        $path = \dirname(__DIR__, 2) . '/templates/admin/dashboard/_dashboard.html.twig';
         self::assertFileExists($path);
 
         $template = file_get_contents($path);
@@ -43,9 +43,16 @@ final class DashboardTemplateRenderTest extends TestCase
         self::assertStringNotContainsString('run.duration', $this->template);
     }
 
+    public function testAnExpandedPayloadHasAColourOfItsOwn(): void
+    {
+        // #256: the block set a background and no colour, so a dark theme drew it white on white.
+        self::assertMatchesRegularExpression('/\.durable-events pre \{[^}]*background:[^}]*[;\s]color:/', $this->template);
+    }
+
     public function testTheTemplateStillLivesInTheSyliusAdminLayout(): void
     {
-        self::assertStringContainsString('@SyliusAdmin/shared/layout/base.html.twig', $this->template);
+        // The dashboard partial has no page around it; the page that the hooks compose does.
+        self::assertStringContainsString('@SyliusAdmin/shared/layout/base.html.twig', (string) file_get_contents(\dirname(__DIR__, 2) . '/templates/admin/dashboard/index.html.twig'));
     }
 
     /**

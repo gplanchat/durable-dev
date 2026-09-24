@@ -23,21 +23,21 @@ final class NexusEndpointTest extends TestCase
      */
     public static function refusedByTheServerRegex(): iterable
     {
-        yield 'blanc seul' => [' '];
-        yield 'espace en tête' => [' probe'];
-        yield 'espace en queue' => ['probe '];
-        yield 'tabulation interne' => ["pro\tbe"];
-        yield 'saut de ligne interne' => ["pro\nbe"];
-        yield 'caractère de contrôle' => ["pro\x00be"];
-        yield 'souligné' => ['pro_be'];
-        yield 'point' => ['pro.be'];
-        yield 'barre oblique' => ['pro/be'];
-        yield 'lettre accentuée' => ['probé'];
-        yield 'chiffre en tête' => ['1probe'];
-        yield 'tiret en tête' => ['-probe'];
-        yield 'tiret en queue' => ['probe-'];
+        yield 'whitespace only' => [' '];
+        yield 'leading space' => [' probe'];
+        yield 'trailing space' => ['probe '];
+        yield 'internal tab' => ["pro\tbe"];
+        yield 'internal newline' => ["pro\nbe"];
+        yield 'control character' => ["pro\x00be"];
+        yield 'underscore' => ['pro_be'];
+        yield 'dot' => ['pro.be'];
+        yield 'slash' => ['pro/be'];
+        yield 'accented letter' => ['probé'];
+        yield 'leading digit' => ['1probe'];
+        yield 'leading hyphen' => ['-probe'];
+        yield 'trailing hyphen' => ['probe-'];
         // The pattern requires a first *and* a last character: a lone letter only has one.
-        yield 'lettre seule' => ['a'];
+        yield 'single letter' => ['a'];
     }
 
     #[DataProvider('refusedByTheServerRegex')]
@@ -54,9 +54,9 @@ final class NexusEndpointTest extends TestCase
      */
     public static function acceptedByTheServer(): iterable
     {
-        yield 'deux lettres' => ['ab'];
-        yield 'lettres, chiffres, tirets internes, deux casses' => ['Probe-Nexus-42'];
-        yield '200 caractères' => ['a' . str_repeat('b', 198) . 'c'];
+        yield 'two letters' => ['ab'];
+        yield 'letters, digits, internal hyphens, both cases' => ['Probe-Nexus-42'];
+        yield '200 characters' => ['a' . str_repeat('b', 198) . 'c'];
     }
 
     #[DataProvider('acceptedByTheServer')]

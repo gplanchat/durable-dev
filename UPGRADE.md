@@ -38,6 +38,17 @@ Nothing in this repository, its demos or its documentation did (#372).
 
 Each wrapper only added the default gRPC deadline (`TemporalGrpcTimeouts::SHORT_US`); pass it as
 the `timeout` call option when calling the client directly.
+### The run pages mask payload secrets too
+
+**Who is affected**: operators of the Sylius plugin's dashboard and of the Magento run page. Each
+event's details are now masked the way the profiler panel and `durable:execution:diagnose` mask them
+(#507, and the diagnose section of this file): values under keys such as `password`, `token` or
+`api_key` show as masked, long strings are truncated, and the redactor is the one the application
+registered for the profiler. Nothing to change in code. `RunTimeline::of()` takes an optional
+`PayloadRedactorInterface` as its second argument and `RunDashboard` as its third. On Magento,
+`Block\Adminhtml\ProcessDetail`'s constructor gains a `PayloadRedactorInterface $redactor` before
+`$data`: a subclass that overrides the constructor passes it on.
+
 ### Unused helpers removed from the core
 
 **Who is affected**: code that called one of these. Nothing in this repository, its demos or its
@@ -324,6 +335,28 @@ Rector can do nothing: rewriting a `$container->get('durable.event_store.dbal')`
 requires knowing where the object is used, which no rule can guess. The table above is the
 procedure.
 
+### `WorkflowClientInterface::signal()` and `update()` take the call's id
+
+**Who is affected**: only whoever **implements** `WorkflowClientInterface`, typically a test
+double. Callers have nothing to change: the new parameters are optional.
+
+**What was broken.** On Temporal native, a `DeliverWorkflowSignalMessage` or
+`DeliverWorkflowUpdateMessage` sent through Messenger never reached the cluster (#333). Now it
+does, and a Messenger retry after a lost answer must not deliver it twice. The message draws its
+id once, when it is built; the client puts it on the wire as `request_id` or `update_id`, and the
+cluster drops the duplicate.
+
+Messages queued before the upgrade are delivered at-least-once: they carry no id, so each
+redelivery draws a new one. Drain the queue before deploying for exactly-once.
+
+**What to write.** Rector does it: `durable-upgrade.php` adds the two parameters to every
+implementation. By hand, they are:
+
+```php
+public function signal(string $workflowId, \BackedEnum|string $signalName, array $args = [], ?string $requestId = null): void;
+public function update(string $workflowId, string $updateName, array $args = [], ?string $updateId = null): mixed;
+```
+
 ### `WorkflowHistorySourceInterface` gains `cancellationDelivery()`
 
 **Who is affected**: only whoever **implements** `WorkflowHistorySourceInterface`, that is, whoever
@@ -495,6 +528,10 @@ An application that wants to observe executions in production does not have to r
 profiler: it implements `WorkflowExecutionObserverInterface` and aliases the interface to its own
 service — what the profiler did, cheaper, and without accumulating a timeline for nobody's screen.
 
+That alias also wins in debug, and that is a trade: the profiler panel then shows the Messenger
+dispatches but no engine events (workflow runs, activities), and says nothing about why. Declare the
+alias outside `when@dev` to keep them in development (#337).
+
 ### A successful activity writes `ActivityCompleted` only, no `ActivityTaskCompleted` (#262)
 
 **Who is affected**: code that reads the journal and waits for `ActivityTaskCompleted` to learn
@@ -526,6 +563,12 @@ the profiler never did. The `durable-upgrade` Rector set renames it.
 bench (`App\Temporal\NativeExecutionSpike`, with its `durable:temporal:native-spike` command). It
 was the DUR024 reference, not production code; `Worker\WorkflowTaskRunner` runs that path. Copy
 the class from the bench if you ran it; no Rector rule, since the class is no longer installed.
+
+### `DurableExecutionTrace::getTimelineForExecution()` is gone
+
+**Who is affected**: code that called it on the `durable.execution_trace` service. Nothing in
+Durable did. Filter `getTimeline()` by `executionId` instead:
+`array_values(array_filter($trace->getTimeline(), fn(array $e): bool => ($e['executionId'] ?? '') === $id))`.
 
 ## 0.1.0-alpha8
 

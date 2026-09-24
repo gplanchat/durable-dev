@@ -57,14 +57,14 @@ final class DurableSampleWorkflowRunnerRoutingTest extends TestCase
                 return 'temporal-result';
             }
 
-            public function signal(string $workflowId, \BackedEnum|string $signalName, array $args = []): void {}
+            public function signal(string $workflowId, \BackedEnum|string $signalName, array $args = [], ?string $requestId = null): void {}
 
             public function query(string $workflowId, string $queryType, array $args = []): mixed
             {
                 return null;
             }
 
-            public function update(string $workflowId, string $updateName, array $args = []): mixed
+            public function update(string $workflowId, string $updateName, array $args = [], ?string $updateId = null): mixed
             {
                 return null;
             }

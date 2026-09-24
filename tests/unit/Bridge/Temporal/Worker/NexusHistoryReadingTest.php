@@ -56,7 +56,7 @@ final class NexusHistoryReadingTest extends TestCase
     {
         $completed = new NexusOperationCompletedEventAttributes();
         $completed->setScheduledEventId(5);
-        $completed->setResult((new Payload())->setData(JsonPlainPayload::encode(['montant' => 42])->getData()));
+        $completed->setResult((new Payload())->setData(JsonPlainPayload::encode(['amount' => 42])->getData()));
 
         $history = TemporalExecutionHistory::fromEvents([
             $this->scheduled(5),
@@ -66,7 +66,7 @@ final class NexusHistoryReadingTest extends TestCase
         $slot = $history->findNexusOperationSlotResult(0);
         self::assertNotNull($slot);
         self::assertNull($slot['failed']);
-        self::assertSame(['montant' => 42], $slot['result']);
+        self::assertSame(['amount' => 42], $slot['result']);
     }
 
     /**
@@ -74,9 +74,9 @@ final class NexusHistoryReadingTest extends TestCase
      */
     public static function terminalFailures(): iterable
     {
-        yield 'échec' => [EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED, NexusOperationFailureKind::OperationFailed];
-        yield 'dépassement de borne' => [EventType::EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT, NexusOperationFailureKind::Timeout];
-        yield 'annulation' => [EventType::EVENT_TYPE_NEXUS_OPERATION_CANCELED, NexusOperationFailureKind::Cancellation];
+        yield 'failure' => [EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED, NexusOperationFailureKind::OperationFailed];
+        yield 'timeout' => [EventType::EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT, NexusOperationFailureKind::Timeout];
+        yield 'cancellation' => [EventType::EVENT_TYPE_NEXUS_OPERATION_CANCELED, NexusOperationFailureKind::Cancellation];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('terminalFailures')]
@@ -107,7 +107,7 @@ final class NexusHistoryReadingTest extends TestCase
         $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
 
         self::assertSame(5, $history->scheduledEventIdForNexusOperation('5'));
-        self::assertNull($history->scheduledEventIdForNexusOperation('inconnue'));
+        self::assertNull($history->scheduledEventIdForNexusOperation('unknown'));
     }
 
     public function testCancellingUsesTheRealScheduledEventId(): void
@@ -141,7 +141,7 @@ final class NexusHistoryReadingTest extends TestCase
             $history,
         );
 
-        $buffer->cancelNexusOperation('jamais-planifiee', 'race_superseded');
+        $buffer->cancelNexusOperation('never-scheduled', 'race_superseded');
 
         self::assertSame([], $buffer->flush());
     }
@@ -154,7 +154,7 @@ final class NexusHistoryReadingTest extends TestCase
         // Refusing here means refusing the whole asynchronous form.
         $started = new NexusOperationStartedEventAttributes();
         $started->setScheduledEventId(5);
-        $started->setOperationToken('jeton-asynchrone');
+        $started->setOperationToken('async-token');
 
         $history = TemporalExecutionHistory::fromEvents([
             $this->scheduled(5),
@@ -173,10 +173,10 @@ final class NexusHistoryReadingTest extends TestCase
         // long after the start, and it is what settles the slot.
         $started = new NexusOperationStartedEventAttributes();
         $started->setScheduledEventId(5);
-        $started->setOperationToken('jeton-asynchrone');
+        $started->setOperationToken('async-token');
         $completed = new NexusOperationCompletedEventAttributes();
         $completed->setScheduledEventId(5);
-        $completed->setResult((new Payload())->setData(JsonPlainPayload::encode(['montant' => 42])->getData()));
+        $completed->setResult((new Payload())->setData(JsonPlainPayload::encode(['amount' => 42])->getData()));
 
         $history = TemporalExecutionHistory::fromEvents([
             $this->scheduled(5),
@@ -187,7 +187,7 @@ final class NexusHistoryReadingTest extends TestCase
         $slot = $history->findNexusOperationSlotResult(0);
         self::assertNotNull($slot);
         self::assertNull($slot['failed'], 'The asynchronous start must no longer leave a failure behind it.');
-        self::assertSame(['montant' => 42], $slot['result']);
+        self::assertSame(['amount' => 42], $slot['result']);
     }
 
     public function testAnAsynchronousOperationThatFailsIsClassifiedLikeAnyOther(): void
@@ -195,7 +195,7 @@ final class NexusHistoryReadingTest extends TestCase
         // 3.3: the failure delivered by callback is of no other kind than the synchronous one.
         $started = new NexusOperationStartedEventAttributes();
         $started->setScheduledEventId(5);
-        $started->setOperationToken('jeton-asynchrone');
+        $started->setOperationToken('async-token');
         $failed = new NexusOperationFailedEventAttributes();
         $failed->setScheduledEventId(5);
 
@@ -233,7 +233,7 @@ final class NexusHistoryReadingTest extends TestCase
         $started->setScheduledEventId(5);
         $completed = new NexusOperationCompletedEventAttributes();
         $completed->setScheduledEventId(5);
-        $completed->setResult((new Payload())->setData(JsonPlainPayload::encode('fini')->getData()));
+        $completed->setResult((new Payload())->setData(JsonPlainPayload::encode('done')->getData()));
 
         $history = TemporalExecutionHistory::fromEvents([
             $this->scheduled(5),
@@ -244,15 +244,15 @@ final class NexusHistoryReadingTest extends TestCase
         $slot = $history->findNexusOperationSlotResult(0);
         self::assertNotNull($slot);
         self::assertNull($slot['failed']);
-        self::assertSame('fini', $slot['result']);
+        self::assertSame('done', $slot['result']);
     }
 
     private function scheduled(int $eventId): HistoryEvent
     {
         $attrs = new NexusOperationScheduledEventAttributes();
-        $attrs->setEndpoint('paiements');
-        $attrs->setService('facturation');
-        $attrs->setOperation('encaisser');
+        $attrs->setEndpoint('payments');
+        $attrs->setService('billing');
+        $attrs->setOperation('collect');
         // The application identity travels in the input payload, for want of a dedicated field
         // on the Temporal side — that is what the command buffer puts there.
         // The caller's payload, bare: the identity is the eventId the server assigns, and the

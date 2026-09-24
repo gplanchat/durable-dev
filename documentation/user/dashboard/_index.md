@@ -102,6 +102,14 @@ vocabulary and is deliberately not normalised, because deciding which of a backe
 name is worth doing once operators have said what they look for, and is a fabrication before then.
 An event the backend recorded nothing with stays a plain line rather than an expander onto nothing.
 
+What unfolds is masked the way `durable:execution:diagnose` and the web profiler mask it: values under
+keys such as `password`, `token`, `secret`, `authorization`, `card` or `api_key` are replaced, and long
+strings truncated. Anyone with access to the admin can open a run, so this page has no raw view. The
+masking goes by key name, so personal data under other keys still shows. The run page masks with the
+same redactor as those two: on the Sylius plugin, the service an application aliases to
+`Gplanchat\Durable\Observation\PayloadRedactorInterface`; on Magento, a preference the application
+declares for that interface.
+
 ## A fact a backend does not have is shown as absent
 
 Two absences look alike and are not:
