@@ -2,6 +2,11 @@
 
 Demonstrates `gplanchat/durable` with **Messenger**, **Temporal** (gRPC workers), and class-based workflows (`App\Durable\Workflow\`). Durable persistence **without DBAL** in this sample: Temporal journal or in-memory depending on environment.
 
+> [!WARNING]
+> **Local only.** This bench has no authentication. Its dashboard prints workflow histories,
+> payloads included, and its samples page starts workflows. Serve it on your own machine, never on
+> a reachable host.
+
 ## Requirements
 
 - PHP 8.2+
@@ -92,7 +97,7 @@ Requires a Temporal frontend reachable from the machine running PHPUnit (often `
 
 - Prerequisite: **ext-grpc**
 - Variable: **`DURABLE_DSN`**, e.g. `temporal://127.0.0.1:7233?namespace=default&journal_task_queue=durable-journal&activity_task_queue=durable-activities&tls=0` (adjust the port)
-- Command: `composer test:temporal-integration` or `php bin/phpunit --group temporal-integration`
+- Command: `php bin/phpunit --group temporal-integration`
 
 Without a DSN or a reachable server, tests in group **`temporal-integration`** are **skipped** (the default `composer test` suite stays green).
 
