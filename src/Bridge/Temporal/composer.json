@@ -14,16 +14,17 @@
     "license": "MIT",
     "type": "library",
     "require": {
-        "php": ">=8.2",
-        "gplanchat/durable": "self.version",
+        "ext-filter": "*",
         "google/common-protos": "^4.9",
         "google/protobuf": "^4.31",
+        "gplanchat/durable": "self.version",
         "grpc/grpc": "^1.57",
+        "php": ">=8.2",
         "psr/log": "^1.1 || ^2.0 || ^3.0",
-        "symfony/messenger": "^6.4 || ^7.0 || ^8.0",
-        "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
+        "symfony/config": "^6.4 || ^7.0 || ^8.0",
         "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
-        "symfony/config": "^6.4 || ^7.0 || ^8.0"
+        "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
+        "symfony/messenger": "^6.4 || ^7.0 || ^8.0"
     },
     "suggest": {
         "ext-grpc": "For transport=grpc (the default): the generated stub over the gRPC extension",
