@@ -6,4 +6,4 @@
   Decisions by the user on 2026-09-24.
 - **Entries**: `src/Durable/`, `documentation/user/{activities,options,workflows}/`, `UPGRADE.md`,
   their tests.
-- **State**: in progress — durable-50 (lane A).
+- **State**: in review — PR #493, durable-50 (lane A).
