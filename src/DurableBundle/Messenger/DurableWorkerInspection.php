@@ -7,11 +7,11 @@ namespace Gplanchat\Durable\Bundle\Messenger;
 use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use Psr\Container\ContainerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Messenger\Transport\Sender\SendersLocatorInterface;
 use Symfony\Component\Messenger\Transport\Sync\SyncTransport;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * What a starting Messenger worker consumes, as far as Durable is concerned, and with which
@@ -59,9 +59,6 @@ final class DurableWorkerInspection
      */
     public function hasRunListener(string $listenerClass, string $event): bool
     {
-        if (!method_exists($this->dispatcher, 'getListeners')) {
-            return false;
-        }
         foreach ($this->dispatcher->getListeners($event) as $listener) {
             if (\is_array($listener) && $listener[0] instanceof $listenerClass) {
                 return true;
