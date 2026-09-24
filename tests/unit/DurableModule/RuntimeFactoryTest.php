@@ -89,6 +89,35 @@ final class RuntimeFactoryTest extends TestCase
         self::assertSame(1, $calls);
     }
 
+    public function testTheHandedPsr18ClientCarriesTheJsonGateway(): void
+    {
+        $sent = 0;
+        $psr18 = new class ($sent) implements \Psr\Http\Client\ClientInterface {
+            public function __construct(private int &$sent) {}
+
+            public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface
+            {
+                ++$this->sent;
+
+                return new \GuzzleHttp\Psr7\Response(503, [], '{"code":14,"message":"stub"}');
+            }
+        };
+        $factory = new \GuzzleHttp\Psr7\HttpFactory();
+
+        $catalog = (new RuntimeFactory(
+            temporalDsn: 'temporal+http://127.0.0.1:7243?namespace=default',
+            jsonGateway: new \Gplanchat\Bridge\Temporal\Http\Psr18Http($psr18, $factory, $factory),
+        ))->catalog();
+
+        try {
+            $catalog->listRuns();
+        } catch (\RuntimeException) {
+            // UNAVAILABLE: the stub answers so, and that is all it is for.
+        }
+
+        self::assertSame(1, $sent);
+    }
+
     public function testWithoutAClusterTheCatalogIsTheProcessItself(): void
     {
         $catalog = (new RuntimeFactory())->catalog();
