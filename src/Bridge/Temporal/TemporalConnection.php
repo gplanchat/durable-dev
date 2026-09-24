@@ -105,7 +105,7 @@ final class TemporalConnection
             throw new \InvalidArgumentException('Temporal cert and key go together: a client certificate needs its private key.');
         }
         foreach (['ca' => $tlsCa, 'cert' => $tlsCert, 'key' => $tlsKey] as $name => $file) {
-            if (null !== $file && !is_readable($file)) {
+            if (null !== $file && !(is_file($file) && is_readable($file))) {
                 throw new \InvalidArgumentException(\sprintf('Temporal %s file "%s" cannot be read.', $name, $file));
             }
         }

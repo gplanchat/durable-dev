@@ -43,6 +43,9 @@ final class WorkflowServiceClientFactory
         // The JSON gateway is not gRPC: a client of its own, not a transport.
         // Over a handed PSR-18 client, curl is not needed.
         if (TemporalConnection::TRANSPORT_HTTP === $transport) {
+            if (null !== $jsonGateway && (null !== $settings->tlsCa || null !== $settings->tlsCert)) {
+                throw new \InvalidArgumentException('The handed PSR-18 client carries its own TLS configuration: set the CA and client certificate there, not as ca=/cert=/key= in the Temporal DSN.');
+            }
             if (null === $jsonGateway) {
                 self::assertCurl($transport);
             }
@@ -149,9 +152,23 @@ final class WorkflowServiceClientFactory
     public static function channelOptions(TemporalConnection $settings): array
     {
         $credentials = $settings->tls
-            ? ChannelCredentials::createSsl()
+            ? ChannelCredentials::createSsl(self::pem($settings->tlsCa), self::pem($settings->tlsKey), self::pem($settings->tlsCert))
             : ChannelCredentials::createInsecure();
 
         return ['credentials' => $credentials];
+    }
+
+    /** ext-grpc takes the PEM contents, where curl and Guzzle take the path. */
+    private static function pem(?string $file): ?string
+    {
+        if (null === $file) {
+            return null;
+        }
+        $pem = file_get_contents($file);
+        if (false === $pem) {
+            throw new \RuntimeException(\sprintf('Temporal TLS file "%s" cannot be read.', $file));
+        }
+
+        return $pem;
     }
 }

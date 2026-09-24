@@ -41,9 +41,9 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
             $url .= '' === $query ? '' : '?' . $query;
         }
 
-        $headers = ['content-type' => ['application/json'], 'accept' => ['application/json'], 'user-agent' => ['durable-bridge-temporal/php']] + $metadata;
+        $headers = ['content-type' => ['application/json'], 'accept' => ['application/json'], 'user-agent' => ['durable-bridge-temporal/php']] + $metadata + $this->connection->metadata();
         [$httpStatus, $body] = null === $this->http
-            ? self::overCurl($url, $verb, $json, $headers, $options)
+            ? self::overCurl($url, $verb, $json, $headers, $options, CurlGrpcTransport::tlsOptions($this->connection))
             : self::overPsr18($this->http, $url, $verb, $json, $headers);
 
         if (200 === $httpStatus) {
@@ -66,10 +66,11 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
     /**
      * @param array<string, mixed> $headers
      * @param array<string, mixed> $options
+     * @param array<int, string>   $tls
      *
      * @return array{int, string} [HTTP status, body]
      */
-    private static function overCurl(string $url, string $verb, string $json, array $headers, array $options): array
+    private static function overCurl(string $url, string $verb, string $json, array $headers, array $options, array $tls): array
     {
         $curl = curl_init($url);
         curl_setopt_array($curl, [
@@ -79,7 +80,7 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
             \CURLOPT_RETURNTRANSFER => true,
             \CURLOPT_CONNECTTIMEOUT => 10,
             \CURLOPT_TIMEOUT_MS => GrpcWire::timeoutMs($options),
-        ]);
+        ] + $tls);
 
         $body = curl_exec($curl);
         if (!\is_string($body)) {

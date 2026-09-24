@@ -43,6 +43,7 @@ final class TemporalConnectionTlsTest extends TestCase
         yield 'a certificate without its key' => ["temporal+tls://127.0.0.1?cert={$file}", 'together'];
         yield 'a key without its certificate' => ["temporal+tls://127.0.0.1?key={$file}", 'together'];
         yield 'a CA nobody can read' => ['temporal+tls://127.0.0.1?ca=/nonexistent/ca.pem', 'ca'];
+        yield 'a directory as CA' => ['temporal+tls://127.0.0.1?ca=' . rawurlencode(__DIR__), 'ca'];
     }
 
     #[DataProvider('refused')]
