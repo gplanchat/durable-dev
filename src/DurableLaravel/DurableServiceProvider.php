@@ -11,19 +11,15 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
-use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
 use Gplanchat\Bridge\Temporal\Http\Psr18Http;
-use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
-use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
-use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
+use Gplanchat\Bridge\Temporal\TemporalRuntimeAssembly;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
-use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
@@ -58,7 +54,6 @@ use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
-use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
@@ -281,78 +276,27 @@ final class DurableServiceProvider extends ServiceProvider
                 self::psr18Http($app, $temporal),
             ),
         );
+        // The graph is the bridge's (#356); each binding below is one of its objects.
+        $this->app->singleton(TemporalRuntimeAssembly::class, fn($app) => new TemporalRuntimeAssembly(
+            $app->make('durable.temporal.client'),
+            $app->make(TemporalConnection::class),
+            $app->make(WorkflowRegistry::class),
+            $app->make(WorkflowDefinitionLoader::class),
+        ));
+        $assembly = static fn($app): TemporalRuntimeAssembly => $app->make(TemporalRuntimeAssembly::class);
         // One sender for the activity worker, which binds each task's token onto it, and for the
         // activities that inject it: their heartbeats reach the cluster (#510).
-        $this->app->singleton(ActivityHeartbeatSenderInterface::class, fn($app) => new TemporalActivityHeartbeatSender(
-            new WorkflowServiceActivityRpc($app->make('durable.temporal.client')),
-            $app->make(TemporalConnection::class),
-        ));
-        $this->app->singleton(TemporalHistoryCursor::class, fn($app) => new TemporalHistoryCursor(
-            $app->make('durable.temporal.client'),
-            $app->make(TemporalConnection::class),
-        ));
-
-        $this->app->singleton(WorkflowRunCatalogInterface::class, fn($app) => new TemporalWorkflowRunCatalog(
-            $app->make('durable.temporal.client'),
-            $app->make(TemporalConnection::class),
-            $app->make(TemporalHistoryCursor::class),
-        ));
-
-        $this->app->singleton(WorkflowTaskRunner::class, fn($app) => new WorkflowTaskRunner(
-            $app->make(TemporalHistoryCursor::class),
-            $app->make(WorkflowRegistry::class),
-            $app->make(TemporalConnection::class),
-            $app->make(WorkflowDefinitionLoader::class),
-        ));
-
-        $this->app->singleton(WorkflowTaskProcessor::class, fn($app) => new WorkflowTaskProcessor(
-            $app->make('durable.temporal.client'),
-            $app->make(TemporalConnection::class),
-            $app->make(WorkflowTaskRunner::class),
-        ));
-
-        // Mirrors Magento's `RuntimeFactory::activityWorker()`. The journal is a scratch store: on
-        // this path an activity's result goes back through Temporal's RPC, not through a journal.
-        $this->app->singleton(TemporalActivityWorker::class, function ($app): TemporalActivityWorker {
-            $scratch = new InMemoryEventStore();
-
-            return new TemporalActivityWorker(
-                new WorkflowServiceActivityRpc($app->make('durable.temporal.client')),
-                $app->make(TemporalConnection::class),
-                new ActivityMessageProcessor(
-                    $scratch,
-                    new NoopActivityTransport(),
-                    $app->make(ActivityExecutor::class),
-                    new NullWorkflowResumeDispatcher(),
-                    $app->make(ActivityHeartbeatSenderInterface::class),
-                ),
-                $scratch,
-                $app->make(ActivityHeartbeatSenderInterface::class),
-            );
-        });
-
-        $this->app->singleton(WorkflowServiceExecutionRpc::class, fn($app) => new WorkflowServiceExecutionRpc(
-            $app->make('durable.temporal.client'),
-        ));
-
-        $this->app->singleton(WorkflowServiceNexusRpc::class, fn($app) => new WorkflowServiceNexusRpc(
-            $app->make('durable.temporal.client'),
-        ));
-
-        $this->app->singleton(WorkflowClientInterface::class, fn($app) => new WorkflowClient(
-            $app->make('durable.temporal.client'),
-            $app->make(TemporalConnection::class),
-            $app->make(TemporalHistoryCursor::class),
-            $app->make(WorkflowServiceExecutionRpc::class),
-            $app->make(WorkflowDefinitionLoader::class),
-        ));
-
+        $this->app->singleton(ActivityHeartbeatSenderInterface::class, fn($app) => $assembly($app)->heartbeatSender());
+        $this->app->singleton(TemporalHistoryCursor::class, fn($app) => $assembly($app)->historyCursor());
+        $this->app->singleton(WorkflowRunCatalogInterface::class, fn($app) => $assembly($app)->runCatalog());
+        $this->app->singleton(WorkflowTaskRunner::class, fn($app) => $assembly($app)->workflowTaskRunner());
+        $this->app->singleton(WorkflowTaskProcessor::class, fn($app) => $assembly($app)->workflowTaskProcessor());
+        $this->app->singleton(TemporalActivityWorker::class, fn($app) => $assembly($app)->scratchActivityWorker($app->make(ActivityExecutor::class)));
+        $this->app->singleton(WorkflowServiceExecutionRpc::class, fn($app) => $assembly($app)->executionRpc());
+        $this->app->singleton(WorkflowServiceNexusRpc::class, fn($app) => $assembly($app)->nexusRpc());
+        $this->app->singleton(WorkflowClientInterface::class, fn($app) => $assembly($app)->workflowClient());
         // The journal reads through to the cluster, with an in-memory store for the current turn.
-        $this->app->singleton(EventStoreInterface::class, fn($app) => new TemporalReadThroughEventStore(
-            new InMemoryEventStore(),
-            $app->make(TemporalHistoryCursor::class),
-            $app->make(WorkflowClientInterface::class),
-        ));
+        $this->app->singleton(EventStoreInterface::class, fn($app) => $assembly($app)->readThroughEventStore(new InMemoryEventStore()));
 
         $this->app->singleton(WorkflowMetadataStore::class, fn() => new InMemoryWorkflowMetadataStore());
         $this->app->singleton(

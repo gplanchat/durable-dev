@@ -4,15 +4,20 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Laravel;
 
+use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\TemporalRuntimeAssembly;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
+use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
+use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
+use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Illuminate\Container\Container;
 use PHPUnit\Framework\TestCase;
 use unit\DurableLaravel\Fixtures\HeartbeatingActivity;
@@ -65,6 +70,23 @@ final class TemporalBackendTest extends TestCase
         self::assertInstanceOf(TemporalActivityHeartbeatSender::class, $sender);
         self::assertSame($sender, (new \ReflectionProperty($processor, 'heartbeatSender'))->getValue($processor));
         self::assertSame($sender, $app->make(HeartbeatingActivity::class)->heartbeat);
+    }
+
+    public function testTheTemporalServicesComeFromOneAssemblyAndTheLoaderReachesThem(): void
+    {
+        $app = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN]]);
+        (new DurableServiceProvider($app))->register();
+
+        $assembly = $app->make(TemporalRuntimeAssembly::class);
+        self::assertSame($assembly->historyCursor(), $app->make(TemporalHistoryCursor::class));
+        self::assertSame($assembly->workflowClient(), $app->make(WorkflowClientInterface::class));
+        self::assertSame($assembly->workflowTaskProcessor(), $app->make(WorkflowTaskProcessor::class));
+        self::assertSame($assembly->runCatalog(), $app->make(WorkflowRunCatalogInterface::class));
+
+        $loader = $app->make(WorkflowDefinitionLoader::class);
+        $read = static fn(object $o, string $p): mixed => (new \ReflectionProperty($o, $p))->getValue($o);
+        self::assertSame($loader, $read($app->make(WorkflowTaskRunner::class), 'workflowDefinitionLoader'));
+        self::assertSame($loader, $read($app->make(WorkflowClientInterface::class), 'workflowDefinitionLoader'));
     }
 
     public function testMetadataAndParentLinksStayInMemoryBecauseTheClusterHoldsTheState(): void

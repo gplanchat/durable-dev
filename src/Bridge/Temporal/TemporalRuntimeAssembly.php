@@ -10,9 +10,16 @@ use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
+use Gplanchat\Durable\ActivityExecutor;
+use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\EventStoreInterface;
+use Gplanchat\Durable\Store\InMemoryEventStore;
+use Gplanchat\Durable\Transport\NoopActivityTransport;
+use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
 
@@ -30,11 +37,13 @@ final class TemporalRuntimeAssembly
 {
     private ?TemporalHistoryCursor $historyCursor = null;
     private ?TemporalWorkflowRunCatalog $runCatalog = null;
+    private ?WorkflowTaskRunner $workflowTaskRunner = null;
     private ?WorkflowTaskProcessor $workflowTaskProcessor = null;
     private ?WorkflowClient $workflowClient = null;
     private ?WorkflowServiceActivityRpc $activityRpc = null;
     private ?WorkflowServiceExecutionRpc $executionRpc = null;
     private ?WorkflowServiceNexusRpc $nexusRpc = null;
+    private ?TemporalActivityHeartbeatSender $heartbeatSender = null;
 
     public function __construct(
         private readonly WorkflowServiceClientInterface $client,
@@ -53,13 +62,14 @@ final class TemporalRuntimeAssembly
         return $this->runCatalog ??= new TemporalWorkflowRunCatalog($this->client, $this->connection, $this->historyCursor());
     }
 
+    public function workflowTaskRunner(): WorkflowTaskRunner
+    {
+        return $this->workflowTaskRunner ??= new WorkflowTaskRunner($this->historyCursor(), $this->registry, $this->connection, $this->definitionLoader);
+    }
+
     public function workflowTaskProcessor(): WorkflowTaskProcessor
     {
-        return $this->workflowTaskProcessor ??= new WorkflowTaskProcessor(
-            $this->client,
-            $this->connection,
-            new WorkflowTaskRunner($this->historyCursor(), $this->registry, $this->connection, $this->definitionLoader),
-        );
+        return $this->workflowTaskProcessor ??= new WorkflowTaskProcessor($this->client, $this->connection, $this->workflowTaskRunner());
     }
 
     public function workflowClient(): WorkflowClient
@@ -92,5 +102,28 @@ final class TemporalRuntimeAssembly
     public function nexusRpc(): WorkflowServiceNexusRpc
     {
         return $this->nexusRpc ??= new WorkflowServiceNexusRpc($this->client);
+    }
+
+    /** One per assembly: the activity worker binds each task's token onto it (#510). */
+    public function heartbeatSender(): TemporalActivityHeartbeatSender
+    {
+        return $this->heartbeatSender ??= new TemporalActivityHeartbeatSender($this->activityRpc(), $this->connection);
+    }
+
+    /**
+     * An activity worker whose journal is a scratch store: on this path an activity's result goes
+     * back through Temporal's RPC, not through a journal. Laravel and Magento run it this way.
+     */
+    public function scratchActivityWorker(ActivityExecutor $executor): TemporalActivityWorker
+    {
+        $scratch = new InMemoryEventStore();
+
+        return new TemporalActivityWorker(
+            $this->activityRpc(),
+            $this->connection,
+            new ActivityMessageProcessor($scratch, new NoopActivityTransport(), $executor, new NullWorkflowResumeDispatcher(), $this->heartbeatSender()),
+            $scratch,
+            $this->heartbeatSender(),
+        );
     }
 }

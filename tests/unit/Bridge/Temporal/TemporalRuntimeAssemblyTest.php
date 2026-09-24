@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Bridge\Temporal;
 
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
+use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\TemporalRuntimeAssembly;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
+use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
@@ -32,6 +35,7 @@ final class TemporalRuntimeAssemblyTest extends TestCase
         self::assertSame($assembly->workflowTaskProcessor(), $assembly->workflowTaskProcessor());
         self::assertSame($assembly->runCatalog(), $assembly->runCatalog());
         self::assertSame($assembly->activityRpc(), $assembly->activityRpc());
+        self::assertSame($assembly->heartbeatSender(), $assembly->heartbeatSender());
 
         self::assertInstanceOf(TemporalHistoryCursor::class, $assembly->historyCursor());
         self::assertInstanceOf(TemporalWorkflowRunCatalog::class, $assembly->runCatalog());
@@ -61,6 +65,19 @@ final class TemporalRuntimeAssemblyTest extends TestCase
         self::assertInstanceOf(TemporalReadThroughEventStore::class, $store);
         self::assertSame($local, self::read($store, 'localStore'));
         self::assertSame($assembly->workflowClient(), self::read($store, 'workflowClient'));
+    }
+
+    public function testTheScratchActivityWorkerSharesTheRpcAndTheHeartbeatSender(): void
+    {
+        $assembly = self::assembly($this->createMock(WorkflowServiceClientInterface::class));
+
+        $worker = $assembly->scratchActivityWorker(new RegistryActivityExecutor());
+
+        self::assertInstanceOf(TemporalActivityHeartbeatSender::class, $assembly->heartbeatSender());
+        self::assertSame($assembly->heartbeatSender(), self::read($worker, 'heartbeatSender'));
+        self::assertSame($assembly->heartbeatSender(), self::read(self::read($worker, 'processor'), 'heartbeatSender'));
+        self::assertInstanceOf(WorkflowServiceActivityRpc::class, self::read($worker, 'activityRpc'));
+        self::assertSame($assembly->activityRpc(), self::read($worker, 'activityRpc'));
     }
 
     private static function assembly(WorkflowServiceClientInterface $client, ?WorkflowDefinitionLoader $loader = null): TemporalRuntimeAssembly
