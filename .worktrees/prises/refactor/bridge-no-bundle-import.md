@@ -8,4 +8,4 @@
   `src/DurableBundle/Profiler/DurableExecutionTrace.php` (implements line),
   `src/Bridge/Temporal/Port/TemporalWorkflowResumeDispatcher.php`, one "New" line in `UPGRADE.md`,
   new tests under `tests/unit/Bridge/Temporal/` and `tests/unit/`.
-- **State**: in progress — vera.
+- **State**: pushed, PR held (epic #307 WIP full) — vera; reviewer bob.
