@@ -7,4 +7,4 @@
   `src/DurableModule/view/adminhtml/templates/process/detail.phtml`,
   `src/DurableBundle/Profiler/DurableProfilerEventPresentation.php`,
   `src/DurableBundle/Resources/views/Collector/durable.html.twig`, their tests.
-- **State**: in progress — sabrina.
+- **State**: in review — PR #501 (#262 + Magento), sabrina. Profiler and plugin panels: follow-up stacked on #488 and #497.
