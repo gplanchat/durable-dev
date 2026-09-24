@@ -26,7 +26,7 @@ class SagaWorkflow
 {
     public function run()
     {
-        // durable-rector: new Saga — no saga helper — the shape is a deadline and a compensation path, written out by hand
+        // durable-rector: new Saga — Durable\Workflow\Saga is a different shape — new Saga($env), and compensate() awaits instead of yielding
         $saga = new Workflow\Saga();
 
         return $saga;
