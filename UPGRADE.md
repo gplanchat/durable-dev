@@ -454,6 +454,12 @@ bench (`App\Temporal\NativeExecutionSpike`, with its `durable:temporal:native-sp
 was the DUR024 reference, not production code; `Worker\WorkflowTaskRunner` runs that path. Copy
 the class from the bench if you ran it; no Rector rule, since the class is no longer installed.
 
+### `DurableExecutionTrace::getTimelineForExecution()` is gone
+
+**Who is affected**: code that called it on the `durable.execution_trace` service. Nothing in
+Durable did. Filter `getTimeline()` by `executionId` instead:
+`array_values(array_filter($trace->getTimeline(), fn(array $e): bool => ($e['executionId'] ?? '') === $id))`.
+
 ## 0.1.0-alpha8
 
 ### The divergence guard compares the payload too
