@@ -42,6 +42,14 @@ Illuminate one.
 - **A `schema_filter` that rejects `durable_*` is honoured**: those tables are no longer declared to
   the Doctrine tooling, and the `CREATE TABLE` that came back in every diff is gone.
 
+### New: `WorkflowDispatchObserverInterface`, the core port for dispatch observation
+
+**Who is affected**: nobody has to change anything. `Gplanchat\Durable\Debug\WorkflowDispatchObserverInterface`
+declares `onWorkflowDispatchRequested()`, which `DurableExecutionTrace` already had.
+`TemporalWorkflowResumeDispatcher`'s fourth argument is now typed against it instead of
+`DurableExecutionTrace`, so the Temporal bridge no longer imports the Symfony bundle (#345). Passing
+a `DurableExecutionTrace` still works; a host without the bundle can now pass its own observer.
+
 ### `ResetDurableProfilerListener` is gone; the execution trace keeps its last 2 000 entries
 
 **Who is affected**: code that referenced `Gplanchat\Durable\Bundle\EventListener\ResetDurableProfilerListener`,
