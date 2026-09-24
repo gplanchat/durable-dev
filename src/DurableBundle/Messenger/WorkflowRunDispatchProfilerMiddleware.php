@@ -30,7 +30,7 @@ final class WorkflowRunDispatchProfilerMiddleware implements MiddlewareInterface
             $newRun = $envelope->last(NewWorkflowRunStamp::class);
             $this->trace->onWorkflowDispatchRequested(
                 $message->executionId,
-                $newRun?->workflowType ?? '',
+                $newRun->workflowType ?? '',
                 [],
                 null === $newRun,
                 $transportNames,
