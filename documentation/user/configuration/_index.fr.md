@@ -16,6 +16,7 @@ durable:
     dbal:                                    # lu seulement si un type ci-dessous vaut 'dbal'
         connection: doctrine.dbal.default_connection
         lock_factory: lock.factory           # doit être partagé entre les workers
+        lock_ttl: 300                        # secondes ; doit dépasser la plus longue passe de reprise
     event_store:
         type: in_memory                      # 'in_memory' (défaut) ou 'dbal'
         table_name: durable_events
@@ -60,6 +61,7 @@ ci-dessous vaut `dbal` ; ignoré sinon, le laisser à ses défauts ne coûte don
 |-----|------|--------|-------------|
 | `connection` | identifiant de service | `doctrine.dbal.default_connection` | La `Doctrine\DBAL\Connection` dans laquelle les magasins écrivent. |
 | `lock_factory` | identifiant de service | `lock.factory` | La `LockFactory` qui sérialise les reprises d'une même exécution. **Elle ne vaut que ce que vaut votre magasin de verrous** : une fabrique en mémoire ou locale au processus, avec plusieurs workers, vous redonne la panne que le verrou existe pour empêcher. |
+| `lock_ttl` | flottant, secondes | `300` | Combien de temps un verrou de reprise survit à un worker mort en le tenant. Il n'est pas rafraîchi pendant une passe, donc **il doit dépasser la plus longue passe de reprise** : au-delà, un second worker rejoue la même exécution en parallèle. Une passe rejoue le journal et planifie les commandes suivantes, ce qui prend en général bien moins d'une seconde. Les activités tournent en dehors, sauf sur un transport d'activités `sync://`, où chacune s'exécute dans la passe et où sa durée compte. |
 
 Le compromis que fait ce backend, et pourquoi le verrou est porteur, sont sur la page
 [Backends](../backends/#le-backend-dbal).

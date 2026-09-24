@@ -34,6 +34,14 @@ final class DurableMiddlewareReachesTheBusTest extends TestCase
         self::assertContains('durable.dbal.single_resume_lock', $middleware);
     }
 
+    public function testTheLockTtlIsConfigurable(): void
+    {
+        $container = new ContainerBuilder();
+        (new DurableExtension())->load([['event_store' => ['type' => 'dbal'], 'dbal' => ['lock_ttl' => 45.0]]], $container);
+
+        self::assertSame(45.0, $container->getDefinition('durable.dbal.single_resume_lock')->getArgument(1));
+    }
+
     public function testTheProfilerMiddlewareStaysInstalled(): void
     {
         $middleware = $this->middlewareOfBusAfterCompilation(['event_store' => ['type' => 'dbal']]);

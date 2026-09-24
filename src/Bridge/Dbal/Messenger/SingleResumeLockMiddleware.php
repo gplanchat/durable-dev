@@ -26,6 +26,14 @@ use Symfony\Component\Messenger\Middleware\StackInterface;
  */
 final class SingleResumeLockMiddleware implements MiddlewareInterface
 {
+    /** @var array<string, true> executions whose lock this process holds right now */
+    private array $held = [];
+
+    /**
+     * @param float $ttlSeconds how long a lock survives a worker that died holding it; it must
+     *                          exceed the longest resume pass, or a second worker replays in
+     *                          parallel (`durable.dbal.lock_ttl`)
+     */
     public function __construct(
         private readonly LockFactory $lockFactory,
         private readonly float $ttlSeconds = 300.0,
@@ -34,16 +42,23 @@ final class SingleResumeLockMiddleware implements MiddlewareInterface
     public function handle(Envelope $envelope, StackInterface $stack): Envelope
     {
         $executionId = self::executionIdOf($envelope->getMessage());
-        if (null === $executionId) {
+
+        // The pass that holds the lock dispatches the next resume of the same execution on the
+        // same bus: asking again for a lock this process holds waited for the TTL on every step
+        // (#254). Every other pass still locks, sends included: a resume routed to no transport is
+        // handled right there, without a ReceivedStamp, and needs the lock as much as a received one.
+        if (null === $executionId || isset($this->held[$executionId])) {
             return $stack->next()->handle($envelope, $stack);
         }
 
         $lock = $this->lockFactory->createLock('durable-resume-' . $executionId, $this->ttlSeconds);
         $lock->acquire(true);
+        $this->held[$executionId] = true;
 
         try {
             return $stack->next()->handle($envelope, $stack);
         } finally {
+            unset($this->held[$executionId]);
             $lock->release();
         }
     }

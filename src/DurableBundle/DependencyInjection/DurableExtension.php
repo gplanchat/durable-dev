@@ -195,7 +195,7 @@ final class DurableExtension extends Extension
 
             // With no server to serialize the tasks of one execution, the lock is mandatory.
             $container->register('durable.dbal.single_resume_lock', SingleResumeLockMiddleware::class)
-                ->setArguments([new Reference($config['dbal']['lock_factory'])])
+                ->setArguments([new Reference($config['dbal']['lock_factory']), $config['dbal']['lock_ttl']])
                 ->addTag(RegisterDurableMiddlewarePass::TAG, ['priority' => 90])
                 ->setPublic(false)
             ;
