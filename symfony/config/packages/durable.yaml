@@ -1,19 +1,11 @@
-# Journal: in-memory EventStore + Temporal bridge (WorkflowTaskRunner/WorkflowTaskProcessor) if durable.temporal.dsn is set.
-# No SQL persistence for the journal.
+# Journal: in memory by default and in test; Temporal in dev and prod, at DURABLE_DSN.
 durable:
-    event_store:
-        type: in_memory
-    temporal:
-        dsn: null
-    workflow_metadata:
-        type: in_memory
+    backend: in_memory
     activity_transport:
         type: messenger
         transport_name: durable_activities
     child_workflow:
         async_messenger: true
-        parent_link_store:
-            type: in_memory
     activity_contracts:
         cache: cache.app
         contracts:
@@ -24,39 +16,17 @@ durable:
 
 when@dev:
     durable:
-        event_store:
-            type: in_memory
+        backend: temporal
         temporal:
             dsn: '%env(DURABLE_DSN)%'
-        workflow_metadata:
-            type: in_memory
-        child_workflow:
-            async_messenger: true
-            parent_link_store:
-                type: in_memory
 
 when@prod:
     durable:
-        event_store:
-            type: in_memory
+        backend: temporal
         temporal:
             dsn: '%env(DURABLE_DSN)%'
-        workflow_metadata:
-            type: in_memory
-        child_workflow:
-            async_messenger: true
-            parent_link_store:
-                type: in_memory
 
 when@test:
     durable:
-        event_store:
-            type: in_memory
-        temporal:
-            dsn: null
-        workflow_metadata:
-            type: in_memory
         child_workflow:
             async_messenger: false
-            parent_link_store:
-                type: in_memory
