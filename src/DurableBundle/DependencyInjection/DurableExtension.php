@@ -134,6 +134,9 @@ final class DurableExtension extends Extension
         $this->registerInMemoryRunCatalog($container);
     }
 
+    /**
+     * @param array<array-key, mixed> $config
+     */
     public function getConfiguration(array $config, ContainerBuilder $container): Configuration
     {
         // A synthetic container, an extension test for instance, does not have this parameter;
