@@ -206,7 +206,9 @@ d'`ext-grpc`. Voir **DUR030**.
   persister.
 - Les minuteurs voyagent par le `DelayStamp` de Messenger, via `FireWorkflowTimersHandler`.
 - Les tables sont créées à la **première écriture** : aucune migration à jouer, aucune dépendance à
-  `doctrine/migrations`.
+  `doctrine/migrations`. `bin/console durable:setup` les crée d'avance ; lancez-la quand
+  `dbal.auto_setup` vaut `false`, ou quand la première écriture a lieu dans une transaction, où la
+  création automatique refuse (MySQL validerait cette transaction sur le `CREATE TABLE`).
 
 ### Configuration
 
