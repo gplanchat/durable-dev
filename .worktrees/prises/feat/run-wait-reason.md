@@ -6,4 +6,4 @@
 - **Entries**: `src/Durable/Handler/ResumeWorkflowHandler.php`, `src/Durable/Store/ProjectingEventStore.php`,
   `src/Durable/Observation/`, `src/Durable/Awaitable/AwaitableInspector.php`, the DBAL and
   Illuminate run catalogues and schemas, `documentation/user/`, their tests.
-- **State**: in progress — durable-50 (lane A).
+- **State**: in review — PR #476, durable-50 (lane A). Signal naming left for a human (see PR).
