@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Bridge\Temporal\Http;
 
 use Gplanchat\Bridge\Temporal\Grpc\ExtGrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcWorkflowServiceClient;
+use Gplanchat\Bridge\Temporal\Grpc\RetryingGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\CurlGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\GuzzleGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient;
@@ -31,6 +32,13 @@ final class WorkflowServiceClientFactoryTransportTest extends TestCase
             JsonGatewayWorkflowServiceClient::class,
             WorkflowServiceClientFactory::create(TemporalConnection::fromDsn('temporal://127.0.0.1?transport=http')),
         );
+    }
+
+    public function testTheWorkflowServiceClientRetriesTransientFailures(): void
+    {
+        $client = WorkflowServiceClientFactory::create(TemporalConnection::fromDsn('temporal://127.0.0.1:7233?transport=grpc-curl'));
+
+        self::assertInstanceOf(RetryingGrpcTransport::class, (new \ReflectionProperty($client, 'transport'))->getValue($client));
     }
 
     #[\PHPUnit\Framework\Attributes\RequiresPhpExtension('grpc')]

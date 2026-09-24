@@ -7,6 +7,7 @@ namespace Gplanchat\Bridge\Temporal;
 use Gplanchat\Bridge\Temporal\Grpc\ExtGrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcWorkflowServiceClient;
+use Gplanchat\Bridge\Temporal\Grpc\RetryingGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\CurlGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\GuzzleGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient;
@@ -50,7 +51,8 @@ final class WorkflowServiceClientFactory
             return new JsonGatewayWorkflowServiceClient($settings, $jsonGateway);
         }
 
-        return new GrpcWorkflowServiceClient(self::transportFor($transport, $settings, $guzzle));
+        // Only the WorkflowService RPCs are retried: the allowlist knows which of them are safe to send twice.
+        return new GrpcWorkflowServiceClient(new RetryingGrpcTransport(self::transportFor($transport, $settings, $guzzle)));
     }
 
     /** The gRPC transport the connection resolves to, for a caller that speaks another gRPC service. */
