@@ -1,0 +1,3 @@
+# The package archive ships the plugin, not its tests: they bootstrap from the monorepo (#373).
+/tests export-ignore
+/phpunit.xml export-ignore

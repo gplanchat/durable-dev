@@ -60,15 +60,13 @@ durable:
     dbal:
         connection: doctrine.dbal.default_connection
         lock_factory: lock.factory
+    backend: dbal
     event_store:
-        type: dbal
         table_name: durable_events
     workflow_metadata:
-        type: dbal
         table_name: durable_workflow_metadata
     child_workflow:
         parent_link_store:
-            type: dbal
             table_name: durable_child_workflow_parent_link
     activity_transport:
         type: messenger
@@ -79,8 +77,9 @@ Use a **durable** Messenger transport (Doctrine, Redis, AMQP) for `durable_workf
 `durable_activities` — an `in-memory://` transport throws away everything the SQL journal just
 persisted.
 
-`event_store.type: dbal` together with a non-empty `temporal.dsn` throws at compile time: the
-journal cannot have two sources of truth.
+`backend: dbal` with a `temporal.dsn` keeps the journal in SQL and uses the cluster only to serve
+Nexus operations. `backend: temporal` would hand it the journal instead: there is never a second
+source of truth.
 
 ## Schema
 
