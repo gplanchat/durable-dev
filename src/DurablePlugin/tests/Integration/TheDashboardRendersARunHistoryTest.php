@@ -53,6 +53,20 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertSame(1, substr_count($page, '<details>'), 'only one of the two events has anything to unfold');
     }
 
+    public function testAPageAfterTheFirstLeadsBack(): void
+    {
+        // #383: the controller hands the way back; the page must offer it, stack included.
+        $page = $this->render(previous: ['cursor' => 'c1', 'back' => 'WyIiXQ']);
+
+        self::assertStringContainsString('Previous page', $page);
+        self::assertStringContainsString('cursor=c1&amp;back=WyIiXQ', $page);
+    }
+
+    public function testTheFirstPageOffersNoWayBack(): void
+    {
+        self::assertStringNotContainsString('Previous page', $this->render());
+    }
+
     public function testAnEphemeralJournalIsNeitherAFailureNorASuccess(): void
     {
         // The third state: it answers, and its answer is empty by construction.
@@ -171,10 +185,12 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertSame(array_keys($catalogue('en')), array_keys($catalogue('fr')));
     }
 
-    private function render(bool $ephemeral = false, bool $badPayload = false, bool $waiting = false, string $locale = 'en'): string
+    /** @param array{cursor: string, back: string}|null $previous what the controller hands for the way back */
+    private function render(bool $ephemeral = false, bool $badPayload = false, bool $waiting = false, string $locale = 'en', ?array $previous = null): string
     {
         $catalog = new RenderingCatalog($ephemeral, $badPayload, $waiting);
         $model = (new RunDashboard($catalog))->build();
+        $model['pagination']['previous'] = $previous;
 
         return $this->twig($locale)->render('@DurablePlugin/admin/dashboard/index.html.twig', $model);
     }
@@ -193,7 +209,7 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         ]);
 
         $twig = new Environment(new ChainLoader([$plugin, $sylius]), ['strict_variables' => true]);
-        $twig->addFunction(new TwigFunction('path', static fn(string $route, array $parameters = []): string => '/admin/durable/dashboard'));
+        $twig->addFunction(new TwigFunction('path', static fn(string $route, array $parameters = []): string => '/admin/durable/dashboard?' . http_build_query($parameters)));
 
         $translator = new Translator($locale);
         $translator->addLoader('xlf', new XliffFileLoader());

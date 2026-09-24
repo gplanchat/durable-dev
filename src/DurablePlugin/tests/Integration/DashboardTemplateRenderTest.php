@@ -43,6 +43,12 @@ final class DashboardTemplateRenderTest extends TestCase
         self::assertStringNotContainsString('run.duration', $this->template);
     }
 
+    public function testAnExpandedPayloadHasAColourOfItsOwn(): void
+    {
+        // #256: the block set a background and no colour, so a dark theme drew it white on white.
+        self::assertMatchesRegularExpression('/\.durable-events pre \{[^}]*background:[^}]*[;\s]color:/', $this->template);
+    }
+
     public function testTheTemplateStillLivesInTheSyliusAdminLayout(): void
     {
         self::assertStringContainsString('@SyliusAdmin/shared/layout/base.html.twig', $this->template);

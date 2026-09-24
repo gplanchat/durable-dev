@@ -20,6 +20,7 @@
             <trans-unit id="runs.title"><source>runs.title</source><target>Exécutions</target></trans-unit>
             <trans-unit id="runs.empty"><source>runs.empty</source><target>Aucune exécution ne correspond à ce filtre.</target></trans-unit>
             <trans-unit id="runs.group"><source>runs.group</source><target>Groupe :</target></trans-unit>
+            <trans-unit id="pagination.previous"><source>pagination.previous</source><target>Page précédente</target></trans-unit>
             <trans-unit id="pagination.next"><source>pagination.next</source><target>Page suivante</target></trans-unit>
             <trans-unit id="details.title"><source>details.title</source><target>Détail de l'exécution</target></trans-unit>
             <trans-unit id="details.workflow"><source>details.workflow</source><target>Workflow :</target></trans-unit>

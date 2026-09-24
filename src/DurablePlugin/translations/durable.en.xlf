@@ -20,6 +20,7 @@
             <trans-unit id="runs.title"><source>runs.title</source><target>Runs</target></trans-unit>
             <trans-unit id="runs.empty"><source>runs.empty</source><target>No workflow run matches this filter.</target></trans-unit>
             <trans-unit id="runs.group"><source>runs.group</source><target>Group:</target></trans-unit>
+            <trans-unit id="pagination.previous"><source>pagination.previous</source><target>Previous page</target></trans-unit>
             <trans-unit id="pagination.next"><source>pagination.next</source><target>Next page</target></trans-unit>
             <trans-unit id="details.title"><source>details.title</source><target>Run details</target></trans-unit>
             <trans-unit id="details.workflow"><source>details.workflow</source><target>Workflow:</target></trans-unit>
