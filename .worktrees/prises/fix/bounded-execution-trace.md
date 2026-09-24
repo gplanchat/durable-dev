@@ -5,4 +5,4 @@
 - **Entries**: `src/DurableBundle/Profiler/DurableExecutionTrace.php`,
   `src/DurableBundle/EventListener/ResetDurableProfilerListener.php`, `DurableExtension`'s profiler
   registration, their tests.
-- **State**: in progress — durable-7f (lane B).
+- **State**: in review — PR #489, durable-7f (lane B).
