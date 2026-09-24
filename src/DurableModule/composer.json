@@ -14,9 +14,13 @@
     "license": "MIT",
     "type": "magento2-module",
     "require": {
-        "php": ">=8.2",
+        "ext-mbstring": "*",
         "gplanchat/durable": "self.version",
-        "magento/framework": "^103.0"
+        "magento/framework": "^103.0",
+        "magento/module-backend": "^102.0",
+        "magento/module-ui": "^101.2",
+        "php": ">=8.2",
+        "symfony/console": "^6.4 || ^7.0"
     },
     "conflict": {
         "gplanchat/durable-bridge-dbal": "*",
