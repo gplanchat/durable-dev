@@ -59,14 +59,6 @@
         <InternalMethod>
             <errorLevel type="suppress"><directory name="tests" /></errorLevel>
         </InternalMethod>
-        <!-- Set inside a closure the workflow runs, or through a reference: Psalm reads the variable before the closure ran. -->
-        <TypeDoesNotContainType>
-            <errorLevel type="suppress">
-                <file name="tests/unit/Bridge/Temporal/Worker/TemporalWorkflowCancellationTest.php" />
-                <file name="tests/unit/Bridge/Temporal/Worker/WorkflowTaskRunnerTest.php" />
-                <file name="tests/unit/Durable/WorkflowHandlerDispatchTest.php" />
-            </errorLevel>
-        </TypeDoesNotContainType>
         <!-- The bus the nested handler dispatches to is built before the handler can run. -->
         <NullReference>
             <errorLevel type="suppress">
@@ -128,16 +120,11 @@
                 <file name="tests/unit/DurablePhpstan/ActivitiesParameterRuleTest.php" />
             </errorLevel>
         </ForbiddenCode>
-        <!-- Bare-container Laravel providers and facades (see phpstan.neon), MapField stubs, one
-             deliberate TypeError. -->
+        <!-- Bare-container Laravel providers and facades (see phpstan.neon). -->
         <InvalidArgument>
             <errorLevel type="suppress">
                 <referencedFunction name="Gplanchat\Durable\Laravel\DurableServiceProvider::__construct" />
                 <referencedFunction name="Illuminate\Support\Facades\Facade::setFacadeApplication" />
-                <!-- The google/protobuf MapField stubs, as in phpstan.neon. -->
-                <file name="tests/integration/Temporal/NexusHeaderRulesTest.php" />
-                <!-- The test expects the TypeError a wrong namespace type raises. -->
-                <file name="tests/unit/Durable/WorkflowNamespaceTest.php" />
             </errorLevel>
         </InvalidArgument>
     </issueHandlers>

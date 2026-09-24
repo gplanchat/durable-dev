@@ -61,6 +61,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
             },
         );
 
+        /** @psalm-suppress TypeDoesNotContainType set inside the workflow closure, which Psalm reads as never run */
         self::assertInstanceOf(WorkflowCancelledFailure::class, $seen, 'the workflow must be able to catch the cancellation');
         self::assertContains(CommandType::COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION, $this->commandTypes($commands));
     }

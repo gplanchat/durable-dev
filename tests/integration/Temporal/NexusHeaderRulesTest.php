@@ -197,9 +197,12 @@ final class NexusHeaderRulesTest extends TestCase
         $poll->setIdentity($this->connection->identity);
         $task = $this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]);
 
-        $map = new MapField(GPBType::STRING, GPBType::STRING);
+        // google/protobuf's MapField stubs type the GPBType ints as `long` and the values as objects.
+        /** @psalm-suppress InvalidArgument the MapField stub, not the call */
+        $map = new MapField(GPBType::STRING, GPBType::STRING); // @phpstan-ignore argument.type, argument.type (MapField stub, both arguments)
         foreach ($header as $k => $v) {
-            $map[$k] = $v;
+            /** @psalm-suppress InvalidArgument the MapField stub, not the call */
+            $map[$k] = $v; // @phpstan-ignore offsetAssign.valueType (MapField stub)
         }
 
         $attrs = new ScheduleNexusOperationCommandAttributes();
