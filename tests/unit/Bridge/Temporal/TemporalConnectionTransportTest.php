@@ -77,6 +77,26 @@ final class TemporalConnectionTransportTest extends TestCase
         self::assertFalse(property_exists(TemporalConnection::class, 'innerMessengerDsn'));
     }
 
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function unknownKeys(): iterable
+    {
+        yield 'a typo' => ['temporal://127.0.0.1?namesapce=orders', 'namesapce'];
+        yield 'a key from another client' => ['temporal://127.0.0.1?namespace=orders&ssl=1', 'ssl'];
+        yield 'a removed key' => ['temporal://127.0.0.1?inner=doctrine://default', 'inner'];
+    }
+
+    #[DataProvider('unknownKeys')]
+    public function testAnUnknownQueryKeyIsRefusedByName(string $dsn, string $key): void
+    {
+        // Ignored, a typo would silently run against the default namespace (R-10).
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('#"' . $key . '"#');
+
+        TemporalConnection::fromDsn($dsn);
+    }
+
     public function testAnUnknownTransportIsRefusedAtWiringTime(): void
     {
         $this->expectException(\InvalidArgumentException::class);

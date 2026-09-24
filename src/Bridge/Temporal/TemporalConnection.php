@@ -112,8 +112,8 @@ final class TemporalConnection
      *
      * Typical query parameters: {@code namespace}, {@code identity}, {@code task_queue} or
      * {@code journal_task_queue}, {@code workflow_type}, {@code workflow_task_queue},
-     * {@code activity_task_queue}, and {@code transport} to override the choice
-     * the scheme implies (auto, grpc, grpc-curl, http).
+     * {@code activity_task_queue}, {@code nexus_task_queue}, and {@code transport} to override
+     * the choice the scheme implies (auto, grpc, grpc-curl, guzzle, http). Any other key is refused.
      */
     public static function fromDsn(#[\SensitiveParameter] string $dsn): self
     {
@@ -128,6 +128,11 @@ final class TemporalConnection
         [$schemeTransport, $schemeTls] = self::SCHEMES[$scheme];
 
         parse_str($parts['query'] ?? '', $q);
+        foreach (array_keys($q) as $key) {
+            if (!\in_array($key, self::QUERY_KEYS, true)) {
+                throw new \InvalidArgumentException(\sprintf('Unknown Temporal DSN query key "%s", expected one of: %s.', $key, implode(', ', self::QUERY_KEYS)));
+            }
+        }
 
         $transport = \is_string($q['transport'] ?? null) ? $q['transport'] : $schemeTransport;
         // The JSON gateway listens on its own port; a DSN that names the transport but not the
@@ -165,6 +170,12 @@ final class TemporalConnection
             transport: $transport,
         );
     }
+
+    /** Every key {@see fromDsn} reads; any other is refused rather than ignored. */
+    private const QUERY_KEYS = [
+        'namespace', 'identity', 'task_queue', 'journal_task_queue', 'workflow_type',
+        'workflow_task_queue', 'activity_task_queue', 'nexus_task_queue', 'transport', 'tls',
+    ];
 
     /** scheme => [transport it implies, TLS it implies] */
     private const SCHEMES = [
