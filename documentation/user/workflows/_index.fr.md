@@ -381,6 +381,35 @@ Vous n'instanciez jamais d'implémentation d'activité dans le corps du workflow
 | Entrée | Au moins une `#[AsWorkflowMethod]` ; `default: true` s'il y en a plusieurs |
 | E/S | Aucune dans le workflow ; passez par des activités |
 | Appels au travail | Par un **`ActivityStub`**, construit dans le constructeur depuis un contrat d'activité |
+| `finally` | S'exécute à chaque passe qui se suspend, pas une fois par exécution ; n'y mettez pas de travail |
+
+## `finally` s'exécute à chaque passe qui se suspend
+
+Un workflow qui attend n'est pas gardé en mémoire d'une passe à l'autre. Chaque passe le rejoue
+jusqu'à la prochaine attente, puis l'abandonne, et PHP exécute ses blocs `finally` à ce moment-là.
+Les SDK Java et Go de Temporal font de même quand ils évincent un workflow de leur cache.
+
+```php
+try {
+    return $env->await($this->payments->charge($order));
+} finally {
+    $this->released = true;                       // s'exécute à chaque passe qui attend ici
+    $this->inventory->release($order);            // refusé pendant l'abandon de la passe
+}
+```
+
+- **Le code ordinaire d'un `finally` s'exécute à chaque passe.** Affecter un champ, ou ajouter à
+  un journal tenu dans le workflow, se refait à chaque fois que le workflow reprend et attend de
+  nouveau.
+- **Le travail lancé depuis un `finally` est refusé pendant l'abandon de la passe.** Une activité,
+  un timer, un enfant ou un side effect lancé à ce moment n'atteint jamais le journal, et un
+  `await` n'y attend pas. La passe se termine comme elle l'aurait fait sans le `finally`.
+- **Sur la passe où le workflow se termine vraiment**, par un retour, un échec ou une annulation,
+  le `finally` s'exécute normalement, et le travail qu'il lance est enregistré.
+
+Un nettoyage qui doit avoir lieu une seule fois se place dans un `catch`, ou après le `try`, là où
+le workflow n'arrive que lorsqu'il y arrive vraiment : c'est ainsi que s'écrit une compensation,
+voir [Annulation](../cancellation/).
 
 ## Voir aussi
 
