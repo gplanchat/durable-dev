@@ -8,4 +8,4 @@
   `openspec/changes/archive/`, `openspec/specs/`, `documentation/wa/WA006-*.md` (debt count only).
 - **Done when**: `openspec list` shows only `backend-data-parity` and `demo-nexus-laravel`;
   `openspec validate --specs --strict` passes; `grep -rn '#\[Workflow\]' openspec/specs` is empty.
-- **State**: in progress.
+- **State**: in review — PR #500.
