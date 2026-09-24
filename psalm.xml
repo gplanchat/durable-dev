@@ -22,7 +22,6 @@
         <ignoreFiles>
             <directory name="src/Bridge/Temporal/Api" />
             <directory name="src/Bridge/Temporal/Generated" />
-            <directory name="src/Bridge/Temporal/Spike" />
             <directory name="src/DurablePlugin/tests" />
             <!-- See phpstan.neon: illuminate/console cannot enter the root graph. -->
             <directory name="src/DurableLaravel/Console" />

@@ -24,7 +24,6 @@ parameters:
         - src/DurableLaravel/Console
         - src/Bridge/Temporal/Api
         - src/Bridge/Temporal/Generated
-        - src/Bridge/Temporal/Spike
         # Code written wrong on purpose: the PHPStan rule tests feed it to the rules.
         - tests/unit/DurablePhpstan/Fixtures
         # The code the Rector rules migrate, written as a Temporal SDK user wrote it.
