@@ -17,6 +17,20 @@ final class CurlGrpcTransport implements GrpcTransport
 {
     public function __construct(private readonly TemporalConnection $connection) {}
 
+    /**
+     * The curl options for the connection's CA and client certificate, shared with the JSON gateway.
+     *
+     * @return array<int, string>
+     */
+    public static function tlsOptions(TemporalConnection $connection): array
+    {
+        return array_filter([
+            \CURLOPT_CAINFO => $connection->tlsCa,
+            \CURLOPT_SSLCERT => $connection->tlsCert,
+            \CURLOPT_SSLKEY => $connection->tlsKey,
+        ], static fn(?string $file): bool => null !== $file);
+    }
+
     public function unary(string $method, Message $request, string $responseClass, array $metadata, ?int $timeoutMs): Message
     {
         $headers = ['content-type: application/grpc', 'te: trailers', 'user-agent: durable-bridge-temporal/php'];
@@ -30,7 +44,7 @@ final class CurlGrpcTransport implements GrpcTransport
         curl_setopt_array($curl, [
             \CURLOPT_POST => true,
             \CURLOPT_POSTFIELDS => GrpcWire::frame($request->serializeToString()),
-            \CURLOPT_HTTPHEADER => array_merge($headers, GrpcWire::metadataHeaders($metadata)),
+            \CURLOPT_HTTPHEADER => array_merge($headers, GrpcWire::metadataHeaders($metadata + $this->connection->metadata())),
             // h2c needs prior knowledge (no Upgrade dance); over TLS, ALPN negotiates h2.
             \CURLOPT_HTTP_VERSION => $this->connection->tls ? \CURL_HTTP_VERSION_2_0 : \CURL_HTTP_VERSION_2_PRIOR_KNOWLEDGE,
             \CURLOPT_RETURNTRANSFER => true,
@@ -46,7 +60,7 @@ final class CurlGrpcTransport implements GrpcTransport
 
                 return \strlen($line);
             },
-        ]);
+        ] + self::tlsOptions($this->connection));
 
         $body = curl_exec($curl);
         if (!\is_string($body)) {
