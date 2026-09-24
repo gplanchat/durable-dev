@@ -38,6 +38,21 @@ Nothing in this repository, its demos or its documentation did (#372).
 
 Each wrapper only added the default gRPC deadline (`TemporalGrpcTimeouts::SHORT_US`); pass it as
 the `timeout` call option when calling the client directly.
+### Unused helpers removed from the core
+
+**Who is affected**: code that called one of these. Nothing in this repository, its demos or its
+documentation did, and none has a replacement to migrate to: each one read state the engine keeps
+for itself.
+
+| Removed | If you used it |
+|---|---|
+| `Awaitable\ExecutionBoundAwaitable` (interface) | implement `Awaitable` directly |
+| `ExecutionContext::pendingTimers()`, `pendingActivities()` | nothing: they exposed the engine's own bookkeeping |
+| `Awaitable\QuorumAwaitable::required()` | keep the count you passed to `some()` |
+| `Transport\InMemoryActivityTransport::pendingCount()`, `inspectPendingActivities()` | `peek()` and `nextDueAt()` remain |
+| `Transport\ActivityMessage::withAttempt()` | `retryingIn($message->retryDelay)` for `withAttempt($message->attempt + 1)`; for any other number, `new ActivityMessage(…, attempt: $n, firstQueuedAt: $message->firstQueuedAt, retryDelay: $message->retryDelay)` (named arguments; all properties are public). |
+| `Failure\ActivityRetryState::isTerminalBusinessFailure()` | `\in_array($state, [ActivityRetryState::NonRetryableFailure, ActivityRetryState::MaximumAttemptsReached, ActivityRetryState::Timeout, ActivityRetryState::RetryPolicyNotSet], true)` |
+| `Query\WorkflowQueryRunner::signalsReceived()`, `updatesHandled()` and their `WorkflowQueryEvaluator` statics | read `WorkflowSignalReceived` / `WorkflowUpdateHandled` from the journal |
 
 ### `durable.backend` replaces four keys; the configuration refuses what it used to build
 

@@ -105,6 +105,11 @@ ActivityTimeouts::attempt(Duration::seconds(30));      // the common case: bound
     scheduleToClose: Duration::minutes(30),
     heartbeat:       Duration::seconds(30),
 ));
+
+// Each bound has a with…() that returns a copy with that one bound changed; null removes it.
+ActivityTimeouts::attempt(Duration::seconds(30))
+    ->withScheduleToStart(Duration::seconds(10))
+    ->withHeartbeat(Duration::seconds(5));
 ```
 
 A heartbeat longer than `startToClose` is rejected: the attempt would end before the first missed
@@ -181,6 +186,9 @@ new WorkflowTimeouts(
     run:       Duration::minutes(10),
     task:      Duration::seconds(10),
 );
+
+// The same with…() copies: withExecution(), withRun(), withTask(); null removes the bound.
+WorkflowTimeouts::run(Duration::minutes(10))->withTask(Duration::seconds(10));
 ```
 
 A run bound longer than the execution bound is **rejected**. The server does not reject it; it
@@ -189,6 +197,8 @@ the one that applies. Better to hear about it.
 
 `ContinueAsNewOptions` refuses an execution bound outright: the new run belongs to the current
 execution and inherits it. Use `withoutExecutionBound()` to reuse a `WorkflowTimeouts` there.
+Its own copies are `withTimeouts()` and `withTaskQueue()`, which moves the next run to another
+task queue.
 
 ---
 
