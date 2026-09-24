@@ -24,6 +24,38 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### `durable.backend` replaces four keys; the configuration refuses what it used to build
+
+**Who is affected**: Symfony applications that set `event_store.type`, `workflow_metadata.type`,
+`child_workflow.parent_link_store.type` or `temporal.journal`. They keep working for this version:
+the backend is derived from them, and each one set reports a deprecation. Rector does not read
+YAML; the translation is by hand.
+
+| Before | After |
+|--------|-------|
+| nothing, or the three `type` keys at `in_memory` | `backend: in_memory`, or nothing |
+| the three `type` keys at `dbal` | `backend: dbal` |
+| `temporal.dsn` set (and `journal: true`) | `backend: temporal` with the same `temporal.dsn` |
+| `event_store.type: dbal`, `temporal.dsn` and `journal: false` | `backend: dbal` with the same `temporal.dsn` |
+
+Remove the four old keys once `backend` is set. Left in place, one that disagrees with `backend` is
+an error, not a silent override.
+
+Also refused from this version, when the container is built, with the configuration path in the
+message: a `temporal.dsn` that is not a non-empty string (`null` still means no cluster), a
+negative `max_activity_retries`, and an `activity_contracts.contracts` entry that is not an
+interface the autoloader finds. The last one used to surface as a `ReflectionException` in
+`cache:warmup`.
+
+The mutual exclusion of a DBAL journal and a Temporal journal is now an
+`InvalidConfigurationException` rather than a `LogicException`. Code that caught the latter around
+a container build catches the former.
+
+`activity_transport.table_name` is deprecated: nothing ever read it. Delete the line.
+
+`profiler.enabled` is new. It defaults to `%kernel.debug%`, which is what the bundle did before;
+set it to keep the profiler out of a debug worker, or in a non-debug staging build.
+
 ### `durable:execution:diagnose` and the profiler panel mask payload secrets
 
 **Who is affected**: scripts that read secrets out of `durable:execution:diagnose --json`, and
