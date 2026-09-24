@@ -18,7 +18,7 @@ whether to compensate, alert, or let the workflow die. Compensating is shown in
 | `ActivityScheduled` | the workflow asked for it |
 | `ActivityTaskStarted` | one attempt began, one row per attempt |
 | `ActivityTaskFailed` | **one attempt failed**, whether or not another follows |
-| `ActivityTaskCompleted` | one attempt succeeded |
+| `ActivityTaskCompleted` | journals recorded before #262 only: a success now writes `ActivityCompleted` alone |
 | `ActivityCompleted` | final outcome: success |
 | `ActivityFailed` | final outcome: failure |
 | `ActivityCancelled` | final outcome: removed before completing |
@@ -80,6 +80,28 @@ after a first try.
 > [!WARNING]
 > With no explicit limit, attempts are **unlimited**. An activity that always fails will retry
 > forever and the workflow will never fail. See [Options](../options/#retrylimit).
+
+---
+
+## Which retry knob lives where (Symfony Messenger)
+
+Durable decides; Messenger delivers.
+
+| Question | Who answers | The knob |
+|---|---|---|
+| Is this failure worth another attempt? | Durable | `nonRetryableExceptions` on `ActivityOptions` |
+| How many attempts, and how long between them? | Durable | `retryLimit`, `initialInterval`, `backoffCoefficient`, `maximumInterval`; `max_activity_retries` caps them all |
+| Where does a failed activity go for an operator to look at? | Messenger | `failure_transport` |
+| Delivery, acknowledgement, the transport itself | Messenger | the `durable_activities` transport |
+
+Durable schedules its own retries: a retried attempt is a new message, queued with its delay. The
+handler never throws for a failure Durable will retry, so Messenger's `retry_strategy` does not
+apply to activities and there is no second counter.
+
+A **non-retryable** failure is journalled, then thrown as `UnrecoverableMessageHandlingException`:
+Messenger does not retry it, and sends it to `failure_transport` when you configured one.
+`messenger:failed:retry` on it runs nothing again. The journal already holds that attempt and
+answers for it.
 
 ---
 

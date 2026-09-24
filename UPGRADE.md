@@ -37,6 +37,23 @@ alias the interface to your service; both surfaces use it.
 The profiler reads at most 20 ids from `?durable_execution=`, and drops an id that is not printable
 ASCII without spaces, quotes, ampersands or angle brackets.
 
+### `ResetDurableProfilerListener` is gone; the execution trace keeps its last 2 000 entries
+
+**Who is affected**: code that referenced `Gplanchat\Durable\Bundle\EventListener\ResetDurableProfilerListener`,
+to decorate or remove it. Delete the reference: `DurableExecutionTrace` now keeps its last 2 000
+entries (`MAX_ENTRIES`) on its own, which holds on a Temporal worker too, where `kernel.reset`
+never fires. Between two Messenger messages, `kernel.reset` still empties it.
+
+### One type catches every Durable error: `Gplanchat\Durable\Exception\ExceptionInterface`
+
+**Who is affected**: nobody has to change anything; this is an addition. Every error class under
+`Gplanchat\Durable\Exception` and the two Nexus exceptions implement it, so a host can write
+`catch (ExceptionInterface $e)` instead of listing them.
+
+The control-flow signals — `WorkflowSuspendedException`, `ContinueAsNewRequested`,
+`ChildWorkflowStartDeferred` — do not: they end a pass of workflow code on purpose, and a catch in
+that code must let them through.
+
 ### The run list tells a run waiting for a worker: `picked_up_at` on `durable_workflow_runs`
 
 **Who is affected**: applications on the DBAL or Illuminate backend whose `durable_workflow_runs`
@@ -357,6 +374,19 @@ carries a `kernel.reset` tag and is therefore also emptied between two messages 
 An application that wants to observe executions in production does not have to resurrect the
 profiler: it implements `WorkflowExecutionObserverInterface` and aliases the interface to its own
 service — what the profiler did, cheaper, and without accumulating a timeline for nobody's screen.
+
+### A successful activity writes `ActivityCompleted` only, no `ActivityTaskCompleted` (#262)
+
+**Who is affected**: code that reads the journal and waits for `ActivityTaskCompleted` to learn
+that an activity succeeded — a listener on the event store, a custom projection. On success the
+worker used to append `ActivityTaskCompleted` and then `ActivityCompleted` with the same body; it now
+appends `ActivityCompleted` alone. Read `ActivityCompleted`: it was already the event replay reads,
+and it carries the same result. Failures do not change: one `ActivityTaskFailed` per attempt, then
+`ActivityFailed`.
+
+Journals recorded before keep both events. They replay and read as before: the class, its mapping
+and the dashboard reader's handling of it stay. No Rector rule or script: what changes is which
+event a listener receives at run time, not code Rector can rewrite.
 
 ## 0.1.0-alpha8
 

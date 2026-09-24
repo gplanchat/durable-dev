@@ -18,7 +18,7 @@ est montrée dans [Annulation](../cancellation/#compenser).
 | `ActivityScheduled` | le workflow l'a demandée |
 | `ActivityTaskStarted` | une tentative a commencé, une ligne par tentative |
 | `ActivityTaskFailed` | **une tentative a échoué**, qu'une autre suive ou non |
-| `ActivityTaskCompleted` | une tentative a réussi |
+| `ActivityTaskCompleted` | journaux enregistrés avant #262 seulement : un succès n'écrit plus que `ActivityCompleted` |
 | `ActivityCompleted` | résultat final : succès |
 | `ActivityFailed` | résultat final : échec |
 | `ActivityCancelled` | résultat final : retirée avant d'aboutir |
@@ -81,6 +81,29 @@ trois réessais après un premier essai.
 > Sans limite explicite, les tentatives sont **illimitées**. Une activité qui échoue
 > systématiquement réessaiera indéfiniment et le workflow n'échouera jamais. Voir
 > [Options](../options/#retrylimit).
+
+---
+
+## Quel réglage de réessai vit où (Symfony Messenger)
+
+Durable décide ; Messenger achemine.
+
+| Question | Qui répond | Le réglage |
+|---|---|---|
+| Cet échec vaut-il une nouvelle tentative ? | Durable | `nonRetryableExceptions` sur `ActivityOptions` |
+| Combien de tentatives, et quel délai entre elles ? | Durable | `retryLimit`, `initialInterval`, `backoffCoefficient`, `maximumInterval` ; `max_activity_retries` les plafonne tous |
+| Où va une activité en échec pour qu'un opérateur la retrouve ? | Messenger | `failure_transport` |
+| Acheminement, acquittement, le transport lui-même | Messenger | le transport `durable_activities` |
+
+Durable planifie ses propres réessais : une tentative réessayée est un nouveau message, mis en file
+avec son délai. Le handler ne lève jamais d'exception pour un échec que Durable va réessayer : le
+`retry_strategy` de Messenger ne s'applique donc pas aux activités, et il n'y a pas de second
+compteur.
+
+Un échec **non réessayable** est journalisé, puis levé en `UnrecoverableMessageHandlingException` :
+Messenger ne le réessaie pas, et l'envoie au `failure_transport` si vous en avez configuré un.
+`messenger:failed:retry` sur ce message ne relance rien. Le journal contient déjà cette tentative et
+répond à sa place.
 
 ---
 

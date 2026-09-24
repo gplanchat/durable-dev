@@ -26,7 +26,7 @@ final class ExtGrpcTransport extends BaseStub implements GrpcTransport
     public function unary(string $method, Message $request, string $responseClass, array $metadata, ?int $timeoutMs): Message
     {
         /**
-         * @var UnaryCall $call
+         * @var UnaryCall<Message> $call
          *
          * @psalm-suppress InvalidArgument — grpc/grpc documents $deserialize as a callable, but
          * AbstractCall::_deserializeResponse() reads it as [class, method] and instantiates the class:

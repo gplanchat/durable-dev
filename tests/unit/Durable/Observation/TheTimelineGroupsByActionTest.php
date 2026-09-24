@@ -42,6 +42,21 @@ final class TheTimelineGroupsByActionTest extends TestCase
         self::assertSame('activity:act-1', $history[0]->actionKey);
     }
 
+    public function testAnActivityIsNamedByItsSummaryAsATimerIs(): void
+    {
+        // #260: the method name is the fallback, as the timer id is for a timer without a summary.
+        $history = $this->read([
+            new ActivityScheduled('exec-1', 'act-1', 'demo.fulfilment.charge_card', [], ['activity_options' => ['summary' => 'Charge the card']]),
+            new ActivityTaskStarted('exec-1', 'act-1', 'demo.fulfilment.charge_card', 1),
+            new ActivityCompleted('exec-1', 'act-1', 'ch_1'),
+            new ActivityScheduled('exec-1', 'act-2', 'demo.fulfilment.ship_order', [], []),
+        ]);
+
+        self::assertSame('Charge the card', $history[0]->label);
+        self::assertSame('Charge the card', $history[2]->label, 'the follow-up borrows the name of its scheduling');
+        self::assertSame('demo.fulfilment.ship_order', $history[3]->label);
+    }
+
     public function testTwoActivitiesAreTwoActions(): void
     {
         // The grouping must tell them apart, otherwise the frieze puts two unrelated waits on a
