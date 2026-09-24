@@ -9,6 +9,7 @@ use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\Observation\WorkflowRunProjectionInterface;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
+use Gplanchat\Durable\Observation\WorkflowRunWaitProjectionInterface;
 
 /**
  * The row an execution leaves behind, written by two hands.
@@ -20,7 +21,7 @@ use Gplanchat\Durable\Observation\WorkflowRunStatus;
  * @see openspec/changes/backend-neutral-workflow-dashboard/design.md
  * @see DUR030
  */
-final class DbalWorkflowRunProjection implements WorkflowRunProjectionInterface, WorkflowRunPickupProjectionInterface
+final class DbalWorkflowRunProjection implements WorkflowRunProjectionInterface, WorkflowRunPickupProjectionInterface, WorkflowRunWaitProjectionInterface
 {
     public function __construct(
         private readonly Connection $connection,
@@ -80,6 +81,22 @@ final class DbalWorkflowRunProjection implements WorkflowRunProjectionInterface,
             \sprintf('UPDATE %s SET picked_up_at = ? WHERE execution_id = ? AND picked_up_at IS NULL', $this->table),
             [new \DateTimeImmutable('now', new \DateTimeZone('UTC')), $executionId],
             ['datetime_immutable'],
+        );
+    }
+
+    /**
+     * What the execution waits on, the latest one kept. Left alone on a table without the column.
+     */
+    public function recordWait(string $executionId, string $waitingOn): void
+    {
+        $this->schema->ensure();
+        if (!$this->schema->runsTableTracksWait()) {
+            return;
+        }
+
+        $this->connection->executeStatement(
+            \sprintf('UPDATE %s SET waiting_on = ? WHERE execution_id = ?', $this->table),
+            [$waitingOn, $executionId],
         );
     }
 

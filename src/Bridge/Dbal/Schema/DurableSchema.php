@@ -29,7 +29,10 @@ final class DurableSchema
 {
     private bool $ensured = false;
 
-    private ?bool $runsTableTracksPickup = null;
+    /**
+     * @var array<string, bool>
+     */
+    private array $runsTableColumns = [];
 
     public function __construct(
         private readonly Connection $connection,
@@ -71,8 +74,22 @@ final class DurableSchema
      */
     public function runsTableTracksPickup(): bool
     {
-        if (null !== $this->runsTableTracksPickup) {
-            return $this->runsTableTracksPickup;
+        return $this->runsTableHas('picked_up_at');
+    }
+
+    /**
+     * Whether the runs table has the `waiting_on` column (#324), under the same rule as
+     * {@see runsTableTracksPickup()}: without it, the wait is not recorded and the list does not say it.
+     */
+    public function runsTableTracksWait(): bool
+    {
+        return $this->runsTableHas('waiting_on');
+    }
+
+    private function runsTableHas(string $column): bool
+    {
+        if (isset($this->runsTableColumns[$column])) {
+            return $this->runsTableColumns[$column];
         }
 
         $schemaManager = $this->connection->createSchemaManager();
@@ -81,8 +98,8 @@ final class DurableSchema
             return false;
         }
 
-        return $this->runsTableTracksPickup = \array_key_exists(
-            'picked_up_at',
+        return $this->runsTableColumns[$column] = \array_key_exists(
+            $column,
             array_change_key_case($schemaManager->listTableColumns($this->runsTable)),
         );
     }
@@ -157,6 +174,8 @@ final class DurableSchema
             $runs->addColumn('ended_at', Types::DATETIME_IMMUTABLE, ['notnull' => false]);
             // When a worker first picked the run up (#447); null while the run waits for one.
             $runs->addColumn('picked_up_at', Types::DATETIME_IMMUTABLE, ['notnull' => false]);
+            // What the run last suspended on (#324); read only while it is running.
+            $runs->addColumn('waiting_on', Types::TEXT, ['notnull' => false]);
             $runs->setPrimaryKey(['execution_id']);
             $runs->addIndex(['started_at'], $this->runsTable . '_started_idx');
         }

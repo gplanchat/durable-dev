@@ -64,10 +64,11 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         // One row more than asked for: it, and it alone, tells whether there is a continuation.
         // Without it, an exactly full page would promise an empty page.
         $tracksPickup = $this->schema->runsTableTracksPickup();
+        $tracksWait = $this->schema->runsTableTracksWait();
         $rows = $this->connection->fetchAllAssociative(
             \sprintf(
                 'SELECT execution_id, workflow_type, status, started_at, ended_at%s FROM %s%s ORDER BY started_at DESC, execution_id ASC LIMIT %d',
-                $tracksPickup ? ', picked_up_at' : '',
+                ($tracksPickup ? ', picked_up_at' : '') . ($tracksWait ? ', waiting_on' : ''),
                 $this->table,
                 [] === $where ? '' : ' WHERE ' . implode(' AND ', $where),
                 $limit + 1,
@@ -90,6 +91,7 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
                 endedAt: self::toDateTime($row['ended_at']),
                 // Absent when the table cannot tell (#447): a null column there means nothing.
                 waitingForWorkerSince: $tracksPickup && $status->isRunning() && null === $row['picked_up_at'] ? $startedAt : null,
+                waitingOn: $tracksWait && $status->isRunning() && null !== $row['waiting_on'] ? (string) $row['waiting_on'] : null,
             );
         }
 

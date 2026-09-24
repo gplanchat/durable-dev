@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * `durable_workflow_runs` tables created before #447 have no `picked_up_at` column, and nothing
  * alters them (DUR037). A worker on such a table must keep working; the list just cannot tell a run
- * waiting for a worker, and says nothing about it.
+ * waiting for a worker, and says nothing about it. Same for `waiting_on` and tables created before #324.
  */
 final class DbalWorkflowRunPickupOnAnOldTableTest extends TestCase
 {
@@ -52,5 +52,17 @@ final class DbalWorkflowRunPickupOnAnOldTableTest extends TestCase
         $runs = $page->runs;
         self::assertCount(1, $runs);
         self::assertNull($runs[0]->waitingForWorkerSince, 'a table that cannot tell leaves the fact absent');
+    }
+
+    public function testAWaitOnATableWithoutTheColumnIsNotAnError(): void
+    {
+        $schema = new DurableSchema($this->connection);
+        $projection = new DbalWorkflowRunProjection($this->connection, $schema);
+        $projection->recordStart('exec-1', 'App\\OrderWorkflow');
+
+        $projection->recordWait('exec-1', 'activity charge attempt 2 in flight');
+
+        $runs = (new DbalWorkflowRunCatalog($this->connection, $schema))->listRuns()->runs;
+        self::assertNull($runs[0]->waitingOn, 'a table created before #324 leaves the fact absent');
     }
 }

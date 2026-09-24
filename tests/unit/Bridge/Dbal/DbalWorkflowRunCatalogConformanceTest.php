@@ -87,6 +87,16 @@ final class DbalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalogConf
         $this->projection()->recordPickup($executionId);
     }
 
+    protected function canTellAWait(): bool
+    {
+        return true;
+    }
+
+    protected function recordWait(string $executionId, string $waitingOn): void
+    {
+        $this->projection()->recordWait($executionId, $waitingOn);
+    }
+
     private function schema(): DurableSchema
     {
         return new DurableSchema($this->connection);
