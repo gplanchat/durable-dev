@@ -87,7 +87,7 @@ final class DbalWorkflowRunProjection implements WorkflowRunProjectionInterface,
     /**
      * What the execution waits on, the latest one kept. Left alone on a table without the column.
      */
-    public function recordWait(string $executionId, string $waitingOn): void
+    public function recordWait(string $executionId, ?string $waitingOn): void
     {
         $this->schema->ensure();
         if (!$this->schema->runsTableTracksWait()) {

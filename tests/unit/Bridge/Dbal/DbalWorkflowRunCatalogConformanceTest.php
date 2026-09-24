@@ -92,7 +92,7 @@ final class DbalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalogConf
         return true;
     }
 
-    protected function recordWait(string $executionId, string $waitingOn): void
+    protected function recordWait(string $executionId, ?string $waitingOn): void
     {
         $this->projection()->recordWait($executionId, $waitingOn);
     }

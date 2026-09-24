@@ -97,7 +97,7 @@ final class IlluminateWorkflowRunCatalogConformanceTest extends WorkflowRunCatal
         return true;
     }
 
-    protected function recordWait(string $executionId, string $waitingOn): void
+    protected function recordWait(string $executionId, ?string $waitingOn): void
     {
         $this->catalog()->recordWait($executionId, $waitingOn);
     }

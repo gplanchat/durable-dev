@@ -88,7 +88,7 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
             ->update(['picked_up_at' => self::now()]);
     }
 
-    public function recordWait(string $executionId, string $waitingOn): void
+    public function recordWait(string $executionId, ?string $waitingOn): void
     {
         $this->schema->ensure();
         if (!$this->schema->runsTableTracksWait()) {
