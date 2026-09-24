@@ -108,7 +108,7 @@ final class NexusServiceAndOperationNameRulesTest extends TestCase
             $req = new TerminateWorkflowExecutionRequest();
             $req->setNamespace($this->connection->namespace->name());
             $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
-            $req->setReason('fin de sonde');
+            $req->setReason('end of probe');
 
             try {
                 $this->client->TerminateWorkflowExecution($req, [], ['timeout' => 10_000_000]);
@@ -131,16 +131,16 @@ final class NexusServiceAndOperationNameRulesTest extends TestCase
     /** @return iterable<string, array{string, string}> */
     public static function namesTheServerDoesNotGuard(): iterable
     {
-        yield 'service vide' => ['', 'op'];
-        yield 'service un espace' => [' ', 'op'];
-        yield 'service espace en bord' => [' svc ', 'op'];
-        yield 'service tabulation' => ["sv\tc", 'op'];
-        yield 'service caractère de contrôle' => ["sv\x01c", 'op'];
-        yield 'service barre oblique' => ['my/service', 'op'];
-        yield 'opération vide' => ['svc', ''];
-        yield 'opération un espace' => ['svc', ' '];
-        yield 'opération accentuée' => ['svc', 'opé'];
-        yield 'opération très longue' => ['svc', 'o1000'];
+        yield 'empty service' => ['', 'op'];
+        yield 'service a single space' => [' ', 'op'];
+        yield 'service edge whitespace' => [' svc ', 'op'];
+        yield 'service tab' => ["sv\tc", 'op'];
+        yield 'service control character' => ["sv\x01c", 'op'];
+        yield 'service slash' => ['my/service', 'op'];
+        yield 'empty operation' => ['svc', ''];
+        yield 'operation a single space' => ['svc', ' '];
+        yield 'accented operation' => ['svc', 'opé'];
+        yield 'very long operation' => ['svc', 'o1000'];
     }
 
     #[DataProvider('namesTheServerDoesNotGuard')]
