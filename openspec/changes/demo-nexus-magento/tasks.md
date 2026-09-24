@@ -91,68 +91,68 @@
 - [x] 2.3 The workflow and the command are declared in the bench's `di.xml`: Magento's container
       does not have Symfony's tags, nothing picks up `#[AsWorkflow]` on its own.
 
-## 3. Le cluster
+## 3. The cluster
 
-- [x] 3.1 `bin/demo-nexus` crée le namespace `demo-magento` et **aucun endpoint de plus**. Trois
-      namespaces, deux endpoints : un endpoint dit où un service est servi, et Magento ne sert rien.
-      Mesuré à la création : `+ namespace demo-magento`, et les deux endpoints inchangés.
+- [x] 3.1 `bin/demo-nexus` creates the `demo-magento` namespace and **no additional endpoint**. Three
+      namespaces, two endpoints: an endpoint says where a service is served, and Magento serves nothing.
+      Measured at creation: `+ namespace demo-magento`, and both endpoints unchanged.
 
-## 4. Faire tourner la démonstration
+## 4. Running the demonstration
 
-- [x] 4.1 `demo/lancer.sh` démarre le worker de journal du banc. **Six processus, et non sept** :
-      `CommandeNexusWorkflow` n'a pas d'activité — tout ce qu'il fait est servi ailleurs —, donc pas
-      de worker d'activité, exactement comme la boutique et pour la même raison.
-      La fonction `demarrer` s'est dédoublée en `lancer` (une commande quelconque) et `demarrer`
-      (un `messenger:consume` dans un `APP_ENV`) : les trois maquettes ne tournent pas leurs workers
-      de la même façon, et la différence tient dans un argument.
-- [x] 4.2 Le script imprime le troisième appel avec les bonnes valeurs, `PHP_MAGENTO` compris.
+- [x] 4.1 `demo/lancer.sh` starts the bench's journal worker. **Six processes, not seven**:
+      `CommandeNexusWorkflow` has no activity — everything it does is served elsewhere —, so no
+      activity worker, exactly like the shop and for the same reason.
+      The `demarrer` function was split into `lancer` (any command) and `demarrer`
+      (a `messenger:consume` in an `APP_ENV`): the three sample apps do not run their workers
+      the same way, and the difference fits in one argument.
+- [x] 4.2 The script prints the third call with the right values, `PHP_MAGENTO` included.
 
-## 5. Éprouver
+## 5. Put to the test
 
-- [x] 5.1 **Trois processus PHP par-dessus six workers, trois namespaces, et les quatre cas.**
-      Banc : `temporal server start-dev --port 7239`, PostgreSQL pour la boutique, MySQL pour
-      Magento, `MUG_BLUE` à 5 en stock et `MUG_RED` à 1.
+- [x] 5.1 **Three PHP processes on top of six workers, three namespaces, and the four cases.**
+      Bench: `temporal server start-dev --port 7239`, PostgreSQL for the shop, MySQL for
+      Magento, `MUG_BLUE` at 5 in stock and `MUG_RED` at 1.
 
-      | appel | réponse | durée | effet |
+      | call | response | duration | effect |
       |---|---|---|---|
-      | `MAG-20 1200 MUG_BLUE=2` | `verifiee.acceptee: true`, `reserve: true`, `recu: RECU-EUR-MAG-20` | 13,9 s | `on_hold` 0 → 2 |
-      | `MAG-11 4200 MUG_BLUE=1 --devise=USD` | `acceptee: false`, `motif: devise USD non prise en charge`, `reservation: null` | 0,3 s | rien — le stock n'est même pas demandé |
-      | `MAG-12 1200 MUG_RED=3` | `acceptee: true`, `reserve: false`, `manquants: {MUG_RED: 2}` | 0,4 s | rien, et rien d'encaissé |
-      | `MAG-21 1200 MUG_BLUE=1`, worker d'en face **éteint 49 s** | résultat identique au nominal | 49,6 s | `on_hold` +1 |
+      | `MAG-20 1200 MUG_BLUE=2` | `verifiee.acceptee: true`, `reserve: true`, `recu: RECU-EUR-MAG-20` | 13.9 s | `on_hold` 0 → 2 |
+      | `MAG-11 4200 MUG_BLUE=1 --devise=USD` | `acceptee: false`, `motif: devise USD non prise en charge`, `reservation: null` | 0.3 s | nothing — the stock is not even asked |
+      | `MAG-12 1200 MUG_RED=3` | `acceptee: true`, `reserve: false`, `manquants: {MUG_RED: 2}` | 0.4 s | nothing, and nothing captured |
+      | `MAG-21 1200 MUG_BLUE=1`, opposite worker **shut down 49 s** | result identical to nominal | 49.6 s | `on_hold` +1 |
 
-      La dernière ligne est la preuve que la démonstration à deux applications avait obtenue par
-      accident, refaite exprès depuis Magento : `metier-workflows` éteint, l'opération est restée en
-      `NexusOperationStarted` pendant quarante secondes sans que rien n'avance, et tout s'est terminé
-      normalement au retour du worker. Magento ne tenait ni connexion, ni processus, ni transaction.
+      The last row is the proof that the two-application demonstration had obtained by
+      accident, redone on purpose from Magento: with `metier-workflows` shut down, the operation
+      stayed in `NexusOperationStarted` for forty seconds with nothing moving, and everything
+      completed normally when the worker came back. Magento held no connection, no process, no transaction.
 
-      ⚠ **Une fausse piste, écartée à la lecture du payload brut.** Le CLI Temporal affiche
-      `result.manquants: <nil>` et `"manquants":null` dans sa vue aplatie, là où la commande imprime
-      `[]`. Le payload stocké dit `{"reservation":{"reserve":true,"manquants":[]}}` : c'est bien le
-      `[]` que §2.6 du change précédent documente déjà — un tableau associatif vide encodé en liste —,
-      et non une troisième forme. Rien à corriger, mais la vue du CLI ment sur ce point.
-- [x] 5.2 **Les événements Nexus sont dans le journal de Magento**, ce qui lève la réserve de
-      `magento-module` §3bis.9. `durable-MAG-20`, 24 événements :
+      ⚠ **A false lead, ruled out by reading the raw payload.** The Temporal CLI displays
+      `result.manquants: <nil>` and `"manquants":null` in its flattened view, where the command prints
+      `[]`. The stored payload says `{"reservation":{"reserve":true,"manquants":[]}}`: it is indeed the
+      `[]` that §2.6 of the previous change already documents — an empty associative array encoded as a list —,
+      and not a third shape. Nothing to fix, but the CLI view lies on this point.
+- [x] 5.2 **The Nexus events are in Magento's journal**, which lifts the reservation of
+      `magento-module` §3bis.9. `durable-MAG-20`, 24 events:
 
-      | # | événement | ce qu'il porte |
+      | # | event | what it carries |
       |---|---|---|
-      | 5 → 6 | `NexusOperationScheduled` → `Completed` | `facturation` / `verifier`, réglé sur la tâche |
-      | 10 → 11 | `NexusOperationScheduled` → `Completed` | `stock` / `reserver`, réglé sur la tâche |
-      | 15 → 16 → 20 | `Scheduled` → `Started` → `Completed` | `demo-metier-facturation`, `facturation` / `encaisser`, **13 s entre le 16 et le 20** |
+      | 5 → 6 | `NexusOperationScheduled` → `Completed` | `facturation` / `verifier`, settled on the task |
+      | 10 → 11 | `NexusOperationScheduled` → `Completed` | `stock` / `reserver`, settled on the task |
+      | 15 → 16 → 20 | `Scheduled` → `Started` → `Completed` | `demo-metier-facturation`, `facturation` / `encaisser`, **13 s between 16 and 20** |
 
-      L'événement 15 nomme `endpoint`, `service`, `operation` et la charge ; le 16 porte un
-      `operationToken` et **rien d'autre** — c'est l'état « en vol », celui qu'un tableau de bord
-      doit savoir distinguer d'un échec. Le montrer appartient à `change/dashboard-presentation` ;
-      le produire appartenait à ici.
+      Event 15 names `endpoint`, `service`, `operation` and the payload; event 16 carries an
+      `operationToken` and **nothing else** — that is the "in flight" state, the one a dashboard
+      must be able to tell apart from a failure. Showing it belongs to `change/dashboard-presentation`;
+      producing it belonged here.
 
-## 6. Le dire
+## 6. Saying it
 
-- [x] 6.1 `demo/README.md` : trois maquettes, six processus, le troisième namespace, et les
-      prérequis du banc Magento.
-- [x] 6.2 `documentation/user/nexus/_index.{md,fr.md}` : la section devient « Trois applications, en
-      vrai », suivie de « Appeler ne demande rien à votre hôte » — l'asymétrie appelant/servant, les
-      trois namespaces pour deux endpoints, et l'ordre des appels comme compensation.
-      Vérifié sur un build `--minify` servi en HTTP, les deux langues symétriques : **8 `h2`,
-      6 `h3`, 2 tableaux, 13 blocs de code** de chaque côté, et le tableau des maquettes rend bien
-      ses quatre colonnes.
-- [x] 6.3 La réserve de `EveryCaseWorkflow` et le `README.md` du banc renvoient désormais au
-      workflow qui existe, au lieu d'annoncer un change à venir.
+- [x] 6.1 `demo/README.md`: three sample apps, six processes, the third namespace, and the
+      prerequisites of the Magento bench.
+- [x] 6.2 `documentation/user/nexus/_index.{md,fr.md}`: the section becomes "Three applications, for
+      real", followed by "Calling asks nothing of your host" — the caller/server asymmetry, the
+      three namespaces for two endpoints, and the call order as compensation.
+      Checked on a `--minify` build served over HTTP, both languages symmetrical: **8 `h2`,
+      6 `h3`, 2 tables, 13 code blocks** on each side, and the sample-apps table does render
+      its four columns.
+- [x] 6.3 The `EveryCaseWorkflow` reservation and the bench's `README.md` now point to the
+      workflow that exists, instead of announcing a change to come.
