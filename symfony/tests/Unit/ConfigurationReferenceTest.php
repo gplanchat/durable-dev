@@ -89,7 +89,8 @@ final class ConfigurationReferenceTest extends KernelTestCase
         $tester = new CommandTester((new Application(self::$kernel))->find('config:dump-reference'));
         $tester->execute(['name' => 'durable']);
 
-        $dump = preg_replace('/^(\s+enabled:\s+)false$/m', "\$1'%kernel.debug%'", $tester->getDisplay(true));
+        // Anchored on the profiler node: another `enabled` (a future canBeEnabled()) keeps its own default.
+        $dump = preg_replace('/^(    profiler:\n(?:[ \t]*(?:#.*)?\n)*[ \t]+enabled:[ \t]+)false$/m', "\$1'%kernel.debug%'", $tester->getDisplay(true));
 
         return implode("\n", array_map(rtrim(...), explode("\n", rtrim((string) $dump)))) . "\n";
     }
