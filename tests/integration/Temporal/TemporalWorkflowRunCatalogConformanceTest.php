@@ -23,8 +23,6 @@ use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Failure\V1\Failure;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
-use Temporal\Api\Workflowservice\V1\DeleteWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\DeleteWorkflowExecutionResponse;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\RequestCancelWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
@@ -33,8 +31,9 @@ use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
 /**
  * DUR041's catalog suite against a real Temporal server. The hooks play the worker by hand: each
  * run gets a task queue of its own, and ending it answers its first workflow task with the command
- * that closes it that way. A catalog reads the visibility store, which lags behind the history, so
- * every hook waits until the listing shows what it just did.
+ * that closes it that way; a continue-as-new leaves its successor running. A catalog reads the
+ * visibility store, which lags behind the history, so every hook waits until the listing shows what
+ * it just did.
  *
  * @see DUR041
  * @see DUR037
@@ -100,21 +99,8 @@ final class TemporalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
             'commands' => [self::closingCommand($outcome, $executionId)],
         ]));
 
-        if (WorkflowRunStatus::ContinuedAsNew === $outcome) {
-            // The successor run is Temporal's own fact, not the run the suite ended: out of sight.
-            WorkflowServiceClientFactory::createTransport($this->connection)->unary(
-                '/temporal.api.workflowservice.v1.WorkflowService/DeleteWorkflowExecution',
-                new DeleteWorkflowExecutionRequest([
-                    'namespace' => $this->namespace(),
-                    'workflow_execution' => new WorkflowExecution(['workflow_id' => $executionId]),
-                ]),
-                DeleteWorkflowExecutionResponse::class,
-                [],
-                10_000,
-            );
-        }
-
-        $this->awaitListed($executionId, $outcome);
+        // A continue-as-new opens its successor under the same workflow id (DUR037 §5).
+        $this->awaitListed($executionId, ...(WorkflowRunStatus::ContinuedAsNew === $outcome ? [$outcome, WorkflowRunStatus::Running] : [$outcome]));
     }
 
     private static function closingCommand(WorkflowRunStatus $outcome, string $executionId): Command
@@ -145,10 +131,11 @@ final class TemporalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
     }
 
     /**
-     * Waits until the listing shows this execution with exactly this status, and no other run of it.
+     * Waits until the runs the listing shows for this workflow id carry exactly these statuses.
      */
-    private function awaitListed(string $executionId, WorkflowRunStatus $status): void
+    private function awaitListed(string $executionId, WorkflowRunStatus ...$statuses): void
     {
+        $expected = self::names($statuses);
         $deadline = microtime(true) + self::VISIBILITY_TIMEOUT_SECONDS;
         do {
             $seen = [];
@@ -157,7 +144,7 @@ final class TemporalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
                     $seen[] = $run->status;
                 }
             }
-            if ([$status] === $seen) {
+            if ($expected === self::names($seen)) {
                 return;
             }
             usleep(200_000);
@@ -166,10 +153,23 @@ final class TemporalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
         self::fail(\sprintf(
             'The listing still shows "%s" as [%s] %.0f s later, expected [%s].',
             $executionId,
-            implode(', ', array_map(static fn(WorkflowRunStatus $s): string => $s->name, $seen)),
+            implode(', ', self::names($seen)),
             self::VISIBILITY_TIMEOUT_SECONDS,
-            $status->name,
+            implode(', ', $expected),
         ));
+    }
+
+    /**
+     * @param list<WorkflowRunStatus> $statuses
+     *
+     * @return list<string>
+     */
+    private static function names(array $statuses): array
+    {
+        $names = array_map(static fn(WorkflowRunStatus $status): string => $status->name, $statuses);
+        sort($names);
+
+        return $names;
     }
 
     private function namespace(): string
