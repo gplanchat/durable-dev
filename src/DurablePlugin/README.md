@@ -108,7 +108,7 @@ return [
 ```yaml
 # config/routes/gplanchat_durable_plugin.yaml
 gplanchat_durable_plugin:
-    resource: '@DurablePlugin/Resources/config/routes.yaml'
+    resource: '@DurablePlugin/config/routes.yaml'
 ```
 
 The dashboard route is:
