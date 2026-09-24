@@ -228,6 +228,8 @@ final class DurableServiceProvider extends ServiceProvider
             fn($app) => WorkflowServiceClientFactory::create(
                 $app->make(TemporalConnection::class),
                 $app->bound(LoggerInterface::class) ? $app->make(LoggerInterface::class) : null,
+                // transport=guzzle over the application's client; any other transport ignores it.
+                \is_string($temporal['guzzle_client'] ?? null) && '' !== $temporal['guzzle_client'] ? $app->make($temporal['guzzle_client']) : null,
             ),
         );
         $this->app->singleton(TemporalHistoryCursor::class, fn($app) => new TemporalHistoryCursor(
