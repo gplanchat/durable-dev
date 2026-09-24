@@ -156,37 +156,47 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     }
 
     /**
+     * Every server status: its name in a visibility query, and the port status it is listed as. The
+     * listing and the filter both read this table, so a run listed under a status is found under
+     * that status's filter (#504).
+     *
      * The provider this catalog replaces filed every abnormal end under "failure": cancelled,
      * terminated, expired and continue-as-new all displayed identically. The port has the
      * vocabulary to tell them apart, and a cancelled execution is not an incident.
      *
      * `TERMINATED` and `TIMED_OUT` stay failures for want of dedicated cases: they are indeed ends
      * that are suffered, and inventing two more brings nothing as long as no view separates them.
+     * `PAUSED` is filed there too for now, though a paused run has not ended (#506).
+     *
+     * @var array<int, array{string, WorkflowRunStatus}>
+     */
+    private const STATUSES = [
+        WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING => ['Running', WorkflowRunStatus::Running],
+        WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_COMPLETED => ['Completed', WorkflowRunStatus::Completed],
+        WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_FAILED => ['Failed', WorkflowRunStatus::Failed],
+        WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_CANCELED => ['Canceled', WorkflowRunStatus::Cancelled],
+        WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_TERMINATED => ['Terminated', WorkflowRunStatus::Failed],
+        WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW => ['ContinuedAsNew', WorkflowRunStatus::ContinuedAsNew],
+        WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_TIMED_OUT => ['TimedOut', WorkflowRunStatus::Failed],
+        WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_PAUSED => ['Paused', WorkflowRunStatus::Failed],
+    ];
+
+    /**
+     * A status the server did not send, or one this table does not know yet, reads as a failure.
      */
     private static function statusOf(int $status): WorkflowRunStatus
     {
-        return match ($status) {
-            WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING => WorkflowRunStatus::Running,
-            WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_COMPLETED => WorkflowRunStatus::Completed,
-            WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_CANCELED => WorkflowRunStatus::Cancelled,
-            WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW => WorkflowRunStatus::ContinuedAsNew,
-            default => WorkflowRunStatus::Failed,
-        };
+        return (self::STATUSES[$status] ?? [null, WorkflowRunStatus::Failed])[1];
     }
 
-    /**
-     * The filter matches every server status {@see statusOf()} files under the requested one:
-     * a run listed as failed must come back under the failed filter too (#504).
-     */
     private static function visibilityQuery(WorkflowRunStatus $status): string
     {
-        $serverStatuses = match ($status) {
-            WorkflowRunStatus::Running => ['Running'],
-            WorkflowRunStatus::Completed => ['Completed'],
-            WorkflowRunStatus::Cancelled => ['Canceled'],
-            WorkflowRunStatus::ContinuedAsNew => ['ContinuedAsNew'],
-            WorkflowRunStatus::Failed => ['Failed', 'Terminated', 'TimedOut'],
-        };
+        $serverStatuses = [];
+        foreach (self::STATUSES as [$name, $listedAs]) {
+            if ($status === $listedAs) {
+                $serverStatuses[] = $name;
+            }
+        }
 
         return \sprintf('ExecutionStatus IN ("%s")', implode('", "', $serverStatuses));
     }
