@@ -86,6 +86,11 @@ Three things worth knowing before you use it:
 - **A run that passed this place before the point existed gets `DEFAULT_VERSION`.** It started on
   the old behaviour, it finishes on the old behaviour. Nothing is written for it; it is recognised,
   not marked.
+- **Recognising it takes recorded work ahead.** "Passed this place" is deduced from the activity,
+  timer, child, Nexus operation or side effect the journal still holds beyond the point. A run that
+  passed it and is now waiting only on a condition (a signal or an update) has none: a point
+  inserted before that wait gives it the new version. Put the point after the wait, or before
+  recorded work.
 - **The divergence check still applies everywhere else.** Declaring one change point does not
   license an undeclared change three lines below: that one still stops the run.
 
@@ -99,6 +104,12 @@ temporal workflow list --query 'TemporalChangeVersion = "add-discount-1"'
 ```
 
 An empty answer means nobody is on version 1 any more, and the `DEFAULT_VERSION` branch can go.
+
+When a branch goes, raise the minimum with it: `version('add-discount', 1, 1)` once the
+`DEFAULT_VERSION` branch is deleted. An execution still on a version outside that range is then
+refused with a `WorkflowTaskFailure` naming the change point, its version and the range, instead of
+silently taking the branch that remains. On Temporal the task fails and the run waits for code that
+supports it. On the journal backends the execution ends, as a divergence does (see below).
 
 **On the journal backends (In-Memory, DBAL and Illuminate) there is no search attribute and no
 equivalent answer.** There, knowing when a branch is dead means knowing your own executions, which
