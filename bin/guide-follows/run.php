@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // Runs the guide's first workflow in the guide's one-process profile (`when@test`): the controller
-// dispatches, the consumer the guide names drains the in-memory transports, and the journal must
+// dispatches, `durable:worker` (the consumer the guide names) drains the in-memory transports, and the journal must
 // hold the completion. One kernel for all three, since an in-memory transport dies with its process.
 //
 // Usage (from the app directory): php run.php
@@ -14,7 +14,6 @@ use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
-use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Dotenv\Dotenv;
 
 require getcwd() . '/vendor/autoload.php';
@@ -32,15 +31,21 @@ echo "  dispatched $executionId ({$response->getStatusCode()})\n";
 
 $console = new Application($kernel);
 $console->setAutoExit(false);
-$console->run(new ArrayInput([
-    'command' => 'messenger:consume',
-    'receivers' => ['durable_workflows', 'durable_activities'],
+$worker = new BufferedOutput();
+$exit = $console->run(new ArrayInput([
+    'command' => 'durable:worker',
     '--time-limit' => 5,
     // Between two messages the worker resets services, and an in-memory transport's reset empties
-    // it: the activity the resume queued would vanish before the loop reached it. null, not true:
-    // from Symfony 8.1 the option takes an interval, and true reads as 1, reset after every message.
-    '--no-reset' => null,
-]), new ConsoleOutput());
+    // it: the activity the resume queued would vanish before the loop reached it.
+    '--no-reset' => true,
+]), $worker);
+echo $said = $worker->fetch();
+
+// The guide promises this line: it is how a reader knows the worker found their transports.
+if (0 !== $exit || !str_contains($said, 'Consuming durable_workflows, durable_activities.')) {
+    fwrite(\STDERR, "durable:worker did not consume the transports the guide declares (exit $exit).\n");
+    exit(1);
+}
 
 $diagnosis = new BufferedOutput();
 $console->run(new ArrayInput(['command' => 'durable:execution:diagnose', 'executionId' => $executionId, '--json' => true]), $diagnosis);
