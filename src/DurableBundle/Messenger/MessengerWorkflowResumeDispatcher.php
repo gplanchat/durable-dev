@@ -34,7 +34,7 @@ final class MessengerWorkflowResumeDispatcher implements WorkflowResumeDispatche
         $this->metadataStore->save($executionId, $workflowType, $payload);
         $this->bus->dispatch(new Envelope(
             new ResumeWorkflowMessage($executionId),
-            [new DispatchAfterCurrentBusStamp()],
+            [new DispatchAfterCurrentBusStamp(), new NewWorkflowRunStamp($workflowType)],
         ));
     }
 }

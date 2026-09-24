@@ -26,11 +26,13 @@ final class WorkflowRunDispatchProfilerMiddleware implements MiddlewareInterface
         if ($message instanceof ResumeWorkflowMessage) {
             $stamp = $envelope->last(TransportNamesStamp::class);
             $transportNames = null !== $stamp ? implode(',', $stamp->getTransportNames()) : null;
+            // The message carries no type: only the stamp tells a new run from a resume.
+            $newRun = $envelope->last(NewWorkflowRunStamp::class);
             $this->trace->onWorkflowDispatchRequested(
                 $message->executionId,
-                '',
+                $newRun?->workflowType ?? '',
                 [],
-                true,
+                null === $newRun,
                 $transportNames,
             );
         }
