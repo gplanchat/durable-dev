@@ -21,7 +21,7 @@ final class ResumeLockTest extends TestCase
 {
     public function testTheWorkRunsAndItsValueComesBack(): void
     {
-        self::assertSame('repris', $this->lock()->around('exec-1', static fn(): string => 'repris'));
+        self::assertSame('resumed', $this->lock()->around('exec-1', static fn(): string => 'resumed'));
     }
 
     public function testASecondTakeOnTheSameExecutionDoesNotGetThrough(): void
@@ -48,10 +48,10 @@ final class ResumeLockTest extends TestCase
         $inner = null;
 
         $lock->around('exec-1', function () use ($lock, &$inner): void {
-            $inner = $lock->around('exec-2', static fn(): string => 'passé');
+            $inner = $lock->around('exec-2', static fn(): string => 'passed');
         });
 
-        self::assertSame('passé', $inner, 'the lock is per execution, not global');
+        self::assertSame('passed', $inner, 'the lock is per execution, not global');
     }
 
     public function testTheLockIsReleasedWhenTheWorkThrows(): void
@@ -60,7 +60,7 @@ final class ResumeLockTest extends TestCase
 
         try {
             $lock->around('exec-1', static function (): string {
-                throw new \RuntimeException('boum');
+                throw new \RuntimeException('boom');
             });
             // @phpstan-ignore catch.neverThrown (the closure throws it; PHPStan does not follow it through around())
         } catch (\RuntimeException) {
@@ -69,8 +69,8 @@ final class ResumeLockTest extends TestCase
 
         // @phpstan-ignore deadCode.unreachable (the closure throws it; PHPStan does not follow it through around())
         self::assertSame(
-            'repris',
-            $lock->around('exec-1', static fn(): string => 'repris'),
+            'resumed',
+            $lock->around('exec-1', static fn(): string => 'resumed'),
             'a resume that fails must not condemn the execution',
         );
     }

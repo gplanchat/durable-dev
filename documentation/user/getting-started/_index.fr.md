@@ -43,11 +43,16 @@ composer require gplanchat/durable
 ### L'intégration Symfony
 
 ```bash
+composer config extra.symfony.allow-contrib true
 composer require gplanchat/durable-bundle
 ```
 
-Le paquet déclare `"type": "symfony-bundle"`, donc **Symfony Flex l'enregistre tout seul**, il n'y
-a rien à ajouter à `config/bundles.php`. Sans Flex, ajoutez la ligne vous-même :
+**La première ligne compte.** La recette Flex du bundle vit dans `symfony/recipes-contrib`, et Flex
+demande avant d'exécuter une recette contrib : la réponse par défaut, et la seule sous
+`--no-interaction`, est non. L'installation affiche alors `IGNORING gplanchat/durable-bundle`,
+`config/bundles.php` ne nomme jamais le bundle, et la configuration ci-dessous échoue avec *There is
+no extension able to load the configuration for "durable"*. Autorisez les recettes contrib comme
+ci-dessus, répondez `y` à la question, ou ajoutez vous-même la ligne à `config/bundles.php` :
 
 ```php
 return [
@@ -56,7 +61,10 @@ return [
 ];
 ```
 
-C'est tout ce que Flex fait ici : la configuration ci-dessous reste à votre charge.
+La recette écrit aussi un `config/packages/durable.yaml` et deux lignes `MESSENGER_DURABLE_*_DSN`
+dans `.env`. Les fichiers ci-dessous **remplacent** ce `durable.yaml` : celui de la recette nomme
+les magasins avec `event_store.type` et `workflow_metadata.type`, dépréciés depuis que `backend`
+les remplace. Une fois remplacé, plus rien ne lit les deux lignes de `.env` ; supprimez-les.
 
 ---
 
@@ -70,32 +78,26 @@ dit sur quoi tourne le développement local.
 
 ```yaml
 durable:
-    event_store:
-        type: in_memory
-    temporal:
-        dsn: null            # à définir par variable d'environnement pour Temporal
-    workflow_metadata:
-        type: in_memory
+    backend: in_memory       # 'dbal' ou 'temporal' dans les profils plus bas
     activity_transport:
         type: messenger
         transport_name: durable_activities
     child_workflow:
         async_messenger: true
-        parent_link_store:
-            type: in_memory
     activity_contracts:
         cache: cache.app
         contracts:
             - App\Workflow\Activity\GreetingActivities   # listez ici vos interfaces d'activité
 ```
 
-Activez Temporal pour un environnement en lui donnant le DSN. Le DSN est lu à la compilation du
-conteneur : un environnement qui a cette ligne est un environnement Temporal, même avec un
-`DURABLE_DSN` vide.
+Activez Temporal pour un environnement en nommant le backend et en lui donnant le DSN. Le DSN est
+lu à la compilation du conteneur : un environnement qui a ces lignes est un environnement Temporal,
+même avec un `DURABLE_DSN` vide.
 
 ```yaml
 when@dev:
     durable:
+        backend: temporal
         temporal:
             dsn: '%env(DURABLE_DSN)%'
 ```
@@ -346,23 +348,20 @@ worker aurait besoin vit dans la mémoire du processus web.
 **Le développement local, et la production sans cluster : plusieurs processus, sur DBAL.** De vrais transports **et** un magasin
 durable, sinon le worker prend une entrée nommant un workflow dont il ne voit pas le journal.
 
-Ce profil demande deux paquets que la prise en main ci-dessus n'installe pas : le journal DBAL, et
-DoctrineBundle pour le service `doctrine.dbal.default_connection` qu'il nomme :
+Ce profil demande des paquets que la prise en main ci-dessus n'installe pas : le journal DBAL,
+DoctrineBundle pour le service `doctrine.dbal.default_connection` qu'il nomme, et le transport
+Doctrine de Messenger derrière les files `doctrine://` plus bas. La recette de DoctrineBundle
+configure aussi l'ORM, d'où `doctrine/orm` ; ou retirez la section `orm:` de
+`config/packages/doctrine.yaml` si vous n'utilisez pas l'ORM.
 
 ```bash
-composer require gplanchat/durable-bridge-dbal doctrine/doctrine-bundle
+composer require gplanchat/durable-bridge-dbal doctrine/doctrine-bundle doctrine/orm symfony/doctrine-messenger
 ```
 
 
 ```yaml
 durable:
-    event_store:
-        type: dbal
-    workflow_metadata:
-        type: dbal
-    child_workflow:
-        parent_link_store:
-            type: dbal
+    backend: dbal
     dbal:
         connection: doctrine.dbal.default_connection
 ```

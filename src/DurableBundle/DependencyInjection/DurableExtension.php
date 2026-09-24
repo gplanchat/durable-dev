@@ -91,10 +91,10 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
-use Symfony\Component\DependencyInjection\Extension\Extension;
 // And not HttpKernel's, which is only a thin subclass of it — `@internal` since
 // Symfony 7.1, deprecated in 8.1 — and only adds the leftovers of the annotated class cache.
 // This one has existed since 6.4: the swap costs no supported version.
+use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\Messenger\Event\WorkerStartedEvent;
 
@@ -119,7 +119,7 @@ final class DurableExtension extends Extension
         $this->registerEventStore($container, $config);
         $this->registerActivityTransport($container, $config);
         $this->registerActivityExecutor($container);
-        $this->registerRuntime($container, $config);
+        $this->registerRuntime($container);
         $this->registerWorkflowMessengerServices($container, $config);
         $this->registerParentChildCoordinator($container);
         // The pass that installs the middleware runs well after the extensions; it reads this
@@ -130,7 +130,7 @@ final class DurableExtension extends Extension
         );
 
         $this->registerActivityContractResolver($container, $config);
-        $this->registerEngine($container, $config);
+        $this->registerEngine($container);
         $this->registerActivityContractCacheWarmer($container, $config);
         $this->registerWorkflowControlHandlers($container, $config);
         $this->registerWorkflowQueryRunner($container);
@@ -494,10 +494,7 @@ final class DurableExtension extends Extension
         $container->register(ActivityTransportInterface::class, InMemoryActivityTransport::class)->setPublic(true);
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function registerRuntime(ContainerBuilder $container, array $config): void
+    private function registerRuntime(ContainerBuilder $container): void
     {
         $container->register(\Gplanchat\Durable\ExecutionRuntime::class, \Gplanchat\Durable\ExecutionRuntime::class)
             ->setArguments([
@@ -564,10 +561,7 @@ final class DurableExtension extends Extension
         ;
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function registerEngine(ContainerBuilder $container, array $config): void
+    private function registerEngine(ContainerBuilder $container): void
     {
         $container->register(\Gplanchat\Durable\Uuid\NativeUuidV7Generator::class, \Gplanchat\Durable\Uuid\NativeUuidV7Generator::class)
             ->setPublic(false);

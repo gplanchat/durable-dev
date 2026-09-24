@@ -556,7 +556,7 @@ final class WorkflowTaskRunnerTest extends TestCase
                     return $answered;
                 });
 
-                return 'terminé';
+                return 'done';
             });
 
         $poll = self::buildPoll('token-upd', 'wf-upd', 'UpdatableWorkflow', [self::makeStarted(1)]);

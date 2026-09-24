@@ -102,7 +102,7 @@ final class NexusCancellationAndFailureTest extends TestCase
             $request = new TerminateWorkflowExecutionRequest();
             $request->setNamespace($this->connection->namespace->name());
             $request->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $this->workflowId]));
-            $request->setReason('fin du test');
+            $request->setReason('end of test');
 
             try {
                 $this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]);

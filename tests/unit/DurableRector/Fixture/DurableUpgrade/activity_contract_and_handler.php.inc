@@ -6,19 +6,19 @@ use Gplanchat\Durable\Attribute\Activity;
 use Gplanchat\Durable\Attribute\ActivityMethod;
 use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
 
-#[Activity('facturation')]
-interface FacturationInterface
+#[Activity('billing')]
+interface BillingInterface
 {
-    #[ActivityMethod('encaisser')]
-    public function encaisser(string $ordre): string;
+    #[ActivityMethod('collect')]
+    public function collect(string $order): string;
 }
 
-#[AsDurableActivity(contract: FacturationInterface::class)]
-final class Facturation implements FacturationInterface
+#[AsDurableActivity(contract: BillingInterface::class)]
+final class Billing implements BillingInterface
 {
-    public function encaisser(string $ordre): string
+    public function collect(string $order): string
     {
-        return $ordre;
+        return $order;
     }
 }
 
@@ -32,19 +32,19 @@ use Gplanchat\Durable\Attribute\Activity;
 use Gplanchat\Durable\Attribute\ActivityMethod;
 use Gplanchat\Durable\Bundle\Attribute\AsDurableActivity;
 
-#[\Gplanchat\Durable\Attribute\AsActivity('facturation')]
-interface FacturationInterface
+#[\Gplanchat\Durable\Attribute\AsActivity('billing')]
+interface BillingInterface
 {
-    #[\Gplanchat\Durable\Attribute\AsActivityMethod('encaisser')]
-    public function encaisser(string $ordre): string;
+    #[\Gplanchat\Durable\Attribute\AsActivityMethod('collect')]
+    public function collect(string $order): string;
 }
 
-#[\Gplanchat\Durable\Attribute\AsActivityHandler(contract: FacturationInterface::class)]
-final class Facturation implements FacturationInterface
+#[\Gplanchat\Durable\Attribute\AsActivityHandler(contract: BillingInterface::class)]
+final class Billing implements BillingInterface
 {
-    public function encaisser(string $ordre): string
+    public function collect(string $order): string
     {
-        return $ordre;
+        return $order;
     }
 }
 

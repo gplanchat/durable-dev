@@ -58,7 +58,7 @@ final class NexusUnsupportedByJournalBackendTest extends TestCase
         // developer who has just written a Nexus call and does not yet know that their backend
         // cannot serve it.
         try {
-            $this->buffer()->cancelNexusOperation('op-1', 'peu importe');
+            $this->buffer()->cancelNexusOperation('op-1', 'whatever');
             self::fail('The journal backend accepted a Nexus operation.');
         } catch (NexusUnsupportedByBackendException $e) {
             self::assertStringContainsString('Temporal', $e->getMessage());

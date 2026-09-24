@@ -58,7 +58,7 @@ final class NexusOperationSchedulingTest extends TestCase
     public function testAReplayedResultIsNotTrackedAsPending(): void
     {
         $context = $this->context($this->history(
-            scheduledId: 'op-finie',
+            scheduledId: 'op-done',
             slotResult: ['result' => 'ok', 'failed' => null],
         ));
 
@@ -81,30 +81,30 @@ final class NexusOperationSchedulingTest extends TestCase
     public function testAReplayedOperationIsNotScheduledTwice(): void
     {
         // The core of it: the history says it already went out, so we do not send it again.
-        $awaitable = $this->schedule($this->context($this->history(scheduledId: 'op-deja-partie')));
+        $awaitable = $this->schedule($this->context($this->history(scheduledId: 'op-already-sent')));
 
         self::assertCount(0, $this->scheduled, 'An already scheduled operation was sent to the provider again.');
-        self::assertSame('op-deja-partie', $awaitable->operationId());
+        self::assertSame('op-already-sent', $awaitable->operationId());
         self::assertFalse($awaitable->isSettled());
     }
 
     public function testARecordedResultSettlesTheAwaitableWithoutScheduling(): void
     {
         $awaitable = $this->schedule($this->context($this->history(
-            scheduledId: 'op-finie',
+            scheduledId: 'op-done',
             slotResult: ['result' => ['invoice' => 'INV-1'], 'failed' => null],
         )));
 
         self::assertCount(0, $this->scheduled);
         self::assertTrue($awaitable->isSettled());
         self::assertSame(['invoice' => 'INV-1'], $awaitable->getResult());
-        self::assertSame('op-finie', $awaitable->operationId());
+        self::assertSame('op-done', $awaitable->operationId());
     }
 
     public function testARecordedFailureRejects(): void
     {
         $awaitable = $this->schedule($this->context($this->history(
-            scheduledId: 'op-ratee',
+            scheduledId: 'op-missed',
             slotResult: ['result' => null, 'failed' => new \RuntimeException('handler exploded')],
         )));
 

@@ -566,7 +566,7 @@ final class RaisingQueryWorkflow
     #[\Gplanchat\Durable\Attribute\AsQueryMethod('getStatus')]
     public function status(): string
     {
-        throw new \RuntimeException('cette query ne sait pas répondre');
+        throw new \RuntimeException('this query cannot answer');
     }
 
     #[\Gplanchat\Durable\Attribute\AsWorkflowMethod]

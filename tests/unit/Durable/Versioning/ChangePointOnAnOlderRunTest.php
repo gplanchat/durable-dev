@@ -36,7 +36,7 @@ final class ChangePointOnAnOlderRunTest extends TestCase
         // Today's code declares one BEFORE them.
         $context = $this->contextWithTwoRecordedActivities();
 
-        $version = $context->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
+        $version = $context->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
 
         self::assertSame(
             ChangePoint::DEFAULT_VERSION,
@@ -51,7 +51,7 @@ final class ChangePointOnAnOlderRunTest extends TestCase
         $this->seedTwoActivities($store);
         $before = iterator_count($store->readStream(self::EXECUTION));
 
-        $this->context($store)->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
+        $this->context($store)->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
 
         self::assertSame(
             $before,
@@ -65,8 +65,8 @@ final class ChangePointOnAnOlderRunTest extends TestCase
         $store = new InMemoryEventStore();
         $this->seedTwoActivities($store);
 
-        $first = $this->context($store)->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
-        $second = $this->context($store)->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
+        $first = $this->context($store)->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
+        $second = $this->context($store)->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
 
         self::assertSame(ChangePoint::DEFAULT_VERSION, $first);
         self::assertSame($first, $second, 'deducible from the history, therefore stable by construction');
@@ -80,7 +80,7 @@ final class ChangePointOnAnOlderRunTest extends TestCase
         $context->activity('chargeCard', []);
         $context->activity('shipOrder', []);
 
-        $version = $context->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
+        $version = $context->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
 
         self::assertSame(1, $version, 'past the recorded work, the point is new to it');
     }
@@ -88,7 +88,7 @@ final class ChangePointOnAnOlderRunTest extends TestCase
     public function testAFreshRunIsNotMistakenForAnOldOne(): void
     {
         $version = $this->context(new InMemoryEventStore())
-            ->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
+            ->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
 
         self::assertSame(1, $version, 'an empty journal is not a replayed prefix');
     }

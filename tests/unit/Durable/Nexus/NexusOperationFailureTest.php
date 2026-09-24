@@ -37,12 +37,12 @@ final class NexusOperationFailureTest extends TestCase
         // names so an unhandled one names the call site."
         $e = $this->failure(NexusOperationFailureKind::Timeout);
 
-        self::assertSame('paiements', $e->endpoint());
-        self::assertSame('facturation', $e->service());
-        self::assertSame('encaisser', $e->operation());
-        self::assertStringContainsString('paiements', $e->getMessage());
-        self::assertStringContainsString('facturation', $e->getMessage());
-        self::assertStringContainsString('encaisser', $e->getMessage());
+        self::assertSame('payments', $e->endpoint());
+        self::assertSame('billing', $e->service());
+        self::assertSame('collect', $e->operation());
+        self::assertStringContainsString('payments', $e->getMessage());
+        self::assertStringContainsString('billing', $e->getMessage());
+        self::assertStringContainsString('collect', $e->getMessage());
     }
 
     public function testTheRetryBehaviourRidesOnTheHandlerErrorOnly(): void
@@ -61,9 +61,9 @@ final class NexusOperationFailureTest extends TestCase
 
         self::assertSame(WorkflowExecutionFailed::KIND_UNHANDLED_NEXUS_OPERATION, $failed->kind());
         $context = $failed->context();
-        self::assertSame('paiements', $context['endpoint'] ?? null);
-        self::assertSame('facturation', $context['service'] ?? null);
-        self::assertSame('encaisser', $context['operation'] ?? null);
+        self::assertSame('payments', $context['endpoint'] ?? null);
+        self::assertSame('billing', $context['service'] ?? null);
+        self::assertSame('collect', $context['operation'] ?? null);
         self::assertSame('operation_failed', $context['nexusKind'] ?? null);
     }
 
@@ -79,11 +79,11 @@ final class NexusOperationFailureTest extends TestCase
     private function failure(NexusOperationFailureKind $kind, ?string $retryBehaviour = null): DurableNexusOperationFailedException
     {
         return new DurableNexusOperationFailedException(
-            'paiements',
-            'facturation',
-            'encaisser',
+            'payments',
+            'billing',
+            'collect',
             $kind,
-            new FailureEnvelope(\RuntimeException::class, 'carte refusée'),
+            new FailureEnvelope(\RuntimeException::class, 'card declined'),
             $retryBehaviour,
         );
     }

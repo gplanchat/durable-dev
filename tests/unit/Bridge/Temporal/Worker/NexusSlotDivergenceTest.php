@@ -26,9 +26,9 @@ final class NexusSlotDivergenceTest extends TestCase
 {
     public function testTheTripleIsRecoverableFromTheSlot(): void
     {
-        $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5, 'op-1', 'paiements', 'facturation', 'encaisser')]);
+        $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5, 'op-1', 'payments', 'billing', 'collect')]);
 
-        self::assertSame('paiements/facturation/encaisser', $history->nexusOperationSignatureForSlot(0));
+        self::assertSame('payments/billing/collect', $history->nexusOperationSignatureForSlot(0));
     }
 
     public function testASlotNobodyScheduledHasNoSignature(): void
@@ -42,20 +42,20 @@ final class NexusSlotDivergenceTest extends TestCase
     {
         // The trap this test holds: identical service and operation, different endpoint. A guard
         // that compared only the operation would believe the replay faithful.
-        $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5, 'op-1', 'paiements', 'facturation', 'encaisser')]);
+        $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5, 'op-1', 'payments', 'billing', 'collect')]);
 
-        self::assertNotSame('remboursements/facturation/encaisser', $history->nexusOperationSignatureForSlot(0));
+        self::assertNotSame('refunds/billing/collect', $history->nexusOperationSignatureForSlot(0));
     }
 
     public function testEachSlotKeepsItsOwnTriple(): void
     {
         $history = TemporalExecutionHistory::fromEvents([
-            $this->scheduled(5, 'op-1', 'paiements', 'facturation', 'encaisser'),
-            $this->scheduled(9, 'op-2', 'stocks', 'entrepot', 'reserver'),
+            $this->scheduled(5, 'op-1', 'payments', 'billing', 'collect'),
+            $this->scheduled(9, 'op-2', 'inventory', 'warehouse', 'reserve'),
         ]);
 
-        self::assertSame('paiements/facturation/encaisser', $history->nexusOperationSignatureForSlot(0));
-        self::assertSame('stocks/entrepot/reserver', $history->nexusOperationSignatureForSlot(1));
+        self::assertSame('payments/billing/collect', $history->nexusOperationSignatureForSlot(0));
+        self::assertSame('inventory/warehouse/reserve', $history->nexusOperationSignatureForSlot(1));
     }
 
     private function scheduled(int $eventId, string $operationId, string $endpoint, string $service, string $operation): HistoryEvent

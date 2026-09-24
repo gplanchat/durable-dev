@@ -6,21 +6,21 @@ use Gplanchat\Durable\Attribute\QueryMethod;
 use Gplanchat\Durable\Attribute\SignalMethod;
 use Gplanchat\Durable\Attribute\UpdateMethod;
 
-final class Panier
+final class Cart
 {
-    #[QueryMethod('etat')]
-    public function etat(): string
+    #[QueryMethod('state')]
+    public function state(): string
     {
         return 'ok';
     }
 
-    #[SignalMethod('reveille')]
-    public function reveille(): void
+    #[SignalMethod('wakeUp')]
+    public function wakeUp(): void
     {
     }
 
-    #[UpdateMethod('ajoute')]
-    public function ajoute(int $n): int
+    #[UpdateMethod('add')]
+    public function add(int $n): int
     {
         return $n;
     }
@@ -36,21 +36,21 @@ use Gplanchat\Durable\Attribute\QueryMethod;
 use Gplanchat\Durable\Attribute\SignalMethod;
 use Gplanchat\Durable\Attribute\UpdateMethod;
 
-final class Panier
+final class Cart
 {
-    #[\Gplanchat\Durable\Attribute\AsQueryMethod('etat')]
-    public function etat(): string
+    #[\Gplanchat\Durable\Attribute\AsQueryMethod('state')]
+    public function state(): string
     {
         return 'ok';
     }
 
-    #[\Gplanchat\Durable\Attribute\AsSignalMethod('reveille')]
-    public function reveille(): void
+    #[\Gplanchat\Durable\Attribute\AsSignalMethod('wakeUp')]
+    public function wakeUp(): void
     {
     }
 
-    #[\Gplanchat\Durable\Attribute\AsUpdateMethod('ajoute')]
-    public function ajoute(int $n): int
+    #[\Gplanchat\Durable\Attribute\AsUpdateMethod('add')]
+    public function add(int $n): int
     {
         return $n;
     }

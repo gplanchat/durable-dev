@@ -33,12 +33,12 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
         // The execution is on version 1: its journal carries `discountedCharge` at slot 0,
         // and that is exactly what the v1 branch of the code asks for. No divergence.
         $store = new InMemoryEventStore();
-        $store->append(new VersionMarked(self::EXECUTION, 'ajout-remise', 1));
+        $store->append(new VersionMarked(self::EXECUTION, 'add-discount', 1));
         $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'discountedCharge', []));
         $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 90));
 
         $context = $this->context($store);
-        $version = $context->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
+        $version = $context->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
 
         self::assertSame(1, $version);
 
@@ -63,7 +63,7 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
         $store->append(new ActivityCompleted(self::EXECUTION, 'act-2', 'shipped'));
 
         $context = $this->context($store);
-        $version = $context->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
+        $version = $context->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
 
         self::assertSame(ChangePoint::DEFAULT_VERSION, $version);
 
@@ -80,14 +80,14 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
         // The change point is honoured, and ANOTHER slot is changed without declaring it. That
         // is where the value of the exception is decided: it covers only what it names.
         $store = new InMemoryEventStore();
-        $store->append(new VersionMarked(self::EXECUTION, 'ajout-remise', 1));
+        $store->append(new VersionMarked(self::EXECUTION, 'add-discount', 1));
         $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'discountedCharge', []));
         $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 90));
         $store->append(new ActivityScheduled(self::EXECUTION, 'act-2', 'shipOrder', []));
         $store->append(new ActivityCompleted(self::EXECUTION, 'act-2', 'shipped'));
 
         $context = $this->context($store);
-        $context->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
+        $context->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
         $context->activity('discountedCharge', []);
 
         $this->expectException(WorkflowTaskFailure::class);
@@ -102,7 +102,7 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
         $store = new InMemoryEventStore();
         $context = $this->context($store);
 
-        $version = $context->version('ajout-remise', ChangePoint::DEFAULT_VERSION, 1);
+        $version = $context->version('add-discount', ChangePoint::DEFAULT_VERSION, 1);
         $context->activity(1 === $version ? 'discountedCharge' : 'plainCharge', []);
 
         $kinds = array_map(

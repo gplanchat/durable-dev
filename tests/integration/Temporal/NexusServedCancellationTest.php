@@ -107,7 +107,7 @@ final class NexusServedCancellationTest extends TestCase
             $request = new TerminateWorkflowExecutionRequest();
             $request->setNamespace($this->connection->namespace->name());
             $request->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
-            $request->setReason('fin de la sonde');
+            $request->setReason('end of probe');
 
             try {
                 $this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]);
@@ -250,7 +250,7 @@ final class NexusServedCancellationTest extends TestCase
         $signal = new \Temporal\Api\Workflowservice\V1\SignalWorkflowExecutionRequest();
         $signal->setNamespace($this->connection->namespace->name());
         $signal->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $callerId]));
-        $signal->setSignalName('reveille');
+        $signal->setSignalName('wake-up');
         $signal->setIdentity($this->connection->identity);
         $this->client->SignalWorkflowExecution($signal, [], ['timeout' => 10_000_000]);
 

@@ -110,7 +110,7 @@ final class NexusServedOperationTest extends TestCase
             $request = new TerminateWorkflowExecutionRequest();
             $request->setNamespace($this->connection->namespace->name());
             $request->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
-            $request->setReason('fin du test');
+            $request->setReason('end of test');
 
             try {
                 $this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]);
@@ -169,13 +169,13 @@ final class NexusServedOperationTest extends TestCase
         // The worker started the workflow that fulfils the operation, with the callback attached.
         // Nothing will call on it again: this workflow carries the operation, and its end settles
         // the operation.
-        $fulfillerId = $this->completeTheFulfillingWorkflow(['greeting' => 'hello ada, plus tard']);
+        $fulfillerId = $this->completeTheFulfillingWorkflow(['greeting' => 'hello ada, later']);
 
         $outcome = $this->awaitTerminalNexusEvent($callerId);
 
         self::assertNotSame('', $fulfillerId, 'The worker started no workflow.');
         self::assertSame(EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED, $outcome['type'], $outcome['names']);
-        self::assertSame(['greeting' => 'hello ada, plus tard'], $outcome['result']);
+        self::assertSame(['greeting' => 'hello ada, later'], $outcome['result']);
     }
 
     public function testAnOperationDeclaredAsFulfilledByAWorkflowNeedsNoHandlerAtAll(): void
@@ -195,13 +195,13 @@ final class NexusServedOperationTest extends TestCase
         $callerId = $this->scheduleOperation('greet', ['name' => 'ada']);
         $this->worker($registry)->pollOnce();
 
-        $fulfillerId = $this->completeAnyFulfillingWorkflow(['greeting' => 'hello ada, déclaré']);
+        $fulfillerId = $this->completeAnyFulfillingWorkflow(['greeting' => 'hello ada, confirmed']);
         self::assertNotSame('', $fulfillerId, 'the worker started no workflow');
 
         $outcome = $this->awaitTerminalNexusEvent($callerId);
 
         self::assertSame(EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED, $outcome['type'], $outcome['names']);
-        self::assertSame(['greeting' => 'hello ada, déclaré'], $outcome['result']);
+        self::assertSame(['greeting' => 'hello ada, confirmed'], $outcome['result']);
     }
 
     public function testAnOperationNobodyServesIsRefusedAndTheServerAcceptsTheRefusal(): void

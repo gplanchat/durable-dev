@@ -59,10 +59,10 @@ final class HandlerDispatchParityTest extends TestCase
 
             $verdicts = [];
             for ($i = 0; null !== ($message = $history->messageAt($i)); ++$i) {
-                $verdicts[] = $message['position'] < $firedAt ? 'avant' : 'après';
+                $verdicts[] = $message['position'] < $firedAt ? 'before' : 'after';
             }
 
-            self::assertSame(['avant', 'avant', 'après'], $verdicts);
+            self::assertSame(['before', 'before', 'after'], $verdicts);
         }
     }
 

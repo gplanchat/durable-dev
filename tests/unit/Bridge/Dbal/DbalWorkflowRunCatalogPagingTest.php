@@ -51,7 +51,7 @@ final class DbalWorkflowRunCatalogPagingTest extends TestCase
         $this->failRun('exec-failed-1');
         $this->failRun('exec-failed-2');
         $this->eventStore()->append(new ExecutionCompleted('exec-done', 'ok'));
-        $this->eventStore()->append(new WorkflowExecutionCancelled('exec-cancelled', 'annulé'));
+        $this->eventStore()->append(new WorkflowExecutionCancelled('exec-cancelled', 'cancelled'));
 
         $page = $this->catalog()->listRuns(WorkflowRunStatus::Failed);
 
@@ -128,7 +128,7 @@ final class DbalWorkflowRunCatalogPagingTest extends TestCase
     {
         $this->eventStore()->append(WorkflowExecutionFailed::unhandledDeclaredActivityFailure(
             $executionId,
-            new \RuntimeException('boum'),
+            new \RuntimeException('boom'),
         ));
     }
 

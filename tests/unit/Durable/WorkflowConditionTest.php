@@ -44,10 +44,10 @@ final class WorkflowConditionTest extends TestCase
         $result = $env->run(static function (WorkflowEnvironment $wf): string {
             $wf->await(static fn(): bool => true);
 
-            return 'passé sans suspendre';
+            return 'passed without suspending';
         }, 'cond-1');
 
-        self::assertSame('passé sans suspendre', $result);
+        self::assertSame('passed without suspending', $result);
         // Nothing that could wake the execution later: no guard timer scheduled.
         self::assertSame([], $this->eventsOf($env->getEventStore(), 'cond-1', TimerScheduled::class));
     }
@@ -101,8 +101,8 @@ final class WorkflowConditionTest extends TestCase
         $store->append(new TimerCompleted('cond-4', 'timer-a'));
         $store->append(new WorkflowSignalReceived('cond-4', 'tick', ['n' => 1]));
 
-        self::assertSame(['expiré'], $engine->resume('cond-4', $this->boundedTickHandler()));
-        self::assertSame(['expiré'], $engine->resume('cond-4', $this->boundedTickHandler()), 'stable on replay');
+        self::assertSame(['expired'], $engine->resume('cond-4', $this->boundedTickHandler()));
+        self::assertSame(['expired'], $engine->resume('cond-4', $this->boundedTickHandler()), 'stable on replay');
     }
 
     public function testAMessageRecordedBeforeTheDeadlineStillSatisfiesTheCondition(): void
@@ -117,7 +117,7 @@ final class WorkflowConditionTest extends TestCase
         $store->append(new WorkflowSignalReceived('cond-5', 'tick', ['n' => 1]));
         $store->append(new TimerCompleted('cond-5', 'timer-a'));
 
-        self::assertSame(['satisfait', ['n' => 1]], $engine->resume('cond-5', $this->boundedTickHandler()));
+        self::assertSame(['satisfied', ['n' => 1]], $engine->resume('cond-5', $this->boundedTickHandler()));
     }
 
     // -------------------------------------------------------------------------
@@ -148,10 +148,10 @@ final class WorkflowConditionTest extends TestCase
                 return [] !== $ticks;
             });
 
-            return ['au réveil' => \count($ticks)];
+            return ['on wake-up' => \count($ticks)];
         });
 
-        self::assertSame(['au réveil' => 1], $seen);
+        self::assertSame(['on wake-up' => 1], $seen);
     }
 
     // -------------------------------------------------------------------------
@@ -166,7 +166,7 @@ final class WorkflowConditionTest extends TestCase
             $env->run(static function (WorkflowEnvironment $wf): never {
                 $wf->await(static fn(): bool => false);
 
-                throw new \LogicException('inatteignable');
+                throw new \LogicException('unreachable');
             }, 'cond-7');
             self::fail('the execution was to be reported as unable to advance');
         } catch (WorkflowStuckException $e) {
@@ -243,9 +243,9 @@ final class WorkflowConditionTest extends TestCase
                     return [] !== $ticks;
                 }, Duration::seconds(30));
 
-                return ['satisfait', $ticks[0]];
+                return ['satisfied', $ticks[0]];
             } catch (DeadlineExceededException) {
-                return ['expiré'];
+                return ['expired'];
             }
         };
     }

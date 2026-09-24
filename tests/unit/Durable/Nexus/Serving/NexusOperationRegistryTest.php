@@ -163,7 +163,7 @@ final class NexusOperationRegistryTest extends TestCase
         $registry->register(
             NexusService::named('a.b'),
             NexusOperationName::named('c'),
-            static fn(): NexusOperationResponse => NexusOperationResponse::completed('premier'),
+            static fn(): NexusOperationResponse => NexusOperationResponse::completed('first'),
         );
         $registry->register(
             NexusService::named('a'),
@@ -171,7 +171,7 @@ final class NexusOperationRegistryTest extends TestCase
             static fn(): NexusOperationResponse => NexusOperationResponse::completed('second'),
         );
 
-        self::assertSame('premier', $registry->dispatch(NexusService::named('a.b'), NexusOperationName::named('c'), null)->result);
+        self::assertSame('first', $registry->dispatch(NexusService::named('a.b'), NexusOperationName::named('c'), null)->result);
         self::assertSame('second', $registry->dispatch(NexusService::named('a'), NexusOperationName::named('b.c'), null)->result);
     }
 }

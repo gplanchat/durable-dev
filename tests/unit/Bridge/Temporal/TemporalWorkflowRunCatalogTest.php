@@ -126,9 +126,9 @@ final class TemporalWorkflowRunCatalogTest extends TestCase
         $response = $this->responseWith(
             $this->info('wf-1', 'run-1', 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING, 1_700_000_200),
         );
-        $response->setNextPageToken('jeton-serveur');
+        $response->setNextPageToken('server-token');
 
-        self::assertSame(base64_encode('jeton-serveur'), $this->catalog($response)->listRuns()->nextCursor);
+        self::assertSame(base64_encode('server-token'), $this->catalog($response)->listRuns()->nextCursor);
     }
 
     /**
