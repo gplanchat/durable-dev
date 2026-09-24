@@ -16,8 +16,9 @@ use Gplanchat\Bridge\Temporal\Http\GrpcWire;
  * stamped once per call and reused by every attempt (the server dedupes on it), or its task
  * token makes the second one a NOT_FOUND. Any other RPC is sent once.
  *
- * No retry starts once the call has run for $budgetMs: a call that used its whole deadline is
- * not sent again, only the ones that failed fast (connection refused, frontend restarting).
+ * No retry starts past $budgetMs from the first attempt, backoff included: a call that used its
+ * whole deadline is not sent again, only the ones that failed fast (connection refused, frontend
+ * restarting).
  *
  * @see https://github.com/gplanchat/durable-dev/issues/353
  */
@@ -97,11 +98,14 @@ final class RetryingGrpcTransport implements GrpcTransport
             try {
                 return $this->inner->unary($method, $request, $responseClass, $metadata, $timeoutMs);
             } catch (\RuntimeException $e) {
+                // The whole backoff window counts, not the delay drawn from it: jitter must not
+                // decide whether a retry starts after the budget.
+                $window = min($this->maxDelayMs, $this->baseDelayMs << ($attempt - 1));
                 if (!$retryable || $attempt >= $this->maxAttempts || !\in_array($e->getCode(), self::TRANSIENT, true)
-                    || ($this->clock)() - $start >= $this->budgetMs) {
+                    || ($this->clock)() - $start + $window >= $this->budgetMs) {
                     throw $e;
                 }
-                ($this->sleep)(random_int(0, min($this->maxDelayMs, $this->baseDelayMs << ($attempt - 1))));
+                ($this->sleep)(random_int(0, $window));
             }
         }
     }

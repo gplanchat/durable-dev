@@ -105,12 +105,15 @@ final class RuntimeFactoryTest extends TestCase
             guzzle: $guzzle,
         ))->catalog();
 
+        $failure = null;
+
         try {
             $catalog->listRuns();
         } catch (\RuntimeException $e) {
-            self::assertSame(7, $e->getCode(), 'the retry surfaces the last answer, not the first');
+            $failure = $e;
         }
 
+        self::assertSame(7, $failure?->getCode(), 'the retry surfaces the last answer, not the first');
         self::assertSame(2, $calls);
     }
 

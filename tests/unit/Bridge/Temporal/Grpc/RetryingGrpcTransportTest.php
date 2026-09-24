@@ -72,6 +72,25 @@ final class RetryingGrpcTransportTest extends TestCase
         }
     }
 
+    public function testNoRetryIsSleptIntoPastTheBudget(): void
+    {
+        // A fast failure at 29.95 s: the next backoff may be up to 100 ms, which could start the
+        // retry after 30 s. It is not sent.
+        $inner = $this->failing([GrpcWire::UNAVAILABLE]);
+        $clock = [0, 29_950];
+        $transport = new RetryingGrpcTransport($inner, baseDelayMs: 100, budgetMs: 30_000, sleep: static function (): void {}, clock: static function () use (&$clock): int {
+            return array_shift($clock) ?? 29_950;
+        });
+
+        $this->expectExceptionCode(GrpcWire::UNAVAILABLE);
+
+        try {
+            $transport->unary(self::PATH . 'PollWorkflowTaskQueue', new PollWorkflowTaskQueueRequest(), PollWorkflowTaskQueueResponse::class, [], null);
+        } finally {
+            self::assertCount(1, $inner->requests);
+        }
+    }
+
     public function testACodeThatIsNotTransientIsNotRetried(): void
     {
         $inner = $this->failing([5]);
