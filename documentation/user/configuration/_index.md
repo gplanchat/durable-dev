@@ -59,7 +59,7 @@ have to agree: two sources of truth for one run is the failure this key rules ou
 |-------|---------------------------------|-------|
 | `in_memory` (default) | the PHP process | nothing; tests and single-process demos |
 | `dbal` | SQL, through [`dbal`](#dbal) | a Doctrine DBAL connection and a shared lock store |
-| `temporal` | the cluster at [`temporal.dsn`](#temporal) | `temporal.dsn` |
+| `temporal` | the cluster at [`temporal.dsn`](#temporal); the process keeps only the copy of the metadata and parent links that the profiler and `durable:execution:diagnose` read | `temporal.dsn` |
 
 `dbal` with a `temporal.dsn` keeps the journal in SQL and uses the cluster only to serve Nexus
 operations; see [Nexus operations](../nexus/).

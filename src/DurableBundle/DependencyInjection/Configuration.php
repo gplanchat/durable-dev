@@ -48,7 +48,7 @@ final class Configuration implements ConfigurationInterface
             ->scalarNode('dsn')
             ->defaultNull()
             ->validate()
-            ->ifTrue(static fn(mixed $dsn): bool => null !== $dsn && (!\is_string($dsn) || '' === $dsn))
+            ->ifTrue(static fn(mixed $dsn): bool => null !== $dsn && (!\is_string($dsn) || '' === trim($dsn)))
             ->thenInvalid('A temporal://… DSN string is expected, got %s.')
             ->end()
             ->info('A temporal://… DSN (for instance %env(DURABLE_DSN)%). When set, it turns on the native Temporal backend (gRPC); over ext-grpc when it is loaded, over curl (ext-curl) otherwise; temporal+http:// for the JSON gateway. No SQL/PDO.')
@@ -156,6 +156,7 @@ final class Configuration implements ConfigurationInterface
         $journal = $config['temporal']['journal'];
         $eventStore = $config['event_store']['type'];
         $backend = $config['backend'];
+        $explicit = null !== $backend;
 
         if (null === $backend) {
             if (null !== $dsn && false !== $journal && 'dbal' === $eventStore) {
@@ -171,18 +172,28 @@ final class Configuration implements ConfigurationInterface
         }
 
         $stores = 'dbal' === $backend ? 'dbal' : 'in_memory';
-        if (null !== $config['backend'] && null !== $eventStore && $stores !== $eventStore) {
-            throw new \InvalidArgumentException(\sprintf('event_store.type "%s" contradicts backend "%s".', $eventStore, $backend));
+        $types = [
+            'event_store.type' => $eventStore,
+            'workflow_metadata.type' => $config['workflow_metadata']['type'],
+            'child_workflow.parent_link_store.type' => $config['child_workflow']['parent_link_store']['type'],
+        ];
+        foreach ($types as $path => $type) {
+            if ($explicit && null !== $type && $stores !== $type) {
+                throw new \InvalidArgumentException(\sprintf('%s "%s" contradicts backend "%s".', $path, $type, $backend));
+            }
         }
-        if (null !== $config['backend'] && null !== $journal && $journal !== ('temporal' === $backend)) {
+        if ($explicit && null !== $journal && $journal !== ('temporal' === $backend)) {
             throw new \InvalidArgumentException(\sprintf('temporal.journal: %s contradicts backend "%s".', $journal ? 'true' : 'false', $backend));
         }
 
         $config['backend'] = $backend;
         $config['temporal']['journal'] = 'temporal' === $backend;
         $config['event_store']['type'] ??= $stores;
-        $config['workflow_metadata']['type'] ??= $stores;
-        $config['child_workflow']['parent_link_store']['type'] ??= $stores;
+        // Derived from the deprecated keys, each store keeps its own type, as it did before the
+        // backend node: a SQL journal alone never dragged the two other stores into SQL.
+        $others = $explicit ? $stores : 'in_memory';
+        $config['workflow_metadata']['type'] ??= $others;
+        $config['child_workflow']['parent_link_store']['type'] ??= $others;
 
         return $config;
     }

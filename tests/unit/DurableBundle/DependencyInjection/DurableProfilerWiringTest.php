@@ -196,9 +196,6 @@ final class DurableProfilerWiringTest extends TestCase
         self::fail('the verification pass does not converge');
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
     public function testProfilerEnabledTurnsItOffInDebug(): void
     {
         self::assertFalse($this->load(debug: true, config: ['profiler' => ['enabled' => false]])->has('durable.execution_trace'));
@@ -209,6 +206,9 @@ final class DurableProfilerWiringTest extends TestCase
         self::assertTrue($this->load(debug: false, config: ['profiler' => ['enabled' => true]])->has('durable.execution_trace'));
     }
 
+    /**
+     * @param array<string, mixed> $config
+     */
     private function load(bool $debug, array $config = []): ContainerBuilder
     {
         $container = new ContainerBuilder();

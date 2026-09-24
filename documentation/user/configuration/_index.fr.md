@@ -60,7 +60,7 @@ clé exclut.
 |--------|--------------------------------------|----------|
 | `in_memory` (défaut) | le processus PHP | rien ; tests et démonstrations mono-processus |
 | `dbal` | SQL, via [`dbal`](#dbal) | une connexion Doctrine DBAL et un magasin de verrous partagé |
-| `temporal` | le cluster à [`temporal.dsn`](#temporal) | `temporal.dsn` |
+| `temporal` | le cluster à [`temporal.dsn`](#temporal) ; le processus ne garde que la copie des métadonnées et des liens parents que lisent le profileur et `durable:execution:diagnose` | `temporal.dsn` |
 
 `dbal` avec un `temporal.dsn` garde le journal en SQL et n'utilise le cluster que pour servir les
 opérations Nexus ; voir [Opérations Nexus](../nexus/).

@@ -31,6 +31,8 @@ final class ConfigurationBackendTest extends TestCase
         yield 'dbal handing the journal to the cluster' => [[['backend' => 'dbal', 'temporal' => ['dsn' => self::DSN, 'journal' => true]]], 'temporal.journal: true contradicts backend "dbal"'];
         yield 'in_memory handing the journal to the cluster' => [[['backend' => 'in_memory', 'temporal' => ['dsn' => self::DSN, 'journal' => true]]], 'temporal.journal: true contradicts backend "in_memory"'];
         yield 'temporal keeping the journal away' => [[['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN, 'journal' => false]]], 'temporal.journal: false contradicts backend "temporal"'];
+        yield 'dbal with an in-memory metadata store' => [[['backend' => 'dbal', 'workflow_metadata' => ['type' => 'in_memory']]], 'workflow_metadata.type "in_memory" contradicts backend "dbal"'];
+        yield 'dbal with an in-memory parent-link store' => [[['backend' => 'dbal', 'child_workflow' => ['parent_link_store' => ['type' => 'in_memory']]]], 'child_workflow.parent_link_store.type "in_memory" contradicts backend "dbal"'];
         yield 'legacy keys, two sources of truth' => [[['event_store' => ['type' => 'dbal'], 'temporal' => ['dsn' => self::DSN]]], 'mutually exclusive'];
     }
 
@@ -63,6 +65,7 @@ final class ConfigurationBackendTest extends TestCase
         yield 'Symfony bench, default and test' => [[$inMemory + ['temporal' => ['dsn' => null]]], 'in_memory', false];
         yield 'Symfony bench, dev and prod' => [[$inMemory, ['temporal' => ['dsn' => '%env(DURABLE_DSN)%']]], 'temporal', true];
         yield 'Sylius, default' => [[$dbal], 'dbal', false];
+        yield 'a SQL journal alone, the other stores left in memory' => [[['event_store' => ['type' => 'dbal']]], 'dbal', false];
         yield 'Sylius, demo: the cluster serves Nexus, SQL keeps the journal' => [[$dbal, ['temporal' => ['dsn' => self::DSN, 'journal' => false]]], 'dbal', false];
         yield 'Sylius, demo_caller' => [[$dbal, $inMemory + ['temporal' => ['dsn' => self::DSN, 'journal' => true]]], 'temporal', true];
     }
@@ -102,6 +105,15 @@ final class ConfigurationBackendTest extends TestCase
         self::assertSame($stores, $config['workflow_metadata']['type']);
         self::assertSame($stores, $config['child_workflow']['parent_link_store']['type']);
         self::assertSame($journal, $config['temporal']['journal']);
+    }
+
+    public function testAnOldConfigurationKeepsItsStoresIndependent(): void
+    {
+        // Before the backend node, a SQL journal did not drag the two other stores into SQL.
+        $config = @$this->process([['event_store' => ['type' => 'dbal']]]);
+
+        self::assertSame('in_memory', $config['workflow_metadata']['type']);
+        self::assertSame('in_memory', $config['child_workflow']['parent_link_store']['type']);
     }
 
     public function testTheOldKeysAreDeprecated(): void

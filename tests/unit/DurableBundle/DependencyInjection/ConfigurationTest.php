@@ -31,6 +31,14 @@ final class ConfigurationTest extends TestCase
         $this->process(['temporal' => ['dsn' => '']]);
     }
 
+    public function testABlankTemporalDsnIsRefused(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('durable.temporal.dsn');
+
+        $this->process(['temporal' => ['dsn' => '   ']]);
+    }
+
     public function testAnExplicitNullDsnStillMeansNoCluster(): void
     {
         // The Symfony bench writes `dsn: null` in its default and `test` profiles.
