@@ -87,88 +87,87 @@
       `durable-plugin` and `durable-magento` sections of the packages page no longer each describe
       their timeline — they describe their **chrome** and point to it
 
-## Notes de la tranche 1
+## Slice 1 notes
 
-`ProcessDetail::getTimeline()` n'avait **aucun test** — `tests/unit/DurableModule/` ne contient que
-`DeclaredRuntimeTest` et `RuntimeFactoryTest`. Les onze cas de
-`TheRunTimelinePositionsActionsInTimeTest` sont donc la première couverture de cette logique, pas un
-déménagement de tests existants ; trois d'entre eux (action d'un seul événement, run tenant dans une
-microseconde, run encore en cours) sont ceux que la §1.3 réclamait et qu'aucune surface ne couvrait.
+`ProcessDetail::getTimeline()` had **no tests** — `tests/unit/DurableModule/` contains only
+`DeclaredRuntimeTest` and `RuntimeFactoryTest`. The eleven cases of
+`TheRunTimelinePositionsActionsInTimeTest` are therefore the first coverage of that logic, not a
+move of existing tests; three of them (a single-event action, a run fitting in one microsecond, a
+run still going) are the ones §1.3 asked for and that no surface covered.
 
-Le troisième état de backend n'a coûté qu'un paramètre à défaut : `BackendHealth::$ephemeral`, à
-`false`. Les trois catalogues qui écrivent hors du processus — SQL, Illuminate, Temporal — n'ont rien
-à déclarer, seul `InMemoryWorkflowRunCatalog` passe `true`.
+The third backend state cost only one defaulted parameter: `BackendHealth::$ephemeral`, set to
+`false`. The three catalogues that write outside the process — SQL, Illuminate, Temporal — have
+nothing to declare; only `InMemoryWorkflowRunCatalog` passes `true`.
 
-## Notes de la tranche 2
+## Slice 2 notes
 
-Deux choses sont montées dans la projection plutôt que d'être écrites deux fois : les **infobulles**
-(`TimelineSegment::$title`, `TimelineEvent::$title`) et la **mise en forme de la charge utile**
-(`TimelineEvent::$renderedDetails`). Magento les composait en PHP, Sylius ne les avait pas ; les
-laisser à l'hôte aurait fait diverger les mots que deux surfaces disent de la même seconde. Le fait
-brut reste sur `$event->details` pour une surface qui sert des données plutôt qu'une page.
+Two things moved up into the projection rather than being written twice: the **tooltips**
+(`TimelineSegment::$title`, `TimelineEvent::$title`) and the **formatting of the payload**
+(`TimelineEvent::$renderedDetails`). Magento composed them in PHP, Sylius did not have them; leaving
+them to the host would have let the words two surfaces say about the same second diverge. The raw
+fact stays on `$event->details` for a surface that serves data rather than a page.
 
-La règle « une attente de quatre millisecondes ne dessine pas plus large que six millisecondes de
-travail » est tenue par un `min-width` **uniforme** : sous le seuil les deux barres sont égales,
-jamais inversées. Elle vit chez l'hôte, avec les pourcentages, comme la §1.2 l'a décidé.
+The rule "a four-millisecond wait does not draw wider than six milliseconds of work" is held by a
+**uniform** `min-width`: below the threshold both bars are equal, never inverted. It lives in the
+host, with the percentages, as §1.2 decided.
 
-⚠ **Un fuseau attrapé au passage.** L'infobulle de la frise est composée dans le cœur, avec le
-fuseau que porte l'événement ; le filtre `date` de Twig applique celui du **serveur**. Sur une
-machine à Paris, le même événement se lisait 22:13:20 au survol et 23:13:20 dans la ligne juste
-dessous — dans une page dont toute la raison d'être est qu'un exploitant n'ait rien à convertir de
-tête. `date(..., false)` garde le fuseau de la date. Le test tourne sous `Europe/Paris` : sous UTC,
-la divergence est invisible, et c'est sous UTC que tourne la CI.
+⚠ **A time zone caught along the way.** The timeline tooltip is composed in the core, with the
+time zone the event carries; Twig's `date` filter applies the **server's**. On a machine in
+Paris, the same event read 22:13:20 on hover and 23:13:20 in the line just below — in a page whose
+whole reason to exist is that an operator has nothing to convert in their head. `date(..., false)`
+keeps the date's time zone. The test runs under `Europe/Paris`: under UTC the divergence is
+invisible, and UTC is what CI runs under.
 
-## Notes de la tranche 3
+## Slice 3 notes
 
-Ce qui a **disparu** de `ProcessDetail`, et c'était le but : `getTimeline()`, `segments()`,
-`getEvents()`, `actionLabel()`, `formatDetails()`, et les deux compositions d'infobulle. Reste
-`scale()` — des secondes vers un pourcentage de piste — qui appartient bien à l'hôte : mettre à
-l'échelle demande de connaître une largeur de colonne. `RuntimeFactory::hasCluster()` part aussi :
-l'éphémérité vient du port, c'est le catalogue in-memory qui sait qu'il l'est, pas l'hôte qui le
-devine à l'absence d'un DSN.
+What **disappeared** from `ProcessDetail`, and that was the point: `getTimeline()`, `segments()`,
+`getEvents()`, `actionLabel()`, `formatDetails()`, and the two tooltip compositions. What remains
+is `scale()` — seconds to a percentage of track — which does belong to the host: scaling requires
+knowing a column width. `RuntimeFactory::hasCluster()` goes too: ephemerality comes from the port;
+it is the in-memory catalogue that knows it is ephemeral, not the host guessing from a missing DSN.
 
-⚠ **Aucun outil de la CI n'analyse un `.phtml`.** PHPStan et Psalm tournent contre les vraies classes
-de Magento dans le job qui installe la distribution, mais les gabarits leur échappent — et ces deux-là
-venaient d'être réécrits sur une API d'objets là où ils lisaient des tableaux. Deux tests de rendu
-les couvrent désormais, avec un double de bloc et un `__()` global ; ils ne demandent ni Magento ni
-base, donc ils tournent dans la suite ordinaire. Vérifié par mutation.
+⚠ **No CI tool analyses a `.phtml`.** PHPStan and Psalm run against Magento's real classes in the
+job that installs the distribution, but the templates escape them — and those two had just been
+rewritten onto an object API where they used to read arrays. Two render tests now cover them, with
+a block double and a global `__()`; they need neither Magento nor a database, so they run in the
+ordinary suite. Verified by mutation.
 
-Deux appels à `listRuns()` par affichage de la grille — la bannière compte, le fournisseur liste.
-Assumé et commenté : l'alternative serait un couplage entre la bannière et le fournisseur de la
-grille, ou un cache de requête autour du catalogue. Le second est la sortie si ça pèse.
+Two calls to `listRuns()` per grid display — the banner counts, the provider lists. Accepted and
+commented: the alternative would be coupling the banner to the grid's provider, or a request cache
+around the catalogue. The latter is the way out if it becomes a burden.
 
-## Notes des tranches 4 et 5
+## Slices 4 and 5 notes
 
-La règle du tiret cadratin ne s'applique qu'aux **tableaux**. La liste Sylius est faite de cartes :
-un fait absent y est omis, et c'est le bon rendu — il n'y a pas de colonne à laisser vide. C'est la
-grille Magento qui rendait `''`, et une case vide s'y lit comme un rendu qui a échoué.
+The em dash rule applies only to **tables**. The Sylius list is made of cards: an absent fact is
+omitted there, and that is the right rendering — there is no column to leave empty. It was the
+Magento grid that rendered `''`, and an empty cell there reads as a render that failed.
 
-Une section identique dans les deux README plutôt qu'un renvoi de l'un vers l'autre : ils sont
-publiés dans deux paquets satellites distincts, et un lecteur de `durable-magento` sur Packagist n'a
-pas celui de `durable-plugin` sous la main.
+An identical section in both READMEs rather than a link from one to the other: they are published
+in two separate satellite packages, and a reader of `durable-magento` on Packagist does not have
+the `durable-plugin` one at hand.
 
-Ce qui restait de « voies » ailleurs était du français ordinaire — « se voient », « deux voies »
-— et n'a pas été touché. `DUR037` en garde aussi : c'est un ADR, il dit ce qui a été décidé à sa
-date, et c'est la §6.1 qui le complète plutôt que de le réécrire.
+What remained of "voies" (lanes) elsewhere was ordinary French — "se voient", "deux voies" — and
+was not touched. `DUR037` also keeps some: it is an ADR, it says what was decided at its date, and
+it is §6.1 that supplements it rather than rewriting it.
 
-## Notes de la tranche 6
+## Slice 6 notes
 
-`DUR049` a été relu contre le code avant d'être figé, et deux chiffres corrigés : `ProcessDetail`
-passe de onze méthodes à sept — il garde `getTimeline()` comme accesseur mémoïsé, il n'en perd pas
-six — et la frise a dix-huit cas de test, pas onze. Un ADR qui compte faux se relit une fois puis
-plus jamais.
+`DUR049` was reread against the code before being frozen, and two figures corrected:
+`ProcessDetail` goes from eleven methods to seven — it keeps `getTimeline()` as a memoised
+accessor, it does not lose six — and the timeline has eighteen test cases, not eleven. An ADR that
+counts wrong is read once and then never again.
 
-Sur le site, la duplication n'avait pas la même excuse que dans les README : deux paquets satellites
-justifient une section répétée, un site non. D'où **une** page, et deux sections d'habillage qui y
-renvoient.
+On the site, duplication did not have the same excuse as in the READMEs: two satellite packages
+justify a repeated section, a single site does not. Hence **one** page, and two chrome sections
+that point to it.
 
-⚠ **La page d'accueil n'est pas touchée, à dessein.** `hugo-docs/layouts/index{,.fr}.html` est
-**engendré** depuis `variant-b-narrative{,-fr}.dc.html` : les phrases du sélecteur d'hôtes s'y
-modifient par le canevas, jamais dans le fichier engendré. Elles ne contredisent rien aujourd'hui —
-« Sylius admin gains a dashboard », « Filament … the dashboard side » restent vraies — mais la ligne
-Magento ne mentionne pas son écran, et c'est une omission à reprendre au canevas.
+⚠ **The home page is deliberately left untouched.** `hugo-docs/layouts/index{,.fr}.html` is
+**generated** from `variant-b-narrative{,-fr}.dc.html`: the sentences of the host selector are
+changed through the canvas, never in the generated file. They contradict nothing today —
+"Sylius admin gains a dashboard", "Filament … the dashboard side" remain true — but the
+Magento line does not mention its screen, and that is an omission to take up in the canvas.
 
-⚠ **Le hugo installé est un snap** : il ne lit ni `/tmp` ni les dossiers cachés du `$HOME`. Vérifier
-un build depuis un worktree de scratchpad demande donc de recopier `hugo-docs/` et `documentation/`
-(2 Mo) sous un chemin visible du `$HOME`. Build `--minify` servi en HTTP, les deux langues et les
-liens relatifs vérifiés à 200.
+⚠ **The installed hugo is a snap**: it reads neither `/tmp` nor hidden folders in `$HOME`.
+Checking a build from a scratchpad worktree therefore requires copying `hugo-docs/` and
+`documentation/` (2 MB) to a path visible under `$HOME`. `--minify` build served over HTTP, both
+languages and relative links checked at 200.
