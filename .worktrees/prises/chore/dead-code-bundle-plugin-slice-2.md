@@ -8,4 +8,4 @@
   `src/Bridge/Illuminate/Schema/DurableSchema.php`, `tests/unit/Durable/Observation/RunDashboardTest.php`,
   `src/DurablePlugin/tests/Integration/TheDashboardRendersARunHistoryTest.php`,
   `src/DurablePlugin/tests/Unit/ThePreviousPageLinkTest.php`.
-- **State**: in progress — dave.
+- **State**: in review, PR #535 — dave.
