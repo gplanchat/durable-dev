@@ -106,6 +106,18 @@
                                 </div>
                             </div>
                         {% endfor %}
+                        {# Not an outcome: a subset of the running runs on this page, those no worker has picked up (#447).
+                           A backend that cannot tell leaves the key out, and the card with it. #}
+                        {% if waitingForWorker is defined %}
+                            <div class="col-6 col-lg-2">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="text-secondary text-uppercase small">Waiting for a worker</div>
+                                        <div class="durable-kpi-value">{{ waitingForWorker }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
                     </div>
 
                     <div class="card">
@@ -153,6 +165,8 @@
                                                     {# Each fact shows only when it exists: the view model omits the key rather than render an empty value. #}
                                                     {% if run.startedAt is defined %}<span>{{ run.startedAt|date('Y-m-d H:i:s', false) }}</span>{% endif %}
                                                     {% if run.groupId is defined %}<span>Group: <code>{{ run.groupId }}</code></span>{% endif %}
+                                                    {# Dispatched, and no worker has taken it: usually no worker is running (#447). #}
+                                                    {% if run.waitingForWorker is defined %}<span class="text-orange">{{ run.waitingForWorker }}</span>{% endif %}
                                                 </div>
                                             </a>
                                         {% endfor %}
