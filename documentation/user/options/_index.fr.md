@@ -273,6 +273,12 @@ $client->startAsync('CheckoutWorkflow', $input, $executionId, new WorkflowStartO
 ));
 ```
 
+> [!NOTE]
+> `$client` est le `WorkflowClientInterface` de Temporal, et `startAsync()` n'existe que sur
+> Temporal, comme les options de démarrage qu'il prend. Sur tous les backends, une exécution démarre
+> par `WorkflowResumeDispatcher::dispatchNewWorkflowRun()` ([Premiers pas](../getting-started/#4--le-déclencher-depuis-un-contrôleur-ou-un-service)),
+> qui ne prend pas d'options de démarrage.
+
 L'objet est immuable : chaque appel renvoie une nouvelle instance.
 
 Deux des trois règles du serveur sont vérifiées localement :
