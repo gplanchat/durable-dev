@@ -8,6 +8,7 @@ use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Timer\TimerWakeDelayCalculator;
 use Gplanchat\Durable\Workflow\AsyncChildWorkflowFailureProjector;
 use Rector\Config\RectorConfig;
+use Rector\Php80\Rector\ClassMethod\AddParamBasedOnParentClassMethodRector;
 use Rector\Renaming\Rector\Name\RenameClassRector;
 
 /**
@@ -64,4 +65,9 @@ return RectorConfig::configure()
         // core, under the name that pairs it with `AsNexusServiceHandler`. It is **read by a
         // compiler pass**, so the compiled container holds on to it.
         'Gplanchat\Durable\Bundle\Attribute\AsDurableActivity' => 'Gplanchat\Durable\Attribute\AsActivityHandler',
-    ]);
+    ])
+    // 0.1.0-beta1 — `WorkflowClientInterface::signal()` takes a request id and `update()` an update
+    // id, so that a redelivered call reaches the cluster as the same one (#333). An implementation
+    // missing them is a fatal error at load time; this rule adds them, `?string ... = null`, to every
+    // class whose parent or interface declares more parameters than it does.
+    ->withRules([AddParamBasedOnParentClassMethodRector::class]);

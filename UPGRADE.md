@@ -206,6 +206,25 @@ Rector can do nothing: rewriting a `$container->get('durable.event_store.dbal')`
 requires knowing where the object is used, which no rule can guess. The table above is the
 procedure.
 
+### `WorkflowClientInterface::signal()` and `update()` take the call's id
+
+**Who is affected**: only whoever **implements** `WorkflowClientInterface`, typically a test
+double. Callers have nothing to change: the new parameters are optional.
+
+**What was broken.** On Temporal native, a `DeliverWorkflowSignalMessage` or
+`DeliverWorkflowUpdateMessage` sent through Messenger never reached the cluster (#333). Now it
+does, and a Messenger retry after a lost answer must not deliver it twice. The message draws its
+id once, when it is built; the client puts it on the wire as `request_id` or `update_id`, and the
+cluster drops the duplicate.
+
+**What to write.** Rector does it: `durable-upgrade.php` adds the two parameters to every
+implementation. By hand, they are:
+
+```php
+public function signal(string $workflowId, \BackedEnum|string $signalName, array $args = [], ?string $requestId = null): void;
+public function update(string $workflowId, string $updateName, array $args = [], ?string $updateId = null): mixed;
+```
+
 ### `WorkflowHistorySourceInterface` gains `cancellationDelivery()`
 
 **Who is affected**: only whoever **implements** `WorkflowHistorySourceInterface`, that is, whoever
