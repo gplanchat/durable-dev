@@ -24,15 +24,16 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
-### Laravel on Temporal: decorating an intermediate binding no longer reaches the services built from it
+### Laravel and Symfony on Temporal: decorating an intermediate service no longer reaches the services built from it
 
-**Who is affected**: a Laravel application on the Temporal backend that decorates or rebinds
-(`$app->extend()`, a later `singleton()`) one of the Temporal bindings **in order to change the
-services built from it**: `TemporalHistoryCursor`, `WorkflowServiceExecutionRpc`,
-`WorkflowServiceNexusRpc`, `WorkflowTaskRunner` or `WorkflowClientInterface`.
+**Who is affected**: an application on the Temporal backend that decorates or replaces one of the
+Temporal services **in order to change the services built from it**: `TemporalHistoryCursor`,
+`WorkflowServiceExecutionRpc`, `WorkflowServiceNexusRpc`, `WorkflowTaskRunner` or
+`WorkflowClientInterface`. On Laravel, through `$app->extend()` or a later `singleton()`; on
+Symfony, through a service decorator or a compiler pass that rewrites their definitions.
 
 These services now come from one `Gplanchat\Bridge\Temporal\TemporalRuntimeAssembly` (#356). Every
-binding id still resolves, to the assembly's object. But the run catalog, the task processor and
+id still resolves, to the assembly's object. But the run catalog, the task processor and
 the read-through store are built inside the assembly, not resolved through the container, so a
 decorated cursor or RPC is no longer the one they use. The heartbeat sender is the exception: the
 activity worker still takes whatever `ActivityHeartbeatSenderInterface` resolves to.
@@ -40,13 +41,15 @@ activity worker still takes whatever `ActivityHeartbeatSenderInterface` resolves
 Rector cannot help: this is container wiring. To migrate:
 
 1. To change what a service does, decorate **that** service: `$app->extend(WorkflowRunCatalogInterface::class, …)`
-   still wraps the catalog the application resolves.
-2. To change what several services share (the cursor, the client), bind an assembly of your own,
-   built with your client or connection: `$app->instance(TemporalRuntimeAssembly::class, $assembly)`
-   before the services resolve. Every Temporal binding then comes from it.
+   on Laravel, or `decorates: durable.run_catalog.temporal` on Symfony, still wraps what the
+   application resolves.
+2. To change what several services share (the cursor, the client), provide an assembly of your
+   own, built with your client or connection: `$app->instance(TemporalRuntimeAssembly::class,
+   $assembly)` on Laravel before the services resolve, or a definition for the
+   `Gplanchat\Bridge\Temporal\TemporalRuntimeAssembly` service on Symfony. Every Temporal
+   service then comes from it.
 
-Symfony and Magento are unaffected: Symfony's services are unchanged here, and Magento never
-exposed these objects to its container.
+Magento is unaffected: it never exposed these objects to its container.
 
 ### Unused helpers removed from the core
 

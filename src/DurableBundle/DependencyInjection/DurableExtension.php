@@ -24,6 +24,7 @@ use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowResumeDispatcher;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\TemporalRuntimeAssembly;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
@@ -407,79 +408,40 @@ final class DurableExtension extends Extension
                 $client->setArgument(3, new Definition(Psr18Http::class, [new Reference($psr18), $psr17, $psr17]));
             }
 
-            $container->register(WorkflowServiceActivityRpc::class)
-                ->setArguments([new Reference('durable.temporal.workflow_service_client')])
-            ;
-
-            $container->register(WorkflowServiceExecutionRpc::class)
-                ->setArguments([new Reference('durable.temporal.workflow_service_client')])
-            ;
-
-            $container->register(WorkflowServiceNexusRpc::class)
-                ->setArguments([new Reference('durable.temporal.workflow_service_client')])
-            ;
-
-            $container->register(WorkflowClient::class)
+            // The graph is the bridge's (#356): each service below is one of the assembly's
+            // objects, under the id it always had.
+            $container->register(TemporalRuntimeAssembly::class)
                 ->setArguments([
                     new Reference('durable.temporal.workflow_service_client'),
                     new Reference('durable.temporal.connection'),
-                    new Reference(TemporalHistoryCursor::class),
-                    new Reference(WorkflowServiceExecutionRpc::class),
+                    new Reference(\Gplanchat\Durable\WorkflowRegistry::class),
                     new Reference(WorkflowDefinitionLoader::class),
                 ])
+                ->setPublic(false)
             ;
+            $fromAssembly = static fn(string $id, string $class, string $method, bool $public = false, array $arguments = []): Definition => $container
+                ->register($id, $class)
+                ->setFactory([new Reference(TemporalRuntimeAssembly::class), $method])
+                ->setArguments($arguments)
+                ->setPublic($public);
 
+            $fromAssembly(WorkflowServiceActivityRpc::class, WorkflowServiceActivityRpc::class, 'activityRpc');
+            $fromAssembly(WorkflowServiceExecutionRpc::class, WorkflowServiceExecutionRpc::class, 'executionRpc');
+            $fromAssembly(WorkflowServiceNexusRpc::class, WorkflowServiceNexusRpc::class, 'nexusRpc');
+            $fromAssembly(TemporalHistoryCursor::class, TemporalHistoryCursor::class, 'historyCursor');
+            $fromAssembly(WorkflowClient::class, WorkflowClient::class, 'workflowClient');
             $container->setAlias(WorkflowClientInterface::class, WorkflowClient::class)
                 ->setPublic(false)
             ;
 
-            $container->register('durable.run_catalog.temporal', TemporalWorkflowRunCatalog::class)
-                ->setArguments([
-                    new Reference('durable.temporal.workflow_service_client'),
-                    new Reference('durable.temporal.connection'),
-                    new Reference(TemporalHistoryCursor::class),
-                ])
-                ->setPublic(false)
-            ;
+            $fromAssembly('durable.run_catalog.temporal', TemporalWorkflowRunCatalog::class, 'runCatalog');
             if ($journal) {
                 $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.temporal')->setPublic(true);
             }
 
-            $container->register(\Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor::class)
-                ->setArguments([
-                    new Reference('durable.temporal.workflow_service_client'),
-                    new Reference('durable.temporal.connection'),
-                ])
-                ->setPublic(false)
-            ;
-
-            $container->register(WorkflowTaskRunner::class)
-                ->setArguments([
-                    new Reference(TemporalHistoryCursor::class),
-                    new Reference(\Gplanchat\Durable\WorkflowRegistry::class),
-                    new Reference('durable.temporal.connection'),
-                    new Reference(WorkflowDefinitionLoader::class),
-                ])
-                ->setPublic(true)
-            ;
-
-            $container->register(WorkflowTaskProcessor::class)
-                ->setArguments([
-                    new Reference('durable.temporal.workflow_service_client'),
-                    new Reference('durable.temporal.connection'),
-                    new Reference(WorkflowTaskRunner::class),
-                ])
-                ->setPublic(true)
-            ;
-
-            $container->register('durable.event_store.temporal', TemporalReadThroughEventStore::class)
-                ->setArguments([
-                    new Reference('durable.event_store.inner'),
-                    new Reference(TemporalHistoryCursor::class),
-                    new Reference(WorkflowClientInterface::class),
-                ])
-                ->setPublic(false)
-            ;
+            $fromAssembly(WorkflowTaskRunner::class, WorkflowTaskRunner::class, 'workflowTaskRunner', true);
+            $fromAssembly(WorkflowTaskProcessor::class, WorkflowTaskProcessor::class, 'workflowTaskProcessor', true);
+            $fromAssembly('durable.event_store.temporal', TemporalReadThroughEventStore::class, 'readThroughEventStore', false, [new Reference('durable.event_store.inner')]);
 
             if ($journal) {
                 $container->setAlias(EventStoreInterface::class, 'durable.event_store.temporal')->setPublic(true);
