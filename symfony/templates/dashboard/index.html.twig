@@ -9,7 +9,11 @@
         <p>Follow the state of running executions, spot failures quickly and inspect one execution in detail without leaving the page.</p>
     </div>
 
-    <section class="ds-kpi-grid" aria-label="Workflow indicators">
+    {% if not backend.available or backend.ephemeral|default(false) %}
+        <p class="ds-empty-state">{{ backend.message }}</p>
+    {% endif %}
+
+    <section class="ds-kpi-grid" aria-label="Workflow indicators (this page)">
         <article class="ds-kpi">
             <span class="ds-kpi__label">Total</span>
             <strong class="ds-kpi__value">{{ kpis.total }}</strong>
@@ -31,15 +35,15 @@
     <form class="ds-filters" method="get" action="{{ path('app_dashboard') }}">
         <div>
             <label for="filter-q">Search</label>
-            <input id="filter-q" class="ds-input" type="search" name="q" value="{{ query }}" placeholder="run id, workflow, queue">
+            <input id="filter-q" class="ds-input" type="search" name="q" value="{{ query }}" placeholder="run id, workflow">
         </div>
         <div>
             <label for="filter-status">Status</label>
             <select id="filter-status" class="ds-select" name="status">
                 <option value="all" {% if status == 'all' %}selected{% endif %}>All</option>
-                <option value="running" {% if status == 'running' %}selected{% endif %}>Running</option>
-                <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
-                <option value="failed" {% if status == 'failed' %}selected{% endif %}>Failed</option>
+                {% for case in statuses %}
+                    <option value="{{ case.value }}" {% if status == case.value %}selected{% endif %}>{{ case.value|replace({'_': ' '})|capitalize }}</option>
+                {% endfor %}
             </select>
         </div>
         {% if selectedRunId %}
@@ -111,9 +115,8 @@
                         </div>
                         <div class="ds-run-row__meta">
                             <code class="ds-mono">{{ run.runId }}</code>
-                            <span>{{ run.startedAt }}</span>
-                            <span>Queue: {{ run.taskQueue }}</span>
-                            <span>Duration: {{ run.duration }}</span>
+                            {% if run.startedAt is defined %}<span>{{ run.startedAt|date('Y-m-d H:i:s') }}</span>{% endif %}
+                            {% if run.waitingForWorker is defined %}<span>{{ run.waitingForWorker }}</span>{% endif %}
                         </div>
                     </a>
                 {% endfor %}
@@ -132,12 +135,16 @@
                             <dd><code class="ds-mono">{{ selectedRun.runId }}</code></dd>
                             <dt>Status</dt>
                             <dd><span class="ds-status-badge ds-status-badge--{{ selectedRun.status }}">{{ selectedRun.status|upper }}</span></dd>
-                            <dt>Started At</dt>
-                            <dd>{{ selectedRun.startedAt }}</dd>
-                            <dt>Task Queue</dt>
-                            <dd>{{ selectedRun.taskQueue }}</dd>
-                            <dt>Duration</dt>
-                            <dd>{{ selectedRun.duration }}</dd>
+                            {% if selectedRun.startedAt is defined %}
+                                <dt>Started At</dt>
+                                <dd>{{ selectedRun.startedAt|date('Y-m-d H:i:s') }}</dd>
+                            {% endif %}
+                            {% if selectedRun.endedAt is defined %}
+                                <dt>Ended At</dt>
+                                <dd>{{ selectedRun.endedAt|date('Y-m-d H:i:s') }}</dd>
+                            {% endif %}
+                            <dt>Recorded span</dt>
+                            <dd>{{ selectedRun.timeline.windowDurationLabel }}</dd>
                         </dl>
                     </div>
                 </div>
@@ -192,6 +199,7 @@
                                     <span class="ds-timelapse__legend-item"><span class="ds-timelapse__legend-dot ds-timelapse__legend-dot--signal"></span>Signal</span>
                                     <span class="ds-timelapse__legend-item"><span class="ds-timelapse__legend-dot ds-timelapse__legend-dot--query"></span>Query</span>
                                     <span class="ds-timelapse__legend-item"><span class="ds-timelapse__legend-dot ds-timelapse__legend-dot--update"></span>Update</span>
+                                    <span class="ds-timelapse__legend-item"><span class="ds-timelapse__legend-dot ds-timelapse__legend-dot--nexus"></span>Nexus</span>
                                     <span class="ds-timelapse__legend-item"><span class="ds-timelapse__legend-hatch"></span>Hatched = running</span>
                                 </div>
 
