@@ -70,7 +70,7 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
      *
      * @return array{int, string} [HTTP status, body]
      */
-    private static function overCurl(string $url, string $verb, string $json, array $headers, array $options, array $tls): array
+    private static function overCurl(string $url, string $verb, string $json, #[\SensitiveParameter] array $headers, array $options, array $tls): array
     {
         $curl = curl_init($url);
         curl_setopt_array($curl, [
@@ -97,7 +97,7 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
      *
      * @return array{int, string} [HTTP status, body]
      */
-    private static function overPsr18(Psr18Http $http, string $url, string $verb, string $json, array $headers): array
+    private static function overPsr18(Psr18Http $http, string $url, string $verb, string $json, #[\SensitiveParameter] array $headers): array
     {
         $request = $http->requests->createRequest($verb, $url);
         foreach ($headers as $name => $values) {

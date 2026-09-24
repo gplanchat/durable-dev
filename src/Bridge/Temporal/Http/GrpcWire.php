@@ -90,7 +90,7 @@ final class GrpcWire
      *
      * @return list<string>
      */
-    public static function metadataHeaders(array $metadata): array
+    public static function metadataHeaders(#[\SensitiveParameter] array $metadata): array
     {
         $headers = [];
         foreach ($metadata as $name => $values) {

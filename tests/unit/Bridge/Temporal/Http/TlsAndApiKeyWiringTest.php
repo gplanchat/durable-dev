@@ -80,6 +80,43 @@ final class TlsAndApiKeyWiringTest extends TestCase
         self::assertSame('ns.acct', $http->sent->getHeaderLine('temporal-namespace'));
     }
 
+    public function testTheApiKeyStaysOutOfTheTraceOfAFailedGatewayCall(): void
+    {
+        // php.ini-development keeps the arguments in traces, and a debug error page prints them.
+        $previous = ini_set('zend.exception_ignore_args', '0');
+        $factory = new HttpFactory();
+        $refusing = new class implements ClientInterface {
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                throw new class ('refused') extends \RuntimeException implements \Psr\Http\Client\ClientExceptionInterface {};
+            }
+        };
+        $request = new DescribeWorkflowExecutionRequest(['namespace' => 'default', 'execution' => new WorkflowExecution(['workflow_id' => 'w'])]);
+        $overCurl = TemporalConnection::fromDsn('temporal+https://127.0.0.1:1?api_key=S3CRETK3Y');
+        $overPsr18 = TemporalConnection::fromDsn('temporal+https://127.0.0.1:1?api_key=S3CRETK3Y');
+
+        try {
+            foreach ([new JsonGatewayWorkflowServiceClient($overCurl), new JsonGatewayWorkflowServiceClient($overPsr18, new Psr18Http($refusing, $factory, $factory))] as $client) {
+                try {
+                    $client->DescribeWorkflowExecution($request);
+                    self::fail('the call must fail');
+                } catch (\RuntimeException $e) {
+                    self::assertSame(GrpcWire::UNAVAILABLE, $e->getCode());
+                    self::assertStringNotContainsString('S3CRETK3Y', print_r($e->getTrace(), true));
+                }
+            }
+
+            try {
+                (new CurlGrpcTransport($overCurl))->unary(self::METHOD, $request, DescribeWorkflowExecutionResponse::class, [], 1000);
+                self::fail('the call must fail');
+            } catch (\RuntimeException $e) {
+                self::assertStringNotContainsString('S3CRETK3Y', print_r($e->getTrace(), true));
+            }
+        } finally {
+            ini_set('zend.exception_ignore_args', (string) $previous);
+        }
+    }
+
     public function testAHandedPsr18ClientCannotTakeTheTlsFiles(): void
     {
         // Its TLS is its own configuration: accepting the files would ignore them.
