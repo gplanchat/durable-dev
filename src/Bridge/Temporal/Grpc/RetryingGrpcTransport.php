@@ -1,0 +1,95 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Gplanchat\Bridge\Temporal\Grpc;
+
+use Google\Protobuf\Internal\Message;
+use Gplanchat\Bridge\Temporal\Http\GrpcWire;
+
+/**
+ * Retries a call that met DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED or UNAVAILABLE, with capped
+ * exponential backoff and full jitter, so a frontend restart does not end every worker loop.
+ *
+ * Only the RPCs below are retried. A deadline may expire after the server applied the call, so
+ * a mutating RPC is retried only when a second application cannot happen: its task token makes
+ * the second one a NOT_FOUND. Any other RPC is sent once.
+ *
+ * No retry starts once the call has run for $budgetMs: a call that used its whole deadline is
+ * not sent again, only the ones that failed fast (connection refused, frontend restarting).
+ *
+ * @see https://github.com/gplanchat/durable-dev/issues/353
+ */
+final class RetryingGrpcTransport implements GrpcTransport
+{
+    private const TRANSIENT = [GrpcWire::DEADLINE_EXCEEDED, self::RESOURCE_EXHAUSTED, GrpcWire::UNAVAILABLE];
+
+    private const RESOURCE_EXHAUSTED = 8;
+
+    /** Reads and polls: nothing to apply twice. */
+    private const READS = [
+        'CountActivityExecutions', 'DescribeActivityExecution', 'DescribeWorkflowExecution',
+        'GetWorkflowExecutionHistory', 'ListActivityExecutions', 'ListWorkflowExecutions',
+        'PollActivityExecution', 'PollActivityTaskQueue', 'PollNexusTaskQueue',
+        'PollWorkflowExecutionUpdate', 'PollWorkflowTaskQueue', 'QueryWorkflow',
+    ];
+
+    /** Bound to a task token: once applied, the token is spent and a replay gets NOT_FOUND. */
+    private const WITH_TASK_TOKEN = [
+        'RecordActivityTaskHeartbeat', 'RespondActivityTaskCanceled', 'RespondActivityTaskCompleted',
+        'RespondActivityTaskFailed', 'RespondNexusTaskCompleted', 'RespondNexusTaskFailed',
+        'RespondWorkflowTaskCompleted', 'RespondWorkflowTaskFailed',
+    ];
+
+    /** @var \Closure(int): void */
+    private readonly \Closure $sleep;
+
+    /** @var \Closure(): int */
+    private readonly \Closure $clock;
+
+    /**
+     * @param (\Closure(int): void)|null $sleep milliseconds; injected by tests
+     * @param (\Closure(): int)|null     $clock milliseconds; injected by tests
+     */
+    public function __construct(
+        private readonly GrpcTransport $inner,
+        private readonly int $maxAttempts = 10,
+        private readonly int $baseDelayMs = 200,
+        private readonly int $maxDelayMs = 5000,
+        private readonly int $budgetMs = 30_000,
+        ?\Closure $sleep = null,
+        ?\Closure $clock = null,
+    ) {
+        $this->sleep = $sleep ?? static function (int $ms): void {
+            usleep($ms * 1000);
+        };
+        $this->clock = $clock ?? static fn(): int => intdiv(hrtime(true), 1_000_000);
+    }
+
+    /**
+     * @template T of Message
+     *
+     * @param class-string<T>             $responseClass
+     * @param array<string, list<string>> $metadata
+     *
+     * @return T
+     */
+    public function unary(string $method, Message $request, string $responseClass, array $metadata, ?int $timeoutMs): Message
+    {
+        $rpc = substr($method, (int) strrpos($method, '/') + 1);
+        $retryable = \in_array($rpc, self::READS, true) || \in_array($rpc, self::WITH_TASK_TOKEN, true);
+
+        $start = ($this->clock)();
+        for ($attempt = 1; ; ++$attempt) {
+            try {
+                return $this->inner->unary($method, $request, $responseClass, $metadata, $timeoutMs);
+            } catch (\RuntimeException $e) {
+                if (!$retryable || $attempt >= $this->maxAttempts || !\in_array($e->getCode(), self::TRANSIENT, true)
+                    || ($this->clock)() - $start >= $this->budgetMs) {
+                    throw $e;
+                }
+                ($this->sleep)(random_int(0, min($this->maxDelayMs, $this->baseDelayMs << ($attempt - 1))));
+            }
+        }
+    }
+}
