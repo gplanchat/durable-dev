@@ -52,18 +52,18 @@ final class TheTestsSpeakEnglishTest extends TestCase
             'demandé' => 'same',
         ],
         'tests/unit/TheRootDocumentsSpeakEnglishTest.php' => [
-            'private const ACCENTED' => 'a detector: the characters it looks for',
-            'private const FUNCTION_WORDS' => 'a detector: the words it looks for',
+            "'" . self::ACCENTED . "'" => 'a detector: the characters it looks for (the same constant as this guard)',
+            "'" . self::FUNCTION_WORDS . "'" => 'a detector: the words it looks for',
         ],
         'tests/unit/TheShippedTemplatesSpeakEnglishTest.php' => [
-            'private const ACCENTED' => 'a detector',
-            'private const FUNCTION_WORDS' => 'a detector',
+            "'" . self::ACCENTED . "'" => 'a detector',
+            "'" . self::FUNCTION_WORDS . "'" => 'a detector',
         ],
         'tests/unit/DurableBundle/TheConsoleSurfaceSpeaksEnglishTest.php' => [
-            'private const ACCENTED' => 'a detector',
+            "'" . self::ACCENTED . "'" => 'a detector',
         ],
         'tests/unit/Durable/Testing/TheExportedTestHelpersSpeakEnglishTest.php' => [
-            'private const ACCENTED' => 'a detector',
+            "'" . self::ACCENTED . "'" => 'a detector',
         ],
         'tests/unit/DurableBundle/Profiler/TheProfilerSpeaksEnglishTest.php' => [
             "preg_match('/[àâçéèêëîïôùûœÀÂÇÉÈÊÎÔÛŒ]/u'" => 'a detector',
@@ -88,15 +88,23 @@ final class TheTestsSpeakEnglishTest extends TestCase
         $allowed = self::ALLOWED[$relative] ?? [];
         $offenders = [];
         foreach (self::frenchLines($relative) as $number => $line) {
-            foreach (array_keys($allowed) as $needle) {
-                if (str_contains($line, $needle)) {
-                    continue 2;
-                }
+            if (self::stillFrench($line, array_keys($allowed))) {
+                $offenders[] = $number . ': ' . trim($line);
             }
-            $offenders[] = $number . ': ' . trim($line);
         }
 
         self::assertSame([], $offenders, 'French found in ' . $relative . ' (translate it, or add it to ALLOWED with the reason it has to stay)');
+    }
+
+    public function testAnAllowedPieceDoesNotCoverTheRestOfItsLine(): void
+    {
+        // Review of #538: the whole line used to pass as soon as it held a needle, so French added
+        // next to an allowed input hid behind it.
+        $needles = ["'probé'"];
+
+        self::assertFalse(self::stillFrench("        yield 'accented letter' => ['probé'];", $needles));
+        self::assertTrue(self::stillFrench("        yield 'accented letter' => ['probé']; // refusé pour le client", $needles));
+        self::assertTrue(self::stillFrench("        yield 'accented letter' => ['probé']; // pas de charge", $needles), 'French without accents too');
     }
 
     public function testEveryAllowedLineStillExists(): void
@@ -112,6 +120,19 @@ final class TheTestsSpeakEnglishTest extends TestCase
         }
 
         self::assertSame([], $stale, 'These ALLOWED entries match no French line any more: remove them');
+    }
+
+    /**
+     * Whether a line still trips a signal once its allowed pieces are taken out: an allowed input
+     * excuses itself, not French written next to it.
+     *
+     * @param list<string> $needles
+     */
+    private static function stillFrench(string $line, array $needles): bool
+    {
+        $rest = str_replace($needles, '', $line);
+
+        return 1 === preg_match(self::ACCENTED, $rest) || 1 === preg_match(self::FUNCTION_WORDS, $rest);
     }
 
     /**
