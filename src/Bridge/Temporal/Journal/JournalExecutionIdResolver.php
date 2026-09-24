@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Journal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
-use Temporal\Api\Enums\V1\EventType;
-use Temporal\Api\History\V1\History;
 
 /**
  * Reads {@code durableExecutionId} from the memo of {@code WorkflowExecutionStarted}
@@ -16,25 +14,6 @@ final class JournalExecutionIdResolver
 {
     public const MEMO_KEY_DURABLE_EXECUTION_ID = 'durableExecutionId';
 
-
-    public static function durableExecutionIdFromHistory(History $history): string
-    {
-        foreach ($history->getEvents() as $event) {
-            if (EventType::EVENT_TYPE_WORKFLOW_EXECUTION_STARTED !== $event->getEventType()) {
-                continue;
-            }
-            $attr = $event->getWorkflowExecutionStartedEventAttributes();
-            if (null === $attr) {
-                continue;
-            }
-
-            return self::durableExecutionIdFromStartedAttributes($attr);
-        }
-
-        throw new \RuntimeException(
-            'Workflow history has no durableExecutionId memo on WorkflowExecutionStarted; expected StartWorkflowExecution from WorkflowClient.',
-        );
-    }
 
     public static function durableExecutionIdFromStartedAttributes(
         \Temporal\Api\History\V1\WorkflowExecutionStartedEventAttributes $attr,

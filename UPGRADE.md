@@ -362,6 +362,16 @@ An application that wants to observe executions in production does not have to r
 profiler: it implements `WorkflowExecutionObserverInterface` and aliases the interface to its own
 service — what the profiler did, cheaper, and without accumulating a timeline for nobody's screen.
 
+### Dead code leaves the Temporal bridge (#372)
+
+**Who is affected**: code that referenced one of these, none of which anything in Durable called:
+
+- `Gplanchat\Bridge\Temporal\TemporalJournalGrpcPoller`: poll with `WorkflowServiceClientInterface::PollWorkflowTaskQueue()`.
+- `Gplanchat\Bridge\Temporal\Journal\JournalWorkflowTaskProcessor`: `Worker\WorkflowTaskProcessor` runs workflow tasks.
+- `JournalExecutionIdResolver::durableExecutionIdFromHistory()`: take the `WorkflowExecutionStarted` attributes from the history and call `durableExecutionIdFromStartedAttributes()`.
+
+No Rector rule: there is no successor to rename to.
+
 ## 0.1.0-alpha8
 
 ### The divergence guard compares the payload too
