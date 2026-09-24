@@ -5,4 +5,4 @@
 - **Entries**: `.github/workflows/docs-ovh.yml` (supervised path, human commit).
 - **Prerequisite**: `OVH_SSH_KNOWN_HOSTS` set on the `durable.rocks` environment, fingerprint
   checked against OVH's, before the merge — it is not set today.
-- **State**: in progress.
+- **State**: in review, PR #539.
