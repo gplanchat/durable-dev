@@ -99,7 +99,7 @@ final class TemporalBackendTest extends TestCase
         $app->extend(WorkflowRunCatalogInterface::class, static fn(object $catalog): object => (object) ['decorates' => $catalog]);
 
         $decorated = $app->make(WorkflowRunCatalogInterface::class);
-        self::assertSame($app->make(TemporalRuntimeAssembly::class)->runCatalog(), $decorated->decorates);
+        self::assertSame($app->make(TemporalRuntimeAssembly::class)->runCatalog(), get_object_vars($decorated)['decorates'] ?? null);
 
         $mine = new TemporalRuntimeAssembly(
             $app->make('durable.temporal.client'),

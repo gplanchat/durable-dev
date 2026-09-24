@@ -120,11 +120,6 @@ final class DurableServiceProviderTest extends TestCase
         self::assertInstanceOf(ResumeLock::class, $app->make(ResumeLock::class));
     }
 
-    /**
-     * The store a projecting decorator wraps, after checking it is that decorator.
-     *
-     * @param class-string $decorator
-     */
     public function testAnActivityThatInjectsTheHeartbeatSenderIsBuiltByTheContainer(): void
     {
         // The activities page injects it through the constructor and says the code runs on every
@@ -138,6 +133,11 @@ final class DurableServiceProviderTest extends TestCase
         self::assertSame($app->make(ActivityHeartbeatSenderInterface::class), $activity->heartbeat);
     }
 
+    /**
+     * The store a projecting decorator wraps, after checking it is that decorator.
+     *
+     * @param class-string $decorator
+     */
     private static function inner(object $store, string $decorator): object
     {
         self::assertInstanceOf($decorator, $store);
