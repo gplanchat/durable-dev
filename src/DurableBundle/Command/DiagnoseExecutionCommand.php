@@ -6,6 +6,8 @@ namespace Gplanchat\Durable\Bundle\Command;
 
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Durable\Event\ExecutionStarted;
+use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Observation\RecordedDetails;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
@@ -61,10 +63,19 @@ final class DiagnoseExecutionCommand extends Command
         $totalEvents = $this->eventStore->countEventsInStream($executionId);
         $histogram = [];
         $sample = [];
+        $continuedFrom = null;
+        $continuedAs = null;
         foreach ($this->eventStore->readStreamWithRecordedAt($executionId) as $row) {
             $event = $row['event'];
             $short = $this->shortClassName($event::class);
             $histogram[$short] = ($histogram[$short] ?? 0) + 1;
+            // The continue-as-new chain (#322): each run names the other in its own journal.
+            if ($event instanceof ExecutionStarted && \is_string($event->payload()['continuedFromExecutionId'] ?? null)) {
+                $continuedFrom = $event->payload()['continuedFromExecutionId'];
+            }
+            if ($event instanceof WorkflowContinuedAsNew) {
+                $continuedAs = $event->newExecutionId();
+            }
             if (\count($sample) < $limit) {
                 $recordedAt = $row['recordedAt'];
                 $sample[] = [
@@ -83,6 +94,8 @@ final class DiagnoseExecutionCommand extends Command
             'metadata' => $meta,
             'parentExecutionId' => $parentId,
             'childExecutionIds' => $childIds,
+            'continuedFromExecutionId' => $continuedFrom,
+            'continuedAsExecutionId' => $continuedAs,
             'eventStream' => [
                 'total' => $totalEvents,
                 'histogramByType' => $histogram,
@@ -124,10 +137,12 @@ final class DiagnoseExecutionCommand extends Command
             );
         }
 
-        $io->section('Parent / child links');
+        $io->section('Parent / child and continue-as-new links');
         $io->listing([
             'Parent, if this id is a child: ' . ($parentId ?? '(none)'),
             'Children recorded under this id as parent: ' . (0 === \count($childIds) ? '(none)' : implode(', ', $childIds)),
+            'Continued from: ' . ($continuedFrom ?? '(none)'),
+            'Continued as: ' . ($continuedAs ?? '(none)'),
         ]);
 
         $io->section('Event journal');
