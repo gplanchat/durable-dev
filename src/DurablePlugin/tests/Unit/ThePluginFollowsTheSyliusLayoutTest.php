@@ -18,7 +18,7 @@ final class ThePluginFollowsTheSyliusLayoutTest extends TestCase
     {
         self::assertFileExists(self::ROOT . '/config/routes.yaml');
         self::assertFileExists(self::ROOT . '/config/services.php');
-        self::assertFileExists(self::ROOT . '/templates/admin/dashboard/_dashboard.html.twig');
+        self::assertFileExists(self::ROOT . '/templates/admin/dashboard/index.html.twig');
         self::assertDirectoryDoesNotExist(self::ROOT . '/Resources');
     }
 

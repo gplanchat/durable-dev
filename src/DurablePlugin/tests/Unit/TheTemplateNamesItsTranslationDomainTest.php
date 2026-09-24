@@ -13,16 +13,27 @@ use PHPUnit\Framework\TestCase;
  */
 final class TheTemplateNamesItsTranslationDomainTest extends TestCase
 {
-    private const TEMPLATE = __DIR__ . '/../../templates/admin/dashboard/_dashboard.html.twig';
+    private const TEMPLATES = __DIR__ . '/../../templates/admin/dashboard';
+
+    /** Every dashboard template, the page and the pieces the hooks place (#383). */
+    private static function source(): string
+    {
+        $source = '';
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(self::TEMPLATES, \FilesystemIterator::SKIP_DOTS)) as $file) {
+            $source .= file_get_contents((string) $file) . "\n";
+        }
+
+        return $source;
+    }
 
     public function testTheTemplateDoesNotSetADefaultDomain(): void
     {
-        self::assertStringNotContainsString('trans_default_domain', (string) file_get_contents(self::TEMPLATE));
+        self::assertStringNotContainsString('trans_default_domain', self::source());
     }
 
     public function testEveryTransCallNamesTheDurableDomain(): void
     {
-        $source = (string) file_get_contents(self::TEMPLATE);
+        $source = self::source();
         $offenders = [];
         $offset = 0;
         while (false !== ($at = strpos($source, '|trans', $offset))) {

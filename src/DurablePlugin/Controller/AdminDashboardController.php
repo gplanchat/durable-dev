@@ -7,6 +7,7 @@ namespace Gplanchat\Durable\Plugin\Controller;
 use Gplanchat\Durable\Observation\RunDashboard;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Twig\Environment;
 
@@ -23,6 +24,12 @@ final class AdminDashboardController
     #[IsGranted('ROLE_ADMINISTRATION_ACCESS')]
     public function index(Request $request, RunDashboard $view): Response
     {
+        // The page lives in the Sylius admin and is composed by its hooks: an application without
+        // that admin has no page here, rather than a Twig error on a missing layout (#383).
+        if (!$this->twig->getLoader()->exists('@SyliusAdmin/shared/layout/base.html.twig')) {
+            throw new NotFoundHttpException('The Durable dashboard lives in the Sylius admin, which this application does not have.');
+        }
+
         $status = trim((string) $request->query->get('status', 'all'));
         $cursor = trim((string) $request->query->get('cursor', ''));
         $selectedRunId = trim((string) $request->query->get('run', ''));
@@ -43,7 +50,7 @@ final class AdminDashboardController
             'back' => self::encodeBack(\array_slice($back, 0, -1)),
         ];
 
-        return new Response($this->twig->render('@DurablePlugin/admin/dashboard/_dashboard.html.twig', $model));
+        return new Response($this->twig->render('@DurablePlugin/admin/dashboard/index.html.twig', $model));
     }
 
     /** @param list<string> $cursors */

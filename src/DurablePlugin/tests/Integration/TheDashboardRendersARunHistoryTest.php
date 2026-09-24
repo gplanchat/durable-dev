@@ -53,6 +53,35 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertSame(1, substr_count($page, '<details>'), 'only one of the two events has anything to unfold');
     }
 
+    public function testTheHookableRendersTheDashboardFromTheHookContext(): void
+    {
+        // TwigHooks hands a hookable nothing but `hookable_metadata`: the page's variables travel
+        // in its context (#383). A variable that does not make the trip is an empty dashboard.
+        $model = (new RunDashboard(new RenderingCatalog()))->build();
+        $metadata = new class ($model) {
+            public object $context;
+
+            /** @param array<string, mixed> $model */
+            public function __construct(array $model)
+            {
+                $this->context = new class ($model) {
+                    /** @param array<string, mixed> $model */
+                    public function __construct(private readonly array $model) {}
+
+                    /** @return array<string, mixed> */
+                    public function all(): array
+                    {
+                        return $this->model;
+                    }
+                };
+            }
+        };
+
+        $page = $this->twig('en')->render('@DurablePlugin/admin/dashboard/index/content/dashboard.html.twig', ['hookable_metadata' => $metadata]);
+
+        self::assertStringContainsString('SendWelcomeEmail', $page);
+    }
+
     public function testAPageAfterTheFirstLeadsBack(): void
     {
         // #383: the controller hands the way back; the page must offer it, stack included.

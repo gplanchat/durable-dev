@@ -51,7 +51,8 @@ final class DashboardTemplateRenderTest extends TestCase
 
     public function testTheTemplateStillLivesInTheSyliusAdminLayout(): void
     {
-        self::assertStringContainsString('@SyliusAdmin/shared/layout/base.html.twig', $this->template);
+        // The dashboard partial has no page around it; the page that the hooks compose does.
+        self::assertStringContainsString('@SyliusAdmin/shared/layout/base.html.twig', (string) file_get_contents(\dirname(__DIR__, 2) . '/templates/admin/dashboard/index.html.twig'));
     }
 
     /**
