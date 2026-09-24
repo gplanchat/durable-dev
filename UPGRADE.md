@@ -24,6 +24,17 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### The run pages mask payload secrets too
+
+**Who is affected**: operators of the Sylius plugin's dashboard and of the Magento run page. Each
+event's details are now masked the way the profiler panel and `durable:execution:diagnose` mask them
+(#507, and the diagnose section of this file): values under keys such as `password`, `token` or
+`api_key` show as masked, long strings are truncated, and the redactor is the one the application
+registered for the profiler. Nothing to change in code. `RunTimeline::of()` takes an optional
+`PayloadRedactorInterface` as its second argument and `RunDashboard` as its third. On Magento,
+`Block\Adminhtml\ProcessDetail`'s constructor gains a `PayloadRedactorInterface $redactor` before
+`$data`: a subclass that overrides the constructor passes it on.
+
 ### Unused helpers removed from the core
 
 **Who is affected**: code that called one of these. Nothing in this repository, its demos or its

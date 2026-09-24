@@ -54,6 +54,30 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertSame(1, substr_count($page, '<details>'), 'only one of the two events has anything to unfold');
     }
 
+    public function testTheRunPageMasksWhatLooksLikeASecret(): void
+    {
+        // #507: any admin who opens the run reads this page; the profiler already masked it (#488).
+        $page = $this->render(secrets: true);
+
+        self::assertStringContainsString('cus-42', $page);
+        self::assertStringNotContainsString('hunter2', $page);
+        self::assertStringNotContainsString('sk-live-123', $page);
+    }
+
+    public function testTheRunPageMasksWithTheApplicationsRedactor(): void
+    {
+        // An application that masks `customerId` must not see it on the run page (review of #526).
+        $masksCustomers = new class implements \Gplanchat\Durable\Observation\PayloadRedactorInterface {
+            public function redact(mixed $payload): mixed
+            {
+                return \is_array($payload) ? array_map(fn(mixed $v): mixed => \is_array($v) ? array_diff_key($v, ['customerId' => true]) : $v, $payload) : $payload;
+            }
+        };
+        $model = (new RunDashboard(new RenderingCatalog(), redactor: $masksCustomers))->build();
+
+        self::assertStringNotContainsString('cus-42', $this->twig('en')->render('@DurablePlugin/admin/dashboard/_dashboard.html.twig', $model));
+    }
+
     public function testTheHookableRendersTheDashboardFromTheHookContext(): void
     {
         // TwigHooks hands a hookable nothing but `hookable_metadata`: the page's variables travel
@@ -231,9 +255,9 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
     }
 
     /** @param array{cursor: string, back: string}|null $previous what the controller hands for the way back */
-    private function render(bool $ephemeral = false, bool $badPayload = false, bool $waiting = false, string $locale = 'en', ?array $previous = null): string
+    private function render(bool $ephemeral = false, bool $badPayload = false, bool $waiting = false, string $locale = 'en', ?array $previous = null, bool $secrets = false): string
     {
-        $catalog = new RenderingCatalog($ephemeral, $badPayload, $waiting);
+        $catalog = new RenderingCatalog($ephemeral, $badPayload, $waiting, $secrets);
         $model = (new RunDashboard($catalog))->build();
         $model['pagination']['previous'] = $previous;
 
@@ -273,6 +297,7 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface
         private readonly bool $ephemeral = false,
         private readonly bool $badPayload = false,
         private readonly bool $waiting = false,
+        private readonly bool $secrets = false,
     ) {}
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
@@ -296,7 +321,7 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface
                 'SendWelcomeEmail',
                 $this->badPayload
                     ? ['orderId' => 'ORD-7', 'blob' => "\xB1\x31"]
-                    : ['payload' => ['customerId' => 'cus-42']],
+                    : ['payload' => ['customerId' => 'cus-42'] + ($this->secrets ? ['password' => 'hunter2', 'api_key' => 'sk-live-123'] : [])],
                 'activity:act-1',
                 phase: WorkflowRunEventPhase::Requested,
             ),
