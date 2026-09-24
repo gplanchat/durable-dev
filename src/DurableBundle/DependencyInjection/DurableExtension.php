@@ -76,9 +76,6 @@ use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
-// And not HttpKernel's, which is only a thin subclass of it — `@internal` since
-// Symfony 7.1, deprecated in 8.1 — and only adds the leftovers of the annotated class cache.
-// This one has existed since 6.4: the swap costs no supported version.
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
@@ -88,6 +85,9 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
+// And not HttpKernel's, which is only a thin subclass of it — `@internal` since
+// Symfony 7.1, deprecated in 8.1 — and only adds the leftovers of the annotated class cache.
+// This one has existed since 6.4: the swap costs no supported version.
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 
@@ -818,6 +818,8 @@ final class DurableExtension extends Extension
                 new Reference(ChildWorkflowParentLinkStoreInterface::class),
                 new Reference('durable.temporal.connection', ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 new Reference(PayloadRedactorInterface::class),
+                // On Temporal native the metadata store is per process: an empty row means nothing.
+                $isTemporalNative,
             ])
             ->addTag('console.command')
         ;
