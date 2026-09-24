@@ -75,6 +75,24 @@ final class IlluminateWorkflowRunCatalogConformanceTest extends WorkflowRunCatal
         });
     }
 
+    protected function canTellAPickup(): bool
+    {
+        return true;
+    }
+
+    protected function dispatchRun(string $executionId, string $workflowType): void
+    {
+        (new ProjectingWorkflowMetadataStore(
+            new IlluminateWorkflowMetadataStore($this->connection, $this->schema()),
+            $this->catalog(),
+        ))->save($executionId, $workflowType, []);
+    }
+
+    protected function pickUp(string $executionId): void
+    {
+        $this->journal()->append(new ExecutionStarted($executionId, []));
+    }
+
     private function journal(): ProjectingEventStore
     {
         return new ProjectingEventStore(
