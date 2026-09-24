@@ -113,7 +113,7 @@ gplanchat_durable_plugin:
 
 The dashboard route is:
 
-- `/admin/durable/dashboard`
+- `/<admin prefix>/durable/dashboard` (`/admin/…` by default, set by `SYLIUS_ADMIN_ROUTING_PATH_NAME`)
 
 ## Development notes
 
