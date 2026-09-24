@@ -5,4 +5,4 @@
   page says which retry knob lives where.
 - **Entries**: `src/Durable/Worker/ActivityMessageProcessor.php`,
   `src/DurableBundle/Handler/ActivityRunHandler.php`, `documentation/user/failures/`, their tests.
-- **State**: in progress — durable-50 (lane A).
+- **State**: in review — PR #484, durable-50 (lane A).
