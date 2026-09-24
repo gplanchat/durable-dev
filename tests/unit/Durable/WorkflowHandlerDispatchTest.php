@@ -41,6 +41,7 @@ final class ApprovalWorkflow
         private readonly WorkflowEnvironment $environment,
     ) {}
 
+    /** @param array<string, mixed> $payload */
     #[AsSignalMethod(DispatchSignal::Approve)]
     public function onApprove(array $payload): void
     {
@@ -176,6 +177,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
 
         $calls = 0;
         self::assertSame(3, $engine->resume('disp-5', $handler));
+        /** @psalm-suppress TypeDoesNotContainType incremented by reference inside the handler, which Psalm reads as never run */
         self::assertSame(3, $calls, 'a replay replays the three, no more and no less');
     }
 

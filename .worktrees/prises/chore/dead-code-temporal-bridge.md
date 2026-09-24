@@ -11,4 +11,4 @@
   `symfony/src/Command/DurableTemporalNativeSpikeCommand.php`, `symfony/tests/Integration/Temporal/`
   (spike test only), their tests. The `phpstan.neon`/`psalm.xml` lines go in commits stacked on
   #498's branch; PR held until #498 merges.
-- **State**: pushed on `chore/dead-code-temporal-bridge` (stacked on #498), PR held until #498 merges — sabrina.
+- **State**: in review — PR #517 (slice 1), sabrina. Slice 2 waits for #353 and #333.

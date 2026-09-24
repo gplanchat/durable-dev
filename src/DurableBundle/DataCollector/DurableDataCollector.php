@@ -27,6 +27,8 @@ use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
+use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
+use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\RecordedDetails;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
@@ -42,22 +44,41 @@ use Symfony\Contracts\Service\ResetInterface;
  * The in-memory trace records the WorkflowRunMessage dispatches, every engine run ({@see WorkflowExecutionObserverInterface})
  * and every activity executed in this process; the full detail of the journal comes from the event store.
  *
- * To include a journal with no dispatch on this request, add durable_execution (UUID, commas if there are several).
+ * To include a journal with no dispatch on this request, add durable_execution (ids, comma-separated, at most
+ * {@see self::MAX_QUERIED_EXECUTIONS}).
  */
 final class DurableDataCollector extends DataCollector implements ResetInterface
 {
     private const MAX_STORE_EVENTS_PER_STREAM = 500;
 
+    /** Each id named in `?durable_execution=` costs a journal read. */
+    public const MAX_QUERIED_EXECUTIONS = 20;
+
+    /**
+     * Each journal of this request, read once: the first events for the panel, the last one for
+     * the status, the count. Emptied when collect() returns; only `$this->data` is serialised.
+     *
+     * @var array<string, array{entries: list<array{event: Event, recordedAt: ?\DateTimeImmutable}>, truncated: bool, count: int, last: ?Event}>
+     */
+    private array $journals = [];
+
     public function __construct(
         private readonly DurableExecutionTrace $trace,
         private readonly WorkflowMetadataStore $metadataStore,
         private readonly EventStoreInterface $eventStore,
+        private readonly PayloadRedactorInterface $redactor = new KeyPatternPayloadRedactor(),
     ) {}
 
     #[\Override]
     public function collect(Request $request, Response $response, ?\Throwable $exception = null): void
     {
-        $timeline = $this->enrichTimelineForProfiler($this->trace->getTimeline());
+        $this->journals = [];
+        // Payloads are masked where they are copied in, never across `$this->data`: the maps keyed
+        // by execution id would lose a run whose id matches the pattern ("password-reset-42").
+        $timeline = array_map(
+            fn(array $entry): array => \array_key_exists('payload', $entry) ? ['payload' => $this->redacted($entry['payload'])] + $entry : $entry,
+            $this->enrichTimelineForProfiler($this->trace->getTimeline()),
+        );
         $executionIds = $this->collectDispatchedExecutionIdsFromTimeline($timeline);
         $executionIds = $this->mergeExecutionIdsFromRequest($request, $executionIds);
 
@@ -71,16 +92,16 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                 continue;
             }
             $runSnapshots[$eid] = [
-                'metadata' => $this->metadataStore->get($eid),
-                'eventCount' => $this->eventStore->countEventsInStream($eid),
+                'metadata' => $this->metadata($eid),
+                'eventCount' => $this->journal($eid)['count'],
             ];
         }
 
         foreach (array_keys($executionIds) as $eid) {
             if (!isset($runSnapshots[$eid])) {
                 $runSnapshots[$eid] = [
-                    'metadata' => $this->metadataStore->get($eid),
-                    'eventCount' => $this->eventStore->countEventsInStream($eid),
+                    'metadata' => $this->metadata($eid),
+                    'eventCount' => $this->journal($eid)['count'],
                 ];
             }
         }
@@ -121,6 +142,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         foreach ($this->data as $key => $value) {
             $this->data[$key] = RecordedDetails::storable($value);
         }
+        $this->journals = [];
     }
 
     /**
@@ -143,7 +165,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         foreach ($executionIdsList as $eid) {
             $wf = null;
             $payload = [];
-            $meta = $this->metadataStore->get($eid);
+            $meta = $this->metadata($eid);
             if (null !== $meta) {
                 if ('' !== $meta['workflowType']) {
                     $wf = $meta['workflowType'];
@@ -174,7 +196,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             $processTf = $this->filterProcessTimeframeForExecution($timeFrameProcess, $eid);
 
             $storeCountFromIndex = (int) ($storeTl['eventCount'] ?? 0);
-            $storeCountLive = $this->eventStore->countEventsInStream($eid);
+            $storeCountLive = $this->journal($eid)['count'];
             $timelineHasDispatch = $this->timelineHasDispatchForExecution($timelineForExec);
             $statusCode = $this->resolveExecutionStatus($eid, $rows, $meta, $timelineHasDispatch);
             $out[] = [
@@ -218,12 +240,9 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             return 'completed';
         }
 
-        $n = $this->eventStore->countEventsInStream($executionId);
+        $n = $this->journal($executionId)['count'];
         if ($n > 0) {
-            $lastEvent = null;
-            foreach ($this->eventStore->readStreamWithRecordedAt($executionId) as $entry) {
-                $lastEvent = $entry['event'];
-            }
+            $lastEvent = $this->journal($executionId)['last'];
             if (null !== $lastEvent) {
                 return $this->mapEventShortNameToStatus((new \ReflectionClass($lastEvent))->getShortName());
             }
@@ -374,7 +393,8 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         }
 
         try {
-            $j = json_encode($payload, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE);
+            // Already a string when the barrier in collect() runs, so it redacts here.
+            $j = json_encode($this->redactor->redact(RecordedDetails::storable($payload)), \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE);
         } catch (\JsonException) {
             return '…';
         }
@@ -439,7 +459,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     {
         $n = 0;
         foreach ($executionIdsList as $eid) {
-            $n += $this->eventStore->countEventsInStream($eid);
+            $n += $this->journal($eid)['count'];
         }
 
         return $n;
@@ -463,10 +483,20 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             return $executionIds;
         }
 
+        $taken = 0;
         foreach (explode(',', $raw) as $part) {
             $id = trim($part);
-            if ('' !== $id) {
-                $executionIds[$id] = true;
+            // Printable ASCII with no space, at most 255 bytes: a UUID, a Temporal workflow id,
+            // a child id. Anything else no store issued, and HTML has no business in there.
+            if (1 !== preg_match('/^[\x21-\x7E]{1,255}$/', $id) || 1 === preg_match('/[<>"\'&]/', $id)) {
+                continue;
+            }
+            if (isset($executionIds[$id])) {
+                continue;
+            }
+            $executionIds[$id] = true;
+            if (++$taken >= self::MAX_QUERIED_EXECUTIONS) {
+                break;
             }
         }
 
@@ -482,15 +512,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     {
         $out = [];
         foreach ($executionIds as $eid) {
-            $entries = [];
-            $truncated = false;
-            foreach ($this->eventStore->readStreamWithRecordedAt($eid) as $entry) {
-                if (\count($entries) >= self::MAX_STORE_EVENTS_PER_STREAM) {
-                    $truncated = true;
-                    break;
-                }
-                $entries[] = $entry;
-            }
+            ['entries' => $entries, 'truncated' => $truncated] = $this->journal($eid);
 
             if ([] === $entries) {
                 continue;
@@ -634,10 +656,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         $rows = [];
         foreach ($executionIds as $eid) {
             $i = 0;
-            foreach ($this->eventStore->readStreamWithRecordedAt($eid) as $entry) {
-                if ($i >= self::MAX_STORE_EVENTS_PER_STREAM) {
-                    break;
-                }
+            foreach ($this->journal($eid)['entries'] as $entry) {
                 $event = $entry['event'];
                 $recordedAt = $entry['recordedAt'];
                 $p = DurableProfilerEventPresentation::fromStoreEvent($event);
@@ -649,7 +668,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                     'title' => $p['title'],
                     'subtitle' => $p['subtitle'],
                     'category' => $p['category'],
-                    'payload' => $event->payload(),
+                    'payload' => $this->redacted($event->payload()),
                     'recordedAt' => null !== $recordedAt ? $recordedAt->format(\DateTimeInterface::ATOM) : null,
                 ];
                 ++$i;
@@ -834,6 +853,55 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     public static function getTemplate(): string
     {
         return '@Durable/Collector/durable.html.twig';
+    }
+
+    private function redacted(mixed $payload): mixed
+    {
+        return $this->redactor->redact(RecordedDetails::storable($payload));
+    }
+
+    /**
+     * The run's metadata row, its payload masked.
+     *
+     * @return array{workflowType: string, payload: array<string, mixed>, completed?: bool}|null
+     */
+    private function metadata(string $executionId): ?array
+    {
+        $meta = $this->metadataStore->get($executionId);
+        if (null !== $meta) {
+            $payload = $this->redacted($meta['payload']);
+            $meta['payload'] = \is_array($payload) ? $payload : [];
+        }
+
+        return $meta;
+    }
+
+    /**
+     * @return array{entries: list<array{event: Event, recordedAt: ?\DateTimeImmutable}>, truncated: bool, count: int, last: ?Event}
+     */
+    private function journal(string $executionId): array
+    {
+        if (!isset($this->journals[$executionId])) {
+            // An indexed COUNT, then a read that stops at the panel's limit: the SQL stores walk a
+            // cursor, and breaking out of it spares hydrating the rest of a long journal.
+            $count = $this->eventStore->countEventsInStream($executionId);
+            $entries = [];
+            foreach ($this->eventStore->readStreamWithRecordedAt($executionId) as $entry) {
+                if (\count($entries) >= self::MAX_STORE_EVENTS_PER_STREAM) {
+                    break;
+                }
+                $entries[] = $entry;
+            }
+            $this->journals[$executionId] = [
+                'entries' => $entries,
+                'truncated' => $count > \count($entries),
+                'count' => $count,
+                // Of the events read: the status reads the last one the panel shows, as it did.
+                'last' => [] === $entries ? null : $entries[\count($entries) - 1]['event'],
+            ];
+        }
+
+        return $this->journals[$executionId];
     }
 
     #[\Override]

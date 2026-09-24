@@ -35,6 +35,7 @@ final class TemporalExecutionHistoryTest extends TestCase
         return $event;
     }
 
+    /** @param array<mixed> $input */
     private static function makeStartedEvent(int $id, array $input = []): HistoryEvent
     {
         $event = self::makeEvent($id, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);

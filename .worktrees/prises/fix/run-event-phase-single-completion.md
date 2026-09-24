@@ -5,5 +5,5 @@
   `WorkflowRunEvent::phase`.
 - **Entries**: `src/DurableBundle/Profiler/DurableProfilerEventPresentation.php`,
   `src/DurableBundle/Resources/views/Collector/durable.html.twig`, the collector's row builders
-  once #488 merges; the plugin event-rows component once vera's #383 split lands (after #497); their tests.
-- **State**: waiting — profiler after #488 (antoine's #337 rename stacks on it), plugin after #497 and #383 slice A. sabrina.
+  once #488 merges; `src/DurablePlugin/templates/admin/dashboard/_dashboard.html.twig` (event rows) once #519 lands; their tests.
+- **State**: waiting — profiler after #488 (antoine's #337 rename stacks on it), plugin after #519. sabrina.
