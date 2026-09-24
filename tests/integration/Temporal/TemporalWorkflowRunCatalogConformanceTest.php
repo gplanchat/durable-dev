@@ -37,7 +37,7 @@ use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
  * every hook waits until the listing shows what it just did.
  *
  * @see DUR041
- * @see DUR006
+ * @see DUR037
  */
 final class TemporalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalogConformanceTestCase
 {
