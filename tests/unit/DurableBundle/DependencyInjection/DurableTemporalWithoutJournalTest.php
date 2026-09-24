@@ -21,7 +21,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  * cluster is the journal". `temporal.journal: false` separates the two statements: there is still
  * only one source of truth, and it is `event_store` that names it.
  *
- * @see openspec/changes/demo-nexus-deux-applications/tasks.md §2.1
+ * @see openspec/changes/archive/2026-08-28-demo-nexus-deux-applications/tasks.md §2.1
  */
 final class DurableTemporalWithoutJournalTest extends TestCase
 {
@@ -48,8 +48,8 @@ final class DurableTemporalWithoutJournalTest extends TestCase
                 'temporal' => ['dsn' => self::DSN],
             ]);
             self::fail('The container was supposed to refuse.');
-        } catch (InvalidConfigurationException $refus) {
-            self::assertStringContainsString('temporal.journal: false', $refus->getMessage());
+        } catch (InvalidConfigurationException $refusal) {
+            self::assertStringContainsString('temporal.journal: false', $refusal->getMessage());
         }
     }
 

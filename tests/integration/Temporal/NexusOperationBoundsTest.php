@@ -109,7 +109,7 @@ final class NexusOperationBoundsTest extends TestCase
             $req = new TerminateWorkflowExecutionRequest();
             $req->setNamespace($this->connection->namespace->name());
             $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
-            $req->setReason('fin de sonde');
+            $req->setReason('end of probe');
 
             try {
                 $this->client->TerminateWorkflowExecution($req, [], ['timeout' => 10_000_000]);

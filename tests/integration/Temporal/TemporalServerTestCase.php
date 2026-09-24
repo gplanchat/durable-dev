@@ -125,7 +125,7 @@ abstract class TemporalServerTestCase extends TestCase
             $request = new TerminateWorkflowExecutionRequest();
             $request->setNamespace($this->connection->namespace->name());
             $request->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $this->workflowId($executionId)]));
-            $request->setReason('fin du test');
+            $request->setReason('end of test');
 
             try {
                 $this->client->TerminateWorkflowExecution($request, [], ['timeout' => 5_000_000]);

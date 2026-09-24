@@ -82,7 +82,7 @@ final class WorkflowTaskMessageBatchTest extends TestCase
         $req = new TerminateWorkflowExecutionRequest();
         $req->setNamespace($this->connection->namespace->name());
         $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $this->workflowId]));
-        $req->setReason('fin de sonde');
+        $req->setReason('end of probe');
         $req->setIdentity($this->connection->identity);
 
         try {
@@ -103,7 +103,7 @@ final class WorkflowTaskMessageBatchTest extends TestCase
         $this->completeWithoutCommands($first);
 
         for ($i = 0; $i < self::SIGNAL_COUNT; ++$i) {
-            $this->signal('probe-' . $i, ['rang' => $i]);
+            $this->signal('probe-' . $i, ['rank' => $i]);
         }
 
         $second = $this->pollOnce();

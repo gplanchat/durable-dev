@@ -124,7 +124,7 @@ final class NexusAsynchronousFulfilmentTest extends TestCase
             $request = new TerminateWorkflowExecutionRequest();
             $request->setNamespace($this->connection->namespace->name());
             $request->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
-            $request->setReason('fin de la sonde');
+            $request->setReason('end of probe');
 
             try {
                 $this->client->TerminateWorkflowExecution($request, [], ['timeout' => 10_000_000]);

@@ -101,7 +101,7 @@ final class IntegrationWorkflows
                 return $answer;
             });
             $env->onUpdate('refuse', static function (array $args): never {
-                throw new \DomainException('approbation refusée');
+                throw new \DomainException('approval refused');
             });
 
             $env->await(static function () use (&$answer): bool {

@@ -35,15 +35,15 @@ final class ReplayDivergenceGuardTest extends TemporalServerTestCase
         // The timer waking up triggers the replay on the new code, and the guard bites.
         $this->waitForHistoryEvent($executionId, EventType::EVENT_TYPE_WORKFLOW_TASK_FAILED, 60.0);
 
-        $noms = $this->historyEventNames($executionId);
+        $names = $this->historyEventNames($executionId);
         self::assertNotContains(
             'EVENT_TYPE_WORKFLOW_EXECUTION_FAILED',
-            $noms,
+            $names,
             'the execution must not die: it is the deployment that is at fault, and a deployment can be rolled back',
         );
         self::assertNotContains(
             'EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED',
-            $noms,
+            $names,
             'and above all it must not complete successfully with the value of its neighbour — the defect measured at the start',
         );
 
