@@ -41,7 +41,7 @@ final class TheTemplateNamesItsTranslationDomainTest extends TestCase
     {
         for ($depth = 0, $i = $open; $i < \strlen($source); ++$i) {
             $depth += match ($source[$i]) {
-                '(' => 1, ')' => -1, default => 0
+                '(' => 1, ')' => -1, default => 0,
             };
             if (0 === $depth) {
                 return substr($source, $open + 1, $i - $open - 1);
