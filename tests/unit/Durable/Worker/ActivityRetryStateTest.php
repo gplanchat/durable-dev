@@ -199,6 +199,36 @@ final class ActivityRetryStateTest extends TestCase
         self::assertSame(ActivityRetryState::Timeout, $this->lastFailure($store)?->retryState());
     }
 
+    public function testARedeliveredAttemptThatAlreadyFailedIsNotRunAgain(): void
+    {
+        $store = new InMemoryEventStore();
+        $transport = new InMemoryActivityTransport();
+        $runs = 0;
+        $executor = new RegistryActivityExecutor();
+        $executor->register('Boom', static function () use (&$runs): never {
+            ++$runs;
+
+            throw new \RuntimeException('boom');
+        });
+        $processor = new ActivityMessageProcessor(
+            $store,
+            $transport,
+            $executor,
+            new NullWorkflowResumeDispatcher(),
+            $this->createMock(ActivityHeartbeatSenderInterface::class),
+        );
+        $attempt1 = new ActivityMessage('exec-1', 'act-1', 'Boom', [], new ActivityOptions(RetryLimit::ofAttempts(3), initialInterval: Duration::seconds(0.0)));
+
+        $processor->process($attempt1);
+        // The transport hands attempt 1 over again, after it failed and attempt 2 was queued.
+        $processor->process($attempt1);
+
+        self::assertSame(1, $runs, 'the redelivered attempt must not run the handler again');
+        self::assertSame(2, $transport->dequeue()?->attempt);
+        self::assertNull($transport->dequeue(), 'a single attempt 2 is queued');
+        self::assertCount(1, $this->taskFailures($store));
+    }
+
     public function testTransportDelegatedRetryKeepsRealExceptionAndStaysNonTerminal(): void
     {
         // Native Temporal worker: the retry belongs to the server. The journaled failure must
