@@ -174,17 +174,21 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         };
     }
 
+    /**
+     * The filter matches every server status {@see statusOf()} files under the requested one:
+     * a run listed as failed must come back under the failed filter too (#504).
+     */
     private static function visibilityQuery(WorkflowRunStatus $status): string
     {
-        $serverStatus = match ($status) {
-            WorkflowRunStatus::Running => 'Running',
-            WorkflowRunStatus::Completed => 'Completed',
-            WorkflowRunStatus::Cancelled => 'Canceled',
-            WorkflowRunStatus::ContinuedAsNew => 'ContinuedAsNew',
-            WorkflowRunStatus::Failed => 'Failed',
+        $serverStatuses = match ($status) {
+            WorkflowRunStatus::Running => ['Running'],
+            WorkflowRunStatus::Completed => ['Completed'],
+            WorkflowRunStatus::Cancelled => ['Canceled'],
+            WorkflowRunStatus::ContinuedAsNew => ['ContinuedAsNew'],
+            WorkflowRunStatus::Failed => ['Failed', 'Terminated', 'TimedOut'],
         };
 
-        return \sprintf('ExecutionStatus = "%s"', $serverStatus);
+        return \sprintf('ExecutionStatus IN ("%s")', implode('", "', $serverStatuses));
     }
 
     private static function decodeCursor(string $cursor): string
