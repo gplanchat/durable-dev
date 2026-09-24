@@ -159,10 +159,6 @@ final class DurableExtension extends Extension
             return;
         }
 
-        if ($eventStoreDbal && self::isTemporalNative($config)) {
-            throw new \LogicException('durable: event_store.type "dbal" and temporal.dsn are mutually exclusive — the journal cannot have two sources of truth. An application that needs the cluster without handing it the journal — serving a Nexus operation, for instance — sets temporal.journal: false.');
-        }
-
         $connection = new Reference($config['dbal']['connection']);
 
         $container->register('durable.dbal.schema', DurableSchema::class)

@@ -18,7 +18,13 @@ final class Configuration implements ConfigurationInterface
         $treeBuilder = new TreeBuilder('durable');
 
         $treeBuilder->getRootNode()
+            ->validate()->always(self::resolveBackend(...))->end()
             ->children()
+            ->enumNode('backend')
+            ->values(['in_memory', 'dbal', 'temporal'])
+            ->defaultNull()
+            ->info('Where the journal lives. in_memory: one process. dbal: a SQL database (DUR030). temporal: the cluster at temporal.dsn. dbal with a temporal.dsn keeps the journal in SQL and uses the cluster to serve Nexus. Derived from the deprecated event_store.type and temporal.journal when unset.')
+            ->end()
             ->arrayNode('dbal')
             ->addDefaultsIfNotSet()
             ->info('DBAL backend: durable execution on a single SQL database, with no orchestration cluster (DUR030).')
@@ -32,7 +38,7 @@ final class Configuration implements ConfigurationInterface
             ->arrayNode('event_store')
             ->addDefaultsIfNotSet()
             ->children()
-            ->enumNode('type')->values(['in_memory', 'dbal'])->defaultValue('in_memory')->end()
+            ->enumNode('type')->values(['in_memory', 'dbal'])->defaultNull()->setDeprecated('gplanchat/durable-bundle', '0.1.0-beta1', 'The "%path%.%node%" option is deprecated: set durable.backend instead.')->end()
             ->scalarNode('table_name')->defaultValue('durable_events')->end()
             ->end()
             ->end()
@@ -60,7 +66,8 @@ final class Configuration implements ConfigurationInterface
             ->info('A service id implementing both PSR-17 RequestFactoryInterface and StreamFactoryInterface (Guzzle\'s HttpFactory, nyholm\'s Psr17Factory). Defaults to psr18_client, which Symfony\'s Psr18Client satisfies on its own.')
             ->end()
             ->booleanNode('journal')
-            ->defaultTrue()
+            ->defaultNull()
+            ->setDeprecated('gplanchat/durable-bundle', '0.1.0-beta1', 'The "%path%.%node%" option is deprecated: set durable.backend instead.')
             ->info('false: the cluster is reachable, but the journal stays the one in event_store. An application serving a Nexus operation from a DBAL journal needs both — and there are not two sources of truth, since event_store says which one it is.')
             ->end()
             ->end()
@@ -116,7 +123,7 @@ final class Configuration implements ConfigurationInterface
             ->arrayNode('parent_link_store')
             ->addDefaultsIfNotSet()
             ->children()
-            ->enumNode('type')->values(['in_memory', 'dbal'])->defaultValue('in_memory')->end()
+            ->enumNode('type')->values(['in_memory', 'dbal'])->defaultNull()->setDeprecated('gplanchat/durable-bundle', '0.1.0-beta1', 'The "%path%.%node%" option is deprecated: set durable.backend instead.')->end()
             ->scalarNode('table_name')->defaultValue('durable_child_workflow_parent_link')->end()
             ->end()
             ->end()
@@ -125,7 +132,7 @@ final class Configuration implements ConfigurationInterface
             ->arrayNode('workflow_metadata')
             ->addDefaultsIfNotSet()
             ->children()
-            ->enumNode('type')->values(['in_memory', 'dbal'])->defaultValue('in_memory')->end()
+            ->enumNode('type')->values(['in_memory', 'dbal'])->defaultNull()->setDeprecated('gplanchat/durable-bundle', '0.1.0-beta1', 'The "%path%.%node%" option is deprecated: set durable.backend instead.')->end()
             ->scalarNode('table_name')->defaultValue('durable_workflow_metadata')->end()
             ->end()
             ->end()
@@ -133,5 +140,50 @@ final class Configuration implements ConfigurationInterface
         ;
 
         return $treeBuilder;
+    }
+
+    /**
+     * Derives the backend from the deprecated keys, refuses a contradiction, then writes the
+     * deprecated keys back from the backend: the extension reads only those.
+     *
+     * @param array<string, mixed> $config
+     *
+     * @return array<string, mixed>
+     */
+    private static function resolveBackend(array $config): array
+    {
+        $dsn = $config['temporal']['dsn'];
+        $journal = $config['temporal']['journal'];
+        $eventStore = $config['event_store']['type'];
+        $backend = $config['backend'];
+
+        if (null === $backend) {
+            if (null !== $dsn && false !== $journal && 'dbal' === $eventStore) {
+                throw new \InvalidArgumentException('event_store.type "dbal" and temporal.dsn are mutually exclusive — the journal cannot have two sources of truth. Set backend: dbal to keep the journal in SQL and use the cluster to serve Nexus (with the deprecated keys: temporal.journal: false).');
+            }
+            $backend = match (true) {
+                null !== $dsn && false !== $journal => 'temporal',
+                'dbal' === $eventStore => 'dbal',
+                default => 'in_memory',
+            };
+        } elseif ('temporal' === $backend && null === $dsn) {
+            throw new \InvalidArgumentException('backend "temporal" needs temporal.dsn.');
+        }
+
+        $stores = 'dbal' === $backend ? 'dbal' : 'in_memory';
+        if (null !== $config['backend'] && null !== $eventStore && $stores !== $eventStore) {
+            throw new \InvalidArgumentException(\sprintf('event_store.type "%s" contradicts backend "%s".', $eventStore, $backend));
+        }
+        if (null !== $config['backend'] && null !== $journal && $journal !== ('temporal' === $backend)) {
+            throw new \InvalidArgumentException(\sprintf('temporal.journal: %s contradicts backend "%s".', $journal ? 'true' : 'false', $backend));
+        }
+
+        $config['backend'] = $backend;
+        $config['temporal']['journal'] = 'temporal' === $backend;
+        $config['event_store']['type'] ??= $stores;
+        $config['workflow_metadata']['type'] ??= $stores;
+        $config['child_workflow']['parent_link_store']['type'] ??= $stores;
+
+        return $config;
     }
 }
