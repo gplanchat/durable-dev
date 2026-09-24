@@ -66,6 +66,52 @@ final class TlsAndApiKeyWiringTest extends TestCase
         self::assertInstanceOf(\Grpc\ChannelCredentials::class, WorkflowServiceClientFactory::channelOptions(self::connection())['credentials']);
     }
 
+    #[\PHPUnit\Framework\Attributes\RequiresPhpExtension('grpc')]
+    public function testTheExtensionSendsTheApiKeyWithTheCallersMetadata(): void
+    {
+        // The stub's own call path, down to the call it starts; only the network is left out.
+        $invoker = new class implements \Grpc\CallInvoker {
+            /** @var array<string, list<string>>|null */
+            public ?array $metadata = null;
+
+            public function createChannelFactory($hostname, $opts)
+            {
+                return null;
+            }
+
+            public function UnaryCall($channel, $method, $deserialize, $options)
+            {
+                $invoker = $this;
+
+                return new class ($invoker) {
+                    public function __construct(private object $invoker) {}
+
+                    /** @param array<string, list<string>> $metadata */
+                    public function start(mixed $argument, array $metadata, array $options): void
+                    {
+                        $this->invoker->metadata = $metadata;
+                    }
+                };
+            }
+
+            public function ClientStreamingCall($channel, $method, $deserialize, $options) {}
+
+            public function ServerStreamingCall($channel, $method, $deserialize, $options) {}
+
+            public function BidiStreamingCall($channel, $method, $deserialize, $options) {}
+        };
+        $stub = new class ('127.0.0.1:7233', ['grpc_call_invoker' => $invoker] + WorkflowServiceClientFactory::channelOptions(self::connection())) extends \Grpc\BaseStub {
+            public function send(): void
+            {
+                $this->_simpleRequest(self::class, new DescribeWorkflowExecutionRequest(), [DescribeWorkflowExecutionResponse::class, 'decode'], ['x-trace' => ['1']]);
+            }
+        };
+
+        $stub->send();
+
+        self::assertSame(['x-trace' => ['1'], 'authorization' => ['Bearer k3y'], 'temporal-namespace' => ['ns.acct']], $invoker->metadata);
+    }
+
     public function testTheJsonGatewaySendsTheApiKey(): void
     {
         $http = self::psr18();

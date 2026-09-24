@@ -16,7 +16,7 @@ use Grpc\UnaryCall;
  */
 final class ExtGrpcTransport extends BaseStub implements GrpcTransport
 {
-    public function __construct(private readonly TemporalConnection $connection)
+    public function __construct(TemporalConnection $connection)
     {
         WorkflowServiceClientFactory::assertGrpcExtension();
 
@@ -32,7 +32,7 @@ final class ExtGrpcTransport extends BaseStub implements GrpcTransport
          * AbstractCall::_deserializeResponse() reads it as [class, method] and instantiates the class:
          * the generated stubs pass exactly this pair.
          */
-        $call = $this->_simpleRequest($method, $request, [$responseClass, 'decode'], $metadata + $this->connection->metadata(), self::callOptions($timeoutMs));
+        $call = $this->_simpleRequest($method, $request, [$responseClass, 'decode'], $metadata, self::callOptions($timeoutMs));
         $response = GrpcUnary::wait($call);
         if (!$response instanceof $responseClass) {
             throw new \RuntimeException(\sprintf('Unexpected %s response type: %s.', $method, $response::class));

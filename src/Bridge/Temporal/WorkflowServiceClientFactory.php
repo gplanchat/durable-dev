@@ -147,7 +147,7 @@ final class WorkflowServiceClientFactory
      * The ext-grpc channel options for this connection, shared by {@see createStub} and
      * {@see ExtGrpcTransport}.
      *
-     * @return array{credentials: mixed}
+     * @return array{credentials: mixed, update_metadata: \Closure(array<string, mixed>): array<string, mixed>}
      */
     public static function channelOptions(TemporalConnection $settings): array
     {
@@ -155,7 +155,12 @@ final class WorkflowServiceClientFactory
             ? ChannelCredentials::createSsl(self::pem($settings->tlsCa), self::pem($settings->tlsKey), self::pem($settings->tlsCert))
             : ChannelCredentials::createInsecure();
 
-        return ['credentials' => $credentials];
+        // Every call of the stub goes through update_metadata: the API key rides on each one, and
+        // metadata the caller passes wins.
+        return [
+            'credentials' => $credentials,
+            'update_metadata' => static fn(array $metadata): array => $metadata + $settings->metadata(),
+        ];
     }
 
     /** ext-grpc takes the PEM contents, where curl and Guzzle take the path. */
