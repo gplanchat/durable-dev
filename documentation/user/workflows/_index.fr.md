@@ -351,6 +351,7 @@ ce qu'un workflow peut faire, et rien de ce que le moteur garde pour lui.
 | `childWorkflowStub($class, $options = null)` | Le même, pour un workflow enfant : résolu depuis la classe de l'enfant, et ses appels se composent comme les autres. |
 | `onSignal($name, $handler)` | Enregistre un gestionnaire de signal. Le gestionnaire mute l'état du workflow et `await()` l'observe ; il n'y a pas d'attente séparée. Le nom prend une énumération adossée, donc une faute de frappe est une erreur de type et non une attente qui ne se résout jamais. |
 | `onUpdate($name, $handler)` | Le même pour une mise à jour, dont la valeur de retour du gestionnaire est la réponse rendue à l'appelant. |
+| `hasSignalHandler($name)`, `hasUpdateHandler($name)` | Si un gestionnaire est enregistré sous ce nom, pour un code qui ne veut l'enregistrer qu'une fois. |
 | `sideEffect($closure)` | Exécute une fois un travail local non déterministe et en journalise le résultat, pour que le rejeu le reproduise. |
 | `continueAsNew($type, $payload = [], $options = null)` | Termine cette exécution et démarre la suivante avec un historique neuf. |
 | `executionId()` | L'identifiant de cette exécution. |
@@ -369,6 +370,10 @@ Préférez l'attribut : c'est la forme qu'un lecteur voit sans rien exécuter.
 workflow : leurs gestionnaires vivent côté moteur et `#[AsQueryMethod]` est le seul moyen d'en
 déclarer un. Un workflow en forme de fermeture ne peut pas répondre à une requête ; s'il doit le
 faire, il doit être une classe.
+
+`WorkflowEnvironment::wrap($context, $runtime)` construit un environnement sur un `ExecutionContext`
+sans les résolveurs de contrats. Il sert à un exécuteur ou à un banc de test à vous, pas au code du
+workflow, qui reçoit toujours l'environnement construit par le moteur.
 
 Vous n'instanciez jamais d'implémentation d'activité dans le corps du workflow.
 

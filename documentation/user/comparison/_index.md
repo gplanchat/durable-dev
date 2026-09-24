@@ -216,7 +216,7 @@ but not the operational surface of a Temporal deployment, this is often the deci
 more than the worker runtime.
 
 Switching is a configuration change, and the knob depends on the host: on Symfony
-`durable.event_store.type` takes three of the four (`memory`, `dbal`, `temporal`), and Illuminate is
+`durable.backend` takes three of the four (`in_memory`, `dbal`, `temporal`), and Illuminate is
 bound instead by `gplanchat/durable-laravel` through its own `config/durable.php`. Either way the
 workflow code does not move. See [Backends](../backends/).
 

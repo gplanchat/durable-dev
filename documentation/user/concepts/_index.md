@@ -310,7 +310,7 @@ Durable runs on four backends that share the same workflow and activity code:
 
 - The same four stores and the same trade, on `Illuminate\Database\Connection` rather than
   Doctrine's; a store on `DB::connection()` is inside `DB::transaction()` by construction.
-- It is not a fourth value of `event_store.type` and never will be: a Laravel application does not
+- It is not a fourth value of `backend` and never will be: a Laravel application does not
   read the bundle's YAML. What binds it is `gplanchat/durable-laravel`, through its own
   `config/durable.php`.
 
