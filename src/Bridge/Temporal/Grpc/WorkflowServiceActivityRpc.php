@@ -13,40 +13,24 @@ use Temporal\Api\Workflowservice\V1\DescribeActivityExecutionRequest;
 use Temporal\Api\Workflowservice\V1\DescribeActivityExecutionResponse;
 use Temporal\Api\Workflowservice\V1\ListActivityExecutionsRequest;
 use Temporal\Api\Workflowservice\V1\ListActivityExecutionsResponse;
-use Temporal\Api\Workflowservice\V1\PauseActivityRequest;
-use Temporal\Api\Workflowservice\V1\PauseActivityResponse;
 use Temporal\Api\Workflowservice\V1\PollActivityExecutionRequest;
 use Temporal\Api\Workflowservice\V1\PollActivityExecutionResponse;
 use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueResponse;
-use Temporal\Api\Workflowservice\V1\RecordActivityTaskHeartbeatByIdRequest;
-use Temporal\Api\Workflowservice\V1\RecordActivityTaskHeartbeatByIdResponse;
 use Temporal\Api\Workflowservice\V1\RecordActivityTaskHeartbeatRequest;
 use Temporal\Api\Workflowservice\V1\RecordActivityTaskHeartbeatResponse;
 use Temporal\Api\Workflowservice\V1\RequestCancelActivityExecutionRequest;
 use Temporal\Api\Workflowservice\V1\RequestCancelActivityExecutionResponse;
-use Temporal\Api\Workflowservice\V1\ResetActivityRequest;
-use Temporal\Api\Workflowservice\V1\ResetActivityResponse;
-use Temporal\Api\Workflowservice\V1\RespondActivityTaskCanceledByIdRequest;
-use Temporal\Api\Workflowservice\V1\RespondActivityTaskCanceledByIdResponse;
 use Temporal\Api\Workflowservice\V1\RespondActivityTaskCanceledRequest;
 use Temporal\Api\Workflowservice\V1\RespondActivityTaskCanceledResponse;
-use Temporal\Api\Workflowservice\V1\RespondActivityTaskCompletedByIdRequest;
-use Temporal\Api\Workflowservice\V1\RespondActivityTaskCompletedByIdResponse;
 use Temporal\Api\Workflowservice\V1\RespondActivityTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\RespondActivityTaskCompletedResponse;
-use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedByIdRequest;
-use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedByIdResponse;
 use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedRequest;
 use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedResponse;
 use Temporal\Api\Workflowservice\V1\StartActivityExecutionRequest;
 use Temporal\Api\Workflowservice\V1\StartActivityExecutionResponse;
 use Temporal\Api\Workflowservice\V1\TerminateActivityExecutionRequest;
 use Temporal\Api\Workflowservice\V1\TerminateActivityExecutionResponse;
-use Temporal\Api\Workflowservice\V1\UnpauseActivityRequest;
-use Temporal\Api\Workflowservice\V1\UnpauseActivityResponse;
-use Temporal\Api\Workflowservice\V1\UpdateActivityOptionsRequest;
-use Temporal\Api\Workflowservice\V1\UpdateActivityOptionsResponse;
 
 /**
  * Typed wrappers for Temporal {@see WorkflowServiceClientInterface} RPCs that concern **activity tasks**
@@ -96,21 +80,6 @@ final readonly class WorkflowServiceActivityRpc
      * @param array<string, mixed> $metadata
      * @param array<string, mixed> $callOptions
      */
-    public function recordActivityTaskHeartbeatById(
-        RecordActivityTaskHeartbeatByIdRequest $request,
-        array $metadata = [],
-        array $callOptions = [],
-    ): RecordActivityTaskHeartbeatByIdResponse {
-        $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = $this->client->RecordActivityTaskHeartbeatById($request, $metadata, $opts);
-
-        return $r;
-    }
-
-    /**
-     * @param array<string, mixed> $metadata
-     * @param array<string, mixed> $callOptions
-     */
     public function respondActivityTaskCompleted(
         RespondActivityTaskCompletedRequest $request,
         array $metadata = [],
@@ -118,21 +87,6 @@ final readonly class WorkflowServiceActivityRpc
     ): RespondActivityTaskCompletedResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
         $r = $this->client->RespondActivityTaskCompleted($request, $metadata, $opts);
-
-        return $r;
-    }
-
-    /**
-     * @param array<string, mixed> $metadata
-     * @param array<string, mixed> $callOptions
-     */
-    public function respondActivityTaskCompletedById(
-        RespondActivityTaskCompletedByIdRequest $request,
-        array $metadata = [],
-        array $callOptions = [],
-    ): RespondActivityTaskCompletedByIdResponse {
-        $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = $this->client->RespondActivityTaskCompletedById($request, $metadata, $opts);
 
         return $r;
     }
@@ -156,21 +110,6 @@ final readonly class WorkflowServiceActivityRpc
      * @param array<string, mixed> $metadata
      * @param array<string, mixed> $callOptions
      */
-    public function respondActivityTaskFailedById(
-        RespondActivityTaskFailedByIdRequest $request,
-        array $metadata = [],
-        array $callOptions = [],
-    ): RespondActivityTaskFailedByIdResponse {
-        $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = $this->client->RespondActivityTaskFailedById($request, $metadata, $opts);
-
-        return $r;
-    }
-
-    /**
-     * @param array<string, mixed> $metadata
-     * @param array<string, mixed> $callOptions
-     */
     public function respondActivityTaskCanceled(
         RespondActivityTaskCanceledRequest $request,
         array $metadata = [],
@@ -178,81 +117,6 @@ final readonly class WorkflowServiceActivityRpc
     ): RespondActivityTaskCanceledResponse {
         $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
         $r = $this->client->RespondActivityTaskCanceled($request, $metadata, $opts);
-
-        return $r;
-    }
-
-    /**
-     * @param array<string, mixed> $metadata
-     * @param array<string, mixed> $callOptions
-     */
-    public function respondActivityTaskCanceledById(
-        RespondActivityTaskCanceledByIdRequest $request,
-        array $metadata = [],
-        array $callOptions = [],
-    ): RespondActivityTaskCanceledByIdResponse {
-        $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = $this->client->RespondActivityTaskCanceledById($request, $metadata, $opts);
-
-        return $r;
-    }
-
-    /**
-     * @param array<string, mixed> $metadata
-     * @param array<string, mixed> $callOptions
-     */
-    public function updateActivityOptions(
-        UpdateActivityOptionsRequest $request,
-        array $metadata = [],
-        array $callOptions = [],
-    ): UpdateActivityOptionsResponse {
-        $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = $this->client->UpdateActivityOptions($request, $metadata, $opts);
-
-        return $r;
-    }
-
-    /**
-     * @param array<string, mixed> $metadata
-     * @param array<string, mixed> $callOptions
-     */
-    public function pauseActivity(
-        PauseActivityRequest $request,
-        array $metadata = [],
-        array $callOptions = [],
-    ): PauseActivityResponse {
-        $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = $this->client->PauseActivity($request, $metadata, $opts);
-
-        return $r;
-    }
-
-    /**
-     * @param array<string, mixed> $metadata
-     * @param array<string, mixed> $callOptions
-     */
-    public function unpauseActivity(
-        UnpauseActivityRequest $request,
-        array $metadata = [],
-        array $callOptions = [],
-    ): UnpauseActivityResponse {
-        $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = $this->client->UnpauseActivity($request, $metadata, $opts);
-
-        return $r;
-    }
-
-    /**
-     * @param array<string, mixed> $metadata
-     * @param array<string, mixed> $callOptions
-     */
-    public function resetActivity(
-        ResetActivityRequest $request,
-        array $metadata = [],
-        array $callOptions = [],
-    ): ResetActivityResponse {
-        $opts = array_merge(['timeout' => TemporalGrpcTimeouts::SHORT_US], $callOptions);
-        $r = $this->client->ResetActivity($request, $metadata, $opts);
 
         return $r;
     }
