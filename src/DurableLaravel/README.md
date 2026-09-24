@@ -44,6 +44,10 @@ php artisan vendor:publish --tag=durable-config
 'lock' => ['store' => null, 'ttl' => 300, 'wait' => 10],
 ```
 
+On the `temporal` backend, `temporal.guzzle_client` names a container binding whose
+`GuzzleHttp\ClientInterface` carries gRPC when the DSN says `transport=guzzle` — Laravel already
+ships Guzzle 7.14 or newer. `null` builds a default client.
+
 ### Workflows are declared, not scanned
 
 Laravel's container has no equivalent of Symfony's attribute autoconfiguration, so the `workflows`

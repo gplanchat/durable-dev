@@ -51,6 +51,18 @@ Which backend you get is decided by a DSN in `app/etc/env.php`, not by a setting
 Without it the journal lives in the process that writes it, and dies with it — fine for a console
 command, ruinous for anything served by PHP-FPM.
 
+With `transport=guzzle` in the DSN, gRPC travels through Guzzle 7.14 or newer, which Magento
+already ships. To hand it the application's client — its proxy, its TLS options — set the
+`guzzle` argument of `RuntimeFactory` in your module's `di.xml`:
+
+```xml
+<type name="Gplanchat\DurableModule\Runtime\RuntimeFactory">
+    <arguments>
+        <argument name="guzzle" xsi:type="object">Vendor\Module\Http\TemporalGuzzleClient</argument>
+    </arguments>
+</type>
+```
+
 ## Installation
 
 ```bash

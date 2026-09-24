@@ -90,6 +90,7 @@ profileur Symfony fonctionne d'un processus à l'autre.
 |-----|---------|--------|-------------|
 | `dsn` | `temporal://hôte:port?…` ou `null` | `null` | À `null` : backend Messenger en mémoire. Défini : active le backend Temporal. Le gRPC passe par `ext-grpc` quand l'extension est chargée, par curl (HTTP/2) sinon ; le schéma choisit le fil, voir plus bas. |
 | `journal` | `true` / `false` | `true` | `false` dit que le cluster est joignable **sans** être le journal : `event_store` reste la source de vérité, et le tableau de bord continue de la lire. C'est ainsi qu'une application dont le journal est DBAL sert une opération Nexus ; voir [Opérations Nexus](../nexus/). Poser un DSN avec `journal: true` à côté d'`event_store.type: dbal` est refusé : le journal ne peut pas avoir deux sources de vérité. |
+| `guzzle_client` | un id de service ou `null` | `null` | Le `GuzzleHttp\ClientInterface` de l'application, utilisé par `transport=guzzle` dans le DSN : son proxy, ses options TLS et ses middlewares s'appliquent au gRPC. Ignoré par tout autre transport ; `null` construit un client par défaut. Sous Laravel, la même clé de `config/durable.php` nomme une liaison du conteneur ; sous Magento, c'est l'argument `guzzle` de `RuntimeFactory` dans `di.xml`. |
 
 ### Format du DSN
 

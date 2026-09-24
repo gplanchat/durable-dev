@@ -64,6 +64,31 @@ final class RuntimeFactoryTest extends TestCase
         self::assertInstanceOf(TemporalWorkflowRunCatalog::class, $catalog);
     }
 
+    public function testTheHandedGuzzleClientIsTheOneTransportGuzzleUses(): void
+    {
+        // A di.xml <argument xsi:type="object"> hands the application's client; every Temporal
+        // call of the runtime then goes through it.
+        $calls = 0;
+        $guzzle = new \GuzzleHttp\Client(['handler' => static function (\Psr\Http\Message\RequestInterface $request) use (&$calls): \GuzzleHttp\Promise\PromiseInterface {
+            ++$calls;
+
+            return \GuzzleHttp\Promise\Create::rejectionFor(new \GuzzleHttp\Exception\ConnectException('refused', $request, null, ['errno' => 7]));
+        }]);
+
+        $catalog = (new RuntimeFactory(
+            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0&transport=guzzle',
+            guzzle: $guzzle,
+        ))->catalog();
+
+        try {
+            $catalog->listRuns();
+        } catch (\RuntimeException) {
+            // UNAVAILABLE: the stub refuses, and that is all it is for.
+        }
+
+        self::assertSame(1, $calls);
+    }
+
     public function testWithoutAClusterTheCatalogIsTheProcessItself(): void
     {
         $catalog = (new RuntimeFactory())->catalog();
