@@ -164,14 +164,14 @@ final class ActivityRetryStateTest extends TestCase
         $runs = 0;
         $this->drain($store, new InMemoryActivityTransport(), static function () use (&$runs): string {
             if (0 === $runs++) {
-                usleep(20_000);
+                usleep(300_000);
             }
 
             return 'ok';
         }, new ActivityOptions(
             RetryLimit::ofAttempts(3),
             initialInterval: Duration::seconds(0.0),
-            timeouts: new ActivityTimeouts(startToClose: Duration::seconds(0.01)),
+            timeouts: new ActivityTimeouts(startToClose: Duration::seconds(0.1)),
         ));
 
         $intermediate = $this->taskFailures($store);
@@ -186,13 +186,13 @@ final class ActivityRetryStateTest extends TestCase
     {
         $store = new InMemoryEventStore();
         $this->drain($store, new InMemoryActivityTransport(), static function (): string {
-            usleep(20_000);
+            usleep(300_000);
 
             return 'too late';
         }, new ActivityOptions(
             RetryLimit::ofAttempts(2),
             initialInterval: Duration::seconds(0.0),
-            timeouts: new ActivityTimeouts(startToClose: Duration::seconds(0.01)),
+            timeouts: new ActivityTimeouts(startToClose: Duration::seconds(0.1)),
         ));
 
         self::assertNull($this->completed($store), 'the late result of a timed-out attempt is discarded');
