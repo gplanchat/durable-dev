@@ -7,4 +7,4 @@
   `tests/unit/Bridge/Temporal/TemporalWorkflowRunCatalogTest.php`.
 - **Done when**: unit tests on `statusOf()`'s input pin PAUSED → Running, UNSPECIFIED open → Running,
   UNSPECIFIED closed → Failed; #504's invariant test stays green; verify.sh green.
-- **State**: in progress — bob, reviewer dave.
+- **State**: in review — PR #522, bob, reviewer dave.
