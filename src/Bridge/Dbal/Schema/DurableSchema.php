@@ -122,20 +122,31 @@ final class DurableSchema
      * tooling offering to drop, in the journal's database, the ones that do. Hence the same guard as
      * the adapters upstream: the same connection, or the same database proven by the probe.
      *
+     * A table the schema assets filter rejects is left out, as upstream's listeners do: the tooling
+     * does not compare it, and declaring it would yield a `CREATE TABLE` in every diff.
+     *
      * @param \Closure(\Closure(string): mixed): bool $isSameDatabase
+     * @param (callable(string): bool)|null          $accepts        the connection's schema assets filter
      *
      * @return Schema the schema, completed
      */
-    public function configureSchema(Schema $schema, Connection $forConnection, \Closure $isSameDatabase): Schema
+    public function configureSchema(Schema $schema, Connection $forConnection, \Closure $isSameDatabase, ?callable $accepts = null): Schema
     {
+        $tables = [$this->eventsTable, $this->metadataTable, $this->parentLinkTable, $this->runsTable];
+        $skip = array_values(array_filter(
+            $tables,
+            static fn(string $table): bool => $schema->hasTable($table) || (null !== $accepts && !$accepts($table)),
+        ));
+        // Before the probe: it writes a table on the ORM's connection, for nothing if all is skipped.
+        if ($skip === $tables) {
+            return $schema;
+        }
+
         if ($forConnection !== $this->connection && !$isSameDatabase($this->connection->executeStatement(...))) {
             return $schema;
         }
 
-        $this->addToSchema($schema, array_values(array_filter(
-            [$this->eventsTable, $this->metadataTable, $this->parentLinkTable, $this->runsTable],
-            static fn(string $table): bool => $schema->hasTable($table),
-        )));
+        $this->addToSchema($schema, $skip);
 
         return $schema;
     }
