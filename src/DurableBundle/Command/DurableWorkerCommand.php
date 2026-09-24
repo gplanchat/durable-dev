@@ -15,6 +15,7 @@ use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Messenger\Command\ConsumeMessagesCommand;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\Sender\SendersLocatorInterface;
 use Symfony\Component\Messenger\Transport\Sync\SyncTransport;
@@ -120,7 +121,9 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
         }
         foreach (self::FORWARDED_FLAGS as $flag) {
             if ($input->getOption($flag)) {
-                $arguments['--' . $flag] = true;
+                // A bare flag: since Messenger 8.1 --no-reset takes an optional interval, and `true`
+                // would read as "reset after every message".
+                $arguments['--' . $flag] = null;
             }
         }
 
@@ -134,12 +137,12 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
     public function getSubscribedSignals(): array
     {
         // Without Messenger there is no worker to stop, and execute() says what is missing.
-        return $this->getApplication()?->has('messenger:consume') ? $this->consumeCommand()->getSubscribedSignals() : [];
+        return $this->messengerConsume()?->getSubscribedSignals() ?? [];
     }
 
     public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
     {
-        return $this->consumeCommand()->handleSignal($signal, $previousExitCode);
+        return $this->messengerConsume()?->handleSignal($signal, $previousExitCode) ?? false;
     }
 
     /**
@@ -160,8 +163,21 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
     }
 
     /**
-     * `messenger:consume` itself, unwrapped from the lazy proxy FrameworkBundle registers: it is the
-     * command that holds the worker, so it is the one the stop signals must reach.
+     * The command that holds the worker, so the one the stop signals must reach. Console 6.4 commands
+     * do not all handle signals, Messenger's has since 6.3.
+     */
+    private function messengerConsume(): ?ConsumeMessagesCommand
+    {
+        if (!$this->getApplication()?->has('messenger:consume')) {
+            return null;
+        }
+        $consume = $this->consumeCommand();
+
+        return $consume instanceof ConsumeMessagesCommand ? $consume : null;
+    }
+
+    /**
+     * `messenger:consume` itself, unwrapped from the lazy proxy FrameworkBundle registers.
      */
     private function consumeCommand(): Command
     {

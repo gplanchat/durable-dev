@@ -9,13 +9,14 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Command\SignalableCommandInterface;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\ApplicationTester;
 use Symfony\Component\DependencyInjection\ServiceLocator;
+use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\Messenger\Command\ConsumeMessagesCommand;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\RoutableMessageBus;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Messenger\Transport\Sender\SendersLocator;
 use Symfony\Component\Messenger\Transport\Sync\SyncTransport;
@@ -39,7 +40,10 @@ final class DurableWorkerCommandTest extends TestCase
         self::assertSame(0, $tester->run(['command' => 'durable:worker', '--limit' => '5', '--time-limit' => '60', '--no-reset' => true]));
         self::assertSame(['durable_workflows', 'durable_activities'], $consume->receivers);
         self::assertSame(['limit' => '5', 'time-limit' => '60'], $consume->options);
+        // A flag with no value: since Messenger 8.1, --no-reset takes an optional interval, and
+        // `true` would read as "reset every message", the opposite of what was asked.
         self::assertTrue($consume->noReset);
+        self::assertNull($consume->noResetValue);
         self::assertStringContainsString('Consuming durable_workflows, durable_activities.', $tester->getDisplay());
     }
 
@@ -180,9 +184,10 @@ final class DurableWorkerCommandTest extends TestCase
 }
 
 /**
- * Stands for `messenger:consume`: records what it was asked to consume instead of consuming it.
+ * Stands for `messenger:consume`: the real command's options and signals, but it records what it
+ * was asked to consume instead of consuming it.
  */
-final class RecordingConsumeCommand extends Command implements SignalableCommandInterface
+final class RecordingConsumeCommand extends ConsumeMessagesCommand
 {
     /** @var list<string>|null */
     public ?array $receivers = null;
@@ -192,6 +197,8 @@ final class RecordingConsumeCommand extends Command implements SignalableCommand
 
     public bool $noReset = false;
 
+    public mixed $noResetValue = 'absent';
+
     public ?bool $interactive = null;
 
     /** @var list<int> */
@@ -199,23 +206,20 @@ final class RecordingConsumeCommand extends Command implements SignalableCommand
 
     public function __construct()
     {
-        parent::__construct('messenger:consume');
-    }
-
-    protected function configure(): void
-    {
-        $this->addArgument('receivers', InputArgument::IS_ARRAY);
-        foreach (['limit', 'failure-limit', 'memory-limit', 'time-limit', 'sleep'] as $option) {
-            $this->addOption($option, null, InputOption::VALUE_REQUIRED);
-        }
-        $this->addOption('no-reset', null, InputOption::VALUE_NONE);
+        parent::__construct(new RoutableMessageBus(new ServiceLocator([])), new ServiceLocator([]), new EventDispatcher());
+        // The attribute that names the real command is not inherited.
+        $this->setName('messenger:consume');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->receivers = $input->getArgument('receivers');
-        $this->options = array_filter($input->getOptions(), static fn(mixed $value): bool => \is_string($value));
-        $this->noReset = (bool) $input->getOption('no-reset');
+        $this->options = array_filter(
+            array_intersect_key($input->getOptions(), array_flip(['limit', 'failure-limit', 'memory-limit', 'time-limit', 'sleep'])),
+            static fn(mixed $value): bool => \is_string($value),
+        );
+        $this->noReset = $input->hasParameterOption('--no-reset');
+        $this->noResetValue = $input->getParameterOption('--no-reset', 'absent');
         $this->interactive = $input->isInteractive();
 
         return Command::SUCCESS;
