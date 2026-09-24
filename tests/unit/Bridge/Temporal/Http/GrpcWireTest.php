@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Bridge\Temporal\Http;
 
 use Gplanchat\Bridge\Temporal\Http\GrpcWire;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Messenger\Exception\TransportException;
 
 final class GrpcWireTest extends TestCase
 {
@@ -51,6 +52,7 @@ final class GrpcWireTest extends TestCase
     public function testTheFailureCarriesTheGrpcCodeAsExceptionCode(): void
     {
         $failure = GrpcWire::failure(5, 'gone');
+        self::assertInstanceOf(TransportException::class, $failure);
         self::assertSame(5, $failure->getCode());
         self::assertSame('Temporal gRPC error [5]: gone', $failure->getMessage());
     }

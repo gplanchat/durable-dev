@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal\Grpc;
 
+use Gplanchat\Bridge\Temporal\Http\GrpcWire;
 use Grpc\UnaryCall;
 
 /**
@@ -20,13 +21,10 @@ final class GrpcUnary
         if (\Grpc\STATUS_OK !== ($status->code ?? -1)) {
             // The gRPC code becomes the exception code: NOT_FOUND (5) is benign on the
             // RespondActivityTask*, and telling it apart by the message would be string parsing.
-            throw new \RuntimeException(
-                \sprintf('Temporal gRPC error [%s]: %s', (string) ($status->code ?? '?'), (string) ($status->details ?? '')),
-                (int) ($status->code ?? -1),
-            );
+            throw GrpcWire::failure((int) ($status->code ?? GrpcWire::UNKNOWN), (string) ($status->details ?? ''));
         }
         if (null === $response) {
-            throw new \RuntimeException('Temporal gRPC returned empty response.');
+            throw GrpcWire::failure(GrpcWire::UNKNOWN, 'empty response.');
         }
 
         return $response;

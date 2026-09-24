@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Grpc;
 
 use Google\Protobuf\Internal\Message;
+use Gplanchat\Bridge\Temporal\Http\GrpcWire;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Grpc\BaseStub;
@@ -35,7 +36,7 @@ final class ExtGrpcTransport extends BaseStub implements GrpcTransport
         $call = $this->_simpleRequest($method, $request, [$responseClass, 'decode'], $metadata, self::callOptions($timeoutMs));
         $response = GrpcUnary::wait($call);
         if (!$response instanceof $responseClass) {
-            throw new \RuntimeException(\sprintf('Unexpected %s response type: %s.', $method, $response::class));
+            throw GrpcWire::failure(GrpcWire::UNKNOWN, \sprintf('Unexpected %s response type: %s.', $method, $response::class));
         }
 
         return $response;
