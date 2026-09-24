@@ -18,6 +18,7 @@ use Gplanchat\Bridge\Temporal\Http\Psr18Http;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
@@ -280,6 +281,12 @@ final class DurableServiceProvider extends ServiceProvider
                 self::psr18Http($app, $temporal),
             ),
         );
+        // One sender for the activity worker, which binds each task's token onto it, and for the
+        // activities that inject it: their heartbeats reach the cluster (#510).
+        $this->app->singleton(ActivityHeartbeatSenderInterface::class, fn($app) => new TemporalActivityHeartbeatSender(
+            new WorkflowServiceActivityRpc($app->make('durable.temporal.client')),
+            $app->make(TemporalConnection::class),
+        ));
         $this->app->singleton(TemporalHistoryCursor::class, fn($app) => new TemporalHistoryCursor(
             $app->make('durable.temporal.client'),
             $app->make(TemporalConnection::class),

@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable\Laravel;
 
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
@@ -14,6 +15,7 @@ use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Illuminate\Container\Container;
 use PHPUnit\Framework\TestCase;
+use unit\DurableLaravel\Fixtures\HeartbeatingActivity;
 
 /**
  * The Temporal backend, served rather than refused.
@@ -47,6 +49,22 @@ final class TemporalBackendTest extends TestCase
         (new DurableServiceProvider($app))->register();
 
         self::assertInstanceOf(TemporalActivityWorker::class, $app->make(TemporalActivityWorker::class));
+    }
+
+    public function testTheActivityWorkerAndTheActivitiesShareTheTemporalHeartbeatSender(): void
+    {
+        // The worker binds each task's token onto its sender; an activity that injects the
+        // interface must get that very instance, or its heartbeats never reach the cluster (#510).
+        $app = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN]]);
+        (new DurableServiceProvider($app))->register();
+
+        $worker = $app->make(TemporalActivityWorker::class);
+        $sender = (new \ReflectionProperty($worker, 'heartbeatSender'))->getValue($worker);
+        $processor = (new \ReflectionProperty($worker, 'processor'))->getValue($worker);
+
+        self::assertInstanceOf(TemporalActivityHeartbeatSender::class, $sender);
+        self::assertSame($sender, (new \ReflectionProperty($processor, 'heartbeatSender'))->getValue($processor));
+        self::assertSame($sender, $app->make(HeartbeatingActivity::class)->heartbeat);
     }
 
     public function testMetadataAndParentLinksStayInMemoryBecauseTheClusterHoldsTheState(): void
