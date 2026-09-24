@@ -58,6 +58,7 @@ final class ANonRetryableActivityFailureIsUnrecoverableTest extends TestCase
         // Messenger's own retry, as configured by `retry_strategy`: it must not run.
         $dispatcher->addSubscriber(new SendFailedMessageForRetryListener(
             new class ([ 'activities' => $transport ]) implements \Psr\Container\ContainerInterface {
+                /** @param array<string, object> $senders */
                 public function __construct(private readonly array $senders) {}
 
                 public function get(string $id): mixed
@@ -71,6 +72,7 @@ final class ANonRetryableActivityFailureIsUnrecoverableTest extends TestCase
                 }
             },
             new class (['activities' => new MultiplierRetryStrategy(3)]) implements \Psr\Container\ContainerInterface {
+                /** @param array<string, object> $strategies */
                 public function __construct(private readonly array $strategies) {}
 
                 public function get(string $id): mixed

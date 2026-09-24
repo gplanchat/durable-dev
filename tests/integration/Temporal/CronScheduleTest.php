@@ -98,7 +98,7 @@ final class CronScheduleTest extends TemporalServerTestCase
         $req->setNamespace($this->connection->namespace->name());
         $req->setWorkflowId('cron-agreement-' . bin2hex(random_bytes(5)));
         $req->setWorkflowType(new \Temporal\Api\Common\V1\WorkflowType(['name' => 'Ticking']));
-        $req->setTaskQueue(new \Temporal\Api\Taskqueue\V1\TaskQueue(['name' => $this->connection->workflowTaskQueue . '-unserved']));
+        $req->setTaskQueue(new \Temporal\Api\Taskqueue\V1\TaskQueue(['name' => $this->connection->workflowTaskQueue->name() . '-unserved']));
         $req->setIdentity('cron-agreement');
         $req->setCronSchedule($expression);
 

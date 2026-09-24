@@ -191,6 +191,7 @@ final class WorkflowConditionTest extends TestCase
                 return 7;
             });
 
+            // @phpstan-ignore greater.alwaysTrue (written as a workflow writes a condition on a side effect)
             $wf->await(static fn(): bool => $threshold > 0);
 
             return $threshold;

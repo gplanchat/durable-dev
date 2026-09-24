@@ -55,6 +55,7 @@ if ('workflow' === $role) {
         new WorkflowTaskRunner(new TemporalHistoryCursor($client, $connection), $registry, $connection),
     );
 
+    // @phpstan-ignore while.alwaysTrue (a worker polls until the test kills it)
     while (true) {
         try {
             $processor->processOne();
@@ -82,6 +83,7 @@ $worker = new TemporalActivityWorker(
     new NullActivityHeartbeatSender(),
 );
 
+// @phpstan-ignore while.alwaysTrue (a worker polls until the test kills it)
 while (true) {
     try {
         $worker->pollOnce();
