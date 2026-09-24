@@ -38,6 +38,15 @@ final class DurableSchema
     ) {}
 
     /**
+     * The journal's table as configured: whoever reads the journal without being handed its store
+     * reads this one, not the default.
+     */
+    public function eventsTable(): string
+    {
+        return $this->eventsTable;
+    }
+
+    /**
      * Whether the runs table has the `picked_up_at` column. Tables created before #447 do not, and
      * nothing alters an existing table: without the column, the pickup is not recorded and the run
      * list does not tell a run waiting for a worker. Asked once per process.

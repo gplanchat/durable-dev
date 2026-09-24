@@ -41,6 +41,15 @@ final class DurableSchema
     ) {}
 
     /**
+     * The journal's table as configured: whoever reads the journal without being handed its store
+     * reads this one, not the default.
+     */
+    public function eventsTable(): string
+    {
+        return $this->eventsTable;
+    }
+
+    /**
      * Idempotent: creates only the missing tables, and checks that only once per process.
      */
     public function ensure(): void
