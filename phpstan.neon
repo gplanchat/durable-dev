@@ -73,6 +73,18 @@ parameters:
         # objects are serialised whole, and recorders write through a reference: none is read back.
         - identifier: property.onlyWritten
           path: tests/*
+        # Symfony 6.4 types KernelTestCase::$kernel as never null; the bundle tests reset it between
+        # kernels as 7.x allows. Matches on the 6.4 legs only.
+        - identifier: assign.propertyType
+          message: '#KernelTestCase::\$kernel#'
+          path: tests/integration/Durable/Bundle/*
+          reportUnmatched: false
+        # The PHP CLI always defines $argv (even with register_argc_argv off, unlike $_SERVER['argv']);
+        # PHPStan on PHP 8.5 doubts it. Matches on the 8.5 legs only.
+        - identifier: variable.undefined
+          message: '#Variable \$argv might not be defined#'
+          path: tests/integration/Temporal/worker.php
+          reportUnmatched: false
         # The same google/protobuf MapField stubs as TemporalWorkflowCommandBuffer above.
         - identifier: argument.type
           path: tests/integration/Temporal/NexusHeaderRulesTest.php
