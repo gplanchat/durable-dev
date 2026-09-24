@@ -22,6 +22,7 @@
         "Gplanchat\\Bridge\\Temporal\\Store\\TemporalReadThroughEventStore",
         "Gplanchat\\Bridge\\Temporal\\Store\\TemporalWorkflowRunCatalog",
         "Gplanchat\\Bridge\\Temporal\\TemporalConnection",
+        "Gplanchat\\Bridge\\Temporal\\TemporalRuntimeAssembly",
         "Gplanchat\\Bridge\\Temporal\\Worker\\TemporalActivityHeartbeatSender",
         "Gplanchat\\Bridge\\Temporal\\Worker\\TemporalActivityWorker",
         "Gplanchat\\Bridge\\Temporal\\Worker\\TemporalNexusWorker",
