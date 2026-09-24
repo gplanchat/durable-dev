@@ -12,8 +12,9 @@ use Gplanchat\Bridge\Temporal\Http\GrpcWire;
  * exponential backoff and full jitter, so a frontend restart does not end every worker loop.
  *
  * Only the RPCs below are retried. A deadline may expire after the server applied the call, so
- * a mutating RPC is retried only when a second application cannot happen: its task token makes
- * the second one a NOT_FOUND. Any other RPC is sent once.
+ * a mutating RPC is retried only when a second application cannot happen: its request_id is
+ * stamped once per call and reused by every attempt (the server dedupes on it), or its task
+ * token makes the second one a NOT_FOUND. Any other RPC is sent once.
  *
  * No retry starts once the call has run for $budgetMs: a call that used its whole deadline is
  * not sent again, only the ones that failed fast (connection refused, frontend restarting).
@@ -32,6 +33,12 @@ final class RetryingGrpcTransport implements GrpcTransport
         'GetWorkflowExecutionHistory', 'ListActivityExecutions', 'ListWorkflowExecutions',
         'PollActivityExecution', 'PollActivityTaskQueue', 'PollNexusTaskQueue',
         'PollWorkflowExecutionUpdate', 'PollWorkflowTaskQueue', 'QueryWorkflow',
+    ];
+
+    /** Deduped by the server on request_id. */
+    private const WITH_REQUEST_ID = [
+        'RequestCancelWorkflowExecution', 'SignalWithStartWorkflowExecution',
+        'SignalWorkflowExecution', 'StartWorkflowExecution',
     ];
 
     /** Bound to a task token: once applied, the token is spent and a replay gets NOT_FOUND. */
@@ -78,6 +85,12 @@ final class RetryingGrpcTransport implements GrpcTransport
     {
         $rpc = substr($method, (int) strrpos($method, '/') + 1);
         $retryable = \in_array($rpc, self::READS, true) || \in_array($rpc, self::WITH_TASK_TOKEN, true);
+        if (\in_array($rpc, self::WITH_REQUEST_ID, true)) {
+            $retryable = true;
+            if (method_exists($request, 'getRequestId') && method_exists($request, 'setRequestId') && '' === $request->getRequestId()) {
+                $request->setRequestId(bin2hex(random_bytes(16)));
+            }
+        }
 
         $start = ($this->clock)();
         for ($attempt = 1; ; ++$attempt) {

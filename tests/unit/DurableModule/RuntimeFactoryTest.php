@@ -72,7 +72,8 @@ final class RuntimeFactoryTest extends TestCase
         $guzzle = new \GuzzleHttp\Client(['handler' => static function (\Psr\Http\Message\RequestInterface $request) use (&$calls): \GuzzleHttp\Promise\PromiseInterface {
             ++$calls;
 
-            return \GuzzleHttp\Promise\Create::rejectionFor(new \GuzzleHttp\Exception\ConnectException('refused', $request, null, ['errno' => 7]));
+            // A trailers-only PERMISSION_DENIED: a status the retry leaves alone, so one call is one request.
+            return \GuzzleHttp\Promise\Create::promiseFor(new \GuzzleHttp\Psr7\Response(200, ['grpc-status' => '7']));
         }]);
 
         $catalog = (new RuntimeFactory(
@@ -83,7 +84,7 @@ final class RuntimeFactoryTest extends TestCase
         try {
             $catalog->listRuns();
         } catch (\RuntimeException) {
-            // UNAVAILABLE: the stub refuses, and that is all it is for.
+            // PERMISSION_DENIED: the stub refuses, and that is all it is for.
         }
 
         self::assertSame(1, $calls);

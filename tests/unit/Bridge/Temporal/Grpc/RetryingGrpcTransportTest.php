@@ -12,6 +12,10 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Exception\TransportException;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
+use Temporal\Api\Workflowservice\V1\SignalWorkflowExecutionRequest;
+use Temporal\Api\Workflowservice\V1\SignalWorkflowExecutionResponse;
+use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
+use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionResponse;
 
 final class RetryingGrpcTransportTest extends TestCase
 {
@@ -66,6 +70,56 @@ final class RetryingGrpcTransportTest extends TestCase
         } finally {
             self::assertCount(1, $inner->requests);
         }
+    }
+
+    public function testACodeThatIsNotTransientIsNotRetried(): void
+    {
+        $inner = $this->failing([5]);
+
+        $this->expectExceptionCode(5);
+
+        try {
+            $this->retrying($inner)->unary(self::PATH . 'PollWorkflowTaskQueue', new PollWorkflowTaskQueueRequest(), PollWorkflowTaskQueueResponse::class, [], null);
+        } finally {
+            self::assertCount(1, $inner->requests);
+        }
+    }
+
+    public function testAMutatingCallWithoutRequestIdIsSentExactlyOnce(): void
+    {
+        $inner = $this->failing([GrpcWire::DEADLINE_EXCEEDED]);
+
+        $this->expectExceptionCode(GrpcWire::DEADLINE_EXCEEDED);
+
+        try {
+            $this->retrying($inner)->unary(self::PATH . 'TerminateWorkflowExecution', new TerminateWorkflowExecutionRequest(), TerminateWorkflowExecutionResponse::class, [], null);
+        } finally {
+            self::assertCount(1, $inner->requests);
+        }
+    }
+
+    public function testASignalIsRetriedWithOneRequestIdForTheWholeCall(): void
+    {
+        $inner = $this->failing([GrpcWire::DEADLINE_EXCEEDED, GrpcWire::UNAVAILABLE]);
+
+        $this->retrying($inner)->unary(self::PATH . 'SignalWorkflowExecution', new SignalWorkflowExecutionRequest(), SignalWorkflowExecutionResponse::class, [], null);
+        $this->retrying($inner)->unary(self::PATH . 'SignalWorkflowExecution', new SignalWorkflowExecutionRequest(), SignalWorkflowExecutionResponse::class, [], null);
+
+        $ids = array_map(static fn(SignalWorkflowExecutionRequest $r): string => $r->getRequestId(), $inner->requests);
+        self::assertCount(4, $ids);
+        self::assertNotSame('', $ids[0]);
+        self::assertSame([$ids[0], $ids[0], $ids[0]], \array_slice($ids, 0, 3), 'the server dedupes on it: one id across the attempts');
+        self::assertNotSame($ids[0], $ids[3], 'a second signal is a second call');
+    }
+
+    public function testARequestIdTheCallerSetIsKept(): void
+    {
+        $inner = $this->failing([]);
+        $request = new SignalWorkflowExecutionRequest(['request_id' => 'mine']);
+
+        $this->retrying($inner)->unary(self::PATH . 'SignalWorkflowExecution', $request, SignalWorkflowExecutionResponse::class, [], null);
+
+        self::assertSame('mine', $request->getRequestId());
     }
 
     private function retrying(GrpcTransport $inner): RetryingGrpcTransport
