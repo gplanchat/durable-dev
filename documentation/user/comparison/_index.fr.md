@@ -289,7 +289,7 @@ Mêmes étapes, mêmes noms, même ordre. Ce qui diffère, c'est tout ce qui les
 | Coloration des fonctions | méthodes ordinaires, types de retour déclarés | toute méthode qui attend devient un générateur, et son appelant aussi ; voir [plus bas](#5-fibers-or-generators-the-colouring-problem) |
 | Déclaration | `#[AsWorkflow]` sur la classe | `#[WorkflowInterface]` sur une interface, implémentée par une classe |
 | Attributs de méthode | `#[AsWorkflowMethod]`, `#[AsSignalMethod]`, `#[AsQueryMethod]`, `#[AsUpdateMethod]` | les mêmes quatre, mises à jour comprises |
-| Compensations | `new Saga($environment)` ; `compensate()` attend chacune, dans l'ordre inverse | `new Workflow\Saga()` ; `yield $saga->compensate()` |
+| Compensations | `new Saga()` ; chaque compensation appelle `await()` elle-même, `compensate()` les exécute dans l'ordre inverse | `new Workflow\Saga()` ; `yield $saga->compensate()` |
 
 Le type de retour en est la conséquence visible : `run()` déclare `string` d'un côté ; de l'autre, le
 seul type qu'elle pourrait déclarer est `\Generator`, qui ne dit rien de ce que le workflow rend.

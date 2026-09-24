@@ -37,14 +37,14 @@ final class CheckoutWorkflow
     #[AsWorkflowMethod]
     public function run(string $orderId): string
     {
-        $saga = new Saga($this->environment);
+        $saga = new Saga();
 
         try {
             $reservation = $this->environment->await($this->orders->reserve($orderId));
-            $saga->addCompensation(fn () => $this->orders->release($reservation));
+            $saga->addCompensation(fn () => $this->environment->await($this->orders->release($reservation)));
 
             $charge = $this->environment->await($this->orders->charge($orderId));
-            $saga->addCompensation(fn () => $this->orders->refund($charge));
+            $saga->addCompensation(fn () => $this->environment->await($this->orders->refund($charge)));
 
             return $this->environment->await($this->orders->ship($orderId));
         } catch (DurableActivityFailedException|WorkflowCancelledFailure $e) {
@@ -57,7 +57,9 @@ final class CheckoutWorkflow
 ```
 
 `Saga` enregistre une compensation par étape terminée et, à l'appel de `compensate()`, les exécute
-dans l'ordre inverse, chacune attendue avant la suivante. Une étape qui ne s'est jamais terminée n'a
+dans l'ordre inverse. Chaque compensation fait son propre `await()`, si bien qu'elle se termine avant
+que la suivante ne commence ; une compensation qui rend un `Awaitable` à la place est refusée par une
+`LogicException`. Une étape qui ne s'est jamais terminée n'a
 rien à défaire : sa compensation n'a jamais été ajoutée. La première compensation qui lève une
 exception arrête la série, et son exception remplace celle qu'on était en train de compenser.
 

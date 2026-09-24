@@ -37,14 +37,14 @@ final class CheckoutWorkflow
     #[AsWorkflowMethod]
     public function run(string $orderId): string
     {
-        $saga = new Saga($this->environment);
+        $saga = new Saga();
 
         try {
             $reservation = $this->environment->await($this->orders->reserve($orderId));
-            $saga->addCompensation(fn () => $this->orders->release($reservation));
+            $saga->addCompensation(fn () => $this->environment->await($this->orders->release($reservation)));
 
             $charge = $this->environment->await($this->orders->charge($orderId));
-            $saga->addCompensation(fn () => $this->orders->refund($charge));
+            $saga->addCompensation(fn () => $this->environment->await($this->orders->refund($charge)));
 
             return $this->environment->await($this->orders->ship($orderId));
         } catch (DurableActivityFailedException|WorkflowCancelledFailure $e) {
@@ -57,7 +57,8 @@ final class CheckoutWorkflow
 ```
 
 `Saga` records one compensation per completed step and, on `compensate()`, runs them in reverse
-order, each awaited before the next. A step that never completed has nothing to undo, because its
+order. Each compensation does its own `await()`, so it finishes before the next one starts; one that
+returns an `Awaitable` instead is refused with a `LogicException`. A step that never completed has nothing to undo, because its
 compensation was never added. The first compensation that throws stops the run, and its exception
 replaces the one being compensated.
 

@@ -51,14 +51,14 @@ final class SagaTest extends TestCase
     {
         $handler = static function (WorkflowEnvironment $env): mixed {
             $steps = $env->activityStub(SuiteActivities::class);
-            $saga = new Saga($env);
+            $saga = new Saga();
 
             try {
                 $env->await($steps->append('reserve'));
-                $saga->addCompensation(static fn() => $steps->append('release'));
+                $saga->addCompensation(static fn() => $env->await($steps->append('release')));
 
                 $env->await($steps->append('charge'));
-                $saga->addCompensation(static fn() => $steps->append('refund'));
+                $saga->addCompensation(static fn() => $env->await($steps->append('refund')));
 
                 throw new \RuntimeException('shipping failed');
             } catch (\RuntimeException $e) {
@@ -81,11 +81,11 @@ final class SagaTest extends TestCase
     {
         $handler = static function (WorkflowEnvironment $env): mixed {
             $steps = $env->activityStub(SuiteActivities::class);
-            $saga = new Saga($env);
+            $saga = new Saga();
 
-            $saga->addCompensation(static fn() => $steps->append('never compensated'));
+            $saga->addCompensation(static fn() => $env->await($steps->append('never compensated')));
             $saga->addCompensation(static fn() => throw new \LogicException('refund refused'));
-            $saga->addCompensation(static fn() => $steps->append('compensated'));
+            $saga->addCompensation(static fn() => $env->await($steps->append('compensated')));
 
             $saga->compensate();
 
@@ -101,11 +101,11 @@ final class SagaTest extends TestCase
         }
     }
 
-    public function testACompensationThatReturnsNoAwaitableRunsInline(): void
+    public function testACompensationRunsOnceAcrossTwoCalls(): void
     {
         $handler = static function (WorkflowEnvironment $env): int {
             $calls = 0;
-            $saga = new Saga($env);
+            $saga = new Saga();
             $saga->addCompensation(static function () use (&$calls): void {
                 ++$calls;
             });
@@ -117,6 +117,26 @@ final class SagaTest extends TestCase
         };
 
         self::assertSame(1, $this->driveToTheEnd('saga-3', $handler));
+    }
+
+    public function testACompensationThatForgetsToAwaitIsRefused(): void
+    {
+        $handler = static function (WorkflowEnvironment $env): mixed {
+            $saga = new Saga();
+            $saga->addCompensation(static fn() => $env->activityStub(SuiteActivities::class)->append('refund'));
+
+            $saga->compensate();
+
+            return 'unreachable';
+        };
+
+        $this->expectException(\LogicException::class);
+
+        try {
+            $this->driveToTheEnd('saga-4', $handler);
+        } finally {
+            self::assertSame([], $this->ran);
+        }
     }
 
     private function driveToTheEnd(string $executionId, callable $handler): mixed
