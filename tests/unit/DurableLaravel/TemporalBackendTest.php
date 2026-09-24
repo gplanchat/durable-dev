@@ -89,6 +89,31 @@ final class TemporalBackendTest extends TestCase
         self::assertSame($mine, (new \ReflectionProperty($processor, 'heartbeatSender'))->getValue($processor));
     }
 
+    public function testTheMigrationPathsForADecoratorStillWork(): void
+    {
+        // Decorating an intermediate binding (the cursor, an RPC) no longer reaches what is built
+        // from it (UPGRADE.md, #356). What does: decorating the final service, or binding an
+        // assembly of your own.
+        $app = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN]]);
+        (new DurableServiceProvider($app))->register();
+        $app->extend(WorkflowRunCatalogInterface::class, static fn(object $catalog): object => (object) ['decorates' => $catalog]);
+
+        $decorated = $app->make(WorkflowRunCatalogInterface::class);
+        self::assertSame($app->make(TemporalRuntimeAssembly::class)->runCatalog(), $decorated->decorates);
+
+        $mine = new TemporalRuntimeAssembly(
+            $app->make('durable.temporal.client'),
+            $app->make(TemporalConnection::class),
+            new \Gplanchat\Durable\WorkflowRegistry(),
+            new WorkflowDefinitionLoader(),
+        );
+        $fresh = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN]]);
+        (new DurableServiceProvider($fresh))->register();
+        $fresh->instance(TemporalRuntimeAssembly::class, $mine);
+        self::assertSame($mine->historyCursor(), $fresh->make(TemporalHistoryCursor::class));
+        self::assertSame($mine->workflowClient(), $fresh->make(WorkflowClientInterface::class));
+    }
+
     public function testTheTemporalServicesComeFromOneAssemblyAndTheLoaderReachesThem(): void
     {
         $app = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN]]);

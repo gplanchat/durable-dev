@@ -196,6 +196,17 @@ class RuntimeFactory
         return $this->assembly($settings)->runCatalog();
     }
 
+    /**
+     * The worker that answers the journal queue's tasks.
+     *
+     * Without it, an execution appended to the cluster stays `running` there forever: the journal
+     * exists, its history fills, and no one makes it advance. That is exactly what the back-office
+     * grid was showing — and it was right to show it.
+     *
+     * The objects come from the bridge's assembly, the same one the Symfony and Laravel hosts use.
+     * All that changes here is who turns the loop: a `bin/magento` command, drained by whatever an
+     * operator already supervises, rather than a `messenger:consume`.
+     */
     public function journalWorker(): WorkflowTaskProcessor
     {
         $settings = $this->temporalSettings();
@@ -209,6 +220,17 @@ class RuntimeFactory
         return $this->assembly($settings)->workflowTaskProcessor();
     }
 
+    /**
+     * The worker that drains activity tasks.
+     *
+     * On Temporal, scheduling an activity produces a **task** somebody has to take. Nobody was
+     * doing it, and that is what §5.3 had measured without naming it: the card was not charged
+     * again, but the order did not move on either.
+     *
+     * Its journal is a scratch `InMemoryEventStore`, and that is not a shortcut: on this path an
+     * activity's result goes back through Temporal's RPC, not through the journal. The
+     * repository's integration worker makes exactly the same choice, for the same reason.
+     */
     public function activityWorker(): TemporalActivityWorker
     {
         $assembly = $this->assembly($this->requireCluster('An activity worker'));
@@ -218,6 +240,14 @@ class RuntimeFactory
         return $assembly->scratchActivityWorker($this->activityExecutor());
     }
 
+    /**
+     * What it takes to start an execution **on the cluster**, rather than in this process.
+     *
+     * `MagentoRuntime::run()` executes here and now: its activities go into the in-memory
+     * transport whatever the journal underneath, and die with the process. For an activity to
+     * become a Temporal task, the execution has to be started on the cluster and carried by the
+     * workers — that is the split task 5 describes, and this client is its door.
+     */
     public function workflowClient(): WorkflowClient
     {
         return $this->assembly($this->requireCluster('Starting a workflow on the cluster'))->workflowClient();
