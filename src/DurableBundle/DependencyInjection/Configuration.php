@@ -9,6 +9,10 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 
 final class Configuration implements ConfigurationInterface
 {
+    public function __construct(
+        private readonly bool $debug = true,
+    ) {}
+
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder('durable');
@@ -65,7 +69,10 @@ final class Configuration implements ConfigurationInterface
             ->addDefaultsIfNotSet()
             ->children()
             ->enumNode('type')->values(['in_memory', 'messenger'])->defaultValue('in_memory')->end()
-            ->scalarNode('table_name')->defaultValue('durable_activity_outbox')->end()
+            ->scalarNode('table_name')
+            ->defaultValue('durable_activity_outbox')
+            ->setDeprecated('gplanchat/durable-bundle', '0.1.0-beta1', 'The "%path%.%node%" option is read nowhere: no outbox table exists. Remove it.')
+            ->end()
             ->scalarNode('transport_name')->defaultValue('durable_activities')->end()
             ->end()
             ->end()
@@ -77,6 +84,12 @@ final class Configuration implements ConfigurationInterface
             ->defaultValue([])
             ->info('Ids of the Messenger buses the bundle installs its middleware on (resume lock, profiler). Empty, which is the default, installs them on every bus, and that is the historical behaviour. Naming buses avoids imposing a per-execution lock on the business command bus, which carries no durable message.')
             ->end()
+            ->end()
+            ->end()
+            ->arrayNode('profiler')
+            ->addDefaultsIfNotSet()
+            ->children()
+            ->booleanNode('enabled')->defaultValue($this->debug)->info('Registers the execution trace, the web profiler panel and the observer on the hot path. Defaults to kernel.debug.')->end()
             ->end()
             ->end()
             ->integerNode('max_activity_retries')->defaultValue(0)->min(0)->end()

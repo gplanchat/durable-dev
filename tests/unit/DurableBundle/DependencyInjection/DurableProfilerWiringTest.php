@@ -199,6 +199,16 @@ final class DurableProfilerWiringTest extends TestCase
     /**
      * @param array<string, mixed> $config
      */
+    public function testProfilerEnabledTurnsItOffInDebug(): void
+    {
+        self::assertFalse($this->load(debug: true, config: ['profiler' => ['enabled' => false]])->has('durable.execution_trace'));
+    }
+
+    public function testProfilerEnabledTurnsItOnOutsideDebug(): void
+    {
+        self::assertTrue($this->load(debug: false, config: ['profiler' => ['enabled' => true]])->has('durable.execution_trace'));
+    }
+
     private function load(bool $debug, array $config = []): ContainerBuilder
     {
         $container = new ContainerBuilder();

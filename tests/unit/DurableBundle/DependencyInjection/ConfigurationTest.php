@@ -60,6 +60,26 @@ final class ConfigurationTest extends TestCase
         self::assertSame([\Countable::class], $config['activity_contracts']['contracts']);
     }
 
+    public function testTheOutboxTableNameIsDeprecated(): void
+    {
+        // Read nowhere: the outbox it names does not exist until #328 decides it.
+        $deprecations = [];
+        set_error_handler(static function (int $level, string $message) use (&$deprecations): bool {
+            $deprecations[] = $message;
+
+            return true;
+        }, \E_USER_DEPRECATED);
+
+        try {
+            $this->process(['activity_transport' => ['table_name' => 'outbox']]);
+        } finally {
+            restore_error_handler();
+        }
+
+        self::assertCount(1, $deprecations);
+        self::assertStringContainsString('durable.activity_transport.table_name', $deprecations[0]);
+    }
+
     /**
      * @param array<string, mixed> $config
      *
