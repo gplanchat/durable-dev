@@ -937,13 +937,44 @@ jobs:
               if: always()
               run: docker compose -f symfony/compose.yaml down -v
 
+    manifests:
+        # Every package declares what it imports (#346): a split package installs alone, and an
+        # import the monorepo happens to provide is a fatal error there.
+        name: Manifests (validate + require-checker)
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  # 8.4: composer-require-checker 4.24 requires it.
+                  php-version: '8.4'
+                  extensions: mbstring, sqlite3, pdo_sqlite, grpc
+                  coverage: none
+                  tools: composer-require-checker:4.24.0@sha256:35d1dfdd7aa94a750f4b4c9b0b22dd5e76b5e9e35fb910c8901f3dafd2ad2ab9
+
+            - name: Cache Composer downloads
+              uses: actions/cache@v6
+              with:
+                  path: ~/.cache/composer
+                  key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
+                  restore-keys: composer-${{ runner.os }}-
+
+            - name: Install Composer dependencies
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: Validate manifests and check imports
+              run: bin/check-manifests.sh
+
     ci-ok:
         # The one required status check on `main` (branch protection, 2026-09-16). It needs every
         # job above, so a red matrix leg blocks a merge the way a red QA leg used to; the individual
         # job names can move without touching the protection. A skipped job is not a failure.
         name: ci-ok
         if: always()
-        needs: [qa, symfony-matrix, laravel, sylius-shop, magento-matrix, magento-boot, static-analysis, symfony-sample, conformance-sql, guide-follows, temporal-bridge, coverage, temporal-integration, no-grpc, grpc-integration, docker-compose-stack]
+        needs: [qa, symfony-matrix, laravel, sylius-shop, magento-matrix, magento-boot, static-analysis, symfony-sample, conformance-sql, guide-follows, temporal-bridge, coverage, temporal-integration, no-grpc, grpc-integration, docker-compose-stack, manifests]
         runs-on: ubuntu-latest
         timeout-minutes: 5
         steps:
