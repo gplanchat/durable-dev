@@ -374,7 +374,7 @@ process, the very failure durable execution exists to remove.
 
 When `DURABLE_DSN` points to a Temporal server, start the workers the bundle registered, in separate processes.
 **These are the Symfony commands**; the other hosts poll the same cluster with their own:
-`php artisan durable:temporal-worker` on Laravel, `bin/magento durable:worker --role=journal` and
+`php artisan durable:temporal-worker` and `--role=activity` on Laravel, `bin/magento durable:worker --role=journal` and
 `--role=activity` on Magento.
 
 ```bash

@@ -11,12 +11,14 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
+use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
 use Gplanchat\Bridge\Temporal\Http\Psr18Http;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
@@ -54,6 +56,7 @@ use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
+use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
@@ -215,10 +218,9 @@ final class DurableServiceProvider extends ServiceProvider
      * The metadata and the parent links stay in memory, as on the Symfony side — Temporal holds the
      * durable state, those two are nothing but process cache.
      *
-     * **What this package does not replicate, and that is deliberate:** the bridge's Messenger
-     * transports. The activities and the resumes go on travelling on the application's queue, which
-     * already drains them; Temporal owns the journal, Laravel owns the queue. The workflow task
-     * worker, for its part, has its own loop turn — `durable:temporal-worker`.
+     * Both task queues are the cluster's, and only a worker polling them can take their tasks:
+     * `durable:temporal-worker` drains the workflow tasks, `durable:temporal-worker --role=activity`
+     * the activity tasks. The application's Laravel queue carries nothing of Durable's here.
      *
      * @param array<string, mixed> $config
      */
@@ -295,6 +297,26 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(TemporalConnection::class),
             $app->make(WorkflowTaskRunner::class),
         ));
+
+        // Mirrors Magento's `RuntimeFactory::activityWorker()`. The journal is a scratch store: on
+        // this path an activity's result goes back through Temporal's RPC, not through a journal.
+        $this->app->singleton(TemporalActivityWorker::class, function ($app): TemporalActivityWorker {
+            $scratch = new InMemoryEventStore();
+
+            return new TemporalActivityWorker(
+                new WorkflowServiceActivityRpc($app->make('durable.temporal.client')),
+                $app->make(TemporalConnection::class),
+                new ActivityMessageProcessor(
+                    $scratch,
+                    new NoopActivityTransport(),
+                    $app->make(ActivityExecutor::class),
+                    new NullWorkflowResumeDispatcher(),
+                    new NullActivityHeartbeatSender(),
+                ),
+                $scratch,
+                new NullActivityHeartbeatSender(),
+            );
+        });
 
         $this->app->singleton(WorkflowServiceExecutionRpc::class, fn($app) => new WorkflowServiceExecutionRpc(
             $app->make('durable.temporal.client'),

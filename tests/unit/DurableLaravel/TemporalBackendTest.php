@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable\Laravel;
 
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
@@ -35,6 +36,17 @@ final class TemporalBackendTest extends TestCase
         self::assertInstanceOf(TemporalWorkflowRunCatalog::class, $app->make(WorkflowRunCatalogInterface::class));
         // …and the task worker is assembled, ready to be drained by the command.
         self::assertInstanceOf(WorkflowTaskProcessor::class, $app->make(WorkflowTaskProcessor::class));
+    }
+
+    public function testTheActivityTaskQueueHasAWorkerToo(): void
+    {
+        // A workflow that schedules an activity emits a task on the cluster's activity queue. With
+        // no worker bound, nothing takes it and the run stops at its first activity (#355).
+        $app = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN]]);
+
+        (new DurableServiceProvider($app))->register();
+
+        self::assertInstanceOf(TemporalActivityWorker::class, $app->make(TemporalActivityWorker::class));
     }
 
     public function testMetadataAndParentLinksStayInMemoryBecauseTheClusterHoldsTheState(): void
