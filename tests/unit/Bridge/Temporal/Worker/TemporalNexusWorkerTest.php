@@ -81,7 +81,7 @@ final class TemporalNexusWorkerTest extends TestCase
         $this->worker($registry)->pollOnce();
 
         self::assertSame('jeton-de-tache', $sent?->getTaskToken());
-        $sync = $sent?->getResponse()?->getStartOperation()?->getSyncSuccess();
+        $sync = $sent->getResponse()?->getStartOperation()?->getSyncSuccess();
         self::assertNotNull($sync, 'An immediate answer must leave as a syncSuccess.');
         self::assertSame(['charged' => 10], JsonPlainPayload::decode($sync->getPayload()));
     }
@@ -124,8 +124,8 @@ final class TemporalNexusWorkerTest extends TestCase
         self::assertSame(['start', 'respond'], $order, 'The workflow must start before the answer.');
 
         self::assertSame('charge-1', $started?->getWorkflowId());
-        self::assertSame('ChargeWorkflow', $started?->getWorkflowType()?->getName());
-        $callbacks = $started?->getCompletionCallbacks();
+        self::assertSame('ChargeWorkflow', $started->getWorkflowType()?->getName());
+        $callbacks = $started->getCompletionCallbacks();
         self::assertNotNull($callbacks);
         self::assertCount(1, $callbacks, 'Without an attached callback, the caller never learns the outcome.');
         self::assertSame('temporal://system', $callbacks[0]->getNexus()?->getUrl());
@@ -154,7 +154,7 @@ final class TemporalNexusWorkerTest extends TestCase
         self::assertSame(NexusHandlerErrorType::NotImplemented->value, $sent?->getError()?->getErrorType());
         self::assertSame(
             \Temporal\Api\Enums\V1\NexusHandlerErrorRetryBehavior::NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_NON_RETRYABLE,
-            $sent?->getError()?->getRetryBehavior(),
+            $sent->getError()->getRetryBehavior(),
         );
     }
 
@@ -184,9 +184,9 @@ final class TemporalNexusWorkerTest extends TestCase
         self::assertSame(NexusHandlerErrorType::Internal->value, $sent?->getError()?->getErrorType());
         self::assertSame(
             \Temporal\Api\Enums\V1\NexusHandlerErrorRetryBehavior::NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_RETRYABLE,
-            $sent?->getError()?->getRetryBehavior(),
+            $sent->getError()->getRetryBehavior(),
         );
-        self::assertStringContainsString('la base est tombée', (string) $sent?->getError()?->getFailure()?->getMessage());
+        self::assertStringContainsString('la base est tombée', (string) $sent->getError()->getFailure()?->getMessage());
     }
 
     public function testACancellationCancelsTheWorkflowNamedByTheToken(): void
