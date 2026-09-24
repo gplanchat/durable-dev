@@ -238,61 +238,61 @@ def rewrite_links(root: str, lang: str) -> str:
     # Order matters: the form with the trailing slash first, otherwise `…/docs` is
     # replaced by `/docs/` in the middle of `…/docs/packages/` and leaves a double
     # slash. It would get through on most servers, and break the first
-    # règle de réécriture stricte rencontrée.
+    # strict rewrite rule it met.
     root = root.replace("https://durable.rocks/docs/", "/docs/")
     root = root.replace("https://durable.rocks/docs", "/docs/")
     root = root.replace("https://durable.rocks/", "/")
 
-    # Le guide existe en français depuis la PR #147, aux mêmes ancres. Une page
-    # française qui renvoie vers `/docs/` envoie son lecteur sur l'anglais alors
-    # que la traduction est là, et les ancres qu'elle cite
-    # (`#bounding-a-wait-in-time`…) sont précisément celles qui ont été épinglées
-    # pour survivre à la traduction.
+    # The guide has existed in French since PR #147, with the same anchors. A French
+    # page that links to `/docs/` sends its reader to the English version even though
+    # the translation is there, and the anchors it cites
+    # (`#bounding-a-wait-in-time`…) are precisely the ones that were pinned
+    # to survive translation.
     if lang != "en":
         root = re.sub(r'href="/(docs/)', rf'href="/{lang}/\1', root)
 
-    # Le pied de page du canevas porte un lien « Variants » vers son autre planche,
-    # `index.dc.html`. Le canevas sait le suivre ; le site servi rend un 404, et il l'a
-    # rendu jusqu'au 2026-08-27. C'est le sixième écart entre une page de canevas et
-    # une page servie, et le seul qui ne se voyait qu'en cliquant.
-    # Le retrait vise le lien, pas son libellé : la page française dit
-    # « Variantes », et s'accrocher au mot anglais laissait passer la version
-    # traduite : c'est la garde ci-dessous qui l'a rattrapée.
+    # The canvas footer carries a "Variants" link to its other board,
+    # `index.dc.html`. The canvas can follow it; the served site returns a 404, and it
+    # did until 2026-08-27. It is the sixth gap between a canvas page and
+    # a served page, and the only one that showed only when clicked.
+    # The removal targets the link, not its label: the French page says
+    # "Variantes", and matching on the English word let the translated
+    # version through: it was the guard below that caught it.
     root = re.sub(r'<a\b[^>]*href="[^"]*\.dc\.html"[^>]*>.*?</a>', "", root, flags=re.S)
 
-    # La garde compte plus que le retrait, et elle doit rester plus large que lui :
-    # une planche renommée ou un libellé traduit rapporterait un `.dc.html` que le
-    # retrait ci-dessus ne verrait pas. Le laisser passer en silence est ce qui a mis
-    # un 404 en pied de page ; s'arrêter dessus est ce qui l'empêche de revenir.
+    # The guard matters more than the removal, and it must stay wider than it:
+    # a renamed board or a translated label would bring back a `.dc.html` that the
+    # removal above would not see. Letting it through silently is what put
+    # a 404 in the footer; stopping on it is what keeps it from coming back.
     canvas = sorted(set(re.findall(r'href="([^"]*\.dc\.html[^"]*)"', root)))
     if canvas:
-        die(f"lien vers une planche de canevas : {canvas}")
+        die(f"link to a canvas board: {canvas}")
 
     doubled = sorted(set(re.findall(r'href="(/[^"]*//[^"]*)"', root)))
     if doubled:
-        die(f"double barre dans un lien : {doubled}")
+        die(f"double slash in a link: {doubled}")
 
     return root
 
 
 def line_notes(source: str) -> list[list[str]]:
-    """Les annotations ligne à ligne, lues du composant du canevas."""
+    """The line-by-line annotations, read from the canvas component."""
     match = re.search(r"lineNotes\(\)\s*\{\s*return\s*\[(.*?)\];\s*\}", source, re.S)
     if not match:
-        die("lineNotes() introuvable : les annotations de l'exemple seraient perdues")
+        die("lineNotes() not found: the example's annotations would be lost")
     pairs = re.findall(r"\[\s*'((?:[^'\\]|\\.)*)'\s*,\s*'((?:[^'\\]|\\.)*)'\s*\]", match.group(1))
     if not pairs:
-        die("lineNotes() présente mais vide")
+        die("lineNotes() present but empty")
     unescape = lambda s: s.replace("\\'", "'").replace("\\\\", "\\")
     return [[unescape(a), unescape(b)] for a, b in pairs]
 
 
 def chooser_script(source: str) -> str:
-    """Le sélecteur composer, déjà en JS nu : il se transplante tel quel."""
+    """The composer chooser, already plain JS: it is transplanted as is."""
     for block in re.findall(r"<script[^>]*>(.*?)</script>", source, re.S):
         if "composer require" in block:
             return block
-    die("script du sélecteur introuvable")
+    die("chooser script not found")
 
 
 def palette_css() -> str:
@@ -309,26 +309,26 @@ def palette_css() -> str:
 
 
 def paint_initial_command(root: str, script: str) -> str:
-    """Le balisage statique doit porter la commande de l'état initial.
+    """The static markup must carry the command for the initial state.
 
-    Le canevas y laisse une valeur figée, `composer require gplanchat/durable-bundle`,
-    alors que l'état de départ est `Symfony · Temporal`. Avant que `paint()` ne
-    tourne, la page affichait donc la commande d'un autre choix que celui qu'elle
-    montrait comme sélectionné, et un lecteur qui copie vite emporte la mauvaise.
+    The canvas leaves a frozen value there, `composer require gplanchat/durable-bundle`,
+    whereas the starting state is `Symfony · Temporal`. Before `paint()`
+    ran, the page therefore showed the command for a different choice than the one it
+    showed as selected, and a reader who copies quickly takes the wrong one.
 
-    Elle est recalculée depuis les mêmes données que `paint()` (`state`, `BASE`,
-    `DIST_BASE`, `BRIDGE`, `TWO_ECO`) plutôt que corrigée à l'œil, pour qu'un
-    changement de défaut dans le canevas la suive tout seul.
+    It is recomputed from the same data as `paint()` (`state`, `BASE`,
+    `DIST_BASE`, `BRIDGE`, `TWO_ECO`) rather than fixed by eye, so that a
+    change of default in the canvas carries over on its own.
     """
     def table(name: str) -> dict[str, str]:
         match = re.search(rf"var {name} = (\{{.*?\}});", script, re.S)
         if not match:
-            die(f"{name} introuvable dans le script du sélecteur")
+            die(f"{name} not found in the chooser script")
         return json.loads(re.sub(r"(\w+):", r'"\1":', match.group(1)).replace("'", '"'))
 
     state = re.search(r"state = \{([^}]*)\}", script)
     if not state:
-        die("l'état initial du sélecteur est introuvable")
+        die("the chooser's initial state was not found")
     initial = dict(re.findall(r"(\w+):\s*'([^']*)'", state.group(1)))
 
     two_eco = re.search(r"var TWO_ECO = \[([^\]]*)\]", script)
@@ -342,23 +342,23 @@ def paint_initial_command(root: str, script: str) -> str:
     root, painted = re.subn(
         r'(<code[^>]*\bdata-cmd\b[^>]*>)[^<]*', lambda m: m.group(1) + command, root, count=1)
     if not painted:
-        die("l'emplacement de la commande statique est introuvable")
+        die("the slot for the static command was not found")
     return root
 
 def language_of(src_path: pathlib.Path, out_path: pathlib.Path) -> str:
-    """La langue vient du nom de la source, et la sortie doit la porter."""
+    """The language comes from the source name, and the output must carry it."""
     stem = src_path.name.split(".")[0]
     lang = stem.rsplit("-", 1)[-1] if stem.rsplit("-", 1)[-1] in STRINGS else "en"
-    # Hugo choisit le gabarit par l'infixe : `index.fr.html` sert /fr/,
-    # `index.html` sert la racine. Une source française écrite dans le second
-    # publierait la page française à la racine du site, sans que rien ne le
-    # signale avant la mise en ligne.
+    # Hugo picks the template by its infix: `index.fr.html` serves /fr/,
+    # `index.html` serves the root. A French source written into the latter
+    # would publish the French page at the root of the site, with nothing
+    # flagging it before going live.
     parts = out_path.name.split(".")
     out_lang = parts[1] if len(parts) > 2 else "en"
     if out_lang != lang:
         wanted = "index.html" if lang == "en" else f"index.{lang}.html"
-        die(f"source en « {lang} » écrite dans {out_path.name}, qui sert « {out_lang} » "
-            f"(attendu {wanted})")
+        die(f"source in \"{lang}\" written into {out_path.name}, which serves \"{out_lang}\" "
+            f"(expected {wanted})")
     return lang
 
 
@@ -367,10 +367,10 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path, force: bool = False) -
     words = STRINGS[language_of(src_path, out_path)]
 
     root = extract_root(source)
-    # Claude Design consigne ses hypothèses en commentaire HTML au fil des
-    # tours. Elles partiraient en production, et celle qui énumère les fichiers
-    # de logo faisait crier la garde des orphelins sur des noms qui n'étaient
-    # que cités. Une page générée n'a pas de commentaire à défendre.
+    # Claude Design records its assumptions in HTML comments as the
+    # turns go by. They would go to production, and the one listing the logo
+    # files made the orphan guard fire on names that were only
+    # mentioned. A generated page has no comment worth keeping.
     root = re.sub(r"<!--.*?-->", "", root, flags=re.S)
     root = strip_palette_decls(root)
     root, hover_rules = convert_hovers(root)
@@ -382,8 +382,8 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path, force: bool = False) -
     default_note = words["note_text"]
     root = root.replace("{{ themeLabel }}", words["theme_dark"])
 
-    # Le script a besoin d'une prise sur les deux éléments d'annotation ; il
-    # n'en reste aucune trace une fois l'interpolation remplacée.
+    # The script needs a handle on the two annotation elements; no
+    # trace of them remains once the interpolation is replaced.
     root, hooked_title = re.subn(
         r"(<div\b(?![^>]*data-dz-note-title))([^>]*>)\s*\{\{\s*noteTitle\s*\}\}",
         lambda m: m.group(1) + " data-dz-note-title" + m.group(2) + words["note_title"],
@@ -393,16 +393,16 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path, force: bool = False) -
         lambda m: m.group(1) + " data-dz-note-text" + m.group(2) + default_note,
         root, count=1)
     if not (hooked_title and hooked_text):
-        die("les éléments d'annotation n'ont pas la forme attendue : le survol serait muet")
+        die("the annotation elements do not have the expected shape: hovering would do nothing")
 
     leftovers = re.findall(r"\{\{[^}]*\}\}", root)
     if leftovers:
-        die(f"interpolations non résolues, Hugo les exécuterait : {sorted(set(leftovers))[:6]}")
+        die(f"unresolved interpolations, Hugo would execute them: {sorted(set(leftovers))[:6]}")
     if "style-hover" in root:
-        die("style-hover subsiste : des survols seraient muets")
+        die("style-hover remains: some hovers would do nothing")
     for banned in ("x-dc", "support.js", "data-om-id", "DCLogic"):
         if banned in root:
-            die(f"reste du canevas dans la sortie : {banned}")
+            die(f"canvas leftover in the output: {banned}")
 
     root = paint_initial_command(root, chooser_script(source))
 
@@ -410,15 +410,15 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path, force: bool = False) -
     runtime = runtime.replace("__NOTES__", json.dumps(notes, ensure_ascii=False))
     runtime = runtime.replace("__DEFAULT_NOTE__", json.dumps(
         [words["note_title"], default_note], ensure_ascii=False))
-    # Le bouton de thème est réétiqueté au chargement : le libellé statique ne
-    # se voit jamais, c'est celui-ci qui s'affiche.
+    # The theme button is relabelled on load: the static label is never
+    # seen, this one is what shows.
     runtime = runtime.replace("__THEME_LABELS__", json.dumps(
         {"dark": words["theme_dark"], "light": words["theme_light"]}, ensure_ascii=False))
-    # Les gabarits sont en capitales ; `__construct(…)`, qui vit dans les
-    # annotations PHP de la page, ne doit pas les faire passer pour oubliés.
+    # The placeholders are in capitals; `__construct(…)`, which lives in the
+    # page's PHP annotations, must not make them look forgotten.
     left = re.findall(r"__[A-Z][A-Z_]*__", runtime)
     if left:
-        die(f"gabarit du script de page non remplacé : {sorted(set(left))}")
+        die(f"page script placeholder not replaced: {sorted(set(left))}")
 
     page = (
         (HERE / "layout-head.html").read_text()
@@ -434,9 +434,9 @@ def build(src_path: pathlib.Path, out_path: pathlib.Path, force: bool = False) -
     out_path.write_text(page)
     remember_import(out_path)
 
-    print(f"écrit  {out_path}  ({out_path.stat().st_size} octets)")
-    print(f"       {len(hover_rules)} règles :hover, {len(notes)} annotations, "
-          f"{len(LINKS)} liens réécrits")
+    print(f"wrote  {out_path}  ({out_path.stat().st_size} bytes)")
+    print(f"       {len(hover_rules)} :hover rules, {len(notes)} annotations, "
+          f"{len(LINKS)} links rewritten")
     check_packages_resolve(root, chooser_script(source))
     check_commands_agree(source)
 
@@ -445,8 +445,8 @@ COMMANDS_REFERENCE = pathlib.Path("../documentation/user/packages/_index.md")
 
 
 
-# Le manifeste des sorties : pour chaque gabarit engendré, l'empreinte de ce que
-# le dernier import y a écrit.
+# The output manifest: for each generated template, the hash of what
+# the last import wrote into it.
 IMPORTED = HERE / "imported.json"
 
 
@@ -463,22 +463,22 @@ def remember_import(out_path: pathlib.Path) -> None:
 
 
 def guard_hand_edits(out_path: pathlib.Path, new_text: str, force: bool) -> None:
-    """Refuse d'écraser une sortie modifiée à la main depuis le dernier import.
+    """Refuses to overwrite an output edited by hand since the last import.
 
-    C'est la panne que WA005 raconte : trois correctifs écrits dans
-    `layouts/index.html` et perdus, deux à une régénération qui ne les
-    connaissait pas, un à un rebasage. Aucun n'a fait de bruit, et c'est tout le
-    problème. Une régénération qui ne sait pas ce qu'elle détruit le détruit en
-    silence.
+    This is the failure WA005 recounts: three fixes written into
+    `layouts/index.html` and lost, two to a regeneration that did not
+    know about them, one to a rebase. None of them made any noise, and that is the whole
+    problem. A regeneration that does not know what it destroys destroys it
+    silently.
 
-    La garde ne demande pas que le canevas soit dans le dépôt ; elle demande
-    seulement de savoir ce que le dernier import avait écrit. Si le fichier ne
-    porte plus cette empreinte, quelqu'un l'a corrigé à la main, et cette
-    correction n'est pas dans le canevas, sinon elle serait dans la sortie.
+    The guard does not require the canvas to be in the repository; it only
+    needs to know what the last import wrote. If the file no longer
+    carries that hash, someone fixed it by hand, and that
+    fix is not in the canvas, otherwise it would be in the output.
 
-    ponytail: une empreinte plutôt qu'une copie de l'ancienne sortie. Le diff
-    montré compare l'état courant à ce qui va être écrit, ce qui est exactement
-    ce que la régénération changerait, les corrections perdues comprises.
+    ponytail: a hash rather than a copy of the previous output. The diff
+    shown compares the current state with what is about to be written, which is exactly
+    what the regeneration would change, lost fixes included.
     """
     if not out_path.exists():
         return
@@ -492,11 +492,11 @@ def guard_hand_edits(out_path: pathlib.Path, new_text: str, force: bool) -> None
         if force:
             return
         die(
-            f"aucune empreinte connue pour {out_path.name} : ce fichier existe, et rien ne dit\n"
-            "ce que le dernier import y avait écrit. Il peut donc porter des corrections faites à\n"
-            "la main, absentes du canevas : c'est l'état dans lequel WA005 a trouvé le dépôt.\n"
-            "Relisez-le, reportez ce qui manque dans le canevas, puis `--force` une fois : "
-            "l'empreinte\nsera enregistrée et les imports suivants sauront quoi comparer."
+            f"no known hash for {out_path.name}: this file exists, and nothing says\n"
+            "what the last import wrote into it. It may therefore carry fixes made by\n"
+            "hand, missing from the canvas: that is the state WA005 found the repository in.\n"
+            "Review it, carry what is missing over to the canvas, then `--force` once: "
+            "the hash\nwill be recorded and later imports will know what to compare against."
         )
 
     diff = list(difflib.unified_diff(
