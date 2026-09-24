@@ -99,8 +99,8 @@ call site.
 
 ### Requirement: Nexus identifiers and bounds are validated before dispatch
 
-Endpoint, service and operation names SHALL be validated when constructed, and the operation
-bounds SHALL be expressed as durations, the same way task queue names, namespaces and activity
+Endpoint, service and operation names SHALL be validated when constructed, as task queue names
+and namespaces already are, and the operation bounds SHALL be expressed as durations, as activity
 timeouts already are.
 
 Validation SHALL reject what can only be a mistake — blank names, leading or trailing whitespace,
