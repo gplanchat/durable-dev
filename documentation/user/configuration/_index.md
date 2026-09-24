@@ -9,38 +9,97 @@ This page documents every key accepted by `DurableBundle` in `config/packages/du
 
 ---
 
-## Full example
+## Every key and its default {#full-example}
 
+Generated from the bundle's configuration tree by `bin/console config:dump-reference durable`; a
+test in the Symfony bench fails when this block and the tree disagree. The sections below say what
+each key is for.
+
+<!-- generated: bin/console config:dump-reference durable -->
 ```yaml
+# Default configuration for extension with alias: "durable"
 durable:
-    backend: in_memory                       # 'in_memory' (default), 'dbal' or 'temporal'
-    dbal:                                    # only read when backend is 'dbal'
-        connection: doctrine.dbal.default_connection
-        lock_factory: lock.factory           # must be shared across workers
-        lock_ttl: 300                        # seconds; must exceed the longest step of a resume pass
+
+    # Where the journal lives. in_memory: one process. dbal: a SQL database (DUR030). temporal: the cluster at temporal.dsn. dbal with a temporal.dsn keeps the journal in SQL and uses the cluster to serve Nexus. Derived from the deprecated event_store.type and temporal.journal when unset.
+    backend:              null # One of "in_memory"; "dbal"; "temporal"
+
+    # DBAL backend: durable execution on a single SQL database, with no orchestration cluster (DUR030).
+    dbal:
+
+        # Service id of the Doctrine\DBAL\Connection to use
+        connection:           doctrine.dbal.default_connection
+
+        # Create the missing tables on the first write, never inside an open transaction. Set it to false as soon as doctrine/migrations holds the schema: otherwise the two mechanisms write one behind the other. bin/console durable:setup creates them either way.
+        auto_setup:           true
+
+        # Service id of the Symfony\Component\Lock\LockFactory that serialises the resumes of one execution
+        lock_factory:         lock.factory
+
+        # Seconds a resume lock outlives a worker that died holding it. The pass refreshes it at every message it sends through the bus, so it must exceed the longest step of a pass, or a second worker replays the same execution in parallel.
+        lock_ttl:             300.0
     event_store:
-        table_name: durable_events
+        type:                 null # One of "in_memory"; "dbal", Deprecated (Since gplanchat/durable-bundle 0.1.0-beta1: The "durable.event_store.type" option is deprecated: set durable.backend instead.)
+
+        # Table of the dbal journal.
+        table_name:           durable_events
     temporal:
-        dsn: null                            # required by backend 'temporal'; with 'dbal', serves Nexus
-    workflow_metadata:
-        table_name: durable_workflow_metadata
+
+        # A temporal://… DSN (for instance %env(DURABLE_DSN)%). When set, it turns on the native Temporal backend (gRPC); over ext-grpc when it is loaded, over curl (ext-curl) otherwise; temporal+http:// for the JSON gateway. No SQL/PDO.
+        dsn:                  null
+
+        # A service id: the application's GuzzleHttp\ClientInterface, which transport=guzzle then uses — its proxy, TLS options and middleware apply to gRPC. Unused by any other transport; null builds a default client.
+        guzzle_client:        null
+
+        # A service id: the application's PSR-18 client, which transport=http (the JSON gateway) then uses instead of curl. Unused by any other transport.
+        psr18_client:         null
+
+        # A service id implementing both PSR-17 RequestFactoryInterface and StreamFactoryInterface (Guzzle's HttpFactory, nyholm's Psr17Factory). Defaults to psr18_client, which Symfony's Psr18Client satisfies on its own.
+        psr17_factory:        null
+
+        # false: the cluster is reachable, but the journal stays the one in event_store. An application serving a Nexus operation from a DBAL journal needs both — and there are not two sources of truth, since event_store says which one it is.
+        journal:              null # Deprecated (Since gplanchat/durable-bundle 0.1.0-beta1: The "durable.temporal.journal" option is deprecated: set durable.backend instead.)
     activity_transport:
-        type: messenger                      # 'in_memory' is the DEFAULT, set 'messenger' to route
-        transport_name: durable_activities
-    profiler:
-        enabled: '%kernel.debug%'            # the default
-    max_activity_retries: 0                  # maximum automatic retries before marking an activity as failed
+
+        # in_memory runs activities inside the workflow task; messenger routes them to transport_name.
+        type:                 in_memory # One of "in_memory"; "messenger"
+        table_name:           durable_activity_outbox # Deprecated (Since gplanchat/durable-bundle 0.1.0-beta1: The "durable.activity_transport.table_name" option is read nowhere: no outbox table exists. Remove it.)
+
+        # The Messenger transport activities go to when type is messenger.
+        transport_name:       durable_activities
     messenger:
-        buses: []                            # [] = every bus (default)
+
+        # Ids of the Messenger buses the bundle installs its middleware on (resume lock, profiler). Empty, which is the default, installs them on every bus, and that is the historical behaviour. Naming buses avoids imposing a per-execution lock on the business command bus, which carries no durable message.
+        buses:                []
+    profiler:
+
+        # Registers the execution trace, the web profiler panel and the observer on the hot path. Defaults to kernel.debug.
+        enabled:              '%kernel.debug%'
+
+    # Retry ceiling for activities that set none. 0: no ceiling.
+    max_activity_retries: 0
     activity_contracts:
-        cache: cache.app                     # PSR-6 cache pool for contract metadata (default: null, no cache)
-        contracts:
-            - App\Workflow\Activity\OrderActivities
+
+        # PSR-6 cache pool ID for activity contract metadata
+        cache:                null
+
+        # Class names of activity contracts to warm at cache warmup
+        contracts:            []
     child_workflow:
-        async_messenger: true                # true = child workflows dispatched via Messenger
+
+        # true: child workflows are dispatched through Messenger; false: they run inside the parent task.
+        async_messenger:      false
         parent_link_store:
-            table_name: durable_child_workflow_parent_link
+            type:                 null # One of "in_memory"; "dbal", Deprecated (Since gplanchat/durable-bundle 0.1.0-beta1: The "durable.child_workflow.parent_link_store.type" option is deprecated: set durable.backend instead.)
+
+            # Table of the dbal parent links.
+            table_name:           durable_child_workflow_parent_link
+    workflow_metadata:
+        type:                 null # One of "in_memory"; "dbal", Deprecated (Since gplanchat/durable-bundle 0.1.0-beta1: The "durable.workflow_metadata.type" option is deprecated: set durable.backend instead.)
+
+        # Table of the dbal workflow metadata.
+        table_name:           durable_workflow_metadata
 ```
+<!-- end generated -->
 
 > [!IMPORTANT]
 > **`activity_transport.type` defaults to `in_memory`, not `messenger`.** Omit the key and activities
@@ -85,6 +144,7 @@ otherwise, so it costs nothing to leave at its defaults.
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `connection` | service ID | `doctrine.dbal.default_connection` | The `Doctrine\DBAL\Connection` the stores write to. |
+| `auto_setup` | bool | `true` | Creates the missing tables on the first write, never inside an open transaction. Set it to `false` once Doctrine Migrations owns the schema, so that the two do not both write it. `bin/console durable:setup` creates the tables either way. |
 | `lock_factory` | service ID | `lock.factory` | The `LockFactory` that serialises resumes of one execution. **It is only as safe as your lock store**: an in-memory or per-process factory with several workers gives back the failure the lock exists to prevent. |
 | `lock_ttl` | float, seconds | `300` | How long a resume lock outlives a worker that died holding it. The pass that holds it gives it a fresh TTL at every step boundary, that is every message it sends through the bus, so **it must exceed the longest step**: past it, a second worker replays the same execution in parallel, and the first one stops at its next boundary. A step is usually the replay of the journal up to the next command, well under a second. Activities run outside the pass, except on a `sync://` activity transport, where each one is a step of the pass and its duration counts. A pass that only replays, with no message in between, is not refreshed. |
 
