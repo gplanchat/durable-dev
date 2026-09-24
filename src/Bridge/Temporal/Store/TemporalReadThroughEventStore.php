@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Store;
 
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
-use Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter;
 use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Store\EventStoreInterface;

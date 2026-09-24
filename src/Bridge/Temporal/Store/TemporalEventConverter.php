@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Bridge\Temporal\Profiler;
+namespace Gplanchat\Bridge\Temporal\Store;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Durable\Event\ActivityCancelled;
