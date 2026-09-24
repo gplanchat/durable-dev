@@ -172,6 +172,32 @@ final class TheRunIsOneLineAndItsExceptionsAreTheRuleTest extends TestCase
         self::assertTrue($this->isFailure('EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUEST_FAILED'));
     }
 
+    public function testEachTypeSaysWhatHappenedToItsAction(): void
+    {
+        // #261: the same four phases as the house journal, read from the type's suffix.
+        $expected = [
+            'EVENT_TYPE_ACTIVITY_TASK_SCHEDULED' => 'requested',
+            'EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED' => 'requested',
+            'EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED' => 'requested',
+            'EVENT_TYPE_ACTIVITY_TASK_STARTED' => 'started',
+            'EVENT_TYPE_TIMER_STARTED' => 'requested',
+            'EVENT_TYPE_ACTIVITY_TASK_FAILED' => 'failed',
+            'EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT' => 'failed',
+            'EVENT_TYPE_ACTIVITY_TASK_COMPLETED' => 'settled',
+            'EVENT_TYPE_TIMER_FIRED' => 'settled',
+            'EVENT_TYPE_ACTIVITY_TASK_CANCELED' => 'settled',
+            'EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW' => 'settled',
+            'EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED' => 'settled',
+            'EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED' => null,
+            'EVENT_TYPE_MARKER_RECORDED' => null,
+        ];
+
+        $rule = new \ReflectionMethod(TemporalRunHistoryReader::class, 'phaseOf');
+        foreach ($expected as $eventType => $phase) {
+            self::assertSame($phase, $rule->invoke(null, $eventType)?->value, $eventType);
+        }
+    }
+
     private function isFailure(string $eventType): bool
     {
         $rule = new \ReflectionMethod(TemporalRunHistoryReader::class, 'isFailure');

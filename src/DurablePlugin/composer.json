@@ -14,21 +14,22 @@
     "license": "MIT",
     "type": "symfony-bundle",
     "require": {
-        "php": ">=8.2",
         "gplanchat/durable": "self.version",
         "gplanchat/durable-bundle": "self.version",
         "knplabs/knp-menu": "^3.5",
+        "php": ">=8.2",
         "symfony/config": "^6.4 || ^7.0 || ^8.0",
         "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
         "symfony/http-foundation": "^6.4 || ^7.0 || ^8.0",
         "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
         "symfony/routing": "^6.4 || ^7.0 || ^8.0",
         "symfony/security-bundle": "^6.4 || ^7.0 || ^8.0",
-        "symfony/twig-bundle": "^6.4 || ^7.0 || ^8.0"
+        "symfony/security-http": "^6.4 || ^7.0 || ^8.0",
+        "symfony/twig-bundle": "^6.4 || ^7.0 || ^8.0",
+        "twig/twig": "^3.10"
     },
     "require-dev": {
-        "phpunit/phpunit": "^11.5",
-        "twig/twig": "^3.10"
+        "phpunit/phpunit": "^11.5"
     },
     "suggest": {
         "sylius/admin-bundle": "Registers the dashboard entry in the Sylius admin menu (sylius.menu.admin.main)"
@@ -36,7 +37,10 @@
     "autoload": {
         "psr-4": {
             "Gplanchat\\Durable\\Plugin\\": "./"
-        }
+        },
+        "exclude-from-classmap": [
+            "/tests/"
+        ]
     },
     "extra": {
         "branch-alias": {

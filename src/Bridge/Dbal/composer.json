@@ -15,7 +15,7 @@
     "require": {
         "php": ">=8.2",
         "gplanchat/durable": "self.version",
-        "doctrine/dbal": "^3.7 || ^4.0",
+        "doctrine/dbal": "^3.8.2 || ^4.0",
         "symfony/lock": "^6.4 || ^7.0 || ^8.0",
         "symfony/messenger": "^6.4 || ^7.0 || ^8.0"
     },

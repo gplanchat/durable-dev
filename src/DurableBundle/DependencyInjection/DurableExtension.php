@@ -40,9 +40,9 @@ use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Bundle\Command\DurableWorkerCommand;
+use Gplanchat\Durable\Bundle\Command\SetupCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
-use Gplanchat\Durable\Bundle\EventListener\ResetDurableProfilerListener;
 use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler;
@@ -174,6 +174,11 @@ final class DurableExtension extends Extension
             ->setPublic(false)
         ;
         $schema = new Reference('durable.dbal.schema');
+
+        $container->register(SetupCommand::class)
+            ->setArguments([$schema])
+            ->addTag('console.command')
+        ;
 
         // Without this listener, `doctrine:migrations:diff` does not see the journal's tables and
         // generates their removal. Registered only when the ORM is there: the DBAL bridge works
@@ -879,19 +884,13 @@ final class DurableExtension extends Extension
     private function registerProfiler(ContainerBuilder $container): void
     {
         $container->register('durable.execution_trace', DurableExecutionTrace::class)
-            // `ResetDurableProfilerListener` only bounds the HTTP case. In a worker there is no
-            // request, and it is `services_resetter`, hence this tag, that empties the trace between
-            // two messages. Without it, a `messenger:consume` accumulates the timeline as long as it lives.
+            // `services_resetter` empties the trace between two Messenger messages. A Temporal
+            // worker never triggers it; the trace bounds itself for that case (MAX_ENTRIES).
             ->addTag('kernel.reset', ['method' => 'reset'])
             ->setPublic(true)
         ;
 
         self::aliasObserver($container, 'durable.execution_trace');
-
-        $container->register(ResetDurableProfilerListener::class)
-            ->setArguments([new Reference('durable.execution_trace')])
-            ->addTag('kernel.event_subscriber')
-        ;
 
         $container->register('durable.messenger.middleware.workflow_run_dispatch_profiler', WorkflowRunDispatchProfilerMiddleware::class)
             ->setArguments([new Reference('durable.execution_trace')])

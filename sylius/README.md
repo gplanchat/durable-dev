@@ -1,109 +1,65 @@
-<p align="center">
-    <a href="https://sylius.com" target="_blank">
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcset="https://media.sylius.com/sylius-logo-800-dark.png">
-          <source media="(prefers-color-scheme: light)" srcset="https://media.sylius.com/sylius-logo-800.png">
-          <img alt="Sylius Logo." src="https://media.sylius.com/sylius-logo-800.png">
-        </picture>
-    </a>
-</p>
+# The Sylius bench
 
-<h1 align="center">Sylius Standard Edition</h1>
+A Sylius 2.2 Standard application that hosts `gplanchat/durable-plugin`. It is a test bench, not a
+shop to deploy.
 
-<p align="center">This is Sylius Standard Edition repository for starting new projects.</p>
+It serves two things:
 
-## About
+- **The Durable dashboard, rendered in a real Sylius admin**, at `/admin/durable/dashboard`. The
+  CI job `sylius-shop` boots this kernel against MySQL and requests the page over HTTP.
+- **The shop side of the Nexus demonstration.** It serves `stock` (`reserve`, answered by
+  `src/Durable/Nexus/StockHandler.php`) and calls `billing` from
+  `src/Durable/Workflow/OrderWorkflow.php`, started by `bin/console durable:demo:bill`.
 
-Sylius is the first decoupled eCommerce framework based on [**Symfony**](http://symfony.com) and [**Doctrine**](http://doctrine-project.org). 
-The highest quality of code, strong testing culture, built-in Agile (BDD) workflow and exceptional flexibility make it the best solution for application tailored to your business requirements. 
-Enjoy being an eCommerce Developer again!
+| | |
+|---|---|
+| PHP | 8.3, Sylius 2.2's floor |
+| database | MySQL in CI and in `.env`; the demonstration uses PostgreSQL |
+| Durable backend | DBAL, on the default Doctrine connection |
 
-Powerful REST API allows for easy integrations and creating unique customer experience on any device.
+## Profiles
 
-We're using full-stack Behavior-Driven-Development, with [Behat](http://behat.org)
+`config/packages/durable.yaml` defines one default and two demonstration profiles.
 
-## Documentation
+| `APP_ENV` | journal | Temporal | role |
+|---|---|---|---|
+| `dev`, `prod`, `test` | DBAL | none | the dashboard reads the SQL journal |
+| `demo` | DBAL | DSN from `DURABLE_TEMPORAL_DSN`, `journal: false` | serves `stock`; the worker consumes `durable_nexus` |
+| `demo_caller` | the cluster (`journal: true`) | DSN from `DURABLE_TEMPORAL_DSN` | advances `OrderWorkflow`; the worker consumes `durable_workflows` |
 
-Documentation is available at [docs.sylius.com](http://docs.sylius.com).
+Serving and calling need two profiles: a workflow can schedule a Nexus operation only when its
+journal is the cluster, and the serving profile keeps the DBAL journal the dashboard reads. The
+`stock` handler is tagged in `config/services.yaml` under `when@demo` only, so the environments
+without a cluster declare no handler.
 
-## Installation
+Durable messages ride the Doctrine transport; the routing is in `config/packages/messenger.yaml`.
 
-### Traditional
-```bash
-$ wget http://getcomposer.org/composer.phar
-$ php composer.phar create-project sylius/sylius-standard project
-$ cd project
-$ yarn install
-$ yarn build
-$ php bin/console sylius:install
-$ symfony serve
-$ open http://localhost:8000/
-```
+The demonstration's prerequisites (Temporal with Nexus enabled, the database, the stock rows) are
+in [`demo/README.md`](../demo/README.md). `demo/run.sh` starts the workers.
 
-For more detailed instruction about traditional way of running Sylius please visit [installation chapter in our docs](https://docs.sylius.com/the-book/sylius-ce-installation).
+## Tests
 
-### Docker
-
-You can run Sylius and all associated infrastructure dependencies (PHP, Nginx, MySQL, Node) on your machine using only Docker containers. Make sure you have installed [Docker](https://docs.docker.com/get-docker/) on your local machine.
-
-**Option 1: Get the latest release**
-```bash
-LATEST=$(curl -s https://api.github.com/repos/Sylius/Sylius-Standard/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
-curl -L -o sylius-latest.zip https://github.com/Sylius/Sylius-Standard/archive/refs/tags/$LATEST.zip
-unzip sylius-latest.zip
-cd Sylius-Standard-*
-```
-
-**Option 2: List available versions**
-```bash
-curl -s https://api.github.com/repos/Sylius/Sylius-Standard/releases | grep '"tag_name"' | cut -d'"' -f4 | head -10
-```
-
-**Option 3: Get a specific version**
-```bash
-VERSION="v2.x.x"  # Replace with desired version
-curl -L -o sylius-$VERSION.zip https://github.com/Sylius/Sylius-Standard/archive/refs/tags/$VERSION.zip
-unzip sylius-$VERSION.zip
-cd Sylius-Standard-*
-```
-
-**Initialize the project (required for all options):**
-```bash
-make init
-```
-
-For more detailed instruction about Docker way of running Sylius please visit [Docker installation chapter in our docs](https://docs.sylius.com/getting-started-with-sylius/sylius-ce-installation-with-docker).
-
-## Troubleshooting
-
-If something goes wrong, errors & exceptions are logged at the application level:
+`tests/Unit` covers the shop's own layers (`src/Domain`, `src/Application`). It needs no kernel and
+no database:
 
 ```bash
-$ tail -f var/log/prod.log
-$ tail -f var/log/dev.log
+cd sylius
+composer install
+vendor/bin/phpunit tests/Unit
 ```
 
-## Contributing
+`tests/Functional` boots the Sylius kernel and needs MySQL. The default `DATABASE_URL` in `.env` is
+`mysql://root@127.0.0.1/sylius_%kernel.environment%`, so the CI setup is enough: MySQL 8.4 on
+`127.0.0.1:3306` with an empty root password.
 
-Would like to help us and build the most developer-friendly eCommerce framework? Start from reading our [Contribution Guide](https://docs.sylius.com/en/latest/contributing/)!
+```bash
+docker run -d --name sylius-bench-mysql -e MYSQL_ALLOW_EMPTY_PASSWORD=1 -p 3306:3306 mysql:8.4
 
-## Stay Updated
+cd sylius
+APP_ENV=test bin/console doctrine:database:create --if-not-exists
+APP_ENV=test bin/console doctrine:schema:create
+vendor/bin/phpunit tests/Functional
+```
 
-If you want to keep up with the updates, [follow the official Sylius account on Twitter](http://twitter.com/Sylius) and [like us on Facebook](https://www.facebook.com/SyliusEcommerce/).
-
-## Bug Tracking
-
-If you want to report a bug or suggest an idea, please use [GitHub issues](https://github.com/Sylius/Sylius/issues).
-
-## Community Support
-
-Get Sylius support on [Slack](https://sylius.com/slack), [Forum](https://forum.sylius.com/) or [Stack Overflow](https://stackoverflow.com/questions/tagged/sylius).
-
-## MIT License
-
-Sylius is completely free and released under the [MIT License](https://github.com/Sylius/Sylius/blob/master/LICENSE).
-
-## Authors
-
-Sylius was originally created by [Paweł Jędrzejewski](http://pjedrzejewski.com).
-See the list of [contributors from our awesome community](https://github.com/Sylius/Sylius/contributors).
+To run the application in the containers of `compose.yml`, see "Booting the Sylius shop" in the
+[root README](../README.md).

@@ -56,6 +56,41 @@ a container build catches the former.
 `profiler.enabled` is new. It defaults to `%kernel.debug%`, which is what the bundle did before;
 set it to keep the profiler out of a debug worker, or in a non-debug staging build.
 
+### The DBAL journal: `durable:setup`, no DDL inside a transaction, a new index on the run list
+
+**Who is affected**: Symfony applications on the DBAL backend, and Laravel applications on the
+Illuminate one.
+
+- **A first write inside an open transaction no longer creates the tables.** On MySQL the
+  `CREATE TABLE` committed that transaction implicitly, and the caller's commit then failed with
+  "There is no active transaction"; every platform now refuses with `DurableSchemaMissing`, which
+  names the fix. On Symfony, run `bin/console durable:setup` once per database (a deploy step,
+  next to `messenger:setup-transports`), or let migrations create the tables. On Laravel, run
+  `php artisan migrate`.
+- **`durable_workflow_runs` gains an index on `(status, started_at)`.** `auto_setup` never alters an
+  existing table. With Doctrine Migrations, `doctrine:migrations:diff` generates it; otherwise run
+  `CREATE INDEX durable_workflow_runs_status_started_idx ON durable_workflow_runs (status, started_at);`.
+  On Laravel, `php artisan migrate` adds it.
+- **A `schema_filter` that rejects `durable_*` is honoured**: those tables are no longer declared to
+  the Doctrine tooling, and the `CREATE TABLE` that came back in every diff is gone.
+
+### `ResetDurableProfilerListener` is gone; the execution trace keeps its last 2 000 entries
+
+**Who is affected**: code that referenced `Gplanchat\Durable\Bundle\EventListener\ResetDurableProfilerListener`,
+to decorate or remove it. Delete the reference: `DurableExecutionTrace` now keeps its last 2 000
+entries (`MAX_ENTRIES`) on its own, which holds on a Temporal worker too, where `kernel.reset`
+never fires. Between two Messenger messages, `kernel.reset` still empties it.
+
+### One type catches every Durable error: `Gplanchat\Durable\Exception\ExceptionInterface`
+
+**Who is affected**: nobody has to change anything; this is an addition. Every error class under
+`Gplanchat\Durable\Exception` and the two Nexus exceptions implement it, so a host can write
+`catch (ExceptionInterface $e)` instead of listing them.
+
+The control-flow signals — `WorkflowSuspendedException`, `ContinueAsNewRequested`,
+`ChildWorkflowStartDeferred` — do not: they end a pass of workflow code on purpose, and a catch in
+that code must let them through.
+
 ### The run list tells a run waiting for a worker: `picked_up_at` on `durable_workflow_runs`
 
 **Who is affected**: applications on the DBAL or Illuminate backend whose `durable_workflow_runs`
@@ -395,6 +430,19 @@ carries a `kernel.reset` tag and is therefore also emptied between two messages 
 An application that wants to observe executions in production does not have to resurrect the
 profiler: it implements `WorkflowExecutionObserverInterface` and aliases the interface to its own
 service — what the profiler did, cheaper, and without accumulating a timeline for nobody's screen.
+
+### A successful activity writes `ActivityCompleted` only, no `ActivityTaskCompleted` (#262)
+
+**Who is affected**: code that reads the journal and waits for `ActivityTaskCompleted` to learn
+that an activity succeeded — a listener on the event store, a custom projection. On success the
+worker used to append `ActivityTaskCompleted` and then `ActivityCompleted` with the same body; it now
+appends `ActivityCompleted` alone. Read `ActivityCompleted`: it was already the event replay reads,
+and it carries the same result. Failures do not change: one `ActivityTaskFailed` per attempt, then
+`ActivityFailed`.
+
+Journals recorded before keep both events. They replay and read as before: the class, its mapping
+and the dashboard reader's handling of it stay. No Rector rule or script: what changes is which
+event a listener receives at run time, not code Rector can rewrite.
 
 ## 0.1.0-alpha8
 

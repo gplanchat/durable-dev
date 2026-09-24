@@ -99,10 +99,14 @@ that is where the plurality of processes lives.
   will never require, suggest or detect Filament. A Laravel application without Filament hears
   nothing about it — the same one-directional shape as `durable-plugin` against `durable-bundle`.
 The `temporal` backend used to be on this list, and it no longer is: `backend => 'temporal'` binds
-the journal and the catalogue to a cluster, and `durable:nexus-worker` serves the Nexus operations
+the journal and the catalogue to a cluster, `durable:temporal-worker` drains the workflow tasks,
+`durable:temporal-worker --role=activity` the activity tasks, and `durable:nexus-worker` serves the Nexus operations
 `durable.nexus.handlers` declares. `gplanchat/durable-bridge-temporal` stays **suggested and not
 required** — it pulls in four Symfony components a Laravel application never loads, and an
 application on the `illuminate` backend has no use for them.
+
+⚠ **Run the activity worker too.** Without `--role=activity`, nothing takes the tasks a workflow
+schedules on the cluster's activity queue: a run advances up to its first activity and stops there.
 
 ⚠ **The two worker commands are registered by the `temporal` backend only.** On `illuminate` or
 `memory`, `artisan list` shows neither, and the error you get from calling one names the command,

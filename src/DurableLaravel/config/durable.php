@@ -55,9 +55,10 @@ return [
      * required**: it installs a gRPC client and five Symfony components a Laravel application never
      * loads. The provider says so by name if the package is missing.
      *
-     * The journal and the catalog then live in the cluster; the activities and the resumes go on
-     * travelling on the application's queue. The workflow tasks, for their part, are drained with
-     * `php artisan durable:temporal-worker`.
+     * The journal, the catalog and both task queues then live in the cluster, and the application's
+     * queue carries nothing of Durable's. Two workers drain the cluster:
+     * `php artisan durable:temporal-worker` for the workflow tasks, and
+     * `php artisan durable:temporal-worker --role=activity` for the activity tasks.
      */
     'temporal' => [
         'dsn' => null,

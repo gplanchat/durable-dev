@@ -134,6 +134,7 @@ final class DurableWorkerCommand extends Command implements SignalableCommandInt
         return $this->consumeCommand()->run($consumeInput, $output);
     }
 
+    /** @return list<int> */
     public function getSubscribedSignals(): array
     {
         // Without Messenger there is no worker to stop, and execute() says what is missing.

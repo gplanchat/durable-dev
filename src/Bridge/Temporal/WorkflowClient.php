@@ -265,6 +265,7 @@ final class WorkflowClient implements WorkflowClientInterface
         return 'durable-' . substr($safe, 0, 900);
     }
 
+    /** @param array<string, mixed> $payload */
     private function doStartWorkflow(
         string $workflowId,
         string $workflowType,

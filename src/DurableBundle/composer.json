@@ -24,8 +24,7 @@
         "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
         "symfony/config": "^6.4 || ^7.0 || ^8.0",
         "symfony/messenger": "^6.4 || ^7.0 || ^8.0",
-        "symfony/service-contracts": "^3.0",
-        "symfony/uid": "^6.4 || ^7.0 || ^8.0"
+        "symfony/service-contracts": "^3.0"
     },
     "suggest": {
         "phpunit/phpunit": "Required by the shipped test helper (Testing\\DurableBundleTestTrait)",

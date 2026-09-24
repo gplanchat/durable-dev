@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ec024218ff4c20f8c57bcf1cd302ede3",
+    "content-hash": "769b04033c5822788deba7413ec07add",
     "packages": [
         {
             "name": "brick/math",
@@ -488,20 +488,20 @@
             "dist": {
                 "type": "path",
                 "url": "src/Durable",
-                "reference": "8be3b6e4e0ef16164efb609d9c0e69aa12968d6c"
+                "reference": "cbd2d922bfe9786a3e6053f97eb2d037ffd2fbd1"
             },
             "require": {
                 "php": ">=8.2",
                 "psr/cache": "^3.0"
             },
             "require-dev": {
-                "phpunit/phpunit": "^11.0"
+                "phpunit/phpunit": "^11.5"
             },
             "suggest": {
                 "gplanchat/durable-bridge-dbal": "SQL backend: durable execution on one database, no cluster (DUR030)",
                 "gplanchat/durable-bridge-temporal": "Temporal gRPC backend (requires ext-grpc)",
                 "gplanchat/durable-phpstan": "Optional PHPStan extension: resolves ActivityStub and ChildWorkflowStub calls from their typed contract (DUR038)",
-                "phpunit/phpunit": "Required by the shipped test helpers (Testing\\DurableTestCase, Testing\\WorkflowTestEnvironment) and the conformance suites (Testing\\EventStoreConformanceTestCase, DUR041)"
+                "phpunit/phpunit": "Required by the Testing\\ helpers: DurableTestCase, ActivitySpy and the store conformance test cases."
             },
             "type": "library",
             "extra": {
@@ -544,10 +544,10 @@
             "dist": {
                 "type": "path",
                 "url": "src/Bridge/Dbal",
-                "reference": "8dbaae5ab6a14fbaef8764f8509467828ee83906"
+                "reference": "a6f710cffda05851d25412c99fc2549780b9620b"
             },
             "require": {
-                "doctrine/dbal": "^3.7 || ^4.0",
+                "doctrine/dbal": "^3.8.2 || ^4.0",
                 "gplanchat/durable": "self.version",
                 "php": ">=8.2",
                 "symfony/lock": "^6.4 || ^7.0 || ^8.0",
@@ -593,12 +593,13 @@
             "dist": {
                 "type": "path",
                 "url": "src/Bridge/Illuminate",
-                "reference": "0a38d4b04a25bb986f0156c481aeddb373f08c74"
+                "reference": "13d906b508861b244173fd63a8eddf4e6b3d8f71"
             },
             "require": {
                 "gplanchat/durable": "self.version",
                 "illuminate/contracts": "^11.0 || ^12.0 || ^13.0",
                 "illuminate/database": "^11.0 || ^12.0 || ^13.0",
+                "illuminate/support": "^11.0 || ^12.0 || ^13.0",
                 "php": ">=8.2"
             },
             "suggest": {
@@ -650,9 +651,10 @@
             "dist": {
                 "type": "path",
                 "url": "src/Bridge/Temporal",
-                "reference": "6cc5e39ff2da32f3f452eb807f3ac2d9adc472c0"
+                "reference": "0e3c738c02bde80f607f0910aa386f3cef2e8401"
             },
             "require": {
+                "ext-filter": "*",
                 "google/common-protos": "^4.9",
                 "google/protobuf": "^4.31",
                 "gplanchat/durable": "self.version",
@@ -666,7 +668,9 @@
             },
             "suggest": {
                 "ext-curl": "For transport=grpc-curl or transport=http, and the automatic fallback when ext-grpc is not loaded: the same RPCs over HTTP/2",
-                "ext-grpc": "For transport=grpc (the default): the generated stub over the gRPC extension"
+                "ext-grpc": "For transport=grpc (the default): the generated stub over the gRPC extension",
+                "guzzlehttp/guzzle": "For transport=guzzle (7.14 or newer, cURL handler): gRPC over the application's Guzzle client",
+                "psr/http-client": "For transport=http over the application's PSR-18 client (with a PSR-17 factory: psr/http-factory)"
             },
             "type": "library",
             "extra": {
@@ -711,7 +715,7 @@
             "dist": {
                 "type": "path",
                 "url": "src/DurableBundle",
-                "reference": "b480e8e022e0d6d0a07630e5c8e2eb949713df2b"
+                "reference": "93a782ad4c5e0ef37df68a2992370cb5af85804a"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -724,8 +728,7 @@
                 "symfony/http-foundation": "^6.4 || ^7.0 || ^8.0",
                 "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
                 "symfony/messenger": "^6.4 || ^7.0 || ^8.0",
-                "symfony/service-contracts": "^3.0",
-                "symfony/uid": "^6.4 || ^7.0 || ^8.0"
+                "symfony/service-contracts": "^3.0"
             },
             "suggest": {
                 "doctrine/orm": "Declares the DBAL journal tables to doctrine:schema:update and doctrine:migrations:diff, which would otherwise generate DROP TABLE for them (SchemaListener\\DurableSchemaListener)",
@@ -776,17 +779,17 @@
             "dist": {
                 "type": "path",
                 "url": "src/DurableLaravel",
-                "reference": "99d206d90243de401b66564f9dee7fd3cbe09447"
+                "reference": "acb91d9a46095d8c1317e0288edb0dfcb19fb36e"
             },
             "require": {
                 "gplanchat/durable": "self.version",
                 "gplanchat/durable-bridge-illuminate": "self.version",
                 "illuminate/cache": "^11.0 || ^12.0 || ^13.0",
-                "illuminate/container": "^11.0 || ^12.0 || ^13.0",
                 "illuminate/contracts": "^11.0 || ^12.0 || ^13.0",
                 "illuminate/database": "^11.0 || ^12.0 || ^13.0",
                 "illuminate/support": "^11.0 || ^12.0 || ^13.0",
-                "php": ">=8.2"
+                "php": ">=8.2",
+                "psr/log": "^1.1 || ^2.0 || ^3.0"
             },
             "suggest": {
                 "gplanchat/durable-bridge-temporal": "Required by the \"temporal\" backend: the gRPC driver for a Temporal cluster. Suggested rather than required because it installs five Symfony components a Laravel application never loads.",
@@ -837,7 +840,7 @@
             "dist": {
                 "type": "path",
                 "url": "src/DurablePlugin",
-                "reference": "77868a416afd4c6b6ca4952cbbe9e8371e718ed4"
+                "reference": "13b6144d4f553b8bc1c6ebf515d51bfb248882c9"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -850,11 +853,12 @@
                 "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
                 "symfony/routing": "^6.4 || ^7.0 || ^8.0",
                 "symfony/security-bundle": "^6.4 || ^7.0 || ^8.0",
-                "symfony/twig-bundle": "^6.4 || ^7.0 || ^8.0"
+                "symfony/security-http": "^6.4 || ^7.0 || ^8.0",
+                "symfony/twig-bundle": "^6.4 || ^7.0 || ^8.0",
+                "twig/twig": "^3.10"
             },
             "require-dev": {
-                "phpunit/phpunit": "^11.5",
-                "twig/twig": "^3.10"
+                "phpunit/phpunit": "^11.5"
             },
             "suggest": {
                 "sylius/admin-bundle": "Registers the dashboard entry in the Sylius admin menu (sylius.menu.admin.main)"
@@ -868,7 +872,10 @@
             "autoload": {
                 "psr-4": {
                     "Gplanchat\\Durable\\Plugin\\": "./"
-                }
+                },
+                "exclude-from-classmap": [
+                    "/tests/"
+                ]
             },
             "license": [
                 "MIT"
@@ -3764,89 +3771,6 @@
             "time": "2026-07-01T12:47:55+00:00"
         },
         {
-            "name": "symfony/polyfill-uuid",
-            "version": "v1.37.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/symfony/polyfill-uuid.git",
-                "reference": "26dfec253c4cf3e51b541b52ddf7e42cb0908e94"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-uuid/zipball/26dfec253c4cf3e51b541b52ddf7e42cb0908e94",
-                "reference": "26dfec253c4cf3e51b541b52ddf7e42cb0908e94",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=7.2"
-            },
-            "provide": {
-                "ext-uuid": "*"
-            },
-            "suggest": {
-                "ext-uuid": "For best performance"
-            },
-            "type": "library",
-            "extra": {
-                "thanks": {
-                    "url": "https://github.com/symfony/polyfill",
-                    "name": "symfony/polyfill"
-                }
-            },
-            "autoload": {
-                "files": [
-                    "bootstrap.php"
-                ],
-                "psr-4": {
-                    "Symfony\\Polyfill\\Uuid\\": ""
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Grégoire Pineau",
-                    "email": "lyrixx@lyrixx.info"
-                },
-                {
-                    "name": "Symfony Community",
-                    "homepage": "https://symfony.com/contributors"
-                }
-            ],
-            "description": "Symfony polyfill for uuid functions",
-            "homepage": "https://symfony.com",
-            "keywords": [
-                "compatibility",
-                "polyfill",
-                "portable",
-                "uuid"
-            ],
-            "support": {
-                "source": "https://github.com/symfony/polyfill-uuid/tree/v1.37.0"
-            },
-            "funding": [
-                {
-                    "url": "https://symfony.com/sponsor",
-                    "type": "custom"
-                },
-                {
-                    "url": "https://github.com/fabpot",
-                    "type": "github"
-                },
-                {
-                    "url": "https://github.com/nicolas-grekas",
-                    "type": "github"
-                },
-                {
-                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
-                    "type": "tidelift"
-                }
-            ],
-            "time": "2026-04-10T16:19:22+00:00"
-        },
-        {
             "name": "symfony/property-access",
             "version": "v7.4.16",
             "source": {
@@ -5118,84 +5042,6 @@
                 }
             ],
             "time": "2026-08-21T15:52:48+00:00"
-        },
-        {
-            "name": "symfony/uid",
-            "version": "v7.4.17",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/symfony/uid.git",
-                "reference": "69d732355a139c6f8881337d28515aa01f12b8be"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/symfony/uid/zipball/69d732355a139c6f8881337d28515aa01f12b8be",
-                "reference": "69d732355a139c6f8881337d28515aa01f12b8be",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=8.2",
-                "symfony/polyfill-uuid": "^1.15"
-            },
-            "require-dev": {
-                "symfony/console": "^6.4|^7.0|^8.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Symfony\\Component\\Uid\\": ""
-                },
-                "exclude-from-classmap": [
-                    "/Tests/"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Grégoire Pineau",
-                    "email": "lyrixx@lyrixx.info"
-                },
-                {
-                    "name": "Nicolas Grekas",
-                    "email": "p@tchwork.com"
-                },
-                {
-                    "name": "Symfony Community",
-                    "homepage": "https://symfony.com/contributors"
-                }
-            ],
-            "description": "Provides an object-oriented API to generate and represent UIDs",
-            "homepage": "https://symfony.com",
-            "keywords": [
-                "UID",
-                "ulid",
-                "uuid"
-            ],
-            "support": {
-                "source": "https://github.com/symfony/uid/tree/v7.4.17"
-            },
-            "funding": [
-                {
-                    "url": "https://symfony.com/sponsor",
-                    "type": "custom"
-                },
-                {
-                    "url": "https://github.com/fabpot",
-                    "type": "github"
-                },
-                {
-                    "url": "https://github.com/nicolas-grekas",
-                    "type": "github"
-                },
-                {
-                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
-                    "type": "tidelift"
-                }
-            ],
-            "time": "2026-08-11T07:38:58+00:00"
         },
         {
             "name": "symfony/var-dumper",
@@ -7604,7 +7450,7 @@
             "dist": {
                 "type": "path",
                 "url": "src/DurablePhpstan",
-                "reference": "3cdd062794a47c570ff390aa254f4f449f4f3216"
+                "reference": "88032072f8a9adb2563bd5cb630a998ae0bbd2de"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -7612,7 +7458,7 @@
                 "phpstan/phpstan": "^2.0"
             },
             "require-dev": {
-                "phpunit/phpunit": "^11.0"
+                "phpunit/phpunit": "^11.5"
             },
             "type": "phpstan-extension",
             "extra": {
@@ -7659,7 +7505,7 @@
             "dist": {
                 "type": "path",
                 "url": "src/DurableRector",
-                "reference": "4b3c7519859795a1af7635474a1ee28960b0a15f"
+                "reference": "c0943797ab1db5f97c2ca90e394723d40143739d"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -7667,7 +7513,7 @@
                 "rector/rector": "^2.0"
             },
             "require-dev": {
-                "phpunit/phpunit": "^11.0"
+                "phpunit/phpunit": "^11.5"
             },
             "type": "library",
             "extra": {
@@ -11905,6 +11751,89 @@
             "time": "2026-05-26T12:45:58+00:00"
         },
         {
+            "name": "symfony/polyfill-uuid",
+            "version": "v1.37.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/polyfill-uuid.git",
+                "reference": "26dfec253c4cf3e51b541b52ddf7e42cb0908e94"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/polyfill-uuid/zipball/26dfec253c4cf3e51b541b52ddf7e42cb0908e94",
+                "reference": "26dfec253c4cf3e51b541b52ddf7e42cb0908e94",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.2"
+            },
+            "provide": {
+                "ext-uuid": "*"
+            },
+            "suggest": {
+                "ext-uuid": "For best performance"
+            },
+            "type": "library",
+            "extra": {
+                "thanks": {
+                    "url": "https://github.com/symfony/polyfill",
+                    "name": "symfony/polyfill"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "bootstrap.php"
+                ],
+                "psr-4": {
+                    "Symfony\\Polyfill\\Uuid\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégoire Pineau",
+                    "email": "lyrixx@lyrixx.info"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony polyfill for uuid functions",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "compatibility",
+                "polyfill",
+                "portable",
+                "uuid"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/polyfill-uuid/tree/v1.37.0"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-04-10T16:19:22+00:00"
+        },
+        {
             "name": "symfony/process",
             "version": "v7.4.17",
             "source": {
@@ -12034,6 +11963,84 @@
                 }
             ],
             "time": "2026-03-24T13:12:05+00:00"
+        },
+        {
+            "name": "symfony/uid",
+            "version": "v7.4.17",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/uid.git",
+                "reference": "69d732355a139c6f8881337d28515aa01f12b8be"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/uid/zipball/69d732355a139c6f8881337d28515aa01f12b8be",
+                "reference": "69d732355a139c6f8881337d28515aa01f12b8be",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "symfony/polyfill-uuid": "^1.15"
+            },
+            "require-dev": {
+                "symfony/console": "^6.4|^7.0|^8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Component\\Uid\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégoire Pineau",
+                    "email": "lyrixx@lyrixx.info"
+                },
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Provides an object-oriented API to generate and represent UIDs",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "UID",
+                "ulid",
+                "uuid"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/uid/tree/v7.4.17"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-08-11T07:38:58+00:00"
         },
         {
             "name": "theseer/tokenizer",
