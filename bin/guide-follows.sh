@@ -15,10 +15,13 @@ trap 'rm -rf "$TMP"' EXIT
 
 # The bundle's recipe lives in recipes-contrib, which Flex skips unless told otherwise; the guide
 # tells the reader to allow it before `composer require` (#443). The bench runs that line because the
-# guide says it, and a guide that stops saying it fails here: bundles.php would never name the bundle.
+# guide says it, and a guide that stops saying it, or says it after the require, fails here:
+# bundles.php would never name the bundle.
 ALLOW_CONTRIB='composer config extra.symfony.allow-contrib true'
 for guide in "$@"; do
-    grep -qxF "$ALLOW_CONTRIB" "$guide" || { echo "$guide no longer tells the reader: $ALLOW_CONTRIB" >&2; exit 1; }
+    awk -v a="$ALLOW_CONTRIB" -v r='composer require gplanchat/durable-bundle' \
+        '$0==a && !seen {ok=1} $0==r {seen=1} END {exit !(ok && seen)}' "$guide" \
+        || { echo "$guide must tell the reader '$ALLOW_CONTRIB' before 'composer require gplanchat/durable-bundle'" >&2; exit 1; }
 done
 
 # One skeleton, copied per guide: the install is the slow part and does not depend on the guide.
