@@ -80,9 +80,9 @@ final class ChildWorkflowSlotDivergenceTest extends TestCase
 
     public function testTheSameChildStartedWithAnotherInputIsRefused(): void
     {
-        // Le type concorde, l'input non. Sans cette garde la divergence ne remonterait jamais :
-        // le journal tient déjà l'issue de l'enfant, donc rien de neuf n'est démarré et le nouvel
-        // input part à la poubelle en silence.
+        // The type matches, the input does not. Without this guard the divergence would never
+        // surface: the journal already holds the child's outcome, so nothing new is started and the
+        // new input goes to the bin silently.
         $context = $this->contextWithChild('ChargeCardWorkflow');
 
         $this->expectException(WorkflowTaskFailure::class);
@@ -97,7 +97,7 @@ final class ChildWorkflowSlotDivergenceTest extends TestCase
 
         try {
             $context->executeChildWorkflow('ChargeCardWorkflow', ['sku' => 'XYZ']);
-            self::fail('La divergence de charge aurait dû être refusée.');
+            self::fail('The payload divergence should have been refused.');
         } catch (WorkflowTaskFailure $e) {
             $message = $e->getMessage();
         }
@@ -113,7 +113,7 @@ final class ChildWorkflowSlotDivergenceTest extends TestCase
 
         $awaitable = $context->executeChildWorkflow('ChargeCardWorkflow', ['sku' => 'ABC']);
 
-        self::assertNotNull($awaitable, 'Un replay fidèle ne doit pas diverger sur son propre input.');
+        self::assertNotNull($awaitable, 'A faithful replay must not diverge on its own input.');
     }
 
     private function contextWithChild(string $childType): ExecutionContext

@@ -15,13 +15,13 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use PHPUnit\Framework\TestCase;
 
 /**
- * La garde de divergence comparait le **nom** de l'activité au slot, et rien d'autre.
+ * The divergence guard compared the activity **name** against the slot, and nothing else.
  *
- * Une charge recalculée autrement au replay passait donc en silence : le journal servait l'ancien
- * résultat, la charge fraîche partait à la poubelle, et l'exécution se terminait en succès en
- * ayant menti sur ce qu'elle avait demandé. Ce fichier tient les deux moitiés de la règle — ce que
- * la garde doit refuser, et tout ce qu'elle doit continuer de laisser passer, parce qu'une garde
- * qui arrête une exécution saine coûte plus cher que le trou qu'elle bouche.
+ * A payload recomputed differently on replay therefore went through silently: the journal served
+ * the old result, the fresh payload went to the bin, and the execution completed successfully
+ * having lied about what it had asked for. This file holds both halves of the rule — what the
+ * guard must refuse, and everything it must keep letting through, because a guard that stops a
+ * healthy execution costs more than the hole it plugs.
  */
 final class ActivityPayloadDivergenceTest extends TestCase
 {
@@ -45,13 +45,13 @@ final class ActivityPayloadDivergenceTest extends TestCase
 
         try {
             $context->activity('weather', ['nonce' => 2]);
-            self::fail('La garde aurait dû refuser cette charge.');
+            self::fail('The guard should have refused this payload.');
         } catch (WorkflowTaskFailure $refusal) {
             $message = $refusal->getMessage();
             self::assertStringContainsString('activity slot 0', $message);
-            self::assertStringContainsString('"weather"', $message, 'le nom concorde : le dire évite de chercher un slot décalé');
+            self::assertStringContainsString('"weather"', $message, 'the name matches: saying so saves looking for a shifted slot');
             self::assertStringContainsString('non-deterministic workflow code', $message);
-            self::assertStringNotContainsString('different version of the workflow', $message, 'ce message-là enverrait vers ChangePoint, qui n\'y peut rien');
+            self::assertStringNotContainsString('different version of the workflow', $message, 'that message would send the reader to ChangePoint, which can do nothing about it');
         }
     }
 
@@ -62,13 +62,13 @@ final class ActivityPayloadDivergenceTest extends TestCase
 
         $awaitable = $context->activity('weather', ['city' => 'Paris']);
 
-        self::assertTrue($awaitable->isSettled(), 'le slot se résout : la charge est celle du journal');
+        self::assertTrue($awaitable->isSettled(), 'the slot resolves: the payload is the journal\'s');
     }
 
     public function testKeyOrderIsNotADivergence(): void
     {
-        // Un objet JSON n'a pas d'ordre. Le voir changer ne prouve rien, et l'ériger en divergence
-        // arrêterait des exécutions dont la charge est identique.
+        // A JSON object has no order. Seeing it change proves nothing, and treating it as a
+        // divergence would stop executions whose payload is identical.
         $store = $this->journalWith(['b' => 2, 'a' => 1]);
         $context = $this->context($store);
 
@@ -79,7 +79,7 @@ final class ActivityPayloadDivergenceTest extends TestCase
 
     public function testAListThatChangedOrderIsADivergence(): void
     {
-        // Dans une liste, l'ordre *est* l'information.
+        // In a list, the order *is* the information.
         $store = $this->journalWith(['cities' => ['Paris', 'Lyon']]);
         $context = $this->context($store);
 
@@ -90,8 +90,8 @@ final class ActivityPayloadDivergenceTest extends TestCase
 
     public function testAnEmptyRecordedPayloadIsStillCompared(): void
     {
-        // `[]` est une activité planifiée sans argument, pas « rien d'enregistré ». La confondre
-        // avec null est le piège de findSideEffectForSlot(), et il ne se reproduit pas ici.
+        // `[]` is an activity scheduled without arguments, not "nothing recorded". Confusing it
+        // with null is the trap of findSideEffectForSlot(), and it is not repeated here.
         $store = $this->journalWith([]);
         $context = $this->context($store);
 
@@ -102,10 +102,10 @@ final class ActivityPayloadDivergenceTest extends TestCase
 
     public function testAnObjectTheJournalCannotSeeIntoDoesNotDiverge(): void
     {
-        // Le style de la maison : des DTO en lecture seule à propriétés privées. Le journal n'en
-        // retient rien — `{}` à l'aller, `[]` au retour. Sans normalisation des deux côtés, toute
-        // exécution qui en porte un divergerait à chaque reprise. C'est le faux positif qui aurait
-        // arrêté des workflows sains, et il est mesuré ici pour qu'il ne revienne pas.
+        // The house style: read-only DTOs with private properties. The journal keeps nothing of
+        // them — `{}` on the way out, `[]` on the way back. Without normalising both sides, every
+        // execution carrying one would diverge on each resumption. That is the false positive that
+        // would have stopped healthy workflows, and it is measured here so it does not come back.
         $freshPayload = [
             'amount' => new class (90, 'EUR') {
                 public function __construct(private int $cents, private string $currency) {}
@@ -113,9 +113,9 @@ final class ActivityPayloadDivergenceTest extends TestCase
             'ref' => 'A-1',
         ];
 
-        // L'aller-retour n'est pas supposé, il est fait : ce que `DbalEventStore` écrit, puis ce
-        // que `EventDataMapper` relit. Écrire son résultat en dur ferait passer ce test le jour où
-        // l'aplatissement changerait — c'est-à-dire le jour où le faux positif reviendrait.
+        // The round trip is not assumed, it is performed: what `DbalEventStore` writes, then what
+        // `EventDataMapper` reads back. Hard-coding its result would let this test pass the day the
+        // flattening changed — that is, the day the false positive came back.
         $throughTheDatabase = json_decode(
             json_encode(
                 (new ActivityScheduled(self::EXECUTION, 'act-1', 'charge', $freshPayload))->payload(),
@@ -126,7 +126,7 @@ final class ActivityPayloadDivergenceTest extends TestCase
             \JSON_THROW_ON_ERROR,
         )['payload'];
 
-        self::assertNotSame($freshPayload, $throughTheDatabase, 'sans aplatissement, ce test ne prouve rien');
+        self::assertNotSame($freshPayload, $throughTheDatabase, 'without flattening, this test proves nothing');
 
         $store = new InMemoryEventStore();
         $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'charge', $throughTheDatabase));
@@ -134,16 +134,16 @@ final class ActivityPayloadDivergenceTest extends TestCase
 
         $context = $this->context($store);
 
-        // Ce que le code recalcule au replay : l'objet, toujours vivant.
+        // What the code recomputes on replay: the object, still alive.
         $awaitable = $context->activity('charge', $freshPayload);
 
-        self::assertTrue($awaitable->isSettled(), 'un replay fidèle ne doit pas mourir sur un objet opaque');
+        self::assertTrue($awaitable->isSettled(), 'a faithful replay must not die on an opaque object');
     }
 
     public function testAnIncomparablePayloadWaivesTheGuard(): void
     {
-        // Une ressource ne s'encode pas. La garde n'a alors rien à comparer : elle se tait plutôt
-        // que d'accuser une charge qu'elle ne sait pas lire.
+        // A resource cannot be encoded. The guard then has nothing to compare: it stays silent
+        // rather than accuse a payload it cannot read.
         $store = $this->journalWith(['handle' => null]);
         $context = $this->context($store);
 
@@ -158,12 +158,12 @@ final class ActivityPayloadDivergenceTest extends TestCase
 
     public function testAHistoryWithoutARecordedSlotIsNotADivergence(): void
     {
-        // Un slot que personne n'a enregistré, c'est un workflow qui grandit — pas une divergence.
+        // A slot nobody recorded is a workflow that grows — not a divergence.
         $context = $this->context(new InMemoryEventStore());
 
         $awaitable = $context->activity('weather', ['city' => 'Paris']);
 
-        self::assertFalse($awaitable->isSettled(), 'le slot est neuf : il part en planification');
+        self::assertFalse($awaitable->isSettled(), 'the slot is new: it goes to scheduling');
     }
 
     /**
