@@ -85,7 +85,13 @@ journal cannot have two sources of truth.
 ## Schema
 
 Tables are created on first write; there is no migration to run and no `doctrine/migrations`
-dependency.
+dependency. `bin/console durable:setup` creates them up front, on the configured connection.
+
+The first write refuses to create them inside an open transaction (Messenger's
+`doctrine_transaction` middleware, for one), on every platform: MySQL would commit that transaction
+implicitly on the `CREATE TABLE`, and the caller's own commit would then fail with "There is no
+active transaction".
+The error names `durable:setup`; run it once, or let migrations create the tables.
 
 **With Doctrine ORM installed, they are also declared to its tooling.** The bundle registers a
 `postGenerateSchema` listener, so `doctrine:schema:update` and `doctrine:migrations:diff` know these
@@ -99,8 +105,11 @@ same `Connection` object, or a different one proven to reach the same database. 
 other can drop it. Declaring on the wrong database would create tables where they do not belong, so
 a probe that cannot conclude declares nothing.
 
+A table your `schema_filter` rejects is not declared: the tooling does not compare it, and
+declaring it would put a `CREATE TABLE` in every diff.
+
 Once migrations own the schema, turn the lazy creation off — otherwise both mechanisms write
-behind each other:
+behind each other. `durable:setup` still creates the tables when you ask it to:
 
 ```yaml
 durable:
