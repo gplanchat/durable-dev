@@ -90,10 +90,10 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
-use Symfony\Component\DependencyInjection\Extension\Extension;
 // And not HttpKernel's, which is only a thin subclass of it — `@internal` since
 // Symfony 7.1, deprecated in 8.1 — and only adds the leftovers of the annotated class cache.
 // This one has existed since 6.4: the swap costs no supported version.
+use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\Messenger\Event\WorkerStartedEvent;
 

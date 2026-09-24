@@ -7,7 +7,6 @@ namespace Gplanchat\Durable\Bundle\Messenger;
 use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use Psr\Container\ContainerInterface;
-use Symfony\Component\EventDispatcher\Debug\WrappedListener;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Messenger\Transport\Sender\SendersLocatorInterface;
@@ -64,7 +63,6 @@ final class DurableWorkerInspection
             return false;
         }
         foreach ($this->dispatcher->getListeners($event) as $listener) {
-            $listener = $listener instanceof WrappedListener ? $listener->getWrappedListener() : $listener;
             if (\is_array($listener) && $listener[0] instanceof $listenerClass) {
                 return true;
             }
