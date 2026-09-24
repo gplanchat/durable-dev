@@ -7,6 +7,7 @@ namespace Gplanchat\DurableModule\Runtime;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
+use Gplanchat\Bridge\Temporal\Http\Psr18Http;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
@@ -106,6 +107,12 @@ class RuntimeFactory
          * builds a default client.
          */
         private readonly ?\GuzzleHttp\ClientInterface $guzzle = null,
+        /**
+         * The application's PSR-18 client and its PSR-17 factory, for `transport=http` (the JSON
+         * gateway) instead of curl; any other transport ignores it. Set in `di.xml` with an
+         * `<argument name="jsonGateway" xsi:type="object">`.
+         */
+        private readonly ?Psr18Http $jsonGateway = null,
     ) {}
 
     public function create(): MagentoRuntime
@@ -158,7 +165,7 @@ class RuntimeFactory
 
         return $settings === null
             ? new InMemoryEventStore()
-            : new TemporalJournalEventStore(WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle), $settings);
+            : new TemporalJournalEventStore(WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle, $this->jsonGateway), $settings);
     }
 
     /**
@@ -178,7 +185,7 @@ class RuntimeFactory
             return new InMemoryWorkflowRunCatalog(new InMemoryEventStore());
         }
 
-        $client = WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle);
+        $client = WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle, $this->jsonGateway);
 
         // The history cursor is not decorative: `listRuns()` returns only the Temporal workflow's
         // status — the journal's, which is **long by construction** and therefore eternally
@@ -213,7 +220,7 @@ class RuntimeFactory
             );
         }
 
-        $client = WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle);
+        $client = WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle, $this->jsonGateway);
         $registry = new WorkflowRegistry();
         foreach ($this->workflowClasses as $workflowClass) {
             $registry->registerClass($workflowClass);
@@ -244,7 +251,7 @@ class RuntimeFactory
     public function activityWorker(): TemporalActivityWorker
     {
         $settings = $this->requireCluster('An activity worker');
-        $client = WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle);
+        $client = WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle, $this->jsonGateway);
         $scratch = new InMemoryEventStore();
 
         return new TemporalActivityWorker(
@@ -273,7 +280,7 @@ class RuntimeFactory
     public function workflowClient(): WorkflowClient
     {
         $settings = $this->requireCluster('Starting a workflow on the cluster');
-        $client = WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle);
+        $client = WorkflowServiceClientFactory::create($settings, $this->logger, $this->guzzle, $this->jsonGateway);
 
         return new WorkflowClient(
             $client,

@@ -110,6 +110,12 @@ ActivityTimeouts::attempt(Duration::seconds(30));      // the common case: bound
 A heartbeat longer than `startToClose` is rejected: the attempt would end before the first missed
 heartbeat, so the bound would be dead.
 
+Outside Temporal, `startToClose` is checked when the attempt returns, not enforced while it runs.
+An attempt that overran fails with a timeout, its result is discarded, and the retry policy decides
+what comes next. Nothing interrupts an attempt that never returns; stopping a hung worker is the
+job of whatever supervises the process: `messenger:consume --time-limit` only checks between two
+messages, so it cannot.
+
 Temporal requires a closing bound. When none is set, the bridge supplies a default, and that fallback
 is named `executionBoundOr()` rather than hidden inside command construction.
 

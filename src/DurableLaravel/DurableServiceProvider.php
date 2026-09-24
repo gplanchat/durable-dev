@@ -13,6 +13,7 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
+use Gplanchat\Bridge\Temporal\Http\Psr18Http;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
@@ -54,6 +55,7 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
 use Illuminate\Cache\ArrayStore;
 use Illuminate\Cache\NullStore;
+use Illuminate\Contracts\Container\Container as ContainerContract;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Database\Connection;
 use Illuminate\Support\ServiceProvider;
@@ -200,6 +202,22 @@ final class DurableServiceProvider extends ServiceProvider
      *
      * @param array<string, mixed> $config
      */
+    /**
+     * The PSR-17 binding defaults to the client's, which Symfony's Psr18Client satisfies on its own.
+     *
+     * @param array<string, mixed> $temporal
+     */
+    private static function psr18Http(ContainerContract $app, array $temporal): ?Psr18Http
+    {
+        $client = $temporal['psr18_client'] ?? null;
+        if (!\is_string($client) || '' === $client) {
+            return null;
+        }
+        $factory = $app->make(\is_string($temporal['psr17_factory'] ?? null) ? $temporal['psr17_factory'] : $client);
+
+        return new Psr18Http($app->make($client), $factory, $factory);
+    }
+
     private function bindTemporal(array $config): void
     {
         /** @var array<string, mixed> $temporal */
@@ -230,6 +248,8 @@ final class DurableServiceProvider extends ServiceProvider
                 $app->bound(LoggerInterface::class) ? $app->make(LoggerInterface::class) : null,
                 // transport=guzzle over the application's client; any other transport ignores it.
                 \is_string($temporal['guzzle_client'] ?? null) && '' !== $temporal['guzzle_client'] ? $app->make($temporal['guzzle_client']) : null,
+                // transport=http over the application's PSR-18 client instead of curl.
+                self::psr18Http($app, $temporal),
             ),
         );
         $this->app->singleton(TemporalHistoryCursor::class, fn($app) => new TemporalHistoryCursor(
