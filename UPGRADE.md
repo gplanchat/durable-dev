@@ -36,8 +36,8 @@ for itself.
 | `ExecutionContext::pendingTimers()`, `pendingActivities()` | nothing: they exposed the engine's own bookkeeping |
 | `Awaitable\QuorumAwaitable::required()` | keep the count you passed to `some()` |
 | `Transport\InMemoryActivityTransport::pendingCount()`, `inspectPendingActivities()` | `peek()` and `nextDueAt()` remain |
-| `Transport\ActivityMessage::withAttempt()` | `retryingIn()` builds the next attempt |
-| `Failure\ActivityRetryState::isTerminalBusinessFailure()` | compare against the cases you care about |
+| `Transport\ActivityMessage::withAttempt()` | `retryingIn($message->retryDelay)` for `withAttempt($message->attempt + 1)`; for any other number, `new ActivityMessage(…, attempt: $n, firstQueuedAt: $message->firstQueuedAt, retryDelay: $message->retryDelay)` (named arguments; all properties are public). |
+| `Failure\ActivityRetryState::isTerminalBusinessFailure()` | `\in_array($state, [ActivityRetryState::NonRetryableFailure, ActivityRetryState::MaximumAttemptsReached, ActivityRetryState::Timeout, ActivityRetryState::RetryPolicyNotSet], true)` |
 | `Query\WorkflowQueryRunner::signalsReceived()`, `updatesHandled()` and their `WorkflowQueryEvaluator` statics | read `WorkflowSignalReceived` / `WorkflowUpdateHandled` from the journal |
 
 ### `ResetDurableProfilerListener` is gone; the execution trace keeps its last 2 000 entries
