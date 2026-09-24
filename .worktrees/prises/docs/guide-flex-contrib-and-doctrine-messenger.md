@@ -10,4 +10,4 @@
 - **Done when**: the guide names the step in both languages; `bin/guide-follows.sh` passes on both
   guides and fails when the step is removed from one; #445 reproduced (or not) on a fresh skeleton and
   the result recorded; the guide checked on a minified build served over HTTP.
-- **State**: in progress — bob, reviewers vera (docs) and antoine.
+- **State**: in review — PR #537, bob, reviewers vera (docs) and antoine.
