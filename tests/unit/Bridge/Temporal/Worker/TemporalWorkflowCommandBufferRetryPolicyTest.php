@@ -40,6 +40,7 @@ final class TemporalWorkflowCommandBufferRetryPolicyTest extends TestCase
     {
         $options = new ActivityOptions(
             RetryLimit::ofAttempts(5),
+            // @phpstan-ignore argument.type (a class the worker never loads: the name travels as a string)
             nonRetryableExceptions: ['App\Domain\Exception\BusinessException'],
             timeouts: ActivityTimeouts::attempt(Duration::seconds(30.0)),
         );

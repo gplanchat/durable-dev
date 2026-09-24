@@ -24,6 +24,66 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### `durable:execution:diagnose` and the profiler panel mask payload secrets
+
+**Who is affected**: scripts that read secrets out of `durable:execution:diagnose --json`, and
+applications whose payloads carry values under keys matching
+`/password|secret|token|authorization|card|api[_-]?key/i`. Those values now print as `***`, and strings over
+1 KiB are truncated. Add `--raw` to get the payload as stored.
+
+To change what is masked, implement `Gplanchat\Durable\Observation\PayloadRedactorInterface` and
+alias the interface to your service; both surfaces use it.
+
+The profiler reads at most 20 ids from `?durable_execution=`, and drops an id that is not printable
+ASCII without spaces, quotes, ampersands or angle brackets.
+
+### The Sylius plugin follows the Sylius 2 layout; its route follows the admin prefix
+
+**Who is affected**: every Sylius shop that installs `gplanchat/durable-plugin`. The route import
+moved from `Resources/config/` to `config/`. It is YAML, so Rector cannot rewrite it; change the
+one line by hand:
+
+```yaml
+# config/routes/durable_plugin.yaml
+gplanchat_durable_plugin:
+    resource: '@DurablePlugin/config/routes.yaml'   # was '@DurablePlugin/Resources/config/routes.yaml'
+```
+
+Template names do not change (`@DurablePlugin/admin/dashboard/index.html.twig`): Symfony reads a
+bundle's `templates/` under the same namespace as its `Resources/views/`.
+
+The dashboard's path is now `/%sylius_admin.path_name%/durable/dashboard` instead of a hardcoded
+`/admin/durable/dashboard`. A shop that keeps the default admin prefix sees no change; one that
+sets `SYLIUS_ADMIN_ROUTING_PATH_NAME` now finds the page under its admin, behind its firewall.
+The menu entry names its route, so the Sylius menu marks it active on the page. The package type
+is `sylius-plugin`.
+
+### The DBAL journal: `durable:setup`, no DDL inside a transaction, a new index on the run list
+
+**Who is affected**: Symfony applications on the DBAL backend, and Laravel applications on the
+Illuminate one.
+
+- **A first write inside an open transaction no longer creates the tables.** On MySQL the
+  `CREATE TABLE` committed that transaction implicitly, and the caller's commit then failed with
+  "There is no active transaction"; every platform now refuses with `DurableSchemaMissing`, which
+  names the fix. On Symfony, run `bin/console durable:setup` once per database (a deploy step,
+  next to `messenger:setup-transports`), or let migrations create the tables. On Laravel, run
+  `php artisan migrate`.
+- **`durable_workflow_runs` gains an index on `(status, started_at)`.** `auto_setup` never alters an
+  existing table. With Doctrine Migrations, `doctrine:migrations:diff` generates it; otherwise run
+  `CREATE INDEX durable_workflow_runs_status_started_idx ON durable_workflow_runs (status, started_at);`.
+  On Laravel, `php artisan migrate` adds it.
+- **A `schema_filter` that rejects `durable_*` is honoured**: those tables are no longer declared to
+  the Doctrine tooling, and the `CREATE TABLE` that came back in every diff is gone.
+
+### New: `WorkflowDispatchObserverInterface`, the core port for dispatch observation
+
+**Who is affected**: nobody has to change anything. `Gplanchat\Durable\Debug\WorkflowDispatchObserverInterface`
+declares `onWorkflowDispatchRequested()`, which `DurableExecutionTrace` already had.
+`TemporalWorkflowResumeDispatcher`'s fourth argument is now typed against it instead of
+`DurableExecutionTrace`, so the Temporal bridge no longer imports the Symfony bundle (#345). Passing
+a `DurableExecutionTrace` still works; a host without the bundle can now pass its own observer.
+
 ### `ResetDurableProfilerListener` is gone; the execution trace keeps its last 2 000 entries
 
 **Who is affected**: code that referenced `Gplanchat\Durable\Bundle\EventListener\ResetDurableProfilerListener`,
@@ -372,6 +432,38 @@ carries a `kernel.reset` tag and is therefore also emptied between two messages 
 An application that wants to observe executions in production does not have to resurrect the
 profiler: it implements `WorkflowExecutionObserverInterface` and aliases the interface to its own
 service — what the profiler did, cheaper, and without accumulating a timeline for nobody's screen.
+
+### A successful activity writes `ActivityCompleted` only, no `ActivityTaskCompleted` (#262)
+
+**Who is affected**: code that reads the journal and waits for `ActivityTaskCompleted` to learn
+that an activity succeeded — a listener on the event store, a custom projection. On success the
+worker used to append `ActivityTaskCompleted` and then `ActivityCompleted` with the same body; it now
+appends `ActivityCompleted` alone. Read `ActivityCompleted`: it was already the event replay reads,
+and it carries the same result. Failures do not change: one `ActivityTaskFailed` per attempt, then
+`ActivityFailed`.
+
+Journals recorded before keep both events. They replay and read as before: the class, its mapping
+and the dashboard reader's handling of it stay. No Rector rule or script: what changes is which
+event a listener receives at run time, not code Rector can rewrite.
+
+### Dead code leaves the Temporal bridge (#372)
+
+**Who is affected**: code that referenced one of these, none of which anything in Durable called:
+
+- `Gplanchat\Bridge\Temporal\TemporalJournalGrpcPoller`: poll with `WorkflowServiceClientInterface::PollWorkflowTaskQueue()`.
+- `Gplanchat\Bridge\Temporal\Journal\JournalWorkflowTaskProcessor`: `Worker\WorkflowTaskProcessor` runs workflow tasks.
+- `JournalExecutionIdResolver::durableExecutionIdFromHistory()`: take the `WorkflowExecutionStarted` attributes from the history and call `durableExecutionIdFromStartedAttributes()`.
+
+No Rector rule: there is no successor to rename to.
+
+`Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter` moves to
+`Gplanchat\Bridge\Temporal\Store\TemporalEventConverter`: the store and the command buffer use it,
+the profiler never did. The `durable-upgrade` Rector set renames it.
+
+`Gplanchat\Bridge\Temporal\Spike\NativeExecutionSpike` leaves the published package for the Symfony
+bench (`App\Temporal\NativeExecutionSpike`, with its `durable:temporal:native-spike` command). It
+was the DUR024 reference, not production code; `Worker\WorkflowTaskRunner` runs that path. Copy
+the class from the bench if you ran it; no Rector rule, since the class is no longer installed.
 
 ## 0.1.0-alpha8
 

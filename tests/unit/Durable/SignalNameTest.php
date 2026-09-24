@@ -49,7 +49,7 @@ final class SignalNameTest extends TestCase
                     return [] !== $approvals;
                 });
 
-                return array_shift($approvals);
+                return array_shift($approvals) ?? throw new \LogicException('await() returned before an approval arrived');
             },
         );
 

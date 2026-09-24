@@ -18,6 +18,8 @@ The static site under **`hugo-docs/`** publishes **user documentation** only: pr
 
 `hugo-docs/hugo.toml` mounts **`../documentation/user`** → **`content/docs/`** (single tree). Add new sections as subfolders under `documentation/user/` with `_index.md` files.
 
+The guide is bilingual. Each page has a French sibling, `<page>.fr.md` next to `<page>.md` (21 of each today), which Hugo renders under **`/fr/docs/`**. The English stays at the root. Hugo does not fall back from one language to the other, so a page with no `.fr.md` sibling does not exist under `/fr/docs/`.
+
 ## Local build
 
 Prerequisites: **Hugo Extended** (see CI version in `.github/workflows/docs-ovh.yml`).

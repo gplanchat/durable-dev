@@ -24,7 +24,7 @@ interface GrpcTransport
      *
      * @return T
      *
-     * @throws \RuntimeException on any status but OK, with the gRPC status code as its code
+     * @throws \Symfony\Component\Messenger\Exception\TransportException on any status but OK, with the gRPC status code as its code
      */
     public function unary(string $method, Message $request, string $responseClass, array $metadata, ?int $timeoutMs): Message;
 }

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+    <file source-language="en" target-language="en" datatype="plaintext" original="file.ext">
+        <body>
+            <trans-unit id="menu.dashboard"><source>menu.dashboard</source><target>Durable Dashboard</target></trans-unit>
+            <trans-unit id="dashboard.title"><source>dashboard.title</source><target>Durable Workflow Dashboard</target></trans-unit>
+            <trans-unit id="dashboard.intro"><source>dashboard.intro</source><target>Observe workflow runs, outcomes and recorded history from the Sylius back-office.</target></trans-unit>
+            <trans-unit id="dashboard.backend_checked"><source>dashboard.backend_checked</source><target>%name% · checked at %time%</target></trans-unit>
+            <trans-unit id="dashboard.outcomes_heading"><source>dashboard.outcomes_heading</source><target>Outcomes across the %count% runs on this page</target></trans-unit>
+            <trans-unit id="kpi.on_this_page"><source>kpi.on_this_page</source><target>On this page</target></trans-unit>
+            <trans-unit id="kpi.waiting_for_worker"><source>kpi.waiting_for_worker</source><target>Waiting for a worker</target></trans-unit>
+            <trans-unit id="status.all"><source>status.all</source><target>All</target></trans-unit>
+            <trans-unit id="status.running"><source>status.running</source><target>Running</target></trans-unit>
+            <trans-unit id="status.completed"><source>status.completed</source><target>Completed</target></trans-unit>
+            <trans-unit id="status.failed"><source>status.failed</source><target>Failed</target></trans-unit>
+            <trans-unit id="status.cancelled"><source>status.cancelled</source><target>Cancelled</target></trans-unit>
+            <trans-unit id="status.continued_as_new"><source>status.continued_as_new</source><target>Continued as new</target></trans-unit>
+            <trans-unit id="filter.outcome"><source>filter.outcome</source><target>Outcome</target></trans-unit>
+            <trans-unit id="filter.submit"><source>filter.submit</source><target>Filter</target></trans-unit>
+            <trans-unit id="runs.title"><source>runs.title</source><target>Runs</target></trans-unit>
+            <trans-unit id="runs.empty"><source>runs.empty</source><target>No workflow run matches this filter.</target></trans-unit>
+            <trans-unit id="runs.group"><source>runs.group</source><target>Group:</target></trans-unit>
+            <trans-unit id="pagination.next"><source>pagination.next</source><target>Next page</target></trans-unit>
+            <trans-unit id="details.title"><source>details.title</source><target>Run details</target></trans-unit>
+            <trans-unit id="details.workflow"><source>details.workflow</source><target>Workflow:</target></trans-unit>
+            <trans-unit id="details.run"><source>details.run</source><target>Run:</target></trans-unit>
+            <trans-unit id="details.outcome"><source>details.outcome</source><target>Outcome:</target></trans-unit>
+            <trans-unit id="details.no_history"><source>details.no_history</source><target>No recorded history for this run.</target></trans-unit>
+            <trans-unit id="details.select"><source>details.select</source><target>Select a run in the list to inspect its recorded history.</target></trans-unit>
+            <trans-unit id="frieze.key_waiting"><source>frieze.key_waiting</source><target>Hatched: waiting to be picked up — the work had been asked for, but nobody had started it yet.</target></trans-unit>
+            <trans-unit id="frieze.key_failed"><source>frieze.key_failed</source><target>Red: what failed. A cancellation is not painted red — it is an outcome, not a breakdown.</target></trans-unit>
+        </body>
+    </file>
+</xliff>

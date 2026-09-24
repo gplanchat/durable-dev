@@ -38,6 +38,7 @@ use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Bundle\Command\DurableWorkerCommand;
+use Gplanchat\Durable\Bundle\Command\SetupCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
 use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
@@ -54,6 +55,8 @@ use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
+use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
+use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\ParentChildWorkflowCoordinator;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
@@ -173,6 +176,11 @@ final class DurableExtension extends Extension
             ->setPublic(false)
         ;
         $schema = new Reference('durable.dbal.schema');
+
+        $container->register(SetupCommand::class)
+            ->setArguments([$schema])
+            ->addTag('console.command')
+        ;
 
         // Without this listener, `doctrine:migrations:diff` does not see the journal's tables and
         // generates their removal. Registered only when the ORM is there: the DBAL bridge works
@@ -750,6 +758,14 @@ final class DurableExtension extends Extension
      */
     private function registerCommands(ContainerBuilder $container, array $config): void
     {
+        // What the diagnose command and the profiler panel may show of a payload. An application
+        // replaces it by aliasing the interface to its own implementation.
+        $container->register('durable.payload_redactor', KeyPatternPayloadRedactor::class)->setPublic(false);
+        // The application's services.yaml is loaded before this extension: keep its alias.
+        if (!$container->hasAlias(PayloadRedactorInterface::class) && !$container->hasDefinition(PayloadRedactorInterface::class)) {
+            $container->setAlias(PayloadRedactorInterface::class, 'durable.payload_redactor');
+        }
+
         $isTemporalNative = self::isTemporalNative($config);
 
         if ($isTemporalNative) {
@@ -795,6 +811,7 @@ final class DurableExtension extends Extension
                 new Reference(EventStoreInterface::class),
                 new Reference(ChildWorkflowParentLinkStoreInterface::class),
                 new Reference('durable.temporal.connection', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                new Reference(PayloadRedactorInterface::class),
             ])
             ->addTag('console.command')
         ;
@@ -877,6 +894,7 @@ final class DurableExtension extends Extension
                 new Reference('durable.execution_trace'),
                 new Reference(WorkflowMetadataStore::class),
                 new Reference(EventStoreInterface::class),
+                new Reference(PayloadRedactorInterface::class),
             ])
             ->setPublic(true)
             ->addTag('data_collector', [

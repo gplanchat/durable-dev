@@ -13,6 +13,8 @@ parameters:
         - src/DurableLaravel
         - src/DurablePhpstan
         - src/DurableRector
+        - tests/unit
+        - tests/integration
     excludePaths:
         # `illuminate/console` requires `symfony/console ^7.x` on all three of its lines, so
         # bringing it into the root graph would make the Symfony 6.4 line unresolvable — the same
@@ -22,7 +24,11 @@ parameters:
         - src/DurableLaravel/Console
         - src/Bridge/Temporal/Api
         - src/Bridge/Temporal/Generated
-        - src/Bridge/Temporal/Spike
+        # Code written wrong on purpose: the PHPStan rule tests feed it to the rules.
+        - tests/unit/DurablePhpstan/Fixtures
+        # The code the Rector rules migrate, written as a Temporal SDK user wrote it.
+        - tests/unit/DurableRector/Source
+        - tests/unit/DurableRector/Fixture
     reportUnmatchedIgnoredErrors: true
     ignoreErrors:
         # ServiceProvider::$app is typed by PHPDoc as the full application. This package depends
@@ -36,7 +42,7 @@ parameters:
           path: src/Bridge/Temporal/Worker/TemporalWorkflowCommandBuffer.php
         # MapField is typed as non-nullable by google/protobuf stubs, but defensive null checks are intentional
         - identifier: notIdentical.alwaysTrue
-          path: src/Bridge/Temporal/Profiler/TemporalEventConverter.php
+          path: src/Bridge/Temporal/Store/TemporalEventConverter.php
         - identifier: notIdentical.alwaysTrue
           path: src/Bridge/Temporal/Worker/TemporalExecutionHistory.php
         # Symfony 6.4 types the config builder's fluent chain more loosely than 7.x:
@@ -50,6 +56,33 @@ parameters:
         # 7.4 and 8.0 patches: no return type satisfies every leg. Matches on those lowest legs only.
         - identifier: missingType.generics
           path: src/DurableBundle/DependencyInjection/Configuration.php
+          reportUnmatched: false
+        # The tests register the Laravel provider in a bare container on purpose: that is the
+        # standalone-worker case the function.alreadyNarrowedType entry above describes.
+        - identifier: argument.type
+          message: '#expects Illuminate\\Contracts\\Foundation\\Application#'
+          paths:
+              - tests/unit/DurableLaravel/*
+              - tests/unit/Bridge/Illuminate/*
+        # A test asserts at runtime what its types promise: an assertion PHPStan already proves is
+        # still the check the test makes, and what keeps it from being a test without assertion.
+        - identifier: staticMethod.alreadyNarrowedType
+          path: tests/*
+        # Test workflows receive their environment because the contract hands it over, payload
+        # objects are serialised whole, and recorders write through a reference: none is read back.
+        - identifier: property.onlyWritten
+          path: tests/*
+        # Symfony 6.4 types KernelTestCase::$kernel as never null; the bundle tests reset it between
+        # kernels as 7.x allows. Matches on the 6.4 legs only.
+        - identifier: assign.propertyType
+          message: '#KernelTestCase::\$kernel#'
+          path: tests/integration/Durable/Bundle/*
+          reportUnmatched: false
+        # The PHP CLI always defines $argv (even with register_argc_argv off, unlike $_SERVER['argv']);
+        # PHPStan on PHP 8.5 doubts it. Matches on the 8.5 legs only.
+        - identifier: variable.undefined
+          message: '#Variable \$argv might not be defined#'
+          path: tests/integration/Temporal/worker.php
           reportUnmatched: false
         # PHPStan cannot track Awaitable settlement across Fiber boundary
         - identifier: booleanNot.alwaysTrue

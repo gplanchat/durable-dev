@@ -6,44 +6,29 @@ namespace Gplanchat\Durable\Plugin\Tests\Unit;
 
 use Gplanchat\Durable\Plugin\EventListener\AdminMenuListener;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 final class AdminMenuListenerTest extends TestCase
 {
-    public function testItAddsDurableDashboardItemToAdminMenu(): void
+    public function testTheEntryNamesItsRouteSoTheMenuCanMarkItActive(): void
     {
-        $urlGenerator = $this->createMock(UrlGeneratorInterface::class);
-        $urlGenerator
-            ->expects(self::once())
-            ->method('generate')
-            ->with('gplanchat_durable_plugin_admin_dashboard')
-            ->willReturn('/admin/durable/dashboard')
-        ;
-
-        $listener = new AdminMenuListener($urlGenerator);
+        // A `uri` entry is never active: KnpMenu's route voter matches `route`, not a URL (M30).
         $configurationMenu = new class {
+            /** @var array<string, array<string, mixed>> */
+            public array $options = [];
             /** @var array<string, object> */
             private array $children = [];
 
             /** @param array<string, mixed> $options */
             public function addChild(string $name, array $options = []): object
             {
-                $item = new class ($options['uri'] ?? null) {
-                    public function __construct(private ?string $uri = null) {}
+                $this->options[$name] = $options;
 
+                return $this->children[$name] = new class {
                     public function setLabelAttribute(string $_name, string $_value): self
                     {
                         return $this;
                     }
-
-                    public function getUri(): ?string
-                    {
-                        return $this->uri;
-                    }
                 };
-                $this->children[$name] = $item;
-
-                return $item;
             }
 
             public function getChild(string $name): ?object
@@ -62,14 +47,9 @@ final class AdminMenuListenerTest extends TestCase
 
             public function getChild(string $name): ?object
             {
-                if ('configuration' === $name) {
-                    return $this->configurationMenu;
-                }
-
-                return null;
+                return 'configuration' === $name ? $this->configurationMenu : null;
             }
         };
-
         $event = new class ($menu) {
             public function __construct(private readonly mixed $menu) {}
 
@@ -79,10 +59,12 @@ final class AdminMenuListenerTest extends TestCase
             }
         };
 
-        $listener->addDashboardItem($event);
+        (new AdminMenuListener())->addDashboardItem($event);
 
-        $item = $configurationMenu->getChild('durable_dashboard');
-        self::assertNotNull($item);
-        self::assertSame('/admin/durable/dashboard', $item->getUri());
+        self::assertSame('gplanchat_durable_plugin_admin_dashboard', $configurationMenu->options['durable_dashboard']['route'] ?? null);
+        self::assertArrayNotHasKey('uri', $configurationMenu->options['durable_dashboard']);
+        // The label is a key the menu template translates, not an English literal (M28).
+        self::assertSame('menu.dashboard', $configurationMenu->options['durable_dashboard']['label']);
+        self::assertSame('durable', $configurationMenu->options['durable_dashboard']['extras']['translation_domain'] ?? null);
     }
 }
