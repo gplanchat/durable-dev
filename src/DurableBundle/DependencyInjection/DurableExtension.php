@@ -36,6 +36,7 @@ use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
+use Gplanchat\Durable\Bundle\Command\DurableWorkerCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
 use Gplanchat\Durable\Bundle\EventListener\ResetDurableProfilerListener;
@@ -372,13 +373,18 @@ final class DurableExtension extends Extension
                 ->setArguments([$dsn])
             ;
 
-            $container->register('durable.temporal.workflow_service_client', WorkflowServiceClientInterface::class)
+            $client = $container->register('durable.temporal.workflow_service_client', WorkflowServiceClientInterface::class)
                 ->setFactory([WorkflowServiceClientFactory::class, 'create'])
                 ->setArguments([
                     new Reference('durable.temporal.connection'),
                     new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 ])
             ;
+            // transport=guzzle over the application's client; any other transport ignores it.
+            $guzzleClient = $temporalConfig['guzzle_client'] ?? null;
+            if (\is_string($guzzleClient) && '' !== $guzzleClient) {
+                $client->addArgument(new Reference($guzzleClient));
+            }
 
             $container->register(WorkflowServiceActivityRpc::class)
                 ->setArguments([new Reference('durable.temporal.workflow_service_client')])
@@ -778,6 +784,19 @@ final class DurableExtension extends Extension
                 new Reference('durable.temporal.connection', ContainerInterface::NULL_ON_INVALID_REFERENCE),
             ])
             ->addTag('console.command')
+        ;
+
+        $activityTransport = 'messenger' === ($config['activity_transport']['type'] ?? '') && !$isTemporalNative
+            ? ($config['activity_transport']['transport_name'] ?? 'durable_activities')
+            : null;
+        $container->register(DurableWorkerCommand::class)
+            ->setArguments([
+                new Reference('messenger.senders_locator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                new Reference('messenger.receiver_locator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                $activityTransport,
+                $isTemporalNative,
+            ])
+            ->addTag('console.command', ['command' => 'durable:worker'])
         ;
     }
 

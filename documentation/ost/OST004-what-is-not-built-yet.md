@@ -108,7 +108,7 @@ backlog someone else keeps.
 |---|---|---|
 | **Workflow versioning** (`Workflow::getVersion()`) | A probe, then wiring | The significant one. Second behind the divergence guard, because a version marker is the sanctioned exception to that guard, and an exception needs a rule to except. |
 | **Nexus handler side** | **Built** — see [DUR045](../adr/DUR045-serving-a-nexus-operation.md) | §2. No other PHP implementation offers it, the SDK included. |
-| **Saga helper** | Wiring, small | The capability exists — a deadline and a compensation path, written out in [Creating a workflow](../user/workflows/). What is missing is the sugar. |
+| **Saga helper** | **Built** — `Gplanchat\Durable\Workflow\Saga` | Sequential compensations, stop on first error. See [Cancellation](../user/cancellation/). |
 | **`Workflow::now()`, `Workflow::uuid4()`** | Nothing to build | Both are `sideEffect()` on this side, recorded once and replayed. Not a gap; a different spelling. It matters in §6. |
 
 ---
@@ -323,7 +323,7 @@ available.
 | `query-plumbing-leaves-the-environment` | Wiring — 23/24 | A live server for the last task |
 | ~~`workflow-replay-divergence-guard`~~ | Wiring — 20/20 | **Done** |
 | ~~Conformance suites, the three remaining store ports~~ | Wiring | **Done** — DUR041 covers all four |
-| Saga helper | Wiring, small | — |
+| ~~Saga helper~~ | Wiring, small | **Done** |
 | ~~Rector bucket 1~~ | Wiring | **Done** |
 | API Platform state processor | Wiring | — |
 | Shopware 6, Sulu | Wiring | A real user |

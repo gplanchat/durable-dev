@@ -61,6 +61,10 @@ return [
      */
     'temporal' => [
         'dsn' => null,
+        // A container binding: the application's GuzzleHttp\ClientInterface, which
+        // `transport=guzzle` in the DSN then uses — its proxy, TLS options and middleware apply to
+        // gRPC. Unused by any other transport; null builds a default client.
+        'guzzle_client' => null,
     ],
 
     'tables' => [

@@ -87,6 +87,7 @@ The `in_memory` event store is still correct when `temporal.dsn` is set. `Tempor
 |-----|--------|---------|-------------|
 | `dsn` | `temporal://host:port?…` or `null` | `null` | When `null`: In-Memory Messenger backend. When set: activates the Temporal backend. gRPC goes through `ext-grpc` when the extension is loaded and through curl (HTTP/2) otherwise; the scheme picks the wire, see below. |
 | `journal` | `true` / `false` | `true` | `false` says the cluster is reachable **without** being the journal: `event_store` stays the source of truth, and the dashboard keeps reading it. That is how an application with a DBAL journal serves a Nexus operation; see [Nexus operations](../nexus/). Setting a DSN with `journal: true` alongside `event_store.type: dbal` is refused: the journal cannot have two sources of truth. |
+| `guzzle_client` | a service id or `null` | `null` | The application's `GuzzleHttp\ClientInterface`, used by `transport=guzzle` in the DSN: its proxy, TLS options and middleware apply to gRPC. Ignored by any other transport; `null` builds a default client. On Laravel, the same key in `config/durable.php` names a container binding; on Magento, it is the `guzzle` argument of `RuntimeFactory` in `di.xml`. |
 
 ### DSN format
 
@@ -100,7 +101,7 @@ The scheme names the wire and the encryption:
 |--------|------|-----|--------------|-------|
 | `temporal://` | gRPC | no | 7233 | `ext-grpc`, or `ext-curl` (gRPC over HTTP/2, chosen automatically when the extension is not loaded; the fallback is logged once) |
 | `temporal+tls://` | gRPC | yes | 7233 | same |
-| `temporal+http://` | the server JSON gateway | no | 7243 | `ext-curl`, and the HTTP port enabled on the server. Client calls only: no worker can poll through it |
+| `temporal+http://` | the server JSON gateway | no | 7243 | `ext-curl` — or a PSR-18 client handed to the factory — and the HTTP port enabled on the server. Client calls only: no worker can poll through it |
 | `temporal+https://` | the server JSON gateway | yes | 7243 | same |
 
 | Parameter | Required | Description |
