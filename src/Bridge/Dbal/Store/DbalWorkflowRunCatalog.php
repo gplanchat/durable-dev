@@ -8,11 +8,13 @@ use Doctrine\DBAL\Connection;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
+use Gplanchat\Durable\Observation\RunPageCursor;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunPage;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
+use Gplanchat\Durable\Store\StoredTimestamp;
 
 /**
  * The catalog of executions, read from the projection.
@@ -52,9 +54,9 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
             $params[] = $status->value;
         }
 
-        $position = self::decodeCursor($cursor);
+        $position = RunPageCursor::decode($cursor);
         if (null !== $position) {
-            [$startedAt, $executionId] = $position;
+            [$startedAt, $executionId] = [$position->startedAt, $position->executionId];
             $where[] = '(started_at < ? OR (started_at = ? AND execution_id > ?))';
             $params[] = $startedAt;
             $params[] = $startedAt;
@@ -82,13 +84,13 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         $runs = [];
         foreach ($rows as $row) {
             $status = WorkflowRunStatus::from((string) $row['status']);
-            $startedAt = self::toDateTime($row['started_at']);
+            $startedAt = StoredTimestamp::toDateTime($row['started_at']);
             $runs[] = new WorkflowRunDescription(
                 runId: (string) $row['execution_id'],
                 workflowName: (string) $row['workflow_type'],
                 status: $status,
                 startedAt: $startedAt,
-                endedAt: self::toDateTime($row['ended_at']),
+                endedAt: StoredTimestamp::toDateTime($row['ended_at']),
                 // Absent when the table cannot tell (#447): a null column there means nothing.
                 waitingForWorkerSince: $tracksPickup && $status->isRunning() && null === $row['picked_up_at'] ? $startedAt : null,
                 waitingOn: $tracksWait && $status->isRunning() && null !== $row['waiting_on'] ? (string) $row['waiting_on'] : null,
@@ -100,7 +102,7 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         return new WorkflowRunPage(
             $runs,
             $hasMore && null !== $last
-                ? self::encodeCursor((string) $last['started_at'], (string) $last['execution_id'])
+                ? (new RunPageCursor((string) $last['started_at'], (string) $last['execution_id']))->encode()
                 : null,
             tellsWaitingForWorker: $tracksPickup,
         );
@@ -136,41 +138,5 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         }
 
         return new BackendHealth(self::BACKEND, true, 'The SQL database answers.', $checkedAt);
-    }
-
-    private static function encodeCursor(string $startedAt, string $executionId): string
-    {
-        return base64_encode($startedAt . "\0" . $executionId);
-    }
-
-    /**
-     * @return array{0: string, 1: string}|null
-     */
-    private static function decodeCursor(?string $cursor): ?array
-    {
-        if (null === $cursor || '' === $cursor) {
-            return null;
-        }
-
-        $raw = base64_decode($cursor, true);
-        if (false === $raw || !str_contains($raw, "\0")) {
-            return null;
-        }
-
-        [$startedAt, $executionId] = explode("\0", $raw, 2);
-
-        return '' === $startedAt ? null : [$startedAt, $executionId];
-    }
-
-    private static function toDateTime(mixed $raw): ?\DateTimeImmutable
-    {
-        if ($raw instanceof \DateTimeImmutable) {
-            return $raw;
-        }
-        if (!\is_string($raw) || '' === $raw) {
-            return null;
-        }
-
-        return new \DateTimeImmutable($raw, new \DateTimeZone('UTC'));
     }
 }

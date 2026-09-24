@@ -8,6 +8,7 @@ use Gplanchat\Bridge\Illuminate\Schema\DurableSchema;
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Mapping\EventDataMapper;
 use Gplanchat\Durable\Store\EventStoreInterface;
+use Gplanchat\Durable\Store\StoredTimestamp;
 use Illuminate\Database\Connection;
 
 /**
@@ -84,7 +85,7 @@ final class IlluminateEventStore implements EventStoreInterface
                     'event_type' => $row->event_type,
                     'payload' => $row->payload,
                 ]),
-                'recordedAt' => self::toDateTime($row->recorded_at),
+                'recordedAt' => StoredTimestamp::toDateTime($row->recorded_at),
             ];
         }
     }
@@ -96,17 +97,5 @@ final class IlluminateEventStore implements EventStoreInterface
         return $this->connection->table($this->table)
             ->where('execution_id', $executionId)
             ->count();
-    }
-
-    private static function toDateTime(mixed $raw): ?\DateTimeImmutable
-    {
-        if ($raw instanceof \DateTimeImmutable) {
-            return $raw;
-        }
-        if (!\is_string($raw) || '' === $raw) {
-            return null;
-        }
-
-        return new \DateTimeImmutable($raw, new \DateTimeZone('UTC'));
     }
 }
