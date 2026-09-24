@@ -11,6 +11,7 @@ use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use integration\Durable\Bundle\Support\GreetByWorkerWorkflow;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
@@ -61,6 +62,38 @@ final class DurableWorkerCommandIntegrationTest extends KernelTestCase
         self::assertSame(0, $tester->run(['command' => 'durable:worker', '--limit' => '3', '--time-limit' => '10', '--no-reset' => true]));
         self::assertStringContainsString('Consuming durable_workflows, durable_activities.', $tester->getDisplay());
         self::assertSame('Hello, Ada!', $this->completedWith($container->get(EventStoreInterface::class), $executionId));
+    }
+
+    /**
+     * #444: consumed with a reset after each message, an in-memory transport loses the activity
+     * the workflow just queued, and the run hangs on ActivityScheduled with no error. Both
+     * commands are refused instead; `durable:worker` runs `messenger:consume` without a console
+     * event, so the refusal has to come from the worker itself.
+     *
+     * @return iterable<string, array{array<string, mixed>}>
+     */
+    public static function consumersWithReset(): iterable
+    {
+        yield 'durable:worker' => [['command' => 'durable:worker', '--limit' => '3', '--time-limit' => '10']];
+        yield 'messenger:consume' => [['command' => 'messenger:consume', 'receivers' => ['durable_workflows', 'durable_activities'], '--limit' => '3', '--time-limit' => '10']];
+    }
+
+    /** @param array<string, mixed> $input */
+    #[Test]
+    #[DataProvider('consumersWithReset')]
+    public function aResetOnAnInMemoryDurableTransportIsRefused(array $input): void
+    {
+        $kernel = self::bootKernel();
+        $application = new Application($kernel);
+        $application->setAutoExit(false);
+        $application->setCatchExceptions(true);
+        $tester = new ApplicationTester($application);
+
+        self::assertNotSame(0, $tester->run($input, ['capture_stderr_separately' => true]));
+        // The console wraps the message to its width, mid-word included: unwrap before reading.
+        $display = (string) preg_replace('/ *\n */', '', $tester->getErrorOutput());
+        self::assertStringContainsString('in-memory', $display);
+        self::assertStringContainsString('--no-reset', $display);
     }
 
     private function completedWith(EventStoreInterface $store, string $executionId): mixed

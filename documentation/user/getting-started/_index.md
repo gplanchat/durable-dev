@@ -310,7 +310,8 @@ and a worker there drains nothing: an in-memory transport only holds what its ow
 Messenger resets services after each message it handles, which empties the in-memory queue. The
 activity the workflow just queued is gone, and the run stays on `ActivityScheduled` for good. In
 that profile, drain the run inside the test that dispatched it (`DurableBundleTestTrait`, see
-[Testing workflows](../testing/)), or, in that same process, consume with `--no-reset`.
+[Testing workflows](../testing/)), or, in that same process, consume with `--no-reset`. Without it,
+both commands refuse to start on an in-memory Durable transport, and say which way out to take.
 
 To see what the engine holds for one run:
 

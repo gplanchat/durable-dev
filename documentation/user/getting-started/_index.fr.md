@@ -313,7 +313,8 @@ propre processus a envoyé, et Messenger réinitialise les services après chaqu
 vide la file en mémoire. L'activité que le workflow vient de mettre en file disparaît, et l'exécution
 reste pour de bon sur `ActivityScheduled`. Dans ce profil, drainez l'exécution dans le test qui l'a
 envoyée (`DurableBundleTestTrait`, voir [Tester des workflows](../testing/)), ou, dans ce même
-processus, consommez avec `--no-reset`.
+processus, consommez avec `--no-reset`. Sans lui, les deux commandes refusent de démarrer sur un
+transport Durable en mémoire, et disent par où sortir.
 
 Pour voir ce que le moteur retient d'une exécution :
 

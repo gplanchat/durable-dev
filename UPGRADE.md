@@ -24,6 +24,16 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### A worker refuses to reset an in-memory Durable transport
+
+**Who is affected**: anyone running `durable:worker` or `messenger:consume` on a Durable transport
+configured as `in-memory://` without `--no-reset`, which is the guide's `when@test` profile (#444).
+That combination used to hang: the worker resets services after each message, which empties an
+in-memory transport, so the activity a workflow queued was lost and the run stayed on
+`ActivityScheduled`. The worker now refuses to start and names the way out: add `--no-reset` in the
+process that dispatched, drain the run in the test (`DurableBundleTestTrait`), or use real
+transports. Real transports and non-Durable transports are not affected.
+
 ### Laravel and Symfony on Temporal: decorating an intermediate service no longer reaches the services built from it
 
 **Who is affected**: an application on the Temporal backend that decorates or replaces one of the
