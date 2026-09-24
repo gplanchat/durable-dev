@@ -1,4 +1,0 @@
-gplanchat_durable_plugin_admin_dashboard:
-    path: /admin/durable/dashboard
-    methods: [GET]
-    controller: Gplanchat\Durable\Plugin\Controller\AdminDashboardController::index

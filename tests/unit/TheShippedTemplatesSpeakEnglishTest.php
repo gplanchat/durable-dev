@@ -34,7 +34,7 @@ final class TheShippedTemplatesSpeakEnglishTest extends TestCase
     {
         $root = \dirname(__DIR__, 2);
 
-        foreach (['src/DurableBundle/Resources/views', 'src/DurablePlugin/Resources/views', 'src/DurableModule/view'] as $dir) {
+        foreach (['src/DurableBundle/Resources/views', 'src/DurablePlugin/templates', 'src/DurableModule/view'] as $dir) {
             $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root . '/' . $dir));
 
             /** @var \SplFileInfo $file */

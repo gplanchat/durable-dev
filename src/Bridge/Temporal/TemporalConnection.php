@@ -64,6 +64,9 @@ final class TemporalConnection
     /** Isolation boundary: executions, queues and search attributes live inside it. */
     public readonly WorkflowNamespace $namespace;
 
+    /** Wrapped so a dump of the connection (profiler, print_r, a stack trace) never shows it. */
+    private readonly ?\SensitiveParameterValue $apiKey;
+
     public function __construct(
         public readonly string $target,
         WorkflowNamespace|string $namespace,
@@ -78,6 +81,14 @@ final class TemporalConnection
         TaskQueue|string|null $nexusTaskQueue = null,
         /** One of the TRANSPORT_* constants: which client {@see WorkflowServiceClientFactory} builds. */
         public readonly string $transport = self::TRANSPORT_AUTO,
+        /** PEM file of the CA that signs the server certificate; null trusts the system store. */
+        public readonly ?string $tlsCa = null,
+        /** PEM files of the client certificate and its key, for mTLS: both or neither. */
+        public readonly ?string $tlsCert = null,
+        public readonly ?string $tlsKey = null,
+        /** Sent as a bearer token with every call (Temporal Cloud API keys). */
+        #[\SensitiveParameter]
+        ?string $apiKey = null,
     ) {
         if (!\in_array($transport, [self::TRANSPORT_AUTO, self::TRANSPORT_GRPC, self::TRANSPORT_GRPC_CURL, self::TRANSPORT_HTTP, self::TRANSPORT_GUZZLE], true)) {
             throw new \InvalidArgumentException(\sprintf('Unknown Temporal transport "%s", expected auto, grpc, grpc-curl, guzzle, or http.', $transport));
@@ -85,10 +96,41 @@ final class TemporalConnection
         // Queue names come from a DSN: a typo there creates a queue nobody polls, without the
         // slightest error on the server side. They are validated here, at wiring time.
         $this->namespace = WorkflowNamespace::from($namespace);
+        $this->apiKey = null === $apiKey ? null : new \SensitiveParameterValue($apiKey);
+        // Each of these would be ignored without TLS, or fail on the first call instead of here.
+        if (!$tls && (null !== $tlsCa || null !== $tlsCert || null !== $tlsKey || null !== $apiKey)) {
+            throw new \InvalidArgumentException('Temporal ca, cert, key and api_key need TLS: use temporal+tls:// or tls=1. An API key is never sent in clear text.');
+        }
+        if ((null === $tlsCert) !== (null === $tlsKey)) {
+            throw new \InvalidArgumentException('Temporal cert and key go together: a client certificate needs its private key.');
+        }
+        foreach (['ca' => $tlsCa, 'cert' => $tlsCert, 'key' => $tlsKey] as $name => $file) {
+            if (null !== $file && !(is_file($file) && is_readable($file))) {
+                throw new \InvalidArgumentException(\sprintf('Temporal %s file "%s" cannot be read.', $name, $file));
+            }
+        }
         $this->journalTaskQueue = TaskQueue::from($journalTaskQueue ?? self::DEFAULT_JOURNAL_TASK_QUEUE);
         $this->workflowTaskQueue = TaskQueue::from($workflowTaskQueue ?? self::DEFAULT_WORKFLOW_TASK_QUEUE);
         $this->activityTaskQueue = TaskQueue::from($activityTaskQueue ?? self::DEFAULT_ACTIVITY_TASK_QUEUE);
         $this->nexusTaskQueue = TaskQueue::from($nexusTaskQueue ?? $this->workflowTaskQueue);
+    }
+
+    /**
+     * The metadata every call carries: with an API key, the bearer token and the namespace header
+     * Temporal Cloud routes it by.
+     *
+     * @return array<string, list<string>>
+     */
+    public function metadata(): array
+    {
+        if (null === $this->apiKey) {
+            return [];
+        }
+
+        /** @var string $key */
+        $key = $this->apiKey->getValue();
+
+        return ['authorization' => ['Bearer ' . $key], 'temporal-namespace' => [$this->namespace->name()]];
     }
 
     public function journalWorkflowId(string $executionId): string
@@ -112,8 +154,10 @@ final class TemporalConnection
      *
      * Typical query parameters: {@code namespace}, {@code identity}, {@code task_queue} or
      * {@code journal_task_queue}, {@code workflow_type}, {@code workflow_task_queue},
-     * {@code activity_task_queue}, and {@code transport} to override the choice
-     * the scheme implies (auto, grpc, grpc-curl, http).
+     * {@code activity_task_queue}, {@code nexus_task_queue}, and {@code transport} to override
+     * the choice the scheme implies (auto, grpc, grpc-curl, guzzle, http). Over TLS, {@code ca},
+     * {@code cert} and {@code key} name PEM files, and {@code api_key} is sent as a bearer token.
+     * Any other key is refused.
      */
     public static function fromDsn(#[\SensitiveParameter] string $dsn): self
     {
@@ -128,6 +172,11 @@ final class TemporalConnection
         [$schemeTransport, $schemeTls] = self::SCHEMES[$scheme];
 
         parse_str($parts['query'] ?? '', $q);
+        foreach (array_keys($q) as $key) {
+            if (!\in_array($key, self::QUERY_KEYS, true)) {
+                throw new \InvalidArgumentException(\sprintf('Unknown Temporal DSN query key "%s", expected one of: %s.', $key, implode(', ', self::QUERY_KEYS)));
+            }
+        }
 
         $transport = \is_string($q['transport'] ?? null) ? $q['transport'] : $schemeTransport;
         // The JSON gateway listens on its own port; a DSN that names the transport but not the
@@ -163,7 +212,23 @@ final class TemporalConnection
             activityTaskQueue: $activityTaskQueue,
             nexusTaskQueue: $nexusTaskQueue,
             transport: $transport,
+            tlsCa: self::stringOrNull($q['ca'] ?? null),
+            tlsCert: self::stringOrNull($q['cert'] ?? null),
+            tlsKey: self::stringOrNull($q['key'] ?? null),
+            apiKey: self::stringOrNull($q['api_key'] ?? null),
         );
+    }
+
+    /** Every key {@see fromDsn} reads; any other is refused rather than ignored. */
+    private const QUERY_KEYS = [
+        'namespace', 'identity', 'task_queue', 'journal_task_queue', 'workflow_type',
+        'workflow_task_queue', 'activity_task_queue', 'nexus_task_queue', 'transport', 'tls',
+        'ca', 'cert', 'key', 'api_key',
+    ];
+
+    private static function stringOrNull(mixed $value): ?string
+    {
+        return \is_string($value) && '' !== $value ? $value : null;
     }
 
     /** scheme => [transport it implies, TLS it implies] */

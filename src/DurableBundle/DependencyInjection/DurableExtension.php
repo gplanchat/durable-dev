@@ -17,6 +17,8 @@ use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
 use Gplanchat\Bridge\Temporal\Http\Psr18Http;
+use Gplanchat\Bridge\Temporal\Messenger\DeliverWorkflowSignalToTemporalHandler;
+use Gplanchat\Bridge\Temporal\Messenger\DeliverWorkflowUpdateToTemporalHandler;
 use Gplanchat\Bridge\Temporal\Messenger\TemporalActivityWorkerTransport;
 use Gplanchat\Bridge\Temporal\Messenger\TemporalJournalTransport;
 use Gplanchat\Bridge\Temporal\Messenger\TemporalNexusWorkerTransport;
@@ -55,6 +57,8 @@ use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
+use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
+use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\ParentChildWorkflowCoordinator;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
@@ -74,9 +78,6 @@ use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
-// And not HttpKernel's, which is only a thin subclass of it — `@internal` since
-// Symfony 7.1, deprecated in 8.1 — and only adds the leftovers of the annotated class cache.
-// This one has existed since 6.4: the swap costs no supported version.
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
@@ -86,6 +87,9 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
+// And not HttpKernel's, which is only a thin subclass of it — `@internal` since
+// Symfony 7.1, deprecated in 8.1 — and only adds the leftovers of the annotated class cache.
+// This one has existed since 6.4: the swap costs no supported version.
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 
@@ -93,19 +97,14 @@ final class DurableExtension extends Extension
 {
     public function load(array $configs, ContainerBuilder $container): void
     {
-        $configuration = new Configuration();
-        $config = $this->processConfiguration($configuration, $configs);
+        $config = $this->processConfiguration($this->getConfiguration($configs, $container), $configs);
 
         $container->setParameter('durable.max_activity_retries', $config['max_activity_retries'] ?? 0);
 
         $asyncChildMessenger = (bool) ($config['child_workflow']['async_messenger'] ?? false);
         $container->setParameter('durable.child_workflow_async_messenger', $asyncChildMessenger);
 
-        // A synthetic container, an extension test for instance, does not have this parameter;
-        // that does not make it production, hence the default to debug.
-        $debug = !$container->hasParameter('kernel.debug') || (bool) $container->getParameter('kernel.debug');
-
-        if ($debug) {
+        if ($config['profiler']['enabled']) {
             $this->registerProfiler($container);
         } else {
             $this->registerNullObserver($container);
@@ -128,13 +127,23 @@ final class DurableExtension extends Extension
         $this->registerActivityContractResolver($container, $config);
         $this->registerEngine($container, $config);
         $this->registerActivityContractCacheWarmer($container, $config);
-        $this->registerWorkflowControlHandlers($container);
+        $this->registerWorkflowControlHandlers($container, $config);
         $this->registerWorkflowQueryRunner($container);
         $this->registerWorkflowBackend($container);
         $this->registerCommands($container, $config);
         $this->registerTemporalMirrorInfrastructure($container, $config);
         $this->registerDbalStores($container, $config);
         $this->registerInMemoryRunCatalog($container);
+    }
+
+    /**
+     * @param array<array-key, mixed> $config
+     */
+    public function getConfiguration(array $config, ContainerBuilder $container): Configuration
+    {
+        // A synthetic container, an extension test for instance, does not have this parameter;
+        // that does not make it production, hence the default to debug.
+        return new Configuration(!$container->hasParameter('kernel.debug') || (bool) $container->getParameter('kernel.debug'));
     }
 
     /**
@@ -155,10 +164,6 @@ final class DurableExtension extends Extension
 
         if (!$eventStoreDbal && !$metadataDbal && !$parentLinkDbal) {
             return;
-        }
-
-        if ($eventStoreDbal && self::isTemporalNative($config)) {
-            throw new \LogicException('durable: event_store.type "dbal" and temporal.dsn are mutually exclusive — the journal cannot have two sources of truth. An application that needs the cluster without handing it the journal — serving a Nexus operation, for instance — sets temporal.journal: false.');
         }
 
         $connection = new Reference($config['dbal']['connection']);
@@ -259,7 +264,7 @@ final class DurableExtension extends Extension
         if (!$container->hasDefinition('durable.workflow_metadata_store.inner')) {
             $container->setDefinition(
                 'durable.workflow_metadata_store.inner',
-                $container->getDefinition(WorkflowMetadataStore::class),
+                $container->getDefinition(WorkflowMetadataStore::class)->setPublic(false),
             );
             $container->removeDefinition(WorkflowMetadataStore::class);
         }
@@ -318,7 +323,8 @@ final class DurableExtension extends Extension
         // inside of the decorator, and the interface points at the decorator.
         $container->setDefinition(
             'durable.workflow_metadata_store.inner',
-            $container->getDefinition(WorkflowMetadataStore::class),
+            // Private: it is reached through the interface, which points at the decorator.
+            $container->getDefinition(WorkflowMetadataStore::class)->setPublic(false),
         );
         $container->removeDefinition(WorkflowMetadataStore::class);
 
@@ -466,7 +472,8 @@ final class DurableExtension extends Extension
                     new Reference('durable.temporal.connection'),
                     new Reference(WorkflowTaskRunner::class),
                 ])
-                ->setPublic(true)
+                // Private: the journal transport takes it by reference, nothing pulls it by id.
+                ->setPublic(false)
             ;
 
             $container->register('durable.event_store.temporal', TemporalReadThroughEventStore::class)
@@ -615,8 +622,28 @@ final class DurableExtension extends Extension
         ;
     }
 
-    private function registerWorkflowControlHandlers(ContainerBuilder $container): void
+    /**
+     * On Temporal native the cluster is the journal: signals and updates go to it, and Temporal
+     * fires the timers itself. The journal handlers would append to a local store nobody replays
+     * and ask for a resume nothing performs (#333).
+     *
+     * @param array<string, mixed> $config
+     */
+    private function registerWorkflowControlHandlers(ContainerBuilder $container, array $config): void
     {
+        if (self::isTemporalNative($config)) {
+            $container->register(DeliverWorkflowSignalToTemporalHandler::class)
+                ->setArguments([new Reference(WorkflowClientInterface::class)])
+                ->addTag('messenger.message_handler')
+            ;
+            $container->register(DeliverWorkflowUpdateToTemporalHandler::class)
+                ->setArguments([new Reference(WorkflowClientInterface::class)])
+                ->addTag('messenger.message_handler')
+            ;
+
+            return;
+        }
+
         $container->register(DeliverWorkflowSignalHandler::class)
             ->setArguments([
                 new Reference(EventStoreInterface::class),
@@ -650,6 +677,8 @@ final class DurableExtension extends Extension
 
     private function registerWorkflowQueryRunner(ContainerBuilder $container): void
     {
+        // Public on purpose: application code runs its queries through it, so it is part of the
+        // bundle's surface, not an internal the bundle could hide.
         $container->register(WorkflowQueryRunner::class)
             ->setArguments([new Reference(EventStoreInterface::class)])
             ->setPublic(true)
@@ -665,6 +694,7 @@ final class DurableExtension extends Extension
 
     private function registerWorkflowBackend(ContainerBuilder $container): void
     {
+        // Public on purpose: the entry point an application starts and drives workflows through.
         $container->register(WorkflowBackendInterface::class, LocalWorkflowBackend::class)
             ->setArguments([new Reference(\Gplanchat\Durable\ExecutionEngine::class)])
             ->setPublic(true)
@@ -756,6 +786,14 @@ final class DurableExtension extends Extension
      */
     private function registerCommands(ContainerBuilder $container, array $config): void
     {
+        // What the diagnose command and the profiler panel may show of a payload. An application
+        // replaces it by aliasing the interface to its own implementation.
+        $container->register('durable.payload_redactor', KeyPatternPayloadRedactor::class)->setPublic(false);
+        // The application's services.yaml is loaded before this extension: keep its alias.
+        if (!$container->hasAlias(PayloadRedactorInterface::class) && !$container->hasDefinition(PayloadRedactorInterface::class)) {
+            $container->setAlias(PayloadRedactorInterface::class, 'durable.payload_redactor');
+        }
+
         $isTemporalNative = self::isTemporalNative($config);
 
         if ($isTemporalNative) {
@@ -801,6 +839,9 @@ final class DurableExtension extends Extension
                 new Reference(EventStoreInterface::class),
                 new Reference(ChildWorkflowParentLinkStoreInterface::class),
                 new Reference('durable.temporal.connection', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                new Reference(PayloadRedactorInterface::class),
+                // On Temporal native the metadata store is per process: an empty row means nothing.
+                $isTemporalNative,
             ])
             ->addTag('console.command')
         ;
@@ -883,6 +924,7 @@ final class DurableExtension extends Extension
                 new Reference('durable.execution_trace'),
                 new Reference(WorkflowMetadataStore::class),
                 new Reference(EventStoreInterface::class),
+                new Reference(PayloadRedactorInterface::class),
             ])
             ->setPublic(true)
             ->addTag('data_collector', [

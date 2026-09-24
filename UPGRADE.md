@@ -24,6 +24,138 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### The run list says what a running run waits on: `waiting_on` on `durable_workflow_runs`
+
+**Who is affected**: applications on the DBAL or Illuminate backend whose `durable_workflow_runs`
+table was created before this version. Nothing breaks: without the column, workers run as before and
+the dashboard does not say what a run waits on. Add the column to get that. No data to backfill: the
+next suspension of each run writes it.
+
+- **Laravel**: `php artisan migrate`. The package ships a migration that adds the column when it is
+  missing.
+- **Symfony with Doctrine Migrations**: `bin/console doctrine:migrations:diff` generates the
+  `ADD waiting_on` statement. When the journal lives on another connection than the ORM, use the SQL
+  below.
+- **Anything else**, by hand:
+
+```sql
+ALTER TABLE durable_workflow_runs ADD waiting_on TEXT DEFAULT NULL;
+```
+
+Restart the workers after the change: they read the table's columns once per process.
+
+A projection of your own keeps compiling. To report waits, also implement
+`WorkflowRunWaitProjectionInterface::recordWait()` and fill `WorkflowRunDescription::$waitingOn`
+while the run is running.
+
+### Unused gRPC wrappers removed from the Temporal bridge
+
+**Who is affected**: code that called one of these on `gplanchat/durable-bridge-temporal` directly.
+Nothing in this repository, its demos or its documentation did (#372).
+
+| Removed | If you used it |
+|---|---|
+| `Grpc\WorkflowServiceActivityRpc::updateActivityOptions()`, `pauseActivity()`, `unpauseActivity()`, `resetActivity()` | call the same RPC on `WorkflowServiceClientInterface` |
+| `Grpc\WorkflowServiceActivityRpc::recordActivityTaskHeartbeatById()`, `respondActivityTaskCompletedById()`, `respondActivityTaskFailedById()`, `respondActivityTaskCanceledById()` | the task-token variants remain; or `WorkflowServiceClientInterface` |
+| `Grpc\WorkflowServiceActivityRpc::startActivityExecution()`, `describeActivityExecution()`, `pollActivityExecution()`, `listActivityExecutions()`, `requestCancelActivityExecution()`, `terminateActivityExecution()`, `deleteActivityExecution()` | call the same RPC on `WorkflowServiceClientInterface` |
+| `Grpc\WorkflowServiceExecutionRpc::pollWorkflowExecutionUpdate()` | `WorkflowServiceClientInterface::PollWorkflowExecutionUpdate()` |
+
+Each wrapper only added the default gRPC deadline (`TemporalGrpcTimeouts::SHORT_US`); pass it as
+the `timeout` call option when calling the client directly.
+
+### The run pages mask payload secrets too
+
+**Who is affected**: operators of the Sylius plugin's dashboard and of the Magento run page. Each
+event's details are now masked the way the profiler panel and `durable:execution:diagnose` mask them
+(#507, and the diagnose section of this file): values under keys such as `password`, `token` or
+`api_key` show as masked, long strings are truncated, and the redactor is the one the application
+registered for the profiler. Nothing to change in code. `RunTimeline::of()` takes an optional
+`PayloadRedactorInterface` as its second argument and `RunDashboard` as its third. On Magento,
+`Block\Adminhtml\ProcessDetail`'s constructor gains a `PayloadRedactorInterface $redactor` before
+`$data`: a subclass that overrides the constructor passes it on.
+
+### Unused helpers removed from the core
+
+**Who is affected**: code that called one of these. Nothing in this repository, its demos or its
+documentation did, and none has a replacement to migrate to: each one read state the engine keeps
+for itself.
+
+| Removed | If you used it |
+|---|---|
+| `Awaitable\ExecutionBoundAwaitable` (interface) | implement `Awaitable` directly |
+| `ExecutionContext::pendingTimers()`, `pendingActivities()` | nothing: they exposed the engine's own bookkeeping |
+| `Awaitable\QuorumAwaitable::required()` | keep the count you passed to `some()` |
+| `Transport\InMemoryActivityTransport::pendingCount()`, `inspectPendingActivities()` | `peek()` and `nextDueAt()` remain |
+| `Transport\ActivityMessage::withAttempt()` | `retryingIn($message->retryDelay)` for `withAttempt($message->attempt + 1)`; for any other number, `new ActivityMessage(…, attempt: $n, firstQueuedAt: $message->firstQueuedAt, retryDelay: $message->retryDelay)` (named arguments; all properties are public). |
+| `Failure\ActivityRetryState::isTerminalBusinessFailure()` | `\in_array($state, [ActivityRetryState::NonRetryableFailure, ActivityRetryState::MaximumAttemptsReached, ActivityRetryState::Timeout, ActivityRetryState::RetryPolicyNotSet], true)` |
+| `Query\WorkflowQueryRunner::signalsReceived()`, `updatesHandled()` and their `WorkflowQueryEvaluator` statics | read `WorkflowSignalReceived` / `WorkflowUpdateHandled` from the journal |
+
+### `durable.backend` replaces four keys; the configuration refuses what it used to build
+
+**Who is affected**: Symfony applications that set `event_store.type`, `workflow_metadata.type`,
+`child_workflow.parent_link_store.type` or `temporal.journal`. They keep working for this version:
+the backend is derived from them, and each one set reports a deprecation. Rector does not read
+YAML; the translation is by hand.
+
+| Before | After |
+|--------|-------|
+| nothing, or the three `type` keys at `in_memory` | `backend: in_memory`, or nothing |
+| the three `type` keys at `dbal` | `backend: dbal` |
+| `temporal.dsn` set (and `journal: true`) | `backend: temporal` with the same `temporal.dsn` |
+| `event_store.type: dbal`, `temporal.dsn` and `journal: false` | `backend: dbal` with the same `temporal.dsn` |
+
+Remove the four old keys once `backend` is set. Left in place, one that disagrees with `backend` is
+an error, not a silent override.
+
+Also refused from this version, when the container is built, with the configuration path in the
+message: a `temporal.dsn` that is not a non-empty string (`null` still means no cluster), a
+negative `max_activity_retries`, and an `activity_contracts.contracts` entry that is not an
+interface the autoloader finds. The last one used to surface as a `ReflectionException` in
+`cache:warmup`.
+
+The mutual exclusion of a DBAL journal and a Temporal journal is now an
+`InvalidConfigurationException` rather than a `LogicException`. Code that caught the latter around
+a container build catches the former.
+
+`activity_transport.table_name` is deprecated: nothing ever read it. Delete the line.
+
+`profiler.enabled` is new. It defaults to `%kernel.debug%`, which is what the bundle did before;
+set it to keep the profiler out of a debug worker, or in a non-debug staging build.
+
+### `durable:execution:diagnose` and the profiler panel mask payload secrets
+
+**Who is affected**: scripts that read secrets out of `durable:execution:diagnose --json`, and
+applications whose payloads carry values under keys matching
+`/password|secret|token|authorization|card|api[_-]?key/i`. Those values now print as `***`, and strings over
+1 KiB are truncated. Add `--raw` to get the payload as stored.
+
+To change what is masked, implement `Gplanchat\Durable\Observation\PayloadRedactorInterface` and
+alias the interface to your service; both surfaces use it.
+
+The profiler reads at most 20 ids from `?durable_execution=`, and drops an id that is not printable
+ASCII without spaces, quotes, ampersands or angle brackets.
+
+### The Sylius plugin follows the Sylius 2 layout; its route follows the admin prefix
+
+**Who is affected**: every Sylius shop that installs `gplanchat/durable-plugin`. The route import
+moved from `Resources/config/` to `config/`. It is YAML, so Rector cannot rewrite it; change the
+one line by hand:
+
+```yaml
+# config/routes/durable_plugin.yaml
+gplanchat_durable_plugin:
+    resource: '@DurablePlugin/config/routes.yaml'   # was '@DurablePlugin/Resources/config/routes.yaml'
+```
+
+Template names do not change (`@DurablePlugin/admin/dashboard/index.html.twig`): Symfony reads a
+bundle's `templates/` under the same namespace as its `Resources/views/`.
+
+The dashboard's path is now `/%sylius_admin.path_name%/durable/dashboard` instead of a hardcoded
+`/admin/durable/dashboard`. A shop that keeps the default admin prefix sees no change; one that
+sets `SYLIUS_ADMIN_ROUTING_PATH_NAME` now finds the page under its admin, behind its firewall.
+The menu entry names its route, so the Sylius menu marks it active on the page. The package type
+is `sylius-plugin`.
+
 ### The DBAL journal: `durable:setup`, no DDL inside a transaction, a new index on the run list
 
 **Who is affected**: Symfony applications on the DBAL backend, and Laravel applications on the
@@ -41,6 +173,14 @@ Illuminate one.
   On Laravel, `php artisan migrate` adds it.
 - **A `schema_filter` that rejects `durable_*` is honoured**: those tables are no longer declared to
   the Doctrine tooling, and the `CREATE TABLE` that came back in every diff is gone.
+
+### New: `WorkflowDispatchObserverInterface`, the core port for dispatch observation
+
+**Who is affected**: nobody has to change anything. `Gplanchat\Durable\Debug\WorkflowDispatchObserverInterface`
+declares `onWorkflowDispatchRequested()`, which `DurableExecutionTrace` already had.
+`TemporalWorkflowResumeDispatcher`'s fourth argument is now typed against it instead of
+`DurableExecutionTrace`, so the Temporal bridge no longer imports the Symfony bundle (#345). Passing
+a `DurableExecutionTrace` still works; a host without the bundle can now pass its own observer.
 
 ### `ResetDurableProfilerListener` is gone; the execution trace keeps its last 2 000 entries
 
@@ -158,6 +298,17 @@ replacement; `inner=` is no longer read, and `TemporalConnection::$innerMessenge
 2. Drop `inner=` from the DSN. The Messenger transport it pointed at, if you still need it, is
    declared directly in `framework.messenger.transports`.
 
+### An unknown key in the Temporal DSN is refused
+
+**Who is affected**: a Temporal DSN carrying a query key `TemporalConnection::fromDsn()` does not
+read: a typo (`namesapce=`), a key from another client (`ssl=`), or a leftover `inner=`. It used to
+be ignored, so `namesapce=orders` ran against the `default` namespace without a word. It now
+throws an `InvalidArgumentException` naming the key and the accepted ones. Rector cannot help: the
+value is a string in configuration.
+
+1. Read the message: it names the key.
+2. Fix the typo, or drop the key. For TLS, `temporal+tls://` or `tls=1`.
+
 ### Stubs refuse what PHP refuses
 
 **Who is affected**: any application that calls an activity, Nexus operation or child workflow
@@ -208,6 +359,28 @@ classes stay reachable by their id.
 Rector can do nothing: rewriting a `$container->get('durable.event_store.dbal')` into an injection
 requires knowing where the object is used, which no rule can guess. The table above is the
 procedure.
+
+### `WorkflowClientInterface::signal()` and `update()` take the call's id
+
+**Who is affected**: only whoever **implements** `WorkflowClientInterface`, typically a test
+double. Callers have nothing to change: the new parameters are optional.
+
+**What was broken.** On Temporal native, a `DeliverWorkflowSignalMessage` or
+`DeliverWorkflowUpdateMessage` sent through Messenger never reached the cluster (#333). Now it
+does, and a Messenger retry after a lost answer must not deliver it twice. The message draws its
+id once, when it is built; the client puts it on the wire as `request_id` or `update_id`, and the
+cluster drops the duplicate.
+
+Messages queued before the upgrade are delivered at-least-once: they carry no id, so each
+redelivery draws a new one. Drain the queue before deploying for exactly-once.
+
+**What to write.** Rector does it: `durable-upgrade.php` adds the two parameters to every
+implementation. By hand, they are:
+
+```php
+public function signal(string $workflowId, \BackedEnum|string $signalName, array $args = [], ?string $requestId = null): void;
+public function update(string $workflowId, string $updateName, array $args = [], ?string $updateId = null): mixed;
+```
 
 ### `WorkflowHistorySourceInterface` gains `cancellationDelivery()`
 
@@ -380,6 +553,10 @@ An application that wants to observe executions in production does not have to r
 profiler: it implements `WorkflowExecutionObserverInterface` and aliases the interface to its own
 service — what the profiler did, cheaper, and without accumulating a timeline for nobody's screen.
 
+That alias also wins in debug, and that is a trade: the profiler panel then shows the Messenger
+dispatches but no engine events (workflow runs, activities), and says nothing about why. Declare the
+alias outside `when@dev` to keep them in development (#337).
+
 ### A successful activity writes `ActivityCompleted` only, no `ActivityTaskCompleted` (#262)
 
 **Who is affected**: code that reads the journal and waits for `ActivityTaskCompleted` to learn
@@ -392,6 +569,31 @@ and it carries the same result. Failures do not change: one `ActivityTaskFailed`
 Journals recorded before keep both events. They replay and read as before: the class, its mapping
 and the dashboard reader's handling of it stay. No Rector rule or script: what changes is which
 event a listener receives at run time, not code Rector can rewrite.
+
+### Dead code leaves the Temporal bridge (#372)
+
+**Who is affected**: code that referenced one of these, none of which anything in Durable called:
+
+- `Gplanchat\Bridge\Temporal\TemporalJournalGrpcPoller`: poll with `WorkflowServiceClientInterface::PollWorkflowTaskQueue()`.
+- `Gplanchat\Bridge\Temporal\Journal\JournalWorkflowTaskProcessor`: `Worker\WorkflowTaskProcessor` runs workflow tasks.
+- `JournalExecutionIdResolver::durableExecutionIdFromHistory()`: take the `WorkflowExecutionStarted` attributes from the history and call `durableExecutionIdFromStartedAttributes()`.
+
+No Rector rule: there is no successor to rename to.
+
+`Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter` moves to
+`Gplanchat\Bridge\Temporal\Store\TemporalEventConverter`: the store and the command buffer use it,
+the profiler never did. The `durable-upgrade` Rector set renames it.
+
+`Gplanchat\Bridge\Temporal\Spike\NativeExecutionSpike` leaves the published package for the Symfony
+bench (`App\Temporal\NativeExecutionSpike`, with its `durable:temporal:native-spike` command). It
+was the DUR024 reference, not production code; `Worker\WorkflowTaskRunner` runs that path. Copy
+the class from the bench if you ran it; no Rector rule, since the class is no longer installed.
+
+### `DurableExecutionTrace::getTimelineForExecution()` is gone
+
+**Who is affected**: code that called it on the `durable.execution_trace` service. Nothing in
+Durable did. Filter `getTimeline()` by `executionId` instead:
+`array_values(array_filter($trace->getTimeline(), fn(array $e): bool => ($e['executionId'] ?? '') === $id))`.
 
 ## 0.1.0-alpha8
 

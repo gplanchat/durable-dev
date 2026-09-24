@@ -285,9 +285,6 @@ final class RunDashboardTest extends TestCase
         );
     }
 
-    /**
-     * @param list<WorkflowRunDescription> $runs
-     */
     public function testARunNobodyPickedUpSaysHowLongItHasWaitedForAWorker(): void
     {
         $dispatched = new \DateTimeImmutable('2026-09-24 10:00:00', new \DateTimeZone('UTC'));
@@ -306,6 +303,17 @@ final class RunDashboardTest extends TestCase
         self::assertSame(2, $view['waitingForWorkerOnThisPage'], 'counted over the page, like the outcome counters');
     }
 
+    public function testASuspendedRunSaysWhatItWaitsOn(): void
+    {
+        $view = $this->viewOver([
+            new WorkflowRunDescription('asleep', 'App\\OrderWorkflow', WorkflowRunStatus::Running, waitingOn: 'timer due at 2026-09-24T10:00:00+00:00'),
+            $this->describedRun('unknown', 'App\\OrderWorkflow', WorkflowRunStatus::Running),
+        ])->build();
+
+        self::assertSame('waiting on timer due at 2026-09-24T10:00:00+00:00', $view['runs'][0]['waitingOn']);
+        self::assertArrayNotHasKey('waitingOn', $view['runs'][1], 'a fact the backend does not keep is absent');
+    }
+
     public function testABackendThatCannotTellCountsNoRunAsWaitingForAWorker(): void
     {
         $view = $this->viewOver([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)])->build();
@@ -314,6 +322,9 @@ final class RunDashboardTest extends TestCase
         self::assertArrayNotHasKey('waitingForWorkerOnThisPage', $view);
     }
 
+    /**
+     * @param list<WorkflowRunDescription> $runs
+     */
     private function viewOver(array $runs): RunDashboard
     {
         return new RunDashboard(new FakeRunCatalog($runs));

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\DurableModule\Block\Adminhtml;
 
+use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\RunTimeline;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
@@ -39,6 +40,8 @@ class ProcessDetail extends Template
     public function __construct(
         Context $context,
         private readonly RuntimeFactory $runtimeFactory,
+        // di.xml prefers #488's key pattern; an application replaces it with a preference (#507).
+        private readonly PayloadRedactorInterface $redactor,
         array $data = [],
     ) {
         parent::__construct($context, $data);
@@ -84,6 +87,7 @@ class ProcessDetail extends Template
             $run = $this->getRun();
             $this->timeline = RunTimeline::of(
                 $run === null ? [] : $this->runtimeFactory->catalog()->readHistory($run),
+                $this->redactor,
             );
         }
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal\Http;
 
+use Symfony\Component\Messenger\Exception\TransportException;
+
 /**
  * The bytes of a unary gRPC exchange: length-prefixed frames on the way in and out, and the
  * status carried in the response trailers.
@@ -90,7 +92,7 @@ final class GrpcWire
      *
      * @return list<string>
      */
-    public static function metadataHeaders(array $metadata): array
+    public static function metadataHeaders(#[\SensitiveParameter] array $metadata): array
     {
         $headers = [];
         foreach ($metadata as $name => $values) {
@@ -104,9 +106,12 @@ final class GrpcWire
         return $headers;
     }
 
-    /** The same exception the ext-grpc path throws: the gRPC status code is the exception code. */
-    public static function failure(int $code, string $message): \RuntimeException
+    /**
+     * The exception every transport throws: the gRPC status code is its code, and it is
+     * Messenger's, so a worker loop sees a transport failure where it expects one.
+     */
+    public static function failure(int $code, string $message): TransportException
     {
-        return new \RuntimeException(\sprintf('Temporal gRPC error [%d]: %s', $code, $message), $code);
+        return new TransportException(\sprintf('Temporal gRPC error [%d]: %s', $code, $message), $code);
     }
 }

@@ -108,12 +108,12 @@ return [
 ```yaml
 # config/routes/gplanchat_durable_plugin.yaml
 gplanchat_durable_plugin:
-    resource: '@DurablePlugin/Resources/config/routes.yaml'
+    resource: '@DurablePlugin/config/routes.yaml'
 ```
 
 The dashboard route is:
 
-- `/admin/durable/dashboard`
+- `/<admin prefix>/durable/dashboard` (`/admin/…` by default, set by `SYLIUS_ADMIN_ROUTING_PATH_NAME`)
 
 ## Development notes
 

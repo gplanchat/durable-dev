@@ -37,7 +37,7 @@ final class FakeJob implements Job
     {
         return null;
     }
-    public function getJobId(): ?string
+    public function getJobId(): string
     {
         return 'fake';
     }

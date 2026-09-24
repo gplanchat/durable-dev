@@ -1,14 +1,14 @@
-// Variables SCSS de hugo-book. Le thème importe ce fichier depuis le projet en
-// priorité sur le sien, avant tout le reste : c'est le seul endroit d'où l'on
-// peut changer une largeur sans lutter contre la cascade.
+// hugo-book SCSS variables. The theme imports this file from the project in
+// preference to its own, before everything else: it is the only place from which
+// a width can be changed without fighting the cascade.
 //
-// Les valeurs viennent du design de la page de documentation. Le reste du thème
-// s'y adapte tout seul : `$mobile-breakpoint` est calculé à partir des trois.
+// The values come from the documentation page design. The rest of the theme
+// adapts on its own: `$mobile-breakpoint` is computed from these three.
 
-$menu-width: 13.75rem; // 220 px : la colonne de navigation du design
-$toc-width: 13.125rem; // 210 px : le sommaire, plus étroit que la navigation
+$menu-width: 13.75rem; // 220 px: the design's navigation column
+$toc-width: 13.125rem; // 210 px: the table of contents, narrower than the navigation
 $container-max-width: 83.75rem; // 1340 px
 
-// La mesure du corps de texte. Le thème n'en impose pas, et une ligne de doc
-// qui court sur 1340 px ne se lit pas.
+// The body text measure. The theme sets none, and a line of docs
+// running across 1340 px cannot be read.
 $book-measure: 46rem;

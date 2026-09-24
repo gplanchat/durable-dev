@@ -56,6 +56,13 @@ Magento grid, whose backends are the in-memory one, empty from the admin, and Te
 [Upgrading](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md) to add the column to a
 table created before it existed.
 
+A running run also says **what it waits on**, as of its last suspension:
+`waiting on timer "grace period" due at 2026-09-24T10:00:00+00:00`,
+`waiting on activity charge attempt 2 in flight`, or `waiting on condition at src/…/OrderWorkflow.php:42`.
+A signal wait is a condition: the line names where the condition is written, not the signal. The same
+backends tell it, on a runs table that has the `waiting_on` column; Temporal and the Magento grid do
+not.
+
 ### 3. Counters, over what you are looking at
 
 One per outcome, and they cover **the set the list is paging through**, never the application's
@@ -101,6 +108,14 @@ with, what it returned, the class and message of a failure. That content is the 
 vocabulary and is deliberately not normalised, because deciding which of a backend's facts deserve a common
 name is worth doing once operators have said what they look for, and is a fabrication before then.
 An event the backend recorded nothing with stays a plain line rather than an expander onto nothing.
+
+What unfolds is masked the way `durable:execution:diagnose` and the web profiler mask it: values under
+keys such as `password`, `token`, `secret`, `authorization`, `card` or `api_key` are replaced, and long
+strings truncated. Anyone with access to the admin can open a run, so this page has no raw view. The
+masking goes by key name, so personal data under other keys still shows. The run page masks with the
+same redactor as those two: on the Sylius plugin, the service an application aliases to
+`Gplanchat\Durable\Observation\PayloadRedactorInterface`; on Magento, a preference the application
+declares for that interface.
 
 ## A fact a backend does not have is shown as absent
 

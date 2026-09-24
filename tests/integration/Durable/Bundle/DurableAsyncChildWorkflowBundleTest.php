@@ -13,6 +13,8 @@ use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
+use Gplanchat\Durable\Store\EventStoreCommandBuffer;
+use Gplanchat\Durable\Store\EventStoreHistorySource;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
@@ -199,7 +201,14 @@ final class DurableAsyncChildWorkflowBundleTest extends KernelTestCase
             if (null === $peek) {
                 break;
             }
-            $ctx = new ExecutionContext($peek->executionId, $eventStore, $activityTransport, $childWorkflowRunner);
+            // Wired the way ExecutionEngine wires it: the context takes the ports, not the store.
+            $history = new EventStoreHistorySource($eventStore, $peek->executionId);
+            $ctx = new ExecutionContext(
+                $peek->executionId,
+                $history,
+                new EventStoreCommandBuffer($eventStore, $activityTransport, $peek->executionId, $runtime->nowSeconds(...), $history),
+                $childWorkflowRunner,
+            );
             $runtime->drainActivityQueueOnce($ctx);
         }
     }

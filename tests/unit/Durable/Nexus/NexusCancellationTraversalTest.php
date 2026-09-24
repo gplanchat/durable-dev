@@ -83,6 +83,7 @@ final class NexusCancellationTraversalTest extends TestCase
         return new ExecutionContext('nexus-1', $history, $buffer);
     }
 
+    /** @return \Gplanchat\Durable\Awaitable\Awaitable<mixed> */
     private function schedule(ExecutionContext $context): \Gplanchat\Durable\Awaitable\Awaitable
     {
         return $context->nexusOperation(

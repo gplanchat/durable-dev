@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\Profiler;
 
+use Gplanchat\Durable\Debug\WorkflowDispatchObserverInterface;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 
 /**
- * Process trace for one HTTP request: {@see \Gplanchat\Durable\Transport\WorkflowRunMessage} dispatches
+ * Process trace for one HTTP request: {@see \Gplanchat\Durable\Transport\ResumeWorkflowMessage} dispatches
  * (Messenger middleware), then {@see WorkflowExecutionObserverInterface} (engine runs, executed activities).
  *
  * The persistent history stays in the event store; this trace feeds the "this request" time band
  * (activity worker included) and completes the journal when everything runs in the same process.
  */
-final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
+final class DurableExecutionTrace implements WorkflowExecutionObserverInterface, WorkflowDispatchObserverInterface
 {
     /**
      * The trace keeps the last entries only. `kernel.reset` empties it between two Messenger
@@ -34,10 +35,11 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
     }
 
     /**
-     * Records a dispatch of {@see \Gplanchat\Durable\Transport\WorkflowRunMessage} on the bus (without executing the workflow in this process if the handler runs elsewhere).
+     * Records a dispatch of {@see \Gplanchat\Durable\Transport\ResumeWorkflowMessage} on the bus (without executing the workflow in this process if the handler runs elsewhere).
      *
      * @param array<string, mixed> $payload
      */
+    #[\Override]
     public function onWorkflowDispatchRequested(
         string $executionId,
         string $workflowType,
@@ -111,17 +113,6 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
     public function getTimeline(): array
     {
         return $this->timeline;
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    public function getTimelineForExecution(string $executionId): array
-    {
-        return array_values(array_filter(
-            $this->timeline,
-            static fn(array $e): bool => ($e['executionId'] ?? '') === $executionId,
-        ));
     }
 
     public function countDispatchEvents(): int

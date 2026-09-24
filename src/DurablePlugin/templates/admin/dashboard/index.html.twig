@@ -1,0 +1,12 @@
+{% extends '@SyliusAdmin/shared/layout/base.html.twig' %}
+
+{% block title %}{{ 'dashboard.title'|trans({}, 'durable') }} | {{ parent() }}{% endblock %}
+
+{#
+    Composed the way Sylius composes its own dashboard: sidebar, navbar, flashes and footer come
+    from `sylius_admin.common.index`; the content hookable, declared by DurablePluginExtension,
+    renders _dashboard.html.twig from the variables passed below.
+#}
+{% block body %}
+    {% hook ['sylius_admin.durable_dashboard.index', 'sylius_admin.common.index'] with _context %}
+{% endblock %}

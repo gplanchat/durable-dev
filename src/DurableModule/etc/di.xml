@@ -49,4 +49,17 @@
         </arguments>
     </type>
 
+    <!--
+        What the run page masks in each event's details (#507): #488's key pattern. An application
+        that masks more declares its own preference for the interface.
+    -->
+    <preference for="Gplanchat\Durable\Observation\PayloadRedactorInterface"
+                type="Gplanchat\Durable\Observation\KeyPatternPayloadRedactor"/>
+
+    <!--
+        An activity may inject the heartbeat sender (the activities page shows how). Nothing in the
+        module serves heartbeats, so the ObjectManager hands the no-op.
+    -->
+    <preference for="Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface"
+                type="Gplanchat\Durable\Activity\NullActivityHeartbeatSender"/>
 </config>

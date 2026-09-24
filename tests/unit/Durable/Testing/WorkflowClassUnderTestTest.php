@@ -111,6 +111,7 @@ interface GreetingActivities
 #[AsWorkflow(name: 'greeting')]
 final class GreetingWorkflow
 {
+    /** @var ActivityStub<GreetingActivities> */
     private ActivityStub $greetings;
 
     public function __construct(

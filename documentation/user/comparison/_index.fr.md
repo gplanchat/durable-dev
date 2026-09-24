@@ -222,7 +222,7 @@ qui a besoin d'exécution durable mais pas de la surface opérationnelle d'un d�
 c'est souvent la différence qui tranche, davantage que le moteur du worker.
 
 En changer est un changement de configuration, et le réglage dépend de l'hôte : sur Symfony,
-`durable.event_store.type` en prend trois sur quatre (`memory`, `dbal`, `temporal`), et Illuminate
+`durable.backend` en prend trois sur quatre (`in_memory`, `dbal`, `temporal`), et Illuminate
 est câblé par `gplanchat/durable-laravel` à travers son propre `config/durable.php`. Dans les deux
 cas, le code du workflow ne bouge pas. Voir [Backends](../backends/).
 

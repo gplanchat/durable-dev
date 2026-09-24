@@ -54,9 +54,9 @@ final class TaskQueueTest extends TestCase
      */
     public static function namesWithEdgeWhitespace(): iterable
     {
-        yield 'espace avant' => [' durable-activities'];
-        yield 'espace après' => ['durable-activities '];
-        yield 'saut de ligne après' => ["durable-activities\n"];
+        yield 'leading space' => [' durable-activities'];
+        yield 'trailing space' => ['durable-activities '];
+        yield 'trailing newline' => ["durable-activities\n"];
     }
 
     public function testAControlCharacterIsRejected(): void

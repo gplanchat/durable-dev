@@ -54,6 +54,16 @@ final class InMemoryWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
         $this->catalog->recordPickup($executionId);
     }
 
+    protected function canTellAWait(): bool
+    {
+        return true;
+    }
+
+    protected function recordWait(string $executionId, ?string $waitingOn): void
+    {
+        $this->catalog->recordWait($executionId, $waitingOn);
+    }
+
     protected function endRun(string $executionId, WorkflowRunStatus $outcome): void
     {
         $this->events->append(match ($outcome) {
