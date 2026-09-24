@@ -39,6 +39,7 @@ use Gplanchat\Durable\Laravel\Workflow\DeclaredWorkflowTypes;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
+use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\NullWorkflowTimerDispatcher;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
@@ -96,6 +97,10 @@ final class DurableServiceProvider extends ServiceProvider
                 '"' . implode('", "', self::BACKENDS) . '"',
             ));
         }
+
+        // An activity may inject it (the activities page shows how). Nothing here serves heartbeats,
+        // so it is the no-op, bound once so the activities and the workers share it.
+        $this->app->singleton(ActivityHeartbeatSenderInterface::class, NullActivityHeartbeatSender::class);
 
         match ($backend) {
             'illuminate' => $this->bindIlluminate($config),
@@ -311,10 +316,10 @@ final class DurableServiceProvider extends ServiceProvider
                     new NoopActivityTransport(),
                     $app->make(ActivityExecutor::class),
                     new NullWorkflowResumeDispatcher(),
-                    new NullActivityHeartbeatSender(),
+                    $app->make(ActivityHeartbeatSenderInterface::class),
                 ),
                 $scratch,
-                new NullActivityHeartbeatSender(),
+                $app->make(ActivityHeartbeatSenderInterface::class),
             );
         });
 
@@ -489,7 +494,7 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(ActivityExecutor::class),
             $app->make(WorkflowResumeDispatcher::class),
             // No heartbeat: that is a capability of Temporal, and nothing here serves it.
-            new NullActivityHeartbeatSender(),
+            $app->make(ActivityHeartbeatSenderInterface::class),
             // Unlimited attempts by default, Temporal semantics. Each activity's own policy wins
             // when it declares one.
             0,

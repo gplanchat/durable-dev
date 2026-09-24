@@ -9,7 +9,9 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
+use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
+use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
@@ -122,6 +124,19 @@ final class DurableServiceProviderTest extends TestCase
      *
      * @param class-string $decorator
      */
+    public function testAnActivityThatInjectsTheHeartbeatSenderIsBuiltByTheContainer(): void
+    {
+        // The activities page injects it through the constructor and says the code runs on every
+        // host. Laravel builds activities through its container, which needs the binding.
+        $app = $this->containerWithConnection(['backend' => 'memory']);
+        (new DurableServiceProvider($app))->register();
+
+        $activity = $app->make(HeartbeatingActivity::class);
+
+        self::assertInstanceOf(NullActivityHeartbeatSender::class, $activity->heartbeat);
+        self::assertSame($app->make(ActivityHeartbeatSenderInterface::class), $activity->heartbeat);
+    }
+
     private static function inner(object $store, string $decorator): object
     {
         self::assertInstanceOf($decorator, $store);
@@ -161,4 +176,10 @@ final class DurableServiceProviderTest extends TestCase
             }
         };
     }
+}
+
+/** The activities page's example, down to what the container has to supply. */
+final class HeartbeatingActivity
+{
+    public function __construct(public readonly ActivityHeartbeatSenderInterface $heartbeat) {}
 }
