@@ -1,40 +1,40 @@
 # Tasks
 
-## 1. Le garde descend au cœur
+## 1. The guard moves down to the core
 
-- [x] 1.1 `NexusFulfilmentParameterNames::assertMatch()` dans `src/Durable/Nexus/Serving/`. Le corps
-      est celui de `NexusHandlerPass::assertParameterNamesMatch()`, à un paramètre près : **qui
-      refuse** est passé par l'appelant. Le lecteur d'un message d'erreur cherche ce qu'il doit
-      corriger — une balise de service ou une clé de configuration —, pas la classe qui l'a levé.
-- [x] 1.2 La passe délègue et perd sa méthode privée. Son message est inchangé, et
-      `NexusHandlerPassTest` passe **sans être touché** : c'est le filet de l'extraction, pas une
-      formalité. 12 tests, 29 assertions, verts avant comme après.
+- [x] 1.1 `NexusFulfilmentParameterNames::assertMatch()` in `src/Durable/Nexus/Serving/`. The body
+      is that of `NexusHandlerPass::assertParameterNamesMatch()`, but for one parameter: **who
+      refuses** is passed by the caller. The reader of an error message looks for what they have to
+      fix — a service tag or a configuration key —, not the class that threw it.
+- [x] 1.2 The pass delegates and loses its private method. Its message is unchanged, and
+      `NexusHandlerPassTest` passes **untouched**: it is the extraction's safety net, not a
+      formality. 12 tests, 29 assertions, green before and after.
 
-## 2. Le second hôte servant en hérite
+## 2. The second serving host inherits it
 
-- [x] 2.1 **RED d'abord.** `NexusOnLaravelTest::testAWorkflowWhoseParameterNamesDoNotMatchTheContractIsRefused`
-      échoue avant la correction — *« Failed asserting that exception of type LogicException is
-      thrown »* —, ce qui est la démonstration que le trou existait. Trois cas au total : le
-      workflow qui couvre l'opération, celui dont `$ammount` diverge, et celui qui ajoute un
-      paramètre facultatif.
-      Les fixtures portent un contrat en **un seul morceau** dont le gestionnaire n'implémente
-      qu'une opération : `DeclaredNexusOperations` lit par `method_exists()`, pas par la hiérarchie,
-      et c'est ce chemin-là qu'il faut éprouver.
-- [x] 2.2 `DeclaredNexusOperations` appelle le garde là où il enregistre un remplissement — donc à
-      l'enregistrement, au démarrage de l'application, et pas à la première tâche Nexus, quand un
-      appelant attend déjà une réponse.
-- [x] 2.3 Vert : la suite `laravel` ne porte plus que les quatre erreurs d'environnement du poste
-      (`illuminate/cache` n'est pas installé à la racine, la CI l'installe par sa matrice), et la
-      suite `unit` complète passe — 1 070 tests, 2 704 assertions, zéro échec.
+- [x] 2.1 **RED first.** `NexusOnLaravelTest::testAWorkflowWhoseParameterNamesDoNotMatchTheContractIsRefused`
+      fails before the fix — *"Failed asserting that exception of type LogicException is
+      thrown"* —, which demonstrates that the hole existed. Three cases in total: the
+      workflow that covers the operation, the one whose `$ammount` diverges, and the one that adds an
+      optional parameter.
+      The fixtures carry a contract in **a single piece** whose handler implements only
+      one operation: `DeclaredNexusOperations` reads through `method_exists()`, not the hierarchy,
+      and that is the path that must be exercised.
+- [x] 2.2 `DeclaredNexusOperations` calls the guard where it registers a fulfilment — so at
+      registration, when the application boots, and not at the first Nexus task, when a
+      caller is already waiting for an answer.
+- [x] 2.3 Green: the `laravel` suite now carries only the four environment errors of the workstation
+      (`illuminate/cache` is not installed at the root, CI installs it through its matrix), and the
+      full `unit` suite passes — 1,070 tests, 2,704 assertions, zero failures.
 
-## 3. Le dire
+## 3. Saying it
 
-- [x] 3.1 `UPGRADE.md` : la rupture, et pourquoi Rector ne peut rien pour elle — le bon nom est celui
-      du contrat, et seul l'auteur sait de quel côté est la faute de frappe. Avec la phrase qui
-      compte pour un exploitant : **aucune application dont les opérations Nexus fonctionnent n'est
-      concernée**, le refus ne frappe que ce qui rendait déjà `null` en silence.
-- [x] 3.2 Les **sept** endroits qui annonçaient l'absence du contrôle sont repris : le contrat
-      `livraison`, le workflow `ExpedierWorkflow`, les README du banc Laravel et du paquet, le
-      `demo/README.md`, et les deux langues de la page Nexus. Le §0.3 de
-      `change/demo-nexus-laravel` garde sa phrase — elle était vraie quand elle a été écrite — et
-      pointe désormais ce change.
+- [x] 3.1 `UPGRADE.md`: the break, and why Rector can do nothing for it — the right name is the
+      contract's, and only the author knows on which side the typo is. With the sentence that
+      matters to an operator: **no application whose Nexus operations work is
+      affected**, the refusal only hits what was already silently returning `null`.
+- [x] 3.2 The **seven** places that announced the missing check are revised: the
+      `livraison` contract, the `ExpedierWorkflow` workflow, the READMEs of the Laravel bench and of the
+      package, `demo/README.md`, and both languages of the Nexus page. §0.3 of
+      `change/demo-nexus-laravel` keeps its sentence — it was true when it was written — and
+      now points to this change.

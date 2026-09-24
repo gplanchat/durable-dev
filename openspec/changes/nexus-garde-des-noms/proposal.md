@@ -1,40 +1,40 @@
 ## Why
 
-Le mode d'échec le plus silencieux de Nexus est un nom de paramètre. La charge est clée **par nom**
-aux deux bouts — `NexusStub::argumentsToPayload()` l'écrit depuis la signature du contrat,
-`WorkflowDefinitionLoader::mapInputToArguments()` la relit dans le workflow qui remplit l'opération.
-Un paramètre renommé d'un seul côté ne casse rien à l'écriture, ne lève rien à l'exécution, et
-arrive à `null` : le workflow démarre, s'exécute, et rend un résultat calculé sur du vide.
+Nexus's quietest failure mode is a parameter name. The payload is keyed **by name** at both
+ends — `NexusStub::argumentsToPayload()` writes it from the contract's signature,
+`WorkflowDefinitionLoader::mapInputToArguments()` reads it back in the workflow that fulfils the
+operation. A parameter renamed on one side only breaks nothing on write, throws nothing at run time,
+and arrives as `null`: the workflow starts, runs, and returns a result computed on nothing.
 
-Le refus existe. Il est dans `NexusHandlerPass`, **en privé**, donc il n'existe que pour les
-applications Symfony. `change/demo-nexus-laravel` vient de mettre un second hôte servant en
-production de démonstration — `gplanchat/durable-laravel`, qui déclare ses gestionnaires dans
-`config/durable.php` — et a dû écrire l'avertissement à cinq endroits pour dire que là, personne ne
-vérifiait. Cinq avertissements sont ce qu'on écrit quand on ne peut pas encore corriger.
+The refusal exists. It lives in `NexusHandlerPass`, **as a private method**, so it only exists for
+Symfony applications. `change/demo-nexus-laravel` just put a second serving host into demo
+production — `gplanchat/durable-laravel`, which declares its handlers in
+`config/durable.php` — and had to write the warning in five places to say that there, nobody
+checked. Five warnings are what you write when you cannot fix it yet.
 
 ## What Changes
 
-Le contrôle descend au cœur, en une classe :
-`Gplanchat\Durable\Nexus\Serving\NexusFulfilmentParameterNames`. Deux réflexions et une lecture de
-`#[AsWorkflowMethod]` — rien de tout cela n'appartenait à un framework.
+The check moves down to the core, in one class:
+`Gplanchat\Durable\Nexus\Serving\NexusFulfilmentParameterNames`. Two reflections and a read of
+`#[AsWorkflowMethod]` — none of it belonged to a framework.
 
-- `NexusHandlerPass` l'appelle et perd sa copie privée. Son message ne change pas, et ses tests non
-  plus : c'est le filet de la migration.
-- `DeclaredNexusOperations` l'appelle au moment où il enregistre un remplissement, donc **à
-  l'enregistrement** et non à la première tâche.
-- Le préfixe du message est fourni par l'hôte — `durable.nexus_handler` pour la balise Symfony,
-  `durable.nexus.handlers` pour la clé Laravel : le lecteur doit trouver ce qu'il doit corriger, pas
-  la classe qui refuse.
+- `NexusHandlerPass` calls it and loses its private copy. Its message does not change, and neither
+  do its tests: they are the migration's safety net.
+- `DeclaredNexusOperations` calls it when it registers a fulfilment, so **at registration** and
+  not at the first task.
+- The message prefix is supplied by the host — `durable.nexus_handler` for the Symfony tag,
+  `durable.nexus.handlers` for the Laravel key: the reader must find what they have to fix, not
+  the class that refuses.
 
-Un paramètre **facultatif** passe, ici comme là-bas : donner une valeur par défaut à un paramètre que
-le contrat ne porte pas est une décision, l'absence de défaut est une attente déçue.
+An **optional** parameter passes, here as there: giving a default value to a parameter the
+contract does not carry is a decision; a missing default is a disappointed expectation.
 
 ## Impact
 
-- `src/Durable/` : une classe de plus, sans dépendance.
-- `src/DurableBundle/` : un appel remplace une méthode privée. Aucun changement de comportement.
-- `src/DurableLaravel/` : **un refus qui n'existait pas**. Documenté dans `UPGRADE.md` — aucune
-  application dont les opérations Nexus fonctionnent n'est concernée, puisque le refus ne frappe que
-  des configurations qui rendaient déjà `null` en silence.
-- Les cinq avertissements de `change/demo-nexus-laravel` qui annonçaient l'absence du contrôle sont
-  remplacés par ce qu'ils décrivent maintenant.
+- `src/Durable/`: one more class, with no dependency.
+- `src/DurableBundle/`: a call replaces a private method. No behaviour change.
+- `src/DurableLaravel/`: **a refusal that did not exist**. Documented in `UPGRADE.md` — no
+  application whose Nexus operations work is affected, since the refusal only hits
+  configurations that were already silently returning `null`.
+- The five warnings from `change/demo-nexus-laravel` that announced the missing check are
+  replaced by what they now describe.
