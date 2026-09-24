@@ -248,11 +248,25 @@ public function run(
   attribute is an error (`durable.activities.contractMismatch`), and so is a missing one
   (`durable.activities.missingGeneric`, which a project can ignore), since PHPStan cannot check
   the calls without it.
-- A stub that needs **`ActivityOptions`** keeps `$env->activityStub($contract, $options)`: attribute
-  arguments cannot build a `Duration`.
+- The attribute also takes the stub's **options**, as scalars — an attribute argument cannot call
+  `Duration::seconds()`, so durations are given in seconds:
+
+  ```php
+  #[Activities(OrderActivities::class, attempts: 3, startToClose: 120.0, heartbeat: 10.0,
+      nonRetryable: [CardDeclined::class], taskQueue: 'payments')]
+  ActivityStub $activities,
+  ```
+
+  Available: `attempts`, `startToClose`, `scheduleToClose`, `scheduleToStart`, `heartbeat`,
+  `initialInterval`, `backoffCoefficient`, `maximumInterval`, `nonRetryable`, `taskQueue`,
+  `cancellationType`, `summary`. Each one left out keeps its `ActivityOptions` default; with none,
+  the stub is exactly what it was before. On Temporal, a stub with no `startToClose` or
+  `scheduleToClose` gets a 30-second bound per attempt.
 - Mistakes fail when the workflow is **registered** (container compilation, with the bundle): an
   `ActivityStub` without `#[Activities]`, `#[Activities]` on another type, a contract that does not
-  exist, or one that declares no `#[AsActivityMethod]`.
+  exist, one that declares no `#[AsActivityMethod]`, or an impossible option — zero attempts, a
+  negative duration, a heartbeat longer than `startToClose`, a non-retryable entry that is no
+  exception. The message names the parameter and the option.
 
 The constructor form keeps working. It is the one to use when the class implements a contract
 interface such as `OrderWorkflowContract` above: PHP does not let the implementation add required
@@ -326,7 +340,7 @@ everything a workflow can do, and nothing the engine keeps for itself.
 | `some($count, ...$awaitables)` | Settles when `$count` members have **succeeded**, indexed by declaration position. The rest are cancelled. |
 | `timer($duration, $summary = '')` | An awaitable that settles when the duration elapses. Composes like any other. |
 | `sleep($duration, $summary = '')` | Waits, and awaits for you. Says what it does. |
-| `activityStub($contract, $options = null)` | A typed proxy over an activity contract. Build it in the constructor, or declare it as an [`#[Activities]` argument](#arguments-durable-supplies) when it needs no options; every call it makes carries `$options`. |
+| `activityStub($contract, $options = null)` | A typed proxy over an activity contract. Build it in the constructor, or declare it as an [`#[Activities]` argument](#arguments-durable-supplies), options included; every call it makes carries `$options`. |
 | `childWorkflowStub($class, $options = null)` | The same, for a child workflow: resolved from the child's class, and its calls compose like any other. |
 | `onSignal($name, $handler)` | Registers a signal handler. The handler mutates workflow state and `await()` observes it; there is no separate wait. The name takes a backed enum, so a typo is a type error rather than a wait that never settles. |
 | `onUpdate($name, $handler)` | The same for an update, whose handler's return value is the caller's response. |

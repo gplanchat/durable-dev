@@ -254,11 +254,25 @@ public function run(
   l'attribut est une erreur (`durable.activities.contractMismatch`), et son absence aussi
   (`durable.activities.missingGeneric`, que l'on peut ignorer), puisque PHPStan ne peut pas
   vérifier les appels sans lui.
-- Un stub qui a besoin d'**`ActivityOptions`** garde `$env->activityStub($contrat, $options)` : les
-  arguments d'un attribut ne savent pas construire une `Duration`.
+- L'attribut prend aussi les **options** du stub, en scalaires : un argument d'attribut ne peut pas
+  appeler `Duration::seconds()`, les durées s'écrivent donc en secondes :
+
+  ```php
+  #[Activities(OrderActivities::class, attempts: 3, startToClose: 120.0, heartbeat: 10.0,
+      nonRetryable: [CardDeclined::class], taskQueue: 'payments')]
+  ActivityStub $activities,
+  ```
+
+  Disponibles : `attempts`, `startToClose`, `scheduleToClose`, `scheduleToStart`, `heartbeat`,
+  `initialInterval`, `backoffCoefficient`, `maximumInterval`, `nonRetryable`, `taskQueue`,
+  `cancellationType`, `summary`. Chaque option omise garde sa valeur par défaut
+  d'`ActivityOptions` ; sans aucune, le stub est exactement celui d'avant. Sous Temporal, un stub
+  sans `startToClose` ni `scheduleToClose` reçoit une borne de 30 secondes par tentative.
 - Les erreurs surviennent dès l'**enregistrement** du workflow (compilation du conteneur, avec le
   bundle) : un `ActivityStub` sans `#[Activities]`, un `#[Activities]` sur un autre type, un
-  contrat introuvable, ou un contrat qui ne déclare aucun `#[AsActivityMethod]`.
+  contrat introuvable, un contrat qui ne déclare aucun `#[AsActivityMethod]`, ou une option
+  impossible — zéro tentative, une durée négative, un heartbeat plus long que `startToClose`, une
+  entrée non rejouable qui n'est pas une exception. Le message nomme le paramètre et l'option.
 
 La forme par constructeur reste valable. C'est celle qu'il faut quand la classe implémente une
 interface de contrat comme `OrderWorkflowContract` plus haut : PHP n'autorise pas l'implémentation à
@@ -332,7 +346,7 @@ ce qu'un workflow peut faire, et rien de ce que le moteur garde pour lui.
 | `some($count, ...$awaitables)` | Se résout quand `$count` membres ont **réussi**, indexés par position de déclaration. Les autres sont annulés. |
 | `timer($duration, $summary = '')` | Un awaitable qui se résout à l'échéance de la durée. Se compose comme n'importe quel autre. |
 | `sleep($duration, $summary = '')` | Attend, et fait l'attente pour vous. Dit ce qu'il fait. |
-| `activityStub($contract, $options = null)` | Un proxy typé sur un contrat d'activité. Construisez-le dans le constructeur, ou déclarez-le en [argument `#[Activities]`](#arguments-durable-supplies) s'il n'a pas besoin d'options ; tous ses appels portent `$options`. |
+| `activityStub($contract, $options = null)` | Un proxy typé sur un contrat d'activité. Construisez-le dans le constructeur, ou déclarez-le en [argument `#[Activities]`](#arguments-durable-supplies), options comprises ; tous ses appels portent `$options`. |
 | `childWorkflowStub($class, $options = null)` | Le même, pour un workflow enfant : résolu depuis la classe de l'enfant, et ses appels se composent comme les autres. |
 | `onSignal($name, $handler)` | Enregistre un gestionnaire de signal. Le gestionnaire mute l'état du workflow et `await()` l'observe ; il n'y a pas d'attente séparée. Le nom prend une énumération adossée, donc une faute de frappe est une erreur de type et non une attente qui ne se résout jamais. |
 | `onUpdate($name, $handler)` | Le même pour une mise à jour, dont la valeur de retour du gestionnaire est la réponse rendue à l'appelant. |
