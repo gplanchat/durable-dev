@@ -18,7 +18,7 @@ whether to compensate, alert, or let the workflow die. Compensating is shown in
 | `ActivityScheduled` | the workflow asked for it |
 | `ActivityTaskStarted` | one attempt began, one row per attempt |
 | `ActivityTaskFailed` | **one attempt failed**, whether or not another follows |
-| `ActivityTaskCompleted` | one attempt succeeded |
+| `ActivityTaskCompleted` | journals recorded before #262 only: a success now writes `ActivityCompleted` alone |
 | `ActivityCompleted` | final outcome: success |
 | `ActivityFailed` | final outcome: failure |
 | `ActivityCancelled` | final outcome: removed before completing |
