@@ -193,8 +193,8 @@ SQL database** through Doctrine DBAL. There is no orchestration server, no sidec
 - Timers ride Messenger `DelayStamp` through `FireWorkflowTimersHandler`.
 - Tables are created on **first write**: no migration to run, no `doctrine/migrations` dependency.
   `bin/console durable:setup` creates them up front; run it when `dbal.auto_setup` is `false`, or
-  when the first write happens inside a transaction, where auto-creation refuses (MySQL would
-  commit that transaction on the `CREATE TABLE`).
+  when the first write happens inside a transaction, where auto-creation refuses on every platform
+  (MySQL would commit that transaction on the `CREATE TABLE`).
 
 ### Configuration
 

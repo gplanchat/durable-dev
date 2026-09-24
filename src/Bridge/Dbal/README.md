@@ -88,8 +88,9 @@ Tables are created on first write; there is no migration to run and no `doctrine
 dependency. `bin/console durable:setup` creates them up front, on the configured connection.
 
 The first write refuses to create them inside an open transaction (Messenger's
-`doctrine_transaction` middleware, for one): MySQL would commit that transaction implicitly on the
-`CREATE TABLE`, and the caller's own commit would then fail with "There is no active transaction".
+`doctrine_transaction` middleware, for one), on every platform: MySQL would commit that transaction
+implicitly on the `CREATE TABLE`, and the caller's own commit would then fail with "There is no
+active transaction".
 The error names `durable:setup`; run it once, or let migrations create the tables.
 
 **With Doctrine ORM installed, they are also declared to its tooling.** The bundle registers a

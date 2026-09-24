@@ -20,7 +20,7 @@ final class Configuration implements ConfigurationInterface
             ->info('DBAL backend: durable execution on a single SQL database, with no orchestration cluster (DUR030).')
             ->children()
             ->scalarNode('connection')->defaultValue('doctrine.dbal.default_connection')->info('Service id of the Doctrine\\DBAL\\Connection to use')->end()
-            ->booleanNode('auto_setup')->defaultTrue()->info('Create the missing tables on the first write. Set it to false as soon as doctrine/migrations holds the schema: otherwise the two mechanisms write one behind the other.')->end()
+            ->booleanNode('auto_setup')->defaultTrue()->info('Create the missing tables on the first write, never inside an open transaction. Set it to false as soon as doctrine/migrations holds the schema: otherwise the two mechanisms write one behind the other. bin/console durable:setup creates them either way.')->end()
             ->scalarNode('lock_factory')->defaultValue('lock.factory')->info('Service id of the Symfony\\Component\\Lock\\LockFactory that serialises the resumes of one execution')->end()
             ->floatNode('lock_ttl')->defaultValue(300.0)->min(1.0)->info('Seconds a resume lock outlives a worker that died holding it. It must exceed the longest resume pass, or a second worker replays the same execution in parallel.')->end()
             ->end()

@@ -59,14 +59,13 @@ final class DurableSchema
         }
 
         $this->create(refuseInsideTransaction: true);
-        // Only once it held: a refusal, or a caller's rollback of the DDL, leaves the next write
-        // to try again.
+        // Only once it held: after a refusal, the next write tries again.
         $this->ensured = true;
     }
 
     /**
      * Creates the missing tables whatever `auto_setup` says: `durable:setup` is how they get
-     * created when it is off.
+     * created when it is off. Call it outside any transaction: on MySQL the DDL commits it.
      */
     public function setup(): void
     {

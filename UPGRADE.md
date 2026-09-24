@@ -26,13 +26,15 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ### The DBAL journal: `durable:setup`, no DDL inside a transaction, a new index on the run list
 
-**Who is affected**: Symfony applications on the DBAL backend.
+**Who is affected**: Symfony applications on the DBAL backend, and Laravel applications on the
+Illuminate one.
 
 - **A first write inside an open transaction no longer creates the tables.** On MySQL the
   `CREATE TABLE` committed that transaction implicitly, and the caller's commit then failed with
   "There is no active transaction"; every platform now refuses with `DurableSchemaMissing`, which
-  names the fix. Run `bin/console durable:setup` once per database (a deploy step, next to
-  `messenger:setup-transports`), or let migrations create the tables.
+  names the fix. On Symfony, run `bin/console durable:setup` once per database (a deploy step,
+  next to `messenger:setup-transports`), or let migrations create the tables. On Laravel, run
+  `php artisan migrate`.
 - **`durable_workflow_runs` gains an index on `(status, started_at)`.** `auto_setup` never alters an
   existing table. With Doctrine Migrations, `doctrine:migrations:diff` generates it; otherwise run
   `CREATE INDEX durable_workflow_runs_status_started_idx ON durable_workflow_runs (status, started_at);`.

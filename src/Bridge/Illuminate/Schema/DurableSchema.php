@@ -71,9 +71,20 @@ final class DurableSchema
         if ($this->ensured) {
             return;
         }
-        $this->ensured = true;
 
         $builder = $this->connection->getSchemaBuilder();
+        $tables = [$this->eventsTable, $this->metadataTable, $this->runsTable, $this->parentLinkTable];
+        $missing = array_values(array_filter($tables, static fn(string $table): bool => !$builder->hasTable($table)));
+        if ([] === $missing) {
+            $this->ensured = true;
+
+            return;
+        }
+        // MySQL commits an open transaction on DDL, and Laravel's own commit then fails. Refused on
+        // every platform, as the DBAL bridge and Messenger's Doctrine transport do.
+        if ($this->connection->transactionLevel() > 0) {
+            throw DurableSchemaMissing::insideTransaction($missing);
+        }
 
         if (!$builder->hasTable($this->eventsTable)) {
             $builder->create($this->eventsTable, function (Blueprint $table): void {
@@ -115,5 +126,7 @@ final class DurableSchema
                 $table->string('parent_execution_id', 128)->index();
             });
         }
+
+        $this->ensured = true;
     }
 }
