@@ -264,7 +264,7 @@
 
                 {% if collector.runSnapshots|length > 0 %}
                     <h4>Snapshots at dispatch</h4>
-                    <p class="help">The state of the metadata at the moment a <code>WorkflowRunMessage</code> was observed.</p>
+                    <p class="help">The state of the metadata at the moment a <code>ResumeWorkflowMessage</code> was observed.</p>
                     <table>
                         <thead>
                             <tr>
@@ -404,7 +404,7 @@
                                         <p class="help">What this process was observed doing: the Messenger dispatch, the engine turns (start / resume), the activities run here (an activity worker included). The detailed history stays the journal above.</p>
                                         <div class="durable-timeframe-wrap">
                                             <div class="durable-timeframe-legend">
-                                                <span><span class="durable-timeframe-swatch" style="background:#4a90d9"></span> Messenger (WorkflowRunMessage)</span>
+                                                <span><span class="durable-timeframe-swatch" style="background:#4a90d9"></span> Messenger (ResumeWorkflowMessage)</span>
                                                 <span><span class="durable-timeframe-swatch" style="background:#9b59b6"></span> Workflow run (engine)</span>
                                                 <span><span class="durable-timeframe-swatch" style="background:#27ae60"></span> Activity</span>
                                             </div>
