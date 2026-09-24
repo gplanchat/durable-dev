@@ -8,6 +8,7 @@ use Gplanchat\Durable\Observation\RunTimeline;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunEventKind;
+use Gplanchat\Durable\Observation\WorkflowRunEventPhase;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use PHPUnit\Framework\TestCase;
 
@@ -50,6 +51,16 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
         // And the signal, which is its own action all by itself, names itself rather than leaving
         // a hole in the column.
         self::assertSame(1, substr_count($page, '<td>orderApproved</td>'));
+    }
+
+    public function testEveryJournalRowSaysWhatHappenedToItsAction(): void
+    {
+        // Without the phase, the scheduling and the start of `charge` read alike (#261).
+        $page = $this->renderDetail();
+
+        self::assertStringContainsString('<td>requested</td>', $page);
+        self::assertStringContainsString('<td>started</td>', $page);
+        self::assertStringContainsString('<th>Phase</th>', $page);
     }
 
     public function testAnEventWithNothingRecordedHasNoExpander(): void
@@ -112,6 +123,7 @@ final class DetailBlockDouble
                 'charge',
                 ['orderId' => 'ORD-7'],
                 'activity:act-1',
+                phase: WorkflowRunEventPhase::Requested,
             ),
             // Picked up ten seconds later: the first ten seconds are a queue.
             new WorkflowRunEvent(
@@ -122,6 +134,7 @@ final class DetailBlockDouble
                 [],
                 'activity:act-1',
                 started: true,
+                phase: WorkflowRunEventPhase::Started,
             ),
             new WorkflowRunEvent(
                 3,
