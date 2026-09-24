@@ -36,7 +36,7 @@ The rule is unenforceable while the canvas lives outside the repository. Making 
    **Done.** `hugo-docs/variant-b-narrative.dc.html` and `…-fr.dc.html`, exported from the
    *Durable landing design* project by `designer handoff`, which is the only export that returns the
    canvas source rather than the served page — `designer fetch` returns the latter, and
-   `import-design.py` refuses it with *racine introuvable*.
+   `import-design.py` refuses it with *root not found*.
 
    **And committing them measured the drift for the first time.** Regenerating both pages from the
    canvas as it stands today would delete, from each language:
