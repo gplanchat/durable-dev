@@ -11,4 +11,4 @@
   touches `src/DurableBundle/DependencyInjection/Compiler/`, shared with #334: coordinated with
   alice before that slice.
 - **Not in scope**: the TLS Temporal in the integration job needs `.github/workflows/`, a human edit.
-- **State**: slice A pushed on `fix/grpc-transport-honesty` (review OK, sabrina), slice B pushed on `fix/temporal-dsn-strict`; both PRs held: epic #307 is at its WIP limit (#495, #498). Slice C waits for #485. UpdateWorkflowExecution joins the retry allowlist once #333 lands — arwen.
+- **State**: slice A in review, PR #512 (sabrina OK). Slice B pushed on `fix/temporal-dsn-strict` (sabrina and dave OK), PR held for the next #307 slot. Slice C waits for #485 — arwen.
