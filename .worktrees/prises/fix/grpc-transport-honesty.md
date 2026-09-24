@@ -11,4 +11,4 @@
   touches `src/DurableBundle/DependencyInjection/Compiler/`, shared with #334: coordinated with
   alice before that slice.
 - **Not in scope**: the TLS Temporal in the integration job needs `.github/workflows/`, a human edit.
-- **State**: slice A in review, PR #512 (sabrina OK). Slice B pushed on `fix/temporal-dsn-strict` (sabrina and dave OK), PR held for the next #307 slot. Slice C waits for #485 — arwen.
+- **State**: slice A merged (#512). Slice B in review, PR #516 (sabrina and dave OK). Slice C waits for #485 — arwen.
