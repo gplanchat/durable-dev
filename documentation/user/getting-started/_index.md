@@ -43,11 +43,16 @@ composer require gplanchat/durable
 ### Symfony integration
 
 ```bash
+composer config extra.symfony.allow-contrib true
 composer require gplanchat/durable-bundle
 ```
 
-The package declares `"type": "symfony-bundle"`, so **Symfony Flex registers it on its own**, and there
-is nothing to add to `config/bundles.php`. Without Flex, add the line yourself:
+**The first line matters.** The bundle's Flex recipe lives in `symfony/recipes-contrib`, and Flex
+asks before it runs a contrib recipe: the default answer, and the only one under `--no-interaction`,
+is no. The install then prints `IGNORING gplanchat/durable-bundle`, `config/bundles.php` never names
+the bundle, and the configuration below fails with *There is no extension able to load the
+configuration for "durable"*. Allow contrib recipes as above, answer `y` at the prompt, or add the
+line to `config/bundles.php` yourself:
 
 ```php
 return [
@@ -56,7 +61,10 @@ return [
 ];
 ```
 
-Registration is all Flex does here: the configuration below is still yours to write.
+The recipe also writes a `config/packages/durable.yaml` and two `MESSENGER_DURABLE_*_DSN` lines in
+`.env`. The files below **replace** that `durable.yaml`: the recipe's names the stores with
+`event_store.type` and `workflow_metadata.type`, deprecated since `backend` replaced them. With it
+gone, nothing reads the two `.env` lines; delete them.
 
 ---
 
@@ -70,32 +78,26 @@ local development runs on.
 
 ```yaml
 durable:
-    event_store:
-        type: in_memory
-    temporal:
-        dsn: null            # set via env var for Temporal
-    workflow_metadata:
-        type: in_memory
+    backend: in_memory       # 'dbal' or 'temporal' in the profiles below
     activity_transport:
         type: messenger
         transport_name: durable_activities
     child_workflow:
         async_messenger: true
-        parent_link_store:
-            type: in_memory
     activity_contracts:
         cache: cache.app
         contracts:
             - App\Workflow\Activity\GreetingActivities   # list your activity interfaces here
 ```
 
-Turn Temporal on for an environment by giving it the DSN. The DSN is read when the container is
-compiled, so an environment that has this line is a Temporal environment, even with an empty
-`DURABLE_DSN`:
+Turn Temporal on for an environment by naming the backend and giving it the DSN. The DSN is read
+when the container is compiled, so an environment that has these lines is a Temporal environment,
+even with an empty `DURABLE_DSN`:
 
 ```yaml
 when@dev:
     durable:
+        backend: temporal
         temporal:
             dsn: '%env(DURABLE_DSN)%'
 ```
@@ -330,23 +332,19 @@ lives in the web process's memory.
 **Local development, and production without a cluster: several processes, on DBAL.** Real transports **and** a durable store. Both, or
 the worker picks up a queue entry naming a workflow whose journal it cannot see.
 
-This profile needs two packages the quick start above does not install: the DBAL journal, and
-DoctrineBundle for the `doctrine.dbal.default_connection` service it names:
+This profile needs packages the quick start above does not install: the DBAL journal, DoctrineBundle
+for the `doctrine.dbal.default_connection` service it names, and the Doctrine Messenger transport
+behind the `doctrine://` queues below. DoctrineBundle's recipe also configures the ORM, hence
+`doctrine/orm`; or remove the `orm:` section of `config/packages/doctrine.yaml` if you don't use the ORM.
 
 ```bash
-composer require gplanchat/durable-bridge-dbal doctrine/doctrine-bundle
+composer require gplanchat/durable-bridge-dbal doctrine/doctrine-bundle doctrine/orm symfony/doctrine-messenger
 ```
 
 
 ```yaml
 durable:
-    event_store:
-        type: dbal
-    workflow_metadata:
-        type: dbal
-    child_workflow:
-        parent_link_store:
-            type: dbal
+    backend: dbal
     dbal:
         connection: doctrine.dbal.default_connection
 ```
