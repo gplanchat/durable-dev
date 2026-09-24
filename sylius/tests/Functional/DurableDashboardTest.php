@@ -48,11 +48,11 @@ final class DurableDashboardTest extends WebTestCase
         $crawler = $client->request('GET', self::ROUTE);
 
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filter('aside.navbar-vertical'), 'the sidebar, from the common hook');
-        self::assertCount(1, $crawler->filter('header.navbar'), 'the navbar, from the common hook');
-        self::assertCount(1, $crawler->filter('.page-wrapper'), 'one page wrapper, not one per layer');
-        self::assertCount(1, $crawler->filter('footer.footer'), 'the footer, from the common hook');
-        self::assertCount(1, $crawler->filter('h1')->reduce(static fn ($h1): bool => str_contains($h1->text(), 'Durable Workflow Dashboard')));
+        self::assertCount(1, $crawler->filterXPath("//aside[contains(concat(' ', normalize-space(@class), ' '), ' navbar-vertical ')]"), 'the sidebar, from the common hook');
+        self::assertCount(1, $crawler->filterXPath("//header[contains(concat(' ', normalize-space(@class), ' '), ' navbar ')]"), 'the navbar, from the common hook');
+        self::assertCount(1, $crawler->filterXPath("//*[contains(concat(' ', normalize-space(@class), ' '), ' page-wrapper ')]"), 'one page wrapper, not one per layer');
+        self::assertCount(1, $crawler->filterXPath("//footer[contains(concat(' ', normalize-space(@class), ' '), ' footer ')]"), 'the footer, from the common hook');
+        self::assertCount(1, $crawler->filterXPath('//h1')->reduce(static fn ($h1): bool => str_contains($h1->text(), 'Durable Workflow Dashboard')));
     }
 
     public function testThePreviousPageLinkLeadsBackThroughRealUrls(): void
