@@ -66,6 +66,10 @@ DURABLE_DSN='temporal://127.0.0.1:7239?namespace=demo-laravel&nexus_task_queue=d
 DURABLE_DSN='…' php8.2 artisan durable:temporal-worker  # drives ShipWorkflow forward
 ```
 
+No activity worker here: `ShipWorkflow` has no activity. A workflow of yours that has one needs
+a third process, `php artisan durable:temporal-worker --role=activity`, or it stops at its first
+activity.
+
 `demo/run.sh` starts both with the right values, at the same time as the six other processes. The
 prerequisites for the whole thing are in [`demo/README.md`](../demo/README.md).
 

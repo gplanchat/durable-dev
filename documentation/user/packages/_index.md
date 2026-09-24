@@ -266,8 +266,9 @@ completes.
 ### Not in this package
 
 **Nothing about Temporal**, which is served. `backend: 'temporal'` puts the journal and the run
-catalogue in the cluster, and `php artisan durable:temporal-worker` drains the workflow tasks, which
-are the one thing the application's own queue cannot carry.
+catalogue in the cluster, and two workers drain what the application's own queue cannot carry:
+`php artisan durable:temporal-worker` the workflow tasks, and
+`php artisan durable:temporal-worker --role=activity` the activity tasks.
 
 `gplanchat/durable-bridge-temporal` is **suggested rather than required**: it installs eight packages,
 five of them Symfony components a Laravel application never loads, for some 36 MB. An application

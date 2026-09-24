@@ -281,8 +281,9 @@ job : un worker supervisé, qui survit à la fenêtre, le reprend et l'exécutio
 ### Pas dans ce paquet
 
 **Rien concernant Temporal**, qui est servi. `backend: 'temporal'` met le journal et le catalogue
-d'exécutions dans le cluster, et `php artisan durable:temporal-worker` draine les tâches de workflow,
-la seule chose que la file de l'application ne peut pas porter.
+d'exécutions dans le cluster, et deux workers drainent ce que la file de l'application ne peut pas porter :
+`php artisan durable:temporal-worker` les tâches de workflow, et
+`php artisan durable:temporal-worker --role=activity` les tâches d'activité.
 
 `gplanchat/durable-bridge-temporal` est **suggéré et non exigé** : il installe huit paquets, dont cinq
 composants Symfony qu'une application Laravel ne charge jamais, pour quelque 36 Mo. Une application
