@@ -85,11 +85,6 @@ parameters:
           message: '#Variable \$argv might not be defined#'
           path: tests/integration/Temporal/worker.php
           reportUnmatched: false
-        # The same google/protobuf MapField stubs as TemporalWorkflowCommandBuffer above.
-        - identifier: argument.type
-          path: tests/integration/Temporal/NexusHeaderRulesTest.php
-        - identifier: offsetAssign.valueType
-          path: tests/integration/Temporal/NexusHeaderRulesTest.php
         # PHPStan cannot track Awaitable settlement across Fiber boundary
         - identifier: booleanNot.alwaysTrue
           path: src/Durable/ExecutionRuntime.php
