@@ -74,7 +74,7 @@ final class SamplesControllerSmokeTest extends WebTestCase
     public function testSamplesRunSyncReturns200ForSimpleActivity(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/durable/samples/run/simple_activity');
+        $client->request('POST', '/durable/samples/run/simple_activity');
 
         $this->assertResponseIsSuccessful();
         $content = (string) $client->getResponse()->getContent();
@@ -85,7 +85,7 @@ final class SamplesControllerSmokeTest extends WebTestCase
     public function testSamplesRunAsyncReturns200ForSimpleActivity(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/durable/samples/run/simple_activity?wait=0');
+        $client->request('POST', '/durable/samples/run/simple_activity?wait=0');
 
         $this->assertResponseIsSuccessful();
         $content = (string) $client->getResponse()->getContent();
@@ -95,8 +95,38 @@ final class SamplesControllerSmokeTest extends WebTestCase
     public function testSamplesRunUnknownIdReturns404(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/durable/samples/run/nonexistent-scenario');
+        $client->request('POST', '/durable/samples/run/nonexistent-scenario');
 
         $this->assertResponseStatusCodeSame(404);
     }
+
+    public function testALinkCannotStartARun(): void
+    {
+        // A GET is what a prefetch, a crawler or an <img> sends: none of them may start a workflow.
+        $client = static::createClient();
+        $client->request('GET', '/durable/samples/run/simple_activity');
+
+        $this->assertResponseStatusCodeSame(405);
+    }
+
+    public function testAnotherSiteCannotStartARun(): void
+    {
+        // A form on another site can POST here; the browser says so in Sec-Fetch-Site and Origin.
+        $client = static::createClient();
+        $client->request('POST', '/durable/samples/run/simple_activity', server: [
+            'HTTP_SEC_FETCH_SITE' => 'cross-site',
+            'HTTP_ORIGIN' => 'https://attacker.example',
+        ]);
+
+        $this->assertResponseStatusCodeSame(403);
+    }
+
+    public function testTheSamplesPageStartsRunsWithForms(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/durable/samples');
+
+        self::assertGreaterThan(0, $crawler->filterXPath('//form[@method="post"][@action="/durable/samples/run/simple_activity"]')->count());
+    }
+
 }

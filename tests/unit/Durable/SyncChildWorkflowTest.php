@@ -7,7 +7,9 @@ namespace unit\Gplanchat\Durable;
 use Gplanchat\Durable\ChildWorkflowRunner;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
 use Gplanchat\Durable\Event\ChildWorkflowFailed;
+use Gplanchat\Durable\Event\ChildWorkflowScheduled;
 use Gplanchat\Durable\Event\ExecutionCompleted;
+use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Exception\DurableChildWorkflowFailedException;
 use Gplanchat\Durable\Exception\WorkflowSuspendedException;
 use Gplanchat\Durable\ExecutionEngine;
@@ -70,6 +72,26 @@ final class SyncChildWorkflowTest extends TestCase
         ));
         self::assertCount(1, $completed);
         self::assertSame('parent-saw:child-result', $completed[0]->result());
+    }
+
+    public function testTheChildJournalOpensWithItsWorkflowType(): void
+    {
+        // C-15 (#329): without it, the run list and the history had no name for an inline child.
+        $this->registry->registerClass(EchoingChild::class);
+
+        $this->engine->start('parent-3', static fn(WorkflowEnvironment $env): string
+            => $env->await($env->childWorkflowStub(EchoingChild::class)->run()));
+
+        foreach ($this->eventStore->readStream('parent-3') as $event) {
+            if ($event instanceof ChildWorkflowScheduled) {
+                $started = iterator_to_array($this->eventStore->readStream($event->childExecutionId()), false)[0];
+                self::assertInstanceOf(ExecutionStarted::class, $started);
+                self::assertSame($event->childWorkflowType(), $started->payload()['workflowType'] ?? null);
+
+                return;
+            }
+        }
+        self::fail('No child was scheduled.');
     }
 
     public function testChildIsNotReExecutedWhenTheParentReplays(): void

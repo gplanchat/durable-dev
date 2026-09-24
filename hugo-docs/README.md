@@ -8,42 +8,42 @@ See **`../documentation/HUGO.md`**. Quick start: `hugo server` from this directo
 
 ## Publication
 
-Le site de référence est **https://durable.rocks/**, servi par un hébergement mutualisé OVH.
-Le workflow `.github/workflows/docs-ovh.yml` construit et téléverse par SFTP (`lftp mirror`) à chaque push sur
-`main` touchant `hugo-docs/` ou `documentation/user/`.
+The reference site is **https://durable.rocks/**, served by OVH shared hosting.
+The `.github/workflows/docs-ovh.yml` workflow builds and uploads over SFTP (`lftp mirror`) on every push to
+`main` that touches `hugo-docs/` or `documentation/user/`.
 
-### Secrets et variables attendus
+### Expected secrets and variables
 
-| Nom | Type | Rôle |
+| Name | Type | Role |
 |---|---|---|
-| `OVH_FTP_SERVER` | secret | hôte SFTP de l'hébergement (`sshXXX.cluster0XX.hosting.ovh.net`) |
-| `OVH_FTP_USERNAME` | secret | identifiant SSH/SFTP |
-| `OVH_FTP_PASSWORD` | secret | mot de passe SSH/SFTP |
-| `OVH_FTP_ROOT` | variable *(optionnel)* | racine web, `./www/` par défaut |
-| `OVH_SSH_KNOWN_HOSTS` | secret *(optionnel)* | sortie de `ssh-keyscan -H <hôte>` ; sans lui, l'empreinte est acceptée à l'aveugle |
+| `OVH_FTP_SERVER` | secret | SFTP host of the hosting (`sshXXX.cluster0XX.hosting.ovh.net`) |
+| `OVH_FTP_USERNAME` | secret | SSH/SFTP login |
+| `OVH_FTP_PASSWORD` | secret | SSH/SFTP password |
+| `OVH_FTP_ROOT` | variable *(optional)* | web root, `./www/` by default |
+| `OVH_SSH_KNOWN_HOSTS` | secret *(optional)* | output of `ssh-keyscan -H <host>`; without it, the fingerprint is accepted blindly |
 
-L'accès SSH/SFTP doit être **activé dans l'espace client OVH** (Hébergements → FTP-SSH) : il ne
-l'est pas par défaut sur tous les plans. Le transfert efface les fichiers distants absents du
-build (`mirror --delete`) : la racine web n'héberge que ce site, tout ce qui s'y trouve est
-supposé venir de `hugo-docs/`. Le `.ftp-deploy-sync-state.json` laissé par
-l'ancien déploiement FTPS est emporté par le premier `--delete`.
+SSH/SFTP access must be **enabled in the OVH customer area** (Hosting → FTP-SSH): it is
+not enabled by default on every plan. The transfer deletes remote files missing from the
+build (`mirror --delete`): the web root hosts only this site, everything found there is
+assumed to come from `hugo-docs/`. The `.ftp-deploy-sync-state.json` left behind by
+the old FTPS deployment is swept away by the first `--delete`.
 
-### Deux gardes dans le workflow
+### Two guards in the workflow
 
-- **Quota.** L'hébergement est plafonné ; le job échoue si le site dépasse `SITE_QUOTA_KB`
-  plutôt que de téléverser à moitié et laisser un site cassé en ligne.
-- **Élagage.** Le thème embarque mermaid, katex et asciinema : 4,4 Mo copiés dans la sortie même
-  inutilisés. Ils sont retirés avant l'envoi, ce qui fait passer le site de 4,9 Mo à ~584 Ko.
-  Une garde échoue le build si une page se met à utiliser l'un de ces shortcodes, pour que
-  l'élagage ne casse rien en silence.
+- **Quota.** The hosting is capped; the job fails if the site exceeds `SITE_QUOTA_KB`
+  rather than uploading halfway and leaving a broken site online.
+- **Pruning.** The theme bundles mermaid, katex and asciinema: 4.4 MB copied into the output even
+  when unused. They are removed before upload, which brings the site from 4.9 MB down to ~584 KB.
+  A guard fails the build if a page starts using one of these shortcodes, so that the
+  pruning does not silently break anything.
 
 ### `.htaccess`
 
-`hugo-docs/static/.htaccess` est publié à la racine du site et porte la redirection HTTP → HTTPS,
-les en-têtes de sécurité, la compression et le cache. Chaque directive est protégée par
-`<IfModule>` : sur un mutualisé, une directive portant sur un module absent renvoie **500 pour tout
-le site**, pas seulement pour la page concernée.
+`hugo-docs/static/.htaccess` is published at the site root and carries the HTTP → HTTPS redirect,
+the security headers, compression and caching. Every directive is wrapped in
+`<IfModule>`: on shared hosting, a directive for a missing module returns **500 for the whole
+site**, not only for the page concerned.
 
-Le `max-age` HSTS est volontairement court (300 s) au démarrage. HSTS est difficile à défaire : le
-navigateur refuse `http://` pendant toute la durée annoncée, même si le certificat expire. Le
-passer à un an une fois le domaine stable.
+The HSTS `max-age` is deliberately short (300 s) at launch. HSTS is hard to undo: the
+browser refuses `http://` for the whole announced duration, even if the certificate expires.
+Raise it to one year once the domain is stable.

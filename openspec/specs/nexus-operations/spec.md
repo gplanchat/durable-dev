@@ -99,9 +99,9 @@ call site.
 
 ### Requirement: Nexus identifiers and bounds are validated before dispatch
 
-Endpoint, service and operation names SHALL be validated when constructed, and the operation
-bounds SHALL be expressed as durations, consistent with the existing `TaskQueue`,
-`WorkflowNamespace`, `ActivityTimeouts` and `Duration` value objects.
+Endpoint, service and operation names SHALL be validated when constructed, as task queue names
+and namespaces already are, and the operation bounds SHALL be expressed as durations, as activity
+timeouts already are.
 
 Validation SHALL reject what can only be a mistake — blank names, leading or trailing whitespace,
 control characters — and SHALL NOT reject what the server accepts.
@@ -271,3 +271,60 @@ hand. That proves the wire; it does not prove the deployment.
 - **WHEN** application A calls an operation served by B
 - **AND** B calls a different operation served by A
 - **THEN** both directions resolve independently
+
+### Requirement: A fulfilling workflow's parameter names are the contract's
+
+An application SHALL be refused at registration when a workflow claiming a Nexus operation declares
+a required parameter that matches no parameter of the operation it fulfils, **whatever host declares
+it** — an attribute read by a compile pass, or a list read from a configuration file.
+
+The payload is keyed by parameter name at both ends. Without the refusal the parameter receives
+`null`: the workflow starts, runs, and returns a result computed on nothing.
+
+#### Scenario: A required parameter that matches nothing is refused
+
+- **WHEN** a workflow claiming an operation declares a required parameter absent from the
+  operation's signature
+- **THEN** registration fails
+- **AND** the message names the workflow, the operation, and both parameter lists
+
+#### Scenario: An optional extra parameter is allowed
+
+- **WHEN** the extra parameter has a default value
+- **THEN** registration succeeds, because its absence is a decision rather than an omission
+
+#### Scenario: The refusal names what the reader must edit
+
+- **WHEN** the host declares handlers through a configuration key rather than a compile pass
+- **THEN** the message names that key
+
+### Requirement: Calling an operation asks nothing of the host
+
+An application SHALL call a Nexus operation with no host-specific wiring beyond what it already
+needs to run a workflow against the cluster. Serving an operation requires the host to register
+handlers and poll a Nexus task queue; calling requires neither.
+
+Everything proven so far ran between two applications built on the same framework, sharing its
+container, its compile passes and its worker transport. That proves the wire between two
+namespaces; it does not separate what Nexus asks of the framework from what it asks of the
+application.
+
+#### Scenario: A host with no handler registry calls an operation
+
+- **WHEN** an application whose host offers no Nexus handler registration and polls no Nexus task
+  queue calls an operation served elsewhere
+- **THEN** the calling workflow receives the result
+- **AND** the calling application registers nothing in the serving application's namespace
+
+#### Scenario: Both response shapes reach the same caller
+
+- **WHEN** one workflow calls an operation answered on the task and an operation fulfilled by a
+  workflow, on two different endpoints
+- **THEN** both results reach it through the same stub API
+- **AND** nothing in the calling code distinguishes the two
+
+#### Scenario: A caller needs no endpoint of its own
+
+- **WHEN** an application only calls operations
+- **THEN** no Nexus endpoint targets its namespace
+
