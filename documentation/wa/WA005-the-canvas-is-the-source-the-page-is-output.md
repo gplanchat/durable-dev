@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted — the rule holds today; the CI guard that enforces it is the follow-up named below.
+Accepted — the rule holds, and CI enforces it: the docs workflow replays the import and fails on any
+difference (point 2, since bff5f32d).
 
 ## Context
 
@@ -35,7 +36,7 @@ The rule is unenforceable while the canvas lives outside the repository. Making 
    **Done.** `hugo-docs/variant-b-narrative.dc.html` and `…-fr.dc.html`, exported from the
    *Durable landing design* project by `designer handoff`, which is the only export that returns the
    canvas source rather than the served page — `designer fetch` returns the latter, and
-   `import-design.py` refuses it with *racine introuvable*.
+   `import-design.py` refuses it with *root not found*.
 
    **And committing them measured the drift for the first time.** Regenerating both pages from the
    canvas as it stands today would delete, from each language:
@@ -46,12 +47,12 @@ The rule is unenforceable while the canvas lives outside the repository. Making 
      `gplanchat/durable-laravel`, with the badge that counts the backends.
 
    That is the third and fourth loss the working agreement was written to stop, caught **before**
-   the regeneration instead of after it. Neither is ported yet: the canvas is committed as it is,
-   truthfully out of date, and the guard in `import-design.py` refuses to overwrite until someone
-   reconciles the two.
+   the regeneration instead of after it. Both were ported into the canvas in bff5f32d (2026-08-28),
+   and the pages regenerated from it; until then the guard in `import-design.py` refused to
+   overwrite.
 2. ~~**A CI check** that re-runs `import-design.py` on the committed source and fails if the result
    differs from the committed `layouts/index.html`.~~ **Done, and not that way.** Re-running the
-   import in CI needs the canvas, which (1) has not delivered — so the guard was put where the loss
+   import in CI needs the canvas, which (1) had not yet delivered — so the guard was put where the loss
    actually happens instead: **inside `import-design.py`, at the moment it is about to write.**
 
    The script now records the fingerprint of every page it writes, in `hugo-docs/imported.json`.
@@ -61,7 +62,8 @@ The rule is unenforceable while the canvas lives outside the repository. Making 
    - the file has drifted → **refuse**, and print the diff between what is on disk and what the
      import would write. Those lines are, by construction, edits the canvas does not have;
    - no fingerprint at all → **refuse**, because nothing distinguishes "never imported" from
-     "imported before this guard existed, and edited since". That is the repository's state today.
+     "imported before this guard existed, and edited since". Both pages have carried a fingerprint
+     in `imported.json` since bff5f32d.
 
    `--force` passes, and records the fingerprint, so the refusal is a one-time confirmation rather
    than a wall. `python3 hugo-docs/import-design.py --self-test` exercises the six cases without a
@@ -72,7 +74,11 @@ The rule is unenforceable while the canvas lives outside the repository. Making 
    file no longer matching it.
 
    **What it does not catch:** an edit made and imported over in the same breath, and the canvas
-   drifting away from the committed pages. Only (1) closes those.
+   drifting away from the committed pages. The CI replay below closes those.
+
+   **And the CI check exists after all**, since (1) delivered: `docs-ovh.yml` (bff5f32d) runs
+   `--self-test`, replays both imports with `--force`, and fails on any `diff -u` against the
+   committed `layouts/index.html` and `layouts/index.fr.html`.
 
 ### The drift is bidirectional, and that is what makes it a decision
 
@@ -106,8 +112,8 @@ rather than living with the drift: two dead hover classes (`dz-h64`, `dz-h65` �
 from a neighbour without its rule), an unlocalised link (`/docs/nexus/` on the French page, sending a
 French reader to the English one), and a chooser that contradicted its own copy.
 
-Until (1) exists, this working agreement is a convention with an alarm on it. It is written down
-anyway, because three losses in one night were three people each reasonably believing they were
+Before (1) and the CI replay, this working agreement was a convention with an alarm on it. It was
+written down anyway, because three losses in one night were three people each reasonably believing they were
 doing the normal thing.
 
 ### What stays hand-written

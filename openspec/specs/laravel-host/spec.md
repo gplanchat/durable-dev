@@ -19,7 +19,7 @@ run unmodified here, because everything below the ports is the same component.
 
 #### Scenario: A workflow written once runs on Laravel
 
-- **WHEN** a class carrying `#[Workflow]` is declared to the application
+- **WHEN** a class carrying `#[AsWorkflow]` is declared to the application
 - **AND** the same class already runs on the Symfony bundle
 - **THEN** it runs on Laravel without modification
 - **AND** the runtime resolves it by the name its attribute declares
