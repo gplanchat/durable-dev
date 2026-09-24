@@ -17,6 +17,8 @@ use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
 use Gplanchat\Bridge\Temporal\Http\Psr18Http;
+use Gplanchat\Bridge\Temporal\Messenger\DeliverWorkflowSignalToTemporalHandler;
+use Gplanchat\Bridge\Temporal\Messenger\DeliverWorkflowUpdateToTemporalHandler;
 use Gplanchat\Bridge\Temporal\Messenger\TemporalActivityWorkerTransport;
 use Gplanchat\Bridge\Temporal\Messenger\TemporalJournalTransport;
 use Gplanchat\Bridge\Temporal\Messenger\TemporalNexusWorkerTransport;
@@ -123,7 +125,7 @@ final class DurableExtension extends Extension
         $this->registerActivityContractResolver($container, $config);
         $this->registerEngine($container, $config);
         $this->registerActivityContractCacheWarmer($container, $config);
-        $this->registerWorkflowControlHandlers($container);
+        $this->registerWorkflowControlHandlers($container, $config);
         $this->registerWorkflowQueryRunner($container);
         $this->registerWorkflowBackend($container);
         $this->registerCommands($container, $config);
@@ -608,8 +610,28 @@ final class DurableExtension extends Extension
         ;
     }
 
-    private function registerWorkflowControlHandlers(ContainerBuilder $container): void
+    /**
+     * On Temporal native the cluster is the journal: signals and updates go to it, and Temporal
+     * fires the timers itself. The journal handlers would append to a local store nobody replays
+     * and ask for a resume nothing performs (#333).
+     *
+     * @param array<string, mixed> $config
+     */
+    private function registerWorkflowControlHandlers(ContainerBuilder $container, array $config): void
     {
+        if (self::isTemporalNative($config)) {
+            $container->register(DeliverWorkflowSignalToTemporalHandler::class)
+                ->setArguments([new Reference(WorkflowClientInterface::class)])
+                ->addTag('messenger.message_handler')
+            ;
+            $container->register(DeliverWorkflowUpdateToTemporalHandler::class)
+                ->setArguments([new Reference(WorkflowClientInterface::class)])
+                ->addTag('messenger.message_handler')
+            ;
+
+            return;
+        }
+
         $container->register(DeliverWorkflowSignalHandler::class)
             ->setArguments([
                 new Reference(EventStoreInterface::class),
