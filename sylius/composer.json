@@ -49,8 +49,6 @@
         "phpstan/phpstan-doctrine": "^2.0.27",
         "phpstan/phpstan-webmozart-assert": "^2.0",
         "phpunit/phpunit": "^10.5.63",
-        "sylius-labs/coding-standard": "^4.5.1",
-        "sylius/sylius-rector": "^3.7",
         "symfony/browser-kit": "^7.4.8",
         "symfony/contracts": "^3.7",
         "symfony/debug-bundle": "^7.4.8",
@@ -64,10 +62,8 @@
         },
         "sort-packages": true,
         "allow-plugins": {
-            "dealerdirect/phpcodesniffer-composer-installer": false,
             "php-http/discovery": false,
             "phpstan/extension-installer": false,
-            "rector/extension-installer": true,
             "symfony/flex": true,
             "symfony/runtime": true,
             "symfony/thanks": false
@@ -114,8 +110,6 @@
             "@php bin/console sylius:show-plus-info --ansi"
         ],
         "remove-lockfiles-from-gitignore": "@php -r \"file_put_contents('.gitignore', str_replace(['/composer.lock' . PHP_EOL, '/yarn.lock' . PHP_EOL], '', file_get_contents('.gitignore')));\"",
-        "rector-dry-run": "vendor/bin/rector process --dry-run",
-        "rector-apply": "vendor/bin/rector process",
         "auto-scripts": {
             "cache:clear": "symfony-cmd",
             "assets:install %PUBLIC_DIR%": "symfony-cmd"
