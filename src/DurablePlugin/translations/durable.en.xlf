@@ -30,6 +30,10 @@
             <trans-unit id="details.select"><source>details.select</source><target>Select a run in the list to inspect its recorded history.</target></trans-unit>
             <trans-unit id="frieze.key_waiting"><source>frieze.key_waiting</source><target>Hatched: waiting to be picked up — the work had been asked for, but nobody had started it yet.</target></trans-unit>
             <trans-unit id="frieze.key_failed"><source>frieze.key_failed</source><target>Red: what failed. A cancellation is not painted red — it is an outcome, not a breakdown.</target></trans-unit>
+            <trans-unit id="phase.requested"><source>phase.requested</source><target>requested</target></trans-unit>
+            <trans-unit id="phase.started"><source>phase.started</source><target>started</target></trans-unit>
+            <trans-unit id="phase.failed"><source>phase.failed</source><target>failed</target></trans-unit>
+            <trans-unit id="phase.settled"><source>phase.settled</source><target>settled</target></trans-unit>
         </body>
     </file>
 </xliff>

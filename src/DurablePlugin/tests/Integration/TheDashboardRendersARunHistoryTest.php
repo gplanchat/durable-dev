@@ -9,6 +9,7 @@ use Gplanchat\Durable\Observation\RunDashboard;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunEventKind;
+use Gplanchat\Durable\Observation\WorkflowRunEventPhase;
 use Gplanchat\Durable\Observation\WorkflowRunPage;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
@@ -205,6 +206,21 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         }
     }
 
+    public function testEachEventSaysWhatHappenedToItsAction(): void
+    {
+        // #332: the scheduling and the start of SendWelcomeEmail carry the same label; the phase
+        // is what tells them apart. The signal is its own action and has none.
+        $page = $this->render();
+
+        self::assertStringContainsString('<span class="badge durable-phase durable-phase--requested">requested</span>', $page);
+        self::assertStringContainsString('<span class="badge durable-phase durable-phase--started">started</span>', $page);
+        self::assertSame(2, substr_count($page, 'durable-phase--'));
+
+        $french = $this->render(locale: 'fr');
+        self::assertStringContainsString('durable-phase--requested">demandé</span>', $french);
+        self::assertStringContainsString('durable-phase--started">pris en charge</span>', $french);
+    }
+
     public function testEveryKeyHasAFrenchTranslation(): void
     {
         $catalogue = static fn(string $locale): array => (new XliffFileLoader())
@@ -282,6 +298,7 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface
                     ? ['orderId' => 'ORD-7', 'blob' => "\xB1\x31"]
                     : ['payload' => ['customerId' => 'cus-42']],
                 'activity:act-1',
+                phase: WorkflowRunEventPhase::Requested,
             ),
             // Picked up ten seconds after being scheduled: the first ten seconds are a queue, not
             // work.
@@ -293,6 +310,7 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface
                 [],
                 'activity:act-1',
                 started: true,
+                phase: WorkflowRunEventPhase::Started,
             ),
             new WorkflowRunEvent(
                 3,
