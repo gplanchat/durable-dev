@@ -47,6 +47,7 @@ Restart the workers after the change: they read the table's columns once per pro
 A projection of your own keeps compiling. To report waits, also implement
 `WorkflowRunWaitProjectionInterface::recordWait()` and fill `WorkflowRunDescription::$waitingOn`
 while the run is running.
+
 ### One type catches every Durable error: `Gplanchat\Durable\Exception\ExceptionInterface`
 
 **Who is affected**: nobody has to change anything; this is an addition. Every error class under
