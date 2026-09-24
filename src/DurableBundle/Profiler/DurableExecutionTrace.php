@@ -15,6 +15,13 @@ use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
  */
 final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
 {
+    /**
+     * The trace keeps the last entries only. `kernel.reset` empties it between two Messenger
+     * messages, but never fires on a Temporal worker, whose transports work inside `get()` and
+     * always look idle: this bound is the one guard that holds for all three.
+     */
+    public const MAX_ENTRIES = 2000;
+
     private int $seq = 0;
 
     /** @var list<array<string, mixed>> */
@@ -38,7 +45,7 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
         bool $isResume,
         ?string $transportNames,
     ): void {
-        $this->timeline[] = [
+        $this->record([
             'seq' => ++$this->seq,
             'at' => microtime(true),
             'kind' => 'dispatch',
@@ -47,20 +54,20 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
             'payload' => $payload,
             'isResume' => $isResume,
             'transportNames' => $transportNames,
-        ];
+        ]);
     }
 
     #[\Override]
     public function onWorkflowRun(string $executionId, string $workflowType, bool $isResume): void
     {
-        $this->timeline[] = [
+        $this->record([
             'seq' => ++$this->seq,
             'at' => microtime(true),
             'kind' => 'workflow',
             'executionId' => $executionId,
             'workflowType' => $workflowType,
             'isResume' => $isResume,
-        ];
+        ]);
     }
 
     #[\Override]
@@ -72,7 +79,7 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
         bool $success,
         ?string $errorClass,
     ): void {
-        $this->timeline[] = [
+        $this->record([
             'seq' => ++$this->seq,
             'at' => microtime(true),
             'kind' => 'activity',
@@ -82,7 +89,20 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface
             'durationSeconds' => $durationSeconds,
             'success' => $success,
             'errorClass' => $errorClass,
-        ];
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     */
+    private function record(array $entry): void
+    {
+        $this->timeline[] = $entry;
+        if (\count($this->timeline) > self::MAX_ENTRIES) {
+            // ponytail: array_shift re-indexes the 2 000 entries on each append past the bound;
+            // a head index into a fixed array if a profile ever shows it.
+            array_shift($this->timeline);
+        }
     }
 
     /**

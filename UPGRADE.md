@@ -24,6 +24,13 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### `ResetDurableProfilerListener` is gone; the execution trace keeps its last 2 000 entries
+
+**Who is affected**: code that referenced `Gplanchat\Durable\Bundle\EventListener\ResetDurableProfilerListener`,
+to decorate or remove it. Delete the reference: `DurableExecutionTrace` now keeps its last 2 000
+entries (`MAX_ENTRIES`) on its own, which holds on a Temporal worker too, where `kernel.reset`
+never fires. Between two Messenger messages, `kernel.reset` still empties it.
+
 ### One type catches every Durable error: `Gplanchat\Durable\Exception\ExceptionInterface`
 
 **Who is affected**: nobody has to change anything; this is an addition. Every error class under
