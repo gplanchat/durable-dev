@@ -104,7 +104,7 @@ Le schéma nomme le fil et le chiffrement :
 |--------|-----|-----|-----------------|---------|
 | `temporal://` | gRPC | non | 7233 | `ext-grpc`, ou `ext-curl` (gRPC sur HTTP/2, choisi de lui-même quand l'extension n'est pas chargée ; le repli est journalisé une fois) |
 | `temporal+tls://` | gRPC | oui | 7233 | idem |
-| `temporal+http://` | la passerelle JSON du serveur | non | 7243 | `ext-curl`, et le port HTTP activé sur le serveur. Appels client seulement : aucun worker ne peut y interroger sa file |
+| `temporal+http://` | la passerelle JSON du serveur | non | 7243 | `ext-curl` — ou un client PSR-18 remis à la factory — et le port HTTP activé sur le serveur. Appels client seulement : aucun worker ne peut y interroger sa file |
 | `temporal+https://` | la passerelle JSON du serveur | oui | 7243 | idem |
 
 | Paramètre | Requis | Description |
