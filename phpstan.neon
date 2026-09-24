@@ -55,6 +55,22 @@ parameters:
         - identifier: missingType.generics
           path: src/DurableBundle/DependencyInjection/Configuration.php
           reportUnmatched: false
+        # The tests register the Laravel provider in a bare container on purpose: that is the
+        # standalone-worker case the function.alreadyNarrowedType entry above describes.
+        - identifier: argument.type
+          message: '#expects Illuminate\\Contracts\\Foundation\\Application#'
+          paths:
+              - tests/unit/DurableLaravel/*
+              - tests/unit/Bridge/Illuminate/*
+        # A test asserts at runtime what its types promise: an assertion PHPStan already proves is
+        # still the check the test makes, and what keeps it from being a test without assertion.
+        - identifier: staticMethod.alreadyNarrowedType
+          path: tests/*
+        # The same google/protobuf MapField stubs as TemporalWorkflowCommandBuffer above.
+        - identifier: argument.type
+          path: tests/integration/Temporal/NexusHeaderRulesTest.php
+        - identifier: offsetAssign.valueType
+          path: tests/integration/Temporal/NexusHeaderRulesTest.php
         # PHPStan cannot track Awaitable settlement across Fiber boundary
         - identifier: booleanNot.alwaysTrue
           path: src/Durable/ExecutionRuntime.php
