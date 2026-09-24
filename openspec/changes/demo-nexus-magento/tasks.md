@@ -1,11 +1,11 @@
 # Tasks
 
-## 0. Sonder avant de construire
+## 0. Probe before building
 
-- [x] 0.1 **Le PHP du banc Magento porte `ext-grpc`, et ce n'est pas le même que celui des deux
-      autres maquettes.** Le banc n'a pas de conteneur PHP : son `compose.yaml` ne monte que MySQL,
-      OpenSearch, Redis et une grappe Temporal, et `bin/magento` tourne sur le PHP de l'hôte.
-      Remesuré sur le poste de référence :
+- [x] 0.1 **The Magento bench's PHP has `ext-grpc`, and it is not the same one as the other two
+      sample apps'.** The bench has no PHP container: its `compose.yaml` only mounts MySQL,
+      OpenSearch, Redis and a Temporal cluster, and `bin/magento` runs on the host's PHP.
+      Re-measured on the reference workstation:
 
       | PHP | grpc | curl | intl | pdo_mysql | soap |
       |---|---|---|---|---|---|
@@ -13,82 +13,83 @@
       | 8.3 | ✅ | ❌ | ✅ | ❌ | ❌ |
       | 8.4 | ❌ | ✅ | ❌ | ❌ | ❌ |
 
-      Le tableau de §0.1 du change à deux applications concluait à un chemin étroit parce que la
-      maquette Sylius **exige** PHP ≥ 8.3 ; le banc Magento est épinglé sur Mage-OS 2.2.0, qui
-      accepte 8.2 — la seule version du poste qui ait tout. La démonstration tourne donc sur **deux
-      binaires PHP**, et `demo/lancer.sh` porte `PHP` et `PHP_MAGENTO` séparément. Une seule version
-      ne fait pas tourner les trois maquettes.
-- [x] 0.2 **Appeler est sans hôte, et c'est mesuré et non lu.** Lu d'abord :
-      `WorkflowEnvironment::nexusStub()` résout le contrat par réflexion et ne touche aucun
-      conteneur, et `WorkflowTaskRunner` est la même classe pour les trois hôtes
+      The §0.1 table of the two-application change concluded there was a narrow path because the
+      Sylius sample app **requires** PHP ≥ 8.3; the Magento bench is pinned to Mage-OS 2.2.0, which
+      accepts 8.2 — the only version on the workstation that has everything. The demonstration
+      therefore runs on **two PHP binaries**, and `demo/lancer.sh` carries `PHP` and `PHP_MAGENTO`
+      separately. No single version runs all three sample apps.
+- [x] 0.2 **Calling needs no host, and this is measured, not read.** Read first:
+      `WorkflowEnvironment::nexusStub()` resolves the contract by reflection and touches no
+      container, and `WorkflowTaskRunner` is the same class for all three hosts
       (`TemporalJournalTransport`, `RuntimeFactory::journalWorker()`, `DurableServiceProvider`).
-      Mesuré ensuite, en §5 : aucune ligne n'a été ajoutée au cœur, au pont Temporal ni à
-      `gplanchat/durable-magento` pour que la maquette appelle.
+      Then measured, in §5: not a single line was added to the core, the Temporal bridge or
+      `gplanchat/durable-magento` for the sample app to call.
 
-      ⚠ **La panne à connaître, parce que son message accuse le mauvais côté.** Les deux premiers
-      essais ont échoué sur
+      ⚠ **The failure to know about, because its message blames the wrong side.** The first two
+      attempts failed with
       `No Nexus handler is registered for operation "verifier" of service "facturation"` —
-      `NOT_IMPLEMENTED`, non réessayable, rendu par le worker Nexus du métier. La cause du premier
-      était **chez l'appelant** : `symfony/vendor` n'avait pas `gplanchat/durable-demo-contracts`,
-      son `composer install` datant d'avant le change à deux applications. Le message nomme le
-      gestionnaire, l'endpoint et l'opération — tout sauf l'installation qui manque.
-      Le second échec est survenu juste après un redémarrage des workers, sur un appel identique à
-      ceux qui ont réussi ensuite (MAG-3, MAG-4, y compris après un redémarrage suivi d'une attente
-      de cinq secondes). **La cause n'est pas établie** : le cache du conteneur avait été vidé par
-      le `composer install`, donc l'explication « conteneur froid » ne tient pas. Ce qui est
-      reproductible est le diagnostic, pas la panne : ce message-là veut dire *registre de
-      gestionnaires sans l'entrée*, et il faut aller regarder les deux côtés.
-- [x] 0.3 **La grappe du banc ne convient pas**, et le banc n'a pas eu à changer pour autant.
-      `temporalio/auto-setup:1.25.2` répond `Nexus APIs are disabled`. Le DSN de la démonstration
-      entre par `MAGENTO_DC_DURABLE__TEMPORAL__DSN`, la convention de Magento pour surcharger
-      `app/etc/env.php` par l'environnement (`MAGENTO_DC_` + le chemin, `__` pour les `/`) —
-      vérifiée dans `DeploymentConfig::getAllEnvOverrides()`, qui la pose **quelle que soit** la
-      présence de la clé dans le fichier. `app/etc/env.php` n'est pas modifié, et il n'est pas
-      versionné.
+      `NOT_IMPLEMENTED`, non-retryable, returned by the business app's Nexus worker. The cause of
+      the first one was **on the caller's side**: `symfony/vendor` did not have
+      `gplanchat/durable-demo-contracts`, its `composer install` predating the two-application
+      change. The message names the handler, the endpoint and the operation — everything except
+      the missing installation.
+      The second failure happened right after a worker restart, on a call identical to the ones
+      that succeeded afterwards (MAG-3, MAG-4, including after a restart followed by a
+      five-second wait). **The cause is not established**: the container cache had been cleared by
+      the `composer install`, so the "cold container" explanation does not hold. What is
+      reproducible is the diagnosis, not the failure: that message means *handler registry
+      without the entry*, and both sides have to be checked.
+- [x] 0.3 **The bench's cluster is not suitable**, and the bench did not have to change for it.
+      `temporalio/auto-setup:1.25.2` answers `Nexus APIs are disabled`. The demonstration's DSN
+      comes in through `MAGENTO_DC_DURABLE__TEMPORAL__DSN`, Magento's convention for overriding
+      `app/etc/env.php` from the environment (`MAGENTO_DC_` + the path, `__` for `/`) —
+      checked in `DeploymentConfig::getAllEnvOverrides()`, which applies it **regardless of**
+      whether the key is present in the file. `app/etc/env.php` is not modified, and it is not
+      under version control.
 
-## 1. Le contrat partagé, troisième consommateur
+## 1. The shared contract, third consumer
 
-- [x] 1.1 **Une entrée `autoload` plutôt qu'un dépôt path, et c'est une décision, pas un raccourci.**
-      Les deux autres maquettes déclarent `gplanchat/durable-demo-contracts` en dépôt path. Le banc
-      Magento y ajoute une ligne de `psr-4` vers `../src/DurableDemoContracts/`, pour trois raisons
-      mesurées :
+- [x] 1.1 **An `autoload` entry rather than a path repository, and that is a decision, not a shortcut.**
+      The other two sample apps declare `gplanchat/durable-demo-contracts` as a path repository. The
+      Magento bench adds a `psr-4` line pointing to `../src/DurableDemoContracts/`, for three
+      measured reasons:
 
-      1. ses trois dépôts path sont en `"symlink": false` — Composer **copie**, donc toute retouche
-         du contrat exigerait un `composer update` du banc pour être vue, ce qui est exactement le
-         piège qu'une démonstration ne doit pas tendre ;
-      2. la CI n'installe pas ce banc : `magento-matrix` monte un projet jetable, et le lock
-         d'ici n'est le gardien de rien ;
-      3. `composer dump-autoload` suffit, en une seconde et sans réseau, là où un dépôt path
-         demanderait une résolution complète du lock de Mage-OS.
+      1. its three path repositories are set to `"symlink": false` — Composer **copies**, so any
+         change to the contract would require a `composer update` of the bench to be seen, which is
+         exactly the trap a demonstration must not set;
+      2. CI does not install this bench: `magento-matrix` sets up a throwaway project, and the lock
+         here guards nothing;
+      3. `composer dump-autoload` is enough, in one second and without network, where a path
+         repository would require a full resolution of the Mage-OS lock.
 
-      Le préfixe le plus long gagne en PSR-4 : `Gplanchat\Durable\Demo\Contracts\` est servi par
-      cette entrée et non par le `Gplanchat\Durable\` du paquet du cœur. Vérifié —
-      `interface_exists(StockContract::class)` rend `true` depuis l'autoload du banc.
-- [x] 1.2 ⚠ **Le garde de nommage n'existe pas de ce côté, et n'a pas à y être.** La règle « tout
-      paramètre de workflow sans valeur par défaut doit être un paramètre du contrat » vit dans
-      `NexusHandlerPass`, donc dans le conteneur de Symfony. Elle garde le **servant**. Magento ne
-      sert rien : ce qu'il doit tenir juste, ce sont les noms passés aux méthodes du stub, et la
-      signature typée du contrat les vérifie déjà à l'écriture. Dit dans l'en-tête du workflow.
+      The longest prefix wins in PSR-4: `Gplanchat\Durable\Demo\Contracts\` is served by
+      this entry and not by the core package's `Gplanchat\Durable\`. Checked —
+      `interface_exists(StockContract::class)` returns `true` from the bench's autoload.
+- [x] 1.2 ⚠ **The naming guard does not exist on this side, and does not need to.** The rule "every
+      workflow parameter without a default value must be a contract parameter" lives in
+      `NexusHandlerPass`, hence in the Symfony container. It guards the **server**. Magento serves
+      nothing: what it must get right are the names passed to the stub's methods, and the typed
+      signature of the contract already checks them at write time. Stated in the workflow's header.
 
-## 2. Le workflow appelant
+## 2. The calling workflow
 
-- [x] 2.1 `CommandeNexusWorkflow` dans `Gplanchat_DurableProbe` — le module de banc, pas le paquet
-      publié. Deux stubs, deux endpoints, trois opérations.
+- [x] 2.1 `CommandeNexusWorkflow` in `Gplanchat_DurableProbe` — the bench module, not the published
+      package. Two stubs, two endpoints, three operations.
 
-      **L'ordre des trois appels a changé après mesure**, et c'est le seul défaut de conception que
-      la démonstration a trouvé. Écrit d'abord `reserver` puis `verifier`, il laissait un cas sans
-      issue : `MAG-6`, en USD, a retenu `MUG_BLUE` chez la boutique **puis** s'est fait refuser la
-      facture — et le contrat `stock` n'a pas d'opération qui rende ce qui a été pris. Vérifier
-      d'abord fait qu'il n'y a rien à rendre : un refus de facture ne touche pas le stock, et un
-      refus de stock ne touche pas l'argent, `encaisser` venant après les deux.
-- [x] 2.2 `bin/magento durable:demo:nexus` démarre l'exécution **sur la grappe** par
-      `RuntimeFactory::workflowClient()` : `MagentoRuntime::run()` l'aurait exécutée dans le
-      processus de la commande, ce qui est le contraire de ce que la démonstration montre.
-      Sa dernière ligne dit ce qui s'est passé et non ce qui se passe d'habitude — un refus revient
-      en 0,3 s, et annoncer « dont l'encaissement » ferait passer un refus pour un encaissement
-      anormalement rapide.
-- [x] 2.3 Le workflow et la commande sont déclarés dans le `di.xml` du banc : le conteneur de
-      Magento n'a pas les tags de Symfony, rien ne ramasse `#[AsWorkflow]` tout seul.
+      **The order of the three calls changed after measurement**, and it is the only design flaw
+      the demonstration found. Written first as `reserver` then `verifier`, it left a dead-end
+      case: `MAG-6`, in USD, held `MUG_BLUE` at the shop **then** had its invoice refused — and the
+      `stock` contract has no operation that gives back what was taken. Verifying first means there
+      is nothing to give back: an invoice refusal does not touch the stock, and a stock refusal does
+      not touch the money, `encaisser` coming after both.
+- [x] 2.2 `bin/magento durable:demo:nexus` starts the execution **on the cluster** through
+      `RuntimeFactory::workflowClient()`: `MagentoRuntime::run()` would have executed it in the
+      command's process, which is the opposite of what the demonstration shows.
+      Its last line says what happened, not what usually happens — a refusal comes back
+      in 0.3 s, and announcing "including the payment capture" would pass a refusal off as an
+      abnormally fast capture.
+- [x] 2.3 The workflow and the command are declared in the bench's `di.xml`: Magento's container
+      does not have Symfony's tags, nothing picks up `#[AsWorkflow]` on its own.
 
 ## 3. Le cluster
 
