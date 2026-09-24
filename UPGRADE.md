@@ -465,6 +465,10 @@ An application that wants to observe executions in production does not have to r
 profiler: it implements `WorkflowExecutionObserverInterface` and aliases the interface to its own
 service — what the profiler did, cheaper, and without accumulating a timeline for nobody's screen.
 
+That alias also wins in debug, and that is a trade: the profiler panel then shows the Messenger
+dispatches but no engine events (workflow runs, activities), and says nothing about why. Declare the
+alias outside `when@dev` to keep them in development (#337).
+
 ### A successful activity writes `ActivityCompleted` only, no `ActivityTaskCompleted` (#262)
 
 **Who is affected**: code that reads the journal and waits for `ActivityTaskCompleted` to learn
