@@ -257,11 +257,11 @@ jobs:
                 bin/console doctrine:database:create --if-not-exists
                 bin/console doctrine:schema:create
 
-            - name: PHPUnit — the dashboard is rendered
+            - name: PHPUnit — the dashboard is rendered, and a timer is drained by durable:worker
               working-directory: sylius
               env:
                   APP_ENV: test
-              run: vendor/bin/phpunit tests/Functional/DurableDashboardTest.php
+              run: vendor/bin/phpunit tests/Functional
 
     magento-matrix:
         # The counterpart of the Symfony matrix, for the other foreign-container host. Same
