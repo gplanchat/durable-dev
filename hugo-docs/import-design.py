@@ -1,29 +1,29 @@
 #!/usr/bin/env python3
-"""Convertit une page conçue dans claude.ai/design en gabarit Hugo.
+"""Converts a page designed in claude.ai/design into a Hugo template.
 
-    ./import-design.py <chemin>/variant-b-narrative.dc.html layouts/index.html
+    ./import-design.py <path>/variant-b-narrative.dc.html layouts/index.html
 
-Pourquoi un script plutôt qu'un copier-coller : la page est reprise à chaque
-tour de la boucle de design, et une extraction faite à la main serait à refaire
-en entier à chaque fois. Ici on rejoue la commande.
+Why a script rather than a copy-paste: the page is picked up again on every
+turn of the design loop, and an extraction done by hand would have to be redone
+in full every time. Here we replay the command.
 
-Cinq choses séparent une page du canevas d'une page servie par Hugo :
+Five things separate a canvas page from a page served by Hugo:
 
-1. `{{ … }}` : le canevas et Hugo partagent la syntaxe. Laissées en place,
-   Hugo tenterait de les exécuter et la compilation échouerait. Il ne doit
-   donc plus en rester une seule en sortie ; c'est vérifié.
-2. La palette est interpolée dans un attribut `style` en ligne, donc
-   impossible à surcharger par une feuille de style, car un style en ligne
-   l'emporte. On la sort du balisage et on l'écrit en `:root`, ce qui rend le
-   thème sombre exprimable.
-3. `style-hover` est un attribut du canevas, ignoré par les navigateurs. Sans
-   conversion en `.classe:hover`, aucun survol de la page ne fonctionne.
-4. `onClick` / `onMouseEnter` appellent des méthodes d'un composant qui
-   n'existe pas hors du canevas. On les remplace par des attributs `data-` que
-   reprend un script autonome.
-5. Les logos sont chargés en `<img>`. Un SVG externe est un document isolé :
-   il n'hérite pas de `currentColor` et ne peut donc pas suivre le thème. On
-   les incorpore.
+1. `{{ … }}`: the canvas and Hugo share the syntax. Left in place,
+   Hugo would try to execute them and the build would fail. Not a single
+   one must remain in the output; this is checked.
+2. The palette is interpolated into an inline `style` attribute, so it
+   cannot be overridden by a stylesheet, because an inline style
+   wins. We take it out of the markup and write it under `:root`, which makes
+   the dark theme expressible.
+3. `style-hover` is a canvas attribute, ignored by browsers. Without
+   conversion to `.class:hover`, no hover on the page works.
+4. `onClick` / `onMouseEnter` call methods of a component that
+   does not exist outside the canvas. We replace them with `data-` attributes
+   that a standalone script picks up.
+5. The logos are loaded as `<img>`. An external SVG is an isolated document:
+   it does not inherit `currentColor` and so cannot follow the theme. We
+   inline them.
 """
 
 from __future__ import annotations
@@ -37,26 +37,26 @@ import sys
 
 HERE = pathlib.Path(__file__).parent
 
-# Résolues depuis le composant du canevas. L'accent est recalculé par son
-# propre algorithme : il part de la teinte choisie et descend en luminosité
-# jusqu'à passer un contraste de 4,6 sur le fond du thème visé.
+# Resolved from the canvas component. The accent is recomputed by its
+# own algorithm: it starts from the chosen hue and lowers the lightness
+# until it passes a contrast of 4.6 against the background of the target theme.
 #
-# La teinte choisie est l'émeraude `#1f6f5c`, un des quatre accents que propose
-# le canevas (`#b4552f` terracotta, `#1f6f5c` émeraude, `#2d5bb9` bleu,
-# `#8a3f7a` prune). Le canevas en tire `#207460` en clair et `#68d5bb` en
-# sombre ; ce sont ces deux valeurs-là, pas la graine, qui s'écrivent ici.
-# Changer de variante, c'est rejouer `themeAccent(graine, dark)` du canevas sur
-# la nouvelle graine, et penser au `--dz-accent` de `assets/_custom.scss`, qui
-# porte la même paire pour les pages de documentation.
+# The chosen hue is emerald `#1f6f5c`, one of the four accents the canvas
+# offers (`#b4552f` terracotta, `#1f6f5c` emerald, `#2d5bb9` blue,
+# `#8a3f7a` plum). The canvas derives `#207460` for light and `#68d5bb` for
+# dark; those two values, not the seed, are what is written here.
+# Switching variant means replaying the canvas's `themeAccent(seed, dark)` on
+# the new seed, and remembering the `--dz-accent` in `assets/_custom.scss`, which
+# carries the same pair for the documentation pages.
 #
-# `accent2` est le second accent : les pastilles « Nexus · works today »,
-# « bundle today · plugin planned », le bord de l'encadré « With it ». Le canevas
-# le fige (il ne suit pas la variante d'accent) et il ne passait pas par cette
-# table : les 24 `var(--accent2, #2f6f6b)` du balisage tombaient donc tous sur
-# leur valeur de repli, y compris en thème sombre, où ce vert-bleu ne tenait que
-# 2,98 de contraste sur `bg2`. Il entre ici, donc il a maintenant ses deux
-# valeurs. La teinte vient du bleu du canevas (`#2d5bb9`) : l'émeraude est à
-# 166°, l'ancien vert-bleu à 176°, les deux se confondaient.
+# `accent2` is the second accent: the "Nexus · works today" and
+# "bundle today · plugin planned" pills, the border of the "With it" box. The canvas
+# freezes it (it does not follow the accent variant) and it did not go through this
+# table: the 24 `var(--accent2, #2f6f6b)` in the markup all fell back to
+# their fallback value, dark theme included, where that green-blue only reached
+# a contrast of 2.98 on `bg2`. It goes in here, so it now has its two
+# values. The hue comes from the canvas blue (`#2d5bb9`): emerald sits at
+# 166°, the old green-blue at 176°, the two were indistinguishable.
 PALETTE = {
     "light": {
         "bg": "#f7f4ef", "bg2": "#efe9df", "fg": "#1d1a16", "fg2": "#6c6459",
@@ -74,27 +74,27 @@ PALETTE = {
     },
 }
 
-# `--ts` (échelle typographique) et `--sp` (densité) étaient des molettes du
-# canevas. Elles se figent à 1 : plus personne ne les tourne.
+# `--ts` (type scale) and `--sp` (density) were canvas knobs.
+# They are frozen at 1: nobody turns them any more.
 SCALARS = {"ts": "1", "sp": "1"}
 
-# Le design a longtemps posé 26 ou 30 px sur ses logos, illisibles à cette
-# taille, et un plancher de 48 px était imposé ici. Le canevas pose maintenant
-# 48 lui-même, et 22 sur les deux marques minuscules qui servent de puce
-# « Symfony app » à côté d'un nom d'application. Un plancher les gonflerait à
-# plus du double : la taille redevient un choix du canevas, entièrement.
+# For a long time the design set 26 or 30 px on its logos, unreadable at that
+# size, and a 48 px floor was enforced here. The canvas now sets
+# 48 itself, and 22 on the two tiny marks that serve as a
+# "Symfony app" chip next to an application name. A floor would inflate them to
+# more than double: the size is once again entirely the canvas's choice.
 
-# Les liens de cas d'usage pointaient vers des pages qui n'ont jamais existé
-# (`/docs/use-cases/<slug>`). Chacun va vers la section qui traite réellement
-# le sujet, ancre comprise ; les ancres sont vérifiées à l'exécution.
-# Quatre chaînes que le script écrit lui-même : elles ne viennent pas du
-# canevas, donc rien ne les traduisait. Elles atterrissaient en anglais au
-# milieu de la page française : le bouton de thème disait « Dark » et le
-# panneau d'annotation « Hover any line ».
+# The use-case links pointed to pages that never existed
+# (`/docs/use-cases/<slug>`). Each one goes to the section that actually covers
+# the topic, anchor included; the anchors are checked at run time.
+# Four strings the script writes itself: they do not come from the
+# canvas, so nothing translated them. They landed in English in the
+# middle of the French page: the theme button said "Dark" and the
+# annotation panel "Hover any line".
 #
-# La langue se déduit du nom du fichier source (`…-fr.dc.html`), et la sortie
-# doit la porter aussi : rien n'empêcherait autrement d'écrire la page
-# française dans `layouts/index.html`, c'est-à-dire à la racine du site.
+# The language is inferred from the source file name (`…-fr.dc.html`), and the output
+# must carry it too: otherwise nothing would prevent writing the French
+# page into `layouts/index.html`, that is, at the root of the site.
 STRINGS = {
     "en": {
         "theme_dark": "Dark",
@@ -129,19 +129,19 @@ def die(message: str) -> None:
 
 
 def extract_root(source: str) -> str:
-    """Le `<div>` qui porte la palette, jusqu'à sa fermeture."""
+    """The `<div>` that carries the palette, up to its closing tag."""
     start = source.find('<div style="--bg:')
     if start < 0:
-        die("racine introuvable : aucun <div style=\"--bg:…\"> dans la source")
+        die("root not found: no <div style=\"--bg:…\"> in the source")
     end = source.rfind("</div>")
     return source[start:end + len("</div>")]
 
 
 def strip_palette_decls(root: str) -> str:
-    """Sort les `--x: {{ y }}` du style en ligne : ils bloquent tout thème."""
+    """Takes the `--x: {{ y }}` out of the inline style: they block any theme."""
     open_tag = re.match(r"<div style=\"([^\"]*)\">", root)
     if not open_tag:
-        die("l'ouvrante de la racine n'a pas la forme attendue")
+        die("the root opening tag does not have the expected shape")
     kept = [
         decl.strip() for decl in open_tag.group(1).split(";")
         if decl.strip() and not decl.strip().startswith("--")
@@ -150,7 +150,7 @@ def strip_palette_decls(root: str) -> str:
 
 
 def convert_hovers(root: str) -> tuple[str, list[str]]:
-    """`style-hover="…"` → une classe et une règle `:hover` réelle."""
+    """`style-hover="…"` → a class and a real `:hover` rule."""
     rules: list[str] = []
 
     def replace(match: re.Match[str]) -> str:
@@ -160,7 +160,7 @@ def convert_hovers(root: str) -> tuple[str, list[str]]:
 
     root = re.sub(r'style-hover="([^"]*)"', replace, root)
 
-    # La classe doit exister sur l'élément, pas seulement l'attribut.
+    # The class must exist on the element, not just the attribute.
     def attach(match: re.Match[str]) -> str:
         return f'class="dz-h{match.group(1)}" ' + match.group(0)
 
@@ -169,7 +169,7 @@ def convert_hovers(root: str) -> tuple[str, list[str]]:
 
 
 def convert_handlers(root: str) -> str:
-    """Les gestionnaires du composant deviennent des attributs `data-`."""
+    """The component's handlers become `data-` attributes."""
     root = root.replace('onClick="{{ toggleTheme }}"', "data-dz-theme-toggle")
     root = root.replace('onMouseLeave="{{ hClear }}"', "data-dz-note-clear")
     root = re.sub(r'onMouseEnter="\{\{\s*h(\d+)\s*\}\}"', r'data-dz-note="\1"', root)
@@ -177,56 +177,56 @@ def convert_handlers(root: str) -> str:
 
 
 def inline_logos(root: str) -> str:
-    """Un SVG externe ne suit pas le thème ; incorporé, il l'hérite.
+    """An external SVG does not follow the theme; inlined, it inherits it.
 
-    Le design a déjà changé de mécanique une fois, d'un `<img>` vers un couple
-    « emplacement à peindre + glyphe de repli », les deux masqués en attendant
-    un script. Les deux formes sont donc reconnues, et l'absence de l'une comme
-    de l'autre est une erreur : la fois où elle est passée inaperçue, ce sont
-    les glyphes de repli qui se sont retrouvés dans le rendu.
+    The design has already changed mechanism once, from an `<img>` to a
+    "slot to paint + fallback glyph" pair, both hidden while waiting for
+    a script. Both forms are therefore recognised, and the absence of either
+    one is an error: the time it went unnoticed, it was
+    the fallback glyphs that ended up in the rendering.
     """
     def replace(match: re.Match[str]) -> str:
         name = match.group("name")
         box = match.groupdict().get("box")
         path = HERE / "assets" / "logos" / f"{name}.svg"
         if not path.exists():
-            die(f"logo absent : {path}, voir assets/logos/")
+            die(f"logo missing: {path}, see assets/logos/")
         svg = path.read_text().strip()
-        # La taille vient du `data-box` du design. Sylius est une signature
-        # typographique, ratio 3,1:1 : lui imposer la même valeur dans les deux
-        # sens l'étirerait. Il se cale sur la hauteur, sa largeur suit.
+        # The size comes from the design's `data-box`. Sylius is a typographic
+        # signature, ratio 3.1:1: forcing the same value on it in both
+        # directions would stretch it. It fits to the height, its width follows.
         wide = 'width="auto"' in svg
         px = int(box) if box else None
         size = f"{px}px" if px else "100%"
         sized = f'height="{size}" width="auto"' if wide else f'width="{size}" height="{size}"'
         svg = re.sub(r'width="[^"]*" height="[^"]*"', sized, svg, count=1)
         if "width=" not in svg:
-            die(f"dimensions perdues sur {name}.svg")
+            die(f"dimensions lost on {name}.svg")
         return svg
 
-    # Forme actuelle : un emplacement à peindre suivi de son glyphe de repli.
+    # Current form: a slot to paint followed by its fallback glyph.
     root, painted = re.subn(
         r'<span[^>]*data-paint[^>]*data-box="(?P<box>\d+)"[^>]*'
         r'data-src="logo-(?P<name>[a-z0-9-]+)\.svg"[^>]*>\s*</span>\s*'
         r"<svg[^>]*data-glyph.*?</svg>",
         replace, root, flags=re.S)
 
-    # Forme précédente, gardée le temps que plus aucun design ne la porte.
+    # Previous form, kept until no design carries it any more.
     root, imaged = re.subn(
         r'<img[^>]*data-logo[^>]*src="logo-(?P<name>[a-z0-9-]+)\.svg"[^>]*/?>', replace, root)
 
     if not (painted or imaged):
-        die("aucun logo reconnu : la mécanique du design a encore changé")
+        die("no logo recognised: the design mechanism has changed again")
 
-    # La garde est délibérément plus large que les deux motifs ci-dessus, et c'est
-    # tout son travail : elle doit attraper les noms qu'ils ratent. Elle était aussi
-    # étroite qu'eux, donc `logo-api-platform.svg` n'était ni incorporé ni signalé :
-    # le glyphe de repli passait en production en silence. Élargir les trois de la
-    # même façon aurait refermé le tiret et laissé la classe ouverte : un chiffre,
-    # un underscore ou une capitale repassait pareil.
+    # The guard is deliberately wider than the two patterns above, and that is
+    # its whole job: it must catch the names they miss. It used to be as
+    # narrow as they are, so `logo-api-platform.svg` was neither inlined nor reported:
+    # the fallback glyph went to production silently. Widening all three the
+    # same way would have closed the hyphen gap and left the class open: a digit,
+    # an underscore or a capital letter would slip through just the same.
     orphans = sorted(set(re.findall(r"logo-[^\"'\s>]+\.svg", root)))
     if orphans:
-        die(f"logos non incorporés, le repli s'afficherait à leur place : {orphans}")
+        die(f"logos not inlined, the fallback would show in their place: {orphans}")
 
     return root
 
@@ -235,9 +235,9 @@ def rewrite_links(root: str, lang: str) -> str:
     for dead, live in LINKS.items():
         root = root.replace(f"https://durable.rocks{dead}", live)
 
-    # L'ordre compte : la forme avec barre finale d'abord, sinon `…/docs` est
-    # remplacé par `/docs/` au milieu de `…/docs/packages/` et laisse un double
-    # slash. Il passerait sur la plupart des serveurs, et casserait la première
+    # Order matters: the form with the trailing slash first, otherwise `…/docs` is
+    # replaced by `/docs/` in the middle of `…/docs/packages/` and leaves a double
+    # slash. It would get through on most servers, and break the first
     # règle de réécriture stricte rencontrée.
     root = root.replace("https://durable.rocks/docs/", "/docs/")
     root = root.replace("https://durable.rocks/docs", "/docs/")
