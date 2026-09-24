@@ -4,4 +4,4 @@
   the metadata is superseded rather than deleted, and diagnose prints predecessor / successor.
 - **Entries**: `src/Durable/Handler/ResumeWorkflowHandler.php`, `src/Durable/Event/`,
   `JournalRunHistoryReader`, the diagnose command, their tests.
-- **State**: in progress — durable-50 (lane A).
+- **State**: in review — PR #473, durable-50 (lane A).
