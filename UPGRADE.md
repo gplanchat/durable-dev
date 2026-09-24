@@ -24,6 +24,19 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### `durable:execution:diagnose` and the profiler panel mask payload secrets
+
+**Who is affected**: scripts that read secrets out of `durable:execution:diagnose --json`, and
+applications whose payloads carry values under keys matching
+`/password|secret|token|authorization|card|api[_-]?key/i`. Those values now print as `***`, and strings over
+1 KiB are truncated. Add `--raw` to get the payload as stored.
+
+To change what is masked, implement `Gplanchat\Durable\Observation\PayloadRedactorInterface` and
+alias the interface to your service; both surfaces use it.
+
+The profiler reads at most 20 ids from `?durable_execution=`, and drops an id that is not printable
+ASCII without spaces, quotes, ampersands or angle brackets.
+
 ### The Sylius plugin follows the Sylius 2 layout; its route follows the admin prefix
 
 **Who is affected**: every Sylius shop that installs `gplanchat/durable-plugin`. The route import
