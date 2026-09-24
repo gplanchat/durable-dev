@@ -205,8 +205,9 @@ framework:
         default: '%env(LOCK_DSN)%'   # doctrine://default, redis://…, must be shared across workers
 ```
 
-Setting `event_store.type: dbal` together with a non-empty `temporal.dsn` throws at compile time:
-the journal cannot have two sources of truth.
+Adding a `temporal.dsn` keeps the journal in SQL and uses the cluster only to serve Nexus operations.
+`backend: temporal` would hand the cluster the journal instead: there is never a second source of
+truth.
 
 ### One resume at a time, the thing to get right {#one-resume-at-a-time--the-thing-to-get-right}
 
@@ -242,7 +243,7 @@ DUR030 needs. See [DUR047](https://github.com/gplanchat/durable-dev/blob/main/do
 
 ### What binds it is not this page's YAML
 
-It is **not a fourth value of `event_store.type`**, and it never will be: a Laravel application does
+It is **not a fourth value of `backend`**, and it never will be: a Laravel application does
 not read this page's YAML. The bridge is the storage half, and **what binds it is
 `gplanchat/durable-laravel`**, through its own published `config/durable.php`.
 
