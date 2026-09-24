@@ -27,6 +27,8 @@ final class DurableSchema
 {
     private bool $ensured = false;
 
+    private ?bool $runsTableTracksPickup = null;
+
     public function __construct(
         private readonly Connection $connection,
         private readonly string $eventsTable = 'durable_events',
@@ -34,6 +36,26 @@ final class DurableSchema
         private readonly string $parentLinkTable = 'durable_child_workflow_parent_link',
         private readonly string $runsTable = 'durable_workflow_runs',
     ) {}
+
+    /**
+     * Whether the runs table has the `picked_up_at` column. Tables created before #447 do not, and
+     * nothing alters an existing table: without the column, the pickup is not recorded and the run
+     * list does not tell a run waiting for a worker. Asked once per process.
+     */
+    public function runsTableTracksPickup(): bool
+    {
+        if (null !== $this->runsTableTracksPickup) {
+            return $this->runsTableTracksPickup;
+        }
+
+        $builder = $this->connection->getSchemaBuilder();
+        // No table yet is no answer: a worker may boot before the migrations run.
+        if (!$builder->hasTable($this->runsTable)) {
+            return false;
+        }
+
+        return $this->runsTableTracksPickup = $builder->hasColumn($this->runsTable, 'picked_up_at');
+    }
 
     public function ensure(): void
     {
@@ -71,6 +93,8 @@ final class DurableSchema
                 $table->string('status', 32);
                 $table->dateTime('started_at')->index();
                 $table->dateTime('ended_at')->nullable();
+                // When a worker first picked the run up (#447); null while the run waits for one.
+                $table->dateTime('picked_up_at')->nullable();
             });
         }
 

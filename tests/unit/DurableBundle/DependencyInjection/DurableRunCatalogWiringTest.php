@@ -7,6 +7,8 @@ namespace unit\Gplanchat\DurableBundle\DependencyInjection;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Durable\Bundle\DependencyInjection\DurableExtension;
+use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
+use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
@@ -71,6 +73,18 @@ final class DurableRunCatalogWiringTest extends TestCase
             $container->findDefinition(WorkflowMetadataStore::class)->getClass(),
             'without decorating the metadata, no execution would ever be named',
         );
+    }
+
+    public function testTheResumeHandlerRecordsThePickupOnTheProjectionTheCatalogReads(): void
+    {
+        $container = $this->load([
+            'event_store' => ['type' => 'dbal'],
+            'workflow_metadata' => ['type' => 'dbal'],
+        ]);
+
+        // resume() never appends ExecutionStarted: the handler is where a worker takes the run (#447).
+        self::assertSame(WorkflowRunPickupProjectionInterface::class, (string) $container->getDefinition(ResumeWorkflowHandler::class)->getArgument(8));
+        self::assertSame('durable.dbal.run_projection', (string) $container->getAlias(WorkflowRunPickupProjectionInterface::class));
     }
 
     public function testTheTemporalBackendExposesItsCatalog(): void

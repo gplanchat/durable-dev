@@ -6,6 +6,7 @@ namespace Gplanchat\Bridge\Dbal\Store;
 
 use Doctrine\DBAL\Connection;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
+use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\Observation\WorkflowRunProjectionInterface;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 
@@ -19,7 +20,7 @@ use Gplanchat\Durable\Observation\WorkflowRunStatus;
  * @see openspec/changes/backend-neutral-workflow-dashboard/design.md
  * @see DUR030
  */
-final class DbalWorkflowRunProjection implements WorkflowRunProjectionInterface
+final class DbalWorkflowRunProjection implements WorkflowRunProjectionInterface, WorkflowRunPickupProjectionInterface
 {
     public function __construct(
         private readonly Connection $connection,
@@ -62,6 +63,24 @@ final class DbalWorkflowRunProjection implements WorkflowRunProjectionInterface
                 'ended_at' => 'datetime_immutable',
             ]);
         }
+    }
+
+    /**
+     * A worker picked the execution up. Only the first pickup is kept, and a table created before
+     * the column existed is left alone: a worker never fails on it.
+     */
+    public function recordPickup(string $executionId): void
+    {
+        $this->schema->ensure();
+        if (!$this->schema->runsTableTracksPickup()) {
+            return;
+        }
+
+        $this->connection->executeStatement(
+            \sprintf('UPDATE %s SET picked_up_at = ? WHERE execution_id = ? AND picked_up_at IS NULL', $this->table),
+            [new \DateTimeImmutable('now', new \DateTimeZone('UTC')), $executionId],
+            ['datetime_immutable'],
+        );
     }
 
     /**
