@@ -34,27 +34,9 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
             $url .= '' === $query ? '' : '?' . $query;
         }
 
-        $curl = curl_init($url);
-        curl_setopt_array($curl, [
-            \CURLOPT_CUSTOMREQUEST => $verb,
-            \CURLOPT_POSTFIELDS => 'GET' === $verb ? null : $json,
-            \CURLOPT_HTTPHEADER => array_merge(
-                ['content-type: application/json', 'accept: application/json', 'user-agent: durable-bridge-temporal/php'],
-                GrpcWire::metadataHeaders($metadata),
-            ),
-            \CURLOPT_RETURNTRANSFER => true,
-            \CURLOPT_CONNECTTIMEOUT => 10,
-            \CURLOPT_TIMEOUT_MS => GrpcWire::timeoutMs($options),
-        ]);
+        $headers = ['content-type' => ['application/json'], 'accept' => ['application/json'], 'user-agent' => ['durable-bridge-temporal/php']] + $metadata;
+        [$httpStatus, $body] = self::overCurl($url, $verb, $json, $headers, $options);
 
-        $body = curl_exec($curl);
-        if (!\is_string($body)) {
-            $code = \CURLE_OPERATION_TIMEDOUT === curl_errno($curl) ? GrpcWire::DEADLINE_EXCEEDED : GrpcWire::UNAVAILABLE;
-
-            throw GrpcWire::failure($code, curl_error($curl));
-        }
-
-        $httpStatus = (int) curl_getinfo($curl, \CURLINFO_RESPONSE_CODE);
         if (200 === $httpStatus) {
             $response = new $responseClass();
             $response->mergeFromJsonString($body, true);
@@ -70,5 +52,33 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
             : \sprintf('HTTP %d from the gateway: %s', $httpStatus, substr($body, 0, 200));
 
         throw GrpcWire::failure($code, $message);
+    }
+
+    /**
+     * @param array<string, mixed> $headers
+     * @param array<string, mixed> $options
+     *
+     * @return array{int, string} [HTTP status, body]
+     */
+    private static function overCurl(string $url, string $verb, string $json, array $headers, array $options): array
+    {
+        $curl = curl_init($url);
+        curl_setopt_array($curl, [
+            \CURLOPT_CUSTOMREQUEST => $verb,
+            \CURLOPT_POSTFIELDS => 'GET' === $verb ? null : $json,
+            \CURLOPT_HTTPHEADER => GrpcWire::metadataHeaders($headers),
+            \CURLOPT_RETURNTRANSFER => true,
+            \CURLOPT_CONNECTTIMEOUT => 10,
+            \CURLOPT_TIMEOUT_MS => GrpcWire::timeoutMs($options),
+        ]);
+
+        $body = curl_exec($curl);
+        if (!\is_string($body)) {
+            $code = \CURLE_OPERATION_TIMEDOUT === curl_errno($curl) ? GrpcWire::DEADLINE_EXCEEDED : GrpcWire::UNAVAILABLE;
+
+            throw GrpcWire::failure($code, curl_error($curl));
+        }
+
+        return [(int) curl_getinfo($curl, \CURLINFO_RESPONSE_CODE), $body];
     }
 }
