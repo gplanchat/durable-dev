@@ -667,6 +667,31 @@ jobs:
                   key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
                   restore-keys: composer-${{ runner.os }}-
 
+            # The root `integration` suite (#344): ninety tests that skipped in every job because
+            # none set DURABLE_TEMPORAL_ADDRESS. They expect `temporal server start-dev`, not the
+            # auto-setup image below: Nexus enabled, a `durable-test` namespace, two custom search
+            # attributes and the HTTP gateway. Its own ports, so it can run beside compose.
+            - name: Install Composer dependencies (root)
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: Start a Temporal dev server for the root suite
+              run: |
+                  docker run -d --name temporal-dev -p 7333:7233 -p 7343:7243 temporalio/temporal:1.9.1 \
+                    server start-dev --ip 0.0.0.0 --port 7233 --http-port 7243 --namespace durable-test \
+                    --search-attribute DurableOrderId=Keyword --search-attribute DurableAmount=Int
+                  timeout 60 bash -c 'until nc -z 127.0.0.1 7333; do sleep 1; done'
+
+            # --fail-on-skipped: a missing variable or server turns the job red instead of green.
+            - name: PHPUnit — root integration suite
+              env:
+                  DURABLE_TEMPORAL_ADDRESS: '127.0.0.1:7333'
+                  DURABLE_TEMPORAL_HTTP_ADDRESS: '127.0.0.1:7343'
+              run: vendor/bin/phpunit --testsuite integration --fail-on-skipped --display-skipped
+
+            - name: Stop the dev server
+              if: always()
+              run: docker rm -f temporal-dev
+
             - name: Install Composer dependencies (symfony/)
               working-directory: symfony
               run: composer install --no-interaction --prefer-dist --no-progress
@@ -692,6 +717,7 @@ jobs:
               run: |
                   php bin/phpunit \
                     --testdox \
+                    --fail-on-skipped \
                     --display-skipped \
                     tests/Integration/Temporal/
 
