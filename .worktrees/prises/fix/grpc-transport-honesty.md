@@ -11,4 +11,4 @@
   touches `src/DurableBundle/DependencyInjection/Compiler/`, shared with #334: coordinated with
   alice before that slice.
 - **Not in scope**: the TLS Temporal in the integration job needs `.github/workflows/`, a human edit.
-- **State**: in progress — arwen, worktree `.claude/worktrees/grpc-transport-honesty`.
+- **State**: slice A (retry + TransportException) pushed on `fix/grpc-transport-honesty`, PR held: epic #307 is at its WIP limit (#495, #498). Slice B (DSN) next; slice C waits for #485 — arwen.
