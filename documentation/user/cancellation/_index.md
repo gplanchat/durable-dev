@@ -17,7 +17,9 @@ Temporal's `CanceledFailure`.
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
+use Gplanchat\Durable\Workflow\Saga;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 #[AsWorkflow(name: 'checkout')]
@@ -35,16 +37,29 @@ final class CheckoutWorkflow
     #[AsWorkflowMethod]
     public function run(string $orderId): string
     {
-        try {
-            return $this->environment->await($this->orders->charge($orderId));
-        } catch (WorkflowCancelledFailure $e) {
-            $this->environment->await($this->orders->refund($orderId));
+        $saga = new Saga($this->environment);
 
-            throw $e;   // the execution ends cancelled
+        try {
+            $reservation = $this->environment->await($this->orders->reserve($orderId));
+            $saga->addCompensation(fn () => $this->orders->release($reservation));
+
+            $charge = $this->environment->await($this->orders->charge($orderId));
+            $saga->addCompensation(fn () => $this->orders->refund($charge));
+
+            return $this->environment->await($this->orders->ship($orderId));
+        } catch (DurableActivityFailedException|WorkflowCancelledFailure $e) {
+            $saga->compensate();
+
+            throw $e;   // the execution ends cancelled, or failed
         }
     }
 }
 ```
+
+`Saga` records one compensation per completed step and, on `compensate()`, runs them in reverse
+order, each awaited before the next. A step that never completed has nothing to undo, because its
+compensation was never added. The first compensation that throws stops the run, and its exception
+replaces the one being compensated.
 
 Three outcomes, all legitimate:
 

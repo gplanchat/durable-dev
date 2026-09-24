@@ -283,6 +283,7 @@ Same steps, same names, same order. What differs is everything around them:
 | Function colouring | ordinary methods, declared return types | any awaiting method becomes a generator, and so does its caller; see [below](#5-fibers-or-generators-the-colouring-problem) |
 | Declaration | `#[AsWorkflow]` on the class | `#[WorkflowInterface]` on an interface, implemented by a class |
 | Method attributes | `#[AsWorkflowMethod]`, `#[AsSignalMethod]`, `#[AsQueryMethod]`, `#[AsUpdateMethod]` | the same four, workflow updates included |
+| Compensations | `new Saga($environment)`; `compensate()` awaits each one in reverse order | `new Workflow\Saga()`; `yield $saga->compensate()` |
 
 The return type is the visible consequence: `run()` declares `string` on one side; on the other, the
 only type it could declare is `\Generator`, which says nothing about what the workflow returns. That
@@ -550,7 +551,6 @@ and [DUR045](https://github.com/gplanchat/durable-dev/blob/main/documentation/ad
 |---|---|
 | **Maintenance** | Official Temporal project, kept in parity with the other language SDKs |
 | **Maturity** | Long production track record. Durable is `0.1.0-alpha`, with breaking changes between alphas |
-| **Saga** | A dedicated helper. Durable has none: the shape is a deadline and a compensation path, written out in [Creating a workflow](../workflows/#bounding-a-wait-in-time), so what is missing is the sugar rather than the capability |
 | **API coverage** | Broad. Durable covers search attributes, cron schedules, updates, deadlines and child workflows, but search attributes are **start options** here, where the SDK also lets a running workflow upsert its own; anything beyond that is worth checking against the [Configuration reference](../configuration/) before you commit |
 
 A comparison with no losses column is marketing. These are real, and **maturity** is the one that

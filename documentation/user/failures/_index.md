@@ -6,7 +6,8 @@ weight: 26
 # Failures and retries
 
 An activity that fails is not one event but several, and telling them apart is what lets you decide
-whether to compensate, alert, or let the workflow die.
+whether to compensate, alert, or let the workflow die. Compensating is shown in
+[Cancellation](../cancellation/#compensating).
 
 ---
 

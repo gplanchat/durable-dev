@@ -17,7 +17,9 @@ où il attend**, pour qu'il puisse compenser avant de se terminer. C'est l'équi
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
+use Gplanchat\Durable\Workflow\Saga;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 #[AsWorkflow(name: 'checkout')]
@@ -35,16 +37,29 @@ final class CheckoutWorkflow
     #[AsWorkflowMethod]
     public function run(string $orderId): string
     {
-        try {
-            return $this->environment->await($this->orders->charge($orderId));
-        } catch (WorkflowCancelledFailure $e) {
-            $this->environment->await($this->orders->refund($orderId));
+        $saga = new Saga($this->environment);
 
-            throw $e;   // l'exécution se termine annulée
+        try {
+            $reservation = $this->environment->await($this->orders->reserve($orderId));
+            $saga->addCompensation(fn () => $this->orders->release($reservation));
+
+            $charge = $this->environment->await($this->orders->charge($orderId));
+            $saga->addCompensation(fn () => $this->orders->refund($charge));
+
+            return $this->environment->await($this->orders->ship($orderId));
+        } catch (DurableActivityFailedException|WorkflowCancelledFailure $e) {
+            $saga->compensate();
+
+            throw $e;   // l'exécution se termine annulée, ou en échec
         }
     }
 }
 ```
+
+`Saga` enregistre une compensation par étape terminée et, à l'appel de `compensate()`, les exécute
+dans l'ordre inverse, chacune attendue avant la suivante. Une étape qui ne s'est jamais terminée n'a
+rien à défaire : sa compensation n'a jamais été ajoutée. La première compensation qui lève une
+exception arrête la série, et son exception remplace celle qu'on était en train de compenser.
 
 Trois dénouements, tous légitimes :
 
