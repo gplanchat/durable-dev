@@ -289,6 +289,7 @@ Mêmes étapes, mêmes noms, même ordre. Ce qui diffère, c'est tout ce qui les
 | Coloration des fonctions | méthodes ordinaires, types de retour déclarés | toute méthode qui attend devient un générateur, et son appelant aussi ; voir [plus bas](#5-fibers-or-generators-the-colouring-problem) |
 | Déclaration | `#[AsWorkflow]` sur la classe | `#[WorkflowInterface]` sur une interface, implémentée par une classe |
 | Attributs de méthode | `#[AsWorkflowMethod]`, `#[AsSignalMethod]`, `#[AsQueryMethod]`, `#[AsUpdateMethod]` | les mêmes quatre, mises à jour comprises |
+| Compensations | `new Saga()` ; chaque compensation appelle `await()` elle-même, `compensate()` les exécute dans l'ordre inverse | `new Workflow\Saga()` ; `yield $saga->compensate()` |
 
 Le type de retour en est la conséquence visible : `run()` déclare `string` d'un côté ; de l'autre, le
 seul type qu'elle pourrait déclarer est `\Generator`, qui ne dit rien de ce que le workflow rend.
@@ -566,7 +567,6 @@ et [DUR045](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr
 |---|---|
 | **Maintenance** | Projet officiel de Temporal, tenu en parité avec les SDK des autres langages |
 | **Maturité** | Un long historique en production. Durable est en `0.1.0-alpha`, avec des ruptures d'une alpha à l'autre |
-| **Saga** | Un utilitaire dédié. Durable n'en a pas ; la forme est une échéance et un chemin de compensation, écrits en toutes lettres dans [Écrire un workflow](../workflows/#bounding-a-wait-in-time), si bien que ce qui manque est le sucre, pas la capacité |
 | **Couverture de l'API** | Large. Durable couvre les attributs de recherche, les planifications cron, les mises à jour, les échéances et les workflows enfants, mais les attributs de recherche sont ici des **options de démarrage**, là où le SDK laisse aussi un workflow en cours mettre à jour les siens ; au-delà, cela vaut d'être vérifié dans la [référence de configuration](../configuration/) avant de s'engager |
 
 Une comparaison sans colonne de pertes est du marketing. Celles-ci sont réelles, et la maturité

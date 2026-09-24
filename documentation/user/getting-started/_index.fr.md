@@ -282,12 +282,21 @@ l'exécution attend en file, et un tableau de bord la dira `RUNNING`, ce qui est
 veut dire *pas terminée*, pas *quelqu'un s'en occupe*.
 
 ```bash
-php bin/console messenger:consume durable_workflows durable_activities
+php bin/console durable:worker
 ```
 
-Ces deux noms sont les transports que **vous** avez déclarés dans `messenger.yaml`. Aucun document
-ne peut vous donner cette commande sans que vous ayez écrit ce fichier d'abord : c'est ce qui fait
-qu'on cherche la pièce manquante partout sauf dans sa propre configuration.
+Elle lit les noms des transports dans votre propre configuration : là où `messenger.yaml` route
+`ResumeWorkflowMessage` et `FireWorkflowTimersMessage`, et l'`activity_transport` de
+`durable.yaml`. Elle affiche ce qu'elle consomme (`Consuming durable_workflows, durable_activities.`)
+et confie le reste à `messenger:consume`, à qui elle transmet `--limit`, `--time-limit`,
+`--memory-limit`, `--failure-limit`, `--sleep` et `--no-reset`. Quand les reprises ne sont routées
+nulle part, ou seulement vers `sync`, elle refuse de démarrer et le dit, au lieu d'attendre devant une
+file vide.
+
+`messenger:consume durable_workflows durable_activities` fonctionne toujours : ces deux noms sont les
+transports que **vous** avez déclarés dans `messenger.yaml`. Les signaux et les mises à jour n'y
+figurent pas : le guide les route vers `sync`. Si vous les routez vers un transport asynchrone à vous,
+consommez ce transport vous-même : `durable:worker` ne le cherche pas.
 
 Pour voir ce que le moteur retient d'une exécution :
 
@@ -355,22 +364,31 @@ avec les leurs : `php artisan durable:temporal-worker` sous Laravel,
 
 ```bash
 # Worker des tâches de workflow (interroge Temporal pour les tâches de workflow)
-php bin/console messenger:consume durable_workflows
+php bin/console durable:worker --role=workflow
 
 # Worker d'activités (interroge Temporal pour les tâches d'activité)
-php bin/console messenger:consume durable_activities
+php bin/console durable:worker --role=activity
 ```
 
-Une application qui [sert une opération Nexus](../nexus/) en lance un troisième, `durable_nexus`.
+Une application qui [sert une opération Nexus](../nexus/) en lance un troisième, `--role=nexus`.
+Sous le capot, ce sont les récepteurs `durable_workflows`, `durable_activities` et `durable_nexus`,
+et `messenger:consume` accepte aussi ces noms.
+
+Sur Temporal, lancez **un processus par rôle**. Chaque récepteur interroge le cluster en attente
+longue, et un worker interroge ses récepteurs à tour de rôle : dans un seul processus, une tâche de
+workflow peut attendre qu'une attente d'activité inoccupée expire avant d'être prise. Pour la même
+raison, `--limit` et `--failure-limit` n'arrêtent jamais un worker Temporal : ses récepteurs ne
+remettent aucun message à Messenger. `--time-limit` et `--memory-limit` l'arrêtent, une fois
+l'attente en cours terminée.
 
 En développement local avec `symfony serve`, ajoutez ceci à `.symfony.local.yaml` :
 
 ```yaml
 workers:
     workflows:
-        cmd: ['symfony', 'console', 'messenger:consume', 'durable_workflows', '--time-limit=3600']
+        cmd: ['symfony', 'console', 'durable:worker', '--role=workflow', '--time-limit=3600']
     activities:
-        cmd: ['symfony', 'console', 'messenger:consume', 'durable_activities', '--time-limit=3600']
+        cmd: ['symfony', 'console', 'durable:worker', '--role=activity', '--time-limit=3600']
 ```
 
 ---
