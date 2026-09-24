@@ -108,12 +108,12 @@
                         {% endfor %}
                         {# Not an outcome: a subset of the running runs on this page, those no worker has picked up (#447).
                            A backend that cannot tell leaves the key out, and the card with it. #}
-                        {% if waitingForWorker is defined %}
+                        {% if waitingForWorkerOnThisPage is defined %}
                             <div class="col-6 col-lg-2">
                                 <div class="card">
                                     <div class="card-body">
                                         <div class="text-secondary text-uppercase small">Waiting for a worker</div>
-                                        <div class="durable-kpi-value">{{ waitingForWorker }}</div>
+                                        <div class="durable-kpi-value">{{ waitingForWorkerOnThisPage }}</div>
                                     </div>
                                 </div>
                             </div>

@@ -26,12 +26,9 @@ return new class extends Migration {
         Schema::getConnection()->table('durable_workflow_runs')->update(['picked_up_at' => Schema::getConnection()->raw('started_at')]);
     }
 
-    public function down(): void
-    {
-        if (Schema::hasColumn('durable_workflow_runs', 'picked_up_at')) {
-            Schema::table('durable_workflow_runs', function (Blueprint $table): void {
-                $table->dropColumn('picked_up_at');
-            });
-        }
-    }
+    /**
+     * Nothing: on a fresh install the create migration made the column, and this one cannot tell
+     * whether it added it. Dropping it here, then migrating again, would mark queued runs as picked up.
+     */
+    public function down(): void {}
 };

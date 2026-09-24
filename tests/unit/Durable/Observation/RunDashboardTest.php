@@ -303,7 +303,7 @@ final class RunDashboardTest extends TestCase
         self::assertSame('waiting for a worker · 42 s', $view['runs'][0]['waitingForWorker']);
         self::assertSame('waiting for a worker · 2 h', $view['runs'][1]['waitingForWorker']);
         self::assertArrayNotHasKey('waitingForWorker', $view['runs'][2], 'a run waiting on a timer, or picked up, carries no such fact');
-        self::assertSame(2, $view['waitingForWorker'], 'counted over the page, like the outcome counters');
+        self::assertSame(2, $view['waitingForWorkerOnThisPage'], 'counted over the page, like the outcome counters');
     }
 
     public function testABackendThatCannotTellCountsNoRunAsWaitingForAWorker(): void
@@ -311,7 +311,7 @@ final class RunDashboardTest extends TestCase
         $view = $this->viewOver([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)])->build();
 
         // Zero would read as "no run waits": the backend does not know, so the page says nothing.
-        self::assertArrayNotHasKey('waitingForWorker', $view);
+        self::assertArrayNotHasKey('waitingForWorkerOnThisPage', $view);
     }
 
     private function viewOver(array $runs): RunDashboard
