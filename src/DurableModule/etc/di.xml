@@ -49,4 +49,10 @@
         </arguments>
     </type>
 
+    <!--
+        What the run page masks in each event's details (#507): #488's key pattern. An application
+        that masks more declares its own preference for the interface.
+    -->
+    <preference for="Gplanchat\Durable\Observation\PayloadRedactorInterface"
+                type="Gplanchat\Durable\Observation\KeyPatternPayloadRedactor"/>
 </config>

@@ -63,6 +63,20 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertStringNotContainsString('sk-live-123', $page);
     }
 
+    public function testTheRunPageMasksWithTheApplicationsRedactor(): void
+    {
+        // An application that masks `customerId` must not see it on the run page (review of #526).
+        $masksCustomers = new class implements \Gplanchat\Durable\Observation\PayloadRedactorInterface {
+            public function redact(mixed $payload): mixed
+            {
+                return \is_array($payload) ? array_map(fn(mixed $v): mixed => \is_array($v) ? array_diff_key($v, ['customerId' => true]) : $v, $payload) : $payload;
+            }
+        };
+        $model = (new RunDashboard(new RenderingCatalog(), redactor: $masksCustomers))->build();
+
+        self::assertStringNotContainsString('cus-42', $this->twig('en')->render('@DurablePlugin/admin/dashboard/index.html.twig', $model));
+    }
+
     public function testAnEphemeralJournalIsNeitherAFailureNorASuccess(): void
     {
         // The third state: it answers, and its answer is empty by construction.

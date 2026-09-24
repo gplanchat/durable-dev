@@ -112,7 +112,10 @@ Ce qui se déplie est masqué comme le masquent `durable:execution:diagnose` et 
 valeurs rangées sous des clés comme `password`, `token`, `secret`, `authorization`, `card` ou `api_key`
 sont remplacées, et les longues chaînes tronquées. Quiconque a accès à l'administration peut ouvrir une
 exécution : cette page n'a donc pas de vue brute. Le masquage se fie au nom de la clé : des données
-personnelles rangées sous d'autres clés restent visibles.
+personnelles rangées sous d'autres clés restent visibles. La page d'une exécution masque avec le même
+outil que ces deux-là : sur le plugin Sylius, le service qu'une application déclare comme alias de
+`Gplanchat\Durable\Observation\PayloadRedactorInterface` ; sur Magento, une préférence que
+l'application déclare pour cette interface.
 
 ## Un fait qu'un backend n'a pas est montré comme absent
 
