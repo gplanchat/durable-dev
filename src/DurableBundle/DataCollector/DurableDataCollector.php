@@ -823,16 +823,6 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                 'store_timelines' => [],
             ];
         }
-        if (isset($tf['bounds'], $tf['segments']) && !isset($tf['process'])) {
-            return [
-                'process' => [
-                    'bounds' => $tf['bounds'],
-                    'segments' => \is_array($tf['segments']) ? $tf['segments'] : [],
-                ],
-                'store_timelines' => [],
-            ];
-        }
-
         $process = \is_array($tf['process'] ?? null) ? $tf['process'] : [];
 
         return [

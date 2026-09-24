@@ -115,17 +115,6 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface,
         return $this->timeline;
     }
 
-    /**
-     * @return list<array<string, mixed>>
-     */
-    public function getTimelineForExecution(string $executionId): array
-    {
-        return array_values(array_filter(
-            $this->timeline,
-            static fn(array $e): bool => ($e['executionId'] ?? '') === $executionId,
-        ));
-    }
-
     public function countDispatchEvents(): int
     {
         return \count(array_filter(
