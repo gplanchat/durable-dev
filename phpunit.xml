@@ -4,6 +4,10 @@
          bootstrap="vendor/autoload.php"
          colors="true"
          cacheDirectory=".phpunit.cache"
+         failOnRisky="true"
+         failOnWarning="true"
+         beStrictAboutTestsThatDoNotTestAnything="true"
+         displayDetailsOnSkippedTests="true"
 >
     <testsuites>
         <testsuite name="unit">
@@ -31,9 +35,14 @@
         <testsuite name="plugin">
             <directory>src/DurablePlugin/tests</directory>
         </testsuite>
-        <!-- Against a real Temporal server; see tests/integration/Temporal/TemporalServerTestCase.php -->
         <testsuite name="integration">
             <directory>tests/integration</directory>
+            <exclude>tests/integration/Temporal</exclude>
+        </testsuite>
+        <!-- Against a real Temporal server; see tests/integration/Temporal/TemporalServerTestCase.php.
+             A suite of its own so QA can leave it to the Temporal jobs and fail on any other skip. -->
+        <testsuite name="temporal">
+            <directory>tests/integration/Temporal</directory>
         </testsuite>
     </testsuites>
     <source>
@@ -43,6 +52,10 @@
             <directory>src/Bridge/Temporal</directory>
             <directory>src/Bridge/Dbal</directory>
             <directory>src/DurablePlugin</directory>
+            <directory>src/Bridge/Illuminate</directory>
+            <directory>src/DurableLaravel</directory>
+            <directory>src/DurableModule</directory>
+            <directory>src/DurablePhpstan</directory>
         </include>
         <exclude>
             <directory>src/Bridge/Temporal/Api</directory>

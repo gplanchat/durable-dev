@@ -52,7 +52,7 @@ jobs:
               run: composer cs:check
 
             - name: PHPUnit
-              run: composer test
+              run: composer test -- --exclude-testsuite temporal --fail-on-skipped
 
     symfony-matrix:
         # The `qa` job installs the composer.lock resolution: it only ever sees one Symfony line.
@@ -712,8 +712,16 @@ jobs:
             - name: Install Composer dependencies
               run: composer install --no-interaction --prefer-dist --no-progress
 
-            - name: Text report (src/)
-              run: composer test:coverage
+            - name: Text report (src/), red below the line threshold
+              env:
+                  # The figure on the day the threshold landed (#348). Raise it with the coverage;
+                  # never lower it to get to green.
+                  MIN_LINE_COVERAGE: '76'
+              run: |
+                  composer test:coverage -- --only-summary-for-coverage-text | tee coverage.txt
+                  lines=$(sed -n 's/^ *Lines: *\([0-9.]*\)%.*/\1/p' coverage.txt)
+                  echo "Lines: ${lines}% (minimum ${MIN_LINE_COVERAGE}%)"
+                  awk -v l="$lines" -v m="$MIN_LINE_COVERAGE" 'BEGIN { exit !(l != "" && l >= m) }'
 
     temporal-integration:
         name: Temporal integration tests (gRPC + Temporal auto-setup)
@@ -755,7 +763,7 @@ jobs:
               env:
                   DURABLE_TEMPORAL_ADDRESS: '127.0.0.1:7333'
                   DURABLE_TEMPORAL_HTTP_ADDRESS: '127.0.0.1:7343'
-              run: vendor/bin/phpunit --testsuite integration --fail-on-skipped --display-skipped
+              run: vendor/bin/phpunit --testsuite integration,temporal --fail-on-skipped --display-skipped
 
             - name: Stop the dev server
               if: always()
@@ -840,7 +848,7 @@ jobs:
                   DURABLE_TEMPORAL_ADDRESS: '127.0.0.1:7233'
                   DURABLE_TEMPORAL_HTTP_ADDRESS: '127.0.0.1:7243'
                   DURABLE_TEMPORAL_TRANSPORT: 'grpc-curl'
-              run: vendor/bin/phpunit --testsuite integration --display-skipped
+              run: vendor/bin/phpunit --testsuite integration,temporal --display-skipped
 
             - name: PHPUnit — JSON gateway over a PSR-18 client (Guzzle)
               env:
@@ -890,14 +898,14 @@ jobs:
                   DURABLE_TEMPORAL_ADDRESS: '127.0.0.1:7233'
                   DURABLE_TEMPORAL_HTTP_ADDRESS: '127.0.0.1:7243'
                   DURABLE_TEMPORAL_TRANSPORT: 'grpc'
-              run: vendor/bin/phpunit --testsuite integration --display-skipped
+              run: vendor/bin/phpunit --testsuite integration,temporal --display-skipped
 
             - name: PHPUnit — integration over Guzzle
               env:
                   DURABLE_TEMPORAL_ADDRESS: '127.0.0.1:7233'
                   DURABLE_TEMPORAL_HTTP_ADDRESS: '127.0.0.1:7243'
                   DURABLE_TEMPORAL_TRANSPORT: 'guzzle'
-              run: vendor/bin/phpunit --testsuite integration --display-skipped
+              run: vendor/bin/phpunit --testsuite integration,temporal --display-skipped
 
     docker-compose-stack:
         name: Docker stack (Temporal + UI)
