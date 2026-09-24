@@ -1,14 +1,14 @@
-// Surcharge de hugo-book. Le thème charge ce fichier depuis le projet en
-// priorité sur le sien : rien n'est modifié dans _vendor.
+// hugo-book override. The theme loads this file from the project in
+// preference to its own: nothing is modified in _vendor.
 //
-// Porte le design de la page de documentation sur la structure du thème plutôt
-// que de la remplacer. La navigation, le sommaire, la recherche, les liens
-// d'édition et l'arbre des pages restent ceux de hugo-book : ils sont des
-// données, pas du balisage, et le design les figeait en dur avec cinq slugs
-// faux. Ce qui se porte, c'est la palette, la typographie et les composants.
+// Carries the documentation page design over onto the theme's structure rather
+// than replacing it. Navigation, table of contents, search, edit links
+// and the page tree stay hugo-book's: they are
+// data, not markup, and the design hard-coded them with five wrong
+// slugs. What carries over is the palette, the typography and the components.
 //
-// La palette est celle de la page d'accueil, aux mêmes valeurs : deux thèmes
-// qui divergeraient sur le même site se verraient au premier clic.
+// The palette is the home page's, with the same values: two themes
+// that diverged on the same site would show on the first click.
 
 // --- Palette -------------------------------------------------------------
 
@@ -42,9 +42,9 @@
   --dz-cv: #79b6cf;
 }
 
-// Les propriétés du thème sont réécrites depuis les nôtres, plutôt que
-// dupliquées : une seule source par couleur, et le thème continue de s'en
-// servir partout où nous n'avons rien dit.
+// The theme's properties are rewritten from ours rather than
+// duplicated: a single source per colour, and the theme keeps using
+// them everywhere we said nothing.
 @mixin durable-bind {
   --body-background: var(--dz-bg);
   --body-font-color: var(--dz-fg);
@@ -62,17 +62,17 @@
   @include durable-bind;
 }
 
-// `BookTheme = 'auto'` fait suivre le système. Le sélecteur du thème n'est
-// redéfini que pour les couleurs : le liant ci-dessus vaut pour les deux.
+// `BookTheme = 'auto'` follows the system. The theme selector is
+// redefined for colours only: the binding above applies to both.
 @media (prefers-color-scheme: dark) {
   :root {
     @include durable-dark;
   }
 }
 
-// --- Typographie ---------------------------------------------------------
-// Trois fontes, chacune avec une pile de repli réelle : la page doit rester
-// lisible si fonts.googleapis.com ne répond pas.
+// --- Typography ----------------------------------------------------------
+// Three fonts, each with a real fallback stack: the page must stay
+// readable if fonts.googleapis.com does not answer.
 
 $dz-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
 $dz-sans: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -84,9 +84,9 @@ body {
 }
 
 .book-page .markdown {
-  // Une ligne de doc qui court sur toute la largeur ne se lit pas. Le thème
-  // n'impose pas de mesure ; les blocs de code s'en affranchissent plus bas,
-  // parce qu'une ligne de PHP coupée est pire qu'une ligne longue.
+  // A line of docs running across the full width cannot be read. The theme
+  // sets no measure; code blocks are exempted from it further down,
+  // because a wrapped line of PHP is worse than a long one.
   > p,
   > ul,
   > ol,
@@ -123,7 +123,7 @@ body {
     margin-top: 2rem;
   }
 
-  // Le lien d'ancre du thème : discret jusqu'au survol du titre.
+  // The theme's anchor link: unobtrusive until the heading is hovered.
   h1 a.anchor,
   h2 a.anchor,
   h3 a.anchor,
@@ -142,8 +142,8 @@ body {
 }
 
 // --- Code ----------------------------------------------------------------
-// L'élément dominant de ces pages, pas un ornement : douze à seize blocs sur
-// une page de guide.
+// The dominant element of these pages, not an ornament: twelve to sixteen blocks on
+// a guide page.
 
 .book-page .markdown {
   code {
@@ -163,11 +163,11 @@ body {
     border-radius: 5px;
     padding: 1rem 1.15rem;
     line-height: 1.65;
-    // Une ligne de PHP coupée est pire qu'une ligne longue : elle se défile.
+    // A wrapped line of PHP is worse than a long one: it scrolls instead.
     overflow-x: auto;
   }
 
-  // Coloration syntaxique alignée sur celle du design.
+  // Syntax highlighting aligned with the design's.
   .chroma {
     .k, .kd, .kn, .kr, .kt { color: var(--dz-ck); }
     .s, .s1, .s2, .sb, .sc { color: var(--dz-cs); }
@@ -176,16 +176,16 @@ body {
   }
 }
 
-// --- Alertes -------------------------------------------------------------
-// Trois sortes en usage dans la doc : NOTE, WARNING, CAUTION. Le thème les
-// rend en blockquote ; sans distinction, un avertissement se lit comme un
-// aparté.
+// --- Alerts --------------------------------------------------------------
+// Three kinds in use in the docs: NOTE, WARNING, CAUTION. The theme
+// renders them as blockquotes; without distinction, a warning reads like an
+// aside.
 //
-// La NOTE prend le second accent, pas le premier. Elle portait `--dz-accent`,
-// c'est-à-dire la couleur des liens : dans une page qui en contient trente, un
-// aparté bordé de la même teinte se lit comme un lien de plus. C'est le rôle
-// qu'`accent2` tient déjà sur la page d'accueil, « Nexus · works today », le
-// panneau « With it » : ce qui s'ajoute au propos sans être le propos.
+// NOTE takes the second accent, not the first. It used to carry `--dz-accent`,
+// that is, the link colour: in a page that holds thirty of them, an
+// aside bordered in the same hue reads as one more link. That is the role
+// `accent2` already plays on the home page, "Nexus · works today", the
+// "With it" panel: what adds to the point without being the point.
 
 .book-page .markdown blockquote {
   border-left: 3px solid var(--dz-line);
@@ -213,9 +213,9 @@ body {
   }
 }
 
-// --- Tableaux ------------------------------------------------------------
-// Ils servent de matrices de décision (gardé/abandonné, situation/commande),
-// donc ils doivent se lire en diagonale.
+// --- Tables --------------------------------------------------------------
+// They serve as decision matrices (kept/dropped, situation/command),
+// so they must be skimmable.
 
 .book-page .markdown table {
   display: table;
@@ -241,12 +241,12 @@ body {
   }
 }
 
-// Sous 640 px, une matrice à trois colonnes ne rentre pas : sans conteneur, la
-// table pousse la page entière en scroll horizontal (685 px de contenu sur
-// /docs/options/ pour 390 px d'écran). display: block rend la table elle-même
-// scrollable, le reste de la page retrouve sa largeur.
-// ponytail: pas d'ombre pour signaler qu'il reste du contenu à droite ;
-// à ajouter si les tableaux se coupent au milieu d'une colonne utile.
+// Below 640 px, a three-column matrix does not fit: without a container, the
+// table pushes the whole page into horizontal scroll (685 px of content on
+// /docs/options/ for a 390 px screen). display: block makes the table itself
+// scrollable, and the rest of the page gets its width back.
+// ponytail: no shadow to signal that content remains to the right;
+// add one if tables get cut in the middle of a useful column.
 @media (max-width: 640px) {
   .book-page .markdown table {
     display: block;
@@ -254,7 +254,7 @@ body {
   }
 }
 
-// --- Navigation et sommaire ----------------------------------------------
+// --- Navigation and table of contents -----------------------------------
 
 .book-menu {
   font-size: 0.875rem;
@@ -272,7 +272,7 @@ body {
     }
   }
 
-  // La page courante, sans quoi le lecteur ne sait pas où il est.
+  // The current page, without which the reader does not know where they are.
   a.active {
     color: var(--dz-fg);
     font-weight: 600;
@@ -291,7 +291,7 @@ body {
   }
 }
 
-// --- Marque --------------------------------------------------------------
+// --- Brand ---------------------------------------------------------------
 
 .book-brand a {
   font-family: $dz-serif;
