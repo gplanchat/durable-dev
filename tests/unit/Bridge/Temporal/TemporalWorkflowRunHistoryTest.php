@@ -25,6 +25,10 @@ use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\StartChildWorkflowExecutionInitiatedEventAttributes;
 use Temporal\Api\History\V1\TimerStartedEventAttributes;
 use Temporal\Api\History\V1\WorkflowExecutionSignaledEventAttributes;
+use Temporal\Api\History\V1\WorkflowExecutionUpdateAcceptedEventAttributes;
+use Temporal\Api\History\V1\WorkflowExecutionUpdateCompletedEventAttributes;
+use Temporal\Api\Update\V1\Input;
+use Temporal\Api\Update\V1\Request;
 use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryResponse;
 
 /**
@@ -178,6 +182,51 @@ final class TemporalWorkflowRunHistoryTest extends TestCase
 
         $event = $this->event($eventId, EventType::EVENT_TYPE_TIMER_STARTED);
         $event->setTimerStartedEventAttributes($attributes);
+
+        return $event;
+    }
+
+    public function testAnUpdateIsOneActionFromItsAcceptanceToItsCompletion(): void
+    {
+        // Moved from the Symfony bench's own dashboard provider when the bench switched to this
+        // reader (#359): each update gets its own row, and its completion lands on that row.
+        $history = $this->readHistory(
+            $this->updateAccepted(42, 'orderUpdate'),
+            $this->updateAccepted(44, 'billingUpdate'),
+            $this->updateCompleted(45, 42),
+            $this->updateCompleted(46, 44),
+        );
+
+        self::assertSame(WorkflowRunEventKind::Update, $history[0]->kind);
+        self::assertSame($history[0]->actionKey, $history[2]->actionKey);
+        self::assertSame($history[1]->actionKey, $history[3]->actionKey);
+        self::assertNotSame($history[0]->actionKey, $history[1]->actionKey);
+    }
+
+    private function updateAccepted(int $eventId, string $updateName): HistoryEvent
+    {
+        $input = new Input();
+        $input->setName($updateName);
+        $request = new Request();
+        $request->setInput($input);
+
+        $attributes = new WorkflowExecutionUpdateAcceptedEventAttributes();
+        $attributes->setProtocolInstanceId('pid-' . $eventId);
+        $attributes->setAcceptedRequest($request);
+
+        $event = $this->event($eventId, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED);
+        $event->setWorkflowExecutionUpdateAcceptedEventAttributes($attributes);
+
+        return $event;
+    }
+
+    private function updateCompleted(int $eventId, int $acceptedEventId): HistoryEvent
+    {
+        $attributes = new WorkflowExecutionUpdateCompletedEventAttributes();
+        $attributes->setAcceptedEventId($acceptedEventId);
+
+        $event = $this->event($eventId, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED);
+        $event->setWorkflowExecutionUpdateCompletedEventAttributes($attributes);
 
         return $event;
     }
