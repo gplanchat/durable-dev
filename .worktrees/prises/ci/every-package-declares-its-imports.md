@@ -4,4 +4,4 @@
   `composer-require-checker` per published package in CI; the undeclared imports and manifest
   drift the ticket lists, declared or dropped.
 - **Entries**: `composer.json` files, `.github/workflows/`, `src/DurableModule` wiring.
-- **State**: in progress — durable-d1.
+- **State**: in review — PR #479, durable-d1.
