@@ -72,7 +72,8 @@ final class RuntimeFactoryTest extends TestCase
         $guzzle = new \GuzzleHttp\Client(['handler' => static function (\Psr\Http\Message\RequestInterface $request) use (&$calls): \GuzzleHttp\Promise\PromiseInterface {
             ++$calls;
 
-            return \GuzzleHttp\Promise\Create::rejectionFor(new \GuzzleHttp\Exception\ConnectException('refused', $request, null, ['errno' => 7]));
+            // A trailers-only PERMISSION_DENIED: a status the retry leaves alone, so one call is one request.
+            return \GuzzleHttp\Promise\Create::promiseFor(new \GuzzleHttp\Psr7\Response(200, ['grpc-status' => '7']));
         }]);
 
         $catalog = (new RuntimeFactory(
@@ -83,10 +84,37 @@ final class RuntimeFactoryTest extends TestCase
         try {
             $catalog->listRuns();
         } catch (\RuntimeException) {
-            // UNAVAILABLE: the stub refuses, and that is all it is for.
+            // PERMISSION_DENIED: the stub refuses, and that is all it is for.
         }
 
         self::assertSame(1, $calls);
+    }
+
+    public function testAnUnavailableFrontendIsRetriedThroughTheHandedGuzzleClient(): void
+    {
+        // The call count above is one because PERMISSION_DENIED is final; UNAVAILABLE is not.
+        $calls = 0;
+        $guzzle = new \GuzzleHttp\Client(['handler' => static function (\Psr\Http\Message\RequestInterface $request) use (&$calls): \GuzzleHttp\Promise\PromiseInterface {
+            return 1 === ++$calls
+                ? \GuzzleHttp\Promise\Create::rejectionFor(new \GuzzleHttp\Exception\ConnectException('refused', $request, null, ['errno' => 7]))
+                : \GuzzleHttp\Promise\Create::promiseFor(new \GuzzleHttp\Psr7\Response(200, ['grpc-status' => '7']));
+        }]);
+
+        $catalog = (new RuntimeFactory(
+            temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0&transport=guzzle',
+            guzzle: $guzzle,
+        ))->catalog();
+
+        $failure = null;
+
+        try {
+            $catalog->listRuns();
+        } catch (\RuntimeException $e) {
+            $failure = $e;
+        }
+
+        self::assertSame(7, $failure?->getCode(), 'the retry surfaces the last answer, not the first');
+        self::assertSame(2, $calls);
     }
 
     public function testTheHandedPsr18ClientCarriesTheJsonGateway(): void

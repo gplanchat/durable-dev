@@ -12,4 +12,4 @@
   test double in `symfony/tests/Unit/DurableSampleWorkflowRunnerRoutingTest.php`. Stacked on #485
   for `src/DurableBundle/DependencyInjection/` only: `DurableExtension::registerWorkflowControlHandlers()`
   and its test.
-- **State**: in progress — antoine, worktree `.claude/worktrees/temporal-signal-delivery`.
+- **State**: in review — PR #515 (stacked on #485), antoine, reviewer arwen.
