@@ -13,14 +13,14 @@ final class NexusContractResolverTest extends TestCase
 {
     public function testTheServiceNameComesFromTheContract(): void
     {
-        self::assertSame('facturation', (new NexusContractResolver())->serviceName(ContratServi::class));
+        self::assertSame('billing', (new NexusContractResolver())->serviceName(ServedContract::class));
     }
 
     public function testAnnotatedMethodsBecomeOperations(): void
     {
-        $operations = (new NexusContractResolver())->operations(ContratServi::class);
+        $operations = (new NexusContractResolver())->operations(ServedContract::class);
 
-        self::assertSame(['verifier' => 'verifier'], $operations);
+        self::assertSame(['verify' => 'verify'], $operations);
     }
 
     public function testAnInheritedOperationIsPartOfTheExtendingContract(): void
@@ -28,19 +28,19 @@ final class NexusContractResolverTest extends TestCase
         // The difference that matters with the activity resolver, which ignores inheritance.
         // Here the full contract **extends** the served contract: that is what lets the handler
         // implement only the immediate part without writing an empty method. Skipping the
-        // inherited methods would make `verifier` disappear from the caller's view — an operation
+        // inherited methods would make `verify` disappear from the caller's view — an operation
         // declared, served, and that the stub would not know how to call.
-        $operations = (new NexusContractResolver())->operations(ContratComplet::class);
+        $operations = (new NexusContractResolver())->operations(FullContract::class);
 
         self::assertSame(
-            ['encaisser' => 'encaisser', 'verifier' => 'verifier'],
+            ['collect' => 'collect', 'verify' => 'verify'],
             $operations,
         );
     }
 
     public function testAMethodWithoutTheAttributeIsNotAnOperation(): void
     {
-        self::assertArrayNotHasKey('interne', (new NexusContractResolver())->operations(ContratAvecMethodeNue::class));
+        self::assertArrayNotHasKey('internal', (new NexusContractResolver())->operations(ContractWithABareMethod::class));
     }
 
     public function testAContractWithoutAServiceNameIsRefused(): void
@@ -52,7 +52,7 @@ final class NexusContractResolverTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessageMatches('/AsNexusService/');
 
-        (new NexusContractResolver())->serviceName(ContratSansNom::class);
+        (new NexusContractResolver())->serviceName(UnnamedContract::class);
     }
 
     public function testTwoOperationsSharingAnameAreRefused(): void
@@ -60,47 +60,47 @@ final class NexusContractResolverTest extends TestCase
         // Routing happens by (service, operation): two methods with the same operation name
         // would make the switching arbitrary, and the loser would never be called.
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessageMatches('/encaisser/');
+        $this->expectExceptionMessageMatches('/collect/');
 
-        (new NexusContractResolver())->operations(ContratAmbigu::class);
+        (new NexusContractResolver())->operations(AmbiguousContract::class);
     }
 }
 
-#[AsNexusService('facturation')]
-interface ContratServi
+#[AsNexusService('billing')]
+interface ServedContract
 {
-    #[AsNexusOperation('verifier')]
-    public function verifier(string $ordre): string;
+    #[AsNexusOperation('verify')]
+    public function verify(string $order): string;
 }
 
-#[AsNexusService('facturation')]
-interface ContratComplet extends ContratServi
+#[AsNexusService('billing')]
+interface FullContract extends ServedContract
 {
-    #[AsNexusOperation('encaisser')]
-    public function encaisser(string $ordre): string;
+    #[AsNexusOperation('collect')]
+    public function collect(string $order): string;
 }
 
-#[AsNexusService('facturation')]
-interface ContratAvecMethodeNue
+#[AsNexusService('billing')]
+interface ContractWithABareMethod
 {
-    #[AsNexusOperation('verifier')]
-    public function verifier(string $ordre): string;
+    #[AsNexusOperation('verify')]
+    public function verify(string $order): string;
 
-    public function interne(): void;
+    public function internal(): void;
 }
 
-interface ContratSansNom
+interface UnnamedContract
 {
-    #[AsNexusOperation('verifier')]
-    public function verifier(string $ordre): string;
+    #[AsNexusOperation('verify')]
+    public function verify(string $order): string;
 }
 
-#[AsNexusService('facturation')]
-interface ContratAmbigu
+#[AsNexusService('billing')]
+interface AmbiguousContract
 {
-    #[AsNexusOperation('encaisser')]
-    public function encaisserParCarte(string $ordre): string;
+    #[AsNexusOperation('collect')]
+    public function collectByCard(string $order): string;
 
-    #[AsNexusOperation('encaisser')]
-    public function encaisserParVirement(string $ordre): string;
+    #[AsNexusOperation('collect')]
+    public function collectByTransfer(string $order): string;
 }
