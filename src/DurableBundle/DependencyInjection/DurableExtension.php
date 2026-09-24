@@ -44,9 +44,11 @@ use Gplanchat\Durable\Bundle\Command\DurableWorkerCommand;
 use Gplanchat\Durable\Bundle\Command\SetupCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
+use Gplanchat\Durable\Bundle\EventListener\RefuseResetOnInMemoryTransportListener;
 use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler;
+use Gplanchat\Durable\Bundle\Messenger\DurableWorkerInspection;
 use Gplanchat\Durable\Bundle\Messenger\MessengerWorkflowResumeDispatcher;
 use Gplanchat\Durable\Bundle\Messenger\WorkflowRunDispatchProfilerMiddleware;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
@@ -93,6 +95,7 @@ use Symfony\Component\DependencyInjection\Definition;
 // This one has existed since 6.4: the swap costs no supported version.
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\Messenger\Event\WorkerStartedEvent;
 
 final class DurableExtension extends Extension
 {
@@ -813,6 +816,24 @@ final class DurableExtension extends Extension
                 $isTemporalNative,
             ])
             ->addTag('console.command', ['command' => 'durable:worker'])
+        ;
+
+        // What a starting worker consumes, for the listeners that guard durable:worker and
+        // messenger:consume alike (#444): the first runs the second without a console event.
+        $container->register(DurableWorkerInspection::class)
+            ->setArguments([
+                new Reference('messenger.senders_locator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                new Reference('messenger.receiver_locator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                $activityTransport,
+                $isTemporalNative,
+                new Reference('event_dispatcher'),
+            ])
+            ->setPublic(false)
+        ;
+        $container->register(RefuseResetOnInMemoryTransportListener::class)
+            ->setArguments([new Reference(DurableWorkerInspection::class)])
+            ->addTag('kernel.event_listener', ['event' => WorkerStartedEvent::class])
+            ->setPublic(false)
         ;
     }
 

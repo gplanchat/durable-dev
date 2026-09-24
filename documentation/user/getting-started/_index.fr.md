@@ -308,6 +308,16 @@ transports que **vous** avez déclarés dans `messenger.yaml`. Les signaux et le
 figurent pas : le guide les route vers `sync`. Si vous les routez vers un transport asynchrone à vous,
 consommez ce transport vous-même : `durable:worker` ne le cherche pas.
 
+Ces deux commandes relèvent du profil **à plusieurs processus** décrit plus bas : un worker dans son
+propre processus, sur de vrais transports. Le profil `when@test` ci-dessus met les deux transports en
+`in-memory://`, et un worker n'y draine rien : un transport en mémoire ne contient que ce que son
+propre processus a envoyé, et Messenger réinitialise les services après chaque message traité, ce qui
+vide la file en mémoire. L'activité que le workflow vient de mettre en file disparaît, et l'exécution
+reste pour de bon sur `ActivityScheduled`. Dans ce profil, drainez l'exécution dans le test qui l'a
+envoyée (`DurableBundleTestTrait`, voir [Tester des workflows](../testing/)), ou, dans ce même
+processus, consommez avec `--no-reset`. Sans lui, les deux commandes refusent de démarrer sur un
+transport Durable en mémoire, et disent par où sortir.
+
 Pour voir ce que le moteur retient d'une exécution :
 
 ```bash
@@ -328,7 +338,9 @@ Trois configurations fonctionnent, une par étape. Les mélanger est le faux pas
 échoue en silence.
 
 **Les tests : un seul processus, en mémoire.** Transports `in-memory://` et magasins en mémoire. Envoi, reprise
-et activité se passent dans un même processus PHP, donc un test envoie et draine d'un seul geste. Un
+et activité se passent dans un même processus PHP, donc un test envoie et draine d'un seul geste, avec
+`DurableBundleTestTrait` ou avec `durable:worker --no-reset` dans ce processus ; les commandes de
+consommation de l'étape 5 sont pour le profil suivant. Un
 transport en mémoire **ne survit pas à son processus** : y envoyer depuis une requête web pour
 consommer dans un worker séparé ne peut pas marcher, et le rejeu non plus : le journal dont le
 worker aurait besoin vit dans la mémoire du processus web.
