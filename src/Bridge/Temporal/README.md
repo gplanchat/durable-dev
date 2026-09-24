@@ -55,7 +55,23 @@ One server, one DSN: the Durable bundle builds the workers from `durable.tempora
 bin/console messenger:consume durable_workflows durable_activities durable_nexus
 ```
 
-The workers do their work inside `get()` and hand nothing to the Messenger worker, so `retry_strategy`, `failure_transport` and `messenger:consume --limit` have no effect on them: retries are the server's retry policy, and a failed poll is retried by the next `get()`.
+### What Messenger's options do to these workers
+
+The workers do their work inside `get()` and hand nothing to the Messenger worker (they use the
+`ReceiveOnlyTransport` trait: nothing can be sent to them, nothing is acknowledged or rejected).
+Everything Messenger ties to a handled message therefore never engages:
+
+| Option | Effect on `durable_workflows`, `durable_activities`, `durable_nexus` |
+|---|---|
+| `retry_strategy`, `failure_transport` (per transport) | Cannot be set: declaring a transport under a worker's name fails the container build. Retries are the server's retry policy, and a failed poll is retried by the next `get()` |
+| `framework.messenger.failure_transport` (global) | Applies to your other transports, never to these |
+| `--limit`, `--failure-limit` | Ignored: no message is ever counted, so the worker never stops on them |
+| `--time-limit`, `--memory-limit`, `SIGTERM` | Work as usual: use them to recycle a worker |
+| `--sleep` | Applies after every task, since none counts as a handled message: the worker waits what is left of `--sleep` (1 s by default) once a task took less than that. The long poll already waits for work, so `--sleep=0` removes that pause |
+
+```bash
+bin/console messenger:consume durable_workflows durable_activities --time-limit=3600 --sleep=0
+```
 
 ## Without `ext-grpc`: curl, or the JSON gateway
 
