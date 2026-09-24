@@ -36,6 +36,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var array<string, int> */
     private array $versionsByChangeId = [];
 
+    /** @var list<string> operation id of each NEXUS_OPERATION_SCHEDULED, in slot order */
     private array $scheduledNexusOperationIds = [];
 
     /** @var array<string, int> application identity → eventId of the NEXUS_OPERATION_SCHEDULED */
@@ -793,6 +794,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         ];
     }
 
+    /** @return array<string, mixed> */
     public function startInput(): array
     {
         return $this->startInput;

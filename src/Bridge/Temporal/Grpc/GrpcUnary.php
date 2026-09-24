@@ -11,6 +11,7 @@ use Grpc\UnaryCall;
  */
 final class GrpcUnary
 {
+    /** @param UnaryCall<\Google\Protobuf\Internal\Message> $call */
     public static function wait(UnaryCall $call): object
     {
         /** @var array{0: object|null, 1: \stdClass} $pair */

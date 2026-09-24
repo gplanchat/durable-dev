@@ -1,6 +1,6 @@
 {
     "name": "gplanchat/durable-bridge-illuminate",
-    "description": "Illuminate (Laravel) journal, metadata and run stores for gplanchat/durable \u2014 durable execution on the connection Laravel already owns",
+    "description": "Illuminate (Laravel) journal, metadata and run stores for gplanchat/durable — durable execution on the connection Laravel already owns",
     "keywords": [
         "laravel",
         "illuminate",
@@ -14,10 +14,11 @@
     "license": "MIT",
     "type": "library",
     "require": {
-        "php": ">=8.2",
         "gplanchat/durable": "self.version",
+        "illuminate/contracts": "^11.0 || ^12.0 || ^13.0",
         "illuminate/database": "^11.0 || ^12.0 || ^13.0",
-        "illuminate/contracts": "^11.0 || ^12.0 || ^13.0"
+        "illuminate/support": "^11.0 || ^12.0 || ^13.0",
+        "php": ">=8.2"
     },
     "autoload": {
         "psr-4": {
@@ -39,11 +40,11 @@
     },
     "authors": [
         {
-            "name": "Gr\u00e9gory Planchat",
+            "name": "Grégory Planchat",
             "email": "gregory@gyroscops.com"
         }
     ],
     "suggest": {
-        "illuminate/cache": "Required by Queue\\ResumeLock: a cache store that locks across processes \u2014 database, redis, memcached, dynamodb or file. Never array (per-process) or null (locks nothing): both implement LockProvider and neither excludes."
+        "illuminate/cache": "Required by Queue\\ResumeLock: a cache store that locks across processes — database, redis, memcached, dynamodb or file. Never array (per-process) or null (locks nothing): both implement LockProvider and neither excludes."
     }
 }

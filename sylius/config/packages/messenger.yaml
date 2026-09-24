@@ -1,23 +1,27 @@
+# The five durable messages ride Doctrine, on the shop's own database, in every environment
+# without a cluster. Nothing rides `sync`: a resume run inside the request that sent it holds the
+# resume lock the request already holds, and the first timer deadlocks (#361).
+#
+# `demo` and `demo_caller` declare none of this: with a DSN, the Durable bundle registers
+# `durable_workflows` and `durable_activities` itself, and refuses an application that declares
+# them too.
 framework:
     messenger:
-        # Uncomment this (and the failed transport below) to send failed messages to this transport for later handling.
-        # failure_transport: failed
-
         transports:
-            # https://symfony.com/doc/current/messenger.html#transport-configuration
-            # async: '%env(MESSENGER_TRANSPORT_DSN)%'
-            # failed: 'doctrine://default?queue_name=failed'
             sync: 'sync://'
 
-        routing:
-            # Route your messages to the transports
-            # 'App\Message\YourMessage': async
+when@dev: &durable_messages
+    framework:
+        messenger:
+            transports:
+                durable_workflows:  'doctrine://default?queue_name=durable_workflows'
+                durable_activities: 'doctrine://default?queue_name=durable_activities'
+            routing:
+                Gplanchat\Durable\Transport\ResumeWorkflowMessage:        durable_workflows
+                Gplanchat\Durable\Transport\FireWorkflowTimersMessage:    durable_workflows
+                Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage: durable_workflows
+                Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage: durable_workflows
+                Gplanchat\Durable\Transport\ActivityMessage:              durable_activities
 
-# when@test:
-#    framework:
-#        messenger:
-#            transports:
-#                # replace with your transport name here (e.g., my_transport: 'in-memory://')
-#                # For more Messenger testing tools, see https://github.com/zenstruck/messenger-test
-#                async: 'in-memory://'
-
+when@test: *durable_messages
+when@prod: *durable_messages

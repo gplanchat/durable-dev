@@ -47,6 +47,12 @@ Restart the workers after the change: they read the table's columns once per pro
 A projection of your own keeps compiling. To report waits, also implement
 `WorkflowRunWaitProjectionInterface::recordWait()` and fill `WorkflowRunDescription::$waitingOn`
 while the run is running.
+### `ResetDurableProfilerListener` is gone; the execution trace keeps its last 2 000 entries
+
+**Who is affected**: code that referenced `Gplanchat\Durable\Bundle\EventListener\ResetDurableProfilerListener`,
+to decorate or remove it. Delete the reference: `DurableExecutionTrace` now keeps its last 2 000
+entries (`MAX_ENTRIES`) on its own, which holds on a Temporal worker too, where `kernel.reset`
+never fires. Between two Messenger messages, `kernel.reset` still empties it.
 
 ### One type catches every Durable error: `Gplanchat\Durable\Exception\ExceptionInterface`
 
