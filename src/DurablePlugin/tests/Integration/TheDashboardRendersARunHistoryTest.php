@@ -132,9 +132,22 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertStringNotContainsString('>Total<', $page);
     }
 
-    private function render(bool $ephemeral = false, bool $badPayload = false): string
+    public function testARunNobodyPickedUpSaysItWaitsForAWorker(): void
     {
-        $catalog = new RenderingCatalog($ephemeral, $badPayload);
+        $page = $this->render(waiting: true);
+
+        self::assertStringContainsString('waiting for a worker · ', $page);
+        self::assertStringContainsString('Waiting for a worker', $page, 'the page counts them, as it counts outcomes');
+    }
+
+    public function testARunAWorkerPickedUpSaysNothingOfTheKind(): void
+    {
+        self::assertStringNotContainsString('waiting for a worker', $this->render());
+    }
+
+    private function render(bool $ephemeral = false, bool $badPayload = false, bool $waiting = false): string
+    {
+        $catalog = new RenderingCatalog($ephemeral, $badPayload, $waiting);
         $model = (new RunDashboard($catalog))->build();
 
         return $this->twig()->render('@DurablePlugin/admin/dashboard/index.html.twig', $model);
@@ -165,6 +178,7 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface
     public function __construct(
         private readonly bool $ephemeral = false,
         private readonly bool $badPayload = false,
+        private readonly bool $waiting = false,
     ) {}
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
@@ -174,8 +188,8 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface
         }
 
         return new WorkflowRunPage([
-            new WorkflowRunDescription('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running, new \DateTimeImmutable('@1700000000')),
-        ]);
+            new WorkflowRunDescription('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running, new \DateTimeImmutable('@1700000000'), waitingForWorkerSince: $this->waiting ? new \DateTimeImmutable('@1700000000') : null),
+        ], tellsWaitingForWorker: $this->waiting);
     }
 
     public function readHistory(WorkflowRunDescription $run): array
