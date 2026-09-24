@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Messenger;
 
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
-use Symfony\Component\Messenger\Envelope;
-use Symfony\Component\Messenger\Exception\LogicException;
 use Symfony\Component\Messenger\Transport\TransportInterface;
 
 /**
@@ -15,6 +13,8 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
  */
 final class TemporalJournalTransport implements TransportInterface
 {
+    use ReceiveOnlyTransport;
+
     public function __construct(
         private readonly WorkflowTaskProcessor $processor,
     ) {}
@@ -26,12 +26,8 @@ final class TemporalJournalTransport implements TransportInterface
         return [];
     }
 
-    public function ack(Envelope $envelope): void {}
-
-    public function reject(Envelope $envelope): void {}
-
-    public function send(Envelope $envelope): Envelope
+    protected function receiveOnlyName(): string
     {
-        throw new LogicException('temporal workflow worker transport is receive-only.');
+        return 'temporal workflow worker';
     }
 }
