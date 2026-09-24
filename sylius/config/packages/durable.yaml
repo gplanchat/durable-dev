@@ -7,6 +7,17 @@ durable:
         connection: doctrine.dbal.default_connection
         lock_factory: lock.factory
 
+# Activities ride the `durable_activities` transport messenger.yaml declares for these three
+# environments. Left at its default, the transport would be `in_memory`, and an activity would run
+# inside the workflow task that scheduled it.
+when@dev: &durable_activities
+    durable:
+        activity_transport:
+            type: messenger
+            transport_name: durable_activities
+when@test: *durable_activities
+when@prod: *durable_activities
+
 # Two demonstration profiles, and nothing in `dev`, `prod` or `test`: an environment that has no
 # cluster has no DSN and no handler. With a DSN, the Durable bundle registers the Temporal workers
 # itself — `durable_nexus` in `demo`, `durable_workflows` in `demo_caller` — and messenger.yaml

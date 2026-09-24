@@ -55,6 +55,22 @@ a container build catches the former.
 
 `profiler.enabled` is new. It defaults to `%kernel.debug%`, which is what the bundle did before;
 set it to keep the profiler out of a debug worker, or in a non-debug staging build.
+### `ResetDurableProfilerListener` is gone; the execution trace keeps its last 2 000 entries
+
+**Who is affected**: code that referenced `Gplanchat\Durable\Bundle\EventListener\ResetDurableProfilerListener`,
+to decorate or remove it. Delete the reference: `DurableExecutionTrace` now keeps its last 2 000
+entries (`MAX_ENTRIES`) on its own, which holds on a Temporal worker too, where `kernel.reset`
+never fires. Between two Messenger messages, `kernel.reset` still empties it.
+
+### One type catches every Durable error: `Gplanchat\Durable\Exception\ExceptionInterface`
+
+**Who is affected**: nobody has to change anything; this is an addition. Every error class under
+`Gplanchat\Durable\Exception` and the two Nexus exceptions implement it, so a host can write
+`catch (ExceptionInterface $e)` instead of listing them.
+
+The control-flow signals — `WorkflowSuspendedException`, `ContinueAsNewRequested`,
+`ChildWorkflowStartDeferred` — do not: they end a pass of workflow code on purpose, and a catch in
+that code must let them through.
 
 ### The run list tells a run waiting for a worker: `picked_up_at` on `durable_workflow_runs`
 

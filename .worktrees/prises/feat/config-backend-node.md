@@ -5,4 +5,4 @@
   `activity_transport.table_name` deprecated, a `profiler.enabled` node.
 - **Entries**: `src/DurableBundle/DependencyInjection/`, its tests,
   `documentation/user/configuration/`, `UPGRADE.md`.
-- **State**: in progress — durable-7f (lane B).
+- **State**: in review — PR #485, durable-7f (lane B).

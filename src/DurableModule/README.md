@@ -9,7 +9,9 @@
 > monorepo](https://github.com/gplanchat/durable-dev/issues)**.
 >
 > **The tests are in the monorepo, not here.** This split carries source only. What covers it is
-> `tests/unit/DurableModule/` in the monorepo, run by its `unit` suite.
+> `tests/unit/DurableModule/` in the monorepo, run by its `unit` suite. The monorepo root does not
+> install this package: `magento/framework` comes from a Magento repository the root does not
+> reach, so its dependencies resolve in the Mage-OS bench (`magento/`) instead.
 >
 > **Documentation**: [durable.rocks](https://durable.rocks).
 

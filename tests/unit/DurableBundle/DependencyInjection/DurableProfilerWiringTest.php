@@ -20,11 +20,11 @@ use Symfony\Component\DependencyInjection\Reference;
  *
  * The observer is injected into `ExecutionRuntime`, `ExecutionEngine` and
  * `ActivityMessageProcessor`: it is on the hot path of the execution, not on that of the debug
- * page. And its trace is only emptied by a `kernel.request` listener — but `messenger:consume`
- * has no request, so in a worker it grows as long as the process lives.
+ * page. A worker has no request, so nothing request-scoped empties its trace.
  *
- * The two halves are handled together: the `kernel.reset` tag bounds the debug worker, and the
- * plain absence of the profiler bounds production.
+ * Three guards: the `kernel.reset` tag empties it between two Messenger messages, the trace's own
+ * bound holds on a Temporal worker, where `kernel.reset` never fires, and the plain absence of the
+ * profiler bounds production.
  */
 final class DurableProfilerWiringTest extends TestCase
 {
@@ -44,6 +44,14 @@ final class DurableProfilerWiringTest extends TestCase
             $definition->getTag('kernel.reset')[0]['method'] ?? null,
             'and the resetter needs the method name',
         );
+    }
+
+    public function testNoKernelRequestListenerEmptiesTheTrace(): void
+    {
+        // The trace bounds itself; a listener at priority 1024 on every request did nothing more.
+        foreach ($this->load(debug: true)->getDefinitions() as $id => $definition) {
+            self::assertStringNotContainsString('ResetDurableProfilerListener', $id . ' ' . $definition->getClass(), $id);
+        }
     }
 
     public function testOutsideDebugNoCollectorIsRegistered(): void

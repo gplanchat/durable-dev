@@ -60,7 +60,7 @@ them. See [Backends](../backends/).
 
 **Worker** — the process that pulls work: it replays workflows, runs activities and serves Nexus
 operations. On Symfony it is `messenger:consume` on the durable transports; on Laravel the
-application's queue worker plus `durable:temporal-worker`; on Magento `bin/magento durable:worker`.
+application's queue worker, or on Temporal `durable:temporal-worker` and its `--role=activity`; on Magento `bin/magento durable:worker`.
 Nothing progresses without one. See [Getting started](../getting-started/).
 
 **Child workflow** — an execution started by another one, which awaits its result the way it awaits

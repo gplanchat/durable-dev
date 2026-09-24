@@ -5,4 +5,4 @@
   format validated, each journal read once per request.
 - **Entries**: `src/DurableBundle/DataCollector/`, `src/DurableBundle/Command/DiagnoseExecutionCommand.php`,
   a redactor next to them, their tests, the getting-started diagnose step (one paragraph, EN/FR).
-- **State**: in progress — durable-7f (lane B).
+- **State**: in review — PR #488, durable-7f (lane B).

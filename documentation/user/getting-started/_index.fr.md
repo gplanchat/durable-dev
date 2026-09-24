@@ -377,7 +377,7 @@ avec le processus, précisément la panne que l'exécution durable existe pour s
 
 Quand `DURABLE_DSN` pointe vers un serveur Temporal, lancez les workers enregistrés par le bundle dans
 des processus séparés. **Ce sont les commandes Symfony** ; les autres hôtes interrogent le même cluster
-avec les leurs : `php artisan durable:temporal-worker` sous Laravel,
+avec les leurs : `php artisan durable:temporal-worker` et `--role=activity` sous Laravel,
 `bin/magento durable:worker --role=journal` et `--role=activity` sous Magento :
 
 ```bash
