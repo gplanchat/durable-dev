@@ -5,5 +5,4 @@
 - **Entries**: `src/DurablePlugin/templates/admin/dashboard/_dashboard.html.twig` (event rows),
   `src/DurablePlugin/translations/durable.{en,fr}.xlf` (`phase.*`),
   `src/DurablePlugin/tests/Integration/TheDashboardRendersARunHistoryTest.php`.
-- **State**: pushed on `feat/plugin-run-event-phase` (617de856, stacked on #519's 882a1f39),
-  reviewed OK by vera; PR held until #519 merges. sabrina.
+- **State**: in review — PR #533 (closes #332), reviewed OK by vera. sabrina.
