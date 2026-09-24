@@ -28,6 +28,7 @@ final class ActivitiesParameters
      * @param ActivityStub<ShippingActivities> $disagreeing
      * @param ActivityStub<OrderActivities>|null $nullable
      * @param ActivityStub<ShippingActivities> $namedByString
+     * @param ActivityStub<ShippingActivities> $reordered
      */
     #[AsWorkflowMethod]
     public function run(
@@ -43,6 +44,8 @@ final class ActivitiesParameters
         ?ActivityStub $nullable,
         #[Activities('unit\\DurablePhpstan\\Fixtures\\OrderActivities')]
         ActivityStub $namedByString,
+        #[Activities(attempts: 3, contract: OrderActivities::class)]
+        ActivityStub $reordered,
     ): mixed {
         return $env->await($agreeing->charge($orderId, 100));
     }

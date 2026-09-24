@@ -30,6 +30,32 @@ final class GreetByArgumentWorkflow
     }
 }
 
+#[AsWorkflow('greet-with-options')]
+final class GreetWithOptionsWorkflow
+{
+    /** @param ActivityStub<SuiteActivities> $greeting */
+    #[AsWorkflowMethod]
+    public function run(
+        string $name,
+        #[Activities(SuiteActivities::class, attempts: 3, startToClose: 120.0, taskQueue: 'greetings')]
+        ActivityStub $greeting,
+        WorkflowEnvironment $env,
+    ): string {
+        return $env->await($greeting->greet($name));
+    }
+}
+
+#[AsWorkflow('impossible-options')]
+final class ImpossibleOptionsWorkflow
+{
+    /** @param ActivityStub<SuiteActivities> $greeting */
+    #[AsWorkflowMethod]
+    public function run(
+        #[Activities(SuiteActivities::class, attempts: 0)]
+        ActivityStub $greeting,
+    ): void {}
+}
+
 #[AsWorkflow('fan-out-by-argument')]
 final class FanOutByArgumentWorkflow
 {
@@ -159,6 +185,30 @@ final class WorkflowMethodArgumentsTest extends TestCase
         $env = WorkflowTestEnvironment::inMemory();
 
         self::assertSame(['a' => 1, 'b' => 2], $env->runWorkflowClass(WholeInputWorkflow::class, ['a' => 1, 'b' => 2]));
+    }
+
+    public function testTheAttributesOptionsReachTheScheduledActivity(): void
+    {
+        $env = WorkflowTestEnvironment::inMemory(['greet' => static fn(array $p): string => 'Hello, ' . $p['name'] . '!']);
+
+        $env->runWorkflowClass(GreetWithOptionsWorkflow::class, ['name' => 'Ada'], 'exec-options');
+
+        $scheduled = array_values(array_filter(
+            iterator_to_array($env->getEventStore()->readStream('exec-options'), false),
+            static fn(object $e): bool => $e instanceof \Gplanchat\Durable\Event\ActivityScheduled,
+        ));
+        self::assertCount(1, $scheduled);
+        $options = \Gplanchat\Durable\Activity\ActivityOptions::fromMetadata($scheduled[0]->metadata());
+        self::assertSame(3, $options?->retryLimit->maxAttempts());
+        self::assertSame(120.0, $options->timeouts->startToClose?->toSeconds());
+        self::assertSame('greetings', $options->taskQueue?->name());
+    }
+
+    public function testAnImpossibleOptionFailsAtRegistrationAndSaysWhere(): void
+    {
+        $this->expectExceptionMessage('ImpossibleOptionsWorkflow::run() parameter $greeting: #[Activities] attempts');
+
+        (new WorkflowDefinitionLoader())->load(ImpossibleOptionsWorkflow::class);
     }
 
     public function testAStubWithoutItsContractFailsAtRegistration(): void

@@ -88,7 +88,16 @@ final class ActivitiesParameterRule implements Rule
                 if (Activities::class !== $attribute->name->toString()) {
                     continue;
                 }
-                $value = $attribute->args[0]->value ?? null;
+                // The contract is the first positional argument, or the one named `contract`:
+                // the options are named, and may come before it.
+                $value = null;
+                foreach ($attribute->args as $position => $argument) {
+                    if ('contract' === $argument->name?->toString() || (null === $argument->name && 0 === $position)) {
+                        $value = $argument->value;
+
+                        break;
+                    }
+                }
                 if ($value instanceof ClassConstFetch && $value->class instanceof Name) {
                     return $value->class->toString();
                 }
