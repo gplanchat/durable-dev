@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Dbal;
 
-use Doctrine\DBAL\DriverManager;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Bridge\Dbal\Store\DbalChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Testing\ChildWorkflowParentLinkStoreConformanceTestCase;
+use unit\Bridge\SqlTestDatabase;
 
 /**
  * @see DUR041
@@ -18,7 +18,7 @@ final class DbalChildWorkflowParentLinkStoreConformanceTest extends ChildWorkflo
 {
     protected function createParentLinkStore(): ChildWorkflowParentLinkStoreInterface
     {
-        $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
+        $connection = SqlTestDatabase::dbal();
 
         return new DbalChildWorkflowParentLinkStore($connection, new DurableSchema($connection));
     }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Bridge\Dbal;
 
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\DriverManager;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Bridge\Dbal\Store\DbalEventStore;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowMetadataStore;
@@ -21,6 +20,7 @@ use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Testing\WorkflowRunCatalogConformanceTestCase;
+use unit\Bridge\SqlTestDatabase;
 
 /**
  * The bootstrapping hooks write through the projecting stores, as a real worker would: the
@@ -35,7 +35,7 @@ final class DbalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalogConf
 
     protected function setUp(): void
     {
-        $this->connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
+        $this->connection = SqlTestDatabase::dbal();
     }
 
     protected function catalogUnderTest(): WorkflowRunCatalogInterface

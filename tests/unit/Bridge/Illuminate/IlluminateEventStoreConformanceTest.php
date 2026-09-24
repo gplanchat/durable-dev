@@ -8,7 +8,7 @@ use Gplanchat\Bridge\Illuminate\Schema\DurableSchema;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Testing\EventStoreReplayConformanceTestCase;
-use Illuminate\Database\Capsule\Manager;
+use unit\Bridge\SqlTestDatabase;
 
 /**
  * `illuminate/database` is usable with no Laravel application around it — that is what Capsule is,
@@ -24,9 +24,7 @@ final class IlluminateEventStoreConformanceTest extends EventStoreReplayConforma
 {
     protected function createEventStore(): EventStoreInterface
     {
-        $capsule = new Manager();
-        $capsule->addConnection(['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
-        $connection = $capsule->getConnection();
+        $connection = SqlTestDatabase::illuminate();
 
         return new IlluminateEventStore($connection, new DurableSchema($connection));
     }
