@@ -262,7 +262,7 @@ final class DurableExtension extends Extension
         if (!$container->hasDefinition('durable.workflow_metadata_store.inner')) {
             $container->setDefinition(
                 'durable.workflow_metadata_store.inner',
-                $container->getDefinition(WorkflowMetadataStore::class),
+                $container->getDefinition(WorkflowMetadataStore::class)->setPublic(false),
             );
             $container->removeDefinition(WorkflowMetadataStore::class);
         }
@@ -321,7 +321,8 @@ final class DurableExtension extends Extension
         // inside of the decorator, and the interface points at the decorator.
         $container->setDefinition(
             'durable.workflow_metadata_store.inner',
-            $container->getDefinition(WorkflowMetadataStore::class),
+            // Private: it is reached through the interface, which points at the decorator.
+            $container->getDefinition(WorkflowMetadataStore::class)->setPublic(false),
         );
         $container->removeDefinition(WorkflowMetadataStore::class);
 

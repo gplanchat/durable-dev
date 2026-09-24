@@ -35,6 +35,8 @@ final class DurableContainerSurfaceTest extends TestCase
         yield 'projected DBAL metadata' => [$dbal, 'durable.workflow_metadata_store.projecting'];
         yield 'DBAL catalog' => [$dbal, 'durable.run_catalog.dbal'];
         yield 'projected in-memory journal' => [[], 'durable.event_store.in_memory.projecting'];
+        yield 'in-memory metadata, inner service' => [[], 'durable.workflow_metadata_store.inner'];
+        yield 'DBAL journal, in-memory metadata, inner service' => [['event_store' => ['type' => 'dbal']], 'durable.workflow_metadata_store.inner'];
         yield 'projected in-memory metadata' => [[], 'durable.workflow_metadata_store.in_memory.projecting'];
         yield 'in-memory catalog' => [[], 'durable.run_catalog.in_memory'];
     }
