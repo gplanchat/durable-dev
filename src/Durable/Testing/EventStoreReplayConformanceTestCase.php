@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Testing;
 
 use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreHistorySource;
@@ -55,8 +56,7 @@ abstract class EventStoreReplayConformanceTestCase extends EventStoreConformance
     }
 
     /**
-     * `EventStoreHistorySource` reads the stream again on every slot lookup — that is the path the
-     * replay actually takes, and it is more demanding than a single read.
+     * The slot lookups the replay takes, read through `EventStoreHistorySource` on both stores.
      */
     public function testReplaySlotLookupsAgreeWithTheReference(): void
     {
@@ -118,10 +118,11 @@ abstract class EventStoreReplayConformanceTestCase extends EventStoreConformance
         self::assertNull($fromSubject->activityNameForSlot(1));
         self::assertSame($fromReference->activityNameForSlot(1), $fromSubject->activityNameForSlot(1));
 
-        // The conformance workflow starts no child and this backend refuses Nexus (DUR036): both
+        // The conformance workflow starts one child, and this backend refuses Nexus (DUR036): both
         // accessors must say so, and say it the same way.
-        self::assertNull($fromSubject->childWorkflowTypeForSlot(0));
+        self::assertSame('durable.conformance.child', $fromSubject->childWorkflowTypeForSlot(0));
         self::assertSame($fromReference->childWorkflowTypeForSlot(0), $fromSubject->childWorkflowTypeForSlot(0));
+        self::assertNull($fromSubject->childWorkflowTypeForSlot(1));
         self::assertNull($fromSubject->nexusOperationSignatureForSlot(0));
         self::assertSame($fromReference->nexusOperationSignatureForSlot(0), $fromSubject->nexusOperationSignatureForSlot(0));
     }
@@ -161,6 +162,75 @@ abstract class EventStoreReplayConformanceTestCase extends EventStoreConformance
         );
     }
 
+    /**
+     * Every other lookup of the history port, so that no method of it escapes the suite (#326):
+     * activity identity and payload, timer, side-effect presence, child, recorded messages, and
+     * the operations this workflow never starts (Nexus, a cancellation), which must read back as
+     * absent on both sides.
+     */
+    public function testEveryHistoryLookupAgreesWithTheReference(): void
+    {
+        $reference = new InMemoryEventStore();
+        $subject = $this->createEventStore();
+
+        self::runConformanceWorkflow($reference, 'exec-reference');
+        self::runConformanceWorkflow($subject, 'exec-subject');
+        // A message recorded on both journals, read back through the shared cursor.
+        $reference->append(new WorkflowSignalReceived('exec-reference', 'conformance-signal', ['n' => 1]));
+        $subject->append(new WorkflowSignalReceived('exec-subject', 'conformance-signal', ['n' => 1]));
+
+        $fromReference = new EventStoreHistorySource($reference, 'exec-reference');
+        $fromSubject = new EventStoreHistorySource($subject, 'exec-subject');
+
+        // Identifiers are drawn per execution: what must agree is whether each lookup finds one.
+        foreach ([$fromReference, $fromSubject] as $history) {
+            self::assertNotNull($history->findScheduledActivityId(0));
+            self::assertNull($history->findScheduledActivityId(1));
+        }
+        self::assertSame($fromReference->activityPayloadForSlot(0), $fromSubject->activityPayloadForSlot(0));
+
+        $referenceTimer = (string) $fromReference->findScheduledTimerId(0);
+        $timerId = $fromSubject->findScheduledTimerId(0);
+        self::assertNotNull($timerId);
+        foreach ([$fromReference, $fromSubject] as $history) {
+            $fired = $history->findTimerSlotResult(0);
+            self::assertNotNull($fired, 'the timer fired, on both sides');
+            self::assertNull($fired['failed']);
+        }
+        self::assertSame(
+            $fromReference->timerCompletionPosition($referenceTimer),
+            $fromSubject->timerCompletionPosition($timerId),
+            'the firing sits at the same rank of both journals',
+        );
+
+        foreach ([0, 1, 2] as $slot) {
+            self::assertSame($fromReference->hasSideEffectForSlot($slot), $fromSubject->hasSideEffectForSlot($slot), "side-effect slot {$slot}");
+        }
+        self::assertFalse($fromSubject->hasSideEffectForSlot(2), 'two side effects, no third');
+
+        $referenceChild = (string) $fromReference->findScheduledChildExecutionId(0);
+        $childId = $fromSubject->findScheduledChildExecutionId(0);
+        self::assertNotNull($childId);
+        self::assertSame($fromReference->childWorkflowInputForSlot(0), $fromSubject->childWorkflowInputForSlot(0));
+        self::assertSame($fromReference->findChildWorkflowForSlot(0)['result'] ?? null, $fromSubject->findChildWorkflowForSlot(0)['result'] ?? null);
+        self::assertSame($fromReference->hasChildExecutionId($referenceChild), $fromSubject->hasChildExecutionId($childId));
+        self::assertSame(
+            $fromReference->hasChildExecutionCompletedSuccessfully($referenceChild),
+            $fromSubject->hasChildExecutionCompletedSuccessfully($childId),
+        );
+        self::assertTrue($fromSubject->hasChildExecutionCompletedSuccessfully($childId));
+
+        self::assertSame($fromReference->messageAt(0), $fromSubject->messageAt(0));
+        self::assertNull($fromSubject->messageAt(1));
+
+        foreach ([$fromReference, $fromSubject] as $history) {
+            self::assertNull($history->findScheduledNexusOperation(0));
+            self::assertNull($history->findNexusOperationSlotResult(0));
+            self::assertNull($history->nexusOperationPayloadForSlot(0));
+            self::assertNull($history->cancellationDelivery());
+        }
+    }
+
     private static function runConformanceWorkflow(EventStoreInterface $eventStore, string $executionId): mixed
     {
         $activityExecutor = new RegistryActivityExecutor();
@@ -170,12 +240,14 @@ abstract class EventStoreReplayConformanceTestCase extends EventStoreConformance
             'lines' => $payload['lines'] ?? [],
         ]);
 
+        $registry = new WorkflowRegistry();
+        $registry->registerClass(ConformanceChildWorkflow::class);
         $runner = new InMemoryWorkflowRunner(
             $eventStore,
             new InMemoryActivityTransport(),
             $activityExecutor,
             0,
-            new WorkflowRegistry(),
+            $registry,
         );
 
         return $runner->run($executionId, static function (WorkflowEnvironment $wf): array {
@@ -188,8 +260,9 @@ abstract class EventStoreReplayConformanceTestCase extends EventStoreConformance
             $quote = $wf->await($wf->activityStub(ConformanceActivities::class)->quote(['a', 'b']));
             $wf->sleep(Duration::seconds(0.001));
             $flag = $wf->sideEffect(static fn(): string => 'after-timer');
+            $child = $wf->await($wf->childWorkflowStub(ConformanceChildWorkflow::class)->run('hello'));
 
-            return ['nested' => $nested, 'quote' => $quote, 'flag' => $flag];
+            return ['nested' => $nested, 'quote' => $quote, 'flag' => $flag, 'child' => $child];
         });
     }
 
