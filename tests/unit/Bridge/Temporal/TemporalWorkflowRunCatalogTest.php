@@ -146,22 +146,41 @@ final class TemporalWorkflowRunCatalogTest extends TestCase
                 $this->info('wf-1', 'run-1', 'App\\OrderWorkflow', 'orders', $serverStatus, 1_700_000_000),
             ))->listRuns()->runs[0]->status;
 
-            $queries = [];
-            $client = $this->createMock(WorkflowServiceClientInterface::class);
-            $client->method('ListWorkflowExecutions')->willReturnCallback(static function (ListWorkflowExecutionsRequest $request) use (&$queries): ListWorkflowExecutionsResponse {
-                $queries[] = $request->getQuery();
-
-                return new ListWorkflowExecutionsResponse();
-            });
-            (new TemporalWorkflowRunCatalog($client, $this->connection()))->listRuns($listedAs);
-
+            $query = $this->filterQuery($listedAs);
             $visibilityName = str_replace('_', '', ucwords(strtolower(substr($constant, \strlen('WORKFLOW_EXECUTION_STATUS_'))), '_'));
-            self::assertStringContainsString(
-                \sprintf('"%s"', $visibilityName),
-                $queries[0],
-                \sprintf('%s is listed as %s, but the %s filter leaves it out', $constant, $listedAs->name, $listedAs->name),
+            $named = str_contains($query, \sprintf('"%s"', $visibilityName));
+
+            self::assertTrue(
+                str_contains($query, 'NOT IN') ? !$named : $named,
+                \sprintf('%s is listed as %s, but the %s filter leaves it out: %s', $constant, $listedAs->name, $listedAs->name, $query),
             );
         }
+    }
+
+    /**
+     * Temporal 1.25 rejects a status name it does not know ("invalid ExecutionStatus value 'Paused'"),
+     * and CI's servers are all newer: no filter may name `Paused`, the Running one excludes the ends
+     * instead (#506).
+     */
+    public function testNoFilterNamesAStatusOlderServersReject(): void
+    {
+        foreach (WorkflowRunStatus::cases() as $status) {
+            self::assertStringNotContainsString('"Paused"', $this->filterQuery($status), $status->name . ' filter');
+        }
+    }
+
+    private function filterQuery(WorkflowRunStatus $status): string
+    {
+        $queries = [];
+        $client = $this->createMock(WorkflowServiceClientInterface::class);
+        $client->method('ListWorkflowExecutions')->willReturnCallback(static function (ListWorkflowExecutionsRequest $request) use (&$queries): ListWorkflowExecutionsResponse {
+            $queries[] = $request->getQuery();
+
+            return new ListWorkflowExecutionsResponse();
+        });
+        (new TemporalWorkflowRunCatalog($client, $this->connection()))->listRuns($status);
+
+        return $queries[0];
     }
 
     private function info(string $workflowId, string $runId, string $type, string $taskQueue, int $status, int $startedAt): WorkflowExecutionInfo

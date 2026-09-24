@@ -190,19 +190,34 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     private static function statusOf(WorkflowExecutionInfo $info): WorkflowRunStatus
     {
         return self::STATUSES[$info->getStatus()][1]
-            ?? (null === $info->getCloseTime() ? WorkflowRunStatus::Running : WorkflowRunStatus::Failed);
+            ?? (null === self::toDateTime($info->getCloseTime()) ? WorkflowRunStatus::Running : WorkflowRunStatus::Failed);
     }
 
+    /**
+     * Names a visibility query must not use: a server older than the status refuses the whole query
+     * ("invalid ExecutionStatus value 'Paused'" on Temporal 1.25).
+     */
+    private const NEWER_THAN_OLDER_SERVERS = ['Paused'];
+
+    /**
+     * A filter whose statuses include one older servers do not know says what it excludes instead,
+     * so it still finds that status without naming it (#506).
+     */
     private static function visibilityQuery(WorkflowRunStatus $status): string
     {
-        $serverStatuses = [];
+        $listed = [];
+        $others = [];
         foreach (self::STATUSES as [$name, $listedAs]) {
             if ($status === $listedAs) {
-                $serverStatuses[] = $name;
+                $listed[] = $name;
+            } elseif (!\in_array($name, self::NEWER_THAN_OLDER_SERVERS, true)) {
+                $others[] = $name;
             }
         }
 
-        return \sprintf('ExecutionStatus IN ("%s")', implode('", "', $serverStatuses));
+        return [] === array_intersect($listed, self::NEWER_THAN_OLDER_SERVERS)
+            ? \sprintf('ExecutionStatus IN ("%s")', implode('", "', $listed))
+            : \sprintf('ExecutionStatus NOT IN ("%s")', implode('", "', $others));
     }
 
     private static function decodeCursor(string $cursor): string
