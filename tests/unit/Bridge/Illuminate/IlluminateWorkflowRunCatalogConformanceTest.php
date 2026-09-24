@@ -92,6 +92,16 @@ final class IlluminateWorkflowRunCatalogConformanceTest extends WorkflowRunCatal
         $this->catalog()->recordPickup($executionId);
     }
 
+    protected function canTellAWait(): bool
+    {
+        return true;
+    }
+
+    protected function recordWait(string $executionId, string $waitingOn): void
+    {
+        $this->catalog()->recordWait($executionId, $waitingOn);
+    }
+
     private function journal(): ProjectingEventStore
     {
         return new ProjectingEventStore(

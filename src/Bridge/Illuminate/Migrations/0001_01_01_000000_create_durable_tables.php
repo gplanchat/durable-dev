@@ -46,6 +46,8 @@ return new class extends Migration {
             $table->dateTime('ended_at')->nullable();
             // When a worker first picked the run up (#447); null while the run waits for one.
             $table->dateTime('picked_up_at')->nullable();
+            // What the run last suspended on (#324); read only while it is running.
+            $table->text('waiting_on')->nullable();
         });
 
         Schema::create('durable_child_workflow_parent_link', function (Blueprint $table): void {

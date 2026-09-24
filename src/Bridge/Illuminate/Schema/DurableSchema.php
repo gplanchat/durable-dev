@@ -27,7 +27,10 @@ final class DurableSchema
 {
     private bool $ensured = false;
 
-    private ?bool $runsTableTracksPickup = null;
+    /**
+     * @var array<string, bool>
+     */
+    private array $runsTableColumns = [];
 
     public function __construct(
         private readonly Connection $connection,
@@ -44,8 +47,22 @@ final class DurableSchema
      */
     public function runsTableTracksPickup(): bool
     {
-        if (null !== $this->runsTableTracksPickup) {
-            return $this->runsTableTracksPickup;
+        return $this->runsTableHas('picked_up_at');
+    }
+
+    /**
+     * Whether the runs table has the `waiting_on` column (#324), under the same rule as
+     * {@see runsTableTracksPickup()}.
+     */
+    public function runsTableTracksWait(): bool
+    {
+        return $this->runsTableHas('waiting_on');
+    }
+
+    private function runsTableHas(string $column): bool
+    {
+        if (isset($this->runsTableColumns[$column])) {
+            return $this->runsTableColumns[$column];
         }
 
         $builder = $this->connection->getSchemaBuilder();
@@ -54,7 +71,7 @@ final class DurableSchema
             return false;
         }
 
-        return $this->runsTableTracksPickup = $builder->hasColumn($this->runsTable, 'picked_up_at');
+        return $this->runsTableColumns[$column] = $builder->hasColumn($this->runsTable, $column);
     }
 
     public function ensure(): void
@@ -95,6 +112,8 @@ final class DurableSchema
                 $table->dateTime('ended_at')->nullable();
                 // When a worker first picked the run up (#447); null while the run waits for one.
                 $table->dateTime('picked_up_at')->nullable();
+                // What the run last suspended on (#324); read only while it is running.
+                $table->text('waiting_on')->nullable();
             });
         }
 
