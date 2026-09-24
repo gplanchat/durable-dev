@@ -130,16 +130,12 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq lftp sshpass
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          if [ -n "$KNOWN_HOSTS" ]; then
-            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          else
-            echo "::warning::OVH_SSH_KNOWN_HOSTS is absent — the server fingerprint is accepted blind."
-            ssh-keyscan -H "$SFTP_HOST" > ~/.ssh/known_hosts 2>/dev/null
-          fi
-          if [ ! -s ~/.ssh/known_hosts ]; then
-            echo "::error::No host key for $SFTP_HOST — is SSH/SFTP enabled on the hosting?"
+          # No keyscan fallback: sshpass would hand the password to whichever host answered.
+          if [ -z "$KNOWN_HOSTS" ]; then
+            echo "::error::OVH_SSH_KNOWN_HOSTS is not set on the durable.rocks environment — refusing to send the password to an unverified host."
             exit 1
           fi
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           echo "Cible : $SFTP_USER@$SFTP_HOST:$SERVER_DIR"
           # lftp delegates SFTP to ssh, which does not accept a password on stdin: sshpass
           # supplies it from $SSHPASS. The password passed to -u is ignored.
