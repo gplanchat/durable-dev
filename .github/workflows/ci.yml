@@ -9,6 +9,11 @@ concurrency:
 on:
     push:
         branches: [main, master]
+        # A prise commit changes no code: testing main again for it only queues runners ahead of the
+        # pull requests. Push only: on pull_request `ci-ok` is the required check and must exist.
+        paths-ignore:
+            - '.worktrees/prises/**'
+            - '.worktrees/PRISES.md'
     pull_request:
 
 jobs:

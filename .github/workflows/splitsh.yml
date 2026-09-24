@@ -14,6 +14,11 @@ on:
         branches: [main, master]
         tags:
             - 'v*'
+        # The registry is not in any satellite. GitHub skips path filters on tag pushes, so a
+        # release still splits.
+        paths-ignore:
+            - '.worktrees/prises/**'
+            - '.worktrees/PRISES.md'
     workflow_dispatch:
         inputs:
             force:
