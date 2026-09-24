@@ -42,7 +42,7 @@ use Symfony\Contracts\Service\ResetInterface;
  * Durable profiler panel: executionIds coming from the Messenger dispatches on the request (or the durable_execution query),
  * then the history read from the event store.
  *
- * The in-memory trace records the WorkflowRunMessage dispatches, every engine run ({@see WorkflowExecutionObserverInterface})
+ * The in-memory trace records the ResumeWorkflowMessage dispatches, every engine run ({@see WorkflowExecutionObserverInterface})
  * and every activity executed in this process; the full detail of the journal comes from the event store.
  *
  * To include a journal with no dispatch on this request, add durable_execution (ids, comma-separated, at most
@@ -286,7 +286,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             return null;
         }
 
-        return 'A WorkflowRunMessage dispatch was observed on this request, but the journal is still empty: '
+        return 'A ResumeWorkflowMessage dispatch was observed on this request, but the journal is still empty: '
             . 'the handler has most likely not run in this process yet (asynchronous Messenger). '
             . 'To fill the journal within the same profile, use the demo that waits (drain), or reload with '
             . '?durable_execution=&lt;uuid&gt; once the workers have been through.';
@@ -825,16 +825,6 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                 'store_timelines' => [],
             ];
         }
-        if (isset($tf['bounds'], $tf['segments']) && !isset($tf['process'])) {
-            return [
-                'process' => [
-                    'bounds' => $tf['bounds'],
-                    'segments' => \is_array($tf['segments']) ? $tf['segments'] : [],
-                ],
-                'store_timelines' => [],
-            ];
-        }
-
         $process = \is_array($tf['process'] ?? null) ? $tf['process'] : [];
 
         return [

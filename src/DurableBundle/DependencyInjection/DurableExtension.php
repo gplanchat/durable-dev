@@ -76,9 +76,6 @@ use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
-// And not HttpKernel's, which is only a thin subclass of it — `@internal` since
-// Symfony 7.1, deprecated in 8.1 — and only adds the leftovers of the annotated class cache.
-// This one has existed since 6.4: the swap costs no supported version.
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
@@ -88,6 +85,9 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
+// And not HttpKernel's, which is only a thin subclass of it — `@internal` since
+// Symfony 7.1, deprecated in 8.1 — and only adds the leftovers of the annotated class cache.
+// This one has existed since 6.4: the swap costs no supported version.
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 
@@ -262,7 +262,7 @@ final class DurableExtension extends Extension
         if (!$container->hasDefinition('durable.workflow_metadata_store.inner')) {
             $container->setDefinition(
                 'durable.workflow_metadata_store.inner',
-                $container->getDefinition(WorkflowMetadataStore::class),
+                $container->getDefinition(WorkflowMetadataStore::class)->setPublic(false),
             );
             $container->removeDefinition(WorkflowMetadataStore::class);
         }
@@ -321,7 +321,8 @@ final class DurableExtension extends Extension
         // inside of the decorator, and the interface points at the decorator.
         $container->setDefinition(
             'durable.workflow_metadata_store.inner',
-            $container->getDefinition(WorkflowMetadataStore::class),
+            // Private: it is reached through the interface, which points at the decorator.
+            $container->getDefinition(WorkflowMetadataStore::class)->setPublic(false),
         );
         $container->removeDefinition(WorkflowMetadataStore::class);
 
@@ -469,7 +470,8 @@ final class DurableExtension extends Extension
                     new Reference('durable.temporal.connection'),
                     new Reference(WorkflowTaskRunner::class),
                 ])
-                ->setPublic(true)
+                // Private: the journal transport takes it by reference, nothing pulls it by id.
+                ->setPublic(false)
             ;
 
             $container->register('durable.event_store.temporal', TemporalReadThroughEventStore::class)
@@ -653,6 +655,8 @@ final class DurableExtension extends Extension
 
     private function registerWorkflowQueryRunner(ContainerBuilder $container): void
     {
+        // Public on purpose: application code runs its queries through it, so it is part of the
+        // bundle's surface, not an internal the bundle could hide.
         $container->register(WorkflowQueryRunner::class)
             ->setArguments([new Reference(EventStoreInterface::class)])
             ->setPublic(true)
@@ -668,6 +672,7 @@ final class DurableExtension extends Extension
 
     private function registerWorkflowBackend(ContainerBuilder $container): void
     {
+        // Public on purpose: the entry point an application starts and drives workflows through.
         $container->register(WorkflowBackendInterface::class, LocalWorkflowBackend::class)
             ->setArguments([new Reference(\Gplanchat\Durable\ExecutionEngine::class)])
             ->setPublic(true)
@@ -813,6 +818,8 @@ final class DurableExtension extends Extension
                 new Reference(ChildWorkflowParentLinkStoreInterface::class),
                 new Reference('durable.temporal.connection', ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 new Reference(PayloadRedactorInterface::class),
+                // On Temporal native the metadata store is per process: an empty row means nothing.
+                $isTemporalNative,
             ])
             ->addTag('console.command')
         ;

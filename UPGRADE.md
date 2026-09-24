@@ -481,6 +481,10 @@ An application that wants to observe executions in production does not have to r
 profiler: it implements `WorkflowExecutionObserverInterface` and aliases the interface to its own
 service — what the profiler did, cheaper, and without accumulating a timeline for nobody's screen.
 
+That alias also wins in debug, and that is a trade: the profiler panel then shows the Messenger
+dispatches but no engine events (workflow runs, activities), and says nothing about why. Declare the
+alias outside `when@dev` to keep them in development (#337).
+
 ### A successful activity writes `ActivityCompleted` only, no `ActivityTaskCompleted` (#262)
 
 **Who is affected**: code that reads the journal and waits for `ActivityTaskCompleted` to learn
@@ -512,6 +516,12 @@ the profiler never did. The `durable-upgrade` Rector set renames it.
 bench (`App\Temporal\NativeExecutionSpike`, with its `durable:temporal:native-spike` command). It
 was the DUR024 reference, not production code; `Worker\WorkflowTaskRunner` runs that path. Copy
 the class from the bench if you ran it; no Rector rule, since the class is no longer installed.
+
+### `DurableExecutionTrace::getTimelineForExecution()` is gone
+
+**Who is affected**: code that called it on the `durable.execution_trace` service. Nothing in
+Durable did. Filter `getTimeline()` by `executionId` instead:
+`array_values(array_filter($trace->getTimeline(), fn(array $e): bool => ($e['executionId'] ?? '') === $id))`.
 
 ## 0.1.0-alpha8
 
