@@ -45,6 +45,17 @@ final class AwaitLabelTest extends TestCase
         });
     }
 
+    public function testAnEmptyLabelIsNoLabelOnEitherPath(): void
+    {
+        // No label on a condition, so no refusal on a timer either: one rule for ''.
+        self::assertStringStartsWith('condition at ' . __FILE__ . ':', (string) $this->waitingOn(static function (WorkflowEnvironment $wf): void {
+            $wf->await(static fn(): bool => false, label: '');
+        }));
+        self::assertNotNull($this->waitingOn(static function (WorkflowEnvironment $wf): void {
+            $wf->await($wf->timer(60), label: '');
+        }));
+    }
+
     public function testTheLabelAddsNothingToTheJournal(): void
     {
         $unlabelled = $this->journalAfterTwoPasses(static function (WorkflowEnvironment $wf): void {
