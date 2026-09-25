@@ -904,7 +904,9 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
 
     /**
      * The attempt a failure or a timeout ended, read from the ActivityTaskStarted it points at. With
-     * none (a schedule-to-start timeout, before any start), the first, as the journal backends say.
+     * none it is 1: a schedule-to-start timeout before any start, as the journal backends say, but
+     * also a schedule-to-close timeout that hits while a later attempt is still queued, since
+     * ACTIVITY_TASK_TIMED_OUT carries no attempt of its own.
      */
     private function attemptOf(int $startedEventId): int
     {
