@@ -32,15 +32,10 @@ use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
 use Gplanchat\Durable\Observation\PayloadRedactorInterface;
-use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
-use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
-use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
-use Gplanchat\Durable\Store\ProjectingEventStore;
-use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
@@ -93,7 +88,7 @@ final class DurableExtension extends Extension
         $this->registerCommands($container, $config);
         $this->registerTemporalMirrorInfrastructure($container, $config);
         DbalStores::registerDbalStores($container, $config);
-        $this->registerInMemoryRunCatalog($container);
+        EventStores::registerInMemoryRunCatalog($container);
     }
 
     /**
@@ -104,59 +99,6 @@ final class DurableExtension extends Extension
         // A synthetic container, an extension test for instance, does not have this parameter;
         // that does not make it production, hence the default to debug.
         return new Configuration(!$container->hasParameter('kernel.debug') || (bool) $container->getParameter('kernel.debug'));
-    }
-
-    /**
-     * The in-memory backend's catalog, as a last resort.
-     *
-     * It only registers itself if nobody has already placed a catalog: DBAL and Temporal come
-     * first, each in its own block, and the guard is the alias they leave behind. A backend that
-     * knows how to read its own executions has no use for this one.
-     *
-     * The catalog reads the **undecorated** journal to render a history, and the decorator feeds
-     * it on writes. The two therefore point at `durable.event_store.inner` rather than at each
-     * other — without which the container loops.
-     *
-     * What this clears: the dashboard displayed "no readable backend" on in-memory, for want of a
-     * catalog, while the plugin claims to be neutral with respect to the backend. It really is
-     * now, on all three.
-     *
-     * @see DUR037
-     */
-    private function registerInMemoryRunCatalog(ContainerBuilder $container): void
-    {
-        if ($container->hasAlias(WorkflowRunCatalogInterface::class)) {
-            return;
-        }
-
-        $container->register('durable.run_catalog.in_memory', InMemoryWorkflowRunCatalog::class)
-            ->setArguments([new Reference('durable.event_store.inner')])
-            ->setPublic(false)
-        ;
-        $catalog = new Reference('durable.run_catalog.in_memory');
-        $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.in_memory')->setPublic(true);
-        $container->setAlias(WorkflowRunPickupProjectionInterface::class, 'durable.run_catalog.in_memory')->setPublic(false);
-
-        $container->register('durable.event_store.in_memory.projecting', ProjectingEventStore::class)
-            ->setArguments([new Reference('durable.event_store.inner'), $catalog])
-            ->setPublic(false)
-        ;
-        $container->setAlias(EventStoreInterface::class, 'durable.event_store.in_memory.projecting')->setPublic(true);
-
-        // The metadata store is registered under its interface, not under an id: it becomes the
-        // inside of the decorator, and the interface points at the decorator.
-        $container->setDefinition(
-            'durable.workflow_metadata_store.inner',
-            // Private: it is reached through the interface, which points at the decorator.
-            $container->getDefinition(WorkflowMetadataStore::class)->setPublic(false),
-        );
-        $container->removeDefinition(WorkflowMetadataStore::class);
-
-        $container->register('durable.workflow_metadata_store.in_memory.projecting', ProjectingWorkflowMetadataStore::class)
-            ->setArguments([new Reference('durable.workflow_metadata_store.inner'), $catalog])
-            ->setPublic(false)
-        ;
-        $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.in_memory.projecting')->setPublic(true);
     }
 
     /**
