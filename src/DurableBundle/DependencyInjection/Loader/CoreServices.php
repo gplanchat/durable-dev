@@ -4,15 +4,23 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\DependencyInjection\Loader;
 
+use Gplanchat\Bridge\Temporal\Messenger\DeliverWorkflowSignalToTemporalHandler;
+use Gplanchat\Bridge\Temporal\Messenger\DeliverWorkflowUpdateToTemporalHandler;
+use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\DependencyInjection\DurableExtension;
+use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler;
+use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler;
+use Gplanchat\Durable\Bundle\Transport\MessengerWorkflowTimerDispatcher;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
+use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\ParentChildWorkflowCoordinator;
 use Gplanchat\Durable\Port\LocalWorkflowBackend;
 use Gplanchat\Durable\Port\ParentChildWorkflowCoordinatorInterface;
 use Gplanchat\Durable\Port\WorkflowBackendInterface;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
+use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
 use Gplanchat\Durable\Query\WorkflowQueryRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreInterface;
@@ -152,6 +160,59 @@ final class CoreServices
         $container->register(WorkflowBackendInterface::class, LocalWorkflowBackend::class)
             ->setArguments([new Reference(\Gplanchat\Durable\ExecutionEngine::class)])
             ->setPublic(true)
+        ;
+    }
+
+    /**
+     * On Temporal native the cluster is the journal: signals and updates go to it, and Temporal
+     * fires the timers itself. The journal handlers would append to a local store nobody replays
+     * and ask for a resume nothing performs (#333).
+     *
+     * @param array<string, mixed> $config
+     */
+    public static function registerWorkflowControlHandlers(ContainerBuilder $container, array $config): void
+    {
+        if (DurableExtension::isTemporalNative($config)) {
+            $container->register(DeliverWorkflowSignalToTemporalHandler::class)
+                ->setArguments([new Reference(WorkflowClientInterface::class)])
+                ->addTag('messenger.message_handler')
+            ;
+            $container->register(DeliverWorkflowUpdateToTemporalHandler::class)
+                ->setArguments([new Reference(WorkflowClientInterface::class)])
+                ->addTag('messenger.message_handler')
+            ;
+
+            return;
+        }
+
+        $container->register(DeliverWorkflowSignalHandler::class)
+            ->setArguments([
+                new Reference(EventStoreInterface::class),
+                new Reference(WorkflowResumeDispatcher::class),
+            ])
+            ->addTag('messenger.message_handler')
+        ;
+
+        $container->register(DeliverWorkflowUpdateHandler::class)
+            ->setArguments([
+                new Reference(WorkflowResumeDispatcher::class),
+            ])
+            ->addTag('messenger.message_handler')
+        ;
+
+        $container->register(MessengerWorkflowTimerDispatcher::class)
+            ->setArguments([new Reference('messenger.default_bus')])
+        ;
+        $container->setAlias(WorkflowTimerDispatcher::class, MessengerWorkflowTimerDispatcher::class);
+
+        $container->register(FireWorkflowTimersHandler::class)
+            ->setArguments([
+                new Reference(EventStoreInterface::class),
+                new Reference(\Gplanchat\Durable\ExecutionRuntime::class),
+                new Reference(WorkflowResumeDispatcher::class),
+                new Reference(WorkflowTimerDispatcher::class),
+            ])
+            ->addTag('messenger.message_handler')
         ;
     }
 }
