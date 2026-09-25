@@ -59,7 +59,9 @@ table created before it existed.
 A running run also says **what it waits on**, as of its last suspension:
 `waiting on timer "grace period" due at 2026-09-24T10:00:00+00:00`,
 `waiting on activity charge attempt 2 in flight`, or `waiting on condition at src/…/OrderWorkflow.php:42`.
-A signal wait is a condition: the line names where the condition is written, not the signal. The same
+A signal wait is a condition: the line names where the condition is written, unless the workflow gave
+it a label (`await(…, label: 'signal approve')` shows `waiting on signal approve`, see
+[Workflows](../workflows/#waiting-on-a-condition)). The same
 backends tell it, on a runs table that has the `waiting_on` column; Temporal and the Magento grid do
 not.
 

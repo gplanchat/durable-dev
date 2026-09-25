@@ -133,6 +133,18 @@ try {
 
 C'est la forme canonique de la saga : attendre l'approbation, renoncer au bout d'une heure.
 
+Une condition peut aussi dire **ce qu'elle attend**, en mots. La liste des exécutions affiche alors ce
+libellé plutôt que l'endroit où la closure est écrite : `waiting on signal approve` au lieu de
+`waiting on condition at src/…/OrderWorkflow.php:42`.
+
+```php
+$env->await(fn(): bool => [] !== $this->approvals, Duration::hours(1), label: 'signal approve');
+```
+
+Le libellé ne sert qu'à l'affichage : il n'entre jamais dans le journal, donc l'ajouter, le changer ou
+le retirer ne change rien au rejeu. Un timer ou une activité se nomment déjà eux-mêmes : `await()`
+refuse un libellé sur l'un d'eux.
+
 #### Le gestionnaire est une méthode, l'attente aussi
 
 Dans un workflow écrit en classe, déclarez le gestionnaire avec `#[AsSignalMethod]`, que le moteur

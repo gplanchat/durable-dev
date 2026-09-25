@@ -632,6 +632,14 @@ the class from the bench if you ran it; no Rector rule, since the class is no lo
 Durable did. Filter `getTimeline()` by `executionId` instead:
 `array_values(array_filter($trace->getTimeline(), fn(array $e): bool => ($e['executionId'] ?? '') === $id))`.
 
+### `await()` takes an optional `label` for a condition
+
+**Who is affected**: nobody has to change anything. `WorkflowEnvironment` is `final`, so the new
+trailing parameter breaks no implementer. A condition awaited with `label: 'signal approve'` shows
+`waiting on signal approve` in the run list instead of `waiting on condition at <file>:<line>`. The
+label is display only and never enters the journal. A label on a timer or an activity is refused with
+an `InvalidArgumentException` (#324).
+
 ## 0.1.0-alpha8
 
 ### The divergence guard compares the payload too

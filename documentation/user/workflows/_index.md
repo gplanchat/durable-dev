@@ -131,6 +131,17 @@ try {
 
 That is the canonical saga shape: wait for approval, give up after an hour.
 
+A condition can also say **what it waits for**, in words. The run list then shows the label instead of
+where the closure is written: `waiting on signal approve` rather than
+`waiting on condition at src/…/OrderWorkflow.php:42`.
+
+```php
+$env->await(fn(): bool => [] !== $this->approvals, Duration::hours(1), label: 'signal approve');
+```
+
+The label is for display only: it never enters the journal, so adding, changing or removing one does
+not affect replay. A timer or an activity already names itself, so `await()` refuses a label on one.
+
 #### The handler is a method, the wait is a method
 
 In a workflow written as a class, declare the handler with `#[AsSignalMethod]`, which the engine wires,
