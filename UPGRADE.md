@@ -24,6 +24,16 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### The bundle's services live under `durable.*` ids; their class ids are aliases
+
+**Who is affected**: an application compiler pass that calls `getDefinition()` or `hasDefinition()`
+on one of the bundle's class or interface ids: `ExecutionEngine`, `ExecutionRuntime`,
+`WorkflowRegistry`, `ActivityExecutor`, `WorkflowResumeDispatcher`, the Durable handlers and
+commands, `DurableDataCollector`, the Temporal client, RPCs and task runner, and the others listed
+in #342. Those ids are now aliases of `durable.*` definitions, with the visibility they had, so
+autowiring, `->get()` and `decorates:` are unchanged. Call `findDefinition()` (it follows the
+alias) and `has()` instead.
+
 ### DBAL without a Temporal DSN no longer registers `durable.event_store.inner`
 
 **Who is affected**: an application on the `dbal` backend, with no `temporal.dsn`, that decorates the
