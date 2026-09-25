@@ -664,6 +664,29 @@ label is display text: nothing records it while the run waits, it appears in the
 uncaught deadline, and replay never compares it. A label on a timer or an activity is refused with
 an `InvalidArgumentException` (#324).
 
+### Replay: on Temporal, a failed activity reports the attempt the server ran
+
+**Who is affected**: workflows on the Temporal backend that catch a `DurableActivityFailedException`
+and put `$e->attempt()`, or the exception's message (which names the attempt), into the payload of a
+later activity, child workflow or Nexus operation. Everyone else has nothing to do. The journal
+backends always reported the real attempt; Temporal said `1` (#547).
+
+A run of that workflow that is in flight when you upgrade was recorded with `attempt 1` in that
+payload. Replayed with the new reading, it schedules the real attempt, and the worker refuses the
+task: `Replay divergence at activity slot N … history recorded "…attempt-1…", code scheduled
+"…attempt-3…"`. Either drain those runs before deploying, or keep the old reading for the runs that
+started before the change:
+
+```php
+} catch (DurableActivityFailedException $e) {
+    $attempt = ChangePoint::DEFAULT_VERSION === $env->version('real-activity-attempt', ChangePoint::DEFAULT_VERSION, 1)
+        ? 1                  // started before the upgrade: the history recorded attempt 1
+        : $e->attempt();
+
+    return $env->await($activities->greet('attempt-' . $attempt));
+}
+```
+
 ## 0.1.0-alpha8
 
 ### The divergence guard compares the payload too
