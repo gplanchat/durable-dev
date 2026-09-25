@@ -16,18 +16,15 @@ use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Bundle\Command\DurableWorkerCommand;
-use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\CoreServices;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\DbalStores;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\EventStores;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\MessengerServices;
+use Gplanchat\Durable\Bundle\DependencyInjection\Loader\Observability;
 use Gplanchat\Durable\Bundle\EventListener\RefuseResetOnInMemoryTransportListener;
 use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
 use Gplanchat\Durable\Bundle\Messenger\DurableWorkerInspection;
-use Gplanchat\Durable\Bundle\Messenger\WorkflowRunDispatchProfilerMiddleware;
-use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
-use Gplanchat\Durable\Debug\NullWorkflowExecutionObserver;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
@@ -60,9 +57,9 @@ final class DurableExtension extends Extension
         $container->setParameter('durable.child_workflow_async_messenger', $asyncChildMessenger);
 
         if ($config['profiler']['enabled']) {
-            $this->registerProfiler($container);
+            Observability::registerProfiler($container);
         } else {
-            $this->registerNullObserver($container);
+            Observability::registerNullObserver($container);
         }
         EventStores::registerChildWorkflowParentLinkStore($container);
         CoreServices::registerWorkflowDefinitionLoader($container);
@@ -218,25 +215,6 @@ final class DurableExtension extends Extension
     }
 
     /**
-     * The profiler is not neutral plumbing: its observer is injected into
-     * `ExecutionRuntime`, `ExecutionEngine` and `ActivityMessageProcessor`, so it sits on the
-     * hot path of every execution, and its trace is emptied only by a `kernel.request` listener,
-     * which `messenger:consume` never fires.
-     *
-     * Outside debug, none of it is registered at all and observation falls back to a null object.
-     * FrameworkBundle does the same for its own collectors, loaded from separate files under a
-     * condition.
-     */
-    private function registerNullObserver(ContainerBuilder $container): void
-    {
-        $container->register('durable.execution_observer.null', NullWorkflowExecutionObserver::class)
-            ->setPublic(false)
-        ;
-
-        self::aliasObserver($container, 'durable.execution_observer.null');
-    }
-
-    /**
      * Aliases the observation interface, **without overwriting what the application already
      * declared**.
      *
@@ -258,38 +236,6 @@ final class DurableExtension extends Extension
 
         $container->setAlias(WorkflowExecutionObserverInterface::class, $service)
             ->setPublic(true)
-        ;
-    }
-
-    private function registerProfiler(ContainerBuilder $container): void
-    {
-        $container->register('durable.execution_trace', DurableExecutionTrace::class)
-            // `services_resetter` empties the trace between two Messenger messages. A Temporal
-            // worker never triggers it; the trace bounds itself for that case (MAX_ENTRIES).
-            ->addTag('kernel.reset', ['method' => 'reset'])
-            ->setPublic(true)
-        ;
-
-        self::aliasObserver($container, 'durable.execution_trace');
-
-        $container->register('durable.messenger.middleware.workflow_run_dispatch_profiler', WorkflowRunDispatchProfilerMiddleware::class)
-            ->setArguments([new Reference('durable.execution_trace')])
-            // Above the lock: its measurements then include the wait the lock imposes.
-            ->addTag(RegisterDurableMiddlewarePass::TAG, ['priority' => 100])
-        ;
-
-        $container->register(DurableDataCollector::class)
-            ->setArguments([
-                new Reference('durable.execution_trace'),
-                new Reference(WorkflowMetadataStore::class),
-                new Reference(EventStoreInterface::class),
-                new Reference(PayloadRedactorInterface::class),
-            ])
-            ->setPublic(true)
-            ->addTag('data_collector', [
-                'template' => '@Durable/Collector/durable.html.twig',
-                'id' => 'durable',
-            ])
         ;
     }
 
