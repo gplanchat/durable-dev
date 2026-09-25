@@ -94,7 +94,8 @@ final class DurableContainerSnapshotTest extends TestCase
         foreach ($applicationAliases as $alias => $target) {
             $container->setAlias($alias, $target);
         }
-        $before = [...array_keys($container->getDefinitions()), ...array_keys($container->getAliases()), ...array_keys($container->getParameterBag()->all())];
+        // The application's aliases stay out of $before: their final state is what variant A watches.
+        $before = [...array_keys($container->getDefinitions()), ...array_diff(array_keys($container->getAliases()), array_keys($applicationAliases)), ...array_keys($container->getParameterBag()->all())];
 
         (new DurableExtension())->load([$config], $container);
 

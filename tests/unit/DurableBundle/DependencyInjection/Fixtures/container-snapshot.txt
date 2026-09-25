@@ -1,6 +1,8 @@
 ..TN....tn.. alias Gplanchat\Bridge\Temporal\WorkflowClientInterface -> Gplanchat\Bridge\Temporal\WorkflowClient private
+.....A.....a alias Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface -> app.observer private
 ......idtnl. alias Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface -> durable.execution_observer.null public
 IDTNL....... alias Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface -> durable.execution_trace public
+.....A.....a alias Gplanchat\Durable\Observation\PayloadRedactorInterface -> app.redactor private
 IDTNL.idtnl. alias Gplanchat\Durable\Observation\PayloadRedactorInterface -> durable.payload_redactor private
 .D.NL..d.nl. alias Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface -> durable.dbal.run_projection private
 I....Ai....a alias Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface -> durable.run_catalog.in_memory private
