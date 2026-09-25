@@ -9,38 +9,35 @@ Cette page résume comment on **écrit** un workflow en Durable. Les règles nor
 
 ## Exemple : un workflow minimal
 
-On définit une **interface de contrat** (facultative, mais recommandée pour les tests et le typage) et une **classe concrète** déclarée au moteur. L'attribut **`#[AsWorkflow]`** se pose sur la **classe** avec le chargeur actuel (voir [DUR022](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR022-workflow-class-interface-and-workflow-environment.md) pour le modèle « interface d'abord » visé à terme).
+Une **classe** portant **`#[AsWorkflow]`**, déclarée au moteur. Sa méthode de workflow prend l'entrée,
+et Durable fournit le reste en arguments : les stubs d'activités et l'environnement (voir
+[Les arguments que fournit Durable](#arguments-durable-supplies)). L'attribut **`#[AsWorkflow]`** se
+pose sur la **classe** avec le chargeur actuel (voir [DUR022](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR022-workflow-class-interface-and-workflow-environment.md) pour le modèle « interface d'abord » visé à terme).
 
 ```php
 <?php
 
 declare(strict_types=1);
 
+use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\Activities;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-/** Contrat métier. Aucun attribut requis sur l'interface. */
-interface OrderWorkflowContract
-{
-    public function run(string $orderId): mixed;
-}
-
 #[AsWorkflow(name: 'order')]
-final class OrderWorkflow implements OrderWorkflowContract
+final class OrderWorkflow
 {
-    public function __construct(
-        private readonly WorkflowEnvironment $environment,
-    ) {
-    }
-
+    /** @param ActivityStub<OrderActivities> $activities */
     #[AsWorkflowMethod]
-    public function run(string $orderId): mixed
-    {
+    public function run(
+        string $orderId,
+        #[Activities(OrderActivities::class)]
+        ActivityStub $activities,
+        WorkflowEnvironment $env,
+    ): mixed {
         // Contrat d'activité : voir « Écrire des activités ». Le stub planifie le travail ; await l'exécute dans le modèle de rejeu.
-        $activities = $this->environment->activityStub(OrderActivities::class);
-
-        return $this->environment->await($activities->charge($orderId));
+        return $env->await($activities->charge($orderId));
     }
 }
 ```
@@ -292,8 +289,34 @@ public function run(
   réessai, une entrée non rejouable qui n'est pas une exception. Le message nomme le paramètre et l'option.
 
 La forme par constructeur reste valable. C'est celle qu'il faut quand la classe implémente une
-interface de contrat comme `OrderWorkflowContract` plus haut : PHP n'autorise pas l'implémentation à
-ajouter des paramètres obligatoires à `run()`.
+interface de contrat (facultative, mais utile pour les tests et le typage) : PHP n'autorise pas
+l'implémentation à ajouter des paramètres obligatoires à `run()`, donc l'environnement passe par le
+constructeur et le stub se construit à partir de lui :
+
+```php
+/** Contrat métier. Aucun attribut requis sur l'interface. */
+interface OrderWorkflowContract
+{
+    public function run(string $orderId): mixed;
+}
+
+#[AsWorkflow(name: 'order')]
+final class OrderWorkflow implements OrderWorkflowContract
+{
+    public function __construct(
+        private readonly WorkflowEnvironment $environment,
+    ) {
+    }
+
+    #[AsWorkflowMethod]
+    public function run(string $orderId): mixed
+    {
+        $activities = $this->environment->activityStub(OrderActivities::class);
+
+        return $this->environment->await($activities->charge($orderId));
+    }
+}
+```
 
 ### `ActivityOptions` sur le stub
 
@@ -331,7 +354,7 @@ Tant que **`default`** n'existe pas sur **`#[AsWorkflowMethod]`**, suivez les r�
 
 1. Une **interface de workflow** (contrat facultatif) et/ou une **classe** portant **`#[AsWorkflow]`** (l'attribut se pose sur la **classe** avec les chargeurs actuels). C'est le contrat typé, pour l'enregistrement et pour les tests.
 2. Une **classe concrète** qui **implémente** votre contrat et se déclare au moteur.
-3. **Exactement un** paramètre de constructeur sur l'implémentation : **`WorkflowEnvironment $environment`**. N'injectez **pas** de services, de dépôts ni d'autres dépendances applicatives dans la classe de workflow : les effets de bord appartiennent aux [activités](../activities/).
+3. **`WorkflowEnvironment`** et des stubs d'activités, rien d'autre : en [arguments de la méthode de workflow](#arguments-durable-supplies) ou, avec la forme par constructeur, comme son **unique** paramètre **`WorkflowEnvironment $environment`**. N'injectez **pas** de services, de dépôts ni d'autres dépendances applicatives dans la classe de workflow : les effets de bord appartiennent aux [activités](../activities/).
 
 ## Registre : alias et nom pleinement qualifié
 
@@ -352,7 +375,7 @@ Paramètres et types de retour doivent être **sérialisables** (voir l'ADR de s
 
 ## `WorkflowEnvironment`
 
-Le moteur injecte **`WorkflowEnvironment`** dans votre constructeur. Voici toute sa surface : tout
+Le moteur fournit **`WorkflowEnvironment`** en argument de la méthode de workflow, ou à votre constructeur. Voici toute sa surface : tout
 ce qu'un workflow peut faire, et rien de ce que le moteur garde pour lui.
 
 | | |
@@ -397,11 +420,11 @@ Vous n'instanciez jamais d'implémentation d'activité dans le corps du workflow
 
 | Règle | Détail |
 |-------|--------|
-| Constructeur | `WorkflowEnvironment` et rien d'autre |
-| Contrat | Interface + `#[AsWorkflow]` ; la classe l'implémente |
+| Constructeur | Aucun n'est nécessaire ; avec la forme par constructeur, `WorkflowEnvironment` et rien d'autre |
+| Contrat | `#[AsWorkflow]` sur la classe ; l'interface est facultative, et si la classe en implémente une, c'est la forme par constructeur |
 | Entrée | Au moins une `#[AsWorkflowMethod]` ; `default: true` s'il y en a plusieurs |
 | E/S | Aucune dans le workflow ; passez par des activités |
-| Appels au travail | Par un **`ActivityStub`**, construit dans le constructeur depuis un contrat d'activité |
+| Appels au travail | Par un **`ActivityStub`**, reçu en argument `#[Activities]` ou construit à partir de l'environnement |
 | `finally` | S'exécute à chaque passe qui se suspend, pas une fois par exécution ; n'y mettez pas de travail |
 
 ## `finally` s'exécute à chaque passe qui se suspend
