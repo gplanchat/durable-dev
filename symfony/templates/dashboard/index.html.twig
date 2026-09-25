@@ -117,6 +117,8 @@
                             <code class="ds-mono">{{ run.runId }}</code>
                             {% if run.startedAt is defined %}<span>{{ run.startedAt|date('Y-m-d H:i:s') }}</span>{% endif %}
                             {% if run.waitingForWorker is defined %}<span>{{ run.waitingForWorker }}</span>{% endif %}
+                            {# What a suspended run last waited on, worded by RunDashboard (#324). #}
+                            {% if run.waitingOn is defined %}<span>{{ run.waitingOn }}</span>{% endif %}
                         </div>
                     </a>
                 {% endfor %}

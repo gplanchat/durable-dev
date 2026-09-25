@@ -100,6 +100,12 @@
                 <sortable>false</sortable>
             </settings>
         </column>
+        <column name="waiting_on">
+            <settings>
+                <label translate="true">Waiting on</label>
+                <sortable>false</sortable>
+            </settings>
+        </column>
 
         <actionsColumn name="actions" class="Gplanchat\DurableModule\Ui\Component\Listing\Column\ProcessActions">
             <settings>
