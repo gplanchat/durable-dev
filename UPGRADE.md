@@ -637,7 +637,8 @@ Durable did. Filter `getTimeline()` by `executionId` instead:
 **Who is affected**: nobody has to change anything. `WorkflowEnvironment` is `final`, so the new
 trailing parameter breaks no implementer. A condition awaited with `label: 'signal approve'` shows
 `waiting on signal approve` in the run list instead of `waiting on condition at <file>:<line>`. The
-label is display only and never enters the journal. A label on a timer or an activity is refused with
+label is display text: nothing records it while the run waits, it appears in the failure message of an
+uncaught deadline, and replay never compares it. A label on a timer or an activity is refused with
 an `InvalidArgumentException` (#324).
 
 ## 0.1.0-alpha8

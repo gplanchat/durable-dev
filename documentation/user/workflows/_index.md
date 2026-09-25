@@ -141,8 +141,9 @@ Temporal and the Magento grid show no wait at all, labelled or not (see the
 $env->await(fn(): bool => [] !== $this->approvals, Duration::hours(1), label: 'signal approve');
 ```
 
-The label is for display only: it never enters the journal, so adding, changing or removing one does
-not affect replay. A timer or an activity already names itself, so `await()` refuses a label on one.
+The label is display text. Nothing records it while the workflow waits. If the deadline expires and
+nothing catches the exception, it appears in the failure message the journal keeps, written once. Replay
+never compares it, so adding, changing or removing a label is safe. A timer or an activity already names itself, so `await()` refuses a label on one.
 
 #### The handler is a method, the wait is a method
 
