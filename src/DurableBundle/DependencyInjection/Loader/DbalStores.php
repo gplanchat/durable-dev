@@ -4,9 +4,18 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\DependencyInjection\Loader;
 
+use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
+use Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware;
+use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
+use Gplanchat\Bridge\Dbal\Store\DbalChildWorkflowParentLinkStore;
+use Gplanchat\Bridge\Dbal\Store\DbalEventStore;
+use Gplanchat\Bridge\Dbal\Store\DbalWorkflowMetadataStore;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunCatalog;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunProjection;
+use Gplanchat\Durable\Bundle\Command\SetupCommand;
+use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
 use Gplanchat\Durable\Bundle\DependencyInjection\DurableExtension;
+use Gplanchat\Durable\Bundle\SchemaListener\DurableSchemaListener;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
@@ -72,5 +81,92 @@ final class DbalStores
             ->setPublic(false)
         ;
         $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.dbal')->setPublic(true);
+    }
+
+    /**
+     * Replaces the in-memory stores with their SQL equivalents when `type: dbal` is asked for.
+     *
+     * Called last: the in-memory definitions are already in place, we overwrite them rather than
+     * branch inside the three methods that register them.
+     *
+     * @param array<string, mixed> $config
+     *
+     * @see DUR030
+     */
+    public static function registerDbalStores(ContainerBuilder $container, array $config): void
+    {
+        $eventStoreDbal = 'dbal' === ($config['event_store']['type'] ?? 'in_memory');
+        $metadataDbal = 'dbal' === ($config['workflow_metadata']['type'] ?? 'in_memory');
+        $parentLinkDbal = 'dbal' === ($config['child_workflow']['parent_link_store']['type'] ?? 'in_memory');
+
+        if (!$eventStoreDbal && !$metadataDbal && !$parentLinkDbal) {
+            return;
+        }
+
+        $connection = new Reference($config['dbal']['connection']);
+
+        $container->register('durable.dbal.schema', DurableSchema::class)
+            ->setArguments([
+                $connection,
+                $config['event_store']['table_name'],
+                $config['workflow_metadata']['table_name'],
+                $config['child_workflow']['parent_link_store']['table_name'],
+            ])
+            ->setArgument('$autoSetup', $config['dbal']['auto_setup'])
+            ->setPublic(false)
+        ;
+        $schema = new Reference('durable.dbal.schema');
+
+        $container->register(SetupCommand::class)
+            ->setArguments([$schema])
+            ->addTag('console.command')
+        ;
+
+        // Without this listener, `doctrine:migrations:diff` does not see the journal's tables and
+        // generates their removal. Registered only when the ORM is there: the DBAL bridge works
+        // without it, and an application that has only the DBAL has no schema to complete.
+        if (class_exists(GenerateSchemaEventArgs::class)) {
+            $container->register('durable.dbal.schema_listener', DurableSchemaListener::class)
+                ->setArguments([$schema])
+                ->addTag('doctrine.event_listener', ['event' => 'postGenerateSchema'])
+                ->setPublic(false)
+            ;
+        }
+
+        if ($eventStoreDbal) {
+            $container->register('durable.event_store.dbal', DbalEventStore::class)
+                ->setArguments([$connection, $schema, $config['event_store']['table_name']])
+                ->setPublic(false)
+            ;
+            $container->setAlias(EventStoreInterface::class, 'durable.event_store.dbal')->setPublic(true);
+
+            // With no server to serialize the tasks of one execution, the lock is mandatory.
+            $container->register('durable.dbal.single_resume_lock', SingleResumeLockMiddleware::class)
+                ->setArguments([new Reference($config['dbal']['lock_factory']), $config['dbal']['lock_ttl']])
+                ->addTag(RegisterDurableMiddlewarePass::TAG, ['priority' => 90])
+                ->setPublic(false)
+            ;
+        }
+
+        if ($metadataDbal) {
+            $container->register('durable.workflow_metadata_store.inner', DbalWorkflowMetadataStore::class)
+                ->setArguments([$connection, $schema, $config['workflow_metadata']['table_name']])
+                ->setPublic(false)
+            ;
+            $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.inner')->setPublic(true);
+        }
+
+        if ($parentLinkDbal) {
+            $container->register('durable.child_workflow_parent_link_store', DbalChildWorkflowParentLinkStore::class)
+                ->setArguments([$connection, $schema, $config['child_workflow']['parent_link_store']['table_name']])
+                ->setPublic(true)
+            ;
+        }
+
+        // The projection is only worth it if the journal is in SQL: that is where the outcomes come
+        // from. An in-memory journal would leave rows that never finish.
+        if ($eventStoreDbal) {
+            self::registerDbalRunCatalog($container, $connection, $schema);
+        }
     }
 }
