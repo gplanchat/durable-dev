@@ -19,8 +19,14 @@ use Gplanchat\DurableModule\Runtime\RuntimeFactory;
 use Gplanchat\DurableModule\Runtime\SharedActivityHeartbeatSender;
 use integration\Temporal\Fixtures\HeartbeatingActivities;
 
-[$address, $namespace, $taskQueue] = [$argv[1], $argv[2], $argv[3]];
-$transport = $argv[5] ?? 'auto';
+$arguments = $_SERVER['argv'] ?? null;
+if (!\is_array($arguments) || !isset($arguments[1], $arguments[2], $arguments[3])) {
+    fwrite(\STDERR, "Usage: worker.php <address> <namespace> <taskQueue> <role> [transport]\n");
+
+    exit(1);
+}
+[$address, $namespace, $taskQueue] = [$arguments[1], $arguments[2], $arguments[3]];
+$transport = $arguments[5] ?? 'auto';
 
 $dsn = \sprintf(
     'temporal://%s?namespace=%s&journal_task_queue=%3$s&workflow_task_queue=%3$s&activity_task_queue=%3$s&transport=%4$s',

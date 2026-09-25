@@ -33,7 +33,8 @@ abstract class HeartbeatOnAHostTestCase extends TemporalServerTestCase
     /**
      * Thirty seconds of heartbeats, one a second, under a five-second heartbeat timeout and a single
      * attempt: the activity completes only if its heartbeats reach the server through the sender its
-     * host injected. With the no-op sender, it fails on its heartbeat timeout.
+     * host injected. With the no-op sender, the server times it out after five seconds and the run
+     * never completes (until #544 it did not even fail: the bounded wait below reports it).
      */
     public function testAHeartbeatingActivityOutlivesItsHeartbeatTimeout(): void
     {
