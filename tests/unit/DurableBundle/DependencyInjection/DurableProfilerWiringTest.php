@@ -111,7 +111,7 @@ final class DurableProfilerWiringTest extends TestCase
     {
         $container = $this->load(debug: false, config: ['temporal' => ['dsn' => self::DSN]]);
 
-        $arguments = $container->getDefinition(WorkflowResumeDispatcher::class)->getArguments();
+        $arguments = $container->findDefinition(WorkflowResumeDispatcher::class)->getArguments();
         $trace = $arguments[3] ?? null;
 
         self::assertInstanceOf(Reference::class, $trace);
@@ -136,7 +136,7 @@ final class DurableProfilerWiringTest extends TestCase
         self::assertTrue($container->has('durable.execution_trace'));
         self::assertSame(
             'durable.execution_trace',
-            (string) $container->getDefinition(WorkflowResumeDispatcher::class)->getArgument(3),
+            (string) $container->findDefinition(WorkflowResumeDispatcher::class)->getArgument(3),
         );
     }
 

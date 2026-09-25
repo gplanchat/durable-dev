@@ -41,7 +41,7 @@ final class DurableTemporalAssemblyWiringTest extends TestCase
             WorkflowServiceNexusRpc::class => 'nexusRpc',
             'durable.event_store.temporal' => 'readThroughEventStore',
         ] as $id => $method) {
-            $factory = $container->getDefinition($id)->getFactory();
+            $factory = $container->findDefinition($id)->getFactory();
             self::assertIsArray($factory, $id);
             self::assertEquals([new Reference(TemporalRuntimeAssembly::class), $method], $factory, $id);
         }

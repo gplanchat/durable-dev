@@ -30,7 +30,7 @@ final class DurableDeclaredWiringTest extends TestCase
     {
         $container = $this->load(['activity_contracts' => ['cache' => 'my.pool.declared.later']]);
 
-        $argument = $container->getDefinition(ActivityContractResolver::class)->getArgument(0);
+        $argument = $container->findDefinition(ActivityContractResolver::class)->getArgument(0);
 
         self::assertInstanceOf(
             Reference::class,
@@ -44,7 +44,7 @@ final class DurableDeclaredWiringTest extends TestCase
     {
         $container = $this->load([]);
 
-        self::assertNull($container->getDefinition(ActivityContractResolver::class)->getArgument(0));
+        self::assertNull($container->findDefinition(ActivityContractResolver::class)->getArgument(0));
     }
 
     /**

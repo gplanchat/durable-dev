@@ -58,19 +58,32 @@ final class DurableContainerSurfaceTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{0: string}>
+     * Each backend × each id: the three are aliases on every backend (#342).
+     *
+     * @return iterable<string, array{0: array<string, mixed>, 1: string}>
      */
     public static function publicSurfaceThatMustStaySo(): iterable
     {
-        yield 'the journal' => [EventStoreInterface::class];
-        yield 'the metadata' => [WorkflowMetadataStore::class];
-        yield 'the run catalog' => [WorkflowRunCatalogInterface::class];
+        $backends = [
+            'in_memory' => [],
+            'dbal, legacy keys' => ['event_store' => ['type' => 'dbal'], 'workflow_metadata' => ['type' => 'dbal']],
+            'dbal' => ['backend' => 'dbal'],
+            'temporal' => ['backend' => 'temporal', 'temporal' => ['dsn' => 'temporal://127.0.0.1:7233?namespace=default&tls=0']],
+        ];
+        foreach ($backends as $backend => $config) {
+            yield $backend . ': the journal' => [$config, EventStoreInterface::class];
+            yield $backend . ': the metadata' => [$config, WorkflowMetadataStore::class];
+            yield $backend . ': the run catalog' => [$config, WorkflowRunCatalogInterface::class];
+        }
     }
 
+    /**
+     * @param array<string, mixed> $config
+     */
     #[\PHPUnit\Framework\Attributes\DataProvider('publicSurfaceThatMustStaySo')]
-    public function testThePublicSurfaceStaysReachable(string $alias): void
+    public function testThePublicSurfaceStaysReachable(array $config, string $alias): void
     {
-        $container = $this->load(['event_store' => ['type' => 'dbal'], 'workflow_metadata' => ['type' => 'dbal']]);
+        $container = $this->load($config);
 
         self::assertTrue($container->hasAlias($alias), $alias . ' must stay an alias of the container');
         self::assertTrue(

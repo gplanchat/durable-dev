@@ -30,8 +30,8 @@ final class SetupCommandTest extends TestCase
 
     public function testTheCommandExistsOnlyWithASqlStore(): void
     {
-        self::assertFalse($this->load([])->hasDefinition(SetupCommand::class));
-        self::assertTrue($this->load(['event_store' => ['type' => 'dbal']])->getDefinition(SetupCommand::class)->hasTag('console.command'));
+        self::assertFalse($this->load([])->has(SetupCommand::class));
+        self::assertTrue($this->load(['event_store' => ['type' => 'dbal']])->findDefinition(SetupCommand::class)->hasTag('console.command'));
     }
 
     /**

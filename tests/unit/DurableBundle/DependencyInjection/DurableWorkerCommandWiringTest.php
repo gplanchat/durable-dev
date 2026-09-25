@@ -16,28 +16,28 @@ final class DurableWorkerCommandWiringTest extends TestCase
 {
     public function testTheCommandIsRegisteredUnderItsName(): void
     {
-        $definition = $this->load([])->getDefinition(DurableWorkerCommand::class);
+        $definition = $this->load([])->findDefinition(DurableWorkerCommand::class);
 
         self::assertSame([['command' => 'durable:worker']], $definition->getTag('console.command'));
     }
 
     public function testAMessengerActivityTransportIsHandedToTheCommand(): void
     {
-        $definition = $this->load(['activity_transport' => ['type' => 'messenger', 'transport_name' => 'jobs']])->getDefinition(DurableWorkerCommand::class);
+        $definition = $this->load(['activity_transport' => ['type' => 'messenger', 'transport_name' => 'jobs']])->findDefinition(DurableWorkerCommand::class);
 
         self::assertSame('jobs', $definition->getArgument(2));
     }
 
     public function testInMemoryActivitiesNeedNoActivityTransport(): void
     {
-        $definition = $this->load([])->getDefinition(DurableWorkerCommand::class);
+        $definition = $this->load([])->findDefinition(DurableWorkerCommand::class);
 
         self::assertNull($definition->getArgument(2));
     }
 
     public function testTheTemporalBackendIsFlaggedAndNeedsNoActivityTransport(): void
     {
-        $definition = $this->load(['temporal' => ['dsn' => 'temporal://127.0.0.1:7233'], 'activity_transport' => ['type' => 'messenger']])->getDefinition(DurableWorkerCommand::class);
+        $definition = $this->load(['temporal' => ['dsn' => 'temporal://127.0.0.1:7233'], 'activity_transport' => ['type' => 'messenger']])->findDefinition(DurableWorkerCommand::class);
 
         self::assertNull($definition->getArgument(2));
         self::assertTrue($definition->getArgument(3));
@@ -45,7 +45,7 @@ final class DurableWorkerCommandWiringTest extends TestCase
 
     public function testATemporalClusterWithoutItsJournalKeepsTheRoutedResumes(): void
     {
-        $definition = $this->load(['temporal' => ['dsn' => 'temporal://127.0.0.1:7233', 'journal' => false]])->getDefinition(DurableWorkerCommand::class);
+        $definition = $this->load(['temporal' => ['dsn' => 'temporal://127.0.0.1:7233', 'journal' => false]])->findDefinition(DurableWorkerCommand::class);
 
         self::assertFalse($definition->getArgument(3));
     }
