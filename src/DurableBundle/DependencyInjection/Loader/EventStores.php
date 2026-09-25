@@ -24,6 +24,7 @@ use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
+use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -121,5 +122,26 @@ final class EventStores
         if ($journal) {
             $container->setAlias(EventStoreInterface::class, 'durable.event_store.temporal')->setPublic(true);
         }
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    public static function registerEventStore(ContainerBuilder $container, array $config): void
+    {
+        $container->register('durable.event_store.inner', InMemoryEventStore::class)->setPublic(false);
+
+        $temporalConfig = $config['temporal'] ?? [];
+        $dsn = $temporalConfig['dsn'] ?? null;
+        $journal = false !== ($temporalConfig['journal'] ?? true);
+        if (\is_string($dsn) && '' !== $dsn) {
+            self::registerTemporalEventStore($container, $temporalConfig, $dsn, $journal);
+
+            // With no journal, we leave without an alias: `registerDbalStores` or `registerInMemoryRunCatalog`
+            // will place theirs, further down in `load()`. It is `event_store` that says which one.
+            return;
+        }
+
+        $container->setAlias(EventStoreInterface::class, 'durable.event_store.inner')->setPublic(true);
     }
 }

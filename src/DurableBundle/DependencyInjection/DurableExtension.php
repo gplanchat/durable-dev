@@ -47,7 +47,6 @@ use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
-use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
@@ -81,7 +80,7 @@ final class DurableExtension extends Extension
         }
         EventStores::registerChildWorkflowParentLinkStore($container);
         CoreServices::registerWorkflowDefinitionLoader($container);
-        $this->registerEventStore($container, $config);
+        EventStores::registerEventStore($container, $config);
         MessengerServices::registerActivityTransport($container, $config);
         CoreServices::registerActivityExecutor($container);
         CoreServices::registerRuntime($container);
@@ -322,27 +321,6 @@ final class DurableExtension extends Extension
         $dsn = $config['temporal']['dsn'] ?? null;
 
         return \is_string($dsn) && '' !== $dsn && false !== ($config['temporal']['journal'] ?? true);
-    }
-
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function registerEventStore(ContainerBuilder $container, array $config): void
-    {
-        $container->register('durable.event_store.inner', InMemoryEventStore::class)->setPublic(false);
-
-        $temporalConfig = $config['temporal'] ?? [];
-        $dsn = $temporalConfig['dsn'] ?? null;
-        $journal = false !== ($temporalConfig['journal'] ?? true);
-        if (\is_string($dsn) && '' !== $dsn) {
-            EventStores::registerTemporalEventStore($container, $temporalConfig, $dsn, $journal);
-
-            // With no journal, we leave without an alias: `registerDbalStores` or `registerInMemoryRunCatalog`
-            // will place theirs, further down in `load()`. It is `event_store` that says which one.
-            return;
-        }
-
-        $container->setAlias(EventStoreInterface::class, 'durable.event_store.inner')->setPublic(true);
     }
 
     /**
