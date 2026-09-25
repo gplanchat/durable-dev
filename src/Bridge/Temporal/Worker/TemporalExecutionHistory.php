@@ -308,17 +308,19 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 $attr = $event->getActivityTaskTimedOutEventAttributes();
                 $activityId = null !== $attr ? $this->scheduledEventIdToActivityId[$attr->getScheduledEventId()] ?? null : null;
                 if (null !== $activityId) {
+                    // A kind the server did not name is not guessed.
                     $timeout = match ($attr?->getFailure()?->getTimeoutFailureInfo()?->getTimeoutType()) {
-                        TimeoutType::TIMEOUT_TYPE_SCHEDULE_TO_START => 'schedule-to-start',
-                        TimeoutType::TIMEOUT_TYPE_SCHEDULE_TO_CLOSE => 'schedule-to-close',
-                        TimeoutType::TIMEOUT_TYPE_HEARTBEAT => 'heartbeat',
-                        default => 'start-to-close',
+                        TimeoutType::TIMEOUT_TYPE_START_TO_CLOSE => 'start-to-close ',
+                        TimeoutType::TIMEOUT_TYPE_SCHEDULE_TO_START => 'schedule-to-start ',
+                        TimeoutType::TIMEOUT_TYPE_SCHEDULE_TO_CLOSE => 'schedule-to-close ',
+                        TimeoutType::TIMEOUT_TYPE_HEARTBEAT => 'heartbeat ',
+                        default => '',
                     };
                     $this->activityFailures[$activityId] = new DurableActivityFailedException(
                         $activityId,
                         $this->activityNames[$activityId] ?? '',
                         1,
-                        new FailureEnvelope(\RuntimeException::class, \sprintf('Activity %s timeout exceeded.', $timeout), 0, [], null, []),
+                        new FailureEnvelope(\RuntimeException::class, \sprintf('Activity %stimeout exceeded.', $timeout), 0, [], null, []),
                     );
                 }
                 break;

@@ -35,6 +35,8 @@ final class AnActivityTimeoutFailsItsSlotTest extends TestCase
         yield 'schedule-to-start' => [TimeoutType::TIMEOUT_TYPE_SCHEDULE_TO_START, 'Activity schedule-to-start timeout exceeded.'];
         yield 'schedule-to-close' => [TimeoutType::TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, 'Activity schedule-to-close timeout exceeded.'];
         yield 'heartbeat' => [TimeoutType::TIMEOUT_TYPE_HEARTBEAT, 'Activity heartbeat timeout exceeded.'];
+        // A kind the server did not name is not guessed (#546 review).
+        yield 'unspecified' => [TimeoutType::TIMEOUT_TYPE_UNSPECIFIED, 'Activity timeout exceeded.'];
     }
 
     #[DataProvider('timeouts')]
