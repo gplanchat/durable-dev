@@ -17,6 +17,7 @@ IDTNLAidtnla alias Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface
 I....Ai....a alias Gplanchat\Durable\Store\EventStoreInterface -> durable.event_store.in_memory.projecting public
 ..T.....t... alias Gplanchat\Durable\Store\EventStoreInterface -> durable.event_store.temporal public
 I....Ai....a alias Gplanchat\Durable\Store\WorkflowMetadataStore -> durable.workflow_metadata_store.in_memory.projecting public
+..T.....t... alias Gplanchat\Durable\Store\WorkflowMetadataStore -> durable.workflow_metadata_store.inner public
 .D.NL..d.nl. alias Gplanchat\Durable\Store\WorkflowMetadataStore -> durable.workflow_metadata_store.projecting public
 IDTNLAidtnla alias Gplanchat\Durable\Uuid\UuidGeneratorInterface -> Gplanchat\Durable\Uuid\NativeUuidV7Generator private
 ..TN....tn.. def   Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor class=Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor private factory=[0: @Gplanchat\Bridge\Temporal\TemporalRuntimeAssembly, 1: 'historyCursor'] args=[] tags=[]
@@ -58,7 +59,6 @@ IDTNLAidtnla def   Gplanchat\Durable\Port\WorkflowBackendInterface class=Gplanch
 ..T.....t... def   Gplanchat\Durable\Port\WorkflowResumeDispatcher class=Gplanchat\Bridge\Temporal\Port\TemporalWorkflowResumeDispatcher public args=[0: @Gplanchat\Bridge\Temporal\WorkflowClientInterface, 1: @Gplanchat\Durable\Store\WorkflowMetadataStore, 2: @Gplanchat\Durable\Workflow\WorkflowDefinitionLoader, 3: @?durable.execution_trace] tags=[]
 ID.NLAid.nla def   Gplanchat\Durable\Port\WorkflowResumeDispatcher class=Gplanchat\Durable\Bundle\Messenger\MessengerWorkflowResumeDispatcher public args=[0: @messenger.default_bus, 1: @Gplanchat\Durable\Store\WorkflowMetadataStore] tags=[]
 IDTNLAidtnla def   Gplanchat\Durable\Query\WorkflowQueryRunner class=- public args=[0: @Gplanchat\Durable\Store\EventStoreInterface] tags=[]
-..T.....t... def   Gplanchat\Durable\Store\WorkflowMetadataStore class=Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore public args=[] tags=[]
 .D.....d.... def   Gplanchat\Durable\Transport\ActivityTransportInterface class=Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport public args=[0: @messenger.transport.durable_activities, 1: @messenger.transport.durable_activities] tags=[]
 I..NLAi..nla def   Gplanchat\Durable\Transport\ActivityTransportInterface class=Gplanchat\Durable\Transport\InMemoryActivityTransport public args=[] tags=[]
 ..T.....t... def   Gplanchat\Durable\Transport\ActivityTransportInterface class=Gplanchat\Durable\Transport\NoopActivityTransport public args=[] tags=[]
@@ -96,7 +96,7 @@ I....Ai....a def   durable.run_catalog.in_memory class=Gplanchat\Durable\Store\I
 ..T.....t... def   durable.temporal.workflows_receiver class=Gplanchat\Bridge\Temporal\Messenger\TemporalJournalTransport private args=[0: @Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor] tags=[messenger.receiver: [0: [alias: 'durable_workflows']]]
 I....Ai....a def   durable.workflow_metadata_store.in_memory.projecting class=Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore private args=[0: @durable.workflow_metadata_store.inner, 1: @durable.run_catalog.in_memory] tags=[]
 .D.N...d.n.. def   durable.workflow_metadata_store.inner class=Gplanchat\Bridge\Dbal\Store\DbalWorkflowMetadataStore private args=[0: @doctrine.dbal.default_connection, 1: @durable.dbal.schema, 2: 'durable_workflow_metadata'] tags=[]
-I...LAi...la def   durable.workflow_metadata_store.inner class=Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore private args=[] tags=[]
+I.T.LAi.t.la def   durable.workflow_metadata_store.inner class=Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore private args=[] tags=[]
 .D.NL..d.nl. def   durable.workflow_metadata_store.projecting class=Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore private args=[0: @durable.workflow_metadata_store.inner, 1: @durable.dbal.run_projection] tags=[]
 IDTNLAidtnla param durable.child_workflow_async_messenger = false
 IDTNLAidtnla param durable.max_activity_retries = 0

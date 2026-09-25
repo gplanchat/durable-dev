@@ -84,9 +84,12 @@ final class MessengerServices
     {
         $isTemporalNative = DurableExtension::isTemporalNative($config);
 
-        $container->register(WorkflowMetadataStore::class, InMemoryWorkflowMetadataStore::class)
-            ->setPublic(true)
+        // Under an id, like the journal: the in-memory and DBAL paths put a decorator in front of it
+        // and repoint the interface; Temporal keeps this alias (#342).
+        $container->register('durable.workflow_metadata_store.inner', InMemoryWorkflowMetadataStore::class)
+            ->setPublic(false)
         ;
+        $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.inner')->setPublic(true);
 
         $container->register(\Gplanchat\Durable\WorkflowRegistry::class, \Gplanchat\Durable\WorkflowRegistry::class)
             ->setArguments([new Reference(WorkflowDefinitionLoader::class)])

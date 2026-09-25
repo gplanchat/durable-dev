@@ -203,15 +203,6 @@ final class EventStores
         ;
         $container->setAlias(EventStoreInterface::class, 'durable.event_store.in_memory.projecting')->setPublic(true);
 
-        // The metadata store is registered under its interface, not under an id: it becomes the
-        // inside of the decorator, and the interface points at the decorator.
-        $container->setDefinition(
-            'durable.workflow_metadata_store.inner',
-            // Private: it is reached through the interface, which points at the decorator.
-            $container->getDefinition(WorkflowMetadataStore::class)->setPublic(false),
-        );
-        $container->removeDefinition(WorkflowMetadataStore::class);
-
         $container->register('durable.workflow_metadata_store.in_memory.projecting', ProjectingWorkflowMetadataStore::class)
             ->setArguments([new Reference('durable.workflow_metadata_store.inner'), $catalog])
             ->setPublic(false)

@@ -60,16 +60,8 @@ final class DbalStores
         $container->setAlias(EventStoreInterface::class, 'durable.event_store.dbal.projecting')->setPublic(true);
 
         // The journal can be in SQL without the metadata being so: in that case the store already
-        // in place — in-memory — becomes the inside of the decorator, rather than demanding a
+        // in place — in-memory — stays the inside of the decorator, rather than demanding a
         // configuration nothing forces anyone to give.
-        if (!$container->hasDefinition('durable.workflow_metadata_store.inner')) {
-            $container->setDefinition(
-                'durable.workflow_metadata_store.inner',
-                $container->getDefinition(WorkflowMetadataStore::class)->setPublic(false),
-            );
-            $container->removeDefinition(WorkflowMetadataStore::class);
-        }
-
         $container->register('durable.workflow_metadata_store.projecting', ProjectingWorkflowMetadataStore::class)
             ->setArguments([new Reference('durable.workflow_metadata_store.inner'), $projection])
             ->setPublic(false)
