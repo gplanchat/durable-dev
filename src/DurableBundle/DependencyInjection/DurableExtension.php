@@ -10,8 +10,6 @@ use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Bridge\Dbal\Store\DbalChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Dbal\Store\DbalEventStore;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowMetadataStore;
-use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunCatalog;
-use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunProjection;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
 use Gplanchat\Bridge\Temporal\Messenger\TemporalActivityWorkerTransport;
@@ -28,6 +26,7 @@ use Gplanchat\Durable\Bundle\Command\SetupCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\CoreServices;
+use Gplanchat\Durable\Bundle\DependencyInjection\Loader\DbalStores;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\EventStores;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\MessengerServices;
 use Gplanchat\Durable\Bundle\EventListener\RefuseResetOnInMemoryTransportListener;
@@ -198,57 +197,8 @@ final class DurableExtension extends Extension
         // The projection is only worth it if the journal is in SQL: that is where the outcomes come
         // from. An in-memory journal would leave rows that never finish.
         if ($eventStoreDbal) {
-            $this->registerDbalRunCatalog($container, $connection, $schema);
+            DbalStores::registerDbalRunCatalog($container, $connection, $schema);
         }
-    }
-
-    /**
-     * The DBAL catalog, and the two pens that feed it.
-     *
-     * The decorators are placed here rather than in the blocks that register the journal and the
-     * metadata: the name comes from `save()`, the outcome from the journal, and the two must point
-     * at the **same** projection. Separating them would have invited instantiating two of them.
-     *
-     * @see openspec/changes/backend-neutral-workflow-dashboard/design.md
-     */
-    private function registerDbalRunCatalog(ContainerBuilder $container, Reference $connection, Reference $schema): void
-    {
-        $container->register('durable.dbal.run_projection', DbalWorkflowRunProjection::class)
-            ->setArguments([$connection, $schema])
-            ->setPublic(false)
-        ;
-        $projection = new Reference('durable.dbal.run_projection');
-        // The resume handler records the pickup where the worker takes the message (#447).
-        $container->setAlias(WorkflowRunPickupProjectionInterface::class, 'durable.dbal.run_projection')->setPublic(false);
-
-        $container->register('durable.event_store.dbal.projecting', ProjectingEventStore::class)
-            ->setArguments([new Reference('durable.event_store.dbal'), $projection])
-            ->setPublic(false)
-        ;
-        $container->setAlias(EventStoreInterface::class, 'durable.event_store.dbal.projecting')->setPublic(true);
-
-        // The journal can be in SQL without the metadata being so: in that case the store already
-        // in place — in-memory — becomes the inside of the decorator, rather than demanding a
-        // configuration nothing forces anyone to give.
-        if (!$container->hasDefinition('durable.workflow_metadata_store.inner')) {
-            $container->setDefinition(
-                'durable.workflow_metadata_store.inner',
-                $container->getDefinition(WorkflowMetadataStore::class)->setPublic(false),
-            );
-            $container->removeDefinition(WorkflowMetadataStore::class);
-        }
-
-        $container->register('durable.workflow_metadata_store.projecting', ProjectingWorkflowMetadataStore::class)
-            ->setArguments([new Reference('durable.workflow_metadata_store.inner'), $projection])
-            ->setPublic(false)
-        ;
-        $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.projecting')->setPublic(true);
-
-        $container->register('durable.run_catalog.dbal', DbalWorkflowRunCatalog::class)
-            ->setArguments([$connection, $schema])
-            ->setPublic(false)
-        ;
-        $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.dbal')->setPublic(true);
     }
 
     /**
