@@ -9,10 +9,15 @@ use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
 use Gplanchat\Bridge\Temporal\Http\Psr18Http;
+use Gplanchat\Bridge\Temporal\Messenger\TemporalActivityWorkerTransport;
+use Gplanchat\Bridge\Temporal\Messenger\TemporalJournalTransport;
+use Gplanchat\Bridge\Temporal\Messenger\TemporalNexusWorkerTransport;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\TemporalRuntimeAssembly;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
+use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
@@ -20,7 +25,9 @@ use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Bundle\DependencyInjection\DurableExtension;
+use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
+use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
@@ -30,6 +37,7 @@ use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
+use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -202,5 +210,71 @@ final class EventStores
             ->setPublic(false)
         ;
         $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.in_memory.projecting')->setPublic(true);
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    public static function registerTemporalMirrorInfrastructure(ContainerBuilder $container, array $config): void
+    {
+        $dsn = $config['temporal']['dsn'] ?? null;
+        if (!\is_string($dsn) || '' === $dsn) {
+            return;
+        }
+        if (!$container->hasDefinition('durable.temporal.workflow_service_client')) {
+            return;
+        }
+
+        $container->register('durable.temporal.activity_worker', TemporalActivityWorker::class)
+            ->setArguments([
+                new Reference(WorkflowServiceActivityRpc::class),
+                new Reference('durable.temporal.connection'),
+                new Reference(ActivityMessageProcessor::class),
+                new Reference(EventStoreInterface::class),
+                new Reference(ActivityHeartbeatSenderInterface::class),
+            ])
+            ->setPublic(true)
+        ;
+
+        // The registry exists as soon as Temporal is configured, even with no handler declared: it
+        // is its presence that NexusHandlerPass reads to know whether this backend can route.
+        // Without it, the pass refuses — and that is the startup refusal §5.3 asks for.
+        $container->register('durable.temporal.nexus_registry', NexusOperationRegistry::class)
+            ->setFactory([NexusOperationRegistry::class, 'routedBy'])
+            ->setArguments(['temporal'])
+            ->setPublic(false)
+        ;
+
+        $container->register('durable.temporal.nexus_worker', TemporalNexusWorker::class)
+            ->setArguments([
+                new Reference(WorkflowServiceNexusRpc::class),
+                new Reference('durable.temporal.connection'),
+                new Reference('durable.temporal.nexus_registry'),
+            ])
+            ->setPublic(true)
+        ;
+
+        // The workers are consumed by alias (`messenger:consume durable_workflows`), with no
+        // transport in the application's messenger.yaml: one server, one DSN, and the bundle knows
+        // which loop each name runs. NexusHandlerPass tags the Nexus one once a handler exists.
+        $container->register('durable.temporal.nexus_receiver', TemporalNexusWorkerTransport::class)
+            ->setArguments([new Reference('durable.temporal.nexus_worker')])
+        ;
+
+        // Without the journal, workflows run locally and the application's own
+        // durable_workflows / durable_activities transports carry them.
+        if (!DurableExtension::isTemporalNative($config)) {
+            return;
+        }
+
+        $container->register('durable.temporal.workflows_receiver', TemporalJournalTransport::class)
+            ->setArguments([new Reference(WorkflowTaskProcessor::class)])
+            ->addTag('messenger.receiver', ['alias' => 'durable_workflows'])
+        ;
+
+        $container->register('durable.temporal.activities_receiver', TemporalActivityWorkerTransport::class)
+            ->setArguments([new Reference('durable.temporal.activity_worker')])
+            ->addTag('messenger.receiver', ['alias' => 'durable_activities'])
+        ;
     }
 }
