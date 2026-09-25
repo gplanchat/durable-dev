@@ -353,7 +353,7 @@ Tant que **`default`** n'existe pas sur **`#[AsWorkflowMethod]`**, suivez les r�
 ## Ce que vous définissez
 
 1. Une **interface de workflow** (contrat facultatif) et/ou une **classe** portant **`#[AsWorkflow]`** (l'attribut se pose sur la **classe** avec les chargeurs actuels). C'est le contrat typé, pour l'enregistrement et pour les tests.
-2. Une **classe concrète** qui **implémente** votre contrat et se déclare au moteur.
+2. Une **classe concrète** déclarée au moteur ; si vous avez écrit une interface de contrat, elle l'implémente (forme par constructeur).
 3. **`WorkflowEnvironment`** et des stubs d'activités, rien d'autre : en [arguments de la méthode de workflow](#arguments-durable-supplies) ou, avec la forme par constructeur, comme son **unique** paramètre **`WorkflowEnvironment $environment`**. N'injectez **pas** de services, de dépôts ni d'autres dépendances applicatives dans la classe de workflow : les effets de bord appartiennent aux [activités](../activities/).
 
 ## Registre : alias et nom pleinement qualifié

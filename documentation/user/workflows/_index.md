@@ -344,7 +344,7 @@ Until **`default`** exists on **`#[AsWorkflowMethod]`**, follow your runtime’s
 ## What you define
 
 1. A **workflow interface** (optional contract) and/or a **class** annotated with **`#[AsWorkflow]`** (attribute on the **class** with current loaders). It is the typed contract for registration and tests.
-2. A **concrete class** that **implements** your contract and is registered with the runtime.
+2. A **concrete class** registered with the runtime; if you wrote a contract interface, it implements it (constructor form).
 3. **`WorkflowEnvironment`** and activity stubs only, as [workflow method arguments](#arguments-durable-supplies) or, with the constructor form, as its **one** parameter **`WorkflowEnvironment $environment`**. Do **not** inject services, repositories, or other application dependencies into the workflow class: side effects belong in [activities](../activities/).
 
 ## Registry: alias and FQCN
@@ -411,7 +411,7 @@ You never instantiate activity implementations inside the workflow body.
 | Rule | Detail |
 |------|--------|
 | Constructor | None needed; with the constructor form, only `WorkflowEnvironment` |
-| Contract | `#[AsWorkflow]` on the class; an interface is optional, and one it implements calls for the constructor form |
+| Contract | `#[AsWorkflow]` on the class; an interface is optional; a class that implements one uses the constructor form |
 | Entry | At least one `#[AsWorkflowMethod]`; use `default: true` if multiple |
 | I/O | None in the workflow; use activities |
 | Calls to work | Through an **`ActivityStub`**, received as an `#[Activities]` argument or built from the environment |
