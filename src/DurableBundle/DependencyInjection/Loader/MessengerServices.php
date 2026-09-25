@@ -140,7 +140,7 @@ final class MessengerServices
             ;
             $container->setAlias(WorkflowResumeDispatcher::class, 'durable.resume_dispatcher')->setPublic(true);
 
-            $container->register(ResumeWorkflowHandler::class)
+            $container->register('durable.handler.resume_workflow', ResumeWorkflowHandler::class)
                 ->setArguments([
                     new Reference(\Gplanchat\Durable\ExecutionEngine::class),
                     new Reference(\Gplanchat\Durable\WorkflowRegistry::class),
@@ -153,7 +153,8 @@ final class MessengerServices
                     new Reference(WorkflowRunPickupProjectionInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 ])
                 ->addTag('messenger.message_handler')
-            ;
+                ->setPublic(false);
+            $container->setAlias(ResumeWorkflowHandler::class, 'durable.handler.resume_workflow')->setPublic(false);
         }
     }
 }

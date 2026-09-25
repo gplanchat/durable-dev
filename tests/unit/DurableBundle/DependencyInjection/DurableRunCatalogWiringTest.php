@@ -84,7 +84,7 @@ final class DurableRunCatalogWiringTest extends TestCase
         ]);
 
         // resume() never appends ExecutionStarted: the handler is where a worker takes the run (#447).
-        self::assertSame(WorkflowRunPickupProjectionInterface::class, (string) $container->getDefinition(ResumeWorkflowHandler::class)->getArgument(8));
+        self::assertSame(WorkflowRunPickupProjectionInterface::class, (string) $container->findDefinition(ResumeWorkflowHandler::class)->getArgument(8));
         self::assertSame('durable.dbal.run_projection', (string) $container->getAlias(WorkflowRunPickupProjectionInterface::class));
         // The handler records the wait on the same service, when it keeps waits (#324): a decorator
         // over it would drop them silently.

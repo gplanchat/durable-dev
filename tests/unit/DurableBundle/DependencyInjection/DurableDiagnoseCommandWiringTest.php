@@ -44,6 +44,6 @@ final class DurableDiagnoseCommandWiringTest extends TestCase
         $container = new ContainerBuilder();
         (new DurableExtension())->load([$config], $container);
 
-        self::assertSame($processLocal, $container->getDefinition(DiagnoseExecutionCommand::class)->getArgument(5));
+        self::assertSame($processLocal, $container->findDefinition(DiagnoseExecutionCommand::class)->getArgument(5));
     }
 }

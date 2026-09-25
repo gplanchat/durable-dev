@@ -45,7 +45,7 @@ final class Commands
 
         CoreServices::registerActivityProcessor($container, $config, $isTemporalNative);
 
-        $container->register(DiagnoseExecutionCommand::class)
+        $container->register('durable.command.diagnose', DiagnoseExecutionCommand::class)
             ->setArguments([
                 new Reference(WorkflowMetadataStore::class),
                 new Reference(EventStoreInterface::class),
@@ -56,12 +56,13 @@ final class Commands
                 $isTemporalNative,
             ])
             ->addTag('console.command')
-        ;
+            ->setPublic(false);
+        $container->setAlias(DiagnoseExecutionCommand::class, 'durable.command.diagnose')->setPublic(false);
 
         $activityTransport = 'messenger' === ($config['activity_transport']['type'] ?? '') && !$isTemporalNative
             ? ($config['activity_transport']['transport_name'] ?? 'durable_activities')
             : null;
-        $container->register(DurableWorkerCommand::class)
+        $container->register('durable.command.worker', DurableWorkerCommand::class)
             ->setArguments([
                 new Reference('messenger.senders_locator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 new Reference('messenger.receiver_locator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
@@ -69,7 +70,8 @@ final class Commands
                 $isTemporalNative,
             ])
             ->addTag('console.command', ['command' => 'durable:worker'])
-        ;
+            ->setPublic(false);
+        $container->setAlias(DurableWorkerCommand::class, 'durable.command.worker')->setPublic(false);
 
         // What a starting worker consumes, for the listeners that guard durable:worker and
         // messenger:consume alike (#444): the first runs the second without a console event.

@@ -109,10 +109,11 @@ final class DbalStores
         ;
         $schema = new Reference('durable.dbal.schema');
 
-        $container->register(SetupCommand::class)
+        $container->register('durable.command.setup', SetupCommand::class)
             ->setArguments([$schema])
             ->addTag('console.command')
-        ;
+            ->setPublic(false);
+        $container->setAlias(SetupCommand::class, 'durable.command.setup')->setPublic(false);
 
         // Without this listener, `doctrine:migrations:diff` does not see the journal's tables and
         // generates their removal. Registered only when the ORM is there: the DBAL bridge works

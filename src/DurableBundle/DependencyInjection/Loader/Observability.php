@@ -62,18 +62,19 @@ final class Observability
             ->addTag(RegisterDurableMiddlewarePass::TAG, ['priority' => 100])
         ;
 
-        $container->register(DurableDataCollector::class)
+        $container->register('durable.data_collector', DurableDataCollector::class)
             ->setArguments([
                 new Reference('durable.execution_trace'),
                 new Reference(WorkflowMetadataStore::class),
                 new Reference(EventStoreInterface::class),
                 new Reference(PayloadRedactorInterface::class),
             ])
-            ->setPublic(true)
+            ->setPublic(false)
             ->addTag('data_collector', [
                 'template' => '@Durable/Collector/durable.html.twig',
                 'id' => 'durable',
             ])
         ;
+        $container->setAlias(DurableDataCollector::class, 'durable.data_collector')->setPublic(true);
     }
 }

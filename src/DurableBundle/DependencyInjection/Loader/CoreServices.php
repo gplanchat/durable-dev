@@ -188,32 +188,36 @@ final class CoreServices
     public static function registerWorkflowControlHandlers(ContainerBuilder $container, array $config): void
     {
         if (DurableExtension::isTemporalNative($config)) {
-            $container->register(DeliverWorkflowSignalToTemporalHandler::class)
+            $container->register('durable.handler.deliver_signal', DeliverWorkflowSignalToTemporalHandler::class)
                 ->setArguments([new Reference(WorkflowClientInterface::class)])
                 ->addTag('messenger.message_handler')
-            ;
-            $container->register(DeliverWorkflowUpdateToTemporalHandler::class)
+                ->setPublic(false);
+            $container->setAlias(DeliverWorkflowSignalToTemporalHandler::class, 'durable.handler.deliver_signal')->setPublic(false);
+            $container->register('durable.handler.deliver_update', DeliverWorkflowUpdateToTemporalHandler::class)
                 ->setArguments([new Reference(WorkflowClientInterface::class)])
                 ->addTag('messenger.message_handler')
-            ;
+                ->setPublic(false);
+            $container->setAlias(DeliverWorkflowUpdateToTemporalHandler::class, 'durable.handler.deliver_update')->setPublic(false);
 
             return;
         }
 
-        $container->register(DeliverWorkflowSignalHandler::class)
+        $container->register('durable.handler.deliver_signal', DeliverWorkflowSignalHandler::class)
             ->setArguments([
                 new Reference(EventStoreInterface::class),
                 new Reference(WorkflowResumeDispatcher::class),
             ])
             ->addTag('messenger.message_handler')
-        ;
+            ->setPublic(false);
+        $container->setAlias(DeliverWorkflowSignalHandler::class, 'durable.handler.deliver_signal')->setPublic(false);
 
-        $container->register(DeliverWorkflowUpdateHandler::class)
+        $container->register('durable.handler.deliver_update', DeliverWorkflowUpdateHandler::class)
             ->setArguments([
                 new Reference(WorkflowResumeDispatcher::class),
             ])
             ->addTag('messenger.message_handler')
-        ;
+            ->setPublic(false);
+        $container->setAlias(DeliverWorkflowUpdateHandler::class, 'durable.handler.deliver_update')->setPublic(false);
 
         $container->register('durable.timer_dispatcher', MessengerWorkflowTimerDispatcher::class)
             ->setArguments([new Reference('messenger.default_bus')])
@@ -221,7 +225,7 @@ final class CoreServices
         $container->setAlias(MessengerWorkflowTimerDispatcher::class, 'durable.timer_dispatcher')->setPublic(false);
         $container->setAlias(WorkflowTimerDispatcher::class, MessengerWorkflowTimerDispatcher::class);
 
-        $container->register(FireWorkflowTimersHandler::class)
+        $container->register('durable.handler.fire_workflow_timers', FireWorkflowTimersHandler::class)
             ->setArguments([
                 new Reference(EventStoreInterface::class),
                 new Reference(\Gplanchat\Durable\ExecutionRuntime::class),
@@ -229,7 +233,8 @@ final class CoreServices
                 new Reference(WorkflowTimerDispatcher::class),
             ])
             ->addTag('messenger.message_handler')
-        ;
+            ->setPublic(false);
+        $container->setAlias(FireWorkflowTimersHandler::class, 'durable.handler.fire_workflow_timers')->setPublic(false);
     }
 
     /**
@@ -272,11 +277,12 @@ final class CoreServices
         if ('messenger' === ($activityTransportConfig['type'] ?? '')
             && !$isTemporalNative) {
             $activityTransportName = $activityTransportConfig['transport_name'] ?? 'durable_activities';
-            $container->register(ActivityRunHandler::class)
+            $container->register('durable.handler.activity_run', ActivityRunHandler::class)
                 ->setArguments([new Reference(ActivityMessageProcessor::class)])
                 ->addTag('messenger.message_handler', ['from_transport' => $activityTransportName])
-                ->setPublic(true)
+                ->setPublic(false)
             ;
+            $container->setAlias(ActivityRunHandler::class, 'durable.handler.activity_run')->setPublic(true);
         }
     }
 }
