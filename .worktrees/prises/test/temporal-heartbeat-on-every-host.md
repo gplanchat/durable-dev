@@ -5,4 +5,4 @@
   red once with the no-op sender (a switch in the test harness only, never in `src/`).
 - **Entries**: `tests/integration/Temporal/` (the worker scripts, `Fixtures/`,
   `TemporalServerTestCase.php` for an overridable activity role, a new test class).
-- **State**: in progress — dave.
+- **State**: in review, PR #545 — dave.
