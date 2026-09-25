@@ -40,6 +40,7 @@ use Gplanchat\Durable\Bundle\Command\SetupCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\CoreServices;
+use Gplanchat\Durable\Bundle\DependencyInjection\Loader\EventStores;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\MessengerServices;
 use Gplanchat\Durable\Bundle\EventListener\RefuseResetOnInMemoryTransportListener;
 use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
@@ -58,7 +59,6 @@ use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
-use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingEventStore;
@@ -93,7 +93,7 @@ final class DurableExtension extends Extension
         } else {
             $this->registerNullObserver($container);
         }
-        $this->registerChildWorkflowParentLinkStore($container);
+        EventStores::registerChildWorkflowParentLinkStore($container);
         CoreServices::registerWorkflowDefinitionLoader($container);
         $this->registerEventStore($container, $config);
         MessengerServices::registerActivityTransport($container, $config);
@@ -317,17 +317,6 @@ final class DurableExtension extends Extension
             ->setPublic(false)
         ;
         $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.in_memory.projecting')->setPublic(true);
-    }
-
-    private function registerChildWorkflowParentLinkStore(ContainerBuilder $container): void
-    {
-        $container->register('durable.child_workflow_parent_link_store', InMemoryChildWorkflowParentLinkStore::class)
-            ->setPublic(true)
-        ;
-
-        $container->setAlias(ChildWorkflowParentLinkStoreInterface::class, 'durable.child_workflow_parent_link_store')
-            ->setPublic(true)
-        ;
     }
 
     /**
