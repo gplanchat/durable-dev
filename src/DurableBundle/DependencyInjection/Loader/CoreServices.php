@@ -4,18 +4,23 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\DependencyInjection\Loader;
 
+use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
 use Gplanchat\Bridge\Temporal\Messenger\DeliverWorkflowSignalToTemporalHandler;
 use Gplanchat\Bridge\Temporal\Messenger\DeliverWorkflowUpdateToTemporalHandler;
+use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
 use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
+use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\DependencyInjection\DurableExtension;
+use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowUpdateHandler;
 use Gplanchat\Durable\Bundle\Transport\MessengerWorkflowTimerDispatcher;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\ParentChildWorkflowCoordinator;
+use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\LocalWorkflowBackend;
 use Gplanchat\Durable\Port\ParentChildWorkflowCoordinatorInterface;
 use Gplanchat\Durable\Port\WorkflowBackendInterface;
@@ -25,6 +30,7 @@ use Gplanchat\Durable\Query\WorkflowQueryRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
+use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
@@ -214,5 +220,50 @@ final class CoreServices
             ])
             ->addTag('messenger.message_handler')
         ;
+    }
+
+    /**
+     * What runs an activity message: the heartbeat sender, the processor, and its Messenger handler.
+     *
+     * @param array<string, mixed> $config
+     */
+    public static function registerActivityProcessor(ContainerBuilder $container, array $config, bool $isTemporalNative): void
+    {
+        if ($isTemporalNative) {
+            $container->register(TemporalActivityHeartbeatSender::class)
+                ->setArguments([
+                    new Reference(WorkflowServiceActivityRpc::class),
+                    new Reference('durable.temporal.connection'),
+                ])
+                ->setPublic(false);
+            $container->setAlias(ActivityHeartbeatSenderInterface::class, TemporalActivityHeartbeatSender::class)->setPublic(false);
+        } else {
+            $container->register(NullActivityHeartbeatSender::class)->setPublic(false);
+            $container->setAlias(ActivityHeartbeatSenderInterface::class, NullActivityHeartbeatSender::class)->setPublic(false);
+        }
+
+        $container->register(ActivityMessageProcessor::class)
+            ->setArguments([
+                new Reference(EventStoreInterface::class),
+                new Reference(ActivityTransportInterface::class),
+                new Reference(\Gplanchat\Durable\ActivityExecutor::class),
+                new Reference(WorkflowResumeDispatcher::class),
+                new Reference(ActivityHeartbeatSenderInterface::class),
+                '%durable.max_activity_retries%',
+                new Reference(WorkflowExecutionObserverInterface::class),
+            ])
+            ->setPublic(true)
+        ;
+
+        $activityTransportConfig = $config['activity_transport'] ?? [];
+        if ('messenger' === ($activityTransportConfig['type'] ?? '')
+            && !$isTemporalNative) {
+            $activityTransportName = $activityTransportConfig['transport_name'] ?? 'durable_activities';
+            $container->register(ActivityRunHandler::class)
+                ->setArguments([new Reference(ActivityMessageProcessor::class)])
+                ->addTag('messenger.message_handler', ['from_transport' => $activityTransportName])
+                ->setPublic(true)
+            ;
+        }
     }
 }

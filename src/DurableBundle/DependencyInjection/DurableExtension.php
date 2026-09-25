@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\DependencyInjection;
 
-use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceActivityRpc;
-use Gplanchat\Bridge\Temporal\Worker\TemporalActivityHeartbeatSender;
-use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Bundle\Command\DurableWorkerCommand;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
@@ -16,18 +13,13 @@ use Gplanchat\Durable\Bundle\DependencyInjection\Loader\EventStores;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\MessengerServices;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\Observability;
 use Gplanchat\Durable\Bundle\EventListener\RefuseResetOnInMemoryTransportListener;
-use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
 use Gplanchat\Durable\Bundle\Messenger\DurableWorkerInspection;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
 use Gplanchat\Durable\Observation\PayloadRedactorInterface;
-use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
-use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
-use Gplanchat\Durable\Transport\ActivityTransportInterface;
-use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 // And not HttpKernel's, which is only a thin subclass of it — `@internal` since
@@ -124,42 +116,7 @@ final class DurableExtension extends Extension
 
         $isTemporalNative = self::isTemporalNative($config);
 
-        if ($isTemporalNative) {
-            $container->register(TemporalActivityHeartbeatSender::class)
-                ->setArguments([
-                    new Reference(WorkflowServiceActivityRpc::class),
-                    new Reference('durable.temporal.connection'),
-                ])
-                ->setPublic(false);
-            $container->setAlias(ActivityHeartbeatSenderInterface::class, TemporalActivityHeartbeatSender::class)->setPublic(false);
-        } else {
-            $container->register(NullActivityHeartbeatSender::class)->setPublic(false);
-            $container->setAlias(ActivityHeartbeatSenderInterface::class, NullActivityHeartbeatSender::class)->setPublic(false);
-        }
-
-        $container->register(ActivityMessageProcessor::class)
-            ->setArguments([
-                new Reference(EventStoreInterface::class),
-                new Reference(ActivityTransportInterface::class),
-                new Reference(\Gplanchat\Durable\ActivityExecutor::class),
-                new Reference(WorkflowResumeDispatcher::class),
-                new Reference(ActivityHeartbeatSenderInterface::class),
-                '%durable.max_activity_retries%',
-                new Reference(WorkflowExecutionObserverInterface::class),
-            ])
-            ->setPublic(true)
-        ;
-
-        $activityTransportConfig = $config['activity_transport'] ?? [];
-        if ('messenger' === ($activityTransportConfig['type'] ?? '')
-            && !$isTemporalNative) {
-            $activityTransportName = $activityTransportConfig['transport_name'] ?? 'durable_activities';
-            $container->register(ActivityRunHandler::class)
-                ->setArguments([new Reference(ActivityMessageProcessor::class)])
-                ->addTag('messenger.message_handler', ['from_transport' => $activityTransportName])
-                ->setPublic(true)
-            ;
-        }
+        CoreServices::registerActivityProcessor($container, $config, $isTemporalNative);
 
         $container->register(DiagnoseExecutionCommand::class)
             ->setArguments([
