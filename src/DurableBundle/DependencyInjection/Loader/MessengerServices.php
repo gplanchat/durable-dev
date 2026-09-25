@@ -46,25 +46,28 @@ final class MessengerServices
         $isTemporalNative = DurableExtension::isTemporalNative($config);
 
         if ($isTemporalNative) {
-            $container->register(ActivityTransportInterface::class, NoopActivityTransport::class)->setPublic(true);
+            $container->register('durable.activity_transport', NoopActivityTransport::class)->setPublic(false);
+            $container->setAlias(ActivityTransportInterface::class, 'durable.activity_transport')->setPublic(true);
 
             return;
         }
 
         if ('messenger' === $type) {
             $transportName = $transportConfig['transport_name'] ?? 'durable_activities';
-            $container->register(ActivityTransportInterface::class, MessengerActivityTransport::class)
+            $container->register('durable.activity_transport', MessengerActivityTransport::class)
                 ->setArguments([
                     new Reference('messenger.transport.' . $transportName),
                     new Reference('messenger.transport.' . $transportName),
                 ])
-                ->setPublic(true)
+                ->setPublic(false)
             ;
+            $container->setAlias(ActivityTransportInterface::class, 'durable.activity_transport')->setPublic(true);
 
             return;
         }
 
-        $container->register(ActivityTransportInterface::class, InMemoryActivityTransport::class)->setPublic(true);
+        $container->register('durable.activity_transport', InMemoryActivityTransport::class)->setPublic(false);
+        $container->setAlias(ActivityTransportInterface::class, 'durable.activity_transport')->setPublic(true);
     }
 
     /**
@@ -91,12 +94,13 @@ final class MessengerServices
         ;
         $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.inner')->setPublic(true);
 
-        $container->register(\Gplanchat\Durable\WorkflowRegistry::class, \Gplanchat\Durable\WorkflowRegistry::class)
+        $container->register('durable.workflow_registry', \Gplanchat\Durable\WorkflowRegistry::class)
             ->setArguments([new Reference(WorkflowDefinitionLoader::class)])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
+        $container->setAlias(\Gplanchat\Durable\WorkflowRegistry::class, 'durable.workflow_registry')->setPublic(true);
 
-        $container->register(\Gplanchat\Durable\ChildWorkflowRunner::class, \Gplanchat\Durable\ChildWorkflowRunner::class)
+        $container->register('durable.child_workflow_runner', \Gplanchat\Durable\ChildWorkflowRunner::class)
             ->setArguments([
                 new Reference(EventStoreInterface::class),
                 new Reference(\Gplanchat\Durable\ExecutionRuntime::class),
@@ -107,11 +111,12 @@ final class MessengerServices
                 new Reference(WorkflowResumeDispatcher::class),
                 new Reference(ChildWorkflowParentLinkStoreInterface::class),
             ])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
+        $container->setAlias(\Gplanchat\Durable\ChildWorkflowRunner::class, 'durable.child_workflow_runner')->setPublic(true);
 
         if ($isTemporalNative) {
-            $container->register(WorkflowResumeDispatcher::class, TemporalWorkflowResumeDispatcher::class)
+            $container->register('durable.resume_dispatcher', TemporalWorkflowResumeDispatcher::class)
                 ->setArguments([
                     new Reference(WorkflowClientInterface::class),
                     new Reference(WorkflowMetadataStore::class),
@@ -122,16 +127,18 @@ final class MessengerServices
                     // a `temporal.dsn` is configured.
                     new Reference('durable.execution_trace', ContainerInterface::NULL_ON_INVALID_REFERENCE),
                 ])
-                ->setPublic(true)
+                ->setPublic(false)
             ;
+            $container->setAlias(WorkflowResumeDispatcher::class, 'durable.resume_dispatcher')->setPublic(true);
         } else {
-            $container->register(WorkflowResumeDispatcher::class, MessengerWorkflowResumeDispatcher::class)
+            $container->register('durable.resume_dispatcher', MessengerWorkflowResumeDispatcher::class)
                 ->setArguments([
                     new Reference('messenger.default_bus'),
                     new Reference(WorkflowMetadataStore::class),
                 ])
-                ->setPublic(true)
+                ->setPublic(false)
             ;
+            $container->setAlias(WorkflowResumeDispatcher::class, 'durable.resume_dispatcher')->setPublic(true);
 
             $container->register(ResumeWorkflowHandler::class)
                 ->setArguments([
