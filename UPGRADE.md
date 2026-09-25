@@ -24,6 +24,12 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### DBAL without a Temporal DSN no longer registers `durable.event_store.inner`
+
+**Who is affected**: an application on the `dbal` backend, with no `temporal.dsn`, that decorates the
+private `durable.event_store.inner`. That in-memory store had no reader there, and it is no longer
+registered, so the decoration fails to compile. Decorate `EventStoreInterface` instead (#342).
+
 ### A worker refuses to reset an in-memory Durable transport
 
 **Who is affected**: anyone running `durable:worker` or `messenger:consume` on a Durable transport

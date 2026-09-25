@@ -76,7 +76,7 @@ I.T.LAi.t.la def   durable.child_workflow_parent_link_store class=Gplanchat\Dura
 .D.NL..d.nl. def   durable.event_store.dbal class=Gplanchat\Bridge\Dbal\Store\DbalEventStore private args=[0: @doctrine.dbal.default_connection, 1: @durable.dbal.schema, 2: 'durable_events'] tags=[]
 .D.NL..d.nl. def   durable.event_store.dbal.projecting class=Gplanchat\Durable\Store\ProjectingEventStore private args=[0: @durable.event_store.dbal, 1: @durable.dbal.run_projection] tags=[]
 I....Ai....a def   durable.event_store.in_memory.projecting class=Gplanchat\Durable\Store\ProjectingEventStore private args=[0: @durable.event_store.inner, 1: @durable.run_catalog.in_memory] tags=[]
-IDTNLAidtnla def   durable.event_store.inner class=Gplanchat\Durable\Store\InMemoryEventStore private args=[] tags=[]
+I.TN.Ai.tn.a def   durable.event_store.inner class=Gplanchat\Durable\Store\InMemoryEventStore private args=[] tags=[]
 ..TN....tn.. def   durable.event_store.temporal class=Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore private factory=[0: @Gplanchat\Bridge\Temporal\TemporalRuntimeAssembly, 1: 'readThroughEventStore'] args=[0: @durable.event_store.inner] tags=[]
 ......idtnla def   durable.execution_observer.null class=Gplanchat\Durable\Debug\NullWorkflowExecutionObserver private args=[] tags=[]
 IDTNLA...... def   durable.execution_trace class=Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace public args=[] tags=[kernel.reset: [0: [method: 'reset']]]

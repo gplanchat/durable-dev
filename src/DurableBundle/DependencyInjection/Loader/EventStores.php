@@ -143,12 +143,19 @@ final class EventStores
      */
     public static function registerEventStore(ContainerBuilder $container, array $config): void
     {
-        $container->register('durable.event_store.inner', InMemoryEventStore::class)->setPublic(false);
-
         $temporalConfig = $config['temporal'] ?? [];
         $dsn = $temporalConfig['dsn'] ?? null;
+        $hasDsn = \is_string($dsn) && '' !== $dsn;
+        // A DBAL journal replaces this one further down in load(), and without a Temporal DSN nothing
+        // reads the in-memory store: it is not registered (#342).
+        if (!$hasDsn && 'dbal' === ($config['event_store']['type'] ?? 'in_memory')) {
+            return;
+        }
+
+        $container->register('durable.event_store.inner', InMemoryEventStore::class)->setPublic(false);
+
         $journal = false !== ($temporalConfig['journal'] ?? true);
-        if (\is_string($dsn) && '' !== $dsn) {
+        if ($hasDsn) {
             self::registerTemporalEventStore($container, $temporalConfig, $dsn, $journal);
 
             // With no journal, we leave without an alias: `registerDbalStores` or `registerInMemoryRunCatalog`
