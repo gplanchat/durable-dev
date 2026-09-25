@@ -21,10 +21,13 @@ use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Enums\V1\EventType;
+use Temporal\Api\Enums\V1\TimeoutType;
 use Temporal\Api\Failure\V1\Failure;
+use Temporal\Api\Failure\V1\TimeoutFailureInfo;
 use Temporal\Api\History\V1\ActivityTaskCompletedEventAttributes;
 use Temporal\Api\History\V1\ActivityTaskFailedEventAttributes;
 use Temporal\Api\History\V1\ActivityTaskScheduledEventAttributes;
+use Temporal\Api\History\V1\ActivityTaskTimedOutEventAttributes;
 use Temporal\Api\History\V1\History;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\TimerFiredEventAttributes;
@@ -325,6 +328,49 @@ final class WorkflowTaskRunnerTest extends TestCase
         // The exception from the failed activity propagates up → FailWorkflowExecution command
         self::assertCount(1, $result->commands);
         self::assertSame(CommandType::COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION, $result->commands[0]->getCommandType());
+    }
+
+    /**
+     * A run left stuck by #544: its activity timed out, the next workflow task completed with no
+     * command because the timeout went unread, and the run waited. Replayed now, its next workflow
+     * task fails it: the history is the same, only the reading of TIMED_OUT changed.
+     */
+    public function testARunStuckOnAnUnreadActivityTimeoutFailsOnItsNextTask(): void
+    {
+        $registry = new WorkflowRegistry();
+        $registry->registerFactory(
+            'TimingOutWorkflow',
+            static fn(array $payload)
+            => static function (WorkflowEnvironment $env): string {
+                return $env->await($env->activityStub(SuiteActivities::class)->doWork());
+            },
+        );
+
+        $timedOut = self::makeEvent(7, EventType::EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT);
+        $timedOut->setActivityTaskTimedOutEventAttributes(new ActivityTaskTimedOutEventAttributes([
+            'scheduled_event_id' => 5,
+            'failure' => new Failure(['timeout_failure_info' => new TimeoutFailureInfo(['timeout_type' => TimeoutType::TIMEOUT_TYPE_HEARTBEAT])]),
+        ]));
+
+        $result = $this->makeRunner($registry)->run(self::buildPoll('token-stuck', 'wf-stuck', 'TimingOutWorkflow', [
+            self::makeStarted(1),
+            self::makeEvent(2, EventType::EVENT_TYPE_WORKFLOW_TASK_SCHEDULED),
+            self::makeEvent(3, EventType::EVENT_TYPE_WORKFLOW_TASK_STARTED),
+            self::makeEvent(4, EventType::EVENT_TYPE_WORKFLOW_TASK_COMPLETED),
+            self::makeActivityScheduled(5, 'slot-0'),
+            self::makeEvent(6, EventType::EVENT_TYPE_ACTIVITY_TASK_STARTED),
+            $timedOut,
+            // The task the bug completed with no command.
+            self::makeEvent(8, EventType::EVENT_TYPE_WORKFLOW_TASK_SCHEDULED),
+            self::makeEvent(9, EventType::EVENT_TYPE_WORKFLOW_TASK_STARTED),
+            self::makeEvent(10, EventType::EVENT_TYPE_WORKFLOW_TASK_COMPLETED),
+            self::makeEvent(11, EventType::EVENT_TYPE_WORKFLOW_TASK_SCHEDULED),
+            self::makeEvent(12, EventType::EVENT_TYPE_WORKFLOW_TASK_STARTED),
+        ]));
+
+        self::assertCount(1, $result->commands);
+        self::assertSame(CommandType::COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION, $result->commands[0]->getCommandType());
+        self::assertStringContainsString('Activity heartbeat timeout exceeded.', (string) $result->commands[0]->getFailWorkflowExecutionCommandAttributes()?->getFailure()?->getMessage());
     }
 
     public function testWorkflowWithParallelActivitiesEmitsMultipleScheduleCommands(): void
