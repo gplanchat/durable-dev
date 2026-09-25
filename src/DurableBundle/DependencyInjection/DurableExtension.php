@@ -41,6 +41,7 @@ use Gplanchat\Durable\Bundle\Command\SetupCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\CoreServices;
+use Gplanchat\Durable\Bundle\DependencyInjection\Loader\MessengerServices;
 use Gplanchat\Durable\Bundle\EventListener\RefuseResetOnInMemoryTransportListener;
 use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
 use Gplanchat\Durable\Bundle\Messenger\DurableWorkerInspection;
@@ -48,7 +49,6 @@ use Gplanchat\Durable\Bundle\Messenger\MessengerWorkflowResumeDispatcher;
 use Gplanchat\Durable\Bundle\Messenger\WorkflowRunDispatchProfilerMiddleware;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
 use Gplanchat\Durable\Bundle\SchemaListener\DurableSchemaListener;
-use Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport;
 use Gplanchat\Durable\Debug\NullWorkflowExecutionObserver;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
@@ -70,8 +70,6 @@ use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
-use Gplanchat\Durable\Transport\InMemoryActivityTransport;
-use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -103,7 +101,7 @@ final class DurableExtension extends Extension
         $this->registerChildWorkflowParentLinkStore($container);
         CoreServices::registerWorkflowDefinitionLoader($container);
         $this->registerEventStore($container, $config);
-        $this->registerActivityTransport($container, $config);
+        MessengerServices::registerActivityTransport($container, $config);
         CoreServices::registerActivityExecutor($container);
         CoreServices::registerRuntime($container);
         $this->registerWorkflowMessengerServices($container, $config);
@@ -438,37 +436,6 @@ final class DurableExtension extends Extension
         }
 
         $container->setAlias(EventStoreInterface::class, 'durable.event_store.inner')->setPublic(true);
-    }
-
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function registerActivityTransport(ContainerBuilder $container, array $config): void
-    {
-        $transportConfig = $config['activity_transport'] ?? [];
-        $type = $transportConfig['type'] ?? 'in_memory';
-        $isTemporalNative = self::isTemporalNative($config);
-
-        if ($isTemporalNative) {
-            $container->register(ActivityTransportInterface::class, NoopActivityTransport::class)->setPublic(true);
-
-            return;
-        }
-
-        if ('messenger' === $type) {
-            $transportName = $transportConfig['transport_name'] ?? 'durable_activities';
-            $container->register(ActivityTransportInterface::class, MessengerActivityTransport::class)
-                ->setArguments([
-                    new Reference('messenger.transport.' . $transportName),
-                    new Reference('messenger.transport.' . $transportName),
-                ])
-                ->setPublic(true)
-            ;
-
-            return;
-        }
-
-        $container->register(ActivityTransportInterface::class, InMemoryActivityTransport::class)->setPublic(true);
     }
 
     /**
