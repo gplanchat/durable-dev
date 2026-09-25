@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Bundle\DependencyInjection\Loader;
 
 use Gplanchat\Durable\Activity\ActivityContractResolver;
+use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\DependencyInjection\DurableExtension;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
 use Gplanchat\Durable\ParentChildWorkflowCoordinator;
+use Gplanchat\Durable\Port\LocalWorkflowBackend;
 use Gplanchat\Durable\Port\ParentChildWorkflowCoordinatorInterface;
+use Gplanchat\Durable\Port\WorkflowBackendInterface;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
+use Gplanchat\Durable\Query\WorkflowQueryRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
@@ -88,6 +92,66 @@ final class CoreServices
         $container->register(ActivityContractResolver::class, ActivityContractResolver::class)
             ->setArguments([$cacheRef])
             ->setPublic(false)
+        ;
+    }
+
+    public static function registerEngine(ContainerBuilder $container): void
+    {
+        $container->register(\Gplanchat\Durable\Uuid\NativeUuidV7Generator::class, \Gplanchat\Durable\Uuid\NativeUuidV7Generator::class)
+            ->setPublic(false);
+        $container->setAlias(\Gplanchat\Durable\Uuid\UuidGeneratorInterface::class, \Gplanchat\Durable\Uuid\NativeUuidV7Generator::class);
+
+        $container->register(\Gplanchat\Durable\ExecutionEngine::class, \Gplanchat\Durable\ExecutionEngine::class)
+            ->setArguments([
+                new Reference(EventStoreInterface::class),
+                new Reference(\Gplanchat\Durable\ExecutionRuntime::class),
+                new Reference(\Gplanchat\Durable\ChildWorkflowRunner::class),
+                new Reference(ParentChildWorkflowCoordinatorInterface::class),
+                new Reference(ActivityContractResolver::class),
+                new Reference(WorkflowDefinitionLoader::class),
+                new Reference(WorkflowExecutionObserverInterface::class),
+                new Reference(\Gplanchat\Durable\Uuid\UuidGeneratorInterface::class),
+            ])
+            ->setPublic(true)
+        ;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    public static function registerActivityContractCacheWarmer(ContainerBuilder $container, array $config): void
+    {
+        $activityConfig = $config['activity_contracts'] ?? [];
+        $contractClasses = $activityConfig['contracts'] ?? [];
+        if ([] === $contractClasses) {
+            return;
+        }
+
+        $container->register('durable.activity_contract_cache_warmer', ActivityContractCacheWarmer::class)
+            ->setArguments([
+                new Reference(ActivityContractResolver::class),
+                $contractClasses,
+            ])
+            ->addTag('kernel.cache_warmer')
+        ;
+    }
+
+    public static function registerWorkflowQueryRunner(ContainerBuilder $container): void
+    {
+        // Public on purpose: application code runs its queries through it, so it is part of the
+        // bundle's surface, not an internal the bundle could hide.
+        $container->register(WorkflowQueryRunner::class)
+            ->setArguments([new Reference(EventStoreInterface::class)])
+            ->setPublic(true)
+        ;
+    }
+
+    public static function registerWorkflowBackend(ContainerBuilder $container): void
+    {
+        // Public on purpose: the entry point an application starts and drives workflows through.
+        $container->register(WorkflowBackendInterface::class, LocalWorkflowBackend::class)
+            ->setArguments([new Reference(\Gplanchat\Durable\ExecutionEngine::class)])
+            ->setPublic(true)
         ;
     }
 }

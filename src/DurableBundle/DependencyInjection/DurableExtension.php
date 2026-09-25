@@ -36,9 +36,7 @@ use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
-use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
-use Gplanchat\Durable\Bundle\CacheWarmer\ActivityContractCacheWarmer;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Bundle\Command\DurableWorkerCommand;
 use Gplanchat\Durable\Bundle\Command\SetupCommand;
@@ -65,13 +63,9 @@ use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
 use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
-use Gplanchat\Durable\Port\LocalWorkflowBackend;
-use Gplanchat\Durable\Port\ParentChildWorkflowCoordinatorInterface;
-use Gplanchat\Durable\Port\WorkflowBackendInterface;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
-use Gplanchat\Durable\Query\WorkflowQueryRunner;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
@@ -128,11 +122,11 @@ final class DurableExtension extends Extension
         );
 
         CoreServices::registerActivityContractResolver($container, $config);
-        $this->registerEngine($container);
-        $this->registerActivityContractCacheWarmer($container, $config);
+        CoreServices::registerEngine($container);
+        CoreServices::registerActivityContractCacheWarmer($container, $config);
         $this->registerWorkflowControlHandlers($container, $config);
-        $this->registerWorkflowQueryRunner($container);
-        $this->registerWorkflowBackend($container);
+        CoreServices::registerWorkflowQueryRunner($container);
+        CoreServices::registerWorkflowBackend($container);
         $this->registerCommands($container, $config);
         $this->registerTemporalMirrorInfrastructure($container, $config);
         $this->registerDbalStores($container, $config);
@@ -484,47 +478,6 @@ final class DurableExtension extends Extension
     }
 
     /**
-     * @param array<string, mixed> $config
-     */
-    private function registerActivityContractCacheWarmer(ContainerBuilder $container, array $config): void
-    {
-        $activityConfig = $config['activity_contracts'] ?? [];
-        $contractClasses = $activityConfig['contracts'] ?? [];
-        if ([] === $contractClasses) {
-            return;
-        }
-
-        $container->register('durable.activity_contract_cache_warmer', ActivityContractCacheWarmer::class)
-            ->setArguments([
-                new Reference(ActivityContractResolver::class),
-                $contractClasses,
-            ])
-            ->addTag('kernel.cache_warmer')
-        ;
-    }
-
-    private function registerEngine(ContainerBuilder $container): void
-    {
-        $container->register(\Gplanchat\Durable\Uuid\NativeUuidV7Generator::class, \Gplanchat\Durable\Uuid\NativeUuidV7Generator::class)
-            ->setPublic(false);
-        $container->setAlias(\Gplanchat\Durable\Uuid\UuidGeneratorInterface::class, \Gplanchat\Durable\Uuid\NativeUuidV7Generator::class);
-
-        $container->register(\Gplanchat\Durable\ExecutionEngine::class, \Gplanchat\Durable\ExecutionEngine::class)
-            ->setArguments([
-                new Reference(EventStoreInterface::class),
-                new Reference(\Gplanchat\Durable\ExecutionRuntime::class),
-                new Reference(\Gplanchat\Durable\ChildWorkflowRunner::class),
-                new Reference(ParentChildWorkflowCoordinatorInterface::class),
-                new Reference(ActivityContractResolver::class),
-                new Reference(WorkflowDefinitionLoader::class),
-                new Reference(WorkflowExecutionObserverInterface::class),
-                new Reference(\Gplanchat\Durable\Uuid\UuidGeneratorInterface::class),
-            ])
-            ->setPublic(true)
-        ;
-    }
-
-    /**
      * On Temporal native the cluster is the journal: signals and updates go to it, and Temporal
      * fires the timers itself. The journal handlers would append to a local store nobody replays
      * and ask for a resume nothing performs (#333).
@@ -574,25 +527,6 @@ final class DurableExtension extends Extension
                 new Reference(WorkflowTimerDispatcher::class),
             ])
             ->addTag('messenger.message_handler')
-        ;
-    }
-
-    private function registerWorkflowQueryRunner(ContainerBuilder $container): void
-    {
-        // Public on purpose: application code runs its queries through it, so it is part of the
-        // bundle's surface, not an internal the bundle could hide.
-        $container->register(WorkflowQueryRunner::class)
-            ->setArguments([new Reference(EventStoreInterface::class)])
-            ->setPublic(true)
-        ;
-    }
-
-    private function registerWorkflowBackend(ContainerBuilder $container): void
-    {
-        // Public on purpose: the entry point an application starts and drives workflows through.
-        $container->register(WorkflowBackendInterface::class, LocalWorkflowBackend::class)
-            ->setArguments([new Reference(\Gplanchat\Durable\ExecutionEngine::class)])
-            ->setPublic(true)
         ;
     }
 
