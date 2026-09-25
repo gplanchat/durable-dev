@@ -31,8 +31,15 @@ on one of the bundle's class or interface ids: `ExecutionEngine`, `ExecutionRunt
 `WorkflowRegistry`, `ActivityExecutor`, `WorkflowResumeDispatcher`, the Durable handlers and
 commands, `DurableDataCollector`, the Temporal client, RPCs and task runner, and the others listed
 in #342. Those ids are now aliases of `durable.*` definitions, with the visibility they had, so
-autowiring, `->get()` and `decorates:` are unchanged. Call `findDefinition()` (it follows the
-alias) and `has()` instead.
+autowiring, `->get()` and `decorates:` are unchanged. In the pass:
+
+```php
+$container->getDefinition(ExecutionEngine::class); // throws: the id is an alias
+$container->findDefinition(ExecutionEngine::class); // follows the alias to durable.engine
+
+$container->hasDefinition(SetupCommand::class);    // always false now
+$container->has(SetupCommand::class);              // true when the command is registered
+```
 
 ### DBAL without a Temporal DSN no longer registers `durable.event_store.inner`
 
