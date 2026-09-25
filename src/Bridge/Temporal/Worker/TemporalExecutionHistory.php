@@ -67,6 +67,12 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var array<int, string> scheduled event ID → activity ID */
     private array $scheduledEventIdToActivityId = [];
 
+    /**
+     * @var array<int, int> started event ID → the attempt it started; Temporal writes only the last
+     *                      attempt's ActivityTaskStarted, and a failure or a timeout points at it (#547)
+     */
+    private array $startedEventIdToAttempt = [];
+
     /** @var array<string, mixed> activity ID → result (for completed activities) */
     private array $activityResults = [];
 
@@ -304,6 +310,13 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 // journal backends raise a timeout as a RuntimeException naming it, so a workflow
                 // catches the same failure on every backend. Unread, it left the slot empty and the
                 // workflow waiting forever (#544).
+            case EventType::EVENT_TYPE_ACTIVITY_TASK_STARTED:
+                $attr = $event->getActivityTaskStartedEventAttributes();
+                if (null !== $attr) {
+                    $this->startedEventIdToAttempt[$eventId] = $attr->getAttempt();
+                }
+                break;
+
             case EventType::EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT:
                 $attr = $event->getActivityTaskTimedOutEventAttributes();
                 $activityId = null !== $attr ? $this->scheduledEventIdToActivityId[$attr->getScheduledEventId()] ?? null : null;
@@ -319,7 +332,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                     $this->activityFailures[$activityId] = new DurableActivityFailedException(
                         $activityId,
                         $this->activityNames[$activityId] ?? '',
-                        1,
+                        $this->attemptOf($attr?->getStartedEventId() ?? 0),
                         new FailureEnvelope(\RuntimeException::class, \sprintf('Activity %stimeout exceeded.', $timeout), 0, [], null, []),
                     );
                 }
@@ -341,7 +354,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                         $this->activityFailures[$activityId] = new DurableActivityFailedException(
                             $activityId,
                             $this->activityNames[$activityId] ?? '',
-                            1,
+                            $this->attemptOf($attr->getStartedEventId()),
                             new FailureEnvelope(
                                 \is_string($type) && '' !== $type ? $type : \RuntimeException::class,
                                 $message,
@@ -887,5 +900,14 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     public function scheduledEventIdForNexusOperation(string $operationId): ?int
     {
         return $this->nexusOperationToScheduledEventId[$operationId] ?? null;
+    }
+
+    /**
+     * The attempt a failure or a timeout ended, read from the ActivityTaskStarted it points at. With
+     * none (a schedule-to-start timeout, before any start), the first, as the journal backends say.
+     */
+    private function attemptOf(int $startedEventId): int
+    {
+        return max(1, $this->startedEventIdToAttempt[$startedEventId] ?? 1);
     }
 }
