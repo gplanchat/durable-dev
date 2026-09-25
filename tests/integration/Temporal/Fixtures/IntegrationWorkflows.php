@@ -31,6 +31,11 @@ final class IntegrationWorkflows
         $executor->register('double', static fn(array $p): int => ((int) ($p['value'] ?? 0)) * 2);
         $executor->register('append', static fn(array $p): string => ((string) ($p['text'] ?? '')) . '!');
         $executor->register('refund', static fn(array $p): string => 'refunded:' . ($p['order'] ?? '?'));
+        $executor->register('sleep', static function (array $p): int {
+            sleep((int) ($p['seconds'] ?? 0));
+
+            return (int) ($p['seconds'] ?? 0);
+        });
         $executor->register('boom', static function (array $p): never {
             throw new \DomainException('activity exploded');
         });
@@ -127,6 +132,13 @@ final class IntegrationWorkflows
             RetryLimit::once(),
             timeouts: self::attemptTimeout(),
         ))->boom()));
+
+        // One attempt with a one-second start-to-close timeout on a three-second activity: the
+        // server times it out, and the workflow must fail rather than wait forever (#544).
+        $registry->registerFactory('TimesOutOnItsActivity', static fn(array $input) => static fn(WorkflowEnvironment $env): mixed => $env->await($env->activityStub(IntegrationActivities::class, new ActivityOptions(
+            RetryLimit::once(),
+            timeouts: ActivityTimeouts::attempt(Duration::seconds(1)),
+        ))->sleep(3)));
 
         $registry->registerFactory('UnboundedRetry', static fn(array $input) => static fn(WorkflowEnvironment $env): mixed => $env->await($env->activityStub(IntegrationActivities::class, self::options())->boom()));
 
