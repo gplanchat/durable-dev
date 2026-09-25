@@ -9,38 +9,35 @@ This page summarizes how you **author** a workflow in Durable. The normative rul
 
 ## Example: minimal workflow
 
-Define a **contract interface** (optional but recommended for tests and typing) and a **concrete class** registered with the runtime. The **`#[AsWorkflow]`** attribute is placed on the **class** in today’s loader (see [DUR022](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR022-workflow-class-interface-and-workflow-environment.md) for the long-term interface-first model).
+A **class** annotated with **`#[AsWorkflow]`**, registered with the runtime. Its workflow method takes
+the input, and Durable supplies the rest as arguments: the activity stubs and the environment (see
+[Arguments Durable supplies](#arguments-durable-supplies)). The **`#[AsWorkflow]`** attribute is placed
+on the **class** in today’s loader (see [DUR022](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR022-workflow-class-interface-and-workflow-environment.md) for the long-term interface-first model).
 
 ```php
 <?php
 
 declare(strict_types=1);
 
+use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\Activities;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-/** Domain contract. No attributes required on the interface. */
-interface OrderWorkflowContract
-{
-    public function run(string $orderId): mixed;
-}
-
 #[AsWorkflow(name: 'order')]
-final class OrderWorkflow implements OrderWorkflowContract
+final class OrderWorkflow
 {
-    public function __construct(
-        private readonly WorkflowEnvironment $environment,
-    ) {
-    }
-
+    /** @param ActivityStub<OrderActivities> $activities */
     #[AsWorkflowMethod]
-    public function run(string $orderId): mixed
-    {
+    public function run(
+        string $orderId,
+        #[Activities(OrderActivities::class)]
+        ActivityStub $activities,
+        WorkflowEnvironment $env,
+    ): mixed {
         // Activity contract: see Creating activities. The stub schedules work; await runs it in the replay model.
-        $activities = $this->environment->activityStub(OrderActivities::class);
-
-        return $this->environment->await($activities->charge($orderId));
+        return $env->await($activities->charge($orderId));
     }
 }
 ```
@@ -283,8 +280,34 @@ public function run(
   `maximumInterval` shorter than the first retry delay, a non-retryable entry that is no exception. The message names the parameter and the option.
 
 The constructor form keeps working. It is the one to use when the class implements a contract
-interface such as `OrderWorkflowContract` above: PHP does not let the implementation add required
-parameters to `run()`.
+interface (optional, but useful for tests and typing): PHP does not let the implementation add
+required parameters to `run()`, so the environment comes through the constructor and the stub is
+built from it:
+
+```php
+/** Domain contract. No attributes required on the interface. */
+interface OrderWorkflowContract
+{
+    public function run(string $orderId): mixed;
+}
+
+#[AsWorkflow(name: 'order')]
+final class OrderWorkflow implements OrderWorkflowContract
+{
+    public function __construct(
+        private readonly WorkflowEnvironment $environment,
+    ) {
+    }
+
+    #[AsWorkflowMethod]
+    public function run(string $orderId): mixed
+    {
+        $activities = $this->environment->activityStub(OrderActivities::class);
+
+        return $this->environment->await($activities->charge($orderId));
+    }
+}
+```
 
 ### ActivityOptions on the stub
 
@@ -321,8 +344,8 @@ Until **`default`** exists on **`#[AsWorkflowMethod]`**, follow your runtime’s
 ## What you define
 
 1. A **workflow interface** (optional contract) and/or a **class** annotated with **`#[AsWorkflow]`** (attribute on the **class** with current loaders). It is the typed contract for registration and tests.
-2. A **concrete class** that **implements** your contract and is registered with the runtime.
-3. **Exactly one** constructor parameter on the implementation: **`WorkflowEnvironment $environment`**. Do **not** inject services, repositories, or other application dependencies into the workflow class: side effects belong in [activities](../activities/).
+2. A **concrete class** registered with the runtime; if you wrote a contract interface, it implements it (constructor form).
+3. **`WorkflowEnvironment`** and activity stubs only, as [workflow method arguments](#arguments-durable-supplies) or, with the constructor form, as its **one** parameter **`WorkflowEnvironment $environment`**. Do **not** inject services, repositories, or other application dependencies into the workflow class: side effects belong in [activities](../activities/).
 
 ## Registry: alias and FQCN
 
@@ -343,7 +366,7 @@ Parameters and return types must be **serializable** (see project serialization 
 
 ## WorkflowEnvironment
 
-The engine injects **`WorkflowEnvironment`** into your constructor. This is its whole surface:
+The engine supplies **`WorkflowEnvironment`** as a workflow method argument, or to your constructor. This is its whole surface:
 everything a workflow can do, and nothing the engine keeps for itself.
 
 | | |
@@ -387,11 +410,11 @@ You never instantiate activity implementations inside the workflow body.
 
 | Rule | Detail |
 |------|--------|
-| Constructor | Only `WorkflowEnvironment` |
-| Contract | Interface + `#[AsWorkflow]`; class implements it |
+| Constructor | None needed; with the constructor form, only `WorkflowEnvironment` |
+| Contract | `#[AsWorkflow]` on the class; an interface is optional; a class that implements one uses the constructor form |
 | Entry | At least one `#[AsWorkflowMethod]`; use `default: true` if multiple |
 | I/O | None in the workflow; use activities |
-| Calls to work | Through an **`ActivityStub`**, built in the constructor from an activity contract |
+| Calls to work | Through an **`ActivityStub`**, received as an `#[Activities]` argument or built from the environment |
 | `finally` | Runs on every pass that suspends, not once per execution; keep it free of work |
 
 ## `finally` runs on every pass that suspends
