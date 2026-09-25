@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable;
 
+use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Exception\WorkflowSuspendedException;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionRuntime;
+use Gplanchat\Durable\Mapping\EventDataMapper;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
@@ -15,7 +18,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * A condition can say what it waits for: the run list shows the label instead of where the closure
- * is written. The label is display only, it never enters the journal (#324).
+ * is written. Nothing records the label while the run waits (#324).
  *
  * @internal
  */
@@ -56,15 +59,17 @@ final class AwaitLabelTest extends TestCase
         }));
     }
 
-    public function testTheLabelAddsNothingToTheJournal(): void
+    /**
+     * While it waits, a labelled condition writes the same rows as an unlabelled one: the label goes
+     * into no event, not even the deadline's timer. Only the timer id (a fresh UUID) and its due date
+     * (the clock) differ from run to run, so those two are masked.
+     */
+    public function testWhileItWaitsTheLabelAddsNothingToTheJournal(): void
     {
-        $unlabelled = $this->journalAfterTwoPasses(static function (WorkflowEnvironment $wf): void {
-            $wf->await(static fn(): bool => false);
-        });
-        $labelled = $this->journalAfterTwoPasses(static function (WorkflowEnvironment $wf): void {
-            $wf->await(static fn(): bool => false, label: 'signal approve');
-        });
+        $unlabelled = $this->rowsAfterTwoPasses(null);
+        $labelled = $this->rowsAfterTwoPasses('signal approve');
 
+        self::assertCount(2, $labelled, 'the start and the deadline timer');
         self::assertSame($unlabelled, $labelled);
     }
 
@@ -81,11 +86,14 @@ final class AwaitLabelTest extends TestCase
     }
 
     /**
-     * @return list<class-string> the event classes written by a start and a resume, in order
+     * @return list<array<string, mixed>> the rows a start and a resume write, run-specific values masked
      */
-    private function journalAfterTwoPasses(\Closure $workflow): array
+    private function rowsAfterTwoPasses(?string $label): array
     {
         [$engine, $store] = self::engine();
+        $workflow = static function (WorkflowEnvironment $wf) use ($label): void {
+            $wf->await(static fn(): bool => false, Duration::hours(1), label: $label);
+        };
         foreach (['start', 'resume'] as $pass) {
             try {
                 $engine->{$pass}('exec-1', $workflow);
@@ -93,7 +101,16 @@ final class AwaitLabelTest extends TestCase
             }
         }
 
-        return array_map(static fn(object $event): string => $event::class, iterator_to_array($store->readStream('exec-1'), false));
+        return array_map(static function (Event $event): array {
+            $row = EventDataMapper::fromDomainEvent($event);
+            foreach (['timerId', 'scheduledAt'] as $runSpecific) {
+                if (\array_key_exists($runSpecific, $row['payload'])) {
+                    $row['payload'][$runSpecific] = '(masked)';
+                }
+            }
+
+            return $row;
+        }, iterator_to_array($store->readStream('exec-1'), false));
     }
 
     /**
