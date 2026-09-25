@@ -149,6 +149,8 @@
                                                     {% if run.groupId is defined %}<span>{{ 'runs.group'|trans({}, 'durable') }} <code>{{ run.groupId }}</code></span>{% endif %}
                                                     {# Dispatched, and no worker has taken it: usually no worker is running (#447). #}
                                                     {% if run.waitingForWorker is defined %}<span class="text-orange">{{ run.waitingForWorker }}</span>{% endif %}
+                                                    {# What a suspended run last waited on, worded by the core (#324). #}
+                                                    {% if run.waitingOn is defined %}<span class="text-secondary">{{ run.waitingOn }}</span>{% endif %}
                                                 </div>
                                             </a>
                                         {% endfor %}

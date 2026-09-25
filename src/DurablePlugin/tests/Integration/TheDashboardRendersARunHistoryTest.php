@@ -216,6 +216,20 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertStringNotContainsString('waiting for a worker', $this->render());
     }
 
+    public function testASuspendedRunSaysWhatItWaitsOn(): void
+    {
+        // #324: the catalogue records the wait and the core words it; the list is where an
+        // operator asks why a run is not moving.
+        $page = $this->render(waitingOn: 'timer due at 2026-09-24T10:00:00+00:00');
+
+        self::assertStringContainsString('waiting on timer due at 2026-09-24T10:00:00+00:00', $page);
+    }
+
+    public function testARunWithNoRecordedWaitSaysNothingOfTheKind(): void
+    {
+        self::assertStringNotContainsString('waiting on', $this->render());
+    }
+
     public function testTheWholePageSpeaksFrenchWhenTheAdminDoes(): void
     {
         $page = $this->render(waiting: true, locale: 'fr');
@@ -255,9 +269,9 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
     }
 
     /** @param array{cursor: string, back: string}|null $previous what the controller hands for the way back */
-    private function render(bool $ephemeral = false, bool $badPayload = false, bool $waiting = false, string $locale = 'en', ?array $previous = null, bool $secrets = false): string
+    private function render(bool $ephemeral = false, bool $badPayload = false, bool $waiting = false, string $locale = 'en', ?array $previous = null, bool $secrets = false, ?string $waitingOn = null): string
     {
-        $catalog = new RenderingCatalog($ephemeral, $badPayload, $waiting, $secrets);
+        $catalog = new RenderingCatalog($ephemeral, $badPayload, $waiting, $secrets, waitingOn: $waitingOn);
         $model = (new RunDashboard($catalog))->build();
         $model['pagination']['previous'] = $previous;
 
@@ -298,6 +312,7 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface
         private readonly bool $badPayload = false,
         private readonly bool $waiting = false,
         private readonly bool $secrets = false,
+        private readonly ?string $waitingOn = null,
     ) {}
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
@@ -307,7 +322,7 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface
         }
 
         return new WorkflowRunPage([
-            new WorkflowRunDescription('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running, new \DateTimeImmutable('@1700000000'), waitingForWorkerSince: $this->waiting ? new \DateTimeImmutable('@1700000000') : null),
+            new WorkflowRunDescription('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running, new \DateTimeImmutable('@1700000000'), waitingForWorkerSince: $this->waiting ? new \DateTimeImmutable('@1700000000') : null, waitingOn: $this->waitingOn),
         ], tellsWaitingForWorker: $this->waiting);
     }
 
