@@ -42,6 +42,14 @@ $connection = new TemporalConnection(
 );
 $client = WorkflowServiceClientFactory::create($connection);
 
+// An activity worker a framework builds, not this script: the host's container wires the sender
+// its activities inject (#518).
+if (\in_array($role, ['laravel-activity', 'magento-activity'], true)) {
+    require __DIR__ . '/Hosts/' . $role . '.php';
+
+    exit(0);
+}
+
 if ('workflow' === $role) {
     $registry = new WorkflowRegistry();
     IntegrationWorkflows::registerWorkflows($registry);
