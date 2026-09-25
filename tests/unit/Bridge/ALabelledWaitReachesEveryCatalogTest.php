@@ -108,7 +108,9 @@ final class ALabelledWaitReachesEveryCatalogTest extends TestCase
     private function waitingOn(string $workflowClass, \Closure $catalogs): ?string
     {
         $journal = new InMemoryEventStore();
-        [$projection, $catalog] = $catalogs($journal);
+        /** @var array{WorkflowRunProjectionInterface&WorkflowRunPickupProjectionInterface, WorkflowRunCatalogInterface} $pair */
+        $pair = $catalogs($journal);
+        [$projection, $catalog] = $pair;
         $store = new ProjectingEventStore($journal, $projection);
         $metadata = new ProjectingWorkflowMetadataStore(new InMemoryWorkflowMetadataStore(), $projection);
         $registry = new WorkflowRegistry();
