@@ -44,6 +44,7 @@ use Gplanchat\Durable\Bundle\Command\DurableWorkerCommand;
 use Gplanchat\Durable\Bundle\Command\SetupCommand;
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
+use Gplanchat\Durable\Bundle\DependencyInjection\Loader\CoreServices;
 use Gplanchat\Durable\Bundle\EventListener\RefuseResetOnInMemoryTransportListener;
 use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
 use Gplanchat\Durable\Bundle\Handler\DeliverWorkflowSignalHandler;
@@ -63,7 +64,6 @@ use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
 use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
-use Gplanchat\Durable\ParentChildWorkflowCoordinator;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\LocalWorkflowBackend;
 use Gplanchat\Durable\Port\ParentChildWorkflowCoordinatorInterface;
@@ -72,7 +72,6 @@ use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
 use Gplanchat\Durable\Query\WorkflowQueryRunner;
-use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
@@ -114,13 +113,13 @@ final class DurableExtension extends Extension
             $this->registerNullObserver($container);
         }
         $this->registerChildWorkflowParentLinkStore($container);
-        $this->registerWorkflowDefinitionLoader($container);
+        CoreServices::registerWorkflowDefinitionLoader($container);
         $this->registerEventStore($container, $config);
         $this->registerActivityTransport($container, $config);
-        $this->registerActivityExecutor($container);
-        $this->registerRuntime($container);
+        CoreServices::registerActivityExecutor($container);
+        CoreServices::registerRuntime($container);
         $this->registerWorkflowMessengerServices($container, $config);
-        $this->registerParentChildCoordinator($container);
+        CoreServices::registerParentChildCoordinator($container);
         // The pass that installs the middleware runs well after the extensions; it reads this
         // choice back here rather than rediscovering it.
         $container->setParameter(
@@ -128,7 +127,7 @@ final class DurableExtension extends Extension
             $config['messenger']['buses'] ?? [],
         );
 
-        $this->registerActivityContractResolver($container, $config);
+        CoreServices::registerActivityContractResolver($container, $config);
         $this->registerEngine($container);
         $this->registerActivityContractCacheWarmer($container, $config);
         $this->registerWorkflowControlHandlers($container, $config);
@@ -339,17 +338,6 @@ final class DurableExtension extends Extension
         $container->setAlias(WorkflowMetadataStore::class, 'durable.workflow_metadata_store.in_memory.projecting')->setPublic(true);
     }
 
-    private function registerWorkflowDefinitionLoader(ContainerBuilder $container): void
-    {
-        if ($container->hasDefinition(WorkflowDefinitionLoader::class)) {
-            return;
-        }
-
-        $container->register(WorkflowDefinitionLoader::class, WorkflowDefinitionLoader::class)
-            ->setPublic(false)
-        ;
-    }
-
     private function registerChildWorkflowParentLinkStore(ContainerBuilder $container): void
     {
         $container->register('durable.child_workflow_parent_link_store', InMemoryChildWorkflowParentLinkStore::class)
@@ -370,8 +358,10 @@ final class DurableExtension extends Extension
      * activity transport, the resume dispatcher and the dashboard's read aliases.
      *
      * @param array<string, mixed> $config
+     *
+     * @internal shared with the loaders under Loader/ (#342)
      */
-    private static function isTemporalNative(array $config): bool
+    public static function isTemporalNative(array $config): bool
     {
         $dsn = $config['temporal']['dsn'] ?? null;
 
@@ -493,53 +483,6 @@ final class DurableExtension extends Extension
         $container->register(ActivityTransportInterface::class, InMemoryActivityTransport::class)->setPublic(true);
     }
 
-    private function registerRuntime(ContainerBuilder $container): void
-    {
-        $container->register(\Gplanchat\Durable\ExecutionRuntime::class, \Gplanchat\Durable\ExecutionRuntime::class)
-            ->setArguments([
-                new Reference(EventStoreInterface::class),
-                new Reference(ActivityTransportInterface::class),
-                new Reference(\Gplanchat\Durable\ActivityExecutor::class),
-                '%durable.max_activity_retries%',
-                null,
-                true,
-                new Reference(WorkflowExecutionObserverInterface::class),
-            ])
-            ->setPublic(true)
-        ;
-    }
-
-    private function registerParentChildCoordinator(ContainerBuilder $container): void
-    {
-        $container->register(ParentChildWorkflowCoordinatorInterface::class, ParentChildWorkflowCoordinator::class)
-            ->setArguments([
-                new Reference(EventStoreInterface::class),
-                new Reference(WorkflowResumeDispatcher::class),
-            ])
-            ->setPublic(true)
-        ;
-    }
-
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function registerActivityContractResolver(ContainerBuilder $container, array $config): void
-    {
-        $activityConfig = $config['activity_contracts'] ?? [];
-        $cacheId = $activityConfig['cache'] ?? null;
-        // No `hasDefinition()` here: an alias is not a definition — `Psr\Cache\CacheItemPoolInterface`
-        // is one — and neither yet is a definition placed by an extension that runs after this one.
-        // The check therefore answered false for perfectly valid configurations, and the requested
-        // pool was discarded without a word. Referencing unconditionally hands the error to the
-        // compiler, which knows how to say which service is missing.
-        $cacheRef = null !== $cacheId ? new Reference($cacheId) : null;
-
-        $container->register(ActivityContractResolver::class, ActivityContractResolver::class)
-            ->setArguments([$cacheRef])
-            ->setPublic(false)
-        ;
-    }
-
     /**
      * @param array<string, mixed> $config
      */
@@ -640,13 +583,6 @@ final class DurableExtension extends Extension
         // bundle's surface, not an internal the bundle could hide.
         $container->register(WorkflowQueryRunner::class)
             ->setArguments([new Reference(EventStoreInterface::class)])
-            ->setPublic(true)
-        ;
-    }
-
-    private function registerActivityExecutor(ContainerBuilder $container): void
-    {
-        $container->register(\Gplanchat\Durable\ActivityExecutor::class, RegistryActivityExecutor::class)
             ->setPublic(true)
         ;
     }
@@ -865,8 +801,10 @@ final class DurableExtension extends Extension
      * application's `services.yaml` already exist when the extension loads, since
      * `MergeExtensionConfigurationPass` runs at compilation, after the configuration is loaded, so
      * an unconditional `setAlias()` erased that alias and the escape hatch did not work.
+     *
+     * @internal shared with the loaders under Loader/ (#342)
      */
-    private static function aliasObserver(ContainerBuilder $container, string $service): void
+    public static function aliasObserver(ContainerBuilder $container, string $service): void
     {
         if ($container->hasAlias(WorkflowExecutionObserverInterface::class)
             || $container->hasDefinition(WorkflowExecutionObserverInterface::class)
