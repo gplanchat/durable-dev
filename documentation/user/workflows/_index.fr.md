@@ -133,6 +133,22 @@ try {
 
 C'est la forme canonique de la saga : attendre l'approbation, renoncer au bout d'une heure.
 
+Une condition peut aussi dire **ce qu'elle attend**, en mots. Sur les backends qui enregistrent
+l'attente (en mémoire, DBAL, Illuminate), la liste des exécutions affiche alors ce libellé plutôt que
+l'endroit où la closure est écrite : `waiting on signal approve` au lieu de
+`waiting on condition at src/…/OrderWorkflow.php:42`. Temporal et la grille Magento n'affichent aucune
+attente, avec ou sans libellé (voir la [page du tableau de bord](../dashboard/)).
+
+```php
+$env->await(fn(): bool => [] !== $this->approvals, Duration::hours(1), label: 'signal approve');
+```
+
+Le libellé est un texte d'affichage. Rien ne l'enregistre pendant que le workflow attend. Si l'échéance
+expire et que rien n'attrape l'exception, il figure dans le message d'échec que garde le journal, écrit
+une seule fois. Le rejeu ne le compare jamais : ajouter, changer ou retirer un libellé est sans risque.
+Un timer ou une activité se nomment déjà eux-mêmes : `await()`
+refuse un libellé sur l'un d'eux.
+
 #### Le gestionnaire est une méthode, l'attente aussi
 
 Dans un workflow écrit en classe, déclarez le gestionnaire avec `#[AsSignalMethod]`, que le moteur

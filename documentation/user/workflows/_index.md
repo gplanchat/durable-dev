@@ -131,6 +131,20 @@ try {
 
 That is the canonical saga shape: wait for approval, give up after an hour.
 
+A condition can also say **what it waits for**, in words. On the backends that record the wait
+(in-memory, DBAL, Illuminate), the run list then shows the label instead of where the closure is
+written: `waiting on signal approve` rather than `waiting on condition at src/…/OrderWorkflow.php:42`.
+Temporal and the Magento grid show no wait at all, labelled or not (see the
+[dashboard page](../dashboard/)).
+
+```php
+$env->await(fn(): bool => [] !== $this->approvals, Duration::hours(1), label: 'signal approve');
+```
+
+The label is display text. Nothing records it while the workflow waits. If the deadline expires and
+nothing catches the exception, it appears in the failure message the journal keeps, written once. Replay
+never compares it, so adding, changing or removing a label is safe. A timer or an activity already names itself, so `await()` refuses a label on one.
+
 #### The handler is a method, the wait is a method
 
 In a workflow written as a class, declare the handler with `#[AsSignalMethod]`, which the engine wires,
