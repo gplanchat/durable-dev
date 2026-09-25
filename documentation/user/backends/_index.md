@@ -206,7 +206,7 @@ durable:
 
 framework:
     lock:
-        default: '%env(LOCK_DSN)%'   # doctrine://default, redis://…, must be shared across workers
+        default: '%env(LOCK_DSN)%'   # a DBAL URL (postgresql://…, mysql://…), redis://…; not Messenger's doctrine://; shared across workers
 ```
 
 Adding a `temporal.dsn` keeps the journal in SQL and uses the cluster only to serve Nexus operations.

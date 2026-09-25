@@ -5,14 +5,32 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Dashboard;
 
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Twig\Environment;
 
 final class DashboardTemplateRenderTest extends KernelTestCase
 {
     public function testDashboardTemplateRendersRunningTimelapseBarClass(): void
+    {
+        self::assertStringContainsString(
+            'ds-timelapse__bar ds-timelapse__bar--execution ds-timelapse__bar--running',
+            $this->render(),
+        );
+    }
+
+    public function testASuspendedRunSaysWhatItWaitsOn(): void
+    {
+        // #324: the catalogue records the wait and RunDashboard words it; the list only showed
+        // the wait for a worker.
+        self::assertStringContainsString('waiting on signal approve', $this->render(['waitingOn' => 'waiting on signal approve']));
+    }
+
+    /**
+     * @param array<string, string> $run what the run row carries beyond the base fields
+     */
+    private function render(array $run = []): string
     {
         self::bootKernel();
 
@@ -22,10 +40,10 @@ final class DashboardTemplateRenderTest extends KernelTestCase
         \assert($requestStack instanceof RequestStack);
         $requestStack->push(new Request());
 
-        $html = $twig->render('dashboard/index.html.twig', [
+        return $twig->render('dashboard/index.html.twig', [
             'backend' => ['available' => true, 'ephemeral' => false, 'message' => ''],
             'statuses' => WorkflowRunStatus::cases(),
-            'runs' => [[
+            'runs' => [$run + [
                 'runId' => 'run-1',
                 'workflowName' => 'DemoWorkflow',
                 'status' => 'running',
@@ -84,10 +102,5 @@ final class DashboardTemplateRenderTest extends KernelTestCase
                 'pageSize' => 20,
             ],
         ]);
-
-        self::assertStringContainsString(
-            'ds-timelapse__bar ds-timelapse__bar--execution ds-timelapse__bar--running',
-            $html
-        );
     }
 }

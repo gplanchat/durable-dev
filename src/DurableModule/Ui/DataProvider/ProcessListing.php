@@ -77,6 +77,8 @@ class ProcessListing extends AbstractDataProvider
                 // backend has **no notion of** — that one has no column at all.
                 'started_at' => $run->startedAt?->format('Y-m-d H:i:s') ?? self::ABSENT,
                 'ended_at' => $run->endedAt?->format('Y-m-d H:i:s') ?? self::ABSENT,
+                // What a suspended run last waited on (#324), as the catalogue recorded it.
+                'waiting_on' => $run->waitingOn ?? self::ABSENT,
             ], $window),
         ];
     }
