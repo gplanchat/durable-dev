@@ -6,4 +6,4 @@
 - **Entries**: `src/Durable/WorkflowEnvironment.php` (`await()`), `src/Durable/Awaitable/ConditionAwaitable.php`,
   their tests, `documentation/user/workflows/` and `documentation/user/dashboard/` (EN, FR), one
   `UPGRADE.md` line.
-- **State**: in progress — antoine, worktree `.claude/worktrees/await-label`. Reviewers: dave, vera (rule 3).
+- **State**: in review — PR #540, antoine. Reviewers: dave, vera (rule 3).
