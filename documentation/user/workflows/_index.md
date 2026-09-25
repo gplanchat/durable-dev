@@ -131,9 +131,11 @@ try {
 
 That is the canonical saga shape: wait for approval, give up after an hour.
 
-A condition can also say **what it waits for**, in words. The run list then shows the label instead of
-where the closure is written: `waiting on signal approve` rather than
-`waiting on condition at src/…/OrderWorkflow.php:42`.
+A condition can also say **what it waits for**, in words. On the backends that record the wait
+(in-memory, DBAL, Illuminate), the run list then shows the label instead of where the closure is
+written: `waiting on signal approve` rather than `waiting on condition at src/…/OrderWorkflow.php:42`.
+Temporal and the Magento grid show no wait at all, labelled or not (see the
+[dashboard page](../dashboard/)).
 
 ```php
 $env->await(fn(): bool => [] !== $this->approvals, Duration::hours(1), label: 'signal approve');

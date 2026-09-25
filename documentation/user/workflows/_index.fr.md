@@ -133,9 +133,11 @@ try {
 
 C'est la forme canonique de la saga : attendre l'approbation, renoncer au bout d'une heure.
 
-Une condition peut aussi dire **ce qu'elle attend**, en mots. La liste des exécutions affiche alors ce
-libellé plutôt que l'endroit où la closure est écrite : `waiting on signal approve` au lieu de
-`waiting on condition at src/…/OrderWorkflow.php:42`.
+Une condition peut aussi dire **ce qu'elle attend**, en mots. Sur les backends qui enregistrent
+l'attente (en mémoire, DBAL, Illuminate), la liste des exécutions affiche alors ce libellé plutôt que
+l'endroit où la closure est écrite : `waiting on signal approve` au lieu de
+`waiting on condition at src/…/OrderWorkflow.php:42`. Temporal et la grille Magento n'affichent aucune
+attente, avec ou sans libellé (voir la [page du tableau de bord](../dashboard/)).
 
 ```php
 $env->await(fn(): bool => [] !== $this->approvals, Duration::hours(1), label: 'signal approve');
