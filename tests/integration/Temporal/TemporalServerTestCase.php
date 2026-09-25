@@ -68,7 +68,15 @@ abstract class TemporalServerTestCase extends TestCase
         $this->client = WorkflowServiceClientFactory::create($this->connection);
 
         $this->spawnWorker('workflow');
-        $this->spawnWorker('activity');
+        $this->spawnWorker($this->activityWorkerRole());
+    }
+
+    /**
+     * Who hosts the activities: this suite's own worker by default, or a framework's (#518).
+     */
+    protected function activityWorkerRole(): string
+    {
+        return 'activity';
     }
 
     public static function transportFromEnv(): string
