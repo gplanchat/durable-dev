@@ -16,6 +16,7 @@ use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use Gplanchat\Durable\Versioning\ChangePoint;
 use Temporal\Api\Enums\V1\EventType;
+use Temporal\Api\Enums\V1\TimeoutType;
 use Temporal\Api\History\V1\HistoryEvent;
 
 /**
@@ -296,6 +297,31 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                         }
                         $this->activityResults[$activityId] = $result;
                     }
+                }
+                break;
+
+                // The server records it once the last attempt timed out: retries leave no event. The
+                // journal backends raise a timeout as a RuntimeException naming it, so a workflow
+                // catches the same failure on every backend. Unread, it left the slot empty and the
+                // workflow waiting forever (#544).
+            case EventType::EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT:
+                $attr = $event->getActivityTaskTimedOutEventAttributes();
+                $activityId = null !== $attr ? $this->scheduledEventIdToActivityId[$attr->getScheduledEventId()] ?? null : null;
+                if (null !== $activityId) {
+                    // A kind the server did not name is not guessed.
+                    $timeout = match ($attr?->getFailure()?->getTimeoutFailureInfo()?->getTimeoutType()) {
+                        TimeoutType::TIMEOUT_TYPE_START_TO_CLOSE => 'start-to-close ',
+                        TimeoutType::TIMEOUT_TYPE_SCHEDULE_TO_START => 'schedule-to-start ',
+                        TimeoutType::TIMEOUT_TYPE_SCHEDULE_TO_CLOSE => 'schedule-to-close ',
+                        TimeoutType::TIMEOUT_TYPE_HEARTBEAT => 'heartbeat ',
+                        default => '',
+                    };
+                    $this->activityFailures[$activityId] = new DurableActivityFailedException(
+                        $activityId,
+                        $this->activityNames[$activityId] ?? '',
+                        1,
+                        new FailureEnvelope(\RuntimeException::class, \sprintf('Activity %stimeout exceeded.', $timeout), 0, [], null, []),
+                    );
                 }
                 break;
 

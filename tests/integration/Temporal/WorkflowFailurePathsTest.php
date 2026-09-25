@@ -28,6 +28,20 @@ final class WorkflowFailurePathsTest extends TemporalServerTestCase
         self::assertStringContainsString('activity exploded', $failure->getMessage());
     }
 
+    /**
+     * The server times the activity out after its one attempt; the workflow must fail on it, with the
+     * failure the journal backends raise, rather than stay Running forever (#544).
+     */
+    public function testAnActivityThatTimesOutFailsTheWorkflowOnTheServer(): void
+    {
+        $executionId = $this->startWorkflow('TimesOutOnItsActivity', []);
+        $event = $this->waitForHistoryEvent($executionId, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_FAILED);
+
+        $failure = $event->getWorkflowExecutionFailedEventAttributes()?->getFailure();
+        self::assertNotNull($failure);
+        self::assertStringContainsString('Activity start-to-close timeout exceeded.', $failure->getMessage());
+    }
+
     public function testTheFailureKindSurvivesTheRoundTripThroughTheServer(): void
     {
         // The kind travels in the ApplicationFailureInfo details: that is what makes it possible

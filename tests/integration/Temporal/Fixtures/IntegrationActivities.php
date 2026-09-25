@@ -28,6 +28,10 @@ interface IntegrationActivities
     #[AsActivityMethod('refund')]
     public function refund(string $order): string;
 
+    /** Sleeps longer than its start-to-close timeout in the TimesOutOnItsActivity workflow (#544). */
+    #[AsActivityMethod('sleep')]
+    public function sleep(int $seconds): int;
+
     /** Always fails: it is the subject of the FailsOnActivity, UnboundedRetry and NonRetryable workflows. */
     #[AsActivityMethod('boom')]
     public function boom(): never;
