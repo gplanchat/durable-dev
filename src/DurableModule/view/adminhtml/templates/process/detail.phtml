@@ -29,6 +29,9 @@ $timeline = $block->getTimeline();
             <tr><th><?= $escaper->escapeHtml(__('Status')) ?></th><td><?= $escaper->escapeHtml($run->status->value) ?></td></tr>
             <tr><th><?= $escaper->escapeHtml(__('Started')) ?></th><td><?= $escaper->escapeHtml($block->formatMoment($run->startedAt)) ?></td></tr>
             <tr><th><?= $escaper->escapeHtml(__('Ended')) ?></th><td><?= $escaper->escapeHtml($block->formatMoment($run->endedAt)) ?></td></tr>
+            <?php if ($run->waitingOn !== null): /* What it last waited on (#324). */ ?>
+                <tr><th><?= $escaper->escapeHtml(__('Waiting on')) ?></th><td><?= $escaper->escapeHtml($run->waitingOn) ?></td></tr>
+            <?php endif; ?>
         </table>
     </div>
 
