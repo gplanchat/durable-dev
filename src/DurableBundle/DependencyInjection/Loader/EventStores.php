@@ -114,11 +114,16 @@ final class EventStores
             ->setArguments($arguments)
             ->setPublic($public);
 
-        $fromAssembly(WorkflowServiceActivityRpc::class, WorkflowServiceActivityRpc::class, 'activityRpc');
-        $fromAssembly(WorkflowServiceExecutionRpc::class, WorkflowServiceExecutionRpc::class, 'executionRpc');
-        $fromAssembly(WorkflowServiceNexusRpc::class, WorkflowServiceNexusRpc::class, 'nexusRpc');
-        $fromAssembly(TemporalHistoryCursor::class, TemporalHistoryCursor::class, 'historyCursor');
-        $fromAssembly(WorkflowClient::class, WorkflowClient::class, 'workflowClient');
+        $fromAssembly('durable.temporal.rpc.activity', WorkflowServiceActivityRpc::class, 'activityRpc');
+        $container->setAlias(WorkflowServiceActivityRpc::class, 'durable.temporal.rpc.activity')->setPublic(false);
+        $fromAssembly('durable.temporal.rpc.execution', WorkflowServiceExecutionRpc::class, 'executionRpc');
+        $container->setAlias(WorkflowServiceExecutionRpc::class, 'durable.temporal.rpc.execution')->setPublic(false);
+        $fromAssembly('durable.temporal.rpc.nexus', WorkflowServiceNexusRpc::class, 'nexusRpc');
+        $container->setAlias(WorkflowServiceNexusRpc::class, 'durable.temporal.rpc.nexus')->setPublic(false);
+        $fromAssembly('durable.temporal.history_cursor', TemporalHistoryCursor::class, 'historyCursor');
+        $container->setAlias(TemporalHistoryCursor::class, 'durable.temporal.history_cursor')->setPublic(false);
+        $fromAssembly('durable.temporal.client', WorkflowClient::class, 'workflowClient');
+        $container->setAlias(WorkflowClient::class, 'durable.temporal.client')->setPublic(false);
         $container->setAlias(WorkflowClientInterface::class, WorkflowClient::class)
             ->setPublic(false)
         ;
@@ -128,7 +133,8 @@ final class EventStores
             $container->setAlias(WorkflowRunCatalogInterface::class, 'durable.run_catalog.temporal')->setPublic(true);
         }
 
-        $fromAssembly(WorkflowTaskRunner::class, WorkflowTaskRunner::class, 'workflowTaskRunner', true);
+        $fromAssembly('durable.temporal.workflow_task_runner', WorkflowTaskRunner::class, 'workflowTaskRunner');
+        $container->setAlias(WorkflowTaskRunner::class, 'durable.temporal.workflow_task_runner')->setPublic(true);
         // Private: the journal transport takes it by reference, nothing pulls it by id (#337).
         $fromAssembly(WorkflowTaskProcessor::class, WorkflowTaskProcessor::class, 'workflowTaskProcessor');
         $fromAssembly('durable.event_store.temporal', TemporalReadThroughEventStore::class, 'readThroughEventStore', false, [new Reference('durable.event_store.inner')]);
