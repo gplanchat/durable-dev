@@ -82,6 +82,15 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
         self::assertStringNotContainsString('sk-live-123', $page);
     }
 
+    public function testASuspendedRunSaysWhatItWaitsOn(): void
+    {
+        // #324: the catalogue records the wait; the run page is where an operator asks why it
+        // is not moving.
+        $page = $this->renderDetail();
+
+        self::assertStringContainsString('<th>Waiting on</th><td>signal approve</td>', $page);
+    }
+
     public function testAnUnknownRunSaysSoRatherThanRenderingAnEmptyScreen(): void
     {
         $page = $this->renderDetail(known: false);
@@ -164,7 +173,7 @@ final class DetailBlockDouble
     public function getRun(): ?WorkflowRunDescription
     {
         return $this->known
-            ? new WorkflowRunDescription('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running, new \DateTimeImmutable('@1700000000'))
+            ? new WorkflowRunDescription('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running, new \DateTimeImmutable('@1700000000'), waitingOn: 'signal approve')
             : null;
     }
 
