@@ -35,6 +35,39 @@ final class TheListingSaysWhatARunWaitsOnTest extends TestCase
         self::assertSame('—', $rows[0]['waiting_on']);
     }
 
+    public function testTheGridDeclaresTheColumn(): void
+    {
+        // Review of #542: the row carried the field, and nothing noticed the grid dropping its column.
+        $label = $this->columns()['waiting_on'] ?? null;
+
+        self::assertSame('Waiting on', $label);
+    }
+
+    public function testEveryColumnIsAFieldTheProviderEmits(): void
+    {
+        // A column the provider does not fill renders empty cells, and a stale one after a rename
+        // reads as a rendering that failed.
+        $emitted = array_keys($this->rows(new WorkflowRunDescription('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running))[0]);
+
+        self::assertSame([], array_values(array_diff(array_keys($this->columns()), $emitted)));
+    }
+
+    /**
+     * @return array<string, string> column name => label, as the listing declares them
+     */
+    private function columns(): array
+    {
+        $listing = simplexml_load_file(__DIR__ . '/../../../src/DurableModule/view/adminhtml/ui_component/durable_process_listing.xml');
+        self::assertNotFalse($listing);
+
+        $columns = [];
+        foreach ($listing->xpath('//columns/column') ?: [] as $column) {
+            $columns[(string) $column['name']] = (string) $column->settings->label;
+        }
+
+        return $columns;
+    }
+
     /**
      * @return list<array<string, mixed>>
      */
