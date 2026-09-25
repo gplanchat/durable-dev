@@ -50,21 +50,23 @@ final class CoreServices
             return;
         }
 
-        $container->register(WorkflowDefinitionLoader::class, WorkflowDefinitionLoader::class)
+        $container->register('durable.workflow_definition_loader', WorkflowDefinitionLoader::class)
             ->setPublic(false)
         ;
+        $container->setAlias(WorkflowDefinitionLoader::class, 'durable.workflow_definition_loader')->setPublic(false);
     }
 
     public static function registerActivityExecutor(ContainerBuilder $container): void
     {
-        $container->register(\Gplanchat\Durable\ActivityExecutor::class, RegistryActivityExecutor::class)
-            ->setPublic(true)
+        $container->register('durable.activity_executor', RegistryActivityExecutor::class)
+            ->setPublic(false)
         ;
+        $container->setAlias(\Gplanchat\Durable\ActivityExecutor::class, 'durable.activity_executor')->setPublic(true);
     }
 
     public static function registerRuntime(ContainerBuilder $container): void
     {
-        $container->register(\Gplanchat\Durable\ExecutionRuntime::class, \Gplanchat\Durable\ExecutionRuntime::class)
+        $container->register('durable.runtime', \Gplanchat\Durable\ExecutionRuntime::class)
             ->setArguments([
                 new Reference(EventStoreInterface::class),
                 new Reference(ActivityTransportInterface::class),
@@ -74,19 +76,21 @@ final class CoreServices
                 true,
                 new Reference(WorkflowExecutionObserverInterface::class),
             ])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
+        $container->setAlias(\Gplanchat\Durable\ExecutionRuntime::class, 'durable.runtime')->setPublic(true);
     }
 
     public static function registerParentChildCoordinator(ContainerBuilder $container): void
     {
-        $container->register(ParentChildWorkflowCoordinatorInterface::class, ParentChildWorkflowCoordinator::class)
+        $container->register('durable.parent_child_coordinator', ParentChildWorkflowCoordinator::class)
             ->setArguments([
                 new Reference(EventStoreInterface::class),
                 new Reference(WorkflowResumeDispatcher::class),
             ])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
+        $container->setAlias(ParentChildWorkflowCoordinatorInterface::class, 'durable.parent_child_coordinator')->setPublic(true);
     }
 
     /**
@@ -103,19 +107,21 @@ final class CoreServices
         // compiler, which knows how to say which service is missing.
         $cacheRef = null !== $cacheId ? new Reference($cacheId) : null;
 
-        $container->register(ActivityContractResolver::class, ActivityContractResolver::class)
+        $container->register('durable.activity_contract_resolver', ActivityContractResolver::class)
             ->setArguments([$cacheRef])
             ->setPublic(false)
         ;
+        $container->setAlias(ActivityContractResolver::class, 'durable.activity_contract_resolver')->setPublic(false);
     }
 
     public static function registerEngine(ContainerBuilder $container): void
     {
-        $container->register(\Gplanchat\Durable\Uuid\NativeUuidV7Generator::class, \Gplanchat\Durable\Uuid\NativeUuidV7Generator::class)
+        $container->register('durable.uuid_generator', \Gplanchat\Durable\Uuid\NativeUuidV7Generator::class)
             ->setPublic(false);
+        $container->setAlias(\Gplanchat\Durable\Uuid\NativeUuidV7Generator::class, 'durable.uuid_generator')->setPublic(false);
         $container->setAlias(\Gplanchat\Durable\Uuid\UuidGeneratorInterface::class, \Gplanchat\Durable\Uuid\NativeUuidV7Generator::class);
 
-        $container->register(\Gplanchat\Durable\ExecutionEngine::class, \Gplanchat\Durable\ExecutionEngine::class)
+        $container->register('durable.engine', \Gplanchat\Durable\ExecutionEngine::class)
             ->setArguments([
                 new Reference(EventStoreInterface::class),
                 new Reference(\Gplanchat\Durable\ExecutionRuntime::class),
@@ -126,8 +132,9 @@ final class CoreServices
                 new Reference(WorkflowExecutionObserverInterface::class),
                 new Reference(\Gplanchat\Durable\Uuid\UuidGeneratorInterface::class),
             ])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
+        $container->setAlias(\Gplanchat\Durable\ExecutionEngine::class, 'durable.engine')->setPublic(true);
     }
 
     /**
@@ -154,19 +161,21 @@ final class CoreServices
     {
         // Public on purpose: application code runs its queries through it, so it is part of the
         // bundle's surface, not an internal the bundle could hide.
-        $container->register(WorkflowQueryRunner::class)
+        $container->register('durable.query_runner', WorkflowQueryRunner::class)
             ->setArguments([new Reference(EventStoreInterface::class)])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
+        $container->setAlias(WorkflowQueryRunner::class, 'durable.query_runner')->setPublic(true);
     }
 
     public static function registerWorkflowBackend(ContainerBuilder $container): void
     {
         // Public on purpose: the entry point an application starts and drives workflows through.
-        $container->register(WorkflowBackendInterface::class, LocalWorkflowBackend::class)
+        $container->register('durable.workflow_backend', LocalWorkflowBackend::class)
             ->setArguments([new Reference(\Gplanchat\Durable\ExecutionEngine::class)])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
+        $container->setAlias(WorkflowBackendInterface::class, 'durable.workflow_backend')->setPublic(true);
     }
 
     /**
@@ -206,9 +215,10 @@ final class CoreServices
             ->addTag('messenger.message_handler')
         ;
 
-        $container->register(MessengerWorkflowTimerDispatcher::class)
+        $container->register('durable.timer_dispatcher', MessengerWorkflowTimerDispatcher::class)
             ->setArguments([new Reference('messenger.default_bus')])
-        ;
+            ->setPublic(false);
+        $container->setAlias(MessengerWorkflowTimerDispatcher::class, 'durable.timer_dispatcher')->setPublic(false);
         $container->setAlias(WorkflowTimerDispatcher::class, MessengerWorkflowTimerDispatcher::class);
 
         $container->register(FireWorkflowTimersHandler::class)
@@ -230,19 +240,21 @@ final class CoreServices
     public static function registerActivityProcessor(ContainerBuilder $container, array $config, bool $isTemporalNative): void
     {
         if ($isTemporalNative) {
-            $container->register(TemporalActivityHeartbeatSender::class)
+            $container->register('durable.activity_heartbeat_sender', TemporalActivityHeartbeatSender::class)
                 ->setArguments([
                     new Reference(WorkflowServiceActivityRpc::class),
                     new Reference('durable.temporal.connection'),
                 ])
                 ->setPublic(false);
+            $container->setAlias(TemporalActivityHeartbeatSender::class, 'durable.activity_heartbeat_sender')->setPublic(false);
             $container->setAlias(ActivityHeartbeatSenderInterface::class, TemporalActivityHeartbeatSender::class)->setPublic(false);
         } else {
-            $container->register(NullActivityHeartbeatSender::class)->setPublic(false);
+            $container->register('durable.activity_heartbeat_sender', NullActivityHeartbeatSender::class)->setPublic(false);
+            $container->setAlias(NullActivityHeartbeatSender::class, 'durable.activity_heartbeat_sender')->setPublic(false);
             $container->setAlias(ActivityHeartbeatSenderInterface::class, NullActivityHeartbeatSender::class)->setPublic(false);
         }
 
-        $container->register(ActivityMessageProcessor::class)
+        $container->register('durable.activity_message_processor', ActivityMessageProcessor::class)
             ->setArguments([
                 new Reference(EventStoreInterface::class),
                 new Reference(ActivityTransportInterface::class),
@@ -252,8 +264,9 @@ final class CoreServices
                 '%durable.max_activity_retries%',
                 new Reference(WorkflowExecutionObserverInterface::class),
             ])
-            ->setPublic(true)
+            ->setPublic(false)
         ;
+        $container->setAlias(ActivityMessageProcessor::class, 'durable.activity_message_processor')->setPublic(true);
 
         $activityTransportConfig = $config['activity_transport'] ?? [];
         if ('messenger' === ($activityTransportConfig['type'] ?? '')
