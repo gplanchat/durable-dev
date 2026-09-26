@@ -82,18 +82,19 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     /**
      * One visibility query on the run id: `DescribeWorkflowExecution` would need the workflow id,
      * which a run page does not have. The id comes from a URL and the server's run ids are UUIDs,
-     * so anything else is an unknown run and never reaches the query.
+     * so anything else is an unknown run and never reaches the query. The id is the server's run
+     * id, not the Durable execution id, until #514 settles which id names a run.
      */
-    public function findRun(string $runId): ?WorkflowRunDescription
+    public function findRun(string $executionId): ?WorkflowRunDescription
     {
-        if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $runId)) {
+        if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $executionId)) {
             return null;
         }
 
         $request = new ListWorkflowExecutionsRequest();
         $request->setNamespace($this->connection->namespace->name());
         $request->setPageSize(1);
-        $request->setQuery(\sprintf('RunId = "%s"', $runId));
+        $request->setQuery(\sprintf('RunId = "%s"', $executionId));
 
         $response = $this->client->ListWorkflowExecutions($request, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
         foreach ($response->getExecutions() as $info) {

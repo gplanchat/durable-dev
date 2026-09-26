@@ -38,7 +38,7 @@ until the id appeared, and could not reach an old run.
 `listRuns()` would describe it, or `null` when the catalog does not know it:
 
 ```php
-public function findRun(string $runId): ?WorkflowRunDescription
+public function findRun(string $executionId): ?WorkflowRunDescription
 {
     $row = $this->rows->find($runId);
 
@@ -47,7 +47,8 @@ public function findRun(string $runId): ?WorkflowRunDescription
 ```
 
 `WorkflowRunCatalogConformanceTestCase` checks that every listed run is found again with the same
-facts, and that an unknown id gives `null`.
+facts, and that an unknown id gives `null`. Name the parameter `$executionId`, as the port does: a
+caller passing it by name (`findRun(executionId: …)`) fails on a catalog that names it otherwise.
 
 ### The bundle's services live under `durable.*` ids; their class ids are aliases
 
