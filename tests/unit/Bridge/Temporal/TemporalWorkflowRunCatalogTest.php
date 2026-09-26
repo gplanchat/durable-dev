@@ -13,6 +13,7 @@ use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Memo;
+use Temporal\Api\Common\V1\Payload;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
@@ -70,6 +71,20 @@ final class TemporalWorkflowRunCatalogTest extends TestCase
 
         self::assertSame('order/42', $run->executionId);
         self::assertSame('run-1', $run->runId, 'the run id stays the server\'s own');
+    }
+
+    /**
+     * A memo another client wrote is not ours to trust: one that does not decode names nothing, and
+     * must not take the rest of the page down with it.
+     */
+    public function testAMemoThatDoesNotDecodeFallsBackToTheWorkflowId(): void
+    {
+        $info = $this->info('wf-1', 'run-1', 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING, 1_700_000_200);
+        $memo = new Memo();
+        $memo->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] = new Payload(['data' => '{not json']);
+        $info->setMemo($memo);
+
+        self::assertSame('wf-1', $this->catalog($this->responseWith($info))->listRuns()->runs[0]->executionId);
     }
 
     public function testARunStartedWithoutTheMemoIsNamedByItsWorkflowId(): void

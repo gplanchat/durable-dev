@@ -190,7 +190,13 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     private static function executionIdOf(WorkflowExecutionInfo $info): ?string
     {
         $field = $info->getMemo()?->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] ?? null;
-        $executionId = null === $field ? null : JsonPlainPayload::decode($field);
+
+        try {
+            $executionId = null === $field ? null : JsonPlainPayload::decode($field);
+        } catch (\JsonException) {
+            // Another client's memo: it names nothing, and must not take the page down with it.
+            return null;
+        }
 
         return \is_string($executionId) && '' !== $executionId ? $executionId : null;
     }
