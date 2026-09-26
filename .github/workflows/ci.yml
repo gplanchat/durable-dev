@@ -708,7 +708,8 @@ jobs:
               run: |
                   docker run -d --name temporal-dev -p 7333:7233 -p 7343:7243 temporalio/temporal:1.9.1 \
                     server start-dev --ip 0.0.0.0 --port 7233 --http-port 7243 --namespace durable-test \
-                    --search-attribute DurableOrderId=Keyword --search-attribute DurableAmount=Int
+                    --search-attribute DurableOrderId=Keyword --search-attribute DurableAmount=Int \
+                    --search-attribute DurableWorkflowName=Keyword --search-attribute DurableExecutionId=Keyword
                   timeout 60 bash -c 'until nc -z 127.0.0.1 7333; do sleep 1; done'
 
             # --fail-on-skipped: a missing variable or server turns the job red instead of green.
@@ -814,6 +815,10 @@ jobs:
                   timeout 60 bash -c 'until nc -z 127.0.0.1 7233 && nc -z 127.0.0.1 7243; do sleep 1; done'
                   temporal operator search-attribute create --namespace durable-test --name DurableOrderId --type Keyword
                   temporal operator search-attribute create --namespace durable-test --name DurableAmount --type Int
+                  # Durable writes these two on every start (#558); a start that names an unregistered
+                  # attribute is refused, and a fresh one is usable a couple of seconds after this.
+                  temporal operator search-attribute create --namespace durable-test --name DurableWorkflowName --type Keyword --name DurableExecutionId --type Keyword
+                  timeout 30 bash -c "until temporal workflow list --namespace durable-test --limit 1 --query \"DurableExecutionId = 'probe'\" >/dev/null 2>&1; do sleep 1; done"
 
             - name: PHPUnit — intégration, tout en gRPC sur curl
               env:
@@ -864,6 +869,10 @@ jobs:
                   timeout 60 bash -c 'until nc -z 127.0.0.1 7233 && nc -z 127.0.0.1 7243; do sleep 1; done'
                   temporal operator search-attribute create --namespace durable-test --name DurableOrderId --type Keyword
                   temporal operator search-attribute create --namespace durable-test --name DurableAmount --type Int
+                  # Durable writes these two on every start (#558); a start that names an unregistered
+                  # attribute is refused, and a fresh one is usable a couple of seconds after this.
+                  temporal operator search-attribute create --namespace durable-test --name DurableWorkflowName --type Keyword --name DurableExecutionId --type Keyword
+                  timeout 30 bash -c "until temporal workflow list --namespace durable-test --limit 1 --query \"DurableExecutionId = 'probe'\" >/dev/null 2>&1; do sleep 1; done"
 
             - name: PHPUnit — integration over ext-grpc
               env:
