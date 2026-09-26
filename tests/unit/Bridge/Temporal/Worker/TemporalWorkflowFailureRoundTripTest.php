@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Temporal\Worker;
 
+use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
+use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\Store\TemporalEventConverter;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
@@ -74,5 +76,21 @@ final class TemporalWorkflowFailureRoundTripTest extends TestCase
         self::assertNotNull($attrs);
         self::assertSame('NextWorkflow', $attrs->getWorkflowType()?->getName());
         self::assertSame('next-queue', $attrs->getTaskQueue()?->getName());
+    }
+
+    /**
+     * #560: a successor started with no memo has no `durableExecutionId`, and the worker then runs
+     * it under the workflow id (`durable-…`) instead of the application's execution id.
+     */
+    public function testContinueAsNewCarriesTheExecutionIdToTheSuccessor(): void
+    {
+        $buffer = $this->buffer();
+        $buffer->continueAsNew('NextWorkflow', []);
+
+        $memo = $buffer->peek()[0]->getContinueAsNewWorkflowExecutionCommandAttributes()?->getMemo();
+        $field = $memo?->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] ?? null;
+
+        self::assertNotNull($field, 'the successor must carry the durableExecutionId memo');
+        self::assertSame('exec-1', JsonPlainPayload::decode($field));
     }
 }
