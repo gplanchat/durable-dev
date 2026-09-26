@@ -99,12 +99,12 @@
                 <p class="ds-empty-state">No workflow matches the filters.</p>
             {% else %}
                 {% for run in runs %}
-                    <a class="ds-run-row{% if selectedRunId == run.runId %} is-active{% endif %}"
+                    <a class="ds-run-row{% if selectedRunId == run.executionId %} is-active{% endif %}"
                        href="{{ path('app_dashboard', {
                            q: query,
                            status: status,
                            animate: animateTimelapse ? '1' : '0',
-                           run: run.runId,
+                           run: run.executionId,
                            cursor: pagination.cursor,
                            stack: pagination.stack,
                            kinds: timelineControls.visibleKinds
@@ -114,7 +114,8 @@
                             <span class="ds-status-badge ds-status-badge--{{ run.status }}">{{ run.status|upper }}</span>
                         </div>
                         <div class="ds-run-row__meta">
-                            <code class="ds-mono">{{ run.runId }}</code>
+                            {# The id the application started the run with, the one a log line names (#514). #}
+                            <code class="ds-mono">{{ run.executionId }}</code>
                             {% if run.startedAt is defined %}<span>{{ run.startedAt|date('Y-m-d H:i:s') }}</span>{% endif %}
                             {% if run.waitingForWorker is defined %}<span>{{ run.waitingForWorker }}</span>{% endif %}
                             {# What a suspended run last waited on, worded by RunDashboard (#324). #}
@@ -133,8 +134,12 @@
                         <dl class="meta-list">
                             <dt>Workflow</dt>
                             <dd>{{ selectedRun.workflowName }}</dd>
-                            <dt>Run ID</dt>
-                            <dd><code class="ds-mono">{{ selectedRun.runId }}</code></dd>
+                            <dt>Execution ID</dt>
+                            <dd><code class="ds-mono">{{ selectedRun.executionId }}</code></dd>
+                            {% if selectedRun.runId != selectedRun.executionId %}
+                                <dt>Run ID</dt>
+                                <dd><code class="ds-mono">{{ selectedRun.runId }}</code></dd>
+                            {% endif %}
                             <dt>Status</dt>
                             <dd><span class="ds-status-badge ds-status-badge--{{ selectedRun.status }}">{{ selectedRun.status|upper }}</span></dd>
                             {% if selectedRun.startedAt is defined %}
@@ -158,7 +163,7 @@
                             <form method="get" action="{{ path('app_dashboard') }}" class="ds-timelapse-controls__kinds">
                                 <input type="hidden" name="q" value="{{ query }}">
                                 <input type="hidden" name="status" value="{{ status }}">
-                                <input type="hidden" name="run" value="{{ selectedRun.runId }}">
+                                <input type="hidden" name="run" value="{{ selectedRun.executionId }}">
                                 <input type="hidden" name="cursor" value="{{ pagination.cursor }}">
                                 <input type="hidden" name="stack" value="{{ pagination.stack }}">
                                 <input type="hidden" name="animate" value="{{ animateTimelapse ? '1' : '0' }}">
@@ -174,7 +179,7 @@
                             <form method="get" action="{{ path('app_dashboard') }}" class="ds-timelapse-controls__kinds">
                                 <input type="hidden" name="q" value="{{ query }}">
                                 <input type="hidden" name="status" value="{{ status }}">
-                                <input type="hidden" name="run" value="{{ selectedRun.runId }}">
+                                <input type="hidden" name="run" value="{{ selectedRun.executionId }}">
                                 <input type="hidden" name="cursor" value="{{ pagination.cursor }}">
                                 <input type="hidden" name="stack" value="{{ pagination.stack }}">
                                 {% for kind in timelineControls.visibleKinds %}

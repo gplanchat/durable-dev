@@ -48,11 +48,11 @@ final class DashboardController extends AbstractController
         // ponytail: the search filters the page the backend returned, not the whole catalog.
         $runs = \array_values(\array_filter($view['runs'], static fn (array $run): bool => '' === $query
             || false !== \stripos($run['workflowName'], $query)
-            || false !== \stripos($run['runId'], $query)));
+            || false !== \stripos($run['executionId'], $query)));
 
         $selectedRun = $view['selectedRun'];
         if (null !== $selectedRun) {
-            $selectedRunId = $selectedRun['runId'];
+            $selectedRunId = $selectedRun['executionId'];
             $selectedRun['events'] = self::events($selectedRun['timeline']);
             $selectedRun['timeline'] = self::frieze($selectedRun['timeline'], $visibleKinds, WorkflowRunStatus::Running->value === $selectedRun['status']);
         }
