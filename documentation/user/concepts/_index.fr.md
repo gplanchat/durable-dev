@@ -191,6 +191,20 @@ Les signaux servent aux circuits d'approbation, aux pauses et reprises, aux déc
 $client->signal($workflowId, OrderSignal::Approve, ['by' => 'alice']);
 ```
 
+> [!NOTE]
+> `$client` est le `WorkflowClientInterface` de Temporal : `signal()` n'existe que sur Temporal.
+> Avec le bundle Symfony, sur tous les backends, un signal est un message que vous envoyez sur le
+> bus. Sur Temporal, le gestionnaire du bundle le transmet au cluster : la même ligne y marche aussi.
+>
+> ```php
+> use Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage;
+>
+> $bus->dispatch(new DeliverWorkflowSignalMessage($executionId, OrderSignal::Approve, ['by' => 'alice']));
+> ```
+>
+> Routez `DeliverWorkflowSignalMessage` dans `messenger.yaml` comme le fait
+> [Premiers pas](../getting-started/). Le paquet Laravel ne livre pas encore de signaux.
+
 Une chaîne nue reste acceptée, et doit l'être : un signal peut arriver de `curl`, de la ligne de commande Temporal, ou d'un service écrit dans un autre langage. L'énumération type l'intérieur ; elle ne peut pas typer cette frontière.
 
 > [!IMPORTANT]

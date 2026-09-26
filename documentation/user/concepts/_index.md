@@ -197,6 +197,20 @@ signal surface and a typo is a type error instead of a wait that never settles (
 $client->signal($workflowId, OrderSignal::Approve, ['by' => 'alice']);
 ```
 
+> [!NOTE]
+> `$client` is the Temporal `WorkflowClientInterface`: `signal()` exists only on Temporal. With the
+> Symfony bundle, on every backend, a signal is a message you dispatch on the bus. On Temporal, the
+> bundle's handler forwards it to the cluster, so the same line works there too:
+>
+> ```php
+> use Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage;
+>
+> $bus->dispatch(new DeliverWorkflowSignalMessage($executionId, OrderSignal::Approve, ['by' => 'alice']));
+> ```
+>
+> Route `DeliverWorkflowSignalMessage` in `messenger.yaml` the way
+> [Getting started](../getting-started/) routes it. The Laravel package delivers no signals yet.
+
 A plain string is still accepted, and has to be: a signal can arrive from `curl`, the Temporal CLI,
 or a service written in another language. The enum types the inside; it cannot type that boundary.
 
