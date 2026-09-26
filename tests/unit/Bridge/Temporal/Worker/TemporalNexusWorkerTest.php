@@ -129,6 +129,9 @@ final class TemporalNexusWorkerTest extends TestCase
         self::assertNotNull($callbacks);
         self::assertCount(1, $callbacks, 'Without an attached callback, the caller never learns the outcome.');
         self::assertSame('temporal://system', $callbacks[0]->getNexus()?->getUrl());
+        $attributes = $started->getSearchAttributes()?->getIndexedFields();
+        self::assertSame('"ChargeWorkflow"', $attributes['DurableWorkflowName']->getData(), 'the catalogue filters on it (#558)');
+        self::assertSame('"charge-1"', $attributes['DurableExecutionId']->getData());
 
         $async = $answered?->getResponse()?->getStartOperation()?->getAsyncSuccess();
         self::assertNotNull($async, 'A deferred answer must leave as an asyncSuccess.');
