@@ -205,7 +205,7 @@ $client->signal($workflowId, OrderSignal::Approve, ['by' => 'alice']);
 > ```php
 > use Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage;
 >
-> $bus->dispatch(new DeliverWorkflowSignalMessage($executionId, OrderSignal::Approve, ['by' => 'alice']));
+> $bus->dispatch(new DeliverWorkflowSignalMessage($workflowId, OrderSignal::Approve, ['by' => 'alice']));
 > ```
 >
 > Route `DeliverWorkflowSignalMessage` in `messenger.yaml` the way
