@@ -63,11 +63,31 @@ create_namespace() {
     echo "  + namespace $name"
 }
 
+# The benches turn Durable's search attributes on (#558), and a namespace that has not registered
+# them refuses every start. Registering them again is a no-op. A new namespace takes a moment to
+# propagate, and a new attribute a couple of seconds more before a start can use it: retry until a
+# query that names them stops failing.
+register_search_attributes() {
+    local name="$1"
+    for _ in $(seq 1 30); do
+        if tctl operator search-attribute create --namespace "$name" \
+                --name DurableWorkflowName --type Keyword --name DurableExecutionId --type Keyword >/dev/null 2>&1 \
+            && tctl workflow list --namespace "$name" --limit 1 \
+                --query "DurableExecutionId = 'probe'" >/dev/null 2>&1; then
+            echo "  = search attributes on $name"
+            return
+        fi
+        sleep 1
+    done
+    echo "the Durable search attributes are still unusable on $name" >&2
+    exit 1
+}
+
 echo "cluster $ADDRESS"
-create_namespace "$SHOP"
-create_namespace "$BUSINESS"
-create_namespace "$MAGENTO"
-create_namespace "$LARAVEL"
+for namespace in "$SHOP" "$BUSINESS" "$MAGENTO" "$LARAVEL"; do
+    create_namespace "$namespace"
+    register_search_attributes "$namespace"
+done
 
 create_endpoint() {
     local name="$1" namespace="$2" queue="$3"

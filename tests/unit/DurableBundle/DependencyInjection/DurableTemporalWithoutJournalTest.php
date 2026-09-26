@@ -86,6 +86,16 @@ final class DurableTemporalWithoutJournalTest extends TestCase
         self::assertTrue($container->hasDefinition('durable.temporal.connection'));
     }
 
+    public function testSearchAttributesAreOffUntilTheApplicationTurnsThemOn(): void
+    {
+        // #558: a namespace that has not registered them refuses every start that names them.
+        $connection = fn(array $temporal): mixed => $this->load(['temporal' => ['dsn' => self::DSN] + $temporal])
+            ->getDefinition('durable.temporal.connection')->getArguments();
+
+        self::assertSame([self::DSN, false], $connection([]));
+        self::assertSame([self::DSN, true], $connection(['search_attributes' => true]));
+    }
+
     /**
      * @param array<string, mixed> $config
      */

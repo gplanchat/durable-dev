@@ -74,7 +74,7 @@ final class EventStores
     {
         $container->register('durable.temporal.connection', TemporalConnection::class)
             ->setFactory([TemporalConnection::class, 'fromDsn'])
-            ->setArguments([$dsn])
+            ->setArguments([$dsn, (bool) ($temporalConfig['search_attributes'] ?? false)])
         ;
 
         $client = $container->register('durable.temporal.workflow_service_client', WorkflowServiceClientInterface::class)

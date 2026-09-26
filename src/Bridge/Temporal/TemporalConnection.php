@@ -89,6 +89,11 @@ final class TemporalConnection
         /** Sent as a bearer token with every call (Temporal Cloud API keys). */
         #[\SensitiveParameter]
         ?string $apiKey = null,
+        /**
+         * Whether starts write {@see DurableSearchAttributes}. Off by default: a namespace that has
+         * not registered them refuses every start that names them (#558).
+         */
+        public readonly bool $searchAttributes = false,
     ) {
         if (!\in_array($transport, [self::TRANSPORT_AUTO, self::TRANSPORT_GRPC, self::TRANSPORT_GRPC_CURL, self::TRANSPORT_HTTP, self::TRANSPORT_GUZZLE], true)) {
             throw new \InvalidArgumentException(\sprintf('Unknown Temporal transport "%s", expected auto, grpc, grpc-curl, guzzle, or http.', $transport));
@@ -159,7 +164,7 @@ final class TemporalConnection
      * {@code cert} and {@code key} name PEM files, and {@code api_key} is sent as a bearer token.
      * Any other key is refused.
      */
-    public static function fromDsn(#[\SensitiveParameter] string $dsn): self
+    public static function fromDsn(#[\SensitiveParameter] string $dsn, bool $searchAttributes = false): self
     {
         $parts = parse_url($dsn);
         $scheme = false === $parts ? '' : strtolower($parts['scheme'] ?? '');
@@ -216,6 +221,7 @@ final class TemporalConnection
             tlsCert: self::stringOrNull($q['cert'] ?? null),
             tlsKey: self::stringOrNull($q['key'] ?? null),
             apiKey: self::stringOrNull($q['api_key'] ?? null),
+            searchAttributes: $searchAttributes,
         );
     }
 

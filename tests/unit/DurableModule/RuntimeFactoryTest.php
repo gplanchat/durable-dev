@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\DurableModule;
 
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
+use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\TemporalJournalEventStore;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
@@ -211,6 +212,17 @@ final class RuntimeFactoryTest extends TestCase
         ))->workflowClient();
 
         self::assertInstanceOf(WorkflowClient::class, $client);
+    }
+
+    public function testSearchAttributesAreOffUntilEnvPhpTurnsThemOn(): void
+    {
+        // #558: a namespace that has not registered them refuses every start that names them.
+        $connection = static fn(?bool $enabled): TemporalConnection => (new \ReflectionMethod(RuntimeFactory::class, 'temporalSettings'))
+            ->invoke(new RuntimeFactory(temporalDsn: 'temporal://127.0.0.1:7234?namespace=default&tls=0', temporalSearchAttributes: $enabled))
+            ?? self::fail('a DSN gives a connection');
+
+        self::assertFalse($connection(null)->searchAttributes);
+        self::assertTrue($connection(true)->searchAttributes);
     }
 
     public function testNeitherIsOfferedWithoutACluster(): void

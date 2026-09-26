@@ -114,12 +114,13 @@ sont publiées pour PHP 8.2 à 8.5, en versions thread-safe et non thread-safe ;
 [gRPC dans votre image de conteneur](../container-images/) pour les recettes
 `COPY --from`, php-fpm, mod_php et FrankenPHP compris.
 
-### Enregistrer les attributs de recherche de Durable {#register-durables-search-attributes}
+### Filtrer les exécutions par nom de workflow et par identifiant {#register-durables-search-attributes}
 
-Durable écrit deux attributs de recherche sur chaque exécution qu'il démarre, pour que la liste
-des exécutions puisse filtrer par nom de workflow et par identifiant d'exécution. Le serveur refuse
-un démarrage qui renseigne un attribut qu'il ne connaît pas : enregistrez-les tous les deux **une
-fois par espace de noms**, avant le premier démarrage :
+Avec `search_attributes` activé, Durable écrit deux attributs de recherche sur chaque exécution
+qu'il démarre, pour que la liste des exécutions puisse filtrer par nom de workflow et par
+identifiant d'exécution. L'option est désactivée par défaut. Le serveur refuse un démarrage qui
+renseigne un attribut que l'espace de noms ne connaît pas : enregistrez-les tous les deux **une
+fois par espace de noms, avant d'activer l'option** :
 
 ```bash
 temporal operator search-attribute create --namespace default \
@@ -143,14 +144,30 @@ temporal operator search-attribute create --namespace default \
 - Avec une visibilité SQL (PostgreSQL, MySQL, SQLite), les attributs personnalisés demandent un
   serveur 1.20 ou plus récent. Un espace de noms y compte au plus 10 attributs Keyword, et Durable
   en prend deux.
-- Temporal documente une limite de 255 caractères par valeur d'attribut de recherche. Pour `DurableWorkflowName`,
-  c'est le nom normalisé qui compte : le `\` d'un nom de classe devient `.`, et chaque `.` ou `%`
-  déjà présent dans un alias en prend trois. Si votre application fournit ses propres identifiants
-  d'exécution, gardez-les sous 255 caractères.
 
-**Les exécutions démarrées avant cette version ne portent pas ces attributs.** Elles restent dans
-la liste sans filtre, mais un filtre par nom de workflow ou par identifiant d'exécution ne les
-trouve pas.
+Activez ensuite l'option :
+
+```yaml
+# config/packages/durable.yaml
+durable:
+    temporal:
+        search_attributes: true
+```
+
+Sous Laravel, mettez `'search_attributes' => true` sous `temporal` dans `config/durable.php`. Sous
+Magento, mettez `durable/temporal/search_attributes` à `true` dans `app/etc/env.php`.
+
+**Comment les valeurs sont écrites.** Une barre oblique inverse devient un point, si bien qu'un nom
+de classe se lit `App.Workflow.OrderWorkflow` : l'analyseur de requêtes de Temporal ne trouve
+aucune valeur qui en contient une. Un `.` ou un `%` déjà présent devient `%2E` ou `%25`, si bien
+que deux noms de workflow n'ont jamais la même valeur. Temporal documente une limite de
+255 caractères par valeur. Une valeur plus longue garde au plus ses 189 premiers octets et se termine par
+une empreinte de l'ensemble : un filtre exact la retrouve toujours, mais un filtre par préfixe ne
+fonctionne que dans ces premiers octets.
+
+**Les exécutions démarrées avant l'activation de l'option ne portent pas ces attributs.** Elles
+restent dans la liste sans filtre, mais un filtre par nom de workflow ou par identifiant
+d'exécution ne les trouve pas.
 
 ### Mise en place Docker Compose (local / intégration continue)
 
@@ -166,7 +183,7 @@ docker compose up -d
 
 Le service `temporal` enregistre lui-même [les attributs de recherche de
 Durable](#register-durables-search-attributes), et ne se déclare sain qu'une fois qu'un démarrage
-peut s'en servir. Attendez que la pile soit saine, puis démarrez les workers Symfony :
+peut s'en servir ; le banc active l'option. Attendez que la pile soit saine, puis démarrez les workers Symfony :
 
 ```bash
 php bin/console messenger:consume durable_workflows --time-limit=3600

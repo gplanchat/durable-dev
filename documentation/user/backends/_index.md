@@ -106,11 +106,12 @@ your image build pays it on every branch. Prebuilt extensions are published for 
 thread-safe and non-thread-safe forms; see [gRPC in your container image](../container-images/)
 for the `COPY --from` recipes, including php-fpm, mod_php and FrankenPHP.
 
-### Register Durable's search attributes {#register-durables-search-attributes}
+### Filter runs by workflow name and execution id {#register-durables-search-attributes}
 
-Durable writes two search attributes on every run it starts, so the run list can filter by
-workflow name and by execution id. The server refuses a start that sets an attribute it doesn't
-know, so register both **once per namespace**, before the first workflow starts:
+With `search_attributes` turned on, Durable writes two search attributes on every run it starts,
+so the run list can filter by workflow name and by execution id. It's off by default. The server
+refuses a start that sets an attribute the namespace doesn't know, so register both **once per
+namespace, before turning the option on**:
 
 ```bash
 temporal operator search-attribute create --namespace default \
@@ -133,12 +134,27 @@ temporal operator search-attribute create --namespace default \
   `tcld namespace search-attributes add`.
 - With SQL visibility (PostgreSQL, MySQL, SQLite), custom search attributes need Server 1.20 or
   later. A namespace holds at most 10 Keyword attributes there, and Durable uses two of them.
-- Temporal documents a limit of 255 characters per search attribute value. For `DurableWorkflowName` that counts the
-  normalized name, where a class name's `\` becomes `.` and each `.` or `%` already in an alias
-  becomes three characters. If your application supplies its own execution ids, keep them within
-  255 characters.
 
-**Runs started before this version don't carry the attributes.** They still show up in the
+Then turn the option on:
+
+```yaml
+# config/packages/durable.yaml
+durable:
+    temporal:
+        search_attributes: true
+```
+
+On Laravel, set `'search_attributes' => true` under `temporal` in `config/durable.php`. On Magento,
+set `durable/temporal/search_attributes` to `true` in `app/etc/env.php`.
+
+**How the values are written.** A backslash becomes a dot, so a class name reads
+`App.Workflow.OrderWorkflow`: Temporal's query parser matches no value that contains a backslash.
+A `.` or `%` already in the value becomes `%2E` or `%25`, so two workflow names never end up with
+the same value. Temporal documents a limit of 255 characters per value. A longer value keeps at most its
+first 189 bytes and ends with a hash of the whole, so an exact filter still finds it, but a prefix
+filter only matches within those first bytes.
+
+**Runs started before the option was on don't carry the attributes.** They still show up in the
 unfiltered run list, but filtering by workflow name or by execution id doesn't find them.
 
 ### Docker Compose setup (local / CI)
@@ -154,7 +170,7 @@ docker compose up -d
 ```
 
 The `temporal` service registers [Durable's search attributes](#register-durables-search-attributes)
-itself, and only reports healthy once a start can use them. Wait for the stack to be healthy, then start the Symfony workers:
+itself, and only reports healthy once a start can use them; the bench turns the option on. Wait for the stack to be healthy, then start the Symfony workers:
 
 ```bash
 php bin/console messenger:consume durable_workflows --time-limit=3600
