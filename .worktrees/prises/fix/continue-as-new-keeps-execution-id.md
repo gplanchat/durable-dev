@@ -6,4 +6,4 @@
 - **Entries**: `src/Bridge/Temporal/Worker/TemporalWorkflowCommandBuffer.php` (`continueAsNew()`,
   the memo line just before `applyWorkflowTimeouts()`; alice's search-attribute copy goes after it),
   a unit test, a Temporal integration test.
-- **State**: in progress — jane. Reviewer: jack. Blocks #514 (also jane's, waiting on the user's call).
+- **State**: in review, PR #561 — jane. Reviewer: jack. Blocks #514 (also jane's, waiting on the user's call).
