@@ -32,6 +32,7 @@ final class Configuration implements ConfigurationInterface
             ->scalarNode('connection')->defaultValue('doctrine.dbal.default_connection')->info('Service id of the Doctrine\\DBAL\\Connection to use')->end()
             ->booleanNode('auto_setup')->defaultTrue()->info('Create the missing tables on the first write, never inside an open transaction. Set it to false as soon as doctrine/migrations holds the schema: otherwise the two mechanisms write one behind the other. bin/console durable:setup creates them either way.')->end()
             ->scalarNode('lock_factory')->defaultValue('lock.factory')->info('Service id of the Symfony\\Component\\Lock\\LockFactory that serialises the resumes of one execution')->end()
+            ->booleanNode('allow_local_lock')->defaultFalse()->info('Accept a per-process lock store (flock, semaphore, in-memory). Only safe with exactly one worker: two workers holding a local lock replay the same execution at once.')->end()
             ->floatNode('lock_ttl')->defaultValue(300.0)->min(1.0)->info('Seconds a resume lock outlives a worker that died holding it. The pass refreshes it at every message it sends through the bus, so it must exceed the longest step of a pass, or a second worker replays the same execution in parallel.')->end()
             ->end()
             ->end()
