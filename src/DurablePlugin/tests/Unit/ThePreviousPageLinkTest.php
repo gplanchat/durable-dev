@@ -89,7 +89,7 @@ final class OnePageCatalog implements WorkflowRunCatalogInterface
         return new WorkflowRunPage([], 'next');
     }
 
-    public function findRun(string $runId): ?WorkflowRunDescription
+    public function findRun(string $executionId): ?WorkflowRunDescription
     {
         return null;
     }

@@ -82,10 +82,10 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         );
     }
 
-    public function findRun(string $runId): ?WorkflowRunDescription
+    public function findRun(string $executionId): ?WorkflowRunDescription
     {
         $this->schema->ensure();
-        $rows = $this->select(['execution_id = ?'], [$runId], 1);
+        $rows = $this->select(['execution_id = ?'], [$executionId], 1);
 
         return [] === $rows ? null : self::describe($rows[0]);
     }
