@@ -156,6 +156,14 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
         );
     }
 
+    public function findRun(string $runId): ?WorkflowRunDescription
+    {
+        $this->schema->ensure();
+        $row = $this->query()->where('execution_id', $runId)->first();
+
+        return null === $row ? null : self::describe($row);
+    }
+
     public function readHistory(WorkflowRunDescription $run): array
     {
         $reader = $this->history ?? new JournalRunHistoryReader(

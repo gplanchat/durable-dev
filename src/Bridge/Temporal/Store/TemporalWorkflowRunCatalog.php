@@ -80,6 +80,30 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     }
 
     /**
+     * One visibility query on the run id: `DescribeWorkflowExecution` would need the workflow id,
+     * which a run page does not have. The id comes from a URL and the server's run ids are UUIDs,
+     * so anything else is an unknown run and never reaches the query.
+     */
+    public function findRun(string $runId): ?WorkflowRunDescription
+    {
+        if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $runId)) {
+            return null;
+        }
+
+        $request = new ListWorkflowExecutionsRequest();
+        $request->setNamespace($this->connection->namespace->name());
+        $request->setPageSize(1);
+        $request->setQuery(\sprintf('RunId = "%s"', $runId));
+
+        $response = $this->client->ListWorkflowExecutions($request, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
+        foreach ($response->getExecutions() as $info) {
+            return self::describe($info);
+        }
+
+        return null;
+    }
+
+    /**
      * Without a wired cursor or without a grouping id, there is nothing to ask the server:
      * Temporal requires the workflow id to retrieve a history. An empty list says "I have
      * nothing to show", which is exact, where an exception would say "something is wrong".
