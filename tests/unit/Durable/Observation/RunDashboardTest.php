@@ -170,6 +170,21 @@ final class RunDashboardTest extends TestCase
     }
 
     /**
+     * #514: a surface links and selects by the id the application started the run with. On Temporal
+     * it is not the run id, which is the server's own.
+     */
+    public function testARunIsNamedAndPickedByTheIdTheApplicationStartedItWith(): void
+    {
+        $view = $this->viewOver([
+            new WorkflowRunDescription('server-run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running, executionId: 'order/41'),
+            new WorkflowRunDescription('server-run-2', 'App\\OrderWorkflow', WorkflowRunStatus::Running, executionId: 'order/42'),
+        ])->build(selectedRunId: 'order/42');
+
+        self::assertSame(['order/41', 'order/42'], array_column($view['runs'], 'executionId'));
+        self::assertSame('server-run-2', $view['selectedRun']['runId']);
+    }
+
+    /**
      * A list page pays for no history nobody asked for (#264): `build()` reads the fallback run's.
      */
     public function testAListingReadsNoHistory(): void
@@ -433,7 +448,7 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
     {
         ++$this->finds;
 
-        return array_values(array_filter($this->runs, static fn(WorkflowRunDescription $run): bool => $run->runId === $executionId))[0] ?? null;
+        return array_values(array_filter($this->runs, static fn(WorkflowRunDescription $run): bool => $run->executionId === $executionId))[0] ?? null;
     }
 
     public function readHistory(WorkflowRunDescription $run): array

@@ -54,24 +54,15 @@ class ProcessDetail extends Template
 
     /**
      * The requested execution, or `null` if the backend does not know it — an id pasted by hand
-     * into the address bar, or an execution retention has erased.
-     *
-     * ⚠ The window is **the grid's**, literally the same constant: two windows of different sizes
-     * made it possible to be listed here and not found there.
+     * into the address bar, or an execution retention has erased. Found by its execution id, the
+     * one the grid links with (#514), and not in the grid's window: a run older than the window
+     * still has its page.
      */
     public function getRun(): ?WorkflowRunDescription
     {
         if (!$this->looked) {
             $this->looked = true;
-            $wanted = $this->getRunId();
-
-            foreach ($this->runtimeFactory->catalog()->listRuns(limit: RuntimeFactory::OBSERVATION_WINDOW)->runs as $candidate) {
-                if ($candidate->runId === $wanted) {
-                    $this->run = $candidate;
-
-                    break;
-                }
-            }
+            $this->run = $this->runtimeFactory->catalog()->findRun($this->getRunId());
         }
 
         return $this->run;

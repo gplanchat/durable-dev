@@ -68,7 +68,12 @@ class ProcessListing extends AbstractDataProvider
         return [
             'totalRecords' => $total,
             'items' => array_map(static fn(WorkflowRunDescription $run): array => [
+                // The row's key: unique, where the execution id is not (a continue-as-new chain on
+                // Temporal is two runs of one execution).
                 'run_id' => $run->runId,
+                // The id the application started the run with, which the run page finds it by
+                // (#514).
+                'execution_id' => $run->executionId,
                 'workflow_name' => $run->workflowName,
                 'status' => $run->status->value,
                 // ⚠ An em dash, not an empty string. A running execution has no end date, and the
@@ -121,6 +126,10 @@ class ProcessListing extends AbstractDataProvider
                 'run_id' => array_values(array_filter(
                     $runs,
                     static fn(WorkflowRunDescription $run): bool => str_contains($run->runId, (string) $value),
+                )),
+                'execution_id' => array_values(array_filter(
+                    $runs,
+                    static fn(WorkflowRunDescription $run): bool => str_contains($run->executionId, (string) $value),
                 )),
                 'status' => array_values(array_filter(
                     $runs,

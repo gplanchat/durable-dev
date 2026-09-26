@@ -24,6 +24,23 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### On Temporal, the dashboards link a run by its execution id, not the server's run id
+
+**Who is affected**: an application on the Temporal backend with links to its run pages saved
+before this version. That covers the Magento grid's run links, the Sylius plugin's
+`/dashboard?run=…` and the Symfony bench's `?run=…`. Those links carried the server's run UUID.
+They now answer "not found". The SQL and in-memory backends are not affected: there the two ids
+are the same.
+
+**Why.** A run page finds its run by the id the application started it with (#514). That is the
+id a log line, an exception or `durable:execution:diagnose` names. There is deliberately no
+fallback on the UUID: it would bring back a visibility query built from a URL.
+
+**What to do.** Link with the execution id. If you only have the old link, open the run in
+Temporal's UI by its UUID. Its workflow id there is `durable-` followed by the execution id,
+with characters other than letters, digits, `.`, `_` and `-` replaced by `-`. The run's page in
+the dashboard shows the execution id, and the server's run id beside it.
+
 ### `WorkflowRunCatalogInterface` gains `findRun()`
 
 **Who is affected**: only whoever **implements** `WorkflowRunCatalogInterface`, that is, whoever

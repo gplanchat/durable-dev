@@ -38,12 +38,14 @@ class ProcessActions extends Column
         }
 
         foreach ($dataSource['data']['items'] as &$item) {
-            if (($item['run_id'] ?? '') === '') {
+            if (($item['execution_id'] ?? '') === '') {
                 continue;
             }
 
             $item[$this->getData('name')]['view'] = [
-                'href' => $this->urlBuilder->getUrl('durable/process/view', ['run_id' => $item['run_id']]),
+                // By the execution id (#514), in the query string: an execution id may hold a
+                // slash, which a path segment would split. The page reads it with getParam().
+                'href' => $this->urlBuilder->getUrl('durable/process/view', ['_query' => ['run_id' => $item['execution_id']]]),
                 'label' => __('History'),
             ];
         }

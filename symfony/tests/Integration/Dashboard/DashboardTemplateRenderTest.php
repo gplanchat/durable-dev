@@ -27,6 +27,15 @@ final class DashboardTemplateRenderTest extends KernelTestCase
         self::assertStringContainsString('waiting on signal approve', $this->render(['waitingOn' => 'waiting on signal approve']));
     }
 
+    public function testARunLinksByTheIdTheApplicationStartedItWith(): void
+    {
+        // #514: on Temporal the run id is the server's own; the link selects by the execution id.
+        $page = $this->render(['runId' => 'server-run-1', 'executionId' => 'order/42']);
+
+        self::assertMatchesRegularExpression('~href="[^"]*run=order/42~', $page);
+        self::assertStringContainsString('<code class="ds-mono">order/42</code>', $page);
+    }
+
     /**
      * @param array<string, string> $run what the run row carries beyond the base fields
      */
@@ -45,6 +54,7 @@ final class DashboardTemplateRenderTest extends KernelTestCase
             'statuses' => WorkflowRunStatus::cases(),
             'runs' => [$run + [
                 'runId' => 'run-1',
+                'executionId' => 'run-1',
                 'workflowName' => 'DemoWorkflow',
                 'status' => 'running',
                 'startedAt' => '10:00:00.000',
@@ -53,6 +63,7 @@ final class DashboardTemplateRenderTest extends KernelTestCase
             ]],
             'selectedRun' => [
                 'runId' => 'run-1',
+                'executionId' => 'run-1',
                 'workflowName' => 'DemoWorkflow',
                 'status' => 'running',
                 'startedAt' => '10:00:00.000',
