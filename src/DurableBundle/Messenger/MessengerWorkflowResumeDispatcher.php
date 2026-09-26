@@ -7,6 +7,7 @@ namespace Gplanchat\Durable\Bundle\Messenger;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
+use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DispatchAfterCurrentBusStamp;
@@ -31,6 +32,9 @@ final class MessengerWorkflowResumeDispatcher implements WorkflowResumeDispatche
      */
     public function dispatchNewWorkflowRun(string $executionId, string $workflowType, array $payload): void
     {
+        // A caller passing `::class` gets the alias: the name the journal, the dashboard and the
+        // diagnose command all show (#258).
+        $workflowType = (new WorkflowDefinitionLoader())->aliasForTemporalInterop($workflowType);
         $this->metadataStore->save($executionId, $workflowType, $payload);
         $this->bus->dispatch(new Envelope(
             new ResumeWorkflowMessage($executionId),

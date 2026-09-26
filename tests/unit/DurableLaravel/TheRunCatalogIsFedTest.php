@@ -50,7 +50,8 @@ final class TheRunCatalogIsFedTest extends TestCase
 
         $page = $app->make(WorkflowRunCatalogInterface::class)->listRuns();
         self::assertCount(1, $page->runs, 'the run is named as soon as it is dispatched');
-        self::assertSame(GreetingWorkflow::class, $page->runs[0]->workflowName);
+        // The dispatcher names the run by its alias (#258); the memory case writes the metadata itself.
+        self::assertSame('illuminate' === $backend ? 'Greeting' : GreetingWorkflow::class, $page->runs[0]->workflowName);
         self::assertSame(WorkflowRunStatus::Running, $page->runs[0]->status);
         self::assertTrue($page->tellsWaitingForWorker);
         self::assertNotNull($page->runs[0]->waitingForWorkerSince, 'nobody took it yet');
