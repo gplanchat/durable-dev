@@ -9,7 +9,6 @@ use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
-use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Testing\WorkflowRunCatalogConformanceTestCase;
@@ -56,11 +55,6 @@ final class TemporalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
     protected function catalogUnderTest(): WorkflowRunCatalogInterface
     {
         return new TemporalWorkflowRunCatalog($this->client, $this->connection, new TemporalHistoryCursor($this->client, $this->connection));
-    }
-
-    protected function executionIdOf(WorkflowRunDescription $run): string
-    {
-        return $run->groupId ?? '';
     }
 
     protected function startRun(string $executionId, string $workflowType): void

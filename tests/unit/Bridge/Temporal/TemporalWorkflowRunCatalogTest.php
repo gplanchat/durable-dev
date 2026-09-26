@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Bridge\Temporal;
 
 use Google\Protobuf\Timestamp;
+use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
+use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use PHPUnit\Framework\TestCase;
+use Temporal\Api\Common\V1\Memo;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
@@ -50,6 +53,32 @@ final class TemporalWorkflowRunCatalogTest extends TestCase
             ['App\\OrderWorkflow', 'App\\ReportWorkflow'],
             array_map(static fn($run): string => $run->workflowName, $page->runs),
         );
+    }
+
+    /**
+     * #514: the workflow id is `durable-` and a sanitised form of the execution id, which cannot be
+     * read back; the execution id travels in the `durableExecutionId` memo.
+     */
+    public function testTheExecutionIdIsReadFromTheMemo(): void
+    {
+        $info = $this->info('durable-order-42', 'run-1', 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING, 1_700_000_200);
+        $memo = new Memo();
+        $memo->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] = JsonPlainPayload::encode('order/42');
+        $info->setMemo($memo);
+
+        $run = $this->catalog($this->responseWith($info))->listRuns()->runs[0];
+
+        self::assertSame('order/42', $run->executionId);
+        self::assertSame('run-1', $run->runId, 'the run id stays the server\'s own');
+    }
+
+    public function testARunStartedWithoutTheMemoIsNamedByItsWorkflowId(): void
+    {
+        $run = $this->catalog($this->responseWith(
+            $this->info('wf-1', 'run-1', 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING, 1_700_000_200),
+        ))->listRuns()->runs[0];
+
+        self::assertSame('wf-1', $run->executionId, 'not started by Durable: the workflow id is the only name it has');
     }
 
     public function testTheWorkflowIdSurvivesAsTheGroupingIdentifier(): void

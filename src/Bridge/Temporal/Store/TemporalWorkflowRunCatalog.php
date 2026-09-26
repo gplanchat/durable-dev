@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Store;
 
 use Google\Protobuf\Timestamp;
+use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
+use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Observation\BackendHealth;
@@ -177,7 +179,20 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
             startedAt: self::toDateTime($info->getStartTime()),
             endedAt: self::toDateTime($info->getCloseTime()),
             groupId: '' === $workflowId ? null : $workflowId,
+            executionId: self::executionIdOf($info) ?? ('' === $workflowId ? $runId : $workflowId),
         );
+    }
+
+    /**
+     * The id the application started the run with, from the memo Durable writes at start and at
+     * each continue-as-new (#514, #560). Absent on a run Durable did not start.
+     */
+    private static function executionIdOf(WorkflowExecutionInfo $info): ?string
+    {
+        $field = $info->getMemo()?->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] ?? null;
+        $executionId = null === $field ? null : JsonPlainPayload::decode($field);
+
+        return \is_string($executionId) && '' !== $executionId ? $executionId : null;
     }
 
     /**
