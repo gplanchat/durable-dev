@@ -59,6 +59,7 @@ final class DurableExtension extends Extension
         EventStores::registerTemporalMirrorInfrastructure($container, $config);
         DbalStores::registerDbalStores($container, $config);
         EventStores::registerInMemoryRunCatalog($container);
+        Observability::handTheRunCatalogToTheProfiler($container);
     }
 
     /**

@@ -168,6 +168,24 @@ final class DurableRunCatalogWiringTest extends TestCase
         );
     }
 
+    public function testTheProfilerReadsWhatARunWaitsOnFromTheCatalog(): void
+    {
+        $arguments = $this->load([])->getDefinition('durable.data_collector')->getArguments();
+
+        self::assertSame(WorkflowRunCatalogInterface::class, (string) ($arguments[4] ?? null));
+    }
+
+    /**
+     * The Temporal catalog tells no wait yet, and a Durable execution id is not the run id it finds
+     * by (#514): each profiled request would pay a visibility query per execution for nothing.
+     */
+    public function testTheProfilerDoesNotAskTheTemporalCatalog(): void
+    {
+        $container = $this->load(['temporal' => ['dsn' => 'temporal://127.0.0.1:7233?namespace=durable-test']]);
+
+        self::assertArrayNotHasKey(4, $container->getDefinition('durable.data_collector')->getArguments());
+    }
+
     /**
      * @param array<string, mixed> $config
      */

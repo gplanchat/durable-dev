@@ -324,6 +324,13 @@
                                                 <span class="durable-status-badge durable-status-badge--{{ ex.executionStatus|default('unknown') }}">{{ ex.executionStatusLabel|default('—') }}</span>
                                             </dd>
                                         </div>
+                                        {# What the run last suspended on, from the run catalog (#324). #}
+                                        {% if ex.waitingOn|default(null) %}
+                                            <div>
+                                                <dt>Waiting on</dt>
+                                                <dd>{{ ex.waitingOn }}</dd>
+                                            </div>
+                                        {% endif %}
                                         <div>
                                             <dt>Events (history)</dt>
                                             <dd>
