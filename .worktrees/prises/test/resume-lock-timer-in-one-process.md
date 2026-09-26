@@ -6,4 +6,4 @@
   Messenger stack order.
 - **Entries**: `tests/unit/Bridge/Dbal/SingleResumeLockMiddlewareTest.php`; the middleware only if
   the test turns red on main.
-- **State**: taken — alice. Reviewer: sirius.
+- **State**: in review — PR #550, alice. Reviewer: sirius.
