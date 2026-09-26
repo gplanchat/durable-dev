@@ -198,7 +198,7 @@ final class RunDashboardTest extends TestCase
         self::assertSame('run-2', $view['run']['runId'] ?? null);
         self::assertSame('completed', $view['run']['status']);
         self::assertArrayHasKey('timeline', $view['run']);
-        self::assertNull($catalog->askedCursor, 'a run is found, not paged to');
+        self::assertSame(0, $catalog->listings, 'a run is found, not paged to');
     }
 
     public function testAnUnknownRunIsNoRunOnAnAnsweringBackend(): void
@@ -217,6 +217,7 @@ final class RunDashboardTest extends TestCase
         $catalog = new FakeRunCatalog([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)], [], null, reachable: false);
 
         self::assertFalse((new RunDashboard($catalog))->run('run-1')['backend']['available']);
+        self::assertSame(0, $catalog->finds, 'a backend that does not answer is not asked');
         self::assertFalse((new RunDashboard(null))->run('run-1')['backend']['available']);
     }
 
@@ -392,6 +393,8 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
     public ?WorkflowRunStatus $askedStatus = null;
     public ?string $askedCursor = null;
     public int $historyReads = 0;
+    public int $listings = 0;
+    public int $finds = 0;
 
     /**
      * @param list<WorkflowRunDescription> $runs
@@ -419,6 +422,7 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
     {
+        ++$this->listings;
         $this->askedStatus = $status;
         $this->askedCursor = $cursor;
 
@@ -427,6 +431,8 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
 
     public function findRun(string $runId): ?WorkflowRunDescription
     {
+        ++$this->finds;
+
         return array_values(array_filter($this->runs, static fn(WorkflowRunDescription $run): bool => $run->runId === $runId))[0] ?? null;
     }
 
