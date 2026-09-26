@@ -12,7 +12,6 @@ use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\PersistingStoreInterface;
 use Symfony\Component\Lock\Store\FlockStore;
 use Symfony\Component\Lock\Store\InMemoryStore;
-use Symfony\Component\Lock\Store\NullStore;
 use Symfony\Component\Lock\Store\SemaphoreStore;
 use Symfony\Component\Lock\Store\StoreFactory;
 
@@ -44,7 +43,8 @@ final class RequireLockFactoryPass implements CompilerPassInterface
 
     private const LOCAL_SCHEMES = ['flock', 'semaphore', 'in-memory', 'null'];
 
-    private const LOCAL_STORES = [FlockStore::class, SemaphoreStore::class, InMemoryStore::class, NullStore::class];
+    // NullStore by name: symfony/lock 6.4 does not have it.
+    private const LOCAL_STORES = [FlockStore::class, SemaphoreStore::class, InMemoryStore::class, 'Symfony\\Component\\Lock\\Store\\NullStore'];
 
     public function process(ContainerBuilder $container): void
     {
@@ -85,7 +85,7 @@ final class RequireLockFactoryPass implements CompilerPassInterface
     {
         foreach (self::LOCAL_STORES as $local) {
             if ($store instanceof $local) {
-                throw new \LogicException(self::localStoreMessage((new \ReflectionClass($local))->getShortName()));
+                throw new \LogicException(self::localStoreMessage(substr((string) strrchr($local, '\\'), 1)));
             }
         }
 
@@ -102,7 +102,7 @@ final class RequireLockFactoryPass implements CompilerPassInterface
 
         $definition = $container->findDefinition((string) $store);
         if (\in_array($definition->getClass(), self::LOCAL_STORES, true)) {
-            throw new \LogicException(self::localStoreMessage((new \ReflectionClass((string) $definition->getClass()))->getShortName()));
+            throw new \LogicException(self::localStoreMessage(substr((string) strrchr((string) $definition->getClass(), '\\'), 1)));
         }
 
         $dsn = $definition->getArguments()[0] ?? null;

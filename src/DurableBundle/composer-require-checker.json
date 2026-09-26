@@ -39,7 +39,6 @@
         "Symfony\\Component\\Lock\\PersistingStoreInterface",
         "Symfony\\Component\\Lock\\Store\\FlockStore",
         "Symfony\\Component\\Lock\\Store\\InMemoryStore",
-        "Symfony\\Component\\Lock\\Store\\NullStore",
         "Symfony\\Component\\Lock\\Store\\SemaphoreStore",
         "Symfony\\Component\\Lock\\Store\\StoreFactory"
     ]
