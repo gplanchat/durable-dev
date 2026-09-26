@@ -45,7 +45,7 @@ temporal operator search-attribute create --namespace <ns> \
 ```
 
 Then wait until the namespace can use them. This takes a few seconds, and the
-[backends page](documentation/user/backends/_index.md#register-durables-search-attributes) has a
+[backends page](https://durable.rocks/docs/backends/#register-durables-search-attributes) has a
 command that waits for it. On Temporal Cloud, add the two attributes in the Cloud UI or with
 `tcld`.
 
