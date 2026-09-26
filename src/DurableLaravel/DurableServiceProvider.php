@@ -264,7 +264,8 @@ final class DurableServiceProvider extends ServiceProvider
             );
         }
 
-        $this->app->singleton(TemporalConnection::class, fn() => TemporalConnection::fromDsn($dsn));
+        $searchAttributes = true === ($temporal['search_attributes'] ?? false);
+        $this->app->singleton(TemporalConnection::class, fn() => TemporalConnection::fromDsn($dsn, $searchAttributes));
         $this->app->singleton(
             'durable.temporal.client',
             fn($app) => WorkflowServiceClientFactory::create(

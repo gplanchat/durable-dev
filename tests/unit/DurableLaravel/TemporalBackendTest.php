@@ -46,6 +46,18 @@ final class TemporalBackendTest extends TestCase
         self::assertInstanceOf(WorkflowTaskProcessor::class, $app->make(WorkflowTaskProcessor::class));
     }
 
+    public function testSearchAttributesAreOffUntilTheApplicationTurnsThemOn(): void
+    {
+        // #558: a namespace that has not registered them refuses every start that names them.
+        $off = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN]]);
+        $on = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN, 'search_attributes' => true]]);
+        (new DurableServiceProvider($off))->register();
+        (new DurableServiceProvider($on))->register();
+
+        self::assertFalse($off->make(TemporalConnection::class)->searchAttributes);
+        self::assertTrue($on->make(TemporalConnection::class)->searchAttributes);
+    }
+
     public function testTheActivityTaskQueueHasAWorkerToo(): void
     {
         // A workflow that schedules an activity emits a task on the cluster's activity queue. With

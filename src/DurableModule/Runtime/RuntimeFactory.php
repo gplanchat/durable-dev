@@ -66,6 +66,7 @@ class RuntimeFactory
      *                                              finishes" reachable without an error.
      */
     private const TEMPORAL_DSN_CONFIG_PATH = 'durable/temporal/dsn';
+    private const TEMPORAL_SEARCH_ATTRIBUTES_CONFIG_PATH = 'durable/temporal/search_attributes';
 
     /**
      * How many executions the admin screens read at once.
@@ -112,6 +113,11 @@ class RuntimeFactory
          * at the worker's sender, so their heartbeats carry the task's token (#510).
          */
         private readonly ?SharedActivityHeartbeatSender $heartbeat = null,
+        /**
+         * Whether starts write Durable's search attributes (#558). Null reads
+         * `durable/temporal/search_attributes` from `env.php`; absent there, off.
+         */
+        private readonly ?bool $temporalSearchAttributes = null,
     ) {}
 
     /** One per factory, and the ObjectManager shares the factory: one gRPC client per request (#356). */
@@ -303,7 +309,10 @@ class RuntimeFactory
             ));
         }
 
-        return TemporalConnection::fromDsn($dsn);
+        return TemporalConnection::fromDsn(
+            $dsn,
+            $this->temporalSearchAttributes ?? true === $this->deploymentConfig?->get(self::TEMPORAL_SEARCH_ATTRIBUTES_CONFIG_PATH),
+        );
     }
 
     private function configuredDsn(): ?string

@@ -19,12 +19,16 @@ when@dev:
         backend: temporal
         temporal:
             dsn: '%env(DURABLE_DSN)%'
+            # compose.yaml and bin/demo-nexus register them on every namespace this bench uses.
+            search_attributes: true
 
 when@prod:
     durable:
         backend: temporal
         temporal:
             dsn: '%env(DURABLE_DSN)%'
+            # compose.yaml and bin/demo-nexus register them on every namespace this bench uses.
+            search_attributes: true
 
 when@test:
     durable:

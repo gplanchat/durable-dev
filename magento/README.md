@@ -130,7 +130,12 @@ to `lock` and `queue`:
 
 ```php
 'durable' => [
-    'temporal' => ['dsn' => 'temporal://127.0.0.1:7234?namespace=default&tls=0'],
+    'temporal' => [
+        'dsn' => 'temporal://127.0.0.1:7234?namespace=default&tls=0',
+        // Durable's search attributes: the `temporal` healthchecks of symfony/compose.yaml and
+        // magento/compose.yaml register them, and bin/demo-nexus does on the demo namespaces.
+        'search_attributes' => true,
+    ],
 ],
 ```
 
