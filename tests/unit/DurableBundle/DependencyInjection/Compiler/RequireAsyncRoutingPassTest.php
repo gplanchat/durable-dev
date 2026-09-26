@@ -51,6 +51,33 @@ final class RequireAsyncRoutingPassTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    /**
+     * SendersLocator falls back to a wildcard only when nothing more specific matched: a catch-all
+     * `sync` route leaves the exact async routes in charge.
+     */
+    public function testACatchAllSyncRouteDoesNotOverrideExactAsyncRoutes(): void
+    {
+        $container = $this->dbalContainer([
+            'Gplanchat\Durable\Transport\ResumeWorkflowMessage' => ['async'],
+            'Gplanchat\Durable\Transport\FireWorkflowTimersMessage' => ['async'],
+            '*' => ['sync'],
+        ]);
+
+        (new RequireAsyncRoutingPass())->process($container);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testACatchAllSyncRouteAloneIsRefused(): void
+    {
+        $container = $this->dbalContainer(['*' => ['sync']]);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/ResumeWorkflowMessage` is not routed/');
+
+        (new RequireAsyncRoutingPass())->process($container);
+    }
+
     public function testWithoutTheDbalJournalThePassSaysNothing(): void
     {
         // In memory, nothing survives the process anyway: `sync` is the honest choice there.

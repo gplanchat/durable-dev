@@ -40,6 +40,10 @@ final class RequireAsyncRoutingPass implements CompilerPassInterface
         foreach (self::MESSAGES as $message) {
             $senders = [];
             foreach (self::routingKeys($message) as $type) {
+                // SendersLocator's rule: a wildcard is a fallback, skipped once a sender matched.
+                if (str_ends_with($type, '*') && [] !== $senders) {
+                    continue;
+                }
                 $senders = [...$senders, ...$routing[$type] ?? []];
             }
 
@@ -53,8 +57,8 @@ final class RequireAsyncRoutingPass implements CompilerPassInterface
     }
 
     /**
-     * The keys SendersLocator matches a message against: its class, parents, interfaces, namespace
-     * wildcards and `*`. The same list as HandlersLocator::listTypes(), which is internal.
+     * The keys SendersLocator matches a message against, in its order: class, parents, interfaces,
+     * namespace wildcards, `*`. The same list as HandlersLocator::listTypes(), which is internal.
      *
      * @param class-string $class
      *
@@ -62,13 +66,13 @@ final class RequireAsyncRoutingPass implements CompilerPassInterface
      */
     private static function routingKeys(string $class): array
     {
-        $keys = [$class, ...array_values(class_parents($class) ?: []), ...array_values(class_implements($class) ?: []), '*'];
+        $keys = [$class, ...array_values(class_parents($class) ?: []), ...array_values(class_implements($class) ?: [])];
         for ($namespace = $class; false !== $i = strrpos($namespace, '\\');) {
             $namespace = substr($namespace, 0, $i);
             $keys[] = $namespace . '\\*';
         }
 
-        return $keys;
+        return [...$keys, '*'];
     }
 
     private function isSync(ContainerBuilder $container, string $sender): bool
