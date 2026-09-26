@@ -7,4 +7,4 @@
 - **Entries**: `src/DurableBundle/DependencyInjection/Compiler/`, `Configuration.php`,
   `Loader/DbalStores.php`, `DurableBundle.php`, their tests, `sylius/.env` and `sylius/config/`
   (the bench's `LOCK_DSN=flock`).
-- **State**: taken — bob. Reviewer: sirius.
+- **State**: in review — PR #554, bob. Reviewer: sirius.
