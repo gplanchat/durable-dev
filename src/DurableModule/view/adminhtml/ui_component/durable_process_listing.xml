@@ -65,6 +65,13 @@
     </listingToolbar>
 
     <columns name="durable_process_columns">
+        <column name="execution_id">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Execution</label>
+                <sortable>false</sortable>
+            </settings>
+        </column>
         <column name="run_id">
             <settings>
                 <filter>text</filter>

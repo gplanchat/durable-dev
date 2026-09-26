@@ -16,30 +16,34 @@ use PHPUnit\Framework\TestCase;
 require_once __DIR__ . '/Fixture/magento-data-provider.php';
 
 /**
- * #514: the grid's run column, its link to the run page and its filter carry the id the
- * application started the run with. On Temporal the run id is the server's own.
+ * #514: the grid names a run by the id the application started it with, and links and filters by
+ * it. The row's key stays the run id: on Temporal the two runs of a continue-as-new chain share
+ * one execution id, and a grid key must be unique.
  */
 final class TheGridNamesARunByItsExecutionIdTest extends TestCase
 {
-    public function testTheRunColumnIsTheExecutionId(): void
+    public function testARowCarriesTheExecutionIdAndKeepsTheRunIdAsItsKey(): void
     {
-        self::assertSame(['order/42'], array_column($this->items(), 'run_id'));
+        $item = $this->items()[0];
+
+        self::assertSame('order/42', $item['execution_id']);
+        self::assertSame('server-run-1', $item['run_id']);
     }
 
-    public function testTheRunFilterMatchesTheExecutionId(): void
+    public function testTheExecutionFilterMatchesTheExecutionId(): void
     {
-        self::assertSame(['order/42'], array_column($this->items(self::runFilter('order/')), 'run_id'));
-        self::assertSame([], $this->items(self::runFilter('server-run')));
+        self::assertSame(['order/42'], array_column($this->items(self::executionFilter('order/')), 'execution_id'));
+        self::assertSame([], $this->items(self::executionFilter('server-run')));
     }
 
-    private static function runFilter(string $value): Filter
+    private static function executionFilter(string $value): Filter
     {
         return new class ($value) extends Filter {
             public function __construct(private readonly string $value) {}
 
             public function getField(): string
             {
-                return 'run_id';
+                return 'execution_id';
             }
 
             public function getValue(): mixed
