@@ -24,22 +24,11 @@ final class AdminDashboardController
     #[IsGranted('ROLE_ADMINISTRATION_ACCESS')]
     public function index(Request $request, RunDashboard $view): Response
     {
-        // The page lives in the Sylius admin and is composed by its hooks: an application without
-        // that admin has no page here, rather than a Twig error on a missing layout (#383).
-        if (!$this->twig->getLoader()->exists('@SyliusAdmin/shared/layout/base.html.twig')) {
-            throw new NotFoundHttpException('The Durable dashboard lives in the Sylius admin, which this application does not have.');
-        }
+        $this->requireTheSyliusAdmin();
+        ['status' => $status, 'cursor' => $cursor, 'back' => $encodedBack] = self::listPosition($request);
+        $back = self::decodeBack($encodedBack);
 
-        $status = trim((string) $request->query->get('status', 'all'));
-        $cursor = trim((string) $request->query->get('cursor', ''));
-        $selectedRunId = trim((string) $request->query->get('run', ''));
-        $back = self::decodeBack((string) $request->query->get('back', ''));
-
-        $model = $view->build(
-            '' === $status ? 'all' : $status,
-            '' === $cursor ? null : $cursor,
-            '' === $selectedRunId ? null : $selectedRunId,
-        );
+        $model = $view->listing('' === $status ? 'all' : $status, '' === $cursor ? null : $cursor);
         // The catalog pages forward only (Temporal's visibility has no reverse cursor), so the way
         // back is the stack of cursors the operator came through, '' standing for the first page.
         // ponytail: the stack grows with each page in the URL; cap it if operators page that deep.
@@ -51,6 +40,48 @@ final class AdminDashboardController
         ];
 
         return new Response($this->twig->render('@DurablePlugin/admin/dashboard/index.html.twig', $model));
+    }
+
+    /**
+     * One run, at an address that is its id alone (#264). The list position in the query string is
+     * only the way back to the list the run was opened from.
+     */
+    #[IsGranted('ROLE_ADMINISTRATION_ACCESS')]
+    public function show(string $runId, Request $request, RunDashboard $view): Response
+    {
+        $this->requireTheSyliusAdmin();
+
+        $model = $view->run($runId);
+        // Only a backend that answers can say a run does not exist; one that does not is said on
+        // the page, not turned into a not-found.
+        if (true === $model['backend']['available'] && null === $model['run']) {
+            throw new NotFoundHttpException(\sprintf('No run "%s" in the catalog.', $runId));
+        }
+
+        return new Response($this->twig->render('@DurablePlugin/admin/dashboard/index.html.twig', [
+            'backend' => $model['backend'],
+            'selectedRun' => $model['run'],
+            'list' => self::listPosition($request),
+        ]));
+    }
+
+    private function requireTheSyliusAdmin(): void
+    {
+        // The pages live in the Sylius admin and are composed by its hooks: an application without
+        // that admin has no page here, rather than a Twig error on a missing layout (#383).
+        if (!$this->twig->getLoader()->exists('@SyliusAdmin/shared/layout/base.html.twig')) {
+            throw new NotFoundHttpException('The Durable dashboard lives in the Sylius admin, which this application does not have.');
+        }
+    }
+
+    /** @return array{status: string, cursor: string, back: string} */
+    private static function listPosition(Request $request): array
+    {
+        return [
+            'status' => trim((string) $request->query->get('status', '')),
+            'cursor' => trim((string) $request->query->get('cursor', '')),
+            'back' => (string) $request->query->get('back', ''),
+        ];
     }
 
     /** @param list<string> $cursors */

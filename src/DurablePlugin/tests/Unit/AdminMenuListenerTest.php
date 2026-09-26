@@ -61,7 +61,8 @@ final class AdminMenuListenerTest extends TestCase
 
         (new AdminMenuListener())->addDashboardItem($event);
 
-        self::assertSame('gplanchat_durable_plugin_admin_dashboard', $configurationMenu->options['durable_dashboard']['route'] ?? null);
+        self::assertSame('gplanchat_durable_plugin_admin_run_index', $configurationMenu->options['durable_dashboard']['route'] ?? null);
+        self::assertSame([['route' => 'gplanchat_durable_plugin_admin_run_show']], $configurationMenu->options['durable_dashboard']['extras']['routes'] ?? null, 'a run page keeps the entry active');
         self::assertArrayNotHasKey('uri', $configurationMenu->options['durable_dashboard']);
         // The label is a key the menu template translates, not an English literal (M28).
         self::assertSame('menu.dashboard', $configurationMenu->options['durable_dashboard']['label']);

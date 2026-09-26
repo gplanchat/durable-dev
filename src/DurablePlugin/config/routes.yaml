@@ -1,3 +1,15 @@
+gplanchat_durable_plugin_admin_run_index:
+    path: /%sylius_admin.path_name%/durable/runs
+    methods: [GET]
+    controller: Gplanchat\Durable\Plugin\Controller\AdminDashboardController::index
+
+# The run's address is its id alone (#264). Any execution id: one may hold a slash.
+gplanchat_durable_plugin_admin_run_show:
+    path: /%sylius_admin.path_name%/durable/runs/{runId}
+    methods: [GET]
+    controller: Gplanchat\Durable\Plugin\Controller\AdminDashboardController::show
+    requirements: { runId: '.+' }
+
 gplanchat_durable_plugin_admin_dashboard:
     path: /%sylius_admin.path_name%/durable/dashboard
     methods: [GET]

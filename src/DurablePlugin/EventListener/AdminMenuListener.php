@@ -37,9 +37,10 @@ final class AdminMenuListener
             ->addChild('durable_dashboard', [
                 // A key, translated by the Sylius menu template in the domain named below.
                 'label' => 'menu.dashboard',
-                'extras' => ['translation_domain' => 'durable'],
-                // A route, not a URI: KnpMenu's route voter marks the entry active on its page.
-                'route' => 'gplanchat_durable_plugin_admin_dashboard',
+                // A route, not a URI: KnpMenu's route voter marks the entry active on its pages,
+                // the list and every run opened from it (#264).
+                'extras' => ['translation_domain' => 'durable', 'routes' => [['route' => 'gplanchat_durable_plugin_admin_run_show']]],
+                'route' => 'gplanchat_durable_plugin_admin_run_index',
             ])
             ->setLabelAttribute('icon', 'tabler:clock')
         ;
