@@ -183,7 +183,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
             $attrs->setCronSchedule($options->cronSchedule->toExpression());
         }
         TemporalPolicyMapper::applyWorkflowTimeouts($options->timeouts, $attrs);
-        TemporalPolicyMapper::applySearchAttributes(DurableSearchAttributes::of($childExecutionId, $childWorkflowType, $options->searchAttributes), $attrs);
+        TemporalPolicyMapper::applySearchAttributes(DurableSearchAttributes::of($this->connection, $childExecutionId, $childWorkflowType, $options->searchAttributes), $attrs);
 
         // Without these two policies the server applies its defaults: the ParentClosePolicy
         // chosen by the caller was silently lost on the Temporal side.
@@ -394,7 +394,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $attrs->setMemo($memo);
         TemporalPolicyMapper::applyWorkflowTimeouts($options->timeouts, $attrs);
         // The server carries no search attribute over to the next run (#558).
-        TemporalPolicyMapper::applySearchAttributes(DurableSearchAttributes::of($this->executionId, $workflowType, SearchAttributes::none()), $attrs);
+        TemporalPolicyMapper::applySearchAttributes(DurableSearchAttributes::of($this->connection, $this->executionId, $workflowType, SearchAttributes::none()), $attrs);
 
         $cmd = new Command();
         $cmd->setCommandType(CommandType::COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION);

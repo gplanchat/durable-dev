@@ -231,7 +231,7 @@ final readonly class TemporalNexusWorker
         $start->setRequestId(bin2hex(random_bytes(8)));
         $start->setInput((new Payloads())->setPayloads([JsonPlainPayload::encode($response->workflowInput)]));
         $start->setCompletionCallbacks([$callback]);
-        TemporalPolicyMapper::applySearchAttributes(DurableSearchAttributes::of($workflowId, (string) $response->workflowType, SearchAttributes::none()), $start);
+        TemporalPolicyMapper::applySearchAttributes(DurableSearchAttributes::of($this->connection, $workflowId, (string) $response->workflowType, SearchAttributes::none()), $start);
 
         $this->nexusRpc->startWorkflowExecution($start);
 

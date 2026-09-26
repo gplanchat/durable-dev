@@ -52,6 +52,8 @@ trait FreshNamespace
             workflowTaskQueue: $queue,
             activityTaskQueue: $queue,
             transport: $transport,
+            // The conformance namespaces register them below, so the suite runs as an enabled host.
+            searchAttributes: true,
         );
 
         $transportClient = WorkflowServiceClientFactory::createTransport($connection);
