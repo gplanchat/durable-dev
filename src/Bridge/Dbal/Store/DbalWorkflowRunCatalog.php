@@ -65,37 +65,11 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
 
         // One row more than asked for: it, and it alone, tells whether there is a continuation.
         // Without it, an exactly full page would promise an empty page.
-        $tracksPickup = $this->schema->runsTableTracksPickup();
-        $tracksWait = $this->schema->runsTableTracksWait();
-        $rows = $this->connection->fetchAllAssociative(
-            \sprintf(
-                'SELECT execution_id, workflow_type, status, started_at, ended_at%s FROM %s%s ORDER BY started_at DESC, execution_id ASC LIMIT %d',
-                ($tracksPickup ? ', picked_up_at' : '') . ($tracksWait ? ', waiting_on' : ''),
-                $this->table,
-                [] === $where ? '' : ' WHERE ' . implode(' AND ', $where),
-                $limit + 1,
-            ),
-            $params,
-        );
+        $rows = $this->select($where, $params, $limit + 1);
 
         $hasMore = \count($rows) > $limit;
         $rows = \array_slice($rows, 0, $limit);
-
-        $runs = [];
-        foreach ($rows as $row) {
-            $status = WorkflowRunStatus::from((string) $row['status']);
-            $startedAt = StoredTimestamp::toDateTime($row['started_at']);
-            $runs[] = new WorkflowRunDescription(
-                runId: (string) $row['execution_id'],
-                workflowName: (string) $row['workflow_type'],
-                status: $status,
-                startedAt: $startedAt,
-                endedAt: StoredTimestamp::toDateTime($row['ended_at']),
-                // Absent when the table cannot tell (#447): a null column there means nothing.
-                waitingForWorkerSince: $tracksPickup && $status->isRunning() && null === $row['picked_up_at'] ? $startedAt : null,
-                waitingOn: $tracksWait && $status->isRunning() && null !== $row['waiting_on'] ? (string) $row['waiting_on'] : null,
-            );
-        }
+        $runs = array_map(self::describe(...), $rows);
 
         $last = [] === $rows ? null : $rows[\array_key_last($rows)];
 
@@ -104,7 +78,7 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
             $hasMore && null !== $last
                 ? (new RunPageCursor((string) $last['started_at'], (string) $last['execution_id']))->encode()
                 : null,
-            tellsWaitingForWorker: $tracksPickup,
+            tellsWaitingForWorker: $this->schema->runsTableTracksPickup(),
         );
     }
 
@@ -138,5 +112,45 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         }
 
         return new BackendHealth(self::BACKEND, true, 'The SQL database answers.', $checkedAt);
+    }
+
+    /**
+     * @param list<string> $where
+     * @param list<mixed>  $params
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function select(array $where, array $params, int $limit): array
+    {
+        return $this->connection->fetchAllAssociative(
+            \sprintf(
+                'SELECT execution_id, workflow_type, status, started_at, ended_at%s FROM %s%s ORDER BY started_at DESC, execution_id ASC LIMIT %d',
+                ($this->schema->runsTableTracksPickup() ? ', picked_up_at' : '') . ($this->schema->runsTableTracksWait() ? ', waiting_on' : ''),
+                $this->table,
+                [] === $where ? '' : ' WHERE ' . implode(' AND ', $where),
+                $limit,
+            ),
+            $params,
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private static function describe(array $row): WorkflowRunDescription
+    {
+        $status = WorkflowRunStatus::from((string) $row['status']);
+        $startedAt = StoredTimestamp::toDateTime($row['started_at']);
+
+        return new WorkflowRunDescription(
+            runId: (string) $row['execution_id'],
+            workflowName: (string) $row['workflow_type'],
+            status: $status,
+            startedAt: $startedAt,
+            endedAt: StoredTimestamp::toDateTime($row['ended_at']),
+            // Absent when the table cannot tell (#447): the column is then not selected at all.
+            waitingForWorkerSince: \array_key_exists('picked_up_at', $row) && $status->isRunning() && null === $row['picked_up_at'] ? $startedAt : null,
+            waitingOn: \array_key_exists('waiting_on', $row) && $status->isRunning() && null !== $row['waiting_on'] ? (string) $row['waiting_on'] : null,
+        );
     }
 }
