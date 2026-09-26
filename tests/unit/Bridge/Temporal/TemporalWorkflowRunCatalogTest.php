@@ -244,6 +244,44 @@ final class TemporalWorkflowRunCatalogTest extends TestCase
         self::assertSame('', $requests[0]->getExecution()->getRunId(), 'the current run of the chain');
     }
 
+    /**
+     * The workflow id is a lossy derivation: `order/42` and `order-42` both become
+     * `durable-order-42`. A run whose memo names another execution is not the one asked for.
+     */
+    public function testARunWhoseMemoNamesAnotherExecutionIsNotFound(): void
+    {
+        $client = $this->createMock(WorkflowServiceClientInterface::class);
+        $client->method('DescribeWorkflowExecution')->willReturn(new DescribeWorkflowExecutionResponse(['workflow_execution_info' => $this->withExecutionId(
+            $this->info('durable-order-42', self::RUN_ID, 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_COMPLETED, 1_700_000_200),
+            'order/42',
+        )]));
+
+        self::assertNull((new TemporalWorkflowRunCatalog($client, $this->connection()))->findRun('order-42'));
+    }
+
+    /**
+     * A run Durable did not start is listed under its own workflow id, which has no memo to read:
+     * its page must find it by that id too, or the list links to a not-found.
+     */
+    public function testARunDurableDidNotStartIsFoundByItsOwnWorkflowId(): void
+    {
+        $asked = [];
+        $client = $this->createMock(WorkflowServiceClientInterface::class);
+        $client->method('DescribeWorkflowExecution')->willReturnCallback(function (DescribeWorkflowExecutionRequest $request) use (&$asked): DescribeWorkflowExecutionResponse {
+            $asked[] = $request->getExecution()?->getWorkflowId();
+            if ('legacy-7' !== $request->getExecution()?->getWorkflowId()) {
+                throw new \RuntimeException('workflow not found', 5);
+            }
+
+            return new DescribeWorkflowExecutionResponse(['workflow_execution_info' => $this->info('legacy-7', self::RUN_ID, 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING, 1_700_000_200)]);
+        });
+
+        $run = (new TemporalWorkflowRunCatalog($client, $this->connection()))->findRun('legacy-7');
+
+        self::assertSame('legacy-7', $run?->executionId);
+        self::assertSame(['durable-legacy-7', 'legacy-7'], $asked, 'Durable\'s own workflow id first');
+    }
+
     public function testAnExecutionTheServerDoesNotKnowIsNotFound(): void
     {
         $client = $this->createMock(WorkflowServiceClientInterface::class);

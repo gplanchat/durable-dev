@@ -87,18 +87,33 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     }
 
     /**
-     * One `DescribeWorkflowExecution` on the workflow id Durable derives from the execution id,
-     * without a run id: the current run of the chain (#514). An execution the server does not know
-     * is not found; any other failure is not passed off as one.
+     * `DescribeWorkflowExecution` on the workflow id Durable derives from the execution id, without
+     * a run id: the current run of the chain (#514). That derivation is lossy (`order/42` and
+     * `order-42` share one), so a run whose memo names another execution is not the one asked for.
+     * A run Durable did not start is listed under its own workflow id, and found by it second. An
+     * execution the server does not know is not found; any other failure is not passed off as one.
      */
     public function findRun(string $executionId): ?WorkflowRunDescription
     {
+        foreach (array_unique([WorkflowClient::workflowIdOf($executionId), $executionId]) as $workflowId) {
+            $info = $this->describeWorkflow($workflowId);
+            $run = null === $info ? null : self::describe($info);
+            if (null !== $run) {
+                return $executionId === $run->executionId ? $run : null;
+            }
+        }
+
+        return null;
+    }
+
+    private function describeWorkflow(string $workflowId): ?WorkflowExecutionInfo
+    {
         $request = new DescribeWorkflowExecutionRequest();
         $request->setNamespace($this->connection->namespace->name());
-        $request->setExecution(new WorkflowExecution(['workflow_id' => WorkflowClient::workflowIdOf($executionId)]));
+        $request->setExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
 
         try {
-            $info = $this->client->DescribeWorkflowExecution($request, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US])->getWorkflowExecutionInfo();
+            return $this->client->DescribeWorkflowExecution($request, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US])->getWorkflowExecutionInfo();
         } catch (\RuntimeException $failure) {
             if (self::GRPC_NOT_FOUND === $failure->getCode()) {
                 return null;
@@ -106,8 +121,6 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
 
             throw $failure;
         }
-
-        return null === $info ? null : self::describe($info);
     }
 
     /**
