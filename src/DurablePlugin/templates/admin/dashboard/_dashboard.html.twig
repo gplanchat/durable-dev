@@ -142,14 +142,15 @@
                                         <p class="text-secondary mb-0">{{ 'runs.empty'|trans({}, 'durable') }}</p>
                                     {% else %}
                                         {% for run in runs %}
-                                            <a class="durable-run-row {% if selectedRun|default(null) and selectedRun.runId == run.runId %}active{% endif %}"
-                                               href="{{ path('gplanchat_durable_plugin_admin_run_show', { runId: run.runId, status: status, cursor: pagination.cursor, back: pagination.back|default('') }) }}">
+                                            <a class="durable-run-row {% if selectedRun|default(null) and selectedRun.executionId == run.executionId %}active{% endif %}"
+                                               href="{{ path('gplanchat_durable_plugin_admin_run_show', { runId: run.executionId, status: status, cursor: pagination.cursor, back: pagination.back|default('') }) }}">
                                                 <div class="d-flex justify-content-between align-items-center gap-2">
                                                     <strong>{{ run.workflowName }}</strong>
                                                     <span class="badge durable-status {% if run.status == 'running' %}bg-blue-lt text-blue{% elseif run.status == 'completed' %}bg-green-lt text-green{% elseif run.status == 'failed' %}bg-red-lt text-red{% else %}bg-secondary-lt text-secondary{% endif %}">{{ ('status.' ~ run.status)|trans({}, 'durable')|upper }}</span>
                                                 </div>
                                                 <div class="durable-meta mt-1">
-                                                    <code>{{ run.runId }}</code>
+                                                    {# The id the application started the run with, the one a log line names (#514). #}
+                                                    <code>{{ run.executionId }}</code>
                                                     {# Each fact shows only when it exists: the view model omits the key rather than render an empty value. #}
                                                     {% if run.startedAt is defined %}<span>{{ run.startedAt|date('Y-m-d H:i:s', false) }}</span>{% endif %}
                                                     {% if run.groupId is defined %}<span>{{ 'runs.group'|trans({}, 'durable') }} <code>{{ run.groupId }}</code></span>{% endif %}
@@ -189,7 +190,7 @@
                                 <div class="card-body">
                                     {% if selectedRun %}
                                         <p><strong>{{ 'details.workflow'|trans({}, 'durable') }}</strong> {{ selectedRun.workflowName }}</p>
-                                        <p><strong>{{ 'details.run'|trans({}, 'durable') }}</strong> <code>{{ selectedRun.runId }}</code></p>
+                                        <p><strong>{{ 'details.run'|trans({}, 'durable') }}</strong> <code>{{ selectedRun.executionId }}</code>{% if selectedRun.runId != selectedRun.executionId %} <small class="text-secondary">{{ 'details.backend_run'|trans({'%id%': selectedRun.runId}, 'durable') }}</small>{% endif %}</p>
                                         <p><strong>{{ 'details.outcome'|trans({}, 'durable') }}</strong> {{ ('status.' ~ selectedRun.status)|trans({}, 'durable')|upper }}</p>
 
                                         {% if selectedRun.timeline.actions is empty %}
