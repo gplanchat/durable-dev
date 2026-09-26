@@ -16,7 +16,6 @@ use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Reference;
 
 /**
@@ -70,7 +69,6 @@ final class Observability
                 new Reference(WorkflowMetadataStore::class),
                 new Reference(EventStoreInterface::class),
                 new Reference(PayloadRedactorInterface::class),
-                new Reference(WorkflowRunCatalogInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE),
             ])
             ->setPublic(false)
             ->addTag('data_collector', [
@@ -79,5 +77,21 @@ final class Observability
             ])
         ;
         $container->setAlias(DurableDataCollector::class, 'durable.data_collector')->setPublic(true);
+    }
+
+    /**
+     * The run catalog, for what a suspended run waits on (#324). Called once every backend has
+     * registered its catalog. Not Temporal's: it tells no wait yet, and a Durable execution id is
+     * not the run id it finds by, so each profiled request would pay a visibility query per
+     * execution for nothing. The panel gets it back once #514 settles which id names a run.
+     */
+    public static function handTheRunCatalogToTheProfiler(ContainerBuilder $container): void
+    {
+        if (!$container->hasDefinition('durable.data_collector') || !$container->hasAlias(WorkflowRunCatalogInterface::class)
+            || 'durable.run_catalog.temporal' === (string) $container->getAlias(WorkflowRunCatalogInterface::class)) {
+            return;
+        }
+
+        $container->getDefinition('durable.data_collector')->setArgument(4, new Reference(WorkflowRunCatalogInterface::class));
     }
 }
