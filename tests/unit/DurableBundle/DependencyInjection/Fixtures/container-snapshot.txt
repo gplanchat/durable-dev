@@ -133,5 +133,6 @@ I.T.LAi.t.la def   durable.workflow_metadata_store.inner class=Gplanchat\Durable
 .D.NL..d.nl. def   durable.workflow_metadata_store.projecting class=Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore private args=[0: @durable.workflow_metadata_store.inner, 1: @durable.dbal.run_projection] tags=[]
 IDTNLAidtnla def   durable.workflow_registry class=Gplanchat\Durable\WorkflowRegistry private args=[0: @Gplanchat\Durable\Workflow\WorkflowDefinitionLoader] tags=[]
 IDTNLAidtnla param durable.child_workflow_async_messenger = false
+.D.NL..d.nl. param durable.dbal.allow_local_lock = false
 IDTNLAidtnla param durable.max_activity_retries = 0
 IDTNLAidtnla param durable.messenger.buses = []

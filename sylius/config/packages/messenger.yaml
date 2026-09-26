@@ -1,8 +1,9 @@
 # The five durable messages ride Doctrine, on the shop's own database, in every environment
-# without a cluster. Nothing rides `sync`: a resume run inside the request that sent it holds the
-# resume lock the request already holds, and the first timer deadlocks (#361).
+# whose journal is SQL — `demo` included, whose DSN only serves Nexus. Nothing rides `sync`: a
+# resume run inside the request that sent it holds the resume lock the request already holds, and
+# the first timer deadlocks (#361). The bundle refuses to compile otherwise (#259).
 #
-# `demo` and `demo_caller` declare none of this: with a DSN, the Durable bundle registers
+# `demo_caller` declares none of this: its journal is the cluster, the Durable bundle registers
 # `durable_workflows` and `durable_activities` itself, and refuses an application that declares
 # them too.
 framework:
@@ -25,3 +26,4 @@ when@dev: &durable_messages
 
 when@test: *durable_messages
 when@prod: *durable_messages
+when@demo: *durable_messages

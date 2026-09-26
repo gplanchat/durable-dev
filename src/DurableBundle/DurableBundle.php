@@ -11,6 +11,7 @@ use Gplanchat\Durable\Attribute\FulfilsNexusOperation;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\ActivityHandlerPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\NexusHandlerPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
+use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RequireAsyncRoutingPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RequireLockFactoryPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\TemporalReceiversPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\WorkflowPass;
@@ -73,5 +74,6 @@ final class DurableBundle extends Bundle
         // After the DBAL services are registered, before the container complains about a missing
         // service: the pass's message says what to configure, not only what is missing.
         $container->addCompilerPass(new RequireLockFactoryPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 20);
+        $container->addCompilerPass(new RequireAsyncRoutingPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 20);
     }
 }

@@ -35,6 +35,9 @@ durable:
         # Service id of the Symfony\Component\Lock\LockFactory that serialises the resumes of one execution
         lock_factory:         lock.factory
 
+        # Accept a per-process lock store (flock, semaphore, in-memory). Only safe with exactly one worker: two workers holding a local lock replay the same execution at once.
+        allow_local_lock:     false
+
         # Seconds a resume lock outlives a worker that died holding it. The pass refreshes it at every message it sends through the bus, so it must exceed the longest step of a pass, or a second worker replays the same execution in parallel.
         lock_ttl:             300.0
     event_store:
@@ -146,6 +149,7 @@ otherwise, so it costs nothing to leave at its defaults.
 | `connection` | service ID | `doctrine.dbal.default_connection` | The `Doctrine\DBAL\Connection` the stores write to. |
 | `auto_setup` | bool | `true` | Creates the missing tables on the first write, never inside an open transaction. Set it to `false` once Doctrine Migrations owns the schema, so that the two do not both write it. `bin/console durable:setup` creates the tables either way. |
 | `lock_factory` | service ID | `lock.factory` | The `LockFactory` that serialises resumes of one execution. **It is only as safe as your lock store**: an in-memory or per-process factory with several workers gives back the failure the lock exists to prevent. |
+| `allow_local_lock` | bool | `false` | The container refuses a per-process store (`flock`, `semaphore`, `in-memory`, `null`) behind `lock_factory`: at compile time for a literal DSN, when the lock is first built for one read from an env var. `true` accepts it, for exactly one worker. `framework.lock` takes a DBAL URL (`pgsql://…`, `mysql://…`), not a Doctrine connection name. |
 | `lock_ttl` | float, seconds | `300` | How long a resume lock outlives a worker that died holding it. The pass that holds it gives it a fresh TTL at every step boundary, that is every message it sends through the bus, so **it must exceed the longest step**: past it, a second worker replays the same execution in parallel, and the first one stops at its next boundary. A step is usually the replay of the journal up to the next command, well under a second. Activities run outside the pass, except on a `sync://` activity transport, where each one is a step of the pass and its duration counts. A pass that only replays, with no message in between, is not refreshed. |
 
 The trade this backend makes, and why the lock is load-bearing, are on the

@@ -35,6 +35,9 @@ durable:
         # Service id of the Symfony\Component\Lock\LockFactory that serialises the resumes of one execution
         lock_factory:         lock.factory
 
+        # Accept a per-process lock store (flock, semaphore, in-memory). Only safe with exactly one worker: two workers holding a local lock replay the same execution at once.
+        allow_local_lock:     false
+
         # Seconds a resume lock outlives a worker that died holding it. The pass refreshes it at every message it sends through the bus, so it must exceed the longest step of a pass, or a second worker replays the same execution in parallel.
         lock_ttl:             300.0
     event_store:
@@ -147,6 +150,7 @@ ignoré sinon, le laisser à ses défauts ne coûte donc rien.
 | `connection` | identifiant de service | `doctrine.dbal.default_connection` | La `Doctrine\DBAL\Connection` dans laquelle les magasins écrivent. |
 | `auto_setup` | booléen | `true` | Crée les tables manquantes à la première écriture, jamais dans une transaction ouverte. Passez-la à `false` dès que Doctrine Migrations tient le schéma, pour que les deux ne l'écrivent pas l'un derrière l'autre. `bin/console durable:setup` crée les tables dans tous les cas. |
 | `lock_factory` | identifiant de service | `lock.factory` | La `LockFactory` qui sérialise les reprises d'une même exécution. **Elle ne vaut que ce que vaut votre magasin de verrous** : une fabrique en mémoire ou locale au processus, avec plusieurs workers, vous redonne la panne que le verrou existe pour empêcher. |
+| `allow_local_lock` | booléen | `false` | Le conteneur refuse un magasin local au processus (`flock`, `semaphore`, `in-memory`, `null`) derrière `lock_factory` : à la compilation pour un DSN littéral, à la première construction du verrou pour un DSN lu dans une variable d'environnement. `true` l'accepte, pour un seul worker. `framework.lock` attend une URL DBAL (`pgsql://…`, `mysql://…`), pas un nom de connexion Doctrine. |
 | `lock_ttl` | flottant, secondes | `300` | Combien de temps un verrou de reprise survit à un worker mort en le tenant. La passe qui le tient lui redonne un TTL entier à chaque frontière d'étape, c'est-à-dire à chaque message qu'elle fait passer par le bus, donc **il doit dépasser la plus longue étape** : au-delà, un second worker rejoue la même exécution en parallèle, et le premier s'arrête à sa frontière suivante. Une étape est en général le rejeu du journal jusqu'à la commande suivante, bien moins d'une seconde. Les activités tournent en dehors de la passe, sauf sur un transport d'activités `sync://`, où chacune est une étape de la passe et où sa durée compte. Une passe qui ne fait que rejouer, sans aucun message entre-temps, n'est pas rafraîchie. |
 
 Le compromis que fait ce backend, et pourquoi le verrou est porteur, sont sur la page

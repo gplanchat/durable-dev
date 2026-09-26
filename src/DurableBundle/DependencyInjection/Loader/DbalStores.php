@@ -139,6 +139,8 @@ final class DbalStores
                 ->addTag(RegisterDurableMiddlewarePass::TAG, ['priority' => 90])
                 ->setPublic(false)
             ;
+            // Read by RequireLockFactoryPass, which refuses a per-process store without it (#259).
+            $container->setParameter('durable.dbal.allow_local_lock', $config['dbal']['allow_local_lock']);
         }
 
         if ($metadataDbal) {
