@@ -24,6 +24,31 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### `WorkflowRunCatalogInterface` gains `findRun()`
+
+**Who is affected**: only whoever **implements** `WorkflowRunCatalogInterface`, that is, whoever
+writes a run catalog. Pages that read the catalog have nothing to change. Rector cannot write the
+method for you, because only the implementer knows where the run is stored.
+
+**Why.** A run page links to a run by its id alone (#264). Before this method, the only way to get
+a `WorkflowRunDescription` was `listRuns()`, so the page had to go through the list page by page
+until the id appeared, and could not reach an old run.
+
+**What to write.** Return the run whose `runId` is the one given, described exactly as
+`listRuns()` would describe it, or `null` when the catalog does not know it:
+
+```php
+public function findRun(string $runId): ?WorkflowRunDescription
+{
+    $row = $this->rows->find($runId);
+
+    return null === $row ? null : $this->describe($row); // the mapping listRuns() uses
+}
+```
+
+`WorkflowRunCatalogConformanceTestCase` checks that every listed run is found again with the same
+facts, and that an unknown id gives `null`.
+
 ### The bundle's services live under `durable.*` ids; their class ids are aliases
 
 **Who is affected**: an application compiler pass that calls `getDefinition()` or `hasDefinition()`

@@ -17,6 +17,7 @@ use Gplanchat\Durable\Observation\WorkflowRunWaitProjectionInterface;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\StoredTimestamp;
 use Illuminate\Database\Connection;
+use Illuminate\Database\Query\Builder;
 
 /**
  * Which executions exist, and what became of them — on the Laravel side.
@@ -118,12 +119,7 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
         $this->schema->ensure();
         $limit = max(1, $limit);
 
-        $tracksPickup = $this->schema->runsTableTracksPickup();
-        $tracksWait = $this->schema->runsTableTracksWait();
-        $query = $this->connection->table($this->table)
-            ->select([...['execution_id', 'workflow_type', 'status', 'started_at', 'ended_at'], ...($tracksPickup ? ['picked_up_at'] : []), ...($tracksWait ? ['waiting_on'] : [])])
-            ->orderByDesc('started_at')
-            ->orderBy('execution_id');
+        $query = $this->query();
 
         if (null !== $status) {
             $query->where('status', $status->value);
@@ -147,21 +143,7 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
         $hasMore = \count($rows) > $limit;
         $rows = \array_slice($rows, 0, $limit);
 
-        $runs = [];
-        foreach ($rows as $row) {
-            $status = WorkflowRunStatus::from((string) $row->status);
-            $startedAt = StoredTimestamp::toDateTime($row->started_at);
-            $runs[] = new WorkflowRunDescription(
-                runId: (string) $row->execution_id,
-                workflowName: (string) $row->workflow_type,
-                status: $status,
-                startedAt: $startedAt,
-                endedAt: StoredTimestamp::toDateTime($row->ended_at),
-                // Absent when the table cannot tell (#447): a missing column there means nothing.
-                waitingForWorkerSince: $tracksPickup && $status->isRunning() && null === $row->picked_up_at ? $startedAt : null,
-                waitingOn: $tracksWait && $status->isRunning() && null !== $row->waiting_on ? (string) $row->waiting_on : null,
-            );
-        }
+        $runs = array_map(self::describe(...), $rows);
 
         $last = [] === $rows ? null : $rows[\array_key_last($rows)];
 
@@ -170,8 +152,16 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
             $hasMore && null !== $last
                 ? (new RunPageCursor((string) $last->started_at, (string) $last->execution_id))->encode()
                 : null,
-            tellsWaitingForWorker: $tracksPickup,
+            tellsWaitingForWorker: $this->schema->runsTableTracksPickup(),
         );
+    }
+
+    public function findRun(string $runId): ?WorkflowRunDescription
+    {
+        $this->schema->ensure();
+        $row = $this->query()->where('execution_id', $runId)->first();
+
+        return null === $row ? null : self::describe($row);
     }
 
     public function readHistory(WorkflowRunDescription $run): array
@@ -204,6 +194,31 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
     }
 
     // -------------------------------------------------------------------------------------------
+
+    private function query(): Builder
+    {
+        return $this->connection->table($this->table)
+            ->select([...['execution_id', 'workflow_type', 'status', 'started_at', 'ended_at'], ...($this->schema->runsTableTracksPickup() ? ['picked_up_at'] : []), ...($this->schema->runsTableTracksWait() ? ['waiting_on'] : [])])
+            ->orderByDesc('started_at')
+            ->orderBy('execution_id');
+    }
+
+    private static function describe(object $row): WorkflowRunDescription
+    {
+        $status = WorkflowRunStatus::from((string) $row->status);
+        $startedAt = StoredTimestamp::toDateTime($row->started_at);
+
+        return new WorkflowRunDescription(
+            runId: (string) $row->execution_id,
+            workflowName: (string) $row->workflow_type,
+            status: $status,
+            startedAt: $startedAt,
+            endedAt: StoredTimestamp::toDateTime($row->ended_at),
+            // Absent when the table cannot tell (#447): the column is then not selected at all.
+            waitingForWorkerSince: property_exists($row, 'picked_up_at') && $status->isRunning() && null === $row->picked_up_at ? $startedAt : null,
+            waitingOn: property_exists($row, 'waiting_on') && $status->isRunning() && null !== $row->waiting_on ? (string) $row->waiting_on : null,
+        );
+    }
 
     private static function now(): string
     {

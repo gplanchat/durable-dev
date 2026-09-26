@@ -34,6 +34,8 @@ use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsResponse;
  */
 final class TemporalWorkflowRunCatalogTest extends TestCase
 {
+    private const RUN_ID = '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
+
     public function testRunsComeBackNamedAndInStartOrder(): void
     {
         $response = $this->responseWith(
@@ -167,6 +169,42 @@ final class TemporalWorkflowRunCatalogTest extends TestCase
         foreach (WorkflowRunStatus::cases() as $status) {
             self::assertStringNotContainsString('"Paused"', $this->filterQuery($status), $status->name . ' filter');
         }
+    }
+
+    public function testARunIsFoundByItsRunIdInOneVisibilityQuery(): void
+    {
+        $requests = [];
+        $client = $this->createMock(WorkflowServiceClientInterface::class);
+        $client->method('ListWorkflowExecutions')->willReturnCallback(function (ListWorkflowExecutionsRequest $request) use (&$requests): ListWorkflowExecutionsResponse {
+            $requests[] = $request;
+
+            return $this->responseWith($this->info('wf-1', self::RUN_ID, 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING, 1_700_000_200));
+        });
+
+        $run = (new TemporalWorkflowRunCatalog($client, $this->connection()))->findRun(self::RUN_ID);
+
+        self::assertSame(self::RUN_ID, $run?->runId);
+        self::assertSame('wf-1', $run->groupId);
+        self::assertCount(1, $requests);
+        self::assertSame(\sprintf('RunId = "%s"', self::RUN_ID), $requests[0]->getQuery());
+        self::assertSame(1, $requests[0]->getPageSize());
+    }
+
+    public function testNoRunIsFoundWhenTheServerListsNone(): void
+    {
+        self::assertNull($this->catalog($this->responseWith())->findRun(self::RUN_ID));
+    }
+
+    /**
+     * The id comes from a URL. Temporal's run ids are UUIDs, so anything else is an unknown run and
+     * never reaches the visibility query.
+     */
+    public function testAnIdThatIsNotARunIdIsNotSentToTheServer(): void
+    {
+        $client = $this->createMock(WorkflowServiceClientInterface::class);
+        $client->expects(self::never())->method('ListWorkflowExecutions');
+
+        self::assertNull((new TemporalWorkflowRunCatalog($client, $this->connection()))->findRun('x" OR RunId != "'));
     }
 
     private function filterQuery(WorkflowRunStatus $status): string

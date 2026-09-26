@@ -373,6 +373,11 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
         return new WorkflowRunPage($this->runs, $this->nextCursor, $this->tellsWaitingForWorker);
     }
 
+    public function findRun(string $runId): ?WorkflowRunDescription
+    {
+        return array_values(array_filter($this->runs, static fn(WorkflowRunDescription $run): bool => $run->runId === $runId))[0] ?? null;
+    }
+
     public function readHistory(WorkflowRunDescription $run): array
     {
         return $this->history;

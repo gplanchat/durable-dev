@@ -326,6 +326,11 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface
         ], tellsWaitingForWorker: $this->waiting);
     }
 
+    public function findRun(string $runId): ?WorkflowRunDescription
+    {
+        return array_values(array_filter($this->listRuns()->runs, static fn(WorkflowRunDescription $run): bool => $run->runId === $runId))[0] ?? null;
+    }
+
     public function readHistory(WorkflowRunDescription $run): array
     {
         return [
