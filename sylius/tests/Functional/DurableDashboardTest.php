@@ -25,7 +25,7 @@ use App\Entity\User\AdminUser;
  */
 final class DurableDashboardTest extends WebTestCase
 {
-    private const ROUTE = '/admin/durable/dashboard';
+    private const ROUTE = '/admin/durable/runs';
 
     public function testTheDashboardRendersForAnAdministrator(): void
     {
@@ -112,12 +112,49 @@ final class DurableDashboardTest extends WebTestCase
         $client = $this->authenticatedClient();
         $this->recordFailedRun('exec-render-2', 'App\\OrderWorkflow');
 
-        $crawler = $client->request('GET', self::ROUTE . '?run=exec-render-2');
+        $crawler = $client->request('GET', self::ROUTE . '/exec-render-2');
 
         self::assertResponseIsSuccessful();
         // The label is the name of the activity, not its identifier: that is what the history
         // reader promises, and the page is the only place where you actually see it.
         self::assertStringContainsString('SendWelcomeEmail', $crawler->html());
+    }
+
+    public function testARunIsReachedFromTheListAndAnUnknownOneIsNotFound(): void
+    {
+        // #264: the run has an address of its own, reached by the list's link.
+        $client = $this->authenticatedClient();
+        $this->recordFailedRun('exec-render-3', 'App\\OrderWorkflow');
+
+        $list = $client->request('GET', self::ROUTE);
+        $client->click($list->filterXPath("//a[contains(@href, '/admin/durable/runs/exec-render-3')]")->link());
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('SendWelcomeEmail', (string) $client->getResponse()->getContent());
+
+        $client->request('GET', self::ROUTE . '/exec-nobody');
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testARunWhoseIdHoldsASlashHasAnAddressToo(): void
+    {
+        // An execution id is any string the application chose; the route takes it whole.
+        $client = $this->authenticatedClient();
+        $this->recordFailedRun('exec-render/slash-4', 'App\\OrderWorkflow');
+
+        $list = $client->request('GET', self::ROUTE);
+        $client->click($list->filterXPath("//a[contains(@href, '/admin/durable/runs/exec-render/slash-4')]")->link());
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('exec-render/slash-4', (string) $client->getResponse()->getContent());
+    }
+
+    public function testTheFormerDashboardLinkStillLeadsToTheRun(): void
+    {
+        $client = $this->authenticatedClient();
+
+        $client->request('GET', '/admin/durable/dashboard?run=exec-render-2');
+
+        self::assertResponseRedirects('/admin/durable/runs/exec-render-2', 301);
     }
 
     public function testThePageNamesTheBackendItRead(): void

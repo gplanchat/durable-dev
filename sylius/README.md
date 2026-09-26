@@ -5,8 +5,9 @@ shop to deploy.
 
 It serves two things:
 
-- **The Durable dashboard, rendered in a real Sylius admin**, at `/admin/durable/dashboard`. The
-  CI job `sylius-shop` boots this kernel against MySQL and requests the page over HTTP.
+- **The Durable dashboard, rendered in a real Sylius admin**, at `/admin/durable/runs` and
+  `/admin/durable/runs/{runId}`. The CI job `sylius-shop` boots this kernel against MySQL and
+  requests the pages over HTTP.
 - **The shop side of the Nexus demonstration.** It serves `stock` (`reserve`, answered by
   `src/Durable/Nexus/StockHandler.php`) and calls `billing` from
   `src/Durable/Workflow/OrderWorkflow.php`, started by `bin/console durable:demo:bill`.
