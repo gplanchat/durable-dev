@@ -24,11 +24,11 @@
 
 Rendered by the Sylius bench (`sylius/` in the monorepo) on the SQL journal, over seeded runs.
 
-The runs list, with the backend state and the counters for the page:
+The runs list at `/admin/durable/runs`, with the backend state and the counters for the page:
 
 ![The Durable dashboard in the Sylius admin: backend state, counters per outcome, and the runs list](docs/dashboard.png)
 
-A completed run: one line per action, hatched while the work waited for a worker to pick it up:
+A completed run on its own page, `/admin/durable/runs/{runId}`: one line per action, hatched while the work waited for a worker to pick it up:
 
 ![Timeline of a completed order run: stock reservation, payment, a timer, then the confirmation email](docs/run.png)
 
