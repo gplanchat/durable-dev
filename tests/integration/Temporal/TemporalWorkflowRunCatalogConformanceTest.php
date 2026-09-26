@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace integration\Temporal;
 
+use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
+use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
-use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Testing\WorkflowRunCatalogConformanceTestCase;
@@ -18,6 +20,7 @@ use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\ContinueAsNewWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\FailWorkflowExecutionCommandAttributes;
+use Temporal\Api\Common\V1\Memo;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\CommandType;
@@ -58,19 +61,16 @@ final class TemporalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
         return new TemporalWorkflowRunCatalog($this->client, $this->connection, new TemporalHistoryCursor($this->client, $this->connection));
     }
 
-    protected function executionIdOf(WorkflowRunDescription $run): string
-    {
-        return $run->groupId ?? '';
-    }
-
     protected function startRun(string $executionId, string $workflowType): void
     {
         $this->client->StartWorkflowExecution(new StartWorkflowExecutionRequest([
             'namespace' => $this->namespace(),
-            'workflow_id' => $executionId,
+            // As Durable starts a run: its own workflow id, and the execution id in the memo (#514).
+            'workflow_id' => WorkflowClient::workflowIdOf($executionId),
             'workflow_type' => new WorkflowType(['name' => $workflowType]),
             'task_queue' => new TaskQueue(['name' => self::queueOf($executionId)]),
             'request_id' => bin2hex(random_bytes(16)),
+            'memo' => self::memoOf($executionId),
         ]));
 
         $this->awaitListed($executionId, WorkflowRunStatus::Running);
@@ -81,7 +81,7 @@ final class TemporalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
         if (WorkflowRunStatus::Cancelled === $outcome) {
             $this->client->RequestCancelWorkflowExecution(new RequestCancelWorkflowExecutionRequest([
                 'namespace' => $this->namespace(),
-                'workflow_execution' => new WorkflowExecution(['workflow_id' => $executionId]),
+                'workflow_execution' => new WorkflowExecution(['workflow_id' => WorkflowClient::workflowIdOf($executionId)]),
             ]));
         }
 
@@ -101,6 +101,14 @@ final class TemporalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
 
         // A continue-as-new opens its successor under the same workflow id (DUR037 §5).
         $this->awaitListed($executionId, ...(WorkflowRunStatus::ContinuedAsNew === $outcome ? [$outcome, WorkflowRunStatus::Running] : [$outcome]));
+    }
+
+    private static function memoOf(string $executionId): Memo
+    {
+        $memo = new Memo();
+        $memo->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] = JsonPlainPayload::encode($executionId);
+
+        return $memo;
     }
 
     private static function closingCommand(WorkflowRunStatus $outcome, string $executionId): Command
@@ -123,6 +131,7 @@ final class TemporalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
                 ->setContinueAsNewWorkflowExecutionCommandAttributes(new ContinueAsNewWorkflowExecutionCommandAttributes([
                     'workflow_type' => new WorkflowType(['name' => 'conformance-successor']),
                     'task_queue' => new TaskQueue(['name' => self::queueOf($executionId)]),
+                    'memo' => self::memoOf($executionId),
                 ])),
             WorkflowRunStatus::Running => self::fail('a run cannot be ended as running'),
         };
@@ -140,7 +149,7 @@ final class TemporalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
         do {
             $seen = [];
             foreach ($this->catalogUnderTest()->listRuns(null, null, 100)->runs as $run) {
-                if ($executionId === $run->groupId) {
+                if ($executionId === $run->executionId) {
                     $seen[] = $run->status;
                 }
             }

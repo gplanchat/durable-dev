@@ -260,6 +260,14 @@ final class WorkflowClient implements WorkflowClientInterface
      */
     public function workflowId(string $executionId): string
     {
+        return self::workflowIdOf($executionId);
+    }
+
+    /**
+     * The same, for a reader that holds no client: the run catalog finds a run by it (#514).
+     */
+    public static function workflowIdOf(string $executionId): string
+    {
         $safe = preg_replace('/[^a-zA-Z0-9._-]/', '-', $executionId) ?? 'invalid';
 
         return 'durable-' . substr($safe, 0, 900);

@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Store;
 
 use Google\Protobuf\Timestamp;
+use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
+use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
@@ -15,8 +18,10 @@ use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunPage;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
+use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
 use Temporal\Api\Workflow\V1\WorkflowExecutionInfo;
+use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsRequest;
 
 /**
@@ -34,6 +39,8 @@ use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsRequest;
 final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
 {
     private const BACKEND = 'Temporal';
+
+    private const GRPC_NOT_FOUND = 5;
 
     public function __construct(
         private readonly WorkflowServiceClientInterface $client,
@@ -80,28 +87,40 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     }
 
     /**
-     * One visibility query on the run id: `DescribeWorkflowExecution` would need the workflow id,
-     * which a run page does not have. The id comes from a URL and the server's run ids are UUIDs,
-     * so anything else is an unknown run and never reaches the query. The id is the server's run
-     * id, not the Durable execution id, until #514 settles which id names a run.
+     * `DescribeWorkflowExecution` on the workflow id Durable derives from the execution id, without
+     * a run id: the current run of the chain (#514). That derivation is lossy (`order/42` and
+     * `order-42` share one), so a run whose memo names another execution is not the one asked for.
+     * A run Durable did not start is listed under its own workflow id, and found by it second. An
+     * execution the server does not know is not found; any other failure is not passed off as one.
      */
     public function findRun(string $executionId): ?WorkflowRunDescription
     {
-        if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $executionId)) {
-            return null;
-        }
-
-        $request = new ListWorkflowExecutionsRequest();
-        $request->setNamespace($this->connection->namespace->name());
-        $request->setPageSize(1);
-        $request->setQuery(\sprintf('RunId = "%s"', $executionId));
-
-        $response = $this->client->ListWorkflowExecutions($request, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
-        foreach ($response->getExecutions() as $info) {
-            return self::describe($info);
+        foreach (array_unique([WorkflowClient::workflowIdOf($executionId), $executionId]) as $workflowId) {
+            $info = $this->describeWorkflow($workflowId);
+            $run = null === $info ? null : self::describe($info);
+            if (null !== $run) {
+                return $executionId === $run->executionId ? $run : null;
+            }
         }
 
         return null;
+    }
+
+    private function describeWorkflow(string $workflowId): ?WorkflowExecutionInfo
+    {
+        $request = new DescribeWorkflowExecutionRequest();
+        $request->setNamespace($this->connection->namespace->name());
+        $request->setExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
+
+        try {
+            return $this->client->DescribeWorkflowExecution($request, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US])->getWorkflowExecutionInfo();
+        } catch (\RuntimeException $failure) {
+            if (self::GRPC_NOT_FOUND === $failure->getCode()) {
+                return null;
+            }
+
+            throw $failure;
+        }
     }
 
     /**
@@ -177,7 +196,26 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
             startedAt: self::toDateTime($info->getStartTime()),
             endedAt: self::toDateTime($info->getCloseTime()),
             groupId: '' === $workflowId ? null : $workflowId,
+            executionId: self::executionIdOf($info) ?? ('' === $workflowId ? $runId : $workflowId),
         );
+    }
+
+    /**
+     * The id the application started the run with, from the memo Durable writes at start and at
+     * each continue-as-new (#514, #560). Absent on a run Durable did not start.
+     */
+    private static function executionIdOf(WorkflowExecutionInfo $info): ?string
+    {
+        $field = $info->getMemo()?->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] ?? null;
+
+        try {
+            $executionId = null === $field ? null : JsonPlainPayload::decode($field);
+        } catch (\JsonException) {
+            // Another client's memo: it names nothing, and must not take the page down with it.
+            return null;
+        }
+
+        return \is_string($executionId) && '' !== $executionId ? $executionId : null;
     }
 
     /**
