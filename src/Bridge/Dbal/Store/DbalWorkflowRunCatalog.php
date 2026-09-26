@@ -41,7 +41,7 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         private readonly ?JournalRunHistoryReader $history = null,
     ) {}
 
-    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
+    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?string $workflowName = null): WorkflowRunPage
     {
         $this->schema->ensure();
 
@@ -52,6 +52,11 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         if (null !== $status) {
             $where[] = 'status = ?';
             $params[] = $status->value;
+        }
+
+        if (null !== $workflowName) {
+            $where[] = 'workflow_type = ?';
+            $params[] = $workflowName;
         }
 
         $position = RunPageCursor::decode($cursor);

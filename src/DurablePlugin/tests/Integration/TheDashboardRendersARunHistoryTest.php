@@ -315,7 +315,7 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface
         private readonly ?string $waitingOn = null,
     ) {}
 
-    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
+    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?string $workflowName = null): WorkflowRunPage
     {
         if ($this->ephemeral) {
             return new WorkflowRunPage([]);

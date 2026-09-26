@@ -84,7 +84,7 @@ final class ThePreviousPageLinkTest extends TestCase
 
 final class OnePageCatalog implements WorkflowRunCatalogInterface
 {
-    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
+    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?string $workflowName = null): WorkflowRunPage
     {
         return new WorkflowRunPage([], 'next');
     }

@@ -27,11 +27,13 @@ interface WorkflowRunCatalogInterface
      * A page of executions, from the most recently started to the oldest.
      *
      * @param WorkflowRunStatus|null $status `null` for every outcome
-     * @param string|null            $cursor `nextCursor` of a previous page, obtained from the
-     *                                       same catalog and with the same filter; `null` for the
-     *                                       first page
+     * @param string|null            $cursor       `nextCursor` of a previous page, obtained from
+     *                                             the same catalog and with the same filters;
+     *                                             `null` for the first page
+     * @param string|null            $workflowName the whole workflow name, compared exactly;
+     *                                             `null` for every workflow (#264)
      */
-    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage;
+    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?string $workflowName = null): WorkflowRunPage;
 
     /**
      * One execution, by the `runId` a description of it carries; `null` when the catalog has no

@@ -207,6 +207,29 @@ final class TemporalWorkflowRunCatalogTest extends TestCase
         self::assertNull((new TemporalWorkflowRunCatalog($client, $this->connection()))->findRun('x" OR RunId != "'));
     }
 
+    /**
+     * The workflow name is the first string from outside that goes into a visibility query, and it
+     * cannot be whitelisted: a backslash and a quote are escaped, and the status clause is
+     * parenthesised, since it may be a `NOT IN`.
+     */
+    public function testTheWorkflowNameIsEscapedIntoTheVisibilityQuery(): void
+    {
+        $queries = [];
+        $client = $this->createMock(WorkflowServiceClientInterface::class);
+        $client->method('ListWorkflowExecutions')->willReturnCallback(static function (ListWorkflowExecutionsRequest $request) use (&$queries): ListWorkflowExecutionsResponse {
+            $queries[] = $request->getQuery();
+
+            return new ListWorkflowExecutionsResponse();
+        });
+        $catalog = new TemporalWorkflowRunCatalog($client, $this->connection());
+
+        $catalog->listRuns(workflowName: 'App\\Order"Workflow');
+        $catalog->listRuns(WorkflowRunStatus::Running, workflowName: 'App\\OrderWorkflow');
+
+        self::assertSame('WorkflowType = "App\\\\Order\\"Workflow"', $queries[0]);
+        self::assertSame('(' . $this->filterQuery(WorkflowRunStatus::Running) . ') AND (WorkflowType = "App\\\\OrderWorkflow")', $queries[1]);
+    }
+
     private function filterQuery(WorkflowRunStatus $status): string
     {
         $queries = [];

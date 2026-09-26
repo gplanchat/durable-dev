@@ -41,13 +41,20 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
         private readonly ?TemporalHistoryCursor $historyCursor = null,
     ) {}
 
-    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
+    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?string $workflowName = null): WorkflowRunPage
     {
         $request = new ListWorkflowExecutionsRequest();
         $request->setNamespace($this->connection->namespace->name());
         $request->setPageSize(max(1, $limit));
-        if (null !== $status) {
-            $request->setQuery(self::visibilityQuery($status));
+        $clauses = null === $status ? [] : [self::visibilityQuery($status)];
+        if (null !== $workflowName) {
+            // A string from outside, which no whitelist can vouch for: the server reads a
+            // backslash as an escape, and a quote would end the literal.
+            $clauses[] = \sprintf('WorkflowType = "%s"', addcslashes($workflowName, '\\"'));
+        }
+        if ([] !== $clauses) {
+            // Each clause in parentheses once there are two: the status one may be a `NOT IN`.
+            $request->setQuery(1 === \count($clauses) ? $clauses[0] : '(' . implode(') AND (', $clauses) . ')');
         }
         if (null !== $cursor && '' !== $cursor) {
             $request->setNextPageToken(self::decodeCursor($cursor));

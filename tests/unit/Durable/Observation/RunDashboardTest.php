@@ -365,7 +365,7 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
         );
     }
 
-    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
+    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?string $workflowName = null): WorkflowRunPage
     {
         $this->askedStatus = $status;
         $this->askedCursor = $cursor;

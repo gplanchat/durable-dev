@@ -98,7 +98,7 @@ final class InMemoryWorkflowRunCatalog implements WorkflowRunCatalogInterface, W
         $this->runs[$executionId]['endedAt'] = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
     }
 
-    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
+    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?string $workflowName = null): WorkflowRunPage
     {
         $ordered = array_reverse(array_keys($this->runs));
 
@@ -106,6 +106,13 @@ final class InMemoryWorkflowRunCatalog implements WorkflowRunCatalogInterface, W
             $ordered = array_values(array_filter(
                 $ordered,
                 fn(string $runId): bool => $this->runs[$runId]['status'] === $status,
+            ));
+        }
+
+        if (null !== $workflowName) {
+            $ordered = array_values(array_filter(
+                $ordered,
+                fn(string $runId): bool => $this->runs[$runId]['workflowType'] === $workflowName,
             ));
         }
 

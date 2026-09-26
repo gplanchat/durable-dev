@@ -271,6 +271,25 @@ abstract class WorkflowRunCatalogConformanceTestCase extends TestCase
         self::assertSame([], $this->idsOf($catalog->listRuns(WorkflowRunStatus::Cancelled)->runs));
     }
 
+    /**
+     * #264: finding the runs of one workflow without paging until they show up. The name is the
+     * whole workflow name, backslashes included: a FQCN is what most applications name a type.
+     */
+    public function testFilteringByWorkflowNameReturnsOnlyThatWorkflow(): void
+    {
+        $this->startRun('exec-order', 'App\\OrderWorkflow');
+        $this->startRun('exec-report', 'App\\ReportWorkflow');
+        $this->endRun('exec-report', WorkflowRunStatus::Completed);
+
+        $catalog = $this->catalogUnderTest();
+
+        self::assertSame(['exec-order'], $this->idsOf($catalog->listRuns(workflowName: 'App\\OrderWorkflow')->runs));
+        self::assertSame(['exec-report'], $this->idsOf($catalog->listRuns(WorkflowRunStatus::Completed, workflowName: 'App\\ReportWorkflow')->runs));
+        self::assertSame([], $this->idsOf($catalog->listRuns(WorkflowRunStatus::Completed, workflowName: 'App\\OrderWorkflow')->runs), 'both filters apply');
+        self::assertSame([], $this->idsOf($catalog->listRuns(workflowName: 'App\\Order')->runs), 'the whole name, not a part of it');
+        self::assertSame([], $this->idsOf($catalog->listRuns(workflowName: 'App\\"OrderWorkflow')->runs), 'a quote is a character like any other');
+    }
+
     public function testNoFilterListsEveryOutcomeTogether(): void
     {
         $this->startRun('exec-running', 'App\\OrderWorkflow');

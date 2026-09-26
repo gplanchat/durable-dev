@@ -114,7 +114,7 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
 
     // -- read side: WorkflowRunCatalogInterface --------------------------------------------------
 
-    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
+    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?string $workflowName = null): WorkflowRunPage
     {
         $this->schema->ensure();
         $limit = max(1, $limit);
@@ -123,6 +123,10 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
 
         if (null !== $status) {
             $query->where('status', $status->value);
+        }
+
+        if (null !== $workflowName) {
+            $query->where('workflow_type', $workflowName);
         }
 
         $position = RunPageCursor::decode($cursor);
