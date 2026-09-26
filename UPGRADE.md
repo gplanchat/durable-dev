@@ -34,8 +34,9 @@ method for you, because only the implementer knows where the run is stored.
 a `WorkflowRunDescription` was `listRuns()`, so the page had to go through the list page by page
 until the id appeared, and could not reach an old run.
 
-**What to write.** Return the run whose `runId` is the one given, described exactly as
-`listRuns()` would describe it, or `null` when the catalog does not know it:
+**What to write.** Return the run whose `executionId` is the one given, described exactly as
+`listRuns()` would describe it, or `null` when the catalog does not know it. On a backend that
+chains runs under one execution, return the current run of the chain:
 
 ```php
 public function findRun(string $executionId): ?WorkflowRunDescription
