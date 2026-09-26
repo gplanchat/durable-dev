@@ -58,6 +58,15 @@ services:
       VISIBILITY_DBNAME: temporal_visibility
     ports:
       - "${TEMPORAL_FRONTEND_PORT:-7233}:7233"
+    # Healthy means Durable can start a workflow here: the two search attributes Durable writes on
+    # every start are registered and usable (#558). Registering an existing attribute with the same
+    # type is a no-op, so this runs on every check.
+    healthcheck:
+      test: ["CMD-SHELL", "temporal operator search-attribute create --address temporal:7233 --namespace default --name DurableWorkflowName --type Keyword --name DurableExecutionId --type Keyword >/dev/null && temporal workflow list --address temporal:7233 --namespace default --limit 1 --query \"DurableExecutionId = 'probe'\" >/dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 60s
 
   temporal-ui:
     image: temporalio/ui:2.34.0

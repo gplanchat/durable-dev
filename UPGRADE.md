@@ -24,6 +24,34 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### Temporal: register two search attributes before deploying
+
+**Who is affected**: every application on the Temporal backend. Nothing changes on the in-memory,
+DBAL and Illuminate backends.
+
+**Why.** Durable now writes `DurableWorkflowName` and `DurableExecutionId` on every run it starts,
+including child workflows, continue-as-new runs and Nexus-started workflows. With them, the run
+list can filter by workflow name and by execution id on the server (#558, #557). A Temporal server
+refuses a start that sets an attribute the namespace has no mapping for. If you deploy without
+registering them, every workflow start fails with
+`Namespace <ns> has no mapping defined for search attribute DurableExecutionId`.
+
+**What to do, before deploying**, once per namespace:
+
+```bash
+temporal operator search-attribute create --namespace <ns> \
+    --name DurableWorkflowName --type Keyword \
+    --name DurableExecutionId --type Keyword
+```
+
+Then wait until the namespace can use them. This takes a few seconds, and the
+[backends page](documentation/user/backends/_index.md#register-durables-search-attributes) has a
+command that waits for it. On Temporal Cloud, add the two attributes in the Cloud UI or with
+`tcld`.
+
+Runs started before the upgrade don't carry the attributes. The unfiltered run list still shows
+them, but a filtered one doesn't.
+
 ### `WorkflowRunCatalogInterface` gains `findRun()`
 
 **Who is affected**: only whoever **implements** `WorkflowRunCatalogInterface`, that is, whoever
