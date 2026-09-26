@@ -24,19 +24,18 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
-### Temporal: register two search attributes before deploying
+### Temporal: search attributes, opt-in, registered first
 
-**Who is affected**: every application on the Temporal backend. Nothing changes on the in-memory,
-DBAL and Illuminate backends.
+**Who is affected**: applications on the Temporal backend that want the run list to filter by
+workflow name or execution id (#558, #557). Nothing changes until you turn the option on, and
+nothing changes on the in-memory, DBAL and Illuminate backends.
 
-**Why.** Durable now writes `DurableWorkflowName` and `DurableExecutionId` on every run it starts,
-including child workflows, continue-as-new runs and Nexus-started workflows. With them, the run
-list can filter by workflow name and by execution id on the server (#558, #557). A Temporal server
-refuses a start that sets an attribute the namespace has no mapping for. If you deploy without
-registering them, every workflow start fails with
-`Namespace <ns> has no mapping defined for search attribute DurableExecutionId`.
+**Why.** With `durable.temporal.search_attributes: true`, Durable writes `DurableWorkflowName` and
+`DurableExecutionId` on every run it starts, including child workflows, continue-as-new runs and
+Nexus-started workflows. A Temporal server refuses a start that sets an attribute the namespace has
+no mapping for, so the option is off by default.
 
-**What to do, before deploying**, once per namespace:
+**What to do, before turning it on**, once per namespace:
 
 ```bash
 temporal operator search-attribute create --namespace <ns> \
@@ -47,14 +46,15 @@ temporal operator search-attribute create --namespace <ns> \
 Then wait until the namespace can use them. This takes a few seconds, and the
 [backends page](https://durable.rocks/docs/backends/#register-durables-search-attributes) has a
 command that waits for it. On Temporal Cloud, add the two attributes in the Cloud UI or with
-`tcld`.
+`tcld`. Only then set the option: `search_attributes: true` under `durable.temporal` on Symfony,
+under `temporal` in `config/durable.php` on Laravel, and `durable/temporal/search_attributes` in
+`env.php` on Magento. Turned on against a namespace without the mapping, every start fails with
+`Namespace <ns> has no mapping defined for search attribute DurableExecutionId`.
 
-Runs started before the upgrade don't carry the attributes. The unfiltered run list still shows
-them, but a filtered one doesn't.
-
-Temporal documents a limit of 255 characters per value. That counts the normalized workflow name, where each `.` or
-`%` in an alias becomes three characters, and the execution id. If your application supplies its
-own execution ids, keep them within that limit.
+Runs started before the option was on don't carry the attributes. The unfiltered run list still
+shows them, but a filtered one doesn't. A value longer than the 255 characters Temporal documents
+keeps at most its first 189 bytes and ends with a hash of the whole: an exact filter still finds it, a
+prefix filter only within those bytes.
 
 ### `WorkflowRunCatalogInterface` gains `findRun()`
 
