@@ -7,6 +7,7 @@ namespace Gplanchat\Bridge\Temporal\Worker;
 use Google\Protobuf\Duration;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput;
+use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
@@ -32,6 +33,7 @@ use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
 use Temporal\Api\Command\V1\ScheduleNexusOperationCommandAttributes;
 use Temporal\Api\Command\V1\StartTimerCommandAttributes;
 use Temporal\Api\Common\V1\ActivityType;
+use Temporal\Api\Common\V1\Memo;
 use Temporal\Api\Common\V1\RetryPolicy;
 use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Failure\V1\ApplicationFailureInfo;
@@ -383,6 +385,11 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $attrs->setTaskQueue(new TaskQueue([
             'name' => ($options->taskQueue ?? $this->connection->workflowTaskQueue)->name(),
         ]));
+        // The server does not carry the memo over (#560): without it the successor runs under the
+        // workflow id instead of the execution id the application started it with.
+        $memo = new Memo();
+        $memo->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] = JsonPlainPayload::encode($this->executionId);
+        $attrs->setMemo($memo);
         TemporalPolicyMapper::applyWorkflowTimeouts($options->timeouts, $attrs);
 
         $cmd = new Command();
