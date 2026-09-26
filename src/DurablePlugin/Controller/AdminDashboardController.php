@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Plugin\Controller;
 
 use Gplanchat\Durable\Observation\RunDashboard;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Twig\Environment;
 
@@ -63,6 +65,22 @@ final class AdminDashboardController
             'selectedRun' => $model['run'],
             'list' => self::listPosition($request),
         ]));
+    }
+
+    /**
+     * The former single page: `?run=` leads to that run, anything else to the list it showed.
+     */
+    public function dashboard(Request $request, UrlGeneratorInterface $urls): RedirectResponse
+    {
+        $position = array_filter(self::listPosition($request), static fn(string $value): bool => '' !== $value);
+        $runId = trim((string) $request->query->get('run', ''));
+
+        return new RedirectResponse(
+            '' === $runId
+                ? $urls->generate('gplanchat_durable_plugin_admin_run_index', $position)
+                : $urls->generate('gplanchat_durable_plugin_admin_run_show', ['runId' => $runId] + $position),
+            Response::HTTP_MOVED_PERMANENTLY,
+        );
     }
 
     private function requireTheSyliusAdmin(): void

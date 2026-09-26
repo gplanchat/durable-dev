@@ -10,7 +10,8 @@ gplanchat_durable_plugin_admin_run_show:
     controller: Gplanchat\Durable\Plugin\Controller\AdminDashboardController::show
     requirements: { runId: '.+' }
 
+# The former single page, kept so that bookmarks survive: it redirects to the list or to the run.
 gplanchat_durable_plugin_admin_dashboard:
     path: /%sylius_admin.path_name%/durable/dashboard
     methods: [GET]
-    controller: Gplanchat\Durable\Plugin\Controller\AdminDashboardController::index
+    controller: Gplanchat\Durable\Plugin\Controller\AdminDashboardController::dashboard

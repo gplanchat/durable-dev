@@ -12,6 +12,7 @@ use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Twig\Environment;
 use Twig\Loader\ArrayLoader;
 
@@ -52,6 +53,21 @@ final class TheRunHasItsOwnAddressTest extends TestCase
         self::assertFalse($model['backend']['available']);
     }
 
+    public function testTheOldDashboardLinkLeadsToTheRunItNamed(): void
+    {
+        $response = (new AdminDashboardController(new Environment(new ArrayLoader())))->dashboard(new Request(['run' => 'run-2', 'status' => 'failed', 'cursor' => '']), $this->urls());
+
+        self::assertSame(301, $response->getStatusCode());
+        self::assertSame('gplanchat_durable_plugin_admin_run_show?runId=run-2&status=failed', $response->getTargetUrl());
+    }
+
+    public function testTheOldDashboardLinkWithoutARunLeadsToTheListItShowed(): void
+    {
+        $response = (new AdminDashboardController(new Environment(new ArrayLoader())))->dashboard(new Request(['status' => 'failed', 'cursor' => 'c1', 'back' => 'WyIiXQ']), $this->urls());
+
+        self::assertSame('gplanchat_durable_plugin_admin_run_index?status=failed&cursor=c1&back=WyIiXQ', $response->getTargetUrl());
+    }
+
     /**
      * Read as text: the plugin does not require `symfony/yaml` (#520).
      */
@@ -85,5 +101,13 @@ final class TheRunHasItsOwnAddressTest extends TestCase
         $catalog->recordStart('run-2', 'App\\OrderWorkflow');
 
         return $catalog;
+    }
+
+    private function urls(): UrlGeneratorInterface
+    {
+        $urls = $this->createStub(UrlGeneratorInterface::class);
+        $urls->method('generate')->willReturnCallback(static fn(string $route, array $parameters = []): string => $route . '?' . http_build_query($parameters));
+
+        return $urls;
     }
 }

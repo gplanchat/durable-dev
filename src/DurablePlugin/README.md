@@ -111,9 +111,13 @@ gplanchat_durable_plugin:
     resource: '@DurablePlugin/config/routes.yaml'
 ```
 
-The dashboard route is:
+The routes are, under the admin prefix (`/admin/…` by default, set by `SYLIUS_ADMIN_ROUTING_PATH_NAME`):
 
-- `/<admin prefix>/durable/dashboard` (`/admin/…` by default, set by `SYLIUS_ADMIN_ROUTING_PATH_NAME`)
+- `/<admin prefix>/durable/runs`: the run list.
+- `/<admin prefix>/durable/runs/{runId}`: one run. The URL is the run's id alone, so it still
+  resolves once the list has moved on. An id the backend does not know is a 404.
+- `/<admin prefix>/durable/dashboard`: the former single page. It redirects to the run named by
+  `?run=`, or else to the list.
 
 ## Development notes
 
