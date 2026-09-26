@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Laravel;
 
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
 use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowResumeDispatcher;
 use Gplanchat\Durable\Laravel\Queue\ResumeWorkflowJob;
@@ -12,6 +14,13 @@ use Illuminate\Container\Container;
 use PHPUnit\Framework\TestCase;
 use unit\DurableLaravel\Fixtures\FakeQueue;
 use unit\DurableLaravel\Fixtures\FakeQueueFactory;
+
+#[AsWorkflow(name: 'test.greeting')]
+final class GreetingWorkflow
+{
+    #[AsWorkflowMethod]
+    public function run(): void {}
+}
 
 final class LaravelWorkflowResumeDispatcherTest extends TestCase
 {
@@ -48,6 +57,17 @@ final class LaravelWorkflowResumeDispatcherTest extends TestCase
         self::assertNotNull($saved);
         self::assertSame('Greeting', $saved['workflowType']);
         self::assertCount(1, $queue->pushed);
+    }
+
+    /** #258: a caller passing `::class` gets the alias, the name the journal and the dashboard use. */
+    public function testANewRunStartedByClassIsRecordedUnderItsAlias(): void
+    {
+        $metadata = new InMemoryWorkflowMetadataStore();
+        $dispatcher = new LaravelWorkflowResumeDispatcher(new FakeQueueFactory(new FakeQueue()), $metadata);
+
+        $dispatcher->dispatchNewWorkflowRun('exec-3', GreetingWorkflow::class, []);
+
+        self::assertSame('test.greeting', $metadata->get('exec-3')['workflowType'] ?? null);
     }
 
     public function testAQueueThatRunsInlineIsRefusedAtBoot(): void
