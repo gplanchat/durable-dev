@@ -40,7 +40,7 @@ until the id appeared, and could not reach an old run.
 ```php
 public function findRun(string $executionId): ?WorkflowRunDescription
 {
-    $row = $this->rows->find($runId);
+    $row = $this->rows->find($executionId);
 
     return null === $row ? null : $this->describe($row); // the mapping listRuns() uses
 }
