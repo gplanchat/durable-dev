@@ -7,6 +7,7 @@ namespace Gplanchat\Durable\Laravel\Queue;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
+use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 
 /**
@@ -37,6 +38,9 @@ final class LaravelWorkflowResumeDispatcher implements WorkflowResumeDispatcher
     /** @param array<string, mixed> $payload */
     public function dispatchNewWorkflowRun(string $executionId, string $workflowType, array $payload): void
     {
+        // A caller passing `::class` gets the alias: the name the journal, the dashboard and the
+        // diagnose command all show (#258).
+        $workflowType = (new WorkflowDefinitionLoader())->aliasForTemporalInterop($workflowType);
         // The metadata first: a resume arriving before it would not know what to replay.
         $this->metadataStore->save($executionId, $workflowType, $payload);
         $this->push(new ResumeWorkflowMessage($executionId));

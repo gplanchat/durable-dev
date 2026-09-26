@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Bridge\Dbal;
 
 use Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware;
+use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\Lock\Exception\LockConflictedException;
 use Symfony\Component\Lock\Key;
 use Symfony\Component\Lock\LockFactory;
@@ -17,10 +19,15 @@ use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\HandlerFailedException;
 use Symfony\Component\Messenger\Handler\HandlersLocator;
 use Symfony\Component\Messenger\MessageBus;
+use Symfony\Component\Messenger\Middleware\DispatchAfterCurrentBusMiddleware;
 use Symfony\Component\Messenger\Middleware\HandleMessageMiddleware;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
+use Symfony\Component\Messenger\Middleware\SendMessageMiddleware;
 use Symfony\Component\Messenger\Middleware\StackInterface;
+use Symfony\Component\Messenger\Stamp\DispatchAfterCurrentBusStamp;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
+use Symfony\Component\Messenger\Transport\Sender\SendersLocator;
 
 /**
  * With no server to serialize the tasks of one execution, this lock is the only thing that keeps
@@ -117,6 +124,45 @@ final class SingleResumeLockMiddlewareTest extends TestCase
         self::assertSame(2, $nested);
         self::assertLessThan(1.0, microtime(true) - $started, 'the nested resume must not wait for the TTL');
         self::assertTrue($factory->createLock('durable-resume-exec-1')->acquire(false), 'and the lock is released after both');
+    }
+
+    public function testAResumeThatSchedulesItsOwnTimerDoesNotWaitForItsOwnLock(): void
+    {
+        // #417: one process, the stack in the bundle's order. The resume ends by scheduling its
+        // execution's next timer, as MessengerWorkflowTimerDispatcher does, and that dispatch goes
+        // through the lock while the resume still holds it. With a FlockStore it never returned.
+        $factory = self::failFastFactory();
+        $transport = new InMemoryTransport();
+        $firedTimers = 0;
+        $bus = null;
+        $bus = new MessageBus([
+            new SingleResumeLockMiddleware($factory, 2.0),
+            new DispatchAfterCurrentBusMiddleware(),
+            new SendMessageMiddleware(new SendersLocator(
+                [ResumeWorkflowMessage::class => ['durable'], FireWorkflowTimersMessage::class => ['durable']],
+                new ServiceLocator(['durable' => static fn(): InMemoryTransport => $transport]),
+            )),
+            new HandleMessageMiddleware(new HandlersLocator([
+                ResumeWorkflowMessage::class => [static function (ResumeWorkflowMessage $message) use (&$bus): void {
+                    $bus->dispatch(new Envelope(new FireWorkflowTimersMessage($message->executionId), [new DispatchAfterCurrentBusStamp()]));
+                }],
+                FireWorkflowTimersMessage::class => [static function () use (&$firedTimers): void {
+                    ++$firedTimers;
+                }],
+            ])),
+        ]);
+
+        $bus->dispatch(new ResumeWorkflowMessage('exec-1'));
+        // Drain as a worker does: each envelope comes back through the bus with its ReceivedStamp.
+        while ([] !== ($envelopes = iterator_to_array($transport->get(), false))) {
+            foreach ($envelopes as $envelope) {
+                $transport->ack($envelope);
+                $bus->dispatch($envelope->with(new ReceivedStamp('durable')));
+            }
+        }
+
+        self::assertSame(1, $firedTimers);
+        self::assertTrue($factory->createLock('durable-resume-exec-1')->acquire(false), 'the lock is released after the drain');
     }
 
     public function testAResumeHandledWithoutATransportIsStillSerialised(): void

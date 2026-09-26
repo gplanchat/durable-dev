@@ -255,6 +255,10 @@ one that works on every backend: in-memory, DBAL and Temporal alike. On Temporal
 client's `startAsync()` for you. Call `startAsync()` yourself only when you need its start options
 (timeouts, search attributes, cron): it belongs to the Temporal client and exists nowhere else.
 
+The second argument is the workflow's name: the one `#[AsWorkflow]` declares, or the class's short
+name without it. Passing `GreetWorkflow::class` works too: the dispatcher resolves it to that
+name, so the journal, the dashboard and `durable:execution:diagnose` show `greet` either way.
+
 ```php
 <?php
 

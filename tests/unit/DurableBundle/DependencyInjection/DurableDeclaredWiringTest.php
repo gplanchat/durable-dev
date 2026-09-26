@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\DurableBundle\DependencyInjection;
 
+use Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RequireLockFactoryPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\DurableExtension;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\Lock\LockFactory;
+use Symfony\Component\Lock\PersistingStoreInterface;
+use Symfony\Component\Lock\Store\StoreFactory;
 
 /**
  * What the bundle accepts while it cannot honour it.
@@ -85,6 +90,52 @@ final class DurableDeclaredWiringTest extends TestCase
     }
 
     /**
+     * `LOCK_DSN=flock` is the Symfony default, and it is per-container: two workers in two
+     * containers both hold `durable-resume-{id}` and replay the same journal at once (#259).
+     */
+    public function testAPerProcessLockStoreIsRefused(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/per-process \(`flock`\).*durable\.dbal\.allow_local_lock: true/');
+
+        (new RequireLockFactoryPass())->process($this->containerWithLockStore('flock'));
+    }
+
+    public function testASingleWorkerMayOptIntoALocalLock(): void
+    {
+        $container = $this->containerWithLockStore('semaphore');
+        $container->setParameter('durable.dbal.allow_local_lock', true);
+
+        (new RequireLockFactoryPass())->process($container);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testASharedLockStorePasses(): void
+    {
+        (new RequireLockFactoryPass())->process($this->containerWithLockStore('postgresql+advisory://app@db/app'));
+
+        $this->addToAssertionCount(1);
+    }
+
+    /**
+     * `%env(LOCK_DSN)%` is only known at runtime: the store is checked when the resume lock is built,
+     * the first time a worker takes a durable message.
+     */
+    public function testALockStoreFromAnEnvVarIsCheckedWhenTheLockIsBuilt(): void
+    {
+        $container = $this->containerWithLockStore('%env(LOCK_DSN)%');
+        $container->setParameter('env(LOCK_DSN)', 'flock');
+        $container->addCompilerPass(new RequireLockFactoryPass());
+        $container->compile(true);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/per-process \(`FlockStore`\)/');
+
+        $container->get('durable.dbal.single_resume_lock');
+    }
+
+    /**
      * The extension imports classes from both bridges. A `composer require` of the bundle alone then
      * yields a container that compiles and a "class not found" fatal at the first call.
      */
@@ -101,6 +152,26 @@ final class DurableDeclaredWiringTest extends TestCase
         foreach (['gplanchat/durable-bridge-temporal', 'gplanchat/durable-bridge-dbal'] as $bridge) {
             self::assertArrayHasKey($bridge, $suggest, $bridge . ' is hard-wired by DurableExtension');
         }
+    }
+
+    /**
+     * What FrameworkExtension registers for `framework.lock: <dsn>`.
+     */
+    private function containerWithLockStore(string $dsn): ContainerBuilder
+    {
+        $container = new ContainerBuilder();
+        $container->register('.lock.default.store', PersistingStoreInterface::class)
+            ->setFactory([StoreFactory::class, 'createStore'])
+            ->setArguments([$container->getParameterBag()->resolveValue($dsn)]);
+        $container->register('lock.factory.abstract', LockFactory::class)->setArguments([null])->setAbstract(true);
+        $container->setDefinition('lock.default.factory', new ChildDefinition('lock.factory.abstract'))
+            ->replaceArgument(0, new Reference('.lock.default.store'));
+        $container->setAlias('lock.factory', 'lock.default.factory');
+        $container->register('durable.dbal.single_resume_lock', SingleResumeLockMiddleware::class)
+            ->setArguments([new Reference('lock.factory'), 300.0])
+            ->setPublic(true);
+
+        return $container;
     }
 
     /**

@@ -256,6 +256,11 @@ la seule qui marche sur tous les backends : en mémoire, DBAL et Temporal. Sur T
 démarrage (délais, attributs de recherche, cron) : il appartient au client Temporal et n'existe
 nulle part ailleurs.
 
+Le deuxième argument est le nom du workflow : celui que déclare `#[AsWorkflow]`, ou à défaut le nom
+court de la classe. Passer `GreetWorkflow::class` marche aussi : le répartiteur le ramène à ce
+nom, et le journal, le tableau de bord et `durable:execution:diagnose` affichent `greet` dans les
+deux cas.
+
 ```php
 <?php
 
