@@ -70,6 +70,7 @@ final class AdminDashboardController
     /**
      * The former single page: `?run=` leads to that run, anything else to the list it showed.
      */
+    #[IsGranted('ROLE_ADMINISTRATION_ACCESS')]
     public function dashboard(Request $request, UrlGeneratorInterface $urls): RedirectResponse
     {
         $position = array_filter(self::listPosition($request), static fn(string $value): bool => '' !== $value);

@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Twig\Environment;
 use Twig\Loader\ArrayLoader;
 
@@ -66,6 +67,14 @@ final class TheRunHasItsOwnAddressTest extends TestCase
         $response = (new AdminDashboardController(new Environment(new ArrayLoader())))->dashboard(new Request(['status' => 'failed', 'cursor' => 'c1', 'back' => 'WyIiXQ']), $this->urls());
 
         self::assertSame('gplanchat_durable_plugin_admin_run_index?status=failed&cursor=c1&back=WyIiXQ', $response->getTargetUrl());
+    }
+
+    public function testEveryActionAsksForTheAdministrationRole(): void
+    {
+        foreach (['index', 'show', 'dashboard'] as $action) {
+            $granted = (new \ReflectionMethod(AdminDashboardController::class, $action))->getAttributes(IsGranted::class);
+            self::assertSame(['ROLE_ADMINISTRATION_ACCESS'], array_map(static fn($attribute): mixed => $attribute->getArguments()[0] ?? null, $granted), $action);
+        }
     }
 
     /**

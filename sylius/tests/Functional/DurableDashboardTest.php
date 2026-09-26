@@ -135,6 +135,19 @@ final class DurableDashboardTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    public function testARunWhoseIdHoldsASlashHasAnAddressToo(): void
+    {
+        // An execution id is any string the application chose; the route takes it whole.
+        $client = $this->authenticatedClient();
+        $this->recordFailedRun('exec-render/slash-4', 'App\\OrderWorkflow');
+
+        $list = $client->request('GET', self::ROUTE);
+        $client->click($list->filterXPath("//a[contains(@href, '/admin/durable/runs/exec-render/slash-4')]")->link());
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('exec-render/slash-4', (string) $client->getResponse()->getContent());
+    }
+
     public function testTheFormerDashboardLinkStillLeadsToTheRun(): void
     {
         $client = $this->authenticatedClient();
