@@ -106,6 +106,41 @@ your image build pays it on every branch. Prebuilt extensions are published for 
 thread-safe and non-thread-safe forms; see [gRPC in your container image](../container-images/)
 for the `COPY --from` recipes, including php-fpm, mod_php and FrankenPHP.
 
+### Register Durable's search attributes {#register-durables-search-attributes}
+
+Durable writes two search attributes on every run it starts, so the run list can filter by
+workflow name and by execution id. The server refuses a start that sets an attribute it doesn't
+know, so register both **once per namespace**, before the first workflow starts:
+
+```bash
+temporal operator search-attribute create --namespace default \
+    --name DurableWorkflowName --type Keyword \
+    --name DurableExecutionId --type Keyword
+```
+
+- Running it again is harmless. The command succeeds as long as the type is the same.
+- **Wait a few seconds before the first start.** The attributes show up in
+  `search-attribute list` right away, but for a couple of seconds a start that sets them still fails
+  with `Namespace default has no mapping defined for search attribute DurableExecutionId`. A script
+  can wait until this query stops failing:
+
+  ```bash
+  until temporal workflow list --namespace default --limit 1 \
+      --query "DurableExecutionId = 'probe'" >/dev/null 2>&1; do sleep 1; done
+  ```
+
+- On **Temporal Cloud**, add the two attributes to the namespace in the Cloud UI or with
+  `tcld namespace search-attributes add`.
+- With SQL visibility (PostgreSQL, MySQL, SQLite), custom search attributes need Server 1.20 or
+  later. A namespace holds at most 10 Keyword attributes there, and Durable uses two of them.
+- Temporal documents a limit of 255 characters per search attribute value. For `DurableWorkflowName` that counts the
+  normalized name, where a class name's `\` becomes `.` and each `.` or `%` already in an alias
+  becomes three characters. If your application supplies its own execution ids, keep them within
+  255 characters.
+
+**Runs started before this version don't carry the attributes.** They still show up in the
+unfiltered run list, but filtering by workflow name or by execution id doesn't find them.
+
 ### Docker Compose setup (local / CI)
 
 The repository includes a ready-to-use `compose.yaml` under `symfony/` that starts:
@@ -118,7 +153,8 @@ cd symfony
 docker compose up -d
 ```
 
-Wait for the stack to be healthy, then start the Symfony workers:
+The `temporal` service registers [Durable's search attributes](#register-durables-search-attributes)
+itself, and only reports healthy once a start can use them. Wait for the stack to be healthy, then start the Symfony workers:
 
 ```bash
 php bin/console messenger:consume durable_workflows --time-limit=3600

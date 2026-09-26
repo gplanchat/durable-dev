@@ -7,6 +7,7 @@ namespace Gplanchat\Bridge\Temporal\Worker;
 use Google\Protobuf\Duration;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput;
+use Gplanchat\Bridge\Temporal\DurableSearchAttributes;
 use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Activity\ActivityOptions;
@@ -23,6 +24,7 @@ use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
 use Gplanchat\Durable\Nexus\NexusService;
 use Gplanchat\Durable\Port\WorkflowCommandBufferInterface;
+use Gplanchat\Durable\SearchAttributes;
 use Gplanchat\Durable\Versioning\ChangePoint;
 use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
@@ -181,7 +183,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
             $attrs->setCronSchedule($options->cronSchedule->toExpression());
         }
         TemporalPolicyMapper::applyWorkflowTimeouts($options->timeouts, $attrs);
-        TemporalPolicyMapper::applySearchAttributes($options->searchAttributes, $attrs);
+        TemporalPolicyMapper::applySearchAttributes(DurableSearchAttributes::of($childExecutionId, $childWorkflowType, $options->searchAttributes), $attrs);
 
         // Without these two policies the server applies its defaults: the ParentClosePolicy
         // chosen by the caller was silently lost on the Temporal side.
@@ -391,6 +393,8 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $memo->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] = JsonPlainPayload::encode($this->executionId);
         $attrs->setMemo($memo);
         TemporalPolicyMapper::applyWorkflowTimeouts($options->timeouts, $attrs);
+        // The server carries no search attribute over to the next run (#558).
+        TemporalPolicyMapper::applySearchAttributes(DurableSearchAttributes::of($this->executionId, $workflowType, SearchAttributes::none()), $attrs);
 
         $cmd = new Command();
         $cmd->setCommandType(CommandType::COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION);

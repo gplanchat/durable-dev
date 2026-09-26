@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Worker;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
+use Gplanchat\Bridge\Temporal\DurableSearchAttributes;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Nexus\NexusOperationName;
@@ -13,6 +14,7 @@ use Gplanchat\Durable\Nexus\Serving\NexusHandlerErrorType;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationNotHandledException;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationResponse;
+use Gplanchat\Durable\SearchAttributes;
 use Temporal\Api\Common\V1\Callback;
 use Temporal\Api\Common\V1\Callback\Nexus as NexusCallback;
 use Temporal\Api\Common\V1\Payloads;
@@ -229,6 +231,7 @@ final readonly class TemporalNexusWorker
         $start->setRequestId(bin2hex(random_bytes(8)));
         $start->setInput((new Payloads())->setPayloads([JsonPlainPayload::encode($response->workflowInput)]));
         $start->setCompletionCallbacks([$callback]);
+        TemporalPolicyMapper::applySearchAttributes(DurableSearchAttributes::of($workflowId, (string) $response->workflowType, SearchAttributes::none()), $start);
 
         $this->nexusRpc->startWorkflowExecution($start);
 

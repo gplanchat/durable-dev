@@ -51,8 +51,12 @@ services:
       POSTGRES_SEEDS: database
     ports:
       - "${TEMPORAL_FRONTEND_PORT:-7233}:7233"
+    # Healthy means Durable can start a workflow here: the server answers, and the two search
+    # attributes Durable writes on every start are registered and usable (#558). Registering an
+    # attribute that exists with the same type is a no-op, so this runs on every check. The query
+    # fails for a couple of seconds after the first registration, until the namespace cache knows it.
     healthcheck:
-      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "temporal:7233"]
+      test: ["CMD-SHELL", "temporal operator search-attribute create --address temporal:7233 --namespace default --name DurableWorkflowName --type Keyword --name DurableExecutionId --type Keyword >/dev/null && temporal workflow list --address temporal:7233 --namespace default --limit 1 --query \"DurableExecutionId = 'probe'\" >/dev/null"]
       interval: 10s
       timeout: 10s
       retries: 6

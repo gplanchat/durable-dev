@@ -114,6 +114,44 @@ sont publiées pour PHP 8.2 à 8.5, en versions thread-safe et non thread-safe ;
 [gRPC dans votre image de conteneur](../container-images/) pour les recettes
 `COPY --from`, php-fpm, mod_php et FrankenPHP compris.
 
+### Enregistrer les attributs de recherche de Durable {#register-durables-search-attributes}
+
+Durable écrit deux attributs de recherche sur chaque exécution qu'il démarre, pour que la liste
+des exécutions puisse filtrer par nom de workflow et par identifiant d'exécution. Le serveur refuse
+un démarrage qui renseigne un attribut qu'il ne connaît pas : enregistrez-les tous les deux **une
+fois par espace de noms**, avant le premier démarrage :
+
+```bash
+temporal operator search-attribute create --namespace default \
+    --name DurableWorkflowName --type Keyword \
+    --name DurableExecutionId --type Keyword
+```
+
+- Relancer la commande ne pose aucun problème : elle réussit tant que le type ne change pas.
+- **Attendez quelques secondes avant le premier démarrage.** Les attributs apparaissent tout de
+  suite dans `search-attribute list`, mais pendant deux ou trois secondes un démarrage qui les
+  renseigne échoue encore avec `Namespace default has no mapping defined for search attribute
+  DurableExecutionId`. Un script peut attendre que cette requête cesse d'échouer :
+
+  ```bash
+  until temporal workflow list --namespace default --limit 1 \
+      --query "DurableExecutionId = 'probe'" >/dev/null 2>&1; do sleep 1; done
+  ```
+
+- Sur **Temporal Cloud**, ajoutez les deux attributs à l'espace de noms depuis l'interface Cloud ou
+  avec `tcld namespace search-attributes add`.
+- Avec une visibilité SQL (PostgreSQL, MySQL, SQLite), les attributs personnalisés demandent un
+  serveur 1.20 ou plus récent. Un espace de noms y compte au plus 10 attributs Keyword, et Durable
+  en prend deux.
+- Temporal documente une limite de 255 caractères par valeur d'attribut de recherche. Pour `DurableWorkflowName`,
+  c'est le nom normalisé qui compte : le `\` d'un nom de classe devient `.`, et chaque `.` ou `%`
+  déjà présent dans un alias en prend trois. Si votre application fournit ses propres identifiants
+  d'exécution, gardez-les sous 255 caractères.
+
+**Les exécutions démarrées avant cette version ne portent pas ces attributs.** Elles restent dans
+la liste sans filtre, mais un filtre par nom de workflow ou par identifiant d'exécution ne les
+trouve pas.
+
 ### Mise en place Docker Compose (local / intégration continue)
 
 Le dépôt fournit un `compose.yaml` prêt à l'emploi sous `symfony/`, qui démarre :
@@ -126,7 +164,9 @@ cd symfony
 docker compose up -d
 ```
 
-Attendez que la pile soit saine, puis démarrez les workers Symfony :
+Le service `temporal` enregistre lui-même [les attributs de recherche de
+Durable](#register-durables-search-attributes), et ne se déclare sain qu'une fois qu'un démarrage
+peut s'en servir. Attendez que la pile soit saine, puis démarrez les workers Symfony :
 
 ```bash
 php bin/console messenger:consume durable_workflows --time-limit=3600
