@@ -143,6 +143,10 @@ temporal operator search-attribute create --namespace default \
 - Avec une visibilité SQL (PostgreSQL, MySQL, SQLite), les attributs personnalisés demandent un
   serveur 1.20 ou plus récent. Un espace de noms y compte au plus 10 attributs Keyword, et Durable
   en prend deux.
+- Temporal documente une limite de 255 caractères par valeur d'attribut de recherche. Pour `DurableWorkflowName`,
+  c'est le nom normalisé qui compte : le `\` d'un nom de classe devient `.`, et chaque `.` ou `%`
+  déjà présent dans un alias en prend trois. Si votre application fournit ses propres identifiants
+  d'exécution, gardez-les sous 255 caractères.
 
 **Les exécutions démarrées avant cette version ne portent pas ces attributs.** Elles restent dans
 la liste sans filtre, mais un filtre par nom de workflow ou par identifiant d'exécution ne les

@@ -133,6 +133,10 @@ temporal operator search-attribute create --namespace default \
   `tcld namespace search-attributes add`.
 - With SQL visibility (PostgreSQL, MySQL, SQLite), custom search attributes need Server 1.20 or
   later. A namespace holds at most 10 Keyword attributes there, and Durable uses two of them.
+- Temporal documents a limit of 255 characters per search attribute value. For `DurableWorkflowName` that counts the
+  normalized name, where a class name's `\` becomes `.` and each `.` or `%` already in an alias
+  becomes three characters. If your application supplies its own execution ids, keep them within
+  255 characters.
 
 **Runs started before this version don't carry the attributes.** They still show up in the
 unfiltered run list, but filtering by workflow name or by execution id doesn't find them.

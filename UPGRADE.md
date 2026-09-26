@@ -52,6 +52,10 @@ command that waits for it. On Temporal Cloud, add the two attributes in the Clou
 Runs started before the upgrade don't carry the attributes. The unfiltered run list still shows
 them, but a filtered one doesn't.
 
+Temporal documents a limit of 255 characters per value. That counts the normalized workflow name, where each `.` or
+`%` in an alias becomes three characters, and the execution id. If your application supplies its
+own execution ids, keep them within that limit.
+
 ### `WorkflowRunCatalogInterface` gains `findRun()`
 
 **Who is affected**: only whoever **implements** `WorkflowRunCatalogInterface`, that is, whoever
