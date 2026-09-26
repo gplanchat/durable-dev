@@ -6,6 +6,7 @@ namespace Gplanchat\Durable\Bundle\DependencyInjection\Compiler;
 
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\PersistingStoreInterface;
@@ -125,10 +126,13 @@ final class RequireLockFactoryPass implements CompilerPassInterface
             ->setFactory([self::class, 'requireShared'])
             ->setArguments([$store])
         ;
-        $container->register('durable.dbal.lock_factory', LockFactory::class)
+        // What lock.factory.abstract carries, so resume-lock logs keep their `lock` channel.
+        $container->register('durable.dbal.checked_lock_factory', LockFactory::class)
             ->setArguments([new Reference('durable.dbal.lock_store')])
+            ->addMethodCall('setLogger', [new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE)])
+            ->addTag('monolog.logger', ['channel' => 'lock'])
         ;
-        $container->getDefinition(self::LOCK_SERVICE)->replaceArgument(0, new Reference('durable.dbal.lock_factory'));
+        $container->getDefinition(self::LOCK_SERVICE)->replaceArgument(0, new Reference('durable.dbal.checked_lock_factory'));
     }
 
     private static function localStoreMessage(string $store): string
