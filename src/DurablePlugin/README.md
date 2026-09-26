@@ -22,7 +22,7 @@
 
 ## Screenshots
 
-Taken from the Sylius bench (`sylius/` in the monorepo), on the SQL journal.
+Rendered by the Sylius bench (`sylius/` in the monorepo) on the SQL journal, over seeded runs.
 
 The runs list, with the backend state and the counters for the page:
 
@@ -32,7 +32,7 @@ A completed run: one line per action, hatched while the work waited for a worker
 
 ![Timeline of a completed order run: stock reservation, payment, a timer, then the confirmation email](docs/run.png)
 
-A failed run: what failed is painted red, and each event unfolds onto what the backend recorded:
+A failed run: what failed is painted red, and each event expands to show what the backend recorded:
 
 ![Timeline of a failed order run: the payment activity failed and the workflow failed with it](docs/run-failed.png)
 
