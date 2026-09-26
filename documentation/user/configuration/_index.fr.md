@@ -50,6 +50,9 @@ durable:
         # A temporal://… DSN (for instance %env(DURABLE_DSN)%). When set, it turns on the native Temporal backend (gRPC); over ext-grpc when it is loaded, over curl (ext-curl) otherwise; temporal+http:// for the JSON gateway. No SQL/PDO.
         dsn:                  null
 
+        # Write the DurableWorkflowName and DurableExecutionId search attributes on every start, so the run list can filter by workflow name and execution id. Register both on the namespace before turning this on: a server refuses a start that names an unregistered attribute.
+        search_attributes:    false
+
         # A service id: the application's GuzzleHttp\ClientInterface, which transport=guzzle then uses — its proxy, TLS options and middleware apply to gRPC. Unused by any other transport; null builds a default client.
         guzzle_client:        null
 
@@ -182,6 +185,7 @@ profileur Symfony fonctionne d'un processus à l'autre.
 |-----|---------|--------|-------------|
 | `dsn` | `temporal://hôte:port?…` ou `null` | `null` | Le cluster. Requis par `backend: temporal` ; avec `backend: dbal`, le cluster sert les opérations Nexus et le journal reste en SQL. Toute valeur qui n'est ni une chaîne non vide ni `null` est refusée. Le gRPC passe par `ext-grpc` quand l'extension est chargée, par curl (HTTP/2) sinon ; le schéma choisit le fil, voir plus bas. |
 | `journal` | `true` / `false` | déduit de `backend` | **Dépréciée** : `true` équivaut à `backend: temporal`, `false` avec un DSN équivaut à `backend: dbal`. |
+| `search_attributes` | `true` / `false` | `false` | Écrit `DurableWorkflowName` et `DurableExecutionId` à chaque démarrage, pour que la liste des exécutions puisse filtrer par nom de workflow et par identifiant d'exécution. [Enregistrez-les sur l'espace de noms](../backends/#register-durables-search-attributes) **avant** de l'activer. Sous Laravel, la même clé de `config/durable.php` ; sous Magento, `durable/temporal/search_attributes` dans `env.php`. |
 | `guzzle_client` | un id de service ou `null` | `null` | Le `GuzzleHttp\ClientInterface` de l'application, utilisé par `transport=guzzle` dans le DSN : son proxy, ses options TLS et ses middlewares s'appliquent au gRPC. Ignoré par tout autre transport ; `null` construit un client par défaut. Sous Laravel, la même clé de `config/durable.php` nomme une liaison du conteneur ; sous Magento, c'est l'argument `guzzle` de `RuntimeFactory` dans `di.xml`. |
 | `psr18_client` | un id de service ou `null` | `null` | Le client PSR-18 de l'application, utilisé par `transport=http` (la passerelle JSON) à la place de curl. Ignoré par tout autre transport. |
 | `psr17_factory` | un id de service ou `null` | `psr18_client` | Un service qui implémente à la fois les factories PSR-17 de requêtes et de flux — le `HttpFactory` de Guzzle, le `Psr17Factory` de nyholm. Le `Psr18Client` de Symfony est à la fois client et factory, d'où la valeur par défaut. Sous Laravel, les deux clés de `config/durable.php` nomment des liaisons du conteneur ; sous Magento, un `Psr18Http` est l'argument `jsonGateway` de `RuntimeFactory` dans `di.xml`. |
