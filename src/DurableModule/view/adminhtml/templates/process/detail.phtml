@@ -25,7 +25,10 @@ $timeline = $block->getTimeline();
             <span class="title"><?= $escaper->escapeHtml($run->workflowName) ?></span>
         </div>
         <table class="admin__table-secondary">
-            <tr><th><?= $escaper->escapeHtml(__('Run')) ?></th><td><?= $escaper->escapeHtml($run->runId) ?></td></tr>
+            <tr><th><?= $escaper->escapeHtml(__('Run')) ?></th><td><?= $escaper->escapeHtml($run->executionId) ?></td></tr>
+            <?php if ($run->runId !== $run->executionId): /* Temporal's own id for this run (#514). */ ?>
+                <tr><th><?= $escaper->escapeHtml(__('Backend run')) ?></th><td><?= $escaper->escapeHtml($run->runId) ?></td></tr>
+            <?php endif; ?>
             <tr><th><?= $escaper->escapeHtml(__('Status')) ?></th><td><?= $escaper->escapeHtml($run->status->value) ?></td></tr>
             <tr><th><?= $escaper->escapeHtml(__('Started')) ?></th><td><?= $escaper->escapeHtml($block->formatMoment($run->startedAt)) ?></td></tr>
             <tr><th><?= $escaper->escapeHtml(__('Ended')) ?></th><td><?= $escaper->escapeHtml($block->formatMoment($run->endedAt)) ?></td></tr>
