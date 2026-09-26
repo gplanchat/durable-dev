@@ -68,6 +68,8 @@ return [
         // The bench has no cluster of its own: the demonstration's one comes in through the
         // environment, as the two other mockups do for theirs.
         'dsn' => env('DURABLE_DSN'),
+        // bin/demo-nexus registers them on the namespace this bench uses.
+        'search_attributes' => true,
     ],
 
     'tables' => [

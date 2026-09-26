@@ -62,6 +62,10 @@ return [
      */
     'temporal' => [
         'dsn' => null,
+        // Write the DurableWorkflowName and DurableExecutionId search attributes on every start,
+        // so the run list can filter by workflow name and execution id. Register both on the
+        // namespace first: a server refuses a start that names an unregistered attribute.
+        'search_attributes' => false,
         // A container binding: the application's GuzzleHttp\ClientInterface, which
         // `transport=guzzle` in the DSN then uses — its proxy, TLS options and middleware apply to
         // gRPC. Unused by any other transport; null builds a default client.
