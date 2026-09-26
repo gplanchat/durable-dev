@@ -20,6 +20,22 @@
 - Backend-neutral: reads whichever catalog the bundle registers — Temporal, SQL, or in-memory.
 - Action labels prioritise human-readable names and fall back to technical IDs only when needed.
 
+## Screenshots
+
+Rendered by the Sylius bench (`sylius/` in the monorepo) on the SQL journal, over seeded runs.
+
+The runs list, with the backend state and the counters for the page:
+
+![The Durable dashboard in the Sylius admin: backend state, counters per outcome, and the runs list](docs/dashboard.png)
+
+A completed run: one line per action, hatched while the work waited for a worker to pick it up:
+
+![Timeline of a completed order run: stock reservation, payment, a timer, then the confirmation email](docs/run.png)
+
+A failed run: what failed is painted red, and each event expands to show what the backend recorded:
+
+![Timeline of a failed order run: the payment activity failed and the workflow failed with it](docs/run-failed.png)
+
 ## The panels, and why they are the same everywhere
 
 Every Durable dashboard shows the same four panels, whichever host renders them. They are not a
