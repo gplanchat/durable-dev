@@ -10,6 +10,7 @@ use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
@@ -17,8 +18,10 @@ use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunPage;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
+use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
 use Temporal\Api\Workflow\V1\WorkflowExecutionInfo;
+use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsRequest;
 
 /**
@@ -36,6 +39,8 @@ use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsRequest;
 final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
 {
     private const BACKEND = 'Temporal';
+
+    private const GRPC_NOT_FOUND = 5;
 
     public function __construct(
         private readonly WorkflowServiceClientInterface $client,
@@ -82,28 +87,27 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
     }
 
     /**
-     * One visibility query on the run id: `DescribeWorkflowExecution` would need the workflow id,
-     * which a run page does not have. The id comes from a URL and the server's run ids are UUIDs,
-     * so anything else is an unknown run and never reaches the query. The id is the server's run
-     * id, not the Durable execution id, until #514 settles which id names a run.
+     * One `DescribeWorkflowExecution` on the workflow id Durable derives from the execution id,
+     * without a run id: the current run of the chain (#514). An execution the server does not know
+     * is not found; any other failure is not passed off as one.
      */
     public function findRun(string $executionId): ?WorkflowRunDescription
     {
-        if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $executionId)) {
-            return null;
-        }
-
-        $request = new ListWorkflowExecutionsRequest();
+        $request = new DescribeWorkflowExecutionRequest();
         $request->setNamespace($this->connection->namespace->name());
-        $request->setPageSize(1);
-        $request->setQuery(\sprintf('RunId = "%s"', $executionId));
+        $request->setExecution(new WorkflowExecution(['workflow_id' => WorkflowClient::workflowIdOf($executionId)]));
 
-        $response = $this->client->ListWorkflowExecutions($request, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
-        foreach ($response->getExecutions() as $info) {
-            return self::describe($info);
+        try {
+            $info = $this->client->DescribeWorkflowExecution($request, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US])->getWorkflowExecutionInfo();
+        } catch (\RuntimeException $failure) {
+            if (self::GRPC_NOT_FOUND === $failure->getCode()) {
+                return null;
+            }
+
+            throw $failure;
         }
 
-        return null;
+        return null === $info ? null : self::describe($info);
     }
 
     /**

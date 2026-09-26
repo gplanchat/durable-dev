@@ -18,6 +18,8 @@ use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
 use Temporal\Api\Workflow\V1\WorkflowExecutionInfo;
+use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionRequest;
+use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionResponse;
 use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsRequest;
 use Temporal\Api\Workflowservice\V1\ListWorkflowExecutionsResponse;
 
@@ -215,40 +217,49 @@ final class TemporalWorkflowRunCatalogTest extends TestCase
         }
     }
 
-    public function testARunIsFoundByItsRunIdInOneVisibilityQuery(): void
+    /**
+     * #514: one `DescribeWorkflowExecution` on the workflow id Durable derives from the execution id,
+     * with no run id, so the current run of the chain. No visibility query: the id is not a string
+     * that goes into one.
+     */
+    public function testARunIsFoundByItsExecutionIdThroughItsWorkflowId(): void
     {
         $requests = [];
         $client = $this->createMock(WorkflowServiceClientInterface::class);
-        $client->method('ListWorkflowExecutions')->willReturnCallback(function (ListWorkflowExecutionsRequest $request) use (&$requests): ListWorkflowExecutionsResponse {
+        $client->expects(self::never())->method('ListWorkflowExecutions');
+        $client->method('DescribeWorkflowExecution')->willReturnCallback(function (DescribeWorkflowExecutionRequest $request) use (&$requests): DescribeWorkflowExecutionResponse {
             $requests[] = $request;
 
-            return $this->responseWith($this->info('wf-1', self::RUN_ID, 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING, 1_700_000_200));
+            return new DescribeWorkflowExecutionResponse(['workflow_execution_info' => $this->withExecutionId(
+                $this->info('durable-order-42', self::RUN_ID, 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING, 1_700_000_200),
+                'order/42',
+            )]);
         });
 
-        $run = (new TemporalWorkflowRunCatalog($client, $this->connection()))->findRun(self::RUN_ID);
+        $run = (new TemporalWorkflowRunCatalog($client, $this->connection()))->findRun('order/42');
 
-        self::assertSame(self::RUN_ID, $run?->runId);
-        self::assertSame('wf-1', $run->groupId);
-        self::assertCount(1, $requests);
-        self::assertSame(\sprintf('RunId = "%s"', self::RUN_ID), $requests[0]->getQuery());
-        self::assertSame(1, $requests[0]->getPageSize());
+        self::assertSame('order/42', $run?->executionId);
+        self::assertSame(self::RUN_ID, $run->runId);
+        self::assertSame('durable-order-42', $requests[0]->getExecution()?->getWorkflowId());
+        self::assertSame('', $requests[0]->getExecution()->getRunId(), 'the current run of the chain');
     }
 
-    public function testNoRunIsFoundWhenTheServerListsNone(): void
-    {
-        self::assertNull($this->catalog($this->responseWith())->findRun(self::RUN_ID));
-    }
-
-    /**
-     * The id comes from a URL. Temporal's run ids are UUIDs, so anything else is an unknown run and
-     * never reaches the visibility query.
-     */
-    public function testAnIdThatIsNotARunIdIsNotSentToTheServer(): void
+    public function testAnExecutionTheServerDoesNotKnowIsNotFound(): void
     {
         $client = $this->createMock(WorkflowServiceClientInterface::class);
-        $client->expects(self::never())->method('ListWorkflowExecutions');
+        $client->method('DescribeWorkflowExecution')->willThrowException(new \RuntimeException('workflow not found', 5));
 
-        self::assertNull((new TemporalWorkflowRunCatalog($client, $this->connection()))->findRun('x" OR RunId != "'));
+        self::assertNull((new TemporalWorkflowRunCatalog($client, $this->connection()))->findRun('order/nobody'));
+    }
+
+    public function testAnotherFailureIsNotPassedOffAsAnUnknownRun(): void
+    {
+        $client = $this->createMock(WorkflowServiceClientInterface::class);
+        $client->method('DescribeWorkflowExecution')->willThrowException(new \RuntimeException('unavailable', 14));
+
+        $this->expectExceptionCode(14);
+
+        (new TemporalWorkflowRunCatalog($client, $this->connection()))->findRun('order/42');
     }
 
     private function filterQuery(WorkflowRunStatus $status): string
@@ -283,6 +294,15 @@ final class TemporalWorkflowRunCatalogTest extends TestCase
         $info->setTaskQueue($taskQueue);
         $info->setStatus($status);
         $info->setStartTime($start);
+
+        return $info;
+    }
+
+    private function withExecutionId(WorkflowExecutionInfo $info, string $executionId): WorkflowExecutionInfo
+    {
+        $memo = new Memo();
+        $memo->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] = JsonPlainPayload::encode($executionId);
+        $info->setMemo($memo);
 
         return $info;
     }
