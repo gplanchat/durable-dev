@@ -169,6 +169,58 @@ final class RunDashboardTest extends TestCase
         self::assertSame(['SendWelcomeEmail'], self::labels($view, 1));
     }
 
+    /**
+     * A list page pays for no history nobody asked for (#264): `build()` reads the fallback run's.
+     */
+    public function testAListingReadsNoHistory(): void
+    {
+        $catalog = new FakeRunCatalog([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)], [], 'next-token');
+
+        $view = (new RunDashboard($catalog))->listing('running', 'current-token');
+
+        self::assertSame(0, $catalog->historyReads);
+        self::assertArrayNotHasKey('selectedRun', $view);
+        self::assertSame(['run-1'], array_column($view['runs'], 'runId'));
+        self::assertSame(WorkflowRunStatus::Running, $catalog->askedStatus);
+        self::assertSame('next-token', $view['pagination']['nextCursor']);
+    }
+
+    public function testARunIsReadByItsIdWithItsTimeline(): void
+    {
+        $catalog = new FakeRunCatalog(
+            [$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running), $this->describedRun('run-2', 'App\\ReportWorkflow', WorkflowRunStatus::Completed)],
+            [new WorkflowRunEvent(1, new \DateTimeImmutable('@1700000000'), WorkflowRunEventKind::Activity, 'SendWelcomeEmail')],
+        );
+
+        $view = (new RunDashboard($catalog))->run('run-2');
+
+        self::assertTrue($view['backend']['available']);
+        self::assertSame('run-2', $view['run']['runId'] ?? null);
+        self::assertSame('completed', $view['run']['status']);
+        self::assertArrayHasKey('timeline', $view['run']);
+        self::assertSame(0, $catalog->listings, 'a run is found, not paged to');
+    }
+
+    public function testAnUnknownRunIsNoRunOnAnAnsweringBackend(): void
+    {
+        $view = $this->viewOver([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)])->run('run-nobody');
+
+        self::assertTrue($view['backend']['available'], 'only here is an unknown id a not-found');
+        self::assertNull($view['run']);
+    }
+
+    /**
+     * A mute database is not a run that does not exist: the page says the backend is down.
+     */
+    public function testAMuteBackendIsNotAnUnknownRun(): void
+    {
+        $catalog = new FakeRunCatalog([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)], [], null, reachable: false);
+
+        self::assertFalse((new RunDashboard($catalog))->run('run-1')['backend']['available']);
+        self::assertSame(0, $catalog->finds, 'a backend that does not answer is not asked');
+        self::assertFalse((new RunDashboard(null))->run('run-1')['backend']['available']);
+    }
+
     public function testANexusOperationGetsItsOwnLineAndSaysWhereTheWaitHappens(): void
     {
         // A Nexus operation is the only point in an execution where the wait is served **elsewhere**.
@@ -340,6 +392,9 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
 {
     public ?WorkflowRunStatus $askedStatus = null;
     public ?string $askedCursor = null;
+    public int $historyReads = 0;
+    public int $listings = 0;
+    public int $finds = 0;
 
     /**
      * @param list<WorkflowRunDescription> $runs
@@ -367,6 +422,7 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20): WorkflowRunPage
     {
+        ++$this->listings;
         $this->askedStatus = $status;
         $this->askedCursor = $cursor;
 
@@ -375,11 +431,15 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
 
     public function findRun(string $runId): ?WorkflowRunDescription
     {
+        ++$this->finds;
+
         return array_values(array_filter($this->runs, static fn(WorkflowRunDescription $run): bool => $run->runId === $runId))[0] ?? null;
     }
 
     public function readHistory(WorkflowRunDescription $run): array
     {
+        ++$this->historyReads;
+
         return $this->history;
     }
 }
