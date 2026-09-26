@@ -31,6 +31,7 @@ use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
 use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\RecordedDetails;
+use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Symfony\Component\HttpFoundation\Request;
@@ -68,6 +69,9 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         private readonly WorkflowMetadataStore $metadataStore,
         private readonly EventStoreInterface $eventStore,
         private readonly PayloadRedactorInterface $redactor = new KeyPatternPayloadRedactor(),
+        // Where the panel reads what a suspended run waits on (#324), by the run's id; none when
+        // no backend is readable.
+        private readonly ?WorkflowRunCatalogInterface $runCatalog = null,
     ) {}
 
     #[\Override]
@@ -206,6 +210,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                 'payloadSummary' => $this->summarizePayload($payload),
                 'executionStatus' => $statusCode,
                 'executionStatusLabel' => $this->executionStatusLabel($statusCode),
+                'waitingOn' => $this->runCatalog?->findRun($eid)?->waitingOn,
                 'storeEventCount' => max($storeCountFromIndex, $storeCountLive),
                 'storeTruncated' => $storeTl['truncated'] ?? false,
                 'processTraceCount' => \count($processTf['segments']),

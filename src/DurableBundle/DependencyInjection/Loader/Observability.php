@@ -11,10 +11,12 @@ use Gplanchat\Durable\Bundle\Messenger\WorkflowRunDispatchProfilerMiddleware;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
 use Gplanchat\Durable\Debug\NullWorkflowExecutionObserver;
 use Gplanchat\Durable\Observation\PayloadRedactorInterface;
+use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Reference;
 
 /**
@@ -68,6 +70,7 @@ final class Observability
                 new Reference(WorkflowMetadataStore::class),
                 new Reference(EventStoreInterface::class),
                 new Reference(PayloadRedactorInterface::class),
+                new Reference(WorkflowRunCatalogInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE),
             ])
             ->setPublic(false)
             ->addTag('data_collector', [
