@@ -27,6 +27,7 @@
             <trans-unit id="details.run"><source>details.run</source><target>Run:</target></trans-unit>
             <trans-unit id="details.outcome"><source>details.outcome</source><target>Outcome:</target></trans-unit>
             <trans-unit id="details.no_history"><source>details.no_history</source><target>No recorded history for this run.</target></trans-unit>
+            <trans-unit id="details.back_to_list"><source>details.back_to_list</source><target>Back to the runs</target></trans-unit>
             <trans-unit id="details.select"><source>details.select</source><target>Select a run in the list to inspect its recorded history.</target></trans-unit>
             <trans-unit id="frieze.key_waiting"><source>frieze.key_waiting</source><target>Hatched: waiting to be picked up — the work had been asked for, but nobody had started it yet.</target></trans-unit>
             <trans-unit id="frieze.key_failed"><source>frieze.key_failed</source><target>Red: what failed. A cancellation is not painted red — it is an outcome, not a breakdown.</target></trans-unit>

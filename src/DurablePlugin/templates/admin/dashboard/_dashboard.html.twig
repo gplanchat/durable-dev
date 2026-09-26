@@ -71,7 +71,7 @@
                     {% endif %}
                 </div>
 
-                {% if backend.available %}
+                {% if backend.available and runs is defined %}
                     {# The scope is stated, and the scope is the point: a "Total" heading with twenty
                        under it teaches the operator that an application which recorded five hundred
                        runs has twenty. These counters cover the page on screen, because that is what
@@ -111,7 +111,7 @@
 
                     <div class="card">
                         <div class="card-body">
-                            <form class="row g-2 align-items-end" method="get" action="{{ path('gplanchat_durable_plugin_admin_dashboard') }}">
+                            <form class="row g-2 align-items-end" method="get" action="{{ path('gplanchat_durable_plugin_admin_run_index') }}">
                                 <div class="col-md-9">
                                     <label for="status" class="form-label">{{ 'filter.outcome'|trans({}, 'durable') }}</label>
                                     <select id="status" class="form-select" name="status">
@@ -127,8 +127,14 @@
                         </div>
                     </div>
 
+                {% endif %}
+
+                {% if backend.available %}
+                    {# The list page carries `runs`, the run page `selectedRun`; the single page
+                       `RunDashboard::build()` serves carries both, side by side (#264). #}
                     <div class="row g-3">
-                        <div class="col-xl-4">
+                        {% if runs is defined %}
+                        <div class="{{ selectedRun is defined ? 'col-xl-4' : 'col-12' }}">
                             <div class="card">
                                 <div class="card-header"><h3 class="card-title">{{ 'runs.title'|trans({}, 'durable') }}</h3></div>
                                 <div class="card-body">
@@ -136,8 +142,8 @@
                                         <p class="text-secondary mb-0">{{ 'runs.empty'|trans({}, 'durable') }}</p>
                                     {% else %}
                                         {% for run in runs %}
-                                            <a class="durable-run-row {% if selectedRun and selectedRun.runId == run.runId %}active{% endif %}"
-                                               href="{{ path('gplanchat_durable_plugin_admin_dashboard', { status: status, run: run.runId, cursor: pagination.cursor, back: pagination.back|default('') }) }}">
+                                            <a class="durable-run-row {% if selectedRun|default(null) and selectedRun.runId == run.runId %}active{% endif %}"
+                                               href="{{ path('gplanchat_durable_plugin_admin_run_show', { runId: run.runId, status: status, cursor: pagination.cursor, back: pagination.back|default('') }) }}">
                                                 <div class="d-flex justify-content-between align-items-center gap-2">
                                                     <strong>{{ run.workflowName }}</strong>
                                                     <span class="badge durable-status {% if run.status == 'running' %}bg-blue-lt text-blue{% elseif run.status == 'completed' %}bg-green-lt text-green{% elseif run.status == 'failed' %}bg-red-lt text-red{% else %}bg-secondary-lt text-secondary{% endif %}">{{ ('status.' ~ run.status)|trans({}, 'durable')|upper }}</span>
@@ -160,10 +166,10 @@
                                     {% if previous or pagination.hasNext %}
                                         <div class="mt-3 d-flex gap-2">
                                             {% if previous %}
-                                                <a class="btn btn-outline-secondary btn-sm" href="{{ path('gplanchat_durable_plugin_admin_dashboard', { status: status, cursor: previous.cursor, back: previous.back }) }}">{{ 'pagination.previous'|trans({}, 'durable') }}</a>
+                                                <a class="btn btn-outline-secondary btn-sm" href="{{ path('gplanchat_durable_plugin_admin_run_index', { status: status, cursor: previous.cursor, back: previous.back }) }}">{{ 'pagination.previous'|trans({}, 'durable') }}</a>
                                             {% endif %}
                                             {% if pagination.hasNext %}
-                                                <a class="btn btn-outline-primary btn-sm" href="{{ path('gplanchat_durable_plugin_admin_dashboard', { status: status, cursor: pagination.nextCursor, back: pagination.nextBack|default('') }) }}">{{ 'pagination.next'|trans({}, 'durable') }}</a>
+                                                <a class="btn btn-outline-primary btn-sm" href="{{ path('gplanchat_durable_plugin_admin_run_index', { status: status, cursor: pagination.nextCursor, back: pagination.nextBack|default('') }) }}">{{ 'pagination.next'|trans({}, 'durable') }}</a>
                                             {% endif %}
                                         </div>
                                     {% endif %}
@@ -171,7 +177,13 @@
                             </div>
                         </div>
 
-                        <div class="col-xl-8">
+                        {% endif %}
+
+                        {% if selectedRun is defined %}
+                        <div class="{{ runs is defined ? 'col-xl-8' : 'col-12' }}">
+                            {% if list is defined %}
+                                <a class="btn btn-outline-secondary btn-sm mb-3" href="{{ path('gplanchat_durable_plugin_admin_run_index', list|filter(v => v != '')) }}">{{ 'details.back_to_list'|trans({}, 'durable') }}</a>
+                            {% endif %}
                             <div class="card">
                                 <div class="card-header"><h3 class="card-title">{{ 'details.title'|trans({}, 'durable') }}</h3></div>
                                 <div class="card-body">
@@ -268,6 +280,7 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>

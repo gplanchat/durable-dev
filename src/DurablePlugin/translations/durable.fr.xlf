@@ -27,6 +27,7 @@
             <trans-unit id="details.run"><source>details.run</source><target>Exécution :</target></trans-unit>
             <trans-unit id="details.outcome"><source>details.outcome</source><target>Issue :</target></trans-unit>
             <trans-unit id="details.no_history"><source>details.no_history</source><target>Aucun historique enregistré pour cette exécution.</target></trans-unit>
+            <trans-unit id="details.back_to_list"><source>details.back_to_list</source><target>Retour aux exécutions</target></trans-unit>
             <trans-unit id="details.select"><source>details.select</source><target>Choisissez une exécution dans la liste pour lire son historique enregistré.</target></trans-unit>
             <trans-unit id="frieze.key_waiting"><source>frieze.key_waiting</source><target>Hachuré : en attente d'être pris en charge. Le travail avait été demandé, mais personne ne l'avait encore commencé.</target></trans-unit>
             <trans-unit id="frieze.key_failed"><source>frieze.key_failed</source><target>Rouge : ce qui a échoué. Une annulation n'est pas peinte en rouge : c'est une issue, pas une panne.</target></trans-unit>

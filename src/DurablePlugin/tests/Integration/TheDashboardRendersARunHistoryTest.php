@@ -107,6 +107,37 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertStringContainsString('SendWelcomeEmail', $page);
     }
 
+    /**
+     * #264: the list is a page of its own, full width, and each run links to its own address.
+     */
+    public function testTheListPageIsTheListAloneAndLinksEachRunToItsAddress(): void
+    {
+        $model = (new RunDashboard(new RenderingCatalog()))->listing();
+        $model['pagination']['previous'] = null;
+
+        $page = $this->twig()->render('@DurablePlugin/admin/dashboard/_dashboard.html.twig', $model);
+
+        self::assertStringContainsString('<div class="col-12">', $page);
+        self::assertStringContainsString('href="/gplanchat_durable_plugin_admin_run_show?runId=run-1&amp;status=all', $page);
+        self::assertStringNotContainsString('Run details', $page);
+    }
+
+    public function testTheRunPageIsTheRunAloneWithAWayBackToItsList(): void
+    {
+        $model = (new RunDashboard(new RenderingCatalog()))->run('run-1');
+
+        $page = $this->twig()->render('@DurablePlugin/admin/dashboard/_dashboard.html.twig', [
+            'backend' => $model['backend'],
+            'selectedRun' => $model['run'],
+            'list' => ['status' => 'failed', 'cursor' => '', 'back' => ''],
+        ]);
+
+        self::assertStringContainsString('SendWelcomeEmail', $page);
+        self::assertStringContainsString('href="/gplanchat_durable_plugin_admin_run_index?status=failed">Back to the runs</a>', $page);
+        self::assertStringNotContainsString('On this page', $page, 'no counters: they count a list');
+        self::assertStringNotContainsString('>Runs<', $page);
+    }
+
     public function testAPageAfterTheFirstLeadsBack(): void
     {
         // #383: the controller hands the way back; the page must offer it, stack included.
@@ -292,7 +323,7 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         ]);
 
         $twig = new Environment(new ChainLoader([$plugin, $sylius]), ['strict_variables' => true]);
-        $twig->addFunction(new TwigFunction('path', static fn(string $route, array $parameters = []): string => '/admin/durable/dashboard?' . http_build_query($parameters)));
+        $twig->addFunction(new TwigFunction('path', static fn(string $route, array $parameters = []): string => '/' . $route . '?' . http_build_query($parameters)));
 
         $translator = new Translator($locale);
         $translator->addLoader('xlf', new XliffFileLoader());
