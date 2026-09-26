@@ -8,4 +8,4 @@
   `src/DurableBundle/Messenger/MessengerWorkflowResumeDispatcher.php`,
   `src/DurableLaravel/Queue/LaravelWorkflowResumeDispatcher.php`, their tests.
 - **Not in scope**: a new `WorkflowClient` service; `dispatchNewWorkflowRun()` stays the entry point.
-- **State**: taken — emma.
+- **State**: in review, PR #549 — emma. Reviewer: elsa.
