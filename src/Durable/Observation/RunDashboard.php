@@ -50,7 +50,7 @@ final class RunDashboard
      *   runs: list<array<string, mixed>>,
      *   kpis: array<string, int>,
      *   waitingForWorkerOnThisPage?: int,
-     *   pagination: array{cursor: string|null, nextCursor: string|null, hasNext: bool},
+     *   pagination: array{cursor: string|null, nextCursor: string|null, hasNext: bool, previousCursor: string|null, hasPrevious: bool},
      *   status: string,
      *   selectedRun: array<string, mixed>|null
      * }
@@ -73,7 +73,7 @@ final class RunDashboard
      *   runs: list<array<string, mixed>>,
      *   kpis: array<string, int>,
      *   waitingForWorkerOnThisPage?: int,
-     *   pagination: array{cursor: string|null, nextCursor: string|null, hasNext: bool},
+     *   pagination: array{cursor: string|null, nextCursor: string|null, hasNext: bool, previousCursor: string|null, hasPrevious: bool},
      *   status: string
      * }
      */
@@ -101,7 +101,7 @@ final class RunDashboard
     }
 
     /**
-     * @return array{0: array{backend: array<string, mixed>, runs: list<array<string, mixed>>, kpis: array<string, int>, waitingForWorkerOnThisPage?: int, pagination: array{cursor: string|null, nextCursor: string|null, hasNext: bool}, status: string}, 1: WorkflowRunPage, 2: WorkflowRunCatalogInterface|null}
+     * @return array{0: array{backend: array<string, mixed>, runs: list<array<string, mixed>>, kpis: array<string, int>, waitingForWorkerOnThisPage?: int, pagination: array{cursor: string|null, nextCursor: string|null, hasNext: bool, previousCursor: string|null, hasPrevious: bool}, status: string}, 1: WorkflowRunPage, 2: WorkflowRunCatalogInterface|null}
      */
     private function page(string $status, ?string $cursor): array
     {
@@ -119,6 +119,9 @@ final class RunDashboard
                 'cursor' => $cursor,
                 'nextCursor' => $page->nextCursor,
                 'hasNext' => null !== $page->nextCursor,
+                // The catalog's way back (#383), `null` on the first page.
+                'previousCursor' => $page->previousCursor,
+                'hasPrevious' => null !== $page->previousCursor,
             ],
             'status' => $status,
         ] + ($page->tellsWaitingForWorker ? [

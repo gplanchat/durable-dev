@@ -24,6 +24,36 @@ only what Rector can do without guessing; everything else is written by hand bel
 
 ## Unreleased
 
+### `WorkflowRunPage` gains `previousCursor`: a run listing leads back as well as on
+
+**Who is affected**: only whoever **implements** `WorkflowRunCatalogInterface`. Code that reads
+pages keeps working, and can now offer a previous-page link from `$page->previousCursor`.
+
+**Why.** A listing's previous page is the catalog's to give (#383), not every surface's to rebuild.
+No catalog can page backwards (Temporal's visibility only pages forward), so the cursor carries the
+cursors that led to its page, and "previous" lists the page before again from the cursor that
+produced it.
+
+**What to write.** Wrap your listing with `RunCursorStack`: open the cursor you are given, list
+from the catalog's own cursor it returns, and hand your page back through `RunCursorStack::page()`.
+
+```php
+use Gplanchat\Durable\Observation\RunCursorStack;
+
+public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?WorkflowRunFilter $filter = null): WorkflowRunPage
+{
+    [$cursor, $behind] = RunCursorStack::open($cursor);
+    // … list from $cursor, your own cursor, exactly as before …
+
+    return RunCursorStack::page(new WorkflowRunPage($runs, $yourNextCursor), $cursor, $behind);
+}
+```
+
+The stack is capped at 50 pages, after which "previous" leads back to the first page.
+`WorkflowRunCatalogConformanceTestCase` checks that the first page has no `previousCursor` and that
+the previous page of the next one is the page you started from, with the same filters. A cursor
+handed out before this version still lists its page, with no way back.
+
 ### Magento reads the cluster's history through; `TemporalJournalEventStore` is gone (#356, #372)
 
 **Who is affected**: a Magento store with `durable/temporal/dsn` set, and code that built

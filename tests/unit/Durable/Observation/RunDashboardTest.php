@@ -114,6 +114,18 @@ final class RunDashboardTest extends TestCase
         self::assertSame('next-token', $view['pagination']['nextCursor']);
     }
 
+    public function testThePageCarriesTheCatalogsWayBack(): void
+    {
+        // #383: the previous page is the catalog's to give, from the cursor it handed out.
+        $catalog = new FakeRunCatalog([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Failed)], [], 'next-token', previousCursor: 'previous-token');
+
+        $view = (new RunDashboard($catalog))->listing('all', 'current-token');
+
+        self::assertSame('previous-token', $view['pagination']['previousCursor']);
+        self::assertTrue($view['pagination']['hasPrevious']);
+        self::assertFalse((new RunDashboard(new FakeRunCatalog()))->listing()['pagination']['hasPrevious'], 'the first page has no way back');
+    }
+
     public function testAnUnknownStatusFilterIsIgnoredRatherThanRefused(): void
     {
         $catalog = new FakeRunCatalog([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)]);
@@ -423,6 +435,7 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
         private readonly bool $reachable = true,
         private readonly bool $ephemeral = false,
         private readonly bool $tellsWaitingForWorker = false,
+        private readonly ?string $previousCursor = null,
     ) {}
 
     public function checkHealth(): BackendHealth
@@ -447,7 +460,7 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
         $this->askedStatus = $status;
         $this->askedCursor = $cursor;
 
-        return new WorkflowRunPage($this->runs, $this->nextCursor, $this->tellsWaitingForWorker);
+        return new WorkflowRunPage($this->runs, $this->nextCursor, $this->tellsWaitingForWorker, $this->previousCursor);
     }
 
     public function findRun(string $executionId): ?WorkflowRunDescription
