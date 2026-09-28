@@ -207,6 +207,8 @@ if ('/discover' === $path) {   // the public spec says /discovery; server 1.7.12
             ['name' => 'approve', 'ty' => 'SHARED'],
         ]], ['name' => 'Cancel', 'ty' => 'WORKFLOW', 'handlers' => [
             ['name' => 'run', 'ty' => 'WORKFLOW'],
+        ]], ['name' => 'Size', 'ty' => 'WORKFLOW', 'handlers' => [
+            ['name' => 'run', 'ty' => 'WORKFLOW'],
         ]], ['name' => 'Retry', 'ty' => 'WORKFLOW', 'handlers' => [
             ['name' => 'run', 'ty' => 'WORKFLOW'],
         ]], ['name' => 'Act', 'ty' => 'SERVICE', 'handlers' => [
@@ -256,6 +258,16 @@ $handler = match ($path) {
             throw $cancelled;
         }
     },
+    // Scenario 3 (#641): N steps, each a 1 KB activity result then a suspension; size.log gets the
+    // request size and the PHP time of every round trip.
+    '/invoke/Size/run' => static function (Invocation $ctx): string {
+        for ($step = 1, $steps = (int) json_decode($ctx->input); $step <= $steps; ++$step) {
+            $ctx->run("step-$step", static fn (): string => json_encode(str_repeat('x', 1024)));
+            $ctx->sleep(0);
+        }
+
+        return (string) $steps;
+    },
     // Scenario 2 (#641): does a failed attempt reach the caller after one attempt, and does a PHP
     // process killed mid-activity reach it as a failure?
     '/invoke/Retry/run' => static function (Invocation $ctx): string {
@@ -296,11 +308,15 @@ if (null === $handler) {
 }
 
 header('Content-Type: application/vnd.restate.invocation.v'.PROTOCOL);
-$ctx = new Invocation(file_get_contents('php://input'));
+$startedAt = hrtime(true);
+$ctx = new Invocation($body = file_get_contents('php://input'));
 try {
     echo $ctx->end($handler($ctx));
 } catch (Suspend) {
     echo $ctx->suspended();
+    if ('/invoke/Size/run' === $path) {
+        file_put_contents(__DIR__.'/var/size.log', sprintf("%d %.3f\n", \strlen($body), (hrtime(true) - $startedAt) / 1e6), \FILE_APPEND);
+    }
 } catch (Transient $e) {
     echo $ctx->error($e->getMessage());
 } catch (Cancelled) {
