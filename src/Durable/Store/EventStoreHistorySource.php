@@ -29,6 +29,7 @@ use Gplanchat\Durable\Exception\DurableCatastrophicActivityFailureException;
 use Gplanchat\Durable\Exception\DurableChildWorkflowFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Failure\ActivityRetryState;
+use Gplanchat\Durable\Port\History\SlotOutcome;
 use Gplanchat\Durable\Port\History\TimerOutcome;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 
@@ -71,7 +72,7 @@ final class EventStoreHistorySource implements WorkflowHistorySourceInterface
         return $this->events ??= iterator_to_array($this->eventStore->readStream($this->executionId), false);
     }
 
-    public function findActivitySlotResult(int $slot): ?array
+    public function findActivitySlotResult(int $slot): ?SlotOutcome
     {
         $scheduledIds = [];
         $completedResults = [];
@@ -107,23 +108,20 @@ final class EventStoreHistorySource implements WorkflowHistorySourceInterface
         }
 
         if (isset($catastrophicByActivityId[$activityId])) {
-            return ['result' => null, 'failed' => $catastrophicByActivityId[$activityId]];
+            return new SlotOutcome(failed: $catastrophicByActivityId[$activityId]);
         }
         if (isset($failedByActivityId[$activityId])) {
-            return ['result' => null, 'failed' => $failedByActivityId[$activityId]];
+            return new SlotOutcome(failed: $failedByActivityId[$activityId]);
         }
         if (isset($cancelledReasonByActivityId[$activityId])) {
             $reason = $cancelledReasonByActivityId[$activityId];
 
-            return [
-                'result' => null,
-                'failed' => ActivityCancellationReason::WORKFLOW_CANCELLED === $reason
+            return new SlotOutcome(failed: ActivityCancellationReason::WORKFLOW_CANCELLED === $reason
                     ? new WorkflowCancelledFailure($this->executionId, $reason)
-                    : new ActivitySupersededException($activityId, $reason),
-            ];
+                    : new ActivitySupersededException($activityId, $reason));
         }
         if (\array_key_exists($activityId, $completedResults)) {
-            return ['result' => $completedResults[$activityId], 'failed' => null];
+            return new SlotOutcome($completedResults[$activityId]);
         }
 
         return null;

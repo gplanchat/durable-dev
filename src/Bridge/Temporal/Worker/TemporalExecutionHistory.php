@@ -13,6 +13,7 @@ use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
+use Gplanchat\Durable\Port\History\SlotOutcome;
 use Gplanchat\Durable\Port\History\TimerOutcome;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use Gplanchat\Durable\Versioning\ChangePoint;
@@ -521,7 +522,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         }
     }
 
-    public function findActivitySlotResult(int $slot): ?array
+    public function findActivitySlotResult(int $slot): ?SlotOutcome
     {
         $activityId = $this->scheduledActivityIds[$slot] ?? null;
         if (null === $activityId) {
@@ -532,16 +533,16 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         // operation, it must read back identically, even if the server ended up recording a
         // completion that arrived in the meantime.
         if (isset($this->cancellationDeliveredTargets[$activityId])) {
-            return ['result' => null, 'failed' => new WorkflowCancelledFailure($this->durableExecutionId() ?? '', ActivityCancellationReason::WORKFLOW_CANCELLED)];
+            return new SlotOutcome(failed: new WorkflowCancelledFailure($this->durableExecutionId() ?? '', ActivityCancellationReason::WORKFLOW_CANCELLED));
         }
         if (isset($this->activityFailures[$activityId])) {
-            return ['result' => null, 'failed' => $this->activityFailures[$activityId]];
+            return new SlotOutcome(failed: $this->activityFailures[$activityId]);
         }
         if (isset($this->activityCancellations[$activityId])) {
-            return ['result' => null, 'failed' => new ActivitySupersededException($activityId, $this->activityCancellations[$activityId])];
+            return new SlotOutcome(failed: new ActivitySupersededException($activityId, $this->activityCancellations[$activityId]));
         }
         if (\array_key_exists($activityId, $this->activityResults)) {
-            return ['result' => $this->activityResults[$activityId], 'failed' => null];
+            return new SlotOutcome($this->activityResults[$activityId]);
         }
 
         return null;

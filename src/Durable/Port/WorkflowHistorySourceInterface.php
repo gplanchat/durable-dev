@@ -18,11 +18,9 @@ namespace Gplanchat\Durable\Port;
 interface WorkflowHistorySourceInterface
 {
     /**
-     * Returns the recorded result for activity slot N, or null if not yet recorded.
-     *
-     * @return array{result: mixed, failed: \Throwable|null}|null
+     * Returns the recorded outcome for activity slot N, or null if not yet recorded.
      */
-    public function findActivitySlotResult(int $slot): ?array;
+    public function findActivitySlotResult(int $slot): ?History\SlotOutcome;
 
     /**
      * Returns the activity ID that was scheduled at slot N (first-occurrence order), or null.
