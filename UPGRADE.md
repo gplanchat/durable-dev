@@ -49,7 +49,8 @@ public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = nu
 }
 ```
 
-The stack is capped at 50 pages, after which "previous" leads back to the first page.
+The stack is capped at 50 pages and at a 4 KB cursor, so that a URL carrying it stays under the
+8 KB request line of nginx and Apache; past either cap, "previous" leads back to the first page.
 `WorkflowRunCatalogConformanceTestCase` checks that the first page has no `previousCursor` and that
 the previous page of the next one is the page you started from, with the same filters. A cursor
 handed out before this version still lists its page, with no way back.

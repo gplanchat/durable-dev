@@ -31,6 +31,20 @@ final class RunCursorStackTest extends TestCase
         self::assertNull($backPrevious, 'and there is no further back');
     }
 
+    public function testACursorStaysShortEnoughForAUrl(): void
+    {
+        // A Temporal page token is ~130 bytes (measured on 1.20 and 1.32); fifty of them stacked
+        // would pass the 8 KB request line of nginx and Apache. Past the byte cap, as past the page
+        // cap, the stack starts again from the first page.
+        [$current, $stack] = [null, []];
+        for ($page = 1; $page <= RunCursorStack::MAX_DEPTH; ++$page) {
+            $next = RunCursorStack::page(new WorkflowRunPage([], base64_encode(random_bytes(130))), $current, $stack)->nextCursor;
+            self::assertNotNull($next);
+            self::assertLessThanOrEqual(RunCursorStack::MAX_BYTES, \strlen($next), \sprintf('page %d', $page));
+            [$current, $stack] = RunCursorStack::open($next);
+        }
+    }
+
     public function testACursorThatDoesNotDecodeIsTheFirstPage(): void
     {
         self::assertSame([null, []], RunCursorStack::open('r1.not-base64-json'));

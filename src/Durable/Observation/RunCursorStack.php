@@ -13,12 +13,20 @@ namespace Gplanchat\Durable\Observation;
  * Temporal, the same visibility query re-issued with the earlier page token. One helper for the
  * four catalogs, so the semantics cannot drift.
  *
- * ponytail: the cursor grows by one entry per page. Past {@see MAX_DEPTH} the stack starts again
- * from the first page, which is then where "previous" leads.
+ * ponytail: the cursor grows by one entry per page. Past {@see MAX_DEPTH} pages or
+ * {@see MAX_BYTES} bytes, the stack starts again from the first page, which is then where "previous"
+ * leads.
  */
 final class RunCursorStack
 {
     public const MAX_DEPTH = 50;
+
+    /**
+     * The longest cursor handed out, so that a URL carrying it stays under the 8 KB request line of
+     * nginx and Apache. A Temporal page token is ~130 bytes (measured on 1.20 and 1.32), ~230 once
+     * stacked: this is about sixteen pages of way back there, the full fifty on the SQL catalogs.
+     */
+    public const MAX_BYTES = 4096;
 
     private const PREFIX = 'r1.';
 
@@ -57,10 +65,14 @@ final class RunCursorStack
         if (\count($behind) > self::MAX_DEPTH) {
             $behind = [''];
         }
+        $next = null === $page->nextCursor ? null : self::encode($behind, $page->nextCursor);
+        if (null !== $next && \strlen($next) > self::MAX_BYTES) {
+            $next = self::encode([''], $page->nextCursor);
+        }
 
         return new WorkflowRunPage(
             $page->runs,
-            null === $page->nextCursor ? null : self::encode($behind, $page->nextCursor),
+            $next,
             $page->tellsWaitingForWorker,
             [] === $stack ? null : self::encode(\array_slice($stack, 0, -1), $stack[array_key_last($stack)]),
         );
