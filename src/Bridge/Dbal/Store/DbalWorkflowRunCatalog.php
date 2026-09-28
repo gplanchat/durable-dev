@@ -9,6 +9,7 @@ use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
+use Gplanchat\Durable\Observation\RunCursorStack;
 use Gplanchat\Durable\Observation\RunPageCursor;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
@@ -50,6 +51,8 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?WorkflowRunFilter $filter = null): WorkflowRunPage
     {
+        // The catalog's own cursor, and the ones that led to it (#383).
+        [$cursor, $behind] = RunCursorStack::open($cursor);
         $this->schema->ensure();
 
         $limit = max(1, $limit);
@@ -93,13 +96,13 @@ final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
 
         $last = [] === $rows ? null : $rows[\array_key_last($rows)];
 
-        return new WorkflowRunPage(
+        return RunCursorStack::page(new WorkflowRunPage(
             $runs,
             $hasMore && null !== $last
                 ? (new RunPageCursor((string) $last['started_at'], (string) $last['execution_id']))->encode()
                 : null,
             tellsWaitingForWorker: $this->schema->runsTableTracksPickup(),
-        );
+        ), $cursor, $behind);
     }
 
     public function findRun(string $executionId): ?WorkflowRunDescription

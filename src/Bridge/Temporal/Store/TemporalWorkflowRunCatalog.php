@@ -15,6 +15,7 @@ use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Exception\RunFilterUnavailableException;
 use Gplanchat\Durable\Observation\BackendHealth;
+use Gplanchat\Durable\Observation\RunCursorStack;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunFilter;
@@ -64,6 +65,8 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?WorkflowRunFilter $filter = null): WorkflowRunPage
     {
+        // The catalog's own cursor, and the ones that led to it (#383).
+        [$cursor, $behind] = RunCursorStack::open($cursor);
         if (null !== $filter && !$filter->isEmpty() && !$this->canFilterRuns()) {
             throw new RunFilterUnavailableException('Filtering Temporal runs reads Durable\'s search attributes: register them on the namespace, then turn durable.temporal.search_attributes on.');
         }
@@ -111,7 +114,7 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface
             static fn(WorkflowRunDescription $left, WorkflowRunDescription $right): int => ($right->startedAt?->getTimestamp() ?? 0) <=> ($left->startedAt?->getTimestamp() ?? 0),
         );
 
-        return new WorkflowRunPage($runs, '' === $token ? null : base64_encode($token));
+        return RunCursorStack::page(new WorkflowRunPage($runs, '' === $token ? null : base64_encode($token)), $cursor, $behind);
     }
 
     /**

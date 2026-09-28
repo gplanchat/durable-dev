@@ -6,6 +6,7 @@ namespace Gplanchat\Durable\Store;
 
 use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
+use Gplanchat\Durable\Observation\RunCursorStack;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunFilter;
 use Gplanchat\Durable\Observation\WorkflowRunPage;
@@ -106,6 +107,8 @@ final class InMemoryWorkflowRunCatalog implements WorkflowRunCatalogInterface, W
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?WorkflowRunFilter $filter = null): WorkflowRunPage
     {
+        // The catalog's own cursor, and the ones that led to it (#383).
+        [$cursor, $behind] = RunCursorStack::open($cursor);
         $ordered = array_reverse(array_keys($this->runs));
 
         if (null !== $status) {
@@ -138,7 +141,7 @@ final class InMemoryWorkflowRunCatalog implements WorkflowRunCatalogInterface, W
 
         $runs = array_map($this->describe(...), $window);
 
-        return new WorkflowRunPage($runs, $hasMore ? end($window) : null, tellsWaitingForWorker: true);
+        return RunCursorStack::page(new WorkflowRunPage($runs, $hasMore ? end($window) : null, tellsWaitingForWorker: true), $cursor, $behind);
     }
 
     public function findRun(string $executionId): ?WorkflowRunDescription

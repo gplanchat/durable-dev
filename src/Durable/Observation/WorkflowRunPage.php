@@ -27,5 +27,10 @@ final readonly class WorkflowRunPage
         public array $runs,
         public ?string $nextCursor = null,
         public bool $tellsWaitingForWorker = false,
+        /**
+         * The page before this one, from the same catalog and with the same filters; `null` on the
+         * first page (#383). See {@see RunCursorStack}.
+         */
+        public ?string $previousCursor = null,
     ) {}
 }

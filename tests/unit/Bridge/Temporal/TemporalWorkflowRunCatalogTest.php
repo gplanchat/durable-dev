@@ -223,8 +223,20 @@ final class TemporalWorkflowRunCatalogTest extends TestCase
             $this->info('wf-1', 'run-1', 'App\\OrderWorkflow', 'orders', WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING, 1_700_000_200),
         );
         $response->setNextPageToken('server-token');
+        $asked = [];
+        $client = $this->createMock(WorkflowServiceClientInterface::class);
+        $client->method('ListWorkflowExecutions')->willReturnCallback(static function (ListWorkflowExecutionsRequest $request) use (&$asked, $response): ListWorkflowExecutionsResponse {
+            $asked[] = $request->getNextPageToken();
 
-        self::assertSame(base64_encode('server-token'), $this->catalog($response)->listRuns()->nextCursor);
+            return $response;
+        });
+        $catalog = new TemporalWorkflowRunCatalog($client, $this->connection());
+
+        // The cursor is opaque (#383 wraps the token with the way back): what counts is that the
+        // next page asks the server for exactly the token it gave.
+        $catalog->listRuns(null, $catalog->listRuns()->nextCursor);
+
+        self::assertSame(['', 'server-token'], $asked);
     }
 
     /**

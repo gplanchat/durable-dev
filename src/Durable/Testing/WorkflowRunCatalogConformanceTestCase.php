@@ -457,6 +457,49 @@ abstract class WorkflowRunCatalogConformanceTestCase extends TestCase
         self::assertSame($expected, self::sorted($this->collectEveryPage(WorkflowRunStatus::Completed, 2)));
     }
 
+    /**
+     * #383: a page leads back as well as on. The first page has no way back, and following
+     * `previousCursor` from a page shows again, whole, the page you came to it from.
+     */
+    public function testPreviousOfNextIsThePageYouStartedFrom(): void
+    {
+        for ($i = 0; $i < 5; ++$i) {
+            $this->startRun(\sprintf('exec-back-%d', $i), 'App\\OrderWorkflow');
+        }
+        $catalog = $this->catalogUnderTest();
+
+        $first = $catalog->listRuns(limit: 2);
+        self::assertNull($first->previousCursor, 'the first page has no way back');
+        self::assertNotNull($first->nextCursor);
+        $second = $catalog->listRuns(null, $first->nextCursor, 2);
+        self::assertNotNull($second->previousCursor);
+        self::assertNotNull($second->nextCursor);
+        $third = $catalog->listRuns(null, $second->nextCursor, 2);
+
+        $backToSecond = $catalog->listRuns(null, $third->previousCursor, 2);
+        self::assertSame($this->idsOf($second->runs), $this->idsOf($backToSecond->runs));
+        $backToFirst = $catalog->listRuns(null, $backToSecond->previousCursor, 2);
+        self::assertSame($this->idsOf($first->runs), $this->idsOf($backToFirst->runs));
+        self::assertNull($backToFirst->previousCursor, 'back on the first page, no way further back');
+        self::assertSame($second->nextCursor, $backToSecond->nextCursor, 'and the way on is the same');
+    }
+
+    public function testThePreviousCursorKeepsTheStatusFilter(): void
+    {
+        for ($i = 0; $i < 3; ++$i) {
+            $this->startRun(\sprintf('exec-back-done-%d', $i), 'App\\OrderWorkflow');
+            $this->endRun(\sprintf('exec-back-done-%d', $i), WorkflowRunStatus::Completed);
+        }
+        $this->startRun('exec-back-running', 'App\\OrderWorkflow');
+        $catalog = $this->catalogUnderTest();
+
+        $first = $catalog->listRuns(WorkflowRunStatus::Completed, null, 2);
+        $second = $catalog->listRuns(WorkflowRunStatus::Completed, $first->nextCursor, 2);
+        $back = $catalog->listRuns(WorkflowRunStatus::Completed, $second->previousCursor, 2);
+
+        self::assertSame($this->idsOf($first->runs), $this->idsOf($back->runs));
+    }
+
     public function testAPageThatExhaustsTheCatalogCarriesNoCursor(): void
     {
         $this->startRun('exec-1', 'App\\OrderWorkflow');
