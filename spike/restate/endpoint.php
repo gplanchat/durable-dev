@@ -8,13 +8,18 @@ declare(strict_types=1);
 require __DIR__.'/Wire.php';
 
 const PROTOCOL = 5;
-const T_START = 0x0000, T_SUSPENSION = 0x0001, T_END = 0x0003, T_PROPOSE_RUN = 0x0005;
+const T_START = 0x0000, T_SUSPENSION = 0x0001, T_ERROR = 0x0002, T_END = 0x0003, T_PROPOSE_RUN = 0x0005;
 const T_INPUT = 0x0400, T_OUTPUT = 0x0401, T_GET_PROMISE = 0x0409, T_COMPLETE_PROMISE = 0x040B;
 const T_SLEEP = 0x040C, T_RUN = 0x0411;
 const T_CALL = 0x040D, T_SEND_SIGNAL = 0x0410, T_SIGNAL = 0xFBFF;
 const SIGNAL_CANCEL = 1;   // BuiltInSignal.CANCEL
 
 final class Suspend extends Exception
+{
+}
+
+/** A retryable failure: answered with an ErrorMessage, which leaves the retry decision to the runtime. */
+final class Transient extends Exception
 {
 }
 
@@ -85,7 +90,10 @@ final class Invocation
     public function awaitCall(int $resultId): string
     {
         $fields = $this->notifications[$resultId] ?? throw $this->wait($resultId);
-        isset($fields[6]) && throw new RuntimeException('call failed: '.(Wire::decode($fields[6][0])[2][0] ?? ''));
+        if (isset($fields[6])) {
+            $failure = Wire::decode($fields[6][0]);   // Failure: code = 1, message = 2
+            throw new RuntimeException(sprintf('call failed: [%d] %s', $failure[1][0] ?? 0, $failure[2][0] ?? ''));
+        }
 
         return self::value($fields[5][0]);
     }
@@ -100,6 +108,11 @@ final class Invocation
     public function cancelInvocation(string $invocationId): void
     {
         $this->next(T_SEND_SIGNAL, Wire::bytes(1, $invocationId).Wire::varint(2, SIGNAL_CANCEL).Wire::bytes(4, ''));
+    }
+
+    public function error(string $message): string
+    {
+        return $this->out.Wire::frame(T_ERROR, Wire::varint(1, 500).Wire::bytes(2, $message));
     }
 
     public function fail(int $code, string $message): string
@@ -180,7 +193,11 @@ final class Invocation
 $path = parse_url($_SERVER['REQUEST_URI'], \PHP_URL_PATH);
 
 if ('/discover' === $path) {   // the public spec says /discovery; server 1.7.12 calls /discover
-    header('Content-Type: application/vnd.restate.endpointmanifest.v3+json');
+    // Per-handler retry fields (scenario 2) exist from manifest v5: answer with the highest version offered.
+    $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+    file_put_contents(__DIR__.'/var/discover.log', $accept."\n", \FILE_APPEND);
+    preg_match_all('/endpointmanifest\.v(\d+)\+json/', $accept, $offered);
+    header('Content-Type: application/vnd.restate.endpointmanifest.v'.max([3, ...array_map(intval(...), $offered[1])]).'+json');
     echo json_encode([
         'protocolMode' => 'REQUEST_RESPONSE',
         'minProtocolVersion' => PROTOCOL,
@@ -190,8 +207,14 @@ if ('/discover' === $path) {   // the public spec says /discovery; server 1.7.12
             ['name' => 'approve', 'ty' => 'SHARED'],
         ]], ['name' => 'Cancel', 'ty' => 'WORKFLOW', 'handlers' => [
             ['name' => 'run', 'ty' => 'WORKFLOW'],
+        ]], ['name' => 'Retry', 'ty' => 'WORKFLOW', 'handlers' => [
+            ['name' => 'run', 'ty' => 'WORKFLOW'],
         ]], ['name' => 'Act', 'ty' => 'SERVICE', 'handlers' => [
             ['name' => 'a'], ['name' => 'b'],
+            // Scenario 2: Restate's retries switched off, so that Durable's ActivityOptions can own them.
+            ['name' => 'flaky', 'retryPolicyMaxAttempts' => 1, 'retryPolicyOnMaxAttempts' => 'KILL'],
+            ['name' => 'crash', 'retryPolicyMaxAttempts' => 1, 'retryPolicyOnMaxAttempts' => 'KILL'],
+            ['name' => 'flakyDefault'],   // control: the same failure under the server's default policy
         ]]],
     ]);
 
@@ -233,6 +256,31 @@ $handler = match ($path) {
             throw $cancelled;
         }
     },
+    // Scenario 2 (#641): does a failed attempt reach the caller after one attempt, and does a PHP
+    // process killed mid-activity reach it as a failure?
+    '/invoke/Retry/run' => static function (Invocation $ctx): string {
+        $calls = ['flaky' => $ctx->call('Act', 'flaky', '"F"')[1], 'crash' => $ctx->call('Act', 'crash', '"C"')[1]];
+        $seen = [];
+        foreach ($calls as $name => $result) {
+            try {
+                $seen[$name] = 'returned '.$ctx->awaitCall($result);
+            } catch (RuntimeException $e) {
+                $seen[$name] = $e->getMessage();
+            }
+        }
+
+        return json_encode($seen);
+    },
+    '/invoke/Act/flaky', '/invoke/Act/flakyDefault' => static function (Invocation $ctx) use ($path): string {
+        file_put_contents(__DIR__.'/var/attempts.log', basename($path)."\n", \FILE_APPEND);
+        throw new Transient('flaky failed');
+    },
+    '/invoke/Act/crash' => static function (Invocation $ctx): string {
+        file_put_contents(__DIR__.'/var/attempts.log', "crash\n", \FILE_APPEND);
+        posix_kill(getmypid(), \SIGKILL);   // the worker dies with the request open, as on an OOM kill
+
+        return '"unreachable"';
+    },
     '/invoke/Act/a', '/invoke/Act/b' => static function (Invocation $ctx): string {
         $ctx->sleep(6);
         file_put_contents(__DIR__.'/var/act.log', $ctx->input." completed\n", \FILE_APPEND);
@@ -253,6 +301,8 @@ try {
     echo $ctx->end($handler($ctx));
 } catch (Suspend) {
     echo $ctx->suspended();
+} catch (Transient $e) {
+    echo $ctx->error($e->getMessage());
 } catch (Cancelled) {
     file_put_contents(__DIR__.'/var/act.log', $path.' '.$ctx->input." cancelled\n", \FILE_APPEND);
     echo $ctx->fail(409, 'cancelled');
