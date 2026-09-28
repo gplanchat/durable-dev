@@ -11,8 +11,15 @@ const PROTOCOL = 5;
 const T_START = 0x0000, T_SUSPENSION = 0x0001, T_END = 0x0003, T_PROPOSE_RUN = 0x0005;
 const T_INPUT = 0x0400, T_OUTPUT = 0x0401, T_GET_PROMISE = 0x0409, T_COMPLETE_PROMISE = 0x040B;
 const T_SLEEP = 0x040C, T_RUN = 0x0411;
+const T_CALL = 0x040D, T_SEND_SIGNAL = 0x0410, T_SIGNAL = 0xFBFF;
+const SIGNAL_CANCEL = 1;   // BuiltInSignal.CANCEL
 
 final class Suspend extends Exception
+{
+}
+
+/** The runtime delivered SIGNAL_CANCEL to this invocation and the handler was waiting. */
+final class Cancelled extends Exception
 {
 }
 
@@ -25,12 +32,16 @@ final class Invocation
     private array $replayed = [];
     /** @var array<int, array<int, list<int|string>>> completion id => notification fields */
     private array $notifications = [];
+    /** @var array<int, true> built-in signal index => received */
+    private array $signals = [];
     public readonly string $input;
 
     public function __construct(string $body)
     {
         foreach (Wire::frames($body) as [$type, $message]) {
-            if ($type >= 0x8000) {
+            if (T_SIGNAL === $type) {   // field 1 is reserved here: the signal index is field 2
+                $this->signals[Wire::decode($message)[2][0] ?? 0] = true;
+            } elseif ($type >= 0x8000) {
                 $fields = Wire::decode($message);
                 $this->notifications[$fields[1][0] ?? 0] = $fields;
             } elseif ($type >= 0x0400) {
@@ -58,7 +69,44 @@ final class Invocation
         $id = ++$this->completion;
         $wakeUp = (int) (microtime(true) * 1000) + $seconds * 1000;
         $this->next(T_SLEEP, Wire::varint(1, $wakeUp).Wire::varint(11, $id));
-        isset($this->notifications[$id]) || throw $this->suspend($id);
+        isset($this->notifications[$id]) || throw $this->wait($id);
+    }
+
+    /** @return array{int, int} [invocation id completion, result completion] */
+    public function call(string $service, string $handler, string $parameter): array
+    {
+        $ids = [++$this->completion, ++$this->completion];
+        $this->next(T_CALL, Wire::bytes(1, $service).Wire::bytes(2, $handler).Wire::bytes(3, $parameter)
+            .Wire::varint(10, $ids[0]).Wire::varint(11, $ids[1]));
+
+        return $ids;
+    }
+
+    public function awaitCall(int $resultId): string
+    {
+        $fields = $this->notifications[$resultId] ?? throw $this->wait($resultId);
+        isset($fields[6]) && throw new RuntimeException('call failed: '.(Wire::decode($fields[6][0])[2][0] ?? ''));
+
+        return self::value($fields[5][0]);
+    }
+
+    /** The callee's invocation id, which a cancellation has to name; suspends until the runtime sent it. */
+    public function invocationId(int $idCompletion): string
+    {
+        return (string) ($this->notifications[$idCompletion][16][0] ?? throw $this->suspend([$idCompletion]));
+    }
+
+    /** What an SDK does to cancel a child: a SendSignal CANCEL command, journaled like any other. */
+    public function cancelInvocation(string $invocationId): void
+    {
+        $this->next(T_SEND_SIGNAL, Wire::bytes(1, $invocationId).Wire::varint(2, SIGNAL_CANCEL).Wire::bytes(4, ''));
+    }
+
+    public function fail(int $code, string $message): string
+    {
+        $this->next(T_OUTPUT, Wire::bytes(15, Wire::varint(1, $code).Wire::bytes(2, $message)));
+
+        return $this->out.Wire::frame(T_END, '');
     }
 
     public function promise(string $key): string
@@ -66,7 +114,7 @@ final class Invocation
         $id = ++$this->completion;
         $this->next(T_GET_PROMISE, Wire::bytes(1, $key).Wire::varint(11, $id));
 
-        return isset($this->notifications[$id]) ? self::value($this->notifications[$id][5][0]) : throw $this->suspend($id);
+        return isset($this->notifications[$id]) ? self::value($this->notifications[$id][5][0]) : throw $this->wait($id);
     }
 
     public function completePromise(string $key, string $value): void
@@ -101,9 +149,24 @@ final class Invocation
         return [];
     }
 
-    private function suspend(int $completion): Suspend
+    /**
+     * An await that cannot complete yet: cancelled if the runtime already delivered CANCEL, suspended
+     * otherwise, and the suspension lists CANCEL so that the runtime wakes the invocation for it (the
+     * SDKs' shared core always awaits it next to the user's future).
+     */
+    private function wait(int $completion): Cancelled|Suspend
     {
-        $this->out .= Wire::frame(T_SUSPENSION, Wire::packed(1, [$completion]));
+        return isset($this->signals[SIGNAL_CANCEL]) ? new Cancelled() : $this->suspend([$completion], [SIGNAL_CANCEL]);
+    }
+
+    /**
+     * @param list<int> $completions
+     * @param list<int> $signals
+     */
+    private function suspend(array $completions, array $signals = []): Suspend
+    {
+        // V5/V6 SuspensionMessage (legacy.proto): waiting_completions = 1, waiting_signals = 2
+        $this->out .= Wire::frame(T_SUSPENSION, Wire::packed(1, $completions).Wire::packed(2, $signals));
 
         return new Suspend();
     }
@@ -125,6 +188,10 @@ if ('/discover' === $path) {   // the public spec says /discovery; server 1.7.12
         'services' => [['name' => 'Spike', 'ty' => 'WORKFLOW', 'handlers' => [
             ['name' => 'run', 'ty' => 'WORKFLOW'],
             ['name' => 'approve', 'ty' => 'SHARED'],
+        ]], ['name' => 'Cancel', 'ty' => 'WORKFLOW', 'handlers' => [
+            ['name' => 'run', 'ty' => 'WORKFLOW'],
+        ]], ['name' => 'Act', 'ty' => 'SERVICE', 'handlers' => [
+            ['name' => 'a'], ['name' => 'b'],
         ]]],
     ]);
 
@@ -150,6 +217,28 @@ $handler = match ($path) {
 
         return '"ok"';
     },
+    // Scenario 1 (#641): A is called and never awaited, B is awaited, then the workflow is cancelled
+    // from the admin API. Mode "none" propagates nothing; mode "bridge" cancels B only, which is what
+    // Durable's AwaitableCancellation::cancelUnsettled() would target.
+    '/invoke/Cancel/run' => static function (Invocation $ctx): string {
+        $mode = json_decode($ctx->input);
+        $ctx->call('Act', 'a', '"A"');
+        [$bId, $bResult] = $ctx->call('Act', 'b', '"B"');
+        try {
+            return $ctx->awaitCall($bResult);
+        } catch (Cancelled $cancelled) {
+            if ('bridge' === $mode) {
+                $ctx->cancelInvocation($ctx->invocationId($bId));
+            }
+            throw $cancelled;
+        }
+    },
+    '/invoke/Act/a', '/invoke/Act/b' => static function (Invocation $ctx): string {
+        $ctx->sleep(6);
+        file_put_contents(__DIR__.'/var/act.log', $ctx->input." completed\n", \FILE_APPEND);
+
+        return '"done"';
+    },
     default => null,
 };
 if (null === $handler) {
@@ -164,4 +253,7 @@ try {
     echo $ctx->end($handler($ctx));
 } catch (Suspend) {
     echo $ctx->suspended();
+} catch (Cancelled) {
+    file_put_contents(__DIR__.'/var/act.log', $path.' '.$ctx->input." cancelled\n", \FILE_APPEND);
+    echo $ctx->fail(409, 'cancelled');
 }
