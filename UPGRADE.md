@@ -157,6 +157,8 @@ that refuses an empty DSN (#334) refused the placeholder too.
 
 The rule now lets a placeholder through, and still refuses a literal empty or blank DSN and a value
 that is not a string. **What to do**: nothing. An `env(…)` default added as a workaround can stay.
+One case is stricter than before: an empty DSN is refused in whichever file writes it, even if a
+later profile sets a real one. It was accepted when the merged value was the only one checked.
 
 ## 0.1.0-beta1
 

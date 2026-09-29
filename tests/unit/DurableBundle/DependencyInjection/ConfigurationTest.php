@@ -60,6 +60,18 @@ final class ConfigurationTest extends TestCase
         self::assertNull($config['temporal']['dsn']);
     }
 
+    public function testAnEmptyDsnIsRefusedEvenWhenAnotherProfileSetsOne(): void
+    {
+        // Each file is read before the merge: an empty DSN is a mistake wherever it is written.
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('durable.temporal.dsn');
+
+        (new Processor())->processConfiguration(new Configuration(), [
+            ['temporal' => ['dsn' => '']],
+            ['temporal' => ['dsn' => 'temporal://127.0.0.1:7233?namespace=default&tls=0']],
+        ]);
+    }
+
     public function testAnEnvPlaceholderDsnWithoutADefaultIsAccepted(): void
     {
         // `dsn: '%env(DURABLE_DSN)%'` with no `env(DURABLE_DSN)` parameter: Symfony checks the
