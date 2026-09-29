@@ -17,7 +17,7 @@ this is findings and a recommendation, for the user to decide on.
   `DurableServiceProvider::bindIlluminate()` + `bindResumePath()`, a table queue, and
   `bin/magento durable-sql:spike setup|start|signal|work|status|nexus`.
 - Scripts: `resolve.sh` (Q1), `run-restart.sh` (the key experiment), `probe-b.php` (option B).
-  Their raw output goes to `out/`, which is not tracked.
+  Trimmed output is in `evidence/`; the raw output goes to `out/`, which is not tracked.
 
 ## The key experiment (`run-restart.sh`)
 
@@ -44,8 +44,9 @@ the signal is sent while **no worker runs**; worker 3 finishes the run. Output o
 `charge` ran twice as a side effect (the killed attempt never reached its end) and is journalled
 once: at-least-once execution, exactly-once outcome, as on the other backends. The first run gave
 the same shape. The shop database holds 0 `durable_*` tables; the journal server holds all 7.
+Full logs: `evidence/restart.txt`.
 
-**Nexus is refused by name**, at both doors (`out/nexus.txt`):
+**Nexus is refused by name**, at both doors (`evidence/nexus.txt`):
 
 ```
 register(): NexusUnsupportedByBackendException: A Nexus handler cannot be served by the magento-dbal
@@ -60,7 +61,7 @@ resume nexus-1: FAILED NexusUnsupportedByBackendException: The journal backend c
 |---|---|---|
 | New packages (2.2.0) | 5: doctrine/dbal 4.5.0, doctrine/deprecations, symfony/lock, symfony/messenger, symfony/clock | none |
 | Resolves against Mage-OS | yes on 1.3.0/PHP 8.2, 2.2.0/8.2, 2.3.0/8.4, 3.4.0/8.3, 3.4.0/8.5 (`resolve.sh ... deps`, exit 0 each) | n/a |
-| Stores | `durable-bridge-dbal` unchanged | new family, ~1000 lines (the DBAL stores + schema are 1007, Illuminate's 825) |
+| Stores | `durable-bridge-dbal` unchanged | new family, ~1000 lines: extrapolated, not built (the DBAL stores + schema are 1007 lines, Illuminate's 825) |
 | Nested transactions | DBAL savepoints | inner `rollBack()` then outer `commit()`: `Exception: Rolled back transaction has not been completed correctly` |
 | Picking the connection | a DSN, fails loudly if wrong | `getConnection('durable')` silently returns the **shop's** connection (same `CONNECTION_ID()` 54, `db=magento`) unless `resource/durable` is also declared; only `getConnectionByName('durable')` reached the journal (id 164, `db=durable`) |
 | DDL in a transaction | refused by `DurableSchema::ensure()` | Magento's adapter accepted a `createTable()` inside a transaction (MySQL commits implicitly) |
@@ -68,7 +69,9 @@ resume nexus-1: FAILED NexusUnsupportedByBackendException: The journal backend c
 `symfony/messenger` and `symfony/clock` come only from `durable-bridge-dbal`'s own `require`
 (its Messenger middleware); the stores need doctrine/dbal and, for the locks, symfony/lock. The
 bench's lock has messenger 6.4.36 only because the Temporal bridge pulls it. The graph without A
-(`resolve.sh 2.2.0 8.2.34 none`) differs from the graph with it by exactly those 5 lines.
+(`resolve.sh 2.2.0 8.2.34 none`) differs from the graph with it by exactly those 5 lines. The `deps`
+variant requires exactly what `durable-bridge-dbal` requires, so it stands for the bridge that the
+`conflict` keeps out (`evidence/resolve.txt`).
 
 What #695 learned applies to both: a host's migration tool runs on the default connection unless
 told otherwise, so tables for a dedicated connection come from the first write or a setup command.
@@ -94,7 +97,9 @@ answer for a dedicated connection, and what #695 documents for Laravel.
 - **Carrier: a table on the journal's own connection** (`TableQueue`): `available_at` for delays,
   `SELECT ... FOR UPDATE SKIP LOCKED` to take, a 30 s lease instead of a delete, `ack` after
   handling. A worker killed mid-message loses nothing; the message comes back when the lease ends
-  (measured: 28 s after the kill, 30 s after the take). Magento's MessageQueue stays out: DUR046
+  (measured: 28 s after the kill, 30 s after the take). The lease and the attempt claim's TTL are
+  both 30 s here, and the redelivery ran rather than deferring only because the claim had just
+  expired. The real queue must set the lease above the claim TTL. Magento's MessageQueue stays out: DUR046
   measured MysqlMq running one message twice during a success and acknowledging undispatched
   messages after a crash, and its `queue_message` tables are on the shop's connection.
 - **Timers must be `FireWorkflowTimersMessage`**, handled by `FireWorkflowTimersHandler`. The spike
@@ -111,7 +116,8 @@ answer for a dedicated connection, and what #695 documents for Laravel.
   connection; 12 passes claimed in the run above. Under B the same SQL works through Magento's
   adapter: a claim's `UPDATE` held the heads row and a `LOCK IN SHARE MODE` read in another process
   waited 2.53 s for it (`probe-b.php claim` / `fenced-read`), but the code would have to be rewritten.
-- DUR050 is honoured: a resume that arrives before its outcome is re-queued, not failed.
+- DUR050: a resume that arrives before its outcome is re-queued, not failed. This is coded, not
+  observed: no run produced that deferral, nor a held resume lock.
 
 ## Q4. Conformance
 
@@ -156,17 +162,18 @@ table queue, the worker loop, `durable:setup`, and the wiring in `RuntimeFactory
   `setup:install` dies on `Class "Gplanchat\Bridge\Temporal\Http\Psr18Http" does not exist`, from
   `RuntimeFactory`'s optional `?Psr18Http $jsonGateway`, because Magento's `ClassReader` reflects
   every constructor type. The spike installs the Temporal bridge to get past it. CI does not see it:
-  the matrix only resolves, and the bench installs the Temporal bridge.
+  the matrix only resolves, and the bench installs the Temporal bridge. It blocks A: a SQL-only
+  Magento install cannot boot until it is fixed, and the `none` baseline resolves but would not install.
 - `durable_workflow_runs.waiting_on` stays "activity spike.ship attempt 1 in flight" after completion.
 
 ## Proposed follow-up tickets (not opened; the user decides first)
 
 1. **ADR: Magento may journal to SQL on a connection of its own**: supersede DUR046's "no native journal" (human).
-2. **Bug: durable-magento cannot be installed without durable-bridge-temporal**: no Temporal type in `RuntimeFactory`'s constructor.
+2. **Bug: durable-magento cannot be installed without durable-bridge-temporal**: no Temporal type in `RuntimeFactory`'s constructor. Prerequisite of 5.
 3. **Bug (to confirm): Laravel `illuminate` timers are plain resumes**: check a `sleep()` wakes on the Laravel bench; send `FireWorkflowTimersMessage`.
-4. **durable-bridge-dbal: a table queue**: `durable_queue` in `DurableSchema`, lease + `available_at`, PostgreSQL/SQLite too, with its own conformance.
+4. **durable-bridge-dbal: a table queue**: `durable_queue` in `DurableSchema`, lease + `available_at`, lease longer than the attempt-claim TTL, PostgreSQL/SQLite too, with its own conformance.
 5. **durable-magento: SQL wiring**: `durable/db/url` in `env.php` builds the DBAL stores; both DSNs set is refused by name.
-6. **durable-magento: `durable:worker` for SQL and `durable:setup`**: the spike's loop (lock, DUR050 deferral, attempt claim, timers).
+6. **durable-magento: `durable:worker` for SQL and `durable:setup`**: the spike's loop (lock, DUR050 deferral, attempt claim, timers). The spike acks every failure; the real loop re-queues transient ones such as lock-wait timeouts (#616).
 7. **durable-magento: admin grid and run page on `DbalWorkflowRunCatalog`.**
 8. **Resume lock on MySQL**: TTL row vs a `GET_LOCK` store on the journal connection (released when the worker dies); measure both.
 9. **CI (supervised)**: matrix resolution with the DBAL bridge; boot job runs the restart experiment on a second MySQL.
