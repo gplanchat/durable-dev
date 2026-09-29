@@ -1,0 +1,8 @@
+21:54:00 pid=2789275 default                        Magento\Framework\DB\Adapter\Pdo\Mysql\Interceptor {"id":"54","db":"magento","host":"3b4118fbe4a8"}
+21:54:00 pid=2789275 getConnection('durable')       Magento\Framework\DB\Adapter\Pdo\Mysql\Interceptor {"id":"54","db":"magento","host":"3b4118fbe4a8"}
+21:54:00 pid=2789275 getConnectionByName('durable') Magento\Framework\DB\Adapter\Pdo\Mysql\Interceptor {"id":"164","db":"durable","host":"a0d96971ec42"}
+21:54:00 pid=2789286 claim holds the heads row, epoch now 1
+21:54:04 pid=2789286 claim committed
+21:54:04 pid=2789375 shared-lock read epoch=1 after waiting 2.53 s
+21:54:05 pid=2789507 inner rollback then outer commit: Exception: Rolled back transaction has not been completed correctly.
+21:54:05 pid=2789509 DDL inside a transaction: accepted

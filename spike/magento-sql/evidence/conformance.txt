@@ -1,0 +1,7 @@
+# DURABLE_TEST_DSN=mysql://root:root@127.0.0.1:33710/durable_test (spike709-journal, MySQL 8.4.11)
+## --fail-on-skipped --filter ConformanceTest tests/unit/Bridge/Dbal
+Time: 00:05.019, Memory: 14.00 MB
+
+OK (60 tests, 356 assertions)
+## --fail-on-skipped tests/unit/Bridge/Dbal
+OK (114 tests, 488 assertions)

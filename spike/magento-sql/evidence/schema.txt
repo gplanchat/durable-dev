@@ -1,0 +1,7 @@
+# db_schema.xml, table durable_probe_schema resource="durable"
+## default mode, no resource/durable in env.php: setup:upgrade exit 0, table created in spike709-db:magento (the shop)
+## default mode, resource/durable => connection durable: setup:upgrade exit 0, table created in spike709-journal:durable
+## developer mode: setup:upgrade exit 1
+The XML in file "spike/magento-sql/mageos/app/code/Gplanchat/DurableSqlSpike/etc/db_schema.xml" is invalid:
+Element 'table', attribute 'resource': [facet 'enumeration'] The value 'durable' is not an element of the set {'default', 'checkout', 'sales'}.
+Line: 3

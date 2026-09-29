@@ -1,0 +1,8 @@
+21:53:21 pid=2786757 register(): Gplanchat\Durable\Nexus\NexusUnsupportedByBackendException: A Nexus handler cannot be served by the magento-dbal backend: it has no route, so a handler registered here never receives anything — no error, no log line, a task queue nobody polls. Use the Temporal backend to serve Nexus operations.
+21:53:21 pid=2786813 started nexus-1
+21:53:21 pid=2786860 take #16 resume nexus-1 delivery=1
+21:53:21 pid=2786860   FAILED Gplanchat\Durable\Nexus\NexusUnsupportedByBackendException: The journal backend cannot serve a Nexus operation: Nexus routes a call to an endpoint served elsewhere, and this backend has no such route. Use the Temporal backend to call Nexus operations.
+  Gplanchat\Durable\Event\WorkflowExecutionFailed 1
+  run: {"status":"failed","waiting_on":null}
+  epoch (DUR053 passes): 1
+  queue rows: 0

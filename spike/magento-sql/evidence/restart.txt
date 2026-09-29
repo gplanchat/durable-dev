@@ -1,0 +1,55 @@
+# run-restart.sh, second run (times UTC)
+21:57:19.651 killed worker 1 (pid 2804168) mid-activity
+21:57:55.905 killed worker 2 (pid 2804347) with the timer pending
+21:57:56 pid=2809814 signalled order-restart
+21:58:05.397 completed
+## worker 1
+21:57:17 pid=2804168 take #1 resume order-restart delivery=1
+21:57:17 pid=2804168   replayed
+21:57:17 pid=2804168 take #2 activity spike.charge#1 order-restart delivery=1
+## worker 2
+21:57:47 pid=2804347 take #2 activity spike.charge#1 order-restart delivery=2
+21:57:53 pid=2804347   activity done
+21:57:53 pid=2804347 take #3 resume awaiting order-restart delivery=1
+21:57:53 pid=2804347   replayed
+21:57:53 pid=2804347 take #4 resume order-restart delivery=1
+21:57:53 pid=2804347   replayed
+## worker 3
+21:58:05 pid=2810323 take #7 resume awaiting order-restart delivery=1
+21:58:05 pid=2810323   replayed
+21:58:05 pid=2810323 take #8 resume order-restart delivery=1
+21:58:05 pid=2810323   replayed
+21:58:05 pid=2810323 take #6 fire-timers order-restart delivery=1
+21:58:05 pid=2810323   replayed
+21:58:05 pid=2810323 take #5 fire-timers order-restart delivery=1
+21:58:05 pid=2810323   replayed
+21:58:05 pid=2810323 take #9 fire-timers order-restart delivery=1
+21:58:05 pid=2810323   replayed
+21:58:05 pid=2810323 take #10 fire-timers order-restart delivery=1
+21:58:05 pid=2810323   replayed
+21:58:05 pid=2810323 take #11 resume awaiting order-restart delivery=1
+21:58:05 pid=2810323   replayed
+21:58:05 pid=2810323 take #12 resume order-restart delivery=1
+21:58:05 pid=2810323   replayed
+21:58:05 pid=2810323 take #13 activity spike.ship#1 order-restart delivery=1
+21:58:05 pid=2810323   activity done
+21:58:05 pid=2810323 take #14 resume awaiting order-restart delivery=1
+21:58:05 pid=2810323   replayed
+21:58:05 pid=2810323 take #15 resume order-restart delivery=1
+21:58:05 pid=2810323   replayed
+## status
+  Gplanchat\Durable\Event\ActivityScheduled 2
+  Gplanchat\Durable\Event\ActivityTaskStarted 2
+  Gplanchat\Durable\Event\ActivityCompleted 2
+  Gplanchat\Durable\Event\TimerScheduled 1
+  Gplanchat\Durable\Event\WorkflowSignalReceived 1
+  Gplanchat\Durable\Event\TimerCompleted 1
+  Gplanchat\Durable\Event\ExecutionCompleted 1
+  run: {"status":"completed","waiting_on":"activity spike.ship attempt 1 in flight"}
+  epoch (DUR053 passes): 12
+  queue rows: 0
+## side effects (var/log/spike-activities.log)
+21:57:17 pid=2804168 charge:start order-restart
+21:57:47 pid=2804347 charge:start order-restart
+21:57:53 pid=2804347 charge:end order-restart
+21:58:05 pid=2810323 ship order-restart by alice
