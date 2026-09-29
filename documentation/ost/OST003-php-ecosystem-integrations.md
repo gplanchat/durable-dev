@@ -122,7 +122,7 @@ Two consequences, and neither is "don't go":
    exists and is good at it. Nor can it be "a backend choice" alone: Durable Workflow 2.0 offers
    one too — embedded, its own server, or its Cloud. The entry is the choice **it does not
    offer**: the same workflow code against a Temporal cluster (Temporal Cloud included, Nexus
-   included) *or* against the application's own SQL connection (DUR030), and a mixed Symfony /
+   included) *or* against a single SQL database (DUR030), and a mixed Symfony /
    Sylius / Akeneo estate sharing a single engine with the Laravel application.
 2. **Naming.** "Durable" against "Durable Workflow" will be read as the same project by anyone
    skimming Packagist. The Laravel package has to lead with `gplanchat/`, and the documentation has

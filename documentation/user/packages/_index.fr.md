@@ -242,8 +242,7 @@ qu'il fait, et si un moteur pensé d'abord pour Laravel est ce que vous cherchez
 
 Ce que ce paquet vend, c'est un **autre choix de backend** : le même code de workflow contre un
 cluster Temporal — Temporal Cloud et Nexus compris, avec un historique que l'interface de Temporal
-sait lire — *ou* contre la connexion SQL que votre application possède déjà, si bien que l'ajout au
-journal et l'écriture métier partagent une seule transaction. Et un parc mixte Symfony / Sylius /
+sait lire — *ou* contre une base SQL, sans cluster à opérer. Et un parc mixte Symfony / Sylius /
 Laravel partage un seul moteur : une classe de workflow écrite pour `gplanchat/durable-bundle`
 tourne ici sans modification. C'est toute la promesse, et c'est celle que l'autre paquet ne fait
 pas.

@@ -29,7 +29,7 @@ and can move to its own server or Cloud, with PHP, Python and Rust SDKs. It is g
 is what you want, take it.
 
 What this package sells is a **different backend choice**: the same workflow code against a Temporal
-cluster (Nexus included) or against the application's own SQL connection, and a mixed Symfony /
+cluster (Nexus included) or against a single SQL database, and a mixed Symfony /
 Sylius / Laravel estate sharing a single engine.
 
 ## Configuration

@@ -229,8 +229,7 @@ what you want, take it.
 
 What this package sells is a **different backend choice**: the same workflow code against a
 Temporal cluster — Temporal Cloud and Nexus included, with a history the Temporal UI reads — *or*
-against the SQL connection your application already owns, so the journal append and the business
-write share one transaction. And a mixed Symfony / Sylius / Laravel estate shares a single engine:
+against a SQL database, with no cluster to run. And a mixed Symfony / Sylius / Laravel estate shares a single engine:
 a workflow class written for `gplanchat/durable-bundle` runs here unmodified. That is the whole
 claim, and it is the one the other package does not make.
 
