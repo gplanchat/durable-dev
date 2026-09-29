@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace unit\Gplanchat\DurableBundle\DependencyInjection;
 
 use Gplanchat\Durable\Bundle\DependencyInjection\Configuration;
+use Gplanchat\Durable\Bundle\DependencyInjection\DurableExtension;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
+use Symfony\Component\DependencyInjection\Compiler\MergeExtensionConfigurationPass;
+use Symfony\Component\DependencyInjection\Compiler\ValidateEnvPlaceholdersPass;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
  * A wrong value is refused while the tree is processed, with its path, instead of surfacing later
@@ -43,6 +47,33 @@ final class ConfigurationTest extends TestCase
     {
         // The Symfony bench writes `dsn: null` in its default and `test` profiles.
         self::assertNull($this->process(['temporal' => ['dsn' => null]])['temporal']['dsn']);
+    }
+
+    public function testAnExplicitNullDsnStillOverridesADsnSetElsewhere(): void
+    {
+        // A profile that turns the cluster off on top of one that turned it on.
+        $config = (new Processor())->processConfiguration(new Configuration(), [
+            ['temporal' => ['dsn' => 'temporal://127.0.0.1:7233?namespace=default&tls=0']],
+            ['temporal' => ['dsn' => null]],
+        ]);
+
+        self::assertNull($config['temporal']['dsn']);
+    }
+
+    public function testAnEnvPlaceholderDsnWithoutADefaultIsAccepted(): void
+    {
+        // `dsn: '%env(DURABLE_DSN)%'` with no `env(DURABLE_DSN)` parameter: Symfony checks the
+        // placeholder with an empty string, which the blank-DSN rule refused, and every container
+        // that named its DSN this way failed to compile.
+        $container = new ContainerBuilder();
+        $container->registerExtension(new DurableExtension());
+        $container->loadFromExtension('durable', ['temporal' => ['dsn' => '%env(DURABLE_DSN)%']]);
+
+        (new MergeExtensionConfigurationPass())->process($container);
+        (new ValidateEnvPlaceholdersPass())->process($container);
+
+        // And the DSN still turns the cluster on, read at runtime from the variable.
+        self::assertTrue($container->hasDefinition('durable.temporal.connection'));
     }
 
     public function testANegativeRetryCountIsRefused(): void

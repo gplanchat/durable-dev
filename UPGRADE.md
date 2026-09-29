@@ -147,6 +147,17 @@ win, and the history reads `ActivityCompleted TimerCancelled`.
 would on Temporal. Update its expectation. No Rector rule: this is a behaviour change, not an
 API change.
 
+### `durable.temporal.dsn: '%env(…)%'` compiles again without an `env()` default
+
+**Who is affected**: every Symfony application that names its DSN through an environment variable
+and declares no `env(…)` parameter for it, since 0.1.0-beta1. Its container no longer compiled:
+"Invalid configuration for path "durable.temporal.dsn": A temporal://… DSN string is expected,
+got """. Symfony checks such a placeholder with an empty string at compile time, and the rule
+that refuses an empty DSN (#334) refused the placeholder too.
+
+The rule now lets a placeholder through, and still refuses a literal empty or blank DSN and a value
+that is not a string. **What to do**: nothing. An `env(…)` default added as a workaround can stay.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)
