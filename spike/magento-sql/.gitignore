@@ -1,0 +1,8 @@
+# Generated or installed by the spike's scripts; only the scripts, the module and the README are tracked.
+/resolve/
+/mageos/*
+!/mageos/composer.json
+!/mageos/app/
+/mageos/app/*
+!/mageos/app/code/
+/out/

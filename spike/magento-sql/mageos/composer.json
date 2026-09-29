@@ -1,0 +1,62 @@
+{
+    "name": "gplanchat/magento-sql-spike",
+    "description": "Throwaway Mage-OS for spike #709: option A, the DBAL stores on a connection of their own.",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "mage-os/product-community-edition": "2.2.0",
+        "gplanchat/durable-magento": "@dev",
+        "doctrine/dbal": "^3.8.2 || ^4.0",
+        "symfony/lock": "^6.4 || ^7.0 || ^8.0",
+        "symfony/messenger": "^6.4 || ^7.0 || ^8.0",
+        "gplanchat/durable-bridge-temporal": "@dev"
+    },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://repo.mage-os.org/"
+        },
+        {
+            "type": "path",
+            "url": "../../../src/Bridge/Temporal",
+            "options": {
+                "symlink": false
+            }
+        },
+        {
+            "type": "path",
+            "url": "../../../src/DurableModule",
+            "options": {
+                "symlink": false
+            }
+        },
+        {
+            "type": "path",
+            "url": "../../../src/Durable",
+            "options": {
+                "symlink": false
+            }
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "Magento\\Setup\\": "setup/src/Magento/Setup/",
+            "Gplanchat\\Bridge\\Dbal\\": "../../../src/Bridge/Dbal/",
+            "Gplanchat\\DurableSqlSpike\\": "app/code/Gplanchat/DurableSqlSpike/"
+        },
+        "files": [
+            "app/etc/NonComposerComponentRegistration.php"
+        ]
+    },
+    "config": {
+        "allow-plugins": {
+            "mage-os/composer-dependency-version-audit-plugin": false,
+            "mage-os/magento-composer-installer": true,
+            "mage-os/inventory-composer-installer": true,
+            "laminas/laminas-dependency-plugin": true
+        }
+    }
+}
