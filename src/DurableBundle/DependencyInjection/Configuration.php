@@ -6,6 +6,7 @@ namespace Gplanchat\Durable\Bundle\DependencyInjection;
 
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 
 final class Configuration implements ConfigurationInterface
 {
@@ -45,15 +46,24 @@ final class Configuration implements ConfigurationInterface
             ->end()
             ->arrayNode('temporal')
             ->addDefaultsIfNotSet()
-            // Its own node: the blank-DSN rule must let a %env()% placeholder through.
-            ->append((new TemporalDsnNodeDefinition('dsn'))
-                ->defaultNull()
-                ->validate()
-                ->ifTrue(static fn(mixed $dsn): bool => null !== $dsn && !\is_string($dsn))
-                ->thenInvalid('A temporal://… DSN string is expected, got %s.')
-                ->end()
-                ->info('A temporal://… DSN (for instance %env(DURABLE_DSN)%). When set, it turns on the native Temporal backend (gRPC); over ext-grpc when it is loaded, over curl (ext-curl) otherwise; temporal+http:// for the JSON gateway. No SQL/PDO.'))
+            // The blank-DSN rule reads the raw value, here, and not on the dsn node: Symfony checks
+            // a %env()% placeholder with '' at compile time, and the node's own closures would see
+            // that '' and refuse every `dsn: '%env(DURABLE_DSN)%'` written without an env() default.
+            ->beforeNormalization()
+            ->ifTrue(static fn(mixed $temporal): bool => \is_array($temporal) && \is_string($temporal['dsn'] ?? null) && '' === trim($temporal['dsn']))
+            ->then(static function (array $temporal): never {
+                throw new InvalidConfigurationException(\sprintf('Invalid configuration for path "durable.temporal.dsn": A temporal://… DSN string is expected, got %s.', json_encode($temporal['dsn'])));
+            })
+            ->end()
             ->children()
+            ->scalarNode('dsn')
+            ->defaultNull()
+            ->validate()
+            ->ifTrue(static fn(mixed $dsn): bool => null !== $dsn && !\is_string($dsn))
+            ->thenInvalid('A temporal://… DSN string is expected, got %s.')
+            ->end()
+            ->info('A temporal://… DSN (for instance %env(DURABLE_DSN)%). When set, it turns on the native Temporal backend (gRPC); over ext-grpc when it is loaded, over curl (ext-curl) otherwise; temporal+http:// for the JSON gateway. No SQL/PDO.')
+            ->end()
             ->booleanNode('search_attributes')
             ->defaultFalse()
             ->info('Write the DurableWorkflowName and DurableExecutionId search attributes on every start, so the run list can filter by workflow name and execution id. Register both on the namespace before turning this on: a server refuses a start that names an unregistered attribute.')

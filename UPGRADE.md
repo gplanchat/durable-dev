@@ -147,7 +147,7 @@ win, and the history reads `ActivityCompleted TimerCancelled`.
 would on Temporal. Update its expectation. No Rector rule: this is a behaviour change, not an
 API change.
 
-### `durable.temporal.dsn: '%env(…)%'` compiles again without an `env()` default
+### `durable.temporal.dsn: '%env(…)%'` compiles again without an `env()` default (#687)
 
 **Who is affected**: every Symfony application that names its DSN through an environment variable
 and declares no `env(…)` parameter for it, since 0.1.0-beta1. Its container no longer compiled:
