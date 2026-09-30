@@ -444,6 +444,18 @@ classes, and `StatusColor`.
 If you used a class that is now `@internal`, open an issue describing the use: it tells us which
 part of it should become API.
 
+### New: Rector moves activity stubs to `#[Activities]` parameters (#778)
+
+**Who is affected**: nobody has to change anything. Building a stub with
+`$environment->activityStub()` stays supported. The `durable-upgrade` set gains
+`ActivitiesParameterRector`, which rewrites a stub to the form the documentation shows first: an
+`ActivityStub` parameter of the workflow method, marked `#[Activities(Contract::class, ...)]`, with
+the `@param ActivityStub<Contract>` docblock PHPStan reads. It keeps the constructor form wherever
+the attribute cannot carry the stub: options computed at run time, a stub read from a signal,
+update, query or helper method, and a workflow method an interface or parent class declares. The
+[durable-rector README](src/DurableRector/README.md#upgrading-inside-durable) lists the cases. To
+skip the rule, add `->withSkip([ActivitiesParameterRector::class])` to your `rector.php`.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)

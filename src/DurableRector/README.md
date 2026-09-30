@@ -48,6 +48,32 @@ all what it **cannot** do on its own (a compiled Symfony container holds the ful
 and wants its `cache:clear`), is written version by version, at the root of the repository, in
 [`UPGRADE.md`](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md).
 
+### Activity stubs become `#[Activities]` parameters
+
+`ActivitiesParameterRector` is not tied to a break. It moves a stub built with
+`$environment->activityStub()` to the form the documentation shows first: an `ActivityStub`
+parameter of the `#[AsWorkflowMethod]` method, marked `#[Activities(Contract::class, ...)]`, plus
+the `@param ActivityStub<Contract>` docblock that `gplanchat/durable-phpstan` reads. Durable passes
+that stub in when it runs the workflow, and the reader sees the contract and its options in the
+signature.
+
+It rewrites a local variable assigned once, at the top of the workflow method, and a private
+property assigned once in the constructor and read only by that method. The contract must be a
+`Contract::class` constant. The options must be absent, `ActivityOptions::default()`, or
+`ActivityOptions::of()` with literal arguments only, because an attribute argument is a constant.
+
+It keeps the constructor form, which stays supported, wherever the attribute cannot carry the stub:
+
+- **options computed at run time**, such as a task queue named after a tenant, and `of()` arguments
+  given as value objects (`RetryLimit::once()`, `Duration::seconds()`) or as an `activityId`, which
+  the attribute has no field for;
+- **a stub read outside the workflow method**: Durable calls a signal or update method with the
+  message payload only, and a helper method would need the stub passed in;
+- **a workflow method declared by an interface or a parent class**: PHP forbids the implementation
+  from adding a required parameter. A workflow migrated with `temporal-sdk.php` usually still
+  implements its SDK contract, so it keeps the stub that `TemporalFacadeToEnvironmentRector` wrote
+  in the constructor until you drop that interface.
+
 ---
 
 ## `temporal-sdk.php` — coming off the SDK

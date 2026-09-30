@@ -6,6 +6,7 @@ use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Observation\RunDashboard;
+use Gplanchat\Durable\Rector\Rector\ActivitiesParameterRector;
 use Gplanchat\Durable\Rector\Rector\ExecutionIdArgumentRector;
 use Gplanchat\Durable\Rector\Rector\ExecutionIdEventArgumentRector;
 use Gplanchat\Durable\Timer\TimerWakeDelayCalculator;
@@ -85,4 +86,6 @@ return RectorConfig::configure()
     // Unreleased — the ports take an `ExecutionId` rather than a string (#638). This rule wraps the
     // string arguments it can prove; a class that implements a port, and code that reads an id a
     // port now returns, are migrated by hand (UPGRADE.md).
-    ->withRules([AddParamBasedOnParentClassMethodRector::class, ExecutionIdArgumentRector::class, ExecutionIdEventArgumentRector::class]);
+    // Unreleased — not a break: an activity stub `#[Activities]` can carry moves to a parameter of the
+    // workflow method, the form the documentation shows first; the constructor form still works (#778).
+    ->withRules([AddParamBasedOnParentClassMethodRector::class, ExecutionIdArgumentRector::class, ExecutionIdEventArgumentRector::class, ActivitiesParameterRector::class]);
