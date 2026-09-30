@@ -14,12 +14,17 @@ and the workflow code is the one that already runs on Symfony.
 > **Documentation**: [durable.rocks](https://durable.rocks).
 
 ```bash
-composer require gplanchat/durable-laravel
+composer require gplanchat/durable-laravel gplanchat/durable-bridge-illuminate   # one SQL database
 php artisan migrate
 ```
 
+On a Temporal cluster, require `gplanchat/durable-bridge-temporal` instead of the Illuminate bridge
+and set `backend` to `temporal`. This package suggests both bridges and requires neither: you install
+the one of the backend you select. With `backend` set to `illuminate`, the default, and the bridge
+missing, registration fails with the command to run.
+
 Package auto-discovery registers the provider. `migrate` creates the four tables, because
-`gplanchat/durable-bridge-illuminate` ships them and this package requires it.
+`gplanchat/durable-bridge-illuminate` ships them.
 
 ## What it is not
 
@@ -130,6 +135,44 @@ commands go out twice.
 is not, because it is Laravel's own default cache in the testing environment and excluding inside
 one process is exactly what a test wants — it is the worker command's business to refuse it, since
 that is where the plurality of processes lives.
+
+## One resume at a time
+
+`Queue\ResumeLock` is the one thing no storage choice can supply. Two workers resuming the **same**
+execution both replay it, both believe they are discovering the commands it produces, and those
+commands go out twice. The journal does not prevent it — it faithfully records whatever it is
+handed, twice included.
+
+```php
+$lock = new ResumeLock($cacheStore);          // any store implementing LockProvider
+$lock->around($executionId, fn() => $runner->resume($executionId));
+```
+
+**It waits on its own rather than calling `Lock::block()`**, and that is deliberate: `block()` calls
+a **global** `now()`, which only a full Laravel application defines — `illuminate/support` publishes
+it under its own namespace only. A package that relies on it works inside an application and breaks
+in a standalone worker or a test, which is the worst of both: the failure only happens where nobody
+is looking.
+
+**`LockProvider` is the only contract this lock needs, and it filters nothing.** An earlier version
+of this file claimed it forced the caller to pick a store that can actually lock, and that the
+`file` store did not implement it. **Both halves are wrong on Laravel 12**, and measuring said so:
+nine stores implement `LockProvider`, `file` among them — and it locks correctly across processes —
+while `NullStore` implements it too and its `NoLock::acquire()` returns `true` unconditionally.
+
+Measured, twenty resumes of one execution across four `queue:work` processes:
+
+| store | overlapping critical sections | max concurrency |
+|---|---|---|
+| `database` | 0 | 1 |
+| `file` | 0 | 1 |
+| `array` | **15 of 20** | **4** |
+| `null` | **15 of 20** | **4** |
+
+`array` excludes inside one process and not between two; `null` excludes nothing at all and says so
+to nobody. Both type-check. **So the type is not the guard — the choice is yours, and it is the one
+choice in this package that silently forks a journal when it is wrong.** Use `database`, `redis`,
+`memcached`, `dynamodb` or `file`.
 
 ## Not in this package
 
