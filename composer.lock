@@ -594,7 +594,7 @@
             "dist": {
                 "type": "path",
                 "url": "src/Bridge/Illuminate",
-                "reference": "13d906b508861b244173fd63a8eddf4e6b3d8f71"
+                "reference": "d6f8591c0e80317230b03ec5c8bd0275dd602993"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -631,7 +631,7 @@
                     "email": "gregory@gyroscops.com"
                 }
             ],
-            "description": "Illuminate (Laravel) journal, metadata and run stores for gplanchat/durable — durable execution on the connection Laravel already owns",
+            "description": "Illuminate (Laravel) journal, metadata and run stores for gplanchat/durable — durable execution on one SQL database through Laravel's database layer",
             "keywords": [
                 "durable-execution",
                 "eloquent",
@@ -785,11 +785,10 @@
             "dist": {
                 "type": "path",
                 "url": "src/DurableLaravel",
-                "reference": "353209d040e5608e1fa3946b3fbf4763eafa8016"
+                "reference": "d6d58604136c249fd71ccac2ca4c14879d741712"
             },
             "require": {
                 "gplanchat/durable": "self.version",
-                "gplanchat/durable-bridge-illuminate": "self.version",
                 "illuminate/cache": "^11.0 || ^12.0 || ^13.0",
                 "illuminate/contracts": "^11.0 || ^12.0 || ^13.0",
                 "illuminate/database": "^11.0 || ^12.0 || ^13.0",
@@ -799,7 +798,9 @@
                 "psr/log": "^1.1 || ^2.0 || ^3.0"
             },
             "suggest": {
+                "gplanchat/durable-bridge-illuminate": "The \"illuminate\" backend (the default): the journal, the run catalogue and their migrations on one SQL database through Laravel's database layer. Suggested rather than required, so a project on Temporal or in memory does not install the SQL stores.",
                 "gplanchat/durable-bridge-temporal": "Required by the \"temporal\" backend: the gRPC driver for a Temporal cluster. Suggested rather than required because it installs five Symfony components a Laravel application never loads.",
+                "gplanchat/durable-filament": "A read-only Filament 3 or 4 dashboard of workflow runs. It requires this package; this package never requires or detects it.",
                 "illuminate/console": "Required by durable:temporal-worker and durable:nexus-worker, the two commands this package adds. Every Laravel application already has it; it is suggested so that it stays out of a monorepo graph that still tests the Symfony 6.4 line."
             },
             "type": "library",
