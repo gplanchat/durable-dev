@@ -82,8 +82,7 @@ it a label (`await(…, label: 'signal approve')` shows `waiting on signal appro
 backends tell it, on a runs table that has the `waiting_on` column. Temporal tells it too, the
 Magento grid included, from a `durableWaitingOn` memo the worker updates at each suspension. It
 leaves out the attempt, since no workflow task runs when an activity attempt starts, and a timer's
-summary, which is never sent to the server. Sylius shows the line in the list, Filament in the list
-and on the run page. Magento and the profiler print the reason without the `waiting on` prefix.
+summary, which is never sent to the server. Sylius and Filament show the line in the list and on the run page. Magento and the profiler print the reason without the `waiting on` prefix.
 
 ### 3. Counters, over what you are looking at
 
@@ -152,8 +151,7 @@ Two absences look alike and are not:
   queues.
 - **This run does not have this fact.** A run still going has no end date. The column exists for
   its neighbours, so in a table it reads as an explicit em dash. A blank cell reads as a rendering
-  that failed. Magento and the profiler apply this rule. The Sylius grid still leaves the start
-  date of such a run blank, and the Filament Notes column leaves an empty note blank.
+  that failed. Every surface applies this rule.
 
 ## What differs between surfaces {#what-differs-between-hosts}
 

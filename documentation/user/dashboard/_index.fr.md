@@ -85,8 +85,7 @@ le workflow lui a donné un libellé (`await(…, label: 'signal approve')` affi
 Temporal le dit aussi, grille Magento comprise, par un mémo `durableWaitingOn` que le worker met à
 jour à chaque suspension. Le mémo omet la tentative, puisqu'aucune tâche de workflow ne s'exécute quand une
 tentative d'activité démarre, et le résumé d'un minuteur, qui n'est jamais envoyé au serveur.
-Sylius affiche la ligne dans la liste, Filament dans la liste et sur la page de l'exécution. Magento
-et le profileur écrivent la raison sans le préfixe `waiting on`.
+Sylius et Filament affichent la ligne dans la liste et sur la page de l'exécution. Magento et le profileur écrivent la raison sans le préfixe `waiting on`.
 
 ### 3. Les compteurs, sur ce que vous regardez
 
@@ -160,9 +159,7 @@ Deux absences se ressemblent et n'en sont pas une seule :
   n'a pas de file, alors que c'est le backend qui n'a pas de files.
 - **Cette exécution n'a pas ce fait.** Une exécution en cours n'a pas de date de fin. La colonne
   existe pour ses voisines, elle se lit donc, dans un tableau, comme un tiret cadratin explicite. Une
-  case vide se lit comme un rendu qui a échoué. Magento et le profileur appliquent cette règle. La
-  grille Sylius laisse encore vide la date de début d'une telle exécution, et la colonne Notes de
-  Filament laisse vide une note vide.
+  case vide se lit comme un rendu qui a échoué. Chaque surface applique cette règle.
 
 ## Ce qui diffère d'une surface à l'autre {#ce-qui-diffère-dun-hôte-à-lautre}
 

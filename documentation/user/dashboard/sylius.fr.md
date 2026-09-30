@@ -53,5 +53,4 @@ décrit dans la [vue d'ensemble](../) s'applique.
 
 ## Différences connues
 
-La page d'une exécution ne reprend pas la ligne `waiting on` de la liste, et la date de démarrage
-d'une exécution qui n'en a pas reste vide dans la grille. Voir [Parité](../parity/).
+La page d'une exécution et les cellules de la grille suivent les règles de la [vue d'ensemble](../). Les différences entre les quatre surfaces sont dans [Parité](../parity/).

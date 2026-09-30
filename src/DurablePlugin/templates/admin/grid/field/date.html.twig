@@ -1,2 +1,3 @@
-{# A fact the backend does not have stays absent, not empty (the listing omits the key). #}
-{% if data is not null %}{{ data|date('Y-m-d H:i:s', false) }}{% endif %}
+{# A run that has no start date still has the column: an em dash, not a blank cell, which reads as a
+   rendering that failed (#822). The listing omits the key for a run without one. #}
+{% if data is not null %}{{ data|date('Y-m-d H:i:s', false) }}{% else %}—{% endif %}

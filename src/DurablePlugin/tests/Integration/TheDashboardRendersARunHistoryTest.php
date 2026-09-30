@@ -159,6 +159,32 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertStringContainsString('Outcome:', $page);
     }
 
+    public function testTheRunPageSaysWhatARunWaitsOnAsTheListDoes(): void
+    {
+        // #822: the list carried the line, and the page of the run did not.
+        $run = (new RunDashboard(new RenderingCatalog(executionId: 'order/42', waitingOn: 'signal approve')))->run('order/42');
+        $page = $this->twig()->render('@DurablePlugin/admin/dashboard/_dashboard.html.twig', ['backend' => $run['backend'], 'selectedRun' => $run['run']]);
+
+        self::assertStringContainsString('waiting on signal approve', $page);
+    }
+
+    public function testARunWithoutAWaitReasonHasNoWaitLineOnItsPage(): void
+    {
+        $run = (new RunDashboard(new RenderingCatalog(executionId: 'order/42')))->run('order/42');
+        $page = $this->twig()->render('@DurablePlugin/admin/dashboard/_dashboard.html.twig', ['backend' => $run['backend'], 'selectedRun' => $run['run']]);
+
+        self::assertStringNotContainsString('waiting on', $page);
+    }
+
+    public function testTheStartDateOfARunThatHasNoneIsADashAndNotABlankCell(): void
+    {
+        // The overview: a blank cell reads as a rendering that failed.
+        $twig = $this->twig();
+
+        self::assertSame('—', trim($twig->render('@DurablePlugin/admin/grid/field/date.html.twig', ['data' => null])));
+        self::assertSame('2023-11-14 22:13:20', trim($twig->render('@DurablePlugin/admin/grid/field/date.html.twig', ['data' => new \DateTimeImmutable('@1700000000')])));
+    }
+
     public function testAFrenchRunPageUsesTheSameWords(): void
     {
         $run = (new RunDashboard(new RenderingCatalog(executionId: 'order/42')))->run('order/42');

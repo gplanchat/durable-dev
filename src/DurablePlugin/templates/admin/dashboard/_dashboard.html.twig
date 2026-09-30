@@ -213,6 +213,9 @@
                                         <p><strong>{{ 'details.workflow'|trans({}, 'durable') }}</strong> {{ selectedRun.workflowName }}</p>
                                         <p><strong>{{ 'details.run'|trans({}, 'durable') }}</strong> <code>{{ selectedRun.executionId }}</code>{% if selectedRun.runId != selectedRun.executionId %} <small class="text-secondary">{{ 'details.backend_run'|trans({'%id%': selectedRun.runId}, 'durable') }}</small>{% endif %}</p>
                                         <p><strong>{{ 'details.outcome'|trans({}, 'durable') }}</strong> {{ ('outcome.' ~ selectedRun.status)|trans({}, 'durable')|upper }}</p>
+                                        {# What the run waits on, as the list says it (#324, #447, #822). #}
+                                        {% if selectedRun.waitingForWorker is defined %}<p class="text-orange">{{ selectedRun.waitingForWorker }}</p>{% endif %}
+                                        {% if selectedRun.waitingOn is defined %}<p class="text-secondary">{{ selectedRun.waitingOn }}</p>{% endif %}
 
                                         {# The waits served by someone else (#671): where each one is, and whether it is
                                            over. In flight is not a failure, and it must not read like one. #}

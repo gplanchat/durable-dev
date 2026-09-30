@@ -34,6 +34,14 @@ final class TheRunListTest extends PanelTestCase
             ->assertSee('The fake answers.');
     }
 
+    public function testARunWithNothingToSayAndNoStartDateShowsDashesNotBlankCells(): void
+    {
+        // run-2 has no start date and no note; run-1 has both. Two dashes, from run-2 only.
+        $html = $this->get('/admin/durable/runs')->assertOk()->getContent();
+
+        self::assertSame(2, substr_count((string) $html, '<td>—</td>'));
+    }
+
     public function testTheCountersNameThePageTheyCover(): void
     {
         $this->get('/admin/durable/runs')->assertSee('Outcomes across the 2 runs on this page');

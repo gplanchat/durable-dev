@@ -20,7 +20,7 @@ when a gap closes.
 | Workflow name filter | Whole name, where the backend can | Contains, ignoring case, within the window | Whole name, where the backend can | No |
 | Execution id filter | Prefix, where the backend can | Contains, within the window | Prefix, where the backend can | No |
 | `waiting for a worker` | Line and counter | No | Line and counter | No |
-| `waiting on` | List | List and run page | List and run page | Run section |
+| `waiting on` | List and run page | List and run page | List and run page | Run section |
 | One line per action | Yes | Yes, plus a journal table | Yes | No, one row per event |
 | Hatched queue time | Yes | Yes | On the timeline | No |
 | Red on the failing event | Yes | Yes | On the timeline | No |
@@ -53,9 +53,7 @@ Three things stay specific to a surface:
 
 - **Magento counters.** They cover the whole 200-run window and ignore the grid filters.
 - **Filament outcome.** The list reads every outcome.
-- **Sylius run page.** It does not show the `waiting on` line, which the list does.
-- **Blank cells.** The Sylius grid leaves the start date blank when a run has none, and the
-  Filament Notes column leaves an empty note blank. Magento and the profiler print a dash.
+
 - **Continued as new.** Grey on Sylius and Filament, purple in the profiler, uncoloured on Magento.
 - **Profiler.** Only runs dispatched during the request appear, plus those named in the
   `durable_execution` query parameter. See [the profiler page](../profiler/).

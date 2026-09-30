@@ -65,9 +65,9 @@
                                 <td><x-filament::link :href="$runUrl($run['executionId'])"><code>{{ $run['executionId'] }}</code></x-filament::link></td>
                                 <td>{{ $run['workflowName'] }}</td>
                                 <td><x-filament::badge :color="\Gplanchat\Durable\Filament\StatusColor::of($run['status'])">{{ $t('status.' . $run['status']) }}</x-filament::badge></td>
-                                {{-- An absent fact in a table is an em dash (DUR049). --}}
+                                {{-- An absent fact in a table is an em dash (DUR049), and so is a note a run has none of (#822). --}}
                                 <td>{{ isset($run['startedAt']) ? $run['startedAt']->format('Y-m-d H:i:s') : '—' }}</td>
-                                <td>{{ implode(' · ', array_filter([$run['waitingForWorker'] ?? null, $run['waitingOn'] ?? null])) }}</td>
+                                <td>{{ implode(' · ', array_filter([$run['waitingForWorker'] ?? null, $run['waitingOn'] ?? null])) ?: '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

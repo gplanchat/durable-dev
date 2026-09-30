@@ -20,7 +20,7 @@ surfaces diffèrent encore. Elle change quand un écart se referme.
 | Filtre par nom de workflow | Nom entier, là où le backend sait l'appliquer | Contient, sans tenir compte de la casse, dans la fenêtre | Nom entier, là où le backend sait l'appliquer | Non |
 | Filtre par identifiant d'exécution | Préfixe, là où le backend sait l'appliquer | Contient, dans la fenêtre | Préfixe, là où le backend sait l'appliquer | Non |
 | `waiting for a worker` | Ligne et compteur | Non | Ligne et compteur | Non |
-| `waiting on` | Liste | Liste et page de l'exécution | Liste et page de l'exécution | Section de l'exécution |
+| `waiting on` | Liste et page de l'exécution | Liste et page de l'exécution | Liste et page de l'exécution | Section de l'exécution |
 | Une ligne par action | Oui | Oui, plus une table du journal | Oui | Non, une ligne par événement |
 | Temps de file hachuré | Oui | Oui | Sur la frise | Non |
 | Rouge sur l'événement en échec | Oui | Oui | Sur la frise | Non |
@@ -57,11 +57,7 @@ Trois éléments restent propres à une surface :
 - **Compteurs Magento.** Ils couvrent toute la fenêtre de 200 exécutions et ignorent les filtres de
   la grille.
 - **Issue sous Filament.** La liste lit toutes les issues.
-- **Page d'une exécution sous Sylius.** Elle n'affiche pas la ligne `waiting on`, que la liste
-  affiche.
-- **Cases vides.** La grille Sylius laisse la date de début vide quand une exécution n'en a pas, et
-  la colonne Notes de Filament laisse vide une note vide. Magento et le profileur affichent un
-  tiret.
+
 - **Poursuivie à neuf.** Gris sous Sylius et Filament, violet dans le profileur, sans
   couleur sous Magento.
 - **Profileur.** Seules apparaissent les exécutions envoyées pendant la requête, plus celles que
