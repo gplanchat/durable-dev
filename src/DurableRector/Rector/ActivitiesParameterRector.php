@@ -23,7 +23,10 @@ use PhpParser\Node\Expr\AssignRef;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\Closure;
 use PhpParser\Node\Expr\ConstFetch;
+use PhpParser\Node\Expr\List_;
 use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Expr\NullsafeMethodCall;
+use PhpParser\Node\Expr\NullsafePropertyFetch;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
@@ -35,6 +38,7 @@ use PhpParser\Node\Scalar\Float_;
 use PhpParser\Node\Scalar\Int_;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt;
+use PhpParser\Node\Stmt\Catch_;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Expression;
@@ -73,7 +77,7 @@ final class ActivitiesParameterRector extends AbstractRector
         'timeouts' => ['startToClose', 'number'],
         'initialInterval' => ['initialInterval', 'number'],
         'nonRetryableExceptions' => ['nonRetryable', 'classes'],
-        'taskQueue' => ['taskQueue', 'string'],
+        'taskQueue' => ['taskQueue', 'queue'],
         'backoffCoefficient' => ['backoffCoefficient', 'number'],
         'maximumInterval' => ['maximumInterval', 'number'],
         'summary' => ['summary', 'string'],
@@ -126,7 +130,10 @@ AFTER,
         \assert($node instanceof Class_);
 
         $method = $this->workflowMethod($node);
-        if (null === $method || null === $method->stmts || $this->isDeclaredAbove($node, $method->name->toString())) {
+        // A subclass may override the method, and a call from the class itself would miss the new
+        // parameter: neither can be rewritten from here.
+        if (null === $method || null === $method->stmts || !$node->isFinal()
+            || $this->isDeclaredAbove($node, $method->name->toString()) || $this->callsItself($node, $method->name->toString())) {
             return null;
         }
 
@@ -151,9 +158,12 @@ AFTER,
                 continue;
             }
             $property = $this->privateProperty($node, $name);
+            // Any variable of that name (an arrow fn or catch parameter, a destructuring) would take
+            // the stub's place; inside an anonymous class, `$this` is another object.
             if (null === $property || [] !== $node->getTraitUses() || $this->hasParam($method, $name)
-                || $this->writesTo($method, $name) > 0 || !$this->readOnlyIn($node, $name, $method)
-                || $this->readInClosure($method, $name)) {
+                || $this->contains($method->stmts, fn(Node $n): bool => ($n instanceof Variable && $this->isName($n, $name)) || $n instanceof Class_)
+                || $this->contains($node->stmts, fn(Node $n): bool => ($n instanceof PropertyFetch || $n instanceof NullsafePropertyFetch) && !$n->name instanceof Identifier)
+                || !$this->readOnlyIn($node, $name, $method) || $this->readInClosure($method, $name)) {
                 continue;
             }
             \assert(null !== $constructor && null !== $constructor->stmts);
@@ -244,9 +254,6 @@ AFTER,
             return null;
         }
 
-        if ($this->isName($options->name, 'default') && [] === $options->args) {
-            return [];
-        }
         if (!$this->isName($options->name, 'of')) {
             return null;
         }
@@ -268,7 +275,9 @@ AFTER,
             $attributeArgs[] = new Arg($ofArg->value, name: new Identifier($target));
         }
 
-        return $attributeArgs;
+        // With no option, the attribute builds the stub with no options at all, not with the
+        // default policy the call passed: the Durable worker would then retry without backoff.
+        return [] === $attributeArgs ? null : $attributeArgs;
     }
 
     /** Whether the value is a literal of that kind: nothing computed at run time fits in an attribute. */
@@ -278,6 +287,8 @@ AFTER,
             'int' => $value instanceof Int_,
             'number' => $value instanceof Int_ || $value instanceof Float_,
             'string' => $value instanceof String_,
+            // An empty queue is "no queue" for of(), and an error for the attribute.
+            'queue' => $value instanceof String_ && '' !== $value->value,
             'classes' => $value instanceof Array_ && [] === array_filter($value->items, fn(ArrayItem $item): bool => null !== $item->key || $item->unpack
                 || !($item->value instanceof ClassConstFetch && $item->value->class instanceof Name && $this->isName($item->value->name, 'class'))),
             'cancellation' => $value instanceof ClassConstFetch && $value->class instanceof Name
@@ -339,7 +350,31 @@ AFTER,
 
     private function isThisFetch(Node $node, string $name): bool
     {
-        return $node instanceof PropertyFetch && $this->isName($node->var, 'this') && $this->isName($node->name, $name);
+        return ($node instanceof PropertyFetch || $node instanceof NullsafePropertyFetch)
+            && $this->isName($node->var, 'this') && $this->isName($node->name, $name);
+    }
+
+    /** `$this->run()`, `$this->run(...)`, `self::run()`, or the name in a callable array. */
+    private function callsItself(Class_ $class, string $method): bool
+    {
+        return $this->contains($class->stmts, fn(Node $n): bool => (($n instanceof MethodCall || $n instanceof NullsafeMethodCall || $n instanceof StaticCall)
+            && $this->isName($n->name, $method)) || ($n instanceof String_ && $method === $n->value));
+    }
+
+    /**
+     * @param Node[]                 $nodes
+     * @param \Closure(Node): bool $match
+     */
+    private function contains(array $nodes, \Closure $match): bool
+    {
+        $found = false;
+        $this->traverseNodesWithCallable($nodes, function (Node $n) use (&$found, $match): null {
+            $found = $found || $match($n);
+
+            return null;
+        });
+
+        return $found;
     }
 
     private function hasParam(ClassMethod $method, string $name): bool
@@ -361,16 +396,35 @@ AFTER,
             $targets = match (true) {
                 $n instanceof Assign, $n instanceof AssignRef, $n instanceof AssignOp => [$n->var],
                 $n instanceof Foreach_ => [$n->keyVar, $n->valueVar],
+                $n instanceof Catch_ => [$n->var],
                 default => [],
             };
             foreach ($targets as $target) {
-                $writes += $target instanceof Variable && $this->isName($target, $name) ? 1 : 0;
+                // A destructuring writes every variable it lists.
+                $variables = $target instanceof List_ || $target instanceof Array_ ? $this->listed($target) : [$target];
+                foreach ($variables as $variable) {
+                    $writes += $variable instanceof Variable && $this->isName($variable, $name) ? 1 : 0;
+                }
             }
 
             return null;
         });
 
         return $writes;
+    }
+
+    /**
+     * @return list<Expr|null>
+     */
+    private function listed(List_|Array_ $list): array
+    {
+        $variables = [];
+        foreach ($list->items as $item) {
+            $value = $item?->value;
+            array_push($variables, ...($value instanceof List_ || $value instanceof Array_ ? $this->listed($value) : [$value]));
+        }
+
+        return $variables;
     }
 
     /**
