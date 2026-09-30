@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Rector\Rector;
 
+use Gplanchat\Durable\Activity\ActivityCancellationType;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Attribute\Activities;
@@ -11,20 +12,27 @@ use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
+use PhpParser\Node\ArrayItem;
 use PhpParser\Node\Attribute;
 use PhpParser\Node\AttributeGroup;
 use PhpParser\Node\Expr;
+use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\AssignOp;
 use PhpParser\Node\Expr\AssignRef;
 use PhpParser\Node\Expr\ClassConstFetch;
+use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
+use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\Name\FullyQualified;
 use PhpParser\Node\Param;
+use PhpParser\Node\Scalar\Float_;
+use PhpParser\Node\Scalar\Int_;
+use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
@@ -54,6 +62,23 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  */
 final class ActivitiesParameterRector extends AbstractRector
 {
+    /**
+     * `ActivityOptions::of()` parameters, in order => the `#[Activities]` argument that says the
+     * same, and the literal it takes. `activityId` has no counterpart, so it keeps the call.
+     */
+    private const OF_TO_ATTRIBUTE = [
+        'retryLimit' => ['attempts', 'int'],
+        'timeouts' => ['startToClose', 'number'],
+        'initialInterval' => ['initialInterval', 'number'],
+        'nonRetryableExceptions' => ['nonRetryable', 'classes'],
+        'taskQueue' => ['taskQueue', 'string'],
+        'backoffCoefficient' => ['backoffCoefficient', 'number'],
+        'maximumInterval' => ['maximumInterval', 'number'],
+        'summary' => ['summary', 'string'],
+        'activityId' => [null, ''],
+        'cancellationType' => ['cancellationType', 'cancellation'],
+    ];
+
     public function __construct(
         private readonly PhpDocInfoFactory $phpDocInfoFactory,
         private readonly DocBlockUpdater $docBlockUpdater,
@@ -198,7 +223,46 @@ AFTER,
             return null;
         }
 
-        return $this->isName($options->name, 'default') && [] === $options->args ? [] : null;
+        if ($this->isName($options->name, 'default') && [] === $options->args) {
+            return [];
+        }
+        if (!$this->isName($options->name, 'of')) {
+            return null;
+        }
+
+        $parameters = array_keys(self::OF_TO_ATTRIBUTE);
+        $attributeArgs = [];
+        foreach ($options->getArgs() as $position => $ofArg) {
+            $parameter = null === $ofArg->name ? ($parameters[$position] ?? null) : $ofArg->name->toString();
+            if ($ofArg->unpack || null === $parameter || !\array_key_exists($parameter, self::OF_TO_ATTRIBUTE)) {
+                return null;
+            }
+            if ($ofArg->value instanceof ConstFetch && $this->isName($ofArg->value, 'null')) {
+                continue;
+            }
+            [$target, $accepts] = self::OF_TO_ATTRIBUTE[$parameter];
+            if (null === $target || !$this->isLiteral($ofArg->value, $accepts)) {
+                return null;
+            }
+            $attributeArgs[] = new Arg($ofArg->value, name: new Identifier($target));
+        }
+
+        return $attributeArgs;
+    }
+
+    /** Whether the value is a literal of that kind: nothing computed at run time fits in an attribute. */
+    private function isLiteral(Expr $value, string $kind): bool
+    {
+        return match ($kind) {
+            'int' => $value instanceof Int_,
+            'number' => $value instanceof Int_ || $value instanceof Float_,
+            'string' => $value instanceof String_,
+            'classes' => $value instanceof Array_ && [] === array_filter($value->items, fn(ArrayItem $item): bool => null !== $item->key || $item->unpack
+                || !($item->value instanceof String_ || ($item->value instanceof ClassConstFetch && $item->value->class instanceof Name && $this->isName($item->value->name, 'class')))),
+            'cancellation' => $value instanceof ClassConstFetch && $value->class instanceof Name
+                && $this->isName($value->class, ActivityCancellationType::class) && !$this->isName($value->name, 'class'),
+            default => false,
+        };
     }
 
     private function privateProperty(Class_ $class, string $name): ?Property
