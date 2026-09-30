@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Rector\Rector;
 
+use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Attribute\Activities;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
@@ -14,8 +15,11 @@ use PhpParser\Node\Attribute;
 use PhpParser\Node\AttributeGroup;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\Assign;
+use PhpParser\Node\Expr\AssignOp;
+use PhpParser\Node\Expr\AssignRef;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Name;
 use PhpParser\Node\Name\FullyQualified;
@@ -24,6 +28,7 @@ use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Expression;
+use PhpParser\Node\Stmt\Foreach_;
 use PHPStan\PhpDocParser\Ast\PhpDoc\ParamTagValueNode;
 use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
@@ -98,7 +103,8 @@ AFTER,
         $changed = false;
         foreach ($method->stmts as $key => $stmt) {
             $built = $this->builtStub($stmt);
-            if (null === $built || !$built[0] instanceof Variable || !\is_string($name = $built[0]->name)) {
+            if (null === $built || !$built[0] instanceof Variable || !\is_string($name = $built[0]->name)
+                || $this->hasParam($method, $name) || 1 !== $this->writesTo($method, $name)) {
                 continue;
             }
             unset($method->stmts[$key]);
@@ -148,11 +154,57 @@ AFTER,
             || !$contract->value->class instanceof Name || $contract->value->class->isSpecialClassName()) {
             return null;
         }
-        if (isset($args[1])) {
+        $options = isset($args[1]) ? $this->attributeOptions($args[1]) : [];
+        if (null === $options) {
             return null;
         }
 
-        return [$stmt->expr->var, new Attribute(new FullyQualified(Activities::class), [new Arg($contract->value)])];
+        return [$stmt->expr->var, new Attribute(new FullyQualified(Activities::class), [new Arg($contract->value), ...$options])];
+    }
+
+    /**
+     * @return list<Arg>|null the `#[Activities]` arguments that say the same, or null when there are none
+     */
+    private function attributeOptions(Arg $arg): ?array
+    {
+        $options = $arg->value;
+        if (null !== $arg->name || $arg->unpack || !$options instanceof StaticCall || !$options->class instanceof Name
+            || !$this->isName($options->class, ActivityOptions::class) || $options->isFirstClassCallable()) {
+            return null;
+        }
+
+        return $this->isName($options->name, 'default') && [] === $options->args ? [] : null;
+    }
+
+    private function hasParam(ClassMethod $method, string $name): bool
+    {
+        foreach ($method->params as $param) {
+            if ($this->isName($param, $name)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** How many times `$name` is written to in the method, nested scopes included: those count too. */
+    private function writesTo(ClassMethod $method, string $name): int
+    {
+        $writes = 0;
+        $this->traverseNodesWithCallable($method->stmts ?? [], function (Node $n) use (&$writes, $name): null {
+            $targets = match (true) {
+                $n instanceof Assign, $n instanceof AssignRef, $n instanceof AssignOp => [$n->var],
+                $n instanceof Foreach_ => [$n->keyVar, $n->valueVar],
+                default => [],
+            };
+            foreach ($targets as $target) {
+                $writes += $target instanceof Variable && $this->isName($target, $name) ? 1 : 0;
+            }
+
+            return null;
+        });
+
+        return $writes;
     }
 
     /**
