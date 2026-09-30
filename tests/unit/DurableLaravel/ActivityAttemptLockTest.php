@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace unit\Gplanchat\Bridge\Illuminate;
+namespace unit\DurableLaravel;
 
-use Gplanchat\Bridge\Illuminate\Queue\ActivityAttemptLock;
 use Gplanchat\Durable\ExecutionId;
+use Gplanchat\Durable\Laravel\Queue\ActivityAttemptLock;
 use Illuminate\Cache\ArrayStore;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;

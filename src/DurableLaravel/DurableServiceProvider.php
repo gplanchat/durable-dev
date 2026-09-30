@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Laravel;
 
-use Gplanchat\Bridge\Illuminate\Queue\ActivityAttemptLock;
-use Gplanchat\Bridge\Illuminate\Queue\ResumeLock;
 use Gplanchat\Bridge\Illuminate\Schema\DurableSchema;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
@@ -32,11 +30,13 @@ use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Laravel\Activity\DeclaredActivityHandlers;
 use Gplanchat\Durable\Laravel\Nexus\DeclaredNexusOperations;
+use Gplanchat\Durable\Laravel\Queue\ActivityAttemptLock;
 use Gplanchat\Durable\Laravel\Queue\InProcessWorkflowResumeDispatcher;
 use Gplanchat\Durable\Laravel\Queue\LaravelActivityTransport;
 use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowResumeDispatcher;
 use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowTimerDispatcher;
 use Gplanchat\Durable\Laravel\Queue\ResumeDeferral;
+use Gplanchat\Durable\Laravel\Queue\ResumeLock;
 use Gplanchat\Durable\Laravel\Workflow\DeclaredWorkflowTypes;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
@@ -98,6 +98,15 @@ final class DurableServiceProvider extends ServiceProvider
                 \is_scalar($backend) ? (string) $backend : \get_debug_type($backend),
                 '"' . implode('", "', self::BACKENDS) . '"',
             ));
+        }
+
+        // The default backend needs a package this one only suggests; say which, as `bindTemporal()` does.
+        if ('illuminate' === $backend && !class_exists(IlluminateEventStore::class)) {
+            throw new \InvalidArgumentException(
+                'Durable: the "illuminate" backend needs gplanchat/durable-bridge-illuminate, which is '
+                . 'suggested rather than required, so that a project on Temporal or in memory does not '
+                . 'install the SQL stores. Run: composer require gplanchat/durable-bridge-illuminate',
+            );
         }
 
         // An activity may inject it (the activities page shows how). Nothing here serves heartbeats,

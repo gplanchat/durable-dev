@@ -36,6 +36,12 @@ return RectorConfig::configure()
         // profiler never did (#372).
         'Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter' => 'Gplanchat\Bridge\Temporal\Store\TemporalEventConverter',
 
+        // Unreleased — the two cache locks leave the Illuminate bridge for `durable-laravel`, which
+        // uses them on every backend and no longer requires the bridge (#845). Another move
+        // between packages: clear the application cache after it.
+        'Gplanchat\Bridge\Illuminate\Queue\ResumeLock' => 'Gplanchat\Durable\Laravel\Queue\ResumeLock',
+        'Gplanchat\Bridge\Illuminate\Queue\ActivityAttemptLock' => 'Gplanchat\Durable\Laravel\Queue\ActivityAttemptLock',
+
         // 0.1.0-alpha8 — the payload → contract-method adapter moves down from the bundle
         // package to the core: it imported nothing from Symfony, and Magento needs it word for
         // word. After this upgrade, clear the container cache (`bin/console cache:clear`), without

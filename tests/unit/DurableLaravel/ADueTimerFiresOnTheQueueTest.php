@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace unit\DurableLaravel;
 
-use Gplanchat\Bridge\Illuminate\Queue\ResumeLock;
 use Gplanchat\Durable\Event\TimerCompleted;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
 use Gplanchat\Durable\Laravel\Queue\FireWorkflowTimersJob;
 use Gplanchat\Durable\Laravel\Queue\ResumeDeferral;
+use Gplanchat\Durable\Laravel\Queue\ResumeLock;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;

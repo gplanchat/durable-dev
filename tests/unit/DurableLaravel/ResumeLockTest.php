@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace unit\Gplanchat\Bridge\Illuminate;
+namespace unit\DurableLaravel;
 
-use Gplanchat\Bridge\Illuminate\Queue\ResumeLock;
+use Gplanchat\Durable\Laravel\Queue\ResumeLock;
 use Illuminate\Cache\ArrayStore;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use PHPUnit\Framework\TestCase;
